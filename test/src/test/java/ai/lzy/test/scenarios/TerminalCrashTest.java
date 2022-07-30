@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
@@ -24,7 +25,7 @@ import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 
 public class TerminalCrashTest extends LocalScenario {
 
-    private LzyTerminalTestContext.Terminal createTerminal(String mount) {
+    private LzyTerminalTestContext.Terminal createTerminal(@SuppressWarnings("SameParameterValue") String mount) {
         return createTerminal(
             FreePortFinder.find(20000, 21000),
             FreePortFinder.find(21000, 22000),
@@ -51,7 +52,7 @@ public class TerminalCrashTest extends LocalScenario {
     }
 
     @Test
-    public void testReadSlotToStdout() {
+    public void testReadSlotToStdout() throws InterruptedException {
         //Arrange
         final LzyTerminalTestContext.Terminal terminal1 = createTerminal("/tmp/term1");
         final String fileName = "/tmp/lzy1/kek/some_file.txt";
@@ -63,6 +64,7 @@ public class TerminalCrashTest extends LocalScenario {
             Collections.emptyList(),
             "/tmp/lzy1/sbin/cat " + fileName
         );
+        final CountDownLatch terminalFailsLatch = new CountDownLatch(1);
 
         //Act
         terminal1.createChannel(channelName);
@@ -81,6 +83,7 @@ public class TerminalCrashTest extends LocalScenario {
             );
             terminal1.shutdownNow();
             terminal1.waitForShutdown();
+            terminalFailsLatch.countDown();
         });
         terminal1.run(
             cat.name(),
@@ -136,6 +139,7 @@ public class TerminalCrashTest extends LocalScenario {
 
         final String cs = terminal2.channelsStatus();
         Assert.assertEquals("", cs);
+        Assert.assertTrue(terminalFailsLatch.await(Config.TIMEOUT_SEC, TimeUnit.SECONDS));
     }
 
     @Nullable
@@ -185,6 +189,8 @@ public class TerminalCrashTest extends LocalScenario {
         terminal1.publish(echo43);
         terminal2.update();
 
+        final CountDownLatch terminalFailsLatch = new CountDownLatch(1);
+
         //Act
         ForkJoinPool.commonPool().execute(() -> terminal1.run(sleep.name(), "", Map.of()));
         ForkJoinPool.commonPool().execute(() -> {
@@ -199,12 +205,14 @@ public class TerminalCrashTest extends LocalScenario {
                 TimeUnit.SECONDS
             );
             terminal1.shutdownNow();
+            terminalFailsLatch.countDown();
         });
 
         final CompletableFuture<LzyTerminalTestContext.Terminal.ExecutionResult> result = new CompletableFuture<>();
         ForkJoinPool.commonPool().execute(() -> result.complete(terminal2.run(echo43.name(), "", Map.of())));
 
         //Assert
+        Assert.assertTrue(terminalFailsLatch.await(Config.TIMEOUT_SEC, TimeUnit.SECONDS));
         Assert.assertEquals("43\n", result.get().stdout());
     }
 
