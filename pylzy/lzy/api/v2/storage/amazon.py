@@ -1,5 +1,12 @@
 from pathlib import Path
-from urllib import urlparse
+from typing import IO, Any
+from urllib.parse import urlparse
+
+import boto3
+from botocore.exceptions import ClientError
+
+from lzy.api.v2.storage.bucket import bucket_from_url
+from lzy.storage.credentials import AmazonCredentials, StorageCredentials
 
 
 class AmazonClient:
@@ -11,7 +18,6 @@ class AmazonClient:
             aws_secret_access_key=credentials.secret_token,
             endpoint_url=credentials.endpoint,
         )
-        self.__logger = logging.getLogger(self.__class__.__name__)
 
     async def read(self, url: str, dest: IO) -> Any:
         assert urlparse(url).scheme == "s3"
