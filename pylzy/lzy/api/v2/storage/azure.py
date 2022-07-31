@@ -62,22 +62,14 @@ class AzureClient:
     def generate_uri(self, container: str, blob: str) -> str:
         return f"azure:/{container}/{blob}"
 
-    @staticmethod
-    def from_connection_string(credentials: AzureCredentials) -> "AzureClient":
-        return AzureClient(
-            BlobServiceClient.from_connection_string(credentials.connection_string)
-        )
-
-    @staticmethod
-    def from_sas(credentials: AzureSasCredentials) -> "AzureClient":
-        return AzureClient(BlobServiceClient(credentials.endpoint))
-
 
 @_from.register
 def _(credentials: AzureCredentials) -> AzureClient:
-    return AzureClient.from_connection_string(credentials)
+    return AzureClient(
+        BlobServiceClient.from_connection_string(credentials.connection_string)
+    )
 
 
 @_from.register
 def _(credentials: AzureSasCredentials) -> AzureClient:
-    return AzureClient.from_sas(credentials)
+    return AzureClient(BlobServiceClient(credentials.endpoint))
