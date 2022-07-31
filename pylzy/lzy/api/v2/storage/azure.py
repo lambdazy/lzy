@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import IO, Any, Tuple
+from typing import IO, Any
 from urllib.parse import urlparse
 
 from azure.storage.blob.aio import (
@@ -9,6 +9,7 @@ from azure.storage.blob.aio import (
 )
 
 from lzy.api.v2.storage.bucket import bucket_from_url
+from lzy.api.v2.storage.create import _from
 from lzy.api.v2.utils import unwrap
 from lzy.storage.credentials import (
     AzureCredentials,
@@ -21,7 +22,7 @@ class AzureClient:
     def __init__(self, client: BlobServiceClient):
         self.client: BlobServiceClient = client
 
-    async def read_to_file(self, url: str, path: str):
+    async def read_to_file(self, url: str, path: Path):
         assert urlparse(url).scheme == "azure"
 
         bucket, other = bucket_from_url(url)
@@ -70,3 +71,13 @@ class AzureClient:
     @staticmethod
     def from_sas(credentials: AzureSasCredentials) -> "AzureClient":
         return AzureClient(BlobServiceClient(credentials.endpoint))
+
+
+@_from.register
+def _(credentials: AzureCredentials) -> AzureClient:
+    return AzureClient.from_connection_string(credentials)
+
+
+@_from.register
+def _(credentials: AzureSasCredentials) -> AzureClient:
+    return AzureClient.from_sas(credentials)

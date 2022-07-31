@@ -6,7 +6,8 @@ import boto3
 from botocore.exceptions import ClientError
 
 from lzy.api.v2.storage.bucket import bucket_from_url
-from lzy.storage.credentials import AmazonCredentials, StorageCredentials
+from lzy.api.v2.storage.create import _from
+from lzy.storage.credentials import AmazonCredentials
 
 
 class AmazonClient:
@@ -41,3 +42,8 @@ class AmazonClient:
     def generate_uri(self, bucket: str, key: str) -> str:
         path = Path(bucket) / key
         return f"s3:/{path}"
+
+
+@_from.register
+def _(credentials: AmazonCredentials) -> AmazonClient:
+    return AmazonClient(credentials)
