@@ -8,8 +8,7 @@ from azure.storage.blob.aio import (
     StorageStreamDownloader,
 )
 
-from lzy.api.v2.storage.bucket import bucket_from_url
-from lzy.api.v2.storage.create import _from
+from lzy.api.v2.storage import _from, bucket_from_url
 from lzy.api.v2.utils import unwrap
 from lzy.storage.credentials import (
     AzureCredentials,
