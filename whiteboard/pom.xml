@@ -4,13 +4,14 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
     <artifactId>lzy</artifactId>
-    <groupId>ru.yandex</groupId>
+    <groupId>ai.lzy</groupId>
     <version>1.0-SNAPSHOT</version>
     <relativePath>../../lzy</relativePath>
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
   <artifactId>whiteboard</artifactId>
+  <version>1.0-SNAPSHOT</version>
 
   <properties>
     <maven.compiler.source>17</maven.compiler.source>
@@ -22,7 +23,7 @@
 
   <dependencies>
     <dependency>
-      <groupId>ru.yandex</groupId>
+      <groupId>ai.lzy</groupId>
       <artifactId>model</artifactId>
       <version>1.0-SNAPSHOT</version>
     </dependency>

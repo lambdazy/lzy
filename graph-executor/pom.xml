@@ -4,13 +4,14 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
     <artifactId>lzy</artifactId>
-    <groupId>ru.yandex</groupId>
+    <groupId>ai.lzy</groupId>
     <version>1.0-SNAPSHOT</version>
     <relativePath>../../lzy</relativePath>
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
   <artifactId>graph-executor</artifactId>
+  <version>1.0-SNAPSHOT</version>
 
   <properties>
     <maven.compiler.source>17</maven.compiler.source>
@@ -22,14 +23,14 @@
 
   <dependencies>
     <dependency>
-      <groupId>ru.yandex</groupId>
+      <groupId>ai.lzy</groupId>
       <artifactId>model</artifactId>
       <version>1.0-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>ai.lzy.iam</groupId>
       <artifactId>iam</artifactId>
-      <version>0.1</version>
+      <version>1.0-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
@@ -114,7 +115,7 @@
       <artifactId>client-java</artifactId>
     </dependency>
     <dependency>
-      <groupId>ru.yandex</groupId>
+      <groupId>ai.lzy</groupId>
       <artifactId>util-zk</artifactId>
       <version>1.0-SNAPSHOT</version>
       <scope>compile</scope>
