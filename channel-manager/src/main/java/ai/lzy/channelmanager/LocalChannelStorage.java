@@ -70,7 +70,7 @@ public class LocalChannelStorage implements ChannelStorage {
         try {
             final Channel channel = channels.remove(channelId);
             if (channel != null) {
-                channel.close();
+                channel.destroy();
             }
             channelsByWorkflow.values().forEach(channels -> channels.remove(channel));
         } finally {

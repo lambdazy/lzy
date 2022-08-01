@@ -15,5 +15,5 @@ public interface Channel {
     Stream<Endpoint> bound();
     boolean hasBound(Endpoint endpoint);
 
-    void close();
+    void destroy();
 }
