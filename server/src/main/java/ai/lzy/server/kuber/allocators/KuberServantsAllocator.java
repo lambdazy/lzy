@@ -216,6 +216,13 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
                 )
             );
         }
+        try {
+            networkingApi.deleteNamespacedNetworkPolicy(
+                    "servants-network-policy-" + sessionId, NAMESPACE, null, null, null, null, null, null
+            );
+        } catch (ApiException e) {
+            throw new RuntimeException("Exception while deleting network policies for session " + sessionId + " in kuber ", e);
+        }
     }
 
     @Override
