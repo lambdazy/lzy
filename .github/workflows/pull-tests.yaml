@@ -39,7 +39,7 @@ jobs:
           ./clean.sh
           cd ..
 
-      - name: 'upload coverage badge'
+      - name: 'upload py coverage badge'
         uses: exuanbo/actions-deploy-gist@v1
         with:
           token: ${{ secrets.GIST_SECRET }}
@@ -62,6 +62,25 @@ jobs:
       - name: 'java unit tests and install'
         timeout-minutes: 15
         run: mvn clean install
+
+      - name: 'generate java coverage badge'
+        uses: cicirello/jacoco-badge-generator@v2
+        with:
+          generate-branches-badge: true
+          jacoco-csv-file: coverage/target/site/jacoco-aggregate/jacoco.csv
+          badges-directory: coverage/target/site/jacoco-aggregate
+          generate-coverage-badge: true
+          coverage-badge-filename: jacoco.svg
+          coverage-label: java-coverage
+
+      - name: 'upload java coverage badge'
+        uses: exuanbo/actions-deploy-gist@v1
+        with:
+          token: ${{ secrets.GIST_SECRET }}
+          gist_id: be651155cb12a8006cecdee948ce1a0a
+          file_path: coverage/target/site/jacoco-aggregate/jacoco.svg
+          file_type: binary
+          gist_file_name: ${{ (github.head_ref || github.ref_name) }}-java-coverage.svg
 
       - name: 'LzyDryStartupTest'
         timeout-minutes: 5

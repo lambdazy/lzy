@@ -4,13 +4,14 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
     <artifactId>util</artifactId>
-    <groupId>ru.yandex</groupId>
+    <groupId>ai.lzy</groupId>
     <version>1.0-SNAPSHOT</version>
     <relativePath>../../util</relativePath>
   </parent>
 
   <artifactId>util-s3</artifactId>
   <modelVersion>4.0.0</modelVersion>
+  <version>1.0-SNAPSHOT</version>
 
   <properties>
     <maven.compiler.source>17</maven.compiler.source>
