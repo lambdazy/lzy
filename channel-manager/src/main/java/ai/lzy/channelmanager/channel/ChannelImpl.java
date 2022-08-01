@@ -31,7 +31,7 @@ public class ChannelImpl implements Channel {
     }
 
     @Override
-    public void close() {
+    public void destroy() {
         try {
             controller.executeDestroy(channelGraph);
         } catch (ChannelException e) {
