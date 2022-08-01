@@ -40,10 +40,13 @@ jobs:
           cd ..
 
       - name: 'upload coverage badge'
-        uses: actions/upload-artifact@v3
+        uses: exuanbo/actions-deploy-gist@v1
         with:
-          name: py-coverage
-          path: ./pylzy/coverage.svg
+          token: ${{ secrets.GIST_SECRET }}
+          gist_id: 0095e900fb0fcbe5575ddc3c717fb65b
+          file_path: pylzy/coverage.svg
+          file_type: binary
+          gist_file_name: ${{ (github.head_ref || github.ref_name) }}-coverage.svg
 
       - name: 'install python requirements'
         run: |
@@ -60,15 +63,40 @@ jobs:
         timeout-minutes: 15
         run: mvn clean install
 
+      - name: 'LzyDryStartupTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=LzyDryStartupTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'LzyStartupWithAvailableZygotesTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=LzyStartupWithAvailableZygotesTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
       - name: 'RunTest'
         timeout-minutes: 5
         run: |
           cd test && mvn test -Dtest=RunTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
-      - name: 'PyApiTest'
-        timeout-minutes: 20
+      - name: 'TerminalCrashTest'
+        timeout-minutes: 5
         run: |
-          cd test && mvn test -Dtest=PyApiTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+          cd test && mvn test -Dtest=TerminalCrashTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'ServantCrashTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=ServantCrashTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'MultiSessionTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=MultiSessionTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'SnapshotTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=SnapshotTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'build servant image'
         timeout-minutes: 15
@@ -86,35 +114,10 @@ jobs:
           ENV_IMAGE=$(deployment/latest-docker-image-on-branches.sh test-env $BRANCH master)
           cd test && mvn test -Dtest=DockerServantTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" -Dserver.baseEnvDefaultImage="$ENV_IMAGE" && cd ..
 
-      - name: 'LzyDryStartupTest'
-        timeout-minutes: 5
+      - name: 'PyApiTest'
+        timeout-minutes: 20
         run: |
-          cd test && mvn test -Dtest=LzyDryStartupTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-
-      - name: 'LzyStartupWithAvailableZygotesTest'
-        timeout-minutes: 5
-        run: |
-          cd test && mvn test -Dtest=LzyStartupWithAvailableZygotesTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-
-      - name: 'MultiSessionTest'
-        timeout-minutes: 5
-        run: |
-          cd test && mvn test -Dtest=MultiSessionTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-
-      - name: 'SnapshotTest'
-        timeout-minutes: 5
-        run: |
-          cd test && mvn test -Dtest=SnapshotTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-
-      - name: 'TerminalCrashTest'
-        timeout-minutes: 5
-        run: |
-          cd test && mvn test -Dtest=TerminalCrashTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-
-      - name: 'ServantCrashTest'
-        timeout-minutes: 5
-        run: |
-          cd test && mvn test -Dtest=ServantCrashTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+          cd test && mvn test -Dtest=PyApiTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'Clean docker files'
         run: |
