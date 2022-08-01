@@ -143,42 +143,42 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
         V1NetworkPolicy networkPolicy = new V1NetworkPolicy().metadata(
                 new V1ObjectMeta().name(kuberValidName("servants-network-policy-" + sessionId))
         ).spec(
-                new V1NetworkPolicySpec()
-                        .podSelector(
+            new V1NetworkPolicySpec()
+                .podSelector(
+                    new V1LabelSelector().matchLabels(
+                        Map.of(
+                            "servant-session-id", kuberValidName(sessionId)
+                        )
+                    )
+                )
+                .policyTypes(List.of("Ingress", "Egress"))
+                .addIngressItem(
+                    new V1NetworkPolicyIngressRule().from(
+                        List.of(
+                            new V1NetworkPolicyPeer().podSelector(
                                 new V1LabelSelector().matchLabels(
-                                        Map.of(
-                                                "servant-session-id", kuberValidName(sessionId)
-                                        )
+                                    Map.of(
+                                        "servant-session-id", kuberValidName(sessionId),
+                                        "lzy.ai/role", "system"
+                                    )
                                 )
+                            )
                         )
-                        .policyTypes(List.of("Ingress", "Egress"))
-                        .addIngressItem(
-                                new V1NetworkPolicyIngressRule().from(
-                                        List.of(
-                                                new V1NetworkPolicyPeer().podSelector(
-                                                        new V1LabelSelector().matchLabels(
-                                                                Map.of(
-                                                                        "servant-session-id", kuberValidName(sessionId),
-                                                                        "lzy.ai/role", "system"
-                                                                )
-                                                        )
-                                                )
-                                        )
+                    )
+                ).addEgressItem(
+                    new V1NetworkPolicyEgressRule().to(
+                        List.of(
+                            new V1NetworkPolicyPeer().podSelector(
+                                new V1LabelSelector().matchLabels(
+                                    Map.of(
+                                        "servant-session-id", kuberValidName(sessionId),
+                                        "lzy.ai/role", "system"
+                                    )
                                 )
-                        ).addEgressItem(
-                                new V1NetworkPolicyEgressRule().to(
-                                        List.of(
-                                                new V1NetworkPolicyPeer().podSelector(
-                                                        new V1LabelSelector().matchLabels(
-                                                                Map.of(
-                                                                        "servant-session-id", kuberValidName(sessionId),
-                                                                        "lzy.ai/role", "system"
-                                                                )
-                                                        )
-                                                )
-                                        )
-                                )
+                            )
                         )
+                    )
+                )
         );
         try {
             networkingApi.createNamespacedNetworkPolicy(NAMESPACE, networkPolicy, null, null, null, null);
