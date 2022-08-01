@@ -99,7 +99,6 @@ resource "kubernetes_deployment" "grafana" {
             }
           }
         }
-        host_network = true
         dns_policy   = "ClusterFirstWithHostNet"
       }
     }

@@ -90,7 +90,6 @@ resource "kubernetes_deployment" "clickhouse" {
             }
           }
         }
-        host_network = true
         dns_policy   = "ClusterFirstWithHostNet"
         volume {
           name = "persistent"

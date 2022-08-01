@@ -126,7 +126,6 @@ resource "kubernetes_deployment" "iam" {
             }
           }
         }
-        host_network = true
         dns_policy   = "ClusterFirstWithHostNet"
       }
     }

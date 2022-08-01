@@ -130,7 +130,6 @@ resource "kubernetes_deployment" "kharon" {
             }
           }
         }
-        host_network = true
         dns_policy   = "ClusterFirstWithHostNet"
       }
     }

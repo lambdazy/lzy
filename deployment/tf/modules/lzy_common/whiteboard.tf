@@ -130,7 +130,6 @@ resource "kubernetes_deployment" "whiteboard" {
             }
           }
         }
-        host_network = true
         dns_policy   = "ClusterFirstWithHostNet"
       }
     }

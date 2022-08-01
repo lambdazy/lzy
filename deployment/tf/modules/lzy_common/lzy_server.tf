@@ -263,7 +263,6 @@ resource "kubernetes_deployment" "server" {
             }
           }
         }
-        host_network = true
         dns_policy   = "ClusterFirstWithHostNet"
       }
     }

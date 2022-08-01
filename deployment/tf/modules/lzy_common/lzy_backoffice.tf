@@ -206,7 +206,6 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             }
           }
         }
-        host_network = true
         dns_policy   = "ClusterFirstWithHostNet"
       }
     }

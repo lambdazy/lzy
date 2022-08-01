@@ -72,5 +72,4 @@ spec:
                   - kafka
                   - clickhouse
           topologyKey: "kubernetes.io/hostname"
-  hostNetwork: true
   dnsPolicy: ClusterFirstWithHostNet

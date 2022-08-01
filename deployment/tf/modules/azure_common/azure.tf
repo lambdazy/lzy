@@ -43,8 +43,7 @@ resource "azurerm_kubernetes_cluster" "main" {
 
   network_profile {
     load_balancer_sku = "standard"
-    network_plugin    = "kubenet"
-    network_policy    = "calico"
+    network_plugin    = "azure"
   }
 
   tags = {
@@ -140,63 +139,63 @@ resource "azurerm_public_ip" "lzy_backoffice" {
   allocation_method   = "Static"
 }
 
-module "lzy_common" {
-  source                           = "../lzy_common"
-  kharon_public_ip                 = var.create_public_kharon_service ? azurerm_public_ip.lzy_kharon[0].ip_address : ""
-  create_public_kharon_service     = var.create_public_kharon_service
-  backoffice_public_ip             = var.create_public_backoffice_service ? azurerm_public_ip.lzy_backoffice[0].ip_address : ""
-  create_public_backoffice_service = var.create_public_backoffice_service
-  grafana_public_ip                = var.create_public_grafana_service ? azurerm_public_ip.grafana[0].ip_address : ""
-  create_public_grafana_service    = var.create_public_grafana_service
-  kharon_load_balancer_necessary_annotations = {
-    "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
-  }
-  backoffice_load_balancer_necessary_annotations = {
-    "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
-  }
-  grafana_load_balancer_necessary_annotations = {
-    "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
-  }
-  installation_name          = var.installation_name
-  oauth-github-client-id     = var.oauth-github-client-id
-  oauth-github-client-secret = var.oauth-github-client-secret
-
-  lzy_server_db_host     = "postgres-postgresql.server.svc.cluster.local"
-  lzy_server_db_port     = 5432
-  lzy_server_db_name     = "serverDB"
-  lzy_server_db_user     = "server"
-  lzy_server_db_password = ""
-
-  lzy_whiteboard_db_host     = "whiteboard-postgresql.default.svc.cluster.local"
-  lzy_whiteboard_db_port     = 5432
-  lzy_whiteboard_db_name     = "whiteboards"
-  lzy_whiteboard_db_user     = "whiteboard"
-  lzy_whiteboard_db_password = ""
-
-  iam_db_host     = "iam-postgresql.default.svc.cluster.local"
-  iam_db_port     = 5432
-  iam_db_name     = "iamDB"
-  iam_db_user     = "iam"
-  iam_db_password = ""
-
-  s3-bucket-name            = "lzy-bucket"
-  storage-provider          = "azure"
-  azure-connection-string   = azurerm_storage_account.main_s3.primary_connection_string
-  azure-resource-group      = azurerm_resource_group.test.name
-  ssl-enabled               = var.ssl-enabled
-  ssl-cert                  = var.ssl-cert
-  ssl-cert-key              = var.ssl-cert-key
-  ssl-keystore-password     = var.ssl-keystore-password
-  s3-separated-per-bucket   = var.s3-separated-per-bucket
-
-  backoffice-backend-image   = var.backoffice-backend-image
-  backoffice-frontend-image  = var.backoffice-frontend-image
-  clickhouse-image           = var.clickhouse-image
-  grafana-image              = var.grafana-image
-  kharon-image               = var.kharon-image
-  server-image               = var.server-image
-  whiteboard-image           = var.whiteboard-image
-  iam-image                  = var.iam-image
-  servant-image              = var.servant-image
-  default-env-image          = var.default-env-image
-}
+#module "lzy_common" {
+#  source                           = "../lzy_common"
+#  kharon_public_ip                 = var.create_public_kharon_service ? azurerm_public_ip.lzy_kharon[0].ip_address : ""
+#  create_public_kharon_service     = var.create_public_kharon_service
+#  backoffice_public_ip             = var.create_public_backoffice_service ? azurerm_public_ip.lzy_backoffice[0].ip_address : ""
+#  create_public_backoffice_service = var.create_public_backoffice_service
+#  grafana_public_ip                = var.create_public_grafana_service ? azurerm_public_ip.grafana[0].ip_address : ""
+#  create_public_grafana_service    = var.create_public_grafana_service
+#  kharon_load_balancer_necessary_annotations = {
+#    "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
+#  }
+#  backoffice_load_balancer_necessary_annotations = {
+#    "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
+#  }
+#  grafana_load_balancer_necessary_annotations = {
+#    "service.beta.kubernetes.io/azure-load-balancer-resource-group" = azurerm_resource_group.test.name
+#  }
+#  installation_name          = var.installation_name
+#  oauth-github-client-id     = var.oauth-github-client-id
+#  oauth-github-client-secret = var.oauth-github-client-secret
+#
+#  lzy_server_db_host     = "postgres-postgresql.server.svc.cluster.local"
+#  lzy_server_db_port     = 5432
+#  lzy_server_db_name     = "serverDB"
+#  lzy_server_db_user     = "server"
+#  lzy_server_db_password = ""
+#
+#  lzy_whiteboard_db_host     = "whiteboard-postgresql.default.svc.cluster.local"
+#  lzy_whiteboard_db_port     = 5432
+#  lzy_whiteboard_db_name     = "whiteboards"
+#  lzy_whiteboard_db_user     = "whiteboard"
+#  lzy_whiteboard_db_password = ""
+#
+#  iam_db_host     = "iam-postgresql.default.svc.cluster.local"
+#  iam_db_port     = 5432
+#  iam_db_name     = "iamDB"
+#  iam_db_user     = "iam"
+#  iam_db_password = ""
+#
+#  s3-bucket-name            = "lzy-bucket"
+#  storage-provider          = "azure"
+#  azure-connection-string   = azurerm_storage_account.main_s3.primary_connection_string
+#  azure-resource-group      = azurerm_resource_group.test.name
+#  ssl-enabled               = var.ssl-enabled
+#  ssl-cert                  = var.ssl-cert
+#  ssl-cert-key              = var.ssl-cert-key
+#  ssl-keystore-password     = var.ssl-keystore-password
+#  s3-separated-per-bucket   = var.s3-separated-per-bucket
+#
+#  backoffice-backend-image   = var.backoffice-backend-image
+#  backoffice-frontend-image  = var.backoffice-frontend-image
+#  clickhouse-image           = var.clickhouse-image
+#  grafana-image              = var.grafana-image
+#  kharon-image               = var.kharon-image
+#  server-image               = var.server-image
+#  whiteboard-image           = var.whiteboard-image
+#  iam-image                  = var.iam-image
+#  servant-image              = var.servant-image
+#  default-env-image          = var.default-env-image
+#}
