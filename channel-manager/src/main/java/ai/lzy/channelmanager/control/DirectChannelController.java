@@ -14,7 +14,7 @@ public class DirectChannelController implements ChannelController {
     @Override
     public void executeBind(ChannelGraph channelGraph, Endpoint endpoint) throws ChannelException {
         LOG.info("DirectChannelController::executeBind, slot: {} to {}",
-            endpoint.uri(), channelGraph.owner().name());
+            endpoint.uri(), channelGraph.ownerChannelId());
 
         switch (endpoint.slotSpec().direction()) {
             case INPUT -> { // Receiver
@@ -43,7 +43,7 @@ public class DirectChannelController implements ChannelController {
     @Override
     public void executeUnBind(ChannelGraph channelGraph, Endpoint endpoint) throws ChannelException {
         LOG.info("DirectChannelController::executeUnbind, slot: {} from: {}",
-            endpoint.uri(), channelGraph.owner().name());
+            endpoint.uri(), channelGraph.ownerChannelId());
 
         switch (endpoint.slotSpec().direction()) {
             case INPUT -> channelGraph.removeReceiver(endpoint);
@@ -54,7 +54,7 @@ public class DirectChannelController implements ChannelController {
 
     @Override
     public void executeDestroy(ChannelGraph channelGraph) {
-        LOG.info("destroying " + channelGraph.owner().name());
+        LOG.info("destroying " + channelGraph.ownerChannelId());
 
         channelGraph.receivers().forEach(Endpoint::destroy);
         channelGraph.senders().forEach(Endpoint::destroy);

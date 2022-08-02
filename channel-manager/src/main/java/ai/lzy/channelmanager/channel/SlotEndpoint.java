@@ -12,6 +12,7 @@ import ai.lzy.v1.LzyFsGrpc;
 import io.grpc.StatusRuntimeException;
 import java.net.URI;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
@@ -158,5 +159,22 @@ public class SlotEndpoint implements Endpoint {
         } finally {
             invalidate();
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        SlotEndpoint that = (SlotEndpoint) o;
+        return slot.equals(that.slot);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(slot);
     }
 }
