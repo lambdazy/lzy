@@ -8,7 +8,7 @@ class StorageClient(Protocol):
     async def read(self, url: str) -> bytes:
         pass
 
-    async def read_to_file(self, url: str, filename: Path) -> None:
+    async def read_to_file(self, url: str, filepath: Path) -> None:
         pass
 
     async def write(self, container: str, blob: str, data: BinaryIO) -> str:
