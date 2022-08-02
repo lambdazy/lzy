@@ -133,3 +133,30 @@ resource "kubernetes_role_binding" "server_pods_operations" {
     namespace = kubernetes_namespace.server_namespace.metadata[0].name
   }
 }
+
+resource "kubernetes_cluster_role" "network_policy_operations" {
+  metadata {
+    name = "network-policy-operations"
+  }
+  rule {
+    api_groups = ["networking.k8s.io"]
+    resources  = ["networkpolicies"]
+    verbs      = ["get", "watch", "list", "create", "delete"]
+  }
+}
+
+resource "kubernetes_role_binding" "server_network_policy_operations" {
+  metadata {
+    name = "server-network-policy-operations"
+  }
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "ClusterRole"
+    name      = kubernetes_cluster_role.network_policy_operations.metadata[0].name
+  }
+  subject {
+    kind      = "ServiceAccount"
+    name      = "default"
+    namespace = kubernetes_namespace.server_namespace.metadata[0].name
+  }
+}
