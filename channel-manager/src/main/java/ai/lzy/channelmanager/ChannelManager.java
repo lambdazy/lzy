@@ -43,6 +43,7 @@ import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Map;
 import java.util.Objects;
@@ -57,6 +58,7 @@ import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+@SuppressWarnings("UnstableApiUsage")
 public class ChannelManager {
 
     private static final Logger LOG = LogManager.getLogger(ChannelManager.class);
@@ -118,13 +120,14 @@ public class ChannelManager {
     public ChannelManager(ApplicationContext ctx) {
         var config = ctx.getBean(ChannelManagerConfig.class);
         channelStorage = new LocalChannelStorage();
-        //noinspection UnstableApiUsage
-        final HostAndPort iamAddress = HostAndPort.fromString(config.iam().address());
+        final HostAndPort address = HostAndPort.fromString(config.address());
+        final var iamAddress = HostAndPort.fromString(config.iam().address());
         iamChannel = ChannelBuilder.forAddress(iamAddress)
             .usePlaintext()
             .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
             .build();
-        channelManagerServer = NettyServerBuilder.forPort(config.port())
+        channelManagerServer = NettyServerBuilder.forAddress(
+                new InetSocketAddress(address.getHost(), address.getPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .intercept(new AuthServerInterceptor(new AuthenticateServiceStub()))
@@ -139,7 +142,7 @@ public class ChannelManager {
 
         @Override
         public void create(ChannelCreateRequest request,
-                           StreamObserver<ChannelCreateResponse> responseObserver) {
+            StreamObserver<ChannelCreateResponse> responseObserver) {
             LOG.info("ChannelManager create channel {}: {}",
                 request.getChannelSpec().getChannelName(),
                 JsonUtils.printRequest(request));
@@ -182,7 +185,7 @@ public class ChannelManager {
 
         @Override
         public void destroyAll(ChannelDestroyAllRequest request,
-                               StreamObserver<ChannelDestroyAllResponse> responseObserver) {
+            StreamObserver<ChannelDestroyAllResponse> responseObserver) {
             LOG.info("Destroying all channels for workflow {}", request.getWorkflowId());
             channelStorage.channels(request.getWorkflowId()).forEach(channel ->
                 channelStorage.destroy(channel.id())

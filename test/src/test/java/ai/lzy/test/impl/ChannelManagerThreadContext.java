@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
+@SuppressWarnings("UnstableApiUsage")
 public class ChannelManagerThreadContext implements ChannelManagerContext {
     private final String whiteboardAddress;
     private final HostAndPort iamAddress;
@@ -45,7 +46,7 @@ public class ChannelManagerThreadContext implements ChannelManagerContext {
     @Override
     public void init() {
         Map<String, Object> appProperties = Map.of(
-            "channel-manager.port", Config.PORT,
+            "channel-manager.address", "localhost:" + Config.PORT,
             "channel-manager.whiteboard-address", whiteboardAddress,
             "channel-manager.iam.address", iamAddress
         );

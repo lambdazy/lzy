@@ -4,7 +4,7 @@ import io.micronaut.context.annotation.ConfigurationProperties;
 
 @ConfigurationProperties("channel-manager")
 public record ChannelManagerConfig(
-    int port,
+    String address,
     String whiteboardAddress,
     Iam iam
 ) {
