@@ -6,6 +6,7 @@ import ai.lzy.channelmanager.channel.ChannelImpl;
 import ai.lzy.channelmanager.channel.Endpoint;
 import ai.lzy.channelmanager.control.DirectChannelController;
 import ai.lzy.channelmanager.control.SnapshotChannelController;
+import ai.lzy.channelmanager.graph.LocalChannelGraph;
 import ai.lzy.model.channel.ChannelSpec;
 import ai.lzy.model.channel.DirectChannelSpec;
 import ai.lzy.model.channel.SnapshotChannelSpec;
@@ -43,7 +44,8 @@ public class LocalChannelStorage implements ChannelStorage {
             channel = new ChannelImpl(
                 id,
                 spec,
-                new DirectChannelController()
+                new DirectChannelController(),
+                new LocalChannelGraph(id)
             );
         } else if (spec instanceof SnapshotChannelSpec snapshotSpec) {
             channel = new SnapshotChannelImpl(
@@ -52,7 +54,7 @@ public class LocalChannelStorage implements ChannelStorage {
                 snapshotSpec.snapshotId(),
                 snapshotSpec.entryId(),
                 userId,
-                snapshotSpec.getWhiteboardAddress()
+                snapshotSpec.whiteboardAddress()
             );
         } else {
             throw new RuntimeException("Wrong type of channel spec");
@@ -120,7 +122,9 @@ public class LocalChannelStorage implements ChannelStorage {
             super(
                 id,
                 channelSpec,
-                new SnapshotChannelController(entryId, snapshotId, userId, whiteboardAddress));
+                new SnapshotChannelController(entryId, snapshotId, userId, whiteboardAddress),
+                new LocalChannelGraph(id)
+            );
         }
     }
 }
