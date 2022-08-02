@@ -6,6 +6,7 @@ import ai.lzy.model.grpc.GrpcHeaders;
 import ai.lzy.test.BaseTestWithIam;
 import ai.lzy.test.JwtUtils;
 import ai.lzy.v1.ChannelManager.ChannelCreateRequest;
+import ai.lzy.v1.ChannelManager.ChannelCreateResponse;
 import ai.lzy.v1.ChannelManager.ChannelDestroyAllRequest;
 import ai.lzy.v1.ChannelManager.ChannelDestroyRequest;
 import ai.lzy.v1.ChannelManager.ChannelStatusRequest;
@@ -26,6 +27,7 @@ import java.util.UUID;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 @SuppressWarnings({"UnstableApiUsage", "ResultOfMethodCallIgnored"})
@@ -121,14 +123,140 @@ public class ChannelManagerTest extends BaseTestWithIam {
     }
 
     @Test
-    public void testCreate() {
-        authorizedChannelManagerClient.create(ChannelCreateRequest.newBuilder()
-            .setWorkflowId(UUID.randomUUID().toString())
-            .setChannelSpec(ChannelSpec.newBuilder().setChannelName("channel1").setDirect(
-                    DirectChannelType.newBuilder().build())
-                .setContentType(DataScheme.newBuilder().setType("text").setSchemeType(
-                    SchemeType.plain).build())
-                .build())
-            .build());
+    public void testCreateSuccess() {
+        final ChannelCreateResponse channelCreateResponse = authorizedChannelManagerClient.create(
+            ChannelCreateRequest.newBuilder()
+                .setWorkflowId(UUID.randomUUID().toString())
+                .setChannelSpec(ChannelSpec.newBuilder().setChannelName("channel1").setDirect(
+                        DirectChannelType.newBuilder().build())
+                    .setContentType(DataScheme.newBuilder().setType("text").setSchemeType(
+                        SchemeType.plain).build())
+                    .build())
+                .build());
+
+        Assert.assertNotNull(channelCreateResponse.getChannelId());
+        Assert.assertTrue(channelCreateResponse.getChannelId().length() > 1);
+    }
+
+    @Test
+    @Ignore
+    public void testCreateEmptyWorkflow() {
+        try {
+            authorizedChannelManagerClient.create(
+                ChannelCreateRequest.newBuilder()
+                    .setChannelSpec(ChannelSpec.newBuilder().setChannelName("channel1").setDirect(
+                            DirectChannelType.newBuilder().build())
+                        .setContentType(DataScheme.newBuilder().setType("text").setSchemeType(
+                            SchemeType.plain).build())
+                        .build())
+                    .build());
+            Assert.fail();
+        } catch (StatusRuntimeException e) {
+            Assert.assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
+        }
+    }
+
+    @Test
+    @Ignore
+    public void testCreateEmptyChannelSpec() {
+        try {
+            authorizedChannelManagerClient.create(
+                ChannelCreateRequest.newBuilder()
+                    .setWorkflowId(UUID.randomUUID().toString())
+                    .build());
+            Assert.fail();
+        } catch (StatusRuntimeException e) {
+            Assert.assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
+        }
+    }
+
+    @Test
+    @Ignore
+    public void testCreateEmptySpecName() {
+        try {
+            authorizedChannelManagerClient.create(
+                ChannelCreateRequest.newBuilder()
+                    .setWorkflowId(UUID.randomUUID().toString())
+                    .setChannelSpec(ChannelSpec.newBuilder().setDirect(
+                            DirectChannelType.newBuilder().build())
+                        .setContentType(DataScheme.newBuilder().setType("text").setSchemeType(
+                            SchemeType.plain).build())
+                        .build())
+                    .build());
+            Assert.fail();
+        } catch (StatusRuntimeException e) {
+            Assert.assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
+        }
+    }
+
+    @Test
+    @Ignore
+    public void testCreateEmptySpecType() {
+        try {
+            authorizedChannelManagerClient.create(
+                ChannelCreateRequest.newBuilder()
+                    .setWorkflowId(UUID.randomUUID().toString())
+                    .setChannelSpec(ChannelSpec.newBuilder().setChannelName("channel1")
+                        .setContentType(DataScheme.newBuilder().setType("text").setSchemeType(SchemeType.plain).build())
+                        .build())
+                    .build());
+            Assert.fail();
+        } catch (StatusRuntimeException e) {
+            Assert.assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
+        }
+    }
+
+    @Test
+    @Ignore
+    public void testCreateEmptySpecContentType() {
+        try {
+            authorizedChannelManagerClient.create(
+                ChannelCreateRequest.newBuilder()
+                    .setWorkflowId(UUID.randomUUID().toString())
+                    .setChannelSpec(ChannelSpec.newBuilder().setChannelName("channel1").setDirect(
+                            DirectChannelType.newBuilder().build())
+                        .build())
+                    .build());
+            Assert.fail();
+        } catch (StatusRuntimeException e) {
+            Assert.assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
+        }
+    }
+
+    @Test
+    @Ignore
+    public void testCreateEmptySpecContentTypeType() {
+        try {
+            authorizedChannelManagerClient.create(
+                ChannelCreateRequest.newBuilder()
+                    .setWorkflowId(UUID.randomUUID().toString())
+                    .setChannelSpec(ChannelSpec.newBuilder().setChannelName("channel1").setDirect(
+                            DirectChannelType.newBuilder().build())
+                        .setContentType(DataScheme.newBuilder().setSchemeType(
+                            SchemeType.plain).build())
+                        .build())
+                    .build());
+            Assert.fail();
+        } catch (StatusRuntimeException e) {
+            Assert.assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
+        }
+    }
+
+    @Test
+    @Ignore
+    public void testCreateEmptySpecContentTypeSchemeType() {
+        try {
+            authorizedChannelManagerClient.create(
+                ChannelCreateRequest.newBuilder()
+                    .setWorkflowId(UUID.randomUUID().toString())
+                    .setChannelSpec(ChannelSpec.newBuilder().setChannelName("channel1").setDirect(
+                            DirectChannelType.newBuilder().build())
+                        .setContentType(DataScheme.newBuilder().setType("text"))
+                        .build())
+                    .build());
+            Assert.fail();
+        } catch (StatusRuntimeException e) {
+            Assert.assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
+        }
     }
 }
