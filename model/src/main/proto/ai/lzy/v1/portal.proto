@@ -43,6 +43,7 @@ message AmazonS3Endpoint {
   string endpoint = 1;
   string accessToken = 2;
   string secretToken = 3;
+  string bucket = 4;
 }
 
 message AzureS3Endpoint {
@@ -77,8 +78,8 @@ message PortalSlotDesc {
     StdOut stdout = 11;
     StdErr stderr = 12;
     // external (persistent) storages
-//    AmazonS3Endpoint amazonS3 = 11;
-//    AzureS3Endpoint azureS3 = 12;
+    AmazonS3Endpoint amazonS3 = 13;
+    AzureS3Endpoint azureS3 = 14;
   }
 }
 

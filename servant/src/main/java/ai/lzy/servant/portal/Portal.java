@@ -113,7 +113,7 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
             final String taskId = switch (slotDesc.getKindCase()) {
                 case STDERR -> slotDesc.getStderr().getTaskId();
                 case STDOUT -> slotDesc.getStdout().getTaskId();
-                case SNAPSHOT -> portalTaskId;
+                case SNAPSHOT, AMAZONS3, AZURES3 -> portalTaskId;
                 default -> throw new RuntimeException("unknown slot kind");
             };
             final SlotInstance slotInstance = new SlotInstance(

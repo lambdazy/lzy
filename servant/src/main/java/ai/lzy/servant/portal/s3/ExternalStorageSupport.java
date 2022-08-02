@@ -1,4 +1,4 @@
-package ai.lzy.servant.portal;
+package ai.lzy.servant.portal.s3;
 
 import ai.lzy.fs.snapshot.SlotSnapshot;
 import ai.lzy.fs.snapshot.SlotSnapshotImpl;
