@@ -8,13 +8,9 @@ from azure.storage.blob.aio import (
     StorageStreamDownloader,
 )
 
-from lzy.api.v2.storage import _from, bucket_from_url
+from lzy.api.v2.storage.client import _from, bucket_from_url
 from lzy.api.v2.utils import unwrap
-from lzy.storage.credentials import (
-    AzureCredentials,
-    AzureSasCredentials,
-    StorageCredentials,
-)
+from lzy.storage.credentials import AzureCredentials, AzureSasCredentials
 
 
 class AzureClient:
@@ -23,7 +19,6 @@ class AzureClient:
 
     async def read_to_file(self, url: str, path: Path):
         assert urlparse(url).scheme == "azure"
-
         bucket, other = bucket_from_url(url)
 
         # TODO[ottergottaott]: enable
@@ -37,9 +32,9 @@ class AzureClient:
 
     async def read(self, url: str, dest: IO) -> Any:
         assert urlparse(url).scheme == "azure"
+        bucket, other = bucket_from_url(url)
 
         # TODO[ottergottaott]: enable
-        # bucket, other = bucket_from_url(url)
         # downloader: StorageStreamDownloader = (
         #     self.client.get_container_client(bucket)
         #     .get_blob_client(str(other))
