@@ -1,0 +1,6 @@
+syntax = "proto3";
+
+
+service PoolManager {
+  rpc CreatePool (CreatePoolRequest) returns (CreatePoolResponse);
+}

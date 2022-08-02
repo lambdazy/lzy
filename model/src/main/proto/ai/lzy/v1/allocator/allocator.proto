@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+
+service Allocator {
+  rpc CreateSession (CreateSessionRequest) returns (CreateSessionResponse);
+  rpc DeleteSession (DeleteSessionRequest) returns (DeleteSessionResponse);
+
+  rpc Allocate (AllocateVmRequest) returns (AllocateVmResponse);
+  rpc Free (FreeVmRequest) returns (FreeVmResponse);
+}
+
+message CreateSessionRequest {}
+message CreateSessionResponse {}
+message DeleteSessionRequest {}
+message DeleteSessionResponse {}
+
+
+message AllocateVmRequest {
+  string session_id = 1;
+  string pool_id = 2;
+  string subnet_id = 3;
+  repeated Workload workload = 4;
+  Volume volume = 5;
+  repeated string security_group_ids = 6;
+  Metadata metadata = 7;
+}
+
+message AllocateVmResponse {
+  string instance_id = 1;
+}
+
+message FreeVmRequest {
+  User user = 1;
+  string instance_id = 2;
+}
+
+message FreeVmResponse {}
+
+message Workload {
+  string name = 1;
+  string image = 2;
+  repeated Mount mounts = 4;
+}
+
+message Mount {
+  string mount_path = 1;
+  MountMode mount_mode = 2;
+
+  oneof mount {
+    StorageMountRequest storage = 4;
+    Nfs nfs = 5;
+  }
+}
+
+enum MountMode {
+  MOUNT_MODE_UNSPECIFIED = 0;
+  READ_ONLY = 1;
+  READ_WRITE = 2;
+}
+
+message Nfs {
+  string host = 1;
+  int32 port = 2;
+  string path = 3;
+  string export_instance_id = 4; // optional argument for RP to ask instance's RP-agent for NFS export
+}
+
+message StorageMountRequest {
+  string storage_id = 1;
+  bool mkfs = 2;
+  FsType mkfsType = 3;
+  bool resizefs = 4;
+}
+
+enum FsType {
+  FS_TYPE_UNSPECIFIED = 0;
+  EXT4 = 1;
+  BTRFS = 2;
+}
+
+message Metadata {
+  map<string, string> labels = 1;
+}
