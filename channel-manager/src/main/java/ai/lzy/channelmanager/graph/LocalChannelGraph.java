@@ -5,6 +5,7 @@ import ai.lzy.channelmanager.channel.Endpoint;
 import java.text.MessageFormat;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.validation.constraints.NotNull;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -12,13 +13,25 @@ import ai.lzy.model.Slot;
 
 public class LocalChannelGraph implements ChannelGraph {
     private static final Logger LOG = LogManager.getLogger(LocalChannelGraph.class);
-    private final Set<Endpoint> senders = new HashSet<>();
-    private final Set<Endpoint> receivers = new HashSet<>();
-    private final Map<Endpoint, HashSet<Endpoint>> edges = new HashMap<>();
+    private final Set<Endpoint> senders;
+    private final Set<Endpoint> receivers;
+    private final Map<Endpoint, HashSet<Endpoint>> edges;
     private final String ownerChannelId;
 
     public LocalChannelGraph(String channelId) {
+        this(channelId, Stream.empty(), Stream.empty(), Map.of());
+    }
+
+    public LocalChannelGraph(
+        String channelId,
+        Stream<Endpoint> senders,
+        Stream<Endpoint> receivers,
+        Map<Endpoint, HashSet<Endpoint>> edges
+    ) {
         this.ownerChannelId = channelId;
+        this.senders = senders.collect(Collectors.toSet());
+        this.receivers = receivers.collect(Collectors.toSet());
+        this.edges = edges;
     }
 
     private static void checkConsistency(Endpoint sender, Endpoint receiver) {

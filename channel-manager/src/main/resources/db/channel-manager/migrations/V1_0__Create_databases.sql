@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS channels (
     channel_type   varchar(255)      NOT NULL,
     channel_spec   varchar(10485760) NOT NULL,
     created_at     timestamp         NOT NULL,
-    channel_status varchar(255)      NOT NULL,
+    channel_life_status varchar(255) NOT NULL,
 
     CONSTRAINT channels_pkey PRIMARY KEY (channel_id)
 );
@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS channel_endpoints (
 
     CONSTRAINT channel_endpoints_channel_id_fkey
         FOREIGN KEY (channel_id) REFERENCES channels(channel_id)
+        ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS endpoint_connections (
@@ -36,9 +37,11 @@ CREATE TABLE IF NOT EXISTS endpoint_connections (
     CONSTRAINT endpoint_connections PRIMARY KEY (channel_id, sender_uri, receiver_uri),
 
     CONSTRAINT endpoint_connections_sender_fkey
-        FOREIGN KEY (channel_id, sender_uri) REFERENCES channel_endpoints(channel_id, slot_uri),
+        FOREIGN KEY (channel_id, sender_uri) REFERENCES channel_endpoints(channel_id, slot_uri)
+        ON DELETE CASCADE,
 
     CONSTRAINT endpoint_connections_receiver_fkey
         FOREIGN KEY (channel_id, receiver_uri) REFERENCES channel_endpoints(channel_id, slot_uri)
+        ON DELETE CASCADE
 );
 
