@@ -1,60 +1,56 @@
 from pathlib import Path
-from typing import IO, Any
+from typing import IO, Any, BinaryIO
 from urllib.parse import urlparse
 
 from azure.storage.blob.aio import (
     BlobServiceClient,
     ContainerClient,
-    StorageStreamDownloader,
 )
-
-from lzy.api.v2.storage.client import _from, bucket_from_url
+from lzy.api.v2.storage.client_protocol import _from
+from lzy.api.v2.storage.url import url_from_bucket, bucket_from_url, Scheme
 from lzy.api.v2.utils import unwrap
 from lzy.storage.credentials import AzureCredentials, AzureSasCredentials
 
 
 class AzureClient:
+    scheme = Scheme.azure
+
     def __init__(self, client: BlobServiceClient):
         self.client: BlobServiceClient = client
 
+    async def _blob_client(
+        self,
+        container: str,
+        blob: str,
+    ) -> Any:
+        container_client: ContainerClient = await self.client.get_container_client(
+            container
+        )
+        return container_client.get_blob_client(blob)
+
+    async def _blob_client_from_url(self, url: str) -> Any:
+        await self._blob_client(*bucket_from_url(self.scheme, url))
+
     async def read_to_file(self, url: str, path: Path):
-        assert urlparse(url).scheme == "azure"
-        bucket, other = bucket_from_url(url)
+        with path.open("wb") as file:
+            blob_client = await self._blob_client_from_url(url)
+            stream = await blob_client.download_blob()
+            async for chunk in stream.chunks():
+                file.write(chunk)
 
-        # TODO[ottergottaott]: enable
-        # downloader: StorageStreamDownloader = (
-        #     self.client.get_container_client(bucket)
-        #     .get_blob_client(str(other))
-        #     .download_blob()
-        # )
-        # with open(path, "wb") as f:
-        #     downloader.readinto(f)
+    async def read(self, url: str, dest: BinaryIO) -> bytes:
+        blob_client = await self._blob_client_from_url(url)
+        stream = await blob_client.download_blob()
+        return await stream.readall()
 
-    async def read(self, url: str, dest: IO) -> Any:
-        assert urlparse(url).scheme == "azure"
-        bucket, other = bucket_from_url(url)
-
-        # TODO[ottergottaott]: enable
-        # downloader: StorageStreamDownloader = (
-        #     self.client.get_container_client(bucket)
-        #     .get_blob_client(str(other))
-        #     .download_blob()
-        # )
-        return None
-
-    async def write(self, container: str, blob: str, data: IO):
-        container_client: ContainerClient = self.client.get_container_client(container)
-        blob_client = container_client.get_blob_client(blob)
-        blob_client.upload_blob(data)  # type: ignore
-        return self.generate_uri(container, blob)
+    async def write(self, container: str, blob: str, data: BinaryIO):
+        blob_client = await self._blob_client(container, blob)
+        await blob_client.upload_blob(data)
+        return url_from_bucket(self.scheme, container, blob)
 
     async def blob_exists(self, container: str, blob: str) -> bool:
-        container_client: ContainerClient = self.client.get_container_client(container)
-        blob_client = container_client.get_blob_client(blob)
+        blob_client = self._blob_client(container, blob)
         return unwrap(await blob_client.exists())
-
-    def generate_uri(self, container: str, blob: str) -> str:
-        return f"azure:/{container}/{blob}"
 
 
 @_from.register
@@ -66,4 +62,9 @@ def _(credentials: AzureCredentials) -> AzureClient:
 
 @_from.register
 def _(credentials: AzureSasCredentials) -> AzureClient:
-    return AzureClient(BlobServiceClient(credentials.endpoint))
+    return AzureClient(
+        BlobServiceClient.from_connection_string(
+            conn_str=credentials.endpoint,
+            credential=credentials.signature,
+        )
+    )

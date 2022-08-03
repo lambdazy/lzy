@@ -20,9 +20,9 @@ def url_from_bucket(
     return str(path)
 
 
-def bucket_from_url(scheme: str, url: Path) -> Tuple[str, Path]:
+def bucket_from_url(scheme: Scheme, url: Path) -> Tuple[str, Path]:
     _parsed_scheme, _, _path, _, _ = urlsplit(str(url))
-    assert _parsed_scheme == scheme
+    assert _parsed_scheme == scheme.name
 
     path = Path(_path)
     if path.is_absolute():
