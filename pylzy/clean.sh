@@ -20,4 +20,3 @@ rm -rvf target/
 # generated proto files
 [ -n "$1" ] || rm -rvf "$proto_out/priv" "$proto_out/v1" "ai/"
 
-rm -rvf ./.coverage ./coverage.svg

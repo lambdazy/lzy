@@ -3,7 +3,7 @@ from contextlib import AsyncExitStack
 from pathlib import Path
 from typing import BinaryIO
 
-from aioboto3 import Session  # type: ignore[import]
+from aioboto3 import Session
 from botocore.exceptions import ClientError
 
 from lzy.api.v2.storage.url import Scheme, bucket_from_url, url_from_bucket
