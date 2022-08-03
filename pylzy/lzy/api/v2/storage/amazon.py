@@ -2,12 +2,11 @@ import io
 
 from contextlib import AsyncExitStack
 from pathlib import Path
-from typing import Any, AsyncIterator, BinaryIO
+from typing import BinaryIO
 
 from aioboto3 import Session
 from botocore.exceptions import ClientError
 
-from lzy.api.v2.storage.client_protocol import _from
 from lzy.api.v2.storage.url import bucket_from_url, url_from_bucket, Scheme
 from lzy.storage.credentials import AmazonCredentials
 
@@ -75,8 +74,3 @@ class AmazonClient:
                     return
 
                 dest.write(data)
-
-
-@_from.register
-def _(credentials: AmazonCredentials) -> AmazonClient:
-    return AmazonClient(credentials)

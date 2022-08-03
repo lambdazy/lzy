@@ -52,19 +52,17 @@ class AzureClient:
         blob_client = self._blob_client(container, blob)
         return unwrap(await blob_client.exists())
 
-
-@_from.register
-def _(credentials: AzureCredentials) -> AzureClient:
-    return AzureClient(
-        BlobServiceClient.from_connection_string(credentials.connection_string)
-    )
-
-
-@_from.register
-def _(credentials: AzureSasCredentials) -> AzureClient:
-    return AzureClient(
-        BlobServiceClient.from_connection_string(
-            conn_str=credentials.endpoint,
-            credential=credentials.signature,
+    @staticmethod
+    def from_cred(self, creds: AzureCredentials) -> "AzureClient":
+        return AzureClient(
+            BlobServiceClient.from_connection_string(creds.connection_string)
         )
-    )
+
+    @staticmethod
+    def from_sas_cred(self, creds: AzureSasCredentials) -> "AzureClient":
+        return AzureClient(
+            BlobServiceClient.from_connection_string(
+                conn_str=creds.endpoint,
+                credential=creds.signature,
+            )
+        )
