@@ -1,13 +1,12 @@
 import io
-
 from contextlib import AsyncExitStack
 from pathlib import Path
 from typing import BinaryIO
 
-from aioboto3 import Session
+from aioboto3 import Session  # type: ignore[import]
 from botocore.exceptions import ClientError
 
-from lzy.api.v2.storage.url import bucket_from_url, url_from_bucket, Scheme
+from lzy.api.v2.storage.url import Scheme, bucket_from_url, url_from_bucket
 from lzy.storage.credentials import AmazonCredentials
 
 
@@ -19,18 +18,17 @@ class AmazonClient:
         self.session = Session()
         self.resources = AsyncExitStack()
 
-        self._client = await self.resources.enter_async_context(
-            self.session.client(
-                "s3",
-                aws_access_key_id=credentials.access_token,
-                aws_secret_access_key=credentials.secret_token,
-                endpoint_url=credentials.endpoint,
-            )
+        # TODO[ottergottaott]: close this client
+        self._client = self.session.client(
+            "s3",
+            aws_access_key_id=credentials.access_token,
+            aws_secret_access_key=credentials.secret_token,
+            endpoint_url=credentials.endpoint,
         )
 
     async def read(self, url: str) -> bytes:
         with io.BytesIO() as buf:
-            await self._read_into(buf)
+            await self._read_into(url, buf)
             return buf.getvalue()
 
     async def read_to_file(self, url: str, filepath: Path) -> None:

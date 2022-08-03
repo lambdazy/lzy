@@ -1,9 +1,8 @@
 import os
-from urllib.parse import urlsplit, urljoin
+from enum import Enum
 from pathlib import Path
 from typing import Tuple
-
-from enum import Enum
+from urllib.parse import urljoin, urlsplit
 
 
 class Scheme(Enum):
@@ -20,8 +19,8 @@ def url_from_bucket(
     return str(path)
 
 
-def bucket_from_url(scheme: Scheme, url: Path) -> Tuple[str, Path]:
-    _parsed_scheme, _, _path, _, _ = urlsplit(str(url))
+def bucket_from_url(scheme: Scheme, url: str) -> Tuple[str, str]:
+    _parsed_scheme, _, _path, _, _ = urlsplit(url)
     assert _parsed_scheme == scheme.name
 
     path = Path(_path)
@@ -30,4 +29,4 @@ def bucket_from_url(scheme: Scheme, url: Path) -> Tuple[str, Path]:
     else:
         bucket, *other = path.parts
 
-    return bucket, Path(*other)
+    return bucket, str(Path(*other))

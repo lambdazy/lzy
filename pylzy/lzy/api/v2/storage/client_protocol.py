@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Protocol, BinaryIO
+from typing import BinaryIO, Protocol
 
 
 class StorageClient(Protocol):
