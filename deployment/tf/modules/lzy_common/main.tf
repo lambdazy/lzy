@@ -160,3 +160,37 @@ resource "kubernetes_role_binding" "server_network_policy_operations" {
     namespace = kubernetes_namespace.server_namespace.metadata[0].name
   }
 }
+
+resource "kubernetes_network_policy" "servant_to_kafka_traffic" {
+  metadata {
+    name = "servant-to-kafka-traffic"
+  }
+  spec {
+    policy_types = ["Ingress", "Egress"]
+    pod_selector {
+      match_labels = {
+        "lzy.ai/app" = "servant"
+      }
+    }
+    egress {
+      to {
+        pod_selector {
+          match_labels = {
+            # TODO: replace with "lzy.ai/app" or with kafka service ip
+            "app.kubernetes.io/component" = "kafka"
+          }
+        }
+      }
+    }
+    ingress {
+      from {
+        pod_selector {
+          match_labels = {
+            # TODO: replace with "lzy.ai/app" or with kafka service ip
+            "app.kubernetes.io/component" = "kafka"
+          }
+        }
+      }
+    }
+  }
+}
