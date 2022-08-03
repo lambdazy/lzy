@@ -308,7 +308,8 @@ public class ChannelManager {
                 }
 
                 responseObserver.onNext(ChannelDestroyAllResponse.getDefaultInstance());
-                LOG.info("Destroying all channels for workflow {} done", workflowId);
+                LOG.info("Destroying all channels for workflow {} done, removed channels: {}",
+                    workflowId, channels.stream().map(Channel::id).collect(Collectors.joining(",")));
                 responseObserver.onCompleted();
             } catch (Exception e) {
                 LOG.error("Destroying all channels for workflow {} failed, got exception: {}",
@@ -319,15 +320,33 @@ public class ChannelManager {
 
         @Override
         public void status(ChannelStatusRequest request, StreamObserver<ChannelStatus> responseObserver) {
-            LOG.info("ChannelManager channel status {}", request.getChannelId());
-            final Channel channel = channelStorage.get(request.getChannelId());
-            if (channel == null) {
-                responseObserver.onError(Status.NOT_FOUND.withDescription("Channel not found").asRuntimeException());
-                return;
-            }
+            LOG.info("Get status for channel {}", request.getChannelId());
+            try {
+                final String channelId = request.getChannelId();
 
-            responseObserver.onNext(toChannelStatus(channel));
-            responseObserver.onCompleted();
+                final AtomicReference<Channel> channel = new AtomicReference<>();
+                Transaction.execute(dataSource, conn -> {
+                    channel.set(channelManagerStorage.findChannel(conn, false, channelId));
+                    if (channel.get() == null) {
+                        String errorMessage = String.format("Channel with id %s not found", channelId);
+                        LOG.error(errorMessage);
+                        throw new NotFoundException(errorMessage);
+                    }
+                    return true;
+                });
+
+                responseObserver.onNext(toChannelStatus(channel.get()));
+                LOG.info("Get status for channel {} done", request.getChannelId());
+                responseObserver.onCompleted();
+            } catch (NotFoundException e) {
+                LOG.error("Get status for channel {} failed, channel not found",
+                    request.getChannelId(), e);
+                responseObserver.onError(Status.NOT_FOUND.withCause(e).asException());
+            } catch (Exception e) {
+                LOG.error("Get status for channel {} failed, got exception: {}",
+                    request.getChannelId(), e.getMessage(), e);
+                responseObserver.onError(Status.INTERNAL.withCause(e).asException());
+            }
         }
 
         @Override
