@@ -163,6 +163,8 @@ pylzy/*.egg-info
 
 # python grpc stubs
 pylzy/ai/
+pylzy/google
+pylzy/_build
 
 **/*.env
 pylzy/*.egg-info
