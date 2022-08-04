@@ -85,7 +85,7 @@ public class DbSubjectService {
     public void removeSubject(Subject subject) throws AuthException {
         try (var connect = storage.connect()) {
             final PreparedStatement st = connect.prepareStatement(
-            "DELETE FROM users WHERE user_id = ?;"
+                "DELETE FROM users WHERE user_id = ?;"
             );
             int parameterIndex = 0;
             st.setString(++parameterIndex, subject.id());
