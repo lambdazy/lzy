@@ -34,7 +34,7 @@ import ai.lzy.v1.ChannelManager.ChannelDestroyResponse;
 import ai.lzy.v1.ChannelManager.ChannelStatus;
 import ai.lzy.v1.ChannelManager.ChannelStatusList;
 import ai.lzy.v1.ChannelManager.ChannelStatusRequest;
-import ai.lzy.v1.ChannelManager.ChannelsStatusRequest;
+import ai.lzy.v1.ChannelManager.ChannelStatusAllRequest;
 import ai.lzy.v1.ChannelManager.SlotAttach;
 import ai.lzy.v1.ChannelManager.SlotAttachStatus;
 import ai.lzy.v1.ChannelManager.SlotDetach;
@@ -283,6 +283,7 @@ public class ChannelManager {
             StreamObserver<ChannelDestroyAllResponse> responseObserver
         ) {
             LOG.info("Destroying all channels for workflow {}", request.getWorkflowId());
+
             try {
                 final var authenticationContext = AuthenticationContext.current();
                 final String userId = Objects.requireNonNull(authenticationContext).getSubject().id();
@@ -290,9 +291,7 @@ public class ChannelManager {
 
                 List<Channel> channels = new ArrayList<>();
                 Transaction.execute(dataSource, conn -> {
-                    channels.addAll(channelManagerStorage
-                        .listChannels(conn, true, userId, workflowId)
-                        .toList());
+                    channels.addAll(channelManagerStorage.listChannels(conn, true, userId, workflowId).toList());
                     channelManagerStorage.setChannelLifeStatus(conn,
                         channels.stream().map(Channel::id), "Destroying"
                     );
@@ -321,6 +320,7 @@ public class ChannelManager {
         @Override
         public void status(ChannelStatusRequest request, StreamObserver<ChannelStatus> responseObserver) {
             LOG.info("Get status for channel {}", request.getChannelId());
+
             try {
                 final String channelId = request.getChannelId();
 
@@ -350,15 +350,32 @@ public class ChannelManager {
         }
 
         @Override
-        public void channelsStatus(ChannelsStatusRequest request, StreamObserver<ChannelStatusList> responseObserver) {
-            LOG.info("ChannelManager channels status {}", JsonUtils.printRequest(request));
-            final ChannelStatusList.Builder builder = ChannelStatusList.newBuilder();
-            // TODO not all channels, channels by workflow id
-            channelStorage.channels()
-                .map(this::toChannelStatus)
-                .forEach(builder::addStatuses);
-            responseObserver.onNext(builder.build());
-            responseObserver.onCompleted();
+        public void statusAll(ChannelStatusAllRequest request, StreamObserver<ChannelStatusList> responseObserver) {
+            LOG.info("Get status for channels of workflow {}", request.getWorkflowId());
+
+            try {
+                final var authenticationContext = AuthenticationContext.current();
+                final String userId = Objects.requireNonNull(authenticationContext).getSubject().id();
+                final String workflowId = request.getWorkflowId();
+
+                List<Channel> channels = new ArrayList<>();
+                Transaction.execute(dataSource, conn -> {
+                    channels.addAll(channelManagerStorage.listChannels(conn, false, userId, workflowId).toList());
+                    return true;
+                });
+
+                final ChannelStatusList.Builder builder = ChannelStatusList.newBuilder();
+                channels.forEach(channel -> builder.addStatuses(toChannelStatus(channel)));
+                var channelStatusList = builder.build();
+
+                responseObserver.onNext(channelStatusList);
+                LOG.info("Get status for channels of workflow {} done", request.getWorkflowId());
+                responseObserver.onCompleted();
+            } catch (Exception e) {
+                LOG.error("Get status for channels of workflow {} failed, got exception: {}",
+                    request.getWorkflowId(), e.getMessage(), e);
+                responseObserver.onError(Status.INTERNAL.withCause(e).asException());
+            }
         }
 
         @Override
@@ -455,19 +472,13 @@ public class ChannelManager {
         private final ObjectMapper objectMapper;
 
         @Inject
-        private ChannelManagerStorage(Storage storage, ObjectMapper objectMapper) {
+        private ChannelManagerStorage(ChannelManagerDataSource storage, ObjectMapper objectMapper) {
             this.storage = storage;
             this.objectMapper = objectMapper;
         }
 
-        void insertChannel(
-            Connection sqlConnection,
-            String channelId,
-            String userId,
-            String workflowId,
-            String channelName,
-            Channels.ChannelSpec.TypeCase channelType,
-            ChannelSpec channelSpec
+        void insertChannel(Connection sqlConnection, String channelId, String userId, String workflowId,
+                       String channelName, Channels.ChannelSpec.TypeCase channelType, ChannelSpec channelSpec
         ) throws DaoException {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 INSERT INTO channels(
