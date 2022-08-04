@@ -33,6 +33,14 @@ public enum Role {
             AuthPermission.WORKFLOW_DELETE,
             AuthPermission.INTERNAL_AUTHORIZE
     )),
+    // TODO may be rename
+    LZY_SERVANT("lzy.internal.servant", Set.of(
+            AuthPermission.WORKFLOW_GET,
+            AuthPermission.WORKFLOW_RUN,
+            AuthPermission.WHITEBOARD_GET,
+            AuthPermission.WHITEBOARD_CREATE,
+            AuthPermission.WHITEBOARD_UPDATE
+    ))
     ;
 
     private final String role;

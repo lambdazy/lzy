@@ -5,6 +5,7 @@ import ai.lzy.iam.resources.AccessBindingDelta;
 import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.AuthResource;
 import ai.lzy.iam.resources.Role;
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.storage.db.IamDataSource;
 import io.micronaut.context.ApplicationContext;
 import org.apache.logging.log4j.LogManager;
@@ -45,7 +46,7 @@ public class DbAccessClientTest {
     @Test
     public void validAccess() {
         String userId = "user1";
-        subjectService.createSubject(userId, "", "");
+        subjectService.createSubject(userId, "", "", SubjectType.USER);
         final Subject user = subjectService.subject(userId);
 
         AuthResource whiteboardResource = new Whiteboard("whiteboard");
@@ -107,7 +108,7 @@ public class DbAccessClientTest {
     @Test
     public void invalidAccess() throws Exception {
         String userId = "user1";
-        subjectService.createSubject(userId, "", "");
+        subjectService.createSubject(userId, "", "", SubjectType.USER);
         final Subject user = subjectService.subject(userId);
 
         AuthResource whiteboardResource = new Whiteboard("whiteboard");

@@ -5,7 +5,9 @@ import ai.lzy.iam.authorization.exceptions.AuthException;
 import ai.lzy.iam.authorization.exceptions.AuthInternalException;
 import ai.lzy.iam.configs.ServiceConfig;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
+import ai.lzy.iam.resources.subjects.Servant;
 import ai.lzy.iam.resources.subjects.Subject;
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.storage.db.IamDataSource;
 import ai.lzy.iam.utils.UserVerificationType;
@@ -30,23 +32,31 @@ public class DbSubjectService {
     @Inject
     private ServiceConfig serviceConfig;
 
-    public Subject createSubject(String id, String authProvider, String providerSubjectId) throws AuthException {
+    public Subject createSubject(
+            String id, String authProvider, String providerSubjectId, SubjectType subjectType
+    ) throws AuthException {
         try (final PreparedStatement st = storage.connect().prepareStatement(
                 "INSERT INTO users ("
                         + "user_id, "
                         + "auth_provider, "
                         + "provider_user_id, "
                         + "access_type "
+                        + "user_type"
                         + ") "
-                        + "VALUES (?, ?, ?, ?);"
+                        + "VALUES (?, ?, ?, ?, CAST(? AS user_type));"
         )) {
             int parameterIndex = 0;
             st.setString(++parameterIndex, id);
             st.setString(++parameterIndex, authProvider);
             st.setString(++parameterIndex, providerSubjectId);
-            st.setString(++parameterIndex, typeForNewUser().toString());
+            st.setString(++parameterIndex, accessTypeForNewUser().toString());
+            st.setString(++parameterIndex, subjectType.name());
             st.executeUpdate();
-            return new User(id);
+
+            return switch (subjectType) {
+                case USER -> new User(id);
+                case SERVANT -> new Servant(id);
+            };
         } catch (SQLException e) {
             throw new AuthInternalException(e);
         }
@@ -140,7 +150,7 @@ public class DbSubjectService {
         }
     }
 
-    private UserVerificationType typeForNewUser() {
+    private UserVerificationType accessTypeForNewUser() {
         if (serviceConfig.getUserLimit() == 0) {
             return UserVerificationType.ACCESS_ALLOWED;
         }

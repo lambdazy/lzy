@@ -6,7 +6,9 @@ import ai.lzy.iam.resources.AuthResource;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.impl.Whiteboard;
 import ai.lzy.iam.resources.impl.Workflow;
+import ai.lzy.iam.resources.subjects.Servant;
 import ai.lzy.iam.resources.subjects.Subject;
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.v1.iam.IAM;
 
@@ -32,7 +34,12 @@ public class GrpcConverter {
     }
 
     public static Subject to(IAM.Subject subject) {
-        return new User(subject.getId());
+        SubjectType subjectType = SubjectType.valueOf(subject.getUserType());
+        return switch (subjectType) {
+            case USER -> new User(subject.getId());
+            case SERVANT -> new Servant(subject.getId());
+            default -> throw new RuntimeException("Unknown Resource type::" + subjectType);
+        };
     }
 
     public static SubjectCredentials to(IAM.Credentials credentials) {
@@ -64,8 +71,15 @@ public class GrpcConverter {
     }
 
     public static IAM.Subject from(Subject subject) {
+        SubjectType subjectType;
+        if (subject instanceof User) {
+            subjectType = SubjectType.USER;
+        } else {
+            subjectType = SubjectType.SERVANT;
+        }
         return IAM.Subject.newBuilder()
                 .setId(subject.id())
+                .setUserType(subjectType.name())
                 .build();
     }
 

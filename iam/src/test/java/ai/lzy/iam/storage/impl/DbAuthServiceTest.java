@@ -1,5 +1,6 @@
 package ai.lzy.iam.storage.impl;
 
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.storage.db.IamDataSource;
 import io.micronaut.context.ApplicationContext;
 import org.apache.logging.log4j.LogManager;
@@ -122,7 +123,7 @@ public class DbAuthServiceTest {
     @Test
     public void validAuth() throws Exception {
         String userId = "user1";
-        subjectService.createSubject(userId, "", "");
+        subjectService.createSubject(userId, "", "", SubjectType.USER);
         final Subject user = subjectService.subject(userId);
         subjectService.addCredentials(user, "testCred", PUBLIC_PEM2, "public_key");
 
@@ -132,7 +133,7 @@ public class DbAuthServiceTest {
     @Test
     public void invalidAuth() throws Exception {
         String userId = "user1";
-        subjectService.createSubject(userId, "", "");
+        subjectService.createSubject(userId, "", "", SubjectType.USER);
         final Subject user = subjectService.subject(userId);
         subjectService.addCredentials(user, "testCred", PUBLIC_PEM2, "public_key");
 
