@@ -2,13 +2,13 @@ syntax = "proto3";
 
 package ai.lzy.v1.allocator;
 
-option java_outer_classname = "ServantAllocatorApi";
+option java_outer_classname = "VmAllocatorApi";
 option java_package = "ai.lzy.v1";
 
 import "ai/lzy/v1/operation.proto";
 
 //
-// Service to allocate servants
+// Service to allocate vm
 // Auth requirements: IAM Internal User
 //
 service Allocator {
