@@ -44,7 +44,7 @@ public class DbSubjectService {
                 access_type 
                 user_type 
                 ) 
-                VALUES (?, ?, ?, ?, CAST(? AS user_type));"""
+                VALUES (?, ?, ?, ?, ?);"""
             );
             int parameterIndex = 0;
             st.setString(++parameterIndex, id);
