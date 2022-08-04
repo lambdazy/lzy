@@ -41,7 +41,7 @@ public class DbSubjectService {
                         + "auth_provider, "
                         + "provider_user_id, "
                         + "access_type "
-                        + "user_type"
+                        + "user_type "
                         + ") "
                         + "VALUES (?, ?, ?, ?, CAST(? AS user_type));"
         )) {

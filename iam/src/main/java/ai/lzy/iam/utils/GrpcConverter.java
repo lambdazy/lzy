@@ -34,7 +34,7 @@ public class GrpcConverter {
     }
 
     public static Subject to(IAM.Subject subject) {
-        SubjectType subjectType = SubjectType.valueOf(subject.getUserType());
+        SubjectType subjectType = SubjectType.valueOf(subject.getType());
         return switch (subjectType) {
             case USER -> new User(subject.getId());
             case SERVANT -> new Servant(subject.getId());
@@ -79,7 +79,7 @@ public class GrpcConverter {
         }
         return IAM.Subject.newBuilder()
                 .setId(subject.id())
-                .setUserType(subjectType.name())
+                .setType(subjectType.name())
                 .build();
     }
 
