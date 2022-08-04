@@ -23,8 +23,6 @@ message RegisterServantResponse {}
 
 message ServantProgress {
 
-  message Started {}
-
   message Configured {
     message Ok {}
     message Err {

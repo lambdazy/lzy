@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package ai.lzy.v1.allocator;
+
+option java_outer_classname = "VmAllocatorApi";
+option java_package = "ai.lzy.v1";
+
+import "ai/lzy/v1/operation.proto";
+
+//
+// Service to allocate vm
+// Auth requirements: IAM Internal User
+//
+service Allocator {
+
+  // Create allocation session
+  rpc CreateSession (CreateSessionRequest) returns (CreateSessionResponse);
+
+  // Delete allocation session and all resources
+  rpc DeleteSession (DeleteSessionRequest) returns (DeleteSessionResponse);
+
+  //
+  // Allocate vm with given spec
+  // metadata: AllocateMetadata
+  // response: AllocateResponse
+  //
+  rpc Allocate (AllocateRequest) returns (ai.lzy.v1.Operation);
+
+  // Return control of vm to allocator
+  rpc Free (FreeRequest) returns (FreeResponse);
+}
+
+// ========= Create session ==========
+
+message CreateSessionRequest {
+  string owner = 1;
+}
+message CreateSessionResponse {
+  string session_id = 1;
+}
+
+// ========= Delete session ==========
+
+message DeleteSessionRequest {
+  string session_id = 1;
+}
+message DeleteSessionResponse {}
+
+// ========= Allocate ==========
+message AllocateRequest {
+  message Workload {
+    string name = 1;
+
+    // image must contains allocator agent to notify allocator about livecycle
+    string image = 2;
+
+    map<string, string> env = 16;
+  }
+
+  string session_id = 1;
+  string pool_id = 2;
+  repeated Workload workload = 3;
+  map<string, string> labels = 4;
+}
+
+message AllocateResponse {
+  string pool_id = 1;
+  string vm_id = 2;
+  string session_id = 3;
+  map<string, string> metadata = 4;
+}
+
+message AllocateMetadata {
+  string vm_id = 1;
+}
+
+// ========= Free ==========
+
+message FreeRequest {
+  string vm_id = 2;
+}
+
+message FreeResponse {}
