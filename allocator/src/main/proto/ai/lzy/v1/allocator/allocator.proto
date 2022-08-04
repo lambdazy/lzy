@@ -32,7 +32,9 @@ service Allocator {
 
 // ========= Create session ==========
 
-message CreateSessionRequest {}
+message CreateSessionRequest {
+  string owner = 1;
+}
 message CreateSessionResponse {
   string session_id = 1;
 }
