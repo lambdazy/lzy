@@ -64,6 +64,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -267,8 +268,7 @@ public class ChannelManager {
                 LOG.info("Destroy channel {} done", channelId);
                 responseObserver.onCompleted();
             } catch (NotFoundException e) {
-                LOG.error("Destroy channel {} failed, channel not found",
-                    request.getChannelId(), e);
+                LOG.error("Destroy channel {} failed, channel not found", request.getChannelId(), e);
                 responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asException());
             } catch (Exception e) {
                 LOG.error("Destroy channel {} failed, got exception: {}",
@@ -339,8 +339,7 @@ public class ChannelManager {
                 LOG.info("Get status for channel {} done", request.getChannelId());
                 responseObserver.onCompleted();
             } catch (NotFoundException e) {
-                LOG.error("Get status for channel {} failed, channel not found",
-                    request.getChannelId(), e);
+                LOG.error("Get status for channel {} failed, channel not found", request.getChannelId(), e);
                 responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asException());
             } catch (Exception e) {
                 LOG.error("Get status for channel {} failed, got exception: {}",
@@ -526,104 +525,32 @@ public class ChannelManager {
         @Nullable
         Channel findChannel(Connection sqlConnection, boolean forUpdate, String channelId) throws DaoException {
             try {
-                final Channel.Builder channelBuilder = ChannelImpl.newBuilder();
                 try (final PreparedStatement channelSt = sqlConnection.prepareStatement("""
                     SELECT
-                        channel_id,
-                        user_id,
-                        workflow_id,
-                        channel_name,
-                        channel_spec,
-                        created_at,
-                        channel_life_status
-                    FROM channels WHERE channel_id = ? AND channel_life_status = ?
+                        ch.channel_id as channel_id,
+                        ch.user_id as user_id,
+                        ch.workflow_id as workflow_id,
+                        ch.channel_name as channel_name,
+                        ch.channel_spec as channel_spec,
+                        ch.created_at as created_at,
+                        ch.channel_life_status as channel_life_status,
+                        e.slot_uri as slot_uri,
+                        e.direction as direction,
+                        e.task_id as task_id,
+                        e.slot_spec as slot_spec,
+                        c.slot_uri as connected_slot_uri
+                    FROM channels ch
+                    FULL JOIN channel_endpoints e ON ch.channel_id = e.channel_id
+                    FULL JOIN endpoint_connections c ON e.channel_id = c.channel_id  AND e.slot_uri = c.sender_uri
+                    WHERE ch.channel_id = ? AND ch.channel_life_status = ?
                     """ + (forUpdate ? "FOR UPDATE" : ""))
                 ) {
                     int index = 0;
                     channelSt.setString(++index, channelId);
                     channelSt.setString(++index, "ALIVE");
-                    ResultSet rs = channelSt.executeQuery();
-                    if (!rs.next()) {
-                        LOG.warn("Channel {} doesn't exist", channelId);
-                        return null;
-                    }
-
-                    channelBuilder.setId(channelId);
-                    var channelType = Channels.ChannelSpec.TypeCase.valueOf(rs.getString("channel_type"));
-                    switch (channelType) {
-                        case DIRECT -> {
-                            channelBuilder.setSpec(objectMapper.readValue(
-                                rs.getString("channel_spec"), DirectChannelSpec.class
-                            ));
-                            channelBuilder.setController(new DirectChannelController());
-                        }
-                        case SNAPSHOT -> {
-                            SnapshotChannelSpec spec = objectMapper.readValue(
-                                rs.getString("channel_spec"), SnapshotChannelSpec.class
-                            );
-                            channelBuilder.setSpec(spec);
-                            channelBuilder.setController(new SnapshotChannelController(
-                                spec.entryId(), spec.snapshotId(), rs.getString("user_id"), spec.whiteboardAddress()
-                            ));
-                        }
-                        default -> {
-                            final String errorMessage = String.format(
-                                "Unexpected chanel type \"%s\", only snapshot and direct channels are supported",
-                                channelType
-                            );
-                            LOG.error(errorMessage);
-                            throw new NotImplementedException(errorMessage);
-                        }
-                    }
+                    Stream<Channel> channels = parseChannels(channelSt.executeQuery());
+                    return channels.findFirst().orElse(null);
                 }
-
-                try (final PreparedStatement endpointsSt = sqlConnection.prepareStatement("""
-                    SELECT
-                        channel_id,
-                        slot_uri,
-                        direction,
-                        task_id,
-                        slot_spec
-                    FROM channel_endpoints WHERE channel_id = ?
-                    """ + (forUpdate ? "FOR UPDATE" : ""))
-                ) {
-                    int index = 0;
-                    endpointsSt.setString(++index, channelId);
-                    final ResultSet endpointsRs = endpointsSt.executeQuery();
-                    while (endpointsRs.next()) {
-                        var endpoint = SlotEndpoint.getInstance(new SlotInstance(
-                            objectMapper.readValue(endpointsRs.getString("slot_spec"), Slot.class),
-                            endpointsRs.getString("task_id"),
-                            endpointsRs.getString("channel_id"),
-                            URI.create(endpointsRs.getString("slot_uri"))
-                        ));
-                        switch (endpoint.slotSpec().direction()) {
-                            case OUTPUT -> channelBuilder.addSender(endpoint);
-                            case INPUT -> channelBuilder.addReceiver(endpoint);
-                        }
-                    }
-                }
-
-                try (final PreparedStatement connectionsSt = sqlConnection.prepareStatement("""
-                    SELECT
-                        channel_id,
-                        sender_uri,
-                        receiver_uri,
-                    FROM endpoint_connections WHERE channel_id = ?
-                    """ + (forUpdate ? "FOR UPDATE" : ""))
-                ) {
-                    int index = 0;
-                    connectionsSt.setString(++index, channelId);
-                    final ResultSet connectionsRs = connectionsSt.executeQuery();
-                    while (connectionsRs.next()) {
-                        channelBuilder.addEdge(
-                            connectionsRs.getString("sender_uri"),
-                            connectionsRs.getString("receiver_uri")
-                        );
-                    }
-                }
-
-                return channelBuilder.build();
             } catch (SQLException | JsonProcessingException e) {
                 LOG.error("Failed to find channel (channelId={})", channelId, e);
                 throw new DaoException(e);
@@ -634,107 +561,33 @@ public class ChannelManager {
             String userId, String workflowId
         ) throws DaoException {
             try {
-                Map<String, Channel.Builder> chanelBuildersById = new HashMap<>();
-                List<String> channelIds = new ArrayList<>();
                 try (final PreparedStatement channelSt = sqlConnection.prepareStatement("""
                     SELECT
-                        channel_id,
-                        user_id,
-                        workflow_id,
-                        channel_name,
-                        channel_spec,
-                        created_at,
-                        channel_life_status
-                    FROM channels WHERE user_id = ? AND workflow_id = ? AND channel_life_status = ?
+                        ch.channel_id as channel_id,
+                        ch.user_id as user_id,
+                        ch.workflow_id as workflow_id,
+                        ch.channel_name as channel_name,
+                        ch.channel_spec as channel_spec,
+                        ch.created_at as created_at,
+                        ch.channel_life_status as channel_life_status,
+                        e.slot_uri as slot_uri,
+                        e.direction as direction,
+                        e.task_id as task_id,
+                        e.slot_spec as slot_spec,
+                        c.slot_uri as connected_slot_uri
+                    FROM channels ch
+                    FULL JOIN channel_endpoints e ON ch.channel_id = e.channel_id
+                    FULL JOIN endpoint_connections c ON e.channel_id = c.channel_id  AND e.slot_uri = c.sender_uri
+                    WHERE ch.user_id = ? AND ch.workflow_id = ? AND ch.channel_life_status = ?
                     """ + (forUpdate ? "FOR UPDATE" : ""))
                 ) {
                     int index = 0;
                     channelSt.setString(++index, userId);
                     channelSt.setString(++index, workflowId);
                     channelSt.setString(++index, "ALIVE");
-                    ResultSet rs = channelSt.executeQuery();
-                    while (rs.next()) {
-                        final String channelId = rs.getString("channel_id");
-                        chanelBuildersById.put(channelId, ChannelImpl.newBuilder().setId(channelId));
-                        channelIds.add(channelId);
-                        var channelType = Channels.ChannelSpec.TypeCase.valueOf(rs.getString("channel_type"));
-                        switch (channelType) {
-                            case DIRECT -> {
-                                chanelBuildersById.get(channelId).setSpec(objectMapper.readValue(
-                                    rs.getString("channel_spec"), DirectChannelSpec.class
-                                ));
-                                chanelBuildersById.get(channelId).setController(new DirectChannelController());
-                            }
-                            case SNAPSHOT -> {
-                                SnapshotChannelSpec spec = objectMapper.readValue(
-                                    rs.getString("channel_spec"), SnapshotChannelSpec.class
-                                );
-                                chanelBuildersById.get(channelId).setSpec(spec);
-                                chanelBuildersById.get(channelId).setController(new SnapshotChannelController(
-                                    spec.entryId(), spec.snapshotId(), userId, spec.whiteboardAddress()
-                                ));
-                            }
-                            default -> {
-                                final String errorMessage = String.format(
-                                    "Unexpected chanel type \"%s\", only snapshot and direct channels are supported",
-                                    channelType
-                                );
-                                LOG.error(errorMessage);
-                                throw new NotImplementedException(errorMessage);
-                            }
-                        }
-                    }
+                    Stream<Channel> channels = parseChannels(channelSt.executeQuery());
+                    return channels;
                 }
-
-                try (final PreparedStatement endpointsSt = sqlConnection.prepareStatement("""
-                    SELECT
-                        channel_id,
-                        slot_uri,
-                        direction,
-                        task_id,
-                        slot_spec
-                    FROM channel_endpoints WHERE channel_id = ANY (?)
-                    """ + (forUpdate ? "FOR UPDATE" : ""))
-                ) {
-                    int index = 0;
-                    endpointsSt.setArray(++index, sqlConnection.createArrayOf("text", channelIds.toArray()));
-                    final ResultSet endpointsRs = endpointsSt.executeQuery();
-                    while (endpointsRs.next()) {
-                        final String channelId = endpointsRs.getString("channel_id");
-                        final var endpoint = SlotEndpoint.getInstance(new SlotInstance(
-                            objectMapper.readValue(endpointsRs.getString("slot_spec"), Slot.class),
-                            endpointsRs.getString("task_id"),
-                            endpointsRs.getString("channel_id"),
-                            URI.create(endpointsRs.getString("slot_uri"))
-                        ));
-                        switch (endpoint.slotSpec().direction()) {
-                            case OUTPUT -> chanelBuildersById.get(channelId).addSender(endpoint);
-                            case INPUT -> chanelBuildersById.get(channelId).addReceiver(endpoint);
-                        }
-                    }
-                }
-
-                try (final PreparedStatement connectionsSt = sqlConnection.prepareStatement("""
-                    SELECT
-                        channel_id,
-                        sender_uri,
-                        receiver_uri,
-                    FROM endpoint_connections WHERE channel_id = ANY (?)
-                    """ + (forUpdate ? "FOR UPDATE" : ""))
-                ) {
-                    int index = 0;
-                    connectionsSt.setArray(++index, sqlConnection.createArrayOf("text", channelIds.toArray()));
-                    final ResultSet connectionsRs = connectionsSt.executeQuery();
-                    while (connectionsRs.next()) {
-                        final String channelId = connectionsRs.getString("channel_id");
-                        chanelBuildersById.get(channelId).addEdge(
-                            connectionsRs.getString("sender_uri"),
-                            connectionsRs.getString("receiver_uri")
-                        );
-                    }
-                }
-
-                return chanelBuildersById.values().stream().map(Channel.Builder::build);
             } catch (SQLException | JsonProcessingException e) {
                 LOG.error("Failed to list channels (workflow_id={})", workflowId, e);
                 throw new DaoException(e);
@@ -758,6 +611,62 @@ public class ChannelManager {
             }
         }
 
+        private Stream<Channel> parseChannels(ResultSet rs) throws SQLException, JsonProcessingException {
+            Map<String, Channel.Builder> chanelBuildersById = new HashMap<>();
+            Map<String, HashSet<String>> slotsUriByChannelId = new HashMap<>();
+            while (rs.next()) {
+                final String channelId = rs.getString("channel_id");
+                if (!chanelBuildersById.containsKey(channelId)) {
+                    chanelBuildersById.put(channelId, ChannelImpl.newBuilder().setId(channelId));
+                    slotsUriByChannelId.put(channelId, new HashSet<>());
+                    var channelType = Channels.ChannelSpec.TypeCase.valueOf(rs.getString("channel_type"));
+                    switch (channelType) {
+                        case DIRECT -> {
+                            chanelBuildersById.get(channelId).setSpec(objectMapper.readValue(
+                                rs.getString("channel_spec"), DirectChannelSpec.class
+                            ));
+                            chanelBuildersById.get(channelId).setController(new DirectChannelController());
+                        }
+                        case SNAPSHOT -> {
+                            SnapshotChannelSpec spec = objectMapper.readValue(
+                                rs.getString("channel_spec"), SnapshotChannelSpec.class
+                            );
+                            chanelBuildersById.get(channelId).setSpec(spec);
+                            chanelBuildersById.get(channelId).setController(new SnapshotChannelController(
+                                spec.entryId(), spec.snapshotId(), rs.getString("user_id"), spec.whiteboardAddress()
+                            ));
+                        }
+                        default -> {
+                            final String errorMessage = String.format(
+                                "Unexpected chanel type \"%s\", only snapshot and direct channels are supported",
+                                channelType
+                            );
+                            LOG.error(errorMessage);
+                            throw new NotImplementedException(errorMessage);
+                        }
+                    }
+                }
+                final String slotUri = rs.getString("slot_uri");
+                final String connectedSlotUri = rs.getString("connected_slot_uri");
+                if (slotUri != null && !slotsUriByChannelId.get(channelId).contains(slotUri)) {
+                    slotsUriByChannelId.get(channelId).add(slotUri);
+                    var endpoint = SlotEndpoint.getInstance(new SlotInstance(
+                        objectMapper.readValue(rs.getString("slot_spec"), Slot.class),
+                        rs.getString("task_id"),
+                        channelId,
+                        URI.create(slotUri)
+                    ));
+                    switch (endpoint.slotSpec().direction()) {
+                        case OUTPUT -> chanelBuildersById.get(channelId).addSender(endpoint);
+                        case INPUT -> chanelBuildersById.get(channelId).addReceiver(endpoint);
+                    }
+                }
+                if (connectedSlotUri != null) {
+                    chanelBuildersById.get(channelId).addEdge(slotUri, connectedSlotUri);
+                }
+            }
+            return chanelBuildersById.values().stream().map(Channel.Builder::build);
+        }
 
     }
 

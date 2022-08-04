@@ -121,7 +121,7 @@ public class ChannelImpl implements Channel {
         private ChannelController controller;
         private final Map<String, Endpoint> sendersByUri = new HashMap<>();
         private final Map<String, Endpoint> receiversByUri = new HashMap<>();
-        private final Map<Endpoint, HashSet<Endpoint>> edges = new HashMap<>();
+        private final Map<String, HashSet<String>> edgesUri = new HashMap<>();
 
         public Builder setId(String id) {
             this.id = id;
@@ -157,9 +157,7 @@ public class ChannelImpl implements Channel {
         }
 
         public Builder addEdge(String senderUri, String receiverUri) {
-            final Endpoint sender = sendersByUri.get(senderUri);
-            final Endpoint receiver = receiversByUri.get(receiverUri);
-            boolean wasAdded = edges.computeIfAbsent(sender, k -> new HashSet<>()).add(receiver);
+            boolean wasAdded = edgesUri.computeIfAbsent(senderUri, k -> new HashSet<>()).add(receiverUri);
             if (!wasAdded) {
                 LOG.warn("Edge from sender {} to receiver {} was already exists", senderUri, receiverUri);
             }
@@ -167,6 +165,14 @@ public class ChannelImpl implements Channel {
         }
 
         public ChannelImpl build() {
+            final Map<Endpoint, HashSet<Endpoint>> edges = new HashMap<>();
+            edgesUri.forEach((senderUri, receivers) ->
+                receivers.forEach(receiverUri -> {
+                    var sender = sendersByUri.get(senderUri);
+                    var receiver = receiversByUri.get(receiverUri);
+                    edges.computeIfAbsent(sender, k -> new HashSet<>()).add(receiver);
+            }));
+
             return new ChannelImpl(
                 id, spec, controller, new LocalChannelGraph(
                     id, sendersByUri.values().stream(), receiversByUri.values().stream(), edges
