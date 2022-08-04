@@ -15,7 +15,12 @@ service Allocator {
 
   // Create allocation session
   rpc CreateSession (CreateSessionRequest) returns (CreateSessionResponse);
+
+  //
   // Delete allocation session and all resources
+  // metadata: DeleteSessionMetadata
+  // response: DeleteSessionResponse
+  //
   rpc DeleteSession (DeleteSessionRequest) returns (DeleteSessionResponse);
 
   //
@@ -31,14 +36,17 @@ service Allocator {
 
 // ========= Create session ==========
 
-message CreateSessionRequest {
+message CreateSessionRequest {}
+message CreateSessionResponse {
   string session_id = 1;
 }
-message CreateSessionResponse {}
 
 // ========= Delete session ==========
 
 message DeleteSessionRequest {
+  string session_id = 1;
+}
+message DeleteSessionMetadata {
   string session_id = 1;
 }
 message DeleteSessionResponse {}
