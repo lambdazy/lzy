@@ -33,9 +33,8 @@ public class DbSubjectService {
     @Inject
     private ServiceConfig serviceConfig;
 
-    public Subject createSubject(
-            String id, String authProvider, String providerSubjectId, SubjectType subjectType
-    ) throws AuthException {
+    public Subject createSubject(String id, String authProvider, String providerSubjectId, SubjectType subjectType)
+            throws AuthException {
         try (var connect = storage.connect()) {
             final PreparedStatement st = connect.prepareStatement("""
                 INSERT INTO users (
@@ -101,7 +100,7 @@ public class DbSubjectService {
             final PreparedStatement st = connect.prepareStatement("""
                 INSERT INTO credentials (
                 name,
-                \"value\",
+                "value",
                 user_id,
                 type
                 )
@@ -121,7 +120,7 @@ public class DbSubjectService {
     public SubjectCredentials credentials(Subject subject, String name) throws AuthException {
         try (var connect = storage.connect()) {
             final PreparedStatement st = connect.prepareStatement("""
-                SELECT name, \"value\", type FROM credentials
+                SELECT name, "value", type FROM credentials
                 WHERE user_id = ?
                 AND name = ?;"""
             );
