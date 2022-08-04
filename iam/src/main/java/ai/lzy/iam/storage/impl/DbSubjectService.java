@@ -36,14 +36,16 @@ public class DbSubjectService {
             String id, String authProvider, String providerSubjectId, SubjectType subjectType
     ) throws AuthException {
         try (final PreparedStatement st = storage.connect().prepareStatement(
-                "INSERT INTO users ("
-                        + "user_id, "
-                        + "auth_provider, "
-                        + "provider_user_id, "
-                        + "access_type "
-                        + "user_type "
-                        + ") "
-                        + "VALUES (?, ?, ?, ?, CAST(? AS user_type));"
+            """
+                INSERT INTO users (
+                user_id, 
+                auth_provider, 
+                provider_user_id, 
+                access_type 
+                user_type 
+                ) 
+                VALUES (?, ?, ?, ?, CAST(? AS user_type));
+                """
         )) {
             int parameterIndex = 0;
             st.setString(++parameterIndex, id);
@@ -64,8 +66,10 @@ public class DbSubjectService {
 
     public Subject subject(String id) throws AuthException {
         try (final PreparedStatement st = storage.connect().prepareStatement(
-                "SELECT user_id FROM users "
-                        + "WHERE user_id = ?;"
+                """
+                        SELECT user_id FROM users
+                        WHERE user_id = ?;
+                    """
         )) {
             int parameterIndex = 0;
             st.setString(++parameterIndex, id);
@@ -94,13 +98,15 @@ public class DbSubjectService {
 
     public void addCredentials(Subject subject, String name, String value, String type) throws AuthException {
         try (final PreparedStatement st = storage.connect().prepareStatement(
-                "INSERT INTO credentials ("
-                        + "name, "
-                        + "\"value\", "
-                        + "user_id, "
-                        + "type "
-                        + ") "
-                        + "VALUES (?, ?, ?, ?);"
+                """
+                        INSERT INTO credentials (
+                        name,
+                        \"value\",
+                        user_id,
+                        type
+                        )
+                        VALUES (?, ?, ?, ?);
+                    """
         )) {
             int parameterIndex = 0;
             st.setString(++parameterIndex, name);
@@ -115,9 +121,11 @@ public class DbSubjectService {
 
     public SubjectCredentials credentials(Subject subject, String name) throws AuthException {
         try (final PreparedStatement st = storage.connect().prepareStatement(
-                "SELECT name, \"value\", type FROM credentials "
-                        + "WHERE user_id = ? "
-                        + "AND name = ?;"
+                """
+                        SELECT name, \"value\", type FROM credentials
+                        WHERE user_id = ?
+                        AND name = ?;
+                """
         )) {
             int parameterIndex = 0;
             st.setString(++parameterIndex, subject.id());
