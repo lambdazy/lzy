@@ -12,19 +12,19 @@ import org.apache.logging.log4j.Logger;
 import org.flywaydb.core.Flyway;
 
 @Singleton
-@Requires(property = "disk-service.database.url")
-@Requires(property = "disk-service.database.username")
-@Requires(property = "disk-service.database.password")
-public class DataSource implements Storage {
+@Requires(property = "channel-manager.database.url")
+@Requires(property = "channel-manager.database.username")
+@Requires(property = "channel-manager.database.password")
+public class ChannelManagerDataSource implements Storage {
 
-    private static final Logger LOG = LogManager.getLogger(DataSource.class);
+    private static final Logger LOG = LogManager.getLogger(ChannelManagerDataSource.class);
     private static final String VALIDATION_QUERY_SQL = "select 1";
     private static final String MIGRATIONS_LOCATION = "classpath:db/channel-manager/migrations";
 
     private final ComboPooledDataSource dataSource;
 
     @Inject
-    public DataSource(ChannelManagerConfig.DbConfig dbConfig) {
+    public ChannelManagerDataSource(ChannelManagerConfig.DbConfig dbConfig) {
 
         final ComboPooledDataSource dataSource = new ComboPooledDataSource();
         dataSource.setJdbcUrl(dbConfig.url());

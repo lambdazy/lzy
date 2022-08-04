@@ -17,21 +17,23 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 public class ChannelImpl implements Channel {
+
     private static final Logger LOG = LogManager.getLogger(ChannelImpl.class);
+
     private final String id;
     private final ChannelGraph channelGraph;
     private final ChannelSpec spec;
     private final ChannelController controller; // pluggable channel logic
+
+    public static Builder newBuilder() {
+        return new Builder();
+    }
 
     private ChannelImpl(String id, ChannelSpec spec, ChannelController controller, ChannelGraph channelGraph) {
         this.id = id;
         this.spec = spec;
         this.controller = controller;
         this.channelGraph = channelGraph;
-    }
-
-    public static Builder newBuilder() {
-        return new Builder();
     }
 
     @Override
@@ -112,6 +114,8 @@ public class ChannelImpl implements Channel {
 
     public static class Builder implements Channel.Builder {
 
+        private static final Logger LOG = LogManager.getLogger(ChannelImpl.Builder.class);
+
         private String id;
         private ChannelSpec spec;
         private ChannelController controller;
@@ -135,19 +139,30 @@ public class ChannelImpl implements Channel {
         }
 
         public Builder addSender(Endpoint senderEndpoint) {
-            sendersByUri.put(senderEndpoint.uri().toString(), senderEndpoint);
+            Endpoint prev = sendersByUri.put(senderEndpoint.uri().toString(), senderEndpoint);
+            if (prev != null) {
+                LOG.warn("Sender endpoint {} was rewritten by endpoint {}",
+                    prev.slotInstance(), senderEndpoint.slotInstance());
+            }
             return this;
         }
 
         public Builder addReceiver(Endpoint receiverEndpoint) {
-            receiversByUri.put(receiverEndpoint.uri().toString(), receiverEndpoint);
+            Endpoint prev = receiversByUri.put(receiverEndpoint.uri().toString(), receiverEndpoint);
+            if (prev != null) {
+                LOG.warn("Receiver endpoint {} was rewritten by endpoint {}",
+                    prev.slotInstance(), receiverEndpoint.slotInstance());
+            }
             return this;
         }
 
         public Builder addEdge(String senderUri, String receiverUri) {
             final Endpoint sender = sendersByUri.get(senderUri);
             final Endpoint receiver = receiversByUri.get(receiverUri);
-            edges.computeIfAbsent(sender, k -> new HashSet<>()).add(receiver);
+            boolean wasAdded = edges.computeIfAbsent(sender, k -> new HashSet<>()).add(receiver);
+            if (!wasAdded) {
+                LOG.warn("Edge from sender {} to receiver {} was already exists", senderUri, receiverUri);
+            }
             return this;
         }
 

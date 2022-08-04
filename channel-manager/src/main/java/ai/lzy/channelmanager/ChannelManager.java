@@ -8,10 +8,8 @@ import ai.lzy.channelmanager.channel.ChannelException;
 import ai.lzy.channelmanager.channel.ChannelImpl;
 import ai.lzy.channelmanager.channel.Endpoint;
 import ai.lzy.channelmanager.channel.SlotEndpoint;
-import ai.lzy.channelmanager.control.ChannelController;
 import ai.lzy.channelmanager.control.DirectChannelController;
 import ai.lzy.channelmanager.control.SnapshotChannelController;
-import ai.lzy.channelmanager.graph.LocalChannelGraph;
 import ai.lzy.iam.clients.stub.AuthenticateServiceStub;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
@@ -66,7 +64,6 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -167,11 +164,11 @@ public class ChannelManager {
 
         private static final Logger LOG = LogManager.getLogger(ChannelManagerService.class);
 
-        private final DataSource dataSource;
+        private final ChannelManagerDataSource dataSource;
         private final ChannelManagerStorage channelManagerStorage;
 
         @Inject
-        private ChannelManagerService(DataSource dataSource, ChannelManagerStorage channelStorage) {
+        private ChannelManagerService(ChannelManagerDataSource dataSource, ChannelManagerStorage channelStorage) {
             this.dataSource = dataSource;
             this.channelManagerStorage = channelStorage;
         }
@@ -184,6 +181,7 @@ public class ChannelManager {
             LOG.info("Create channel {}: {}",
                 request.getChannelSpec().getChannelName(),
                 JsonUtils.printRequest(request));
+
             try {
                 final var authenticationContext = AuthenticationContext.current();
                 final String userId = Objects.requireNonNull(authenticationContext).getSubject().id();
@@ -216,6 +214,7 @@ public class ChannelManager {
                         throw new NotImplementedException(errorMessage);
                     }
                 };
+
                 Transaction.execute(dataSource, conn -> {
                     channelManagerStorage.insertChannel(conn,
                         channelId, userId, workflowId, channelName, channelType, spec
@@ -242,6 +241,7 @@ public class ChannelManager {
             StreamObserver<ChannelDestroyResponse> responseObserver
         ) {
             LOG.info("Destroy channel {}", request.getChannelId());
+
             try {
                 final String channelId = request.getChannelId();
 
@@ -269,7 +269,7 @@ public class ChannelManager {
             } catch (NotFoundException e) {
                 LOG.error("Destroy channel {} failed, channel not found",
                     request.getChannelId(), e);
-                responseObserver.onError(Status.NOT_FOUND.withCause(e).asException());
+                responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asException());
             } catch (Exception e) {
                 LOG.error("Destroy channel {} failed, got exception: {}",
                     request.getChannelId(), e.getMessage(), e);
@@ -341,7 +341,7 @@ public class ChannelManager {
             } catch (NotFoundException e) {
                 LOG.error("Get status for channel {} failed, channel not found",
                     request.getChannelId(), e);
-                responseObserver.onError(Status.NOT_FOUND.withCause(e).asException());
+                responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asException());
             } catch (Exception e) {
                 LOG.error("Get status for channel {} failed, got exception: {}",
                     request.getChannelId(), e.getMessage(), e);
@@ -536,6 +536,7 @@ public class ChannelManager {
                         LOG.warn("Channel {} doesn't exist", channelId);
                         return null;
                     }
+
                     channelBuilder.setId(channelId);
                     var channelType = Channels.ChannelSpec.TypeCase.valueOf(rs.getString("channel_type"));
                     switch (channelType) {
