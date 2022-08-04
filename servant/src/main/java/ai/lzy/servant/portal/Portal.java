@@ -11,6 +11,7 @@ import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.model.Slot;
 import ai.lzy.model.SlotInstance;
+import ai.lzy.servant.portal.s3.S3Snapshots;
 import ai.lzy.v1.LzyFsApi;
 import ai.lzy.v1.LzyFsGrpc;
 import ai.lzy.v1.LzyPortalApi;
@@ -42,9 +43,11 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
     // stdout/stderr (guarded by this)
     private StdoutSlot stdoutSlot = null;
     private StdoutSlot stderrSlot = null;
-    // snapshots
+    // local snapshots
     private final Map<String, SnapshotSlot> snapshots = new HashMap<>(); // snapshotId -> in & out slots
     private final Map<String, String> slot2snapshot = new HashMap<>();
+    // external storage
+    private final S3Snapshots externalStorage = new S3Snapshots();
     // common
     private final AtomicBoolean active = new AtomicBoolean(false);
 
@@ -185,6 +188,15 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
                     }
                     fs.getSlotsManager().registerSlot(lzySlot);
                 }
+
+//                case AMAZONS3 -> {
+//
+//                    fs.getSlotsManager().registerSlot(externalStorage.createSlotSnapshot(Amaz));
+//                }
+//
+//                case AZURES3 -> {
+//                    fs.getSlotsManager().registerSlot(externalStorage.createSlotSnapshot());
+//                }
 
                 default -> throw new NotImplementedException(slotDesc.getKindCase().name());
             }

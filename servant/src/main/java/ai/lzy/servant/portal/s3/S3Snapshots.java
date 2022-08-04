@@ -3,39 +3,25 @@ package ai.lzy.servant.portal.s3;
 import ai.lzy.fs.snapshot.SlotSnapshot;
 import ai.lzy.fs.snapshot.SlotSnapshotImpl;
 import ai.lzy.fs.storage.StorageClient;
-import ai.lzy.model.Slot;
 import ai.lzy.model.SlotInstance;
-import ai.lzy.v1.SnapshotApiGrpc;
 
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
-final class ExternalStorageSupport {
+public final class S3Snapshots {
 
     interface S3ClientProvider {
         StorageClient get();
     }
 
-    private final String portalTaskId;
-    private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi;
     private final Map<S3ClientProvider, StorageClient> storageClients = new HashMap<>();
     private final Map<S3ClientProvider, SlotSnapshot> slotSnapshots = new HashMap<>();
 
-    ExternalStorageSupport(String portalTaskId, SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi) {
-        this.portalTaskId = portalTaskId;
-        this.snapshotApi = snapshotApi;
-    }
-
-    synchronized SlotSnapshot createSlotSnapshot(S3ClientProvider s3key, String bucket, Slot slot) {
+    public SlotSnapshot createSlotSnapshot(S3ClientProvider s3key, String bucket, SlotInstance slotInstance) {
         return slotSnapshots.computeIfAbsent(s3key, k ->
-            new SlotSnapshotImpl(
-                bucket,
-                new SlotInstance(slot,
-                    portalTaskId,
-                    null,
-                    null),
-                storageClients.computeIfAbsent(k, S3ClientProvider::get)));
+            new SlotSnapshotImpl(bucket, slotInstance, storageClients.computeIfAbsent(k, S3ClientProvider::get))
+        );
     }
 
     record AmazonS3Key(String endpoint, String accessToken, String secretToken) implements S3ClientProvider {
