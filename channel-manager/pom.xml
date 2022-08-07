@@ -34,7 +34,7 @@
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
-            <artifactId>iam</artifactId>
+            <artifactId>iam-api</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
         <dependency>

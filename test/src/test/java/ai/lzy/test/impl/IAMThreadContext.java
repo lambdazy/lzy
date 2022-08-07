@@ -13,17 +13,10 @@ import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
-import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
 import org.apache.logging.log4j.LogManager;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
-import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 

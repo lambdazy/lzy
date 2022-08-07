@@ -1,10 +1,10 @@
 package ai.lzy.model.grpc;
 
 import io.grpc.*;
-
-import java.util.function.Supplier;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.util.function.Supplier;
 
 public class ClientHeaderInterceptor<T> implements ClientInterceptor {
     private static final Logger LOG = LogManager.getLogger(ClientHeaderInterceptor.class);

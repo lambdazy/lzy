@@ -6,7 +6,6 @@ import ai.lzy.iam.clients.AccessClient;
 import ai.lzy.iam.utils.GrpcConfig;
 import io.grpc.Channel;
 import io.grpc.StatusRuntimeException;
-import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.iam.resources.AuthPermission;
@@ -21,7 +20,6 @@ import ai.lzy.v1.iam.LzyAccessServiceGrpc;
 
 import java.util.function.Supplier;
 
-@Singleton
 public class AccessServiceGrpcClient implements AccessClient {
     private static final Logger LOG = LogManager.getLogger(AccessServiceGrpcClient.class);
 
