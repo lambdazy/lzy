@@ -284,12 +284,12 @@ public class PortalTest {
         runGeneralSnapshotOnPortalScenario(inputSnapshotSlot, outputSnapshotSlot);
     }
 
-    public void setUpS3() {
+    private void setUpS3() {
         s3.start();
         s3Client.createBucket(BUCKET_NAME);
     }
 
-    public void tearDownS3() {
+    private void tearDownS3() {
         s3.shutdown();
     }
 
