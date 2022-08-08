@@ -21,6 +21,7 @@ message CreateSubjectRequest {
   string name = 1;
   string auth_provider = 2;
   string provider_subject_id = 3;
+  string type = 4;
 }
 
 message RemoveSubjectRequest {

@@ -7,7 +7,9 @@ import ai.lzy.iam.authorization.exceptions.AuthInternalException;
 import ai.lzy.iam.authorization.exceptions.AuthPermissionDeniedException;
 import ai.lzy.iam.authorization.exceptions.AuthUnauthenticatedException;
 import ai.lzy.iam.clients.AuthenticateService;
+import ai.lzy.iam.resources.subjects.Servant;
 import ai.lzy.iam.resources.subjects.Subject;
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.storage.db.IamDataSource;
 import io.micronaut.context.annotation.Requires;
@@ -30,23 +32,31 @@ public class DbAuthService implements AuthenticateService {
 
     @Override
     public Subject authenticate(Credentials credentials) throws AuthException {
-        Subject subject;
         if (credentials instanceof JwtCredentials) {
-            subject = new User(CredentialsHelper.issuerFromJWT(credentials.token()));
+            String subjectId = CredentialsHelper.issuerFromJWT(credentials.token());
             try (var conn = storage.connect()) {
-                var st = conn.prepareStatement("SELECT * FROM credentials WHERE user_id = ? AND type = ?");
+                var st = conn.prepareStatement("""
+                    SELECT c.name AS cred_name, c."value" AS cred_value, u.user_type AS user_type
+                    FROM credentials AS c
+                    JOIN users AS u
+                      ON c.user_id = u.user_id
+                    WHERE u.user_id = ? AND c.type = ?
+                    """);
 
                 int parameterIndex = 0;
-                st.setString(++parameterIndex, subject.id());
+                st.setString(++parameterIndex, subjectId);
                 st.setString(++parameterIndex, credentials.type());
                 var rs = st.executeQuery();
                 while (rs.next()) {
-                    try (StringReader keyReader = new StringReader(rs.getString("value"))) {
-                        if (CredentialsHelper.checkJWT(keyReader,
-                                credentials.token(),
-                                subject.id())) {
+                    try (StringReader keyReader = new StringReader(rs.getString("cred_value"))) {
+                        if (CredentialsHelper.checkJWT(keyReader, credentials.token(), subjectId)) {
+                            var subjectType = SubjectType.valueOf(rs.getString("user_type"));
+                            var subject = switch (subjectType) {
+                                case USER -> new User(subjectId);
+                                case SERVANT -> new Servant(subjectId);
+                            };
                             LOG.info("Successfully checked user::{} token with key name {}",
-                                    subject.id(), rs.getString("name"));
+                                subjectId, rs.getString("cred_name"));
                             return subject;
                         }
                     } catch (Exception e) {

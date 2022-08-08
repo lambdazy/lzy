@@ -1,5 +1,6 @@
 package ai.lzy.iam.storage.impl;
 
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.storage.db.IamDataSource;
 import io.micronaut.context.ApplicationContext;
 import org.apache.logging.log4j.LogManager;
@@ -111,7 +112,7 @@ public class DbSubjectServiceTest {
     }
 
     private void create(String id) {
-        subjectService.createSubject(id, "provider", "providerID");
+        subjectService.createSubject(id, "provider", "providerID", SubjectType.USER);
     }
 
     private void addCredentials(Subject subject, String name) {
