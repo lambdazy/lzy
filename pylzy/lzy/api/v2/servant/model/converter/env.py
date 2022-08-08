@@ -17,20 +17,25 @@ grpcENV = Union[
 
 
 @singledispatch
-def _to(env_spec: EnvSpec) -> zygote_pb2.EnvSpec:
+def _to(env_spec: ENV) -> grpcENV:
+    raise NotImplementedError()
+
+
+@_to.register
+def _(env_spec: EnvSpec) -> zygote_pb2.EnvSpec:
     return zygote_pb2.EnvSpec(
-        auxEnv=_to(env_spec.aux_env),
-        baseEnv=_to(env_spec.base_env),
+        auxEnv=to(env_spec.aux_env),
+        baseEnv=to(env_spec.base_env),
     )
 
 
 @_to.register  # type: ignore[no-redef]
-def _to(base_env: BaseEnv) -> zygote_pb2.BaseEnv:
+def _(base_env: BaseEnv) -> zygote_pb2.BaseEnv:
     return zygote_pb2.BaseEnv(name=base_env.name)
 
 
 @_to.register  # type: ignore[no-redef]
-def _to(aux_env: AuxEnv) -> zygote_pb2.AuxEnv:
+def _(aux_env: AuxEnv) -> zygote_pb2.AuxEnv:
     local_modules = [
         zygote_pb2.LocalModule(
             name=name,
@@ -63,11 +68,16 @@ def to(obj: BaseEnv) -> zygote_pb2.BaseEnv:
 
 
 def to(obj: ENV) -> grpcENV:
-    return cast(grpcENV, _to(obj))
+    return _to(obj)
 
 
 @singledispatch
-def _fr(aux_env: zygote_pb2.AuxEnv) -> AuxEnv:
+def _fr(aux_env: grpcENV) -> ENV:
+    raise NotImplementedError()
+
+
+@_fr.register
+def _(aux_env: zygote_pb2.AuxEnv) -> AuxEnv:
     pyenv = aux_env.pyenv
     local_modules = [mod.name for mod in pyenv.localModules]
     return AuxEnv(
@@ -78,12 +88,12 @@ def _fr(aux_env: zygote_pb2.AuxEnv) -> AuxEnv:
 
 
 @_fr.register  # type: ignore[no-redef]
-def _fr(base_env: zygote_pb2.BaseEnv) -> BaseEnv:
+def _(base_env: zygote_pb2.BaseEnv) -> BaseEnv:
     return BaseEnv(name=base_env.name)
 
 
 @_fr.register  # type: ignore[no-redef]
-def _fr(env_spec: zygote_pb2.EnvSpec) -> EnvSpec:
+def _(env_spec: zygote_pb2.EnvSpec) -> EnvSpec:
     return EnvSpec(
         base_env=from_(env_spec.baseEnv),
         aux_env=from_(env_spec.auxEnv),
@@ -106,4 +116,4 @@ def from_(obj: zygote_pb2.BaseEnv) -> BaseEnv:
 
 
 def from_(obj: grpcENV) -> ENV:
-    return cast(ENV, _fr(obj))
+    return _fr(obj)
