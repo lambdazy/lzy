@@ -36,8 +36,8 @@ public class DbAuthService implements AuthenticateService {
             String subjectId = CredentialsHelper.issuerFromJWT(credentials.token());
             try (var conn = storage.connect()) {
                 var st = conn.prepareStatement("""
-                    SELECT c.name AS cred_name, c.value AS cred_value, u.user_type AS user_type
-                    FROM credentials AS c 
+                    SELECT c.name AS cred_name, c."value" AS cred_value, u.user_type AS user_type
+                    FROM credentials AS c
                     JOIN users AS u
                       ON c.user_id = u.user_id
                     WHERE u.user_id = ? AND c.type = ?

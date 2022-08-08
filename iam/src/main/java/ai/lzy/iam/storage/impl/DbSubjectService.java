@@ -91,7 +91,7 @@ public class DbSubjectService {
     public void addCredentials(Subject subject, String name, String value, String type) throws AuthException {
         try (var connect = storage.connect()) {
             final PreparedStatement st = connect.prepareStatement("""
-                INSERT INTO credentials (name, value, user_id, type)
+                INSERT INTO credentials (name, "value", user_id, type)
                 VALUES (?, ?, ?, ?)
                 """);
 
@@ -109,7 +109,7 @@ public class DbSubjectService {
     public SubjectCredentials credentials(Subject subject, String name) throws AuthException {
         try (var connect = storage.connect()) {
             final PreparedStatement st = connect.prepareStatement("""
-                SELECT name, value, type
+                SELECT name, "value", type
                 FROM credentials
                 WHERE user_id = ? AND name = ?
                 """);
