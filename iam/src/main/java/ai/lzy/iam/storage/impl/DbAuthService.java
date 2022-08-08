@@ -36,25 +36,27 @@ public class DbAuthService implements AuthenticateService {
             String subjectId = CredentialsHelper.issuerFromJWT(credentials.token());
             try (var conn = storage.connect()) {
                 var st = conn.prepareStatement("""
-                    SELECT value, name, user_type
-                    FROM credentials LEFT JOIN users
-                    WHERE user_id = ? AND type = ?"""
-                );
+                    SELECT c.name AS cred_name, c.value AS cred_value, u.user_type AS user_type
+                    FROM credentials AS c 
+                    JOIN users AS u
+                      ON c.user_id = u.user_id
+                    WHERE u.user_id = ? AND c.type = ?
+                    """);
 
                 int parameterIndex = 0;
                 st.setString(++parameterIndex, subjectId);
                 st.setString(++parameterIndex, credentials.type());
                 var rs = st.executeQuery();
                 while (rs.next()) {
-                    try (StringReader keyReader = new StringReader(rs.getString("value"))) {
+                    try (StringReader keyReader = new StringReader(rs.getString("cred_value"))) {
                         if (CredentialsHelper.checkJWT(keyReader, credentials.token(), subjectId)) {
-                            SubjectType subjectType = SubjectType.valueOf(rs.getString("user_type"));
-                            Subject subject = switch (subjectType) {
+                            var subjectType = SubjectType.valueOf(rs.getString("user_type"));
+                            var subject = switch (subjectType) {
                                 case USER -> new User(subjectId);
                                 case SERVANT -> new Servant(subjectId);
                             };
                             LOG.info("Successfully checked user::{} token with key name {}",
-                                    subjectId, rs.getString("name"));
+                                subjectId, rs.getString("cred_name"));
                             return subject;
                         }
                     } catch (Exception e) {

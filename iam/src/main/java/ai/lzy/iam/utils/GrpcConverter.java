@@ -34,7 +34,7 @@ public class GrpcConverter {
     }
 
     public static Subject to(IAM.Subject subject) {
-        SubjectType subjectType = SubjectType.valueOf(subject.getType());
+        var subjectType = SubjectType.valueOf(subject.getType());
         return switch (subjectType) {
             case USER -> new User(subject.getId());
             case SERVANT -> new Servant(subject.getId());
@@ -74,8 +74,10 @@ public class GrpcConverter {
         SubjectType subjectType;
         if (subject instanceof User) {
             subjectType = SubjectType.USER;
-        } else {
+        } else if (subject instanceof Servant) {
             subjectType = SubjectType.SERVANT;
+        } else {
+            throw new RuntimeException("Unknown subject type " + subject.getClass().getName());
         }
         return IAM.Subject.newBuilder()
                 .setId(subject.id())

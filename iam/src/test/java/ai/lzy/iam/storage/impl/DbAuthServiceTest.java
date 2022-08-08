@@ -146,7 +146,9 @@ public class DbAuthServiceTest {
 
     @After
     public void tearDown() {
-        try (PreparedStatement st = storage.connect().prepareStatement("DROP ALL OBJECTS DELETE FILES;")) {
+        try (var conn = storage.connect();
+             var st = conn.prepareStatement("DROP ALL OBJECTS DELETE FILES;")
+        ) {
             st.executeUpdate();
         } catch (SQLException e) {
             LOG.error(e);

@@ -106,7 +106,7 @@ public class DbAccessClientTest {
     }
 
     @Test
-    public void invalidAccess() throws Exception {
+    public void invalidAccess() {
         String userId = "user1";
         subjectService.createSubject(userId, "", "", SubjectType.USER);
         final Subject user = subjectService.subject(userId);
@@ -159,7 +159,9 @@ public class DbAccessClientTest {
 
     @After
     public void tearDown() {
-        try (PreparedStatement st = storage.connect().prepareStatement("DROP ALL OBJECTS DELETE FILES;")) {
+        try (var conn = storage.connect();
+             var st = conn.prepareStatement("DROP ALL OBJECTS DELETE FILES;")
+        ) {
             st.executeUpdate();
         } catch (SQLException e) {
             LOG.error(e);

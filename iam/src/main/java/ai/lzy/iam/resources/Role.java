@@ -37,7 +37,6 @@ public enum Role {
             AuthPermission.WORKFLOW_GET,
             AuthPermission.WORKFLOW_RUN,
             AuthPermission.WHITEBOARD_GET,
-            AuthPermission.WHITEBOARD_CREATE,
             AuthPermission.WHITEBOARD_UPDATE,
             AuthPermission.INTERNAL_AUTHORIZE
     ))

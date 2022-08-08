@@ -17,7 +17,6 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -37,15 +36,10 @@ public class DbSubjectService {
             throws AuthException {
         try (var connect = storage.connect()) {
             final PreparedStatement st = connect.prepareStatement("""
-                INSERT INTO users (
-                user_id, 
-                auth_provider, 
-                provider_user_id, 
-                access_type 
-                user_type 
-                ) 
-                VALUES (?, ?, ?, ?, ?);"""
-            );
+                INSERT INTO users (user_id, auth_provider, provider_user_id, access_type, user_type)
+                VALUES (?, ?, ?, ?, ?)
+                """);
+
             int parameterIndex = 0;
             st.setString(++parameterIndex, id);
             st.setString(++parameterIndex, authProvider);
@@ -65,10 +59,9 @@ public class DbSubjectService {
 
     public Subject subject(String id) throws AuthException {
         try (var connect = storage.connect()) {
-            final PreparedStatement st = connect.prepareStatement("""
-                SELECT user_id FROM users
-                WHERE user_id = ?;"""
-            );
+            final PreparedStatement st = connect.prepareStatement(
+                "SELECT user_id FROM users WHERE user_id = ?");
+
             int parameterIndex = 0;
             st.setString(++parameterIndex, id);
             ResultSet rs = st.executeQuery();
@@ -85,8 +78,8 @@ public class DbSubjectService {
     public void removeSubject(Subject subject) throws AuthException {
         try (var connect = storage.connect()) {
             final PreparedStatement st = connect.prepareStatement(
-                "DELETE FROM users WHERE user_id = ?;"
-            );
+                "DELETE FROM users WHERE user_id = ?");
+
             int parameterIndex = 0;
             st.setString(++parameterIndex, subject.id());
             st.executeUpdate();
@@ -98,14 +91,10 @@ public class DbSubjectService {
     public void addCredentials(Subject subject, String name, String value, String type) throws AuthException {
         try (var connect = storage.connect()) {
             final PreparedStatement st = connect.prepareStatement("""
-                INSERT INTO credentials (
-                name,
-                "value",
-                user_id,
-                type
-                )
-                VALUES (?, ?, ?, ?);"""
-            );
+                INSERT INTO credentials (name, value, user_id, type)
+                VALUES (?, ?, ?, ?)
+                """);
+
             int parameterIndex = 0;
             st.setString(++parameterIndex, name);
             st.setString(++parameterIndex, value);
@@ -120,10 +109,11 @@ public class DbSubjectService {
     public SubjectCredentials credentials(Subject subject, String name) throws AuthException {
         try (var connect = storage.connect()) {
             final PreparedStatement st = connect.prepareStatement("""
-                SELECT name, "value", type FROM credentials
-                WHERE user_id = ?
-                AND name = ?;"""
-            );
+                SELECT name, value, type
+                FROM credentials
+                WHERE user_id = ? AND name = ?
+                """);
+
             int parameterIndex = 0;
             st.setString(++parameterIndex, subject.id());
             st.setString(++parameterIndex, name);
@@ -145,8 +135,8 @@ public class DbSubjectService {
     public void removeCredentials(Subject subject, String name) throws AuthException {
         try (var connect = storage.connect()) {
             final PreparedStatement st = connect.prepareStatement(
-                "DELETE FROM credentials WHERE user_id = ? AND name = ?;"
-            );
+                "DELETE FROM credentials WHERE user_id = ? AND name = ?");
+
             int parameterIndex = 0;
             st.setString(++parameterIndex, subject.id());
             st.setString(++parameterIndex, name);
@@ -162,8 +152,8 @@ public class DbSubjectService {
         }
         try (var connect = storage.connect()) {
             final PreparedStatement st = connect.prepareStatement(
-                    "SELECT count(*) from users where access_type = ?;"
-            );
+                "SELECT count(*) from users where access_type = ?");
+
             int parameterIndex = 0;
             st.setString(++parameterIndex, UserVerificationType.ACCESS_ALLOWED.toString());
             final ResultSet rs = st.executeQuery();
@@ -172,7 +162,7 @@ public class DbSubjectService {
                     return UserVerificationType.ACCESS_ALLOWED;
                 }
             } else {
-                throw new AuthInternalException("Unknown user count");
+                throw new AuthInternalException("Unknown active users count");
             }
         } catch (SQLException e) {
             throw new AuthInternalException(e);
