@@ -43,7 +43,6 @@ message AmazonS3Endpoint {
   string endpoint = 1;
   string accessToken = 2;
   string secretToken = 3;
-  string bucket = 4;
 }
 
 message AzureS3Endpoint {
@@ -71,6 +70,16 @@ message PortalSlotDesc {
     string taskId = 1;
   }
 
+  message S3Snapshot {
+    string bucket = 2;
+    string key = 3;
+
+    oneof endpoint {
+      AmazonS3Endpoint amazonS3 = 4;
+      AzureS3Endpoint azureS3 = 5;
+    }
+  }
+
   oneof kind {
     // internal volatile storage
     Snapshot snapshot = 10;
@@ -78,8 +87,7 @@ message PortalSlotDesc {
     StdOut stdout = 11;
     StdErr stderr = 12;
     // external (persistent) storages
-    AmazonS3Endpoint amazonS3 = 13;
-    AzureS3Endpoint azureS3 = 14;
+    S3Snapshot s3Snapshot = 13;
   }
 }
 

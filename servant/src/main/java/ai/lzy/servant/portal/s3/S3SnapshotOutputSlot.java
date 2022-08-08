@@ -11,10 +11,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.qe.s3.transfer.download.DownloadRequestBuilder;
 
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -35,28 +32,26 @@ public class S3SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot {
 
     private final StorageClient storageClient;
     private final String bucket;
+    private final String key;
 
     private final String localStorage;
 
     private final AtomicBoolean alreadyLocallyStored = new AtomicBoolean(false);
 
-    public S3SnapshotOutputSlot(SlotInstance slotInstance, StorageClient storageClient, String bucket) {
+    public S3SnapshotOutputSlot(SlotInstance slotInstance, String key, String bucket, StorageClient storageClient) {
         super(slotInstance);
-        this.storageClient = storageClient;
+        this.key = key;
         this.bucket = bucket;
-        this.localStorage = "from_s3_%s_storage".formatted(instance().name());
-    }
-
-    private String generateKey() {
-        return "slot_" + instance().name();
+        this.storageClient = storageClient;
+        this.localStorage = (slotInstance.taskId() + slotInstance.name()).replaceAll(File.separator, "");
     }
 
     private void ensureSnapshotLocallyStored() {
         if (alreadyLocallyStored.compareAndSet(false, true)) {
             try {
                 Files.createTempFile("lzy", localStorage);
-            } catch (IOException e) {
-                LOG.error("S3SnapshotOutputSlot:: Failed to create file to store bucket data", e);
+            } catch (Exception e) {
+                LOG.error("S3SnapshotOutputSlot:: Failed to create temp file to store bucket data", e);
                 alreadyLocallyStored.set(false);
                 return;
             }
@@ -64,7 +59,7 @@ public class S3SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot {
             storageClient.transmitter().downloadC(
                     new DownloadRequestBuilder()
                             .bucket(bucket)
-                            .key(generateKey())
+                            .key(key)
                             .build(),
                     data -> {
                         final byte[] buffer = new byte[4096];
@@ -118,7 +113,7 @@ public class S3SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot {
         }
     }
 
-    protected void storeAll(Stream<ByteString> from) {
+    private void storeAll(Stream<ByteString> from) {
         try (Stream<ByteString> data = from; OutputStream out = new FileOutputStream(localStorage)) {
             data.forEach(chunk -> {
                 try {
@@ -134,7 +129,7 @@ public class S3SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot {
             });
         } catch (Exception e) {
             close();
-            return;
+            throw new RuntimeException(e);
         }
         LOG.info("Store data from s3-bucket {} to portal storage {}", bucket, localStorage);
         state(Operations.SlotStatus.State.OPEN);

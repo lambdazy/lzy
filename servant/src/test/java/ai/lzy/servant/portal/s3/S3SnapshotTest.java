@@ -14,12 +14,12 @@ import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.google.protobuf.ByteString;
 import io.findify.s3mock.S3Mock;
-import org.apache.commons.io.IOUtils;
-import org.junit.*;
-import org.junit.runners.MethodSorters;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.net.URI;
@@ -27,9 +27,9 @@ import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-@FixMethodOrder
 public class S3SnapshotTest {
     private static final int S3_PORT = 8001;
     private static final String S3_ADDRESS = "http://localhost:" + S3_PORT;
@@ -86,24 +86,12 @@ public class S3SnapshotTest {
         }
     }
 
-    private static String generateKey(String slotName) {
-        return "slot_" + slotName;
+    private String generateKey(SlotInstance slot) {
+        return "slot_" + slot.name();
     }
 
-
-    private String getObjectContent(String key) {
-        try {
-            return IOUtils.toString(
-                    s3Client.getObject(new GetObjectRequest(BUCKET_NAME, key))
-                            .getObjectContent(),
-                    charset);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private URI generateURI(SlotInstance slotInstance) {
-        return storage.getURI(BUCKET_NAME, generateKey(slotInstance.name()));
+    private URI generateURI(SlotInstance slot) {
+        return storage.getURI(BUCKET_NAME, generateKey(slot));
     }
 
     private static void awaitOpening(List<? extends LzySlotBase> slots) {
@@ -115,33 +103,33 @@ public class S3SnapshotTest {
     }
 
     @Test
-    public void testMultipleInputSlots() {
-        List<String> names = List.of("first", "second", "third", "fourth", "fifth");
-        List<S3SnapshotInputSlot> slots = names.stream()
-                .map(S3SnapshotTest::slotForName)
-                .map(slot -> new S3SnapshotInputSlot(slot, storage, BUCKET_NAME))
-                .toList();
+    public void testMultipleSnapshotsStoreLoad() throws IOException {
+        List<SlotInstance> instances = Stream.of("first", "second", "third", "fourth", "fifth")
+                .map(S3SnapshotTest::slotForName).toList();
         List<String> messages = List.of("Hello world!", "Bonjour le monde!",
                 "Hola mundo!", "Moni Dziko Lapansi", "Ciao mondo!");
 
+        List<S3SnapshotInputSlot> inputSlots = instances.stream()
+                .map(slot -> new S3SnapshotInputSlot(slot, generateKey(slot), BUCKET_NAME, storage))
+                .toList();
         // store messages
         for (int i = 0; i < 5; i++) {
-            LzyInputSlot slot = slots.get(i);
+            LzyInputSlot slot = inputSlots.get(i);
             slot.connect(generateURI(slot.instance()), Stream.of(ByteString.copyFrom(messages.get(i), charset)));
         }
 
-        awaitOpening(slots);
-        slots.forEach(LzySlot::destroy);
+        awaitOpening(inputSlots);
+        inputSlots.forEach(LzySlot::destroy);
 
-        // read and validate messages
+        List<S3SnapshotOutputSlot> outputSlots = instances.stream()
+                .map(slot -> new S3SnapshotOutputSlot(slot, generateKey(slot), BUCKET_NAME, storage))
+                .toList();
+        // read and validate previously stored data
         for (int i = 0; i < 5; i++) {
-            String content = getObjectContent(generateKey(names.get(i)));
+            String content = outputSlots.get(i).readFromPosition(0)
+                    .map(byteString -> byteString.toString(charset))
+                    .collect(Collectors.joining());
             Assert.assertEquals(content, messages.get(i));
         }
-    }
-
-    @Test
-    public void testMultipleOutputSlots() {
-
     }
 }

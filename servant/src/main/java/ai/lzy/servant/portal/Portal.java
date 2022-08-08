@@ -11,7 +11,9 @@ import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.model.Slot;
 import ai.lzy.model.SlotInstance;
-import ai.lzy.servant.portal.s3.S3Snapshots;
+import ai.lzy.servant.portal.ExternalStorage.AmazonS3Key;
+import ai.lzy.servant.portal.ExternalStorage.AzureS3Key;
+import ai.lzy.servant.portal.ExternalStorage.S3ClientProvider;
 import ai.lzy.v1.LzyFsApi;
 import ai.lzy.v1.LzyFsGrpc;
 import ai.lzy.v1.LzyPortalApi;
@@ -45,9 +47,9 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
     private StdoutSlot stderrSlot = null;
     // local snapshots
     private final Map<String, SnapshotSlot> snapshots = new HashMap<>(); // snapshotId -> in & out slots
-    private final Map<String, String> slot2snapshot = new HashMap<>();
+    private final Map<String, String> slot2snapshot = new HashMap<>(); // slotName -> snapshotId
     // external storage
-    private final S3Snapshots externalStorage = new S3Snapshots();
+    private final ExternalStorage externalStorage = new ExternalStorage();
     // common
     private final AtomicBoolean active = new AtomicBoolean(false);
 
@@ -116,7 +118,7 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
             final String taskId = switch (slotDesc.getKindCase()) {
                 case STDERR -> slotDesc.getStderr().getTaskId();
                 case STDOUT -> slotDesc.getStdout().getTaskId();
-                case SNAPSHOT, AMAZONS3, AZURES3 -> portalTaskId;
+                case SNAPSHOT, S3SNAPSHOT -> portalTaskId;
                 default -> throw new RuntimeException("unknown slot kind");
             };
             final SlotInstance slotInstance = new SlotInstance(
@@ -189,14 +191,32 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
                     fs.getSlotsManager().registerSlot(lzySlot);
                 }
 
-//                case AMAZONS3 -> {
-//
-//                    fs.getSlotsManager().registerSlot(externalStorage.createSlotSnapshot(Amaz));
-//                }
-//
-//                case AZURES3 -> {
-//                    fs.getSlotsManager().registerSlot(externalStorage.createSlotSnapshot());
-//                }
+                case S3SNAPSHOT -> {
+                    var s3SnapshotData = slotDesc.getS3Snapshot();
+                    String key = s3SnapshotData.getKey();
+                    String bucket = s3SnapshotData.getBucket();
+
+                    S3ClientProvider clientProvider = switch (s3SnapshotData.getEndpointCase()) {
+                        case AMAZONS3 -> AmazonS3Key.of(s3SnapshotData.getAmazonS3().getEndpoint(),
+                                s3SnapshotData.getAmazonS3().getAccessToken(),
+                                s3SnapshotData.getAmazonS3().getSecretToken());
+                        case AZURES3 -> AzureS3Key.of(s3SnapshotData.getAzureS3().getConnectionString());
+                        default -> null;
+                    };
+                    if (clientProvider == null) {
+                        return replyError.apply("Unknown s3 endpoint type " + s3SnapshotData.getEndpointCase());
+                    }
+
+                    LzySlot lzySlot = switch (slot.direction()) {
+                        case INPUT -> externalStorage.createSlotSnapshot(slotInstance, key, bucket, clientProvider);
+                        case OUTPUT -> externalStorage.readSlotSnapshot(slotInstance, key, bucket, clientProvider);
+                    };
+                    if (lzySlot != null) {
+                        fs.getSlotsManager().registerSlot(lzySlot);
+                    } else {
+                        return replyError.apply("Unknown slot direction " + slot.direction());
+                    }
+                }
 
                 default -> throw new NotImplementedException(slotDesc.getKindCase().name());
             }
@@ -245,6 +265,24 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
                         .setConnectedTo(Optional.ofNullable(slot.connectedTo()).map(URI::toString).orElse(""))
                         .setState(slot.state())
                         .build()));
+        }
+
+        for (var input : externalStorage.getInputSlots()) {
+            response.addSlots(
+                    LzyPortalApi.PortalSlotStatus.newBuilder()
+                            .setSlot(GrpcConverter.to(input.definition()))
+                            .setConnectedTo(Optional.ofNullable(input.connectedTo()).map(URI::toString).orElse(""))
+                            .setState(input.state())
+                            .build());
+        }
+
+        for (var output : externalStorage.getOutputSlots()) {
+            response.addSlots(
+                    LzyPortalApi.PortalSlotStatus.newBuilder()
+                            .setSlot(GrpcConverter.to(output.definition()))
+                            .setConnectedTo("")
+                            .setState(output.state())
+                            .build());
         }
 
         return response.build();
@@ -317,6 +355,12 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
             return;
         }
 
+        var s3SnapshotInputSlot = externalStorage.getInputSlot(slotName);
+        if (s3SnapshotInputSlot != null) {
+            doConnect.accept(s3SnapshotInputSlot);
+            return;
+        }
+
         LOG.error("Only snapshot is supported now");
         response.onError(Status.UNIMPLEMENTED.asException());
     }
@@ -386,6 +430,24 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
             done = true;
         }
 
+        if (!done) {
+            LzyInputSlot inputSlot = externalStorage.getInputSlot(slotName);
+            if (inputSlot != null) {
+                inputSlot.disconnect();
+            }
+            LzyOutputSlot outputSlot = externalStorage.getOutputSlot(slotName);
+            if (outputSlot != null) {
+                outputSlot.suspend();
+            }
+
+            if (inputSlot == null && outputSlot == null) {
+                LOG.error("Got disconnect from unexpected slot '{}'", slotName);
+                response.onError(Status.INVALID_ARGUMENT.withDescription("Unexpected slot").asException());
+            } else {
+                done = true;
+            }
+        }
+
         if (done) {
             response.onNext(LzyFsApi.SlotCommandStatus.newBuilder()
                 .setRc(LzyFsApi.SlotCommandStatus.RC.newBuilder()
@@ -445,6 +507,15 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
                 reply.accept(slot);
                 return;
             }
+        }
+
+        LzySlot slot = externalStorage.getInputSlot(slotInstance.name());
+        if (slot == null) {
+            slot = externalStorage.getOutputSlot(slotInstance.name());
+        }
+        if (slot != null) {
+            reply.accept(slot);
+            return;
         }
 
         response.onError(Status.NOT_FOUND
@@ -516,6 +587,26 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
             done = true;
         }
 
+        if (!done) {
+            LzyInputSlot inputSlot = externalStorage.getInputSlot(slotName);
+            if (inputSlot != null) {
+                inputSlot.destroy();
+                externalStorage.removeInputSlot(inputSlot.name());
+            }
+            LzyOutputSlot outputSlot = externalStorage.getOutputSlot(slotName);
+            if (outputSlot != null) {
+                outputSlot.destroy();
+                externalStorage.removeOutputSlot(outputSlot.name());
+            }
+
+            if (inputSlot == null && outputSlot == null) {
+                LOG.error("Got destroy from unexpected slot '{}'", slotName);
+                response.onError(Status.INVALID_ARGUMENT.withDescription("Unexpected slot").asException());
+            } else {
+                done = true;
+            }
+        }
+
         if (done) {
             response.onNext(LzyFsApi.SlotCommandStatus.newBuilder()
                 .setRc(LzyFsApi.SlotCommandStatus.RC.newBuilder()
@@ -579,6 +670,8 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
                 outputSlot = stdoutSlot;
             } else if (stderrSlot.name().equals(slotName)) {
                 outputSlot = stderrSlot;
+            } else {
+                outputSlot = externalStorage.getOutputSlot(slotName);
             }
         }
 
@@ -601,8 +694,6 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
             case SNAPSHOT -> sb.append("\"snapshot/").append(slotDesc.getSnapshot().getId()).append("\"");
             case STDOUT -> sb.append("\"stdout\"");
             case STDERR -> sb.append("\"stderr\"");
-            //case AMAZONS3 ->
-            //    sb.append("\"amazon-s3\": \"").append(slotDesc.getAmazonS3().getEndpoint()).append("\"");
             default -> sb.append("\"").append(slotDesc.getKindCase()).append("\"");
         }
 

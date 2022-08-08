@@ -29,7 +29,7 @@ public class S3SnapshotInputSlot extends LzyInputSlotBase {
     private final Pipe pipe;
     private final ListenableFuture<UploadState> future;
 
-    public S3SnapshotInputSlot(SlotInstance instance, StorageClient storageClient, String bucket) {
+    public S3SnapshotInputSlot(SlotInstance instance, String key, String bucket, StorageClient storageClient) {
         super(instance);
         try {
             this.pipe = Pipe.open();
@@ -39,15 +39,11 @@ public class S3SnapshotInputSlot extends LzyInputSlotBase {
         this.out = Channels.newOutputStream(pipe.sink());
         future = storageClient.transmitter().upload(new UploadRequestBuilder()
                 .bucket(bucket)
-                .key(generateKey())
+                .key(key)
                 .metadata(Metadata.empty())
                 .stream(() -> Channels.newInputStream(pipe.source()))
                 .build()
         );
-    }
-
-    private String generateKey() {
-        return "slot_" + instance().name();
     }
 
     @Override
@@ -84,7 +80,11 @@ public class S3SnapshotInputSlot extends LzyInputSlotBase {
         LOG.info("S3SnapshotInputSlot::onFinish invoked with slot " + instance().name());
         try {
             out.close();
-            future.get();
+            UploadState uploadState = future.get();
+            LOG.info("S3SnapshotInputSlot: Uploading data to s3 bucket {} and key {} with status {}",
+                    uploadState.getUploadRequest().getBucket(),
+                    uploadState.getUploadRequest().getKey(),
+                    uploadState.getTransferStatus());
         } catch (IOException | InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);
         }
