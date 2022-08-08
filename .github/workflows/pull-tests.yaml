@@ -41,7 +41,7 @@ jobs:
 
       - name: 'upload py coverage badge'
         uses: exuanbo/actions-deploy-gist@v1
-        if: ${{ (github.head_ref || github.ref_name) }} == 'master'
+        if: github.ref == 'refs/heads/master'
         with:
           token: ${{ secrets.GIST_SECRET }}
           gist_id: 0095e900fb0fcbe5575ddc3c717fb65b
@@ -76,7 +76,7 @@ jobs:
 
       - name: 'upload java coverage badge'
         uses: exuanbo/actions-deploy-gist@v1
-        if: ${{ (github.head_ref || github.ref_name) }} == 'master'
+        if: github.ref == 'refs/heads/master'
         with:
           token: ${{ secrets.GIST_SECRET }}
           gist_id: be651155cb12a8006cecdee948ce1a0a
