@@ -1,7 +1,7 @@
 import io
 from contextlib import AsyncExitStack
 from pathlib import Path
-from typing import BinaryIO
+from typing import AsyncIterator, BinaryIO
 
 from aioboto3 import Session
 from botocore.exceptions import ClientError
@@ -14,7 +14,6 @@ class AmazonClient:
     scheme = Scheme.s3
 
     def __init__(self, credentials: AmazonCredentials):
-        super().__init__()
         self.session = Session()
         self.resources = AsyncExitStack()
 
@@ -26,14 +25,9 @@ class AmazonClient:
             endpoint_url=credentials.endpoint,
         )
 
-    async def read(self, url: str) -> bytes:
-        with io.BytesIO() as buf:
-            await self._read_into(url, buf)
-            return buf.getvalue()
-
-    async def read_to_file(self, url: str, filepath: Path) -> None:
-        with filepath.open("wb") as file:
-            await self._read_into(url, file)
+    async def read(self, url: str, data: BinaryIO):
+        async for chunk in self.blob_iter(url):
+            data.write(chunk)
 
     async def write(self, bucket: str, key: str, data: BinaryIO) -> str:
         await self._client.upload_fileobj(data, bucket, key)
@@ -51,12 +45,11 @@ class AmazonClient:
         except ClientError:
             return False
 
-    async def _read_into(
+    async def blob_iter(
         self,
         url: str,
-        dest: BinaryIO,
         chunk_size: int = 69 * 1024,
-    ):
+    ) -> AsyncIterator[bytes]:
         bucket, key = bucket_from_url(self.scheme, url)
 
         s3_obj = await self._client.get_object(
@@ -64,11 +57,10 @@ class AmazonClient:
             Key=key,
         )
 
-        # this will ensure the connection is correctly re-used/closed
         async with s3_obj["Body"] as stream:
             while True:
                 data = await stream.read(chunk_size)
                 if not data:
                     return
 
-                dest.write(data)
+                yield data
