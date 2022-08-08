@@ -1,4 +1,4 @@
-package ai.lzy.servant.portal;
+package ai.lzy.test;
 
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.v1.ChannelManager;
@@ -10,10 +10,12 @@ import org.junit.Assert;
 
 import java.util.function.Consumer;
 
-public class Utils {
+public class GrpcUtils {
 
-    public static ChannelManager.ChannelCreateRequest makeCreateDirectChannelCommand(String channelName) {
+    public static ChannelManager.ChannelCreateRequest makeCreateDirectChannelCommand(String workflowId,
+        String channelName) {
         return ChannelManager.ChannelCreateRequest.newBuilder()
+            .setWorkflowId(workflowId)
             .setChannelSpec(
                 Channels.ChannelSpec.newBuilder()
                     .setChannelName(channelName)
@@ -23,10 +25,14 @@ public class Utils {
             ).build();
     }
 
-    public static ChannelManager.ChannelDestroyRequest makeDestroyChannelCommand(String channelName) {
+    public static ChannelManager.ChannelDestroyRequest makeDestroyChannelCommand(String channelId) {
         return ChannelManager.ChannelDestroyRequest.newBuilder()
-            .setChannelId(channelName)
+            .setChannelId(channelId)
             .build();
+    }
+
+    public static ChannelManager.ChannelDestroyAllRequest makeDestroyAllCommand(String workflowId) {
+        return ChannelManager.ChannelDestroyAllRequest.newBuilder().setWorkflowId(workflowId).build();
     }
 
     public static Operations.DataScheme makePlainTextDataScheme() {
@@ -94,7 +100,8 @@ public class Utils {
         return FreePortFinder.find(10000, 20000);
     }
 
-    abstract static class SuccessStreamObserver<T> implements StreamObserver<T> {
+    public abstract static class SuccessStreamObserver<T> implements StreamObserver<T> {
+
         @Override
         public void onError(Throwable t) {
             t.printStackTrace(System.err);
