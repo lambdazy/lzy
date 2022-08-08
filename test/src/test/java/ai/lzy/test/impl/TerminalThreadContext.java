@@ -1,23 +1,18 @@
 package ai.lzy.test.impl;
 
-import ai.lzy.fs.BashApi;
-import ai.lzy.fs.commands.BuiltinCommandHolder;
-import ai.lzy.test.LzyTerminalTestContext;
-import java.lang.reflect.InvocationTargetException;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.SystemUtils;
 import ai.lzy.model.utils.JwtCredentials;
 import ai.lzy.servant.agents.AgentStatus;
 import ai.lzy.servant.agents.LzyAgentConfig;
 import ai.lzy.servant.agents.LzyTerminal;
+import ai.lzy.test.LzyTerminalTestContext;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.SystemUtils;
 
 import javax.annotation.Nullable;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
@@ -161,16 +156,26 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
             @Nullable
             @Override
             public AgentStatus status() {
-                if (pathExists(Paths.get(path + "/sbin/status"))) {
+                var cmd = Paths.get(path + "/sbin/status");
+                if (pathExists(cmd)) {
                     try {
-                        final Process bash = new ProcessBuilder("bash", path + "/sbin/status").start();
+                        final Process bash = new ProcessBuilder("bash", cmd.toAbsolutePath().toString()).start();
                         bash.waitFor();
                         final String stdout = IOUtils.toString(bash.getInputStream(), StandardCharsets.UTF_8);
-                        final String parsedStatus = stdout.split("\n")[0];
+                        // final String stderr = IOUtils.toString(bash.getErrorStream(), StandardCharsets.UTF_8);
+
+                        var lineNo = stdout.startsWith(
+                            "WARNING: sun.reflect.Reflection.getCallerClass is not supported. "
+                                + "This will impact performance."
+                        ) ? 1 : 0;
+                        final String parsedStatus = stdout.split("\n")[lineNo];
                         return AgentStatus.valueOf(parsedStatus);
                     } catch (IllegalArgumentException | InterruptedException | IOException e) {
+                        LOGGER.error("Failed to execute /sbin/status: {}", e.getMessage(), e);
                         return null;
                     }
+                } else {
+                    LOGGER.error("{} not found", cmd.toAbsolutePath());
                 }
                 return null;
             }

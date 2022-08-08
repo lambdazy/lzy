@@ -13,11 +13,13 @@ import ai.lzy.v1.LzyChannelManagerGrpc;
 import ai.lzy.v1.LzyChannelManagerGrpc.LzyChannelManagerBlockingStub;
 import ai.lzy.v1.LzyServerGrpc;
 import ai.lzy.v1.LzyServerGrpc.LzyServerBlockingStub;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
-import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import javax.annotation.Nullable;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class TerminalSession {
 
@@ -60,11 +62,16 @@ public class TerminalSession {
                         terminalState.getAuth()::getToken
                     ));
                 creds.set(terminalState.getAuth());
-                //noinspection ResultOfMethodCallIgnored
-                server.registerSession(
-                    RegisterSessionRequest.newBuilder().setAuth(terminalState.getAuth().toBuilder().build())
-                        .setSessionId(sessionId)
-                        .build());
+                try {
+                    //noinspection ResultOfMethodCallIgnored
+                    server.registerSession(
+                        RegisterSessionRequest.newBuilder().setAuth(terminalState.getAuth().toBuilder().build())
+                            .setSessionId(sessionId)
+                            .build());
+                } catch (StatusRuntimeException e) {
+                    LOG.error("Cannot register session at server: {}", e.getStatus(), e);
+                    throw e;
+                }
             } else if (terminalState.getProgressCase() == Kharon.TerminalProgress.ProgressCase.TERMINALRESPONSE) {
                 terminalController.handleTerminalResponse(terminalState.getTerminalResponse());
             } else {

@@ -305,7 +305,6 @@ public class WorkflowService extends LzyWorkflowImplBase {
     @PreDestroy
     public void shutdown() {
         LOG.info("Shutdown WorkflowService.");
-        //Arrays.stream(Thread.currentThread().getStackTrace()).forEach(System.err::println);
         storageServiceChannel.shutdown();
     }
 
