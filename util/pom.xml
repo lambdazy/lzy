@@ -18,5 +18,7 @@
         <module>util-zk</module>
         <module>util-azure</module>
         <module>util-test</module>
+        <module>util-db</module>
+        <module>util-grpc</module>
     </modules>
 </project>

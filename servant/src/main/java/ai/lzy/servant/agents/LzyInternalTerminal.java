@@ -13,7 +13,6 @@ import io.grpc.ManagedChannel;
 import io.grpc.stub.StreamObserver;
 import java.io.Closeable;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.net.URISyntaxException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;

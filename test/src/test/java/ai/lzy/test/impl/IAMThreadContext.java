@@ -7,28 +7,22 @@ import ai.lzy.v1.iam.LzySubjectServiceGrpc;
 import ai.lzy.test.LzyIAMTestContext;
 import ai.lzy.v1.iam.LzyAccessBindingServiceGrpc;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
-import ai.lzy.whiteboard.api.SnapshotApi;
 import com.google.common.net.HostAndPort;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
-import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
-import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
 @SuppressWarnings("UnstableApiUsage")
 public class IAMThreadContext implements LzyIAMTestContext {
+    private static final Logger LOG = LogManager.getLogger(IAMThreadContext.class);
 
     private static final Duration IAM_STARTUP_TIME = Duration.ofSeconds(10);
     private static final Duration CHANNEL_SHUTDOWN_TIME = Duration.ofSeconds(5);
@@ -41,6 +35,7 @@ public class IAMThreadContext implements LzyIAMTestContext {
     private LzyAuthenticateServiceGrpc.LzyAuthenticateServiceBlockingStub lzyAuthenticateServiceBlockingStub;
     private LzyIAM lzyIAM;
     private ManagedChannel channel;
+    private ApplicationContext context;
 
     @Override
     public HostAndPort address() {
@@ -73,9 +68,10 @@ public class IAMThreadContext implements LzyIAMTestContext {
 
         props.put("iam.server-port", IAM_PORT);
 
-        try (ApplicationContext context = ApplicationContext.run(PropertySource.of(props))) {
-            var logger = LogManager.getLogger(SnapshotApi.class);
-            logger.info("Starting LzyIAM on port {}...", IAM_PORT);
+        try {
+            LOG.info("Starting LzyIAM on port {}...", IAM_PORT);
+
+            context = ApplicationContext.run(PropertySource.of(props));
 
             try {
                 lzyIAM = new LzyIAM(context);
@@ -83,7 +79,11 @@ public class IAMThreadContext implements LzyIAMTestContext {
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
+        } catch (Exception e) {
+            LOG.fatal("Failed to start IAM: {}", e.getMessage(), e);
+            throw e;
         }
+
         channel = ChannelBuilder
                 .forAddress("localhost", IAM_PORT)
                 .usePlaintext()
@@ -114,6 +114,7 @@ public class IAMThreadContext implements LzyIAMTestContext {
             channel.awaitTermination(CHANNEL_SHUTDOWN_TIME.getSeconds(), TimeUnit.SECONDS);
             lzyIAM.close();
             lzyIAM.awaitTermination();
+            context.close();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }

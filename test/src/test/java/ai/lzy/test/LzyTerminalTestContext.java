@@ -1,19 +1,5 @@
 package ai.lzy.test;
 
-import ai.lzy.v1.ChannelManager;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.util.JsonFormat;
-import java.nio.file.Path;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import ai.lzy.fs.commands.BuiltinCommandHolder;
 import ai.lzy.fs.commands.CommandHolder;
 import ai.lzy.model.GrpcConverter;
@@ -22,6 +8,21 @@ import ai.lzy.model.graph.AtomicZygote;
 import ai.lzy.servant.agents.AgentStatus;
 import ai.lzy.servant.commands.ServantCommandHolder;
 import ai.lzy.test.impl.Utils;
+import ai.lzy.v1.ChannelManager;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import javax.annotation.Nullable;
+import java.nio.file.Path;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 public interface LzyTerminalTestContext extends AutoCloseable {
 

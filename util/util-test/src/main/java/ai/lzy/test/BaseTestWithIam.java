@@ -4,10 +4,11 @@ import ai.lzy.iam.LzyIAM;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
-import java.io.FileInputStream;
-import java.io.IOException;
 import org.junit.After;
 import org.junit.Before;
+
+import java.io.FileInputStream;
+import java.io.IOException;
 
 public class BaseTestWithIam {
 

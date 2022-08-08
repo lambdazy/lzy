@@ -1,8 +1,5 @@
 package ai.lzy.servant.portal;
 
-import static io.grpc.Status.INVALID_ARGUMENT;
-import static java.util.Objects.requireNonNull;
-
 import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.model.SlotInstance;
@@ -19,15 +16,19 @@ import io.grpc.Status;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.Nullable;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+
+import static io.grpc.Status.INVALID_ARGUMENT;
+import static java.util.Objects.requireNonNull;
 
 public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerImplBase {
     private static final Logger LOG = LogManager.getLogger(ChannelManagerMock.class);

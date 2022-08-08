@@ -6,7 +6,6 @@ import ai.lzy.iam.clients.AuthenticateService;
 import ai.lzy.iam.utils.GrpcConfig;
 import io.grpc.Channel;
 import io.grpc.StatusRuntimeException;
-import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.iam.resources.subjects.Subject;
@@ -18,7 +17,6 @@ import ai.lzy.v1.iam.IAM;
 import ai.lzy.v1.iam.LAS;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 
-@Singleton
 public class AuthenticateServiceGrpcClient implements AuthenticateService {
     private static final Logger LOG = LogManager.getLogger(AuthenticateServiceGrpcClient.class);
 

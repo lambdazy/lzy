@@ -10,6 +10,9 @@ import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -17,11 +20,14 @@ import java.util.concurrent.locks.LockSupport;
 
 @SuppressWarnings("UnstableApiUsage")
 public class ChannelManagerThreadContext implements ChannelManagerContext {
+    private static final Logger LOG = LogManager.getLogger(ChannelManagerThreadContext.class);
+
     private final String whiteboardAddress;
     private final HostAndPort iamAddress;
     private ChannelManager channelManager;
     private LzyChannelManagerGrpc.LzyChannelManagerBlockingStub client;
     private ManagedChannel channel;
+    private ApplicationContext context;
 
     static class Config extends Utils.Defaults {
         private static final long STARTUP_TIMEOUT_SEC = 60;
@@ -45,12 +51,16 @@ public class ChannelManagerThreadContext implements ChannelManagerContext {
 
     @Override
     public void init() {
+        LOG.info("Starting channel-manager...");
+
         Map<String, Object> appProperties = Map.of(
             "channel-manager.address", "localhost:" + Config.PORT,
             "channel-manager.whiteboard-address", whiteboardAddress,
             "channel-manager.iam.address", iamAddress
         );
-        try (ApplicationContext context = ApplicationContext.run(PropertySource.of(appProperties))) {
+        try {
+            context = ApplicationContext.run(PropertySource.of(appProperties));
+
             channelManager = new ChannelManager(context);
             channelManager.start();
 
@@ -66,6 +76,7 @@ public class ChannelManagerThreadContext implements ChannelManagerContext {
                 LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(100));
             }
         } catch (IOException e) {
+            LOG.fatal("Failed to start channel-manager: {}", e.getMessage(), e);
             throw new RuntimeException(e);
         }
     }
@@ -77,6 +88,7 @@ public class ChannelManagerThreadContext implements ChannelManagerContext {
             channel.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
             channelManager.close();
             channelManager.awaitTermination();
+            context.close();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }

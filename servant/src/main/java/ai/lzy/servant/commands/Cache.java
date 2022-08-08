@@ -7,7 +7,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Base64;
 import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.Options;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.v1.IAM;
