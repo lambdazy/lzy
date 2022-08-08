@@ -35,7 +35,7 @@ class WorkflowServiceClient:
         endpoint: Optional[StorageEndpoint] = None
         if response.HasField("tempStorage"):
             store = response.tempStorage
-            creds = None
+            creds: Optional[StorageCredentials] = None
             if store.HasField("azure"):
                 creds = converter.storage_creds.from_(store.azure)
             if store.HasField("amazon"):
