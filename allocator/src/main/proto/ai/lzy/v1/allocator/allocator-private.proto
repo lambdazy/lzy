@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package ai.lzy.v1.allocator;
+
+option java_outer_classname = "ServantAllocatorPrivateApi";
+option java_package = "ai.lzy.v1";
+
+//
+// Private api of allocator for allocator agents
+//
+service AllocatorPrivate {
+  // Notify allocator about completed allocation
+  rpc Register (RegisterRequest) returns (RegisterResponse);
+
+}
+
+// ========= Register ==========
+message RegisterRequest {
+  string vm_id = 1;
+  string token = 2;
+  map<string, string> metadata = 3;
+}
+
+message RegisterResponse {}

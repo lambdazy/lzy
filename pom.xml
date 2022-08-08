@@ -33,5 +33,6 @@
         <module>storage</module>
         <module>disk-service</module>
         <module>coverage</module>
+        <module>allocator</module>
     </modules>
 </project>
