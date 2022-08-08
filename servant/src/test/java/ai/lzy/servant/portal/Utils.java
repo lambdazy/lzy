@@ -72,6 +72,14 @@ public class Utils {
             .build();
     }
 
+    public static LzyPortalApi.AmazonS3Endpoint makeAmazonS3Endpoint(String endpoint) {
+        return LzyPortalApi.AmazonS3Endpoint.newBuilder()
+                .setAccessToken("")
+                .setSecretToken("")
+                .setEndpoint(endpoint)
+                .build();
+    }
+
     public static LzyPortalApi.PortalSlotDesc.Snapshot makeSnapshotStorage(String snapshotId) {
         return LzyPortalApi.PortalSlotDesc.Snapshot.newBuilder()
             .setId(snapshotId)
