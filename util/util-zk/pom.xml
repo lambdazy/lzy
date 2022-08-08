@@ -28,6 +28,12 @@
     <dependency>
       <artifactId>curator-framework</artifactId>
       <groupId>org.apache.curator</groupId>
+      <exclusions>
+        <exclusion>
+          <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <artifactId>curator-recipes</artifactId>
@@ -37,6 +43,12 @@
       <artifactId>curator-test</artifactId>
       <groupId>org.apache.curator</groupId>
       <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <artifactId>streamex</artifactId>

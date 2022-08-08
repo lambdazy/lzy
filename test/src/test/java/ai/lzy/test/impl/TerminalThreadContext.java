@@ -163,12 +163,7 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
                         bash.waitFor();
                         final String stdout = IOUtils.toString(bash.getInputStream(), StandardCharsets.UTF_8);
                         // final String stderr = IOUtils.toString(bash.getErrorStream(), StandardCharsets.UTF_8);
-
-                        var lineNo = stdout.startsWith(
-                            "WARNING: sun.reflect.Reflection.getCallerClass is not supported. "
-                                + "This will impact performance."
-                        ) ? 1 : 0;
-                        final String parsedStatus = stdout.split("\n")[lineNo];
+                        final String parsedStatus = stdout.split("\n")[0];
                         return AgentStatus.valueOf(parsedStatus);
                     } catch (IllegalArgumentException | InterruptedException | IOException e) {
                         LOGGER.error("Failed to execute /sbin/status: {}", e.getMessage(), e);

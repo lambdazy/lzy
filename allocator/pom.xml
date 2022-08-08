@@ -6,16 +6,18 @@
         <artifactId>lzy</artifactId>
         <groupId>ai.lzy</groupId>
         <version>1.0-SNAPSHOT</version>
+        <relativePath>../../lzy</relativePath>
     </parent>
+
     <modelVersion>4.0.0</modelVersion>
-
     <artifactId>allocator</artifactId>
+    <version>1.0-SNAPSHOT</version>
 
-    <properties>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
-        <java.version>11</java.version>
-    </properties>
+<!--    <properties>-->
+<!--        <maven.compiler.source>11</maven.compiler.source>-->
+<!--        <maven.compiler.target>11</maven.compiler.target>-->
+<!--        <java.version>11</java.version>-->
+<!--    </properties>-->
 
     <dependencies>
         <dependency>
@@ -56,10 +58,6 @@
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
-                <filtering>true</filtering>
-                <includes>
-                    <include>**/*.yaml</include>
-                </includes>
             </resource>
         </resources>
         <plugins>

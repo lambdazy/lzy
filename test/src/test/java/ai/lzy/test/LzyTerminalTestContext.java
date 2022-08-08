@@ -311,10 +311,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
         }
 
         default boolean waitForStatus(AgentStatus status, long timeout, TimeUnit unit) {
-            return Utils.waitFlagUp(() -> {
-                System.err.println("--> test: " + status() + " vs " + status);
-                return Objects.equals(status(), status);
-            }, timeout, unit);
+            return Utils.waitFlagUp(() -> Objects.equals(status(), status), timeout, unit);
         }
 
         @Nullable
