@@ -10,7 +10,6 @@ import org.apache.logging.log4j.LogManager;
 import ai.lzy.kharon.LzyKharon;
 import ai.lzy.model.UriScheme;
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.whiteboard.api.SnapshotApi;
 import ai.lzy.v1.LzyKharonGrpc;
 
 import java.io.IOException;
@@ -95,8 +94,8 @@ public class KharonThreadContext implements LzyKharonTestContext {
         props.put("kharon.storage.address", "localhost:" + StorageThreadContext.STORAGE_PORT);
         props.put("kharon.workflow.enabled", "true");
 
+        var logger = LogManager.getLogger(KharonThreadContext.class);
         try (ApplicationContext context = ApplicationContext.run(PropertySource.of(props))) {
-            var logger = LogManager.getLogger(SnapshotApi.class);
             logger.info("Starting LzyKharon on port {}...", LZY_KHARON_PORT);
 
             try {
@@ -116,6 +115,8 @@ public class KharonThreadContext implements LzyKharonTestContext {
             while (channel.getState(true) != ConnectivityState.READY) {
                 LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(100));
             }
+        } catch (Exception e) {
+            logger.fatal("Failed to start Kharon: {}", e.getMessage(), e);
         }
     }
 
