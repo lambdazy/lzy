@@ -34,6 +34,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 
@@ -305,6 +306,7 @@ public class WorkflowService extends LzyWorkflowImplBase {
     @PreDestroy
     public void shutdown() {
         LOG.info("Shutdown WorkflowService.");
+        Arrays.stream(Thread.currentThread().getStackTrace()).forEach(System.err::println);
         storageServiceChannel.shutdown();
     }
 
