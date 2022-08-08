@@ -13,9 +13,6 @@
     <version>1.0-SNAPSHOT</version>
 
     <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
-        <java.version>17</java.version>
         <exec.mainClass>ai.lzy.allocator.AllocatorMain</exec.mainClass>
     </properties>
 
