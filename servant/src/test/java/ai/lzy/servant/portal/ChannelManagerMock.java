@@ -7,7 +7,7 @@ import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.model.SlotInstance;
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.servant.agents.LzyServant;
+import ai.lzy.test.GrpcUtils;
 import ai.lzy.v1.ChannelManager;
 import ai.lzy.v1.LzyChannelManagerGrpc;
 import ai.lzy.v1.LzyFsApi;
@@ -37,7 +37,7 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
     final Server server;
 
     public ChannelManagerMock() {
-        port = Utils.rollPort();
+        port = GrpcUtils.rollPort();
         Map<String, Object> properties = Map.of("channel-manager.port", port);
         ctx = ApplicationContext.run(properties);
         server = NettyServerBuilder.forPort(port)
