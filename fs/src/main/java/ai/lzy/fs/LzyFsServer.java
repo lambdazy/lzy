@@ -65,7 +65,7 @@ public final class LzyFsServer {
     private final AtomicReference<LzyFsGrpc.LzyFsImplBase> slotApiInterceptor = new AtomicReference<>(null);
 
     public LzyFsServer(String agentId, String mountPoint, URI selfUri, URI lzyServerUri, URI lzyWhiteboardUri,
-                       URI channelManagerUri, IAM.Auth auth) throws IOException {
+        URI channelManagerUri, IAM.Auth auth) throws IOException {
         this.agentId = agentId;
         this.channelManagerUri = channelManagerUri;
         assert LzyFs.scheme().equals(selfUri.getScheme());
@@ -164,8 +164,11 @@ public final class LzyFsServer {
                 channelManagerChannel.shutdown();
                 localServer.shutdown();
             } finally {
-                fs.umount();
-                mounted.decrementAndGet();
+                try {
+                    fs.umount();
+                } finally {
+                    mounted.decrementAndGet();
+                }
             }
         }
     }
@@ -317,12 +320,9 @@ public final class LzyFsServer {
         final LzySlot slot = slotsManager.slot(taskId, slotInstance.name());
         if (!(slot instanceof LzyOutputSlot outputSlot)) {
             LOG.info("Trying to read from input slot " + slotInstance.uri());
-            responseObserver
-                .onError(
-                    Status.NOT_FOUND
-                        .withDescription("Reading from input slot: " + slotInstance.uri())
-                        .asException()
-            );
+            responseObserver.onError(Status.NOT_FOUND
+                .withDescription("Reading from input slot: " + slotInstance.uri())
+                .asException());
             return;
         }
 
@@ -430,6 +430,7 @@ public final class LzyFsServer {
     }
 
     private final class Impl extends LzyFsGrpc.LzyFsImplBase {
+
         private interface SlotFn<R> {
 
             LzyFsApi.SlotCommandStatus call(R req);
