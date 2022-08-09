@@ -17,9 +17,10 @@ rm -rvf _build/
 # mvn build artefacts
 rm -rvf target/
 
-# coverage report
-rm -vf ./.coverage ./coverage.svg
-
 # generated proto files
-[ -n "$1" ] || rm -rvf "$proto_out/priv" "$proto_out/v1" "ai/"
+[ -v 1 ] || rm -rvf "$proto_out/priv" "$proto_out/v1" "ai/"
+
+# coverage report
+[ -v 2 ] || rm -vf ./.coverage ./coverage.svg
+
 
