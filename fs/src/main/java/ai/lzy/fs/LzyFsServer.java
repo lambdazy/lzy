@@ -326,12 +326,9 @@ public final class LzyFsServer {
         final LzySlot slot = slotsManager.slot(taskId, slotInstance.name());
         if (!(slot instanceof LzyOutputSlot outputSlot)) {
             LOG.info("Trying to read from input slot " + slotInstance.uri());
-            responseObserver
-                .onError(
-                    Status.NOT_FOUND
-                        .withDescription("Reading from input slot: " + slotInstance.uri())
-                        .asException()
-                );
+            responseObserver.onError(Status.NOT_FOUND
+                .withDescription("Reading from input slot: " + slotInstance.uri())
+                .asException());
             return;
         }
 
