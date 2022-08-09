@@ -11,7 +11,6 @@ from azure.storage.blob import (  # type: ignore
 # TODO[ottergottaott]: drop this dependency
 from lzy.api.v2.utils.types import unwrap
 from lzy.storage.credentials import AzureCredentials, AzureSasCredentials
-from lzy.storage.storage_client import StorageClient
 from lzy.storage.url import Scheme, bucket_from_url
 
 logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(
@@ -19,7 +18,7 @@ logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(
 )
 
 
-class AzureClient(StorageClient):
+class AzureClient:
     scheme = Scheme.azure
 
     def read_to_file(self, url: str, path: str):
