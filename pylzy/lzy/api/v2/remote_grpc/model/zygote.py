@@ -1,9 +1,8 @@
 import base64
 from pathlib import Path
-from typing import List, Optional, Tuple, TypeVar
+from typing import List, Optional, Tuple, Type, TypeVar
 
-from lzy.api.v2.signatures import FuncSignature
-from lzy.serialization.serializer import MemBytesSerializer
+import cloudpickle
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -12,10 +11,13 @@ from ai.lzy.v1.whiteboard_pb2 import ExecutionDescription
 from ai.lzy.v1.zygote_pb2 import _SLOT_DIRECTION  # type: ignore
 from ai.lzy.v1.zygote_pb2 import Slot, Zygote
 from lzy.api.v2.provisioning import Provisioning
+from lzy.api.v2.remote_grpc.model._pickle import pickle
 from lzy.api.v2.remote_grpc.model.slot import file_slot_t
+from lzy.api.v2.signatures import FuncSignature
 from lzy.env.env import EnvSpec
 
 
+# TODO[ottergottaott]: I think this function should not be here
 def send_local_slots_to_s3(signature: FuncSignature[T]) -> Tuple[List[Slot], Slot]:
     arg_slots: List[Slot] = [
         file_slot_t(Path(signature.name) / name, _SLOT_DIRECTION.INPUT, type_)
@@ -34,7 +36,6 @@ def to_base64(inp: bytes) -> str:
 
 def generate_fuze(
     signature: FuncSignature[T],
-    serializer: MemBytesSerializer,
     execution: Optional[ExecutionDescription] = None,
 ) -> str:
     _com = "".join(
@@ -44,22 +45,19 @@ def generate_fuze(
             "/lzy/api/v1/startup.py ",
         ]
     )
-    serialized_func = to_base64(serializer.serialize_to_string(signature))
-    serialized_execution_description = to_base64(
-        serializer.serialize_to_string(execution)
-    )
+    serialized_func = pickle(signature)
+    serialized_execution_description = pickle(execution)
     return _com + serialized_func + " " + serialized_execution_description
 
 
 # TODO[ottergottaott]: remove serializer
 def python_func_zygote(
-    serializer: MemBytesSerializer,
     sign: FuncSignature[T],
     env: EnvSpec,
     provisioning: Provisioning,
     execution: Optional[ExecutionDescription] = None,
 ) -> Zygote:
-    fuze = generate_fuze(sign, serializer, execution)
+    fuze = generate_fuze(sign, execution)
     # TODO[ottergottaott]: Create slots properly
     # ! use lzy/api/v2/servant/model/converter.py here
     #

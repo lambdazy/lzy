@@ -8,6 +8,7 @@ from ai.lzy.v1.zygote_pb2 import _DATASCHEME  # type: ignore
 from ai.lzy.v1.zygote_pb2 import _SLOT_DIRECTION  # type: ignore
 from ai.lzy.v1.zygote_pb2 import _SLOT_MEDIA  # type: ignore
 from ai.lzy.v1.zygote_pb2 import DataScheme, Slot
+from lzy.api.v2.remote_grpc.model._pickle import pickle
 
 
 def opposite(direction: _SLOT_DIRECTION):
@@ -39,19 +40,8 @@ def file_slot(
     )
 
 
-def pickle_type(type_: type) -> str:
-    return base64.b64encode(cloudpickle.dumps(type_)).decode("ascii")
-
-
-def unpickle_type(base64_str: str) -> type:
-    t_ = cloudpickle.loads(base64.b64decode(base64_str))
-    if not isinstance(t_, type):
-        raise TypeError(f"cannot upickle type from {base64_str}")
-    return cast(type, t_)
-
-
 def dump_type(type_: type) -> DataScheme:
     return DataScheme(
-        type=pickle_type(type_),
+        type=pickle(type_),
         schemeType=_DATASCHEME.cloudpickle,
     )

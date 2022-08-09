@@ -42,9 +42,7 @@ def prepare_task(call: "LzyCall") -> TaskDesc:
         for s_name in non_loc_args
     ]
 
-    wflow = call.parent_wflow
     zygote = python_func_zygote(
-        wflow.owner._serializer,
         call.signature.func,
         call.env,
         call.provisioning,
