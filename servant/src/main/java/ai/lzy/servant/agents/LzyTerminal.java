@@ -9,7 +9,7 @@ import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.model.SlotInstance;
 import ai.lzy.model.UriScheme;
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.ChannelBuilder;
 import ai.lzy.v1.IAM;
 import ai.lzy.v1.Kharon.Attach;
 import ai.lzy.v1.Kharon.TerminalCommand;

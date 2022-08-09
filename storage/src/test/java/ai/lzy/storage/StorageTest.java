@@ -1,6 +1,6 @@
 package ai.lzy.storage;
 
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.ChannelBuilder;
 import ai.lzy.model.grpc.ClientHeaderInterceptor;
 import ai.lzy.model.grpc.GrpcHeaders;
 import ai.lzy.test.BaseTestWithIam;

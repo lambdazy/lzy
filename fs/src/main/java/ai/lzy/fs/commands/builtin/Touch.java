@@ -2,7 +2,7 @@ package ai.lzy.fs.commands.builtin;
 
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.fs.fs.LzyFSManager;
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.ChannelBuilder;
 import ai.lzy.v1.IAM;
 import ai.lzy.v1.LzyFsApi;
 import ai.lzy.v1.LzyFsGrpc;

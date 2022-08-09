@@ -1,7 +1,7 @@
 package ai.lzy.test.impl;
 
 import ai.lzy.iam.authorization.credentials.JwtCredentials;
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.ChannelBuilder;
 import ai.lzy.model.grpc.ClientHeaderInterceptor;
 import ai.lzy.model.grpc.GrpcHeaders;
 import ai.lzy.v1.LzyStorageGrpc;

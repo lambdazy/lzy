@@ -1,6 +1,7 @@
 package ai.lzy.test.impl;
 
 import ai.lzy.test.LzyKharonTestContext;
+import ai.lzy.util.ChannelBuilder;
 import com.google.common.net.HostAndPort;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
@@ -9,7 +10,7 @@ import io.micronaut.context.env.PropertySource;
 import org.apache.logging.log4j.LogManager;
 import ai.lzy.kharon.LzyKharon;
 import ai.lzy.model.UriScheme;
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.whiteboard.api.SnapshotApi;
 import ai.lzy.v1.LzyKharonGrpc;
 import org.apache.logging.log4j.Logger;
 

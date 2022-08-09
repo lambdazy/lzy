@@ -3,7 +3,7 @@ package ai.lzy.graph.api;
 import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.graph.model.TaskDescription;
 import ai.lzy.model.GrpcConverter;
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.ChannelBuilder;
 import ai.lzy.v1.SchedulerApi.*;
 import ai.lzy.v1.SchedulerGrpc;
 import ai.lzy.v1.SchedulerGrpc.SchedulerBlockingStub;

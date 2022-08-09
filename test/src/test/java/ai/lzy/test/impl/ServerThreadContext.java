@@ -2,6 +2,7 @@ package ai.lzy.test.impl;
 
 import ai.lzy.servant.env.EnvironmentFactory;
 import ai.lzy.test.LzyServerTestContext;
+import ai.lzy.util.ChannelBuilder;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
@@ -15,7 +16,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 import org.apache.logging.log4j.LogManager;
-import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.server.LzyServer;
 import ai.lzy.v1.LzyServerGrpc;
 

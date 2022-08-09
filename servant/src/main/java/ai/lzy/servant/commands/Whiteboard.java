@@ -12,7 +12,7 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import ai.lzy.fs.commands.LzyCommand;
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.ChannelBuilder;
 import ai.lzy.v1.IAM;
 import ai.lzy.v1.LzyWhiteboard;
 import ai.lzy.v1.WbApiGrpc;

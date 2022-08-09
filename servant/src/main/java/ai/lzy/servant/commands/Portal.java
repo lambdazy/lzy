@@ -1,7 +1,7 @@
 package ai.lzy.servant.commands;
 
 import ai.lzy.fs.commands.LzyCommand;
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.ChannelBuilder;
 import ai.lzy.v1.*;
 import com.google.protobuf.Empty;
 import io.grpc.Status;

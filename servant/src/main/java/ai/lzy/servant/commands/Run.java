@@ -16,7 +16,7 @@ import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.Slot;
 import ai.lzy.model.Zygote;
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.ChannelBuilder;
 import ai.lzy.model.logs.MetricEvent;
 import ai.lzy.model.logs.MetricEventLogger;
 import ai.lzy.v1.*;

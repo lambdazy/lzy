@@ -20,7 +20,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.JsonUtils;
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.ChannelBuilder;
 import ai.lzy.model.snapshot.ExecutionSnapshot;
 import ai.lzy.model.snapshot.InputExecutionValue;
 import ai.lzy.model.snapshot.Snapshot;

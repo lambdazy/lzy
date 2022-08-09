@@ -1,7 +1,7 @@
 package ai.lzy.test.impl;
 
 import ai.lzy.channelmanager.ChannelManager;
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.ChannelBuilder;
 import ai.lzy.v1.LzyChannelManagerGrpc;
 import ai.lzy.v1.LzyKharonGrpc;
 import ai.lzy.test.ChannelManagerContext;

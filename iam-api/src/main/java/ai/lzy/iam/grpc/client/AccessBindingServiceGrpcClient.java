@@ -12,7 +12,7 @@ import ai.lzy.iam.resources.AccessBinding;
 import ai.lzy.iam.resources.AccessBindingDelta;
 import ai.lzy.iam.resources.AuthResource;
 import ai.lzy.iam.utils.GrpcConverter;
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.ChannelBuilder;
 import ai.lzy.model.grpc.ClientHeaderInterceptor;
 import ai.lzy.model.grpc.GrpcHeaders;
 import ai.lzy.v1.iam.LABS;

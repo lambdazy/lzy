@@ -1,7 +1,7 @@
 package ai.lzy.test.impl;
 
 import ai.lzy.iam.LzyIAM;
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.ChannelBuilder;
 import ai.lzy.v1.iam.LzyAccessServiceGrpc;
 import ai.lzy.v1.iam.LzySubjectServiceGrpc;
 import ai.lzy.test.LzyIAMTestContext;

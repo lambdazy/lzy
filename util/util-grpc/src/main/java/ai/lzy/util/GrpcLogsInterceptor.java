@@ -1,17 +1,18 @@
-package ai.lzy.model.logs;
+package ai.lzy.util;
 
-import ai.lzy.model.JsonUtils;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageOrBuilder;
+import com.google.protobuf.util.JsonFormat;
+import io.grpc.*;
 import io.grpc.ForwardingServerCallListener.SimpleForwardingServerCallListener;
-import io.grpc.Metadata;
-import io.grpc.MethodDescriptor;
-import io.grpc.ServerCall;
-import io.grpc.ServerCallHandler;
-import io.grpc.ServerInterceptor;
-import io.grpc.Status;
+
 import java.util.UUID;
+
+import io.grpc.internal.JsonParser;
+import io.grpc.internal.JsonUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.util.JsonUtils;
 
 public class GrpcLogsInterceptor implements ServerInterceptor {
     private static final Logger logger = LogManager.getLogger(GrpcLogsInterceptor.class);
@@ -29,8 +30,12 @@ public class GrpcLogsInterceptor implements ServerInterceptor {
         return new GrpcForwardingServerCallListener<>(call.getMethodDescriptor(), listener) {
             @Override
             public void onMessage(M message) {
-                logger.info("{}::<{}>, request: {}", methodName, callId,
-                    message instanceof MessageOrBuilder msg ? JsonUtils.printSingleLine(msg) : message.toString());
+                try {
+                    logger.info("{}::<{}>, request: {}", methodName, callId,
+                        message instanceof MessageOrBuilder msg ? JsonFormat.printer().print(msg) : message.toString());
+                } catch (InvalidProtocolBufferException e) {
+                    logger.error(e);
+                }
                 super.onMessage(message);
             }
         };
