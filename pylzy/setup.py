@@ -82,6 +82,7 @@ setuptools.setup(
         "lzy/api/v2/local",
         "lzy/api/v2/snapshot",
         "lzy/api/v2/storage",
+        "lzy/api/v2/utils",
         "lzy/api/v2/remote_grpc",
         "lzy/api/v2/remote_grpc/model",
         "lzy/_proxy",

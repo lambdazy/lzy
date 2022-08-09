@@ -21,7 +21,7 @@ from lzy.api.v2.remote_grpc.model.slot import file_slot_t
 from lzy.api.v2.remote_grpc.model.zygote import python_func_zygote
 from lzy.api.v2.runtime import ProgressStep, Runtime
 from lzy.api.v2.snapshot.snapshot import Snapshot
-from lzy.api.v2.utils import unwrap
+from lzy.api.v2.utils.types import unwrap
 from lzy.serialization.serializer import Serializer
 from lzy.storage.credentials import StorageCredentials
 from lzy.storage.storage_client import StorageClient, from_credentials

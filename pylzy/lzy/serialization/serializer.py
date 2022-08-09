@@ -10,6 +10,7 @@ from lzy.serialization.dumper import CatboostPoolDumper, Dumper, LzyFileDumper
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
+# TODO[ottergottaott]: drop it
 def check_message_field(obj: Any) -> bool:
     if obj is None:
         return False

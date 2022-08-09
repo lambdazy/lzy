@@ -5,7 +5,7 @@ from urllib.parse import urlparse
 from azure.storage.blob.aio import BlobServiceClient, ContainerClient
 
 from lzy.api.v2.storage.url import Scheme, bucket_from_url, url_from_bucket
-from lzy.api.v2.utils import unwrap
+from lzy.api.v2.utils.types import unwrap
 from lzy.storage.credentials import AzureCredentials, AzureSasCredentials
 
 

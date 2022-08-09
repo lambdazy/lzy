@@ -9,7 +9,7 @@ from lzy.api.v2.call import LzyCall
 from lzy.api.v2.lzy import Lzy
 from lzy.api.v2.provisioning import Gpu, Provisioning
 from lzy.api.v2.proxy_adapter import lzy_proxy
-from lzy.api.v2.utils import infer_call_signature, infer_return_type
+from lzy.api.v2.utils.types import infer_call_signature, infer_return_type
 from lzy.api.v2.workflow import LzyWorkflow
 from lzy.env.env import EnvSpec
 

@@ -12,9 +12,9 @@ from azure.storage.blob import (  # type: ignore
     StorageStreamDownloader,
 )
 from botocore.exceptions import ClientError
-from pure_protobuf.dataclasses_ import load, loads  # type: ignore
+from pure_protobuf.dataclasses_ import load  # type: ignore
 
-from lzy.api.v2.utils import unwrap
+from lzy.api.v2.utils.types import unwrap
 from lzy.storage.credentials import (
     AmazonCredentials,
     AzureCredentials,

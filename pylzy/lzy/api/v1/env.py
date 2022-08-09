@@ -44,7 +44,7 @@ from lzy.api.v1.whiteboard.model import (
     WhiteboardFieldStatus,
     WhiteboardList,
 )
-from lzy.api.v2.utils import unwrap
+from lzy.api.v2.utils.types import unwrap
 from lzy.pkg_info import all_installed_packages, create_yaml, select_modules
 from lzy.serialization.hasher import DelegatingHasher, Hasher
 from lzy.serialization.serializer import (
