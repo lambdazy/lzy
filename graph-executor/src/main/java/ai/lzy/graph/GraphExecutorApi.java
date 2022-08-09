@@ -23,7 +23,7 @@ import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.impl.Workflow;
 import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.model.grpc.GrpcLogsInterceptor;
+import ai.lzy.model.logs.GrpcLogsInterceptor;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphExecuteRequest;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphExecuteResponse;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphExecutionStatus;
