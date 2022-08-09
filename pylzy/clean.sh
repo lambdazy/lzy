@@ -18,9 +18,9 @@ rm -rvf _build/
 rm -rvf target/
 
 # generated proto files
-[ -v 1 ] || rm -rvf "$proto_out/priv" "$proto_out/v1" "ai/"
+[ ! -v 1 ] || rm -rvf "$proto_out/priv" "$proto_out/v1" "ai/"
 
 # coverage report
-[ -v 2 ] || rm -vf ./.coverage ./coverage.svg
+[ ! -v 2 ] || rm -vf ./.coverage ./coverage.svg
 
 
