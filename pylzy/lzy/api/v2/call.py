@@ -3,9 +3,9 @@ import uuid
 from itertools import chain
 from typing import Any, Dict, Generic, Iterator, Tuple, TypeVar
 
-from lzy.api.v2.api.lzy_workflow import LzyWorkflow
-from lzy.api.v2.api.provisioning import Provisioning
-from lzy.api.v2.servant.model.signatures import CallSignature
+from lzy.api.v2.provisioning import Provisioning
+from lzy.api.v2.signatures import CallSignature
+from lzy.api.v2.workflow import LzyWorkflow
 from lzy.env.env import EnvSpec
 
 T = TypeVar("T")  # pylint: disable=invalid-name

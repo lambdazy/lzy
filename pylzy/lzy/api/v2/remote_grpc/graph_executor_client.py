@@ -19,10 +19,10 @@ from ai.lzy.v1.graph.graph_executor_pb2 import (
     TaskDesc,
 )
 from lzy.api.v2.proxy_adapter import is_lzy_proxy
-from lzy.api.v2.servant.model.zygote import python_func_zygote
+from lzy.api.v2.remote_grpc.model.zygote import python_func_zygote
 
 if TYPE_CHECKING:
-    from lzy.api.v2.api.lzy_call import LzyCall
+    from lzy.api.v2.call import LzyCall
 
 
 def prepare_task(call: "LzyCall") -> TaskDesc:

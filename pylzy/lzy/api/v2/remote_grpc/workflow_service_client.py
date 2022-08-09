@@ -14,7 +14,7 @@ from ai.lzy.v1.workflow_pb2 import (
     FinishWorkflowRequest,
     FinishWorkflowResponse,
 )
-from lzy.api.v2.servant.model import converter
+from lzy.api.v2.remote_grpc.model import converter
 from lzy.storage.credentials import StorageCredentials
 
 

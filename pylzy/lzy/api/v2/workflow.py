@@ -1,12 +1,12 @@
 from typing import TYPE_CHECKING, Any, List, Optional
 from uuid import uuid4
 
-from lzy.api.v2.api.snapshot.snapshot import Snapshot
 from lzy.env.env_provider import EnvProvider
 
 if TYPE_CHECKING:
-    from lzy.api.v2.api import LzyCall
-    from lzy.api.v2.api.lzy import Lzy
+    from lzy.api.v2.call import LzyCall
+    from lzy.api.v2.lzy import Lzy
+    from lzy.api.v2.snapshot.snapshot import Snapshot
 
 
 class LzyWorkflow:
@@ -35,7 +35,7 @@ class LzyWorkflow:
     def owner(self) -> "Lzy":
         return self._owner
 
-    def snapshot(self) -> Snapshot:
+    def snapshot(self) -> "Snapshot":
         return self._snapshot
 
     def register_call(self, call: "LzyCall") -> Any:

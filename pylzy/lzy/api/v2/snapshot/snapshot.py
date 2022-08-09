@@ -12,7 +12,7 @@ class Snapshot(ABC):
         pass
 
     @abstractmethod
-    def serializer(self) -> Serializer:
+    def serializer(self) -> "Serializer":
         pass
 
     @abstractmethod

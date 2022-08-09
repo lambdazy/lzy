@@ -23,10 +23,10 @@ from zipfile import ZipFile
 from lzy._proxy import proxy
 from lzy._proxy.result import Just, Nothing, Result
 from lzy.api.v2.proxy_adapter import is_lzy_proxy
-from lzy.api.v2.servant.model.signatures import CallSignature, FuncSignature
+from lzy.api.v2.signatures import CallSignature, FuncSignature
 
 if TYPE_CHECKING:
-    from lzy.api.v2.api import LzyCall, LzyWorkflow
+    from lzy.api.v2 import LzyCall, LzyWorkflow
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 

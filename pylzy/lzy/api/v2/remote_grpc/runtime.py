@@ -9,18 +9,18 @@ from ai.lzy.v1.graph.graph_executor_pb2 import TaskDesc
 from ai.lzy.v1.task_pb2 import TaskSpec
 from ai.lzy.v1.zygote_pb2 import _SLOT_DIRECTION  # type: ignore
 from ai.lzy.v1.zygote_pb2 import AuxEnv, BaseEnv, EnvSpec, Slot, Zygote
-from lzy.api.v2.api import LzyCall
-from lzy.api.v2.api.runtime.runtime import ProgressStep, Runtime
-from lzy.api.v2.api.snapshot.snapshot import Snapshot
-from lzy.api.v2.grpc.graph_executor_client import (
+from lzy.api.v2 import LzyCall
+from lzy.api.v2.proxy_adapter import is_lzy_proxy, materialized
+from lzy.api.v2.remote_grpc.graph_executor_client import (
     GraphExecutorClient,
     TaskDesc,
     prepare_task,
 )
-from lzy.api.v2.proxy_adapter import is_lzy_proxy, materialized
-from lzy.api.v2.servant.model.converter import env
-from lzy.api.v2.servant.model.slot import file_slot_t
-from lzy.api.v2.servant.model.zygote import python_func_zygote
+from lzy.api.v2.remote_grpc.model.converter import env
+from lzy.api.v2.remote_grpc.model.slot import file_slot_t
+from lzy.api.v2.remote_grpc.model.zygote import python_func_zygote
+from lzy.api.v2.runtime import ProgressStep, Runtime
+from lzy.api.v2.snapshot.snapshot import Snapshot
 from lzy.api.v2.utils import unwrap
 from lzy.serialization.serializer import Serializer
 from lzy.storage.credentials import StorageCredentials

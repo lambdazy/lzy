@@ -4,11 +4,16 @@ from typing import IO, Any, Dict, Type, TypeVar, cast
 import cloudpickle  # type: ignore
 from pure_protobuf.dataclasses_ import load, loads  # type: ignore
 
-from lzy.api.v2.utils import check_message_field
 from lzy.serialization.api import FileSerializer, MemBytesSerializer
 from lzy.serialization.dumper import CatboostPoolDumper, Dumper, LzyFileDumper
 
 T = TypeVar("T")  # pylint: disable=invalid-name
+
+
+def check_message_field(obj: Any) -> bool:
+    if obj is None:
+        return False
+    return hasattr(obj, "LZY_MESSAGE")
 
 
 class FileSerializerImpl(FileSerializer):

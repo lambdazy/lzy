@@ -2,7 +2,7 @@ import base64
 from pathlib import Path
 from typing import List, Optional, Tuple, TypeVar
 
-from lzy.api.v2.servant.model.signatures import FuncSignature
+from lzy.api.v2.signatures import FuncSignature
 from lzy.serialization.serializer import MemBytesSerializer
 
 T = TypeVar("T")  # pylint: disable=invalid-name
@@ -11,8 +11,8 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 from ai.lzy.v1.whiteboard_pb2 import ExecutionDescription
 from ai.lzy.v1.zygote_pb2 import _SLOT_DIRECTION  # type: ignore
 from ai.lzy.v1.zygote_pb2 import Slot, Zygote
-from lzy.api.v2.api.provisioning import Provisioning
-from lzy.api.v2.servant.model.slot import file_slot_t
+from lzy.api.v2.provisioning import Provisioning
+from lzy.api.v2.remote_grpc.model.slot import file_slot_t
 from lzy.env.env import EnvSpec
 
 
@@ -51,6 +51,7 @@ def generate_fuze(
     return _com + serialized_func + " " + serialized_execution_description
 
 
+# TODO[ottergottaott]: remove serializer
 def python_func_zygote(
     serializer: MemBytesSerializer,
     sign: FuncSignature[T],

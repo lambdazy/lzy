@@ -1,13 +1,12 @@
 import os
 from typing import Any, Iterator
 
-from lzy.api.v2.api.local.local_runtime import LocalRuntime
-from lzy.api.v2.api.local.local_snapshot_provider import LocalSnapshotProvider
-from lzy.api.v2.api.lzy_workflow import LzyWorkflow
-from lzy.api.v2.api.query import Query
-from lzy.api.v2.api.runtime.runtime import Runtime
-from lzy.api.v2.api.snapshot.snapshot_provider import SnapshotProvider
-from lzy.api.v2.api.storage_spec import StorageSpec
+from lzy.api.v2.local.runtime import LocalRuntime
+from lzy.api.v2.local.snapshot_provider import LocalSnapshotProvider
+from lzy.api.v2.query import Query
+from lzy.api.v2.runtime import Runtime
+from lzy.api.v2.snapshot.snapshot_provider import SnapshotProvider
+from lzy.api.v2.workflow import LzyWorkflow
 from lzy.env.env_provider import EnvProvider
 from lzy.env.lzy_env_provider import LzyEnvProvider
 from lzy.serialization.dumper import Dumper
@@ -20,13 +19,11 @@ class Lzy:
         env_provider: EnvProvider = LzyEnvProvider(),
         runtime: Runtime = LocalRuntime(),
         snapshot_provider: SnapshotProvider = LocalSnapshotProvider(),
-        storage_spec: StorageSpec = StorageSpec(),
         lzy_mount: str = os.getenv("LZY_MOUNT", default="/tmp/lzy"),
     ):
         self._env_provider = env_provider
         self._runtime = runtime
         self._snapshot_provider = snapshot_provider
-        self._storage_spec = storage_spec
         self._lzy_mount = lzy_mount
         self._serializer = DefaultSerializer()
 

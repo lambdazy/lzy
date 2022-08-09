@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import Callable, List
 
-from lzy.api.v2.api.lzy_call import LzyCall
-from lzy.api.v2.api.snapshot.snapshot import Snapshot
+from lzy.api.v2.call import LzyCall
+from lzy.api.v2.snapshot.snapshot import Snapshot
 
 
 @dataclass

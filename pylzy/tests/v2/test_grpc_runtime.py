@@ -2,9 +2,9 @@ import uuid
 from typing import IO
 from unittest import TestCase, skip
 
-from lzy.api.v2.api import op
-from lzy.api.v2.api.lzy import Lzy
-from lzy.api.v2.grpc.runtime import GrpcRuntime
+from lzy.api.v2 import op
+from lzy.api.v2.lzy import Lzy
+from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
 from lzy.serialization.serializer import DefaultSerializer
 from lzy.storage.storage_client import StorageClient
 
