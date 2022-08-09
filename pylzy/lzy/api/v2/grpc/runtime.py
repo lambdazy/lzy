@@ -18,7 +18,7 @@ from lzy.api.v2.grpc.graph_executor_client import (
     prepare_task,
 )
 from lzy.api.v2.proxy_adapter import is_lzy_proxy, materialized
-from lzy.api.v2.servant.model.converter import to
+from lzy.api.v2.servant.model.converter import env
 from lzy.api.v2.servant.model.slot import file_slot_t
 from lzy.api.v2.servant.model.zygote import python_func_zygote
 from lzy.api.v2.utils import unwrap
@@ -88,7 +88,7 @@ class GrpcRuntime(Runtime):
                     self._load_arg(entry_id, arg, serializer)
 
     def _env(self, call: LzyCall) -> EnvSpec:
-        return to(call.env)
+        return env.to(call.env)
 
         # local_modules_uploaded = []
         # for local_module in aux_env.local_modules_paths:

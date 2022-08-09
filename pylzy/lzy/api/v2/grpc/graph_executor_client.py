@@ -19,7 +19,6 @@ from ai.lzy.v1.graph.graph_executor_pb2 import (
     TaskDesc,
 )
 from lzy.api.v2.proxy_adapter import is_lzy_proxy
-from lzy.api.v2.servant.model.converter import to
 from lzy.api.v2.servant.model.zygote import python_func_zygote
 
 if TYPE_CHECKING:

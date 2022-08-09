@@ -12,6 +12,7 @@ let
     requests
     stdlib-list
     pure-protobuf
+    aioboto3
 
     pip
 

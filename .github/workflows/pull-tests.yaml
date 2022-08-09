@@ -36,10 +36,10 @@ jobs:
 
       - name: 'clean after python-test'
         run: |
+          cd pylzy/
           ./clean.sh
-          cd ..
-
-      - name: 'upload py coverage badge'
+         
+      - name: 'upload coverage badge'
         uses: exuanbo/actions-deploy-gist@v1
         if: github.ref == 'refs/heads/master'
         with:
