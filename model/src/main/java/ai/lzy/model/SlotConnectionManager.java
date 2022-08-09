@@ -1,6 +1,6 @@
 package ai.lzy.model;
 
-import ai.lzy.util.ChannelBuilder;
+import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.v1.LzyFsGrpc;
 import io.grpc.ManagedChannel;
 import java.net.URI;

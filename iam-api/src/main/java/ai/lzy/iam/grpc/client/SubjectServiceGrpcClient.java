@@ -4,7 +4,7 @@ import ai.lzy.iam.authorization.credentials.Credentials;
 import ai.lzy.iam.authorization.exceptions.AuthException;
 import ai.lzy.iam.clients.SubjectService;
 import ai.lzy.iam.utils.GrpcConfig;
-import ai.lzy.util.ChannelBuilder;
+import ai.lzy.model.grpc.ChannelBuilder;
 import io.grpc.Channel;
 import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;

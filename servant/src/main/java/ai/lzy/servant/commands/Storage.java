@@ -1,6 +1,6 @@
 package ai.lzy.servant.commands;
 
-import ai.lzy.util.ChannelBuilder;
+import ai.lzy.model.grpc.ChannelBuilder;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import java.net.URI;

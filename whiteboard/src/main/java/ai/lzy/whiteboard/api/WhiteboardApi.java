@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.model.GrpcConverter;
-import ai.lzy.util.ChannelBuilder;
+import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.snapshot.SnapshotEntry;
 import ai.lzy.model.snapshot.SnapshotEntryStatus;
 import ai.lzy.model.snapshot.SnapshotStatus;

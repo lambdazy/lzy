@@ -16,7 +16,7 @@ import ai.lzy.model.SlotInstance;
 import ai.lzy.model.channel.ChannelSpec;
 import ai.lzy.model.channel.DirectChannelSpec;
 import ai.lzy.model.channel.SnapshotChannelSpec;
-import ai.lzy.util.ChannelBuilder;
+import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.v1.ChannelManager.ChannelCreateRequest;
 import ai.lzy.v1.ChannelManager.ChannelCreateResponse;
 import ai.lzy.v1.ChannelManager.ChannelDestroyAllRequest;

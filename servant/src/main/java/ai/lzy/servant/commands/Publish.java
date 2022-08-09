@@ -8,7 +8,7 @@ import java.nio.file.Paths;
 import java.util.Base64;
 import org.apache.commons.cli.CommandLine;
 import ai.lzy.fs.commands.LzyCommand;
-import ai.lzy.util.ChannelBuilder;
+import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.v1.IAM;
 import ai.lzy.v1.Lzy;
 import ai.lzy.v1.LzyKharonGrpc;

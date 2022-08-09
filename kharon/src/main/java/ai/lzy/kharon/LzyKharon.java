@@ -13,7 +13,7 @@ import ai.lzy.model.JsonUtils;
 import ai.lzy.model.SlotConnectionManager;
 import ai.lzy.model.grpc.ProxyClientHeaderInterceptor;
 import ai.lzy.model.grpc.ProxyServerHeaderInterceptor;
-import ai.lzy.util.ChannelBuilder;
+import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.v1.ChannelManager;
 import ai.lzy.v1.IAM;
 import ai.lzy.v1.Kharon;

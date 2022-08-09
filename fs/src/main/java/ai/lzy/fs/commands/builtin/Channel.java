@@ -7,7 +7,7 @@ import ai.lzy.model.JsonUtils;
 import ai.lzy.model.data.DataSchema;
 import ai.lzy.model.grpc.ClientHeaderInterceptor;
 import ai.lzy.model.grpc.GrpcHeaders;
-import ai.lzy.util.ChannelBuilder;
+import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.v1.ChannelManager;
 import ai.lzy.v1.Channels;
 import ai.lzy.v1.IAM;

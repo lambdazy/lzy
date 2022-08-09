@@ -1,6 +1,6 @@
 package ai.lzy.server;
 
-import ai.lzy.util.ChannelBuilder;
+import ai.lzy.model.grpc.ChannelBuilder;
 import io.grpc.Context;
 import io.grpc.ManagedChannel;
 import org.apache.logging.log4j.LogManager;

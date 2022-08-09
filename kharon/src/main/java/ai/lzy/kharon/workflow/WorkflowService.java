@@ -8,7 +8,7 @@ import ai.lzy.model.JsonUtils;
 import ai.lzy.model.db.Transaction;
 import ai.lzy.model.grpc.ClientHeaderInterceptor;
 import ai.lzy.model.grpc.GrpcHeaders;
-import ai.lzy.util.ChannelBuilder;
+import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.v1.LzyStorageApi;
 import ai.lzy.v1.LzyStorageGrpc;
 import ai.lzy.v1.LzyWorkflowApi.*;

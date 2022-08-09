@@ -1,7 +1,7 @@
 package ai.lzy.test.impl;
 
 import ai.lzy.test.LzySnapshotTestContext;
-import ai.lzy.util.ChannelBuilder;
+import ai.lzy.model.grpc.ChannelBuilder;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;

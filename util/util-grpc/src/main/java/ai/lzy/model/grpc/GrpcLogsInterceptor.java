@@ -1,4 +1,4 @@
-package ai.lzy.util;
+package ai.lzy.model.grpc;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageOrBuilder;
@@ -8,11 +8,8 @@ import io.grpc.ForwardingServerCallListener.SimpleForwardingServerCallListener;
 
 import java.util.UUID;
 
-import io.grpc.internal.JsonParser;
-import io.grpc.internal.JsonUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.util.JsonUtils;
 
 public class GrpcLogsInterceptor implements ServerInterceptor {
     private static final Logger logger = LogManager.getLogger(GrpcLogsInterceptor.class);

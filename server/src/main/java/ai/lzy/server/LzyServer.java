@@ -14,7 +14,7 @@ import ai.lzy.model.StorageCredentials;
 import ai.lzy.model.Zygote;
 import ai.lzy.model.exceptions.EnvironmentInstallationException;
 import ai.lzy.model.graph.AtomicZygote;
-import ai.lzy.util.ChannelBuilder;
+import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.logs.UserEvent;
 import ai.lzy.model.logs.UserEventLogger;
 import ai.lzy.v1.IAM;

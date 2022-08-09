@@ -4,7 +4,7 @@ import static ai.lzy.model.Constants.LOGS_DIR;
 import static ai.lzy.model.UriScheme.LzyFs;
 
 import ai.lzy.fs.LzyFsServer;
-import ai.lzy.util.ChannelBuilder;
+import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.logs.MetricEvent;
 import ai.lzy.model.logs.MetricEventLogger;
 import ai.lzy.v1.IAM;

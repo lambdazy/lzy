@@ -3,7 +3,7 @@ package ai.lzy.fs;
 import static ai.lzy.model.GrpcConverter.to;
 
 import ai.lzy.model.SlotInstance;
-import ai.lzy.util.ChannelBuilder;
+import ai.lzy.model.grpc.ChannelBuilder;
 import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import ai.lzy.model.UriScheme;

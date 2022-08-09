@@ -1,6 +1,6 @@
 package ai.lzy.fs.mock;
 
-import ai.lzy.util.ChannelBuilder;
+import ai.lzy.model.grpc.ChannelBuilder;
 import io.grpc.BindableService;
 import io.grpc.Channel;
 import io.grpc.ManagedChannel;

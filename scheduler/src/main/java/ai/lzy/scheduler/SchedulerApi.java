@@ -2,8 +2,8 @@ package ai.lzy.scheduler;
 
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.scheduler.grpc.RemoteAddressInterceptor;
-import ai.lzy.util.ChannelBuilder;
-import ai.lzy.util.GrpcLogsInterceptor;
+import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.model.grpc.GrpcLogsInterceptor;
 import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.context.ApplicationContext;

@@ -1,7 +1,6 @@
 package ai.lzy.fs;
 
 import ai.lzy.fs.commands.BuiltinCommandHolder;
-import ai.lzy.fs.fs.*;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.model.Slot;
 import ai.lzy.model.SlotInstance;
@@ -14,7 +13,7 @@ import ai.lzy.v1.*;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.Status;
-import ai.lzy.util.ChannelBuilder;
+import ai.lzy.model.grpc.ChannelBuilder;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.jsonwebtoken.Jwts;

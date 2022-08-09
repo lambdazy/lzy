@@ -9,7 +9,7 @@ import ai.lzy.kharon.KharonConfig;
 import ai.lzy.model.grpc.ClientHeaderInterceptor;
 import ai.lzy.model.grpc.GrpcHeaders;
 import ai.lzy.model.utils.FreePortFinder;
-import ai.lzy.util.ChannelBuilder;
+import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.v1.LzyWorkflowApi.CreateWorkflowRequest;
 import ai.lzy.v1.LzyWorkflowApi.FinishWorkflowRequest;
 import ai.lzy.v1.LzyWorkflowGrpc;

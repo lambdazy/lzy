@@ -2,7 +2,7 @@ package ai.lzy.test.impl;
 
 import ai.lzy.servant.env.EnvironmentFactory;
 import ai.lzy.test.LzyServerTestContext;
-import ai.lzy.util.ChannelBuilder;
+import ai.lzy.model.grpc.ChannelBuilder;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
