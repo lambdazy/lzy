@@ -2,7 +2,7 @@ import abc
 import hashlib
 from typing import Any
 
-from lzy.serialization.serializer import FileSerializer
+from lzy.serialization.api import Serializer
 
 
 class HashableFileLikeObj:
@@ -38,12 +38,12 @@ class HashableHasher(Hasher):
 
 
 class SerializingHasher(Hasher):
-    def __init__(self, serializer: FileSerializer):
-        self._serializer = serializer
+    def __init__(self, serializer: Serializer):
+        self._serializer: Serializer = serializer
 
     def hash(self, data: Any) -> str:
         handle = HashableFileLikeObj()
-        self._serializer.serialize_to_file(data, handle)  # type: ignore
+        self._serializer.serialize(data, handle)  # type: ignore
         return handle.hash()
 
     def can_hash(self, data: Any) -> bool:
@@ -52,7 +52,7 @@ class SerializingHasher(Hasher):
 
 
 class DelegatingHasher(Hasher):
-    def __init__(self, serializer: FileSerializer):
+    def __init__(self, serializer: Serializer):
         self._hashers = [HashableHasher(), SerializingHasher(serializer)]
 
     def hash(self, data: Any) -> str:

@@ -47,12 +47,7 @@ from lzy.api.v1.whiteboard.model import (
 from lzy.api.v2.utils.types import unwrap
 from lzy.pkg_info import all_installed_packages, create_yaml, select_modules
 from lzy.serialization.hasher import DelegatingHasher, Hasher
-from lzy.serialization.serializer import (
-    FileSerializer,
-    FileSerializerImpl,
-    MemBytesSerializer,
-    MemBytesSerializerImpl,
-)
+from lzy.serialization.serializer import FileSerializer
 from lzy.storage import from_credentials
 from lzy.storage.storage_client import StorageClient
 
@@ -222,7 +217,7 @@ class LzyLocalEnv(LzyEnvBase):
             whiteboard_api=InMemWhiteboardApi(),
             snapshot_api=InMemSnapshotApi(),
         )
-        self._file_serializer = FileSerializerImpl()
+        self._file_serializer = FileSerializer()
 
     def workflow(
         self,
@@ -247,8 +242,7 @@ class LzyRemoteEnv(LzyEnvBase):
     ):
         self._servant_client: BashServantClient = BashServantClient.instance(lzy_mount)
         self._lzy_mount = lzy_mount
-        self._mem_serializer = MemBytesSerializerImpl()
-        self._file_serializer = FileSerializerImpl()
+        self._file_serializer = FileSerializer()
         self._hasher = DelegatingHasher(self._file_serializer)
         super().__init__(
             whiteboard_api=WhiteboardBashApi(
@@ -280,7 +274,6 @@ class LzyRemoteEnv(LzyEnvBase):
             eager=eager,
             whiteboard=whiteboard,
             buses=buses,
-            mem_serializer=self._mem_serializer,
             file_serializer=self._file_serializer,
             hasher=self._hasher,
         )
@@ -392,7 +385,6 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
         name: str,
         whiteboard_api: WhiteboardApi,
         snapshot_api: SnapshotApi,
-        mem_serializer: MemBytesSerializer,
         file_serializer: FileSerializer,
         hasher: Hasher,
         lzy_mount: str = os.getenv("LZY_MOUNT", default="/tmp/lzy"),
@@ -404,7 +396,6 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
         whiteboard: Any = None,
         buses: Optional[BusList] = None,
     ):
-        self._mem_serializer = mem_serializer
         self._file_serializer = file_serializer
         self._hasher = hasher
         self._yaml = conda_yaml_path
@@ -454,9 +445,6 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
 
     def channel_manager(self) -> ChannelManager:
         return self._channel_manager
-
-    def mem_serializer(self) -> MemBytesSerializer:
-        return self._mem_serializer
 
     def file_serializer(self) -> FileSerializer:
         return self._file_serializer

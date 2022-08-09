@@ -2,7 +2,7 @@ import uuid
 from typing import Any, Optional, Type, TypeVar
 
 from lzy.api.v2.snapshot.snapshot import Snapshot
-from lzy.serialization.serializer import Serializer
+from lzy.serialization.api import Serializer
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 

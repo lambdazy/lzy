@@ -2,7 +2,7 @@ import os
 import tempfile
 import uuid
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, BinaryIO, Callable, Dict, List, Optional, cast
 
 # model
 from ai.lzy.v1.graph.graph_executor_pb2 import TaskDesc
@@ -22,7 +22,7 @@ from lzy.api.v2.remote_grpc.model.zygote import python_func_zygote
 from lzy.api.v2.runtime import ProgressStep, Runtime
 from lzy.api.v2.snapshot.snapshot import Snapshot
 from lzy.api.v2.utils.types import unwrap
-from lzy.serialization.serializer import Serializer
+from lzy.serialization.api import Serializer
 from lzy.storage import from_credentials
 from lzy.storage.credentials import StorageCredentials
 from lzy.storage.storage_client import StorageClient
@@ -74,7 +74,7 @@ class GrpcRuntime(Runtime):
 
     def _load_arg(self, entry_id: str, data: Any, serializer: Serializer):
         with tempfile.NamedTemporaryFile("wb", delete=True) as write_file:
-            serializer.serialize_to_file(data, write_file)
+            serializer.serialize(data, cast(BinaryIO, write_file))
             write_file.flush()
             with open(write_file.name, "rb") as read_file:
                 read_file.seek(0)

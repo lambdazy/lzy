@@ -4,8 +4,9 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Mapping, Optional, Type, TypeVar
+from typing import Any, Mapping, Optional, Type, TypeVar, cast
 
+import cloudpickle
 from pure_protobuf.dataclasses_ import load  # type: ignore
 
 from lzy.api.v1 import LzyRemoteOp, UUIDEntryIdGenerator
@@ -15,12 +16,11 @@ from lzy.api.v1.servant.servant_client import ServantClient
 from lzy.api.v1.signatures import CallSignature, FuncSignature
 from lzy.api.v1.utils import lazy_proxy
 from lzy.serialization.hasher import DelegatingHasher
-from lzy.serialization.serializer import FileSerializerImpl, MemBytesSerializerImpl
+from lzy.serialization.serializer import FileSerializer
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
-mem_serializer = MemBytesSerializerImpl()
-file_serializer = FileSerializerImpl()
+file_serializer = FileSerializer()
 hasher = DelegatingHasher(file_serializer)
 
 
@@ -41,10 +41,15 @@ def load_arg(
         while file.read(1) is None:
             time.sleep(0)  # Thread.yield
         file.seek(0)
-        data: T = file_serializer.deserialize_from_file(file, inp_type)
+        data: T = file_serializer.deserialize(file, inp_type)
         if input_value:
             input_value.hash = hasher.hash(data)
         return data
+
+
+def unpickle(arg: str):
+    arg_bytes = base64.b64decode(arg.encode("ascii"))
+    return cloudpickle.loads(arg_bytes)
 
 
 def main():
@@ -54,13 +59,13 @@ def main():
         sys.path.append(os.environ["LOCAL_MODULES"])
 
     log("Loading function")
-    func_s: FuncSignature = mem_serializer.deserialize_from_string(
-        base64.b64decode(argv[0].encode("ascii"))
+    func_s: FuncSignature = cast(
+        FuncSignature,
+        unpickle(argv[0]),
     )
-    exec_description: Optional[
-        ExecutionDescription
-    ] = mem_serializer.deserialize_from_string(
-        base64.b64decode(argv[1].encode("ascii"))
+    exec_description: Optional[ExecutionDescription] = cast(
+        Optional[ExecutionDescription],
+        unpickle(argv[1]),
     )
     log("Function loaded: " + func_s.name)
 
@@ -92,7 +97,6 @@ def main():
         lazy_call,
         snapshot_id,
         UUIDEntryIdGenerator(snapshot_id),
-        mem_serializer,
         file_serializer,
         hasher,
         deployed=True,
@@ -103,7 +107,7 @@ def main():
         result_path = servant.mount() / func_s.name / "return" / str(num)
         log(f"Writing result to file {result_path}")
         with open(result_path, "wb") as out_handle:
-            file_serializer.serialize_to_file(val.materialize(), out_handle)
+            file_serializer.serialize(val.materialize(), out_handle)
             out_handle.flush()
             os.fsync(out_handle.fileno())
     log("Execution done")
