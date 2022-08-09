@@ -4,7 +4,7 @@ import logging
 import tempfile
 from datetime import datetime
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, cast
+from typing import Any, BinaryIO, Dict, List, Optional, Tuple, Type, TypeVar, cast
 
 # noinspection PyProtectedMember
 import cloudpickle
@@ -87,7 +87,7 @@ class WhiteboardBashApi(WhiteboardApi):
         bucket = get_bucket_from_url(field_url)
         with tempfile.TemporaryFile() as file:
             # TODO(aleksZubakov): do we need retry here?
-            self._whiteboard_storage(bucket).read(field_url, file)
+            self._whiteboard_storage(bucket).read(field_url, cast(BinaryIO, file))
             file.seek(0)
             obj = self._serializer.deserialize_from_file(file, real_type)
         return obj
