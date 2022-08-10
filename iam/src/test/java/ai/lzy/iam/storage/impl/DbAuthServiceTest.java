@@ -13,7 +13,6 @@ import ai.lzy.iam.authorization.exceptions.AuthPermissionDeniedException;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.utils.CredentialsHelper;
 
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 public class DbAuthServiceTest {
@@ -121,9 +120,18 @@ public class DbAuthServiceTest {
     }
 
     @Test
-    public void validAuth() throws Exception {
+    public void validAuthUser() throws Exception {
+        validAuth(SubjectType.USER);
+    }
+
+    @Test
+    public void validAuthServant() throws Exception {
+        validAuth(SubjectType.SERVANT);
+    }
+
+    public void validAuth(SubjectType subjectType) throws Exception {
         String userId = "user1";
-        subjectService.createSubject(userId, "", "", SubjectType.USER);
+        subjectService.createSubject(userId, "", "", subjectType);
         final Subject user = subjectService.subject(userId);
         subjectService.addCredentials(user, "testCred", PUBLIC_PEM2, "public_key");
 
@@ -131,9 +139,18 @@ public class DbAuthServiceTest {
     }
 
     @Test
-    public void invalidAuth() throws Exception {
+    public void invalidAuthUser() throws Exception {
+        invalidAuth(SubjectType.USER);
+    }
+
+    @Test
+    public void invalidAuthServant() throws Exception {
+        invalidAuth(SubjectType.SERVANT);
+    }
+
+    public void invalidAuth(SubjectType subjectType) throws Exception {
         String userId = "user1";
-        subjectService.createSubject(userId, "", "", SubjectType.USER);
+        subjectService.createSubject(userId, "", "", subjectType);
         final Subject user = subjectService.subject(userId);
         subjectService.addCredentials(user, "testCred", PUBLIC_PEM2, "public_key");
 
