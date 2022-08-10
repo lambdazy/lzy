@@ -1,4 +1,4 @@
-package ai.lzy.allocator.db;
+package ai.lzy.model.db;
 
 import java.sql.Connection;
 import java.sql.SQLException;

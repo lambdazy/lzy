@@ -1,6 +1,5 @@
-package ai.lzy.allocator.db;
+package ai.lzy.model.db;
 
-import ai.lzy.model.db.Storage;
 import jakarta.inject.Singleton;
 
 import java.sql.Connection;

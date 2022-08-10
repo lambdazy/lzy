@@ -5,7 +5,7 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.SessionDao;
 import ai.lzy.allocator.dao.VmDao;
-import ai.lzy.allocator.db.TransactionManager;
+import ai.lzy.model.db.TransactionManager;
 import ai.lzy.allocator.model.Session;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;

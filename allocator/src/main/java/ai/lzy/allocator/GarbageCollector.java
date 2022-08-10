@@ -4,19 +4,16 @@ import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.VmDao;
-import ai.lzy.allocator.db.TransactionManager;
 import ai.lzy.allocator.model.Vm;
+import ai.lzy.model.db.TransactionManager;
 import io.grpc.Status;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 @Singleton
 public class GarbageCollector extends TimerTask {

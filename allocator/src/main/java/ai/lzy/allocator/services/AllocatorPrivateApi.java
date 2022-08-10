@@ -4,7 +4,7 @@ package ai.lzy.allocator.services;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.VmDao;
-import ai.lzy.allocator.db.TransactionManager;
+import ai.lzy.model.db.TransactionManager;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.v1.AllocatorPrivateGrpc.AllocatorPrivateImplBase;
 import ai.lzy.v1.VmAllocatorApi.AllocateResponse;

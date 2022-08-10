@@ -23,10 +23,12 @@ public class AllocatorMain {
     private static final Logger LOG = LogManager.getLogger(AllocatorMain.class);
     private final ServiceConfig config;
     private final Server server;
+    private final GarbageCollector gc;
 
     public AllocatorMain(AllocatorApi allocator, AllocatorPrivateApi allocatorPrivate, OperationApi opApi,
-             ServiceConfig config) {
+             ServiceConfig config, GarbageCollector gc) {
         this.config = config;
+        this.gc = gc;
         ServerBuilder<?> builder = NettyServerBuilder.forPort(config.port())
                 .permitKeepAliveWithoutCalls(true)
                 .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES);
@@ -50,6 +52,7 @@ public class AllocatorMain {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             LOG.info("Stopping allocator service");
             main.server.shutdown();
+            main.gc.shutdown();
             while (true) {
                 try {
                     thread.join();

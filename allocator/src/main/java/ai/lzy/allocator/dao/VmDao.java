@@ -1,13 +1,11 @@
 package ai.lzy.allocator.dao;
 
-import ai.lzy.allocator.db.TransactionManager;
-import ai.lzy.allocator.db.TransactionManager.TransactionHandle;
+import ai.lzy.model.db.TransactionManager.TransactionHandle;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
 
 import javax.annotation.Nullable;
 import java.util.List;
-import java.util.Map;
 
 public interface VmDao {
     Vm create(String sessionId, String poolId, List<Workload> workload, @Nullable TransactionHandle transaction);
