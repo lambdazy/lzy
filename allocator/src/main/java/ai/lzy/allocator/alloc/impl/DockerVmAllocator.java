@@ -63,9 +63,9 @@ public class DockerVmAllocator implements VmAllocator {
     }
 
     @Override
-    public Map<String, String> allocate(Vm vm) {
+    public AllocatorMetadata allocate(Vm vm) {
         var containerId = requestAllocation(vm.workloads().get(0));  // Support only one workload for now
-        return Map.of("container-id", containerId);
+        return new AllocatorMetadata(null, containerId);
     }
 
     @Override
@@ -74,7 +74,7 @@ public class DockerVmAllocator implements VmAllocator {
         if (meta == null) {
             throw new RuntimeException("Allocator metadata is null");
         }
-        var containerId = meta.get("container-id");
+        var containerId = meta.podName();
         if (containerId == null) {
             throw new RuntimeException("Container is not set in metadata");
         }

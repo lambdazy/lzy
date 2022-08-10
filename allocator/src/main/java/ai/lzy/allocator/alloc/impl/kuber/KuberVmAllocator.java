@@ -49,7 +49,7 @@ public class KuberVmAllocator implements VmAllocator {
         }
     }
 
-    protected KuberMeta requestAllocation(Vm vm) {
+    protected AllocatorMetadata requestAllocation(Vm vm) {
         final V1Pod vmPodSpec = createVmPodSpec(vm);
         final V1Pod pod;
         try {
@@ -59,7 +59,7 @@ public class KuberVmAllocator implements VmAllocator {
         }
         LOG.info("Created servant pod in Kuber: {}", pod);
         Objects.requireNonNull(pod.getMetadata());
-        return new KuberMeta(pod.getMetadata().getNamespace(), pod.getMetadata().getName());
+        return new AllocatorMetadata(pod.getMetadata().getNamespace(), pod.getMetadata().getName());
     }
 
     protected void terminate(String namespace, String name) {
@@ -91,9 +91,8 @@ public class KuberVmAllocator implements VmAllocator {
     }
 
     @Override
-    public Map<String, String> allocate(Vm vm) {
-        final KuberMeta meta = requestAllocation(vm);
-        return meta.toMap();
+    public AllocatorMetadata allocate(Vm vm) {
+        return requestAllocation(vm);
     }
 
     @Override
@@ -101,30 +100,8 @@ public class KuberVmAllocator implements VmAllocator {
         if (vm.allocatorMeta() == null) {
             throw new RuntimeException("Cannot get allocatorMeta");
         }
-        final KuberMeta meta = KuberMeta.fromMap(vm.allocatorMeta());
-        if (meta == null) {
-            throw new RuntimeException("Cannot parse servant metadata");
-        }
+        final var meta = vm.allocatorMeta();
         terminate(meta.namespace(), meta.podName());
-    }
-
-    private record KuberMeta(String namespace, String podName) {
-        Map<String, String> toMap() {
-            return Map.of(
-                "namespace", namespace,
-                "podName", podName
-            );
-        }
-
-        @Nullable
-        static KuberMeta fromMap(Map<String, String> map) {
-            if (!map.containsKey("namespace") || !map.containsKey("podName")) {
-                return null;
-            }
-            final String namespace = map.get("namespace");
-            final String podName = map.get("podName");
-            return new KuberMeta(namespace, podName);
-        }
     }
 
     public V1Pod createVmPodSpec(Vm vm) {

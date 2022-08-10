@@ -10,7 +10,7 @@ public interface VmAllocator {
      * @param vm vm to allocate
      * @return allocator metadata
      */
-    Map<String, String> allocate(Vm vm);
+    AllocatorMetadata allocate(Vm vm);
 
     /**
      * Idempotent operation to destroy vm
@@ -18,4 +18,6 @@ public interface VmAllocator {
      * @param vm vm to deallocate
      */
     void deallocate(Vm vm);
+
+    record AllocatorMetadata(String namespace, String podName) {}
 }

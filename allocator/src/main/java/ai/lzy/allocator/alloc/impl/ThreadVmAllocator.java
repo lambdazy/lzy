@@ -65,10 +65,10 @@ public class ThreadVmAllocator implements VmAllocator {
     }
 
     @Override
-    public Map<String, String> allocate(Vm vm) {
+    public AllocatorMetadata allocate(Vm vm) {
         // TODO(artolord) add token
         requestAllocation(vm.vmId(), vm.workloads().get(0).args());  // Supports only one workload
-        return new HashMap<>();
+        return new AllocatorMetadata(null, null);
     }
 
     @Override

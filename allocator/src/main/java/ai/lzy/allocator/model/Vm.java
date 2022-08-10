@@ -1,5 +1,8 @@
 package ai.lzy.allocator.model;
 
+import ai.lzy.allocator.alloc.VmAllocator;
+import ai.lzy.allocator.alloc.VmAllocator.AllocatorMetadata;
+
 import javax.annotation.Nullable;
 import java.time.Instant;
 import java.util.List;
@@ -16,7 +19,7 @@ public record Vm(
     @Nullable Instant heartBeatTimeoutAt,
     @Nullable Instant expireAt,
     @Nullable Instant allocationTimeoutAt,
-    @Nullable Map<String, String> allocatorMeta,
+    @Nullable AllocatorMetadata allocatorMeta,
     @Nullable Map<String, String> vmMeta
 ) {
     @Override
@@ -49,7 +52,7 @@ public record Vm(
         private final String opId;
         private final List<Workload> workload;
         private State state;
-        private Map<String, String> allocatorMeta;
+        private AllocatorMetadata allocatorMeta;
         private Map<String, String> vmMeta;
         private Instant heartBeatTimeoutAt;
         private Instant expireAt;
@@ -83,7 +86,7 @@ public record Vm(
             return this;
         }
 
-        public VmBuilder setAllocatorMeta(Map<String, String> allocatorMeta) {
+        public VmBuilder setAllocatorMeta(AllocatorMetadata allocatorMeta) {
             this.allocatorMeta = allocatorMeta;
             return this;
         }
