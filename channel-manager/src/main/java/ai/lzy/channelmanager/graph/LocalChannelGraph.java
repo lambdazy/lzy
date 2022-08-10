@@ -64,6 +64,17 @@ public class LocalChannelGraph implements ChannelGraph {
     }
 
     @Override
+    public Set<Endpoint> adjacent(Endpoint endpoint) {
+        if (senders.contains(endpoint)) {
+            return edges.get(endpoint);
+        }
+        if (receivers.contains(endpoint)) {
+            return getSenders(endpoint);
+        }
+        return new HashSet<>();
+    }
+
+    @Override
     public synchronized void addSender(@NotNull Endpoint sender) {
         if (senders.contains(sender)) {
             LOG.warn("Endpoint input: " + sender + " already connected to channelGraph");

@@ -21,6 +21,7 @@ public class ChannelImpl implements Channel {
     private static final Logger LOG = LogManager.getLogger(ChannelImpl.class);
 
     private final String id;
+    private final String ownerWorkflowId;
     private final ChannelGraph channelGraph;
     private final ChannelSpec spec;
     private final ChannelController controller; // pluggable channel logic
@@ -29,8 +30,11 @@ public class ChannelImpl implements Channel {
         return new Builder();
     }
 
-    private ChannelImpl(String id, ChannelSpec spec, ChannelController controller, ChannelGraph channelGraph) {
+    private ChannelImpl(
+        String id, String ownerWorkflowId, ChannelSpec spec, ChannelController controller, ChannelGraph channelGraph
+    ) {
         this.id = id;
+        this.ownerWorkflowId = ownerWorkflowId;
         this.spec = spec;
         this.controller = controller;
         this.channelGraph = channelGraph;
@@ -53,6 +57,11 @@ public class ChannelImpl implements Channel {
     @Override
     public String id() {
         return id;
+    }
+
+    @Override
+    public String ownerWorkflowId() {
+        return ownerWorkflowId;
     }
 
     @Override
@@ -83,6 +92,11 @@ public class ChannelImpl implements Channel {
             channelGraph.senders().stream(),
             channelGraph.receivers().stream()
         );
+    }
+
+    @Override
+    public Stream<Endpoint> bound(Endpoint endpoint) {
+        return channelGraph.adjacent(endpoint).stream();
     }
 
     @Override
@@ -117,6 +131,7 @@ public class ChannelImpl implements Channel {
         private static final Logger LOG = LogManager.getLogger(ChannelImpl.Builder.class);
 
         private String id;
+        private String workflowId;
         private ChannelSpec spec;
         private ChannelController controller;
         private final Map<String, Endpoint> sendersByUri = new HashMap<>();
@@ -125,6 +140,11 @@ public class ChannelImpl implements Channel {
 
         public Builder setId(String id) {
             this.id = id;
+            return this;
+        }
+
+        public Builder setOwnerWorkflowId(String workflowId) {
+            this.workflowId = workflowId;
             return this;
         }
 
@@ -174,7 +194,7 @@ public class ChannelImpl implements Channel {
             }));
 
             return new ChannelImpl(
-                id, spec, controller, new LocalChannelGraph(
+                id, workflowId, spec, controller, new LocalChannelGraph(
                     id, sendersByUri.values().stream(), receiversByUri.values().stream(), edges
                 )
             );

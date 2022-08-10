@@ -11,6 +11,7 @@ import java.util.stream.Stream;
 
 public interface Channel {
     String id();
+    String ownerWorkflowId();
     String name();
     ChannelSpec spec();
     Stream<SlotStatus> slotsStatus();
@@ -18,6 +19,7 @@ public interface Channel {
     void bind(Endpoint endpoint) throws ChannelException;
     void unbind(Endpoint endpoint) throws ChannelException;
     Stream<Endpoint> bound();
+    Stream<Endpoint> bound(Endpoint endpoint);
     boolean hasBound(Endpoint endpoint);
 
     void destroy();

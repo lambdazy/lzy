@@ -32,9 +32,9 @@ import ai.lzy.v1.ChannelManager.ChannelDestroyAllResponse;
 import ai.lzy.v1.ChannelManager.ChannelDestroyRequest;
 import ai.lzy.v1.ChannelManager.ChannelDestroyResponse;
 import ai.lzy.v1.ChannelManager.ChannelStatus;
+import ai.lzy.v1.ChannelManager.ChannelStatusAllRequest;
 import ai.lzy.v1.ChannelManager.ChannelStatusList;
 import ai.lzy.v1.ChannelManager.ChannelStatusRequest;
-import ai.lzy.v1.ChannelManager.ChannelStatusAllRequest;
 import ai.lzy.v1.ChannelManager.SlotAttach;
 import ai.lzy.v1.ChannelManager.SlotAttachStatus;
 import ai.lzy.v1.ChannelManager.SlotDetach;
@@ -379,68 +379,124 @@ public class ChannelManager {
 
         @Override
         public void bind(SlotAttach attach, StreamObserver<SlotAttachStatus> responseObserver) {
-            LOG.info("ChannelManager::bind slot={} to channel={}; {}",
+            LOG.info("Bind slot={} to channel={}; {}",
                 attach.getSlotInstance().getSlot().getName(),
                 attach.getSlotInstance().getChannelId(),
                 JsonUtils.printRequest(attach));
-            final SlotInstance slotInstance = from(attach.getSlotInstance());
-            final Endpoint endpoint = SlotEndpoint.getInstance(slotInstance);
-            final String channelId = slotInstance.channelId();
-            final Channel channel = channelStorage.get(channelId);
-            if (channel == null) {
-                responseObserver.onError(
-                    Status.NOT_FOUND
-                        .withDescription("Channel with id " + channelId + " is not registered")
-                        .asRuntimeException()
-                );
-                return;
-            }
 
             try {
-                final Channel boundChannel = channelStorage.bound(endpoint);
-                if (boundChannel != null && !boundChannel.id().equals(channelId)) {
-                    responseObserver.onError(
-                        Status.INTERNAL
-                            .withDescription("Endpoint " + endpoint + " is bound to another channel: " + channel.name())
-                            .asRuntimeException()
-                    );
-                    return;
-                }
+                final var authenticationContext = AuthenticationContext.current();
+                final String userId = Objects.requireNonNull(authenticationContext).getSubject().id();
+                final SlotInstance slotInstance = from(attach.getSlotInstance());
+                final Endpoint endpoint = SlotEndpoint.getInstance(slotInstance);
+                final String channelId = slotInstance.channelId();
 
-                channel.bind(endpoint);
+                Transaction.execute(dataSource, conn -> {
+                    final Channel channel = channelManagerStorage.findChannel(conn, true, channelId);
+                    if (channel == null) {
+                        String errorMessage = String.format("Channel with id %s not found", channelId);
+                        LOG.error(errorMessage);
+                        throw new NotFoundException(errorMessage);
+                    }
+
+                    List<String> boundChannels = channelManagerStorage.listBoundChannels(conn, false,
+                            userId, channel.ownerWorkflowId(), endpoint.uri().toString());
+
+                    if (boundChannels.size() > 0) {
+                        final String errorMessage;
+                        if (boundChannels.size() == 1) {
+                            final String otherChannelId = boundChannels.get(0);
+                            if (channelId.equals(otherChannelId)) {
+                                LOG.warn("Endpoint {} is already bound to this channel", endpoint);
+                                return false;
+                            } else {
+                                errorMessage = endpoint + " is bound to another channel " + otherChannelId;
+                                LOG.error(errorMessage);
+                                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(errorMessage).asException());
+                            }
+                        } else {
+                            errorMessage = endpoint + " is bound to more than one channel";
+                            LOG.error(errorMessage);
+                            responseObserver.onError(Status.INTERNAL.withDescription(errorMessage).asException());
+                        }
+                        return false;
+                    }
+
+                    try {
+                        channel.bind(endpoint);
+                    } catch (ChannelException e) {
+                        responseObserver.onError(Status.INVALID_ARGUMENT.withCause(e).asRuntimeException());
+                        return false;
+                    }
+
+                    channelManagerStorage.insertEndpoint(conn, channelId, endpoint);
+                    final Map<Endpoint, Endpoint> addedEdges = switch (endpoint.slotSpec().direction()) {
+                        case INPUT -> channel.bound(endpoint).collect(Collectors.toMap(e -> e, e -> endpoint));
+                        case OUTPUT -> channel.bound(endpoint).collect(Collectors.toMap(e -> endpoint, e -> e));
+                    };
+                    channelManagerStorage.insertEndpointConnections(conn, channelId, addedEdges);
+                    return true;
+                });
+
                 responseObserver.onNext(SlotAttachStatus.getDefaultInstance());
+                LOG.info("Bind slot={} to channel={} done",
+                    attach.getSlotInstance().getSlot().getName(), attach.getSlotInstance().getChannelId());
                 responseObserver.onCompleted();
-            } catch (ChannelException e) {
-                responseObserver.onError(Status.INVALID_ARGUMENT.withCause(e).asRuntimeException());
+            } catch (NotFoundException e) {
+                LOG.error("Bind slot={} to channel={} failed, channel not found",
+                    attach.getSlotInstance().getSlot().getName(), attach.getSlotInstance().getChannelId(), e);
+                responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asException());
+            } catch (Exception e) {
+                LOG.error("Bind slot={} to channel={} failed, got exception: {}",
+                    attach.getSlotInstance().getSlot().getName(),
+                    attach.getSlotInstance().getChannelId(),
+                    e.getMessage(), e);
+                responseObserver.onError(Status.INTERNAL.withCause(e).asException());
             }
         }
 
         @Override
         public void unbind(SlotDetach detach, StreamObserver<SlotDetachStatus> responseObserver) {
-            LOG.info("ChannelManager::unbind slot={} to channel={}; {}",
+            LOG.info("Unbind slot={} to channel={}; {}",
                 detach.getSlotInstance().getSlot(),
                 detach.getSlotInstance().getChannelId(),
                 JsonUtils.printRequest(detach));
-            final SlotInstance slotInstance = from(detach.getSlotInstance());
-            final SlotEndpoint endpoint = SlotEndpoint.getInstance(slotInstance);
-            final String channelId = slotInstance.channelId();
-            final Channel channel = channelStorage.get(channelId);
-            if (channel == null) {
-                responseObserver.onError(
-                    Status.NOT_FOUND
-                        .withDescription(
-                            "Attempt to unbind endpoint " + endpoint + " from unregistered channel " + channelId)
-                        .asRuntimeException()
-                );
-                return;
-            }
 
             try {
-                channel.unbind(endpoint);
+                final SlotInstance slotInstance = from(detach.getSlotInstance());
+                final Endpoint endpoint = SlotEndpoint.getInstance(slotInstance);
+                final String channelId = slotInstance.channelId();
+
+                Transaction.execute(dataSource, conn -> {
+                    final Channel channel = channelManagerStorage.findChannel(conn, true, channelId);
+                    if (channel == null) {
+                        String errorMessage = String.format("Channel with id %s not found", channelId);
+                        LOG.error(errorMessage);
+                        throw new NotFoundException(errorMessage);
+                    }
+
+                    try {
+                        channel.unbind(endpoint);
+                    } catch (ChannelException e) {
+                        responseObserver.onError(Status.INVALID_ARGUMENT.withCause(e).asRuntimeException());
+                        return false;
+                    }
+
+                    channelManagerStorage.removeEndpointWithConnections(conn, channelId, endpoint);
+                    return true;
+                });
                 responseObserver.onNext(SlotDetachStatus.getDefaultInstance());
                 responseObserver.onCompleted();
-            } catch (ChannelException e) {
-                responseObserver.onError(Status.INVALID_ARGUMENT.withCause(e).asRuntimeException());
+            } catch (NotFoundException e) {
+                LOG.error("Unbind slot={} to channel={} failed, channel not found",
+                    detach.getSlotInstance().getSlot().getName(), detach.getSlotInstance().getChannelId(), e);
+                responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asException());
+            } catch (Exception e) {
+                LOG.error("Unbind slot={} to channel={} failed, got exception: {}",
+                    detach.getSlotInstance().getSlot().getName(),
+                    detach.getSlotInstance().getChannelId(),
+                    e.getMessage(), e);
+                responseObserver.onError(Status.INTERNAL.withCause(e).asException());
             }
         }
 
@@ -477,7 +533,7 @@ public class ChannelManager {
         }
 
         void insertChannel(Connection sqlConnection, String channelId, String userId, String workflowId,
-                       String channelName, Channels.ChannelSpec.TypeCase channelType, ChannelSpec channelSpec
+            String channelName, Channels.ChannelSpec.TypeCase channelType, ChannelSpec channelSpec
         ) throws DaoException {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 INSERT INTO channels(
@@ -524,72 +580,163 @@ public class ChannelManager {
 
         @Nullable
         Channel findChannel(Connection sqlConnection, boolean forUpdate, String channelId) throws DaoException {
-            try {
-                try (final PreparedStatement channelSt = sqlConnection.prepareStatement("""
-                    SELECT
-                        ch.channel_id as channel_id,
-                        ch.user_id as user_id,
-                        ch.workflow_id as workflow_id,
-                        ch.channel_name as channel_name,
-                        ch.channel_spec as channel_spec,
-                        ch.created_at as created_at,
-                        ch.channel_life_status as channel_life_status,
-                        e.slot_uri as slot_uri,
-                        e.direction as direction,
-                        e.task_id as task_id,
-                        e.slot_spec as slot_spec,
-                        c.slot_uri as connected_slot_uri
-                    FROM channels ch
-                    FULL JOIN channel_endpoints e ON ch.channel_id = e.channel_id
-                    FULL JOIN endpoint_connections c ON e.channel_id = c.channel_id  AND e.slot_uri = c.sender_uri
-                    WHERE ch.channel_id = ? AND ch.channel_life_status = ?
-                    """ + (forUpdate ? "FOR UPDATE" : ""))
-                ) {
-                    int index = 0;
-                    channelSt.setString(++index, channelId);
-                    channelSt.setString(++index, "ALIVE");
-                    Stream<Channel> channels = parseChannels(channelSt.executeQuery());
-                    return channels.findFirst().orElse(null);
-                }
+            try (final PreparedStatement st = sqlConnection.prepareStatement("""
+                SELECT
+                    ch.channel_id as channel_id,
+                    ch.user_id as user_id,
+                    ch.workflow_id as workflow_id,
+                    ch.channel_name as channel_name,
+                    ch.channel_spec as channel_spec,
+                    ch.created_at as created_at,
+                    ch.channel_life_status as channel_life_status,
+                    e.slot_uri as slot_uri,
+                    e.direction as direction,
+                    e.task_id as task_id,
+                    e.slot_spec as slot_spec,
+                    c.slot_uri as connected_slot_uri
+                FROM channels ch
+                FULL JOIN channel_endpoints e ON ch.channel_id = e.channel_id
+                FULL JOIN endpoint_connections c ON e.channel_id = c.channel_id AND e.slot_uri = c.sender_uri
+                WHERE ch.channel_id = ? AND ch.channel_life_status = ?
+                """ + (forUpdate ? "FOR UPDATE" : ""))
+            ) {
+                int index = 0;
+                st.setString(++index, channelId);
+                st.setString(++index, "ALIVE");
+                Stream<Channel> channels = parseChannels(st.executeQuery());
+                return channels.findFirst().orElse(null);
             } catch (SQLException | JsonProcessingException e) {
                 LOG.error("Failed to find channel (channelId={})", channelId, e);
                 throw new DaoException(e);
             }
         }
 
-        Stream<Channel> listChannels(Connection sqlConnection, boolean forUpdate,
-            String userId, String workflowId
+        Stream<Channel> listChannels(
+            Connection sqlConnection, boolean forUpdate, String userId, String workflowId
         ) throws DaoException {
-            try {
-                try (final PreparedStatement channelSt = sqlConnection.prepareStatement("""
-                    SELECT
-                        ch.channel_id as channel_id,
-                        ch.user_id as user_id,
-                        ch.workflow_id as workflow_id,
-                        ch.channel_name as channel_name,
-                        ch.channel_spec as channel_spec,
-                        ch.created_at as created_at,
-                        ch.channel_life_status as channel_life_status,
-                        e.slot_uri as slot_uri,
-                        e.direction as direction,
-                        e.task_id as task_id,
-                        e.slot_spec as slot_spec,
-                        c.slot_uri as connected_slot_uri
-                    FROM channels ch
-                    FULL JOIN channel_endpoints e ON ch.channel_id = e.channel_id
-                    FULL JOIN endpoint_connections c ON e.channel_id = c.channel_id  AND e.slot_uri = c.sender_uri
-                    WHERE ch.user_id = ? AND ch.workflow_id = ? AND ch.channel_life_status = ?
-                    """ + (forUpdate ? "FOR UPDATE" : ""))
-                ) {
-                    int index = 0;
-                    channelSt.setString(++index, userId);
-                    channelSt.setString(++index, workflowId);
-                    channelSt.setString(++index, "ALIVE");
-                    Stream<Channel> channels = parseChannels(channelSt.executeQuery());
-                    return channels;
-                }
+            try (final PreparedStatement st = sqlConnection.prepareStatement("""
+                SELECT
+                    ch.channel_id as channel_id,
+                    ch.user_id as user_id,
+                    ch.workflow_id as workflow_id,
+                    ch.channel_name as channel_name,
+                    ch.channel_spec as channel_spec,
+                    ch.created_at as created_at,
+                    ch.channel_life_status as channel_life_status,
+                    e.slot_uri as slot_uri,
+                    e.direction as direction,
+                    e.task_id as task_id,
+                    e.slot_spec as slot_spec,
+                    c.slot_uri as connected_slot_uri
+                FROM channels ch
+                FULL JOIN channel_endpoints e ON ch.channel_id = e.channel_id
+                FULL JOIN endpoint_connections c ON e.channel_id = c.channel_id AND e.slot_uri = c.sender_uri
+                WHERE ch.user_id = ? AND ch.workflow_id = ? AND ch.channel_life_status = ?
+                """ + (forUpdate ? "FOR UPDATE" : ""))
+            ) {
+                int index = 0;
+                st.setString(++index, userId);
+                st.setString(++index, workflowId);
+                st.setString(++index, "ALIVE");
+                return parseChannels(st.executeQuery());
             } catch (SQLException | JsonProcessingException e) {
                 LOG.error("Failed to list channels (workflow_id={})", workflowId, e);
+                throw new DaoException(e);
+            }
+        }
+
+        List<String> listBoundChannels(
+            Connection sqlConnection, boolean forUpdate, String userId, String workflowId, String slotUri
+        ) throws DaoException {
+            try (final PreparedStatement st = sqlConnection.prepareStatement("""
+                SELECT ch.channel_id as channel_id
+                FROM channels ch INNER JOIN channel_endpoints e ON ch.channel_id = e.channel_id
+                WHERE ch.user_id = ? AND ch.workflow_id = ? AND e.slot_uri = ? AND ch.channel_life_status = ?
+                """ + (forUpdate ? "FOR UPDATE" : ""))
+            ) {
+                int index = 0;
+                st.setString(++index, userId);
+                st.setString(++index, workflowId);
+                st.setString(++index, slotUri);
+                st.setString(++index, "ALIVE");
+                ResultSet rs = st.executeQuery();
+                List<String> channels = new ArrayList<>();
+                while (rs.next()) {
+                    channels.add(rs.getString("channel_id"));
+                }
+                return channels;
+            } catch (SQLException e) {
+                LOG.error("Failed to list bound channels (slot_uri={})", slotUri, e);
+                throw new DaoException(e);
+            }
+        }
+
+        void insertEndpoint(Connection sqlConnection, String channelId, Endpoint endpoint) throws DaoException {
+            try (final PreparedStatement st = sqlConnection.prepareStatement("""
+                INSERT INTO channel_endpoints(
+                    channel_id,
+                    slot_uri,
+                    direction,
+                    task_id,
+                    slot_spec
+                ) VALUES (?, ?, ?, ?, ?)
+                """)
+            ) {
+                String slotSpecJson = objectMapper.writeValueAsString(endpoint.slotSpec());
+                int index = 0;
+                st.setString(++index, channelId);
+                st.setString(++index, endpoint.uri().toString());
+                st.setString(++index, endpoint.slotSpec().direction().name());
+                st.setString(++index, endpoint.taskId());
+                st.setString(++index, slotSpecJson);
+                st.executeUpdate();
+            } catch (SQLException | JsonProcessingException e) {
+                LOG.error("Failed to insert channel endpoint ({})", endpoint, e);
+                throw new DaoException(e);
+            }
+        }
+
+        void removeEndpointWithConnections(
+            Connection sqlConnection, String channelId, Endpoint endpoint
+        ) throws DaoException {
+            try (final PreparedStatement st = sqlConnection.prepareStatement(
+                "DELETE FROM channel_endpoints WHERE channel_id = ? AND slot_uri = ?"
+            )) {
+                int index = 0;
+                st.setString(++index, channelId);
+                st.setString(++index, endpoint.uri().toString());
+                st.execute();
+            } catch (SQLException e) {
+                LOG.error("Failed to remove channel endpoint ({})", endpoint, e);
+                throw new DaoException(e);
+            }
+        }
+
+        void insertEndpointConnections(
+            Connection sqlConnection, String channelId, Map<Endpoint, Endpoint> edges
+        ) throws DaoException {
+            try (final PreparedStatement st = sqlConnection.prepareStatement("""
+                INSERT INTO endpoint_connections (
+                    channel_id,
+                    sender_uri,
+                    receiver_uri
+                ) VALUES (?, unnest(?), unnest(?))
+                """)
+            ) {
+                final List<String> senderUris = new ArrayList<>();
+                final List<String> receiverUris = new ArrayList<>();
+                edges.forEach((sender, receiver) -> {
+                    senderUris.add(sender.uri().toString());
+                    receiverUris.add(receiver.uri().toString());
+                });
+
+                int index = 0;
+                st.setString(++index, channelId);
+                st.setArray(++index, sqlConnection.createArrayOf("text", senderUris.toArray()));
+                st.setArray(++index, sqlConnection.createArrayOf("text", receiverUris.toArray()));
+                st.executeUpdate();
+            } catch (SQLException e) {
+                LOG.error("Failed to insert channel endpoint connections (channel={})", channelId, e);
                 throw new DaoException(e);
             }
         }
@@ -617,7 +764,9 @@ public class ChannelManager {
             while (rs.next()) {
                 final String channelId = rs.getString("channel_id");
                 if (!chanelBuildersById.containsKey(channelId)) {
-                    chanelBuildersById.put(channelId, ChannelImpl.newBuilder().setId(channelId));
+                    chanelBuildersById.put(channelId, ChannelImpl.newBuilder()
+                        .setId(channelId)
+                        .setOwnerWorkflowId(rs.getString("workflow_id")));
                     slotsUriByChannelId.put(channelId, new HashSet<>());
                     var channelType = Channels.ChannelSpec.TypeCase.valueOf(rs.getString("channel_type"));
                     switch (channelType) {
