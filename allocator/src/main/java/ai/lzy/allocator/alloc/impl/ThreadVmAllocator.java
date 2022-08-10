@@ -17,7 +17,6 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Singleton
 @Requires(property = "allocator.thread-allocator.enabled", value = "true")
@@ -25,7 +24,6 @@ public class ThreadVmAllocator implements VmAllocator {
     private static final Logger LOG = LogManager.getLogger(ThreadVmAllocator.class);
 
     private final Method vmMain;
-    private final AtomicInteger vmCounter = new AtomicInteger(0);
     private final ConcurrentHashMap<String, Thread> vmThreads = new ConcurrentHashMap<>();
 
     @Inject
@@ -49,9 +47,7 @@ public class ThreadVmAllocator implements VmAllocator {
     }
 
     private void requestAllocation(String vmId, List<String> args) {
-        int servantNumber = vmCounter.incrementAndGet();
         LOG.info("Allocating vm {}", vmId);
-        int port = FreePortFinder.find(10000, 11000);
 
         @SuppressWarnings("CheckStyle")
         Thread task = new Thread("vm-" + vmId) {

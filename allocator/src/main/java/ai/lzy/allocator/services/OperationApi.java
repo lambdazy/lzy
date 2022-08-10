@@ -25,7 +25,7 @@ public class OperationApi extends OperationServiceApiImplBase {
 
     @Override
     public void get(GetOperationRequest request, StreamObserver<Operation> responseObserver) {
-        var op = operations.get(request.getOperationId());
+        var op = operations.get(request.getOperationId(), null);
         if (op == null) {
             responseObserver.onError(Status.NOT_FOUND.withDescription("Operation not found").asException());
             return;
@@ -37,13 +37,13 @@ public class OperationApi extends OperationServiceApiImplBase {
     @Override
     public void cancel(OperationService.CancelOperationRequest request, StreamObserver<Operation> responseObserver) {
         // TODO(artolord) add more logic here
-        var op = operations.get(request.getOperationId());
+        var op = operations.get(request.getOperationId(), null);
         if (op == null) {
             responseObserver.onError(Status.NOT_FOUND.withDescription("Operation not found").asException());
             return;
         }
         var newOp = op.complete(Status.CANCELLED);
-        operations.update(newOp);
+        operations.update(newOp, null);
         responseObserver.onNext(newOp.toGrpc());
         responseObserver.onCompleted();
     }

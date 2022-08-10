@@ -5,6 +5,7 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.SessionDao;
 import ai.lzy.allocator.dao.VmDao;
+import ai.lzy.allocator.db.TransactionManager;
 import ai.lzy.allocator.model.Session;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
@@ -19,6 +20,7 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -33,23 +35,26 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
     private final SessionDao sessions;
     private final VmAllocator allocator;
     private final ServiceConfig config;
+    private final TransactionManager transactions;
 
     @Inject
     public AllocatorApi(VmDao dao, OperationDao operations, SessionDao sessions,
-            VmAllocator allocator, ServiceConfig config) {
+            VmAllocator allocator, ServiceConfig config, TransactionManager transactions) {
         this.dao = dao;
         this.operations = operations;
         this.sessions = sessions;
         this.allocator = allocator;
         this.config = config;
+        this.transactions = transactions;
     }
 
     @Override
     public void createSession(CreateSessionRequest request, StreamObserver<CreateSessionResponse> responseObserver) {
         final Session session = sessions.create(
             request.getOwner(),
-            Duration.ofSeconds(request.getMinIdleTimeout().getSeconds())
-                .plus(request.getMinIdleTimeout().getNanos(), ChronoUnit.NANOS));
+            Duration.ofSeconds(request.getCachePolicy().getMinIdleTimeout().getSeconds())
+                .plus(request.getCachePolicy().getMinIdleTimeout().getNanos(), ChronoUnit.NANOS),
+            null);
         responseObserver.onNext(CreateSessionResponse.newBuilder()
             .setSessionId(session.sessionId())
             .build());
@@ -60,65 +65,99 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
     public void deleteSession(DeleteSessionRequest request, StreamObserver<DeleteSessionResponse> responseObserver) {
         responseObserver.onNext(DeleteSessionResponse.newBuilder().build());
         responseObserver.onCompleted();
-        final List<Vm> vms = dao.list(request.getSessionId());
-        vms.forEach(vm -> {
-            dao.update(
-                new Vm.VmBuilder(vm)
+        try (var transaction = transactions.start()) {
+            final List<Vm> vms = dao.list(request.getSessionId(), transaction);
+            vms.forEach(vm -> {
+                dao.update(new Vm.VmBuilder(vm)
                     .setState(Vm.State.DEAD)
-                    .build()
-            );
-            allocator.deallocate(vm);
-        });
+                    .build(),
+                    transaction
+                );
+                allocator.deallocate(vm);
+            });
+            sessions.delete(request.getSessionId(), transaction);
+            transaction.commit();
+        } catch (SQLException e) {
+            LOG.error("Error while executing request", e);
+        }
     }
 
 
     @Override
     public void allocate(AllocateRequest request, StreamObserver<Operation> responseObserver) {
-        final Session session = sessions.get(request.getSessionId());
+        final Session session = sessions.get(request.getSessionId(), null);
         if (session == null) {
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Session not found").asException());
             return;
         }
 
-        final var op = operations.create(
-                "Allocating vm",
-                session.owner(),
-                Any.pack(AllocateMetadata.newBuilder().build())
+        var op = operations.create(
+            "Allocating vm",
+            session.owner(),
+            Any.pack(AllocateMetadata.newBuilder().build()),
+            null
         );
 
-        final var existingVm = dao.acquire(request.getSessionId(), request.getPoolId());
-        if (existingVm != null) {
-            operations.update(op.complete(Any.pack(AllocateResponse.newBuilder()
-                .setSessionId(existingVm.sessionId())
-                .setPoolId(existingVm.poolId())
-                .setVmId(existingVm.poolId())
-                .putAllMetadata(existingVm.vmMeta())
-                .build())));
+        try (var transaction = transactions.start()) {
+
+            final var existingVm = dao.acquire(request.getSessionId(), request.getPoolId(), transaction);
+
+            if (existingVm != null) {
+                op = op.complete(Any.pack(AllocateResponse.newBuilder()
+                    .setSessionId(existingVm.sessionId())
+                    .setPoolId(existingVm.poolId())
+                    .setVmId(existingVm.poolId())
+                    .putAllMetadata(existingVm.vmMeta())
+                    .build()));
+                operations.update(op, transaction);
+                responseObserver.onNext(op.toGrpc());
+                responseObserver.onCompleted();
+                return;
+            }
+            transaction.commit();
+        } catch (Exception e) {
+            LOG.error("Error while executing transaction", e);
+            op = op.complete(Status.INTERNAL.withDescription("Error while executing request"));
+            operations.update(op, null);
             responseObserver.onNext(op.toGrpc());
             responseObserver.onCompleted();
             return;
         }
         responseObserver.onNext(op.toGrpc());
         responseObserver.onCompleted();
+
         var workloads = request.getWorkloadList().stream()
             .map(w -> new Workload(w.getName(), w.getImage(), w.getEnvMap(), w.getArgsList(), w.getPortBindingsMap()))
             .toList();
-        var vm = dao.create(request.getSessionId(), request.getPoolId(), workloads);
-        operations.update(
-            op.modifyMeta(Any.pack(AllocateMetadata.newBuilder()
-                .setVmId(vm.vmId())
-                .build())));
-        var meta = allocator.allocate(vm);
-        dao.update(new Vm.VmBuilder(vm)
-            .setAllocatorMeta(meta)
-            .setState(Vm.State.CONNECTING)
-            .setAllocationTimeoutAt(Instant.now().plus(config.allocationTimeout()))  // TODO(artolord) add to config
-            .build());
+
+        Vm vm = null;
+
+        try (var transaction = transactions.start()) {
+            vm = dao.create(request.getSessionId(), request.getPoolId(), workloads, transaction);
+            op = op.modifyMeta(Any.pack(AllocateMetadata.newBuilder().setVmId(vm.vmId()).build()));
+            operations.update(op, transaction);
+
+            var meta = allocator.allocate(vm);
+
+            vm = new Vm.VmBuilder(vm)
+                .setAllocatorMeta(meta)
+                .setState(Vm.State.CONNECTING)
+                .setAllocationTimeoutAt(Instant.now().plus(config.allocationTimeout()))  // TODO(artolord) add to config
+                .build();
+            dao.update(vm, transaction);
+            transaction.commit();
+        } catch (Exception e) {
+            if (vm != null) {
+                allocator.deallocate(vm);
+                operations.update(op.complete(Status.INTERNAL.withDescription("Error while executing request")), null);
+            }
+            LOG.error("Error while executing request", e);
+        }
     }
 
     @Override
     public void free(FreeRequest request, StreamObserver<FreeResponse> responseObserver) {
-        var vm = dao.get(request.getVmId());
+        var vm = dao.get(request.getVmId(), null);
         if (vm == null) {
             responseObserver.onError(Status.NOT_FOUND.withDescription("Cannot found vm").asException());
             return;
@@ -128,18 +167,19 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             responseObserver.onError(Status.INTERNAL.asException());
             return;
         }
-        var session = sessions.get(vm.sessionId());
+        var session = sessions.get(vm.sessionId(), null);
         if (session == null) {
             LOG.error("Corrupted vm with incorrect session id");
             responseObserver.onError(Status.INTERNAL.asException());
             return;
         }
-        responseObserver.onNext(FreeResponse.newBuilder().build());
-        responseObserver.onCompleted();
 
         dao.update(new Vm.VmBuilder(vm)
             .setState(Vm.State.IDLING)
             .setExpireAt(Instant.now().plus(session.minIdleTimeout()))
-            .build());
+            .build(), null);
+
+        responseObserver.onNext(FreeResponse.newBuilder().build());
+        responseObserver.onCompleted();
     }
 }

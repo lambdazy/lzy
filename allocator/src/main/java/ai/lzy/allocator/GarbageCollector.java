@@ -4,54 +4,60 @@ import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.VmDao;
+import ai.lzy.allocator.db.TransactionManager;
 import ai.lzy.allocator.model.Vm;
-import ai.lzy.allocator.services.AllocatorApi;
 import io.grpc.Status;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Singleton
-public class GarbageCollector extends Thread {
+public class GarbageCollector extends TimerTask {
     private static final Logger LOG = LogManager.getLogger(GarbageCollector.class);
 
     private final VmDao dao;
     private final OperationDao operations;
     private final VmAllocator allocator;
-    private final AtomicBoolean stopping = new AtomicBoolean(true);
-    private final ServiceConfig config;
+    private final Timer timer = new Timer("gc-timer", true);
+    private final TransactionManager transactions;
 
 
     @Inject
-    public GarbageCollector(VmDao dao, OperationDao operations, VmAllocator allocator, ServiceConfig config) {
-        super("allocator-garbage-collector");
+    public GarbageCollector(VmDao dao, OperationDao operations, VmAllocator allocator, ServiceConfig config,
+            TransactionManager transactions) {
         this.dao = dao;
         this.operations = operations;
         this.allocator = allocator;
-        this.config = config;
+        this.transactions = transactions;
+        timer.scheduleAtFixedRate(this, config.gcPeriod().toMillis(), config.gcPeriod().toMillis());
     }
 
     @Override
     public void run() {
-        while (!stopping.get()) {
-            LOG.debug("Starting garbage collector");
-            try {
-                Thread.sleep(config.gcPeriod().toMillis());
-            } catch (InterruptedException e) {
-                continue;
-            }
-            var vms = dao.getExpired(100);
-            vms.forEach(vm -> {
+        LOG.debug("Starting garbage collector");
+        var vms = dao.getExpired(100, null);
+        vms.forEach(vm -> {
+            try (var tr = transactions.start()) {
+                dao.update(new Vm.VmBuilder(vm).setState(Vm.State.DEAD).build(), tr);
                 allocator.deallocate(vm);
-                dao.update(new Vm.VmBuilder(vm).setState(Vm.State.DEAD).build());
-                var op = operations.get(vm.allocationOperationId());
+                var op = operations.get(vm.allocationOperationId(), tr);
                 if (op != null) {
-                    operations.update(op.complete(Status.DEADLINE_EXCEEDED.withDescription("Vm is expired")));
+                    operations.update(op.complete(Status.DEADLINE_EXCEEDED.withDescription("Vm is expired")), tr);
                 }
-            });
-        }
+            } catch (Exception e) {
+                LOG.error("Cannot deallocate vm {}", vm, e);
+            }
+        });
+    }
+
+    public void shutdown() {
+        timer.cancel();
     }
 }

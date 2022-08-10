@@ -33,9 +33,13 @@ service Allocator {
 
 // ========= Create session ==========
 
+message CachePolicy {
+  google.protobuf.Duration min_idle_timeout = 1;
+}
+
 message CreateSessionRequest {
   string owner = 1;
-  google.protobuf.Duration minIdleTimeout = 2;
+  CachePolicy cache_policy = 2;
 }
 message CreateSessionResponse {
   string session_id = 1;
