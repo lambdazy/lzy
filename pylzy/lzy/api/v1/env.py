@@ -53,7 +53,8 @@ from lzy.serialization.serializer import (
     MemBytesSerializer,
     MemBytesSerializerImpl,
 )
-from lzy.storage.storage_client import StorageClient, from_credentials
+from lzy.storage import from_credentials
+from lzy.storage.storage_client import StorageClient
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 BusList = List[Tuple[Callable, Bus]]

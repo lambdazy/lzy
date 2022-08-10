@@ -23,8 +23,9 @@ from lzy.api.v2.runtime import ProgressStep, Runtime
 from lzy.api.v2.snapshot.snapshot import Snapshot
 from lzy.api.v2.utils.types import unwrap
 from lzy.serialization.serializer import Serializer
+from lzy.storage import from_credentials
 from lzy.storage.credentials import StorageCredentials
-from lzy.storage.storage_client import StorageClient, from_credentials
+from lzy.storage.storage_client import StorageClient
 
 
 def _generate_channel_name(call_id: str):

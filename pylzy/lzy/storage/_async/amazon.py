@@ -6,8 +6,8 @@ from typing import AsyncIterator, BinaryIO
 from aioboto3 import Session
 from botocore.exceptions import ClientError
 
-from lzy.api.v2.storage.url import Scheme, bucket_from_url, url_from_bucket
 from lzy.storage.credentials import AmazonCredentials
+from lzy.storage.url import Scheme, bucket_from_url, url_from_bucket
 
 
 class AmazonClient:

@@ -4,7 +4,7 @@ import logging
 import tempfile
 from datetime import datetime
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, cast
+from typing import Any, BinaryIO, Dict, List, Optional, Tuple, Type, TypeVar, cast
 
 # noinspection PyProtectedMember
 import cloudpickle
@@ -27,6 +27,7 @@ from lzy.api.v1.whiteboard.model import (
 )
 from lzy.serialization.serializer import FileSerializer
 from lzy.storage.credentials import StorageCredentials
+from lzy.storage.storage_client import StorageClient
 
 
 class SnapshotBashApi(SnapshotApi):
@@ -66,10 +67,10 @@ class WhiteboardBashApi(WhiteboardApi):
         self._client = client
         self._log = logging.getLogger(str(self.__class__))
         self._credentials: Dict[str, StorageCredentials] = {}
-        self._whiteboard_storage_by_bucket: Dict[str, WhiteboardStorage] = {}
+        self._whiteboard_storage_by_bucket: Dict[str, StorageClient] = {}
         self._serializer = serializer
 
-    def _whiteboard_storage(self, bucket: str) -> WhiteboardStorage:
+    def _whiteboard_storage(self, bucket: str) -> StorageClient:
         if bucket not in self._credentials:
             self._credentials[bucket] = self._client.get_credentials(
                 CredentialsTypes.S3, bucket
@@ -87,7 +88,7 @@ class WhiteboardBashApi(WhiteboardApi):
         bucket = get_bucket_from_url(field_url)
         with tempfile.TemporaryFile() as file:
             # TODO(aleksZubakov): do we need retry here?
-            self._whiteboard_storage(bucket).read(field_url, file)
+            self._whiteboard_storage(bucket).read(field_url, cast(BinaryIO, file))
             file.seek(0)
             obj = self._serializer.deserialize_from_file(file, real_type)
         return obj

@@ -1,8 +1,8 @@
 from functools import singledispatch
 
-from lzy.api.v2.storage.amazon import AmazonClient
-from lzy.api.v2.storage.azure import AzureClient
-from lzy.api.v2.storage.client_protocol import StorageClient
+from lzy.storage._async.amazon import AmazonClient
+from lzy.storage._async.azure import AzureClient
+from lzy.storage._async.storage_client import StorageClient
 from lzy.storage.credentials import (
     AmazonCredentials,
     AzureCredentials,
