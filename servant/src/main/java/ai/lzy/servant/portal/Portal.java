@@ -13,7 +13,8 @@ import ai.lzy.model.Slot;
 import ai.lzy.model.SlotInstance;
 import ai.lzy.servant.portal.ExternalStorage.AmazonS3Key;
 import ai.lzy.servant.portal.ExternalStorage.AzureS3Key;
-import ai.lzy.servant.portal.ExternalStorage.S3ClientProvider;
+import ai.lzy.servant.portal.ExternalStorage.S3RepositoryProvider;
+import ai.lzy.servant.portal.s3.S3StorageOutputSlot;
 import ai.lzy.v1.LzyFsApi;
 import ai.lzy.v1.LzyFsGrpc;
 import ai.lzy.v1.LzyPortalApi;
@@ -118,7 +119,7 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
             final String taskId = switch (slotDesc.getKindCase()) {
                 case STDERR -> slotDesc.getStderr().getTaskId();
                 case STDOUT -> slotDesc.getStdout().getTaskId();
-                case SNAPSHOT, S3SNAPSHOT -> portalTaskId;
+                case SNAPSHOT, STOREDONS3 -> portalTaskId;
                 default -> throw new RuntimeException("unknown slot kind");
             };
             final SlotInstance slotInstance = new SlotInstance(
@@ -191,25 +192,29 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
                     fs.getSlotsManager().registerSlot(lzySlot);
                 }
 
-                case S3SNAPSHOT -> {
-                    var s3SnapshotData = slotDesc.getS3Snapshot();
-                    String key = s3SnapshotData.getKey();
-                    String bucket = s3SnapshotData.getBucket();
+                case STOREDONS3 -> {
+                    var s3SnapshotData = slotDesc.getStoredOnS3();
+                    String key = s3SnapshotData.getS3Key();
+                    String bucket = s3SnapshotData.getS3Bucket();
 
-                    S3ClientProvider clientProvider = switch (s3SnapshotData.getEndpointCase()) {
-                        case AMAZONS3 -> AmazonS3Key.of(s3SnapshotData.getAmazonS3().getEndpoint(),
-                                s3SnapshotData.getAmazonS3().getAccessToken(),
-                                s3SnapshotData.getAmazonS3().getSecretToken());
-                        case AZURES3 -> AzureS3Key.of(s3SnapshotData.getAzureS3().getConnectionString());
+                    S3RepositoryProvider clientProvider = switch (s3SnapshotData.getS3EndpointCase()) {
+                        case AMAZONSTYLE -> AmazonS3Key.of(s3SnapshotData.getAmazonStyle().getEndpoint(),
+                                s3SnapshotData.getAmazonStyle().getAccessToken(),
+                                s3SnapshotData.getAmazonStyle().getSecretToken());
+                        case AZURESTYLE -> AzureS3Key.of(s3SnapshotData.getAzureStyle().getConnectionString());
                         default -> null;
                     };
                     if (clientProvider == null) {
-                        return replyError.apply("Unknown s3 endpoint type " + s3SnapshotData.getEndpointCase());
+                        return replyError.apply("Unknown s3 endpoint type " + s3SnapshotData.getS3EndpointCase());
                     }
 
                     LzySlot lzySlot = switch (slot.direction()) {
                         case INPUT -> externalStorage.createSlotSnapshot(slotInstance, key, bucket, clientProvider);
-                        case OUTPUT -> externalStorage.readSlotSnapshot(slotInstance, key, bucket, clientProvider);
+                        case OUTPUT -> {
+                            S3StorageOutputSlot slot1 = externalStorage.readSlotSnapshot(slotInstance, key, bucket, clientProvider);
+                            slot1.open();
+                            yield slot1;
+                        }
                     };
                     if (lzySlot != null) {
                         fs.getSlotsManager().registerSlot(lzySlot);

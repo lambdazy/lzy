@@ -16,16 +16,20 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.google.protobuf.ByteString;
 import io.findify.s3mock.S3Mock;
+import org.apache.http.client.utils.URIBuilder;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import ru.yandex.qe.s3.amazon.transfer.AmazonTransmitterFactory;
+import ru.yandex.qe.s3.transfer.Transmitter;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -36,14 +40,16 @@ public class S3SnapshotTest {
     private static final String BUCKET_NAME = "lzy-snapshot-test-bucket";
 
     private final S3Mock s3 = new S3Mock.Builder().withPort(S3_PORT).withInMemoryBackend().build();
-    private final StorageClient storage = new AmazonStorageClient("", "",
-            URI.create(S3_ADDRESS), "transmitter", 10, 10);
     private final AmazonS3 s3Client = AmazonS3ClientBuilder
             .standard()
             .withPathStyleAccessEnabled(true)
             .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(S3_ADDRESS, "us-west-2"))
             .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
             .build();
+    private final Transmitter transmitter = new AmazonTransmitterFactory(s3Client).fixedPoolsTransmitter(
+            "transmitter", 10, 10);
+    private final S3RepositoryWithBucketSelection<Stream<ByteString>> repository =
+            new AmazonS3RepositoryAdapter<>(s3Client, transmitter, 10, new ByteStringStreamConverter());
 
     private final Charset charset = StandardCharsets.UTF_8;
 
@@ -91,7 +97,12 @@ public class S3SnapshotTest {
     }
 
     private URI generateURI(SlotInstance slot) {
-        return storage.getURI(BUCKET_NAME, generateKey(slot));
+        try {
+            return new URIBuilder(s3Client.getUrl(BUCKET_NAME, generateKey(slot)).toString())
+                    .setScheme("s3").setPath(Path.of(BUCKET_NAME, generateKey(slot)).toString()).build();
+        } catch (URISyntaxException e) {
+            return null;
+        }
     }
 
     private static void awaitOpening(List<? extends LzySlotBase> slots) {
@@ -109,8 +120,8 @@ public class S3SnapshotTest {
         List<String> messages = List.of("Hello world!", "Bonjour le monde!",
                 "Hola mundo!", "Moni Dziko Lapansi", "Ciao mondo!");
 
-        List<S3SnapshotInputSlot> inputSlots = instances.stream()
-                .map(slot -> new S3SnapshotInputSlot(slot, generateKey(slot), BUCKET_NAME, storage))
+        List<S3StorageInputSlot> inputSlots = instances.stream()
+                .map(slot -> new S3StorageInputSlot(slot, generateKey(slot), BUCKET_NAME, repository))
                 .toList();
         // store messages
         for (int i = 0; i < 5; i++) {
@@ -121,9 +132,10 @@ public class S3SnapshotTest {
         awaitOpening(inputSlots);
         inputSlots.forEach(LzySlot::destroy);
 
-        List<S3SnapshotOutputSlot> outputSlots = instances.stream()
-                .map(slot -> new S3SnapshotOutputSlot(slot, generateKey(slot), BUCKET_NAME, storage))
+        List<S3StorageOutputSlot> outputSlots = instances.stream()
+                .map(slot -> new S3StorageOutputSlot(slot, generateKey(slot), BUCKET_NAME, repository))
                 .toList();
+        outputSlots.forEach(S3StorageOutputSlot::open);
         // read and validate previously stored data
         for (int i = 0; i < 5; i++) {
             String content = outputSlots.get(i).readFromPosition(0)

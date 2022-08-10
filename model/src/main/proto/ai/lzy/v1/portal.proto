@@ -70,13 +70,13 @@ message PortalSlotDesc {
     string taskId = 1;
   }
 
-  message S3Snapshot {
-    string bucket = 2;
-    string key = 3;
+  message StoredOnS3 {
+    string s3Key = 1;
+    string s3Bucket = 2;
 
-    oneof endpoint {
-      AmazonS3Endpoint amazonS3 = 4;
-      AzureS3Endpoint azureS3 = 5;
+    oneof s3Endpoint {
+      AmazonS3Endpoint amazonStyle = 3;
+      AzureS3Endpoint azureStyle = 4;
     }
   }
 
@@ -87,7 +87,7 @@ message PortalSlotDesc {
     StdOut stdout = 11;
     StdErr stderr = 12;
     // external (persistent) storages
-    S3Snapshot s3Snapshot = 13;
+    StoredOnS3 storedOnS3 = 13;
   }
 }
 

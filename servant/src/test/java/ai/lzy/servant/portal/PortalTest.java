@@ -300,18 +300,18 @@ public class PortalTest {
         var inputS3SnapshotSlot = LzyPortalApi.PortalSlotDesc.newBuilder()
             .setSlot(makeInputFileSlot("/portal_slot_1"))
             .setChannelId("channel_1")
-            .setS3Snapshot(LzyPortalApi.PortalSlotDesc.S3Snapshot.newBuilder()
-                .setKey("portal_slot_task_1")
-                .setBucket(BUCKET_NAME)
-                .setAmazonS3(makeAmazonS3Endpoint(S3_ADDRESS)))
+            .setStoredOnS3(LzyPortalApi.PortalSlotDesc.StoredOnS3.newBuilder()
+                .setS3Key("portal_slot_task_1")
+                .setS3Bucket(BUCKET_NAME)
+                .setAmazonStyle(makeAmazonS3Endpoint(S3_ADDRESS)))
             .build();
         var outputS3SnapshotSlot = LzyPortalApi.PortalSlotDesc.newBuilder()
             .setSlot(makeOutputFileSlot("/slot_2"))
             .setChannelId("channel_2")
-            .setS3Snapshot(LzyPortalApi.PortalSlotDesc.S3Snapshot.newBuilder()
-                .setKey("portal_slot_task_1")
-                .setBucket(BUCKET_NAME)
-                .setAmazonS3(makeAmazonS3Endpoint(S3_ADDRESS)))
+            .setStoredOnS3(LzyPortalApi.PortalSlotDesc.StoredOnS3.newBuilder()
+                .setS3Key("portal_slot_task_1")
+                .setS3Bucket(BUCKET_NAME)
+                .setAmazonStyle(makeAmazonS3Endpoint(S3_ADDRESS)))
             .build();
         runGeneralSnapshotOnPortalScenario(inputS3SnapshotSlot, outputS3SnapshotSlot);
 

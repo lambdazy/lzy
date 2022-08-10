@@ -69,8 +69,4 @@ public class AmazonStorageClient implements StorageClient {
         Path path = Path.of(uri.getPath());
         return path.getFileName().toString();
     }
-
-    public boolean doesBucketExist(String bucket) {
-        return client.doesBucketExistV2(bucket);
-    }
 }
