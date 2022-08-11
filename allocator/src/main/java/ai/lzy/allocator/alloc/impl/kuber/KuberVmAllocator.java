@@ -151,12 +151,23 @@ public class KuberVmAllocator implements VmAllocator {
         // k8s pod name can only contain symbols [-a-z0-9]
         pod.getMetadata().setName(podName.replaceAll("[^-a-z0-9]", "-"));
         var labels = pod.getMetadata().getLabels();
+
         Objects.requireNonNull(labels);
-        labels.put(KuberLabels.LZY_POD_NAME_LABEL, podName);
+        labels.putAll(Map.of(
+            KuberLabels.LZY_POD_NAME_LABEL, podName,
+            KuberLabels.LZY_POD_SESSION_ID_LABEL, vm.sessionId()
+        ));
         pod.getMetadata().setLabels(labels);
+
         pod.getSpec().setTolerations(GPU_VM_POD_TOLERATIONS);
-        final Map<String, String> nodeSelector = Map.of(KuberLabels.NODE_POOL_LABEL, vm.poolId());
+
+        final Map<String, String> nodeSelector = Map.of(
+            KuberLabels.NODE_POOL_LABEL, vm.poolLabel(),
+            KuberLabels.NODE_POOL_AZ_LABEL, vm.zone(),
+            KuberLabels.NODE_POOL_STATE_LABEL, "active"
+        );
         pod.getSpec().setNodeSelector(nodeSelector);
+
         return pod;
     }
 

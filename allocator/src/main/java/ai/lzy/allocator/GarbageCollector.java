@@ -29,7 +29,7 @@ public class GarbageCollector extends TimerTask {
 
     @Inject
     public GarbageCollector(VmDao dao, OperationDao operations, VmAllocator allocator,
-            ServiceConfig config, Storage storage) {
+                            ServiceConfig config, Storage storage) {
         this.dao = dao;
         this.operations = operations;
         this.allocator = allocator;

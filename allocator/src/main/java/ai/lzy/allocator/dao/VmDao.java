@@ -9,7 +9,8 @@ import java.util.List;
 import java.util.Map;
 
 public interface VmDao {
-    Vm create(String sessionId, String poolId, List<Workload> workload, @Nullable TransactionHandle transaction);
+    Vm create(String sessionId, String poolId, String zone, List<Workload> workload,
+              @Nullable TransactionHandle transaction);
     void update(Vm vm, @Nullable TransactionHandle transaction);
 
     List<Vm> list(String sessionId, @Nullable TransactionHandle transaction);
@@ -21,7 +22,7 @@ public interface VmDao {
      * Find vm with this session and pool id with status IDLING and set its status to RUNNING
      */
     @Nullable
-    Vm acquire(String sessionId, String poolId, @Nullable TransactionHandle transaction);
+    Vm acquire(String sessionId, String poolId, String zone, @Nullable TransactionHandle transaction);
 
     void saveAllocatorMeta(String vmId, Map<String, String> meta, @Nullable TransactionHandle transaction);
     @Nullable

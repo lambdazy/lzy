@@ -66,8 +66,9 @@ message AllocateRequest {
   }
 
   string session_id = 1;
-  string pool_id = 2;
-  repeated Workload workload = 3;
+  string pool_label = 2;
+  string zone = 3;
+  repeated Workload workload = 4;
 }
 
 message AllocateResponse {

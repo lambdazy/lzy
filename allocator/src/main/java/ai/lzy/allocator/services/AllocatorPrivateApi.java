@@ -82,7 +82,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
                 .build(), transaction);
 
             operations.update(op.complete(Any.pack(AllocateResponse.newBuilder()
-                .setPoolId(vm.poolId())
+                .setPoolId(vm.poolLabel())
                 .setSessionId(vm.sessionId())
                 .setVmId(vm.vmId())
                 .putAllMetadata(request.getMetadataMap())

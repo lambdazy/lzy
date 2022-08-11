@@ -8,7 +8,8 @@ import java.util.Map;
 public record Vm(
     String sessionId,
     String vmId,
-    String poolId,
+    String poolLabel,
+    String zone,
     State state,
     String allocationOperationId,
     List<Workload> workloads,
@@ -24,7 +25,7 @@ public record Vm(
             + "sessionId='"
             + sessionId + '\''
             + ", vmId='" + vmId + '\''
-            + ", poolId='" + poolId + '\''
+            + ", poolLabel='" + poolLabel + '\''
             + ", state=" + state
             + '>';
     }
@@ -44,7 +45,8 @@ public record Vm(
     public static class VmBuilder {
         private final String sessionId;
         private final String vmId;
-        private final String poolId;
+        private final String poolLabel;
+        private final String zone;
         private final String opId;
         private final List<Workload> workload;
         private State state;
@@ -53,11 +55,12 @@ public record Vm(
         private Instant expireAt;
         private Instant allocationTimeoutAt;
 
-        public VmBuilder(String sessionId, String vmId, String poolId, String opId,
-                 List<Workload> workload, State state) {
+        public VmBuilder(String sessionId, String vmId, String poolLabel, String zone, String opId,
+                         List<Workload> workload, State state) {
             this.sessionId = sessionId;
             this.vmId = vmId;
-            this.poolId = poolId;
+            this.poolLabel = poolLabel;
+            this.zone = zone;
             this.opId = opId;
             this.workload = workload;
             this.state = state;
@@ -66,7 +69,8 @@ public record Vm(
         public VmBuilder(Vm vm) {
             this.sessionId = vm.sessionId();
             this.vmId = vm.vmId();
-            this.poolId = vm.poolId();
+            this.poolLabel = vm.poolLabel();
+            this.zone = vm.zone();
             this.opId = vm.allocationOperationId();
             this.workload = vm.workloads();
             this.state = vm.state();
@@ -101,7 +105,7 @@ public record Vm(
         }
 
         public Vm build() {
-            return new Vm(sessionId, vmId, poolId, state, opId, workload, allocationTimeoutAt,
+            return new Vm(sessionId, vmId, poolLabel, zone, state, opId, workload, allocationTimeoutAt,
                 heartBeatTimeoutAt, expireAt, vmMeta);
         }
     }

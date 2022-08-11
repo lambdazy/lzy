@@ -101,13 +101,14 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
         try (var transaction = new TransactionHandle(storage)) {
 
-            final var existingVm = dao.acquire(request.getSessionId(), request.getPoolId(), transaction);
+            final var existingVm = dao.acquire(request.getSessionId(), request.getPoolLabel(),
+                request.getZone(), transaction);
 
             if (existingVm != null) {
                 op = op.complete(Any.pack(AllocateResponse.newBuilder()
                     .setSessionId(existingVm.sessionId())
-                    .setPoolId(existingVm.poolId())
-                    .setVmId(existingVm.poolId())
+                    .setPoolId(existingVm.poolLabel())
+                    .setVmId(existingVm.poolLabel())
                     .putAllMetadata(existingVm.vmMeta())
                     .build()));
                 operations.update(op, transaction);
@@ -134,7 +135,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         Vm vm = null;
 
         try (var transaction = new TransactionHandle(storage)) {
-            vm = dao.create(request.getSessionId(), request.getPoolId(), workloads, transaction);
+            vm = dao.create(request.getSessionId(), request.getPoolLabel(), request.getZone(), workloads, transaction);
             op = op.modifyMeta(Any.pack(AllocateMetadata.newBuilder().setVmId(vm.vmId()).build()));
             operations.update(op, transaction);
 
