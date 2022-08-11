@@ -6,6 +6,7 @@ option java_outer_classname = "VmAllocatorApi";
 option java_package = "ai.lzy.v1";
 
 import "ai/lzy/v1/operation.proto";
+import "google/protobuf/duration.proto";
 
 //
 // Service to allocate vm
@@ -32,8 +33,13 @@ service Allocator {
 
 // ========= Create session ==========
 
+message CachePolicy {
+  google.protobuf.Duration idle_timeout = 1;
+}
+
 message CreateSessionRequest {
   string owner = 1;
+  CachePolicy cache_policy = 2;
 }
 message CreateSessionResponse {
   string session_id = 1;
@@ -55,12 +61,14 @@ message AllocateRequest {
     string image = 2;
 
     map<string, string> env = 16;
+    repeated string args = 17;
+    map<uint32, uint32> port_bindings = 18;  // host port: container port
   }
 
   string session_id = 1;
-  string pool_id = 2;
-  repeated Workload workload = 3;
-  map<string, string> labels = 4;
+  string pool_label = 2;
+  string zone = 3;
+  repeated Workload workload = 4;
 }
 
 message AllocateResponse {

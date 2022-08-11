@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app.kubernetes.io/name: lzy-vm
+    app.kubernetes.io/part-of: lzy
+    lzy.ai/app: vm
+spec:
+  restartPolicy: Never
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/part-of
+                operator: In
+                values:
+                  - lzy
+          topologyKey: "kubernetes.io/hostname"
+  hostNetwork: true
+  dnsPolicy: ClusterFirstWithHostNet
