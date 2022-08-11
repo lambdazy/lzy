@@ -102,8 +102,7 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
             throw new IllegalStateException("Portal is not active.");
         }
 
-        var response = OpenSlotsResponse.newBuilder()
-                .setSuccess(true);
+        var response = OpenSlotsResponse.newBuilder().setSuccess(true);
 
         final Function<String, OpenSlotsResponse> replyError = message -> {
             LOG.error(message);
@@ -117,9 +116,9 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
 
             final Slot slot = GrpcConverter.from(slotDesc.getSlot());
             final String taskId = switch (slotDesc.getKindCase()) {
+                case ORDINARY -> portalTaskId;
                 case STDERR -> slotDesc.getStderr().getTaskId();
                 case STDOUT -> slotDesc.getStdout().getTaskId();
-                case SNAPSHOT, STOREDONS3 -> portalTaskId;
                 default -> throw new RuntimeException("unknown slot kind");
             };
             final SlotInstance slotInstance = new SlotInstance(
@@ -135,92 +134,93 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
             }
 
             switch (slotDesc.getKindCase()) {
-                case SNAPSHOT -> {
-                    var snapshotId = slotDesc.getSnapshot().getId();
+                case ORDINARY -> {
+                    if (slotDesc.getOrdinary().hasLocalId()) {
+                        var snapshotId = slotDesc.getOrdinary().getLocalId();
 
-                    var prevSnapshotId = slot2snapshot.putIfAbsent(slotDesc.getSlot().getName(), snapshotId);
-                    if (prevSnapshotId != null) {
-                        return replyError.apply("Slot '" + slotDesc.getSlot().getName() + "' already associated with "
-                            + "snapshot '" + prevSnapshotId + "'");
-                    }
+                        var prevSnapshotId = slot2snapshot.putIfAbsent(slotDesc.getSlot().getName(), snapshotId);
+                        if (prevSnapshotId != null) {
+                            return replyError.apply("Slot '" + slotDesc.getSlot().getName()
+                                + "' already associated with " + "snapshot '" + prevSnapshotId + "'");
+                        }
 
-                    LzySlot lzySlot;
+                        LzySlot lzySlot;
 
-                    switch (slot.direction()) {
-                        case INPUT -> {
-                            try {
-                                var ss = new SnapshotSlot(snapshotId);
-                                var prev = snapshots.put(snapshotId, ss);
-                                if (prev != null) {
-                                    return replyError.apply("Snapshot '" + snapshotId + "' already exists.");
+                        switch (slot.direction()) {
+                            case INPUT -> {
+                                try {
+                                    var ss = new SnapshotSlot(snapshotId);
+                                    var prev = snapshots.put(snapshotId, ss);
+                                    if (prev != null) {
+                                        return replyError.apply("Snapshot '" + snapshotId + "' already exists.");
+                                    }
+
+                                    lzySlot = ss.setInputSlot(slotInstance);
+                                } catch (IOException e) {
+                                    return replyError.apply("Error file configuring snapshot storage: "
+                                        + e.getMessage());
+                                }
+                            }
+
+                            case OUTPUT -> {
+                                var ss = snapshots.get(snapshotId);
+                                if (ss == null) {
+                                    return replyError.apply("Attempt to open output snapshot " + snapshotId
+                                        + " slot, while input is not set yet");
+                                }
+                                if (ss.getOutputSlot(slot.name()) != null) {
+                                    return replyError.apply("Attempt to open output snapshot " + snapshotId
+                                        + " slot, while input is not set yet");
                                 }
 
-                                lzySlot = ss.setInputSlot(slotInstance);
-                            } catch (IOException e) {
-                                return replyError.apply("Error file configuring snapshot storage: " + e.getMessage());
+                                lzySlot = ss.addOutputSlot(slotInstance);
+                            }
+
+                            default -> {
+                                return replyError.apply("Unknown slot direction " + slot.direction());
                             }
                         }
 
-                        case OUTPUT -> {
-                            var ss = snapshots.get(snapshotId);
-                            if (ss == null) {
-                                return replyError.apply("Attempt to open output snapshot " + snapshotId
-                                    + " slot, while input is not set yet");
-                            }
-                            if (ss.getOutputSlot(slot.name()) != null) {
-                                return replyError.apply("Attempt to open output snapshot " + snapshotId
-                                    + " slot, while input is not set yet");
-                            }
+                        fs.getSlotsManager().registerSlot(lzySlot);
+                    } else {
+                        var s3SnapshotData = slotDesc.getOrdinary().getS3Coords();
+                        String key = s3SnapshotData.getKey();
+                        String bucket = s3SnapshotData.getBucket();
 
-                            lzySlot = ss.addOutputSlot(slotInstance);
+                        S3RepositoryProvider clientProvider = switch (s3SnapshotData.getEndpointCase()) {
+                            case AMAZON -> AmazonS3Key.of(s3SnapshotData.getAmazon().getEndpoint(),
+                                s3SnapshotData.getAmazon().getAccessToken(),
+                                s3SnapshotData.getAmazon().getSecretToken());
+                            case AZURE -> AzureS3Key.of(s3SnapshotData.getAzure().getConnectionString());
+                            default -> null;
+                        };
+                        if (clientProvider == null) {
+                            return replyError.apply("Unknown s3 endpoint type " + s3SnapshotData.getEndpointCase());
                         }
 
-                        default -> {
+                        LzySlot lzySlot = switch (slot.direction()) {
+                            case INPUT -> externalStorage.createSlotSnapshot(slotInstance, key, bucket, clientProvider);
+                            case OUTPUT -> {
+                                S3StorageOutputSlot slot1 = externalStorage.readSlotSnapshot(slotInstance, key,
+                                    bucket, clientProvider);
+                                slot1.open();
+                                yield slot1;
+                            }
+                        };
+                        if (lzySlot != null) {
+                            fs.getSlotsManager().registerSlot(lzySlot);
+                        } else {
                             return replyError.apply("Unknown slot direction " + slot.direction());
                         }
                     }
-
-                    fs.getSlotsManager().registerSlot(lzySlot);
                 }
 
                 case STDOUT, STDERR -> {
-                    final boolean stdout = slotDesc.getKindCase() == PortalSlotDesc.KindCase.STDOUT;
-                    var lzySlot = (stdout ? stdoutSlot : stderrSlot).attach(slotInstance);
+                    var lzySlot = openStdOutErrSlot(slotDesc, slotInstance);
                     if (lzySlot == null) {
                         return replyError.apply("Slot " + slot.name() + " from task " + taskId + " already exists");
                     }
                     fs.getSlotsManager().registerSlot(lzySlot);
-                }
-
-                case STOREDONS3 -> {
-                    var s3SnapshotData = slotDesc.getStoredOnS3();
-                    String key = s3SnapshotData.getS3Key();
-                    String bucket = s3SnapshotData.getS3Bucket();
-
-                    S3RepositoryProvider clientProvider = switch (s3SnapshotData.getS3EndpointCase()) {
-                        case AMAZONSTYLE -> AmazonS3Key.of(s3SnapshotData.getAmazonStyle().getEndpoint(),
-                                s3SnapshotData.getAmazonStyle().getAccessToken(),
-                                s3SnapshotData.getAmazonStyle().getSecretToken());
-                        case AZURESTYLE -> AzureS3Key.of(s3SnapshotData.getAzureStyle().getConnectionString());
-                        default -> null;
-                    };
-                    if (clientProvider == null) {
-                        return replyError.apply("Unknown s3 endpoint type " + s3SnapshotData.getS3EndpointCase());
-                    }
-
-                    LzySlot lzySlot = switch (slot.direction()) {
-                        case INPUT -> externalStorage.createSlotSnapshot(slotInstance, key, bucket, clientProvider);
-                        case OUTPUT -> {
-                            S3StorageOutputSlot slot1 = externalStorage.readSlotSnapshot(slotInstance, key, bucket, clientProvider);
-                            slot1.open();
-                            yield slot1;
-                        }
-                    };
-                    if (lzySlot != null) {
-                        fs.getSlotsManager().registerSlot(lzySlot);
-                    } else {
-                        return replyError.apply("Unknown slot direction " + slot.direction());
-                    }
                 }
 
                 default -> throw new NotImplementedException(slotDesc.getKindCase().name());
@@ -228,6 +228,10 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
         }
 
         return response.build();
+    }
+
+    private LzySlot openStdOutErrSlot(PortalSlotDesc slotDesc, SlotInstance slot) {
+        return (slotDesc.hasStdout() ? stdoutSlot : stderrSlot).attach(slot);
     }
 
     public synchronized LzyPortalApi.PortalStatus status() {
@@ -696,7 +700,7 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
                 .append(", \"storage\": ");
 
         switch (slotDesc.getKindCase()) {
-            case SNAPSHOT -> sb.append("\"snapshot/").append(slotDesc.getSnapshot().getId()).append("\"");
+            case ORDINARY -> sb.append("\"snapshot/").append(slotDesc.getOrdinary().getLocalId()).append("\"");
             case STDOUT -> sb.append("\"stdout\"");
             case STDERR -> sb.append("\"stderr\"");
             default -> sb.append("\"").append(slotDesc.getKindCase()).append("\"");

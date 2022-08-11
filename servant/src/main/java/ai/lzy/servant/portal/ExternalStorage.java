@@ -25,7 +25,8 @@ final class ExternalStorage {
     static int DEFAULT_DOWNLOAD_POOL_SIZE = 10;
     static int DEFAULT_UPLOAD_POOL_SIZE = 10;
 
-    private final Map<S3RepositoryProvider, S3RepositoryWithBucketSelection<Stream<ByteString>>> repositories = new HashMap<>();
+    private final Map<S3RepositoryProvider, S3RepositoryWithBucketSelection<Stream<ByteString>>> repositories
+        = new HashMap<>();
     private final Map<S3RepositoryProvider, S3StorageOutputSlot> toLoad = new HashMap<>();
     private final Map<S3RepositoryProvider, S3StorageInputSlot> toStore = new HashMap<>();
 
@@ -63,7 +64,8 @@ final class ExternalStorage {
         }
     }
 
-    S3StorageInputSlot createSlotSnapshot(SlotInstance instance, String key, String bucket, S3RepositoryProvider s3key) {
+    S3StorageInputSlot createSlotSnapshot(SlotInstance instance, String key,
+                                          String bucket, S3RepositoryProvider s3key) {
         return toStore.computeIfAbsent(s3key, k -> {
             slotToS3Key.put(instance.name(), s3key);
             return new S3StorageInputSlot(instance, key, bucket,

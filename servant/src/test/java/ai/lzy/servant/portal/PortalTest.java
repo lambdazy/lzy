@@ -98,8 +98,8 @@ public class PortalTest {
     // * second task reads from portal
     //
     // both tasks transfer their stdout/stderr to portal
-    public void runGeneralSnapshotOnPortalScenario(PortalSlotDesc inputSnapshotSlot,
-                                                   PortalSlotDesc outputSnapshotSlot) throws Exception {
+    public void runGeneralSnapshotOnPortalScenario(PortalSlotDesc.Builder inputSnapshot,
+                                                   PortalSlotDesc.Builder outputSnapshot) throws Exception {
         // portal
         startServant("portal");
         server.waitServantStart("portal");
@@ -125,7 +125,10 @@ public class PortalTest {
 
         // configure portal to snapshot `channel-1` data
         server.openPortalSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
-            .addSlots(inputSnapshotSlot)
+            .addSlots(inputSnapshot
+                .setSlot(makeInputFileSlot("/portal_slot_1"))
+                .setChannelId("channel_1")
+                .build())
             .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
                 .setSlot(makeInputFileSlot("/portal_task_1:stdout"))
                 .setChannelId("task_1:stdout")
@@ -195,7 +198,9 @@ public class PortalTest {
 
         // open portal output slot
         server.openPortalSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
-            .addSlots(outputSnapshotSlot)
+            .addSlots(outputSnapshot
+                .setSlot(makeOutputFileSlot("/slot_2"))
+                .setChannelId("channel_2"))
             .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
                 .setSlot(makeInputPipeSlot("/portal_task_2:stdout"))
                 .setChannelId("task_2:stdout")
@@ -271,17 +276,11 @@ public class PortalTest {
 
     @Test
     public void testSnapshotOnPortal() throws Exception {
-        var inputSnapshotSlot = LzyPortalApi.PortalSlotDesc.newBuilder()
-            .setSlot(makeInputFileSlot("/portal_slot_1"))
-            .setChannelId("channel_1")
-            .setSnapshot(makeSnapshotStorage("snapshot_1"))
-            .build();
-        var outputSnapshotSlot = LzyPortalApi.PortalSlotDesc.newBuilder()
-            .setSlot(makeOutputFileSlot("/slot_2"))
-            .setChannelId("channel_2")
-            .setSnapshot(makeSnapshotStorage("snapshot_1"))
-            .build();
-        runGeneralSnapshotOnPortalScenario(inputSnapshotSlot, outputSnapshotSlot);
+        var inputSnapshot = LzyPortalApi.PortalSlotDesc.newBuilder()
+            .setOrdinary(makeLocalSnapshot("snapshot_1"));
+        var outputSnapshot = LzyPortalApi.PortalSlotDesc.newBuilder()
+            .setOrdinary(makeLocalSnapshot("snapshot_1"));
+        runGeneralSnapshotOnPortalScenario(inputSnapshot, outputSnapshot);
     }
 
     private void setUpS3() {
@@ -298,21 +297,9 @@ public class PortalTest {
         setUpS3();
 
         var inputS3SnapshotSlot = LzyPortalApi.PortalSlotDesc.newBuilder()
-            .setSlot(makeInputFileSlot("/portal_slot_1"))
-            .setChannelId("channel_1")
-            .setStoredOnS3(LzyPortalApi.PortalSlotDesc.StoredOnS3.newBuilder()
-                .setS3Key("portal_slot_task_1")
-                .setS3Bucket(BUCKET_NAME)
-                .setAmazonStyle(makeAmazonS3Endpoint(S3_ADDRESS)))
-            .build();
+            .setOrdinary(makeAmazonSnapshot("portal_slot_task_1", BUCKET_NAME, S3_ADDRESS));
         var outputS3SnapshotSlot = LzyPortalApi.PortalSlotDesc.newBuilder()
-            .setSlot(makeOutputFileSlot("/slot_2"))
-            .setChannelId("channel_2")
-            .setStoredOnS3(LzyPortalApi.PortalSlotDesc.StoredOnS3.newBuilder()
-                .setS3Key("portal_slot_task_1")
-                .setS3Bucket(BUCKET_NAME)
-                .setAmazonStyle(makeAmazonS3Endpoint(S3_ADDRESS)))
-            .build();
+            .setOrdinary(makeAmazonSnapshot("portal_slot_task_1", BUCKET_NAME, S3_ADDRESS));
         runGeneralSnapshotOnPortalScenario(inputS3SnapshotSlot, outputS3SnapshotSlot);
 
         tearDownS3();
@@ -358,7 +345,7 @@ public class PortalTest {
             .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
                 .setSlot(makeInputFileSlot("/portal_slot_1"))
                 .setChannelId("channel_1")
-                .setSnapshot(makeSnapshotStorage("snapshot_1"))
+                .setOrdinary(makeLocalSnapshot("snapshot_1"))
                 .build())
             .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
                 .setSlot(makeInputFileSlot("/portal_task_1:stdout"))
@@ -374,7 +361,7 @@ public class PortalTest {
             .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
                 .setSlot(makeInputFileSlot("/portal_slot_2"))
                 .setChannelId("channel_2")
-                .setSnapshot(makeSnapshotStorage("snapshot_2"))
+                .setOrdinary(makeLocalSnapshot("snapshot_2"))
                 .build())
             .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
                 .setSlot(makeInputFileSlot("/portal_task_2:stdout"))

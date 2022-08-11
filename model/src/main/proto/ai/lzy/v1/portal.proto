@@ -49,17 +49,31 @@ message AzureS3Endpoint {
   string connectionString = 1;
 }
 
+message S3Coords {
+  string key = 1;
+  string bucket = 2;
+
+  oneof endpoint {
+    AmazonS3Endpoint amazon = 3;
+    AzureS3Endpoint azure = 4;
+  }
+}
+
 message PortalSlotDesc {
   Slot slot = 1;
   string channelId = 2;
 
-  message Snapshot {
-    // portal local storage
-    string id = 1;
+  message Ordinary {
+    oneof storage {
+      // portal local storage
+      string localId = 1;
+      // external s3 storage
+      S3Coords s3Coords = 2;
 
-    // TODO:
-    //  - support whiteboard
-    //  - support kafka (streaming)
+      // TODO:
+      //  - support whiteboard
+      //  - support kafka (streaming)
+    }
   }
 
   message StdOut {
@@ -70,24 +84,12 @@ message PortalSlotDesc {
     string taskId = 1;
   }
 
-  message StoredOnS3 {
-    string s3Key = 1;
-    string s3Bucket = 2;
-
-    oneof s3Endpoint {
-      AmazonS3Endpoint amazonStyle = 3;
-      AzureS3Endpoint azureStyle = 4;
-    }
-  }
-
   oneof kind {
-    // internal volatile storage
-    Snapshot snapshot = 10;
+    // ordinary slot to save into external (persistent) storages or internal volatile portal storage
+    Ordinary ordinary = 10;
     // stdout/stderr of tasks (will be combined and transferred to portal stdout/stderr slots)
     StdOut stdout = 11;
     StdErr stderr = 12;
-    // external (persistent) storages
-    StoredOnS3 storedOnS3 = 13;
   }
 }
 

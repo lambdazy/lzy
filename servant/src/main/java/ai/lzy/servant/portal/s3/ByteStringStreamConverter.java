@@ -20,13 +20,10 @@ import java.util.stream.StreamSupport;
 public class ByteStringStreamConverter implements BiDirectS3Converter<Stream<ByteString>> {
     @Override
     @WillClose
-    public void toStream(Stream<ByteString> value, OutputStream outputStream) throws IOException {
-        System.out.println("------------STARTED TRANSFER DATA--------------");
+    public void toStream(Stream<ByteString> value, OutputStream outputStream) {
         value.forEach(chunk -> {
             try {
-                System.out.println("----------TRYING to TRANSFER CHUNK------------");
                 chunk.writeTo(outputStream);
-                System.out.println("---------TRANSFER CHUNK-----------");
             } catch (IOException e) {
                 // intentionally blank
             }

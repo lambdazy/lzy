@@ -31,7 +31,6 @@ public class S3StorageInputSlot extends LzyInputSlotBase {
         super.connect(slotUri, inputData);
         LOG.info("Attempt to connect slot {} to {}", name(), slotUri);
         repository.put(bucket, key, inputData);
-        System.out.println("----------REPOSITORY------------- PUT");
         state(OPEN);
     }
 }
