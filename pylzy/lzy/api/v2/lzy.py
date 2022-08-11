@@ -10,7 +10,7 @@ from lzy.api.v2.workflow import LzyWorkflow
 from lzy.env.env_provider import EnvProvider
 from lzy.env.lzy_env_provider import LzyEnvProvider
 from lzy.serialization.api import Dumper
-from lzy.serialization.serializer import FileSerializer
+from lzy.serialization.serializer import DefaultSerializer
 
 
 class Lzy:
@@ -25,7 +25,7 @@ class Lzy:
         self._runtime = runtime
         self._snapshot_provider = snapshot_provider
         self._lzy_mount = lzy_mount
-        self._serializer = FileSerializer()
+        self._serializer = DefaultSerializer()
 
     def add_dumper(self, dumper: Dumper) -> None:
         self._serializer.add_dumper(dumper)

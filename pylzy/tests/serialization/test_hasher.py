@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from lzy.serialization.hasher import DelegatingHasher
-from lzy.serialization.serializer import FileSerializer
+from lzy.serialization.serializer import DefaultSerializer
 
 
 class A:
@@ -11,7 +11,7 @@ class A:
 class HasherTests(TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.hasher = DelegatingHasher(FileSerializer())
+        cls.hasher = DelegatingHasher(DefaultSerializer())
 
     def test_simple_object(self):
         obj = "str"
@@ -29,4 +29,4 @@ class HasherTests(TestCase):
         value = self.hasher.hash(obj)
 
         self.assertTrue(can_hash)
-        self.assertEqual(value, "876dbd0cd169cec19c1bca0db3e05595")
+        self.assertEqual(value, "02dc469d361fc32593c6888e80ed86f4")

@@ -31,7 +31,7 @@ from lzy.api.v1.servant.model.execution import (
     InputExecutionValue,
 )
 from lzy.api.v1.servant.model.return_codes import ReturnCode
-from lzy.api.v1.servant.model.slot import DataSchema, pickle_type
+from lzy.api.v1.servant.model.slot import DataSchema
 from lzy.api.v1.servant.model.zygote import Provisioning, Zygote
 from lzy.api.v1.servant.model.zygote_python_func import ZygotePythonFunc
 from lzy.api.v1.servant.servant_client import ServantClient
@@ -176,18 +176,7 @@ class LzyRemoteOp(LzyOp):
 
         if not deployed and not channel_manager:
             raise ValueError("ChannelManager not provided")
-
         self._channel_manager: ChannelManager = channel_manager  # type: ignore
-
-        for input_type in signature.func.input_types.values():
-            if issubclass(input_type, Message):
-                setattr(input_type, "LZY_MESSAGE", "LZY_WB_MESSAGE")
-
-        output_types = signature.func.output_types
-        for output_type in output_types:
-            if issubclass(output_type, Message):
-                setattr(output_type, "LZY_MESSAGE", "LZY_WB_MESSAGE")
-
         self._zygote = ZygotePythonFunc(
             signature.func,
             Env(base_env=base_env, aux_env=pyenv),

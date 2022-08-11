@@ -48,7 +48,7 @@ from lzy.api.v2.utils.types import unwrap
 from lzy.pkg_info import all_installed_packages, create_yaml, select_modules
 from lzy.serialization.api import Serializer
 from lzy.serialization.hasher import DelegatingHasher, Hasher
-from lzy.serialization.serializer import FileSerializer
+from lzy.serialization.serializer import DefaultSerializer
 from lzy.storage import from_credentials
 from lzy.storage.storage_client import StorageClient
 
@@ -218,7 +218,7 @@ class LzyLocalEnv(LzyEnvBase):
             whiteboard_api=InMemWhiteboardApi(),
             snapshot_api=InMemSnapshotApi(),
         )
-        self._file_serializer = FileSerializer()
+        self._file_serializer = DefaultSerializer()
 
     def workflow(
         self,
@@ -243,7 +243,7 @@ class LzyRemoteEnv(LzyEnvBase):
     ):
         self._servant_client: BashServantClient = BashServantClient.instance(lzy_mount)
         self._lzy_mount = lzy_mount
-        self._file_serializer = FileSerializer()
+        self._file_serializer = DefaultSerializer()
         self._hasher = DelegatingHasher(self._file_serializer)
         super().__init__(
             whiteboard_api=WhiteboardBashApi(

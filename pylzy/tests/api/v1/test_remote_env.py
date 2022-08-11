@@ -40,7 +40,7 @@ class MockStorageClient(StorageClient):
 
 def worker(shared):
     cur_path = str(pathlib.Path().resolve())
-    root_path = str(pathlib.Path("../").resolve())
+    root_path = str(pathlib.Path("../../../").resolve())
     sys.path = [path for path in sys.path if path != cur_path and path != root_path]
 
     for k, v in shared.items():

@@ -1,4 +1,3 @@
-import base64
 import datetime
 import os
 import sys
@@ -16,11 +15,11 @@ from lzy.api.v1.signatures import CallSignature, FuncSignature
 from lzy.api.v1.utils import lazy_proxy
 from lzy.api.v2.utils._pickle import unpickle
 from lzy.serialization.hasher import DelegatingHasher
-from lzy.serialization.serializer import FileSerializer
+from lzy.serialization.serializer import DefaultSerializer
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
-file_serializer = FileSerializer()
+file_serializer = DefaultSerializer()
 hasher = DelegatingHasher(file_serializer)
 
 

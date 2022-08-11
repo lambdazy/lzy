@@ -6,7 +6,7 @@ from lzy.api.v2 import op
 from lzy.api.v2.lzy import Lzy
 from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
 from lzy.api.v2.utils._pickle import unpickle
-from lzy.serialization.serializer import FileSerializer
+from lzy.serialization.serializer import DefaultSerializer
 from lzy.storage.storage_client import StorageClient
 
 
@@ -51,7 +51,7 @@ class GrpcRuntimeTests(TestCase):
         self._bucket = str(uuid.uuid4())
         self._runtime = GrpcRuntime(self._storage_client, self._bucket)
         self._lzy = Lzy(runtime=self._runtime)
-        self._serializer = FileSerializer()
+        self._serializer = DefaultSerializer()
 
     @skip("runtime is not written")
     def test_argument_upload(self):
@@ -65,7 +65,7 @@ class GrpcRuntimeTests(TestCase):
             #     .build()
             # )
             graph = None
-            self._runtime._load_args(graph, FileSerializer())
+            self._runtime._load_args(graph, DefaultSerializer())
             self.assertTrue(len(self._storage_client.storage) == 2)
             values = list(
                 map(
