@@ -30,14 +30,16 @@ public class ThreadVmAllocator implements VmAllocator {
 
     @Inject
     public ThreadVmAllocator(ServiceConfig serviceConfig) {
+        var cfg = serviceConfig.threadAllocator().orElseThrow();
+
         try {
             Class<?> vmClass;
 
-            if (!serviceConfig.threadAllocator().vmJarFile().isEmpty()) {
-                final File vmJar = new File(serviceConfig.threadAllocator().vmJarFile());
+            if (!cfg.vmJarFile().isEmpty()) {
+                final File vmJar = new File(cfg.vmJarFile());
                 final URLClassLoader classLoader = new URLClassLoader(new URL[]{vmJar.toURI().toURL()},
                     ClassLoader.getSystemClassLoader());
-                vmClass = Class.forName(serviceConfig.threadAllocator().vmClassName(), true, classLoader);
+                vmClass = Class.forName(cfg.vmClassName(), true, classLoader);
             } else {
                 vmClass = Class.forName("ai.lzy.servant.BashApi");
             }
@@ -77,6 +79,7 @@ public class ThreadVmAllocator implements VmAllocator {
         if (!vmThreads.containsKey(vm.vmId())) {
             return;
         }
+        //noinspection removal
         vmThreads.get(vm.vmId()).stop();
         vmThreads.remove(vm.vmId());
     }
