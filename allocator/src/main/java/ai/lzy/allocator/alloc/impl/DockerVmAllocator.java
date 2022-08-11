@@ -94,8 +94,9 @@ public class DockerVmAllocator implements VmAllocator {
         DOCKER.removeContainerCmd(containerId).exec();
     }
 
+    @org.jetbrains.annotations.Nullable
     @Override
-    public boolean validateRunning(Vm vm) {
-        return true;
+    public VmDesc getVmDesc(Vm vm) {
+        return new VmDesc(vm.sessionId(), vm.vmId(), VmStatus.RUNNING);
     }
 }
