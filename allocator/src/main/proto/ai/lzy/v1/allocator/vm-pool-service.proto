@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package ai.lzy.v1.allocator;
+
+option java_outer_classname = "VmPoolServiceApi";
+option java_package = "ai.lzy.v1";
+
+service VmPoolService {
+  rpc GetVmPools (GetVmPoolsRequest) returns (VmPools);
+}
+
+message VmPoolSpec {
+  string label = 1;             // 's', 'm', 'l', ...
+  string cpu_type = 2;          // IceLake, CascadeLake, Broadwell, ...
+  uint32 cpu_count = 3;         // # of CPU cores
+  string gpu_type = 4;          // V100, A100, ...
+  uint32 gpu_count = 5;         // # of GPU cores
+  uint32 ram_gb = 6;            // RAM in GB
+  repeated string zones = 7;    // availability zones
+}
+
+message GetVmPoolsRequest {
+  // return information about system pools
+  bool with_system_pools = 1;
+
+  // return information about user pools
+  bool with_user_pools = 2;
+}
+
+message VmPools {
+  repeated VmPoolSpec system_pools = 1;
+  repeated VmPoolSpec user_pools = 2;
+}

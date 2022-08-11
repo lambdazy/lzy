@@ -40,12 +40,12 @@ public class KuberVmAllocator implements VmAllocator {
     private static final String POD_NAME_KEY = "pod-name";
 
     private final CoreV1Api api;
-    private final ServiceConfig config;
+    private final ServiceConfig.KuberAllocator config;
     private final VmDao dao;
 
     @Inject
     public KuberVmAllocator(ServiceConfig config, VmDao dao) {
-        this.config = config;
+        this.config = config.kuberAllocator().orElseThrow();
         this.dao = dao;
         try {
             Configuration.setDefaultApiClient(Config.defaultClient());
@@ -183,7 +183,7 @@ public class KuberVmAllocator implements VmAllocator {
 
     private V1Pod readPod() {
         final V1Pod pod;
-        final File file = new File(config.kuberAllocator().podTemplatePath());
+        final File file = new File(config.podTemplatePath());
         try {
             pod = (V1Pod) Yaml.load(file);
         } catch (IOException e) {

@@ -1,0 +1,18 @@
+allocator:
+
+  service-clusters:
+    - 'sys_cluster_1'
+    - 'sys_cluster_2'
+
+  user-clusters:
+    - 'user_cluster_1'
+    - 'user_cluster_2'
+    - 'user_cluster_3'
+
+  yc-mk8s:
+    enabled: true
+    service-account: 'dead-beef'
+    service-account-secret: 'env variable name'
+
+  azure-mk8s:
+    enabled: false
