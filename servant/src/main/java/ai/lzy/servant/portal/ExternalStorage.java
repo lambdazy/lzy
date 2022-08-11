@@ -1,6 +1,8 @@
 package ai.lzy.servant.portal;
 
 import ai.lzy.model.SlotInstance;
+import ai.lzy.servant.portal.slots.S3StorageInputSlot;
+import ai.lzy.servant.portal.slots.S3StorageOutputSlot;
 import ai.lzy.servant.portal.s3.*;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;

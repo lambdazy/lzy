@@ -1,12 +1,12 @@
-package ai.lzy.servant.portal;
+package ai.lzy.servant.portal.slots;
 
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.fs.slots.LzySlotBase;
-import ai.lzy.model.Slot;
 import ai.lzy.model.SlotInstance;
 import ai.lzy.model.slots.TextLinesOutSlot;
+import ai.lzy.servant.portal.Portal.CreatingLzySlotException;
 import ai.lzy.v1.Operations;
 import com.google.protobuf.ByteString;
 import java.net.URI;
@@ -14,6 +14,7 @@ import org.apache.commons.collections4.queue.CircularFifoQueue;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -41,11 +42,12 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
         });
     }
 
-    @Nullable
-    public synchronized LzySlot attach(SlotInstance slotInstance) {
+    @Nonnull
+    public synchronized LzySlot attach(SlotInstance slotInstance) throws CreatingLzySlotException {
         final String taskId = slotInstance.taskId();
         if (task2slot.containsKey(taskId)) {
-            return null;
+            throw new CreatingLzySlotException("Slot " + slotInstance.name() + " from task "
+                + taskId + " already exists");
         }
 
         LOG.info("attach slot " + slotInstance.spec() + ", task " + taskId);

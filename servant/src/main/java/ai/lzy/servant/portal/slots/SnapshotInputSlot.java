@@ -1,7 +1,6 @@
-package ai.lzy.servant.portal;
+package ai.lzy.servant.portal.slots;
 
 import ai.lzy.fs.slots.LzyInputSlotBase;
-import ai.lzy.model.Slot;
 import ai.lzy.model.SlotInstance;
 import ai.lzy.v1.Operations;
 import com.google.protobuf.ByteString;
@@ -9,24 +8,37 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.stream.Stream;
 
-public class StdoutInputSlot extends LzyInputSlotBase {
-    private static final Logger LOG = LogManager.getLogger(StdoutInputSlot.class);
+public class SnapshotInputSlot extends LzyInputSlotBase {
+    private static final Logger LOG = LogManager.getLogger(SnapshotInputSlot.class);
     private static final ThreadGroup READER_TG = new ThreadGroup("input-slot-readers");
 
-    private final StdoutSlot stdoutSlot;
+    private final Path storage;
+    private final OutputStream outputStream;
 
-    public StdoutInputSlot(SlotInstance slotInstance, StdoutSlot stdoutSlot) {
+    public SnapshotInputSlot(SlotInstance slotInstance, Path storage) throws IOException {
         super(slotInstance);
-        this.stdoutSlot = stdoutSlot;
+        this.storage = storage;
+        this.outputStream = Files.newOutputStream(storage);
     }
 
     @Override
     public void connect(URI slotUri, Stream<ByteString> dataProvider) {
         super.connect(slotUri, dataProvider);
         LOG.info("Attempt to connect to " + slotUri + " slot " + this);
+
+        onState(Operations.SlotStatus.State.OPEN, () -> {
+            try {
+                outputStream.close();
+            } catch (IOException e) {
+                LOG.error("Error while closing file {}: {}", storage, e.getMessage(), e);
+            }
+        });
 
         var t = new Thread(READER_TG, this::readAll, "reader-from-" + slotUri + "-to-" + definition().name());
         t.start();
@@ -37,17 +49,21 @@ public class StdoutInputSlot extends LzyInputSlotBase {
     @Override
     protected void onChunk(ByteString bytes) throws IOException {
         super.onChunk(bytes);
-        stdoutSlot.onLine(name(), bytes);
+        outputStream.write(bytes.toByteArray());
     }
 
     @Override
     public synchronized void destroy() {
         super.destroy();
-        stdoutSlot.detach(name());
+        try {
+            outputStream.close();
+        } catch (IOException e) {
+            LOG.warn("Can not close storage for {}: {}", this, e.getMessage());
+        }
     }
 
     @Override
     public String toString() {
-        return "StdoutInputSlot: " + definition().name();
+        return "SnapshotInputSlot: " + definition().name() + " -> " + storage.toString();
     }
 }

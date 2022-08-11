@@ -2,6 +2,8 @@ package ai.lzy.servant.portal;
 
 import ai.lzy.model.Slot;
 import ai.lzy.model.SlotInstance;
+import ai.lzy.servant.portal.slots.SnapshotInputSlot;
+import ai.lzy.servant.portal.slots.SnapshotOutputSlot;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -9,6 +11,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
@@ -50,7 +53,7 @@ class SnapshotSlot {
         return outputSlots.get(slotName);
     }
 
-    Iterable<SnapshotOutputSlot> getOutputSlots() {
+    Collection<SnapshotOutputSlot> getOutputSlots() {
         return outputSlots.values();
     }
 
