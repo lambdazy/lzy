@@ -175,9 +175,9 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
     }
 
     @Override
-    public void channelsStatus(ChannelManager.ChannelsStatusRequest request,
+    public void statusAll(ChannelManager.ChannelStatusAllRequest request,
                                StreamObserver<ChannelManager.ChannelStatusList> responseObserver) {
-        super.channelsStatus(request, responseObserver);
+        super.statusAll(request, responseObserver);
     }
 
     @Override

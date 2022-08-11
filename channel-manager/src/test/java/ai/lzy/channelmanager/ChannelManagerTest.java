@@ -10,7 +10,7 @@ import ai.lzy.v1.ChannelManager.ChannelCreateResponse;
 import ai.lzy.v1.ChannelManager.ChannelDestroyAllRequest;
 import ai.lzy.v1.ChannelManager.ChannelDestroyRequest;
 import ai.lzy.v1.ChannelManager.ChannelStatusRequest;
-import ai.lzy.v1.ChannelManager.ChannelsStatusRequest;
+import ai.lzy.v1.ChannelManager.ChannelStatusAllRequest;
 import ai.lzy.v1.ChannelManager.SlotAttach;
 import ai.lzy.v1.ChannelManager.SlotDetach;
 import ai.lzy.v1.Channels.ChannelSpec;
@@ -101,7 +101,7 @@ public class ChannelManagerTest extends BaseTestWithIam {
         }
 
         try {
-            unauthorizedChannelManagerClient.channelsStatus(ChannelsStatusRequest.newBuilder().build());
+            unauthorizedChannelManagerClient.statusAll(ChannelStatusAllRequest.newBuilder().build());
             Assert.fail();
         } catch (StatusRuntimeException e) {
             Assert.assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());

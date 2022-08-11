@@ -35,7 +35,8 @@ public final class Channel implements LzyCommand {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     /*
-     * ~$ channel <common-opts> channel-cmd channel-name -c content-type -t channel-type -s snapshot-id -e entry-id
+     * ~$ channel <common-opts> channel-cmd channel-name -c content-type -t channel-type
+     *                                                   -w workflow-id -s snapshot-id -e entry-id
      *
      *   argNo:                  #1          #2           <parsed>
      */
@@ -43,6 +44,7 @@ public final class Channel implements LzyCommand {
     static {
         options.addOption("c", "content-type", true, "Content type");
         options.addOption("t", "channel-type", true, "Channel type (direct or snapshot)");
+        options.addOption("w", "workflow-id", true, "Workflow id");
         options.addOption("s", "snapshot-id", true, "Snapshot id. Must be set if channel type is `snapshot`");
         options.addOption("e", "entry-id", true, "Snapshot entry id. Must be set if channel type is `snapshot`");
     }
@@ -55,9 +57,9 @@ public final class Channel implements LzyCommand {
                 "Invalid call format. Expected: "
                     + "channel <common-opts> cmd "
                     + "[name|channel-id] "
-                    + "[-w workflow-id] "
                     + "[-c content-type] "
                     + "[-t channel-type] "
+                    + "[-w workflow-id] "
                     + "[-s snapshot-id] "
                     + "[-e entry-id]");
         }
@@ -124,7 +126,7 @@ public final class Channel implements LzyCommand {
                     channelSpecBuilder.setDirect(Channels.DirectChannelType.newBuilder().build());
                 }
 
-                String workflowId = command.getOptionValue('i');
+                String workflowId = command.getOptionValue('w');
                 final ChannelManager.ChannelCreateResponse channelCreateResponse = channelManager.create(
                     ChannelManager.ChannelCreateRequest.newBuilder()
                         .setWorkflowId(workflowId)
