@@ -5,10 +5,11 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.SessionDao;
 import ai.lzy.allocator.dao.VmDao;
-import ai.lzy.model.db.TransactionManager;
 import ai.lzy.allocator.model.Session;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
+import ai.lzy.model.db.Storage;
+import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.OperationService.Operation;
 import ai.lzy.v1.VmAllocatorApi.*;
@@ -35,25 +36,25 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
     private final SessionDao sessions;
     private final VmAllocator allocator;
     private final ServiceConfig config;
-    private final TransactionManager transactions;
+    private final Storage storage;
 
     @Inject
     public AllocatorApi(VmDao dao, OperationDao operations, SessionDao sessions,
-            VmAllocator allocator, ServiceConfig config, TransactionManager transactions) {
+        VmAllocator allocator, ServiceConfig config, Storage storage) {
         this.dao = dao;
         this.operations = operations;
         this.sessions = sessions;
         this.allocator = allocator;
         this.config = config;
-        this.transactions = transactions;
+        this.storage = storage;
     }
 
     @Override
     public void createSession(CreateSessionRequest request, StreamObserver<CreateSessionResponse> responseObserver) {
         final Session session = sessions.create(
             request.getOwner(),
-            Duration.ofSeconds(request.getCachePolicy().getMinIdleTimeout().getSeconds())
-                .plus(request.getCachePolicy().getMinIdleTimeout().getNanos(), ChronoUnit.NANOS),
+            Duration.ofSeconds(request.getCachePolicy().getIdleTimeout().getSeconds())
+                .plus(request.getCachePolicy().getIdleTimeout().getNanos(), ChronoUnit.NANOS),
             null);
         responseObserver.onNext(CreateSessionResponse.newBuilder()
             .setSessionId(session.sessionId())
@@ -65,7 +66,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
     public void deleteSession(DeleteSessionRequest request, StreamObserver<DeleteSessionResponse> responseObserver) {
         responseObserver.onNext(DeleteSessionResponse.newBuilder().build());
         responseObserver.onCompleted();
-        try (var transaction = transactions.start()) {
+        try (var transaction = new TransactionHandle(storage)) {
             final List<Vm> vms = dao.list(request.getSessionId(), transaction);
             vms.forEach(vm -> {
                 dao.update(new Vm.VmBuilder(vm)
@@ -98,7 +99,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             null
         );
 
-        try (var transaction = transactions.start()) {
+        try (var transaction = new TransactionHandle(storage)) {
 
             final var existingVm = dao.acquire(request.getSessionId(), request.getPoolId(), transaction);
 
@@ -132,7 +133,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
         Vm vm = null;
 
-        try (var transaction = transactions.start()) {
+        try (var transaction = new TransactionHandle(storage)) {
             vm = dao.create(request.getSessionId(), request.getPoolId(), workloads, transaction);
             op = op.modifyMeta(Any.pack(AllocateMetadata.newBuilder().setVmId(vm.vmId()).build()));
             operations.update(op, transaction);

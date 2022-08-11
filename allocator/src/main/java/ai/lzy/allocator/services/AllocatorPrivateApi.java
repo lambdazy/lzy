@@ -4,8 +4,9 @@ package ai.lzy.allocator.services;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.VmDao;
-import ai.lzy.model.db.TransactionManager;
 import ai.lzy.allocator.model.Vm;
+import ai.lzy.model.db.Storage;
+import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.v1.AllocatorPrivateGrpc.AllocatorPrivateImplBase;
 import ai.lzy.v1.VmAllocatorApi.AllocateResponse;
 import ai.lzy.v1.VmAllocatorPrivateApi.HeartbeatRequest;
@@ -31,14 +32,13 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
     private final VmDao dao;
     private final OperationDao operations;
     private final VmAllocator allocator;
-    private final TransactionManager transactions;
+    private final Storage storage;
 
-    public AllocatorPrivateApi(VmDao dao, OperationDao operations, VmAllocator allocator,
-           TransactionManager transactions) {
+    public AllocatorPrivateApi(VmDao dao, OperationDao operations, VmAllocator allocator, Storage storage) {
         this.dao = dao;
         this.operations = operations;
         this.allocator = allocator;
-        this.transactions = transactions;
+        this.storage = storage;
     }
 
     @Override
@@ -74,7 +74,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
             return;
         }
 
-        try (final var transaction = transactions.start()) {
+        try (final var transaction = new TransactionHandle(storage)) {
             dao.update(new Vm.VmBuilder(vm)
                 .setState(Vm.State.RUNNING)
                 .setVmMeta(request.getMetadataMap())

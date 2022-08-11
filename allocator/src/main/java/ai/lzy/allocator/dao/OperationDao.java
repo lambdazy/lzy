@@ -1,6 +1,6 @@
 package ai.lzy.allocator.dao;
 
-import ai.lzy.model.db.TransactionManager.TransactionHandle;
+import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.allocator.model.Operation;
 import com.google.protobuf.Any;
 

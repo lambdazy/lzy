@@ -1,12 +1,9 @@
 package ai.lzy.allocator.alloc;
 
 import ai.lzy.allocator.model.Vm;
-import ai.lzy.model.db.TransactionManager;
-import ai.lzy.model.db.TransactionManager.TransactionHandle;
+import ai.lzy.model.db.TransactionHandle;
 
 import javax.annotation.Nullable;
-import java.io.Serializable;
-import java.util.Map;
 
 public interface VmAllocator {
     /**

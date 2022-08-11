@@ -4,7 +4,7 @@ import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
-import ai.lzy.model.db.TransactionManager.TransactionHandle;
+import ai.lzy.model.db.TransactionHandle;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.model.ExposedPort;

@@ -5,7 +5,8 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.model.Vm;
-import ai.lzy.model.db.TransactionManager;
+import ai.lzy.model.db.Storage;
+import ai.lzy.model.db.TransactionHandle;
 import io.grpc.Status;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -23,16 +24,16 @@ public class GarbageCollector extends TimerTask {
     private final OperationDao operations;
     private final VmAllocator allocator;
     private final Timer timer = new Timer("gc-timer", true);
-    private final TransactionManager transactions;
+    private final Storage storage;
 
 
     @Inject
-    public GarbageCollector(VmDao dao, OperationDao operations, VmAllocator allocator, ServiceConfig config,
-            TransactionManager transactions) {
+    public GarbageCollector(VmDao dao, OperationDao operations, VmAllocator allocator,
+            ServiceConfig config, Storage storage) {
         this.dao = dao;
         this.operations = operations;
         this.allocator = allocator;
-        this.transactions = transactions;
+        this.storage = storage;
         timer.scheduleAtFixedRate(this, config.gcPeriod().toMillis(), config.gcPeriod().toMillis());
     }
 
@@ -41,7 +42,7 @@ public class GarbageCollector extends TimerTask {
         LOG.debug("Starting garbage collector");
         var vms = dao.getExpired(100, null);
         vms.forEach(vm -> {
-            try (var tr = transactions.start()) {
+            try (var tr = new TransactionHandle(storage)) {
                 dao.update(new Vm.VmBuilder(vm).setState(Vm.State.DEAD).build(), tr);
                 allocator.deallocate(vm);
                 var op = operations.get(vm.allocationOperationId(), tr);
