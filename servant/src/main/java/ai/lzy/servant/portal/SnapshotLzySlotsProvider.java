@@ -5,7 +5,8 @@ import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.model.SlotInstance;
 import ai.lzy.servant.portal.slots.S3StorageOutputSlot;
-import ai.lzy.v1.LzyPortalApi.PortalSlotDesc.Ordinary;
+import ai.lzy.v1.LzyPortalApi;
+import ai.lzy.v1.LzyPortalApi.PortalSlotDesc.Snapshot;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -22,7 +23,7 @@ final class SnapshotLzySlotsProvider {
 
     private final ExternalStorage externalStorage = new ExternalStorage();
 
-    public LzySlot createLzySlot(Ordinary snapshotData, SlotInstance slot) throws CreatingLzySlotException {
+    public LzySlot createLzySlot(Snapshot snapshotData, SlotInstance slot) throws CreatingLzySlotException {
         LzySlot lzySlot;
         if (snapshotData.hasLocalId()) {
             var snapshotId = snapshotData.getLocalId();

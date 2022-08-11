@@ -63,7 +63,7 @@ message PortalSlotDesc {
   Slot slot = 1;
   string channelId = 2;
 
-  message Ordinary {
+  message Snapshot {
     oneof storage {
       // portal local storage
       string localId = 1;
@@ -85,8 +85,8 @@ message PortalSlotDesc {
   }
 
   oneof kind {
-    // ordinary slot to save into external (persistent) storages or internal volatile portal storage
-    Ordinary ordinary = 10;
+    // snapshot slot to save into external (persistent) and internal volatile portal storage
+    Snapshot snapshot = 10;
     // stdout/stderr of tasks (will be combined and transferred to portal stdout/stderr slots)
     StdOut stdout = 11;
     StdErr stderr = 12;

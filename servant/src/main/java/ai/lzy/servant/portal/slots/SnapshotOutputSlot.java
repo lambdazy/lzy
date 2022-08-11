@@ -3,7 +3,6 @@ package ai.lzy.servant.portal.slots;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.slots.LzySlotBase;
 import ai.lzy.fs.slots.OutFileSlot;
-import ai.lzy.model.Slot;
 import ai.lzy.model.SlotInstance;
 import com.google.protobuf.ByteString;
 

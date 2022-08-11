@@ -111,7 +111,7 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
             }
 
             final String taskId = switch (slotDesc.getKindCase()) {
-                case ORDINARY -> portalTaskId;
+                case SNAPSHOT -> portalTaskId;
                 case STDERR -> slotDesc.getStderr().getTaskId();
                 case STDOUT -> slotDesc.getStdout().getTaskId();
                 default -> throw new NotImplementedException(slotDesc.getKindCase().name());
@@ -121,7 +121,7 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
 
             try {
                 LzySlot newLzySlot = switch (slotDesc.getKindCase()) {
-                    case ORDINARY -> snapshots.createLzySlot(slotDesc.getOrdinary(), slotInstance);
+                    case SNAPSHOT -> snapshots.createLzySlot(slotDesc.getSnapshot(), slotInstance);
                     case STDOUT -> stdoutSlot.attach(slotInstance);
                     case STDERR -> stderrSlot.attach(slotInstance);
                     default -> throw new NotImplementedException(slotDesc.getKindCase().name());
@@ -438,7 +438,7 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
                 .append(", \"storage\": ");
 
         switch (slotDesc.getKindCase()) {
-            case ORDINARY -> sb.append("\"snapshot/").append(slotDesc.getOrdinary().getLocalId()).append("\"");
+            case SNAPSHOT -> sb.append("\"snapshot/").append(slotDesc.getSnapshot().getLocalId()).append("\"");
             case STDOUT -> sb.append("\"stdout\"");
             case STDERR -> sb.append("\"stderr\"");
             default -> sb.append("\"").append(slotDesc.getKindCase()).append("\"");
