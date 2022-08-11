@@ -8,7 +8,7 @@ from ai.lzy.v1.zygote_pb2 import _DATASCHEME  # type: ignore
 from ai.lzy.v1.zygote_pb2 import _SLOT_DIRECTION  # type: ignore
 from ai.lzy.v1.zygote_pb2 import _SLOT_MEDIA  # type: ignore
 from ai.lzy.v1.zygote_pb2 import DataScheme, Slot
-from lzy.api.v2.remote_grpc.model._pickle import pickle
+from lzy.api.v2.utils._pickle import pickle
 
 
 def opposite(direction: _SLOT_DIRECTION):

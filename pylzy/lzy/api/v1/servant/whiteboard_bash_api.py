@@ -1,4 +1,3 @@
-import base64
 import json
 import logging
 import tempfile
@@ -6,10 +5,6 @@ from datetime import datetime
 from json.decoder import JSONDecodeError
 from typing import Any, BinaryIO, Dict, List, Optional, Tuple, Type, TypeVar, cast
 
-# noinspection PyProtectedMember
-import cloudpickle
-
-from lzy._proxy import proxy_optional
 from lzy.api.v1.servant.bash_servant_client import exec_bash
 from lzy.api.v1.servant.model.slot import DataSchema
 from lzy.api.v1.servant.servant_client import CredentialsTypes, ServantClient
@@ -25,7 +20,7 @@ from lzy.api.v1.whiteboard.model import (
     WhiteboardStatus,
     get_bucket_from_url,
 )
-from lzy.serialization.serializer import FileSerializer
+from lzy.serialization.api import Serializer
 from lzy.storage.credentials import StorageCredentials
 from lzy.storage.storage_client import StorageClient
 
@@ -60,7 +55,7 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 
 class WhiteboardBashApi(WhiteboardApi):
     def __init__(
-        self, mount_point: str, client: ServantClient, serializer: FileSerializer
+        self, mount_point: str, client: ServantClient, serializer: Serializer
     ) -> None:
         super().__init__()
         self._mount = mount_point
@@ -90,7 +85,7 @@ class WhiteboardBashApi(WhiteboardApi):
             # TODO(aleksZubakov): do we need retry here?
             self._whiteboard_storage(bucket).read(field_url, cast(BinaryIO, file))
             file.seek(0)
-            obj = self._serializer.deserialize_from_file(file, real_type)
+            obj = self._serializer.deserialize(cast(BinaryIO, file), real_type)
         return obj
 
     def create(
