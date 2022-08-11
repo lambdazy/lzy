@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package ai.lzy.v1.iam;
+
+import "ai/lzy/v1/iam/iam.proto";
+
+option java_outer_classname = "LSS";
+option java_package = "ai.lzy.v1.iam";
+
+service LzySubjectService {
+  rpc CreateSubject (CreateSubjectRequest) returns (ai.lzy.v1.iam.Subject);
+
+  rpc RemoveSubject (RemoveSubjectRequest) returns (RemoveSubjectResponse);
+
+  rpc AddCredentials (AddCredentialsRequest) returns (AddCredentialsResponse);
+
+  rpc RemoveCredentials (RemoveCredentialsRequest) returns (RemoveCredentialsResponse);
+}
+
+message CreateSubjectRequest {
+  string name = 1;
+  string auth_provider = 2;
+  string provider_subject_id = 3;
+  string type = 4;
+}
+
+message RemoveSubjectRequest {
+  ai.lzy.v1.iam.Subject subject = 1;
+}
+
+message RemoveSubjectResponse {
+}
+
+message AddCredentialsRequest {
+  ai.lzy.v1.iam.Subject subject = 1;
+  ai.lzy.v1.iam.Credentials credentials = 2;
+}
+
+message AddCredentialsResponse {
+}
+
+message RemoveCredentialsRequest {
+  ai.lzy.v1.iam.Subject subject = 1;
+  string credentials_name = 2;
+}
+
+message RemoveCredentialsResponse {
+}

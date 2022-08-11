@@ -9,8 +9,8 @@
     <relativePath>../../util</relativePath>
   </parent>
 
-  <artifactId>util-test</artifactId>
   <modelVersion>4.0.0</modelVersion>
+  <artifactId>util-test</artifactId>
   <version>1.0-SNAPSHOT</version>
 
   <properties>
@@ -21,9 +21,20 @@
   <dependencies>
     <dependency>
       <groupId>ai.lzy</groupId>
+      <artifactId>iam-api</artifactId>
+      <version>1.0-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>ai.lzy</groupId>
       <artifactId>iam</artifactId>
       <version>1.0-SNAPSHOT</version>
     </dependency>
+    <dependency>
+      <groupId>ai.lzy</groupId>
+      <artifactId>model</artifactId>
+      <version>1.0-SNAPSHOT</version>
+    </dependency>
+
     <dependency>
       <artifactId>junit</artifactId>
       <groupId>junit</groupId>

@@ -1,5 +1,6 @@
 package ai.lzy.iam.storage.impl;
 
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.storage.db.IamDataSource;
 import io.micronaut.context.ApplicationContext;
 import org.apache.logging.log4j.LogManager;
@@ -43,8 +44,13 @@ public class DbSubjectServiceTest {
 
     @Test
     public void createAndDeleteTest() {
-        create("1");
-        create("2");
+        createAndDeleteScenario(SubjectType.USER);
+        createAndDeleteScenario(SubjectType.SERVANT);
+    }
+
+    public void createAndDeleteScenario(SubjectType subjectType) {
+        create("1", subjectType);
+        create("2", subjectType);
 
         Subject user1 = subjectService.subject("1");
         assertEquals("1", user1.id());
@@ -72,8 +78,13 @@ public class DbSubjectServiceTest {
     }
 
     @Test
-    public void createAndRemoveWithCredentials() {
-        create("1");
+    public void createAndRemoveWithCredentialsTest() {
+        createAndRemoveWithCredentialsScenario(SubjectType.USER);
+        createAndRemoveWithCredentialsScenario(SubjectType.SERVANT);
+    }
+
+    public void createAndRemoveWithCredentialsScenario(SubjectType subjectType) {
+        create("1", subjectType);
         Subject user = subjectService.subject("1");
         addCredentials(user, "1");
         addCredentials(user, "2");
@@ -110,8 +121,8 @@ public class DbSubjectServiceTest {
         subjectService.removeSubject(user);
     }
 
-    private void create(String id) {
-        subjectService.createSubject(id, "provider", "providerID");
+    private void create(String id, SubjectType subjectType) {
+        subjectService.createSubject(id, "provider", "providerID", subjectType);
     }
 
     private void addCredentials(Subject subject, String name) {

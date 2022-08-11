@@ -3,7 +3,6 @@ package ai.lzy.iam.grpc.service;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
-import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

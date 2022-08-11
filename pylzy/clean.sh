@@ -3,7 +3,7 @@
 echo "Clean up"
 
 # __pycache__
-find . -iname '__pycache__' -type d -exec rm -rvf '{}' +
+find . \( -iname '__pycache__' -o -iname '*.pyc' \) -type d -exec rm -rvf '{}' +
 
 # package build artefacts
 rm -rvf *.egg-info dist/ build/ lzy/lzy-servant-*.jar
@@ -15,7 +15,12 @@ rm -rvf .mypy_cache test_output
 rm -rvf _build/
 
 # mvn build artefacts
-rm -rvf target/ 
+rm -rvf target/
 
 # generated proto files
-[ -n "$1" ] || rm -rvf "$proto_out/priv" "$proto_out/v1" "ai/"
+[ ! -v 1 ] || rm -rvf "$proto_out/priv" "$proto_out/v1" "ai/"
+
+# coverage report
+[ ! -v 2 ] || rm -vf ./.coverage ./coverage.svg
+
+

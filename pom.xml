@@ -26,6 +26,7 @@
         <module>whiteboard</module>
         <module>fs</module>
         <module>iam</module>
+        <module>iam-api</module>
         <module>graph-executor</module>
         <module>jupyter-kernel</module>
         <module>channel-manager</module>
@@ -33,5 +34,6 @@
         <module>storage</module>
         <module>disk-service</module>
         <module>coverage</module>
+        <module>allocator</module>
     </modules>
 </project>

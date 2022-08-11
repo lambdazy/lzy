@@ -20,4 +20,8 @@ class AmazonCredentials:
     secret_token: str
 
 
-StorageCredentials = Union[AzureCredentials, AmazonCredentials, AzureSasCredentials]
+StorageCredentials = Union[
+    AzureCredentials,
+    AmazonCredentials,
+    AzureSasCredentials,
+]

@@ -1,5 +1,6 @@
 package ai.lzy.iam.storage.impl;
 
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.storage.db.IamDataSource;
 import io.micronaut.context.ApplicationContext;
 import org.apache.logging.log4j.LogManager;
@@ -12,7 +13,6 @@ import ai.lzy.iam.authorization.exceptions.AuthPermissionDeniedException;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.utils.CredentialsHelper;
 
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 public class DbAuthServiceTest {
@@ -120,9 +120,18 @@ public class DbAuthServiceTest {
     }
 
     @Test
-    public void validAuth() throws Exception {
+    public void validAuthUser() throws Exception {
+        validAuth(SubjectType.USER);
+    }
+
+    @Test
+    public void validAuthServant() throws Exception {
+        validAuth(SubjectType.SERVANT);
+    }
+
+    public void validAuth(SubjectType subjectType) throws Exception {
         String userId = "user1";
-        subjectService.createSubject(userId, "", "");
+        subjectService.createSubject(userId, "", "", subjectType);
         final Subject user = subjectService.subject(userId);
         subjectService.addCredentials(user, "testCred", PUBLIC_PEM2, "public_key");
 
@@ -130,9 +139,18 @@ public class DbAuthServiceTest {
     }
 
     @Test
-    public void invalidAuth() throws Exception {
+    public void invalidAuthUser() throws Exception {
+        invalidAuth(SubjectType.USER);
+    }
+
+    @Test
+    public void invalidAuthServant() throws Exception {
+        invalidAuth(SubjectType.SERVANT);
+    }
+
+    public void invalidAuth(SubjectType subjectType) throws Exception {
         String userId = "user1";
-        subjectService.createSubject(userId, "", "");
+        subjectService.createSubject(userId, "", "", subjectType);
         final Subject user = subjectService.subject(userId);
         subjectService.addCredentials(user, "testCred", PUBLIC_PEM2, "public_key");
 
@@ -145,7 +163,9 @@ public class DbAuthServiceTest {
 
     @After
     public void tearDown() {
-        try (PreparedStatement st = storage.connect().prepareStatement("DROP ALL OBJECTS DELETE FILES;")) {
+        try (var conn = storage.connect();
+             var st = conn.prepareStatement("DROP ALL OBJECTS DELETE FILES;")
+        ) {
             st.executeUpdate();
         } catch (SQLException e) {
             LOG.error(e);

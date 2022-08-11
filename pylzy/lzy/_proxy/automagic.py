@@ -232,7 +232,10 @@ def proxy(
 
 
 def proxy_optional(
-    constructor: Callable[[], T], proto_type: Type[T], cls_attrs=None, obj_attrs=None
+    constructor: Callable[[], T],
+    proto_type: Type[T],
+    cls_attrs=None,
+    obj_attrs=None,
 ) -> Any:
     cls_attrs = cls_attrs or {}
     obj_attrs = obj_attrs or {}

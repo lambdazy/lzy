@@ -5,6 +5,7 @@ import ai.lzy.iam.resources.AccessBindingDelta;
 import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.AuthResource;
 import ai.lzy.iam.resources.Role;
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.storage.db.IamDataSource;
 import io.micronaut.context.ApplicationContext;
 import org.apache.logging.log4j.LogManager;
@@ -43,9 +44,18 @@ public class DbAccessClientTest {
     }
 
     @Test
-    public void validAccess() {
+    public void validAccessUser() {
+        validAccess(SubjectType.USER);
+    }
+
+    @Test
+    public void validAccessServant() {
+        validAccess(SubjectType.SERVANT);
+    }
+
+    public void validAccess(SubjectType subjectType) {
         String userId = "user1";
-        subjectService.createSubject(userId, "", "");
+        subjectService.createSubject(userId, "", "", subjectType);
         final Subject user = subjectService.subject(userId);
 
         AuthResource whiteboardResource = new Whiteboard("whiteboard");
@@ -105,9 +115,18 @@ public class DbAccessClientTest {
     }
 
     @Test
-    public void invalidAccess() throws Exception {
+    public void invalidAccessUser() {
+        invalidAccess(SubjectType.USER);
+    }
+
+    @Test
+    public void invalidAccessServant() {
+        invalidAccess(SubjectType.SERVANT);
+    }
+
+    public void invalidAccess(SubjectType subjectType) {
         String userId = "user1";
-        subjectService.createSubject(userId, "", "");
+        subjectService.createSubject(userId, "", "", subjectType);
         final Subject user = subjectService.subject(userId);
 
         AuthResource whiteboardResource = new Whiteboard("whiteboard");
@@ -158,7 +177,9 @@ public class DbAccessClientTest {
 
     @After
     public void tearDown() {
-        try (PreparedStatement st = storage.connect().prepareStatement("DROP ALL OBJECTS DELETE FILES;")) {
+        try (var conn = storage.connect();
+             var st = conn.prepareStatement("DROP ALL OBJECTS DELETE FILES;")
+        ) {
             st.executeUpdate();
         } catch (SQLException e) {
             LOG.error(e);

@@ -10,17 +10,17 @@ import org.apache.logging.log4j.LogManager;
 import ai.lzy.kharon.LzyKharon;
 import ai.lzy.model.UriScheme;
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.whiteboard.api.SnapshotApi;
 import ai.lzy.v1.LzyKharonGrpc;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
 public class KharonThreadContext implements LzyKharonTestContext {
+    private static final Logger LOG = LogManager.getLogger(KharonThreadContext.class);
 
     private static final long KHARON_STARTUP_TIMEOUT_SEC = 60;
     private static final int LZY_KHARON_PORT = 8899;
@@ -33,6 +33,7 @@ public class KharonThreadContext implements LzyKharonTestContext {
     private final String channelManagerAddress;
     private final String channelManagerProxyAddress;
     private final String iamAddress;
+    private ApplicationContext context;
     private LzyKharon kharon;
     private ManagedChannel channel;
     private LzyKharonGrpc.LzyKharonBlockingStub lzyKharonClient;
@@ -96,9 +97,10 @@ public class KharonThreadContext implements LzyKharonTestContext {
         props.put("kharon.storage.address", "localhost:" + StorageThreadContext.STORAGE_PORT);
         props.put("kharon.workflow.enabled", "true");
 
-        try (ApplicationContext context = ApplicationContext.run(PropertySource.of(props))) {
-            var logger = LogManager.getLogger(SnapshotApi.class);
-            logger.info("Starting LzyKharon on port {}...", LZY_KHARON_PORT);
+        LOG.info("Starting LzyKharon on port {}...", LZY_KHARON_PORT);
+
+        try {
+            context = ApplicationContext.run(PropertySource.of(props));
 
             try {
                 kharon = new LzyKharon(context);
@@ -117,6 +119,9 @@ public class KharonThreadContext implements LzyKharonTestContext {
             while (channel.getState(true) != ConnectivityState.READY) {
                 LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(100));
             }
+        } catch (Exception e) {
+            LOG.fatal("Failed to start Kharon: {}", e.getMessage(), e);
+            throw e;
         }
     }
 
@@ -127,6 +132,7 @@ public class KharonThreadContext implements LzyKharonTestContext {
             channel.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
             kharon.close();
             kharon.awaitTermination();
+            context.close();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }

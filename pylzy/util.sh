@@ -13,25 +13,26 @@ start() {
 }
 
 finish() {
-     _print_ce "$_w"
+     _rc_info "$_w"
 }
 
 run() {
-    (_ex=$?; type="$1"; cmd="$2"; _isolate_run; upd_rc;)
+    (_ex=$?; type="$1"; shift 1; _isolate_run $@; _upd_rc;)
 }
 
-upd_rc() {
+_upd_rc() {
     [ $? -eq 0 ] && [ $_ex -eq 0 ]
 }
 
 _isolate_run() {
+    cmd="$@"
     println "Calling $type:" "$ $cmd"
     $cmd
-    _print_ce "$type"
+    _rc_info "$type" "$cmd"
 }
 
-_print_ce() {
-    (_ex=$?; type="$1"; _print_cmd_exit; exit $_ex;)
+_rc_info() {
+    (_ex=$?; type="$1"; [ -v 2 ] && cmd="$2"; _print_cmd_exit; return $_ex;)
 }
 
 _print_cmd_exit()  {

@@ -28,6 +28,12 @@
     <dependency>
       <artifactId>curator-framework</artifactId>
       <groupId>org.apache.curator</groupId>
+      <exclusions>
+        <exclusion>
+          <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <artifactId>curator-recipes</artifactId>
@@ -37,6 +43,12 @@
       <artifactId>curator-test</artifactId>
       <groupId>org.apache.curator</groupId>
       <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <artifactId>streamex</artifactId>
@@ -65,6 +77,14 @@
     <dependency>
       <artifactId>log4j-core</artifactId>
       <groupId>org.apache.logging.log4j</groupId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-slf4j-impl</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
     </dependency>
     <dependency>
       <artifactId>grpc-protobuf</artifactId>

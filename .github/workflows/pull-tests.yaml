@@ -33,21 +33,22 @@ jobs:
           cd pylzy/
           ./gen_proto.sh
           ./run_tests.sh
-
-      - name: 'clean after python-test'
-        run: |
-          ./clean.sh
-          cd ..
-
-      - name: 'upload py coverage badge'
+         
+      - name: 'upload coverage badge'
         uses: exuanbo/actions-deploy-gist@v1
+        if: github.ref == 'refs/heads/master'
         with:
           token: ${{ secrets.GIST_SECRET }}
           gist_id: 0095e900fb0fcbe5575ddc3c717fb65b
           file_path: pylzy/coverage.svg
           file_type: binary
           gist_file_name: ${{ (github.head_ref || github.ref_name) }}-coverage.svg
-
+      
+      - name: 'clean after python-test'
+        run: |
+          cd pylzy/
+          ./clean.sh
+      
       - name: 'install python requirements'
         run: |
           eval "$(conda shell.bash hook)" && conda activate py39 && pip install -r servant/docker/requirements.txt
@@ -75,6 +76,7 @@ jobs:
 
       - name: 'upload java coverage badge'
         uses: exuanbo/actions-deploy-gist@v1
+        if: github.ref == 'refs/heads/master'
         with:
           token: ${{ secrets.GIST_SECRET }}
           gist_id: be651155cb12a8006cecdee948ce1a0a

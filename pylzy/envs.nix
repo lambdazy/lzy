@@ -12,11 +12,13 @@ let
     requests
     stdlib-list
     pure-protobuf
+    aioboto3
 
     pip
 
     # it's here just to get protoc
     protobuf
+    grpcio-status
     grpcio-tools
     grpclib
     betterproto

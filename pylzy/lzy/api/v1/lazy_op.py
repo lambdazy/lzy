@@ -38,8 +38,8 @@ from lzy.api.v1.servant.servant_client import ServantClient
 from lzy.api.v1.signatures import CallSignature, FuncSignature
 from lzy.api.v1.utils import LzyExecutionException, is_lazy_proxy
 from lzy.api.v1.whiteboard.model import EntryIdGenerator, UUIDEntryIdGenerator
+from lzy.serialization.api import Serializer
 from lzy.serialization.hasher import Hasher
-from lzy.serialization.serializer import FileSerializer, MemBytesSerializer
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -154,8 +154,7 @@ class LzyRemoteOp(LzyOp):
         signature: CallSignature[Tuple],
         snapshot_id: str,
         entry_id_generator: EntryIdGenerator,
-        mem_serializer: MemBytesSerializer,
-        file_serializer: FileSerializer,
+        file_serializer: Serializer,
         hasher: Hasher,
         provisioning: Optional[Provisioning] = None,
         base_env: Optional[BaseEnv] = None,
@@ -168,7 +167,6 @@ class LzyRemoteOp(LzyOp):
             raise ValueError("Non-deployed ops must have provisioning and env")
 
         self._hasher = hasher
-        self._mem_serializer = mem_serializer
         self._file_serializer = file_serializer
         self._deployed = deployed
         self._servant = servant
@@ -191,7 +189,6 @@ class LzyRemoteOp(LzyOp):
                 setattr(output_type, "LZY_MESSAGE", "LZY_WB_MESSAGE")
 
         self._zygote = ZygotePythonFunc(
-            mem_serializer,
             signature.func,
             Env(base_env=base_env, aux_env=pyenv),
             provisioning,
@@ -210,7 +207,7 @@ class LzyRemoteOp(LzyOp):
             data_schema = DataSchema.generate_schema(type(obj))
             path = self._channel_manager.out_slot(entry_id, data_schema)
             with path.open("wb") as file:
-                self._file_serializer.serialize_to_file(obj, file)
+                self._file_serializer.serialize(obj, file)
                 file.flush()
                 os.fsync(file.fileno())
 
@@ -370,9 +367,7 @@ class LzyRemoteOp(LzyOp):
                                 raise LzyExecutionException("Cannot read from slot")
                         handle.seek(0)
                         materialization.append(
-                            self._file_serializer.deserialize_from_file(
-                                handle, val.type
-                            )
+                            self._file_serializer.deserialize(handle, val.type)
                         )
                 except Exception as e:
                     self._log.error(e)
@@ -402,8 +397,7 @@ class LzyRemoteOp(LzyOp):
         provisioning: Provisioning,
         env: Env,
         snapshot_id: str,
-        mem_serializer: MemBytesSerializer,
-        file_serializer: FileSerializer,
+        file_serializer: Serializer,
         hasher: Hasher,
     ):
         op_ = LzyRemoteOp(
@@ -411,7 +405,6 @@ class LzyRemoteOp(LzyOp):
             call_s,
             snapshot_id,
             UUIDEntryIdGenerator(snapshot_id),
-            mem_serializer,
             file_serializer,
             hasher,
             provisioning,
@@ -434,7 +427,6 @@ class LzyRemoteOp(LzyOp):
             op_.zygote.provisioning,
             op_.zygote.env,
             op_._snapshot_id,
-            op_._mem_serializer,
             op_._file_serializer,
             op_._hasher,
         )

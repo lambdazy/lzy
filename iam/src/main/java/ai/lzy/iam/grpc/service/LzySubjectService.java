@@ -4,6 +4,7 @@ import ai.lzy.iam.authorization.exceptions.AuthException;
 import ai.lzy.iam.authorization.exceptions.AuthPermissionDeniedException;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.iam.resources.impl.Root;
+import ai.lzy.iam.resources.subjects.SubjectType;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -36,7 +37,8 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
                 Subject subject = subjectService.createSubject(
                         request.getName(),
                         request.getAuthProvider(),
-                        request.getProviderSubjectId()
+                        request.getProviderSubjectId(),
+                        SubjectType.valueOf(request.getType())
                 );
                 responseObserver.onNext(GrpcConverter.from(subject));
                 responseObserver.onCompleted();
