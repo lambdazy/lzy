@@ -139,7 +139,7 @@ public class KuberVmAllocator implements VmAllocator {
         final VmAllocator.VmStatus status = switch (pod.getStatus().getPhase()) {
             case "Running" -> VmStatus.RUNNING;
             case "Pending" -> VmStatus.PENDING;
-            case "Succeeded" -> VmStatus.SUCCEEDED;
+            case "Succeeded" -> VmStatus.TERMINATED;
             default -> VmStatus.FAILED;
         };
 

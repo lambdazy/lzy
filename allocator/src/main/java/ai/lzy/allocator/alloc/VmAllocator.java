@@ -29,7 +29,7 @@ public interface VmAllocator {
     enum VmStatus {
         PENDING,
         RUNNING,
-        SUCCEEDED,
+        TERMINATED,
         FAILED
     }
 
