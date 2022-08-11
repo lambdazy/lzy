@@ -105,7 +105,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
             return;
         }
 
-        if (!Set.of(Vm.State.RUNNING, Vm.State.IDLING).contains(vm.state())) {
+        if (!Set.of(Vm.State.RUNNING, Vm.State.IDLE).contains(vm.state())) {
             LOG.error("Wrong status of vm while receiving heartbeat: {}, expected RUNNING or IDLING", vm.state());
             responseObserver.onError(
                 Status.FAILED_PRECONDITION.withDescription("Wrong state for heartbeat").asException());

@@ -177,7 +177,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         }
 
         dao.update(new Vm.VmBuilder(vm)
-            .setState(Vm.State.IDLING)
+            .setState(Vm.State.IDLE)
             .setExpireAt(Instant.now().plus(session.minIdleTimeout()))
             .build(), null);
 

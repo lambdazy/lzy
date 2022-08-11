@@ -36,7 +36,7 @@ public record Vm(
         // Vm is allocating
         CONNECTING,
         // Vm is running, but not allocated for client
-        IDLING,
+        IDLE,
         // Vm is running and client is holding control of it
         RUNNING,
         DEAD
