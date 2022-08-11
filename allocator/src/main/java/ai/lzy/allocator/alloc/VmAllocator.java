@@ -20,9 +20,18 @@ public interface VmAllocator {
     void deallocate(Vm vm);
 
     /**
-     * Validate that vm is really running after register
-     * @param vm vm to validate
-     * @return is vm valid?
+     * Get vm description from provisioner
+     * @param vm vm to get description of
      */
-    boolean validateRunning(Vm vm);
+    @Nullable
+    VmDesc getVmDesc(Vm vm);
+
+    enum VmStatus {
+        PENDING,
+        RUNNING,
+        SUCCEEDED,
+        FAILED
+    }
+
+    record VmDesc(String sessionId, String name, VmStatus status) {}
 }

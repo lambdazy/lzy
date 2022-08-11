@@ -129,7 +129,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         responseObserver.onCompleted();
 
         var workloads = request.getWorkloadList().stream()
-            .map(w -> new Workload(w.getName(), w.getImage(), w.getEnvMap(), w.getArgsList(), w.getPortBindingsMap()))
+            .map(Workload::fromGrpc)
             .toList();
 
         Vm vm = null;

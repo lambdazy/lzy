@@ -117,27 +117,37 @@ public class KuberVmAllocator implements VmAllocator {
     }
 
     @Override
-    public boolean validateRunning(Vm vm) {
+    @Nullable
+    public VmDesc getVmDesc(Vm vm) {
         final var meta = dao.getAllocatorMeta(vm.vmId(), null);
         if (meta == null) {
             LOG.error("Metadata not found");
-            return false;
+            return null;
         }
         final V1Pod pod;
         try {
             pod = getPod(meta.get(NAMESPACE_KEY), meta.get(POD_NAME_KEY));
         } catch (ApiException e) {
             LOG.error("Error while getting pod while validating", e);
-            return false;
+            return null;
         }
         if (pod == null) {
             LOG.error("Pod not found while validating");
-            return false;
+            return null;
         }
 
-        return pod.getStatus() != null
-            && pod.getStatus().getPhase() != null
-            && pod.getStatus().getPhase().equals("RUNNING");
+        final VmAllocator.VmStatus status = switch (pod.getStatus().getPhase()) {
+            case "Running" -> VmStatus.RUNNING;
+            case "Pending" -> VmStatus.PENDING;
+            case "Succeeded" -> VmStatus.SUCCEEDED;
+            default -> VmStatus.FAILED;
+        };
+
+        return new VmDesc(
+            pod.getMetadata().getLabels().get(KuberLabels.LZY_POD_SESSION_ID_LABEL),
+            pod.getMetadata().getName(),
+            status
+        );
     }
 
     public V1Pod createVmPodSpec(Vm vm) {

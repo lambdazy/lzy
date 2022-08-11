@@ -14,9 +14,9 @@ public record Vm(
     String allocationOperationId,
     List<Workload> workloads,
 
-    @Nullable Instant heartBeatTimeoutAt,
-    @Nullable Instant expireAt,
-    @Nullable Instant allocationTimeoutAt,
+    @Nullable Instant lastActivityTime,
+    @Nullable Instant deadline,
+    @Nullable Instant allocationDeadline,
     @Nullable Map<String, String> vmMeta
 ) {
     @Override
@@ -74,9 +74,9 @@ public record Vm(
             this.opId = vm.allocationOperationId();
             this.workload = vm.workloads();
             this.state = vm.state();
-            this.heartBeatTimeoutAt = vm.heartBeatTimeoutAt();
-            this.expireAt = vm.expireAt();
-            this.allocationTimeoutAt = vm.allocationTimeoutAt();
+            this.heartBeatTimeoutAt = vm.lastActivityTime();
+            this.expireAt = vm.deadline();
+            this.allocationTimeoutAt = vm.allocationDeadline();
         }
 
         public VmBuilder setState(State state) {

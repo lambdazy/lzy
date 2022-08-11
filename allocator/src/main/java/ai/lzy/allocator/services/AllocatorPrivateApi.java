@@ -54,8 +54,8 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
             responseObserver.onError(Status.FAILED_PRECONDITION.asException());
             return;
         }
-
-        if (!allocator.validateRunning(vm)) {
+        final var desc = allocator.getVmDesc(vm);
+        if (desc == null || desc.status() != VmAllocator.VmStatus.RUNNING) {
             LOG.error("Register while real pod is not running. vm: {}", vm);
             responseObserver.onError(Status.FAILED_PRECONDITION.asException());
             return;

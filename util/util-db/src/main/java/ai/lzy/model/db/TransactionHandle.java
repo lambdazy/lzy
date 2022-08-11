@@ -6,7 +6,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TransactionHandle implements AutoCloseable {
     private final Storage storage;
-    private final AtomicBoolean committed = new AtomicBoolean(false);
+    private boolean committed = false;
 
     private Connection con = null;
 
@@ -27,11 +27,11 @@ public class TransactionHandle implements AutoCloseable {
         if (con == null) {
             return;
         }
-        if (committed.get()) {
+        if (committed) {
             throw new RuntimeException("Already committed");
         }
         con.commit();
-        committed.set(true);
+        committed = true;
     }
 
     @Override
@@ -39,7 +39,7 @@ public class TransactionHandle implements AutoCloseable {
         if (con == null) {
             return;
         }
-        if (!committed.get()) {
+        if (committed) {
             con.rollback();
         }
         con.setAutoCommit(true);
