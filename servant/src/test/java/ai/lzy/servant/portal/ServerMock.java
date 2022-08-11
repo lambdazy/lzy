@@ -6,6 +6,7 @@ import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.model.SlotInstance;
 import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.test.GrpcUtils;
 import ai.lzy.v1.IAM;
 import ai.lzy.v1.Lzy;
 import ai.lzy.v1.LzyFsApi;
@@ -46,7 +47,7 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
     final Map<String, ServantHandler> servantHandlers = new ConcurrentHashMap<>();
 
     ServerMock() {
-        this.port = Utils.rollPort();
+        this.port = GrpcUtils.rollPort();
         Map<String, Object> properties = Map.of("server.server-uri", "grpc://localhost:" + port);
         this.ctx = ApplicationContext.run(properties);
         this.server = NettyServerBuilder.forPort(port)

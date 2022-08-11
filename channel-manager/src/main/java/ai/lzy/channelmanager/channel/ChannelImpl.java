@@ -2,7 +2,6 @@ package ai.lzy.channelmanager.channel;
 
 import ai.lzy.channelmanager.control.ChannelController;
 import ai.lzy.channelmanager.graph.ChannelGraph;
-import ai.lzy.channelmanager.graph.LocalChannelGraph;
 import ai.lzy.model.SlotStatus;
 import ai.lzy.model.channel.ChannelSpec;
 import java.text.MessageFormat;
@@ -18,11 +17,11 @@ public class ChannelImpl implements Channel {
     private final ChannelSpec spec;
     private final ChannelController controller; // pluggable channel logic
 
-    public ChannelImpl(String id, ChannelSpec spec, ChannelController controller) {
+    public ChannelImpl(String id, ChannelSpec spec, ChannelController controller, ChannelGraph localChannelGraph) {
         this.id = id;
         this.spec = spec;
         this.controller = controller;
-        this.channelGraph = new LocalChannelGraph(this);
+        this.channelGraph = localChannelGraph;
     }
 
     @Override
@@ -31,7 +30,7 @@ public class ChannelImpl implements Channel {
     }
 
     @Override
-    public void close() {
+    public void destroy() {
         try {
             controller.executeDestroy(channelGraph);
         } catch (ChannelException e) {
@@ -100,4 +99,5 @@ public class ChannelImpl implements Channel {
     public int hashCode() {
         return Objects.hash(id);
     }
+
 }

@@ -58,8 +58,10 @@ public abstract class LocalScenario extends LzyBaseTest {
 
         whiteboardContext = new SnapshotThreadContext(serverContext.address());
         whiteboardContext.init();
+
         channelManagerContext = new ChannelManagerThreadContext(whiteboardContext.address(), iamContext.address());
         channelManagerContext.init();
+
         kharonContext = new KharonThreadContext(
             serverContext.address(),
             whiteboardContext.address(),

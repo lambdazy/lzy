@@ -1,45 +1,39 @@
 package ai.lzy.fs;
 
-import ai.lzy.model.*;
+import ai.lzy.fs.commands.BuiltinCommandHolder;
+import ai.lzy.fs.fs.*;
+import ai.lzy.model.JsonUtils;
+import ai.lzy.model.Slot;
+import ai.lzy.model.SlotInstance;
+import ai.lzy.model.Zygote;
+import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.grpc.ClientHeaderInterceptor;
 import ai.lzy.model.grpc.GrpcHeaders;
-import io.grpc.*;
+import ai.lzy.model.logs.MetricEvent;
+import ai.lzy.model.logs.MetricEventLogger;
+import ai.lzy.v1.*;
+import io.grpc.ManagedChannel;
+import io.grpc.Server;
+import io.grpc.Status;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.jsonwebtoken.Jwts;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.serce.jnrfuse.FuseException;
-import ai.lzy.fs.commands.BuiltinCommandHolder;
-import ai.lzy.fs.fs.LzyFSManager;
-import ai.lzy.fs.fs.LzyFileSlot;
-import ai.lzy.fs.fs.LzyInputSlot;
-import ai.lzy.fs.fs.LzyLinuxFsManagerImpl;
-import ai.lzy.fs.fs.LzyMacosFsManagerImpl;
-import ai.lzy.fs.fs.LzyOutputSlot;
-import ai.lzy.fs.fs.LzyScript;
-import ai.lzy.fs.fs.LzySlot;
-import ai.lzy.model.JsonUtils;
-import ai.lzy.model.Slot;
-import ai.lzy.model.Zygote;
-import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.model.logs.MetricEvent;
-import ai.lzy.model.logs.MetricEventLogger;
-import ai.lzy.v1.*;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static ai.lzy.model.Constants.LOGS_DIR;
@@ -71,7 +65,7 @@ public final class LzyFsServer {
     private final AtomicReference<LzyFsGrpc.LzyFsImplBase> slotApiInterceptor = new AtomicReference<>(null);
 
     public LzyFsServer(String agentId, String mountPoint, URI selfUri, URI lzyServerUri, URI lzyWhiteboardUri,
-                       URI channelManagerUri, IAM.Auth auth) throws IOException {
+        URI channelManagerUri, IAM.Auth auth) throws IOException {
         this.agentId = agentId;
         this.channelManagerUri = channelManagerUri;
         assert LzyFs.scheme().equals(selfUri.getScheme());
@@ -170,8 +164,11 @@ public final class LzyFsServer {
                 channelManagerChannel.shutdown();
                 localServer.shutdown();
             } finally {
-                fs.umount();
-                mounted.decrementAndGet();
+                try {
+                    fs.umount();
+                } finally {
+                    mounted.decrementAndGet();
+                }
             }
         }
     }
@@ -323,12 +320,9 @@ public final class LzyFsServer {
         final LzySlot slot = slotsManager.slot(taskId, slotInstance.name());
         if (!(slot instanceof LzyOutputSlot outputSlot)) {
             LOG.info("Trying to read from input slot " + slotInstance.uri());
-            responseObserver
-                .onError(
-                    Status.NOT_FOUND
-                        .withDescription("Reading from input slot: " + slotInstance.uri())
-                        .asException()
-            );
+            responseObserver.onError(Status.NOT_FOUND
+                .withDescription("Reading from input slot: " + slotInstance.uri())
+                .asException());
             return;
         }
 
@@ -436,6 +430,7 @@ public final class LzyFsServer {
     }
 
     private final class Impl extends LzyFsGrpc.LzyFsImplBase {
+
         private interface SlotFn<R> {
 
             LzyFsApi.SlotCommandStatus call(R req);

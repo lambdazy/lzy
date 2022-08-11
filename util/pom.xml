@@ -3,7 +3,7 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
-        <groupId>ru.yandex</groupId>
+        <groupId>ai.lzy</groupId>
         <artifactId>lzy</artifactId>
         <version>1.0-SNAPSHOT</version>
         <relativePath>../../lzy</relativePath>
@@ -17,5 +17,8 @@
         <module>util-s3</module>
         <module>util-zk</module>
         <module>util-azure</module>
+        <module>util-test</module>
+        <module>util-db</module>
+        <module>util-grpc</module>
     </modules>
 </project>

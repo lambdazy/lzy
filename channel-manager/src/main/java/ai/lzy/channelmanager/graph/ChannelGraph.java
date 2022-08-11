@@ -1,6 +1,5 @@
 package ai.lzy.channelmanager.graph;
 
-import ai.lzy.channelmanager.channel.Channel;
 import ai.lzy.channelmanager.channel.ChannelException;
 import ai.lzy.channelmanager.channel.Endpoint;
 
@@ -8,7 +7,7 @@ import java.util.Set;
 import javax.validation.constraints.NotNull;
 
 public interface ChannelGraph {
-    Channel owner();
+    String ownerChannelId();
 
     Set<Endpoint> senders();
     Set<Endpoint> receivers();

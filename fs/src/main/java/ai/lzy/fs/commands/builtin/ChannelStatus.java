@@ -9,16 +9,10 @@ import io.grpc.ManagedChannel;
 import org.apache.commons.cli.CommandLine;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.v1.Channels;
 import ai.lzy.v1.IAM;
-import ai.lzy.v1.LzyServerGrpc;
 
 import java.net.URI;
 import java.util.Base64;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
 
 public final class ChannelStatus implements LzyCommand {
     @Override

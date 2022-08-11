@@ -17,6 +17,7 @@ let
 
     # it's here just to get protoc
     protobuf
+    grpcio-status
     grpcio-tools
     grpclib
     betterproto

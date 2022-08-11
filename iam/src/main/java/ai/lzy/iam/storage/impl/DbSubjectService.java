@@ -5,7 +5,9 @@ import ai.lzy.iam.authorization.exceptions.AuthException;
 import ai.lzy.iam.authorization.exceptions.AuthInternalException;
 import ai.lzy.iam.configs.ServiceConfig;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
+import ai.lzy.iam.resources.subjects.Servant;
 import ai.lzy.iam.resources.subjects.Subject;
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.storage.db.IamDataSource;
 import ai.lzy.iam.utils.UserVerificationType;
@@ -30,33 +32,36 @@ public class DbSubjectService {
     @Inject
     private ServiceConfig serviceConfig;
 
-    public Subject createSubject(String id, String authProvider, String providerSubjectId) throws AuthException {
-        try (final PreparedStatement st = storage.connect().prepareStatement(
-                "INSERT INTO users ("
-                        + "user_id, "
-                        + "auth_provider, "
-                        + "provider_user_id, "
-                        + "access_type "
-                        + ") "
-                        + "VALUES (?, ?, ?, ?);"
-        )) {
+    public Subject createSubject(String id, String authProvider, String providerSubjectId, SubjectType subjectType)
+            throws AuthException {
+        try (var connect = storage.connect()) {
+            final PreparedStatement st = connect.prepareStatement("""
+                INSERT INTO users (user_id, auth_provider, provider_user_id, access_type, user_type)
+                VALUES (?, ?, ?, ?, ?)
+                """);
+
             int parameterIndex = 0;
             st.setString(++parameterIndex, id);
             st.setString(++parameterIndex, authProvider);
             st.setString(++parameterIndex, providerSubjectId);
-            st.setString(++parameterIndex, typeForNewUser().toString());
+            st.setString(++parameterIndex, accessTypeForNewUser().toString());
+            st.setString(++parameterIndex, subjectType.name());
             st.executeUpdate();
-            return new User(id);
+
+            return switch (subjectType) {
+                case USER -> new User(id);
+                case SERVANT -> new Servant(id);
+            };
         } catch (SQLException e) {
             throw new AuthInternalException(e);
         }
     }
 
     public Subject subject(String id) throws AuthException {
-        try (final PreparedStatement st = storage.connect().prepareStatement(
-                "SELECT user_id FROM users "
-                        + "WHERE user_id = ?;"
-        )) {
+        try (var connect = storage.connect()) {
+            final PreparedStatement st = connect.prepareStatement(
+                "SELECT user_id FROM users WHERE user_id = ?");
+
             int parameterIndex = 0;
             st.setString(++parameterIndex, id);
             ResultSet rs = st.executeQuery();
@@ -71,9 +76,10 @@ public class DbSubjectService {
     }
 
     public void removeSubject(Subject subject) throws AuthException {
-        try (final PreparedStatement st = storage.connect().prepareStatement(
-                "DELETE FROM users WHERE user_id = ?;"
-        )) {
+        try (var connect = storage.connect()) {
+            final PreparedStatement st = connect.prepareStatement(
+                "DELETE FROM users WHERE user_id = ?");
+
             int parameterIndex = 0;
             st.setString(++parameterIndex, subject.id());
             st.executeUpdate();
@@ -83,15 +89,12 @@ public class DbSubjectService {
     }
 
     public void addCredentials(Subject subject, String name, String value, String type) throws AuthException {
-        try (final PreparedStatement st = storage.connect().prepareStatement(
-                "INSERT INTO credentials ("
-                        + "name, "
-                        + "\"value\", "
-                        + "user_id, "
-                        + "type "
-                        + ") "
-                        + "VALUES (?, ?, ?, ?);"
-        )) {
+        try (var connect = storage.connect()) {
+            final PreparedStatement st = connect.prepareStatement("""
+                INSERT INTO credentials (name, "value", user_id, type)
+                VALUES (?, ?, ?, ?)
+                """);
+
             int parameterIndex = 0;
             st.setString(++parameterIndex, name);
             st.setString(++parameterIndex, value);
@@ -104,11 +107,13 @@ public class DbSubjectService {
     }
 
     public SubjectCredentials credentials(Subject subject, String name) throws AuthException {
-        try (final PreparedStatement st = storage.connect().prepareStatement(
-                "SELECT name, \"value\", type FROM credentials "
-                        + "WHERE user_id = ? "
-                        + "AND name = ?;"
-        )) {
+        try (var connect = storage.connect()) {
+            final PreparedStatement st = connect.prepareStatement("""
+                SELECT name, "value", type
+                FROM credentials
+                WHERE user_id = ? AND name = ?
+                """);
+
             int parameterIndex = 0;
             st.setString(++parameterIndex, subject.id());
             st.setString(++parameterIndex, name);
@@ -128,9 +133,10 @@ public class DbSubjectService {
     }
 
     public void removeCredentials(Subject subject, String name) throws AuthException {
-        try (final PreparedStatement st = storage.connect().prepareStatement(
-                "DELETE FROM credentials WHERE user_id = ? AND name = ?;"
-        )) {
+        try (var connect = storage.connect()) {
+            final PreparedStatement st = connect.prepareStatement(
+                "DELETE FROM credentials WHERE user_id = ? AND name = ?");
+
             int parameterIndex = 0;
             st.setString(++parameterIndex, subject.id());
             st.setString(++parameterIndex, name);
@@ -140,12 +146,14 @@ public class DbSubjectService {
         }
     }
 
-    private UserVerificationType typeForNewUser() {
+    private UserVerificationType accessTypeForNewUser() {
         if (serviceConfig.getUserLimit() == 0) {
             return UserVerificationType.ACCESS_ALLOWED;
         }
-        try (final PreparedStatement st = storage.connect().prepareStatement(
-                "SELECT count(*) from users where access_type = ?;")) {
+        try (var connect = storage.connect()) {
+            final PreparedStatement st = connect.prepareStatement(
+                "SELECT count(*) from users where access_type = ?");
+
             int parameterIndex = 0;
             st.setString(++parameterIndex, UserVerificationType.ACCESS_ALLOWED.toString());
             final ResultSet rs = st.executeQuery();
@@ -154,7 +162,7 @@ public class DbSubjectService {
                     return UserVerificationType.ACCESS_ALLOWED;
                 }
             } else {
-                throw new AuthInternalException("Unknown user count");
+                throw new AuthInternalException("Unknown active users count");
             }
         } catch (SQLException e) {
             throw new AuthInternalException(e);

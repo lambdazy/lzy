@@ -4,23 +4,21 @@ import ai.lzy.channelmanager.channel.ChannelException;
 import ai.lzy.channelmanager.channel.Endpoint;
 import java.text.MessageFormat;
 import java.util.*;
-import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
 import javax.validation.constraints.NotNull;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.model.Slot;
-import ai.lzy.channelmanager.channel.Channel;
 
 public class LocalChannelGraph implements ChannelGraph {
     private static final Logger LOG = LogManager.getLogger(LocalChannelGraph.class);
     private final Set<Endpoint> senders = new HashSet<>();
     private final Set<Endpoint> receivers = new HashSet<>();
     private final Map<Endpoint, HashSet<Endpoint>> edges = new HashMap<>();
-    private final Channel owner;
+    private final String ownerChannelId;
 
-    public LocalChannelGraph(Channel channel) {
-        this.owner = channel;
+    public LocalChannelGraph(String channelId) {
+        this.ownerChannelId = channelId;
     }
 
     private static void checkConsistency(Endpoint sender, Endpoint receiver) {
@@ -38,8 +36,8 @@ public class LocalChannelGraph implements ChannelGraph {
     }
 
     @Override
-    public Channel owner() {
-        return owner;
+    public String ownerChannelId() {
+        return ownerChannelId;
     }
 
     @Override

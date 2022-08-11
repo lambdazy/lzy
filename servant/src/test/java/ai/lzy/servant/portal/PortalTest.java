@@ -35,9 +35,10 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.locks.LockSupport;
 
-import static ai.lzy.servant.portal.Utils.*;
+import static ai.lzy.test.GrpcUtils.*;
 
 public class PortalTest {
+
     private ServerMock server;
     private ChannelManagerMock channelManager;
     private Map<String, LzyServant> servants;
@@ -483,24 +484,25 @@ public class PortalTest {
 
     private void startServant(String servantId) throws URISyntaxException, IOException {
         var servant = new LzyServant(LzyAgentConfig.builder()
-                .serverAddress(URI.create("grpc://localhost:" + server.port()))
-                .whiteboardAddress(URI.create("grpc://localhost:" + rollPort()))
-                .channelManagerAddress(URI.create("grpc://localhost:" + channelManager.port()))
-                .servantId(servantId)
-                .token("token_" + servantId)
-                .bucket("bucket_" + servantId)
-                .scheme("servant")
-                .agentHost("localhost")
-                .agentPort(rollPort())
-                .fsPort(rollPort())
-                .root(Path.of("/tmp/lzy_" + servantId + "/"))
-                .build());
+            .serverAddress(URI.create("grpc://localhost:" + server.port()))
+            .whiteboardAddress(URI.create("grpc://localhost:" + rollPort()))
+            .channelManagerAddress(URI.create("grpc://localhost:" + channelManager.port()))
+            .servantId(servantId)
+            .token("token_" + servantId)
+            .bucket("bucket_" + servantId)
+            .scheme("servant")
+            .agentHost("localhost")
+            .agentPort(rollPort())
+            .fsPort(rollPort())
+            .root(Path.of("/tmp/lzy_" + servantId + "/"))
+            .build());
         servants.put(servantId, servant);
     }
 
     private void createChannel(String name) {
-        channelManager.create(makeCreateDirectChannelCommand(name), SuccessStreamObserver.wrap(
-            status -> System.out.println("Channel '" + name + "' created: " + JsonUtils.printSingleLine(status))));
+        channelManager.create(makeCreateDirectChannelCommand(UUID.randomUUID().toString(), name),
+            SuccessStreamObserver.wrap(
+                status -> System.out.println("Channel '" + name + "' created: " + JsonUtils.printSingleLine(status))));
     }
 
     private void destroyChannel(String name) {

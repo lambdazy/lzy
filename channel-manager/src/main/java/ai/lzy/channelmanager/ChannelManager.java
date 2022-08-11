@@ -43,6 +43,7 @@ import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Map;
 import java.util.Objects;
@@ -57,6 +58,7 @@ import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+@SuppressWarnings("UnstableApiUsage")
 public class ChannelManager {
 
     private static final Logger LOG = LogManager.getLogger(ChannelManager.class);
@@ -72,16 +74,60 @@ public class ChannelManager {
     private final URI whiteboardAddress;
     private final ManagedChannel iamChannel;
 
+    public static void main(String[] args) throws IOException, InterruptedException {
+        final CommandLineParser cliParser = new DefaultParser();
+        final HelpFormatter cliHelp = new HelpFormatter();
+        CommandLine parse = null;
+        try {
+            parse = cliParser.parse(options, args);
+        } catch (ParseException e) {
+            System.out.println(e.getMessage());
+            cliHelp.printHelp("channel-manager", options);
+            System.exit(-1);
+        }
+        final int port = Integer.parseInt(parse.getOptionValue('p', "8122"));
+        final URI whiteboardAddress = URI.create(parse.getOptionValue('w', "http://localhost:8999"));
+
+        try (ApplicationContext context = ApplicationContext.run(Map.of(
+            "channel-manager.port", port,
+            "channel-manager.whiteboard-address", whiteboardAddress.toString()
+        ))) {
+            final ChannelManager channelManager = new ChannelManager(context);
+            channelManager.start();
+            channelManager.awaitTermination();
+        }
+    }
+
+    public void start() throws IOException {
+        channelManagerServer.start();
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            LOG.info("gRPC server is shutting down!");
+            close();
+        }));
+    }
+
+    public void awaitTermination() throws InterruptedException {
+        channelManagerServer.awaitTermination();
+        iamChannel.awaitTermination(10, TimeUnit.SECONDS);
+    }
+
+    public void close() {
+        channelManagerServer.shutdownNow();
+        iamChannel.shutdown();
+    }
+
     public ChannelManager(ApplicationContext ctx) {
         var config = ctx.getBean(ChannelManagerConfig.class);
         channelStorage = new LocalChannelStorage();
-        //noinspection UnstableApiUsage
-        final HostAndPort iamAddress = HostAndPort.fromString(config.iam().address());
+        final HostAndPort address = HostAndPort.fromString(config.address());
+        final var iamAddress = HostAndPort.fromString(config.iam().address());
         iamChannel = ChannelBuilder.forAddress(iamAddress)
             .usePlaintext()
             .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
             .build();
-        channelManagerServer = NettyServerBuilder.forPort(config.port())
+        channelManagerServer = NettyServerBuilder.forAddress(
+                new InetSocketAddress(address.getHost(), address.getPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .intercept(new AuthServerInterceptor(new AuthenticateServiceStub()))
@@ -90,25 +136,9 @@ public class ChannelManager {
         whiteboardAddress = URI.create(config.whiteboardAddress());
     }
 
-    private ChannelStatus channelStatus(Channel channel) {
-        final ChannelStatus.Builder statusBuilder = ChannelStatus.newBuilder();
-        statusBuilder
-            .setChannelId(channel.id())
-            .setChannelSpec(to(channel.spec()));
-        channel.slotsStatus()
-            .map(slotStatus ->
-                Operations.SlotStatus.newBuilder()
-                    .setTaskId(slotStatus.tid())
-                    .setConnectedTo(channel.id())
-                    .setDeclaration(to(slotStatus.slot()))
-                    .setPointer(slotStatus.pointer())
-                    .setState(Operations.SlotStatus.State.valueOf(slotStatus.state().toString()))
-                    .build())
-            .forEach(statusBuilder::addConnected);
-        return statusBuilder.build();
-    }
-
     private class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManagerImplBase {
+
+        private static final Logger LOG = LogManager.getLogger(ChannelManagerService.class);
 
         @Override
         public void create(ChannelCreateRequest request,
@@ -148,42 +178,18 @@ public class ChannelManager {
         @Override
         public void destroy(ChannelDestroyRequest request, StreamObserver<ChannelDestroyResponse> responseObserver) {
             LOG.info("ChannelManager destroy channel {}", request.getChannelId());
-            try {
-                final Channel channel = channelStorage.get(request.getChannelId());
-                if (channel != null) {
-                    channel.bound().forEach(endpoint -> {
-                        try {
-                            channel.unbind(endpoint);
-                        } catch (ChannelException e) {
-                            LOG.warn("Failed to unbind channel {} from endpoint {}", channel, endpoint, e);
-                        }
-                    });
-                }
-            } finally {
-                channelStorage.destroy(request.getChannelId());
-                responseObserver.onNext(ChannelDestroyResponse.getDefaultInstance());
-                responseObserver.onCompleted();
-            }
+            channelStorage.destroy(request.getChannelId());
+            responseObserver.onNext(ChannelDestroyResponse.getDefaultInstance());
+            responseObserver.onCompleted();
         }
 
         @Override
         public void destroyAll(ChannelDestroyAllRequest request,
             StreamObserver<ChannelDestroyAllResponse> responseObserver) {
             LOG.info("Destroying all channels for workflow {}", request.getWorkflowId());
-            channelStorage.channels(request.getWorkflowId()).forEach(channel -> {
-                try {
-                    channel.bound().forEach(endpoint -> {
-                        try {
-                            channel.unbind(endpoint);
-                            LOG.info("Unbinded slot: {}", endpoint.slotSpec().name());
-                        } catch (ChannelException e) {
-                            LOG.warn("Failed to unbind channel {} from endpoint {}", channel, endpoint, e);
-                        }
-                    });
-                } finally {
-                    channelStorage.destroy(channel.id());
-                }
-            });
+            channelStorage.channels(request.getWorkflowId()).forEach(channel ->
+                channelStorage.destroy(channel.id())
+            );
             responseObserver.onNext(ChannelDestroyAllResponse.getDefaultInstance());
             responseObserver.onCompleted();
         }
@@ -197,7 +203,7 @@ public class ChannelManager {
                 return;
             }
 
-            responseObserver.onNext(channelStatus(channel));
+            responseObserver.onNext(toChannelStatus(channel));
             responseObserver.onCompleted();
         }
 
@@ -206,7 +212,7 @@ public class ChannelManager {
             LOG.info("ChannelManager channels status {}", JsonUtils.printRequest(request));
             final ChannelStatusList.Builder builder = ChannelStatusList.newBuilder();
             channelStorage.channels()
-                .map(ChannelManager.this::channelStatus)
+                .map(this::toChannelStatus)
                 .forEach(builder::addStatuses);
             responseObserver.onNext(builder.build());
             responseObserver.onCompleted();
@@ -278,48 +284,24 @@ public class ChannelManager {
                 responseObserver.onError(Status.INVALID_ARGUMENT.withCause(e).asRuntimeException());
             }
         }
-    }
 
-    public static void main(String[] args) throws IOException, InterruptedException {
-        final CommandLineParser cliParser = new DefaultParser();
-        final HelpFormatter cliHelp = new HelpFormatter();
-        CommandLine parse = null;
-        try {
-            parse = cliParser.parse(options, args);
-        } catch (ParseException e) {
-            System.out.println(e.getMessage());
-            cliHelp.printHelp("channel-manager", options);
-            System.exit(-1);
-        }
-        final int port = Integer.parseInt(parse.getOptionValue('p', "8122"));
-        final URI whiteboardAddress = URI.create(parse.getOptionValue('w', "http://localhost:8999"));
-
-        try (ApplicationContext context = ApplicationContext.run(Map.of(
-            "channel-manager.port", port,
-            "channel-manager.whiteboard-address", whiteboardAddress.toString()
-        ))) {
-            final ChannelManager channelManager = new ChannelManager(context);
-            channelManager.start();
-            channelManager.awaitTermination();
+        private ChannelStatus toChannelStatus(Channel channel) {
+            final ChannelStatus.Builder statusBuilder = ChannelStatus.newBuilder();
+            statusBuilder
+                .setChannelId(channel.id())
+                .setChannelSpec(to(channel.spec()));
+            channel.slotsStatus()
+                .map(slotStatus ->
+                    Operations.SlotStatus.newBuilder()
+                        .setTaskId(slotStatus.tid())
+                        .setConnectedTo(channel.id())
+                        .setDeclaration(to(slotStatus.slot()))
+                        .setPointer(slotStatus.pointer())
+                        .setState(Operations.SlotStatus.State.valueOf(slotStatus.state().toString()))
+                        .build())
+                .forEach(statusBuilder::addConnected);
+            return statusBuilder.build();
         }
     }
 
-    public void start() throws IOException {
-        channelManagerServer.start();
-
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            LOG.info("gRPC server is shutting down!");
-            close();
-        }));
-    }
-
-    public void awaitTermination() throws InterruptedException {
-        channelManagerServer.awaitTermination();
-        iamChannel.awaitTermination(10, TimeUnit.SECONDS);
-    }
-
-    public void close() {
-        channelManagerServer.shutdownNow();
-        iamChannel.shutdown();
-    }
 }

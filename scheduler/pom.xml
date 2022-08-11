@@ -4,12 +4,13 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
     <artifactId>lzy</artifactId>
-    <groupId>ru.yandex</groupId>
+    <groupId>ai.lzy</groupId>
     <version>1.0-SNAPSHOT</version>
   </parent>
-  <modelVersion>4.0.0</modelVersion>
 
+  <modelVersion>4.0.0</modelVersion>
   <artifactId>scheduler</artifactId>
+  <version>1.0-SNAPSHOT</version>
 
   <properties>
     <maven.compiler.source>17</maven.compiler.source>
@@ -21,15 +22,21 @@
 
   <dependencies>
     <dependency>
-      <groupId>ru.yandex</groupId>
+      <groupId>ai.lzy</groupId>
       <artifactId>model</artifactId>
       <version>1.0-SNAPSHOT</version>
     </dependency>
     <dependency>
-      <groupId>ai.lzy.iam</groupId>
-      <artifactId>iam</artifactId>
-      <version>0.1</version>
+      <groupId>ai.lzy</groupId>
+      <artifactId>iam-api</artifactId>
+      <version>1.0-SNAPSHOT</version>
     </dependency>
+    <dependency>
+      <groupId>ai.lzy</groupId>
+      <artifactId>util-db</artifactId>
+      <version>1.0-SNAPSHOT</version>
+    </dependency>
+
     <dependency>
       <groupId>com.github.docker-java</groupId>
       <artifactId>docker-java</artifactId>
@@ -117,7 +124,7 @@
       <artifactId>client-java</artifactId>
     </dependency>
     <dependency>
-      <groupId>ru.yandex</groupId>
+      <groupId>ai.lzy</groupId>
       <artifactId>util-zk</artifactId>
       <version>1.0-SNAPSHOT</version>
       <scope>compile</scope>
@@ -223,6 +230,9 @@
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                   <mainClass>${exec.mainClass}</mainClass>
+                  <manifestEntries>
+                    <Multi-Release>true</Multi-Release>
+                  </manifestEntries>
                 </transformer>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
               </transformers>

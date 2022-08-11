@@ -97,7 +97,7 @@ public class SnapshotChannelController implements ChannelController {
                     slot.connect(new SlotInstance(
                         slotInstance.spec(),
                         "unknown_snapshot_task_id",
-                        channelGraph.owner().id(),
+                        channelGraph.ownerChannelId(),
                         storageURI)
                     );
                 }
@@ -125,7 +125,7 @@ public class SnapshotChannelController implements ChannelController {
                         s -> s.connect(new SlotInstance(
                             slot.slotSpec(),
                             "unknown_snapshot_task_id",
-                            channelGraph.owner().id(),
+                            channelGraph.ownerChannelId(),
                             storageURI))
                     );
                     channelGraph.removeSender(slot);
