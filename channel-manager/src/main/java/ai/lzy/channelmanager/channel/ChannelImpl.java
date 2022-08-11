@@ -191,7 +191,8 @@ public class ChannelImpl implements Channel {
                     var sender = sendersByUri.get(senderUri);
                     var receiver = receiversByUri.get(receiverUri);
                     edges.computeIfAbsent(sender, k -> new HashSet<>()).add(receiver);
-            }));
+                })
+            );
 
             return new ChannelImpl(
                 id, workflowId, spec, controller, new LocalChannelGraph(

@@ -22,7 +22,6 @@ import ai.lzy.model.channel.DirectChannelSpec;
 import ai.lzy.model.channel.SnapshotChannelSpec;
 import ai.lzy.model.db.DaoException;
 import ai.lzy.model.db.NotFoundException;
-import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.Transaction;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.v1.ChannelManager.ChannelCreateRequest;
@@ -94,7 +93,6 @@ public class ChannelManager {
         options.addRequiredOption("w", "lzy-whiteboard-address", true, "Lzy whiteboard address [host:port]");
     }
 
-    private final ChannelStorage channelStorage;
     private final Server channelManagerServer;
     private final URI whiteboardAddress;
     private final ManagedChannel iamChannel;
@@ -144,19 +142,18 @@ public class ChannelManager {
 
     public ChannelManager(ApplicationContext ctx) {
         var config = ctx.getBean(ChannelManagerConfig.class);
-        channelStorage = new LocalChannelStorage();
         final HostAndPort address = HostAndPort.fromString(config.address());
         final var iamAddress = HostAndPort.fromString(config.iam().address());
         iamChannel = ChannelBuilder.forAddress(iamAddress)
             .usePlaintext()
             .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
             .build();
-        channelManagerServer = NettyServerBuilder.forAddress(
-                new InetSocketAddress(address.getHost(), address.getPort()))
+        channelManagerServer = NettyServerBuilder
+            .forAddress(new InetSocketAddress(address.getHost(), address.getPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .intercept(new AuthServerInterceptor(new AuthenticateServiceStub()))
-            .addService(new ChannelManagerService())
+            .addService(ctx.getBean(ChannelManagerService.class))
             .build();
         whiteboardAddress = URI.create(config.whiteboardAddress());
     }
@@ -166,12 +163,12 @@ public class ChannelManager {
         private static final Logger LOG = LogManager.getLogger(ChannelManagerService.class);
 
         private final ChannelManagerDataSource dataSource;
-        private final ChannelManagerStorage channelManagerStorage;
+        private final ChannelStorage channelStorage;
 
         @Inject
-        private ChannelManagerService(ChannelManagerDataSource dataSource, ChannelManagerStorage channelStorage) {
+        private ChannelManagerService(ChannelManagerDataSource dataSource, ChannelStorage channelStorage) {
             this.dataSource = dataSource;
-            this.channelManagerStorage = channelStorage;
+            this.channelStorage = channelStorage;
         }
 
         @Override
@@ -217,7 +214,7 @@ public class ChannelManager {
                 };
 
                 Transaction.execute(dataSource, conn -> {
-                    channelManagerStorage.insertChannel(conn,
+                    channelStorage.insertChannel(conn,
                         channelId, userId, workflowId, channelName, channelType, spec
                     );
                     return true;
@@ -248,19 +245,19 @@ public class ChannelManager {
 
                 final AtomicReference<Channel> channel = new AtomicReference<>();
                 Transaction.execute(dataSource, conn -> {
-                    channel.set(channelManagerStorage.findChannel(conn, true, channelId));
+                    channel.set(channelStorage.findChannel(conn, true, channelId));
                     if (channel.get() == null) {
                         String errorMessage = String.format("Channel with id %s not found", channelId);
                         LOG.error(errorMessage);
                         throw new NotFoundException(errorMessage);
                     }
-                    channelManagerStorage.setChannelLifeStatus(conn, Stream.of(channelId), "Destroying");
+                    channelStorage.setChannelLifeStatus(conn, Stream.of(channelId), "Destroying");
                     return true;
                 });
 
                 channel.get().destroy();
                 Transaction.execute(dataSource, conn -> {
-                    channelManagerStorage.removeChannel(conn, channelId);
+                    channelStorage.removeChannel(conn, channelId);
                     return true;
                 });
 
@@ -291,8 +288,8 @@ public class ChannelManager {
 
                 List<Channel> channels = new ArrayList<>();
                 Transaction.execute(dataSource, conn -> {
-                    channels.addAll(channelManagerStorage.listChannels(conn, true, userId, workflowId).toList());
-                    channelManagerStorage.setChannelLifeStatus(conn,
+                    channels.addAll(channelStorage.listChannels(conn, true, userId, workflowId).toList());
+                    channelStorage.setChannelLifeStatus(conn,
                         channels.stream().map(Channel::id), "Destroying"
                     );
                     return true;
@@ -301,7 +298,7 @@ public class ChannelManager {
                 for (final Channel channel : channels) {
                     channel.destroy();
                     Transaction.execute(dataSource, conn -> {
-                        channelManagerStorage.removeChannel(conn, channel.id());
+                        channelStorage.removeChannel(conn, channel.id());
                         return true;
                     });
                 }
@@ -326,7 +323,7 @@ public class ChannelManager {
 
                 final AtomicReference<Channel> channel = new AtomicReference<>();
                 Transaction.execute(dataSource, conn -> {
-                    channel.set(channelManagerStorage.findChannel(conn, false, channelId));
+                    channel.set(channelStorage.findChannel(conn, false, channelId));
                     if (channel.get() == null) {
                         String errorMessage = String.format("Channel with id %s not found", channelId);
                         LOG.error(errorMessage);
@@ -359,7 +356,7 @@ public class ChannelManager {
 
                 List<Channel> channels = new ArrayList<>();
                 Transaction.execute(dataSource, conn -> {
-                    channels.addAll(channelManagerStorage.listChannels(conn, false, userId, workflowId).toList());
+                    channels.addAll(channelStorage.listChannels(conn, false, userId, workflowId).toList());
                     return true;
                 });
 
@@ -392,14 +389,14 @@ public class ChannelManager {
                 final String channelId = slotInstance.channelId();
 
                 Transaction.execute(dataSource, conn -> {
-                    final Channel channel = channelManagerStorage.findChannel(conn, true, channelId);
+                    final Channel channel = channelStorage.findChannel(conn, true, channelId);
                     if (channel == null) {
                         String errorMessage = String.format("Channel with id %s not found", channelId);
                         LOG.error(errorMessage);
                         throw new NotFoundException(errorMessage);
                     }
 
-                    List<String> boundChannels = channelManagerStorage.listBoundChannels(conn, false,
+                    List<String> boundChannels = channelStorage.listBoundChannels(conn, false,
                             userId, channel.ownerWorkflowId(), endpoint.uri().toString());
 
                     if (boundChannels.size() > 0) {
@@ -412,12 +409,16 @@ public class ChannelManager {
                             } else {
                                 errorMessage = endpoint + " is bound to another channel " + otherChannelId;
                                 LOG.error(errorMessage);
-                                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(errorMessage).asException());
+                                responseObserver.onError(
+                                    Status.INVALID_ARGUMENT.withDescription(errorMessage).asException()
+                                );
                             }
                         } else {
                             errorMessage = endpoint + " is bound to more than one channel";
                             LOG.error(errorMessage);
-                            responseObserver.onError(Status.INTERNAL.withDescription(errorMessage).asException());
+                            responseObserver.onError(
+                                Status.INTERNAL.withDescription(errorMessage).asException()
+                            );
                         }
                         return false;
                     }
@@ -429,12 +430,12 @@ public class ChannelManager {
                         return false;
                     }
 
-                    channelManagerStorage.insertEndpoint(conn, channelId, endpoint);
+                    channelStorage.insertEndpoint(conn, channelId, endpoint);
                     final Map<Endpoint, Endpoint> addedEdges = switch (endpoint.slotSpec().direction()) {
-                        case INPUT -> channel.bound(endpoint).collect(Collectors.toMap(e -> e, e -> endpoint));
                         case OUTPUT -> channel.bound(endpoint).collect(Collectors.toMap(e -> endpoint, e -> e));
+                        case INPUT -> channel.bound(endpoint).collect(Collectors.toMap(e -> e, e -> endpoint));
                     };
-                    channelManagerStorage.insertEndpointConnections(conn, channelId, addedEdges);
+                    channelStorage.insertEndpointConnections(conn, channelId, addedEdges);
                     return true;
                 });
 
@@ -468,7 +469,7 @@ public class ChannelManager {
                 final String channelId = slotInstance.channelId();
 
                 Transaction.execute(dataSource, conn -> {
-                    final Channel channel = channelManagerStorage.findChannel(conn, true, channelId);
+                    final Channel channel = channelStorage.findChannel(conn, true, channelId);
                     if (channel == null) {
                         String errorMessage = String.format("Channel with id %s not found", channelId);
                         LOG.error(errorMessage);
@@ -482,7 +483,7 @@ public class ChannelManager {
                         return false;
                     }
 
-                    channelManagerStorage.removeEndpointWithConnections(conn, channelId, endpoint);
+                    channelStorage.removeEndpointWithConnections(conn, channelId, endpoint);
                     return true;
                 });
                 responseObserver.onNext(SlotDetachStatus.getDefaultInstance());
@@ -519,16 +520,14 @@ public class ChannelManager {
         }
     }
 
-    private class ChannelManagerStorage {
+    private class ChannelStorage {
 
-        private static final Logger LOG = LogManager.getLogger(ChannelManagerStorage.class);
+        private static final Logger LOG = LogManager.getLogger(ChannelStorage.class);
 
-        private final Storage storage;
         private final ObjectMapper objectMapper;
 
         @Inject
-        private ChannelManagerStorage(ChannelManagerDataSource storage, ObjectMapper objectMapper) {
-            this.storage = storage;
+        private ChannelStorage(ObjectMapper objectMapper) {
             this.objectMapper = objectMapper;
         }
 
@@ -745,7 +744,7 @@ public class ChannelManager {
             Stream<String> channelIds, String channelLifeStatus
         ) throws DaoException {
             try (final PreparedStatement st = sqlConnection.prepareStatement(
-               "UPDATE channels SET channel_life_status = ? WHERE channel_id = ANY(?)"
+                "UPDATE channels SET channel_life_status = ? WHERE channel_id = ANY(?)"
             )) {
                 int index = 0;
                 st.setArray(++index, sqlConnection.createArrayOf("text", channelIds.toArray()));
