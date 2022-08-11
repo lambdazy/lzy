@@ -2,7 +2,10 @@ package ai.lzy.allocator.alloc.impl.kuber;
 
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
+import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.model.Vm;
+import ai.lzy.model.db.TransactionManager;
+import ai.lzy.model.db.TransactionManager.TransactionHandle;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.Configuration;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
@@ -34,13 +37,17 @@ public class KuberVmAllocator implements VmAllocator {
             .operator("Equal")
             .value("gpu")
             .effect("NoSchedule"));
+    private static final String NAMESPACE_KEY = "namespace";
+    private static final String POD_NAME_KEY = "pod-name";
 
     private final CoreV1Api api;
     private final ServiceConfig config;
+    private final VmDao dao;
 
     @Inject
-    public KuberVmAllocator(ServiceConfig config) {
+    public KuberVmAllocator(ServiceConfig config, VmDao dao) {
         this.config = config;
+        this.dao = dao;
         try {
             Configuration.setDefaultApiClient(Config.defaultClient());
             api = new CoreV1Api();
@@ -49,22 +56,29 @@ public class KuberVmAllocator implements VmAllocator {
         }
     }
 
-    protected AllocatorMetadata requestAllocation(Vm vm) {
+    @Override
+    public void allocate(Vm vm, @Nullable TransactionHandle transaction) {
         final V1Pod vmPodSpec = createVmPodSpec(vm);
         final V1Pod pod;
         try {
             pod = api.createNamespacedPod(NAMESPACE, vmPodSpec, null, null, null, null);
         } catch (ApiException e) {
+            LOG.error("Error while creating pod", e);
             throw new RuntimeException("Exception while creating pod in kuber", e);
         }
-        LOG.info("Created servant pod in Kuber: {}", pod);
+        LOG.debug("Created pod in Kuber: {}", pod);
         Objects.requireNonNull(pod.getMetadata());
-        return new AllocatorMetadata(pod.getMetadata().getNamespace(), pod.getMetadata().getName());
+        Objects.requireNonNull(pod.getMetadata().getNamespace());
+        Objects.requireNonNull(pod.getMetadata().getName());
+        dao.saveAllocatorMeta(vm.vmId(), Map.of(
+            NAMESPACE_KEY, pod.getMetadata().getNamespace(),
+            POD_NAME_KEY, pod.getMetadata().getName()
+        ), transaction);
     }
 
-    protected void terminate(String namespace, String name) {
+    private void terminate(String namespace, String name) {
         try {
-            if (isPodExists(namespace, name)) {
+            if (getPod(namespace, name) != null) {
                 api.deleteNamespacedPod(name, namespace, null, null, 0, null, null, null);
             }
         } catch (ApiException e) {
@@ -72,7 +86,8 @@ public class KuberVmAllocator implements VmAllocator {
         }
     }
 
-    private boolean isPodExists(String namespace, String name) throws ApiException {
+    @Nullable
+    private V1Pod getPod(String namespace, String name) throws ApiException {
         final V1PodList listNamespacedPod = api.listNamespacedPod(
             namespace,
             null, null, null, null,
@@ -82,26 +97,48 @@ public class KuberVmAllocator implements VmAllocator {
             Boolean.FALSE
         );
         if (listNamespacedPod.getItems().size() < 1) {
-            return false;
+            return null;
         }
         final var podSpec = listNamespacedPod.getItems().get(0);
-        return podSpec.getMetadata() != null
+        if (podSpec.getMetadata() != null
             && podSpec.getMetadata().getName() != null
-            && podSpec.getMetadata().getName().equals(name);
-    }
-
-    @Override
-    public AllocatorMetadata allocate(Vm vm) {
-        return requestAllocation(vm);
+            && podSpec.getMetadata().getName().equals(name)) {
+            return podSpec;
+        }
+        return null;
     }
 
     @Override
     public void deallocate(Vm vm) {
-        if (vm.allocatorMeta() == null) {
+        final var meta = dao.getAllocatorMeta(vm.vmId(), null);
+        if (meta == null) {
             throw new RuntimeException("Cannot get allocatorMeta");
         }
-        final var meta = vm.allocatorMeta();
-        terminate(meta.namespace(), meta.podName());
+        terminate(meta.get(NAMESPACE_KEY), meta.get(POD_NAME_KEY));
+    }
+
+    @Override
+    public boolean validateRunning(Vm vm) {
+        final var meta = dao.getAllocatorMeta(vm.vmId(), null);
+        if (meta == null) {
+            LOG.error("Metadata not found");
+            return false;
+        }
+        final V1Pod pod;
+        try {
+            pod = getPod(meta.get(NAMESPACE_KEY), meta.get(POD_NAME_KEY));
+        } catch (ApiException e) {
+            LOG.error("Error while getting pod while validating", e);
+            return false;
+        }
+        if (pod == null) {
+            LOG.error("Pod not found while validating");
+            return false;
+        }
+
+        return pod.getStatus() != null
+            && pod.getStatus().getPhase() != null
+            && pod.getStatus().getPhase().equals("RUNNING");
     }
 
     public V1Pod createVmPodSpec(Vm vm) {

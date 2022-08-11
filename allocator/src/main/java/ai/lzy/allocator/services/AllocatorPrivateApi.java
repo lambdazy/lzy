@@ -22,6 +22,7 @@ import org.apache.logging.log4j.Logger;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Set;
 
 @Singleton
 public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
@@ -49,18 +50,19 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
         }
 
         if (vm.state() != Vm.State.CONNECTING) {
-            LOG.error("Wrong status of vm while register: {}", vm);
-            allocator.deallocate(vm);
-            dao.update(new Vm.VmBuilder(vm).setState(Vm.State.DEAD).build(), null);
-            responseObserver.onError(Status.INTERNAL.asException());
+            LOG.error("Wrong status of vm while register, expected CONNECTING: {}", vm);
+            responseObserver.onError(Status.FAILED_PRECONDITION.asException());
+            return;
+        }
+
+        if (!allocator.validateRunning(vm)) {
+            LOG.error("Register while real pod is not running. vm: {}", vm);
+            responseObserver.onError(Status.FAILED_PRECONDITION.asException());
             return;
         }
 
         final var op = operations.get(vm.allocationOperationId(), null);
         if (op == null) {
-            allocator.deallocate(vm);
-            dao.update(new Vm.VmBuilder(vm).setState(Vm.State.DEAD).build(), null);
-
             responseObserver.onError(Status.NOT_FOUND.withDescription("Op not found").asException());
             return;
         }
@@ -85,6 +87,8 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
                 .setVmId(vm.vmId())
                 .putAllMetadata(request.getMetadataMap())
                 .build())), transaction);
+
+            transaction.commit();
         } catch (SQLException e) {
             LOG.error("Error while registering vm", e);
             allocator.deallocate(vm);
@@ -99,6 +103,12 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
         if (vm == null) {
             responseObserver.onError(Status.NOT_FOUND.withDescription("Vm with this id not found").asException());
             return;
+        }
+
+        if (!Set.of(Vm.State.RUNNING, Vm.State.IDLING).contains(vm.state())) {
+            LOG.error("Wrong status of vm while receiving heartbeat: {}, expected RUNNING or IDLING", vm.state());
+            responseObserver.onError(
+                Status.FAILED_PRECONDITION.withDescription("Wrong state for heartbeat").asException());
         }
 
         dao.update(new Vm.VmBuilder(vm)

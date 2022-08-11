@@ -3,12 +3,15 @@ package ai.lzy.allocator.alloc.impl;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.model.Vm;
+import ai.lzy.model.db.TransactionManager;
+import ai.lzy.model.db.TransactionManager.TransactionHandle;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -65,10 +68,9 @@ public class ThreadVmAllocator implements VmAllocator {
     }
 
     @Override
-    public AllocatorMetadata allocate(Vm vm) {
+    public void allocate(Vm vm, @Nullable TransactionHandle transaction) {
         // TODO(artolord) add token
         requestAllocation(vm.vmId(), vm.workloads().get(0).args());  // Supports only one workload
-        return new AllocatorMetadata(null, null);
     }
 
     @Override
@@ -78,5 +80,10 @@ public class ThreadVmAllocator implements VmAllocator {
         }
         vmThreads.get(vm.vmId()).stop();
         vmThreads.remove(vm.vmId());
+    }
+
+    @Override
+    public boolean validateRunning(Vm vm) {
+        return true;
     }
 }

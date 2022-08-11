@@ -137,10 +137,9 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             op = op.modifyMeta(Any.pack(AllocateMetadata.newBuilder().setVmId(vm.vmId()).build()));
             operations.update(op, transaction);
 
-            var meta = allocator.allocate(vm);
+            allocator.allocate(vm, transaction);
 
             vm = new Vm.VmBuilder(vm)
-                .setAllocatorMeta(meta)
                 .setState(Vm.State.CONNECTING)
                 .setAllocationTimeoutAt(Instant.now().plus(config.allocationTimeout()))  // TODO(artolord) add to config
                 .build();
@@ -162,8 +161,9 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             responseObserver.onError(Status.NOT_FOUND.withDescription("Cannot found vm").asException());
             return;
         }
+        // TODO(artolord) validate that client can free this vm
         if (vm.state() != Vm.State.RUNNING) {
-            LOG.error("Freed vm {} in status {}", vm, vm.state());
+            LOG.error("Freed vm {} in status {}, expected RUNNING", vm, vm.state());
             responseObserver.onError(Status.INTERNAL.asException());
             return;
         }

@@ -30,7 +30,7 @@ public class TransactionManagerImpl implements TransactionManager {
         }
 
         @Override
-        public Connection connect() throws SQLException {
+        public synchronized Connection connect() throws SQLException {
             if (con != null) {
                 return con;
             }
@@ -39,9 +39,12 @@ public class TransactionManagerImpl implements TransactionManager {
             return con;
         }
 
-        public void commit() throws SQLException {
+        public synchronized void commit() throws SQLException {
             if (con == null) {
                 return;
+            }
+            if (committed.get()) {
+                throw new RuntimeException("Already committed");
             }
             con.commit();
             committed.set(true);
@@ -49,7 +52,7 @@ public class TransactionManagerImpl implements TransactionManager {
 
 
         @Override
-        public void close() throws SQLException {
+        public synchronized void close() throws SQLException {
             if (con == null) {
                 return;
             }
@@ -58,6 +61,7 @@ public class TransactionManagerImpl implements TransactionManager {
             }
             con.setAutoCommit(true);
             con.close();
+            con = null;
         }
     }
 }

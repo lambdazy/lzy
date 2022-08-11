@@ -8,6 +8,5 @@ public record Workload(
     String image,
     Map<String, String> env,
     List<String> args,
-    Map<Integer,
-    Integer> portBindings
+    Map<Integer, Integer> portBindings
 ) {}

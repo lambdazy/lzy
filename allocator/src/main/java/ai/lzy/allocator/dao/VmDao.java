@@ -6,6 +6,7 @@ import ai.lzy.allocator.model.Workload;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Map;
 
 public interface VmDao {
     Vm create(String sessionId, String poolId, List<Workload> workload, @Nullable TransactionHandle transaction);
@@ -21,4 +22,8 @@ public interface VmDao {
      */
     @Nullable
     Vm acquire(String sessionId, String poolId, @Nullable TransactionHandle transaction);
+
+    void saveAllocatorMeta(String vmId, Map<String, String> meta, @Nullable TransactionHandle transaction);
+    @Nullable
+    Map<String, String> getAllocatorMeta(String vmId, @Nullable TransactionHandle transaction);
 }
