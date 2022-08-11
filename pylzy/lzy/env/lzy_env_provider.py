@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import yaml
 from yaml import safe_load
 
-from lzy.api.v2.servant.model import ENCODING as encoding
+from lzy.encoding import ENCODING as encoding
 from lzy.env.env import *
 from lzy.env.env_provider import EnvProvider
 from lzy.pkg_info import (

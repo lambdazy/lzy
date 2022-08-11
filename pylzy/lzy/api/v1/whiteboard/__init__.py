@@ -13,7 +13,7 @@ from lzy.api.v1.whiteboard.model import (
     WhiteboardApi,
     WhiteboardDescription,
 )
-from lzy.serialization.api import FileSerializer
+from lzy.serialization.api import Serializer
 
 ALREADY_WRAPPED = "_already_wrapped_whiteboard"
 ALREADY_WRAPPED_READY = "_already_wrapped_ready_whiteboard"
@@ -74,7 +74,7 @@ def wrap_whiteboard(
     whiteboard_api: WhiteboardApi,
     whiteboard_id_getter: Callable[[], Optional[str]],
     channel_manager: ChannelManager,
-    serializer: FileSerializer,
+    serializer: Serializer,
     entry_id_generator: EntryIdGenerator,
 ):
     check_whiteboard(instance)
@@ -89,7 +89,7 @@ def wrap_whiteboard(
 
     def dump(path: Path, value: Any):
         with path.open("wb") as handle:
-            serializer.serialize_to_file(value, handle)
+            serializer.serialize(value, handle)
             handle.flush()
             os.fsync(handle.fileno())
 

@@ -44,9 +44,18 @@ public class DbAccessClientTest {
     }
 
     @Test
-    public void validAccess() {
+    public void validAccessUser() {
+        validAccess(SubjectType.USER);
+    }
+
+    @Test
+    public void validAccessServant() {
+        validAccess(SubjectType.SERVANT);
+    }
+
+    public void validAccess(SubjectType subjectType) {
         String userId = "user1";
-        subjectService.createSubject(userId, "", "", SubjectType.USER);
+        subjectService.createSubject(userId, "", "", subjectType);
         final Subject user = subjectService.subject(userId);
 
         AuthResource whiteboardResource = new Whiteboard("whiteboard");
@@ -106,9 +115,18 @@ public class DbAccessClientTest {
     }
 
     @Test
-    public void invalidAccess() {
+    public void invalidAccessUser() {
+        invalidAccess(SubjectType.USER);
+    }
+
+    @Test
+    public void invalidAccessServant() {
+        invalidAccess(SubjectType.SERVANT);
+    }
+
+    public void invalidAccess(SubjectType subjectType) {
         String userId = "user1";
-        subjectService.createSubject(userId, "", "", SubjectType.USER);
+        subjectService.createSubject(userId, "", "", subjectType);
         final Subject user = subjectService.subject(userId);
 
         AuthResource whiteboardResource = new Whiteboard("whiteboard");

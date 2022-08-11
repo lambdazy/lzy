@@ -92,7 +92,6 @@ def op_(
                     signature,
                     current_workflow.snapshot_id(),
                     id_generator,
-                    current_workflow.mem_serializer(),
                     current_workflow.file_serializer(),
                     current_workflow.hasher(),
                     provisioning,

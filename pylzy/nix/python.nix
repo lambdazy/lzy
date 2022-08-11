@@ -2,11 +2,11 @@
 let
   packageOverrides = self: super: rec {
     boto3 = super.boto3.overridePythonAttrs(old: rec {
-      version = "1.20.24";
+      version = "1.21.21";
       src = super.fetchPypi {
         pname = "boto3";
         inherit version;
-        sha256 = "c5cFso5rIynqO0gbqAHUOcKWqvF294UHKRR7qZu/ipo=";
+        sha256 = "b6BiLzCM/R2nWJZvyYtS+9dLgGBtFFhsitgsemxPMtA=";
       };
     });
 
@@ -20,11 +20,11 @@ let
     });
 
     botocore = super.botocore.overridePythonAttrs(old: rec {
-      version = "1.23.24";
+      version = "1.24.21";
       src = super.fetchPypi {
         pname = "botocore";
         inherit version;
-        sha256 = "QwBrT1LXu2VTGdPaD2Fc2+53YoU6zB68sdSfli5rSAY=";
+        sha256 = "fpds/QphYB50Yk749SRrQKAfLM5zoBHvKc+ApuNx0Po=";
       };
 
       propagatedBuildInputs = [
@@ -54,6 +54,8 @@ let
     });
 
     pyright = self.callPackage ./pyright.nix { };
+
+    aioboto3 = self.callPackage ./aioboto3.nix { } ;
 
     # type stubs:
     botocore-stubs = self.callPackage ./botocore-stubs.nix { };

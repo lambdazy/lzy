@@ -1,16 +1,15 @@
 import os
 import tempfile
 import uuid
-from typing import IO, Type, TypeVar
+from typing import BinaryIO, Type, TypeVar
 
-from lzy.serialization.api import Dumper
 from lzy.serialization.types import File
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
 # noinspection PyPackageRequirements
-class CatboostPoolDumper(Dumper):
+class CatboostPoolDumper:
     def fit(self) -> bool:
         # noinspection PyBroadException
         try:
@@ -20,7 +19,7 @@ class CatboostPoolDumper(Dumper):
         except:
             return False
 
-    def dump(self, obj: T, dest: IO) -> None:
+    def dump(self, obj: T, dest: BinaryIO) -> None:
         with tempfile.NamedTemporaryFile() as handle:
             if not obj.is_quantized():  # type: ignore
                 obj.quantize()  # type: ignore
@@ -31,7 +30,7 @@ class CatboostPoolDumper(Dumper):
                     break
                 dest.write(data)
 
-    def load(self, source: IO) -> T:
+    def load(self, source: BinaryIO) -> T:
         with tempfile.NamedTemporaryFile() as handle:
             while True:
                 data = source.read(8096)
@@ -50,15 +49,15 @@ class CatboostPoolDumper(Dumper):
         return catboost.Pool  # type: ignore
 
 
-class LzyFileDumper(Dumper[File]):
-    def dump(self, obj: File, dest: IO) -> None:
+class LzyFileDumper:
+    def dump(self, obj: File, dest: BinaryIO) -> None:
         with obj.path.open("rb") as f:
             data = f.read(4096)
             while len(data) > 0:
                 dest.write(data)
                 data = f.read(4096)
 
-    def load(self, source: IO) -> File:
+    def load(self, source: BinaryIO) -> File:
         new_path = os.path.join("/tmp", str(uuid.uuid1()))
         with open(new_path, "wb") as f:
             data = source.read(4096)
