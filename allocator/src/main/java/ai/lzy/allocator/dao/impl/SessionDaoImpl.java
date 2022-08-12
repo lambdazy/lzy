@@ -46,7 +46,7 @@ public class SessionDaoImpl implements SessionDao {
     @Nullable
     @Override
     public Session get(String sessionId, @Nullable TransactionHandle transaction) {
-        final Session[] session = new Session[1];
+        final Session[] session = {null};
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement("""
                 SELECT id, owner, cache_policy_json

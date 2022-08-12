@@ -9,5 +9,6 @@ import java.time.Duration;
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
 @JsonSerialize
 @JsonDeserialize
-public record CachePolicy(Duration minIdleTimeout) {
-}
+public record CachePolicy(
+    Duration minIdleTimeout
+) { }

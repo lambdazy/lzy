@@ -22,6 +22,13 @@ public interface DbOperation {
         try {
             op.execute(con);
         } catch (SQLException e) {
+            if (transaction == null) {
+                try {
+                    con.close();
+                } catch (SQLException ex) {
+                    throw new RuntimeException("Cannot execute sql request", ex);
+                }
+            }
             throw new RuntimeException("Cannot execute sql request", e);
         }
         try {
