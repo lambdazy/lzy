@@ -4,7 +4,7 @@ import ai.lzy.server.configs.ServerConfig;
 import ai.lzy.server.configs.StorageConfigs;
 import ai.lzy.server.hibernate.models.UserModel;
 import ai.lzy.server.utils.azure.StorageUtils;
-import ai.lzy.util.auth.RenewableToken;
+import ai.lzy.storage.impl.RenewableToken;
 import ai.lzy.util.auth.YcIamClient;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;

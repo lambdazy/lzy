@@ -35,7 +35,7 @@ public class StorageTest extends BaseTestWithIam {
     @Before
     public void before() throws IOException {
         super.before();
-        storageCtx = ApplicationContext.run();
+        storageCtx = ApplicationContext.run("../storage/src/main/resources/application-test.yml");
         storageConfig = storageCtx.getBean(StorageConfig.class);
         storageApp = new LzyStorage(storageCtx);
         storageApp.start();

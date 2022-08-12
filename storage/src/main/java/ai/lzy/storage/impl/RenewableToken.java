@@ -1,6 +1,8 @@
-package ai.lzy.util.auth;
+package ai.lzy.storage.impl;
 
+import ai.lzy.storage.StorageConfig;
 import io.micronaut.context.annotation.Context;
+import io.micronaut.context.annotation.Requires;
 import java.io.IOException;
 import java.io.StringReader;
 import java.security.KeyFactory;
@@ -15,10 +17,11 @@ import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemReader;
 
 @Context  //To make static initialization
+@Requires(property = "storage.yc.enabled", value = "true")
 public class RenewableToken {
     private static final AtomicReference<RenewableTokenInstance> instance = new AtomicReference<>();
 
-    public RenewableToken(YcCredentials yc) {
+    public RenewableToken(StorageConfig.YcCredentials yc) {
         PemObject privateKeyPem;
         try (PemReader reader = new PemReader(new StringReader(yc.privateKey()))) {
             privateKeyPem = reader.readPemObject();

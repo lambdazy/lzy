@@ -7,7 +7,6 @@ import ai.lzy.v1.LzyStorageApi.*;
 import ai.lzy.v1.LzyStorageGrpc;
 import ai.lzy.storage.StorageConfig;
 import ai.lzy.storage.StorageDataSource;
-import ai.lzy.util.auth.RenewableToken;
 import ai.lzy.util.auth.YcIamClient;
 import com.amazonaws.SdkClientException;
 import com.amazonaws.auth.AWSCredentials;

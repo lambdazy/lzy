@@ -1,4 +1,4 @@
-package ai.lzy.util.auth;
+package ai.lzy.storage.impl;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
