@@ -1,7 +1,7 @@
 { pkgs }:
 let
-  python = pkgs.callPackage ./nix/python.nix {};
-  lzy = ps: ps.callPackage ./nix/lzy.nix {};
+  python = pkgs.callPackage ./python.nix {};
+  lzy = ps: ps.callPackage ./lzy.nix {};
   python_dev_deps = ps: with ps; [
     boto3
     cloudpickle
@@ -18,6 +18,7 @@ let
 
     # it's here just to get protoc
     protobuf
+    grpcio-status
     grpcio-tools
     grpclib
     betterproto
@@ -64,7 +65,7 @@ let
     pure-protobuf
   ]);
 
-  mkEnv = custom-python: pkgs.callPackage ./nix/mk-python-env.nix {
+  mkEnv = custom-python: pkgs.callPackage ./mk-python-env.nix {
     inherit custom-python;
   };
 in {

@@ -3,7 +3,8 @@
 
 set -eux
 
-source ./util.sh
+src_dir="$(dirname $0)"
+source "$src_dir/util.sh"
 
 # this has to be declarared as env variable in mk-python-env.nix
 # proto_out="lzy/proto"

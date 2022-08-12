@@ -3,7 +3,8 @@
 
 set -u
 
-source ./util.sh
+src_dir="$(dirname $0)"
+source "$src_dir/util.sh"
 
 start
 
