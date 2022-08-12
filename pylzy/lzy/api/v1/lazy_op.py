@@ -34,7 +34,7 @@ from lzy.api.v1.servant.model.zygote import Provisioning, Zygote
 from lzy.api.v1.servant.model.zygote_python_func import ZygotePythonFunc
 from lzy.api.v1.servant.servant_client import ServantClient
 from lzy.api.v1.signatures import CallSignature, FuncSignature
-from lzy.api.v1.utils import LzyExecutionException, is_lazy_proxy
+from lzy.api.v1.utils import LzyExecutionException, is_lazy_proxy, resolve_if_proxy
 from lzy.api.v1.whiteboard.model import EntryIdGenerator, UUIDEntryIdGenerator
 from lzy.serialization.api import SerializersRegistry, Hasher
 
@@ -54,6 +54,7 @@ class LzyReturnValue(Generic[T]):
 
     def materialize(self) -> T:
         data = self.__op.materialize()
+        data = resolve_if_proxy(data)  # if function returns input argument
         return cast(T, data[self.__index])
 
     def execute(self):
@@ -77,7 +78,7 @@ class LzyReturnValue(Generic[T]):
 
 class LzyOp(ABC):
     def __init__(
-        self, signature: CallSignature[Tuple], entry_id_generator: EntryIdGenerator
+            self, signature: CallSignature[Tuple], entry_id_generator: EntryIdGenerator
     ):
         super().__init__()
         self._sign: CallSignature[Tuple] = signature
@@ -146,19 +147,19 @@ class LzyLocalOp(LzyOp):
 
 class LzyRemoteOp(LzyOp):
     def __init__(
-        self,
-        servant: ServantClient,
-        signature: CallSignature[Tuple],
-        snapshot_id: str,
-        entry_id_generator: EntryIdGenerator,
-        file_serializer: SerializersRegistry,
-        hasher: Hasher,
-        provisioning: Optional[Provisioning] = None,
-        base_env: Optional[BaseEnv] = None,
-        pyenv: Optional[AuxEnv] = None,
-        deployed: bool = False,
-        channel_manager: Optional[ChannelManager] = None,
-        cache_policy: CachePolicy = CachePolicy.IGNORE,
+            self,
+            servant: ServantClient,
+            signature: CallSignature[Tuple],
+            snapshot_id: str,
+            entry_id_generator: EntryIdGenerator,
+            file_serializer: SerializersRegistry,
+            hasher: Hasher,
+            provisioning: Optional[Provisioning] = None,
+            base_env: Optional[BaseEnv] = None,
+            pyenv: Optional[AuxEnv] = None,
+            deployed: bool = False,
+            channel_manager: Optional[ChannelManager] = None,
+            cache_policy: CachePolicy = CachePolicy.IGNORE,
     ):
         if (not provisioning or not pyenv) and not deployed:
             raise ValueError("Non-deployed ops must have provisioning and env")
@@ -190,11 +191,8 @@ class LzyRemoteOp(LzyOp):
 
     def dump_arguments(self, args: Iterable[Tuple[str, Any]]):
         for entry_id, obj in args:
-            typ = (
-                type(obj)
-                if not hasattr(obj, "__lzy_origin__")
-                else type(obj.__lzy_origin__)
-            )
+            obj = resolve_if_proxy(obj)
+            typ = type(obj)
             data_schema = DataSchema.generate_schema(typ)
             path = self._channel_manager.out_slot(entry_id, data_schema)
             with path.open("wb") as file:
@@ -204,7 +202,7 @@ class LzyRemoteOp(LzyOp):
 
     @classmethod
     def _execution_exception_message(
-        cls, execution: Execution, func: FuncSignature[Any], return_code: int
+            cls, execution: Execution, func: FuncSignature[Any], return_code: int
     ) -> str:
 
         if return_code == ReturnCode.ENVIRONMENT_INSTALLATION_ERROR.value:
@@ -217,11 +215,11 @@ class LzyRemoteOp(LzyOp):
 
     @classmethod
     def _exception(
-        cls,
-        execution: Execution,
-        func: FuncSignature[Any],
-        returncode: int,
-        message: str,
+            cls,
+            execution: Execution,
+            func: FuncSignature[Any],
+            returncode: int,
+            message: str,
     ) -> str:
         return (
             f"Task {execution.id()[:4]} failed in func {func.name}"
@@ -318,7 +316,7 @@ class LzyRemoteOp(LzyOp):
         raise LzyExecutionException(message)
 
     def _build_description(
-        self, inputs: Iterable[InputExecutionValue]
+            self, inputs: Iterable[InputExecutionValue]
     ) -> ExecutionDescription:
         return ExecutionDescription(
             self.signature.func.name,
@@ -381,15 +379,15 @@ class LzyRemoteOp(LzyOp):
     # pylint: disable=too-many-arguments
     @staticmethod
     def restore(
-        servant: ServantClient,
-        materialized: bool,
-        materialization: Any,
-        call_s: CallSignature[Tuple],
-        provisioning: Provisioning,
-        env: Env,
-        snapshot_id: str,
-        file_serializer: SerializersRegistry,
-        hasher: Hasher,
+            servant: ServantClient,
+            materialized: bool,
+            materialization: Any,
+            call_s: CallSignature[Tuple],
+            provisioning: Provisioning,
+            env: Env,
+            snapshot_id: str,
+            file_serializer: SerializersRegistry,
+            hasher: Hasher,
     ):
         op_ = LzyRemoteOp(
             servant,

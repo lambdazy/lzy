@@ -1,6 +1,6 @@
 import os
 import uuid
-from typing import BinaryIO, Type, Union, Callable
+from typing import BinaryIO, Type, Union, Callable, Any
 
 from lzy.serialization.api import Serializer
 from lzy.serialization.types import File
@@ -18,7 +18,7 @@ class FileSerializer(Serializer):
                 dest.write(data)
                 data = f.read(4096)
 
-    def deserialize(self, source: BinaryIO, typ: Type) -> File:
+    def deserialize(self, source: BinaryIO, typ: Type) -> Any:
         new_path = os.path.join("/tmp", str(uuid.uuid1()))
         with open(new_path, "wb") as f:
             data = source.read(4096)

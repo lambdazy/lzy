@@ -1,5 +1,7 @@
 import abc
-from typing import BinaryIO, Type, Union, Callable, Any, Optional
+from typing import BinaryIO, Type, Union, Callable, Any, Optional, TypeVar
+
+T = TypeVar("T")
 
 
 class Serializer(abc.ABC):
@@ -12,7 +14,7 @@ class Serializer(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def deserialize(self, source: BinaryIO, typ: Type) -> Any:
+    def deserialize(self, source: BinaryIO, typ: Type[T]) -> T:
         pass
 
     @abc.abstractmethod

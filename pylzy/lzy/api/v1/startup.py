@@ -96,7 +96,7 @@ def main():
         log(f"Writing result to file {result_path}")
         with open(result_path, "wb") as out_handle:
             materialize = val.materialize()
-            file_serializer.find_serializer_by_type(type(materialize)).serialize(materialize, out_handle)
+            file_serializer.find_serializer_by_type(val.type).serialize(materialize, out_handle)
             out_handle.flush()
             os.fsync(out_handle.fileno())
     log("Execution done")

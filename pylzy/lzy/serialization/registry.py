@@ -27,12 +27,15 @@ class DefaultSerializersRegistry(SerializersRegistry):
 
     def register_serializer(self, serializer: Serializer, priority: Optional[int] = None) -> None:
         if not serializer.available():
-            self._log.warning(f"Serializer {serializer.name()} cannot be imported")
+            self._log.warning(f"Serializer {serializer.name()} cannot be registered")
             return
 
         if serializer.name() in self._serializer_priorities:
-            self._log.warning(f"Serializer {serializer.name()} has been already imported")
-            return
+            raise ValueError(f"Serializer {serializer.name()} has been already registered")
+
+        if isinstance(serializer.supported_types(),
+                      Type) and serializer.supported_types() in self._type_registry:  # type: ignore
+            raise ValueError(f"Serializer for type {serializer.supported_types()} has been already registered")
 
         priority = self._default_priority if priority is None else priority
         self._serializer_priorities[serializer.name()] = priority
@@ -66,14 +69,9 @@ class DefaultSerializersRegistry(SerializersRegistry):
         obj_type_ser_priority = sys.maxsize if obj_type_ser is None else self._serializer_priorities[
             obj_type_ser.name()]
 
-        if filter_ser is not None and obj_type_ser is not None:
-            return filter_ser if filter_ser_priority < obj_type_ser_priority else obj_type_ser
-        elif filter_ser is not None:
-            return filter_ser
-        elif obj_type_ser is not None:
-            return obj_type_ser
-        else:
-            raise ValueError(f"Could not find serializer for type {typ}")
+        if obj_type_ser is not None:
+            return cast(Serializer, filter_ser) if filter_ser_priority < obj_type_ser_priority else obj_type_ser
+        return cast(Serializer, filter_ser)
 
     def find_serializer_by_name(self, serializer_name: str) -> Optional[Serializer]:
         if serializer_name in self._name_registry:
