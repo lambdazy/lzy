@@ -3,8 +3,6 @@ import os
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set
 
-from pure_protobuf.dataclasses_ import message  # type: ignore
-
 from lzy.api.v1.servant.channel_manager import ChannelManager
 from lzy.api.v1.servant.model.slot import DataSchema
 from lzy.api.v1.utils import is_lazy_proxy

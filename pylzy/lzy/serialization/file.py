@@ -2,8 +2,6 @@ import os
 import uuid
 from typing import BinaryIO, Type, Union, Callable
 
-from pure_protobuf.dataclasses_ import Message  # type: ignore
-
 from lzy.serialization.api import Serializer
 from lzy.serialization.types import File
 
@@ -20,7 +18,7 @@ class FileSerializer(Serializer):
                 dest.write(data)
                 data = f.read(4096)
 
-    def deserialize(self, source: BinaryIO) -> File:
+    def deserialize(self, source: BinaryIO, typ: Type) -> File:
         new_path = os.path.join("/tmp", str(uuid.uuid1()))
         with open(new_path, "wb") as f:
             data = source.read(4096)

@@ -18,8 +18,6 @@ from typing import (
     cast,
 )
 
-from pure_protobuf.dataclasses_ import Message, load  # type: ignore
-
 from lzy.api.v1.cache_policy import CachePolicy
 from lzy.api.v1.servant.channel_manager import ChannelManager
 from lzy.api.v1.servant.model.channel import Binding, Bindings
@@ -360,7 +358,7 @@ class LzyRemoteOp(LzyOp):
                                 raise LzyExecutionException("Cannot read from slot")
                         handle.seek(0)
                         materialization.append(
-                            self._file_serializer.find_serializer_by_type(val.type).deserialize(handle)
+                            self._file_serializer.find_serializer_by_type(val.type).deserialize(handle, val.type)
                         )
                 except Exception as e:
                     self._log.error(e)

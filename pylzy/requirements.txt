@@ -6,6 +6,5 @@ wheel>=0.36.2
 azure-storage-blob>=12.9.0
 requests>=2.26
 stdlib-list>=0.8.0
-hidden-pure-protobuf>=0.2
 grpclib>=0.4.2
 protobuf>=3.19.0

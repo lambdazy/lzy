@@ -1,7 +1,6 @@
 from typing import BinaryIO, Type, Union, Callable, Any
 
 import cloudpickle
-from pure_protobuf.dataclasses_ import Message  # type: ignore
 
 from lzy.serialization.api import Serializer
 
@@ -14,7 +13,7 @@ class CloudpickleSerializer(Serializer):
     def serialize(self, obj: Any, dest: BinaryIO) -> None:
         cloudpickle.dump(obj, dest)
 
-    def deserialize(self, source: BinaryIO) -> Any:
+    def deserialize(self, source: BinaryIO, typ: Type) -> Any:
         return cloudpickle.load(source)
 
     def available(self) -> bool:

@@ -12,7 +12,7 @@ class Serializer(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def deserialize(self, source: BinaryIO) -> Any:
+    def deserialize(self, source: BinaryIO, typ: Type) -> Any:
         pass
 
     @abc.abstractmethod

@@ -2,9 +2,6 @@ import logging
 import sys
 from typing import Dict, List, Type, Optional, cast
 
-import cloudpickle  # type: ignore
-from pure_protobuf.dataclasses_ import load, loads, Message  # type: ignore
-
 from lzy.serialization.api import SerializersRegistry, Serializer
 from lzy.serialization.catboost import CatboostPoolSerializer
 from lzy.serialization.file import FileSerializer

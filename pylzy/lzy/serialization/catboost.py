@@ -3,8 +3,6 @@ import os
 import tempfile
 from typing import BinaryIO, Type, TypeVar, Union, Callable
 
-from pure_protobuf.dataclasses_ import Message  # type: ignore
-
 from lzy.serialization.api import Serializer
 
 T = TypeVar("T")  # pylint: disable=invalid-name
@@ -39,7 +37,7 @@ class CatboostPoolSerializer(Serializer):
                     break
                 dest.write(data)
 
-    def deserialize(self, source: BinaryIO) -> T:
+    def deserialize(self, source: BinaryIO, typ: Type) -> T:
         with tempfile.NamedTemporaryFile() as handle:
             while True:
                 data = source.read(8096)

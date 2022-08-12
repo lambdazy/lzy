@@ -29,6 +29,6 @@ class SerializationTests(TestCase):
             self.serialization.find_serializer_by_type(type(msg)).serialize(msg, file)
             file.flush()
             file.seek(0)
-            result = self.serialization.find_serializer_by_type(unpickled_msg_type).deserialize(file)
+            result = self.serialization.find_serializer_by_type(unpickled_msg_type).deserialize(file, unpickled_msg_type)
 
         self.assertEqual(msg.a, result.a)

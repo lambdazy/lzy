@@ -1,27 +1,36 @@
-from typing import BinaryIO, Type, Union, Callable
-
-import cloudpickle
-from pure_protobuf.dataclasses_ import Message  # type: ignore
+import logging
+from typing import BinaryIO, Type, Union, Callable, Any
 
 from lzy.serialization.api import Serializer
 
 
 # noinspection PyMethodMayBeStatic
 class ProtoMessageSerializer(Serializer):
+    def __init__(self):
+        self._log = logging.getLogger(str(self.__class__))
+
     def name(self) -> str:
         return "PROTO_MESSAGE_SERIALIZER"
 
-    def serialize(self, obj: Message, dest: BinaryIO) -> None:
-        cloudpickle.dump(obj, dest)
+    def serialize(self, obj: Any, dest: BinaryIO) -> None:
+        obj.dump(dest)
 
-    def deserialize(self, source: BinaryIO) -> Message:
-        return cloudpickle.load(source)
+    def deserialize(self, source: BinaryIO, typ: Type) -> Any:
+        from pure_protobuf.dataclasses_ import load  # type: ignore
+        return load(typ, source)
 
     def available(self) -> bool:
-        return True
+        # noinspection PyBroadException
+        try:
+            import pure_protobuf  # type: ignore
+            return True
+        except:
+            logging.warning("Cannot import pure-protobuf")
+            return False
 
     def stable(self) -> bool:
         return True
 
     def supported_types(self) -> Union[Type, Callable[[Type], bool]]:
+        from pure_protobuf.dataclasses_ import Message  # type: ignore
         return lambda t: issubclass(t, Message)

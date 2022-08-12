@@ -5,8 +5,6 @@ import time
 from pathlib import Path
 from typing import Any, Mapping, Optional, Type, TypeVar
 
-from pure_protobuf.dataclasses_ import load  # type: ignore
-
 from lzy.api.v1 import LzyRemoteOp, UUIDEntryIdGenerator
 from lzy.api.v1.servant.bash_servant_client import BashServantClient
 from lzy.api.v1.servant.model.execution import ExecutionDescription, InputExecutionValue
@@ -40,7 +38,7 @@ def load_arg(
         while file.read(1) is None:
             time.sleep(0)  # Thread.yield
         file.seek(0)
-        data: T = file_serializer.find_serializer_by_type(inp_type).deserialize(file)
+        data: T = file_serializer.find_serializer_by_type(inp_type).deserialize(file, inp_type)
         if input_value:
             input_value.hash = hasher.hash(data)
         return data
