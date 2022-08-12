@@ -11,7 +11,6 @@ let
     azure-storage-blob
     requests
     stdlib-list
-    pure-protobuf
     aioboto3
 
     pip
@@ -23,6 +22,10 @@ let
     grpclib
     betterproto
     mypy-protobuf
+
+    # for tests
+    pure-protobuf
+    catboost
   ];
   python_lzy_deps = ps: (python_dev_deps ps) ++ (with ps; [
     (lzy ps)
