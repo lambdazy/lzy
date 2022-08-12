@@ -59,12 +59,14 @@ public class YcMk8s implements VmPoolRegistry {
     public YcMk8s(ServiceConfig config, ServiceFactory serviceFactory) {
         this.config = config;
 
-        this.clusterServiceClient = serviceFactory.create(ClusterServiceBlockingStub.class, ClusterServiceGrpc::newBlockingStub)
+        this.clusterServiceClient = serviceFactory
+            .create(ClusterServiceBlockingStub.class, ClusterServiceGrpc::newBlockingStub)
             .withInterceptors(
                 // TODO: forward X-REQUEST-ID header
                 new RequestIdInterceptor());
 
-        this.nodeGroupServiceClient = serviceFactory.create(NodeGroupServiceBlockingStub.class, NodeGroupServiceGrpc::newBlockingStub)
+        this.nodeGroupServiceClient = serviceFactory
+            .create(NodeGroupServiceBlockingStub.class, NodeGroupServiceGrpc::newBlockingStub)
             .withInterceptors(
                 // TODO: forward X-REQUEST-ID header
                 new RequestIdInterceptor());
