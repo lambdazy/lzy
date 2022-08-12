@@ -19,6 +19,16 @@ let
       };
     });
 
+    importlib-metadata = super.importlib-metadata.overridePythonAttrs(old: rec {
+      version = "4.8.1";
+      src = super.fetchPypi {
+        pname = "importlib_metadata";
+        inherit version;
+        sha256 = "f284b3e11256ad1e5d03ab86bb2ccd6f5339688ff17a4d797a0fe7df326f23b1";
+      };
+      doCheck = false;
+    });
+
     botocore = super.botocore.overridePythonAttrs(old: rec {
       version = "1.24.21";
       src = super.fetchPypi {

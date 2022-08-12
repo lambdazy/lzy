@@ -11,7 +11,6 @@ let
     azure-storage-blob
     requests
     stdlib-list
-    pure-protobuf
     aioboto3
 
     pip
@@ -62,7 +61,6 @@ let
 
     # some libs to have types
     cloudpickle
-    pure-protobuf
   ]);
 
   mkEnv = custom-python: pkgs.callPackage ./mk-python-env.nix {
