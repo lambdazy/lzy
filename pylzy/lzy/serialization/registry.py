@@ -6,8 +6,10 @@ import cloudpickle  # type: ignore
 from pure_protobuf.dataclasses_ import load, loads, Message  # type: ignore
 
 from lzy.serialization.api import SerializersRegistry, Serializer
-from lzy.serialization.dumper import CatboostPoolSerializer, FileSerializer, ProtoMessageSerializer, \
-    CloudpickleSerializer
+from lzy.serialization.catboost import CatboostPoolSerializer
+from lzy.serialization.file import FileSerializer
+from lzy.serialization.proto import ProtoMessageSerializer
+from lzy.serialization.universal import CloudpickleSerializer
 
 
 class DefaultSerializersRegistry(SerializersRegistry):
