@@ -38,8 +38,7 @@ from lzy.api.v1.servant.servant_client import ServantClient
 from lzy.api.v1.signatures import CallSignature, FuncSignature
 from lzy.api.v1.utils import LzyExecutionException, is_lazy_proxy
 from lzy.api.v1.whiteboard.model import EntryIdGenerator, UUIDEntryIdGenerator
-from lzy.serialization.api import Serializer
-from lzy.serialization.hasher import Hasher
+from lzy.serialization.api import SerializersRegistry, Hasher
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -154,7 +153,7 @@ class LzyRemoteOp(LzyOp):
         signature: CallSignature[Tuple],
         snapshot_id: str,
         entry_id_generator: EntryIdGenerator,
-        file_serializer: Serializer,
+        file_serializer: SerializersRegistry,
         hasher: Hasher,
         provisioning: Optional[Provisioning] = None,
         base_env: Optional[BaseEnv] = None,
@@ -193,10 +192,15 @@ class LzyRemoteOp(LzyOp):
 
     def dump_arguments(self, args: Iterable[Tuple[str, Any]]):
         for entry_id, obj in args:
-            data_schema = DataSchema.generate_schema(type(obj))
+            typ = (
+                type(obj)
+                if not hasattr(obj, "__lzy_origin__")
+                else type(obj.__lzy_origin__)
+            )
+            data_schema = DataSchema.generate_schema(typ)
             path = self._channel_manager.out_slot(entry_id, data_schema)
             with path.open("wb") as file:
-                self._file_serializer.serialize(obj, file)
+                self._file_serializer.find_serializer_by_type(typ).serialize(obj, file)
                 file.flush()
                 os.fsync(file.fileno())
 
@@ -356,7 +360,7 @@ class LzyRemoteOp(LzyOp):
                                 raise LzyExecutionException("Cannot read from slot")
                         handle.seek(0)
                         materialization.append(
-                            self._file_serializer.deserialize(handle, val.type)
+                            self._file_serializer.find_serializer_by_type(val.type).deserialize(handle)
                         )
                 except Exception as e:
                     self._log.error(e)
@@ -386,7 +390,7 @@ class LzyRemoteOp(LzyOp):
         provisioning: Provisioning,
         env: Env,
         snapshot_id: str,
-        file_serializer: Serializer,
+        file_serializer: SerializersRegistry,
         hasher: Hasher,
     ):
         op_ = LzyRemoteOp(

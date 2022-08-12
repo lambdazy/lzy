@@ -22,7 +22,7 @@ from lzy.api.v2.remote_grpc.model.zygote import python_func_zygote
 from lzy.api.v2.runtime import ProgressStep, Runtime
 from lzy.api.v2.snapshot.snapshot import Snapshot
 from lzy.api.v2.utils.types import unwrap
-from lzy.serialization.api import Serializer
+from lzy.serialization.api import SerializersRegistry
 from lzy.storage import from_credentials
 from lzy.storage.credentials import StorageCredentials
 from lzy.storage.storage_client import StorageClient
@@ -72,16 +72,16 @@ class GrpcRuntime(Runtime):
             graph_executor_client,
         )
 
-    def _load_arg(self, entry_id: str, data: Any, serializer: Serializer):
+    def _load_arg(self, entry_id: str, data: Any, serializer: SerializersRegistry):
         with tempfile.NamedTemporaryFile("wb", delete=True) as write_file:
-            serializer.serialize(data, cast(BinaryIO, write_file))
+            serializer.find_serializer_by_type(type(data)).serialize(data, cast(BinaryIO, write_file))
             write_file.flush()
             with open(write_file.name, "rb") as read_file:
                 read_file.seek(0)
                 uri = self._storage_client.write(self._bucket, entry_id, read_file)
                 # TODO: make a call to snapshot component to store entry_id and uri
 
-    def _load_args(self, graph: List[LzyCall], serializer: Serializer):
+    def _load_args(self, graph: List[LzyCall], serializer: SerializersRegistry):
         for call in graph:
             for name, arg in call.named_arguments():
                 if not is_lzy_proxy(arg):
@@ -123,7 +123,7 @@ class GrpcRuntime(Runtime):
         call: LzyCall,
         arg_name_to_call_id: Dict[str, str],
         snapshot_id: str,
-        serializer: Serializer,
+        serializer: SerializersRegistry,
     ):
         fnc = call.signature.func
         for name, arg in call.named_arguments():
@@ -172,7 +172,7 @@ class GrpcRuntime(Runtime):
         # return bindings
 
     def _task_spec(
-        self, call: LzyCall, snapshot_id: str, serializer: Serializer
+        self, call: LzyCall, snapshot_id: str, serializer: SerializersRegistry
     ) -> TaskDesc:
         # zygote = python_func_zygote(call)
         # arg_name_to_call_id: Dict[str, str] = _get_or_generate_call_ids(call)

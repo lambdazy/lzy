@@ -6,7 +6,7 @@ import cloudpickle
 from pure_protobuf.dataclasses_ import message, field
 from pure_protobuf.types import int32
 
-from lzy.serialization.serializer import DefaultSerializer
+from lzy.serialization.registry import DefaultSerializersRegistry
 
 
 @message
@@ -18,7 +18,7 @@ class TestMessage:
 class SerializationTests(TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.serialization = DefaultSerializer()
+        cls.serialization = DefaultSerializersRegistry()
 
     def test_unpickled_message_keeps_subclass(self):
         msg = TestMessage(42)
@@ -26,9 +26,9 @@ class SerializationTests(TestCase):
         unpickled_msg_type = cloudpickle.loads(pickled_msg_type)
 
         with tempfile.TemporaryFile() as file:
-            self.serialization.serialize(msg, file)
+            self.serialization.find_serializer_by_type(type(msg)).serialize(msg, file)
             file.flush()
             file.seek(0)
-            result = self.serialization.deserialize(file, unpickled_msg_type)
+            result = self.serialization.find_serializer_by_type(unpickled_msg_type).deserialize(file)
 
         self.assertEqual(msg.a, result.a)

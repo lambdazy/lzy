@@ -1,28 +1,56 @@
-from typing import Any, BinaryIO, Protocol, Type, TypeVar
+import abc
+from typing import BinaryIO, Type, Union, Callable, Any, Optional
 
-T = TypeVar("T")  # pylint: disable=invalid-name
 
-
-class Dumper(Protocol[T]):
-    def dump(self, obj: T, dest: BinaryIO) -> None:
+class Serializer(abc.ABC):
+    @abc.abstractmethod
+    def name(self) -> str:
         pass
 
-    def load(self, source: BinaryIO) -> T:
+    @abc.abstractmethod
+    def serialize(self, obj: Any, dest: BinaryIO) -> None:
         pass
 
-    def typ(self) -> Type[T]:
+    @abc.abstractmethod
+    def deserialize(self, source: BinaryIO) -> Any:
         pass
 
-    def fit(self) -> bool:
+    @abc.abstractmethod
+    def supported_types(self) -> Union[Type, Callable[[Type], bool]]:
+        pass
+
+    @abc.abstractmethod
+    def available(self) -> bool:
+        pass
+
+    @abc.abstractmethod
+    def stable(self) -> bool:
         pass
 
 
-class Serializer(Protocol):
-    def serialize(self, obj: Any, file: BinaryIO) -> None:
+class SerializersRegistry(abc.ABC):
+    @abc.abstractmethod
+    def register_serializer(self, dumper: Serializer, priority: Optional[int] = None) -> None:
         pass
 
-    def deserialize(self, data: BinaryIO, obj_type: Type[T] = None) -> T:
+    @abc.abstractmethod
+    def unregister_serializer(self, dumper: Serializer) -> None:
         pass
 
-    def add_dumper(self, dumper: Dumper):
+    @abc.abstractmethod
+    def find_serializer_by_type(self, typ: Type) -> Serializer:
+        pass
+
+    @abc.abstractmethod
+    def find_serializer_by_name(self, dumper_name: str) -> Optional[Serializer]:
+        pass
+
+
+class Hasher(abc.ABC):
+    @abc.abstractmethod
+    def hash(self, data: Any) -> str:
+        pass
+
+    @abc.abstractmethod
+    def can_hash(self, data: Any) -> bool:
         pass

@@ -15,11 +15,11 @@ from lzy.api.v1.signatures import CallSignature, FuncSignature
 from lzy.api.v1.utils import lazy_proxy
 from lzy.api.v2.utils._pickle import unpickle
 from lzy.serialization.hasher import DelegatingHasher
-from lzy.serialization.serializer import DefaultSerializer
+from lzy.serialization.registry import DefaultSerializersRegistry
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
-file_serializer = DefaultSerializer()
+file_serializer = DefaultSerializersRegistry()
 hasher = DelegatingHasher(file_serializer)
 
 
@@ -40,7 +40,7 @@ def load_arg(
         while file.read(1) is None:
             time.sleep(0)  # Thread.yield
         file.seek(0)
-        data: T = file_serializer.deserialize(file, inp_type)
+        data: T = file_serializer.find_serializer_by_type(inp_type).deserialize(file)
         if input_value:
             input_value.hash = hasher.hash(data)
         return data
@@ -97,7 +97,8 @@ def main():
         result_path = servant.mount() / func_s.name / "return" / str(num)
         log(f"Writing result to file {result_path}")
         with open(result_path, "wb") as out_handle:
-            file_serializer.serialize(val.materialize(), out_handle)
+            materialize = val.materialize()
+            file_serializer.find_serializer_by_type(type(materialize)).serialize(materialize, out_handle)
             out_handle.flush()
             os.fsync(out_handle.fileno())
     log("Execution done")
