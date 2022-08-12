@@ -30,11 +30,11 @@ class Serializer(abc.ABC):
 
 class SerializersRegistry(abc.ABC):
     @abc.abstractmethod
-    def register_serializer(self, dumper: Serializer, priority: Optional[int] = None) -> None:
+    def register_serializer(self, serializer: Serializer, priority: Optional[int] = None) -> None:
         pass
 
     @abc.abstractmethod
-    def unregister_serializer(self, dumper: Serializer) -> None:
+    def unregister_serializer(self, serializer: Serializer) -> None:
         pass
 
     @abc.abstractmethod
@@ -42,7 +42,7 @@ class SerializersRegistry(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def find_serializer_by_name(self, dumper_name: str) -> Optional[Serializer]:
+    def find_serializer_by_name(self, serializer_name: str) -> Optional[Serializer]:
         pass
 
 
