@@ -33,8 +33,7 @@ class DefaultSerializersRegistry(SerializersRegistry):
         if serializer.name() in self._serializer_priorities:
             raise ValueError(f"Serializer {serializer.name()} has been already registered")
 
-        if isinstance(serializer.supported_types(),
-                      Type) and serializer.supported_types() in self._type_registry:  # type: ignore
+        if isinstance(serializer.supported_types(), Type) and serializer.supported_types() in self._type_registry:  # type: ignore
             raise ValueError(f"Serializer for type {serializer.supported_types()} has been already registered")
 
         priority = self._default_priority if priority is None else priority
