@@ -48,7 +48,8 @@ public class YcMk8s implements VmPoolRegistry {
 
     private record ClusterDesc(
         String clusterId,
-        HostAndPort masterAddress,
+        HostAndPort masterInternalAddress,
+        HostAndPort masterExternalAddress,
         String masterCert,
         Map<String, NodeGroupDesc> nodeGroups
     ) {}
@@ -114,9 +115,13 @@ public class YcMk8s implements VmPoolRegistry {
         }
 
         var master = cluster.getMaster();
-        assert master.hasZonalMaster();
-        var zonalMaster = master.getZonalMaster();
         var masterCert = master.getMasterAuth().getClusterCaCertificate();
+        var masterInternalAddress = master.hasZonalMaster()
+            ? master.getZonalMaster().getInternalV4Address()
+            : master.getRegionalMaster().getInternalV4Address();
+        var masterExternalAddress = master.hasZonalMaster()
+            ? master.getZonalMaster().getExternalV4Address()
+            : master.getRegionalMaster().getExternalV4Address();
 
         LOG.info("""
             Resolved {} cluster {}:
@@ -124,19 +129,21 @@ public class YcMk8s implements VmPoolRegistry {
               folder_id: {}
               name: {}
               description: {}
-              zone: {}
-              k8s-master: {}
+              k8s-master-type: {}
+              k8s-master-internal: {}
+              k8s-master-external: {}
               k83-master-cert: {}
             """,
             ct(system), clusterId, cluster.getId(), cluster.getFolderId(), cluster.getName(), cluster.getDescription(),
-            zonalMaster.getZoneId(), zonalMaster.getInternalV4Address(), /* masterCert */ "***");
+            master.getMasterTypeCase(), masterInternalAddress, masterExternalAddress, /* masterCert */ "***");
 
         folder2clusters.computeIfAbsent(cluster.getFolderId(), x -> new HashSet<>()).add(clusterId);
         (system ? systemFolders : userFolders).add(cluster.getFolderId());
 
         var clusterDesc = new ClusterDesc(
             clusterId,
-            HostAndPort.fromString(zonalMaster.getInternalV4Address()),
+            HostAndPort.fromString(masterInternalAddress),
+            HostAndPort.fromString(masterExternalAddress),
             masterCert,
             new HashMap<>());
         clusters.put(clusterId, clusterDesc);
@@ -166,6 +173,7 @@ public class YcMk8s implements VmPoolRegistry {
             }
 
             var label = Objects.requireNonNull(nodeGroup.getLabelsMap().get("lzy.ai/node-pool-label"));
+            var zone = Objects.requireNonNull(nodeGroup.getLabelsMap().get("lzy.ai/node-pool-az"));
 
             var nodeTemplate = nodeGroup.getNodeTemplate();
             var spec = nodeTemplate.getResourcesSpec();
@@ -185,11 +193,10 @@ public class YcMk8s implements VmPoolRegistry {
                   gpu: {} ({})
                   ram: {}
                 """,
-                nodeGroup.getId(), nodeGroup.getName(), cluster.getFolderId(), clusterId, zonalMaster.getZoneId(),
-                label, nodeTemplate.getPlatformId(), spec.getCores(), cpuType, spec.getGpus(), gpuType,
-                spec.getMemory());
+                nodeGroup.getId(), nodeGroup.getName(), cluster.getFolderId(), clusterId, zone, label,
+                nodeTemplate.getPlatformId(), spec.getCores(), cpuType, spec.getGpus(), gpuType, spec.getMemory());
 
-            var nodeGroupDesc = new NodeGroupDesc(zonalMaster.getZoneId(), nodeGroup);
+            var nodeGroupDesc = new NodeGroupDesc(zone, nodeGroup);
             clusterDesc.nodeGroups().put(nodeGroup.getId(), nodeGroupDesc);
 
             var pool = system ? systemPools : userPools;
@@ -199,7 +206,7 @@ public class YcMk8s implements VmPoolRegistry {
                     (int) (spec.getMemory() >> 30), new HashSet<>());
                 pool.put(label, vmSpec);
             }
-            vmSpec.zones().add(zonalMaster.getZoneId());
+            vmSpec.zones().add(zone);
         }
     }
 
