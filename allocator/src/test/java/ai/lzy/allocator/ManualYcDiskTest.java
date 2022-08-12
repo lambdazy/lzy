@@ -13,9 +13,11 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.UUID;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import yandex.cloud.sdk.Zone;
 
+@Ignore
 public class ManualYcDiskTest {
     final YcCredentials credentials = loadCredsFrom();
     final DiskManager diskManager = new YcDiskManager(credentials);
