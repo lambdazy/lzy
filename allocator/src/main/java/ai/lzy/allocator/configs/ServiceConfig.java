@@ -56,8 +56,7 @@ public record ServiceConfig(
     @ConfigurationProperties("yc-mk8s")
     public record YcMk8sConfig(
         boolean enabled,
-        String serviceAccount,
-        String serviceAccountSecret
+        String serviceAccountFile
     ) {}
 
     @ConfigurationProperties("azure-mk8s")

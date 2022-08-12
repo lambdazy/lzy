@@ -4,6 +4,7 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.services.AllocatorApi;
 import ai.lzy.allocator.services.AllocatorPrivateApi;
 import ai.lzy.allocator.services.OperationApi;
+import ai.lzy.allocator.vmpool.VmPoolService;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.grpc.GrpcLogsInterceptor;
 import io.grpc.Server;
@@ -26,7 +27,7 @@ public class AllocatorMain {
     private final GarbageCollector gc;
 
     public AllocatorMain(AllocatorApi allocator, AllocatorPrivateApi allocatorPrivate, OperationApi opApi,
-             ServiceConfig config, GarbageCollector gc) {
+                         ServiceConfig config, GarbageCollector gc, VmPoolService vmPool) {
         this.config = config;
         this.gc = gc;
         ServerBuilder<?> builder = NettyServerBuilder.forPort(config.port())
@@ -36,6 +37,7 @@ public class AllocatorMain {
         builder.addService(ServerInterceptors.intercept(allocator, new GrpcLogsInterceptor()));
         builder.addService(ServerInterceptors.intercept(allocatorPrivate, new GrpcLogsInterceptor()));
         builder.addService(ServerInterceptors.intercept(opApi, new GrpcLogsInterceptor()));
+        builder.addService(ServerInterceptors.intercept(vmPool, new GrpcLogsInterceptor()));
         server = builder.build();
     }
 

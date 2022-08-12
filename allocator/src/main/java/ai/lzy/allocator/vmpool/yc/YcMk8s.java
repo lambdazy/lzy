@@ -1,66 +1,92 @@
 package ai.lzy.allocator.vmpool.yc;
 
 import ai.lzy.allocator.configs.ServiceConfig;
-import io.grpc.ManagedChannel;
+import ai.lzy.allocator.vmpool.VmPoolRegistry;
+import ai.lzy.allocator.vmpool.VmPoolSpec;
+import com.google.common.net.HostAndPort;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.annotation.Requires;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import yandex.cloud.api.k8s.v1.ClusterServiceGrpc;
+import yandex.cloud.api.k8s.v1.ClusterServiceGrpc.ClusterServiceBlockingStub;
 import yandex.cloud.api.k8s.v1.ClusterServiceOuterClass.GetClusterRequest;
 import yandex.cloud.api.k8s.v1.NodeGroupOuterClass.NodeGroup;
 import yandex.cloud.api.k8s.v1.NodeGroupServiceGrpc;
+import yandex.cloud.api.k8s.v1.NodeGroupServiceGrpc.NodeGroupServiceBlockingStub;
 import yandex.cloud.api.k8s.v1.NodeGroupServiceOuterClass;
 import yandex.cloud.api.k8s.v1.NodeGroupServiceOuterClass.ListNodeGroupsRequest;
-import yandex.cloud.sdk.ChannelFactory;
-import yandex.cloud.sdk.grpc.interceptors.DeadlineClientInterceptor;
+import yandex.cloud.sdk.ServiceFactory;
 import yandex.cloud.sdk.grpc.interceptors.RequestIdInterceptor;
 
-import javax.annotation.PreDestroy;
 import javax.inject.Singleton;
-import java.time.Duration;
-import java.util.Objects;
+import java.util.*;
 
 import static yandex.cloud.api.k8s.v1.ClusterOuterClass.Cluster;
 
 @Singleton
 @Requires(property = "allocator.yc-mk8s.enabled", value = "true")
-public class YcMk8s {
+public class YcMk8s implements VmPoolRegistry {
     private static final Logger LOG = LogManager.getLogger(YcMk8s.class);
 
-    private static final Duration YC_CALL_TIMEOUT = Duration.ofSeconds(30);
-
     private final ServiceConfig config;
-    private final ManagedChannel clusterServiceChannel;
-    private final ManagedChannel nodeGroupServiceChannel;
-    private final ClusterServiceGrpc.ClusterServiceBlockingStub clusterServiceClient;
-    private final NodeGroupServiceGrpc.NodeGroupServiceBlockingStub nodeGroupServiceClient;
+    private final ClusterServiceBlockingStub clusterServiceClient;
+    private final NodeGroupServiceBlockingStub nodeGroupServiceClient;
+
+    private final Map<String, VmPoolSpec> systemPools = new HashMap<>();
+    private final Map<String, VmPoolSpec> userPools = new HashMap<>();
+
+    private final Set<String> systemFolders = new HashSet<>();
+    private final Set<String> userFolders = new HashSet<>();
+
+    private final Map<String, Set<String>> folder2clusters = new HashMap<>();
+
+    private record NodeGroupDesc(
+        String zone,
+        NodeGroup proto
+    ) {}
+
+    private record ClusterDesc(
+        String clusterId,
+        HostAndPort masterAddress,
+        String masterCert,
+        Map<String, NodeGroupDesc> nodeGroups
+    ) {}
+
+    private final Map<String, ClusterDesc> clusters = new HashMap<>();
 
 
-    public YcMk8s(ServiceConfig config) {
+    public YcMk8s(ServiceConfig config, ServiceFactory serviceFactory) {
         this.config = config;
 
-        // TODO: retries
-        var cf = ChannelFactory.getDefaultChannelFactory();
+        this.clusterServiceClient = serviceFactory
+            .create(ClusterServiceBlockingStub.class, ClusterServiceGrpc::newBlockingStub)
+            .withInterceptors(
+                // TODO: forward X-REQUEST-ID header
+                new RequestIdInterceptor());
 
-        this.clusterServiceChannel = cf.getChannel(ClusterServiceGrpc.ClusterServiceBlockingStub.class);
-        this.nodeGroupServiceChannel = cf.getChannel(NodeGroupServiceGrpc.NodeGroupServiceBlockingStub.class);
-
-        this.clusterServiceClient = ClusterServiceGrpc.newBlockingStub(clusterServiceChannel)
-            .withInterceptors(new RequestIdInterceptor(), DeadlineClientInterceptor.fromDuration(YC_CALL_TIMEOUT));
-
-        this.nodeGroupServiceClient = NodeGroupServiceGrpc.newBlockingStub(nodeGroupServiceChannel)
-            .withInterceptors(new RequestIdInterceptor(), DeadlineClientInterceptor.fromDuration(YC_CALL_TIMEOUT));
+        this.nodeGroupServiceClient = serviceFactory
+            .create(NodeGroupServiceBlockingStub.class, NodeGroupServiceGrpc::newBlockingStub)
+            .withInterceptors(
+                // TODO: forward X-REQUEST-ID header
+                new RequestIdInterceptor());
 
         config.serviceClusters().forEach(clusterId -> resolveCluster(clusterId, /* system */ true));
         config.userClusters().forEach(clusterId -> resolveCluster(clusterId, /* system */ false));
     }
 
-    @PreDestroy
-    public void shutdown() {
-        clusterServiceChannel.shutdown();
-        nodeGroupServiceChannel.shutdown();
+
+    @Override
+    public Map<String, VmPoolSpec> getSystemVmPools() {
+        return systemPools;
     }
+
+    @Override
+    public Map<String, VmPoolSpec> getUserVmPools() {
+        return userPools;
+    }
+
+    // TODO: getters for YC-specific data
 
     private void resolveCluster(String clusterId, boolean system) {
         LOG.info("Resolve {} cluster {}...", ct(system), clusterId);
@@ -105,6 +131,15 @@ public class YcMk8s {
             ct(system), clusterId, cluster.getId(), cluster.getFolderId(), cluster.getName(), cluster.getDescription(),
             zonalMaster.getZoneId(), zonalMaster.getInternalV4Address(), /* masterCert */ "***");
 
+        folder2clusters.computeIfAbsent(cluster.getFolderId(), x -> new HashSet<>()).add(clusterId);
+        (system ? systemFolders : userFolders).add(cluster.getFolderId());
+
+        var clusterDesc = new ClusterDesc(
+            clusterId,
+            HostAndPort.fromString(zonalMaster.getInternalV4Address()),
+            masterCert,
+            new HashMap<>());
+        clusters.put(clusterId, clusterDesc);
 
         // process node groups
 
@@ -136,6 +171,8 @@ public class YcMk8s {
             var spec = nodeTemplate.getResourcesSpec();
 
             var parts = nodeTemplate.getPlatformId().split(" with ", 2);
+            var cpuType = parts[0];
+            var gpuType = parts.length > 1 ? parts[1] : "<none>";
 
             LOG.info("""
                 Resolved node group {} ({}):
@@ -149,8 +186,20 @@ public class YcMk8s {
                   ram: {}
                 """,
                 nodeGroup.getId(), nodeGroup.getName(), cluster.getFolderId(), clusterId, zonalMaster.getZoneId(),
-                label, nodeTemplate.getPlatformId(), spec.getCores(), parts[0],
-                spec.getGpus(), parts.length > 1 ? parts[1] : "<none>", spec.getMemory());
+                label, nodeTemplate.getPlatformId(), spec.getCores(), cpuType, spec.getGpus(), gpuType,
+                spec.getMemory());
+
+            var nodeGroupDesc = new NodeGroupDesc(zonalMaster.getZoneId(), nodeGroup);
+            clusterDesc.nodeGroups().put(nodeGroup.getId(), nodeGroupDesc);
+
+            var pool = system ? systemPools : userPools;
+            var vmSpec = pool.get(label);
+            if (vmSpec == null) {
+                vmSpec = new VmPoolSpec(label, cpuType, (int) spec.getCores(), gpuType, (int) spec.getGpus(),
+                    (int) (spec.getMemory() >> 30), new HashSet<>());
+                pool.put(label, vmSpec);
+            }
+            vmSpec.zones().add(zonalMaster.getZoneId());
         }
     }
 
