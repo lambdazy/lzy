@@ -1,6 +1,6 @@
 package ai.lzy.kharon.workflow;
 
-import ai.lzy.iam.authorization.credentials.JwtCredentials;
+import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.kharon.KharonConfig;
 import ai.lzy.kharon.KharonDataSource;
@@ -37,7 +37,7 @@ import java.time.Instant;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 
-import static ai.lzy.model.utils.JwtCredentials.buildJWT;
+import static ai.lzy.util.auth.credentials.JwtUtils.buildJWT;
 
 @SuppressWarnings("UnstableApiUsage")
 @Singleton

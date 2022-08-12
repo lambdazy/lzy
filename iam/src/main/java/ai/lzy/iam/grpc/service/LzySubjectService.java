@@ -1,7 +1,7 @@
 package ai.lzy.iam.grpc.service;
 
-import ai.lzy.iam.authorization.exceptions.AuthException;
-import ai.lzy.iam.authorization.exceptions.AuthPermissionDeniedException;
+import ai.lzy.util.auth.exceptions.AuthException;
+import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.iam.resources.impl.Root;
 import ai.lzy.iam.resources.subjects.SubjectType;

@@ -1,8 +1,8 @@
 package ai.lzy.iam.storage.impl;
 
-import ai.lzy.iam.authorization.exceptions.AuthBadRequestException;
-import ai.lzy.iam.authorization.exceptions.AuthException;
-import ai.lzy.iam.authorization.exceptions.AuthInternalException;
+import ai.lzy.util.auth.exceptions.AuthBadRequestException;
+import ai.lzy.util.auth.exceptions.AuthException;
+import ai.lzy.util.auth.exceptions.AuthInternalException;
 import ai.lzy.iam.configs.ServiceConfig;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.Servant;

@@ -3,7 +3,7 @@ syntax = "proto3";
 package ai.lzy.v1.allocator;
 
 option java_outer_classname = "DiskApi";
-option java_package = "ai.lzy.v1";
+option java_package = "ai.lzy.v1.allocator";
 
 
 enum DiskType {
@@ -14,13 +14,13 @@ enum DiskType {
 }
 
 message DiskSpec {
-  int64 size_gb = 1;
+  string name = 1;
   DiskType type = 2;
-  string name = 3;
+  int32 size_gb = 3;
+  string zone_id = 4;
 }
 
 message Disk {
   string disk_id = 1;
   DiskSpec spec = 2;
-  string zone_id = 3;
 }

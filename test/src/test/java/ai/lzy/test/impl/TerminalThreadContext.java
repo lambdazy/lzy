@@ -1,6 +1,6 @@
 package ai.lzy.test.impl;
 
-import ai.lzy.model.utils.JwtCredentials;
+import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.servant.agents.AgentStatus;
 import ai.lzy.servant.agents.LzyAgentConfig;
 import ai.lzy.servant.agents.LzyTerminal;
@@ -55,7 +55,7 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
             token = "";
         } else {
             try (final FileReader reader = new FileReader(privateKeyPath)) {
-                token = JwtCredentials.buildJWT(user, reader);
+                token = JwtUtils.buildJWT(user, reader);
             } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
                 throw new RuntimeException(e);
             }

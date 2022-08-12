@@ -9,6 +9,7 @@ import ai.lzy.server.hibernate.models.ServantModel;
 import ai.lzy.server.hibernate.models.TaskModel;
 import ai.lzy.server.hibernate.models.UserModel;
 import ai.lzy.server.task.Task;
+import ai.lzy.util.auth.credentials.JwtUtils;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -17,7 +18,6 @@ import org.apache.logging.log4j.Logger;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
-import ai.lzy.model.utils.JwtCredentials;
 import ai.lzy.model.utils.Permissions;
 import ai.lzy.v1.Lzy;
 
@@ -206,7 +206,7 @@ public class DbAuthenticator implements Authenticator {
             Security.addProvider(new BouncyCastleProvider());
             for (PublicKeyModel userToken : user.getPublicKeys()) {
                 try (StringReader keyReader = new StringReader(userToken.getValue())) {
-                    if (JwtCredentials.checkJWT(keyReader, token, userId)) {
+                    if (JwtUtils.checkJWT(keyReader, token, userId)) {
                         LOG.info("Successfully checked user token " + userId);
                         return true;
                     }

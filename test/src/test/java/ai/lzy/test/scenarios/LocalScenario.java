@@ -1,7 +1,7 @@
 package ai.lzy.test.scenarios;
 
 import ai.lzy.fs.LzyFsServer;
-import ai.lzy.model.utils.JwtCredentials;
+import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.test.*;
 import ai.lzy.test.impl.*;
 import io.findify.s3mock.S3Mock;
@@ -30,7 +30,7 @@ public abstract class LocalScenario extends LzyBaseTest {
     protected ChannelManagerContext channelManagerContext;
     protected S3Mock s3Mock;
     protected LzyTerminalTestContext.Terminal terminal;
-    protected JwtCredentials.Keys terminalKeys;
+    protected RsaUtils.Keys terminalKeys;
 
     @Before
     public void setUp() {
@@ -42,7 +42,7 @@ public abstract class LocalScenario extends LzyBaseTest {
         createServantLzyFolder();
 
         try {
-            terminalKeys = JwtCredentials.generateRsaKeys();
+            terminalKeys = RsaUtils.generateRsaKeys();
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }

@@ -18,6 +18,12 @@
             <artifactId>jsr305</artifactId>
             <version>3.0.2</version>
         </dependency>
+      <dependency>
+        <groupId>javax.inject</groupId>
+        <artifactId>javax.inject</artifactId>
+        <version>1</version>
+        <scope>compile</scope>
+      </dependency>
     </dependencies>
 
     <properties>

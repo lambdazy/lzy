@@ -1,8 +1,8 @@
 package ai.lzy.iam.clients.stub;
 
-import ai.lzy.iam.authorization.credentials.Credentials;
+import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.iam.clients.AccessBindingClient;
-import ai.lzy.iam.authorization.exceptions.AuthException;
+import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.iam.resources.AccessBinding;
 import ai.lzy.iam.resources.AccessBindingDelta;
 import ai.lzy.iam.resources.AuthResource;
