@@ -5,13 +5,10 @@ import ai.lzy.model.db.Storage;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-import org.flywaydb.core.Flyway;
-
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
+import org.flywaydb.core.Flyway;
 
 @Singleton
 @Requires(property = "allocator.database.enabled", value = "true")

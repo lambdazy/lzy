@@ -1,4 +1,4 @@
-package ai.lzy.allocator;
+package ai.lzy.allocator.test;
 
 import ai.lzy.allocator.disk.Disk;
 import ai.lzy.allocator.disk.DiskManager;
