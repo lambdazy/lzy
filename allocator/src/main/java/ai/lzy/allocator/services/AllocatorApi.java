@@ -5,6 +5,7 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.SessionDao;
 import ai.lzy.allocator.dao.VmDao;
+import ai.lzy.allocator.model.CachePolicy;
 import ai.lzy.allocator.model.Session;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
@@ -51,11 +52,12 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
     @Override
     public void createSession(CreateSessionRequest request, StreamObserver<CreateSessionResponse> responseObserver) {
-        final Session session = sessions.create(
-            request.getOwner(),
-            Duration.ofSeconds(request.getCachePolicy().getIdleTimeout().getSeconds())
-                .plus(request.getCachePolicy().getIdleTimeout().getNanos(), ChronoUnit.NANOS),
-            null);
+        final var minIdleTimeout = Duration.ofSeconds(
+            request.getCachePolicy().getIdleTimeout().getSeconds())
+            .plus(request.getCachePolicy().getIdleTimeout().getNanos(), ChronoUnit.NANOS);
+        final var policy = new CachePolicy(minIdleTimeout);
+
+        final Session session = sessions.create(request.getOwner(), policy, null);
         responseObserver.onNext(CreateSessionResponse.newBuilder()
             .setSessionId(session.sessionId())
             .build());
@@ -135,7 +137,8 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         Vm vm = null;
 
         try (var transaction = new TransactionHandle(storage)) {
-            vm = dao.create(request.getSessionId(), request.getPoolLabel(), request.getZone(), workloads, transaction);
+            vm = dao.create(request.getSessionId(), request.getPoolLabel(),
+                request.getZone(), workloads, op.id(), transaction);
             op = op.modifyMeta(Any.pack(AllocateMetadata.newBuilder().setVmId(vm.vmId()).build()));
             operations.update(op, transaction);
 
@@ -143,7 +146,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
             vm = new Vm.VmBuilder(vm)
                 .setState(Vm.State.CONNECTING)
-                .setAllocationTimeoutAt(Instant.now().plus(config.allocationTimeout()))  // TODO(artolord) add to config
+                .setAllocationDeadline(Instant.now().plus(config.allocationTimeout()))  // TODO(artolord) add to config
                 .build();
             dao.update(vm, transaction);
             transaction.commit();
@@ -178,7 +181,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
         dao.update(new Vm.VmBuilder(vm)
             .setState(Vm.State.IDLE)
-            .setExpireAt(Instant.now().plus(session.minIdleTimeout()))
+            .setDeadline(Instant.now().plus(session.cachePolicy().minIdleTimeout()))
             .build(), null);
 
         responseObserver.onNext(FreeResponse.newBuilder().build());

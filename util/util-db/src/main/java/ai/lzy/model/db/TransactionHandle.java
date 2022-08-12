@@ -39,7 +39,7 @@ public class TransactionHandle implements AutoCloseable {
         if (con == null) {
             return;
         }
-        if (committed) {
+        if (!committed) {
             con.rollback();
         }
         con.setAutoCommit(true);

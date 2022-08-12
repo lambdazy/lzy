@@ -51,9 +51,9 @@ public record Vm(
         private final List<Workload> workload;
         private State state;
         private Map<String, String> vmMeta;
-        private Instant heartBeatTimeoutAt;
-        private Instant expireAt;
-        private Instant allocationTimeoutAt;
+        private Instant lastActivityTime;
+        private Instant deadline;
+        private Instant allocationDeadline;
 
         public VmBuilder(String sessionId, String vmId, String poolLabel, String zone, String opId,
                          List<Workload> workload, State state) {
@@ -74,9 +74,9 @@ public record Vm(
             this.opId = vm.allocationOperationId();
             this.workload = vm.workloads();
             this.state = vm.state();
-            this.heartBeatTimeoutAt = vm.lastActivityTime();
-            this.expireAt = vm.deadline();
-            this.allocationTimeoutAt = vm.allocationDeadline();
+            this.lastActivityTime = vm.lastActivityTime();
+            this.deadline = vm.deadline();
+            this.allocationDeadline = vm.allocationDeadline();
         }
 
         public VmBuilder setState(State state) {
@@ -84,18 +84,18 @@ public record Vm(
             return this;
         }
 
-        public VmBuilder setHeartBeatTimeoutAt(Instant heartBeatTimeoutAt) {
-            this.heartBeatTimeoutAt = heartBeatTimeoutAt;
+        public VmBuilder setLastActivityTime(Instant lastActivityTime) {
+            this.lastActivityTime = lastActivityTime;
             return this;
         }
 
-        public VmBuilder setExpireAt(Instant expireAt) {
-            this.expireAt = expireAt;
+        public VmBuilder setDeadline(Instant deadline) {
+            this.deadline = deadline;
             return this;
         }
 
-        public VmBuilder setAllocationTimeoutAt(Instant allocationTimeoutAt) {
-            this.allocationTimeoutAt = allocationTimeoutAt;
+        public VmBuilder setAllocationDeadline(Instant allocationDeadline) {
+            this.allocationDeadline = allocationDeadline;
             return this;
         }
 
@@ -105,8 +105,8 @@ public record Vm(
         }
 
         public Vm build() {
-            return new Vm(sessionId, vmId, poolLabel, zone, state, opId, workload, allocationTimeoutAt,
-                heartBeatTimeoutAt, expireAt, vmMeta);
+            return new Vm(sessionId, vmId, poolLabel, zone, state, opId, workload, lastActivityTime,
+                    deadline, allocationDeadline, vmMeta);
         }
     }
 }
