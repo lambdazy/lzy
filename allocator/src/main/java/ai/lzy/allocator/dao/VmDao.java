@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 public interface VmDao {
-    Vm create(String sessionId, String poolId, String zone, List<Workload> workload,
+    Vm create(String sessionId, String poolId, String zone, List<Workload> workload, String allocationOpId,
               @Nullable TransactionHandle transaction);
     void update(Vm vm, @Nullable TransactionHandle transaction);
 
