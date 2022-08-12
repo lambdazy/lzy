@@ -1,25 +1,32 @@
+import logging
 import os
 import tempfile
-import uuid
-from typing import BinaryIO, Type, TypeVar
+from typing import BinaryIO, Type, TypeVar, Union, Callable
 
-from lzy.serialization.types import File
+from lzy.serialization.api import Serializer
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
-# noinspection PyPackageRequirements
-class CatboostPoolDumper:
-    def fit(self) -> bool:
+# noinspection PyPackageRequirements,PyMethodMayBeStatic
+class CatboostPoolSerializer(Serializer):
+    def name(self) -> str:
+        return "CATBOOST_POOL_SERIALIZER"
+
+    def __init__(self):
+        self._log = logging.getLogger(str(self.__class__))
+
+    def available(self) -> bool:
         # noinspection PyBroadException
         try:
             import catboost  # type: ignore
 
             return True
         except:
+            logging.warning("Cannot import catboost")
             return False
 
-    def dump(self, obj: T, dest: BinaryIO) -> None:
+    def serialize(self, obj: T, dest: BinaryIO) -> None:
         with tempfile.NamedTemporaryFile() as handle:
             if not obj.is_quantized():  # type: ignore
                 obj.quantize()  # type: ignore
@@ -30,7 +37,7 @@ class CatboostPoolDumper:
                     break
                 dest.write(data)
 
-    def load(self, source: BinaryIO) -> T:
+    def deserialize(self, source: BinaryIO, typ: Type) -> T:
         with tempfile.NamedTemporaryFile() as handle:
             while True:
                 data = source.read(8096)
@@ -43,31 +50,9 @@ class CatboostPoolDumper:
 
             return catboost.Pool("quantized://" + handle.name)  # type: ignore
 
-    def typ(self) -> Type[T]:
+    def supported_types(self) -> Union[Type, Callable[[Type], bool]]:
         import catboost
-
         return catboost.Pool  # type: ignore
 
-
-class LzyFileDumper:
-    def dump(self, obj: File, dest: BinaryIO) -> None:
-        with obj.path.open("rb") as f:
-            data = f.read(4096)
-            while len(data) > 0:
-                dest.write(data)
-                data = f.read(4096)
-
-    def load(self, source: BinaryIO) -> File:
-        new_path = os.path.join("/tmp", str(uuid.uuid1()))
-        with open(new_path, "wb") as f:
-            data = source.read(4096)
-            while len(data) > 0:
-                f.write(data)
-                data = source.read(4096)
-        return File(new_path)
-
-    def typ(self) -> Type[File]:
-        return File
-
-    def fit(self) -> bool:
+    def stable(self) -> bool:
         return True

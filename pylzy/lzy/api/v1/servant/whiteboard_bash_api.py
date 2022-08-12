@@ -20,7 +20,7 @@ from lzy.api.v1.whiteboard.model import (
     WhiteboardStatus,
     get_bucket_from_url,
 )
-from lzy.serialization.api import Serializer
+from lzy.serialization.api import SerializersRegistry
 from lzy.storage.credentials import StorageCredentials
 from lzy.storage.storage_client import StorageClient
 
@@ -55,7 +55,7 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 
 class WhiteboardBashApi(WhiteboardApi):
     def __init__(
-        self, mount_point: str, client: ServantClient, serializer: Serializer
+        self, mount_point: str, client: ServantClient, serializer: SerializersRegistry
     ) -> None:
         super().__init__()
         self._mount = mount_point
@@ -63,7 +63,7 @@ class WhiteboardBashApi(WhiteboardApi):
         self._log = logging.getLogger(str(self.__class__))
         self._credentials: Dict[str, StorageCredentials] = {}
         self._whiteboard_storage_by_bucket: Dict[str, StorageClient] = {}
-        self._serializer = serializer
+        self._serializer_registry = serializer
 
     def _whiteboard_storage(self, bucket: str) -> StorageClient:
         if bucket not in self._credentials:
@@ -85,8 +85,8 @@ class WhiteboardBashApi(WhiteboardApi):
             # TODO(aleksZubakov): do we need retry here?
             self._whiteboard_storage(bucket).read(field_url, cast(BinaryIO, file))
             file.seek(0)
-            obj = self._serializer.deserialize(cast(BinaryIO, file), real_type)
-        return obj
+            obj = self._serializer_registry.find_serializer_by_type(real_type).deserialize(cast(BinaryIO, file), real_type)
+        return cast(T, obj)
 
     def create(
         self,
