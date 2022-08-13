@@ -1,5 +1,5 @@
 #!/usr/bin/env nix-shell
-#! nix-shell build.nix -A shell-publish -i bash
+#! nix-shell build.nix -A publish -i bash
 
 
 echo "Calling publish commands"
