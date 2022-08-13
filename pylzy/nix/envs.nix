@@ -26,7 +26,11 @@ let
     (lzy ps)
   ]);
   python_tests_deps = ps: (python_lzy_deps ps) ++ (with ps; [
+    # too long, install through pip
     # catboost
+    
+    # needed for tests/serialization/test_serializer.py
+    pure-protobuf
 
     coverage
     coverage-badge

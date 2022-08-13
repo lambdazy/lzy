@@ -29,6 +29,10 @@ let
       doCheck = false;
     });
 
+    catboost = super.catboost.overridePythonAttrs(old: rec {
+      doCheck = false;
+    });
+
     coverage = super.coverage.overridePythonAttrs(old: rec {
       # propagatedBuildInputs = [
       #   trio
