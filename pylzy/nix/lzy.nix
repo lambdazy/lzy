@@ -1,19 +1,32 @@
-{buildPythonPackage, botocore, requests, cloudpickle, pyyaml, boto3, stdlib-list, azure-storage-blob, grpclib, protobuf}:
+{
+  buildPythonPackage,
+  azure-storage-blob,
+  botocore,
+  boto3,
+  cloudpickle,
+  importlib-metadata,
+  grpclib,
+  pyyaml,
+  protobuf,
+  requests,
+  stdlib-list,
+}:
 buildPythonPackage rec {
     name = "lzy";
     version = (builtins.readFile ../version/version);
     src = ../.;
 
     propagatedBuildInputs = [
-      botocore
-      requests
-      cloudpickle
-      pyyaml
-      boto3
-      stdlib-list
       azure-storage-blob
+      botocore
+      boto3
+      cloudpickle
+      importlib-metadata
       grpclib
+      pyyaml
       protobuf
+      requests
+      stdlib-list
     ];
     doCheck = false;
 }

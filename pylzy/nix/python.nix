@@ -1,6 +1,9 @@
 { pkgs }:
 let
   packageOverrides = self: super: rec {
+    azure-storage-blob = super.azure-storage-blob.overridePythonAttrs(old: {
+      doCheck = false;
+    });
     boto3 = super.boto3.overridePythonAttrs(old: rec {
       version = "1.21.21";
       src = super.fetchPypi {
@@ -8,25 +11,6 @@ let
         inherit version;
         sha256 = "b6BiLzCM/R2nWJZvyYtS+9dLgGBtFFhsitgsemxPMtA=";
       };
-    });
-
-    jmespath = super.jmespath.overridePythonAttrs(old: rec {
-      version = "0.7.1";
-      src = super.fetchPypi {
-        pname = "jmespath";
-        inherit version;
-        sha256 = "zVoS7j36RwKDoCCjXmnoOwcA1E/kEwFP01rVWExfX9E=";
-      };
-    });
-
-    importlib-metadata = super.importlib-metadata.overridePythonAttrs(old: rec {
-      version = "4.8.1";
-      src = super.fetchPypi {
-        pname = "importlib_metadata";
-        inherit version;
-        sha256 = "f284b3e11256ad1e5d03ab86bb2ccd6f5339688ff17a4d797a0fe7df326f23b1";
-      };
-      doCheck = false;
     });
 
     botocore = super.botocore.overridePythonAttrs(old: rec {
@@ -45,11 +29,13 @@ let
       doCheck = false;
     });
 
-    pure-protobuf = self.callPackage ./pure-protobuf.nix {
-      inherit boto3;
-      inherit botocore;
-    };
-    
+    coverage = super.coverage.overridePythonAttrs(old: rec {
+      # propagatedBuildInputs = [
+      #   trio
+      # ];
+      doCheck = false;
+    });
+
     cloudpickle = super.cloudpickle.overridePythonAttrs(old: rec {
       pname = "cloudpickle";
       version = "2.1.0";
@@ -58,8 +44,32 @@ let
         sha256 = "bb233e876a58491d9590a676f93c7a5473a08f747d5ab9df7f9ce564b3e7938e";
       };
       propagatedBuildInputs = [
-        super.pytest super.psutil
+        super.pytest
+        super.psutil
       ];
+      doCheck = false;
+    });
+
+    importlib-metadata = super.importlib-metadata.overridePythonAttrs(old: rec {
+      version = "4.8.1";
+      src = super.fetchPypi {
+        pname = "importlib_metadata";
+        inherit version;
+        sha256 = "f284b3e11256ad1e5d03ab86bb2ccd6f5339688ff17a4d797a0fe7df326f23b1";
+      };
+      doCheck = false;
+    });
+
+    jmespath = super.jmespath.overridePythonAttrs(old: rec {
+      version = "0.7.1";
+      src = super.fetchPypi {
+        pname = "jmespath";
+        inherit version;
+        sha256 = "zVoS7j36RwKDoCCjXmnoOwcA1E/kEwFP01rVWExfX9E=";
+      };
+    });
+
+    trio = super.trio.overridePythonAttrs(old: rec {
       doCheck = false;
     });
 
@@ -77,7 +87,11 @@ let
     #   doCheck = false;
     # });
 
-
+    pure-protobuf = self.callPackage ./pure-protobuf.nix {
+      inherit boto3;
+      inherit botocore;
+    };
+    
     pyright = self.callPackage ./pyright.nix { };
 
     aioboto3 = self.callPackage ./aioboto3.nix { } ;
@@ -100,7 +114,9 @@ let
       inherit grpclib;
     };
 
-    coverage-badge = self.callPackage ./coverage-badge.nix { };
+    coverage-badge = self.callPackage ./coverage-badge.nix {
+      inherit coverage;
+    };
     types-six = self.callPackage ./types-six.nix {};
     types-chardet = self.callPackage ./types-chardet.nix {};
   };

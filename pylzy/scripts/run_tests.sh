@@ -1,5 +1,5 @@
 #!/usr/bin/env nix-shell
-#! nix-shell build.nix -A shell-lzy -i bash
+#! nix-shell build.nix -A shell-tests -i bash
 
 src_dir="$(dirname $0)"
 source "$src_dir/util.sh"

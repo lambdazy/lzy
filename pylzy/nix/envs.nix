@@ -9,7 +9,6 @@ let
     importlib-metadata
     wheel
     azure-storage-blob
-    requests
     stdlib-list
     aioboto3
 
@@ -25,11 +24,15 @@ let
   ];
   python_lzy_deps = ps: (python_dev_deps ps) ++ (with ps; [
     (lzy ps)
+  ]);
+  python_tests_deps = ps: (python_lzy_deps ps) ++ (with ps; [
+    # catboost
+
     coverage
     coverage-badge
   ]);
   python-dev = python.withPackages(python_dev_deps);
-  python-lzy = python.withPackages(python_lzy_deps);
+  python-tests = python.withPackages(python_tests_deps);
   python-publish = python.withPackages(ps: with ps; [
     wheel
     build
@@ -68,7 +71,7 @@ let
   };
 in {
   shell = mkEnv python-dev;
-  shell-lzy = mkEnv python-lzy;
+  shell-tests = mkEnv python-tests;
   shell-publish = mkEnv python-publish;
   shell-lint = mkEnv python-lint;
 }
