@@ -87,7 +87,9 @@ def wrap_whiteboard(
 
     def dump(path: Path, value: Any):
         with path.open("wb") as handle:
-            serializer_registry.find_serializer_by_type(type(value)).serialize(value, handle)
+            serializer_registry.find_serializer_by_type(type(value)).serialize(
+                value, handle
+            )
             handle.flush()
             os.fsync(handle.fileno())
 
