@@ -6,6 +6,7 @@ import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.storage.db.IamDataSource;
 import ai.lzy.model.db.test.DatabaseCleaner;
 import ai.lzy.util.auth.exceptions.AuthBadRequestException;
+import ai.lzy.util.auth.exceptions.AuthInternalException;
 import io.micronaut.context.ApplicationContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -113,6 +114,32 @@ public class DbSubjectServiceTest {
             LOG.info("Valid exception {}", e.getInternalDetails());
         }
         subjectService.removeSubject(user);
+    }
+
+    @Test
+    public void restrictEqualSubjectIdsTest() {
+        restrictEqualSubjectIdsScenario(SubjectType.SERVANT, SubjectType.SERVANT);
+        restrictEqualSubjectIdsScenario(SubjectType.SERVANT, SubjectType.USER);
+        restrictEqualSubjectIdsScenario(SubjectType.USER, SubjectType.SERVANT);
+        restrictEqualSubjectIdsScenario(SubjectType.USER, SubjectType.USER);
+    }
+
+    public void restrictEqualSubjectIdsScenario(SubjectType subjectType1, SubjectType subjectType2) {
+        String subjectId = "1";
+        create(subjectId, subjectType1);
+        Subject user1 = subjectService.subject(subjectId);
+
+        try {
+            create(subjectId, subjectType2);
+            fail();
+        } catch (AuthInternalException e) {
+            LOG.info("Valid exception {}", e.getMessage());
+        }
+
+        Subject user2 = subjectService.subject(subjectId);
+        assertEquals(user1, user2);
+
+        subjectService.removeSubject(user1);
     }
 
     private void create(String id, SubjectType subjectType) {
