@@ -16,6 +16,7 @@ import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nullable;
 import java.io.File;
+import java.net.URISyntaxException;
 import java.util.*;
 
 @Singleton
@@ -38,10 +39,11 @@ public class KuberVmAllocator implements VmAllocator {
     private final VmDao dao;
     private final VmPoolRegistry poolRegistry;
     private final KuberClusterFactory factory;
-    private final ServiceConfig config;
+    private final ServiceConfig.KuberAllocator config;
 
     @Inject
-    public KuberVmAllocator(ServiceConfig config, VmDao dao, VmPoolRegistry poolRegistry, KuberClusterFactory factory) {
+    public KuberVmAllocator(ServiceConfig.KuberAllocator config, VmDao dao, VmPoolRegistry poolRegistry,
+            KuberClusterFactory factory) {
         this.dao = dao;
         this.poolRegistry = poolRegistry;
         this.factory = factory;
@@ -177,7 +179,15 @@ public class KuberVmAllocator implements VmAllocator {
     }
 
     private Pod readPod(KubernetesClient client) {
-        final File file = new File(config.kuberAllocator().podTemplatePath());
+        final File file;
+        try {
+            file = new File(getClass()
+                .getClassLoader()
+                .getResource("kubernetes/lzy-vm-pod-template.yaml")
+                .toURI());
+        } catch (URISyntaxException e) {
+            throw new RuntimeException("Error while reading pod template", e);
+        }
         return client.pods()
             .load(file)
             .get();

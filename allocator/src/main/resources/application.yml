@@ -3,11 +3,11 @@ allocator:
   service-clusters: []
 
   user-clusters:
-    - 'catedn0543pm0o4og3sp'
+    - 'some-cluster'
 
   yc-mk8s:
     enabled: true
-    service-account-file: "/Users/artolord/sec/sa-key.json"
+    service-account-file: "<path-to-sa-file>"
 
   azure-mk8s:
     enabled: false
@@ -19,7 +19,6 @@ allocator:
 
   kuber-allocator:
     enabled: true
-    pod-template-path: '/Users/artolord/projects/lzy/allocator/src/main/resources/kubernetes/lzy-vm-pod-template.yaml'
 
   database:
     url: 'jdbc:h2:mem:testdb_ge;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false'

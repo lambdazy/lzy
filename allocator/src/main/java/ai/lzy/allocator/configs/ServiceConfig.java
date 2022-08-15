@@ -1,5 +1,6 @@
 package ai.lzy.allocator.configs;
 
+import io.micronaut.context.annotation.ConfigurationInject;
 import io.micronaut.context.annotation.ConfigurationProperties;
 import io.micronaut.context.exceptions.ConfigurationException;
 
@@ -20,21 +21,23 @@ public record ServiceConfig(
 
     Optional<ThreadAllocator> threadAllocator,
     Optional<DockerAllocator> dockerAllocator,
-    KuberAllocator kuberAllocator,
+    Optional<KuberAllocator> kuberAllocator,
 
     Optional<YcMk8sConfig> ycMk8s,
     Optional<AzureMk8sConfig> azureMk8s
 ) {
 
-    @PostConstruct
-    public void validate() {
-        var cnt = ycMk8s.map(x -> x.enabled ? 1 : 0).orElse(0)
-                + azureMk8s.map(x -> x.enabled ? 1 : 0).orElse(0);
+// TODO(artolord) Optional fields are always empty
+
+//    @PostConstruct
+//    public void validate() {
+//        var cnt = ycMk8s.map(x -> x.enabled ? 1 : 0).orElse(0)
+//                + azureMk8s.map(x -> x.enabled ? 1 : 0).orElse(0);
 //
 //        if (cnt != 1) {
 //            throw new ConfigurationException("Exactly one cloud provider should be specified.");
 //        }
-    }
+//    }
 
     @ConfigurationProperties("thread-allocator")
     public record ThreadAllocator(
@@ -50,8 +53,7 @@ public record ServiceConfig(
 
     @ConfigurationProperties("kuber-allocator")
     public record KuberAllocator(
-        boolean enabled,
-        String podTemplatePath
+        boolean enabled
     ) {}
 
     @ConfigurationProperties("yc-mk8s")
