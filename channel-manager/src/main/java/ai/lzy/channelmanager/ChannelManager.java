@@ -15,12 +15,12 @@ import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.JsonUtils;
-import ai.lzy.model.Slot;
 import ai.lzy.model.SlotInstance;
 import ai.lzy.model.channel.ChannelSpec;
 import ai.lzy.model.channel.DirectChannelSpec;
 import ai.lzy.model.channel.SnapshotChannelSpec;
 import ai.lzy.model.db.DaoException;
+import ai.lzy.model.db.ExtendedObjectMapper;
 import ai.lzy.model.db.NotFoundException;
 import ai.lzy.model.db.Transaction;
 import ai.lzy.model.grpc.ChannelBuilder;
@@ -191,13 +191,13 @@ public class ChannelManager {
                 final String workflowId = request.getWorkflowId();
                 final Channels.ChannelSpec channelSpec = request.getChannelSpec();
                 if (workflowId.isBlank() || !isChannelSpecValid(channelSpec)) {
-                    responseObserver.onError(Status.INVALID_ARGUMENT
-                        .withDescription("Request shouldn't contain empty fields").asException());
+                    throw new IllegalArgumentException("Request shouldn't contain empty fields");
                 }
 
                 final String channelName = channelSpec.getChannelName();
                 // Channel id is not random uuid for better logs.
-                final String channelId = "channel_" + userId + workflowId + channelName;
+                final String channelId = String.join("-", "channel", userId, workflowId, channelName)
+                    .replaceAll("[^a-zA-z0-9-]", "-");
                 final var channelType = channelSpec.getTypeCase();
                 final ChannelSpec spec = switch (channelSpec.getTypeCase()) {
                     case DIRECT -> new DirectChannelSpec(
@@ -234,6 +234,10 @@ public class ChannelManager {
                 );
                 LOG.info("Create channel {} done, channelId={}", channelName, channelId);
                 responseObserver.onCompleted();
+            } catch (IllegalArgumentException e) {
+                LOG.error("Create channel {} failed, invalid argument: {}",
+                    request.getChannelSpec().getChannelName(), e.getMessage(), e);
+                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
             } catch (Exception e) {
                 LOG.error("Create channel {} failed, got exception: {}",
                     request.getChannelSpec().getChannelName(), e.getMessage(), e);
@@ -251,9 +255,7 @@ public class ChannelManager {
             try {
                 final String channelId = request.getChannelId();
                 if (channelId.isBlank()) {
-                    responseObserver.onError(Status.INVALID_ARGUMENT
-                        .withDescription("Request shouldn't contain empty fields").asException());
-                    return;
+                    throw new IllegalArgumentException("Empty channel id, request shouldn't contain empty fields");
                 }
 
                 final AtomicReference<Channel> channel = new AtomicReference<>();
@@ -279,6 +281,10 @@ public class ChannelManager {
                 responseObserver.onNext(ChannelDestroyResponse.getDefaultInstance());
                 LOG.info("Destroy channel {} done", channelId);
                 responseObserver.onCompleted();
+            } catch (IllegalArgumentException e) {
+                LOG.error("Destroy channel {} failed, invalid argument: {}",
+                    request.getChannelId(), e.getMessage(), e);
+                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
             } catch (NotFoundException e) {
                 LOG.error("Destroy channel {} failed, channel not found", request.getChannelId(), e);
                 responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asException());
@@ -301,9 +307,7 @@ public class ChannelManager {
                 final String userId = Objects.requireNonNull(authenticationContext).getSubject().id();
                 final String workflowId = request.getWorkflowId();
                 if (workflowId.isBlank()) {
-                    responseObserver.onError(Status.INVALID_ARGUMENT
-                        .withDescription("Request shouldn't contain empty fields").asException());
-                    return;
+                    throw new IllegalArgumentException("Empty workflow id, request shouldn't contain empty fields");
                 }
 
                 List<Channel> channels = new ArrayList<>();
@@ -324,9 +328,14 @@ public class ChannelManager {
                 }
 
                 responseObserver.onNext(ChannelDestroyAllResponse.getDefaultInstance());
-                LOG.info("Destroying all channels for workflow {} done, removed channels: {}",
-                    workflowId, channels.stream().map(Channel::id).collect(Collectors.joining(",")));
+                LOG.info("Destroying all channels for workflow {} done, {} removed channels: {}",
+                    workflowId, channels.size(),
+                    channels.stream().map(Channel::id).collect(Collectors.joining(",")));
                 responseObserver.onCompleted();
+            } catch (IllegalArgumentException e) {
+                LOG.error("Destroying all channels for workflow {} failed, invalid argument: {}",
+                    request.getWorkflowId(), e.getMessage(), e);
+                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
             } catch (Exception e) {
                 LOG.error("Destroying all channels for workflow {} failed, got exception: {}",
                     request.getWorkflowId(), e.getMessage(), e);
@@ -341,9 +350,7 @@ public class ChannelManager {
             try {
                 final String channelId = request.getChannelId();
                 if (channelId.isBlank()) {
-                    responseObserver.onError(Status.INVALID_ARGUMENT
-                        .withDescription("Request shouldn't contain empty fields").asException());
-                    return;
+                    throw new IllegalArgumentException("Empty channel id, request shouldn't contain empty fields");
                 }
 
                 final AtomicReference<Channel> channel = new AtomicReference<>();
@@ -360,6 +367,10 @@ public class ChannelManager {
                 responseObserver.onNext(toChannelStatus(channel.get()));
                 LOG.info("Get status for channel {} done", request.getChannelId());
                 responseObserver.onCompleted();
+            } catch (IllegalArgumentException e) {
+                LOG.error("Destroy channel {} failed, invalid argument: {}",
+                    request.getChannelId(), e.getMessage(), e);
+                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
             } catch (NotFoundException e) {
                 LOG.error("Get status for channel {} failed, channel not found", request.getChannelId(), e);
                 responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asException());
@@ -379,9 +390,7 @@ public class ChannelManager {
                 final String userId = Objects.requireNonNull(authenticationContext).getSubject().id();
                 final String workflowId = request.getWorkflowId();
                 if (workflowId.isBlank()) {
-                    responseObserver.onError(Status.INVALID_ARGUMENT
-                        .withDescription("Request shouldn't contain empty fields").asException());
-                    return;
+                    throw new IllegalArgumentException("Empty workflow id, request shouldn't contain empty fields");
                 }
 
                 List<Channel> channels = new ArrayList<>();
@@ -397,6 +406,10 @@ public class ChannelManager {
                 responseObserver.onNext(channelStatusList);
                 LOG.info("Get status for channels of workflow {} done", request.getWorkflowId());
                 responseObserver.onCompleted();
+            } catch (IllegalArgumentException e) {
+                LOG.error("Destroying all channels for workflow {} failed, invalid argument: {}",
+                    request.getWorkflowId(), e.getMessage(), e);
+                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
             } catch (Exception e) {
                 LOG.error("Get status for channels of workflow {} failed, got exception: {}",
                     request.getWorkflowId(), e.getMessage(), e);
@@ -411,10 +424,8 @@ public class ChannelManager {
                 attach.getSlotInstance().getChannelId(),
                 JsonUtils.printRequest(attach));
 
-            if (isSlotInstanceValid(attach.getSlotInstance())) {
-                responseObserver.onError(Status.INVALID_ARGUMENT
-                    .withDescription("Request shouldn't contain empty fields").asException());
-                return;
+            if (!isSlotInstanceValid(attach.getSlotInstance())) {
+                throw new IllegalArgumentException("Request shouldn't contain empty fields");
             }
 
             try {
@@ -479,6 +490,12 @@ public class ChannelManager {
                 LOG.info("Bind slot={} to channel={} done",
                     attach.getSlotInstance().getSlot().getName(), attach.getSlotInstance().getChannelId());
                 responseObserver.onCompleted();
+            } catch (IllegalArgumentException e) {
+                LOG.error("Bind slot={} to channel={} failed, invalid argument: {}",
+                    attach.getSlotInstance().getSlot().getName(),
+                    attach.getSlotInstance().getChannelId(),
+                    e.getMessage(), e);
+                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
             } catch (NotFoundException e) {
                 LOG.error("Bind slot={} to channel={} failed, channel not found",
                     attach.getSlotInstance().getSlot().getName(), attach.getSlotInstance().getChannelId(), e);
@@ -499,10 +516,8 @@ public class ChannelManager {
                 detach.getSlotInstance().getChannelId(),
                 JsonUtils.printRequest(detach));
 
-            if (isSlotInstanceValid(detach.getSlotInstance())) {
-                responseObserver.onError(Status.INVALID_ARGUMENT
-                    .withDescription("Request shouldn't contain empty fields").asException());
-                return;
+            if (!isSlotInstanceValid(detach.getSlotInstance())) {
+                throw new IllegalArgumentException("Request shouldn't contain empty fields");
             }
 
             try {
@@ -530,6 +545,12 @@ public class ChannelManager {
                 });
                 responseObserver.onNext(SlotDetachStatus.getDefaultInstance());
                 responseObserver.onCompleted();
+            } catch (IllegalArgumentException e) {
+                LOG.error("Unbind slot={} to channel={} failed, invalid argument: {}",
+                    detach.getSlotInstance().getSlot().getName(),
+                    detach.getSlotInstance().getChannelId(),
+                    e.getMessage(), e);
+                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
             } catch (NotFoundException e) {
                 LOG.error("Unbind slot={} to channel={} failed, channel not found",
                     detach.getSlotInstance().getSlot().getName(), detach.getSlotInstance().getChannelId(), e);
@@ -597,9 +618,8 @@ public class ChannelManager {
 
         private final ObjectMapper objectMapper;
 
-        @Inject
-        public ChannelStorage(ObjectMapper objectMapper) {
-            this.objectMapper = objectMapper;
+        public ChannelStorage() {
+            this.objectMapper = new ExtendedObjectMapper();
         }
 
         void insertChannel(Connection sqlConnection, String channelId, String userId, String workflowId,
@@ -754,7 +774,7 @@ public class ChannelManager {
                 ) VALUES (?, ?, ?, ?, ?)
                 """)
             ) {
-                String slotSpecJson = objectMapper.writeValueAsString(endpoint.slotSpec());
+                String slotSpecJson = objectMapper.writeValueAsString(GrpcConverter.to(endpoint.slotSpec()));
                 int index = 0;
                 st.setString(++index, channelId);
                 st.setString(++index, endpoint.uri().toString());
@@ -792,7 +812,8 @@ public class ChannelManager {
                     channel_id,
                     sender_uri,
                     receiver_uri
-                ) VALUES (?, unnest(?), unnest(?))
+                ) SELECT ?, slot_uri.sender, slot_uri.receiver
+                FROM unnest(?, ?) AS slot_uri(sender, receiver)
                 """)
             ) {
                 final List<String> senderUris = new ArrayList<>();
@@ -871,8 +892,9 @@ public class ChannelManager {
                 final String connectedSlotUri = rs.getString("connected_slot_uri");
                 if (slotUri != null && !slotsUriByChannelId.get(channelId).contains(slotUri)) {
                     slotsUriByChannelId.get(channelId).add(slotUri);
+                    var slot = objectMapper.readValue(rs.getString("slot_spec"), Operations.Slot.class);
                     var endpoint = SlotEndpoint.getInstance(new SlotInstance(
-                        objectMapper.readValue(rs.getString("slot_spec"), Slot.class),
+                        GrpcConverter.from(slot),
                         rs.getString("task_id"),
                         channelId,
                         URI.create(slotUri)

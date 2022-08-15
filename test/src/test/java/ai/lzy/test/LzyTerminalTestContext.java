@@ -162,7 +162,8 @@ public interface LzyTerminalTestContext extends AutoCloseable {
                 BuiltinCommandHolder.channel,
                 "create",
                 channelName,
-                "-t", "direct"
+                "-t", "direct"//,
+                // TODO: "-w", "tf"
             ).stdout();
             return parseChannelIdFromCreateChannelResponse(response);
         }

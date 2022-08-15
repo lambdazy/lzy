@@ -126,7 +126,7 @@ public final class Channel implements LzyCommand {
                     channelSpecBuilder.setDirect(Channels.DirectChannelType.newBuilder().build());
                 }
 
-                String workflowId = command.getOptionValue('w');
+                String workflowId = localCmd.getOptionValue('w');
                 final ChannelManager.ChannelCreateResponse channelCreateResponse = channelManager.create(
                     ChannelManager.ChannelCreateRequest.newBuilder()
                         .setWorkflowId(workflowId)
