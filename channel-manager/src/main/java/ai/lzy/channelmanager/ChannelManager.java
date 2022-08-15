@@ -656,6 +656,7 @@ public class ChannelManager {
                     ch.user_id as user_id,
                     ch.workflow_id as workflow_id,
                     ch.channel_name as channel_name,
+                    ch.channel_type as channel_type,
                     ch.channel_spec as channel_spec,
                     ch.created_at as created_at,
                     ch.channel_life_status as channel_life_status,
@@ -663,10 +664,10 @@ public class ChannelManager {
                     e.direction as direction,
                     e.task_id as task_id,
                     e.slot_spec as slot_spec,
-                    c.slot_uri as connected_slot_uri
+                    c.receiver_uri as connected_slot_uri
                 FROM channels ch
-                FULL JOIN channel_endpoints e ON ch.channel_id = e.channel_id
-                FULL JOIN endpoint_connections c ON e.channel_id = c.channel_id AND e.slot_uri = c.sender_uri
+                LEFT JOIN channel_endpoints e ON ch.channel_id = e.channel_id
+                LEFT JOIN endpoint_connections c ON e.channel_id = c.channel_id AND e.slot_uri = c.sender_uri
                 WHERE ch.channel_id = ? AND ch.channel_life_status = ?
                 """ + (forUpdate ? "FOR UPDATE" : ""))
             ) {
@@ -690,6 +691,7 @@ public class ChannelManager {
                     ch.user_id as user_id,
                     ch.workflow_id as workflow_id,
                     ch.channel_name as channel_name,
+                    ch.channel_type as channel_type,
                     ch.channel_spec as channel_spec,
                     ch.created_at as created_at,
                     ch.channel_life_status as channel_life_status,
@@ -697,10 +699,10 @@ public class ChannelManager {
                     e.direction as direction,
                     e.task_id as task_id,
                     e.slot_spec as slot_spec,
-                    c.slot_uri as connected_slot_uri
+                    c.receiver_uri as connected_slot_uri
                 FROM channels ch
-                FULL JOIN channel_endpoints e ON ch.channel_id = e.channel_id
-                FULL JOIN endpoint_connections c ON e.channel_id = c.channel_id AND e.slot_uri = c.sender_uri
+                LEFT JOIN channel_endpoints e ON ch.channel_id = e.channel_id
+                LEFT JOIN endpoint_connections c ON e.channel_id = c.channel_id AND e.slot_uri = c.sender_uri
                 WHERE ch.user_id = ? AND ch.workflow_id = ? AND ch.channel_life_status = ?
                 """ + (forUpdate ? "FOR UPDATE" : ""))
             ) {
