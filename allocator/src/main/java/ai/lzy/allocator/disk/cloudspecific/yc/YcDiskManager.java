@@ -11,9 +11,8 @@ import ai.lzy.allocator.disk.Disk;
 import ai.lzy.allocator.disk.DiskManager;
 import ai.lzy.allocator.disk.DiskSpec;
 import ai.lzy.allocator.disk.DiskType;
-import ai.lzy.allocator.disk.exceptions.DiskException;
-import ai.lzy.allocator.disk.exceptions.DiskNotFoundException;
-import ai.lzy.allocator.disk.util.OperationTimedOutException;
+import ai.lzy.allocator.disk.exceptions.InternalErrorException;
+import ai.lzy.allocator.disk.exceptions.NotFoundException;
 import ai.lzy.util.auth.YcCredentials;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.Status;
@@ -99,11 +98,12 @@ public class YcDiskManager implements DiskManager {
     }
 
     @Override
-    public Disk create(DiskSpec spec) {
+    public Disk create(DiskSpec spec) throws InternalErrorException, InterruptedException {
         return create(spec, null);
     }
 
-    private Disk create(DiskSpec spec, @Nullable String snapshotId) {
+    private Disk create(DiskSpec spec, @Nullable String snapshotId)
+        throws InternalErrorException, InterruptedException {
         LOG.info(
             "Creating disk with name = {} in compute, size = {}Gb, zone = {}",
             spec.name(), spec.sizeGb(), spec.zone()
@@ -127,22 +127,24 @@ public class YcDiskManager implements DiskManager {
             if (result.hasError()) {
                 final String errorMessage = result.getError().getMessage();
                 LOG.error("Disk {} creation failed, error={}", spec.name(), errorMessage);
-                throw new DiskException(errorMessage);
+                throw new InternalErrorException(errorMessage);
             }
             final String diskId = result.getResponse().unpack(DiskOuterClass.Disk.class).getId();
             LOG.info("Disk {} was created", spec.name());
             return new Disk(diskId, spec);
-        } catch (InterruptedException | InvalidProtocolBufferException e) {
-            throw new DiskException("Failed via createDisk", e);
+        } catch (InvalidProtocolBufferException e) {
+            throw new InternalErrorException("Failed via createDisk name=" + spec.name(), e);
         }
     }
 
     @Override
-    public Disk clone(Disk disk, DiskSpec cloneDiskSpec) throws DiskNotFoundException {
+    public Disk clone(Disk disk, DiskSpec cloneDiskSpec)
+        throws NotFoundException, InternalErrorException, InterruptedException {
+
         LOG.info("Clone disk {}; clone name={} size={}Gb zone={}",
             disk.spec().name(), cloneDiskSpec.name(), cloneDiskSpec.sizeGb(), cloneDiskSpec.zone());
         if (cloneDiskSpec.sizeGb() < disk.spec().sizeGb()) {
-            throw new DiskException("Cannot decrease size during clone");
+            throw new InternalErrorException("Cannot decrease size during clone");
         }
 
         try {
@@ -157,7 +159,7 @@ public class YcDiskManager implements DiskManager {
                 defaultOperationTimeout
             );
             if (snapshotCreateOperation.hasError()) {
-                throw new DiskException(
+                throw new InternalErrorException(
                     "Failed to create snapshot: " + snapshotCreateOperation.getError().getMessage() + ", request id "
                     + snapshotCreateOperation.getId());
             }
@@ -184,7 +186,7 @@ public class YcDiskManager implements DiskManager {
                 defaultOperationTimeout
             );
             if (deleteSnapshotOperation.hasError()) {
-                throw new DiskException(
+                throw new InternalErrorException(
                     "Failed to delete snapshot: " + deleteSnapshotOperation.getError().getMessage() + ", request id "
                         + deleteSnapshotOperation.getId());
             }
@@ -192,39 +194,31 @@ public class YcDiskManager implements DiskManager {
 
             return clonedDisk;
         } catch (InvalidProtocolBufferException e) {
-            throw new DiskException(e);
-        } catch (InterruptedException e) {
-            throw new OperationTimedOutException("Clone disk " + disk.spec().name() + " timed out", e);
+            throw new InternalErrorException(e);
         } catch (StatusRuntimeException e) {
             if (e.getStatus().getCode() == Status.Code.FAILED_PRECONDITION) {
-                throw new DiskNotFoundException();
+                throw new NotFoundException();
             }
             throw e;
         }
     }
 
     @Override
-    public void delete(Disk disk) throws DiskNotFoundException {
+    public void delete(Disk disk) throws NotFoundException, InterruptedException {
         final String diskId = disk.id();
         LOG.info("Deleting disk with id {}", diskId);
         final DeleteDiskRequest deleteDiskRequest = DeleteDiskRequest.newBuilder()
             .setDiskId(diskId)
             .build();
-        final Operation delete;
-        try {
-            delete = OperationUtils.wait(
-                operationService,
-                diskService.delete(deleteDiskRequest),
-                defaultOperationTimeout
-            );
-        } catch (InterruptedException e) {
-            LOG.error("Delete disk with id " + diskId + " timed out", e);
-            throw new OperationTimedOutException("Delete disk with id " + diskId + " timed out", e);
-        }
+        final Operation delete = OperationUtils.wait(
+            operationService,
+            diskService.delete(deleteDiskRequest),
+            defaultOperationTimeout
+        );
         if (delete.hasError()) {
             LOG.error("Failed to delete disk with id {}", diskId);
             if (delete.getError().getCode() == Status.NOT_FOUND.getCode().value()) {
-                throw new DiskNotFoundException();
+                throw new NotFoundException();
             }
             throw new RuntimeException(delete.getError().getMessage());
         }
