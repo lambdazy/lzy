@@ -105,7 +105,7 @@ public class KuberVmAllocator implements VmAllocator {
         final var credentials = poolRegistry.getCredential(clusterId);
         final var ns = meta.get(NAMESPACE_KEY);
         final var podName = meta.get(POD_NAME_KEY);
-        try(final var client = factory.build(credentials)) {
+        try (final var client = factory.build(credentials)) {
             final var pod = getPod(ns, podName, client);
             if (pod != null) {
                 client.pods()
