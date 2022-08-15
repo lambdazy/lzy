@@ -1,18 +1,29 @@
 allocator:
 
-  service-clusters:
-    - 'sys_cluster_1'
-    - 'sys_cluster_2'
+  service-clusters: []
 
   user-clusters:
-    - 'user_cluster_1'
-    - 'user_cluster_2'
-    - 'user_cluster_3'
+    - 'some-cluster'
 
   yc-mk8s:
     enabled: true
-    service-account: 'dead-beef'
-    service-account-secret: 'env variable name'
+    service-account-file: "<path-to-sa-file>"
 
   azure-mk8s:
     enabled: false
+
+  port: 1234
+  gc-period: 30s
+  heartbeat-timeout: 1m
+  allocation-timeout: 15m
+
+  kuber-allocator:
+    enabled: true
+
+  database:
+    url: 'jdbc:h2:mem:testdb_ge;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false'
+    username: 'test'
+    password: ''
+    min-pool-size: 1
+    max-pool-size: 2
+    enabled: true

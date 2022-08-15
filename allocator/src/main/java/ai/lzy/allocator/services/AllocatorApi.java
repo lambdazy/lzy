@@ -151,11 +151,11 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             dao.update(vm, transaction);
             transaction.commit();
         } catch (Exception e) {
+            LOG.error("Error while executing request", e);
             if (vm != null) {
                 allocator.deallocate(vm);
                 operations.update(op.complete(Status.INTERNAL.withDescription("Error while executing request")), null);
             }
-            LOG.error("Error while executing request", e);
         }
     }
 

@@ -1,13 +1,12 @@
 package ai.lzy.allocator.configs;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
-import io.micronaut.context.exceptions.ConfigurationException;
 
-import javax.annotation.PostConstruct;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
+// TODO(artolord) Optional fields are always empty
 @ConfigurationProperties("allocator")
 public record ServiceConfig(
     int port,
@@ -26,15 +25,6 @@ public record ServiceConfig(
     Optional<AzureMk8sConfig> azureMk8s
 ) {
 
-    @PostConstruct
-    public void validate() {
-        var cnt = ycMk8s.map(x -> x.enabled ? 1 : 0).orElse(0)
-                + azureMk8s.map(x -> x.enabled ? 1 : 0).orElse(0);
-        if (cnt != 1) {
-            throw new ConfigurationException("Exactly one cloud provider should be specified.");
-        }
-    }
-
     @ConfigurationProperties("thread-allocator")
     public record ThreadAllocator(
         boolean enabled,
@@ -49,8 +39,7 @@ public record ServiceConfig(
 
     @ConfigurationProperties("kuber-allocator")
     public record KuberAllocator(
-        boolean enabled,
-        String podTemplatePath
+        boolean enabled
     ) {}
 
     @ConfigurationProperties("yc-mk8s")

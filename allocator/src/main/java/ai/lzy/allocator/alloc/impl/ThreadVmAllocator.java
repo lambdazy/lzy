@@ -84,7 +84,7 @@ public class ThreadVmAllocator implements VmAllocator {
         vmThreads.remove(vm.vmId());
     }
 
-    @org.jetbrains.annotations.Nullable
+    @Nullable
     @Override
     public VmDesc getVmDesc(Vm vm) {
         return new VmDesc(vm.sessionId(), vm.vmId(), VmStatus.RUNNING);
