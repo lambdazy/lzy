@@ -1,9 +1,9 @@
 #!/usr/bin/env nix-shell
-#! nix-shell ../pylzy/build.nix -A shell-lint -i bash
+#! nix-shell ../pylzy/nix/build.nix -A lint -i bash
 
 set -u
 
-source ../pylzy/util.sh
+source ../pylzy/scripts/util.sh
 
 start
 

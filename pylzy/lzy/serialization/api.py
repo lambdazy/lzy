@@ -1,5 +1,5 @@
 import abc
-from typing import BinaryIO, Type, Union, Callable, Any, Optional, TypeVar
+from typing import Any, BinaryIO, Callable, Optional, Type, TypeVar, Union
 
 T = TypeVar("T")
 
@@ -32,7 +32,9 @@ class Serializer(abc.ABC):
 
 class SerializersRegistry(abc.ABC):
     @abc.abstractmethod
-    def register_serializer(self, serializer: Serializer, priority: Optional[int] = None) -> None:
+    def register_serializer(
+        self, serializer: Serializer, priority: Optional[int] = None
+    ) -> None:
         pass
 
     @abc.abstractmethod

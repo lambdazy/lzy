@@ -31,8 +31,8 @@ jobs:
         timeout-minutes: 5
         run: |
           cd pylzy/
-          ./gen_proto.sh
-          ./run_tests.sh
+          ./scripts/gen_proto.sh
+          ./scripts/run_tests.sh
          
       - name: 'upload coverage badge'
         uses: exuanbo/actions-deploy-gist@v1
@@ -47,7 +47,7 @@ jobs:
       - name: 'clean after python-test'
         run: |
           cd pylzy/
-          ./clean.sh
+          ./scripts/clean.sh
       
       - name: 'install python requirements'
         run: |
@@ -56,7 +56,7 @@ jobs:
       - name: 'install pylzy'
         run: |
           cd pylzy/
-          ./gen_proto.sh
+          ./scripts/gen_proto.sh
           eval "$(conda shell.bash hook)" && conda activate py39 && pip install . --force-reinstall
           cd ..
 

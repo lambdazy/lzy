@@ -43,7 +43,7 @@ class _install(RunMixin, install):
     user_options = install.user_options + [("dev", None, "Build nightly package")]
 
 
-def read_version(path="version"):
+def read_version(path="version/version"):
     with open(path) as file:
         return file.read().rstrip()
 

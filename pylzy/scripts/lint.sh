@@ -1,9 +1,10 @@
 #!/usr/bin/env nix-shell
-#! nix-shell build.nix -A shell-lint -i bash
+#! nix-shell build.nix -A lint -i bash
 
 set -u
 
-source ./util.sh
+src_dir="$(dirname $0)"
+source "$src_dir/util.sh"
 
 start
 

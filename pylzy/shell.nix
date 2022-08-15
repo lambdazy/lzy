@@ -1,2 +1,2 @@
 { }:
-(import ./build.nix {}).shell
+(import ./nix/build.nix {}).dev

@@ -74,7 +74,9 @@ class GrpcRuntime(Runtime):
 
     def _load_arg(self, entry_id: str, data: Any, serializer: SerializersRegistry):
         with tempfile.NamedTemporaryFile("wb", delete=True) as write_file:
-            serializer.find_serializer_by_type(type(data)).serialize(data, cast(BinaryIO, write_file))
+            serializer.find_serializer_by_type(type(data)).serialize(
+                data, cast(BinaryIO, write_file)
+            )
             write_file.flush()
             with open(write_file.name, "rb") as read_file:
                 read_file.seek(0)

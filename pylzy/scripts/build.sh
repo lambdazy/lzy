@@ -1,9 +1,10 @@
 #!/usr/bin/env nix-shell
-#! nix-shell build.nix -A shell -i bash
+#! nix-shell build.nix -A publish -i bash
 
 set -ex
 
-source ./util.sh
+src_dir="$(dirname $0)"
+source "$src_dir/util.sh"
 
 echo "Building pylzy package"
 # TODO: pass jar path to script as parameter?

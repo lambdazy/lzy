@@ -13,5 +13,6 @@ buildPythonPackage rec {
   propagatedBuildInputs = [
     nodeenv
   ];
+  doCheck = false;
 }
 

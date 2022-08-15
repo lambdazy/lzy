@@ -61,14 +61,14 @@ jobs:
       - run: cd pylzy
 
       - name: Build package
-        run: ./clean.sh && ./build.sh --dev
+        run: ./scripts/clean.sh && ./scripts/build.sh --dev
 
       - name: Publish package
-        run: ./publish.sh
+        run: ./scripts/publish.sh
         env:
           TWINE_PASSWORD: ${{ secrets.PYPI_API_NIGHTLY_TOKEN}}
 
       - name: Clean up
-        run: ./clean.sh && cd ..
+        run: ./scripts/clean.sh && cd ..
 
   #### <- TODO: replace with reusable workflow in future: .github/workflows/reusable/build-pypi-publish.yml

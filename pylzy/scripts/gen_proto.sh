@@ -1,9 +1,10 @@
 #!/usr/bin/env nix-shell
-#! nix-shell build.nix -A shell -i bash
+#! nix-shell build.nix -A dev -i bash
 
 set -eux
 
-source ./util.sh
+src_dir="$(dirname $0)"
+source "$src_dir/util.sh"
 
 # this has to be declarared as env variable in mk-python-env.nix
 # proto_out="lzy/proto"

@@ -24,13 +24,13 @@ jobs:
       - name: Run lint.sh on pylzy
         run: |
           cd pylzy
-          ./gen_proto.sh
-          ./lint.sh
+          ./scripts/gen_proto.sh
+          ./scripts/lint.sh
 
       - name: Clean pylzy/ up
         run: |
           cd pylzy
-          ./clean.sh
+          ./scripts/clean.sh
 
       - name: Run lint.sh on jupyter-kernel
         run: |
@@ -40,4 +40,4 @@ jobs:
       - name: Clean jupyter-kernel/ up
         run: |
           cd jupyter-kernel
-          ../pylzy/clean.sh
+          ../pylzy/scripts/clean.sh
