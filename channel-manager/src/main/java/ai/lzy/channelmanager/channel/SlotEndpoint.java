@@ -1,7 +1,5 @@
 package ai.lzy.channelmanager.channel;
 
-import static ai.lzy.model.GrpcConverter.to;
-
 import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.Slot;
 import ai.lzy.model.SlotConnectionManager;
@@ -91,8 +89,8 @@ public class SlotEndpoint implements Endpoint {
         try {
             final LzyFsApi.SlotCommandStatus rc = fs.connectSlot(
                 LzyFsApi.ConnectSlotRequest.newBuilder()
-                    .setFrom(to(slotInstance()))
-                    .setTo(to(slotInstance))
+                    .setFrom(GrpcConverter.to(slotInstance()))
+                    .setTo(GrpcConverter.to(slotInstance))
                 .build()
             );
             if (rc.hasRc() && rc.getRc().getCodeValue() != 0) {
@@ -115,7 +113,7 @@ public class SlotEndpoint implements Endpoint {
         try {
             final LzyFsApi.SlotCommandStatus slotCommandStatus = fs.statusSlot(
                 LzyFsApi.StatusSlotRequest.newBuilder()
-                    .setSlotInstance(to(slotInstance()))
+                    .setSlotInstance(GrpcConverter.to(slotInstance()))
                     .build());
             return GrpcConverter.from(slotCommandStatus.getStatus());
         } catch (StatusRuntimeException e) {
@@ -132,7 +130,7 @@ public class SlotEndpoint implements Endpoint {
         try {
             final LzyFsApi.SlotCommandStatus rc = fs.disconnectSlot(
                 LzyFsApi.DisconnectSlotRequest.newBuilder()
-                    .setSlotInstance(to(slotInstance()))
+                    .setSlotInstance(GrpcConverter.to(slotInstance()))
                     .build());
             return rc.hasRc() ? rc.getRc().getCodeValue() : 0;
         } catch (StatusRuntimeException sre) {
@@ -150,7 +148,7 @@ public class SlotEndpoint implements Endpoint {
         try {
             final LzyFsApi.SlotCommandStatus rc = fs.destroySlot(
                 LzyFsApi.DestroySlotRequest.newBuilder()
-                    .setSlotInstance(to(slotInstance()))
+                    .setSlotInstance(GrpcConverter.to(slotInstance()))
                     .build());
             return rc.hasRc() ? rc.getRc().getCodeValue() : 0;
         } catch (StatusRuntimeException sre) {
