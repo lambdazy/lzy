@@ -11,13 +11,5 @@
 
   <modelVersion>4.0.0</modelVersion>
   <artifactId>jupyter-kernel</artifactId>
-  <dependencies>
-    <dependency>
-      <groupId>javax.inject</groupId>
-      <artifactId>javax.inject</artifactId>
-      <version>1</version>
-      <scope>compile</scope>
-    </dependency>
-  </dependencies>
 
 </project>

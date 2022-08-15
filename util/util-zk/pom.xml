@@ -102,12 +102,6 @@
       <artifactId>micronaut-inject</artifactId>
       <groupId>io.micronaut</groupId>
     </dependency>
-    <dependency>
-      <groupId>javax.inject</groupId>
-      <artifactId>javax.inject</artifactId>
-      <version>1</version>
-      <scope>compile</scope>
-    </dependency>
   </dependencies>
 
   <build>

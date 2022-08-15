@@ -11,6 +11,7 @@ import ai.lzy.util.auth.YcCredentials;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.UUID;
 import org.junit.Assert;
 import org.junit.Ignore;
@@ -20,7 +21,7 @@ import yandex.cloud.sdk.Zone;
 @Ignore
 public class ManualYcDiskTest {
     final YcCredentials credentials = loadCredsFrom();
-    final DiskManager diskManager = new YcDiskManager(credentials);
+    final DiskManager diskManager = new YcDiskManager(credentials, Duration.ofMinutes(5));
 
     private static YcCredentials loadCredsFrom() {
         final String serviceAccountId = "aje7j8kng6mhnh49h51u";

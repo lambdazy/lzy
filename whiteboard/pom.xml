@@ -94,12 +94,6 @@
       <groupId>com.mchange</groupId>
       <artifactId>c3p0</artifactId>
     </dependency>
-    <dependency>
-      <groupId>javax.inject</groupId>
-      <artifactId>javax.inject</artifactId>
-      <version>1</version>
-      <scope>compile</scope>
-    </dependency>
   </dependencies>
   <build>
     <resources>

@@ -41,15 +41,16 @@ import yandex.cloud.sdk.utils.OperationUtils;
 @Singleton
 public class YcDiskManager implements DiskManager {
     private static final Logger LOG = LogManager.getLogger(YcDiskManager.class);
-    private static final Duration DEFAULT_OPERATION_TIMEOUT = Duration.ofMinutes(5);
     private static final int GB_MULTIPLIER = 1 << 30;
 
+    private final Duration defaultOperationTimeout;
     private final YcCredentials credentials;
     private final DiskServiceBlockingStub diskService;
     private final SnapshotServiceBlockingStub snapshotService;
     private final OperationServiceBlockingStub operationService;
 
-    public YcDiskManager(YcCredentials credentials) {
+    public YcDiskManager(YcCredentials credentials, Duration defaultOperationTimeout) {
+        this.defaultOperationTimeout = defaultOperationTimeout;
         this.credentials = credentials;
         CredentialProvider provider = Auth.apiKeyBuilder()
             .serviceAccountKey(
@@ -121,7 +122,7 @@ public class YcDiskManager implements DiskManager {
             final Operation result = OperationUtils.wait(
                 operationService,
                 createDiskOperation,
-                DEFAULT_OPERATION_TIMEOUT
+                defaultOperationTimeout
             );
             if (result.hasError()) {
                 final String errorMessage = result.getError().getMessage();
@@ -153,7 +154,7 @@ public class YcDiskManager implements DiskManager {
             final Operation snapshotCreateOperation = OperationUtils.wait(
                 operationService,
                 snapshotService.create(createSnapshotRequest),
-                DEFAULT_OPERATION_TIMEOUT
+                defaultOperationTimeout
             );
             if (snapshotCreateOperation.hasError()) {
                 throw new DiskException(
@@ -180,7 +181,7 @@ public class YcDiskManager implements DiskManager {
                     DeleteSnapshotRequest.newBuilder()
                         .setSnapshotId(snapshot.getId())
                     .build()),
-                DEFAULT_OPERATION_TIMEOUT
+                defaultOperationTimeout
             );
             if (deleteSnapshotOperation.hasError()) {
                 throw new DiskException(
@@ -214,7 +215,7 @@ public class YcDiskManager implements DiskManager {
             delete = OperationUtils.wait(
                 operationService,
                 diskService.delete(deleteDiskRequest),
-                DEFAULT_OPERATION_TIMEOUT
+                defaultOperationTimeout
             );
         } catch (InterruptedException e) {
             LOG.error("Delete disk with id " + diskId + " timed out", e);

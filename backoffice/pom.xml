@@ -131,12 +131,6 @@
       <groupId>com.azure</groupId>
       <artifactId>azure-security-keyvault-secrets</artifactId>
     </dependency>
-    <dependency>
-      <groupId>javax.inject</groupId>
-      <artifactId>javax.inject</artifactId>
-      <version>1</version>
-      <scope>compile</scope>
-    </dependency>
   </dependencies>
 
   <build>
