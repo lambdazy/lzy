@@ -11,8 +11,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import org.jetbrains.annotations.Nullable;
 
+import javax.annotation.Nullable;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;

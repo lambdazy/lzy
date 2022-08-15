@@ -9,8 +9,8 @@ import ai.lzy.model.db.TransactionHandle;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Singleton;
-import org.jetbrains.annotations.Nullable;
 
+import javax.annotation.Nullable;
 import java.util.UUID;
 
 @Singleton
