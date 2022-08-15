@@ -40,6 +40,7 @@ import ai.lzy.v1.ChannelManager.SlotDetach;
 import ai.lzy.v1.ChannelManager.SlotDetachStatus;
 import ai.lzy.v1.Channels;
 import ai.lzy.v1.LzyChannelManagerGrpc;
+import ai.lzy.v1.LzyFsApi;
 import ai.lzy.v1.Operations;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -52,6 +53,7 @@ import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -94,7 +96,6 @@ public class ChannelManager {
     }
 
     private final Server channelManagerServer;
-    private final URI whiteboardAddress;
     private final ManagedChannel iamChannel;
 
     public static void main(String[] args) throws IOException, InterruptedException {
@@ -155,20 +156,24 @@ public class ChannelManager {
             .intercept(new AuthServerInterceptor(new AuthenticateServiceStub()))
             .addService(ctx.getBean(ChannelManagerService.class))
             .build();
-        whiteboardAddress = URI.create(config.whiteboardAddress());
     }
 
-    private class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManagerImplBase {
+    @Singleton
+    private static class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManagerImplBase {
 
         private static final Logger LOG = LogManager.getLogger(ChannelManagerService.class);
 
         private final ChannelManagerDataSource dataSource;
         private final ChannelStorage channelStorage;
+        private final URI whiteboardAddress;
 
         @Inject
-        private ChannelManagerService(ChannelManagerDataSource dataSource, ChannelStorage channelStorage) {
+        public ChannelManagerService(
+            ChannelManagerDataSource dataSource, ChannelManagerConfig config, ChannelStorage channelStorage
+        ) {
             this.dataSource = dataSource;
             this.channelStorage = channelStorage;
+            this.whiteboardAddress = URI.create(config.whiteboardAddress());
         }
 
         @Override
@@ -184,12 +189,15 @@ public class ChannelManager {
                 final var authenticationContext = AuthenticationContext.current();
                 final String userId = Objects.requireNonNull(authenticationContext).getSubject().id();
                 final String workflowId = request.getWorkflowId();
-                final String channelName = request.getChannelSpec().getChannelName();
+                final Channels.ChannelSpec channelSpec = request.getChannelSpec();
+                if (workflowId.isBlank() || !isChannelSpecValid(channelSpec)) {
+                    responseObserver.onError(Status.INVALID_ARGUMENT
+                        .withDescription("Request shouldn't contain empty fields").asException());
+                }
 
+                final String channelName = channelSpec.getChannelName();
                 // Channel id is not random uuid for better logs.
                 final String channelId = "channel_" + userId + workflowId + channelName;
-
-                final Channels.ChannelSpec channelSpec = request.getChannelSpec();
                 final var channelType = channelSpec.getTypeCase();
                 final ChannelSpec spec = switch (channelSpec.getTypeCase()) {
                     case DIRECT -> new DirectChannelSpec(
@@ -242,6 +250,11 @@ public class ChannelManager {
 
             try {
                 final String channelId = request.getChannelId();
+                if (channelId.isBlank()) {
+                    responseObserver.onError(Status.INVALID_ARGUMENT
+                        .withDescription("Request shouldn't contain empty fields").asException());
+                    return;
+                }
 
                 final AtomicReference<Channel> channel = new AtomicReference<>();
                 Transaction.execute(dataSource, conn -> {
@@ -251,7 +264,9 @@ public class ChannelManager {
                         LOG.error(errorMessage);
                         throw new NotFoundException(errorMessage);
                     }
-                    channelStorage.setChannelLifeStatus(conn, Stream.of(channelId), "Destroying");
+                    channelStorage.setChannelLifeStatus(
+                        conn, Stream.of(channelId), ChannelStorage.ChannelLifeStatus.DESTROYING.name()
+                    );
                     return true;
                 });
 
@@ -285,12 +300,17 @@ public class ChannelManager {
                 final var authenticationContext = AuthenticationContext.current();
                 final String userId = Objects.requireNonNull(authenticationContext).getSubject().id();
                 final String workflowId = request.getWorkflowId();
+                if (workflowId.isBlank()) {
+                    responseObserver.onError(Status.INVALID_ARGUMENT
+                        .withDescription("Request shouldn't contain empty fields").asException());
+                    return;
+                }
 
                 List<Channel> channels = new ArrayList<>();
                 Transaction.execute(dataSource, conn -> {
                     channels.addAll(channelStorage.listChannels(conn, true, userId, workflowId).toList());
                     channelStorage.setChannelLifeStatus(conn,
-                        channels.stream().map(Channel::id), "Destroying"
+                        channels.stream().map(Channel::id), ChannelStorage.ChannelLifeStatus.DESTROYING.name()
                     );
                     return true;
                 });
@@ -320,6 +340,11 @@ public class ChannelManager {
 
             try {
                 final String channelId = request.getChannelId();
+                if (channelId.isBlank()) {
+                    responseObserver.onError(Status.INVALID_ARGUMENT
+                        .withDescription("Request shouldn't contain empty fields").asException());
+                    return;
+                }
 
                 final AtomicReference<Channel> channel = new AtomicReference<>();
                 Transaction.execute(dataSource, conn -> {
@@ -353,6 +378,11 @@ public class ChannelManager {
                 final var authenticationContext = AuthenticationContext.current();
                 final String userId = Objects.requireNonNull(authenticationContext).getSubject().id();
                 final String workflowId = request.getWorkflowId();
+                if (workflowId.isBlank()) {
+                    responseObserver.onError(Status.INVALID_ARGUMENT
+                        .withDescription("Request shouldn't contain empty fields").asException());
+                    return;
+                }
 
                 List<Channel> channels = new ArrayList<>();
                 Transaction.execute(dataSource, conn -> {
@@ -380,6 +410,12 @@ public class ChannelManager {
                 attach.getSlotInstance().getSlot().getName(),
                 attach.getSlotInstance().getChannelId(),
                 JsonUtils.printRequest(attach));
+
+            if (isSlotInstanceValid(attach.getSlotInstance())) {
+                responseObserver.onError(Status.INVALID_ARGUMENT
+                    .withDescription("Request shouldn't contain empty fields").asException());
+                return;
+            }
 
             try {
                 final var authenticationContext = AuthenticationContext.current();
@@ -463,6 +499,12 @@ public class ChannelManager {
                 detach.getSlotInstance().getChannelId(),
                 JsonUtils.printRequest(detach));
 
+            if (isSlotInstanceValid(detach.getSlotInstance())) {
+                responseObserver.onError(Status.INVALID_ARGUMENT
+                    .withDescription("Request shouldn't contain empty fields").asException());
+                return;
+            }
+
             try {
                 final SlotInstance slotInstance = from(detach.getSlotInstance());
                 final Endpoint endpoint = SlotEndpoint.getInstance(slotInstance);
@@ -518,16 +560,45 @@ public class ChannelManager {
                 .forEach(statusBuilder::addConnected);
             return statusBuilder.build();
         }
+
+        private boolean isChannelSpecValid(Channels.ChannelSpec channelSpec) {
+            try {
+                boolean isValid = true;
+                isValid = isValid && !channelSpec.getChannelName().isBlank();
+                isValid = isValid && channelSpec.getTypeCase().getNumber() != 0;
+                isValid = isValid && !channelSpec.getContentType().getType().isBlank();
+                isValid = isValid && channelSpec.getContentType().getSchemeType().getNumber() != 0;
+                return isValid;
+            } catch (NullPointerException e) {
+                return false;
+            }
+        }
+
+        private boolean isSlotInstanceValid(LzyFsApi.SlotInstance slotInstance) {
+            try {
+                boolean isValid = true;
+                isValid = isValid && !slotInstance.getTaskId().isBlank();
+                isValid = isValid && !slotInstance.getSlotUri().isBlank();
+                isValid = isValid && !slotInstance.getChannelId().isBlank();
+                isValid = isValid && !slotInstance.getSlot().getName().isBlank();
+                isValid = isValid && !slotInstance.getSlot().getContentType().getType().isBlank();
+                isValid = isValid && slotInstance.getSlot().getContentType().getSchemeType().getNumber() != 0;
+                return isValid;
+            } catch (NullPointerException e) {
+                return false;
+            }
+        }
     }
 
-    private class ChannelStorage {
+    @Singleton
+    private static class ChannelStorage {
 
         private static final Logger LOG = LogManager.getLogger(ChannelStorage.class);
 
         private final ObjectMapper objectMapper;
 
         @Inject
-        private ChannelStorage(ObjectMapper objectMapper) {
+        public ChannelStorage(ObjectMapper objectMapper) {
             this.objectMapper = objectMapper;
         }
 
@@ -556,7 +627,7 @@ public class ChannelManager {
                 st.setString(++index, channelType.name());
                 st.setString(++index, channelSpecJson);
                 st.setTimestamp(++index, Timestamp.from(Instant.now()));
-                st.setString(++index, "ALIVE");
+                st.setString(++index, ChannelLifeStatus.ALIVE.name());
                 st.executeUpdate();
             } catch (SQLException | JsonProcessingException e) {
                 LOG.error("Failed to insert channel (channelId={})", channelId, e);
@@ -601,7 +672,7 @@ public class ChannelManager {
             ) {
                 int index = 0;
                 st.setString(++index, channelId);
-                st.setString(++index, "ALIVE");
+                st.setString(++index, ChannelLifeStatus.ALIVE.name());
                 Stream<Channel> channels = parseChannels(st.executeQuery());
                 return channels.findFirst().orElse(null);
             } catch (SQLException | JsonProcessingException e) {
@@ -636,7 +707,7 @@ public class ChannelManager {
                 int index = 0;
                 st.setString(++index, userId);
                 st.setString(++index, workflowId);
-                st.setString(++index, "ALIVE");
+                st.setString(++index, ChannelLifeStatus.ALIVE.name());
                 return parseChannels(st.executeQuery());
             } catch (SQLException | JsonProcessingException e) {
                 LOG.error("Failed to list channels (workflow_id={})", workflowId, e);
@@ -657,7 +728,7 @@ public class ChannelManager {
                 st.setString(++index, userId);
                 st.setString(++index, workflowId);
                 st.setString(++index, slotUri);
-                st.setString(++index, "ALIVE");
+                st.setString(++index, ChannelLifeStatus.ALIVE.name());
                 ResultSet rs = st.executeQuery();
                 List<String> channels = new ArrayList<>();
                 while (rs.next()) {
@@ -814,6 +885,12 @@ public class ChannelManager {
                 }
             }
             return chanelBuildersById.values().stream().map(Channel.Builder::build);
+        }
+
+        private enum ChannelLifeStatus {
+            ALIVE,
+            DESTROYING,
+            ;
         }
 
     }

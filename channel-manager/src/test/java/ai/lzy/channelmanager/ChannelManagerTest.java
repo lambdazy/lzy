@@ -134,7 +134,6 @@ public class ChannelManagerTest extends BaseTestWithIam {
     }
 
     @Test
-    @Ignore
     public void testCreateEmptyWorkflow() {
         try {
             authorizedChannelManagerClient.create(
@@ -152,7 +151,6 @@ public class ChannelManagerTest extends BaseTestWithIam {
     }
 
     @Test
-    @Ignore
     public void testCreateEmptyChannelSpec() {
         try {
             authorizedChannelManagerClient.create(
@@ -166,7 +164,6 @@ public class ChannelManagerTest extends BaseTestWithIam {
     }
 
     @Test
-    @Ignore
     public void testCreateEmptySpecName() {
         try {
             authorizedChannelManagerClient.create(
@@ -185,7 +182,6 @@ public class ChannelManagerTest extends BaseTestWithIam {
     }
 
     @Test
-    @Ignore
     public void testCreateEmptySpecType() {
         try {
             authorizedChannelManagerClient.create(
@@ -202,7 +198,6 @@ public class ChannelManagerTest extends BaseTestWithIam {
     }
 
     @Test
-    @Ignore
     public void testCreateEmptySpecContentType() {
         try {
             authorizedChannelManagerClient.create(
@@ -219,7 +214,6 @@ public class ChannelManagerTest extends BaseTestWithIam {
     }
 
     @Test
-    @Ignore
     public void testCreateEmptySpecContentTypeType() {
         try {
             authorizedChannelManagerClient.create(
@@ -238,7 +232,6 @@ public class ChannelManagerTest extends BaseTestWithIam {
     }
 
     @Test
-    @Ignore
     public void testCreateEmptySpecContentTypeSchemeType() {
         try {
             authorizedChannelManagerClient.create(
@@ -307,7 +300,6 @@ public class ChannelManagerTest extends BaseTestWithIam {
     }
 
     @Test
-    @Ignore
     public void testDestroyAllSameChannelName() {
         final String workflowId = UUID.randomUUID().toString();
         final ChannelCreateResponse channel1CreateResponse = authorizedChannelManagerClient.create(
