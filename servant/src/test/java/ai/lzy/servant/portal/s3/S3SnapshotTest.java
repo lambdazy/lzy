@@ -48,7 +48,7 @@ public class S3SnapshotTest {
             .build();
     private final Transmitter transmitter = new AmazonTransmitterFactory(s3Client).fixedPoolsTransmitter(
             "transmitter", 10, 10);
-    private final S3RepositoryWithBucketSelection<Stream<ByteString>> repository =
+    private final S3Repository<Stream<ByteString>> repository =
             new AmazonS3RepositoryAdapter<>(s3Client, transmitter, 10, new ByteStringStreamConverter());
 
     private final Charset charset = StandardCharsets.UTF_8;

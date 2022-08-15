@@ -272,15 +272,6 @@ public class PortalTest {
         Assert.assertEquals("i-am-a-hacker\n", result);
     }
 
-    @Test
-    public void testSnapshotOnPortal() throws Exception {
-        var inputSnapshot = LzyPortalApi.PortalSlotDesc.newBuilder()
-            .setSnapshot(makeLocalSnapshot("snapshot_1"));
-        var outputSnapshot = LzyPortalApi.PortalSlotDesc.newBuilder()
-            .setSnapshot(makeLocalSnapshot("snapshot_1"));
-        runGeneralSnapshotOnPortalScenario(inputSnapshot, outputSnapshot);
-    }
-
     private void setUpS3() {
         s3.start();
         s3Client.createBucket(BUCKET_NAME);
@@ -343,7 +334,7 @@ public class PortalTest {
             .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
                 .setSlot(makeInputFileSlot("/portal_slot_1"))
                 .setChannelId("channel_1")
-                .setSnapshot(makeLocalSnapshot("snapshot_1"))
+                .setSnapshot(makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
                 .build())
             .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
                 .setSlot(makeInputFileSlot("/portal_task_1:stdout"))
@@ -359,7 +350,7 @@ public class PortalTest {
             .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
                 .setSlot(makeInputFileSlot("/portal_slot_2"))
                 .setChannelId("channel_2")
-                .setSnapshot(makeLocalSnapshot("snapshot_2"))
+                .setSnapshot(makeAmazonSnapshot("snapshot_2", BUCKET_NAME, S3_ADDRESS))
                 .build())
             .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
                 .setSlot(makeInputFileSlot("/portal_task_2:stdout"))

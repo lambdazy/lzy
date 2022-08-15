@@ -4,7 +4,7 @@ import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.slots.LzySlotBase;
 import ai.lzy.fs.slots.OutFileSlot;
 import ai.lzy.model.SlotInstance;
-import ai.lzy.servant.portal.s3.S3RepositoryWithBucketSelection;
+import ai.lzy.servant.portal.s3.S3Repository;
 import com.google.protobuf.ByteString;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -28,10 +28,10 @@ public class S3StorageOutputSlot extends LzySlotBase implements LzyOutputSlot {
 
     private final String key;
     private final String bucket;
-    private final S3RepositoryWithBucketSelection<Stream<ByteString>> repository;
+    private final S3Repository<Stream<ByteString>> repository;
 
     public S3StorageOutputSlot(SlotInstance slotInstance, String s3Key, String s3Bucket,
-                               S3RepositoryWithBucketSelection<Stream<ByteString>> s3Repository) {
+                               S3Repository<Stream<ByteString>> s3Repository) {
         super(slotInstance);
         String suffix = (slotInstance.taskId() + slotInstance.name()).replaceAll(File.separator, "");
         try {

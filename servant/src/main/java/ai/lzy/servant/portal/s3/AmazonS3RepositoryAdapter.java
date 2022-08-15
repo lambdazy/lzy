@@ -10,7 +10,7 @@ import javax.annotation.Nonnull;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
-public class AmazonS3RepositoryAdapter<T> extends AmazonS3Repository<T> implements S3RepositoryWithBucketSelection<T> {
+public class AmazonS3RepositoryAdapter<T> extends AmazonS3Repository<T> implements S3Repository<T> {
     private static final String BUCKET_KEY_DELIMITER = "#";
 
     public AmazonS3RepositoryAdapter(AmazonS3 amazonS3, Transmitter transmitter, int toStreamPoolSize,
@@ -46,6 +46,11 @@ public class AmazonS3RepositoryAdapter<T> extends AmazonS3Repository<T> implemen
     @Override
     public T get(@Nonnull String bucket, @Nonnull String key) {
         return this.get(internalKey(bucket, key));
+    }
+
+    @Override
+    public boolean containsKey(String bucket, String key) {
+        return false;
     }
 
     @Override

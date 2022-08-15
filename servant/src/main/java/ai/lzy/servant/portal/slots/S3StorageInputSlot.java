@@ -2,7 +2,7 @@ package ai.lzy.servant.portal.slots;
 
 import ai.lzy.fs.slots.LzyInputSlotBase;
 import ai.lzy.model.SlotInstance;
-import ai.lzy.servant.portal.s3.S3RepositoryWithBucketSelection;
+import ai.lzy.servant.portal.s3.S3Repository;
 import com.google.protobuf.ByteString;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -17,10 +17,10 @@ public class S3StorageInputSlot extends LzyInputSlotBase {
 
     private final String key;
     private final String bucket;
-    private final S3RepositoryWithBucketSelection<Stream<ByteString>> repository;
+    private final S3Repository<Stream<ByteString>> repository;
 
     public S3StorageInputSlot(SlotInstance instance, String s3Key, String s3Bucket,
-                              S3RepositoryWithBucketSelection<Stream<ByteString>> s3Repository) {
+                              S3Repository<Stream<ByteString>> s3Repository) {
         super(instance);
         this.key = s3Key;
         this.bucket = s3Bucket;

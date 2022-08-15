@@ -20,14 +20,14 @@ import java.util.stream.Stream;
 final class ExternalStorage {
 
     public interface S3RepositoryProvider {
-        S3RepositoryWithBucketSelection<Stream<ByteString>> get();
+        S3Repository<Stream<ByteString>> get();
     }
 
     static String DEFAULT_TRANSMITTER_NAME = "transmitter";
     static int DEFAULT_DOWNLOAD_POOL_SIZE = 10;
     static int DEFAULT_UPLOAD_POOL_SIZE = 10;
 
-    private final Map<S3RepositoryProvider, S3RepositoryWithBucketSelection<Stream<ByteString>>> repositories
+    private final Map<S3RepositoryProvider, S3Repository<Stream<ByteString>>> repositories
         = new HashMap<>();
     private final Map<S3RepositoryProvider, S3StorageOutputSlot> toLoad = new HashMap<>();
     private final Map<S3RepositoryProvider, S3StorageInputSlot> toStore = new HashMap<>();
@@ -89,7 +89,7 @@ final class ExternalStorage {
         }
 
         @Override
-        public S3RepositoryWithBucketSelection<Stream<ByteString>> get() {
+        public S3Repository<Stream<ByteString>> get() {
             BasicAWSCredentials credentials = new BasicAWSCredentials(accessToken, secretToken);
             AmazonS3 client = AmazonS3ClientBuilder.standard()
                     .withCredentials(new AWSStaticCredentialsProvider(credentials))
@@ -114,7 +114,7 @@ final class ExternalStorage {
         }
 
         @Override
-        public S3RepositoryWithBucketSelection<Stream<ByteString>> get() {
+        public S3Repository<Stream<ByteString>> get() {
             return null;
         }
     }

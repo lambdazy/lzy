@@ -6,7 +6,7 @@ import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.fs.slots.LzySlotBase;
 import ai.lzy.model.SlotInstance;
 import ai.lzy.model.slots.TextLinesOutSlot;
-import ai.lzy.servant.portal.Portal.CreatingLzySlotException;
+import ai.lzy.servant.portal.Portal.CreateSlotException;
 import ai.lzy.v1.Operations;
 import com.google.protobuf.ByteString;
 import java.net.URI;
@@ -43,10 +43,10 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
     }
 
     @Nonnull
-    public synchronized LzySlot attach(SlotInstance slotInstance) throws CreatingLzySlotException {
+    public synchronized LzySlot attach(SlotInstance slotInstance) throws CreateSlotException {
         final String taskId = slotInstance.taskId();
         if (task2slot.containsKey(taskId)) {
-            throw new CreatingLzySlotException("Slot " + slotInstance.name() + " from task "
+            throw new CreateSlotException("Slot " + slotInstance.name() + " from task "
                 + taskId + " already exists");
         }
 

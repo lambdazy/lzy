@@ -63,8 +63,13 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
             close();
             return;
         }
+        onFinish();
         LOG.info("Opening slot {}", name());
         state(Operations.SlotStatus.State.OPEN);
+    }
+
+    protected void onFinish() {
+        // intentionally blank
     }
 
     @Override
