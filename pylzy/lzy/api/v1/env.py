@@ -46,9 +46,9 @@ from lzy.api.v1.whiteboard.model import (
 )
 from lzy.api.v2.utils.types import unwrap
 from lzy.pkg_info import all_installed_packages, create_yaml, select_modules
-from lzy.serialization.api import Serializer
+from lzy.serialization.api import SerializersRegistry
 from lzy.serialization.hasher import DelegatingHasher, Hasher
-from lzy.serialization.serializer import FileSerializer
+from lzy.serialization.registry import DefaultSerializersRegistry
 from lzy.storage import from_credentials
 from lzy.storage.storage_client import StorageClient
 
@@ -218,7 +218,7 @@ class LzyLocalEnv(LzyEnvBase):
             whiteboard_api=InMemWhiteboardApi(),
             snapshot_api=InMemSnapshotApi(),
         )
-        self._file_serializer = FileSerializer()
+        self._file_serializer = DefaultSerializersRegistry()
 
     def workflow(
         self,
@@ -243,7 +243,7 @@ class LzyRemoteEnv(LzyEnvBase):
     ):
         self._servant_client: BashServantClient = BashServantClient.instance(lzy_mount)
         self._lzy_mount = lzy_mount
-        self._file_serializer = FileSerializer()
+        self._file_serializer = DefaultSerializersRegistry()
         self._hasher = DelegatingHasher(self._file_serializer)
         super().__init__(
             whiteboard_api=WhiteboardBashApi(
@@ -386,7 +386,7 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
         name: str,
         whiteboard_api: WhiteboardApi,
         snapshot_api: SnapshotApi,
-        file_serializer: Serializer,
+        file_serializer: SerializersRegistry,
         hasher: Hasher,
         lzy_mount: str = os.getenv("LZY_MOUNT", default="/tmp/lzy"),
         conda_yaml_path: Optional[Path] = None,
@@ -447,7 +447,7 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
     def channel_manager(self) -> ChannelManager:
         return self._channel_manager
 
-    def file_serializer(self) -> Serializer:
+    def file_serializer(self) -> SerializersRegistry:
         return self._file_serializer
 
     def hasher(self) -> Hasher:
@@ -518,7 +518,7 @@ class LzyLocalWorkflow(LzyWorkflowBase):
     def __init__(
         self,
         name: str,
-        file_serializer: Serializer,
+        file_serializer: SerializersRegistry,
         eager: bool = False,
         whiteboard: Any = None,
         buses: Optional[BusList] = None,

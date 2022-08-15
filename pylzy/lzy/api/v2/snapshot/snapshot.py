@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Optional, Type, TypeVar
 
-from lzy.serialization.api import Serializer
+from lzy.serialization.api import SerializersRegistry
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -12,7 +12,7 @@ class Snapshot(ABC):
         pass
 
     @abstractmethod
-    def serializer(self) -> "Serializer":
+    def serializer(self) -> "SerializersRegistry":
         pass
 
     @abstractmethod

@@ -33,7 +33,6 @@ def handlers():
 def init_logger():
     logging.basicConfig(
         handlers=handlers(),
-        encoding="utf-8",
         level=logging.INFO,
     )
 

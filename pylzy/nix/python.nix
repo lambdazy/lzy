@@ -53,6 +53,21 @@ let
       doCheck = false;
     });
 
+    # doesn't work
+    # protobuf = super.protobuf.overridePythonAttrs(old: rec {
+    #   version = "4.21.5";
+    #   src = super.fetchPypi {
+    #     pname = "protobuf";
+    #     inherit version;
+    #     sha256 = "eb1106e87e095628e96884a877a51cdb90087106ee693925ec0a300468a9be3a";
+    #   };
+
+    #   propagatedBuildInputs = [
+    #   ];
+    #   doCheck = false;
+    # });
+
+
     pyright = self.callPackage ./pyright.nix { };
 
     aioboto3 = self.callPackage ./aioboto3.nix { } ;

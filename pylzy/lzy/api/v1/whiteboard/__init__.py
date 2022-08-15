@@ -3,17 +3,15 @@ import os
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set
 
-from pure_protobuf.dataclasses_ import message  # type: ignore
-
 from lzy.api.v1.servant.channel_manager import ChannelManager
-from lzy.api.v1.servant.model.slot import DataSchema, pickle_type
+from lzy.api.v1.servant.model.slot import DataSchema
 from lzy.api.v1.utils import is_lazy_proxy
 from lzy.api.v1.whiteboard.model import (
     EntryIdGenerator,
     WhiteboardApi,
     WhiteboardDescription,
 )
-from lzy.serialization.api import Serializer
+from lzy.serialization.api import SerializersRegistry
 
 ALREADY_WRAPPED = "_already_wrapped_whiteboard"
 ALREADY_WRAPPED_READY = "_already_wrapped_ready_whiteboard"
@@ -74,7 +72,7 @@ def wrap_whiteboard(
     whiteboard_api: WhiteboardApi,
     whiteboard_id_getter: Callable[[], Optional[str]],
     channel_manager: ChannelManager,
-    serializer: Serializer,
+    serializer_registry: SerializersRegistry,
     entry_id_generator: EntryIdGenerator,
 ):
     check_whiteboard(instance)
@@ -89,7 +87,7 @@ def wrap_whiteboard(
 
     def dump(path: Path, value: Any):
         with path.open("wb") as handle:
-            serializer.serialize(value, handle)
+            serializer_registry.find_serializer_by_type(type(value)).serialize(value, handle)
             handle.flush()
             os.fsync(handle.fileno())
 

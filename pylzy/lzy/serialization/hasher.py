@@ -1,8 +1,8 @@
-import abc
 import hashlib
 from typing import Any
 
-from lzy.serialization.api import Serializer
+from lzy.serialization.api import Hasher
+from lzy.serialization.registry import SerializersRegistry
 
 
 class HashableFileLikeObj:
@@ -14,16 +14,6 @@ class HashableFileLikeObj:
 
     def hash(self) -> str:
         return self._sig.hexdigest()  # type: ignore
-
-
-class Hasher(abc.ABC):
-    @abc.abstractmethod
-    def hash(self, data: Any) -> str:
-        pass
-
-    @abc.abstractmethod
-    def can_hash(self, data: Any) -> bool:
-        pass
 
 
 class HashableHasher(Hasher):
@@ -38,12 +28,12 @@ class HashableHasher(Hasher):
 
 
 class SerializingHasher(Hasher):
-    def __init__(self, serializer: Serializer):
+    def __init__(self, serializer: SerializersRegistry):
         self._serializer = serializer
 
     def hash(self, data: Any) -> str:
         handle = HashableFileLikeObj()
-        self._serializer.serialize(data, handle)  # type: ignore
+        self._serializer.find_serializer_by_type(type(data)).serialize(data, handle)  # type: ignore
         return handle.hash()
 
     def can_hash(self, data: Any) -> bool:
@@ -52,7 +42,7 @@ class SerializingHasher(Hasher):
 
 
 class DelegatingHasher(Hasher):
-    def __init__(self, serializer: Serializer):
+    def __init__(self, serializer: SerializersRegistry):
         self._hashers = [HashableHasher(), SerializingHasher(serializer)]
 
     def hash(self, data: Any) -> str:

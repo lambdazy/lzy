@@ -2,7 +2,7 @@ import uuid
 from typing import Any, Optional, Type, TypeVar
 
 from lzy.api.v2.snapshot.snapshot import Snapshot
-from lzy.serialization.api import Serializer
+from lzy.serialization.api import SerializersRegistry
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -15,7 +15,7 @@ class LocalSnapshot(Snapshot):
     def id(self) -> str:
         return self._id
 
-    def serializer(self) -> "Serializer":
+    def serializer(self) -> "SerializersRegistry":
         pass
 
     def shape(self, wb_type: Type[T]) -> T:
