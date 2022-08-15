@@ -11,7 +11,7 @@ public enum AuthProviders {
         this.name = name;
     }
 
-    public static AuthProviders fromGrpcMessage(BackOffice.OAuthProviders provider) {
+    public static AuthProviders fromGrpcMessage(BackOffice.AuthUserSessionRequest.OAuthProviders provider) {
         switch (provider) {
             case GITHUB:
                 return GITHUB;
@@ -32,12 +32,12 @@ public enum AuthProviders {
         }
     }
 
-    public BackOffice.OAuthProviders toGrpcMessage() {
+    public BackOffice.AuthUserSessionRequest.OAuthProviders toGrpcMessage() {
         switch (this) {
             case GITHUB:
-                return BackOffice.OAuthProviders.GITHUB;
+                return BackOffice.AuthUserSessionRequest.OAuthProviders.GITHUB;
             default:
-                return BackOffice.OAuthProviders.UNRECOGNIZED;
+                return BackOffice.AuthUserSessionRequest.OAuthProviders.UNRECOGNIZED;
         }
     }
 
