@@ -73,7 +73,8 @@ message GenerateSessionIdResponse{
 }
 
 enum OAuthProviders{
-  GITHUB = 0;
+  UNDEFINED = 0;
+  GITHUB = 1;
 };
 
 message AuthUserSessionRequest{
@@ -96,10 +97,11 @@ message CheckSessionRequest{
 
 message CheckSessionResponse{
   enum SessionStatus{
-    EXISTS = 0;
-    WRONG_USER = 1;
-    NOT_RELATED_WITH_USER = 2;
-    NOT_EXISTS = 3;
+    UNSPECIFIED = 0;
+    EXISTS = 1;
+    WRONG_USER = 2;
+    NOT_RELATED_WITH_USER = 3;
+    NOT_EXISTS = 4;
   }
   SessionStatus status = 1;
 }

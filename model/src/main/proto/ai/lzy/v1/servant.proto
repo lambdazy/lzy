@@ -55,12 +55,13 @@ message StateChanged {
   State newState = 1;
   string tid = 2;
   enum State {
-    PREPARING = 0;
-    CONNECTED = 1;
-    RUNNING = 2;
-    SUSPENDED = 3;
-    FINISHED = 4;
-    DESTROYED = 5;
+    UNSPECIFIED = 0;
+    PREPARING = 1;
+    CONNECTED = 2;
+    RUNNING = 3;
+    SUSPENDED = 4;
+    FINISHED = 5;
+    DESTROYED = 6;
   }
 }
 
@@ -74,10 +75,11 @@ message ServantStatus {
   repeated SlotStatus connections = 2;
 
   enum Status {
-    STARTED = 0;
-    REGISTERING = 1;
-    REGISTERED = 2;
-    PREPARING_EXECUTION = 3;
-    EXECUTING = 4;
+    UNKNOWN = 0;
+    STARTED = 1;
+    REGISTERING = 2;
+    REGISTERED = 3;
+    PREPARING_EXECUTION = 4;
+    EXECUTING = 5;
   }
 }
