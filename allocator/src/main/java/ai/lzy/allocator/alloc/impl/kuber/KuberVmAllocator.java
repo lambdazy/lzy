@@ -4,6 +4,7 @@ import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.model.Vm;
+import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.allocator.vmpool.VmPoolRegistry;
 import ai.lzy.model.db.TransactionHandle;
 import io.fabric8.kubernetes.api.model.*;
@@ -37,12 +38,12 @@ public class KuberVmAllocator implements VmAllocator {
     private static final String CLUSTER_ID_KEY = "cluster-id";
 
     private final VmDao dao;
-    private final VmPoolRegistry poolRegistry;
+    private final ClusterRegistry poolRegistry;
     private final KuberClusterFactory factory;
     private final ServiceConfig.KuberAllocator config;
 
     @Inject
-    public KuberVmAllocator(ServiceConfig.KuberAllocator config, VmDao dao, VmPoolRegistry poolRegistry,
+    public KuberVmAllocator(ServiceConfig.KuberAllocator config, VmDao dao, ClusterRegistry poolRegistry,
             KuberClusterFactory factory) {
         this.dao = dao;
         this.poolRegistry = poolRegistry;
@@ -102,7 +103,7 @@ public class KuberVmAllocator implements VmAllocator {
         }
 
         final var clusterId = meta.get(CLUSTER_ID_KEY);
-        final var credentials = poolRegistry.getCredential(clusterId);
+        final var credentials = poolRegistry.getCluster(clusterId);
         final var ns = meta.get(NAMESPACE_KEY);
         final var podName = meta.get(POD_NAME_KEY);
         try (final var client = factory.build(credentials)) {
@@ -125,7 +126,7 @@ public class KuberVmAllocator implements VmAllocator {
             return null;
         }
         final Pod pod;
-        try (final var client = factory.build(poolRegistry.getCredential(meta.get(CLUSTER_ID_KEY)))) {
+        try (final var client = factory.build(poolRegistry.getCluster(meta.get(CLUSTER_ID_KEY)))) {
             pod = getPod(meta.get(NAMESPACE_KEY), meta.get(POD_NAME_KEY), client);
         }
 

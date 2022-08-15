@@ -1,6 +1,6 @@
 package ai.lzy.allocator.alloc.impl.kuber;
 
-import ai.lzy.allocator.vmpool.VmPoolRegistry;
+import ai.lzy.allocator.vmpool.ClusterRegistry;
 import io.fabric8.kubernetes.client.KubernetesClient;
 
 /**
@@ -8,5 +8,5 @@ import io.fabric8.kubernetes.client.KubernetesClient;
  * Implemented in separated interface for testing purposes
  */
 public interface KuberClusterFactory {
-    KubernetesClient build(VmPoolRegistry.ClusterCredentials credentials);
+    KubernetesClient build(ClusterRegistry.ClusterDescription credentials);
 }

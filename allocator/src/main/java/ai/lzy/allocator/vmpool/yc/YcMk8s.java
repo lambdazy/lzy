@@ -2,6 +2,7 @@ package ai.lzy.allocator.vmpool.yc;
 
 import ai.lzy.allocator.alloc.impl.kuber.KuberLabels;
 import ai.lzy.allocator.configs.ServiceConfig;
+import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.allocator.vmpool.VmPoolRegistry;
 import ai.lzy.allocator.vmpool.VmPoolSpec;
 import com.google.common.net.HostAndPort;
@@ -27,7 +28,7 @@ import static yandex.cloud.api.k8s.v1.ClusterOuterClass.Cluster;
 
 @Singleton
 @Requires(property = "allocator.yc-mk8s.enabled", value = "true")
-public class YcMk8s implements VmPoolRegistry {
+public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
     private static final Logger LOG = LogManager.getLogger(YcMk8s.class);
 
     private final ServiceConfig config;
@@ -90,7 +91,7 @@ public class YcMk8s implements VmPoolRegistry {
     }
 
     @Override
-    public ClusterCredentials clusterToAllocateVm(String poolLabel, String zone) {
+    public ClusterDescription clusterToAllocateVm(String poolLabel, String zone) {
         // TODO(artolord) make better logic of vm scheduling
         final var desc = clusters.values()
             .stream()
@@ -102,13 +103,13 @@ public class YcMk8s implements VmPoolRegistry {
         if (desc == null) {
             return null;
         }
-        return new ClusterCredentials(desc.clusterId, desc.masterExternalAddress, desc.masterCert);
+        return new ClusterDescription(desc.clusterId, desc.masterExternalAddress, desc.masterCert);
     }
 
     @Override
-    public ClusterCredentials getCredential(String clusterId) {
+    public ClusterDescription getCluster(String clusterId) {
         final var desc = clusters.get(clusterId);
-        return new ClusterCredentials(desc.clusterId, desc.masterExternalAddress, desc.masterCert);
+        return new ClusterDescription(desc.clusterId, desc.masterExternalAddress, desc.masterCert);
     }
 
     // TODO: getters for YC-specific data
