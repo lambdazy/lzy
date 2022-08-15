@@ -72,17 +72,17 @@ message GenerateSessionIdResponse{
   string sessionId = 1;
 }
 
-enum OAuthProviders{
-  UNDEFINED = 0;
-  GITHUB = 1;
-};
-
 message AuthUserSessionRequest{
   UserCredentials backofficeCredentials = 1;
   string userId = 2;
   string sessionId = 3;
   OAuthProviders provider = 4;
   string providerUserId = 5;
+
+  enum OAuthProviders{
+    UNSPECIFIED = 0;
+    GITHUB = 1;
+  };
 }
 
 message AuthUserSessionResponse{

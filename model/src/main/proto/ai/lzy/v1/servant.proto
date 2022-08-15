@@ -75,7 +75,7 @@ message ServantStatus {
   repeated SlotStatus connections = 2;
 
   enum Status {
-    UNKNOWN = 0;
+    UNSPECIFIED = 0;
     STARTED = 1;
     REGISTERING = 2;
     REGISTERED = 3;
