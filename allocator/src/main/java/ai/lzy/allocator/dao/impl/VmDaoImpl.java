@@ -214,6 +214,7 @@ public class VmDaoImpl implements VmDao {
                 final var res = s.executeQuery();
                 if (!res.next()) {
                     meta.set(null);
+                    return;
                 }
 
                 final var dumpedMeta = res.getString(1);

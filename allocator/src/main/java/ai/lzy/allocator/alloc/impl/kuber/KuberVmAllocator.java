@@ -4,13 +4,10 @@ import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.model.Vm;
+import ai.lzy.allocator.vmpool.VmPoolRegistry;
 import ai.lzy.model.db.TransactionHandle;
-import io.kubernetes.client.openapi.ApiException;
-import io.kubernetes.client.openapi.Configuration;
-import io.kubernetes.client.openapi.apis.CoreV1Api;
-import io.kubernetes.client.openapi.models.*;
-import io.kubernetes.client.util.Config;
-import io.kubernetes.client.util.Yaml;
+import io.fabric8.kubernetes.api.model.*;
+import io.fabric8.kubernetes.client.*;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -19,86 +16,74 @@ import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nullable;
 import java.io.File;
-import java.io.IOException;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 @Singleton
 @Requires(property = "allocator.kuber-allocator.enabled", value = "true")
 public class KuberVmAllocator implements VmAllocator {
     private static final Logger LOG = LogManager.getLogger(KuberVmAllocator.class);
     private static final String NAMESPACE = "default";
-    private static final List<V1Toleration> GPU_VM_POD_TOLERATIONS = List.of(
-        new V1Toleration()
-            .key("sku")
-            .operator("Equal")
-            .value("gpu")
-            .effect("NoSchedule"));
+    private static final List<Toleration> GPU_VM_POD_TOLERATIONS = List.of(
+        new TolerationBuilder()
+            .withKey("sku")
+            .withOperator("Equal")
+            .withValue("gpu")
+            .withEffect("NoSchedule")
+            .build());
+
     private static final String NAMESPACE_KEY = "namespace";
     private static final String POD_NAME_KEY = "pod-name";
+    private static final String CLUSTER_ID_KEY = "cluster-id";
 
-    private final CoreV1Api api;
-    private final ServiceConfig.KuberAllocator config;
     private final VmDao dao;
+    private final VmPoolRegistry poolRegistry;
+    private final KuberClusterFactory factory;
+    private final ServiceConfig config;
 
     @Inject
-    public KuberVmAllocator(ServiceConfig config, VmDao dao) {
-        this.config = config.kuberAllocator().orElseThrow();
+    public KuberVmAllocator(ServiceConfig config, VmDao dao, VmPoolRegistry poolRegistry, KuberClusterFactory factory) {
         this.dao = dao;
-        try {
-            Configuration.setDefaultApiClient(Config.defaultClient());
-            api = new CoreV1Api();
-        } catch (IOException e) {
-            throw new RuntimeException("Cannot init KuberVmAllocator: ", e);
-        }
+        this.poolRegistry = poolRegistry;
+        this.factory = factory;
+        this.config = config;
     }
 
     @Override
     public void allocate(Vm vm, @Nullable TransactionHandle transaction) {
-        final V1Pod vmPodSpec = createVmPodSpec(vm);
-        final V1Pod pod;
-        try {
-            pod = api.createNamespacedPod(NAMESPACE, vmPodSpec, null, null, null, null);
-        } catch (ApiException e) {
-            LOG.error("Error while creating pod", e);
-            throw new RuntimeException("Exception while creating pod in kuber", e);
-        }
-        LOG.debug("Created pod in Kuber: {}", pod);
-        Objects.requireNonNull(pod.getMetadata());
-        Objects.requireNonNull(pod.getMetadata().getNamespace());
-        Objects.requireNonNull(pod.getMetadata().getName());
-        dao.saveAllocatorMeta(vm.vmId(), Map.of(
-            NAMESPACE_KEY, pod.getMetadata().getNamespace(),
-            POD_NAME_KEY, pod.getMetadata().getName()
-        ), transaction);
-    }
 
-    private void terminate(String namespace, String name) {
-        try {
-            if (getPod(namespace, name) != null) {
-                api.deleteNamespacedPod(name, namespace, null, null, 0, null, null, null);
-            }
-        } catch (ApiException e) {
-            throw new RuntimeException(e);
+        final var cluster = poolRegistry.clusterToAllocateVm(vm.poolLabel(), vm.zone());
+
+        try (final var client = factory.build(cluster)) {
+            final Pod vmPodSpec = createVmPodSpec(vm, client);
+            final Pod pod = client.pods()
+                .inNamespace(NAMESPACE)
+                .resource(vmPodSpec)
+                .create();
+
+            LOG.debug("Created pod in Kuber: {}", pod);
+            Objects.requireNonNull(pod.getMetadata());
+            Objects.requireNonNull(pod.getMetadata().getNamespace());
+            Objects.requireNonNull(pod.getMetadata().getName());
+            dao.saveAllocatorMeta(vm.vmId(), Map.of(
+                NAMESPACE_KEY, pod.getMetadata().getNamespace(),
+                POD_NAME_KEY, pod.getMetadata().getName(),
+                CLUSTER_ID_KEY, cluster.clusterId()
+            ), transaction);
         }
     }
 
     @Nullable
-    private V1Pod getPod(String namespace, String name) throws ApiException {
-        final V1PodList listNamespacedPod = api.listNamespacedPod(
-            namespace,
-            null, null, null, null,
-            KuberLabels.LZY_POD_NAME_LABEL + "=" + name,
-            1,
-            null, null, null,
-            Boolean.FALSE
-        );
-        if (listNamespacedPod.getItems().size() < 1) {
+    private Pod getPod(String namespace, String name, KubernetesClient client) {
+        final var podsList = client.pods()
+            .inNamespace(namespace)
+            .list(new ListOptionsBuilder()
+                .withLabelSelector(KuberLabels.LZY_POD_NAME_LABEL + "=" + name)
+                .build()
+            ).getItems();
+        if (podsList.size() < 1) {
             return null;
         }
-        final var podSpec = listNamespacedPod.getItems().get(0);
+        final var podSpec = podsList.get(0);
         if (podSpec.getMetadata() != null
             && podSpec.getMetadata().getName() != null
             && podSpec.getMetadata().getName().equals(name)) {
@@ -113,7 +98,20 @@ public class KuberVmAllocator implements VmAllocator {
         if (meta == null) {
             throw new RuntimeException("Cannot get allocatorMeta");
         }
-        terminate(meta.get(NAMESPACE_KEY), meta.get(POD_NAME_KEY));
+
+        final var clusterId = meta.get(CLUSTER_ID_KEY);
+        final var credentials = poolRegistry.getCredential(clusterId);
+        final var ns = meta.get(NAMESPACE_KEY);
+        final var podName = meta.get(POD_NAME_KEY);
+        try(final var client = factory.build(credentials)) {
+            final var pod = getPod(ns, podName, client);
+            if (pod != null) {
+                client.pods()
+                    .inNamespace(ns)
+                    .resource(pod)
+                    .delete();
+            }
+        }
     }
 
     @Override
@@ -124,13 +122,11 @@ public class KuberVmAllocator implements VmAllocator {
             LOG.error("Metadata not found");
             return null;
         }
-        final V1Pod pod;
-        try {
-            pod = getPod(meta.get(NAMESPACE_KEY), meta.get(POD_NAME_KEY));
-        } catch (ApiException e) {
-            LOG.error("Error while getting pod while validating", e);
-            return null;
+        final Pod pod;
+        try (final var client = factory.build(poolRegistry.getCredential(meta.get(CLUSTER_ID_KEY)))) {
+            pod = getPod(meta.get(NAMESPACE_KEY), meta.get(POD_NAME_KEY), client);
         }
+
         if (pod == null) {
             LOG.error("Pod not found while validating");
             return null;
@@ -150,12 +146,11 @@ public class KuberVmAllocator implements VmAllocator {
         );
     }
 
-    public V1Pod createVmPodSpec(Vm vm) {
-        final V1Pod pod = readPod();
-        Objects.requireNonNull(pod.getSpec());
-        Objects.requireNonNull(pod.getMetadata());
+    public Pod createVmPodSpec(Vm vm, KubernetesClient client) {
 
-        buildContainers(vm, pod);
+        final Pod pod = readPod(client);
+
+        pod.getSpec().setContainers(buildContainers(vm));
 
         final String podName = "lzy-vm-" + vm.vmId().toLowerCase(Locale.ROOT);
         // k8s pod name can only contain symbols [-a-z0-9]
@@ -174,48 +169,59 @@ public class KuberVmAllocator implements VmAllocator {
         final Map<String, String> nodeSelector = Map.of(
             KuberLabels.NODE_POOL_LABEL, vm.poolLabel(),
             KuberLabels.NODE_POOL_AZ_LABEL, vm.zone(),
-            KuberLabels.NODE_POOL_STATE_LABEL, "active"
+            KuberLabels.NODE_POOL_STATE_LABEL, "ACTIVE"
         );
         pod.getSpec().setNodeSelector(nodeSelector);
 
         return pod;
     }
 
-    private V1Pod readPod() {
-        final V1Pod pod;
-        final File file = new File(config.podTemplatePath());
-        try {
-            pod = (V1Pod) Yaml.load(file);
-        } catch (IOException e) {
-            LOG.error("IO error while loading yaml file {}", file.getPath());
-            throw new RuntimeException("cannot load vm yaml file", e);
-        }
-        return pod;
+    private Pod readPod(KubernetesClient client) {
+        final File file = new File(config.kuberAllocator().podTemplatePath());
+        return client.pods()
+            .load(file)
+            .get();
     }
 
-    private void buildContainers(Vm vm, V1Pod pod) {
-        Objects.requireNonNull(pod.getSpec());
+    private List<Container> buildContainers(Vm vm) {
+        final List<Container> containers = new ArrayList<>();
         for (var workload: vm.workloads()) {
-            final var container = new V1Container();
-            workload.env().forEach((key, value) -> container.addEnvItem(new V1EnvVar().name(key).value(value)));
+
+            final var container = new Container();
+
+            final var envList = workload.env().entrySet()
+                .stream()
+                .map(e -> new EnvVarBuilder()
+                    .withName(e.getKey())
+                    .withName(e.getValue())
+                    .build()
+                )
+                .toList();
+            container.setEnv(envList);
+
             container.setArgs(workload.args());
             container.setName(workload.name());
             container.setImage(workload.image());
+
             container.setPorts(
-                workload.portBindings().entrySet().stream()
-                    .map(e -> {
-                        var spec = new V1ContainerPort();
-                        spec.setContainerPort(e.getKey());
-                        spec.setHostPort(e.getValue());
-                        return spec;
-                    })
+                workload.portBindings()
+                    .entrySet()
+                    .stream()
+                    .map(e -> new ContainerPortBuilder()
+                        .withContainerPort(e.getKey())
+                        .withHostPort(e.getValue())
+                        .build())
                     .toList()
             );
-            final var context = new V1SecurityContext();
+
+            final var context = new SecurityContext();
             context.setPrivileged(true);
             context.setRunAsUser(0L);
             container.setSecurityContext(context);
-            pod.getSpec().addContainersItem(container);
+
+            containers.add(container);
         }
+
+        return containers;
     }
 }

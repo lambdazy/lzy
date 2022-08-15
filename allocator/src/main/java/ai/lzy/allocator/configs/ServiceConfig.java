@@ -20,7 +20,7 @@ public record ServiceConfig(
 
     Optional<ThreadAllocator> threadAllocator,
     Optional<DockerAllocator> dockerAllocator,
-    Optional<KuberAllocator> kuberAllocator,
+    KuberAllocator kuberAllocator,
 
     Optional<YcMk8sConfig> ycMk8s,
     Optional<AzureMk8sConfig> azureMk8s
@@ -30,9 +30,10 @@ public record ServiceConfig(
     public void validate() {
         var cnt = ycMk8s.map(x -> x.enabled ? 1 : 0).orElse(0)
                 + azureMk8s.map(x -> x.enabled ? 1 : 0).orElse(0);
-        if (cnt != 1) {
-            throw new ConfigurationException("Exactly one cloud provider should be specified.");
-        }
+//
+//        if (cnt != 1) {
+//            throw new ConfigurationException("Exactly one cloud provider should be specified.");
+//        }
     }
 
     @ConfigurationProperties("thread-allocator")

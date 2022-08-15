@@ -1,5 +1,6 @@
 package ai.lzy.allocator.vmpool.yc;
 
+import ai.lzy.allocator.alloc.impl.kuber.KuberLabels;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.vmpool.VmPoolRegistry;
 import ai.lzy.allocator.vmpool.VmPoolSpec;
@@ -43,6 +44,7 @@ public class YcMk8s implements VmPoolRegistry {
 
     private record NodeGroupDesc(
         String zone,
+        String label,
         NodeGroup proto
     ) {}
 
@@ -87,6 +89,27 @@ public class YcMk8s implements VmPoolRegistry {
         return userPools;
     }
 
+    @Override
+    public ClusterCredentials clusterToAllocateVm(String poolLabel, String zone) {
+        final var desc = clusters.values()
+            .stream()
+            .filter(d -> d.nodeGroups.values().stream()
+                .anyMatch(ng -> ng.zone.equals(zone) && ng.label.equals(poolLabel)))
+            .findFirst()
+            .orElse(null);
+
+        if (desc == null) {
+            return null;
+        }
+        return new ClusterCredentials(desc.clusterId, desc.masterExternalAddress, desc.masterCert);
+    }
+
+    @Override
+    public ClusterCredentials getCredential(String clusterId) {
+        final var desc = clusters.get(clusterId);
+        return new ClusterCredentials(desc.clusterId, desc.masterExternalAddress, desc.masterCert);
+    }
+
     // TODO: getters for YC-specific data
 
     private void resolveCluster(String clusterId, boolean system) {
@@ -108,7 +131,7 @@ public class YcMk8s implements VmPoolRegistry {
             return;
         }
 
-        if (cluster.getHealth() != Cluster.Health.UNHEALTHY) {
+        if (cluster.getHealth() != Cluster.Health.HEALTHY) {
             var msg = "Configuration error, %s cluster %s is not healthy".formatted(ct(system), clusterId);
             LOG.error(msg);
             throw new RuntimeException(msg);
@@ -172,8 +195,12 @@ public class YcMk8s implements VmPoolRegistry {
                 continue;
             }
 
-            var label = Objects.requireNonNull(nodeGroup.getLabelsMap().get("lzy.ai/node-pool-label"));
-            var zone = Objects.requireNonNull(nodeGroup.getLabelsMap().get("lzy.ai/node-pool-az"));
+            var label = nodeGroup.getNodeLabelsMap().get(KuberLabels.NODE_POOL_LABEL);
+            var zone = nodeGroup.getNodeLabelsMap().get(KuberLabels.NODE_POOL_AZ_LABEL);
+
+            if (label == null || zone == null) {  // Skip old node groups
+                continue;
+            }
 
             var nodeTemplate = nodeGroup.getNodeTemplate();
             var spec = nodeTemplate.getResourcesSpec();
@@ -196,7 +223,7 @@ public class YcMk8s implements VmPoolRegistry {
                 nodeGroup.getId(), nodeGroup.getName(), cluster.getFolderId(), clusterId, zone, label,
                 nodeTemplate.getPlatformId(), spec.getCores(), cpuType, spec.getGpus(), gpuType, spec.getMemory());
 
-            var nodeGroupDesc = new NodeGroupDesc(zone, nodeGroup);
+            var nodeGroupDesc = new NodeGroupDesc(zone, label, nodeGroup);
             clusterDesc.nodeGroups().put(nodeGroup.getId(), nodeGroupDesc);
 
             var pool = system ? systemPools : userPools;
