@@ -7,18 +7,19 @@ import static yandex.cloud.api.compute.v1.SnapshotOuterClass.Snapshot;
 import static yandex.cloud.api.compute.v1.SnapshotServiceGrpc.SnapshotServiceBlockingStub;
 import static yandex.cloud.api.operation.OperationOuterClass.Operation;
 
+import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.Disk;
 import ai.lzy.allocator.disk.DiskManager;
 import ai.lzy.allocator.disk.DiskSpec;
 import ai.lzy.allocator.disk.DiskType;
 import ai.lzy.allocator.disk.exceptions.NotFoundException;
-import ai.lzy.util.auth.YcCredentials;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import jakarta.inject.Singleton;
 import java.time.Duration;
 import javax.annotation.Nullable;
+import javax.inject.Inject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import yandex.cloud.api.compute.v1.DiskOuterClass;
@@ -31,42 +32,28 @@ import yandex.cloud.api.compute.v1.SnapshotServiceOuterClass.DeleteSnapshotReque
 import yandex.cloud.api.operation.OperationServiceGrpc;
 import yandex.cloud.api.operation.OperationServiceGrpc.OperationServiceBlockingStub;
 import yandex.cloud.sdk.ServiceFactory;
-import yandex.cloud.sdk.auth.Auth;
-import yandex.cloud.sdk.auth.jwt.ServiceAccountKey;
-import yandex.cloud.sdk.auth.provider.CredentialProvider;
 import yandex.cloud.sdk.utils.OperationUtils;
 
 @Singleton
 public class YcDiskManager implements DiskManager {
     private static final Logger LOG = LogManager.getLogger(YcDiskManager.class);
-    private static final int GB_MULTIPLIER = 1 << 30;
+    private static final int GB_SHIFT = 30;
 
     private final Duration defaultOperationTimeout;
-    private final YcCredentials credentials;
+    private final String folderId;
     private final DiskServiceBlockingStub diskService;
     private final SnapshotServiceBlockingStub snapshotService;
     private final OperationServiceBlockingStub operationService;
 
-    public YcDiskManager(YcCredentials credentials, Duration defaultOperationTimeout) {
-        this.defaultOperationTimeout = defaultOperationTimeout;
-        this.credentials = credentials;
-        CredentialProvider provider = Auth.apiKeyBuilder()
-            .serviceAccountKey(
-                new ServiceAccountKey(
-                    credentials.keyId(),
-                    credentials.serviceAccountId(),
-                    null,
-                    "RSA_4096",
-                    credentials.publicKey(),
-                    credentials.privateKey()))
-            .build();
-        ServiceFactory factory = ServiceFactory.builder()
-            .credentialProvider(provider)
-            .requestTimeout(Duration.ofMinutes(1))
-            .build();
-        diskService = factory.create(DiskServiceBlockingStub.class, DiskServiceGrpc::newBlockingStub);
-        snapshotService = factory.create(SnapshotServiceBlockingStub.class, SnapshotServiceGrpc::newBlockingStub);
-        operationService = factory.create(OperationServiceBlockingStub.class, OperationServiceGrpc::newBlockingStub);
+    @Inject
+    public YcDiskManager(ServiceConfig.DiskManagerConfig config, ServiceFactory serviceFactory) {
+        this.defaultOperationTimeout = config.defaultOperationTimeout();
+        this.folderId = config.folderId();
+        diskService = serviceFactory.create(DiskServiceBlockingStub.class, DiskServiceGrpc::newBlockingStub);
+        snapshotService = serviceFactory.create(SnapshotServiceBlockingStub.class,
+            SnapshotServiceGrpc::newBlockingStub);
+        operationService = serviceFactory.create(OperationServiceBlockingStub.class,
+            OperationServiceGrpc::newBlockingStub);
     }
 
     @Nullable
@@ -83,7 +70,7 @@ public class YcDiskManager implements DiskManager {
                 new DiskSpec(
                     disk.getName(),
                     DiskType.fromYcName(disk.getTypeId()),
-                    (int) Math.floor(((float) disk.getSize()) / GB_MULTIPLIER),
+                    (int) (disk.getSize() >> GB_SHIFT),
                     disk.getZoneId()
                 )
             );
@@ -108,8 +95,8 @@ public class YcDiskManager implements DiskManager {
         );
         var diskRequestBuilder = CreateDiskRequest.newBuilder()
             .setName(spec.name())
-            .setFolderId(credentials.folderId())
-            .setSize(((long) spec.sizeGb()) * GB_MULTIPLIER)
+            .setFolderId(folderId)
+            .setSize(((long) spec.sizeGb()) << GB_SHIFT)
             .setTypeId(spec.type().toYcName())
             .setZoneId(spec.zone());
         if (snapshotId != null) {
@@ -149,7 +136,7 @@ public class YcDiskManager implements DiskManager {
         try {
             LOG.info("Creating snapshot of disk {}", disk.id());
             final CreateSnapshotRequest createSnapshotRequest = CreateSnapshotRequest.newBuilder()
-                .setFolderId(credentials.folderId())
+                .setFolderId(folderId)
                 .setDiskId(disk.id())
                 .build();
             final Operation snapshotCreateOperation;

@@ -1,7 +1,6 @@
 package ai.lzy.allocator.configs;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
-
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -21,8 +20,10 @@ public record ServiceConfig(
     Optional<DockerAllocator> dockerAllocator,
     Optional<KuberAllocator> kuberAllocator,
 
-    Optional<YcMk8sConfig> ycMk8s,
-    Optional<AzureMk8sConfig> azureMk8s,
+    DiskManagerConfig diskManagerConfig,
+
+    Optional<YcCredentialsConfig> ycCredentialsConfig,
+    Optional<AzureCredentialsConfig> azureCredentialsConfig
 
     Iam iam
 ) {
@@ -44,15 +45,21 @@ public record ServiceConfig(
         boolean enabled
     ) {}
 
-    @ConfigurationProperties("yc-mk8s")
-    public record YcMk8sConfig(
+    @ConfigurationProperties("yc-credentials")
+    public record YcCredentialsConfig(
         boolean enabled,
         String serviceAccountFile
     ) {}
 
-    @ConfigurationProperties("azure-mk8s")
-    public record AzureMk8sConfig(
+    @ConfigurationProperties("azure-credentials")
+    public record AzureCredentialsConfig(
         boolean enabled
+    ) {}
+
+    @ConfigurationProperties("disk-manager")
+    public record DiskManagerConfig(
+        String folderId,
+        Duration defaultOperationTimeout
     ) {}
 
     @ConfigurationProperties("iam")

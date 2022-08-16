@@ -14,7 +14,7 @@ public class SlotConnectionManager {
     private static final Logger LOG = LogManager.getLogger(SlotConnectionManager.class);
     private final Map<URI, Connection> connectionMap = new HashMap<>();
 
-    public LzyFsGrpc.LzyFsBlockingStub getOrCreate(URI uri) {
+    public synchronized LzyFsGrpc.LzyFsBlockingStub getOrCreate(URI uri) {
         LOG.info("getOrCreate connection for uri " + uri);
         if (connectionMap.containsKey(uri)) {
             final Connection connection = connectionMap.get(uri);

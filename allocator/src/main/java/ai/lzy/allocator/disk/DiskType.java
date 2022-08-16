@@ -1,10 +1,9 @@
 package ai.lzy.allocator.disk;
 
 public enum DiskType {
-    DISK_TYPE_UNSPECIFIED(0),
-    HDD(1),
-    SSD(2),
-    NR_SSD(3);
+    HDD(0),
+    SSD(1),
+    NR_SSD(2);
 
     private final int value;
 
@@ -18,10 +17,9 @@ public enum DiskType {
 
     public static DiskType fromNumber(int value) {
         return switch (value) {
-            case 0 -> DISK_TYPE_UNSPECIFIED;
-            case 1 -> HDD;
-            case 2 -> SSD;
-            case 3 -> NR_SSD;
+            case 0 -> HDD;
+            case 1 -> SSD;
+            case 2 -> NR_SSD;
             default -> throw new IllegalArgumentException("Unknown get type idx");
         };
     }

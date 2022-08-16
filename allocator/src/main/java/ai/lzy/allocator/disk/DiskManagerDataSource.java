@@ -1,5 +1,6 @@
 package ai.lzy.allocator.disk;
 
+import ai.lzy.allocator.configs.DbConfig;
 import ai.lzy.model.db.Storage;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
 import io.micronaut.context.annotation.Requires;
@@ -10,9 +11,9 @@ import java.sql.SQLException;
 import org.flywaydb.core.Flyway;
 
 @Singleton
-@Requires(property = "disk-manager.database.url")
-@Requires(property = "disk-manager.database.username")
-@Requires(property = "disk-manager.database.password")
+@Requires(property = "database.url")
+@Requires(property = "database.username")
+@Requires(property = "database.password")
 public class DiskManagerDataSource implements Storage {
 
     private static final String VALIDATION_QUERY_SQL = "select 1";
@@ -21,7 +22,7 @@ public class DiskManagerDataSource implements Storage {
     private final ComboPooledDataSource dataSource;
 
     @Inject
-    public DiskManagerDataSource(DiskManagerConfig.DbConfig dbConfig) {
+    public DiskManagerDataSource(DbConfig dbConfig) {
 
         final ComboPooledDataSource dataSource = new ComboPooledDataSource();
         dataSource.setJdbcUrl(dbConfig.url());
