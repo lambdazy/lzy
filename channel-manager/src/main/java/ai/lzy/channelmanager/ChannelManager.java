@@ -85,11 +85,11 @@ public class ChannelManager {
             cliHelp.printHelp("channel-manager", options);
             System.exit(-1);
         }
-        final int port = Integer.parseInt(parse.getOptionValue('p', "8122"));
+        final URI address = URI.create(parse.getOptionValue('a', "localhost:8122"));
         final URI whiteboardAddress = URI.create(parse.getOptionValue('w', "http://localhost:8999"));
 
         try (ApplicationContext context = ApplicationContext.run(Map.of(
-            "channel-manager.port", port,
+            "channel-manager.address", address,
             "channel-manager.whiteboard-address", whiteboardAddress.toString()
         ))) {
             final ChannelManager channelManager = new ChannelManager(context);
@@ -103,7 +103,7 @@ public class ChannelManager {
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             LOG.info("gRPC server is shutting down!");
-            close();
+            stop();
         }));
     }
 
@@ -112,7 +112,7 @@ public class ChannelManager {
         iamChannel.awaitTermination(10, TimeUnit.SECONDS);
     }
 
-    public void close() {
+    public void stop() {
         channelManagerServer.shutdownNow();
         iamChannel.shutdown();
     }

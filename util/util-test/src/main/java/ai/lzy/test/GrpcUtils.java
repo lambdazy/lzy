@@ -78,9 +78,17 @@ public class GrpcUtils {
             .build();
     }
 
-    public static LzyPortalApi.PortalSlotDesc.Snapshot makeSnapshotStorage(String snapshotId) {
+    public static LzyPortalApi.PortalSlotDesc.Snapshot makeAmazonSnapshot(String key, String bucket,
+                                                                          String endpoint) {
         return LzyPortalApi.PortalSlotDesc.Snapshot.newBuilder()
-            .setId(snapshotId)
+            .setS3(LzyPortalApi.S3Locator.newBuilder()
+                .setKey(key)
+                .setBucket(bucket)
+                .setAmazon(LzyPortalApi.AmazonS3Endpoint.newBuilder()
+                    .setAccessToken("")
+                    .setSecretToken("")
+                    .setEndpoint(endpoint)
+                    .build()))
             .build();
     }
 

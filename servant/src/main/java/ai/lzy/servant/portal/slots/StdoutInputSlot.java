@@ -1,7 +1,6 @@
-package ai.lzy.servant.portal;
+package ai.lzy.servant.portal.slots;
 
 import ai.lzy.fs.slots.LzyInputSlotBase;
-import ai.lzy.model.Slot;
 import ai.lzy.model.SlotInstance;
 import ai.lzy.v1.Operations;
 import com.google.protobuf.ByteString;

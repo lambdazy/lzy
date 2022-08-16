@@ -2,9 +2,19 @@ package ai.lzy.servant.portal;
 
 import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.JsonUtils;
-import ai.lzy.v1.*;
 import ai.lzy.servant.agents.LzyAgentConfig;
 import ai.lzy.servant.agents.LzyServant;
+import ai.lzy.v1.LzyFsApi;
+import ai.lzy.v1.LzyPortalApi;
+import ai.lzy.v1.LzyPortalApi.PortalSlotDesc;
+import ai.lzy.v1.Operations;
+import ai.lzy.v1.Tasks;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.AnonymousAWSCredentials;
+import com.amazonaws.client.builder.AwsClientBuilder;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import io.findify.s3mock.S3Mock;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -18,7 +28,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.locks.LockSupport;
 
 import static ai.lzy.test.GrpcUtils.*;
@@ -29,6 +40,12 @@ public class PortalTest {
     private ChannelManagerMock channelManager;
     private Map<String, LzyServant> servants;
 
+    private static final int S3_PORT = 8001;
+    private static final String S3_ADDRESS = "http://localhost:" + S3_PORT;
+    private static final String BUCKET_NAME = "lzy-snapshot-test-bucket";
+
+    private S3Mock s3;
+
     @Before
     public void before() throws IOException {
         System.err.println("---> " + ForkJoinPool.commonPool().getParallelism());
@@ -37,6 +54,14 @@ public class PortalTest {
         channelManager = new ChannelManagerMock();
         channelManager.start();
         servants = new HashMap<>();
+        s3 = new S3Mock.Builder().withPort(S3_PORT).withInMemoryBackend().build();
+        s3.start();
+        AmazonS3 s3Client = AmazonS3ClientBuilder.standard()
+            .withPathStyleAccessEnabled(true)
+            .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(S3_ADDRESS, "us-west-2"))
+            .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
+            .build();
+        s3Client.createBucket(BUCKET_NAME);
     }
 
     @After
@@ -46,9 +71,11 @@ public class PortalTest {
         for (var servant : servants.values()) {
             servant.close();
         }
+        s3.shutdown();
         server = null;
         channelManager = null;
         servants = null;
+        s3 = null;
     }
 
     @Test
@@ -73,8 +100,8 @@ public class PortalTest {
     // * second task reads from portal
     //
     // both tasks transfer their stdout/stderr to portal
-    @Test
-    public void testSnapshotOnPortal() throws Exception {
+    public void runGeneralSnapshotOnPortalScenario(PortalSlotDesc.Builder inputSnapshot,
+                                                   PortalSlotDesc.Builder outputSnapshot) throws Exception {
         // portal
         startServant("portal");
         server.waitServantStart("portal");
@@ -100,10 +127,9 @@ public class PortalTest {
 
         // configure portal to snapshot `channel-1` data
         server.openPortalSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
-            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+            .addSlots(inputSnapshot
                 .setSlot(makeInputFileSlot("/portal_slot_1"))
                 .setChannelId("channel_1")
-                .setSnapshot(makeSnapshotStorage("snapshot_1"))
                 .build())
             .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
                 .setSlot(makeInputFileSlot("/portal_task_1:stdout"))
@@ -174,11 +200,9 @@ public class PortalTest {
 
         // open portal output slot
         server.openPortalSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
-            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+            .addSlots(outputSnapshot
                 .setSlot(makeOutputFileSlot("/slot_2"))
-                .setChannelId("channel_2")
-                .setSnapshot(makeSnapshotStorage("snapshot_1"))
-                .build())
+                .setChannelId("channel_2"))
             .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
                 .setSlot(makeInputPipeSlot("/portal_task_2:stdout"))
                 .setChannelId("task_2:stdout")
@@ -253,6 +277,15 @@ public class PortalTest {
     }
 
     @Test
+    public void testAmazonS3SnapshotOnPortal() throws Exception {
+        var inputS3SnapshotSlot = LzyPortalApi.PortalSlotDesc.newBuilder()
+            .setSnapshot(makeAmazonSnapshot("portal_slot_task_1", BUCKET_NAME, S3_ADDRESS));
+        var outputS3SnapshotSlot = LzyPortalApi.PortalSlotDesc.newBuilder()
+            .setSnapshot(makeAmazonSnapshot("portal_slot_task_1", BUCKET_NAME, S3_ADDRESS));
+        runGeneralSnapshotOnPortalScenario(inputS3SnapshotSlot, outputS3SnapshotSlot);
+    }
+
+    @Test
     public void testMultipleTasks() throws Exception {
         // portal
         startServant("portal");
@@ -292,7 +325,7 @@ public class PortalTest {
             .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
                 .setSlot(makeInputFileSlot("/portal_slot_1"))
                 .setChannelId("channel_1")
-                .setSnapshot(makeSnapshotStorage("snapshot_1"))
+                .setSnapshot(makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
                 .build())
             .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
                 .setSlot(makeInputFileSlot("/portal_task_1:stdout"))
@@ -308,7 +341,7 @@ public class PortalTest {
             .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
                 .setSlot(makeInputFileSlot("/portal_slot_2"))
                 .setChannelId("channel_2")
-                .setSnapshot(makeSnapshotStorage("snapshot_2"))
+                .setSnapshot(makeAmazonSnapshot("snapshot_2", BUCKET_NAME, S3_ADDRESS))
                 .build())
             .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
                 .setSlot(makeInputFileSlot("/portal_task_2:stdout"))
