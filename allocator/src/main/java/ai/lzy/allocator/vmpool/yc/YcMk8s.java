@@ -91,7 +91,7 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
     }
 
     @Override
-    public ClusterDescription clusterToAllocateVm(String poolLabel, String zone) {
+    public ClusterDescription findCluster(String poolLabel, String zone) {
         // TODO(artolord) make better logic of vm scheduling
         final var desc = clusters.values()
             .stream()
