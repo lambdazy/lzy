@@ -5,7 +5,6 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
-import ai.lzy.allocator.vmpool.VmPoolRegistry;
 import ai.lzy.model.db.TransactionHandle;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.*;
@@ -54,7 +53,7 @@ public class KuberVmAllocator implements VmAllocator {
     @Override
     public void allocate(Vm vm, @Nullable TransactionHandle transaction) {
 
-        final var cluster = poolRegistry.clusterToAllocateVm(vm.poolLabel(), vm.zone());
+        final var cluster = poolRegistry.findCluster(vm.poolLabel(), vm.zone());
 
         try (final var client = factory.build(cluster)) {
             final Pod vmPodSpec = createVmPodSpec(vm, client);

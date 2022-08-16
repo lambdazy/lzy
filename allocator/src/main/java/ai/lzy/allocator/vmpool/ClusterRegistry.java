@@ -6,14 +6,13 @@ import javax.annotation.Nullable;
 
 public interface ClusterRegistry {
     @Nullable
-    ClusterDescription clusterToAllocateVm(String poolLabel, String zone);
+    ClusterDescription findCluster(String poolLabel, String zone);
 
     ClusterDescription getCluster(String clusterId);
 
     record ClusterDescription(
-            String clusterId,
-            HostAndPort masterAddress,
-            String masterCert
-    ) {
-    }
+        String clusterId,
+        HostAndPort masterAddress,
+        String masterCert
+    ) {}
 }
