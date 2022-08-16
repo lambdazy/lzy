@@ -1,22 +1,18 @@
 package ai.lzy.channelmanager.channel;
 
 import ai.lzy.channelmanager.control.ChannelController;
-import ai.lzy.channelmanager.graph.LocalChannelGraph;
 import ai.lzy.model.SlotStatus;
 import ai.lzy.model.channel.ChannelSpec;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
 import java.util.stream.Stream;
 
 public interface Channel {
     String id();
-    String ownerWorkflowId();
+    String workflowId();
     String name();
     ChannelSpec spec();
     Stream<SlotStatus> slotsStatus();
 
-    void bind(Endpoint endpoint) throws ChannelException;
+    Stream<Endpoint> bind(Endpoint endpoint) throws ChannelException;
     void unbind(Endpoint endpoint) throws ChannelException;
     Stream<Endpoint> bound();
     Stream<Endpoint> bound(Endpoint endpoint);

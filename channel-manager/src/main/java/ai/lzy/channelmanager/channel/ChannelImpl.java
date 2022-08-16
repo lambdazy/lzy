@@ -5,8 +5,6 @@ import ai.lzy.channelmanager.graph.ChannelGraph;
 import ai.lzy.channelmanager.graph.LocalChannelGraph;
 import ai.lzy.model.SlotStatus;
 import ai.lzy.model.channel.ChannelSpec;
-import ai.lzy.v1.Channels;
-import java.net.URI;
 import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -21,7 +19,7 @@ public class ChannelImpl implements Channel {
     private static final Logger LOG = LogManager.getLogger(ChannelImpl.class);
 
     private final String id;
-    private final String ownerWorkflowId;
+    private final String workflowId;
     private final ChannelGraph channelGraph;
     private final ChannelSpec spec;
     private final ChannelController controller; // pluggable channel logic
@@ -31,10 +29,10 @@ public class ChannelImpl implements Channel {
     }
 
     private ChannelImpl(
-        String id, String ownerWorkflowId, ChannelSpec spec, ChannelController controller, ChannelGraph channelGraph
+        String id, String workflowId, ChannelSpec spec, ChannelController controller, ChannelGraph channelGraph
     ) {
         this.id = id;
-        this.ownerWorkflowId = ownerWorkflowId;
+        this.workflowId = workflowId;
         this.spec = spec;
         this.controller = controller;
         this.channelGraph = channelGraph;
@@ -60,8 +58,8 @@ public class ChannelImpl implements Channel {
     }
 
     @Override
-    public String ownerWorkflowId() {
-        return ownerWorkflowId;
+    public String workflowId() {
+        return workflowId;
     }
 
     @Override
@@ -70,8 +68,8 @@ public class ChannelImpl implements Channel {
     }
 
     @Override
-    public void bind(Endpoint endpoint) throws ChannelException {
-        controller.executeBind(channelGraph, endpoint);
+    public Stream<Endpoint> bind(Endpoint endpoint) throws ChannelException {
+        return controller.executeBind(channelGraph, endpoint);
     }
 
     @Override
@@ -143,7 +141,7 @@ public class ChannelImpl implements Channel {
             return this;
         }
 
-        public Builder setOwnerWorkflowId(String workflowId) {
+        public Builder setWorkflowId(String workflowId) {
             this.workflowId = workflowId;
             return this;
         }

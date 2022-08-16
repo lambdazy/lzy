@@ -267,7 +267,7 @@ public class ChannelManager {
 
                 final AtomicReference<Channel> channel = new AtomicReference<>();
                 Transaction.execute(dataSource, conn -> {
-                    channel.set(channelStorage.findChannel(conn, true, channelId));
+                    channel.set(channelStorage.findChannel(conn, ChannelStorage.ReadMode.FOR_UPDATE, channelId));
                     if (channel.get() == null) {
                         String errorMessage = String.format("Channel with id %s not found", channelId);
                         LOG.error(errorMessage);
@@ -319,7 +319,9 @@ public class ChannelManager {
 
                 List<Channel> channels = new ArrayList<>();
                 Transaction.execute(dataSource, conn -> {
-                    channels.addAll(channelStorage.listChannels(conn, true, userId, workflowId).toList());
+                    channels.addAll(channelStorage.listChannels(
+                        conn, ChannelStorage.ReadMode.FOR_UPDATE, userId, workflowId
+                    ).toList());
                     channelStorage.setChannelLifeStatus(conn,
                         channels.stream().map(Channel::id), ChannelStorage.ChannelLifeStatus.DESTROYING.name()
                     );
@@ -362,7 +364,7 @@ public class ChannelManager {
 
                 final AtomicReference<Channel> channel = new AtomicReference<>();
                 Transaction.execute(dataSource, conn -> {
-                    channel.set(channelStorage.findChannel(conn, false, channelId));
+                    channel.set(channelStorage.findChannel(conn, ChannelStorage.ReadMode.DEFAULT, channelId));
                     if (channel.get() == null) {
                         String errorMessage = String.format("Channel with id %s not found", channelId);
                         LOG.error(errorMessage);
@@ -402,7 +404,9 @@ public class ChannelManager {
 
                 List<Channel> channels = new ArrayList<>();
                 Transaction.execute(dataSource, conn -> {
-                    channels.addAll(channelStorage.listChannels(conn, false, userId, workflowId).toList());
+                    channels.addAll(channelStorage.listChannels(
+                        conn, ChannelStorage.ReadMode.DEFAULT, userId, workflowId
+                    ).toList());
                     return true;
                 });
 
@@ -443,15 +447,17 @@ public class ChannelManager {
                 final String channelId = slotInstance.channelId();
 
                 Transaction.execute(dataSource, conn -> {
-                    final Channel channel = channelStorage.findChannel(conn, true, channelId);
+                    final Channel channel = channelStorage.findChannel(
+                        conn, ChannelStorage.ReadMode.FOR_UPDATE, channelId
+                    );
                     if (channel == null) {
                         String errorMessage = String.format("Channel with id %s not found", channelId);
                         LOG.error(errorMessage);
                         throw new NotFoundException(errorMessage);
                     }
 
-                    List<String> boundChannels = channelStorage.listBoundChannels(conn, false,
-                            userId, channel.ownerWorkflowId(), endpoint.uri().toString());
+                    List<String> boundChannels = channelStorage.listBoundChannels(conn, ChannelStorage.ReadMode.DEFAULT,
+                            userId, channel.workflowId(), endpoint.uri().toString());
 
                     if (boundChannels.size() > 0) {
                         final String errorMessage;
@@ -477,8 +483,9 @@ public class ChannelManager {
                         return false;
                     }
 
+                    final Stream<Endpoint> newBound;
                     try {
-                        channel.bind(endpoint);
+                        newBound = channel.bind(endpoint);
                     } catch (ChannelException e) {
                         responseObserver.onError(Status.INVALID_ARGUMENT.withCause(e).asRuntimeException());
                         return false;
@@ -486,8 +493,8 @@ public class ChannelManager {
 
                     channelStorage.insertEndpoint(conn, channelId, endpoint);
                     final Map<Endpoint, Endpoint> addedEdges = switch (endpoint.slotSpec().direction()) {
-                        case OUTPUT -> channel.bound(endpoint).collect(Collectors.toMap(e -> endpoint, e -> e));
-                        case INPUT -> channel.bound(endpoint).collect(Collectors.toMap(e -> e, e -> endpoint));
+                        case OUTPUT -> newBound.collect(Collectors.toMap(e -> endpoint, e -> e));
+                        case INPUT -> newBound.collect(Collectors.toMap(e -> e, e -> endpoint));
                     };
                     channelStorage.insertEndpointConnections(conn, channelId, addedEdges);
                     return true;
@@ -533,7 +540,7 @@ public class ChannelManager {
                 final String channelId = slotInstance.channelId();
 
                 Transaction.execute(dataSource, conn -> {
-                    final Channel channel = channelStorage.findChannel(conn, true, channelId);
+                    final Channel channel = channelStorage.findChannel(conn, ChannelStorage.ReadMode.FOR_UPDATE, channelId);
                     if (channel == null) {
                         String errorMessage = String.format("Channel with id %s not found", channelId);
                         LOG.error(errorMessage);
@@ -676,7 +683,7 @@ public class ChannelManager {
         }
 
         @Nullable
-        Channel findChannel(Connection sqlConnection, boolean forUpdate, String channelId) throws DaoException {
+        Channel findChannel(Connection sqlConnection, ReadMode readMode, String channelId) throws DaoException {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 SELECT
                     ch.channel_id as channel_id,
@@ -696,7 +703,7 @@ public class ChannelManager {
                 LEFT JOIN channel_endpoints e ON ch.channel_id = e.channel_id
                 LEFT JOIN endpoint_connections c ON e.channel_id = c.channel_id AND e.slot_uri = c.sender_uri
                 WHERE ch.channel_id = ? AND ch.channel_life_status = ?
-                """ + (forUpdate ? "FOR UPDATE" : ""))
+                """ + (ReadMode.FOR_UPDATE.equals(readMode) ? "FOR UPDATE" : ""))
             ) {
                 int index = 0;
                 st.setString(++index, channelId);
@@ -710,7 +717,7 @@ public class ChannelManager {
         }
 
         Stream<Channel> listChannels(
-            Connection sqlConnection, boolean forUpdate, String userId, String workflowId
+            Connection sqlConnection, ReadMode readMode, String userId, String workflowId
         ) throws DaoException {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 SELECT
@@ -731,7 +738,7 @@ public class ChannelManager {
                 LEFT JOIN channel_endpoints e ON ch.channel_id = e.channel_id
                 LEFT JOIN endpoint_connections c ON e.channel_id = c.channel_id AND e.slot_uri = c.sender_uri
                 WHERE ch.user_id = ? AND ch.workflow_id = ? AND ch.channel_life_status = ?
-                """ + (forUpdate ? "FOR UPDATE" : ""))
+                """ + (ReadMode.FOR_UPDATE.equals(readMode) ? "FOR UPDATE" : ""))
             ) {
                 int index = 0;
                 st.setString(++index, userId);
@@ -745,13 +752,13 @@ public class ChannelManager {
         }
 
         List<String> listBoundChannels(
-            Connection sqlConnection, boolean forUpdate, String userId, String workflowId, String slotUri
+            Connection sqlConnection, ReadMode readMode, String userId, String workflowId, String slotUri
         ) throws DaoException {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 SELECT ch.channel_id as channel_id
                 FROM channels ch INNER JOIN channel_endpoints e ON ch.channel_id = e.channel_id
                 WHERE ch.user_id = ? AND ch.workflow_id = ? AND e.slot_uri = ? AND ch.channel_life_status = ?
-                """ + (forUpdate ? "FOR UPDATE" : ""))
+                """ + (ReadMode.FOR_UPDATE.equals(readMode) ? "FOR UPDATE" : ""))
             ) {
                 int index = 0;
                 st.setString(++index, userId);
@@ -866,7 +873,7 @@ public class ChannelManager {
                 if (!chanelBuildersById.containsKey(channelId)) {
                     chanelBuildersById.put(channelId, ChannelImpl.newBuilder()
                         .setId(channelId)
-                        .setOwnerWorkflowId(rs.getString("workflow_id")));
+                        .setWorkflowId(rs.getString("workflow_id")));
                     slotsUriByChannelId.put(channelId, new HashSet<>());
                     var channelType = Channels.ChannelSpec.TypeCase.valueOf(rs.getString("channel_type"));
                     switch (channelType) {
@@ -921,6 +928,12 @@ public class ChannelManager {
         private enum ChannelLifeStatus {
             ALIVE,
             DESTROYING,
+            ;
+        }
+
+        private enum ReadMode {
+            DEFAULT,
+            FOR_UPDATE,
             ;
         }
 

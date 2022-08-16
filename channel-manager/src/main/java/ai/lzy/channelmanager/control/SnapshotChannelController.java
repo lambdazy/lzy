@@ -11,6 +11,7 @@ import ai.lzy.v1.SnapshotApiGrpc;
 import io.grpc.Channel;
 import io.grpc.StatusRuntimeException;
 import java.net.URI;
+import java.util.stream.Stream;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -69,7 +70,7 @@ public class SnapshotChannelController implements ChannelController {
     }
 
     @Override
-    public synchronized void executeBind(ChannelGraph channelGraph, Endpoint slot) throws ChannelException {
+    public synchronized Stream<Endpoint> executeBind(ChannelGraph channelGraph, Endpoint slot) throws ChannelException {
         LOG.info("SnapshotChannelController::executeBind, slot: {} to entryId: {}", slot.uri(), entryId);
         try {
             syncEntryState();
@@ -90,7 +91,7 @@ public class SnapshotChannelController implements ChannelController {
                 if (status == Status.ERRORED) {
                     LOG.info("Entry is errored. Destroying slot {}", slot);
                     slot.destroy();
-                    return;
+                    return Stream.empty();
                 }
                 if (status == Status.COMPLETED) {
                     final SlotInstance slotInstance = slot.slotInstance();
@@ -105,6 +106,7 @@ public class SnapshotChannelController implements ChannelController {
             }
             default -> throw new NotImplementedException("ExecuteBind got unexpected slot direction type");
         }
+        return Stream.empty();
     }
 
     @Override
