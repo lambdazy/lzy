@@ -23,7 +23,7 @@ public record ServiceConfig(
     DiskManagerConfig diskManagerConfig,
 
     Optional<YcCredentialsConfig> ycCredentialsConfig,
-    Optional<AzureCredentialsConfig> azureCredentialsConfig
+    Optional<AzureCredentialsConfig> azureCredentialsConfig,
 
     Iam iam
 ) {
