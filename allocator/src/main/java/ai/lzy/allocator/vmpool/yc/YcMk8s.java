@@ -21,6 +21,7 @@ import yandex.cloud.api.k8s.v1.NodeGroupServiceOuterClass.ListNodeGroupsRequest;
 import yandex.cloud.sdk.ServiceFactory;
 import yandex.cloud.sdk.grpc.interceptors.RequestIdInterceptor;
 
+import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.*;
 
@@ -61,6 +62,7 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
     private final Map<String, ClusterDesc> clusters = new HashMap<>();
 
 
+    @Inject
     public YcMk8s(ServiceConfig config, ServiceFactory serviceFactory) {
         this.config = config;
 
