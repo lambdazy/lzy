@@ -63,8 +63,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             return;
         }
 
-        final var minIdleTimeout = Duration.ofSeconds(
-                request.getCachePolicy().getIdleTimeout().getSeconds())
+        final var minIdleTimeout = Duration.ofSeconds(request.getCachePolicy().getIdleTimeout().getSeconds())
             .plus(request.getCachePolicy().getIdleTimeout().getNanos(), ChronoUnit.NANOS);
         final var policy = new CachePolicy(minIdleTimeout);
 

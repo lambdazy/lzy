@@ -3,6 +3,10 @@ package ai.lzy.allocator.test;
 import ai.lzy.allocator.AllocatorMain;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.model.grpc.ClientHeaderInterceptor;
+import ai.lzy.model.grpc.GrpcHeaders;
+import ai.lzy.test.BaseTestWithIam;
+import ai.lzy.test.JwtUtils;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmAllocatorApi.CachePolicy;
 import ai.lzy.v1.VmAllocatorApi.CreateSessionRequest;
@@ -21,14 +25,16 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-public class AllocatorApiTest {
+public class AllocatorApiTest extends BaseTestWithIam {
 
     private ApplicationContext allocatorCtx;
-    private AllocatorGrpc.AllocatorBlockingStub allocatorBlockingStub;
+    private AllocatorGrpc.AllocatorBlockingStub unauthorizedAllocatorBlockingStub;
+    private AllocatorGrpc.AllocatorBlockingStub authorizedAllocatorBlockingStub;
     private AllocatorMain allocatorApp;
 
     @Before
     public void before() throws IOException {
+        super.before();
         allocatorCtx = ApplicationContext.run();
         allocatorApp = allocatorCtx.getBean(AllocatorMain.class);
         allocatorApp.start();
@@ -39,7 +45,11 @@ public class AllocatorApiTest {
             .forAddress(HostAndPort.fromString(config.address()))
             .usePlaintext()
             .build();
-        allocatorBlockingStub = AllocatorGrpc.newBlockingStub(channel);
+        var credentials = JwtUtils.credentials(config.iam().internal().userName(),
+            config.iam().internal().credentialPrivateKey());
+        unauthorizedAllocatorBlockingStub = AllocatorGrpc.newBlockingStub(channel);
+        authorizedAllocatorBlockingStub = unauthorizedAllocatorBlockingStub.withInterceptors(
+            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
     }
 
     @After
@@ -51,15 +61,16 @@ public class AllocatorApiTest {
             // ignored
         }
         allocatorCtx.stop();
+        super.after();
     }
 
     @Test
     public void testCreateAndDeleteSession() {
-        final CreateSessionResponse createSessionResponse = allocatorBlockingStub.createSession(
+        final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(100).build()).build())
                 .build());
-        final DeleteSessionResponse deleteSessionResponse = allocatorBlockingStub.deleteSession(
+        final DeleteSessionResponse deleteSessionResponse = authorizedAllocatorBlockingStub.deleteSession(
             DeleteSessionRequest.newBuilder().setSessionId(createSessionResponse.getSessionId()).build());
 
         Assert.assertNotNull(createSessionResponse.getSessionId());
@@ -70,12 +81,11 @@ public class AllocatorApiTest {
     public void createSessionNoOwner() {
         try {
             //noinspection ResultOfMethodCallIgnored
-            allocatorBlockingStub.createSession(CreateSessionRequest.newBuilder().setCachePolicy(
+            authorizedAllocatorBlockingStub.createSession(CreateSessionRequest.newBuilder().setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(100).build()).build())
                 .build());
             Assert.fail();
-        } catch (
-            StatusRuntimeException e) {
+        } catch (StatusRuntimeException e) {
             Assert.assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
         }
     }
@@ -84,11 +94,10 @@ public class AllocatorApiTest {
     public void createSessionNoCachePolicy() {
         try {
             //noinspection ResultOfMethodCallIgnored
-            allocatorBlockingStub.createSession(
+            authorizedAllocatorBlockingStub.createSession(
                 CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).build());
             Assert.fail();
-        } catch (
-            StatusRuntimeException e) {
+        } catch (StatusRuntimeException e) {
             Assert.assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
         }
     }
@@ -97,12 +106,11 @@ public class AllocatorApiTest {
     public void createSessionNoCachePolicyDuration() {
         try {
             //noinspection ResultOfMethodCallIgnored
-            allocatorBlockingStub.createSession(
+            authorizedAllocatorBlockingStub.createSession(
                 CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().build()).build());
             Assert.fail();
-        } catch (
-            StatusRuntimeException e) {
+        } catch (StatusRuntimeException e) {
             Assert.assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
         }
     }
