@@ -66,7 +66,7 @@ public class LocalChannelGraph implements ChannelGraph {
     @Override
     public Set<Endpoint> adjacent(Endpoint endpoint) {
         if (senders.contains(endpoint)) {
-            return edges.get(endpoint);
+            return edges.getOrDefault(endpoint, new HashSet<>());
         }
         if (receivers.contains(endpoint)) {
             return getSenders(endpoint);

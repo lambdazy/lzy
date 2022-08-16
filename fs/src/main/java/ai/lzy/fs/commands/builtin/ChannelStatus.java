@@ -12,24 +12,14 @@ import io.grpc.ManagedChannel;
 import java.net.URI;
 import java.util.Base64;
 import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.Options;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public final class ChannelStatus implements LzyCommand {
-
-    private static final Logger LOG = LogManager.getLogger(ChannelStatus.class);
-    private static final Options options = new Options();
-
-    static {
-        options.addOption("w", "workflow-id", true, "Workflow id");
-    }
 
     @Override
     public int execute(CommandLine command) throws Exception {
         final URI channelManagerAddress = URI.create("grpc://" + command.getOptionValue("channel-manager"));
         final IAM.Auth auth = IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
-        final String workflowId = command.getOptionValue('w');
+        final String workflowId = command.getOptionValue('i');
 
         final ManagedChannel channelManagerChannel = ChannelBuilder
             .forAddress(channelManagerAddress.getHost(), channelManagerAddress.getPort())
