@@ -175,7 +175,7 @@ class BashServantClient(ServantClient):
         spec: Union[SnapshotChannelSpec, DirectChannelSpec],
     ) -> Channel:
         self._log.info(f"Creating channel {name}")
-        command = [f"{self.mount()}/sbin/channel", "create", name]
+        command = [f"{self.mount()}/sbin/channel", "create", "-n", name]
         if isinstance(spec, SnapshotChannelSpec):
             command.extend(
                 [
