@@ -86,7 +86,7 @@ public class ChannelManagerThreadContext implements ChannelManagerContext {
         channel.shutdown();
         try {
             channel.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
-            channelManager.close();
+            channelManager.stop();
             channelManager.awaitTermination();
             context.close();
         } catch (InterruptedException e) {
