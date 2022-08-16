@@ -53,7 +53,7 @@ public class KuberVmAllocator implements VmAllocator {
     @Override
     public void allocate(Vm vm, @Nullable TransactionHandle transaction) {
 
-        final var cluster = poolRegistry.findCluster(vm.poolLabel(), vm.zone());
+        final var cluster = poolRegistry.findCluster(vm.poolLabel(), vm.zone(), ClusterRegistry.ClusterType.User);
 
         try (final var client = factory.build(cluster)) {
             final Pod vmPodSpec = createVmPodSpec(vm, client);
