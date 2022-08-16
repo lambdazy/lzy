@@ -51,6 +51,7 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
 
     private record ClusterDesc(
         String clusterId,
+        String folderId,
         HostAndPort masterInternalAddress,
         HostAndPort masterExternalAddress,
         String masterCert,
@@ -91,11 +92,15 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
     }
 
     @Override
-    public ClusterDescription findCluster(String poolLabel, String zone) {
+    public ClusterDescription findCluster(String poolLabel, String zone, ClusterType type) {
         // TODO(artolord) make better logic of vm scheduling
         final var desc = clusters.values()
             .stream()
-            .filter(d -> d.nodeGroups.values().stream()
+            .filter(cluster -> switch (type) {
+                case User -> userFolders.contains(cluster.folderId());
+                case System -> systemFolders.contains(cluster.folderId());
+            })
+            .filter(cluster -> cluster.nodeGroups.values().stream()
                 .anyMatch(ng -> ng.zone.equals(zone) && ng.label.equals(poolLabel)))
             .findFirst()
             .orElse(null);
@@ -167,6 +172,7 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
 
         var clusterDesc = new ClusterDesc(
             clusterId,
+            cluster.getFolderId(),
             HostAndPort.fromString(masterInternalAddress),
             HostAndPort.fromString(masterExternalAddress),
             masterCert,

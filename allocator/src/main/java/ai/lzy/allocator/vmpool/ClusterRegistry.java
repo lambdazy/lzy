@@ -5,8 +5,14 @@ import com.google.common.net.HostAndPort;
 import javax.annotation.Nullable;
 
 public interface ClusterRegistry {
+
+    enum ClusterType {
+        User,
+        System
+    }
+
     @Nullable
-    ClusterDescription findCluster(String poolLabel, String zone);
+    ClusterDescription findCluster(String poolLabel, String zone, ClusterType type);
 
     ClusterDescription getCluster(String clusterId);
 
