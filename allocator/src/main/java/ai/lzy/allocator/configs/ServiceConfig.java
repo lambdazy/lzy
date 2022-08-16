@@ -22,7 +22,9 @@ public record ServiceConfig(
     Optional<KuberAllocator> kuberAllocator,
 
     Optional<YcMk8sConfig> ycMk8s,
-    Optional<AzureMk8sConfig> azureMk8s
+    Optional<AzureMk8sConfig> azureMk8s,
+
+    Iam iam
 ) {
 
     @ConfigurationProperties("thread-allocator")
@@ -51,5 +53,17 @@ public record ServiceConfig(
     @ConfigurationProperties("azure-mk8s")
     public record AzureMk8sConfig(
         boolean enabled
+    ) {}
+
+    @ConfigurationProperties("iam")
+    public record Iam(
+        String address,
+        IamInternal internal
+    ) {}
+
+    @ConfigurationProperties("iam.internal")
+    public record IamInternal(
+        String userName,
+        String credentialPrivateKey
     ) {}
 }
