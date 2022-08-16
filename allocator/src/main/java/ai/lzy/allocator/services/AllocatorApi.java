@@ -30,6 +30,7 @@ import java.util.List;
 
 @Singleton
 public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
+
     private static final Logger LOG = LogManager.getLogger(AllocatorApi.class);
 
     private final VmDao dao;
@@ -52,8 +53,17 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
     @Override
     public void createSession(CreateSessionRequest request, StreamObserver<CreateSessionResponse> responseObserver) {
-        final var minIdleTimeout = Duration.ofSeconds(
-            request.getCachePolicy().getIdleTimeout().getSeconds())
+        if (request.getOwner().isBlank()) {
+            responseObserver.onError(
+                Status.INVALID_ARGUMENT.withDescription("Owner is not provided").asRuntimeException());
+            return;
+        } else if (!request.hasCachePolicy() || !request.getCachePolicy().hasIdleTimeout()) {
+            responseObserver.onError(
+                Status.INVALID_ARGUMENT.withDescription("Cache policy is not properly set").asRuntimeException());
+            return;
+        }
+
+        final var minIdleTimeout = Duration.ofSeconds(request.getCachePolicy().getIdleTimeout().getSeconds())
             .plus(request.getCachePolicy().getIdleTimeout().getNanos(), ChronoUnit.NANOS);
         final var policy = new CachePolicy(minIdleTimeout);
 
@@ -72,8 +82,8 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             final List<Vm> vms = dao.list(request.getSessionId(), transaction);
             vms.forEach(vm -> {
                 dao.update(new Vm.VmBuilder(vm)
-                    .setState(Vm.State.DEAD)
-                    .build(),
+                        .setState(Vm.State.DEAD)
+                        .build(),
                     transaction
                 );
                 allocator.deallocate(vm);

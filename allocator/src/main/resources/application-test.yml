@@ -7,6 +7,9 @@ allocator:
     min-pool-size: 1
     max-pool-size: 1
 
+  mock-mk8s:
+    enabled: true
+
   iam:
     address: 'localhost:8443'
     internal:
