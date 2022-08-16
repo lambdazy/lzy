@@ -1,4 +1,4 @@
-package ai.lzy.test;
+package ai.lzy.iam.test;
 
 import ai.lzy.iam.LzyIAM;
 import io.micronaut.context.ApplicationContext;

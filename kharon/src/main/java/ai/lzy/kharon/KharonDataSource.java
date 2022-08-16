@@ -18,7 +18,9 @@ public class KharonDataSource implements Storage {
     private final ComboPooledDataSource dataSource;
 
     @Inject
-    public KharonDataSource(KharonConfig.DatabaseConfig dbConfig) {
+    public KharonDataSource(KharonConfig config) {
+        var dbConfig = config.database();
+
         this.dataSource = new ComboPooledDataSource();
         dataSource.setJdbcUrl(dbConfig.url());
         dataSource.setUser(dbConfig.username());

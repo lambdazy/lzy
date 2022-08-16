@@ -51,16 +51,16 @@ public class WorkflowServiceTest {
         props.put("kharon.storage.address", "localhost:" + storagePort);
 
         ctx = ApplicationContext.run(PropertySource.of(props));
-        var iamInternalConfig = ctx.getBean(KharonConfig.class).iam().internal();
+        var iamInternalConfig = ctx.getBean(KharonConfig.class).iam();
 
         final JwtCredentials internalUser;
-        try (var reader = new StringReader(iamInternalConfig.credentialPrivateKey())) {
-            internalUser = new JwtCredentials(buildJWT(iamInternalConfig.userName(), reader));
+        try (var reader = new StringReader(iamInternalConfig.internalUserPrivateKey())) {
+            internalUser = new JwtCredentials(buildJWT(iamInternalConfig.internalUserName(), reader));
         }
 
         var authInterceptor = new AuthServerInterceptor(credentials -> {
             var issuer = CredentialsHelper.issuerFromJWT(credentials.token());
-            if (iamInternalConfig.userName().equals(issuer)) {
+            if (iamInternalConfig.internalUserName().equals(issuer)) {
                 return new User(issuer);
             }
             throw new AuthUnauthenticatedException("heck");
