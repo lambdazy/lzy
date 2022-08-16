@@ -63,7 +63,7 @@ public class ChannelManagerTest extends BaseTestWithIam {
 
     @After
     public void after() {
-        channelManagerApp.close();
+        channelManagerApp.stop();
         try {
             channelManagerApp.awaitTermination();
         } catch (InterruptedException ignored) {

@@ -6,3 +6,12 @@ allocator:
     min-pool-size: 1
     max-pool-size: 1
     enabled: true
+
+  yc-mk8s:
+    enabled: false
+
+  azure-mk8s:
+    enabled: false
+
+  mock-mk8s:
+    enabled: true

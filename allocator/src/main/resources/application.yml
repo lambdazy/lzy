@@ -12,7 +12,7 @@ allocator:
   azure-mk8s:
     enabled: false
 
-  port: 1234
+  address: 'localhost:1234'
   gc-period: 30s
   heartbeat-timeout: 1m
   allocation-timeout: 15m

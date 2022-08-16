@@ -9,7 +9,7 @@ import java.util.Optional;
 // TODO(artolord) Optional fields are always empty
 @ConfigurationProperties("allocator")
 public record ServiceConfig(
-    int port,
+    String address,
     Duration gcPeriod,
     Duration allocationTimeout,
     Duration heartbeatTimeout,
