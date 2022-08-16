@@ -44,13 +44,7 @@ public class PortalTest {
     private static final String S3_ADDRESS = "http://localhost:" + S3_PORT;
     private static final String BUCKET_NAME = "lzy-snapshot-test-bucket";
 
-    private final S3Mock s3 = new S3Mock.Builder().withPort(S3_PORT).withInMemoryBackend().build();
-    private final AmazonS3 s3Client = AmazonS3ClientBuilder
-        .standard()
-        .withPathStyleAccessEnabled(true)
-        .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(S3_ADDRESS, "us-west-2"))
-        .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
-        .build();
+    private S3Mock s3;
 
     @Before
     public void before() throws IOException {
@@ -60,6 +54,14 @@ public class PortalTest {
         channelManager = new ChannelManagerMock();
         channelManager.start();
         servants = new HashMap<>();
+        s3 = new S3Mock.Builder().withPort(S3_PORT).withInMemoryBackend().build();
+        s3.start();
+        AmazonS3 s3Client = AmazonS3ClientBuilder.standard()
+            .withPathStyleAccessEnabled(true)
+            .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(S3_ADDRESS, "us-west-2"))
+            .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
+            .build();
+        s3Client.createBucket(BUCKET_NAME);
     }
 
     @After
@@ -69,9 +71,11 @@ public class PortalTest {
         for (var servant : servants.values()) {
             servant.close();
         }
+        s3.shutdown();
         server = null;
         channelManager = null;
         servants = null;
+        s3 = null;
     }
 
     @Test
@@ -270,17 +274,6 @@ public class PortalTest {
 
         var result = new String(Files.readAllBytes(tmpFile.toPath()));
         Assert.assertEquals("i-am-a-hacker\n", result);
-    }
-
-    @Before
-    public void setUpS3() {
-        s3.start();
-        s3Client.createBucket(BUCKET_NAME);
-    }
-
-    @After
-    public void tearDownS3() {
-        s3.shutdown();
     }
 
     @Test
