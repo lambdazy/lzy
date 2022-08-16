@@ -74,8 +74,7 @@ public class AllocatorApiTest {
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(100).build()).build())
                 .build());
             Assert.fail();
-        } catch (
-            StatusRuntimeException e) {
+        } catch (StatusRuntimeException e) {
             Assert.assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
         }
     }
@@ -87,8 +86,7 @@ public class AllocatorApiTest {
             allocatorBlockingStub.createSession(
                 CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).build());
             Assert.fail();
-        } catch (
-            StatusRuntimeException e) {
+        } catch (StatusRuntimeException e) {
             Assert.assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
         }
     }
@@ -101,8 +99,7 @@ public class AllocatorApiTest {
                 CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().build()).build());
             Assert.fail();
-        } catch (
-            StatusRuntimeException e) {
+        } catch (StatusRuntimeException e) {
             Assert.assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
         }
     }
