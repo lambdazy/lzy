@@ -533,7 +533,9 @@ public class ChannelManager {
                 final String channelId = slotInstance.channelId();
 
                 Transaction.execute(dataSource, conn -> {
-                    final Channel channel = channelStorage.findChannel(conn, ChannelStorage.ReadMode.FOR_UPDATE, channelId);
+                    final Channel channel = channelStorage.findChannel(
+                        conn, ChannelStorage.ReadMode.FOR_UPDATE, channelId
+                    );
                     if (channel == null) {
                         String errorMessage = String.format("Channel with id %s not found", channelId);
                         LOG.error(errorMessage);
