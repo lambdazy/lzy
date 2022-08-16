@@ -16,6 +16,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 import static ai.lzy.v1.Operations.SlotStatus.State.OPEN;
@@ -28,11 +29,11 @@ public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot {
     private final S3Repository<Stream<ByteString>> s3Repository;
     private final Path storage;
 
-    private final boolean containsInputSlot;
+    private final boolean hasInputSlot;
 
     private final S3SnapshotSlot slot;
 
-    public SnapshotOutputSlot(boolean containsInputSlot, SlotInstance slotInstance, S3SnapshotSlot slot, Path storage,
+    public SnapshotOutputSlot(SlotInstance slotInstance, S3SnapshotSlot slot, Path storage,
                               String key, String bucket, S3Repository<Stream<ByteString>> s3Repository) {
         super(slotInstance);
         this.key = key;
@@ -40,7 +41,7 @@ public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot {
         this.s3Repository = s3Repository;
         this.storage = storage;
         this.slot = slot;
-        this.containsInputSlot = containsInputSlot;
+        this.hasInputSlot = Objects.nonNull(slot.getInputSlot());
     }
 
     private static void write(Stream<ByteString> data, File sink) throws IOException {
@@ -59,7 +60,7 @@ public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot {
 
     @Override
     public Stream<ByteString> readFromPosition(long offset) throws IOException {
-        if (containsInputSlot) {
+        if (hasInputSlot) {
             if (slot.getState().get() == S3SnapshotSlot.State.INITIAL) {
                 LOG.error("Input slot of this snapshot is not already connected");
                 throw new IllegalStateException("Input slot of this snapshot is not already connected");
@@ -71,6 +72,7 @@ public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot {
                 slot.notifyAll();
             }
         }
+
         try {
             synchronized (slot) {
                 while (slot.getState().get() != S3SnapshotSlot.State.DONE) {
@@ -81,6 +83,7 @@ public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot {
             LOG.error("Can not open file channel on file {}", storage);
             throw new RuntimeException(e);
         }
+
         FileChannel channel = FileChannel.open(storage);
         state(OPEN);
         return OutFileSlot.readFileChannel(definition().name(), offset, channel, () -> true);

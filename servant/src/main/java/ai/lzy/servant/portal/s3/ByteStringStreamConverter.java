@@ -1,6 +1,8 @@
 package ai.lzy.servant.portal.s3;
 
 import com.google.protobuf.ByteString;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import ru.yandex.qe.s3.repository.BiDirectS3Converter;
 
 import javax.annotation.WillClose;
@@ -18,6 +20,8 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 public class ByteStringStreamConverter implements BiDirectS3Converter<Stream<ByteString>> {
+    private static final Logger LOG = LogManager.getLogger(ByteStringStreamConverter.class);
+
     @Override
     @WillClose
     public void toStream(Stream<ByteString> value, OutputStream outputStream) {
@@ -25,7 +29,7 @@ public class ByteStringStreamConverter implements BiDirectS3Converter<Stream<Byt
             try {
                 chunk.writeTo(outputStream);
             } catch (IOException e) {
-                // intentionally blank
+                LOG.warn("Can not write chunk of size {}: {}", chunk.size(), e.getMessage(), e);
             }
         });
     }

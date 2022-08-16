@@ -62,10 +62,9 @@ public class S3SnapshotSlot implements SnapshotSlot {
     }
 
     @Override
-    public SnapshotOutputSlot addOutputSlot(SlotInstance slotInstance) throws CreateSlotException {
+    public SnapshotOutputSlot addOutputSlot(SlotInstance slotInstance) {
         assert slotInstance.spec().direction() == Slot.Direction.OUTPUT;
-        var outputSlot = new SnapshotOutputSlot(Objects.nonNull(inputSlot.get()),
-            slotInstance, this, storageFile, key, bucket, s3Repository);
+        var outputSlot = new SnapshotOutputSlot(slotInstance, this, storageFile, key, bucket, s3Repository);
         var prev = outputSlots.putIfAbsent(slotInstance.name(), outputSlot);
         assert prev == null;
         return outputSlot;
