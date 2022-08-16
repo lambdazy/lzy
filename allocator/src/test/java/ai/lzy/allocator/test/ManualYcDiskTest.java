@@ -5,7 +5,6 @@ import ai.lzy.allocator.disk.DiskManager;
 import ai.lzy.allocator.disk.DiskSpec;
 import ai.lzy.allocator.disk.DiskType;
 import ai.lzy.allocator.disk.cloudspecific.yc.YcDiskManager;
-import ai.lzy.allocator.disk.exceptions.InternalErrorException;
 import ai.lzy.allocator.disk.exceptions.NotFoundException;
 import ai.lzy.util.auth.YcCredentials;
 import java.io.IOException;
