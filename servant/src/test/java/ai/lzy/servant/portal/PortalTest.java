@@ -272,26 +272,24 @@ public class PortalTest {
         Assert.assertEquals("i-am-a-hacker\n", result);
     }
 
-    private void setUpS3() {
+    @Before
+    public void setUpS3() {
         s3.start();
         s3Client.createBucket(BUCKET_NAME);
     }
 
-    private void tearDownS3() {
+    @After
+    public void tearDownS3() {
         s3.shutdown();
     }
 
     @Test
     public void testAmazonS3SnapshotOnPortal() throws Exception {
-        setUpS3();
-
         var inputS3SnapshotSlot = LzyPortalApi.PortalSlotDesc.newBuilder()
             .setSnapshot(makeAmazonSnapshot("portal_slot_task_1", BUCKET_NAME, S3_ADDRESS));
         var outputS3SnapshotSlot = LzyPortalApi.PortalSlotDesc.newBuilder()
             .setSnapshot(makeAmazonSnapshot("portal_slot_task_1", BUCKET_NAME, S3_ADDRESS));
         runGeneralSnapshotOnPortalScenario(inputS3SnapshotSlot, outputS3SnapshotSlot);
-
-        tearDownS3();
     }
 
     @Test

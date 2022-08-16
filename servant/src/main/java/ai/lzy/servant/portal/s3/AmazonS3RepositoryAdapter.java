@@ -6,32 +6,20 @@ import ru.yandex.qe.s3.amazon.repository.AmazonS3Repository;
 import ru.yandex.qe.s3.repository.BiDirectS3Converter;
 import ru.yandex.qe.s3.transfer.Transmitter;
 
-import javax.annotation.Nonnull;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Function;
 
 public class AmazonS3RepositoryAdapter<T> extends AmazonS3Repository<T> implements S3Repository<T> {
     private static final String BUCKET_KEY_DELIMITER = "#";
 
-    public AmazonS3RepositoryAdapter(AmazonS3 amazonS3, Transmitter transmitter, int toStreamPoolSize,
-                                     BiDirectS3Converter<T> converter) {
+    public AmazonS3RepositoryAdapter(AmazonS3 amazonS3, Transmitter transmitter,
+                                     int toStreamPoolSize, BiDirectS3Converter<T> converter) {
         super(amazonS3, transmitter, toStreamPoolSize, "", converter);
     }
 
-    public AmazonS3RepositoryAdapter(AmazonS3 amazonS3, Transmitter transmitter, int toStreamPoolSize, int bucketsCount,
+    public AmazonS3RepositoryAdapter(AmazonS3 amazonS3, Transmitter transmitter,
+                                     ExecutorService consumerExecutor,
                                      BiDirectS3Converter<T> converter) {
-        super(amazonS3, transmitter, toStreamPoolSize, "", bucketsCount, converter);
-    }
-
-    public AmazonS3RepositoryAdapter(AmazonS3 amazonS3, Transmitter transmitter, int toStreamPoolSize, int bucketsCount,
-                                     Function<String, Integer> keyHashFunction, BiDirectS3Converter<T> converter) {
-        super(amazonS3, transmitter, toStreamPoolSize, "", bucketsCount, keyHashFunction, converter);
-    }
-
-    public AmazonS3RepositoryAdapter(AmazonS3 amazonS3, Transmitter transmitter, ExecutorService consumerExecutor,
-                                     int bucketsCount, Function<String, Integer> keyHashFunction,
-                                     BiDirectS3Converter<T> converter) {
-        super(amazonS3, transmitter, consumerExecutor, "", bucketsCount, keyHashFunction, converter);
+        super(amazonS3, transmitter, consumerExecutor, "", 0, null, converter);
     }
 
     private static String internalKey(String bucket, String key) {
@@ -39,23 +27,28 @@ public class AmazonS3RepositoryAdapter<T> extends AmazonS3Repository<T> implemen
     }
 
     @Override
-    public void put(@Nonnull String bucket, @Nonnull String key, @Nonnull T value) {
+    public void put(String bucket, String key, T value) {
         this.put(internalKey(bucket, key), value);
     }
 
     @Override
-    public T get(@Nonnull String bucket, @Nonnull String key) {
+    public T get(String bucket, String key) {
         return this.get(internalKey(bucket, key));
     }
 
     @Override
-    public boolean containsKey(String bucket, String key) {
-        return false;
+    public boolean contains(String bucket, String key) {
+        return amazonS3.doesObjectExist(bucket, internalKey(bucket, key));
     }
 
     @Override
-    public void remove(@Nonnull String bucket, @Nonnull String key) {
+    public void remove(String bucket, String key) {
         this.remove(internalKey(bucket, key));
+    }
+
+    @Override
+    public void deleteObject(String bucket, String key) {
+        super.deleteObject(bucket, internalKey(bucket, key));
     }
 
     @Override

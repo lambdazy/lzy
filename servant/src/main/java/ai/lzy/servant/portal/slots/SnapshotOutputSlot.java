@@ -60,20 +60,20 @@ public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot {
     @Override
     public Stream<ByteString> readFromPosition(long offset) throws IOException {
         if (containsInputSlot) {
-            if (slot.state.get() == S3SnapshotSlot.State.INITIAL) {
+            if (slot.getState().get() == S3SnapshotSlot.State.INITIAL) {
                 LOG.error("Input slot of this snapshot is not already connected");
                 throw new IllegalStateException("Input slot of this snapshot is not already connected");
             }
-        } else if (slot.state.compareAndSet(S3SnapshotSlot.State.INITIAL, S3SnapshotSlot.State.PREPARING)) {
+        } else if (slot.getState().compareAndSet(S3SnapshotSlot.State.INITIAL, S3SnapshotSlot.State.PREPARING)) {
             write(s3Repository.get(bucket, key), storage.toFile());
-            slot.state.set(S3SnapshotSlot.State.DONE);
+            slot.getState().set(S3SnapshotSlot.State.DONE);
             synchronized (slot) {
                 slot.notifyAll();
             }
         }
         try {
             synchronized (slot) {
-                while (slot.state.get() != S3SnapshotSlot.State.DONE) {
+                while (slot.getState().get() != S3SnapshotSlot.State.DONE) {
                     slot.wait();
                 }
             }

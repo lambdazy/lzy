@@ -32,8 +32,8 @@ public class SnapshotInputSlot extends LzyInputSlotBase {
 
     private final S3SnapshotSlot slot;
 
-    public SnapshotInputSlot(SlotInstance slotInstance, S3SnapshotSlot slot, Path storage, String key, String bucket,
-                             S3Repository<Stream<ByteString>> s3Repository) throws IOException {
+    public SnapshotInputSlot(SlotInstance slotInstance, S3SnapshotSlot slot, Path storage, String key,
+                             String bucket, S3Repository<Stream<ByteString>> s3Repository) throws IOException {
         super(slotInstance);
         this.slot = slot;
         this.storage = storage;
@@ -45,10 +45,7 @@ public class SnapshotInputSlot extends LzyInputSlotBase {
 
     @Override
     public void connect(URI slotUri, Stream<ByteString> dataProvider) {
-        slot.state.set(S3SnapshotSlot.State.PREPARING);
-        synchronized (slot) {
-            slot.notifyAll();
-        }
+        slot.getState().set(S3SnapshotSlot.State.PREPARING);
         super.connect(slotUri, dataProvider);
         LOG.info("Attempt to connect to " + slotUri + " slot " + this);
 
@@ -63,17 +60,16 @@ public class SnapshotInputSlot extends LzyInputSlotBase {
         var t = new Thread(READER_TG, () -> {
             // read all data to local storage (file), then OPEN the slot
             readAll();
-            slot.state.set(S3SnapshotSlot.State.DONE);
+            slot.getState().set(S3SnapshotSlot.State.DONE);
             synchronized (slot) {
                 slot.notifyAll();
             }
-            // store snapshot from local storage to S3
+            // store local snapshot to S3
             try {
                 FileChannel channel = FileChannel.open(storage, StandardOpenOption.READ);
-                s3Repository.put(bucket, key, OutFileSlot.readFileChannel(definition().name(),
-                    0, channel, () -> true));
+                s3Repository.put(bucket, key, OutFileSlot.readFileChannel(definition().name(), 0, channel, () -> true));
             } catch (IOException e) {
-                LOG.error("Error while storing slot '{}' content in s3 storage", name());
+                LOG.error("Error while storing slot '{}' content in s3 storage: {}", name(), e.getMessage(), e);
             }
         }, "reader-from-" + slotUri + "-to-" + definition().name());
         t.start();

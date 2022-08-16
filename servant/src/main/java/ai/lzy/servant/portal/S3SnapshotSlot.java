@@ -8,8 +8,6 @@ import ai.lzy.servant.portal.slots.SnapshotInputSlot;
 import ai.lzy.servant.portal.slots.SnapshotOutputSlot;
 import ai.lzy.servant.portal.slots.SnapshotSlot;
 import com.google.protobuf.ByteString;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -23,8 +21,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
 public class S3SnapshotSlot implements SnapshotSlot {
-    private static final Logger LOG = LogManager.getLogger(S3SnapshotSlot.class);
-
     private final String snapshotId;
 
     private final AtomicReference<SnapshotInputSlot> inputSlot = new AtomicReference<>(null);
@@ -35,7 +31,7 @@ public class S3SnapshotSlot implements SnapshotSlot {
     private final S3Repository<Stream<ByteString>> s3Repository;
     private final Path storageFile;
 
-    public final AtomicReference<State> state = new AtomicReference<>(State.INITIAL);
+    private final AtomicReference<State> state = new AtomicReference<>(State.INITIAL);
 
     public S3SnapshotSlot(String snapshotId, String key, String bucket, S3Repository<Stream<ByteString>> s3Repository)
         throws IOException {
@@ -44,6 +40,11 @@ public class S3SnapshotSlot implements SnapshotSlot {
         this.bucket = bucket;
         this.s3Repository = s3Repository;
         this.storageFile = Files.createTempFile("lzy", "snapshot_" + snapshotId + "_storage");
+        this.storageFile.toFile().deleteOnExit();
+    }
+
+    public AtomicReference<State> getState() {
+        return state;
     }
 
     @Override
@@ -99,17 +100,6 @@ public class S3SnapshotSlot implements SnapshotSlot {
     @Override
     public boolean removeOutputSlot(String slotName) {
         return Objects.nonNull(outputSlots.remove(slotName));
-    }
-
-    void close() {
-        inputSlot.set(null);
-        outputSlots.clear();
-        try {
-            Files.deleteIfExists(storageFile);
-        } catch (IOException e) {
-            LOG.warn("Can not remove snapshot '{}' storage file '{}': {}", snapshotId, storageFile, e.getMessage(), e);
-            throw new RuntimeException(e);
-        }
     }
 
     public enum State {

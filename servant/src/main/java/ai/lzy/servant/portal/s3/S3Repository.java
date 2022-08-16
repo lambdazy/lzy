@@ -5,7 +5,7 @@ public interface S3Repository<T> {
 
     T get(String bucket, String key);
 
-    boolean containsKey(String bucket, String key);
+    boolean contains(String bucket, String key);
 
     void remove(String bucket, String key);
 }
