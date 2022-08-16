@@ -2,28 +2,25 @@ package ai.lzy.allocator.test;
 
 import ai.lzy.allocator.AllocatorMain;
 import ai.lzy.allocator.configs.ServiceConfig;
+import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.grpc.ClientHeaderInterceptor;
 import ai.lzy.model.grpc.GrpcHeaders;
-import ai.lzy.test.BaseTestWithIam;
 import ai.lzy.test.JwtUtils;
 import ai.lzy.v1.AllocatorGrpc;
-import ai.lzy.v1.VmAllocatorApi.CachePolicy;
-import ai.lzy.v1.VmAllocatorApi.CreateSessionRequest;
-import ai.lzy.v1.VmAllocatorApi.CreateSessionResponse;
-import ai.lzy.v1.VmAllocatorApi.DeleteSessionRequest;
-import ai.lzy.v1.VmAllocatorApi.DeleteSessionResponse;
+import ai.lzy.v1.VmAllocatorApi.*;
 import com.google.common.net.HostAndPort;
 import com.google.protobuf.Duration;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
-import java.io.IOException;
-import java.util.UUID;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.io.IOException;
+import java.util.UUID;
 
 public class AllocatorApiTest extends BaseTestWithIam {
 
