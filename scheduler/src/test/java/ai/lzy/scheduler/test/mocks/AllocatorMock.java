@@ -1,5 +1,6 @@
 package ai.lzy.scheduler.test.mocks;
 
+import ai.lzy.model.Operation;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.scheduler.allocator.ServantsAllocator;
 import io.micronaut.context.annotation.Primary;
@@ -16,12 +17,12 @@ public class AllocatorMock implements ServantsAllocator {
     private final List<BiConsumer<String, String>> onDestroy = new ArrayList<>();
 
     @Override
-    public void allocate(String workflowId, String servantId, Provisioning provisioning) {
+    public void allocate(String workflowId, String servantId, Operation.Requirements provisioning) {
         onAllocate.forEach(t -> t.call(workflowId, servantId, ""));
     }
 
     @Override
-    public void destroy(String workflowId, String servantId) {
+    public void free(String workflowId, String servantId) {
         onDestroy.forEach(t -> t.accept(workflowId, servantId));
     }
 

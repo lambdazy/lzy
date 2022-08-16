@@ -5,12 +5,13 @@ import ai.lzy.model.Slot;
 import ai.lzy.model.graph.Env;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.v1.IAM;
-import ai.lzy.v1.LzyServantGrpc;
 import ai.lzy.v1.Tasks;
-import ai.lzy.scheduler.models.TaskDesc;
+import ai.lzy.model.TaskDesc;
 import ai.lzy.scheduler.servant.Servant;
 import ai.lzy.scheduler.servant.ServantApi;
 import ai.lzy.scheduler.servant.ServantConnection;
+import ai.lzy.v1.worker.Worker;
+import ai.lzy.v1.worker.WorkerApiGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import org.apache.curator.shaded.com.google.common.net.HostAndPort;
@@ -19,16 +20,14 @@ import java.util.stream.Stream;
 
 public class ServantConnectionImpl implements ServantConnection {
     private final ManagedChannel channel;
-    private final LzyServantGrpc.LzyServantBlockingStub servantBlockingStub;
-    private final Servant servant;
+    private final WorkerApiGrpc.WorkerApiBlockingStub servantBlockingStub;
 
-    public ServantConnectionImpl(HostAndPort servantUrl, Servant servant) {
-        this.servant = servant;
+    public ServantConnectionImpl(HostAndPort servantUrl) {
         this.channel = ChannelBuilder.forAddress(servantUrl.getHost(), servantUrl.getPort())
             .usePlaintext()
-            .enableRetry(LzyServantGrpc.SERVICE_NAME)
+            .enableRetry(WorkerApiGrpc.SERVICE_NAME)
             .build();
-        this.servantBlockingStub = LzyServantGrpc.newBlockingStub(channel);
+        this.servantBlockingStub = WorkerApiGrpc.newBlockingStub(channel);
     }
 
     @Override
@@ -37,40 +36,24 @@ public class ServantConnectionImpl implements ServantConnection {
             @Override
             public void configure(Env env) throws StatusRuntimeException {
                 //noinspection ResultOfMethodCallIgnored
-                servantBlockingStub.env(GrpcConverter.to(env));
+                servantBlockingStub.configure(Worker.ConfigureRequest.newBuilder()
+                    .setEnv(GrpcConverter.to(env))
+                    .build());
             }
 
             @Override
             public void startExecution(String taskId, TaskDesc task) throws StatusRuntimeException {
-                Tasks.TaskSpec.Builder builder = Tasks.TaskSpec.newBuilder()
-                    .setZygote(GrpcConverter.to(task.zygote()))
-                    .setTid(taskId);
-                task.zygote().slots().forEach(slot -> {
-                    if (Stream.of(Slot.STDOUT, Slot.STDERR)
-                        .map(Slot::name)
-                        .noneMatch(s -> s.equals(slot.name()))) {
-                        builder.addAssignmentsBuilder()
-                            .setSlot(GrpcConverter.to(slot))
-                            .setBinding(task.slotsToChannelsAssignments().get(slot.name()))
-                            .build();
-                    }
-                });
+
                 //noinspection ResultOfMethodCallIgnored
-                servantBlockingStub.execute(builder.build());
+                servantBlockingStub.execute(Worker.ExecuteRequest.newBuilder()
+                    .setTaskDesc(task.to())
+                    .build());
             }
 
             @Override
             public void gracefulStop() throws StatusRuntimeException {
                 //noinspection ResultOfMethodCallIgnored
-                servantBlockingStub.stop(IAM.Empty.newBuilder().build());
-            }
-
-            @Override
-            public void signal(int signalNumber) throws StatusRuntimeException {
-                //noinspection ResultOfMethodCallIgnored
-                servantBlockingStub.signal(Tasks.TaskSignal.newBuilder()
-                    .setSigValue(signalNumber)
-                    .build());
+                servantBlockingStub.stop(Worker.StopRequest.newBuilder().build());
             }
         };
     }

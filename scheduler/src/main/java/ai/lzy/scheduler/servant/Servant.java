@@ -1,6 +1,6 @@
 package ai.lzy.scheduler.servant;
 
-import ai.lzy.model.graph.Provisioning;
+import ai.lzy.model.Operation;
 import ai.lzy.scheduler.models.ServantState.Status;
 import ai.lzy.scheduler.task.Task;
 import org.apache.curator.shaded.com.google.common.net.HostAndPort;
@@ -24,7 +24,7 @@ public interface Servant {
     // ========= Fields ===========
     String id();
     String workflowName();
-    Provisioning provisioning();
+    Operation.Requirements requirements();
     Status status();
 
     @Nullable String taskId();

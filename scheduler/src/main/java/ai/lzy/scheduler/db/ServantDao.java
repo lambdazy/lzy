@@ -1,7 +1,7 @@
 package ai.lzy.scheduler.db;
 
+import ai.lzy.model.Operation;
 import ai.lzy.model.db.DaoException;
-import ai.lzy.model.graph.Provisioning;
 import ai.lzy.scheduler.models.ServantState;
 import ai.lzy.scheduler.servant.Servant;
 
@@ -17,7 +17,7 @@ public interface ServantDao {
     List<Servant> getAllFree() throws DaoException;
     List<Servant> getAllAcquired() throws DaoException;
 
-    Servant create(String workflowName, Provisioning provisioning) throws DaoException;
+    Servant create(String workflowName, Operation.Requirements requirements) throws DaoException;
 
     @Nullable
     Servant get(String workflowName, String servantId) throws DaoException;

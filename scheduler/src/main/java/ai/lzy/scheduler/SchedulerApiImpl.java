@@ -3,7 +3,7 @@ package ai.lzy.scheduler;
 import ai.lzy.v1.SchedulerApi;
 import ai.lzy.v1.SchedulerApi.*;
 import ai.lzy.v1.SchedulerGrpc;
-import ai.lzy.scheduler.models.TaskDesc;
+import ai.lzy.model.TaskDesc;
 import ai.lzy.scheduler.servant.Scheduler;
 import ai.lzy.scheduler.task.Task;
 import io.grpc.StatusException;
@@ -28,7 +28,7 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
         final Task task;
         try {
             task = scheduler.execute(request.getWorkflowId(), request.getWorkflowName(),
-                    TaskDesc.fromGrpc(request.getTask()));
+                    TaskDesc.from(request.getTask()));
         } catch (StatusException e) {
             responseObserver.onError(e);
             return;
@@ -99,7 +99,7 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
         var builder = SchedulerApi.TaskStatus.newBuilder()
                 .setTaskId(task.taskId())
                 .setWorkflowId(task.workflowId())
-                .setZygoteName(task.description().zygote().name());
+                .setZygoteName(task.description().operation().name());
 
         Integer rc = task.rc();
         int rcInt = rc == null ? 0 : rc;

@@ -1,5 +1,6 @@
 package ai.lzy.scheduler.servant.impl;
 
+import ai.lzy.model.Operation;
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.db.DaoException;
 import ai.lzy.model.graph.Provisioning;
@@ -54,12 +55,12 @@ public class ServantsPoolImpl implements ServantsPool {
 
     @Nullable
     @Override
-    public CompletableFuture<Servant> waitForFree(String workflowName, Provisioning provisioning) {
+    public CompletableFuture<Servant> waitForFree(String workflowName, Operation.Requirements requirements) {
         final CompletableFuture<Servant> future = new CompletableFuture<>();
         if (stopping.get()) {
             return null;
         }
-        Servant free = tryToAcquire(workflowName, provisioning);
+        Servant free = tryToAcquire(workflowName, requirements);
         if (free != null) {
             future.complete(free);
             return future;
@@ -67,8 +68,8 @@ public class ServantsPoolImpl implements ServantsPool {
         Servant servant = null;
         synchronized (this) {
             try {
-                if (countAlive(workflowName, provisioning) < limit(provisioning)) {
-                    servant = dao.create(workflowName, provisioning);
+                if (countAlive(workflowName, requirements) < limit(requirements)) {
+                    servant = dao.create(workflowName, requirements);
                 }
             } catch (DaoException e) {
                 LOG.error("Cannot count servants", e);
@@ -87,7 +88,7 @@ public class ServantsPoolImpl implements ServantsPool {
         }
 
         waiters.computeIfAbsent(workflowName, t -> ConcurrentHashMap.newKeySet())
-            .add(new Waiter(provisioning, future));
+            .add(new Waiter(requirements, future));
         return future;
     }
 
@@ -103,11 +104,8 @@ public class ServantsPoolImpl implements ServantsPool {
         }
     }
 
-    private int limit(Provisioning provisioning) {
-        return provisioning.tags().stream()
-            .map(s -> config.provisioningLimits().getOrDefault(s, 0))
-            .min(Comparator.comparingInt(t -> t))
-            .orElse(config.defaultProvisioningLimit());
+    private int limit(Operation.Requirements requirements) {
+        return config.provisioningLimits().getOrDefault(requirements.poolLabel(), config.defaultProvisioningLimit());
     }
 
     private void restore() {
@@ -140,7 +138,7 @@ public class ServantsPoolImpl implements ServantsPool {
                 }
             }
             try {
-                allocator.destroy(servant.workflowName(), servant.id());
+                allocator.free(servant.workflowName(), servant.id());
             } catch (Exception e) {
                 LOG.error("""
                     Cannot destroy servant <{}> from workflow <{}> with url <{}>, going to next servant.
@@ -168,10 +166,11 @@ public class ServantsPoolImpl implements ServantsPool {
     }
 
     @Nullable
-    private synchronized Servant tryToAcquire(String workflowName, Provisioning provisioning) {
-        var map = freeServantsByWorkflow.computeIfAbsent(workflowName, t -> new ConcurrentHashMap<>());
+    private synchronized Servant tryToAcquire(String workflowName, Operation.Requirements provisioning) {
+        var map = freeServantsByWorkflow
+            .computeIfAbsent(workflowName, t -> new ConcurrentHashMap<>());
         for (var servant: map.values()) {
-            if (servant.provisioning().tags().containsAll(provisioning.tags())) {
+            if (servant.requirements().equals(provisioning)) {
                 try {
                     dao.acquireForTask(servant.workflowName(), servant.id());
                     map.remove(servant.id());
@@ -201,7 +200,7 @@ public class ServantsPoolImpl implements ServantsPool {
         }
         final var set = waiters.computeIfAbsent(workflowName, t -> new HashSet<>());
         for (var waiter: set) {
-            if (servant.provisioning().tags().containsAll(waiter.provisioning.tags())) {
+            if (servant.requirements().equals(waiter.requirements)) {
                 try {
                     dao.acquireForTask(workflowName, servantId);
                 } catch (DaoException e) {
@@ -226,12 +225,12 @@ public class ServantsPoolImpl implements ServantsPool {
             return;
         }
         for (var waiter: set) {
-            if (servant.provisioning().tags().containsAll(waiter.provisioning.tags())) {
+            if (servant.requirements().equals(waiter.requirements)) {
                 // TODO(artolord) make more fair scheduling
                 try {
-                    if (countAlive(workflowName, waiter.provisioning) < limit(waiter.provisioning)) {
+                    if (countAlive(workflowName, waiter.requirements) < limit(waiter.requirements)) {
                         set.remove(waiter);
-                        var newServant = dao.create(workflowName, waiter.provisioning);
+                        var newServant = dao.create(workflowName, waiter.requirements);
                         initProcessor(newServant);
                         dao.acquireForTask(workflowName, newServant.id());
                         waiter.future.complete(newServant);
@@ -243,18 +242,21 @@ public class ServantsPoolImpl implements ServantsPool {
         }
     }
 
-    private int countAlive(String workflowId, Provisioning provisioning) {
+    private int countAlive(String workflowId, Operation.Requirements requirements) {
         int count = 0;
         var map = aliveServants.computeIfAbsent(workflowId, t -> new ConcurrentHashMap<>());
         for (var servant: map.values()) {
-            if (servant.provisioning().tags().containsAll(provisioning.tags())) {
+            if (servant.requirements().equals(requirements)) {
                 count++;
             }
         }
         return count;
     }
 
-    private record Waiter(Provisioning provisioning, CompletableFuture<Servant> future) {}
+    private record Waiter(
+        Operation.Requirements requirements,
+        CompletableFuture<Servant> future
+    ) {}
 
     private void initProcessor(Servant servant) {
         aliveServants.computeIfAbsent(servant.workflowName(),

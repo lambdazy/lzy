@@ -1,5 +1,7 @@
 package ai.lzy.scheduler.models;
 
+import ai.lzy.model.TaskDesc;
+
 import javax.annotation.Nullable;
 
 public record TaskState(

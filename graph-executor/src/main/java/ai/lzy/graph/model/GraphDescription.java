@@ -1,9 +1,8 @@
 package ai.lzy.graph.model;
 
-import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.Operation;
 import ai.lzy.v1.graph.GraphExecutorApi;
 import ai.lzy.v1.graph.GraphExecutorApi.ChannelDesc;
-import ai.lzy.v1.graph.GraphExecutorApi.TaskDesc;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -19,12 +18,12 @@ public record GraphDescription(
     Map<String, ChannelDescription> channels // Map from channel id to its description
 ) {
 
-    public static GraphDescription fromGrpc(List<TaskDesc> tasks, List<ChannelDesc> channels) {
+    public static GraphDescription fromGrpc(List<GraphExecutorApi.TaskDesc> tasks, List<ChannelDesc> channels) {
 
         final List<TaskDescription> taskDescriptions = tasks.stream()
             .map(t -> new TaskDescription(
                 t.getId(),
-                GrpcConverter.from(t.getZygote()),
+                Operation.from(t.getOperation()),
                 t.getSlotAssignmentsList()
                 .stream()
                 .collect(Collectors.toMap(
