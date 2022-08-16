@@ -14,7 +14,7 @@ public class MockMk8s implements VmPoolRegistry, ClusterRegistry {
 
     @Nullable
     @Override
-    public ClusterDescription findCluster(String poolLabel, String zone) {
+    public ClusterDescription findCluster(String poolLabel, String zone, ClusterType type) {
         return null;
     }
 
