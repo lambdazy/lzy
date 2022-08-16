@@ -21,9 +21,9 @@ public final class Touch implements LzyCommand {
     private static final Options options = new Options();
 
     /*
-     * ~$ touch <common-opts> slot-path-to-create channel-name-to-attach-to --slot slot-description
+     * ~$ touch <common-opts> slot-path-to-create channel-id-to-attach-to --slot slot-description
      *
-     *   argNo:                #1                  #2                        #3     #4
+     *   argNo:                #1                  #2                      #3     #4
      */
 
     static {
