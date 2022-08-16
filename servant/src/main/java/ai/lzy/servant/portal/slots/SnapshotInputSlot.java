@@ -1,8 +1,10 @@
-package ai.lzy.servant.portal;
+package ai.lzy.servant.portal.slots;
 
 import ai.lzy.fs.slots.LzyInputSlotBase;
-import ai.lzy.model.Slot;
+import ai.lzy.fs.slots.OutFileSlot;
 import ai.lzy.model.SlotInstance;
+import ai.lzy.servant.portal.S3SnapshotSlot;
+import ai.lzy.servant.portal.s3.S3Repository;
 import ai.lzy.v1.Operations;
 import com.google.protobuf.ByteString;
 import org.apache.logging.log4j.LogManager;
@@ -11,8 +13,10 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.stream.Stream;
 
 public class SnapshotInputSlot extends LzyInputSlotBase {
@@ -22,14 +26,26 @@ public class SnapshotInputSlot extends LzyInputSlotBase {
     private final Path storage;
     private final OutputStream outputStream;
 
-    public SnapshotInputSlot(SlotInstance slotInstance, Path storage) throws IOException {
+    private final String key;
+    private final String bucket;
+    private final S3Repository<Stream<ByteString>> s3Repository;
+
+    private final S3SnapshotSlot slot;
+
+    public SnapshotInputSlot(SlotInstance slotInstance, S3SnapshotSlot slot, Path storage, String key,
+                             String bucket, S3Repository<Stream<ByteString>> s3Repository) throws IOException {
         super(slotInstance);
+        this.slot = slot;
         this.storage = storage;
         this.outputStream = Files.newOutputStream(storage);
+        this.key = key;
+        this.bucket = bucket;
+        this.s3Repository = s3Repository;
     }
 
     @Override
     public void connect(URI slotUri, Stream<ByteString> dataProvider) {
+        slot.getState().set(S3SnapshotSlot.State.PREPARING);
         super.connect(slotUri, dataProvider);
         LOG.info("Attempt to connect to " + slotUri + " slot " + this);
 
@@ -41,7 +57,21 @@ public class SnapshotInputSlot extends LzyInputSlotBase {
             }
         });
 
-        var t = new Thread(READER_TG, this::readAll, "reader-from-" + slotUri + "-to-" + definition().name());
+        var t = new Thread(READER_TG, () -> {
+            // read all data to local storage (file), then OPEN the slot
+            readAll();
+            slot.getState().set(S3SnapshotSlot.State.DONE);
+            synchronized (slot) {
+                slot.notifyAll();
+            }
+            // store local snapshot to S3
+            try {
+                FileChannel channel = FileChannel.open(storage, StandardOpenOption.READ);
+                s3Repository.put(bucket, key, OutFileSlot.readFileChannel(definition().name(), 0, channel, () -> true));
+            } catch (IOException e) {
+                LOG.error("Error while storing slot '{}' content in s3 storage: {}", name(), e.getMessage(), e);
+            }
+        }, "reader-from-" + slotUri + "-to-" + definition().name());
         t.start();
 
         onState(Operations.SlotStatus.State.DESTROYED, t::interrupt);

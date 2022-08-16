@@ -14,7 +14,7 @@ import ru.yandex.qe.s3.transfer.Transmitter;
  */
 public class AmazonS3Repository<T> extends S3Repository<T> {
 
-    private final AmazonS3 amazonS3;
+    protected final AmazonS3 amazonS3;
 
     public AmazonS3Repository(AmazonS3 amazonS3, Transmitter transmitter, int toStreamPoolSize, String bucketName,
         ru.yandex.qe.s3.repository.BiDirectS3Converter<T> converter) {

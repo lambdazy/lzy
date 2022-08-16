@@ -49,13 +49,23 @@ message AzureS3Endpoint {
   string connectionString = 1;
 }
 
+message S3Locator {
+  string key = 1;
+  string bucket = 2;
+
+  oneof endpoint {
+    AmazonS3Endpoint amazon = 3;
+    AzureS3Endpoint azure = 4;
+  }
+}
+
 message PortalSlotDesc {
   Slot slot = 1;
   string channelId = 2;
 
   message Snapshot {
-    // portal local storage
-    string id = 1;
+    // external s3 storage
+    S3Locator s3 = 1;
 
     // TODO:
     //  - support whiteboard
@@ -71,14 +81,11 @@ message PortalSlotDesc {
   }
 
   oneof kind {
-    // internal volatile storage
+    // snapshot slot to save into external (persistent) and internal volatile portal storage
     Snapshot snapshot = 10;
     // stdout/stderr of tasks (will be combined and transferred to portal stdout/stderr slots)
     StdOut stdout = 11;
     StdErr stderr = 12;
-    // external (persistent) storages
-//    AmazonS3Endpoint amazonS3 = 11;
-//    AzureS3Endpoint azureS3 = 12;
   }
 }
 

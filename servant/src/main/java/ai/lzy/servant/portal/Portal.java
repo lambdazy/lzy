@@ -6,11 +6,12 @@ import ai.lzy.fs.SlotsManager;
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
-import ai.lzy.fs.slots.LzySlotBase;
 import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.JsonUtils;
 import ai.lzy.model.Slot;
 import ai.lzy.model.SlotInstance;
+import ai.lzy.servant.portal.slots.StdoutSlot;
+import ai.lzy.servant.portal.utils.PortalUtils;
 import ai.lzy.v1.LzyFsApi;
 import ai.lzy.v1.LzyFsGrpc;
 import ai.lzy.v1.LzyPortalApi;
@@ -25,9 +26,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.net.URI;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -42,9 +40,7 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
     // stdout/stderr (guarded by this)
     private StdoutSlot stdoutSlot = null;
     private StdoutSlot stderrSlot = null;
-    // snapshots
-    private final Map<String, SnapshotSlot> snapshots = new HashMap<>(); // snapshotId -> in & out slots
-    private final Map<String, String> slot2snapshot = new HashMap<>();
+    private final SnapshotSlotsProvider snapshots = new SnapshotSlotsProvider();
     // common
     private final AtomicBoolean active = new AtomicBoolean(false);
 
@@ -96,8 +92,7 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
             throw new IllegalStateException("Portal is not active.");
         }
 
-        var response = OpenSlotsResponse.newBuilder()
-                .setSuccess(true);
+        var response = OpenSlotsResponse.newBuilder().setSuccess(true);
 
         final Function<String, OpenSlotsResponse> replyError = message -> {
             LOG.error(message);
@@ -110,83 +105,30 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
             LOG.info("Open slot {}", portalSlotToSafeString(slotDesc));
 
             final Slot slot = GrpcConverter.from(slotDesc.getSlot());
-            final String taskId = switch (slotDesc.getKindCase()) {
-                case STDERR -> slotDesc.getStderr().getTaskId();
-                case STDOUT -> slotDesc.getStdout().getTaskId();
-                case SNAPSHOT -> portalTaskId;
-                default -> throw new RuntimeException("unknown slot kind");
-            };
-            final SlotInstance slotInstance = new SlotInstance(
-                slot,
-                taskId,
-                slotDesc.getChannelId(),
-                fs.getSlotsManager().resolveSlotUri(taskId, slot.name())
-            );
-
             if (Slot.STDIN.equals(slot) || Slot.ARGS.equals(slot)
                 || Slot.STDOUT.equals(slot) || Slot.STDERR.equals(slot)) {
                 return replyError.apply("Invalid slot " + slot);
             }
 
-            switch (slotDesc.getKindCase()) {
-                case SNAPSHOT -> {
-                    var snapshotId = slotDesc.getSnapshot().getId();
-
-                    var prevSnapshotId = slot2snapshot.putIfAbsent(slotDesc.getSlot().getName(), snapshotId);
-                    if (prevSnapshotId != null) {
-                        return replyError.apply("Slot '" + slotDesc.getSlot().getName() + "' already associated with "
-                            + "snapshot '" + prevSnapshotId + "'");
-                    }
-
-                    LzySlot lzySlot;
-
-                    switch (slot.direction()) {
-                        case INPUT -> {
-                            try {
-                                var ss = new SnapshotSlot(snapshotId);
-                                var prev = snapshots.put(snapshotId, ss);
-                                if (prev != null) {
-                                    return replyError.apply("Snapshot '" + snapshotId + "' already exists.");
-                                }
-
-                                lzySlot = ss.setInputSlot(slotInstance);
-                            } catch (IOException e) {
-                                return replyError.apply("Error file configuring snapshot storage: " + e.getMessage());
-                            }
-                        }
-
-                        case OUTPUT -> {
-                            var ss = snapshots.get(snapshotId);
-                            if (ss == null) {
-                                return replyError.apply("Attempt to open output snapshot " + snapshotId
-                                    + " slot, while input is not set yet");
-                            }
-                            if (ss.getOutputSlot(slot.name()) != null) {
-                                return replyError.apply("Attempt to open output snapshot " + snapshotId
-                                    + " slot, while input is not set yet");
-                            }
-
-                            lzySlot = ss.addOutputSlot(slotInstance);
-                        }
-
-                        default -> {
-                            return replyError.apply("Unknown slot direction " + slot.direction());
-                        }
-                    }
-
-                    fs.getSlotsManager().registerSlot(lzySlot);
-                }
-
-                case STDOUT, STDERR -> {
-                    final boolean stdout = slotDesc.getKindCase() == PortalSlotDesc.KindCase.STDOUT;
-                    var lzySlot = (stdout ? stdoutSlot : stderrSlot).attach(slotInstance);
-                    if (lzySlot == null) {
-                        return replyError.apply("Slot " + slot.name() + " from task " + taskId + " already exists");
-                    }
-                    fs.getSlotsManager().registerSlot(lzySlot);
-                }
-
+            final String taskId = switch (slotDesc.getKindCase()) {
+                case SNAPSHOT -> portalTaskId;
+                case STDERR -> slotDesc.getStderr().getTaskId();
+                case STDOUT -> slotDesc.getStdout().getTaskId();
                 default -> throw new NotImplementedException(slotDesc.getKindCase().name());
+            };
+            final SlotInstance slotInstance = new SlotInstance(slot, taskId, slotDesc.getChannelId(),
+                fs.getSlotsManager().resolveSlotUri(taskId, slot.name()));
+
+            try {
+                LzySlot newLzySlot = switch (slotDesc.getKindCase()) {
+                    case SNAPSHOT -> snapshots.createSlot(slotDesc.getSnapshot(), slotInstance);
+                    case STDOUT -> stdoutSlot.attach(slotInstance);
+                    case STDERR -> stderrSlot.attach(slotInstance);
+                    default -> throw new NotImplementedException(slotDesc.getKindCase().name());
+                };
+                fs.getSlotsManager().registerSlot(newLzySlot);
+            } catch (CreateSlotException e) {
+                replyError.apply(e.getMessage());
             }
         }
 
@@ -196,43 +138,12 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
     public synchronized LzyPortalApi.PortalStatus status() {
         var response = LzyPortalApi.PortalStatus.newBuilder();
 
-        snapshots.values().forEach(
-            ss -> {
-                var inputSlot = ss.getInputSlot();
-                if (inputSlot != null) {
-                    response.addSlots(
-                        LzyPortalApi.PortalSlotStatus.newBuilder()
-                            .setSlot(GrpcConverter.to(inputSlot.definition()))
-                            .setConnectedTo(Optional.ofNullable(inputSlot.connectedTo()).map(URI::toString).orElse(""))
-                            .setState(inputSlot.state())
-                            .build());
-                }
-
-                for (var outputSlot : ss.getOutputSlots()) {
-                    response.addSlots(
-                        LzyPortalApi.PortalSlotStatus.newBuilder()
-                            .setSlot(GrpcConverter.to(outputSlot.definition()))
-                            .setConnectedTo("")
-                            .setState(outputSlot.state())
-                            .build());
-                }
-            });
+        snapshots.getInputSlots().forEach(slot -> response.addSlots(PortalUtils.buildInputSlotStatus(slot)));
+        snapshots.getOutputSlots().forEach(slot -> response.addSlots(PortalUtils.buildOutputSlotStatus(slot)));
 
         for (var stdSlot : new StdoutSlot[]{stdoutSlot, stderrSlot}) {
-            response.addSlots(
-                LzyPortalApi.PortalSlotStatus.newBuilder()
-                    .setSlot(GrpcConverter.to(stdSlot.definition()))
-                    .setConnectedTo("")
-                    .setState(stdSlot.state())
-                    .build());
-
-            stdSlot.forEachSlot(slot ->
-                response.addSlots(
-                    LzyPortalApi.PortalSlotStatus.newBuilder()
-                        .setSlot(GrpcConverter.to(slot.definition()))
-                        .setConnectedTo(Optional.ofNullable(slot.connectedTo()).map(URI::toString).orElse(""))
-                        .setState(slot.state())
-                        .build()));
+            response.addSlots(PortalUtils.buildOutputSlotStatus(stdSlot));
+            stdSlot.forEachSlot(slot -> response.addSlots(PortalUtils.buildInputSlotStatus(slot)));
         }
 
         return response.build();
@@ -271,25 +182,15 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
             }
         };
 
-        var snapshotId = slot2snapshot.get(slotName);
-        if (snapshotId != null) {
-            var ss = snapshots.get(snapshotId);
-            if (ss == null) {
-                LOG.error("Slot '{}' belongs to snapshot '{}', which is unknown", slotName, snapshotId);
-                response.onError(Status.INTERNAL
-                        .withDescription("snapshot " + snapshotId + " is broken").asException());
-                return;
-            }
-
-            var inputSlot = ss.getInputSlot();
-            if (inputSlot == null || !inputSlot.name().equals(slotName)) {
-                LOG.error("Got connect to unexpected slot '{}', snapshotId '{}', expected input slot '{}'",
-                    slotName, snapshotId, Optional.ofNullable(inputSlot).map(LzySlotBase::name).orElse("<none>"));
+        LzyInputSlot lzyInputSlot = snapshots.getInputSlot(slotName);
+        if (lzyInputSlot != null) {
+            if (!lzyInputSlot.name().equals(slotName)) {
+                LOG.error("Got connect to unexpected slot '{}', expected input slot '{}'",
+                    slotName, Optional.of(lzyInputSlot).map(LzySlot::name).orElse("<none>"));
                 response.onError(Status.INVALID_ARGUMENT.withDescription("Unexpected slot").asException());
-                return;
+            } else {
+                doConnect.accept(lzyInputSlot);
             }
-
-            doConnect.accept(inputSlot);
             return;
         }
 
@@ -320,36 +221,20 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
 
         boolean done = false;
 
-        var snapshotId = slot2snapshot.get(slotName);
-        if (snapshotId != null) {
-            var ss = snapshots.get(snapshotId);
-            if (ss == null) {
-                LOG.error("Slot '{}' belongs to snapshot '{}', which is unknown", slotName, snapshotId);
-                response.onError(Status.INTERNAL.withDescription("snapshot " + snapshotId + " broken").asException());
-                return;
-            }
-
-            var inputSlot = ss.getInputSlot();
-            if (inputSlot != null && inputSlot.name().equals(slotName)) {
-                inputSlot.disconnect();
-            }
-
-            var outputSlot = ss.getOutputSlot(slotName);
-            if (outputSlot != null) {
-                outputSlot.suspend();
-            }
-
-            if (inputSlot == null && outputSlot == null) {
-                LOG.error("Got disconnect from unexpected slot '{}', snapshotId '{}'", slotName, snapshotId);
-                response.onError(Status.INVALID_ARGUMENT.withDescription("Unexpected slot").asException());
-                return;
-            }
-
+        LzyInputSlot inputSlot = snapshots.getInputSlot(slotName);
+        LzyOutputSlot outputSlot = snapshots.getOutputSlot(slotName);
+        if (inputSlot != null) {
+            inputSlot.disconnect();
+        }
+        if (outputSlot != null) {
+            outputSlot.suspend();
+        }
+        if (inputSlot != null || outputSlot != null) {
             done = true;
         }
 
         if (!done) {
-            var inputSlot = stdoutSlot.find(slotName);
+            inputSlot = stdoutSlot.find(slotName);
             if (inputSlot != null) {
                 inputSlot.disconnect();
                 done = true;
@@ -357,7 +242,7 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
         }
 
         if (!done) {
-            var inputSlot = stderrSlot.find(slotName);
+            inputSlot = stderrSlot.find(slotName);
             if (inputSlot != null) {
                 inputSlot.disconnect();
                 done = true;
@@ -407,19 +292,16 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
             response.onCompleted();
         };
 
-        for (var ss : snapshots.values()) {
-            var inputSlot = ss.getInputSlot();
-            if (inputSlot != null && inputSlot.name().equals(slotInstance.name())) {
-                reply.accept(inputSlot);
+        for (var slot : snapshots.getInputSlots()) {
+            if (slot.name().equals(slotInstance.name())) {
+                reply.accept(slot);
                 return;
             }
+        }
 
-            for (var outputSlot : ss.getOutputSlots()) {
-                if (outputSlot.name().equals(slotInstance.name())) {
-                    reply.accept(outputSlot);
-                    return;
-                }
-            }
+        for (var slot : snapshots.getOutputSlots()) {
+            reply.accept(slot);
+            return;
         }
 
         for (var stdSlot : new StdoutSlot[]{stdoutSlot, stderrSlot}) {
@@ -448,38 +330,22 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
 
         boolean done = false;
 
-        var snapshotId = slot2snapshot.get(slotName);
-        if (snapshotId != null) {
-            var ss = snapshots.get(snapshotId);
-            if (ss == null) {
-                LOG.error("Slot '{}' belongs to snapshot '{}', which is unknown", slotName, snapshotId);
-                response.onError(Status.INTERNAL.withDescription("snapshot " + snapshotId + " broken").asException());
-                return;
-            }
-
-            var inputSlot = ss.getInputSlot();
-            if (inputSlot != null && inputSlot.name().equals(slotName)) {
-                inputSlot.destroy();
-                ss.removeInputSlot(slotName);
-            }
-
-            var outputSlot = ss.getOutputSlot(slotName);
-            if (outputSlot != null) {
-                outputSlot.destroy();
-                ss.removeOutputSlot(slotName);
-            }
-
-            if (inputSlot == null && outputSlot == null) {
-                LOG.error("Got disconnect from unexpected slot '{}', snapshotId '{}'", slotName, snapshotId);
-                response.onError(Status.INVALID_ARGUMENT.withDescription("Unexpected slot").asException());
-                return;
-            }
-
+        LzyInputSlot inputSlot = snapshots.getInputSlot(slotName);
+        LzyOutputSlot outputSlot = snapshots.getOutputSlot(slotName);
+        if (inputSlot != null) {
+            inputSlot.destroy();
+            snapshots.removeInputSlot(slotName);
+        }
+        if (outputSlot != null) {
+            outputSlot.destroy();
+            snapshots.removeOutputSlot(slotName);
+        }
+        if (inputSlot != null || outputSlot != null) {
             done = true;
         }
 
         if (!done) {
-            var inputSlot = stdoutSlot.find(slotName);
+            inputSlot = stdoutSlot.find(slotName);
             if (inputSlot != null) {
                 inputSlot.destroy();
                 done = true;
@@ -487,7 +353,7 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
         }
 
         if (!done) {
-            var inputSlot = stderrSlot.find(slotName);
+            inputSlot = stderrSlot.find(slotName);
             if (inputSlot != null) {
                 inputSlot.destroy();
                 done = true;
@@ -543,30 +409,16 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
             }
         };
 
-        LzyOutputSlot outputSlot = null;
+        LzyOutputSlot outputSlot;
 
         synchronized (this) {
-            var snapshotId = slot2snapshot.get(slotName);
-            if (snapshotId != null) {
-                var ss = snapshots.get(snapshotId);
-                if (ss == null) {
-                    LOG.error("Slot '{}' belongs to snapshot '{}', which is unknown", slotName, snapshotId);
-                    response.onError(Status.INTERNAL
-                        .withDescription("snapshot " + snapshotId + " broken").asException());
-                    return;
+            outputSlot = snapshots.getOutputSlot(slotName);
+            if (outputSlot == null) {
+                if (stdoutSlot.name().equals(slotName)) {
+                    outputSlot = stdoutSlot;
+                } else if (stderrSlot.name().equals(slotName)) {
+                    outputSlot = stderrSlot;
                 }
-
-                outputSlot = ss.getOutputSlot(slotName);
-                if (outputSlot == null) {
-                    LOG.error("Slot '{}' belongs to snapshot '{}', which is unknown", slotName, snapshotId);
-                    response.onError(Status.NOT_FOUND
-                        .withDescription("Slot " + slotName + " is not bound to snapshot " + snapshotId).asException());
-                    return;
-                }
-            } else if (stdoutSlot.name().equals(slotName)) {
-                outputSlot = stdoutSlot;
-            } else if (stderrSlot.name().equals(slotName)) {
-                outputSlot = stderrSlot;
             }
         }
 
@@ -586,14 +438,19 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
                 .append(", \"storage\": ");
 
         switch (slotDesc.getKindCase()) {
-            case SNAPSHOT -> sb.append("\"snapshot/").append(slotDesc.getSnapshot().getId()).append("\"");
+            case SNAPSHOT -> sb.append("\"snapshot/key:").append(slotDesc.getSnapshot().getS3().getKey())
+                .append("/bucket:").append(slotDesc.getSnapshot().getS3().getBucket()).append("\"");
             case STDOUT -> sb.append("\"stdout\"");
             case STDERR -> sb.append("\"stderr\"");
-            //case AMAZONS3 ->
-            //    sb.append("\"amazon-s3\": \"").append(slotDesc.getAmazonS3().getEndpoint()).append("\"");
             default -> sb.append("\"").append(slotDesc.getKindCase()).append("\"");
         }
 
         return sb.append("}").toString();
+    }
+
+    public static class CreateSlotException extends Exception {
+        public CreateSlotException(String message) {
+            super(message);
+        }
     }
 }
