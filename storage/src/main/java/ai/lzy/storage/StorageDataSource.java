@@ -16,7 +16,9 @@ public class StorageDataSource implements Storage {
     private final ComboPooledDataSource dataSource;
 
     @Inject
-    public StorageDataSource(StorageConfig.StorageDataSourceConfig dbConfig) {
+    public StorageDataSource(StorageConfig config) {
+        var dbConfig = config.database();
+
         this.dataSource = new ComboPooledDataSource();
         dataSource.setJdbcUrl(dbConfig.url());
         dataSource.setUser(dbConfig.username());

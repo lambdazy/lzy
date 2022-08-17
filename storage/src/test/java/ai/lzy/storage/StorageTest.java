@@ -94,7 +94,7 @@ public class StorageTest extends BaseTestWithIam {
 
     @Test
     public void testPermissionDenied() {
-        var credentials = JwtUtils.invalidCredentials(storageConfig.iam().internal().userName());
+        var credentials = JwtUtils.invalidCredentials(storageConfig.iam().internalUserName());
 
         var client = storageClient.withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
@@ -131,8 +131,8 @@ public class StorageTest extends BaseTestWithIam {
 
     @Test
     public void testSuccess() throws IOException {
-        var credentials = JwtUtils.credentials(storageConfig.iam().internal().userName(),
-            storageConfig.iam().internal().credentialPrivateKey());
+        var credentials = JwtUtils.credentials(storageConfig.iam().internalUserName(),
+            storageConfig.iam().internalUserPrivateKey());
 
         var client = storageClient.withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));

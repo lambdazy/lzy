@@ -36,11 +36,11 @@ import java.sql.SQLException;
 public class YandexCloudS3Storage extends LzyStorageGrpc.LzyStorageImplBase {
     private static final Logger LOG = LogManager.getLogger(YandexCloudS3Storage.class);
 
-    private final StorageConfig.YcS3Credentials s3Creds;
+    private final StorageConfig.S3Credentials.YcS3Credentials s3Creds;
     private final StorageConfig.YcCredentials ycCreds;
     private final StorageDataSource dataSource;
 
-    public YandexCloudS3Storage(StorageConfig.YcS3Credentials s3, StorageConfig.YcCredentials yc,
+    public YandexCloudS3Storage(StorageConfig.S3Credentials.YcS3Credentials s3, StorageConfig.YcCredentials yc,
                                 StorageDataSource dataSource) {
         this.s3Creds = s3;
         this.ycCreds = yc;
