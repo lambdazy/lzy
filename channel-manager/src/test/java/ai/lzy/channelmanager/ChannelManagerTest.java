@@ -50,7 +50,7 @@ public class ChannelManagerTest extends BaseTestWithIam {
         channelManagerApp.start();
 
         var channel = ChannelBuilder
-            .forAddress(HostAndPort.fromString(channelManagerConfig.address()))
+            .forAddress(HostAndPort.fromString(channelManagerConfig.getAddress()))
             .usePlaintext()
             .build();
         unauthorizedChannelManagerClient = LzyChannelManagerGrpc.newBlockingStub(channel);
