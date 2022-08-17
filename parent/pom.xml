@@ -82,9 +82,9 @@
     <docker-maven-plugin.version>0.36.1</docker-maven-plugin.version>
     <hibernate.version>5.6.9.Final</hibernate.version>
     <com.mchange.version>0.9.5.5</com.mchange.version>
-    <micronaut.version>3.1.3</micronaut.version>
+    <micronaut.version>3.6.0</micronaut.version>
     <junit-api.version>5.8.1</junit-api.version>
-    <micronaut-test.version>3.0.3</micronaut-test.version>
+    <micronaut-test.version>3.5.0</micronaut-test.version>
     <micronaut-maven-plugin.version>3.0.2</micronaut-maven-plugin.version>
     <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
     <h2database.version>2.1.212</h2database.version>
@@ -121,6 +121,7 @@
     <c3p0.version>0.9.5.5</c3p0.version>
     <javax.inject.version>1</javax.inject.version>
     <fabric8-kuber-client.version>6.0.0</fabric8-kuber-client.version>
+    <lombok.version>1.18.24</lombok.version>
   </properties>
 
   <repositories>
@@ -869,6 +870,12 @@
         <artifactId>kubernetes-client</artifactId>
         <version>${fabric8-kuber-client.version}</version>
       </dependency>
+      <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
+        <version>${lombok.version}</version>
+        <scope>provided</scope>
+      </dependency>
     </dependencies>
 
   </dependencyManagement>
@@ -906,6 +913,11 @@
           <target>${java.version}</target>
           <forceJavacCompilerUse>true</forceJavacCompilerUse>
           <annotationProcessorPaths>
+            <path>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+              <version>${lombok.version}</version>
+            </path>
             <path>
               <groupId>io.micronaut</groupId>
               <artifactId>micronaut-inject-java</artifactId>

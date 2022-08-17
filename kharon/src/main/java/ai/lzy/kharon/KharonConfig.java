@@ -1,55 +1,45 @@
 package ai.lzy.kharon;
 
+import ai.lzy.iam.config.IamClientConfiguration;
+import ai.lzy.model.db.DatabaseConfiguration;
+import ai.lzy.storage.config.StorageClientConfiguration;
+import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
+import lombok.Getter;
+import lombok.Setter;
 
 import javax.annotation.Nullable;
 
+@Getter
+@Setter
 @ConfigurationProperties("kharon")
-public record KharonConfig(
-    String address,
+public class KharonConfig {
+    private String address;
     @Nullable
-    String externalHost,
-    String serverAddress,
-    String whiteboardAddress,
-    String snapshotAddress,
-    String channelManagerAddress,
-    int servantProxyPort,
-    int servantFsProxyPort,
-    int channelManagerProxyPort,
-    DatabaseConfig database,
-    IamConfig iam,
-    StorageConfig storage,
-    WorkflowConfig workflow
-) {
+    private String externalHost;
+    private String serverAddress;
+    private String whiteboardAddress;
+    private String snapshotAddress;
+    private String channelManagerAddress;
+    private int servantProxyPort;
+    private int servantFsProxyPort;
+    private int channelManagerProxyPort;
 
-    @ConfigurationProperties("database")
-    public record DatabaseConfig(
-        String url,
-        String username,
-        String password,
-        int minPoolSize,
-        int maxPoolSize
-    ) {}
+    @ConfigurationBuilder("database")
+    private final DatabaseConfiguration database = new DatabaseConfiguration();
 
-    @ConfigurationProperties("iam")
-    public record IamConfig(
-        String address,
-        IamInternal internal
-    ) {}
+    @ConfigurationBuilder("storage")
+    private final StorageClientConfiguration storage = new StorageClientConfiguration();
 
-    @ConfigurationProperties("iam.internal")
-    public record IamInternal(
-        String userName,
-        String credentialPrivateKey
-    ) {}
+    @ConfigurationBuilder("iam")
+    private final IamClientConfiguration iam = new IamClientConfiguration();
 
-    @ConfigurationProperties("storage")
-    public record StorageConfig(
-        String address
-    ) {}
+    private WorkflowConfig workflow;
 
+    @Getter
+    @Setter
     @ConfigurationProperties("workflow")
-    public record WorkflowConfig(
-        boolean enabled
-    ) {}
+    public static class WorkflowConfig {
+        private boolean enabled;
+    }
 }

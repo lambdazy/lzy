@@ -1,18 +1,19 @@
 package ai.lzy.allocator.disk;
 
-import ai.lzy.model.db.Storage;
+import ai.lzy.allocator.dao.impl.AllocatorDataSource;
 import jakarta.inject.Inject;
-import java.sql.Connection;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.sql.Connection;
 
 public class DiskManagerStorage {
     private static final Logger LOG = LogManager.getLogger(DiskManagerStorage.class);
 
-    private final Storage storage;
+    private final AllocatorDataSource storage;
 
     @Inject
-    private DiskManagerStorage(DiskManagerDataSource storage) {
+    private DiskManagerStorage(AllocatorDataSource storage) {
         this.storage = storage;
     }
 
