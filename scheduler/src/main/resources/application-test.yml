@@ -6,12 +6,13 @@ scheduler:
   default-provisioning-limit: 1
 
   provisioning-limits:
-    a: 1
-    b: 10
-    portal: 1000
+    s: 10
+    l: 10
 
-  whiteboard-address: localhost:1234
+  channel-manager-address: localhost:1234
   scheduler-address: localhost:2392  # ???
+  allocator-address: localhost:1234
+  servant-image: lzy-servant
 
   thread-allocator:
     enabled: true

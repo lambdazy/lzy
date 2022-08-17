@@ -33,7 +33,7 @@
         <module>scheduler</module>
         <module>storage</module>
         <module>disk-service</module>
-        <module>coverage</module>
         <module>allocator</module>
+        <module>coverage</module>
     </modules>
 </project>

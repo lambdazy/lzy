@@ -2,6 +2,8 @@ package ai.lzy.scheduler.test.mocks;
 
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.v1.*;
+import ai.lzy.v1.worker.Worker.*;
+import ai.lzy.v1.worker.WorkerApiGrpc;
 import io.grpc.Server;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -35,33 +37,26 @@ public class AllocatedServantMock {
         server.awaitTermination();
     }
 
-    private class ServantImpl extends LzyServantGrpc.LzyServantImplBase {
+    private class ServantImpl extends WorkerApiGrpc.WorkerApiImplBase {
 
         @Override
-        public void env(Operations.EnvSpec request, StreamObserver<Servant.EnvResult> responseObserver) {
+        public void configure(ConfigureRequest request, StreamObserver<ConfigureResponse> responseObserver) {
             onEnv.run();
-            responseObserver.onNext(Servant.EnvResult.newBuilder().setRc(0).setDescription("OK").build());
+            responseObserver.onNext(ConfigureResponse.newBuilder().build());
             responseObserver.onCompleted();
         }
 
         @Override
-        public void stop(IAM.Empty request, StreamObserver<IAM.Empty> responseObserver) {
+        public void stop(StopRequest request, StreamObserver<StopResponse> responseObserver) {
             onStop.run();
-            responseObserver.onNext(IAM.Empty.newBuilder().build());
+            responseObserver.onNext(StopResponse.newBuilder().build());
             responseObserver.onCompleted();
         }
 
         @Override
-        public void execute(Tasks.TaskSpec request, StreamObserver<Servant.ExecutionStarted> responseObserver) {
+        public void execute(ExecuteRequest request, StreamObserver<ExecuteResponse> responseObserver) {
             onExec.run();
-            responseObserver.onNext(Servant.ExecutionStarted.newBuilder().build());
-            responseObserver.onCompleted();
-        }
-
-        @Override
-        public void signal(Tasks.TaskSignal request, StreamObserver<IAM.Empty> responseObserver) {
-            onSignal.run();
-            responseObserver.onNext(IAM.Empty.newBuilder().build());
+            responseObserver.onNext(ExecuteResponse.newBuilder().build());
             responseObserver.onCompleted();
         }
     }

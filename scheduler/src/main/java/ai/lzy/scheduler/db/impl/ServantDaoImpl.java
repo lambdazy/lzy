@@ -1,8 +1,8 @@
 package ai.lzy.scheduler.db.impl;
 
+import ai.lzy.model.Operation;
 import ai.lzy.model.db.DaoException;
 import ai.lzy.model.db.Transaction;
-import ai.lzy.model.graph.Provisioning;
 import ai.lzy.scheduler.allocator.ServantMetaStorage;
 import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.scheduler.models.ServantState;
@@ -10,6 +10,8 @@ import ai.lzy.scheduler.models.ServantState.ServantStateBuilder;
 import ai.lzy.scheduler.servant.Servant;
 import ai.lzy.scheduler.servant.impl.EventQueueManager;
 import ai.lzy.scheduler.servant.impl.ServantImpl;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.curator.shaded.com.google.common.net.HostAndPort;
@@ -24,7 +26,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 
 @Singleton
 public class ServantDaoImpl implements ServantDao, ServantMetaStorage {
@@ -32,7 +33,7 @@ public class ServantDaoImpl implements ServantDao, ServantMetaStorage {
     private final SchedulerDataSource storage;
     private final EventQueueManager queue;
 
-    private static final String FIELDS = "id, workflow_name, status, provisioning,"
+    private static final String FIELDS = "id, workflow_name, status, requirements_json,"
             + " error_description, task_id, servant_url";
 
     @Inject
@@ -73,7 +74,7 @@ public class ServantDaoImpl implements ServantDao, ServantMetaStorage {
             ps.setString(8, resource.workflowName());
             ps.setString(9, resource.id());
             ps.executeUpdate();
-        } catch (SQLException e) {
+        } catch (SQLException | JsonProcessingException e) {
             throw new DaoException(e);
         }
     }
@@ -85,7 +86,7 @@ public class ServantDaoImpl implements ServantDao, ServantMetaStorage {
             " SELECT " + FIELDS + " FROM servant"
                 + " WHERE acquired = false AND status != 'DESTROYED'")) {
             states = readServantStates(ps);
-        } catch (SQLException e) {
+        } catch (SQLException | JsonProcessingException e) {
             throw new DaoException(e);
         }
         return states.stream().map(s -> (Servant) new ServantImpl(s, queue.get(s.workflowName(), s.id()))).toList();
@@ -98,23 +99,23 @@ public class ServantDaoImpl implements ServantDao, ServantMetaStorage {
             " SELECT " + FIELDS + " FROM servant"
                 + " WHERE acquired = true AND status != 'DESTROYED'")) {
             states = readServantStates(ps);
-        } catch (SQLException e) {
+        } catch (SQLException | JsonProcessingException e) {
             throw new DaoException(e);
         }
         return states.stream().map(s -> (Servant) new ServantImpl(s, queue.get(s.workflowName(), s.id()))).toList();
     }
 
     @Override
-    public Servant create(String workflowName, Provisioning provisioning) throws DaoException {
+    public Servant create(String workflowName, Operation.Requirements requirements) throws DaoException {
         final var id = UUID.randomUUID().toString();
         final var status = ServantState.Status.CREATED;
-        final var state = new ServantStateBuilder(id, workflowName, provisioning, status).build();
+        final var state = new ServantStateBuilder(id, workflowName, requirements, status).build();
         try (var con = storage.connect(); var ps = con.prepareStatement(
             " INSERT INTO servant(" + FIELDS + ")"
                 + " VALUES (?, ?, CAST(? AS servant_status), ?, ?, ?, ?)")) {
             writeState(state, con, ps);
             ps.execute();
-        } catch (SQLException e) {
+        } catch (SQLException | JsonProcessingException e) {
             throw new DaoException(e);
         }
         return new ServantImpl(state, queue.get(state.workflowName(), state.id()));
@@ -138,7 +139,7 @@ public class ServantDaoImpl implements ServantDao, ServantMetaStorage {
                         + " WHERE workflow_name = ? AND status != 'DESTROYED'")) {
             ps.setString(1, workflowName);
             states = readServantStates(ps);
-        } catch (SQLException e) {
+        } catch (SQLException | JsonProcessingException e) {
             throw new DaoException(e);
         }
         return states.stream().map(s -> (Servant) new ServantImpl(s, queue.get(s.workflowName(), s.id()))).toList();
@@ -214,30 +215,34 @@ public class ServantDaoImpl implements ServantDao, ServantMetaStorage {
         }
     }
 
-    private void writeState(ServantState state, Connection con, PreparedStatement ps) throws SQLException {
+    private void writeState(ServantState state, Connection con, PreparedStatement ps)
+            throws SQLException, JsonProcessingException {
+        final var mapper = new ObjectMapper();
+
         int paramCount = 0;
         var url = state.servantUrl();
         ps.setString(++paramCount, state.id());
         ps.setString(++paramCount, state.workflowName());
         ps.setString(++paramCount, state.status().name());
-        ps.setArray(++paramCount, con.createArrayOf("varchar", state.provisioning().tags().toArray()));
+        ps.setString(++paramCount, mapper.writeValueAsString(state.requirements()));
         ps.setString(++paramCount, state.errorDescription());
         ps.setString(++paramCount, state.taskId());
         ps.setString(++paramCount, url == null ? null : url.toString());
     }
 
-    private ServantState readServantState(ResultSet rs) throws SQLException {
+    private ServantState readServantState(ResultSet rs) throws SQLException, JsonProcessingException {
+        final var mapper = new ObjectMapper();
+
         int resCount = 0;
         final var id = rs.getString(++resCount);
         final var workflow = rs.getString(++resCount);
         final var status = ServantState.Status.valueOf(rs.getString(++resCount));
-        final var arr = (Object[]) rs.getArray(++resCount).getArray();
-        final var provisioning = Arrays.copyOf(arr, arr.length, String[].class);
+        final var requirements = mapper.readValue(rs.getString(++resCount), Operation.Requirements.class);
         final var errorDescription = rs.getString(++resCount);
         final var taskId = rs.getString(++resCount);
         final var servantUrl = rs.getString(++resCount);
-        return new ServantState(id, workflow, () -> Arrays.stream(provisioning).collect(Collectors.toSet()),
-                status, errorDescription, taskId, servantUrl == null ? null : HostAndPort.fromString(servantUrl));
+        return new ServantState(id, workflow, requirements,
+            status, errorDescription, taskId, servantUrl == null ? null : HostAndPort.fromString(servantUrl));
     }
 
     @Nullable
@@ -254,12 +259,12 @@ public class ServantDaoImpl implements ServantDao, ServantMetaStorage {
                 rs.next();
                 return readServantState(rs);
             }
-        } catch (SQLException e) {
+        } catch (SQLException | JsonProcessingException e) {
             throw new DaoException(e);
         }
     }
 
-    private List<ServantState> readServantStates(PreparedStatement ps) throws SQLException {
+    private List<ServantState> readServantStates(PreparedStatement ps) throws SQLException, JsonProcessingException {
         final List<ServantState> res = new ArrayList<>();
         try (var rs = ps.executeQuery()) {
             while (rs.next()) {

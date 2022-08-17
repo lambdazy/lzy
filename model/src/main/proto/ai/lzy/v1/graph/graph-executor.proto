@@ -6,7 +6,7 @@ option java_outer_classname = "GraphExecutorApi";
 option java_package = "ai.lzy.v1.graph";
 
 import "ai/lzy/v1/scheduler/scheduler.proto";
-import "ai/lzy/v1/zygote.proto";
+import "ai/lzy/v1/common/operation.proto";
 
 service GraphExecutor {
   rpc Execute (GraphExecuteRequest) returns (GraphExecuteResponse);
@@ -17,7 +17,7 @@ service GraphExecutor {
 
 message TaskDesc {
   string id = 1;
-  Zygote zygote = 2;
+  ai.lzy.v1.common.Operation operation = 2;
   repeated SlotToChannelAssignment slotAssignments = 3;
 }
 

@@ -151,11 +151,11 @@ public class ServantEventProcessor extends Thread {
                 if (servant == null) {
                     throw new AssertionException();
                 }
-                this.connection = new ServantConnectionImpl(event.servantUrl(), servant);
+                this.connection = new ServantConnectionImpl(event.servantUrl());
                 final Task task = getTask(currentState.taskId());
                 final ServantConnection connection = getConnection(currentState);
 
-                connection.api().configure(task.description().zygote().env());
+                connection.api().configure(task.description().operation().env());
                 final ServantEvent timeout = ServantEvent.fromState(currentState, Type.CONFIGURATION_TIMEOUT)
                     .setTimeout(config.configuringTimeout())
                     .setRc(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc())
@@ -182,7 +182,8 @@ public class ServantEventProcessor extends Thread {
                 task.notifyExecuting(currentState.id());
 
                 if (currentState.status() == Status.CREATED) {
-                    allocator.allocate(currentState.workflowName(), currentState.id(), currentState.provisioning());
+                    allocator.allocate(currentState.workflowName(), currentState.id(),
+                        currentState.requirements());
                     final ServantEvent timeout = ServantEvent.fromState(currentState, Type.ALLOCATION_TIMEOUT)
                         .setTimeout(config.allocationTimeout())
                         .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
@@ -197,7 +198,7 @@ public class ServantEventProcessor extends Thread {
 
                 final ServantConnection connection = getConnection(currentState);
 
-                connection.api().configure(task.description().zygote().env());
+                connection.api().configure(task.description().operation().env());
                 final ServantEvent timeout = ServantEvent.fromState(currentState, Type.CONFIGURATION_TIMEOUT)
                     .setTimeout(config.configuringTimeout())
                     .setRc(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc())
@@ -320,7 +321,7 @@ public class ServantEventProcessor extends Thread {
             if (servant == null) {
                 throw new AssertionException();
             }
-            connection = new ServantConnectionImpl(currentState.servantUrl(), servant);
+            connection = new ServantConnectionImpl(currentState.servantUrl());
         }
         return connection;
     }
@@ -345,7 +346,7 @@ public class ServantEventProcessor extends Thread {
                     currentState.id(), currentState.workflowName(), currentEvent.type(), currentEvent.description());
         }
         try {
-            allocator.destroy(currentState.workflowName(), currentState.id());
+            allocator.free(currentState.workflowName(), currentState.id());
         } catch (Exception e) {
             throw new RuntimeException("Exception while destroying servant", e);
         }
@@ -442,7 +443,7 @@ public class ServantEventProcessor extends Thread {
             }
         }
         final ServantConnection connection = getConnection(currentState);
-        connection.api().gracefulStop();
+        connection.api().stop();
         final ServantEvent timeout = ServantEvent.fromState(currentState, Type.STOPPING_TIMEOUT)
             .setTimeout(config.servantStopTimeout())
             .setRc(ReturnCodes.INTERNAL_ERROR.getRc())

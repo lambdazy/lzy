@@ -26,13 +26,15 @@ public class GraphBuilderImpl implements GraphBuilder {
             }
 
             final Set<String> inputs = Set.copyOf(
-                Arrays.stream(task.zygote().input())
+                task.operation().slots().stream()
+                    .filter(s -> s.direction() == Slot.Direction.INPUT)
                     .map(Slot::name)
                     .toList()
             );
 
             final Set<String> outputs = Set.copyOf(
-                Arrays.stream(task.zygote().output())
+                task.operation().slots().stream()
+                    .filter(s -> s.direction() == Slot.Direction.OUTPUT)
                     .map(Slot::name)
                     .toList()
             );

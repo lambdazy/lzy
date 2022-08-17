@@ -3,9 +3,9 @@ package ai.lzy.scheduler.test;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.v1.Operations;
-import ai.lzy.v1.SchedulerApi.TaskDesc;
 import ai.lzy.v1.SchedulerApi.TaskScheduleRequest;
 import ai.lzy.v1.SchedulerGrpc;
+import ai.lzy.v1.common.LzyCommon;
 import ai.lzy.v1.lzy.SchedulerPrivateApi.RegisterServantRequest;
 import ai.lzy.v1.lzy.SchedulerPrivateApi.ServantProgress;
 import ai.lzy.v1.lzy.SchedulerPrivateApi.ServantProgress.Configured;
@@ -79,11 +79,13 @@ public class IntegrationTest {
         stub.schedule(TaskScheduleRequest.newBuilder()
             .setWorkflowId("wfid")
             .setWorkflowName("wf")
-            .setTask(TaskDesc.newBuilder()
-                .setZygote(Operations.Zygote.newBuilder()
+            .setTask(LzyCommon.TaskDesc.newBuilder()
+                .setOperation(LzyCommon.Operation.newBuilder()
                     .setName("name")
-                    .setProvisioning(Operations.Provisioning.newBuilder().build())
-                    .setFuze("")
+                    .setRequirements(LzyCommon.Requirements.newBuilder()
+                        .setPoolLabel("s")
+                        .setZone("a").build())
+                    .setCommand("")
                     .setDescription("")
                     .setEnv(Operations.EnvSpec.newBuilder().build())
                     .build())

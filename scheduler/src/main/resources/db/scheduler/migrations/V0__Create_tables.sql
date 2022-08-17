@@ -33,7 +33,7 @@ CREATE TABLE servant (
     id varchar(255) NOT NULL,
     workflow_name varchar(255) NOT NULL,
     status servant_status NOT NULL,
-    provisioning varchar(64) ARRAY NOT NULL,
+    requirements_json varchar(10485760) NOT NULL,
 
     error_description varchar(2048) NULL,
     task_id varchar(255) NULL,
