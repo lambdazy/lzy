@@ -49,6 +49,8 @@ public class GarbageCollector extends TimerTask {
                     var op = operations.get(vm.allocationOperationId(), tr);
                     if (op != null) {
                         operations.update(op.complete(Status.DEADLINE_EXCEEDED.withDescription("Vm is expired")), tr);
+                    } else {
+                        LOG.warn("Op with id={} not found", vm.allocationOperationId());
                     }
                     tr.commit();
                 } catch (SQLException e) {
@@ -60,6 +62,7 @@ public class GarbageCollector extends TimerTask {
             });
         } catch (Exception e) {
             LOG.error("Error during GC", e);
+            e.printStackTrace();
         }
     }
 

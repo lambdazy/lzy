@@ -6,7 +6,6 @@ import ai.lzy.allocator.vmpool.VmPoolSpec;
 import com.google.common.net.HostAndPort;
 import io.micronaut.context.annotation.Primary;
 import io.micronaut.context.annotation.Requires;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,11 +20,11 @@ public class MockMk8s implements VmPoolRegistry, ClusterRegistry {
 
     private final Map<String, ClusterDescription> labelsToClusters = new ConcurrentHashMap<>(Map.of(
         "S", new ClusterDescription(
-            "S-" + UUID.randomUUID().toString(),
+            "S-" + UUID.randomUUID(),
             HostAndPort.fromString("localhost:1256"),
             ""),
         "M", new ClusterDescription(
-            "M-" + UUID.randomUUID().toString(),
+            "M-" + UUID.randomUUID(),
             HostAndPort.fromString("localhost:1256"),
             "")
     ));
