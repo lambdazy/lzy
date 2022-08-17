@@ -79,7 +79,7 @@ public class YcDiskManager implements DiskManager {
                 LOG.warn("Disk with id={} was not found", id);
                 return null;
             }
-            throw e;
+            throw new RuntimeException(e);
         }
     }
 
