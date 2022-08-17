@@ -26,7 +26,7 @@ public record Operation(
         String zone
     ) { }
 
-    public static Operation from(LzyCommon.Operation operation) {
+    public static Operation fromProto(LzyCommon.Operation operation) {
         final var req = new Requirements(
             operation.getRequirements().getPoolLabel(),
             operation.getRequirements().getZone());
@@ -44,7 +44,7 @@ public record Operation(
         );
     }
 
-    public LzyCommon.Operation to() {
+    public LzyCommon.Operation toProto() {
         final var req = LzyCommon.Requirements.newBuilder()
             .setPoolLabel(requirements.poolLabel)
             .setZone(requirements.zone)

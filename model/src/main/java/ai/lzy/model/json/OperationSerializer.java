@@ -17,7 +17,6 @@ public class OperationSerializer extends StdSerializer<Operation> {
     @Override
     public void serialize(Operation message, JsonGenerator jsonGenerator,
                           SerializerProvider serializerProvider) throws IOException {
-        String s = JsonFormat.printer().print(message.to());
-        jsonGenerator.writeRawValue(s);
+        jsonGenerator.writeRawValue(JsonFormat.printer().print(message.toProto()));
     }
 }

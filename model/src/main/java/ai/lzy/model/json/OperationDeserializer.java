@@ -17,8 +17,8 @@ public class OperationDeserializer extends StdDeserializer<Operation> {
     @Override
     public Operation deserialize(JsonParser jsonParser, DeserializationContext context) throws IOException {
         String s = jsonParser.readValueAsTree().toString();
-        LzyCommon.Operation.Builder z = LzyCommon.Operation.newBuilder();
-        JsonFormat.parser().merge(s, z);
-        return Operation.from(z.build());
+        LzyCommon.Operation.Builder opBuilder = LzyCommon.Operation.newBuilder();
+        JsonFormat.parser().merge(s, opBuilder);
+        return Operation.fromProto(opBuilder.build());
     }
 }

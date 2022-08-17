@@ -28,7 +28,7 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
         final Task task;
         try {
             task = scheduler.execute(request.getWorkflowId(), request.getWorkflowName(),
-                    TaskDesc.from(request.getTask()));
+                    TaskDesc.fromProto(request.getTask()));
         } catch (StatusException e) {
             responseObserver.onError(e);
             return;

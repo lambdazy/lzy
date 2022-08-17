@@ -23,7 +23,7 @@ public record GraphDescription(
         final List<TaskDescription> taskDescriptions = tasks.stream()
             .map(t -> new TaskDescription(
                 t.getId(),
-                Operation.from(t.getOperation()),
+                Operation.fromProto(t.getOperation()),
                 t.getSlotAssignmentsList()
                 .stream()
                 .collect(Collectors.toMap(

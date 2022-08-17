@@ -443,7 +443,7 @@ public class ServantEventProcessor extends Thread {
             }
         }
         final ServantConnection connection = getConnection(currentState);
-        connection.api().gracefulStop();
+        connection.api().stop();
         final ServantEvent timeout = ServantEvent.fromState(currentState, Type.STOPPING_TIMEOUT)
             .setTimeout(config.servantStopTimeout())
             .setRc(ReturnCodes.INTERNAL_ERROR.getRc())

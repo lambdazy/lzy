@@ -7,5 +7,5 @@ import io.grpc.StatusRuntimeException;
 public interface ServantApi {
     void configure(Env env) throws StatusRuntimeException;
     void startExecution(String taskId, TaskDesc task) throws StatusRuntimeException;
-    void gracefulStop() throws StatusRuntimeException;
+    void stop() throws StatusRuntimeException;
 }
