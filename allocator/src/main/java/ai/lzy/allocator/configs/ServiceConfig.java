@@ -31,8 +31,11 @@ public class ServiceConfig {
     private ThreadAllocator threadAllocator = new ThreadAllocator();
     private DockerAllocator dockerAllocator = new DockerAllocator();
     private KuberAllocator kuberAllocator = new KuberAllocator();
-    private YcMk8sConfig ycMk8s = new YcMk8sConfig();
-    private AzureMk8sConfig azureMk8s = new AzureMk8sConfig();
+
+    private DiskManagerConfig diskManagerConfig = new DiskManagerConfig();
+
+    private YcCredentialsConfig ycCredentialsConfig = new YcCredentialsConfig();
+    private AzureCredentialsConfig azureCredentialsConfig = new AzureCredentialsConfig();
 
     @Getter
     @Setter
@@ -59,16 +62,24 @@ public class ServiceConfig {
 
     @Getter
     @Setter
-    @ConfigurationProperties("yc-mk8s")
-    public static final class YcMk8sConfig {
+    @ConfigurationProperties("yc-credentials")
+    public static final class YcCredentialsConfig {
         private boolean enabled = false;
         private String serviceAccountFile;
     }
 
     @Getter
     @Setter
-    @ConfigurationProperties("azure-mk8s")
-    public static final class AzureMk8sConfig {
+    @ConfigurationProperties("azure-credentials")
+    public static final class AzureCredentialsConfig {
         private boolean enabled = false;
+    }
+
+    @Getter
+    @Setter
+    @ConfigurationProperties("disk-manager")
+    public static final class DiskManagerConfig {
+        private String folderId;
+        private Duration defaultOperationTimeout;
     }
 }

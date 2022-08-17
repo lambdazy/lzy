@@ -1,6 +1,6 @@
 package ai.lzy.scheduler.servant;
 
-import ai.lzy.scheduler.models.TaskDesc;
+import ai.lzy.model.TaskDesc;
 import ai.lzy.scheduler.task.Task;
 import io.grpc.StatusException;
 

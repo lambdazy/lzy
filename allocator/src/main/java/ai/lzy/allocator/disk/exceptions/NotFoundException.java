@@ -1,0 +1,5 @@
+package ai.lzy.allocator.disk.exceptions;
+
+public class NotFoundException extends Exception {
+    public NotFoundException() {}
+}

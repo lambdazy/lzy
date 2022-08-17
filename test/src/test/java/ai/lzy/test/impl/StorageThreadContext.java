@@ -1,7 +1,7 @@
 package ai.lzy.test.impl;
 
-import ai.lzy.iam.authorization.credentials.JwtCredentials;
 import ai.lzy.iam.config.IamClientConfiguration;
+import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.grpc.ClientHeaderInterceptor;
 import ai.lzy.model.grpc.GrpcHeaders;
@@ -30,7 +30,7 @@ import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
-import static ai.lzy.model.utils.JwtCredentials.buildJWT;
+import static ai.lzy.util.auth.credentials.JwtUtils.buildJWT;
 
 @SuppressWarnings("UnstableApiUsage")
 public class StorageThreadContext implements LzyStorageTestContext {

@@ -1,7 +1,7 @@
 package ai.lzy.kharon.workflow;
 
-import ai.lzy.iam.authorization.credentials.JwtCredentials;
-import ai.lzy.iam.authorization.exceptions.AuthUnauthenticatedException;
+import ai.lzy.util.auth.credentials.JwtCredentials;
+import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.utils.CredentialsHelper;
@@ -33,7 +33,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 
-import static ai.lzy.model.utils.JwtCredentials.buildJWT;
+import static ai.lzy.util.auth.credentials.JwtUtils.buildJWT;
 
 public class WorkflowServiceTest {
     private ApplicationContext ctx;

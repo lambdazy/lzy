@@ -1,7 +1,7 @@
 package ai.lzy.iam.grpc.context;
 
 import io.grpc.Context;
-import ai.lzy.iam.authorization.credentials.Credentials;
+import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.utils.TokenParser;
 

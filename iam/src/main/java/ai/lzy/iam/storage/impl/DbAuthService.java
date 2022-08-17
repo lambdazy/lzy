@@ -1,11 +1,11 @@
 package ai.lzy.iam.storage.impl;
 
-import ai.lzy.iam.authorization.credentials.Credentials;
-import ai.lzy.iam.authorization.credentials.JwtCredentials;
-import ai.lzy.iam.authorization.exceptions.AuthException;
-import ai.lzy.iam.authorization.exceptions.AuthInternalException;
-import ai.lzy.iam.authorization.exceptions.AuthPermissionDeniedException;
-import ai.lzy.iam.authorization.exceptions.AuthUnauthenticatedException;
+import ai.lzy.util.auth.credentials.Credentials;
+import ai.lzy.util.auth.credentials.JwtCredentials;
+import ai.lzy.util.auth.exceptions.AuthException;
+import ai.lzy.util.auth.exceptions.AuthInternalException;
+import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
+import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
 import ai.lzy.iam.clients.AuthenticateService;
 import ai.lzy.iam.resources.subjects.Servant;
 import ai.lzy.iam.resources.subjects.Subject;

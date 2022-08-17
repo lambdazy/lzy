@@ -1,7 +1,7 @@
 package ai.lzy.iam.clients.stub;
 
-import ai.lzy.iam.authorization.credentials.Credentials;
-import ai.lzy.iam.authorization.exceptions.AuthException;
+import ai.lzy.util.auth.credentials.Credentials;
+import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.iam.clients.SubjectService;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.User;

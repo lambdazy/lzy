@@ -11,6 +11,7 @@ import ai.lzy.graph.model.TaskDescription;
 import ai.lzy.graph.queue.QueueManager;
 import ai.lzy.graph.test.mocks.GraphDaoMock;
 import ai.lzy.graph.test.mocks.SchedulerApiMock;
+import ai.lzy.model.Operation;
 import ai.lzy.v1.SchedulerApi.TaskStatus;
 import io.grpc.StatusException;
 import io.micronaut.context.ApplicationContext;
@@ -24,8 +25,8 @@ import java.util.stream.Stream;
 import ai.lzy.model.db.DaoException;
 import ai.lzy.graph.db.QueueEventDao;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.core.config.Configurator;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.*;
 import ai.lzy.graph.algo.GraphBuilderImpl;
 import ai.lzy.graph.algo.GraphBuilder;
@@ -46,6 +47,7 @@ public class GraphExecutorTest {
     private static final ApplicationContext context = ApplicationContext.run();
     private static final GraphDaoMock dao = context.getBean(GraphDaoMock.class);
     private static final QueueEventDao queueEventDao = context.getBean(QueueEventDao.class);
+    private static final Logger LOG = LogManager.getLogger(GraphExecutorTest.class);
 
     @Rule
     public Timeout globalTimeout = Timeout.seconds(10);
@@ -192,11 +194,11 @@ public class GraphExecutorTest {
             // Step 1
             tester.waitForStatus(QUEUE, "1", "2");
             tester.awaitExecutingNow("1", "2");
-            tester.changeStatus(SchedulerApiMock.COMPLETED, "1");
+            tester.changeStatus(SchedulerApiMock.COMPLETED, "2");
 
             // Step2
             tester.awaitExecutingNow("1", "2");
-            tester.changeStatus(SchedulerApiMock.COMPLETED, "2");
+            tester.changeStatus(SchedulerApiMock.COMPLETED, "1");
 
             // Step 3
             tester.waitForStatus(QUEUE, "3", "4", "5");
@@ -306,27 +308,14 @@ public class GraphExecutorTest {
         }
     }
 
-    public static Zygote buildZygote(List<String> inputs, List<String> outputs) {
-        return new Zygote() {
-            @Override
-            public Slot[] input() {
-                return inputs.stream().map(t -> buildSlot(t, Slot.Direction.INPUT)).toArray(Slot[]::new);
-            }
-
-            @Override
-            public Slot[] output() {
-                return outputs.stream().map(t -> buildSlot(t, Slot.Direction.OUTPUT)).toArray(Slot[]::new);
-            }
-
-            @Override
-            public void run() {
-            }
-
-            @Override
-            public String name() {
-                return null;
-            }
-        };
+    public static Operation buildOperation(List<String> inputs, List<String> outputs) {
+        final var slots = Stream.concat(
+            inputs.stream()
+                .map(s -> buildSlot(s, Slot.Direction.INPUT)),
+            outputs.stream()
+                .map(s -> buildSlot(s, Slot.Direction.OUTPUT)))
+            .toList();
+        return new Operation(null, new Operation.Requirements("", ""), "", slots, "", "");
     }
 
     public static Slot buildSlot(String name, Slot.Direction direction) {
@@ -378,7 +367,7 @@ public class GraphExecutorTest {
                     .map(s -> s + "to" + v).collect(Collectors.toList());
                 List<String> outputs = edges.getOrDefault(v, new ArrayList<>()).stream()
                     .map(s -> v + "to" + s).collect(Collectors.toList());
-                Zygote zygote = buildZygote(inputs, outputs);
+                final var zygote = buildOperation(inputs, outputs);
                 Map<String, String> slotsMapping = Stream.concat(inputs.stream(), outputs.stream())
                     .collect(Collectors.toMap(t -> t, t -> t));
                 channelDescriptions.putAll(

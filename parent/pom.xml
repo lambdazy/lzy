@@ -117,6 +117,9 @@
     <streamex.version>0.7.3</streamex.version>
     <javax.validation.api.version>2.0.1.Final</javax.validation.api.version>
     <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
+    <yc.java.sdk.version>2.5.1</yc.java.sdk.version>
+    <c3p0.version>0.9.5.5</c3p0.version>
+    <javax.inject.version>1</javax.inject.version>
     <fabric8-kuber-client.version>6.0.0</fabric8-kuber-client.version>
     <lombok.version>1.18.24</lombok.version>
   </properties>
@@ -645,6 +648,11 @@
         </exclusions>
       </dependency>
       <dependency>
+        <groupId>com.mchange</groupId>
+        <artifactId>c3p0</artifactId>
+        <version>${c3p0.version}</version>
+      </dependency>
+      <dependency>
         <groupId>io.micronaut</groupId>
         <artifactId>micronaut-inject</artifactId>
         <version>${micronaut.version}</version>
@@ -843,9 +851,19 @@
         <version>${javax.validation.api.version}</version>
       </dependency>
       <dependency>
+        <groupId>com.yandex.cloud</groupId>
+        <artifactId>java-sdk-services</artifactId>
+        <version>${yc.java.sdk.version}</version>
+      </dependency>
+      <dependency>
         <groupId>com.mchange</groupId>
         <artifactId>c3p0</artifactId>
         <version>${com.mchange.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>javax.inject</groupId>
+        <artifactId>javax.inject</artifactId>
+        <version>${javax.inject.version}</version>
       </dependency>
       <dependency>
         <groupId>io.fabric8</groupId>

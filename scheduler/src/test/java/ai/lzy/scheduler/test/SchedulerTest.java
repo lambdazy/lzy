@@ -8,7 +8,7 @@ import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.scheduler.db.ServantEventDao;
 import ai.lzy.scheduler.db.TaskDao;
 import ai.lzy.scheduler.models.ServantState;
-import ai.lzy.scheduler.models.TaskDesc;
+import ai.lzy.model.TaskDesc;
 import ai.lzy.scheduler.servant.Servant;
 import ai.lzy.scheduler.servant.ServantsPool;
 import ai.lzy.scheduler.servant.impl.EventQueueManager;
@@ -25,13 +25,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 
-import java.net.URI;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.function.Function;
 
-import static ai.lzy.scheduler.test.EventProcessorTest.buildZygote;
+import static ai.lzy.scheduler.test.EventProcessorTest.buildOp;
 
 public class SchedulerTest {
 
@@ -82,7 +81,7 @@ public class SchedulerTest {
         final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
         allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
 
-        scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of())); //task 1
+        scheduler.execute(workflowId, workflowName, new TaskDesc(buildOp(), Map.of())); //task 1
         var req = allocationRequested.get();
 
         final var port = FreePortFinder.find(1000, 2000);
@@ -106,8 +105,8 @@ public class SchedulerTest {
         exec.take();
         servant.notifyExecutionCompleted(0, "Ok");
 
-        scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of())); //task 2
-        scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of())); //task 3
+        scheduler.execute(workflowId, workflowName, new TaskDesc(buildOp(), Map.of())); //task 2
+        scheduler.execute(workflowId, workflowName, new TaskDesc(buildOp(), Map.of())); //task 3
 
         env.take();
         servant.notifyConfigured(0, "OK");
@@ -146,8 +145,8 @@ public class SchedulerTest {
 
         allocator.onAllocationRequested(((a, b, c) -> requests.add(new AllocationRequest(a, b, c))));
 
-        scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of())); //task 1
-        scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of())); //task 2
+        scheduler.execute(workflowId, workflowName, new TaskDesc(buildOp(), Map.of())); //task 1
+        scheduler.execute(workflowId, workflowName, new TaskDesc(buildOp(), Map.of())); //task 2
 
         final var port1 = FreePortFinder.find(1000, 2000);
         final CountDownLatch env1 = new CountDownLatch(1);
@@ -231,7 +230,7 @@ public class SchedulerTest {
 
         final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
         allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
-        scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of())); //task 1
+        scheduler.execute(workflowId, workflowName, new TaskDesc(buildOp(), Map.of())); //task 1
         var req = allocationRequested.get();
 
         final var port = FreePortFinder.find(1000, 2000);
@@ -261,11 +260,11 @@ public class SchedulerTest {
 
         scheduler = restart.apply(scheduler);
 
-        scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of())); //task 2
+        scheduler.execute(workflowId, workflowName, new TaskDesc(buildOp(), Map.of())); //task 2
 
         scheduler = restart.apply(scheduler);
 
-        scheduler.execute(workflowId, workflowName, new TaskDesc(buildZygote(), Map.of())); //task 3
+        scheduler.execute(workflowId, workflowName, new TaskDesc(buildOp(), Map.of())); //task 3
 
         env.take();
         servant.notifyConfigured(0, "OK");

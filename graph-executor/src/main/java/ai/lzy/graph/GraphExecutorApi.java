@@ -1,6 +1,6 @@
 package ai.lzy.graph;
 
-import static ai.lzy.model.utils.JwtCredentials.buildJWT;
+import static ai.lzy.util.auth.credentials.JwtUtils.buildJWT;
 
 import ai.lzy.graph.algo.GraphBuilder;
 import ai.lzy.graph.config.AuthConfig;
@@ -10,9 +10,6 @@ import ai.lzy.graph.db.GraphExecutionDao;
 import ai.lzy.graph.model.GraphDescription;
 import ai.lzy.graph.model.GraphExecutionState;
 import ai.lzy.graph.queue.QueueManager;
-import ai.lzy.iam.authorization.credentials.Credentials;
-import ai.lzy.iam.authorization.credentials.JwtCredentials;
-import ai.lzy.iam.authorization.exceptions.AuthException;
 import ai.lzy.iam.clients.AccessClient;
 import ai.lzy.iam.clients.AuthenticateService;
 import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
@@ -23,6 +20,9 @@ import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.impl.Workflow;
 import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.auth.credentials.Credentials;
+import ai.lzy.util.auth.credentials.JwtCredentials;
+import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.model.grpc.GrpcLogsInterceptor;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphExecuteRequest;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphExecuteResponse;

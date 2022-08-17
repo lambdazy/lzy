@@ -1,6 +1,6 @@
 package ai.lzy.scheduler.models;
 
-import ai.lzy.model.graph.Provisioning;
+import ai.lzy.model.Operation;
 import org.apache.curator.shaded.com.google.common.net.HostAndPort;
 
 import javax.annotation.Nullable;
@@ -8,7 +8,7 @@ import javax.annotation.Nullable;
 public record ServantState(
     String id,
     String workflowName,
-    Provisioning provisioning,
+    Operation.Requirements requirements,
     Status status,
 
     @Nullable String errorDescription,
@@ -28,7 +28,7 @@ public record ServantState(
     }
 
     public ServantStateBuilder copy() {
-        return new ServantStateBuilder(id, workflowName, provisioning, status)
+        return new ServantStateBuilder(id, workflowName, requirements, status)
             .setTaskId(taskId)
             .setErrorDescription(errorDescription)
             .setServantUrl(servantUrl);
@@ -42,17 +42,17 @@ public record ServantState(
     public static class ServantStateBuilder {
         private final String id;
         private final String workflowName;
-        private final Provisioning provisioning;
+        private final Operation.Requirements requirements;
         private Status status;
 
         @Nullable private String taskId = null;
         @Nullable private String errorDescription = null;
         @Nullable private HostAndPort servantUrl = null;
 
-        public ServantStateBuilder(String id, String workflowName, Provisioning provisioning, Status status) {
+        public ServantStateBuilder(String id, String workflowName, Operation.Requirements requirements, Status status) {
             this.id = id;
             this.workflowName = workflowName;
-            this.provisioning = provisioning;
+            this.requirements = requirements;
             this.status = status;
         }
 
@@ -77,7 +77,8 @@ public record ServantState(
         }
 
         public ServantState build() {
-            return new ServantState(id, workflowName, provisioning, status, errorDescription, taskId, servantUrl);
+            return new ServantState(id, workflowName, requirements, status, errorDescription,
+                taskId, servantUrl);
         }
     }
 }
