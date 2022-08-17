@@ -3,14 +3,12 @@ package ai.lzy.test.impl;
 import ai.lzy.model.Slot;
 import ai.lzy.model.data.DataSchema;
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
-
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Utils {
     public static class Defaults {
@@ -23,35 +21,6 @@ public class Utils {
         public static final int    CHANNEL_MANAGER_PORT = 8122;
         public static final int    DEBUG_PORT           = 5006;
         public static final String LZY_MOUNT            = "/tmp/lzy";
-    }
-
-    public static boolean waitFlagUp(Supplier<Boolean> supplier, long timeout, TimeUnit unit) {
-        boolean flag = false;
-        final long start = System.currentTimeMillis();
-        while (System.currentTimeMillis() - start < TimeUnit.MILLISECONDS.convert(timeout, unit)) {
-            flag = supplier.get();
-            if (flag) {
-                break;
-            }
-            try {
-                //noinspection BusyWait
-                Thread.sleep(500);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        }
-        return flag;
-    }
-
-    static ProcessBuilder javaProcess(String clazz, String[] args, String[] systemPropertiesArgs) {
-        final List<String> command = new ArrayList<>();
-        command.add(System.getProperty("java.home") + "/bin" + "/java");
-        command.addAll(Arrays.asList(systemPropertiesArgs));
-        command.add("-cp");
-        command.add(System.getProperty("java.class.path"));
-        command.add(clazz);
-        command.addAll(Arrays.asList(args));
-        return new ProcessBuilder(command);
     }
 
     static String bashEscape(String command) {
@@ -110,11 +79,6 @@ public class Utils {
                 return DataSchema.plain;
             }
         };
-    }
-
-    public static String lastLine(String s) {
-        final String[] split = s.split("\n");
-        return split[split.length - 1];
     }
 
     public static Map<String, Object> loadModuleTestProperties(String module) {

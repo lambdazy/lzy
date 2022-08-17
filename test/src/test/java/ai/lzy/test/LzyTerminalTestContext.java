@@ -71,7 +71,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
 
         @SuppressWarnings("UnusedReturnValue")
         default ExecutionResult executeTerminalCommand(Path binaryPath, String... command) {
-            Utils.waitFlagUp(() -> pathExists(binaryPath), DEFAULT_TIMEOUT_SEC, TimeUnit.SECONDS);
+            TimeUtils.waitFlagUp(() -> pathExists(binaryPath), DEFAULT_TIMEOUT_SEC, TimeUnit.SECONDS);
             final ExecutionResult result = execute(
                 binaryPath.toString(),
                 String.join(" ", command)
@@ -137,7 +137,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
                     "-z",
                     serverAddress() // serverAddress
                 );
-                Utils.waitFlagUp(
+                TimeUtils.waitFlagUp(
                     () -> pathExists(Path.of(mount() + "/bin/" + zygote.name())),
                     30,
                     TimeUnit.SECONDS
@@ -302,7 +302,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
                 "slot.json"
             );
             if (slot.direction() == Slot.Direction.OUTPUT) {
-                Utils.waitFlagUp(() -> pathExists(Path.of(path)), DEFAULT_TIMEOUT_SEC, TimeUnit.SECONDS);
+                TimeUtils.waitFlagUp(() -> pathExists(Path.of(path)), DEFAULT_TIMEOUT_SEC, TimeUnit.SECONDS);
             }
         }
 
@@ -311,7 +311,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
         }
 
         default boolean waitForStatus(AgentStatus status, long timeout, TimeUnit unit) {
-            return Utils.waitFlagUp(() -> Objects.equals(status(), status), timeout, unit);
+            return TimeUtils.waitFlagUp(() -> Objects.equals(status(), status), timeout, unit);
         }
 
         @Nullable

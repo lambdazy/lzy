@@ -1,6 +1,7 @@
 package ai.lzy.allocator.services;
 
 import ai.lzy.allocator.alloc.VmAllocator;
+import ai.lzy.allocator.alloc.exceptions.InvalidPoolException;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.SessionDao;
@@ -110,12 +111,9 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             Any.pack(AllocateMetadata.newBuilder().build()),
             null
         );
-
         try (var transaction = new TransactionHandle(storage)) {
-
             final var existingVm = dao.acquire(request.getSessionId(), request.getPoolLabel(),
                 request.getZone(), transaction);
-
             if (existingVm != null) {
                 op = op.complete(Any.pack(AllocateResponse.newBuilder()
                     .setSessionId(existingVm.sessionId())
@@ -140,32 +138,35 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         responseObserver.onNext(op.toGrpc());
         responseObserver.onCompleted();
 
-        var workloads = request.getWorkloadList().stream()
-            .map(Workload::fromGrpc)
-            .toList();
+        try {
+            var workloads = request.getWorkloadList().stream()
+                .map(Workload::fromGrpc)
+                .toList();
+            Vm vm;
+            try (var transaction = new TransactionHandle(storage)) {
+                vm = dao.create(request.getSessionId(), request.getPoolLabel(),
+                    request.getZone(), workloads, op.id(), transaction);
+                op = op.modifyMeta(Any.pack(AllocateMetadata.newBuilder().setVmId(vm.vmId()).build()));
+                operations.update(op, transaction);
 
-        Vm vm = null;
+                vm = new Vm.VmBuilder(vm)
+                    .setState(Vm.State.CONNECTING)
+                    .setAllocationDeadline(
+                        Instant.now().plus(config.allocationTimeout()))  // TODO(artolord) add to config
+                    .build();
+                dao.update(vm, transaction);
+                transaction.commit();
+            }
 
-        try (var transaction = new TransactionHandle(storage)) {
-            vm = dao.create(request.getSessionId(), request.getPoolLabel(),
-                request.getZone(), workloads, op.id(), transaction);
-            op = op.modifyMeta(Any.pack(AllocateMetadata.newBuilder().setVmId(vm.vmId()).build()));
-            operations.update(op, transaction);
-
-            allocator.allocate(vm, transaction);
-
-            vm = new Vm.VmBuilder(vm)
-                .setState(Vm.State.CONNECTING)
-                .setAllocationDeadline(Instant.now().plus(config.allocationTimeout()))  // TODO(artolord) add to config
-                .build();
-            dao.update(vm, transaction);
-            transaction.commit();
+            try {
+                allocator.allocate(vm);
+            } catch (InvalidPoolException e) {
+                LOG.error("Error while allocating", e);
+                operations.update(op.complete(Status.INVALID_ARGUMENT.withDescription(e.getMessage())), null);
+            }
         } catch (Exception e) {
             LOG.error("Error while executing request", e);
-            if (vm != null) {
-                allocator.deallocate(vm);
-                operations.update(op.complete(Status.INTERNAL.withDescription("Error while executing request")), null);
-            }
+            operations.update(op.complete(Status.INTERNAL.withDescription("Error while executing request")), null);
         }
     }
 

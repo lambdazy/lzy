@@ -4,7 +4,6 @@ import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
-import ai.lzy.model.db.TransactionHandle;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.model.ExposedPort;
@@ -15,12 +14,11 @@ import com.github.dockerjava.core.DockerClientBuilder;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.commons.lang.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import javax.annotation.Nullable;
-import java.util.Map;
 
 @Singleton
 @Requires(property = "allocator.docker-allocator.enabled", value = "true")
@@ -75,9 +73,9 @@ public class DockerVmAllocator implements VmAllocator {
     }
 
     @Override
-    public void allocate(Vm vm, @Nullable TransactionHandle transaction) {
+    public void allocate(Vm vm) {
         var containerId = requestAllocation(vm.workloads().get(0));  // Support only one workload for now
-        dao.saveAllocatorMeta(vm.vmId(), Map.of(CONTAINER_ID_KEY, containerId), transaction);
+        dao.saveAllocatorMeta(vm.vmId(), Map.of(CONTAINER_ID_KEY, containerId), null);
     }
 
     @Override
