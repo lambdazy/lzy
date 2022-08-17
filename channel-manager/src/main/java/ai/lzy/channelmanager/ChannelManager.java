@@ -1,8 +1,5 @@
 package ai.lzy.channelmanager;
 
-import static ai.lzy.model.GrpcConverter.from;
-import static ai.lzy.model.GrpcConverter.to;
-
 import ai.lzy.channelmanager.channel.Channel;
 import ai.lzy.channelmanager.channel.ChannelException;
 import ai.lzy.channelmanager.channel.Endpoint;
@@ -17,20 +14,7 @@ import ai.lzy.model.channel.ChannelSpec;
 import ai.lzy.model.channel.DirectChannelSpec;
 import ai.lzy.model.channel.SnapshotChannelSpec;
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.v1.ChannelManager.ChannelCreateRequest;
-import ai.lzy.v1.ChannelManager.ChannelCreateResponse;
-import ai.lzy.v1.ChannelManager.ChannelDestroyAllRequest;
-import ai.lzy.v1.ChannelManager.ChannelDestroyAllResponse;
-import ai.lzy.v1.ChannelManager.ChannelDestroyRequest;
-import ai.lzy.v1.ChannelManager.ChannelDestroyResponse;
-import ai.lzy.v1.ChannelManager.ChannelStatus;
-import ai.lzy.v1.ChannelManager.ChannelStatusList;
-import ai.lzy.v1.ChannelManager.ChannelStatusRequest;
-import ai.lzy.v1.ChannelManager.ChannelsStatusRequest;
-import ai.lzy.v1.ChannelManager.SlotAttach;
-import ai.lzy.v1.ChannelManager.SlotAttachStatus;
-import ai.lzy.v1.ChannelManager.SlotDetach;
-import ai.lzy.v1.ChannelManager.SlotDetachStatus;
+import ai.lzy.v1.ChannelManager.*;
 import ai.lzy.v1.Channels;
 import ai.lzy.v1.LzyChannelManagerGrpc;
 import ai.lzy.v1.Operations;
@@ -42,21 +26,20 @@ import io.grpc.Status;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
+import org.apache.commons.cli.*;
+import org.apache.commons.lang3.NotImplementedException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
-import org.apache.commons.lang3.NotImplementedException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+
+import static ai.lzy.model.GrpcConverter.from;
+import static ai.lzy.model.GrpcConverter.to;
 
 @SuppressWarnings("UnstableApiUsage")
 public class ChannelManager {
@@ -120,8 +103,8 @@ public class ChannelManager {
     public ChannelManager(ApplicationContext ctx) {
         var config = ctx.getBean(ChannelManagerConfig.class);
         channelStorage = new LocalChannelStorage();
-        final HostAndPort address = HostAndPort.fromString(config.address());
-        final var iamAddress = HostAndPort.fromString(config.iam().address());
+        final HostAndPort address = HostAndPort.fromString(config.getAddress());
+        final var iamAddress = HostAndPort.fromString(config.getIam().getAddress());
         iamChannel = ChannelBuilder.forAddress(iamAddress)
             .usePlaintext()
             .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
@@ -133,7 +116,7 @@ public class ChannelManager {
             .intercept(new AuthServerInterceptor(new AuthenticateServiceStub()))
             .addService(new ChannelManagerService())
             .build();
-        whiteboardAddress = URI.create(config.whiteboardAddress());
+        whiteboardAddress = URI.create(config.getWhiteboardAddress());
     }
 
     private class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManagerImplBase {
