@@ -39,11 +39,11 @@ public class AllocatorApiTest extends BaseTestWithIam {
         final var config = allocatorCtx.getBean(ServiceConfig.class);
         //noinspection UnstableApiUsage
         final var channel = ChannelBuilder
-            .forAddress(HostAndPort.fromString(config.address()))
+            .forAddress(HostAndPort.fromString(config.getAddress()))
             .usePlaintext()
             .build();
-        var credentials = JwtUtils.credentials(config.iam().internal().userName(),
-            config.iam().internal().credentialPrivateKey());
+        var credentials = JwtUtils.credentials(config.getIam().getInternalUserName(),
+            config.getIam().getInternalUserPrivateKey());
         unauthorizedAllocatorBlockingStub = AllocatorGrpc.newBlockingStub(channel);
         authorizedAllocatorBlockingStub = unauthorizedAllocatorBlockingStub.withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));

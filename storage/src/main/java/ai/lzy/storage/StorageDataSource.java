@@ -17,15 +17,15 @@ public class StorageDataSource implements Storage {
 
     @Inject
     public StorageDataSource(StorageConfig config) {
-        var dbConfig = config.database();
+        var dbConfig = config.getDatabase();
 
         this.dataSource = new ComboPooledDataSource();
-        dataSource.setJdbcUrl(dbConfig.url());
-        dataSource.setUser(dbConfig.username());
-        dataSource.setPassword(dbConfig.password());
+        dataSource.setJdbcUrl(dbConfig.getUrl());
+        dataSource.setUser(dbConfig.getUsername());
+        dataSource.setPassword(dbConfig.getPassword());
 
-        dataSource.setMinPoolSize(dbConfig.minPoolSize());
-        dataSource.setMaxPoolSize(dbConfig.maxPoolSize());
+        dataSource.setMinPoolSize(dbConfig.getMinPoolSize());
+        dataSource.setMaxPoolSize(dbConfig.getMaxPoolSize());
 
         dataSource.setTestConnectionOnCheckout(true);
         dataSource.setPreferredTestQuery(VALIDATION_QUERY_SQL);

@@ -3,7 +3,7 @@ package ai.lzy.storage.config;
 public class StorageClientConfiguration {
     private String address;
 
-    public String address() {
+    public String getAddress() {
         return address;
     }
 

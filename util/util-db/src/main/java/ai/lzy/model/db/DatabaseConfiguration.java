@@ -7,40 +7,40 @@ public class DatabaseConfiguration {
     private int minPoolSize;
     private int maxPoolSize;
 
-    public String url() {
+    public String getUrl() {
         return url;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public int getMinPoolSize() {
+        return minPoolSize;
+    }
+
+    public int getMaxPoolSize() {
+        return maxPoolSize;
     }
 
     public void setUrl(String url) {
         this.url = url;
     }
 
-    public String username() {
-        return username;
-    }
-
     public void setUsername(String username) {
         this.username = username;
-    }
-
-    public String password() {
-        return password;
     }
 
     public void setPassword(String password) {
         this.password = password;
     }
 
-    public int minPoolSize() {
-        return minPoolSize;
-    }
-
     public void setMinPoolSize(int minPoolSize) {
         this.minPoolSize = minPoolSize;
-    }
-
-    public int maxPoolSize() {
-        return maxPoolSize;
     }
 
     public void setMaxPoolSize(int maxPoolSize) {

@@ -42,7 +42,7 @@ public class StorageTest extends BaseTestWithIam {
         storageApp.start();
 
         var channel = ChannelBuilder
-            .forAddress(HostAndPort.fromString(storageConfig.address()))
+            .forAddress(HostAndPort.fromString(storageConfig.getAddress()))
             .usePlaintext()
             .build();
         storageClient = LzyStorageGrpc.newBlockingStub(channel);
@@ -94,7 +94,7 @@ public class StorageTest extends BaseTestWithIam {
 
     @Test
     public void testPermissionDenied() {
-        var credentials = JwtUtils.invalidCredentials(storageConfig.iam().internalUserName());
+        var credentials = JwtUtils.invalidCredentials(storageConfig.getIam().getInternalUserName());
 
         var client = storageClient.withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
@@ -131,8 +131,8 @@ public class StorageTest extends BaseTestWithIam {
 
     @Test
     public void testSuccess() throws IOException {
-        var credentials = JwtUtils.credentials(storageConfig.iam().internalUserName(),
-            storageConfig.iam().internalUserPrivateKey());
+        var credentials = JwtUtils.credentials(storageConfig.getIam().getInternalUserName(),
+            storageConfig.getIam().getInternalUserPrivateKey());
 
         var client = storageClient.withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));

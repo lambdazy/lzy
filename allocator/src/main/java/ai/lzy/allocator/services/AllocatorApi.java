@@ -156,7 +156,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
             vm = new Vm.VmBuilder(vm)
                 .setState(Vm.State.CONNECTING)
-                .setAllocationDeadline(Instant.now().plus(config.allocationTimeout()))  // TODO(artolord) add to config
+                .setAllocationDeadline(Instant.now().plus(config.getAllocationTimeout()))  // TODO(artolord) add to config
                 .build();
             dao.update(vm, transaction);
             transaction.commit();

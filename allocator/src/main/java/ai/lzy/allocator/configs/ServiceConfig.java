@@ -1,69 +1,74 @@
 package ai.lzy.allocator.configs;
 
+import ai.lzy.iam.config.IamClientConfiguration;
+import ai.lzy.model.db.DatabaseConfiguration;
+import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.Optional;
 
 // TODO(artolord) Optional fields are always empty
+@Getter
+@Setter
 @ConfigurationProperties("allocator")
-public record ServiceConfig(
-    String address,
-    Duration gcPeriod,
-    Duration allocationTimeout,
-    Duration heartbeatTimeout,
+public class ServiceConfig {
+    private String address;
+    private Duration gcPeriod;
+    private Duration allocationTimeout;
+    private Duration heartbeatTimeout;
+    private List<String> serviceClusters;
+    private List<String> userClusters;
 
-    List<String> serviceClusters,
-    List<String> userClusters,
+    @ConfigurationBuilder("database")
+    private final DatabaseConfiguration database = new DatabaseConfiguration();
 
-    Optional<ThreadAllocator> threadAllocator,
-    Optional<DockerAllocator> dockerAllocator,
-    Optional<KuberAllocator> kuberAllocator,
+    @ConfigurationBuilder("iam")
+    private final IamClientConfiguration iam = new IamClientConfiguration();
 
-    Optional<YcMk8sConfig> ycMk8s,
-    Optional<AzureMk8sConfig> azureMk8s,
+    private ThreadAllocator threadAllocator = new ThreadAllocator();
+    private DockerAllocator dockerAllocator = new DockerAllocator();
+    private KuberAllocator kuberAllocator = new KuberAllocator();
+    private YcMk8sConfig ycMk8s = new YcMk8sConfig();
+    private AzureMk8sConfig azureMk8s = new AzureMk8sConfig();
 
-    Iam iam
-) {
-
+    @Getter
+    @Setter
     @ConfigurationProperties("thread-allocator")
-    public record ThreadAllocator(
-        boolean enabled,
-        String vmJarFile,
-        String vmClassName
-    ) {}
+    public static final class ThreadAllocator {
+        private boolean enabled = false;
+        private String vmJarFile;
+        private String vmClassName;
+    }
 
+    @Getter
+    @Setter
     @ConfigurationProperties("docker-allocator")
-    public record DockerAllocator(
-        boolean enabled
-    ) {}
+    public static final class DockerAllocator {
+        private boolean enabled = false;
+    }
 
+    @Getter
+    @Setter
     @ConfigurationProperties("kuber-allocator")
-    public record KuberAllocator(
-        boolean enabled
-    ) {}
+    public static final class KuberAllocator {
+        private boolean enabled = false;
+    }
 
+    @Getter
+    @Setter
     @ConfigurationProperties("yc-mk8s")
-    public record YcMk8sConfig(
-        boolean enabled,
-        String serviceAccountFile
-    ) {}
+    public static final class YcMk8sConfig {
+        private boolean enabled = false;
+        private String serviceAccountFile;
+    }
 
+    @Getter
+    @Setter
     @ConfigurationProperties("azure-mk8s")
-    public record AzureMk8sConfig(
-        boolean enabled
-    ) {}
-
-    @ConfigurationProperties("iam")
-    public record Iam(
-        String address,
-        IamInternal internal
-    ) {}
-
-    @ConfigurationProperties("iam.internal")
-    public record IamInternal(
-        String userName,
-        String credentialPrivateKey
-    ) {}
+    public static final class AzureMk8sConfig {
+        private boolean enabled = false;
+    }
 }

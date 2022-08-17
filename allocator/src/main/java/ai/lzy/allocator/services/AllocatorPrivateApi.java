@@ -23,7 +23,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.Set;
 
 @Singleton
@@ -82,7 +81,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
             dao.update(new Vm.VmBuilder(vm)
                 .setState(Vm.State.RUNNING)
                 .setVmMeta(request.getMetadataMap())
-                .setLastActivityTime(Instant.now().plus(config.heartbeatTimeout()))  // TODO(artolord) add to config
+                .setLastActivityTime(Instant.now().plus(config.getHeartbeatTimeout()))  // TODO(artolord) add to config
                 .build(), transaction);
 
             operations.update(op.complete(Any.pack(AllocateResponse.newBuilder()
@@ -116,7 +115,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
         }
 
         dao.update(new Vm.VmBuilder(vm)
-            .setLastActivityTime(Instant.now().plus(config.heartbeatTimeout()))  // TODO(artolord) add to config
+            .setLastActivityTime(Instant.now().plus(config.getHeartbeatTimeout()))  // TODO(artolord) add to config
             .build(), null);
 
         responseObserver.onNext(HeartbeatResponse.newBuilder().build());

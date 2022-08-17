@@ -22,10 +22,10 @@ public class RenewableToken {
     private static final AtomicReference<RenewableTokenInstance> instance = new AtomicReference<>();
 
     public RenewableToken(StorageConfig.YcCredentials yc) {
-        assert yc.enabled();
+        assert yc.isEnabled();
 
         PemObject privateKeyPem;
-        try (PemReader reader = new PemReader(new StringReader(yc.privateKey()))) {
+        try (PemReader reader = new PemReader(new StringReader(yc.getPrivateKey()))) {
             privateKeyPem = reader.readPemObject();
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -40,8 +40,8 @@ public class RenewableToken {
         }
 
         TokenSupplier supplier = new TokenSupplier(
-            yc.serviceAccountId(),
-            yc.keyId(),
+            yc.getServiceAccountId(),
+            yc.getKeyId(),
             privateKey
         );
 

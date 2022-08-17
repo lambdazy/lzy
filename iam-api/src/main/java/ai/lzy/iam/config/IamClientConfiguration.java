@@ -5,15 +5,15 @@ public final class IamClientConfiguration {
     private String internalUserName;
     private String internalUserPrivateKey;
 
-    public String address() {
+    public String getAddress() {
         return address;
     }
 
-    public String internalUserName() {
+    public String getInternalUserName() {
         return internalUserName;
     }
 
-    public String internalUserPrivateKey() {
+    public String getInternalUserPrivateKey() {
         return internalUserPrivateKey;
     }
 

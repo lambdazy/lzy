@@ -53,14 +53,14 @@ public class WorkflowService extends LzyWorkflowImplBase {
         this.db = db;
 
         JwtCredentials internalUser;
-        try (final Reader reader = new StringReader(config.iam().internalUserPrivateKey())) {
-            internalUser = new JwtCredentials(buildJWT(config.iam().internalUserName(), reader));
-            LOG.info("Init Internal User '{}' credentials", config.iam().internalUserName());
+        try (final Reader reader = new StringReader(config.getIam().getInternalUserPrivateKey())) {
+            internalUser = new JwtCredentials(buildJWT(config.getIam().getInternalUserName(), reader));
+            LOG.info("Init Internal User '{}' credentials", config.getIam().getInternalUserName());
         } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
             throw new RuntimeException("Cannot build credentials: " + e.getMessage(), e);
         }
 
-        storageServiceChannel = ChannelBuilder.forAddress(HostAndPort.fromString(config.storage().address()))
+        storageServiceChannel = ChannelBuilder.forAddress(HostAndPort.fromString(config.getStorage().getAddress()))
             .usePlaintext()
             .enableRetry(LzyStorageGrpc.SERVICE_NAME)
             .build();

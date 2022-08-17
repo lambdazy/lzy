@@ -90,7 +90,7 @@ public class StorageThreadContext implements LzyStorageTestContext {
             }
 
             var config = context.getBean(StorageConfig.class);
-            internalUserCreds = internalUserCredentials(config.iam());
+            internalUserCreds = internalUserCredentials(config.getIam());
         }
 
         var channel = ChannelBuilder.forAddress(address())
@@ -119,8 +119,8 @@ public class StorageThreadContext implements LzyStorageTestContext {
     }
 
     private JwtCredentials internalUserCredentials(IamClientConfiguration iam) {
-        try (final Reader reader = new StringReader(iam.internalUserPrivateKey())) {
-            return new JwtCredentials(buildJWT(iam.internalUserName(), reader));
+        try (final Reader reader = new StringReader(iam.getInternalUserPrivateKey())) {
+            return new JwtCredentials(buildJWT(iam.getInternalUserName(), reader));
         } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
             throw new RuntimeException("Cannot build credentials: " + e.getMessage(), e);
         }

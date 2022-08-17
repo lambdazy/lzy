@@ -133,7 +133,7 @@ public class YandexCloudS3Storage extends LzyStorageGrpc.LzyStorageImplBase {
 
         response.onNext(CreateS3BucketResponse.newBuilder()
             .setAmazon(Lzy.AmazonCredentials.newBuilder()
-                .setEndpoint(s3Creds.endpoint())
+                .setEndpoint(s3Creds.getEndpoint())
                 .setAccessToken(tokens[1])
                 .setSecretToken(tokens[2])
                 .build())
@@ -167,7 +167,7 @@ public class YandexCloudS3Storage extends LzyStorageGrpc.LzyStorageImplBase {
             if (rs.next()) {
                 response.onNext(GetS3BucketCredentialsResponse.newBuilder()
                     .setAmazon(Lzy.AmazonCredentials.newBuilder()
-                        .setEndpoint(s3Creds.endpoint())
+                        .setEndpoint(s3Creds.getEndpoint())
                         .setAccessToken(rs.getString("access_token"))
                         .setSecretToken(rs.getString("secret_token"))
                         .build())
@@ -186,9 +186,9 @@ public class YandexCloudS3Storage extends LzyStorageGrpc.LzyStorageImplBase {
     private AmazonS3 s3Client() {
         return AmazonS3ClientBuilder.standard()
             .withCredentials(new AWSStaticCredentialsProvider(
-                new BasicAWSCredentials(s3Creds.accessToken(), s3Creds.secretToken())))
+                new BasicAWSCredentials(s3Creds.getAccessToken(), s3Creds.getSecretToken())))
             .withEndpointConfiguration(
-                new AmazonS3ClientBuilder.EndpointConfiguration(s3Creds.endpoint(), "us-west-1"))
+                new AmazonS3ClientBuilder.EndpointConfiguration(s3Creds.getEndpoint(), "us-west-1"))
             .withPathStyleAccessEnabled(true)
             .build();
     }
@@ -207,7 +207,7 @@ public class YandexCloudS3Storage extends LzyStorageGrpc.LzyStorageImplBase {
         CloseableHttpClient httpclient = HttpClients.createDefault();
 
         String serviceAccountId = YcIamClient.createServiceAccount(userId, RenewableToken.getToken(), httpclient,
-            ycCreds.folderId(), bucket);
+            ycCreds.getFolderId(), bucket);
 
         AWSCredentials credentials = YcIamClient.createStaticCredentials(serviceAccountId,
             RenewableToken.getToken(), httpclient);

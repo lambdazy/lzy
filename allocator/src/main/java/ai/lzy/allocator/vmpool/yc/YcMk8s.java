@@ -24,10 +24,7 @@ import yandex.cloud.sdk.grpc.interceptors.RequestIdInterceptor;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import static yandex.cloud.api.k8s.v1.ClusterOuterClass.Cluster;
 
@@ -82,8 +79,8 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
                 // TODO: forward X-REQUEST-ID header
                 new RequestIdInterceptor());
 
-        config.serviceClusters().forEach(clusterId -> resolveCluster(clusterId, /* system */ true));
-        config.userClusters().forEach(clusterId -> resolveCluster(clusterId, /* system */ false));
+        config.getServiceClusters().forEach(clusterId -> resolveCluster(clusterId, /* system */ true));
+        config.getUserClusters().forEach(clusterId -> resolveCluster(clusterId, /* system */ false));
     }
 
 

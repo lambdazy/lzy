@@ -10,20 +10,20 @@ import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.grpc.GrpcLogsInterceptor;
-import io.grpc.ManagedChannel;
 import com.google.common.net.HostAndPort;
+import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.ServerInterceptors;
 import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Singleton;
-import java.net.InetSocketAddress;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.inject.Named;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("UnstableApiUsage")
@@ -41,7 +41,7 @@ public class AllocatorMain {
         this.config = config;
         this.gc = gc;
 
-        final HostAndPort address = HostAndPort.fromString(config.address());
+        final HostAndPort address = HostAndPort.fromString(config.getAddress());
         ServerBuilder<?> builder = NettyServerBuilder.forAddress(
                 new InetSocketAddress(address.getHost(), address.getPort()))
             .permitKeepAliveWithoutCalls(true)
@@ -62,7 +62,7 @@ public class AllocatorMain {
     }
 
     public void start() throws IOException {
-        LOG.info("Starting allocator at {}...", config.address());
+        LOG.info("Starting allocator at {}...", config.getAddress());
         server.start();
     }
 
@@ -77,6 +77,7 @@ public class AllocatorMain {
 
     public static void main(String[] args) throws IOException, InterruptedException {
         final var context = ApplicationContext.run();
+        var config = context.getBean(ServiceConfig.class);
         final var main = context.getBean(AllocatorMain.class);
         main.start();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
