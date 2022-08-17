@@ -9,6 +9,7 @@ import ai.lzy.servant.portal.s3.S3Repository;
 import ai.lzy.servant.portal.slots.SnapshotSlot;
 import ai.lzy.v1.LzyPortalApi;
 import ai.lzy.v1.LzyPortalApi.PortalSlotDesc.Snapshot;
+import com.amazonaws.SdkClientException;
 import com.azure.storage.common.implementation.connectionstring.StorageConnectionString;
 import com.google.protobuf.ByteString;
 
@@ -41,18 +42,24 @@ public class SnapshotSlotsProvider {
         }
 
         S3Repository<Stream<ByteString>> s3Repo = getS3RepositoryForSnapshots(snapshotData.getS3());
+
+        boolean s3ContainsSnapshot;
+        try {
+            s3ContainsSnapshot = s3Repo.contains(bucket, key); // request to s3
+        } catch (SdkClientException e) {
+            throw new CreateSlotException(e);
+        }
+
         LzySlot lzySlot = switch (instance.spec().direction()) {
             case INPUT -> {
-                if (snapshots.containsKey(snapshotId)
-                    || s3Repo.contains(bucket, key)) { // request to s3
+                if (snapshots.containsKey(snapshotId) || s3ContainsSnapshot) {
                     throw new CreateSlotException("Snapshot with id '" + snapshotId + "' already associated with data");
                 }
 
                 yield getOrCreateSnapshotSlot(s3Repo, snapshotId, key, bucket).setInputSlot(instance);
             }
             case OUTPUT -> {
-                if (!snapshots.containsKey(snapshotId)
-                    && !s3Repo.contains(bucket, key)) { // request to s3
+                if (!snapshots.containsKey(snapshotId) && !s3ContainsSnapshot) {
                     throw new CreateSlotException("Snapshot with id '" + snapshotId + "' not found");
                 }
 

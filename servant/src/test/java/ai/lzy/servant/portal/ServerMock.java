@@ -155,6 +155,12 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
         Assert.assertTrue(response.getDescription(), response.getSuccess());
     }
 
+    String openPortalSlotWithFail(LzyPortalApi.OpenSlotsRequest request) {
+        var response = portal().portalStub.openSlots(request);
+        Assert.assertFalse(response.getSuccess());
+        return response.getDescription();
+    }
+
     void waitTaskCompleted(String servantId, String taskId) throws Exception {
         var taskStatus = servant(servantId).tasks.get(taskId).get();
         Assert.assertEquals(taskStatus.getDescription(), 0, taskStatus.getRc());

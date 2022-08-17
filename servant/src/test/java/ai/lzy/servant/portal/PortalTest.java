@@ -6,7 +6,6 @@ import ai.lzy.servant.agents.LzyAgentConfig;
 import ai.lzy.servant.agents.LzyServant;
 import ai.lzy.v1.LzyFsApi;
 import ai.lzy.v1.LzyPortalApi;
-import ai.lzy.v1.LzyPortalApi.PortalSlotDesc;
 import ai.lzy.v1.Operations;
 import ai.lzy.v1.Tasks;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
@@ -42,7 +41,7 @@ public class PortalTest {
 
     private static final int S3_PORT = 8001;
     private static final String S3_ADDRESS = "http://localhost:" + S3_PORT;
-    private static final String BUCKET_NAME = "lzy-snapshot-test-bucket";
+    private static final String BUCKET_NAME = "lzy-bucket";
 
     private S3Mock s3;
 
@@ -54,14 +53,6 @@ public class PortalTest {
         channelManager = new ChannelManagerMock();
         channelManager.start();
         servants = new HashMap<>();
-        s3 = new S3Mock.Builder().withPort(S3_PORT).withInMemoryBackend().build();
-        s3.start();
-        AmazonS3 s3Client = AmazonS3ClientBuilder.standard()
-            .withPathStyleAccessEnabled(true)
-            .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(S3_ADDRESS, "us-west-2"))
-            .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
-            .build();
-        s3Client.createBucket(BUCKET_NAME);
     }
 
     @After
@@ -71,11 +62,9 @@ public class PortalTest {
         for (var servant : servants.values()) {
             servant.close();
         }
-        s3.shutdown();
         server = null;
         channelManager = null;
         servants = null;
-        s3 = null;
     }
 
     @Test
@@ -100,8 +89,7 @@ public class PortalTest {
     // * second task reads from portal
     //
     // both tasks transfer their stdout/stderr to portal
-    public void runGeneralSnapshotOnPortalScenario(PortalSlotDesc.Builder inputSnapshot,
-                                                   PortalSlotDesc.Builder outputSnapshot) throws Exception {
+    private void firstTaskWriteSnapshotSecondReadIt() throws Exception {
         // portal
         startServant("portal");
         server.waitServantStart("portal");
@@ -127,7 +115,8 @@ public class PortalTest {
 
         // configure portal to snapshot `channel-1` data
         server.openPortalSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
-            .addSlots(inputSnapshot
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSnapshot(makeAmazonSnapshot("portal_slot_task_1", BUCKET_NAME, S3_ADDRESS))
                 .setSlot(makeInputFileSlot("/portal_slot_1"))
                 .setChannelId("channel_1")
                 .build())
@@ -200,7 +189,8 @@ public class PortalTest {
 
         // open portal output slot
         server.openPortalSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
-            .addSlots(outputSnapshot
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSnapshot(makeAmazonSnapshot("portal_slot_task_1", BUCKET_NAME, S3_ADDRESS))
                 .setSlot(makeOutputFileSlot("/slot_2"))
                 .setChannelId("channel_2"))
             .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
@@ -278,15 +268,10 @@ public class PortalTest {
 
     @Test
     public void testAmazonS3SnapshotOnPortal() throws Exception {
-        var inputS3SnapshotSlot = LzyPortalApi.PortalSlotDesc.newBuilder()
-            .setSnapshot(makeAmazonSnapshot("portal_slot_task_1", BUCKET_NAME, S3_ADDRESS));
-        var outputS3SnapshotSlot = LzyPortalApi.PortalSlotDesc.newBuilder()
-            .setSnapshot(makeAmazonSnapshot("portal_slot_task_1", BUCKET_NAME, S3_ADDRESS));
-        runGeneralSnapshotOnPortalScenario(inputS3SnapshotSlot, outputS3SnapshotSlot);
+        runWithS3(this::firstTaskWriteSnapshotSecondReadIt);
     }
 
-    @Test
-    public void testMultipleTasks() throws Exception {
+    public void runMultipleTasks() throws Exception {
         // portal
         startServant("portal");
         server.waitServantStart("portal");
@@ -459,6 +444,244 @@ public class PortalTest {
 
         destroyChannel("portal:stdout");
         destroyChannel("portal:stderr");
+    }
+
+    @Test
+    public void testMultipleTasks() throws Exception {
+        runWithS3(this::runMultipleTasks);
+    }
+
+    private void openOutputSlotOnPortalBeforeInputOne() throws Exception {
+        // portal
+        startServant("portal");
+        server.waitServantStart("portal");
+        createChannel("portal:stdout");
+        createChannel("portal:stderr");
+        server.startPortalOn("portal");
+
+        var portalStdout = readPortalSlot("portal:stdout");
+        var portalStderr = readPortalSlot("portal:stderr");
+
+        // servant
+        startServant("servant");
+        server.waitServantStart("servant");
+
+        Thread.sleep(Duration.ofSeconds(1).toMillis());
+        System.out.println("\n----- PREPARE PORTAL FOR TASK 2 -----------------------------------------\n");
+
+        ///// consumer task  /////
+
+        // create channels for task_2
+        createChannel("channel_2");
+        createChannel("task_2:stdout");
+        createChannel("task_2:stderr");
+
+        // open portal output slot before input one was opened, there must be an error here
+        String errorMessage = server.openPortalSlotWithFail(LzyPortalApi.OpenSlotsRequest.newBuilder()
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSnapshot(makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
+                .setSlot(makeOutputFileSlot("/slot_2"))
+                .setChannelId("channel_2"))
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSlot(makeInputPipeSlot("/portal_task_2:stdout"))
+                .setChannelId("task_2:stdout")
+                .setStdout(makeStdoutStorage("task_2"))
+                .build())
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSlot(makeInputPipeSlot("/portal_task_2:stderr"))
+                .setChannelId("task_2:stderr")
+                .setStderr(makeStderrStorage("task_2"))
+                .build())
+            .build());
+
+        Assert.assertEquals("Snapshot with id 'snapshot_1-lzy-bucket-http:localhost:8001' not found", errorMessage);
+
+        // task_2 clean up
+        System.out.println("-- cleanup task2 scenario --");
+        destroyChannel("channel_2");
+        destroyChannel("task_2:stdout");
+        destroyChannel("task_2:stderr");
+
+        Thread.sleep(Duration.ofSeconds(1).toMillis());
+        System.out.println("\n----------------------------------------------\n");
+
+        Assert.assertTrue(portalStdout.isEmpty());
+        Assert.assertTrue(portalStderr.isEmpty());
+        destroyChannel("portal:stdout");
+        destroyChannel("portal:stderr");
+    }
+
+    @Test
+    public void testOpenOutputSlotBeforeInputSlot() throws Exception {
+        runWithS3(this::openOutputSlotOnPortalBeforeInputOne);
+    }
+
+    private void reopeningNewInputSlotForAlreadyExistsSnapshot() throws Exception {
+        // portal
+        startServant("portal");
+        server.waitServantStart("portal");
+        createChannel("portal:stdout");
+        createChannel("portal:stderr");
+        server.startPortalOn("portal");
+
+        var portalStdout = readPortalSlot("portal:stdout");
+        var portalStderr = readPortalSlot("portal:stderr");
+
+        // servant
+        startServant("servant");
+        server.waitServantStart("servant");
+
+        // just for logs
+        Thread.sleep(Duration.ofSeconds(1).toMillis());
+        System.out.println("\n----- PREPARE PORTAL FOR TASK 1 -----------------------------------------\n");
+
+        // create channels for task_1
+        createChannel("channel_1");
+        createChannel("channel_2");
+        createChannel("task_1:stdout");
+        createChannel("task_1:stderr");
+
+        // configure portal to snapshot `channel-1` data
+        server.openPortalSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSnapshot(makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
+                .setSlot(makeInputFileSlot("/portal_slot_1"))
+                .setChannelId("channel_1")
+                .build())
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSlot(makeInputFileSlot("/portal_task_1:stdout"))
+                .setChannelId("task_1:stdout")
+                .setStdout(makeStdoutStorage("task_1"))
+                .build())
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSlot(makeInputFileSlot("/portal_task_1:stderr"))
+                .setChannelId("task_1:stderr")
+                .setStderr(makeStderrStorage("task_1"))
+                .build())
+            .build());
+
+        // configure portal to snapshot `channel-2` data with same snapshot id, there must be an error here
+        String errorMessage = server.openPortalSlotWithFail(LzyPortalApi.OpenSlotsRequest.newBuilder()
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSnapshot(makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
+                .setSlot(makeInputFileSlot("/portal_slot_2"))
+                .setChannelId("channel_2")
+                .build())
+            .build());
+
+        Assert.assertEquals("Snapshot with id 'snapshot_1-lzy-bucket-http:localhost:8001' already associated with data",
+            errorMessage);
+
+        // task_1 clean up
+        System.out.println("-- cleanup task1 scenario --");
+        destroyChannel("channel_1");
+        destroyChannel("channel_2");
+        destroyChannel("task_1:stdout");
+        destroyChannel("task_1:stderr");
+
+        Thread.sleep(Duration.ofSeconds(1).toMillis());
+        System.out.println("\n----------------------------------------------\n");
+
+        Assert.assertTrue(portalStdout.isEmpty());
+        Assert.assertTrue(portalStderr.isEmpty());
+        destroyChannel("portal:stdout");
+        destroyChannel("portal:stderr");
+    }
+
+    @Test
+    public void testSnapshotWithAlreadyUsedSnapshotId() throws Exception {
+        runWithS3(this::reopeningNewInputSlotForAlreadyExistsSnapshot);
+    }
+
+    @Test
+    public void testSnapshotOnPortalWithNonActiveS3() throws Exception {
+        // portal
+        startServant("portal");
+        server.waitServantStart("portal");
+        createChannel("portal:stdout");
+        createChannel("portal:stderr");
+        server.startPortalOn("portal");
+
+        var portalStdout = readPortalSlot("portal:stdout");
+        var portalStderr = readPortalSlot("portal:stderr");
+
+        // servant
+        startServant("servant");
+        server.waitServantStart("servant");
+
+        // just for logs
+        Thread.sleep(Duration.ofSeconds(1).toMillis());
+        System.out.println("\n----- PREPARE PORTAL FOR TASK 1 -----------------------------------------\n");
+
+        // create channels for task_1
+        createChannel("channel_1");
+        createChannel("task_1:stdout");
+        createChannel("task_1:stderr");
+
+        // configure portal to snapshot `channel-1` data on non-active S3
+        String errorMessage = server.openPortalSlotWithFail(LzyPortalApi.OpenSlotsRequest.newBuilder()
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSnapshot(makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
+                .setSlot(makeInputFileSlot("/portal_slot_1"))
+                .setChannelId("channel_1")
+                .build())
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSlot(makeInputFileSlot("/portal_task_1:stdout"))
+                .setChannelId("task_1:stdout")
+                .setStdout(makeStdoutStorage("task_1"))
+                .build())
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSlot(makeInputFileSlot("/portal_task_1:stderr"))
+                .setChannelId("task_1:stderr")
+                .setStderr(makeStderrStorage("task_1"))
+                .build())
+            .build());
+
+        Assert.assertTrue(errorMessage.contains("Unable to execute HTTP request"));
+
+        // task_1 clean up
+        System.out.println("-- cleanup task1 scenario --");
+        destroyChannel("channel_1");
+        destroyChannel("task_1:stdout");
+        destroyChannel("task_1:stderr");
+
+        Thread.sleep(Duration.ofSeconds(1).toMillis());
+        System.out.println("\n----------------------------------------------\n");
+
+        Assert.assertTrue(portalStdout.isEmpty());
+        Assert.assertTrue(portalStderr.isEmpty());
+        destroyChannel("portal:stdout");
+        destroyChannel("portal:stderr");
+    }
+
+    @FunctionalInterface
+    private interface ThrowingRunnable {
+        void run() throws Exception;
+    }
+
+    private void runWithS3(ThrowingRunnable action) throws Exception {
+        startS3();
+        try {
+            action.run();
+        } finally {
+            stopS3();
+        }
+    }
+
+    private void startS3() {
+        s3 = new S3Mock.Builder().withPort(S3_PORT).withInMemoryBackend().build();
+        s3.start();
+        AmazonS3 s3Client = AmazonS3ClientBuilder.standard()
+            .withPathStyleAccessEnabled(true)
+            .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(S3_ADDRESS, "us-west-2"))
+            .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
+            .build();
+        s3Client.createBucket(BUCKET_NAME);
+    }
+
+    private void stopS3() {
+        s3.shutdown();
+        s3 = null;
     }
 
     private void startServant(String servantId) throws URISyntaxException, IOException {

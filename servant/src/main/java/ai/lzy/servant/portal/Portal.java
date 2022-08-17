@@ -452,5 +452,9 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
         public CreateSlotException(String message) {
             super(message);
         }
+
+        public CreateSlotException(Throwable cause) {
+            super(cause);
+        }
     }
 }
