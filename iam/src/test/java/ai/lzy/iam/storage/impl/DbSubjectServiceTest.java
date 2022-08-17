@@ -8,7 +8,7 @@ import org.apache.logging.log4j.Logger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import ai.lzy.iam.authorization.exceptions.AuthBadRequestException;
+import ai.lzy.util.auth.exceptions.AuthBadRequestException;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.Subject;
 

@@ -8,8 +8,8 @@ import org.apache.logging.log4j.Logger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import ai.lzy.iam.authorization.credentials.JwtCredentials;
-import ai.lzy.iam.authorization.exceptions.AuthPermissionDeniedException;
+import ai.lzy.util.auth.credentials.JwtCredentials;
+import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.utils.CredentialsHelper;
 

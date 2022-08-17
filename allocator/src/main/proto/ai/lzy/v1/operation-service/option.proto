@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package ai.lzy.v1;
+
+import "google/protobuf/descriptor.proto";
+
+extend google.protobuf.MethodOptions { OperationOption operation = 87334; }
+
+// Operation is annotation for rpc that returns longrunning operation, describes
+// message types that will be returned in metadata [google.protobuf.Any], and
+// in response [google.protobuf.Any] (for successful operation).
+message OperationOption {
+  // Optional. If present, rpc returns operation which metadata field will
+  // contains message of specified type.
+  string metadata = 1; // Optional.
+
+  // Required. rpc returns operation, in case of success response will contains message of
+  // specified field.
+  string response = 2; // Required.
+}

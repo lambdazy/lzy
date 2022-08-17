@@ -23,8 +23,8 @@ public class BeansFactory {
     private static final Duration YC_CALL_TIMEOUT = Duration.ofSeconds(30);
 
     @Bean
-    @Requires(property = "allocator.yc-mk8s.enabled", value = "true")
-    public ServiceFactory serviceFactory(ServiceConfig.YcMk8sConfig config) {
+    @Requires(property = "allocator.yc-credentials.enabled", value = "true")
+    public ServiceFactory serviceFactory(ServiceConfig.YcCredentialsConfig config) {
         return ServiceFactory.builder()
             .credentialProvider(
                 Auth.apiKeyBuilder()

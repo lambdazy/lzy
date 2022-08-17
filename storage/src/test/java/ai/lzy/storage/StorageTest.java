@@ -3,8 +3,8 @@ package ai.lzy.storage;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.grpc.ClientHeaderInterceptor;
 import ai.lzy.model.grpc.GrpcHeaders;
-import ai.lzy.test.BaseTestWithIam;
-import ai.lzy.test.JwtUtils;
+import ai.lzy.iam.test.BaseTestWithIam;
+import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.v1.LzyStorageApi;
 import ai.lzy.v1.LzyStorageGrpc;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
@@ -35,7 +35,7 @@ public class StorageTest extends BaseTestWithIam {
     @Before
     public void before() throws IOException {
         super.before();
-        storageCtx = ApplicationContext.run();
+        storageCtx = ApplicationContext.run("../storage/src/main/resources/application-test.yml");
         storageConfig = storageCtx.getBean(StorageConfig.class);
         storageApp = new LzyStorage(storageCtx);
         storageApp.start();

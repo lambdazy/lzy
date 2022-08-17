@@ -128,6 +128,12 @@
       <artifactId>json</artifactId>
     </dependency>
     <dependency>
+      <groupId>ai.lzy</groupId>
+      <artifactId>util-auth</artifactId>
+      <version>1.0-SNAPSHOT</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
       <groupId>com.mchange</groupId>
       <artifactId>c3p0</artifactId>
     </dependency>
