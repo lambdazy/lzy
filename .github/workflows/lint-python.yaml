@@ -5,6 +5,7 @@ on:
     paths:
       - 'pylzy/lzy/**'
       - 'jupyter-kernel/lzy/**'
+      - '**/*.proto'
 
 jobs:
   mypy:
