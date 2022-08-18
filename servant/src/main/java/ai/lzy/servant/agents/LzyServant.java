@@ -268,7 +268,9 @@ public class LzyServant implements Closeable {
                     entry -> {
                         LzySlot slot = context.getOrCreateSlot(tid, entry.slot(), entry.binding());
                         // TODO: It will be removed after creating Portal
-                        final String channelName = entry.binding().split("!")[1];
+                        final String channelName = entry.binding().contains("!")
+                                                 ? entry.binding().split("!")[1]
+                                                 : entry.binding();
                         if (channelName.startsWith("snapshot://") && slot instanceof LzyOutputSlot) {
                             final URI channelUri = URI.create(channelName);
                             String snapshotId = "snapshot://" + channelUri.getHost();
