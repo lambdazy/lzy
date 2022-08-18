@@ -189,8 +189,12 @@ public class ChannelManager {
 
                 final String channelName = channelSpec.getChannelName();
                 // Channel id is not random uuid for better logs.
-                final String channelId = String.join("-", "channel", userId, workflowId, channelName)
-                    .replaceAll("[^a-zA-z0-9-]+", "-");
+                /* TODO: change channel id generation after creating Portal
+                     final String channelId = String.join("-", "channel", userId, workflowId, channelName)
+                        .replaceAll("[^a-zA-z0-9-]+", "-");
+                 */
+                final String channelId = String.join("-", "channel", userId, workflowId)
+                    .replaceAll("[^a-zA-z0-9-]+", "-") + "!" + channelName;
                 final var channelType = channelSpec.getTypeCase();
                 final ChannelSpec spec = switch (channelSpec.getTypeCase()) {
                     case DIRECT -> new DirectChannelSpec(
