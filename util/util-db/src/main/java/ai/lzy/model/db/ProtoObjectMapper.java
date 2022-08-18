@@ -8,8 +8,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.hubspot.jackson.datatype.protobuf.ProtobufModule;
 
-public class ExtendedObjectMapper extends ObjectMapper {
-    public ExtendedObjectMapper() {
+public class ProtoObjectMapper extends ObjectMapper {
+    public ProtoObjectMapper() {
         configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
         configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);

@@ -30,7 +30,6 @@ import java.util.UUID;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 @SuppressWarnings({"UnstableApiUsage", "ResultOfMethodCallIgnored"})
@@ -141,7 +140,7 @@ public class ChannelManagerTest extends BaseTestWithIam {
                     .setChannelSpec(ChannelSpec.newBuilder().setChannelName("channel1").setDirect(
                             DirectChannelType.newBuilder().build())
                         .setContentType(DataScheme.newBuilder().setType("text").setSchemeType(
-                            SchemeType.plain).build())
+                            SchemeType.PLAIN).build())
                         .build())
                     .build());
             Assert.fail();
@@ -172,7 +171,7 @@ public class ChannelManagerTest extends BaseTestWithIam {
                     .setChannelSpec(ChannelSpec.newBuilder().setDirect(
                             DirectChannelType.newBuilder().build())
                         .setContentType(DataScheme.newBuilder().setType("text").setSchemeType(
-                            SchemeType.plain).build())
+                            SchemeType.PLAIN).build())
                         .build())
                     .build());
             Assert.fail();
@@ -188,7 +187,7 @@ public class ChannelManagerTest extends BaseTestWithIam {
                 ChannelCreateRequest.newBuilder()
                     .setWorkflowId(UUID.randomUUID().toString())
                     .setChannelSpec(ChannelSpec.newBuilder().setChannelName("channel1")
-                        .setContentType(DataScheme.newBuilder().setType("text").setSchemeType(SchemeType.plain).build())
+                        .setContentType(DataScheme.newBuilder().setType("text").setSchemeType(SchemeType.PLAIN).build())
                         .build())
                     .build());
             Assert.fail();
@@ -222,7 +221,7 @@ public class ChannelManagerTest extends BaseTestWithIam {
                     .setChannelSpec(ChannelSpec.newBuilder().setChannelName("channel1").setDirect(
                             DirectChannelType.newBuilder().build())
                         .setContentType(DataScheme.newBuilder().setSchemeType(
-                            SchemeType.plain).build())
+                            SchemeType.PLAIN).build())
                         .build())
                     .build());
             Assert.fail();

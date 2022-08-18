@@ -5,7 +5,6 @@ import ai.lzy.servant.agents.AgentStatus;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class PyApiTest extends LocalScenario {

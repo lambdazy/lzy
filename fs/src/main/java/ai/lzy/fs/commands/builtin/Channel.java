@@ -70,7 +70,10 @@ public final class Channel implements LzyCommand {
         }
 
         final String channelCommand = command.getArgList().get(1);
-        final String channelId = command.getArgList().size() > 2 ? command.getArgList().get(2) : null;
+        String channelId = null;
+        if (command.getArgList().size() > 2 && !command.getArgList().get(2).startsWith("-")) {
+            channelId = command.getArgList().get(2);
+        }
 
         final URI channelManagerAddress = URI.create("grpc://" + command.getOptionValue("channel-manager"));
         final IAM.Auth auth = IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));

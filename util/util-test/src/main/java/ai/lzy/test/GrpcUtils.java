@@ -38,7 +38,7 @@ public class GrpcUtils {
     public static Operations.DataScheme makePlainTextDataScheme() {
         return Operations.DataScheme.newBuilder()
             .setType("text")
-            .setSchemeType(Operations.SchemeType.plain)
+            .setSchemeType(Operations.SchemeType.PLAIN)
             .build();
     }
 

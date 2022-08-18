@@ -20,7 +20,7 @@ import ai.lzy.model.channel.ChannelSpec;
 import ai.lzy.model.channel.DirectChannelSpec;
 import ai.lzy.model.channel.SnapshotChannelSpec;
 import ai.lzy.model.db.DaoException;
-import ai.lzy.model.db.ExtendedObjectMapper;
+import ai.lzy.model.db.ProtoObjectMapper;
 import ai.lzy.model.db.NotFoundException;
 import ai.lzy.model.db.Transaction;
 import ai.lzy.model.grpc.ChannelBuilder;
@@ -197,7 +197,7 @@ public class ChannelManager {
                 final String channelName = channelSpec.getChannelName();
                 // Channel id is not random uuid for better logs.
                 final String channelId = String.join("-", "channel", userId, workflowId, channelName)
-                    .replaceAll("[^a-zA-z0-9-]", "-");
+                    .replaceAll("[^a-zA-z0-9-]+", "-");
                 final var channelType = channelSpec.getTypeCase();
                 final ChannelSpec spec = switch (channelSpec.getTypeCase()) {
                     case DIRECT -> new DirectChannelSpec(
@@ -262,9 +262,7 @@ public class ChannelManager {
                 Transaction.execute(dataSource, conn -> {
                     channel.set(channelStorage.findChannel(conn, ChannelStorage.ReadMode.FOR_UPDATE, channelId));
                     if (channel.get() == null) {
-                        String errorMessage = String.format("Channel with id %s not found", channelId);
-                        LOG.error(errorMessage);
-                        throw new NotFoundException(errorMessage);
+                        throw new NotFoundException("Channel with id " + channelId + " not found");
                     }
                     channelStorage.setChannelLifeStatus(
                         conn, Stream.of(channelId), ChannelStorage.ChannelLifeStatus.DESTROYING.name()
@@ -628,7 +626,7 @@ public class ChannelManager {
         private final ObjectMapper objectMapper;
 
         public ChannelStorage() {
-            this.objectMapper = new ExtendedObjectMapper();
+            this.objectMapper = new ProtoObjectMapper();
         }
 
         void insertChannel(Connection sqlConnection, String channelId, String userId, String workflowId,
