@@ -3,10 +3,10 @@ package ai.lzy.allocator.test;
 import ai.lzy.allocator.AllocatorMain;
 import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactory;
 import ai.lzy.allocator.configs.ServiceConfig;
+import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.grpc.ClientHeaderInterceptor;
 import ai.lzy.model.grpc.GrpcHeaders;
-import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.v1.AllocatorGrpc;
@@ -69,11 +69,11 @@ public class AllocatorApiTest extends BaseTestWithIam {
         final var config = allocatorCtx.getBean(ServiceConfig.class);
         //noinspection UnstableApiUsage
         channel = ChannelBuilder
-            .forAddress(HostAndPort.fromString(config.address()))
+            .forAddress(HostAndPort.fromString(config.getAddress()))
             .usePlaintext()
             .build();
-        var credentials = JwtUtils.credentials(config.iam().internal().userName(),
-            config.iam().internal().credentialPrivateKey());
+        var credentials = JwtUtils.credentials(config.getIam().getInternalUserName(),
+            config.getIam().getInternalUserPrivateKey());
         unauthorizedAllocatorBlockingStub = AllocatorGrpc.newBlockingStub(channel);
         operationServiceApiBlockingStub = OperationServiceApiGrpc.newBlockingStub(channel).withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));

@@ -1,12 +1,5 @@
 package ai.lzy.allocator.disk.cloudspecific.yc;
 
-import static yandex.cloud.api.compute.v1.DiskServiceOuterClass.CreateDiskRequest;
-import static yandex.cloud.api.compute.v1.DiskServiceOuterClass.DeleteDiskRequest;
-import static yandex.cloud.api.compute.v1.DiskServiceOuterClass.GetDiskRequest;
-import static yandex.cloud.api.compute.v1.SnapshotOuterClass.Snapshot;
-import static yandex.cloud.api.compute.v1.SnapshotServiceGrpc.SnapshotServiceBlockingStub;
-import static yandex.cloud.api.operation.OperationOuterClass.Operation;
-
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.Disk;
 import ai.lzy.allocator.disk.DiskManager;
@@ -17,9 +10,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import jakarta.inject.Singleton;
-import java.time.Duration;
-import javax.annotation.Nullable;
-import javax.inject.Inject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import yandex.cloud.api.compute.v1.DiskOuterClass;
@@ -34,6 +24,15 @@ import yandex.cloud.api.operation.OperationServiceGrpc.OperationServiceBlockingS
 import yandex.cloud.sdk.ServiceFactory;
 import yandex.cloud.sdk.utils.OperationUtils;
 
+import javax.annotation.Nullable;
+import javax.inject.Inject;
+import java.time.Duration;
+
+import static yandex.cloud.api.compute.v1.DiskServiceOuterClass.*;
+import static yandex.cloud.api.compute.v1.SnapshotOuterClass.Snapshot;
+import static yandex.cloud.api.compute.v1.SnapshotServiceGrpc.SnapshotServiceBlockingStub;
+import static yandex.cloud.api.operation.OperationOuterClass.Operation;
+
 @Singleton
 public class YcDiskManager implements DiskManager {
     private static final Logger LOG = LogManager.getLogger(YcDiskManager.class);
@@ -47,8 +46,8 @@ public class YcDiskManager implements DiskManager {
 
     @Inject
     public YcDiskManager(ServiceConfig.DiskManagerConfig config, ServiceFactory serviceFactory) {
-        this.defaultOperationTimeout = config.defaultOperationTimeout();
-        this.folderId = config.folderId();
+        this.defaultOperationTimeout = config.getDefaultOperationTimeout();
+        this.folderId = config.getFolderId();
         diskService = serviceFactory.create(DiskServiceBlockingStub.class, DiskServiceGrpc::newBlockingStub);
         snapshotService = serviceFactory.create(SnapshotServiceBlockingStub.class,
             SnapshotServiceGrpc::newBlockingStub);

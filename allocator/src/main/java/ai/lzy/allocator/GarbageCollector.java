@@ -36,7 +36,7 @@ public class GarbageCollector extends TimerTask {
         this.operations = operations;
         this.allocator = allocator;
         this.storage = storage;
-        timer.scheduleAtFixedRate(this, config.gcPeriod().toMillis(), config.gcPeriod().toMillis());
+        timer.scheduleAtFixedRate(this, config.getGcPeriod().toMillis(), config.getGcPeriod().toMillis());
     }
 
     @Override

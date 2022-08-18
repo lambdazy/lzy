@@ -21,6 +21,7 @@ import yandex.cloud.api.k8s.v1.NodeGroupServiceOuterClass.ListNodeGroupsRequest;
 import yandex.cloud.sdk.ServiceFactory;
 import yandex.cloud.sdk.grpc.interceptors.RequestIdInterceptor;
 
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.*;
@@ -78,8 +79,8 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
                 // TODO: forward X-REQUEST-ID header
                 new RequestIdInterceptor());
 
-        config.serviceClusters().forEach(clusterId -> resolveCluster(clusterId, /* system */ true));
-        config.userClusters().forEach(clusterId -> resolveCluster(clusterId, /* system */ false));
+        config.getServiceClusters().forEach(clusterId -> resolveCluster(clusterId, /* system */ true));
+        config.getUserClusters().forEach(clusterId -> resolveCluster(clusterId, /* system */ false));
     }
 
 
@@ -94,6 +95,7 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
     }
 
     @Override
+    @Nullable
     public ClusterDescription findCluster(String poolLabel, String zone, ClusterType type) {
         // TODO(artolord) make better logic of vm scheduling
         final var desc = clusters.values()

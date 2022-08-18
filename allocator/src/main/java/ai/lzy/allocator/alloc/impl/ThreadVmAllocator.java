@@ -28,16 +28,16 @@ public class ThreadVmAllocator implements VmAllocator {
 
     @Inject
     public ThreadVmAllocator(ServiceConfig serviceConfig) {
-        var cfg = serviceConfig.threadAllocator().orElseThrow();
+        var cfg = serviceConfig.getThreadAllocator();
 
         try {
             Class<?> vmClass;
 
-            if (!cfg.vmJarFile().isEmpty()) {
-                final File vmJar = new File(cfg.vmJarFile());
+            if (!cfg.getVmJarFile().isEmpty()) {
+                final File vmJar = new File(cfg.getVmJarFile());
                 final URLClassLoader classLoader = new URLClassLoader(new URL[]{vmJar.toURI().toURL()},
                     ClassLoader.getSystemClassLoader());
-                vmClass = Class.forName(cfg.vmClassName(), true, classLoader);
+                vmClass = Class.forName(cfg.getVmClassName(), true, classLoader);
             } else {
                 vmClass = Class.forName("ai.lzy.servant.BashApi");
             }

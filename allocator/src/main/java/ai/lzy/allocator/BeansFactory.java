@@ -24,11 +24,11 @@ public class BeansFactory {
 
     @Bean
     @Requires(property = "allocator.yc-credentials.enabled", value = "true")
-    public ServiceFactory serviceFactory(ServiceConfig.YcCredentialsConfig config) {
+    public ServiceFactory serviceFactory(ServiceConfig config) {
         return ServiceFactory.builder()
             .credentialProvider(
                 Auth.apiKeyBuilder()
-                    .fromFile(Path.of(config.serviceAccountFile()))
+                    .fromFile(Path.of(config.getYcCredentialsConfig().getServiceAccountFile()))
                     .build())
             .requestTimeout(YC_CALL_TIMEOUT)
             .build();
@@ -43,7 +43,7 @@ public class BeansFactory {
     @Named("IamGrpcChannel")
     public ManagedChannel iamChannel(ServiceConfig config) {
         return ChannelBuilder
-            .forAddress(config.iam().address())
+            .forAddress(config.getIam().getAddress())
             .usePlaintext() // TODO
             .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
             .build();
