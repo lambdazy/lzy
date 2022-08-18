@@ -2,6 +2,7 @@ package ai.lzy.allocator.services;
 
 
 import ai.lzy.allocator.alloc.VmAllocator;
+import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.model.Vm;
@@ -22,7 +23,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.Set;
 
 @Singleton
@@ -33,12 +33,15 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
     private final OperationDao operations;
     private final VmAllocator allocator;
     private final Storage storage;
+    private final ServiceConfig config;
 
-    public AllocatorPrivateApi(VmDao dao, OperationDao operations, VmAllocator allocator, Storage storage) {
+    public AllocatorPrivateApi(VmDao dao, OperationDao operations, VmAllocator allocator, Storage storage,
+           ServiceConfig config) {
         this.dao = dao;
         this.operations = operations;
         this.allocator = allocator;
         this.storage = storage;
+        this.config = config;
     }
 
     @Override
@@ -78,7 +81,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
             dao.update(new Vm.VmBuilder(vm)
                 .setState(Vm.State.RUNNING)
                 .setVmMeta(request.getMetadataMap())
-                .setLastActivityTime(Instant.now().plus(10, ChronoUnit.MINUTES))  // TODO(artolord) add to config
+                .setLastActivityTime(Instant.now().plus(config.getHeartbeatTimeout()))  // TODO(artolord) add to config
                 .build(), transaction);
 
             operations.update(op.complete(Any.pack(AllocateResponse.newBuilder()
@@ -112,7 +115,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
         }
 
         dao.update(new Vm.VmBuilder(vm)
-            .setLastActivityTime(Instant.now().plus(10, ChronoUnit.MINUTES))  // TODO(artolord) add to config
+            .setLastActivityTime(Instant.now().plus(config.getHeartbeatTimeout()))  // TODO(artolord) add to config
             .build(), null);
 
         responseObserver.onNext(HeartbeatResponse.newBuilder().build());

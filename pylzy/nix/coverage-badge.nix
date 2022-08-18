@@ -13,4 +13,5 @@ buildPythonPackage rec {
   propagatedBuildInputs = [
     coverage
   ];
+  doCheck = false;
 }

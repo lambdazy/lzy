@@ -40,14 +40,16 @@ message Slot {
   DataScheme contentType = 3;
 
   enum Media {
-    FILE = 0;
-    PIPE = 1;
+    UNSPECIFIED = 0;
+    FILE = 1;
+    PIPE = 2;
     ARG = 3;
   }
 
   enum Direction {
-    INPUT = 0;
-    OUTPUT = 1;
+    UNKNOWN = 0;
+    INPUT = 1;
+    OUTPUT = 2;
   }
 }
 
@@ -67,12 +69,13 @@ message SlotStatus {
   * slot is in SUSPENDED state, slot must remember this event and after reconnection feed CLOSED back to the server
   */
   enum State {
-    UNBOUND = 0;
-    PREPARING = 1;
-    OPEN = 2;
-    SUSPENDED = 3;
-    CLOSED = 4;
-    DESTROYED = 5;
+    UNSPECIFIED = 0;
+    UNBOUND = 1;
+    PREPARING = 2;
+    OPEN = 3;
+    SUSPENDED = 4;
+    CLOSED = 5;
+    DESTROYED = 6;
   }
 }
 

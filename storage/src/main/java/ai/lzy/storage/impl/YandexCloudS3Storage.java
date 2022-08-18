@@ -7,8 +7,7 @@ import ai.lzy.v1.LzyStorageApi.*;
 import ai.lzy.v1.LzyStorageGrpc;
 import ai.lzy.storage.StorageConfig;
 import ai.lzy.storage.StorageDataSource;
-import ai.lzy.storage.util.yc.RenewableToken;
-import ai.lzy.storage.util.yc.YcIamClient;
+import ai.lzy.util.auth.YcIamClient;
 import com.amazonaws.SdkClientException;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
@@ -36,11 +35,11 @@ import java.sql.SQLException;
 public class YandexCloudS3Storage extends LzyStorageGrpc.LzyStorageImplBase {
     private static final Logger LOG = LogManager.getLogger(YandexCloudS3Storage.class);
 
-    private final StorageConfig.YcS3Credentials s3Creds;
+    private final StorageConfig.S3Credentials.YcS3Credentials s3Creds;
     private final StorageConfig.YcCredentials ycCreds;
     private final StorageDataSource dataSource;
 
-    public YandexCloudS3Storage(StorageConfig.YcS3Credentials s3, StorageConfig.YcCredentials yc,
+    public YandexCloudS3Storage(StorageConfig.S3Credentials.YcS3Credentials s3, StorageConfig.YcCredentials yc,
                                 StorageDataSource dataSource) {
         this.s3Creds = s3;
         this.ycCreds = yc;
@@ -133,7 +132,7 @@ public class YandexCloudS3Storage extends LzyStorageGrpc.LzyStorageImplBase {
 
         response.onNext(CreateS3BucketResponse.newBuilder()
             .setAmazon(Lzy.AmazonCredentials.newBuilder()
-                .setEndpoint(s3Creds.endpoint())
+                .setEndpoint(s3Creds.getEndpoint())
                 .setAccessToken(tokens[1])
                 .setSecretToken(tokens[2])
                 .build())
@@ -167,7 +166,7 @@ public class YandexCloudS3Storage extends LzyStorageGrpc.LzyStorageImplBase {
             if (rs.next()) {
                 response.onNext(GetS3BucketCredentialsResponse.newBuilder()
                     .setAmazon(Lzy.AmazonCredentials.newBuilder()
-                        .setEndpoint(s3Creds.endpoint())
+                        .setEndpoint(s3Creds.getEndpoint())
                         .setAccessToken(rs.getString("access_token"))
                         .setSecretToken(rs.getString("secret_token"))
                         .build())
@@ -186,9 +185,9 @@ public class YandexCloudS3Storage extends LzyStorageGrpc.LzyStorageImplBase {
     private AmazonS3 s3Client() {
         return AmazonS3ClientBuilder.standard()
             .withCredentials(new AWSStaticCredentialsProvider(
-                new BasicAWSCredentials(s3Creds.accessToken(), s3Creds.secretToken())))
+                new BasicAWSCredentials(s3Creds.getAccessToken(), s3Creds.getSecretToken())))
             .withEndpointConfiguration(
-                new AmazonS3ClientBuilder.EndpointConfiguration(s3Creds.endpoint(), "us-west-1"))
+                new AmazonS3ClientBuilder.EndpointConfiguration(s3Creds.getEndpoint(), "us-west-1"))
             .withPathStyleAccessEnabled(true)
             .build();
     }
@@ -207,7 +206,7 @@ public class YandexCloudS3Storage extends LzyStorageGrpc.LzyStorageImplBase {
         CloseableHttpClient httpclient = HttpClients.createDefault();
 
         String serviceAccountId = YcIamClient.createServiceAccount(userId, RenewableToken.getToken(), httpclient,
-            ycCreds.folderId(), bucket);
+            ycCreds.getFolderId(), bucket);
 
         AWSCredentials credentials = YcIamClient.createStaticCredentials(serviceAccountId,
             RenewableToken.getToken(), httpclient);

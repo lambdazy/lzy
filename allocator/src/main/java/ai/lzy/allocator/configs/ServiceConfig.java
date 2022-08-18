@@ -1,66 +1,85 @@
 package ai.lzy.allocator.configs;
 
+import ai.lzy.iam.config.IamClientConfiguration;
+import ai.lzy.model.db.DatabaseConfiguration;
+import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
-import io.micronaut.context.exceptions.ConfigurationException;
+import lombok.Getter;
+import lombok.Setter;
 
-import javax.annotation.PostConstruct;
 import java.time.Duration;
 import java.util.List;
-import java.util.Optional;
 
+// TODO(artolord) Optional fields are always empty
+@Getter
+@Setter
 @ConfigurationProperties("allocator")
-public record ServiceConfig(
-    int port,
-    Duration gcPeriod,
-    Duration allocationTimeout,
-    Duration heartbeatTimeout,
+public class ServiceConfig {
+    private String address;
+    private Duration gcPeriod;
+    private Duration allocationTimeout;
+    private Duration heartbeatTimeout;
+    private List<String> serviceClusters;
+    private List<String> userClusters;
 
-    List<String> serviceClusters,
-    List<String> userClusters,
+    @ConfigurationBuilder("database")
+    private final DatabaseConfiguration database = new DatabaseConfiguration();
 
-    Optional<ThreadAllocator> threadAllocator,
-    Optional<DockerAllocator> dockerAllocator,
-    Optional<KuberAllocator> kuberAllocator,
+    @ConfigurationBuilder("iam")
+    private final IamClientConfiguration iam = new IamClientConfiguration();
 
-    Optional<YcMk8sConfig> ycMk8s,
-    Optional<AzureMk8sConfig> azureMk8s
-) {
+    private ThreadAllocator threadAllocator = new ThreadAllocator();
+    private DockerAllocator dockerAllocator = new DockerAllocator();
+    private KuberAllocator kuberAllocator = new KuberAllocator();
 
-    @PostConstruct
-    public void validate() {
-        var cnt = ycMk8s.map(x -> x.enabled ? 1 : 0).orElse(0)
-                + azureMk8s.map(x -> x.enabled ? 1 : 0).orElse(0);
-        if (cnt != 1) {
-            throw new ConfigurationException("Exactly one cloud provider should be specified.");
-        }
+    private DiskManagerConfig diskManagerConfig = new DiskManagerConfig();
+
+    private YcCredentialsConfig ycCredentialsConfig = new YcCredentialsConfig();
+    private AzureCredentialsConfig azureCredentialsConfig = new AzureCredentialsConfig();
+
+    @Getter
+    @Setter
+    @ConfigurationProperties("thread-allocator")
+    public static final class ThreadAllocator {
+        private boolean enabled = false;
+        private String vmJarFile;
+        private String vmClassName;
     }
 
-    @ConfigurationProperties("thread-allocator")
-    public record ThreadAllocator(
-        boolean enabled,
-        String vmJarFile,
-        String vmClassName
-    ) {}
-
+    @Getter
+    @Setter
     @ConfigurationProperties("docker-allocator")
-    public record DockerAllocator(
-        boolean enabled
-    ) {}
+    public static final class DockerAllocator {
+        private boolean enabled = false;
+    }
 
+    @Getter
+    @Setter
     @ConfigurationProperties("kuber-allocator")
-    public record KuberAllocator(
-        boolean enabled,
-        String podTemplatePath
-    ) {}
+    public static final class KuberAllocator {
+        private boolean enabled = false;
+    }
 
-    @ConfigurationProperties("yc-mk8s")
-    public record YcMk8sConfig(
-        boolean enabled,
-        String serviceAccountFile
-    ) {}
+    @Getter
+    @Setter
+    @ConfigurationProperties("yc-credentials")
+    public static final class YcCredentialsConfig {
+        private boolean enabled = false;
+        private String serviceAccountFile;
+    }
 
-    @ConfigurationProperties("azure-mk8s")
-    public record AzureMk8sConfig(
-        boolean enabled
-    ) {}
+    @Getter
+    @Setter
+    @ConfigurationProperties("azure-credentials")
+    public static final class AzureCredentialsConfig {
+        private boolean enabled = false;
+    }
+
+    @Getter
+    @Setter
+    @ConfigurationProperties("disk-manager")
+    public static final class DiskManagerConfig {
+        private String folderId;
+        private Duration defaultOperationTimeout;
+    }
 }

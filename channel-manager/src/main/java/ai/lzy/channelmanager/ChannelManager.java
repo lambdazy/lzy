@@ -1,8 +1,5 @@
 package ai.lzy.channelmanager;
 
-import static ai.lzy.model.GrpcConverter.from;
-import static ai.lzy.model.GrpcConverter.to;
-
 import ai.lzy.channelmanager.channel.Channel;
 import ai.lzy.channelmanager.channel.ChannelException;
 import ai.lzy.channelmanager.channel.ChannelImpl;
@@ -24,20 +21,7 @@ import ai.lzy.model.db.ProtoObjectMapper;
 import ai.lzy.model.db.NotFoundException;
 import ai.lzy.model.db.Transaction;
 import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.v1.ChannelManager.ChannelCreateRequest;
-import ai.lzy.v1.ChannelManager.ChannelCreateResponse;
-import ai.lzy.v1.ChannelManager.ChannelDestroyAllRequest;
-import ai.lzy.v1.ChannelManager.ChannelDestroyAllResponse;
-import ai.lzy.v1.ChannelManager.ChannelDestroyRequest;
-import ai.lzy.v1.ChannelManager.ChannelDestroyResponse;
-import ai.lzy.v1.ChannelManager.ChannelStatus;
-import ai.lzy.v1.ChannelManager.ChannelStatusAllRequest;
-import ai.lzy.v1.ChannelManager.ChannelStatusList;
-import ai.lzy.v1.ChannelManager.ChannelStatusRequest;
-import ai.lzy.v1.ChannelManager.SlotAttach;
-import ai.lzy.v1.ChannelManager.SlotAttachStatus;
-import ai.lzy.v1.ChannelManager.SlotDetach;
-import ai.lzy.v1.ChannelManager.SlotDetachStatus;
+import ai.lzy.v1.ChannelManager.*;
 import ai.lzy.v1.Channels;
 import ai.lzy.v1.LzyChannelManagerGrpc;
 import ai.lzy.v1.LzyFsApi;
@@ -52,6 +36,11 @@ import io.grpc.Status;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
+import org.apache.commons.cli.*;
+import org.apache.commons.lang3.NotImplementedException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.io.IOException;
@@ -70,6 +59,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -83,6 +73,9 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import static ai.lzy.model.GrpcConverter.from;
+import static ai.lzy.model.GrpcConverter.to;
 
 @SuppressWarnings("UnstableApiUsage")
 public class ChannelManager {
@@ -109,11 +102,11 @@ public class ChannelManager {
             cliHelp.printHelp("channel-manager", options);
             System.exit(-1);
         }
-        final int port = Integer.parseInt(parse.getOptionValue('p', "8122"));
+        final URI address = URI.create(parse.getOptionValue('a', "localhost:8122"));
         final URI whiteboardAddress = URI.create(parse.getOptionValue('w', "http://localhost:8999"));
 
         try (ApplicationContext context = ApplicationContext.run(Map.of(
-            "channel-manager.port", port,
+            "channel-manager.address", address,
             "channel-manager.whiteboard-address", whiteboardAddress.toString()
         ))) {
             final ChannelManager channelManager = new ChannelManager(context);
@@ -127,7 +120,7 @@ public class ChannelManager {
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             LOG.info("gRPC server is shutting down!");
-            close();
+            stop();
         }));
     }
 
@@ -136,15 +129,15 @@ public class ChannelManager {
         iamChannel.awaitTermination(10, TimeUnit.SECONDS);
     }
 
-    public void close() {
+    public void stop() {
         channelManagerServer.shutdownNow();
         iamChannel.shutdown();
     }
 
     public ChannelManager(ApplicationContext ctx) {
         var config = ctx.getBean(ChannelManagerConfig.class);
-        final HostAndPort address = HostAndPort.fromString(config.address());
-        final var iamAddress = HostAndPort.fromString(config.iam().address());
+        final HostAndPort address = HostAndPort.fromString(config.getAddress());
+        final var iamAddress = HostAndPort.fromString(config.getIam().getAddress());
         iamChannel = ChannelBuilder.forAddress(iamAddress)
             .usePlaintext()
             .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
@@ -173,7 +166,7 @@ public class ChannelManager {
         ) {
             this.dataSource = dataSource;
             this.channelStorage = channelStorage;
-            this.whiteboardAddress = URI.create(config.whiteboardAddress());
+            this.whiteboardAddress = URI.create(config.getWhiteboardAddress());
         }
 
         @Override

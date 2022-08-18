@@ -7,5 +7,5 @@ public interface VmPoolRegistry {
     Map<String, VmPoolSpec> getSystemVmPools();
 
     Map<String, VmPoolSpec> getUserVmPools();
-    
+
 }

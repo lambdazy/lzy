@@ -38,7 +38,9 @@ def load_arg(
         while file.read(1) is None:
             time.sleep(0)  # Thread.yield
         file.seek(0)
-        data: T = file_serializer.find_serializer_by_type(inp_type).deserialize(file, inp_type)
+        data: T = file_serializer.find_serializer_by_type(inp_type).deserialize(
+            file, inp_type
+        )
         if input_value:
             input_value.hash = hasher.hash(data)
         return data
@@ -96,7 +98,9 @@ def main():
         log(f"Writing result to file {result_path}")
         with open(result_path, "wb") as out_handle:
             materialize = val.materialize()
-            file_serializer.find_serializer_by_type(val.type).serialize(materialize, out_handle)
+            file_serializer.find_serializer_by_type(val.type).serialize(
+                materialize, out_handle
+            )
             out_handle.flush()
             os.fsync(out_handle.fileno())
     log("Execution done")

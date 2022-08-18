@@ -1,7 +1,7 @@
 import logging
 import os
 import tempfile
-from typing import BinaryIO, Type, TypeVar, Union, Callable
+from typing import BinaryIO, Callable, Type, TypeVar, Union
 
 from lzy.serialization.api import Serializer
 
@@ -52,6 +52,7 @@ class CatboostPoolSerializer(Serializer):
 
     def supported_types(self) -> Union[Type, Callable[[Type], bool]]:
         import catboost
+
         return catboost.Pool  # type: ignore
 
     def stable(self) -> bool:

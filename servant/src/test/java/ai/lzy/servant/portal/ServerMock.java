@@ -281,7 +281,7 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
                             case INPUT ->
                                 Set.of(SlotStatus.State.OPEN, SlotStatus.State.DESTROYED).contains(slot.getState());
                             case OUTPUT -> true;
-                            case UNRECOGNIZED -> throw new RuntimeException("Unexpected state");
+                            case UNKNOWN, UNRECOGNIZED -> throw new RuntimeException("Unexpected state");
                         };
                     });
                 if (!done) {

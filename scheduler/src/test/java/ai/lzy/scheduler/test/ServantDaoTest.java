@@ -1,5 +1,6 @@
 package ai.lzy.scheduler.test;
 
+import ai.lzy.model.Operation;
 import ai.lzy.model.db.DaoException;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.scheduler.allocator.ServantMetaStorage;
@@ -32,7 +33,7 @@ public class ServantDaoTest {
 
     @Test
     public void testSimple() throws DaoException, AcquireException {
-        var servant = dao.create("wf", new Provisioning.Any());
+        var servant = dao.create("wf", new Operation.Requirements("s", "a"));
         Assert.assertNotNull(servant);
         Assert.assertEquals(servant.status(), ServantState.Status.CREATED);
 
@@ -50,7 +51,7 @@ public class ServantDaoTest {
 
     @Test
     public void testAcquire() throws DaoException, AcquireException {
-        var servant = dao.create("wf", new Provisioning.Any());
+        var servant = dao.create("wf", new Operation.Requirements("s", "a"));
         var state = dao.acquire(servant.workflowName(), servant.id());
 
         Assert.assertThrows(AcquireException.class, () -> dao.acquire(servant.workflowName(), servant.id()));
@@ -61,7 +62,7 @@ public class ServantDaoTest {
 
     @Test
     public void testAcquireForTask() throws DaoException, AcquireException {
-        var servant = dao.create("wf", new Provisioning.Any());
+        var servant = dao.create("wf", new Operation.Requirements("s", "a"));
         dao.acquireForTask(servant.workflowName(), servant.id());
 
         Assert.assertThrows(AcquireException.class, () -> dao.acquireForTask(servant.workflowName(), servant.id()));
@@ -71,9 +72,9 @@ public class ServantDaoTest {
 
     @Test
     public void testCount() throws DaoException, AcquireException {
-        var servant1 = dao.create("wf", new Provisioning.Any());
-        var servant2 = dao.create("wf", new Provisioning.Any());
-        var servant3 = dao.create("wf", new Provisioning.Any());
+        var servant1 = dao.create("wf", new Operation.Requirements("s", "a"));
+        var servant2 = dao.create("wf", new Operation.Requirements("s", "a"));
+        var servant3 = dao.create("wf", new Operation.Requirements("s", "a"));
 
         dao.acquire(servant1.workflowName(), servant1.id());
 
@@ -90,9 +91,9 @@ public class ServantDaoTest {
 
     @Test
     public void testInvalidate() throws DaoException, AcquireException {
-        var servant1 = dao.create("wf", new Provisioning.Any());
-        var servant2 = dao.create("wf", new Provisioning.Any());
-        var servant3 = dao.create("wf", new Provisioning.Any());
+        var servant1 = dao.create("wf", new Operation.Requirements("s", "a"));
+        var servant2 = dao.create("wf", new Operation.Requirements("s", "a"));
+        var servant3 = dao.create("wf", new Operation.Requirements("s", "a"));
 
         var all = dao.get("wf");
 
@@ -111,7 +112,7 @@ public class ServantDaoTest {
 
     @Test
     public void metaTest() throws DaoException {
-        var servant1 = dao.create("wf", new Provisioning.Any());
+        var servant1 = dao.create("wf", new Operation.Requirements("s", "a"));
         meta.saveMeta(servant1.workflowName(), servant1.id(), "Meta");
         var metadata = meta.getMeta(servant1.workflowName(), servant1.id());
         Assert.assertNotNull(metadata);

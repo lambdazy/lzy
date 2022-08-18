@@ -1,10 +1,5 @@
 package ai.lzy.kharon;
 
-import static ai.lzy.model.UriScheme.LzyFs;
-import static ai.lzy.model.UriScheme.LzyKharon;
-import static ai.lzy.model.UriScheme.SlotAzure;
-import static ai.lzy.model.UriScheme.SlotS3;
-
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.utils.GrpcConfig;
@@ -14,36 +9,24 @@ import ai.lzy.model.SlotConnectionManager;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.grpc.ProxyClientHeaderInterceptor;
 import ai.lzy.model.grpc.ProxyServerHeaderInterceptor;
-import ai.lzy.v1.ChannelManager;
-import ai.lzy.v1.IAM;
-import ai.lzy.v1.Kharon;
+import ai.lzy.v1.*;
 import ai.lzy.v1.Kharon.ReceivedDataStatus;
 import ai.lzy.v1.Kharon.SendSlotDataMessage;
 import ai.lzy.v1.Kharon.TerminalCommand;
-import ai.lzy.v1.Lzy;
 import ai.lzy.v1.Lzy.GetSessionsRequest;
 import ai.lzy.v1.Lzy.GetSessionsResponse;
-import ai.lzy.v1.LzyChannelManagerGrpc;
-import ai.lzy.v1.LzyFsApi;
 import ai.lzy.v1.LzyFsApi.SlotCommandStatus;
-import ai.lzy.v1.LzyFsGrpc;
-import ai.lzy.v1.LzyKharonGrpc;
-import ai.lzy.v1.LzyServerGrpc;
-import ai.lzy.v1.LzyWhiteboard;
-import ai.lzy.v1.Operations;
-import ai.lzy.v1.SnapshotApiGrpc;
-import ai.lzy.v1.Tasks;
-import ai.lzy.v1.WbApiGrpc;
 import com.google.common.net.HostAndPort;
-import io.grpc.Context;
-import io.grpc.ManagedChannel;
-import io.grpc.Server;
-import io.grpc.ServerInterceptors;
-import io.grpc.Status;
+import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
+import org.apache.commons.cli.*;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -52,15 +35,9 @@ import java.util.Iterator;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+
+import static ai.lzy.model.UriScheme.LzyKharon;
+import static ai.lzy.model.UriScheme.*;
 
 @SuppressWarnings("UnstableApiUsage")
 public class LzyKharon {
@@ -99,28 +76,28 @@ public class LzyKharon {
     public LzyKharon(ApplicationContext ctx) throws URISyntaxException {
         var config = ctx.getBean(KharonConfig.class);
 
-        var selfAddress = HostAndPort.fromString(config.address());
-        var serverAddress = HostAndPort.fromString(config.serverAddress());
-        final URI externalAddress = new URI(LzyKharon.scheme(), null, config.externalHost(), selfAddress.getPort(),
+        var selfAddress = HostAndPort.fromString(config.getAddress());
+        var serverAddress = HostAndPort.fromString(config.getServerAddress());
+        final URI externalAddress = new URI(LzyKharon.scheme(), null, config.getExternalHost(), selfAddress.getPort(),
             null, null, null);
         serverChannel = ChannelBuilder.forAddress(serverAddress.getHost(), serverAddress.getPort())
             .usePlaintext()
             .build();
         server = LzyServerGrpc.newBlockingStub(serverChannel);
 
-        var whiteboardAddress = HostAndPort.fromString(config.whiteboardAddress());
+        var whiteboardAddress = HostAndPort.fromString(config.getWhiteboardAddress());
         whiteboardChannel = ChannelBuilder.forAddress(whiteboardAddress.getHost(), whiteboardAddress.getPort())
             .usePlaintext()
             .build();
         whiteboard = WbApiGrpc.newBlockingStub(whiteboardChannel);
 
-        var snapshotAddress = HostAndPort.fromString(config.snapshotAddress());
+        var snapshotAddress = HostAndPort.fromString(config.getSnapshotAddress());
         snapshotChannel = ChannelBuilder.forAddress(snapshotAddress.getHost(), snapshotAddress.getPort())
             .usePlaintext()
             .build();
         snapshot = SnapshotApiGrpc.newBlockingStub(snapshotChannel);
 
-        var servantProxyFsAddress = new URI(LzyFs.scheme(), null, selfAddress.getHost(), config.servantFsProxyPort(),
+        var servantProxyFsAddress = new URI(LzyFs.scheme(), null, selfAddress.getHost(), config.getServantFsProxyPort(),
             null, null, null);
 
         sessionManager = new TerminalSessionManager();
@@ -136,9 +113,9 @@ public class LzyKharon {
             .addService(ServerInterceptors.intercept(new WhiteboardService()))
             .addService(ServerInterceptors.intercept(new ServerService()));
 
-        if (config.workflow().enabled()) {
+        if (config.getWorkflow().isEnabled()) {
             var authInterceptor = new AuthServerInterceptor(
-                new AuthenticateServiceGrpcClient(GrpcConfig.from(config.iam().address())));
+                new AuthenticateServiceGrpcClient(GrpcConfig.from(config.getIam().getAddress())));
 
             kharonServerBuilder.addService(ServerInterceptors.intercept(
                 ctx.getBean(WorkflowService.class),
@@ -147,13 +124,13 @@ public class LzyKharon {
 
         kharonServer = kharonServerBuilder.build();
 
-        kharonServantFsProxy = NettyServerBuilder.forPort(config.servantFsProxyPort())
+        kharonServantFsProxy = NettyServerBuilder.forPort(config.getServantFsProxyPort())
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(ServerInterceptors.intercept(new KharonServantFsProxyService()))
             .build();
 
-        var channelManagerAddress = HostAndPort.fromString(config.channelManagerAddress());
+        var channelManagerAddress = HostAndPort.fromString(config.getChannelManagerAddress());
         ManagedChannel channelManagerChannel = ChannelBuilder
             .forAddress(channelManagerAddress.getHost(), channelManagerAddress.getPort())
             .usePlaintext()
@@ -162,7 +139,7 @@ public class LzyKharon {
             .newBlockingStub(channelManagerChannel)
             .withInterceptors(new ProxyClientHeaderInterceptor());
 
-        channelManagerProxy = NettyServerBuilder.forPort(config.channelManagerProxyPort())
+        channelManagerProxy = NettyServerBuilder.forPort(config.getChannelManagerProxyPort())
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(ServerInterceptors.intercept(

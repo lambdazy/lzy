@@ -1,6 +1,6 @@
 package ai.lzy.kharon.workflow;
 
-import ai.lzy.iam.authorization.credentials.JwtCredentials;
+import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.kharon.KharonConfig;
 import ai.lzy.kharon.KharonDataSource;
@@ -37,7 +37,7 @@ import java.time.Instant;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 
-import static ai.lzy.model.utils.JwtCredentials.buildJWT;
+import static ai.lzy.util.auth.credentials.JwtUtils.buildJWT;
 
 @SuppressWarnings("UnstableApiUsage")
 @Singleton
@@ -53,14 +53,14 @@ public class WorkflowService extends LzyWorkflowImplBase {
         this.db = db;
 
         JwtCredentials internalUser;
-        try (final Reader reader = new StringReader(config.iam().internal().credentialPrivateKey())) {
-            internalUser = new JwtCredentials(buildJWT(config.iam().internal().userName(), reader));
-            LOG.info("Init Internal User '{}' credentials", config.iam().internal().userName());
+        try (final Reader reader = new StringReader(config.getIam().getInternalUserPrivateKey())) {
+            internalUser = new JwtCredentials(buildJWT(config.getIam().getInternalUserName(), reader));
+            LOG.info("Init Internal User '{}' credentials", config.getIam().getInternalUserName());
         } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
             throw new RuntimeException("Cannot build credentials: " + e.getMessage(), e);
         }
 
-        storageServiceChannel = ChannelBuilder.forAddress(HostAndPort.fromString(config.storage().address()))
+        storageServiceChannel = ChannelBuilder.forAddress(HostAndPort.fromString(config.getStorage().getAddress()))
             .usePlaintext()
             .enableRetry(LzyStorageGrpc.SERVICE_NAME)
             .build();

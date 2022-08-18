@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package ai.lzy.v1.common;
+
+option java_outer_classname = "LzyCommon";
+option java_package = "ai.lzy.v1.common";
+
+import "ai/lzy/v1/zygote.proto";
+
+message Operation {
+  EnvSpec env = 1;
+  Requirements requirements = 2;
+  string command = 3;
+  repeated Slot slots = 4;
+  string description = 5;
+  string name = 6;
+}
+
+message Requirements {
+  string poolLabel = 1;
+  string zone = 2;
+}
+
+message SlotToChannelAssignment {
+  string slotName = 1;
+  string channelId = 2;
+}
+
+message TaskDesc {
+  Operation operation = 2;
+  repeated SlotToChannelAssignment slotAssignments = 3;
+}
+

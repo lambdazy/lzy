@@ -11,11 +11,12 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import org.jetbrains.annotations.Nullable;
 
+import javax.annotation.Nullable;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.Nullable;
 
 @Singleton
 public class VmDaoImpl implements VmDao {
@@ -214,6 +215,7 @@ public class VmDaoImpl implements VmDao {
                 final var res = s.executeQuery();
                 if (!res.next()) {
                     meta.set(null);
+                    return;
                 }
 
                 final var dumpedMeta = res.getString(1);

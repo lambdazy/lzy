@@ -1,21 +1,12 @@
 package ai.lzy.channelmanager;
 
+import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.grpc.ClientHeaderInterceptor;
 import ai.lzy.model.grpc.GrpcHeaders;
-import ai.lzy.test.BaseTestWithIam;
 import ai.lzy.test.GrpcUtils;
-import ai.lzy.test.JwtUtils;
-import ai.lzy.v1.ChannelManager.ChannelCreateRequest;
-import ai.lzy.v1.ChannelManager.ChannelCreateResponse;
-import ai.lzy.v1.ChannelManager.ChannelDestroyAllRequest;
-import ai.lzy.v1.ChannelManager.ChannelDestroyRequest;
-import ai.lzy.v1.ChannelManager.ChannelDestroyResponse;
-import ai.lzy.v1.ChannelManager.ChannelStatus;
-import ai.lzy.v1.ChannelManager.ChannelStatusRequest;
-import ai.lzy.v1.ChannelManager.ChannelStatusAllRequest;
-import ai.lzy.v1.ChannelManager.SlotAttach;
-import ai.lzy.v1.ChannelManager.SlotDetach;
+import ai.lzy.util.auth.credentials.JwtUtils;
+import ai.lzy.v1.ChannelManager.*;
 import ai.lzy.v1.Channels.ChannelSpec;
 import ai.lzy.v1.Channels.DirectChannelType;
 import ai.lzy.v1.LzyChannelManagerGrpc;
@@ -25,12 +16,10 @@ import com.google.common.net.HostAndPort;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
+import org.junit.*;
+
 import java.io.IOException;
 import java.util.UUID;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
 
 @SuppressWarnings({"UnstableApiUsage", "ResultOfMethodCallIgnored"})
 public class ChannelManagerTest extends BaseTestWithIam {
@@ -52,7 +41,7 @@ public class ChannelManagerTest extends BaseTestWithIam {
         channelManagerApp.start();
 
         var channel = ChannelBuilder
-            .forAddress(HostAndPort.fromString(channelManagerConfig.address()))
+            .forAddress(HostAndPort.fromString(channelManagerConfig.getAddress()))
             .usePlaintext()
             .build();
         unauthorizedChannelManagerClient = LzyChannelManagerGrpc.newBlockingStub(channel);
@@ -62,7 +51,7 @@ public class ChannelManagerTest extends BaseTestWithIam {
 
     @After
     public void after() {
-        channelManagerApp.close();
+        channelManagerApp.stop();
         try {
             channelManagerApp.awaitTermination();
         } catch (InterruptedException ignored) {

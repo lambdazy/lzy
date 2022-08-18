@@ -1,4 +1,4 @@
-from typing import BinaryIO, Type, Union, Callable, Any
+from typing import Any, BinaryIO, Callable, Type, Union
 
 import cloudpickle
 

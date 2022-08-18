@@ -1,6 +1,7 @@
 package ai.lzy.test.impl;
 
-import ai.lzy.iam.authorization.credentials.JwtCredentials;
+import ai.lzy.iam.config.IamClientConfiguration;
+import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.grpc.ClientHeaderInterceptor;
 import ai.lzy.model.grpc.GrpcHeaders;
@@ -29,7 +30,7 @@ import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
-import static ai.lzy.model.utils.JwtCredentials.buildJWT;
+import static ai.lzy.util.auth.credentials.JwtUtils.buildJWT;
 
 @SuppressWarnings("UnstableApiUsage")
 public class StorageThreadContext implements LzyStorageTestContext {
@@ -89,7 +90,7 @@ public class StorageThreadContext implements LzyStorageTestContext {
             }
 
             var config = context.getBean(StorageConfig.class);
-            internalUserCreds = internalUserCredentials(config.iam().internal());
+            internalUserCreds = internalUserCredentials(config.getIam());
         }
 
         var channel = ChannelBuilder.forAddress(address())
@@ -117,9 +118,9 @@ public class StorageThreadContext implements LzyStorageTestContext {
         }
     }
 
-    private JwtCredentials internalUserCredentials(StorageConfig.IamInternal internal) {
-        try (final Reader reader = new StringReader(internal.credentialPrivateKey())) {
-            return new JwtCredentials(buildJWT(internal.userName(), reader));
+    private JwtCredentials internalUserCredentials(IamClientConfiguration iam) {
+        try (final Reader reader = new StringReader(iam.getInternalUserPrivateKey())) {
+            return new JwtCredentials(buildJWT(iam.getInternalUserName(), reader));
         } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
             throw new RuntimeException("Cannot build credentials: " + e.getMessage(), e);
         }

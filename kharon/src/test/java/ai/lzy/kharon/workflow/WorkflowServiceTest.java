@@ -1,7 +1,7 @@
 package ai.lzy.kharon.workflow;
 
-import ai.lzy.iam.authorization.credentials.JwtCredentials;
-import ai.lzy.iam.authorization.exceptions.AuthUnauthenticatedException;
+import ai.lzy.util.auth.credentials.JwtCredentials;
+import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.utils.CredentialsHelper;
@@ -33,7 +33,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 
-import static ai.lzy.model.utils.JwtCredentials.buildJWT;
+import static ai.lzy.util.auth.credentials.JwtUtils.buildJWT;
 
 public class WorkflowServiceTest {
     private ApplicationContext ctx;
@@ -51,16 +51,16 @@ public class WorkflowServiceTest {
         props.put("kharon.storage.address", "localhost:" + storagePort);
 
         ctx = ApplicationContext.run(PropertySource.of(props));
-        var iamInternalConfig = ctx.getBean(KharonConfig.class).iam().internal();
+        var iam = ctx.getBean(KharonConfig.class).getIam();
 
         final JwtCredentials internalUser;
-        try (var reader = new StringReader(iamInternalConfig.credentialPrivateKey())) {
-            internalUser = new JwtCredentials(buildJWT(iamInternalConfig.userName(), reader));
+        try (var reader = new StringReader(iam.getInternalUserPrivateKey())) {
+            internalUser = new JwtCredentials(buildJWT(iam.getInternalUserName(), reader));
         }
 
         var authInterceptor = new AuthServerInterceptor(credentials -> {
             var issuer = CredentialsHelper.issuerFromJWT(credentials.token());
-            if (iamInternalConfig.userName().equals(issuer)) {
+            if (iam.getInternalUserName().equals(issuer)) {
                 return new User(issuer);
             }
             throw new AuthUnauthenticatedException("heck");

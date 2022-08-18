@@ -1,15 +1,13 @@
 package ai.lzy.allocator.dao.impl;
 
-import ai.lzy.allocator.configs.DbConfig;
+import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.model.db.Storage;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.flywaydb.core.Flyway;
 
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 
@@ -21,20 +19,22 @@ public class AllocatorDataSource implements Storage {
     private final ComboPooledDataSource dataSource;
 
     @Inject
-    public AllocatorDataSource(DbConfig config) {
-        dataSource = new ComboPooledDataSource();
-        dataSource.setJdbcUrl(config.url());
-        dataSource.setUser(config.username());
-        dataSource.setPassword(config.password());
+    public AllocatorDataSource(ServiceConfig config) {
+        var dbConfig = config.getDatabase();
 
-        dataSource.setMinPoolSize(config.minPoolSize());
-        dataSource.setMaxPoolSize(config.maxPoolSize());
+        dataSource = new ComboPooledDataSource();
+        dataSource.setJdbcUrl(dbConfig.getUrl());
+        dataSource.setUser(dbConfig.getUsername());
+        dataSource.setPassword(dbConfig.getPassword());
+
+        dataSource.setMinPoolSize(dbConfig.getMinPoolSize());
+        dataSource.setMaxPoolSize(dbConfig.getMaxPoolSize());
 
         dataSource.setTestConnectionOnCheckout(true);
         dataSource.setPreferredTestQuery(VALIDATION_QUERY_SQL);
 
         var flyway = Flyway.configure()
-            .dataSource(config.url(), config.username(), config.password())
+            .dataSource(dbConfig.getUrl(), dbConfig.getUsername(), dbConfig.getPassword())
             .locations("classpath:db/allocator/migrations")
             .load();
         flyway.migrate();

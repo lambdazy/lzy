@@ -40,9 +40,10 @@ message PublishRequest {
   Zygote operation = 4;
 
   enum VisibilityScope {
-    USER = 0;
-    GROUP = 1;
-    ALL = 2;
+    UNSPECIFIED = 0;
+    USER = 1;
+    GROUP = 2;
+    ALL = 3;
   }
 }
 

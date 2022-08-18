@@ -5,7 +5,8 @@ package ai.lzy.v1.scheduler;
 option java_outer_classname = "SchedulerApi";
 option java_package = "ai.lzy.v1";
 
-import "ai/lzy/v1/zygote.proto";
+import "ai/lzy/v1/common/operation.proto";
+
 service Scheduler {
   rpc Schedule (TaskScheduleRequest) returns (TaskScheduleResponse);
   rpc Status (TaskStatusRequest) returns (TaskStatusResponse);
@@ -44,20 +45,10 @@ message TaskStatus {
 
 // =========== Schedule ============
 
-message SlotToChannelAssignment {
-  string slotName = 1;
-  string channelId = 2;
-}
-
-message TaskDesc {
-  Zygote zygote = 2;
-  repeated SlotToChannelAssignment slotAssignments = 3;
-}
-
 message TaskScheduleRequest {
   string workflowId = 1;
   string workflowName = 2;
-  TaskDesc task = 3;
+  ai.lzy.v1.common.TaskDesc task = 3;
 }
 message TaskScheduleResponse {
   TaskStatus status = 1;

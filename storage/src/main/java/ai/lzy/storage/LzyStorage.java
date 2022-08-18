@@ -30,8 +30,8 @@ public class LzyStorage {
     public LzyStorage(ApplicationContext context) {
         var config = context.getBean(StorageConfig.class);
 
-        var address = HostAndPort.fromString(config.address());
-        var iamAddress = HostAndPort.fromString(config.iam().address());
+        var address = HostAndPort.fromString(config.getAddress());
+        var iamAddress = HostAndPort.fromString(config.getIam().getAddress());
 
         var service = context.getBean(LzyStorageGrpc.LzyStorageImplBase.class);
 

@@ -18,14 +18,16 @@ public class KharonDataSource implements Storage {
     private final ComboPooledDataSource dataSource;
 
     @Inject
-    public KharonDataSource(KharonConfig.DatabaseConfig dbConfig) {
-        this.dataSource = new ComboPooledDataSource();
-        dataSource.setJdbcUrl(dbConfig.url());
-        dataSource.setUser(dbConfig.username());
-        dataSource.setPassword(dbConfig.password());
+    public KharonDataSource(KharonConfig config) {
+        var dbConfig = config.getDatabase();
 
-        dataSource.setMinPoolSize(dbConfig.minPoolSize());
-        dataSource.setMaxPoolSize(dbConfig.maxPoolSize());
+        this.dataSource = new ComboPooledDataSource();
+        dataSource.setJdbcUrl(dbConfig.getUrl());
+        dataSource.setUser(dbConfig.getUsername());
+        dataSource.setPassword(dbConfig.getPassword());
+
+        dataSource.setMinPoolSize(dbConfig.getMinPoolSize());
+        dataSource.setMaxPoolSize(dbConfig.getMaxPoolSize());
 
         dataSource.setTestConnectionOnCheckout(true);
         dataSource.setPreferredTestQuery(VALIDATION_QUERY_SQL);

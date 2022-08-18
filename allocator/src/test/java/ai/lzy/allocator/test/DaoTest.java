@@ -13,16 +13,15 @@ import ai.lzy.v1.VmAllocatorApi;
 import com.google.protobuf.Any;
 import io.grpc.Status;
 import io.micronaut.context.ApplicationContext;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 
 public class DaoTest {
     private OperationDao opDao;

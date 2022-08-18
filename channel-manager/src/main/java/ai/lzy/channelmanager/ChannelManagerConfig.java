@@ -1,20 +1,22 @@
 package ai.lzy.channelmanager;
 
+import ai.lzy.iam.config.IamClientConfiguration;
+import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
-import javax.annotation.Nullable;
 import io.micronaut.core.bind.annotation.Bindable;
 import javax.annotation.Nullable;
+import lombok.Getter;
+import lombok.Setter;
 
+@Getter
+@Setter
 @ConfigurationProperties("channel-manager")
-public record ChannelManagerConfig(
-    @Nullable String address,
-    @Nullable String whiteboardAddress,
-    @Nullable Iam iam
-) {
-    @ConfigurationProperties("iam")
-    public record Iam(
-        @Nullable String address
-    ) { }
+public final class ChannelManagerConfig {
+    private String address;
+    private String whiteboardAddress;
+
+    @ConfigurationBuilder("iam")
+    private final IamClientConfiguration iam = new IamClientConfiguration();
 
     @ConfigurationProperties("database")
     public record DbConfig(

@@ -2,7 +2,7 @@ package ai.lzy.graph.api;
 
 import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.graph.model.TaskDescription;
-import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.TaskDesc;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.v1.SchedulerApi.*;
 import ai.lzy.v1.SchedulerGrpc;
@@ -32,15 +32,7 @@ public class SchedulerApiImpl implements SchedulerApi {
     public TaskStatus execute(String workflowId, TaskDescription task) {
         var res = stub.schedule(TaskScheduleRequest.newBuilder()
             .setWorkflowId(workflowId)
-            .setTask(TaskDesc.newBuilder()
-                .setZygote(GrpcConverter.to(task.zygote()))
-                .addAllSlotAssignments(task.slotsToChannelsAssignments().entrySet().stream()
-                    .map(entry -> SlotToChannelAssignment.newBuilder()
-                        .setSlotName(entry.getKey())
-                        .setChannelId(entry.getValue())
-                        .build()
-                    ).toList())
-                .build())
+            .setTask(new TaskDesc(task.operation(), task.slotsToChannelsAssignments()).toProto())
             .build());
         return res.getStatus();
     }

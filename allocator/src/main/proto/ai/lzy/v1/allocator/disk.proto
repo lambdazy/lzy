@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package ai.lzy.v1.allocator;
+
+option java_outer_classname = "DiskApi";
+option java_package = "ai.lzy.v1.allocator";
+
+
+enum DiskType {
+  DISK_TYPE_UNSPECIFIED = 0;
+  HDD = 1;
+  SSD = 2;
+  NR_SSD = 3;
+}
+
+message DiskSpec {
+  string name = 1;
+  DiskType type = 2;
+  int32 size_gb = 3;
+  string zone_id = 4;
+}
+
+message Disk {
+  string disk_id = 1;
+  DiskSpec spec = 2;
+}

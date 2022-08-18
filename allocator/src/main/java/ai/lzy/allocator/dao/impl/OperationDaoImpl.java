@@ -10,8 +10,8 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.rpc.Status;
 import com.google.rpc.StatusProto;
 import jakarta.inject.Singleton;
-import org.jetbrains.annotations.Nullable;
 
+import javax.annotation.Nullable;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;

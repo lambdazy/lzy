@@ -1,10 +1,10 @@
 package ai.lzy.storage;
 
+import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.grpc.ClientHeaderInterceptor;
 import ai.lzy.model.grpc.GrpcHeaders;
-import ai.lzy.test.BaseTestWithIam;
-import ai.lzy.test.JwtUtils;
+import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.v1.LzyStorageApi;
 import ai.lzy.v1.LzyStorageGrpc;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
@@ -16,12 +16,13 @@ import com.google.common.net.HostAndPort;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 @SuppressWarnings({"UnstableApiUsage", "ResultOfMethodCallIgnored"})
 public class StorageTest extends BaseTestWithIam {
@@ -35,13 +36,13 @@ public class StorageTest extends BaseTestWithIam {
     @Before
     public void before() throws IOException {
         super.before();
-        storageCtx = ApplicationContext.run();
+        storageCtx = ApplicationContext.run("../storage/src/main/resources/application-test.yml");
         storageConfig = storageCtx.getBean(StorageConfig.class);
         storageApp = new LzyStorage(storageCtx);
         storageApp.start();
 
         var channel = ChannelBuilder
-            .forAddress(HostAndPort.fromString(storageConfig.address()))
+            .forAddress(HostAndPort.fromString(storageConfig.getAddress()))
             .usePlaintext()
             .build();
         storageClient = LzyStorageGrpc.newBlockingStub(channel);
@@ -93,7 +94,7 @@ public class StorageTest extends BaseTestWithIam {
 
     @Test
     public void testPermissionDenied() {
-        var credentials = JwtUtils.invalidCredentials(storageConfig.iam().internal().userName());
+        var credentials = JwtUtils.invalidCredentials(storageConfig.getIam().getInternalUserName());
 
         var client = storageClient.withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
@@ -130,8 +131,8 @@ public class StorageTest extends BaseTestWithIam {
 
     @Test
     public void testSuccess() throws IOException {
-        var credentials = JwtUtils.credentials(storageConfig.iam().internal().userName(),
-            storageConfig.iam().internal().credentialPrivateKey());
+        var credentials = JwtUtils.credentials(storageConfig.getIam().getInternalUserName(),
+            storageConfig.getIam().getInternalUserPrivateKey());
 
         var client = storageClient.withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));

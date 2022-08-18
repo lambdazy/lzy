@@ -1,5 +1,6 @@
 package ai.lzy.scheduler.servant.impl;
 
+import ai.lzy.model.Operation;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.scheduler.models.ServantEvent;
 import ai.lzy.scheduler.models.ServantState;
@@ -97,8 +98,8 @@ public class ServantImpl implements Servant {
     }
 
     @Override
-    public Provisioning provisioning() {
-        return state.provisioning();
+    public Operation.Requirements requirements() {
+        return state.requirements();
     }
 
     @Override

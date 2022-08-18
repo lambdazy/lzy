@@ -1,14 +1,15 @@
 import tempfile
 import uuid
 from dataclasses import dataclass
-from typing import Union, Type, Callable, BinaryIO, Any
+from typing import Any, BinaryIO, Callable, Type, Union
+from unittest import TestCase
 
 import cloudpickle
+
 # noinspection PyPackageRequirements
 from catboost import Pool
-from pure_protobuf.dataclasses_ import message, field
+from pure_protobuf.dataclasses_ import field, message
 from pure_protobuf.types import int32
-from unittest import TestCase
 
 from lzy.serialization.api import Serializer
 from lzy.serialization.catboost import CatboostPoolSerializer
@@ -16,10 +17,12 @@ from lzy.serialization.registry import DefaultSerializersRegistry
 from lzy.serialization.types import File
 
 
-def generate_serializer(name: str = 'TEST_SERIALIZER',
-                        supported_types: Union[Type, Callable[[Type], bool]] = lambda x: True,
-                        available: bool = True,
-                        stable: bool = True) -> Type[Serializer]:
+def generate_serializer(
+    name: str = "TEST_SERIALIZER",
+    supported_types: Union[Type, Callable[[Type], bool]] = lambda x: True,
+    available: bool = True,
+    stable: bool = True,
+) -> Type[Serializer]:
     class TestSerializer(Serializer):
         def serialize(self, obj: Any, dest: BinaryIO) -> None:
             pass
@@ -64,15 +67,15 @@ class SerializationTests(TestCase):
             self.registry.find_serializer_by_type(type(msg)).serialize(msg, file)
             file.flush()
             file.seek(0)
-            result = self.registry.find_serializer_by_type(unpickled_msg_type).deserialize(file, unpickled_msg_type)
+            result = self.registry.find_serializer_by_type(
+                unpickled_msg_type
+            ).deserialize(file, unpickled_msg_type)
 
         self.assertEqual(msg.a, result.a)
 
     def test_catboost_pool_serialization(self):
         pool = Pool(
-            data=[[1, 4, 5, 6],
-                  [4, 5, 6, 7],
-                  [30, 40, 50, 60]],
+            data=[[1, 4, 5, 6], [4, 5, 6, 7], [30, 40, 50, 60]],
             label=[1, 1, -1],
             weight=[0.1, 0.2, 0.3],
         )
@@ -88,53 +91,91 @@ class SerializationTests(TestCase):
         self.assertTrue(serializer.stable())
 
     def test_register_unregister_serializer_for_type(self):
-        serializer = generate_serializer(name=uuid.uuid4(), available=True, supported_types=A)()
+        serializer = generate_serializer(
+            name=uuid.uuid4(), available=True, supported_types=A
+        )()
         self.registry.register_serializer(serializer)
-        self.assertEqual(self.registry.find_serializer_by_type(A).name(), serializer.name())
+        self.assertEqual(
+            self.registry.find_serializer_by_type(A).name(), serializer.name()
+        )
 
         self.registry.unregister_serializer(serializer)
-        self.assertNotEqual(self.registry.find_serializer_by_type(A).name(), serializer.name())
+        self.assertNotEqual(
+            self.registry.find_serializer_by_type(A).name(), serializer.name()
+        )
 
     def test_register_unavailable_serializer(self):
-        serializer = generate_serializer(name="UNAVAILABLE", available=False, supported_types=A)()
+        serializer = generate_serializer(
+            name="UNAVAILABLE", available=False, supported_types=A
+        )()
         self.registry.register_serializer(serializer)
-        self.assertNotEqual(self.registry.find_serializer_by_type(A).name(), serializer.name())
+        self.assertNotEqual(
+            self.registry.find_serializer_by_type(A).name(), serializer.name()
+        )
 
     def test_serializer_for_type_prioritized(self):
-        serializer_for_type = generate_serializer(name=uuid.uuid4(), available=True, supported_types=A)()
+        serializer_for_type = generate_serializer(
+            name=uuid.uuid4(), available=True, supported_types=A
+        )()
         self.registry.register_serializer(serializer_for_type)
-        self.assertEqual(self.registry.find_serializer_by_type(A).name(), serializer_for_type.name())
+        self.assertEqual(
+            self.registry.find_serializer_by_type(A).name(), serializer_for_type.name()
+        )
 
-        serializer_for_all = generate_serializer(name=uuid.uuid4(), available=True, supported_types=lambda x: True)()
+        serializer_for_all = generate_serializer(
+            name=uuid.uuid4(), available=True, supported_types=lambda x: True
+        )()
         self.registry.register_serializer(serializer_for_all)
-        self.assertEqual(self.registry.find_serializer_by_type(A).name(), serializer_for_type.name())
+        self.assertEqual(
+            self.registry.find_serializer_by_type(A).name(), serializer_for_type.name()
+        )
 
         self.registry.unregister_serializer(serializer_for_type)
-        self.assertEqual(self.registry.find_serializer_by_type(A).name(), serializer_for_all.name())
+        self.assertEqual(
+            self.registry.find_serializer_by_type(A).name(), serializer_for_all.name()
+        )
 
     def test_priorities(self):
-        serializer_for_type_priority_1 = generate_serializer(name=uuid.uuid4(), available=True,
-                                                             supported_types=lambda x: True)()
+        serializer_for_type_priority_1 = generate_serializer(
+            name=uuid.uuid4(), available=True, supported_types=lambda x: True
+        )()
         self.registry.register_serializer(serializer_for_type_priority_1, priority=1)
-        self.assertEqual(self.registry.find_serializer_by_type(A).name(), serializer_for_type_priority_1.name())
+        self.assertEqual(
+            self.registry.find_serializer_by_type(A).name(),
+            serializer_for_type_priority_1.name(),
+        )
 
-        serializer_for_type_priority_0 = generate_serializer(name=uuid.uuid4(), available=True,
-                                                             supported_types=lambda x: True)()
+        serializer_for_type_priority_0 = generate_serializer(
+            name=uuid.uuid4(), available=True, supported_types=lambda x: True
+        )()
         self.registry.register_serializer(serializer_for_type_priority_0, priority=0)
-        self.assertEqual(self.registry.find_serializer_by_type(A).name(), serializer_for_type_priority_0.name())
+        self.assertEqual(
+            self.registry.find_serializer_by_type(A).name(),
+            serializer_for_type_priority_0.name(),
+        )
 
         self.registry.unregister_serializer(serializer_for_type_priority_0)
-        self.assertEqual(self.registry.find_serializer_by_type(A).name(), serializer_for_type_priority_1.name())
+        self.assertEqual(
+            self.registry.find_serializer_by_type(A).name(),
+            serializer_for_type_priority_1.name(),
+        )
 
     def test_filters(self):
         class Accepting:
             pass
 
-        serializer = generate_serializer(name=uuid.uuid4(), available=True,
-                                         supported_types=lambda x: 'Accepting' in x.__name__)()
+        serializer = generate_serializer(
+            name=uuid.uuid4(),
+            available=True,
+            supported_types=lambda x: "Accepting" in x.__name__,
+        )()
         self.registry.register_serializer(serializer)
-        self.assertEqual(self.registry.find_serializer_by_type(Accepting).name(), serializer.name())
-        self.assertNotEqual(self.registry.find_serializer_by_type(A).name(), serializer.name())
+        self.assertEqual(
+            self.registry.find_serializer_by_type(Accepting).name(), serializer.name()
+        )
+        self.assertNotEqual(
+            self.registry.find_serializer_by_type(A).name(), serializer.name()
+        )
 
     def test_register_serializer_with_the_same_name(self):
         serializer_1 = generate_serializer(name="UNUSUAL_NAME")()

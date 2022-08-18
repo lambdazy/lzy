@@ -1,5 +1,6 @@
 package ai.lzy.scheduler.test;
 
+import ai.lzy.model.Operation;
 import ai.lzy.model.Slot;
 import ai.lzy.model.db.DaoException;
 import ai.lzy.model.graph.*;
@@ -11,7 +12,7 @@ import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.scheduler.db.ServantEventDao;
 import ai.lzy.scheduler.db.TaskDao;
 import ai.lzy.scheduler.models.ServantState;
-import ai.lzy.scheduler.models.TaskDesc;
+import ai.lzy.model.TaskDesc;
 import ai.lzy.scheduler.servant.Servant;
 import ai.lzy.scheduler.servant.impl.EventQueueManager;
 import ai.lzy.scheduler.servant.impl.ServantEventProcessor;
@@ -27,10 +28,7 @@ import org.junit.rules.Timeout;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
@@ -50,7 +48,7 @@ public class EventProcessorTest {
     public CountDownLatch servantReady;
 
     @Rule
-    public Timeout globalTimeout = Timeout.seconds(30);
+    public Timeout globalTimeout = Timeout.seconds(10);
 
     @Before
     public void setUp() {
@@ -72,7 +70,7 @@ public class EventProcessorTest {
 
     @Test(timeout = 1000)
     public void testAwaitState() throws Exception {
-        var s = servantDao.create(workflowId, new Provisioning.Any());
+        var s = servantDao.create(workflowId, new Operation.Requirements("s", "a"));
         var t = new Thread(() -> {
             try {
                 awaitState(s.workflowName(), s.id(), ServantState.Status.DESTROYED);
@@ -397,62 +395,8 @@ public class EventProcessorTest {
 
     }
 
-    public static AtomicZygote buildZygote(String... tags) {
-        return new AtomicZygote() {
-            @Override
-            public Env env() {
-                return new Env() {
-                    @Override
-                    public BaseEnv baseEnv() {
-                        return () -> "base";
-                    }
-
-                    @Override
-                    public AuxEnv auxEnv() {
-                        return () -> URI.create("lol://some.uri");
-                    }
-                };
-            }
-
-            @Override
-            public String description() {
-                return "";
-            }
-
-            @Override
-            public String fuze() {
-                return "";
-            }
-
-            @Override
-            public Provisioning provisioning() {
-                return () -> Arrays.stream(tags).collect(Collectors.toSet());
-            }
-
-            @Override
-            public Operations.Zygote zygote() {
-                return Operations.Zygote.newBuilder().build();
-            }
-
-            @Override
-            public String name() {
-                return "";
-            }
-
-            @Override
-            public Slot[] input() {
-                return new Slot[0];
-            }
-
-            @Override
-            public Slot[] output() {
-                return new Slot[0];
-            }
-
-            @Override
-            public void run() {
-            }
-        };
+    public static Operation buildOp(String... tags) {
+        return new Operation(null, new Operation.Requirements("", ""), "", List.of(), "", "");
     }
 
     public class ProcessorContext implements AutoCloseable {
@@ -467,7 +411,7 @@ public class EventProcessorTest {
         private AllocatedServantMock mock;
 
         public ProcessorContext(ServantEventProcessorConfig config, String... provisioningTags) throws DaoException {
-            servant = servantDao.create(workflowId, () -> Arrays.stream(provisioningTags).collect(Collectors.toSet()));
+            servant = servantDao.create(workflowId, new Operation.Requirements("s", "a"));
             processor = new ServantEventProcessor(workflowId, servant.id(), config, allocator, tasks, events,
                 servantDao, manager, (a, b) -> latch.countDown(), (a, b) -> {
             });
@@ -486,7 +430,7 @@ public class EventProcessorTest {
         }
 
         public Task generateTask() throws DaoException {
-            return tasks.create(workflowId, workflowId, new TaskDesc(buildZygote(tags), Map.of()));
+            return tasks.create(workflowId, workflowId, new TaskDesc(buildOp(tags), Map.of()));
         }
 
         public HostAndPort generateServant() throws IOException {

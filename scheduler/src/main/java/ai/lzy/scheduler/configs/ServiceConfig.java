@@ -11,20 +11,10 @@ public record ServiceConfig(
         Map<String, Integer> provisioningLimits,
         Integer defaultProvisioningLimit,
         String schedulerAddress,
-        String whiteboardAddress,
+        String channelManagerAddress,
         String baseEnvDefaultImage,
-        ThreadAllocator threadAllocator,
-        DockerAllocator dockerAllocator
-) {
-    @ConfigurationProperties("thread-allocator")
-    public record ThreadAllocator(
-        boolean enabled,
-        String servantJarFile,
-        String servantClassName
-    ) {}
 
-    @ConfigurationProperties("docker-allocator")
-    public record DockerAllocator(
-        boolean enabled
-    ) {}
+        String allocatorAddress,
+        String servantImage
+) {
 }

@@ -209,6 +209,9 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
             default -> throw new RuntimeException("zzz");
         }
 
+        responseObserver.onNext(ChannelManager.SlotAttachStatus.getDefaultInstance());
+        responseObserver.onCompleted();
+
         if (channel.isCompleted()) {
             var inputSlot = requireNonNull(channel.inputSlot.get());
             var outputSlot = requireNonNull(channel.outputSlot.get());
@@ -220,12 +223,12 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
             var status = channel.inputEndpoint.get().connect(channel.outputEndpoint.get().slotInstance);
 
             if (status.getRc().getCode() != LzyFsApi.SlotCommandStatus.RC.Code.SUCCESS) {
+                LOG.error("Failed to connect input slot {} and output slot {}",
+                    inputSlot.getSlotInstance().getSlot().getName(),
+                    outputSlot.getSlotInstance().getSlot().getName());
                 throw new RuntimeException("slot connect failed: " + JsonUtils.printSingleLine(status));
             }
         }
-
-        responseObserver.onNext(ChannelManager.SlotAttachStatus.getDefaultInstance());
-        responseObserver.onCompleted();
     }
 
     @Override

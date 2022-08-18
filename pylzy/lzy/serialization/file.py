@@ -1,6 +1,6 @@
 import os
 import uuid
-from typing import BinaryIO, Type, Union, Callable, Any
+from typing import Any, BinaryIO, Callable, Type, Union
 
 from lzy.serialization.api import Serializer
 from lzy.serialization.types import File

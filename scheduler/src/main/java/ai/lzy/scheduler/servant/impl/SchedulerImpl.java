@@ -6,7 +6,7 @@ import ai.lzy.model.db.DaoException;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.scheduler.db.TaskDao;
-import ai.lzy.scheduler.models.TaskDesc;
+import ai.lzy.model.TaskDesc;
 import ai.lzy.scheduler.models.TaskState;
 import ai.lzy.scheduler.servant.Scheduler;
 import ai.lzy.scheduler.servant.Servant;
@@ -57,6 +57,7 @@ public class SchedulerImpl extends Thread implements Scheduler {
             tasks.add(task);
             return task;
         } catch (DaoException e) {
+            LOG.error("Error while creating task", e);
             throw io.grpc.Status.INTERNAL.withDescription("Cannot create task").asException();
         }
     }
@@ -143,7 +144,7 @@ public class SchedulerImpl extends Thread implements Scheduler {
             }
 
             var future = pool.waitForFree(task.workflowName(),
-                task.description().zygote().provisioning());
+                task.description().operation().requirements());
             if (future == null) {
                 LOG.info("Pool is stopping.");
                 continue;
@@ -193,19 +194,14 @@ public class SchedulerImpl extends Thread implements Scheduler {
     }
 
     private void validateTask(TaskDesc taskDesc) throws StatusException {
-        boolean validProvisioning = config.provisioningLimits().keySet().containsAll(
-            taskDesc.zygote()
-                .provisioning()
-                .tags().stream().toList());
-        if (!validProvisioning) {
-            throw Status.INVALID_ARGUMENT.withDescription("Wrong provisioning tags").asException();
-        }
 
-        Set<String> inputSlots = Arrays.stream(taskDesc.zygote().input())
+        Set<String> inputSlots = taskDesc.operation().slots().stream()
+            .filter(s -> s.direction() == Slot.Direction.INPUT)
             .map(Slot::name)
             .collect(Collectors.toSet());
 
-        Set<String> outputSlots = Arrays.stream(taskDesc.zygote().output())
+        Set<String> outputSlots = taskDesc.operation().slots().stream()
+            .filter(s -> s.direction() == Slot.Direction.OUTPUT)
             .map(Slot::name)
             .collect(Collectors.toSet());
 

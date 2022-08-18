@@ -1,5 +1,8 @@
 package ai.lzy.graph.model;
 
+import ai.lzy.model.Operation;
+import ai.lzy.model.json.OperationDeserializer;
+import ai.lzy.model.json.OperationSerializer;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -15,9 +18,9 @@ import ai.lzy.model.json.ZygoteSerializer;
 @JsonDeserialize
 public record TaskDescription(
         String id,
-        @JsonSerialize(using = ZygoteSerializer.class)
-        @JsonDeserialize(using = ZygoteDeserializer.class)
-        Zygote zygote,
+        @JsonSerialize(using = OperationSerializer.class)
+        @JsonDeserialize(using = OperationDeserializer.class)
+        Operation operation,
         Map<String, String> slotsToChannelsAssignments
 ) {
     @Override
