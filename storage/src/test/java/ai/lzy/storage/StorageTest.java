@@ -131,8 +131,7 @@ public class StorageTest extends BaseTestWithIam {
 
     @Test
     public void testSuccess() throws IOException {
-        var credentials = JwtUtils.credentials(storageConfig.getIam().getInternalUserName(),
-            storageConfig.getIam().getInternalUserPrivateKey());
+        var credentials = storageConfig.getIam().createCredentials();
 
         var client = storageClient.withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));

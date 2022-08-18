@@ -38,7 +38,6 @@ public class GrpcConverter {
         return switch (subjectType) {
             case USER -> new User(subject.getId());
             case SERVANT -> new Servant(subject.getId());
-            default -> throw new RuntimeException("Unknown Resource type::" + subjectType);
         };
     }
 

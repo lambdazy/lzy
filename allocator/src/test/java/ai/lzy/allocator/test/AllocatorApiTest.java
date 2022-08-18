@@ -6,7 +6,6 @@ import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.grpc.ClientHeaderInterceptor;
 import ai.lzy.model.grpc.GrpcHeaders;
-import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmAllocatorApi.*;
 import com.google.common.net.HostAndPort;
@@ -42,11 +41,10 @@ public class AllocatorApiTest extends BaseTestWithIam {
             .forAddress(HostAndPort.fromString(config.getAddress()))
             .usePlaintext()
             .build();
-        var credentials = JwtUtils.credentials(config.getIam().getInternalUserName(),
-            config.getIam().getInternalUserPrivateKey());
+        var credentials = config.getIam().createCredentials();
         unauthorizedAllocatorBlockingStub = AllocatorGrpc.newBlockingStub(channel);
-        authorizedAllocatorBlockingStub = unauthorizedAllocatorBlockingStub.withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
+        authorizedAllocatorBlockingStub = unauthorizedAllocatorBlockingStub
+            .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
     }
 
     @After
