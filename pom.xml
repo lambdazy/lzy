@@ -35,5 +35,6 @@
         <module>disk-service</module>
         <module>allocator</module>
         <module>coverage</module>
+        <module>workflow-api</module>
     </modules>
 </project>

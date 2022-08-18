@@ -1,12 +1,11 @@
 syntax = "proto3";
 
-import "ai/lzy/v1/server.proto";
+package ai.lzy.v1.workflow;
 
-package ai.lzy.v1;
+option java_outer_classname = "LWS";
+option java_package = "ai.lzy.v1.workflow";
 
-option java_outer_classname = "LzyWorkflowApi";
-option java_package = "ai.lzy.v1";
-
+import "ai/lzy/v1/workflow/workflow.proto";
 
 service LzyWorkflow {
   rpc CreateWorkflow (CreateWorkflowRequest) returns (CreateWorkflowResponse);
@@ -14,7 +13,6 @@ service LzyWorkflow {
   rpc FinishWorkflow (FinishWorkflowRequest) returns (FinishWorkflowResponse);
   rpc DeleteWorkflow (DeleteWorkflowRequest) returns (DeleteWorkflowResponse);
 }
-
 
 message CreateWorkflowRequest {
   string workflowName = 1;

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package ai.lzy.v1;
 
-import "ai/lzy/v1/server.proto";
+import "ai/lzy/v1/workflow/workflow.proto";
 
 option java_outer_classname = "LzyStorageApi";
 option java_package = "ai.lzy.v1";
@@ -22,8 +22,8 @@ message CreateS3BucketRequest {
 
 message CreateS3BucketResponse {
   oneof credentials {
-    AmazonCredentials amazon = 1;
-    AzureCredentials azure = 2;
+    ai.lzy.v1.workflow.AmazonCredentials amazon = 1;
+    ai.lzy.v1.workflow.AzureCredentials azure = 2;
   }
 }
 
@@ -41,7 +41,7 @@ message GetS3BucketCredentialsRequest {
 
 message GetS3BucketCredentialsResponse {
   oneof credentials {
-    AmazonCredentials amazon = 1;
-    AzureCredentials azure = 2;
+    ai.lzy.v1.workflow.AmazonCredentials amazon = 1;
+    ai.lzy.v1.workflow.AzureCredentials azure = 2;
   }
 }
