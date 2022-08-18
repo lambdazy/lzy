@@ -362,7 +362,7 @@ public abstract class GrpcConverter {
     }
 
     public static Operations.SchemeType to(SchemeType dataSchema) {
-        return Operations.SchemeType.valueOf(dataSchema.name().toUpperCase(Locale.ROOT));
+        return Operations.SchemeType.valueOf(dataSchema.name());
     }
 
     public static LzyFsApi.SlotInstance to(SlotInstance slotInstance) {

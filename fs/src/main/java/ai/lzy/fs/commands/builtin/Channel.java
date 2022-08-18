@@ -109,7 +109,7 @@ public final class Channel implements LzyCommand {
                         objectMapper.readValue(new File(mappingFile), Map.class));
 
                     String dataSchemeType = bindings.get("schemeType");
-                    String contentType = bindings.getOrDefault("type", "");
+                    String contentType = bindings.getOrDefault("type", "default");
                     LOG.info("building dataschema from args {} and {}", dataSchemeType, contentType);
                     data = DataSchema.buildDataSchema(dataSchemeType, contentType);
                 } else {

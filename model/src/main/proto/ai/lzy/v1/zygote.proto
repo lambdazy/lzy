@@ -21,9 +21,9 @@ message ZygoteList {
 
 enum SchemeType {
   UNSPECIFIED = 0;
-  PLAIN = 1;
-  PROTO = 2;
-  CLOUDPICKLE = 3;
+  plain = 1;
+  proto = 2;
+  cloudpickle = 3;
 }
 
 message DataScheme {
