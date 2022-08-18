@@ -7,7 +7,8 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 
 from ai.lzy.v1.whiteboard_pb2 import ExecutionDescription
 from ai.lzy.v1.zygote_pb2 import _SLOT_DIRECTION  # type: ignore
-from ai.lzy.v1.zygote_pb2 import Slot, Zygote
+from ai.lzy.v1.zygote_pb2 import Slot
+from ai.lzy.v1.common.operation_pb2 import Operation
 from lzy.api.v2.provisioning import Provisioning
 from lzy.api.v2.remote_grpc.model.slot import file_slot_t
 from lzy.api.v2.signatures import FuncSignature
@@ -54,7 +55,7 @@ def python_func_zygote(
     env: EnvSpec,
     provisioning: Provisioning,
     execution: Optional[ExecutionDescription] = None,
-) -> Zygote:
+) -> Operation:
     fuze = generate_fuze(sign, execution)
     # TODO[ottergottaott]: Create slots properly
     # ! use lzy/api/v2/servant/model/converter.py here
