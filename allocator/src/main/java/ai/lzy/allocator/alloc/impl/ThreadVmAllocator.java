@@ -29,17 +29,15 @@ public class ThreadVmAllocator implements VmAllocator {
     private final ConcurrentHashMap<String, Thread> vmThreads = new ConcurrentHashMap<>();
 
     @Inject
-    public ThreadVmAllocator(ServiceConfig serviceConfig) {
-        var cfg = serviceConfig.getThreadAllocator();
-
+    public ThreadVmAllocator(ServiceConfig.ThreadAllocator allocatorConfig) {
         try {
             Class<?> vmClass;
 
-            if (!cfg.getVmJarFile().isEmpty()) {
-                final File vmJar = new File(cfg.getVmJarFile());
+            if (!allocatorConfig.getVmJarFile().isEmpty()) {
+                final File vmJar = new File(allocatorConfig.getVmJarFile());
                 final URLClassLoader classLoader = new URLClassLoader(new URL[]{vmJar.toURI().toURL()},
                     ClassLoader.getSystemClassLoader());
-                vmClass = Class.forName(cfg.getVmClassName(), true, classLoader);
+                vmClass = Class.forName(allocatorConfig.getVmClassName(), true, classLoader);
             } else {
                 vmClass = Class.forName("ai.lzy.servant.BashApi");
             }
