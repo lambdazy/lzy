@@ -38,6 +38,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -361,7 +362,7 @@ public abstract class GrpcConverter {
     }
 
     public static Operations.SchemeType to(SchemeType dataSchema) {
-        return Operations.SchemeType.valueOf(dataSchema.name());
+        return Operations.SchemeType.valueOf(dataSchema.name().toUpperCase(Locale.ROOT));
     }
 
     public static LzyFsApi.SlotInstance to(SlotInstance slotInstance) {

@@ -18,12 +18,14 @@ public final class ChannelManagerConfig {
     @ConfigurationBuilder("iam")
     private final IamClientConfiguration iam = new IamClientConfiguration();
 
+    @Getter
+    @Setter
     @ConfigurationProperties("database")
-    public record DbConfig(
-        @Nullable String url,
-        @Nullable String username,
-        @Nullable String password,
-        @Bindable(defaultValue = "5") int minPoolSize,
-        @Bindable(defaultValue = "10") int maxPoolSize
-    ) { }
+    public static final class DbConfig {
+        private String url;
+        private String username;
+        private String password;
+        private int minPoolSize;
+        private int maxPoolSize;
+    }
 }
