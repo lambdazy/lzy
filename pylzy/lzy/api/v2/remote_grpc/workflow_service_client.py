@@ -3,8 +3,8 @@ from typing import Optional, Tuple
 
 from grpclib.client import Channel
 
-from ai.lzy.v1.workflow_grpc import LzyWorkflowStub
-from ai.lzy.v1.workflow_pb2 import (
+from ai.lzy.v1.workflow.workflow_service_grpc import LzyWorkflowServiceStub
+from ai.lzy.v1.workflow.workflow_service_pb2 import (
     AttachWorkflowRequest,
     AttachWorkflowResponse,
     CreateWorkflowRequest,
@@ -26,15 +26,15 @@ class StorageEndpoint:
 
 class WorkflowServiceClient:
     def __init__(self, channel: Channel):
-        self.stub = LzyWorkflowStub(channel)
+        self.stub = LzyWorkflowServiceStub(channel)
 
     async def create_workflow(self, name: str) -> Tuple[str, StorageEndpoint]:
         request = CreateWorkflowRequest(workflowName=name)
         response = await self.stub.CreateWorkflow(request)
 
         endpoint: Optional[StorageEndpoint] = None
-        if response.HasField("tempStorage"):
-            store = response.tempStorage
+        if response.HasField("internalSnapshotStorage"):
+            store = response.internalSnapshotStorage
             creds: Optional[StorageCredentials] = None
             if store.HasField("azure"):
                 creds = converter.storage_creds.from_(store.azure)

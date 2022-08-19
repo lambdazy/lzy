@@ -14,3 +14,12 @@ message AmazonCredentials {
   string accessToken = 2;
   string secretToken = 3;
 }
+
+message SnapshotStorage {
+  string bucket = 1;
+
+  oneof kind {
+    AmazonCredentials amazon = 2;
+    AzureCredentials azure = 3;
+  }
+}
