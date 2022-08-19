@@ -1,19 +1,18 @@
 package ai.lzy.iam.storage.impl;
 
+import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.storage.db.IamDataSource;
+import ai.lzy.iam.utils.CredentialsHelper;
+import ai.lzy.model.db.test.DatabaseCleaner;
+import ai.lzy.util.auth.credentials.JwtCredentials;
+import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
 import io.micronaut.context.ApplicationContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import ai.lzy.util.auth.credentials.JwtCredentials;
-import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
-import ai.lzy.iam.resources.subjects.Subject;
-import ai.lzy.iam.utils.CredentialsHelper;
-
-import java.sql.SQLException;
 
 public class DbAuthServiceTest {
     public static final Logger LOG = LogManager.getLogger(DbAuthServiceTest.class);
@@ -163,13 +162,7 @@ public class DbAuthServiceTest {
 
     @After
     public void tearDown() {
-        try (var conn = storage.connect();
-             var st = conn.prepareStatement("DROP ALL OBJECTS DELETE FILES;")
-        ) {
-            st.executeUpdate();
-        } catch (SQLException e) {
-            LOG.error(e);
-        }
+        DatabaseCleaner.cleanup(storage);
         ctx.stop();
     }
 

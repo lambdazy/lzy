@@ -13,10 +13,15 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import javax.annotation.Nullable;
-import java.sql.*;
-import java.util.*;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.Nullable;
 
 @Singleton
 public class VmDaoImpl implements VmDao {
@@ -26,7 +31,7 @@ public class VmDaoImpl implements VmDao {
     private final ObjectMapper objectMapper;
 
     @Inject
-    public VmDaoImpl(Storage storage, ObjectMapper objectMapper) {
+    public VmDaoImpl(AllocatorDataSource storage, ObjectMapper objectMapper) {
         this.storage = storage;
         this.objectMapper = objectMapper;
     }
