@@ -1,9 +1,9 @@
 package ai.lzy.servant.portal;
 
 import ai.lzy.model.GrpcConverter;
-import ai.lzy.model.JsonUtils;
+import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.model.SlotInstance;
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.test.GrpcUtils;
 import ai.lzy.v1.ChannelManager;
 import ai.lzy.v1.LzyChannelManagerGrpc;

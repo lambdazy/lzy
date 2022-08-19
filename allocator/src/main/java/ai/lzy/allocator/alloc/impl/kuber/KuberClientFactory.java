@@ -7,6 +7,6 @@ import io.fabric8.kubernetes.client.KubernetesClient;
  * Factory to build fabric8 kuber client
  * Implemented in separated interface for testing purposes
  */
-public interface KuberClusterFactory {
+public interface KuberClientFactory {
     KubernetesClient build(ClusterRegistry.ClusterDescription credentials);
 }

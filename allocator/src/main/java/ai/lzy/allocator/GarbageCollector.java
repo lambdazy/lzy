@@ -10,14 +10,14 @@ import ai.lzy.model.db.TransactionHandle;
 import io.grpc.Status;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import java.util.Timer;
+import java.util.TimerTask;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.Timer;
-import java.util.TimerTask;
-
 @Singleton
 public class GarbageCollector extends TimerTask {
+
     private static final Logger LOG = LogManager.getLogger(GarbageCollector.class);
 
     private final VmDao dao;
@@ -29,7 +29,7 @@ public class GarbageCollector extends TimerTask {
 
     @Inject
     public GarbageCollector(VmDao dao, OperationDao operations, VmAllocator allocator,
-                            ServiceConfig config, Storage storage) {
+        ServiceConfig config, Storage storage) {
         this.dao = dao;
         this.operations = operations;
         this.allocator = allocator;
@@ -39,20 +39,34 @@ public class GarbageCollector extends TimerTask {
 
     @Override
     public void run() {
-        LOG.debug("Starting garbage collector");
-        var vms = dao.getExpired(100, null);
-        vms.forEach(vm -> {
-            try (var tr = new TransactionHandle(storage)) {
-                dao.update(new Vm.VmBuilder(vm).setState(Vm.State.DEAD).build(), tr);
-                allocator.deallocate(vm);
-                var op = operations.get(vm.allocationOperationId(), tr);
-                if (op != null) {
-                    operations.update(op.complete(Status.DEADLINE_EXCEEDED.withDescription("Vm is expired")), tr);
+        try {
+            var vms = dao.getExpired(100, null);
+            LOG.debug("Found {} expired entries", vms.size());
+            vms.forEach(vm -> {
+                try {
+                    LOG.debug("Vm {} is expired", vm);
+                    try (var tr = new TransactionHandle(storage)) {
+                        var op = operations.get(vm.allocationOperationId(), tr);
+                        if (op != null) {
+                            operations.update(op.complete(Status.DEADLINE_EXCEEDED.withDescription("Vm is expired")),
+                                tr);
+                        } else {
+                            LOG.warn("Op with id={} not found", vm.allocationOperationId());
+                        }
+                        tr.commit();
+                    }
+                    allocator.deallocate(vm);
+                    //will retry deallocate if it fails
+                    dao.update(new Vm.VmBuilder(vm).setState(Vm.State.DEAD).build(), null);
+                } catch (Exception e) {
+                    LOG.error("Error during clean up Vm {}", vm);
+                    e.printStackTrace();
                 }
-            } catch (Exception e) {
-                LOG.error("Cannot deallocate vm {}", vm, e);
-            }
-        });
+            });
+        } catch (Exception e) {
+            LOG.error("Error during GC", e);
+            e.printStackTrace();
+        }
     }
 
     public void shutdown() {

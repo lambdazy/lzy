@@ -1,8 +1,8 @@
 package ai.lzy.servant.agents;
 
-import ai.lzy.model.JsonUtils;
+import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.model.UriScheme;
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.IAM;
 import ai.lzy.v1.Lzy;
 import ai.lzy.v1.LzyServantGrpc;

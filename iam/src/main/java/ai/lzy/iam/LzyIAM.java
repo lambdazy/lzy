@@ -10,7 +10,7 @@ import ai.lzy.iam.grpc.service.LzyAuthService;
 import ai.lzy.iam.grpc.service.LzySubjectService;
 import ai.lzy.iam.storage.db.InternalUserInserter;
 import ai.lzy.iam.storage.impl.DbAuthService;
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.ChannelBuilder;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.netty.NettyServerBuilder;

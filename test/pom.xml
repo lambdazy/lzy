@@ -23,6 +23,7 @@
       <groupId>ai.lzy</groupId>
       <artifactId>iam</artifactId>
       <version>1.0-SNAPSHOT</version>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>ai.lzy</groupId>
@@ -33,6 +34,22 @@
     <dependency>
       <groupId>ai.lzy</groupId>
       <artifactId>servant</artifactId>
+      <version>1.0-SNAPSHOT</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>ai.lzy</groupId>
+      <artifactId>util-test</artifactId>
       <version>1.0-SNAPSHOT</version>
       <scope>test</scope>
       <exclusions>

@@ -1,4 +1,4 @@
-package ai.lzy.model.grpc;
+package ai.lzy.util.grpc;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageOrBuilder;

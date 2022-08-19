@@ -5,7 +5,7 @@ import io.grpc.Channel;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.netty.NettyServerBuilder;
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.model.utils.FreePortFinder;
 
 import java.io.IOException;

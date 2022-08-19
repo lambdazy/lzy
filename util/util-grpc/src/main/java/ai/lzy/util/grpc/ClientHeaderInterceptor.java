@@ -1,4 +1,4 @@
-package ai.lzy.model.grpc;
+package ai.lzy.util.grpc;
 
 import io.grpc.*;
 import org.apache.logging.log4j.LogManager;

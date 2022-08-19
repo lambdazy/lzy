@@ -1,6 +1,6 @@
 package ai.lzy.scheduler.test;
 
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.v1.Operations;
 import ai.lzy.v1.SchedulerApi.TaskScheduleRequest;
