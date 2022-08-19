@@ -5,8 +5,8 @@ import ai.lzy.model.db.Transaction;
 import ai.lzy.storage.StorageConfig;
 import ai.lzy.storage.StorageDataSource;
 import ai.lzy.util.auth.YcIamClient;
-import ai.lzy.v1.LzyStorageApi.*;
-import ai.lzy.v1.LzyStorageGrpc;
+import ai.lzy.v1.LSS.*;
+import ai.lzy.v1.LzyStorageServiceGrpc;
 import ai.lzy.v1.workflow.LWSD;
 import com.amazonaws.SdkClientException;
 import com.amazonaws.auth.AWSCredentials;
@@ -32,7 +32,7 @@ import java.sql.SQLException;
 @Singleton
 @Requires(property = "storage.yc.enabled", value = "true")
 @Requires(property = "storage.s3.yc.enabled", value = "true")
-public class YandexCloudS3Storage extends LzyStorageGrpc.LzyStorageImplBase {
+public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServiceImplBase {
     private static final Logger LOG = LogManager.getLogger(YandexCloudS3Storage.class);
 
     private final StorageConfig.S3Credentials.YcS3Credentials s3Creds;

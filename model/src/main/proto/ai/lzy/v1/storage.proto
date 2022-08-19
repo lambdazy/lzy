@@ -4,10 +4,10 @@ package ai.lzy.v1;
 
 import "ai/lzy/v1/workflow/workflow.proto";
 
-option java_outer_classname = "LzyStorageApi";
+option java_outer_classname = "LSS";
 option java_package = "ai.lzy.v1";
 
-service LzyStorage {
+service LzyStorageService {
   rpc CreateS3Bucket (CreateS3BucketRequest) returns (CreateS3BucketResponse);
   rpc DeleteS3Bucket (DeleteS3BucketRequest) returns (DeleteS3BucketResponse);
 

@@ -8,9 +8,10 @@ import ai.lzy.model.db.Transaction;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.grpc.ClientHeaderInterceptor;
 import ai.lzy.model.grpc.GrpcHeaders;
-import ai.lzy.v1.LzyStorageApi;
-import ai.lzy.v1.LzyStorageGrpc;
+import ai.lzy.v1.LSS;
+import ai.lzy.v1.LzyStorageServiceGrpc;
 import ai.lzy.v1.workflow.LWS.*;
+import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBase;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
@@ -30,16 +31,14 @@ import java.time.Instant;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 
-import static ai.lzy.v1.workflow.LzyWorkflowGrpc.LzyWorkflowImplBase;
-
 @SuppressWarnings("UnstableApiUsage")
 @Singleton
-public class WorkflowService extends LzyWorkflowImplBase {
+public class WorkflowService extends LzyWorkflowServiceImplBase {
     private static final Logger LOG = LogManager.getLogger(WorkflowService.class);
 
     private final KharonDataSource db;
     private final ManagedChannel storageServiceChannel;
-    private final LzyStorageGrpc.LzyStorageBlockingStub storageServiceClient;
+    private final LzyStorageServiceGrpc.LzyStorageServiceBlockingStub storageServiceClient;
 
     @Inject
     public WorkflowService(KharonConfig config, KharonDataSource db) {
@@ -50,9 +49,9 @@ public class WorkflowService extends LzyWorkflowImplBase {
 
         storageServiceChannel = ChannelBuilder.forAddress(HostAndPort.fromString(config.getStorage().getAddress()))
             .usePlaintext()
-            .enableRetry(LzyStorageGrpc.SERVICE_NAME)
+            .enableRetry(LzyStorageServiceGrpc.SERVICE_NAME)
             .build();
-        storageServiceClient = LzyStorageGrpc.newBlockingStub(storageServiceChannel)
+        storageServiceClient = LzyStorageServiceGrpc.newBlockingStub(storageServiceChannel)
             .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, internalUser::token));
     }
 
@@ -75,7 +74,7 @@ public class WorkflowService extends LzyWorkflowImplBase {
         try {
             final String[] executionId = {null};
             final String[] bucket = {null};
-            final LzyStorageApi.CreateS3BucketResponse[] bucketCredentials = {null};
+            final LSS.CreateS3BucketResponse[] bucketCredentials = {null};
 
             var success = Transaction.execute(db, conn -> {
                 var st = conn.prepareStatement("""
@@ -297,12 +296,12 @@ public class WorkflowService extends LzyWorkflowImplBase {
     }
 
     @Nullable
-    private LzyStorageApi.CreateS3BucketResponse createTempStorageBucket(String userId, String bucket) {
+    private LSS.CreateS3BucketResponse createTempStorageBucket(String userId, String bucket) {
         LOG.info("Creating new temp storage bucket '{}' for user '{}'", bucket, userId);
 
         try {
             return storageServiceClient.createS3Bucket(
-                LzyStorageApi.CreateS3BucketRequest.newBuilder()
+                LSS.CreateS3BucketRequest.newBuilder()
                     .setUserId(userId)
                     .setBucket(bucket)
                     .build());
@@ -323,7 +322,7 @@ public class WorkflowService extends LzyWorkflowImplBase {
         try {
             @SuppressWarnings("unused")
             var resp = storageServiceClient.deleteS3Bucket(
-                LzyStorageApi.DeleteS3BucketRequest.newBuilder()
+                LSS.DeleteS3BucketRequest.newBuilder()
                     .setBucket(bucket)
                     .build());
         } catch (StatusRuntimeException e) {

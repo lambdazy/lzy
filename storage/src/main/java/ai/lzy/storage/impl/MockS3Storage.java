@@ -1,10 +1,10 @@
 package ai.lzy.storage.impl;
 
-import ai.lzy.v1.LzyStorageApi.CreateS3BucketRequest;
-import ai.lzy.v1.LzyStorageApi.CreateS3BucketResponse;
-import ai.lzy.v1.LzyStorageApi.DeleteS3BucketRequest;
-import ai.lzy.v1.LzyStorageApi.DeleteS3BucketResponse;
-import ai.lzy.v1.LzyStorageGrpc;
+import ai.lzy.v1.LSS.CreateS3BucketRequest;
+import ai.lzy.v1.LSS.CreateS3BucketResponse;
+import ai.lzy.v1.LSS.DeleteS3BucketRequest;
+import ai.lzy.v1.LSS.DeleteS3BucketResponse;
+import ai.lzy.v1.LzyStorageServiceGrpc;
 import ai.lzy.v1.workflow.LWSD;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
@@ -13,7 +13,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class MockS3Storage extends LzyStorageGrpc.LzyStorageImplBase {
+public class MockS3Storage extends LzyStorageServiceGrpc.LzyStorageServiceImplBase {
     private final Map<String, LWSD.AmazonCredentials> buckets = new ConcurrentHashMap<>();
 
     @Override
