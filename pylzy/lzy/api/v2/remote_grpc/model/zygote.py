@@ -5,7 +5,7 @@ from typing import List, Optional, Tuple, TypeVar
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
-from ai.lzy.v1.whiteboard_pb2 import ExecutionDescription
+from ai.lzy.v1.oldwb.whiteboard_old_pb2 import ExecutionDescription
 from ai.lzy.v1.zygote_pb2 import _SLOT_DIRECTION  # type: ignore
 from ai.lzy.v1.zygote_pb2 import Slot
 from ai.lzy.v1.common.operation_pb2 import Operation
