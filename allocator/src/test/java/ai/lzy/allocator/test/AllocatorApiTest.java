@@ -278,7 +278,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
     }
 
     @Test
-    public void allocateSuccessTest() throws InvalidProtocolBufferException {
+    public void allocateFreeSuccessTest() throws InvalidProtocolBufferException {
         final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(1000).build()).build())
@@ -294,10 +294,24 @@ public class AllocatorApiTest extends BaseTestWithIam {
         final Operation allocate = waitOp(allocationStarted);
         final VmAllocatorApi.AllocateResponse allocateResponse =
             allocate.getResponse().unpack(VmAllocatorApi.AllocateResponse.class);
+        //noinspection ResultOfMethodCallIgnored
+        authorizedAllocatorBlockingStub.free(FreeRequest.newBuilder().setVmId(allocateMetadata.getVmId()).build());
 
         Assert.assertTrue(allocate.getDone());
         Assert.assertEquals(createSessionResponse.getSessionId(), allocateResponse.getSessionId());
         Assert.assertEquals("S", allocateResponse.getPoolId());
+    }
+
+    @Test
+    public void freeNonexistentVmTest() {
+        try {
+            //noinspection ResultOfMethodCallIgnored
+            authorizedAllocatorBlockingStub.free(
+                FreeRequest.newBuilder().setVmId(UUID.randomUUID().toString()).build());
+            Assert.fail();
+        } catch (StatusRuntimeException e) {
+            Assert.assertEquals(e.getStatus().toString(), Status.NOT_FOUND.getCode(), e.getStatus().getCode());
+        }
     }
 
     @Test

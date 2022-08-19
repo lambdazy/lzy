@@ -134,38 +134,6 @@ public class KuberVmAllocator implements VmAllocator {
         }
     }
 
-    @Override
-    @Nullable
-    public VmDesc getVmDesc(Vm vm) {
-        final var meta = dao.getAllocatorMeta(vm.vmId(), null);
-        if (meta == null) {
-            LOG.error("Metadata not found");
-            return null;
-        }
-        final Pod pod;
-        try (final var client = factory.build(poolRegistry.getCluster(meta.get(CLUSTER_ID_KEY)))) {
-            pod = getPod(meta.get(NAMESPACE_KEY), meta.get(POD_NAME_KEY), client);
-        }
-
-        if (pod == null) {
-            LOG.error("Pod not found while validating");
-            return null;
-        }
-
-        final VmAllocator.VmStatus status = switch (pod.getStatus().getPhase()) {
-            case "Running" -> VmStatus.RUNNING;
-            case "Pending" -> VmStatus.PENDING;
-            case "Succeeded" -> VmStatus.TERMINATED;
-            default -> VmStatus.FAILED;
-        };
-
-        return new VmDesc(
-            pod.getMetadata().getLabels().get(KuberLabels.LZY_POD_SESSION_ID_LABEL),
-            pod.getMetadata().getName(),
-            status
-        );
-    }
-
     public Pod createVmPodSpec(Vm vm, KubernetesClient client) {
 
         final Pod pod = readPod(client);
