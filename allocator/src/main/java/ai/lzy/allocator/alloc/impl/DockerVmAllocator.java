@@ -1,6 +1,7 @@
 package ai.lzy.allocator.alloc.impl;
 
 import ai.lzy.allocator.alloc.VmAllocator;
+import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
@@ -23,6 +24,7 @@ import org.apache.logging.log4j.Logger;
 @Singleton
 @Requires(property = "allocator.docker-allocator.enabled", value = "true")
 public class DockerVmAllocator implements VmAllocator {
+
     private static final String CONTAINER_ID_KEY = "container-id";
     private static final DockerClient DOCKER = DockerClientBuilder.getInstance().build();
     private static final Logger LOG = LogManager.getLogger(DockerVmAllocator.class);
@@ -73,8 +75,11 @@ public class DockerVmAllocator implements VmAllocator {
     }
 
     @Override
-    public void allocate(Vm vm) {
-        var containerId = requestAllocation(vm.workloads().get(0));  // Support only one workload for now
+    public void allocate(Vm vm) throws InvalidConfigurationException {
+        if (vm.workloads().size() > 1) {
+            throw new InvalidConfigurationException("Docker allocator supports only one workload");
+        }
+        var containerId = requestAllocation(vm.workloads().get(0));
         dao.saveAllocatorMeta(vm.vmId(), Map.of(CONTAINER_ID_KEY, containerId), null);
     }
 

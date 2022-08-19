@@ -15,7 +15,7 @@ import java.util.function.BiFunction;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ai.lzy.model.JsonUtils;
+import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.Kharon;
 import ai.lzy.v1.LzyFsApi;
 

@@ -10,12 +10,10 @@ import ai.lzy.model.db.TransactionHandle;
 import io.grpc.Status;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import java.sql.SQLException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.util.Timer;
 import java.util.TimerTask;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 @Singleton
 public class GarbageCollector extends TimerTask {
@@ -42,23 +40,28 @@ public class GarbageCollector extends TimerTask {
     @Override
     public void run() {
         try {
-            LOG.debug("Starting garbage collector");
             var vms = dao.getExpired(100, null);
+            LOG.debug("Found {} expired entries", vms.size());
             vms.forEach(vm -> {
-                try (var tr = new TransactionHandle(storage)) {
-                    var op = operations.get(vm.allocationOperationId(), tr);
-                    if (op != null) {
-                        operations.update(op.complete(Status.DEADLINE_EXCEEDED.withDescription("Vm is expired")), tr);
-                    } else {
-                        LOG.warn("Op with id={} not found", vm.allocationOperationId());
+                try {
+                    LOG.debug("Vm {} is expired", vm);
+                    try (var tr = new TransactionHandle(storage)) {
+                        var op = operations.get(vm.allocationOperationId(), tr);
+                        if (op != null) {
+                            operations.update(op.complete(Status.DEADLINE_EXCEEDED.withDescription("Vm is expired")),
+                                tr);
+                        } else {
+                            LOG.warn("Op with id={} not found", vm.allocationOperationId());
+                        }
+                        tr.commit();
                     }
-                    tr.commit();
-                } catch (SQLException e) {
-                    throw new RuntimeException(e);
+                    allocator.deallocate(vm);
+                    //will retry deallocate if it fails
+                    dao.update(new Vm.VmBuilder(vm).setState(Vm.State.DEAD).build(), null);
+                } catch (Exception e) {
+                    LOG.error("Error during clean up Vm {}", vm);
+                    e.printStackTrace();
                 }
-                allocator.deallocate(vm);
-                //will retry deallocate if it fails
-                dao.update(new Vm.VmBuilder(vm).setState(Vm.State.DEAD).build(), null);
             });
         } catch (Exception e) {
             LOG.error("Error during GC", e);

@@ -6,7 +6,7 @@ import static ai.lzy.v1.Tasks.TaskProgress.Status.ERROR;
 import static ai.lzy.v1.Tasks.TaskProgress.Status.QUEUE;
 import static ai.lzy.v1.Tasks.TaskProgress.Status.SUCCESS;
 
-import ai.lzy.model.JsonUtils;
+import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.Signal;
 import ai.lzy.model.Slot;
@@ -14,7 +14,7 @@ import ai.lzy.model.StorageCredentials;
 import ai.lzy.model.Zygote;
 import ai.lzy.model.exceptions.EnvironmentInstallationException;
 import ai.lzy.model.graph.AtomicZygote;
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.model.logs.UserEvent;
 import ai.lzy.model.logs.UserEventLogger;
 import ai.lzy.v1.IAM;

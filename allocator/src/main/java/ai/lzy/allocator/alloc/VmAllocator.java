@@ -1,6 +1,6 @@
 package ai.lzy.allocator.alloc;
 
-import ai.lzy.allocator.alloc.exceptions.InvalidPoolException;
+import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.model.Vm;
 import javax.annotation.Nullable;
 
@@ -9,7 +9,7 @@ public interface VmAllocator {
      * Start vm allocation
      * @param vm vm to allocate
      */
-    void allocate(Vm vm) throws InvalidPoolException;
+    void allocate(Vm vm) throws InvalidConfigurationException;
 
     /**
      * Idempotent operation to destroy vm

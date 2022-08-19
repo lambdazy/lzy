@@ -1,7 +1,7 @@
 package ai.lzy.allocator.services;
 
 import ai.lzy.allocator.alloc.VmAllocator;
-import ai.lzy.allocator.alloc.exceptions.InvalidPoolException;
+import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.SessionDao;
@@ -12,22 +12,30 @@ import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.OperationService.Operation;
-import ai.lzy.v1.VmAllocatorApi.*;
+import ai.lzy.v1.VmAllocatorApi.AllocateMetadata;
+import ai.lzy.v1.VmAllocatorApi.AllocateRequest;
+import ai.lzy.v1.VmAllocatorApi.AllocateResponse;
+import ai.lzy.v1.VmAllocatorApi.CreateSessionRequest;
+import ai.lzy.v1.VmAllocatorApi.CreateSessionResponse;
+import ai.lzy.v1.VmAllocatorApi.DeleteSessionRequest;
+import ai.lzy.v1.VmAllocatorApi.DeleteSessionResponse;
+import ai.lzy.v1.VmAllocatorApi.FreeRequest;
+import ai.lzy.v1.VmAllocatorApi.FreeResponse;
 import com.google.protobuf.Any;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 @Singleton
 public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
@@ -99,6 +107,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
     @Override
     public void allocate(AllocateRequest request, StreamObserver<Operation> responseObserver) {
+        LOG.info("Allocation request {}", JsonUtils.printRequest(request));
         final Session session = sessions.get(request.getSessionId(), null);
         if (session == null) {
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Session not found").asException());
@@ -115,6 +124,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             final var existingVm = dao.acquire(request.getSessionId(), request.getPoolLabel(),
                 request.getZone(), transaction);
             if (existingVm != null) {
+                LOG.info("Found existing VM {}", existingVm);
                 op = op.complete(Any.pack(AllocateResponse.newBuilder()
                     .setSessionId(existingVm.sessionId())
                     .setPoolId(existingVm.poolLabel())
@@ -160,7 +170,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
             try {
                 allocator.allocate(vm);
-            } catch (InvalidPoolException e) {
+            } catch (InvalidConfigurationException e) {
                 LOG.error("Error while allocating", e);
                 operations.update(op.complete(Status.INVALID_ARGUMENT.withDescription(e.getMessage())), null);
             }

@@ -2,7 +2,7 @@ package ai.lzy.scheduler.servant.impl;
 
 import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.graph.Env;
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.model.TaskDesc;
 import ai.lzy.scheduler.servant.ServantApi;
 import ai.lzy.scheduler.servant.ServantConnection;

@@ -1,6 +1,6 @@
 package ai.lzy.scheduler;
 
-import ai.lzy.model.JsonUtils;
+import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.db.DaoException;
 import ai.lzy.v1.lzy.SchedulerPrivateApi;

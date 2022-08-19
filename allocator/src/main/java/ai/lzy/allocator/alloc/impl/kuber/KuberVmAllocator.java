@@ -1,7 +1,7 @@
 package ai.lzy.allocator.alloc.impl.kuber;
 
 import ai.lzy.allocator.alloc.VmAllocator;
-import ai.lzy.allocator.alloc.exceptions.InvalidPoolException;
+import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
@@ -58,10 +58,11 @@ public class KuberVmAllocator implements VmAllocator {
     }
 
     @Override
-    public void allocate(Vm vm) throws InvalidPoolException {
+    public void allocate(Vm vm) throws InvalidConfigurationException {
         final var cluster = poolRegistry.findCluster(vm.poolLabel(), vm.zone(), ClusterRegistry.ClusterType.User);
         if (cluster == null) {
-            throw new InvalidPoolException("Cannot find pool for label " + vm.poolLabel() + " and zone " + vm.zone());
+            throw new InvalidConfigurationException(
+                "Cannot find pool for label " + vm.poolLabel() + " and zone " + vm.zone());
         }
 
         try (final var client = factory.build(cluster)) {
@@ -82,6 +83,7 @@ public class KuberVmAllocator implements VmAllocator {
             } catch (Exception e) {
                 LOG.error("Failed to allocate pod", e);
                 deallocate(vm);
+                //TODO (tomato): add retries here if the error is caused due to temporal problems with kuber
                 throw new RuntimeException(e);
             }
             LOG.debug("Created pod in Kuber: {}", pod);
