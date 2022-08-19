@@ -29,11 +29,13 @@ import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -51,7 +53,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
     @Inject
     public AllocatorApi(VmDao dao, OperationDao operations, SessionDao sessions,
-        VmAllocator allocator, ServiceConfig config, Storage storage) {
+                        VmAllocator allocator, ServiceConfig config, Storage storage) {
         this.dao = dao;
         this.operations = operations;
         this.sessions = sessions;
@@ -120,23 +122,45 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             Any.pack(AllocateMetadata.newBuilder().build()),
             null
         );
+        Vm vm;
         try (var transaction = new TransactionHandle(storage)) {
             final var existingVm = dao.acquire(request.getSessionId(), request.getPoolLabel(),
                 request.getZone(), transaction);
             if (existingVm != null) {
                 LOG.info("Found existing VM {}", existingVm);
+                op = op.modifyMeta(Any.pack(AllocateMetadata.newBuilder().setVmId(existingVm.vmId()).build()));
                 op = op.complete(Any.pack(AllocateResponse.newBuilder()
                     .setSessionId(existingVm.sessionId())
                     .setPoolId(existingVm.poolLabel())
-                    .setVmId(existingVm.poolLabel())
+                    .setVmId(existingVm.vmId())
                     .putAllMetadata(existingVm.vmMeta())
                     .build()));
                 operations.update(op, transaction);
+                dao.update(new Vm.VmBuilder(existingVm).setState(Vm.State.RUNNING).build(), transaction);
+                transaction.commit();
                 responseObserver.onNext(op.toGrpc());
                 responseObserver.onCompleted();
                 return;
             }
+
+            var workloads = request.getWorkloadList().stream()
+                .map(Workload::fromGrpc)
+                .toList();
+            vm = dao.create(request.getSessionId(), request.getPoolLabel(),
+                request.getZone(), workloads, op.id(), transaction);
+            op = op.modifyMeta(Any.pack(AllocateMetadata.newBuilder().setVmId(vm.vmId()).build()));
+            operations.update(op, transaction);
+
+            vm = new Vm.VmBuilder(vm)
+                .setState(Vm.State.CONNECTING)
+                .setAllocationDeadline(
+                    Instant.now().plus(config.getAllocationTimeout()))  // TODO(artolord) add to config
+                .build();
+            dao.update(vm, transaction);
+
             transaction.commit();
+            responseObserver.onNext(op.toGrpc());
+            responseObserver.onCompleted();
         } catch (Exception e) {
             LOG.error("Error while executing transaction", e);
             op = op.complete(Status.INTERNAL.withDescription("Error while executing request"));
@@ -145,29 +169,8 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             responseObserver.onCompleted();
             return;
         }
-        responseObserver.onNext(op.toGrpc());
-        responseObserver.onCompleted();
 
         try {
-            var workloads = request.getWorkloadList().stream()
-                .map(Workload::fromGrpc)
-                .toList();
-            Vm vm;
-            try (var transaction = new TransactionHandle(storage)) {
-                vm = dao.create(request.getSessionId(), request.getPoolLabel(),
-                    request.getZone(), workloads, op.id(), transaction);
-                op = op.modifyMeta(Any.pack(AllocateMetadata.newBuilder().setVmId(vm.vmId()).build()));
-                operations.update(op, transaction);
-
-                vm = new Vm.VmBuilder(vm)
-                    .setState(Vm.State.CONNECTING)
-                    .setAllocationDeadline(
-                        Instant.now().plus(config.getAllocationTimeout()))  // TODO(artolord) add to config
-                    .build();
-                dao.update(vm, transaction);
-                transaction.commit();
-            }
-
             try {
                 allocator.allocate(vm);
             } catch (InvalidConfigurationException e) {
@@ -175,7 +178,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                 operations.update(op.complete(Status.INVALID_ARGUMENT.withDescription(e.getMessage())), null);
             }
         } catch (Exception e) {
-            LOG.error("Error while executing request", e);
+            LOG.error("Error during allocation", e);
             operations.update(op.complete(Status.INTERNAL.withDescription("Error while executing request")), null);
         }
     }
