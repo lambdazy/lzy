@@ -41,11 +41,12 @@ public abstract class PortalTest {
     protected static final String S3_ADDRESS = "http://localhost:" + S3_PORT;
     protected static final String BUCKET_NAME = "lzy-bucket";
 
-    private S3Mock s3;
+    protected S3Mock s3;
 
     @Before
     public void before() throws IOException {
         System.err.println("---> " + ForkJoinPool.commonPool().getParallelism());
+        startS3();
         server = new ServerMock();
         server.start1();
         channelManager = new ChannelManagerMock();
@@ -55,6 +56,7 @@ public abstract class PortalTest {
 
     @After
     public void after() throws InterruptedException, IOException {
+        stopS3();
         channelManager.stop();
         server.stop();
         for (var servant : servants.values()) {
@@ -88,15 +90,6 @@ public abstract class PortalTest {
         createChannel("portal:stdout");
         createChannel("portal:stderr");
         server.startPortalOn("portal");
-    }
-
-    protected void runWithS3(ThrowingRunnable action) throws Exception {
-        startS3();
-        try {
-            action.run();
-        } finally {
-            stopS3();
-        }
     }
 
     protected String preparePortalForTask(int taskId, boolean newServant, boolean isInput, String snapshotId)
@@ -174,11 +167,6 @@ public abstract class PortalTest {
         return taskId;
     }
 
-    @FunctionalInterface
-    protected interface ThrowingRunnable {
-        void run() throws Exception;
-    }
-
     protected void startS3() {
         s3 = new S3Mock.Builder().withPort(S3_PORT).withInMemoryBackend().build();
         s3.start();
@@ -191,8 +179,10 @@ public abstract class PortalTest {
     }
 
     protected void stopS3() {
-        s3.shutdown();
-        s3 = null;
+        if (Objects.nonNull(s3)) {
+            s3.shutdown();
+            s3 = null;
+        }
     }
 
     protected void startServant(String servantId) throws URISyntaxException, IOException {

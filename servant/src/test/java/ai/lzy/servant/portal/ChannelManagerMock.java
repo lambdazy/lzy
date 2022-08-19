@@ -242,27 +242,29 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
             LOG.error("Can not find direct channel with id {} for slot {}", slotInstance.getChannelId(),
                 slotInstance.getSlot().getName());
             response.onError(NOT_FOUND.withDescription("Slot with unknown channel id").asException());
-        } else {
-            switch (slotInstance.getSlot().getDirection()) {
-                case INPUT -> {
-                    Endpoint inputEndpoint = channel.inputEndpoint.get();
-                    if (inputEndpoint != null) {
-                        inputEndpoint.destroy();
-                    }
-                    response.onNext(ChannelManager.SlotDetachStatus.getDefaultInstance());
+            return;
+        }
+
+        switch (slotInstance.getSlot().getDirection()) {
+            case INPUT -> {
+                Endpoint inputEndpoint = channel.inputEndpoint.get();
+                if (inputEndpoint != null) {
+                    inputEndpoint.destroy();
                 }
-                case OUTPUT -> {
-                    var outputEndpoint = channel.outputEndpoint.get();
-                    if (outputEndpoint != null) {
-                        outputEndpoint.destroy();
-                    }
-                    response.onNext(ChannelManager.SlotDetachStatus.getDefaultInstance());
+                response.onNext(ChannelManager.SlotDetachStatus.getDefaultInstance());
+            }
+            case OUTPUT -> {
+                var outputEndpoint = channel.outputEndpoint.get();
+                if (outputEndpoint != null) {
+                    outputEndpoint.destroy();
                 }
-                default -> {
-                    LOG.error("Invalid direction of the slot {}: {}", slotInstance.getSlot().getName(),
-                        slotInstance.getSlot().getDirection());
-                    response.onError(INVALID_ARGUMENT.withDescription("Invalid slot direction").asException());
-                }
+                response.onNext(ChannelManager.SlotDetachStatus.getDefaultInstance());
+            }
+            default -> {
+                LOG.error("Invalid direction of the slot {}: {}", slotInstance.getSlot().getName(),
+                    slotInstance.getSlot().getDirection());
+                response.onError(INVALID_ARGUMENT.withDescription("Invalid slot direction").asException());
+                return;
             }
         }
 

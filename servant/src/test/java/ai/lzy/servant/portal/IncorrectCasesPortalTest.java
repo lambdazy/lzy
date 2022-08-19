@@ -12,20 +12,18 @@ import static ai.lzy.test.GrpcUtils.*;
 public class IncorrectCasesPortalTest extends PortalTest {
     @Test
     public void testSnapshotOnPortalWithNonActiveS3() throws Exception {
+        stopS3();
+
         startPortal();
 
         var portalStdout = readPortalSlot("portal:stdout");
         var portalStderr = readPortalSlot("portal:stderr");
 
-        // just for logs
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- PREPARE PORTAL FOR SCENARIO -----------------------------------------\n");
 
         // create channel for input portal slot
         createChannel("channel_1");
 
-        // just for logs
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- RUN SCENARIO -----------------------------------------\n");
 
         // configure portal to snapshot `channel-1` data on non-active S3
@@ -46,44 +44,21 @@ public class IncorrectCasesPortalTest extends PortalTest {
         destroyChannel("channel_1");
         destroyChannel("portal:stdout");
         destroyChannel("portal:stderr");
-
     }
 
     @Test
-    public void openOutputSlotBeforeInputSlotTest() throws Exception {
-        runWithS3(this::openOutputSlotOnPortalBeforeInputOne);
-    }
-
-    @Test
-    public void makeSnapshotOfSlotThatAlreadyWasStoredTest() throws Exception {
-        runWithS3(this::snapshotSlotThatAlreadyWas);
-    }
-
-    @Test
-    public void makeSnapshotWithAlreadyUsedSnapshotIdTest() throws Exception {
-        runWithS3(this::reopeningNewInputSlotForAlreadyExistsSnapshot);
-    }
-
-    @Test
-    public void readSnapshotOutputSlotBeforeInputOneWriteItTest() throws Exception {
-        runWithS3(this::readSnapshotOutputSlotBeforeInputWasConnected);
-    }
-
-    private void openOutputSlotOnPortalBeforeInputOne() throws Exception {
+    public void openOutputSlotBeforeInputSlot() throws Exception {
         startPortal();
 
         var portalStdout = readPortalSlot("portal:stdout");
         var portalStderr = readPortalSlot("portal:stderr");
 
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- PREPARE PORTAL FOR SCENARIO -----------------------------------------\n");
 
         // create channel for portal output slot
         createChannel("channel_1");
 
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- RUN SCENARIO -----------------------------------------\n");
-
 
         // open portal output slot before input one was opened, there must be an error here
         String errorMessage = server.openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest.newBuilder()
@@ -102,17 +77,15 @@ public class IncorrectCasesPortalTest extends PortalTest {
         destroyChannel("channel_1");
         destroyChannel("portal:stdout");
         destroyChannel("portal:stderr");
-
     }
 
-    private void snapshotSlotThatAlreadyWas() throws Exception {
+    @Test
+    public void makeSnapshotOfSlotThatAlreadyWasStored() throws Exception {
         startPortal();
 
         var portalStdout = readPortalSlot("portal:stdout");
         var portalStderr = readPortalSlot("portal:stderr");
 
-        // just for logs
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- PREPARE PORTAL FOR SCENARIO -----------------------------------------\n");
 
         // create channels for input portal slots
@@ -131,7 +104,6 @@ public class IncorrectCasesPortalTest extends PortalTest {
         // just for logs
         Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- RUN SCENARIO -----------------------------------------\n");
-
 
         // snapshot portal_slot_1 one more time, there must be an error here
         String errorMessage = server.openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest.newBuilder()
@@ -153,27 +125,22 @@ public class IncorrectCasesPortalTest extends PortalTest {
         destroyChannel("channel_2");
         destroyChannel("portal:stdout");
         destroyChannel("portal:stderr");
-
     }
 
-    private void reopeningNewInputSlotForAlreadyExistsSnapshot() throws Exception {
+    @Test
+    public void makeSnapshotWithAlreadyUsedSnapshotId() throws Exception {
         startPortal();
 
         var portalStdout = readPortalSlot("portal:stdout");
         var portalStderr = readPortalSlot("portal:stderr");
 
-        // just for logs
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- PREPARE PORTAL FOR SCENARIO -----------------------------------------\n");
 
         // create channels for scenario
         createChannel("channel_1");
         createChannel("channel_2");
 
-        // just for logs
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- RUN SCENARIO -----------------------------------------\n");
-
 
         // configure portal to snapshot `channel-1` data
         server.openPortalSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
@@ -204,14 +171,12 @@ public class IncorrectCasesPortalTest extends PortalTest {
         destroyChannel("channel_2");
         destroyChannel("portal:stdout");
         destroyChannel("portal:stderr");
-
     }
 
-    private void readSnapshotOutputSlotBeforeInputWasConnected() throws Exception {
+    @Test
+    public void readSnapshotOutputSlotBeforeInputOneWriteIt() throws Exception {
         startPortal();
 
-        // just for logs
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- PREPARE PORTAL FOR TASK 1 -----------------------------------------\n");
 
         // create channels for task_1
@@ -262,10 +227,7 @@ public class IncorrectCasesPortalTest extends PortalTest {
                 .build())
             .build());
 
-        // just for logs
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- RUN SCENARIO -----------------------------------------\n");
-
 
         var snapshotData = readPortalSlot("channel_2");
         Object obj = snapshotData.take();
@@ -295,6 +257,5 @@ public class IncorrectCasesPortalTest extends PortalTest {
 
         destroyChannel("portal:stdout");
         destroyChannel("portal:stderr");
-
     }
 }

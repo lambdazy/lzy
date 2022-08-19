@@ -13,44 +13,16 @@ import static ai.lzy.test.GrpcUtils.makeOutputFileSlot;
 
 public class UsualCasesPortalTest extends PortalTest {
     @Test
-    public void makeSnapshotOnPortalThenReadItTest() throws Exception {
-        runWithS3(this::firstTaskWriteSnapshotSecondReadIt);
-    }
-
-    @Test
-    public void multipleTasksMakeSnapshotsTest() throws Exception {
-        runWithS3(this::runMultipleTasks);
-    }
-
-    @Test
-    public void multipleSequentialConsumerAndSingleSnapshotProducerTest() throws Exception {
-        runWithS3(this::singleSnapshotMultipleConsumers);
-    }
-
-    @Test
-    public void multipleConcurrentConsumerAndSingleSnapshotProducerTest() throws Exception {
-        runWithS3(this::singleSnapshotMultipleConsumersConcurrent);
-    }
-
-    // run 2 sequential tasks:
-    // * first task writes on portal
-    // * second task reads from portal
-    //
-    // both tasks transfer their stdout/stderr to portal
-    private void firstTaskWriteSnapshotSecondReadIt() throws Exception {
+    public void makeSnapshotOnPortalThenReadIt() throws Exception {
         startPortal();
 
         var portalStdout = readPortalSlot("portal:stdout");
         var portalStderr = readPortalSlot("portal:stderr");
 
-        // just for logs
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- PREPARE PORTAL FOR TASK 1 -----------------------------------------\n");
 
         String firstServantId = preparePortalForTask(1, true, true, "snapshot_1");
 
-        // just for logs
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- RUN TASK 1 -----------------------------------------\n");
 
         var taskOutputSlot = makeOutputFileSlot("/slot_1");
@@ -100,9 +72,6 @@ public class UsualCasesPortalTest extends PortalTest {
         destroyChannel("task_2:stdout");
         destroyChannel("task_2:stderr");
 
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
-        System.out.println("\n----------------------------------------------\n");
-
         Assert.assertTrue(portalStdout.isEmpty());
         Assert.assertTrue(portalStderr.isEmpty());
         destroyChannel("portal:stdout");
@@ -112,21 +81,18 @@ public class UsualCasesPortalTest extends PortalTest {
         Assert.assertEquals("i-am-a-hacker\n", result);
     }
 
-    public void runMultipleTasks() throws Exception {
+    @Test
+    public void multipleTasksMakeSnapshots() throws Exception {
         startPortal();
 
         var portalStdout = readPortalSlot("portal:stdout");
         var portalStderr = readPortalSlot("portal:stderr");
 
-        // just for logs
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- PREPARE PORTAL FOR TASKS -----------------------------------------\n");
 
         String firstServantId = preparePortalForTask(1, true, true, "snapshot_1");
         String secondServantId = preparePortalForTask(2, true, true, "snapshot_2");
 
-        // just for logs
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- RUN TASKS -----------------------------------------\n");
 
         var task1OutputSlot = makeOutputFileSlot("/slot_1");
@@ -141,7 +107,6 @@ public class UsualCasesPortalTest extends PortalTest {
         server.waitTaskCompleted(secondServantId, secondTaskId);
         server.waitPortalCompleted();
 
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- TASKS DONE -----------------------------------------\n");
 
         System.out.println("-- cleanup tasks --");
@@ -182,20 +147,17 @@ public class UsualCasesPortalTest extends PortalTest {
         destroyChannel("portal:stderr");
     }
 
-    private void singleSnapshotMultipleConsumers() throws Exception {
+    @Test
+    public void multipleSequentialConsumerAndSingleSnapshotProducer() throws Exception {
         startPortal();
 
         var portalStdout = readPortalSlot("portal:stdout");
         var portalStderr = readPortalSlot("portal:stderr");
 
-        // just for logs
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- PREPARE PORTAL FOR TASK 1 -----------------------------------------\n");
 
         String firstServantId = preparePortalForTask(1, true, true, "snapshot_1");
 
-        // just for logs
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- RUN TASK 1 -----------------------------------------\n");
 
         var taskOutputSlot = makeOutputFileSlot("/slot_1");
@@ -215,7 +177,6 @@ public class UsualCasesPortalTest extends PortalTest {
         destroyChannel("task_1:stdout");
         destroyChannel("task_1:stderr");
 
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- PREPARE PORTAL FOR TASK 2, TASK 3 -----------------------------------------\n");
 
         ///// consumer tasks  /////
@@ -223,7 +184,6 @@ public class UsualCasesPortalTest extends PortalTest {
         String secondServantId = preparePortalForTask(2, true, false, "snapshot_1");
         String thirdServantId = preparePortalForTask(3, true, false, "snapshot_1");
 
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- RUN TASK 2 -----------------------------------------\n");
 
         var tmpFile2 = File.createTempFile("lzy", "test-result-2");
@@ -240,7 +200,6 @@ public class UsualCasesPortalTest extends PortalTest {
         Assert.assertEquals("task_2; ", portalStderr.take());
         server.waitPortalCompleted();
 
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- RUN TASK 3 -----------------------------------------\n");
 
         var tmpFile3 = File.createTempFile("lzy", "test-result-3");
@@ -269,10 +228,6 @@ public class UsualCasesPortalTest extends PortalTest {
         destroyChannel("task_3:stdout");
         destroyChannel("task_3:stderr");
 
-
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
-        System.out.println("\n----------------------------------------------\n");
-
         Assert.assertTrue(portalStdout.isEmpty());
         Assert.assertTrue(portalStderr.isEmpty());
         destroyChannel("portal:stdout");
@@ -284,20 +239,17 @@ public class UsualCasesPortalTest extends PortalTest {
         Assert.assertEquals("i-am-a-hacker\n", result3);
     }
 
-    private void singleSnapshotMultipleConsumersConcurrent() throws Exception {
+    @Test
+    public void multipleConcurrentConsumerAndSingleSnapshotProducer() throws Exception {
         startPortal();
 
         var portalStdout = readPortalSlot("portal:stdout");
         var portalStderr = readPortalSlot("portal:stderr");
 
-        // just for logs
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- PREPARE PORTAL FOR TASK 1 -----------------------------------------\n");
 
         String firstServantId = preparePortalForTask(1, true, true, "snapshot_1");
 
-        // just for logs
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- RUN TASK 1 -----------------------------------------\n");
 
         var taskOutputSlot = makeOutputFileSlot("/slot_1");
@@ -316,7 +268,6 @@ public class UsualCasesPortalTest extends PortalTest {
         destroyChannel("task_1:stdout");
         destroyChannel("task_1:stderr");
 
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- PREPARE PORTAL FOR TASK 2, TASK 3 -----------------------------------------\n");
 
         ///// consumer tasks  /////
@@ -324,7 +275,6 @@ public class UsualCasesPortalTest extends PortalTest {
         String secondServantId = preparePortalForTask(2, true, false, "snapshot_1");
         String thirdServantId = preparePortalForTask(3, true, false, "snapshot_1");
 
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- RUN TASK 2 & TASK 3 -----------------------------------------\n");
 
         var tmpFile2 = File.createTempFile("lzy", "test-result-2");
@@ -360,10 +310,6 @@ public class UsualCasesPortalTest extends PortalTest {
         destroyChannel("channel_3");
         destroyChannel("task_3:stdout");
         destroyChannel("task_3:stderr");
-
-
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
-        System.out.println("\n----------------------------------------------\n");
 
         destroyChannel("portal:stdout");
         destroyChannel("portal:stderr");
