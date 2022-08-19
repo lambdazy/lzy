@@ -5,10 +5,10 @@ import "google/protobuf/timestamp.proto";
 
 package ai.lzy.v1;
 
-option java_outer_classname = "LWB";
+option java_outer_classname = "LWBS";
 option java_package = "ai.lzy.v1";
 
-service WhiteboardService {
+service LzyWhiteboardService {
   rpc Create (CreateRequest) returns (Whiteboard);
   rpc LinkField (LinkFieldRequest) returns (LinkFieldResponse);
   rpc Finalize (FinalizeRequest) returns (FinalizeResponse);
