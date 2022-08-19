@@ -16,21 +16,14 @@ service LzyWorkflowService {
 
 message CreateWorkflowRequest {
   string workflowName = 1;
+
+  // if not set then internal SnapshotStorage is created
+  /* optional */ SnapshotStorage snapshotStorage = 2;
 }
 
 message CreateWorkflowResponse {
   string executionId = 1;
-
-  message TempStorage {
-    oneof credentials {
-      AmazonCredentials amazon = 1;
-      AzureCredentials azure = 2;
-    }
-
-    string bucket = 4;
-  }
-
-  TempStorage tempStorage = 2;
+  /* optional */ SnapshotStorage internalSnapshotStorage = 2;
 }
 
 message AttachWorkflowRequest {

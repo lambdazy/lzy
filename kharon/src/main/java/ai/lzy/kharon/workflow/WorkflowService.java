@@ -11,6 +11,7 @@ import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.workflow.LWS.*;
+import ai.lzy.v1.workflow.LWSD;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
@@ -24,6 +25,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nullable;
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -100,32 +103,53 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
 
                 executionId[0] = request.getWorkflowName() + "_" + UUID.randomUUID();
 
-                bucket[0] = "tmp__user_" + userId + "__" + executionId[0];
-                bucketCredentials[0] = createTempStorageBucket(userId, bucket[0]);
-
-                if (bucketCredentials[0] == null) {
-                    replyError.accept(Status.INTERNAL,
-                        "Error while creating workflow temporary storage. Try again later, please.");
-                    return false;
-                }
-
-                switch (bucketCredentials[0].getCredentialsCase()) {
-                    case AMAZON, AZURE -> {
-                        // ok
+                if (request.hasSnapshotStorage()) {
+                    bucket[0] = request.getSnapshotStorage().getBucket();
+                    switch (request.getSnapshotStorage().getKindCase()) {
+                        case AMAZON ->
+                            bucketCredentials[0] = LSS.CreateS3BucketResponse.newBuilder()
+                                .setAmazon(request.getSnapshotStorage().getAmazon())
+                                .build();
+                        case AZURE ->
+                            bucketCredentials[0] = LSS.CreateS3BucketResponse.newBuilder()
+                                .setAzure(request.getSnapshotStorage().getAzure())
+                                .build();
+                        case KIND_NOT_SET -> {
+                            replyError.accept(Status.INVALID_ARGUMENT, "Snapshot storage not set");
+                            return false;
+                        }
                     }
-                    default -> {
-                        LOG.error("Unsupported bucket storage type {}", bucketCredentials[0].getCredentialsCase());
-                        safeDeleteTempStorageBucket(bucket[0]);
+                } else {
+                    bucket[0] = "tmp__user_" + userId + "__" + executionId[0];
+                    bucketCredentials[0] = createTempStorageBucket(userId, bucket[0]);
+
+                    if (bucketCredentials[0] == null) {
+                        replyError.accept(Status.INTERNAL,
+                            "Error while creating workflow temporary storage. Try again later, please.");
                         return false;
+                    }
+
+                    switch (bucketCredentials[0].getCredentialsCase()) {
+                        case AMAZON, AZURE -> {
+                            // ok
+                        }
+                        default -> {
+                            LOG.error("Unsupported bucket storage type {}", bucketCredentials[0].getCredentialsCase());
+                            safeDeleteTempStorageBucket(bucket[0]);
+                            return false;
+                        }
                     }
                 }
 
                 var st2 = conn.prepareStatement("""
-                    INSERT INTO workflow_executions (execution_id, created_at, storage_bucket)
-                    VALUES (?, ?, ?)""");
+                    INSERT INTO workflow_executions (execution_id, created_at, storage_bucket, storage_credentials)
+                    VALUES (?, ?, ?, ?)""");
                 st2.setString(1, executionId[0]);
                 st2.setTimestamp(2, Timestamp.from(Instant.now()));
                 st2.setString(3, bucket[0]);
+                var out = new ByteArrayOutputStream(4096);
+                bucketCredentials[0].writeTo(out);
+                st2.setString(4, out.toString(StandardCharsets.UTF_8));
                 st2.executeUpdate();
 
                 if (update) {
@@ -150,19 +174,23 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
             });
 
             if (success) {
-                var respBuilder = CreateWorkflowResponse.TempStorage.newBuilder()
-                    .setBucket(bucket[0]);
+                var respBuilder = CreateWorkflowResponse.newBuilder()
+                    .setExecutionId(executionId[0]);
 
-                switch (bucketCredentials[0].getCredentialsCase()) {
-                    case AMAZON -> respBuilder.setAmazon(bucketCredentials[0].getAmazon());
-                    case AZURE -> respBuilder.setAzure(bucketCredentials[0].getAzure());
-                    default -> throw new AssertionError("" + bucketCredentials[0].getCredentialsCase());
+                if (!request.hasSnapshotStorage()) {
+                    var storageBuilder = LWSD.SnapshotStorage.newBuilder()
+                        .setBucket(bucket[0]);
+
+                    switch (bucketCredentials[0].getCredentialsCase()) {
+                        case AMAZON -> storageBuilder.setAmazon(bucketCredentials[0].getAmazon());
+                        case AZURE -> storageBuilder.setAzure(bucketCredentials[0].getAzure());
+                        default -> throw new AssertionError("" + bucketCredentials[0].getCredentialsCase());
+                    }
+
+                    respBuilder.setInternalSnapshotStorage(storageBuilder.build());
                 }
 
-                response.onNext(CreateWorkflowResponse.newBuilder()
-                    .setExecutionId(executionId[0])
-                    .setTempStorage(respBuilder.build())
-                    .build());
+                response.onNext(respBuilder.build());
                 response.onCompleted();
             }
         } catch (Exception e) {
@@ -281,7 +309,8 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
                 response.onNext(FinishWorkflowResponse.getDefaultInstance());
                 response.onCompleted();
 
-                safeDeleteTempStorageBucket(bucket[0]);
+                // TODO: add TTL instead of implicit delete
+                // safeDeleteTempStorageBucket(bucket[0]);
             }
         } catch (Exception e) {
             LOG.error("[finishWorkflow], fail: {}.", e.getMessage(), e);

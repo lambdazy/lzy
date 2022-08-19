@@ -6,6 +6,7 @@ create table workflow_executions (
     finished_with_error varchar(255),  -- error message or null
 
     storage_bucket varchar(255) not null,
+    storage_credentials varchar(1048576) not null,
 
     primary key (execution_id)
 );

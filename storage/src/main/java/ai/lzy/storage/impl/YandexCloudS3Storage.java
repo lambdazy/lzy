@@ -14,6 +14,7 @@ import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.BucketLifecycleConfiguration;
 import com.amazonaws.services.s3.model.CanonicalGrantee;
 import com.amazonaws.services.s3.model.Permission;
 import io.grpc.Status;
@@ -65,6 +66,25 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
                 request.getBucket(), request.getUserId(), e.getMessage(), e);
             response.onError(Status.INTERNAL
                 .withDescription("S3 internal error: " + e.getMessage()).withCause(e).asException());
+            return;
+        }
+
+        try {
+            client.setBucketLifecycleConfiguration(request.getBucket(),
+                new BucketLifecycleConfiguration()
+                    .withRules(new BucketLifecycleConfiguration.Rule().withExpirationInDays(30)));
+        } catch (SdkClientException e) {
+            LOG.error("AWS SDK error while creating bucket '{}' for '{}': {}",
+                request.getBucket(), request.getUserId(), e.getMessage(), e);
+            response.onError(Status.INTERNAL
+                .withDescription("S3 internal error: " + e.getMessage()).withCause(e).asException());
+
+            try {
+                client.deleteBucket(request.getBucket());
+            } catch (Exception ee) {
+                LOG.error("Cannot remove s3 bucket '{}': {}", request.getBucket(), e.getMessage(), e);
+            }
+
             return;
         }
 
