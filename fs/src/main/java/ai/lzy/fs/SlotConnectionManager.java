@@ -6,7 +6,7 @@ import ai.lzy.model.SlotInstance;
 import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import ai.lzy.model.UriScheme;
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.fs.snapshot.SlotSnapshotImpl;
 import ai.lzy.fs.snapshot.SlotSnapshotProvider;
 import ai.lzy.fs.snapshot.Snapshooter;

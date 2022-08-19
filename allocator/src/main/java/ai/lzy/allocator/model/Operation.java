@@ -62,4 +62,19 @@ public record Operation(
         }
         return builder.build();
     }
+
+    @Override
+    public String toString() {
+        return "Operation{" +
+            "id='" + id + '\'' +
+            ", meta=" + meta +
+            ", createdBy='" + createdBy + '\'' +
+            ", createdAt=" + createdAt +
+            ", modifiedAt=" + modifiedAt +
+            ", description='" + description + '\'' +
+            ", done=" + done +
+            ", response=" + response +
+            ", error=" + error +
+            '}';
+    }
 }

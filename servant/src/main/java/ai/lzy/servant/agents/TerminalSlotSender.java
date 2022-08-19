@@ -3,7 +3,7 @@ package ai.lzy.servant.agents;
 import static ai.lzy.model.GrpcConverter.to;
 
 import ai.lzy.fs.fs.LzyOutputSlot;
-import ai.lzy.model.JsonUtils;
+import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.model.SlotInstance;
 import ai.lzy.v1.Kharon.ReceivedDataStatus;
 import ai.lzy.v1.Kharon.SendSlotDataMessage;

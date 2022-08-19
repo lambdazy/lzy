@@ -1,4 +1,4 @@
-package ai.lzy.model.grpc;
+package ai.lzy.util.grpc;
 
 import io.grpc.Context;
 import io.grpc.Contexts;

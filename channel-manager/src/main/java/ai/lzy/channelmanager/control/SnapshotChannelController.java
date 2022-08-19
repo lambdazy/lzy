@@ -4,7 +4,7 @@ import ai.lzy.channelmanager.graph.ChannelGraph;
 import ai.lzy.channelmanager.channel.ChannelException;
 import ai.lzy.channelmanager.channel.Endpoint;
 import ai.lzy.model.SlotInstance;
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.IAM;
 import ai.lzy.v1.LzyWhiteboard;
 import ai.lzy.v1.SnapshotApiGrpc;

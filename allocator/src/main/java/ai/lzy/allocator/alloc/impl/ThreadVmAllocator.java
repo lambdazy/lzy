@@ -3,22 +3,20 @@ package ai.lzy.allocator.alloc.impl;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.model.Vm;
-import ai.lzy.model.db.TransactionHandle;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import javax.annotation.Nullable;
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.*;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.annotation.Nullable;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 @Singleton
 @Requires(property = "allocator.thread-allocator.enabled", value = "true")
@@ -67,7 +65,7 @@ public class ThreadVmAllocator implements VmAllocator {
     }
 
     @Override
-    public void allocate(Vm vm, @Nullable TransactionHandle transaction) {
+    public void allocate(Vm vm) {
         // TODO(artolord) add token
         requestAllocation(vm.vmId(), vm.workloads().get(0).args());  // Supports only one workload
     }

@@ -8,18 +8,19 @@ import ai.lzy.model.db.TransactionHandle;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.rpc.Status;
-import com.google.rpc.StatusProto;
 import jakarta.inject.Singleton;
-
-import javax.annotation.Nullable;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.UUID;
+import javax.annotation.Nullable;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 @Singleton
 public class OperationDaoImpl implements OperationDao {
+    private static final Logger LOG = LogManager.getLogger(OperationDaoImpl.class);
     private static final String FIELDS = " id, meta, created_by, created_at, modified_at, description,"
         + " done, response, \"error\" ";
     private final Storage storage;
@@ -32,6 +33,7 @@ public class OperationDaoImpl implements OperationDao {
     public Operation create(String description, String createdBy, Any meta, @Nullable TransactionHandle transaction) {
         final var op = new Operation(UUID.randomUUID().toString(), meta, createdBy, Instant.now(), Instant.now(),
             description, false, null, null);
+        LOG.info("Operation {} is creating", op);
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(
                 "INSERT INTO operation (" + FIELDS + """
@@ -41,6 +43,7 @@ public class OperationDaoImpl implements OperationDao {
                 s.execute();
             }
         });
+        LOG.info("Operation with id={} has been created", op.id());
         return op;
     }
 
@@ -48,6 +51,7 @@ public class OperationDaoImpl implements OperationDao {
     @Override
     public Operation get(String opId, @Nullable TransactionHandle transaction) {
         final Operation[] op = new Operation[1];
+        LOG.info("Getting op with id={}", opId);
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(
                 "SELECT" + FIELDS + """
@@ -58,6 +62,7 @@ public class OperationDaoImpl implements OperationDao {
                 final var res = s.executeQuery();
                 if (!res.next()) {
                     op[0] = null;
+                    LOG.info("Op with id={} not found in the storage", opId);
                     return;
                 }
                 final var id = res.getString(1);
@@ -89,11 +94,13 @@ public class OperationDaoImpl implements OperationDao {
                 throw new RuntimeException("Cannot parse proto", e);
             }
         });
+        LOG.info("Return op={}", op[0]);
         return op[0];
     }
 
     @Override
     public void update(Operation op, @Nullable TransactionHandle transaction) {
+        LOG.info("Operation {} is updating", op);
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(
                 "UPDATE operation SET (" + FIELDS + """
@@ -105,6 +112,7 @@ public class OperationDaoImpl implements OperationDao {
                 s.execute();
             }
         });
+        LOG.info("Operation with id={} has been updated", op.id());
     }
 
     private void writeOp(Operation op, PreparedStatement s) throws SQLException {

@@ -1,7 +1,7 @@
 package ai.lzy.servant.portal;
 
 import ai.lzy.model.GrpcConverter;
-import ai.lzy.model.JsonUtils;
+import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.servant.agents.LzyAgentConfig;
 import ai.lzy.servant.agents.LzyServant;
 import ai.lzy.v1.LzyFsApi;

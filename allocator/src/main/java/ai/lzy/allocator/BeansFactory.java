@@ -1,7 +1,7 @@
 package ai.lzy.allocator;
 
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;

@@ -1,4 +1,4 @@
-package ai.lzy.model.grpc;
+package ai.lzy.util.grpc;
 
 import io.grpc.CallOptions;
 import io.grpc.Channel;

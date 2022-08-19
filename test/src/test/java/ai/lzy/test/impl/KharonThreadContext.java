@@ -9,7 +9,7 @@ import io.micronaut.context.env.PropertySource;
 import org.apache.logging.log4j.LogManager;
 import ai.lzy.kharon.LzyKharon;
 import ai.lzy.model.UriScheme;
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.LzyKharonGrpc;
 import org.apache.logging.log4j.Logger;
 

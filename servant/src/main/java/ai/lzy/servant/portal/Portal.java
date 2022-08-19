@@ -7,7 +7,7 @@ import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.model.GrpcConverter;
-import ai.lzy.model.JsonUtils;
+import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.model.Slot;
 import ai.lzy.model.SlotInstance;
 import ai.lzy.servant.portal.slots.StdoutSlot;
