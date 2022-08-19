@@ -18,14 +18,4 @@ public interface VmAllocator {
      * @param vm vm to deallocate
      */
     void deallocate(Vm vm);
-
-    enum VmStatus {
-        PENDING,
-        RUNNING,
-        TERMINATED,
-        FAILED
-    }
-
-    record VmDesc(String sessionId, String name, VmStatus status) {
-    }
 }

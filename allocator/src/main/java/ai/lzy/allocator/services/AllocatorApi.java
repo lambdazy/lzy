@@ -193,7 +193,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         // TODO(artolord) validate that client can free this vm
         if (vm.state() != Vm.State.RUNNING) {
             LOG.error("Freed vm {} in status {}, expected RUNNING", vm, vm.state());
-            responseObserver.onError(Status.INTERNAL.asException());
+            responseObserver.onError(Status.FAILED_PRECONDITION.asException());
             return;
         }
         var session = sessions.get(vm.sessionId(), null);

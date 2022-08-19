@@ -315,6 +315,33 @@ public class AllocatorApiTest extends BaseTestWithIam {
     }
 
     @Test
+    public void repeatedFreeTest() throws InvalidProtocolBufferException {
+        final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
+            CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
+                    CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(1000).build()).build())
+                .build());
+        final Operation allocationStarted = authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
+            .setSessionId(createSessionResponse.getSessionId())
+            .setPoolLabel("S")
+            .build());
+        final VmAllocatorApi.AllocateMetadata allocateMetadata =
+            allocationStarted.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
+        registerVm(allocateMetadata.getVmId());
+        waitOp(allocationStarted);
+        //noinspection ResultOfMethodCallIgnored
+        authorizedAllocatorBlockingStub.free(FreeRequest.newBuilder().setVmId(allocateMetadata.getVmId()).build());
+
+        try {
+            //noinspection ResultOfMethodCallIgnored
+            authorizedAllocatorBlockingStub.free(FreeRequest.newBuilder().setVmId(allocateMetadata.getVmId()).build());
+            Assert.fail();
+        } catch (StatusRuntimeException e) {
+            Assert.assertEquals(e.getStatus().toString(), Status.FAILED_PRECONDITION.getCode(), e.getStatus().getCode());
+        }
+    }
+
+
+    @Test
     public void repeatedServantRegister() throws InvalidProtocolBufferException {
         final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
