@@ -5,6 +5,9 @@ import ai.lzy.model.JsonUtils;
 import ai.lzy.servant.agents.LzyAgentConfig;
 import ai.lzy.servant.agents.LzyServant;
 import ai.lzy.v1.LzyFsApi;
+import ai.lzy.v1.LzyPortalApi;
+import ai.lzy.v1.Operations;
+import ai.lzy.v1.Tasks;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
@@ -21,10 +24,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.locks.LockSupport;
@@ -82,6 +82,14 @@ public abstract class PortalTest {
         destroyChannel("servant_1:stderr");
     }
 
+    protected void startPortal() throws Exception {
+        startServant("portal");
+        server.waitServantStart("portal");
+        createChannel("portal:stdout");
+        createChannel("portal:stderr");
+        server.startPortalOn("portal");
+    }
+
     protected void runWithS3(ThrowingRunnable action) throws Exception {
         startS3();
         try {
@@ -89,6 +97,81 @@ public abstract class PortalTest {
         } finally {
             stopS3();
         }
+    }
+
+    protected String preparePortalForTask(int taskId, boolean newServant, boolean isInput, String snapshotId)
+        throws Exception {
+        String taskName = "task_" + taskId;
+
+        String servant = null;
+        if (newServant) {
+            servant = "servant_" + taskId;
+            startServant(servant);
+            server.waitServantStart(servant);
+        }
+
+        String channelName = "channel_" + taskId;
+        String[] stdChannelNames = {taskName + ":stdout", taskName + ":stderr"};
+
+        createChannel(channelName);
+        createChannel(stdChannelNames[0]);
+        createChannel(stdChannelNames[1]);
+
+        String slotName = "/portal_slot_" + taskId;
+        Operations.Slot slot = isInput ? makeInputFileSlot(slotName) : makeOutputFileSlot(slotName);
+
+        server.openPortalSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSnapshot(makeAmazonSnapshot(snapshotId, BUCKET_NAME, S3_ADDRESS))
+                .setSlot(slot)
+                .setChannelId(channelName)
+                .build())
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSlot(makeInputFileSlot("/portal_%s:stdout".formatted(taskName)))
+                .setChannelId(stdChannelNames[0])
+                .setStdout(makeStdoutStorage(taskName))
+                .build())
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSlot(makeInputFileSlot("/portal_%s:stderr".formatted(taskName)))
+                .setChannelId(stdChannelNames[1])
+                .setStderr(makeStderrStorage(taskName))
+                .build())
+            .build());
+
+        return servant;
+    }
+
+    protected String startTask(int taskNum, String fuze, Operations.Slot slot, String specifiedServant) {
+        String taskId = "task_" + taskNum;
+        String actualServant = Objects.isNull(specifiedServant) ? "servant_" + taskNum : specifiedServant;
+
+        server.start(actualServant,
+            Tasks.TaskSpec.newBuilder()
+                .setTid(taskId)
+                .setZygote(Operations.Zygote.newBuilder()
+                    .setName("zygote_" + taskNum)
+                    .addSlots(slot)
+                    .setFuze(fuze)
+                    .build())
+                .addAssignments(Tasks.SlotAssignment.newBuilder()
+                    .setTaskId(taskId)
+                    .setSlot(slot)
+                    .setBinding("channel_" + taskNum)
+                    .build())
+                .addAssignments(Tasks.SlotAssignment.newBuilder()
+                    .setTaskId(taskId)
+                    .setSlot(makeOutputPipeSlot("/dev/stdout"))
+                    .setBinding(taskId + ":stdout")
+                    .build())
+                .addAssignments(Tasks.SlotAssignment.newBuilder()
+                    .setTaskId(taskId)
+                    .setSlot(makeOutputPipeSlot("/dev/stderr"))
+                    .setBinding(taskId + ":stderr")
+                    .build())
+                .build(),
+            SuccessStreamObserver.wrap(state -> System.out.println("Progress: " + JsonUtils.printSingleLine(state))));
+
+        return taskId;
     }
 
     @FunctionalInterface

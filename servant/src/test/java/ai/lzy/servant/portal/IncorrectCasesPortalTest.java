@@ -12,12 +12,7 @@ import static ai.lzy.test.GrpcUtils.*;
 public class IncorrectCasesPortalTest extends PortalTest {
     @Test
     public void testSnapshotOnPortalWithNonActiveS3() throws Exception {
-        // portal
-        startServant("portal");
-        server.waitServantStart("portal");
-        createChannel("portal:stdout");
-        createChannel("portal:stderr");
-        server.startPortalOn("portal");
+        startPortal();
 
         var portalStdout = readPortalSlot("portal:stdout");
         var portalStderr = readPortalSlot("portal:stderr");
@@ -33,26 +28,25 @@ public class IncorrectCasesPortalTest extends PortalTest {
         Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- RUN SCENARIO -----------------------------------------\n");
 
-        try {
-            // configure portal to snapshot `channel-1` data on non-active S3
-            String errorMessage = server.openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest.newBuilder()
-                .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
-                    .setSnapshot(makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
-                    .setSlot(makeInputFileSlot("/portal_slot_1"))
-                    .setChannelId("channel_1")
-                    .build())
-                .build());
+        // configure portal to snapshot `channel-1` data on non-active S3
+        String errorMessage = server.openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest.newBuilder()
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSnapshot(makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
+                .setSlot(makeInputFileSlot("/portal_slot_1"))
+                .setChannelId("channel_1")
+                .build())
+            .build());
 
-            Assert.assertTrue(errorMessage.contains("Unable to execute HTTP request"));
-            Assert.assertTrue(portalStdout.isEmpty());
-            Assert.assertTrue(portalStderr.isEmpty());
-        } finally {
-            // clean up
-            System.out.println("-- cleanup scenario --");
-            destroyChannel("channel_1");
-            destroyChannel("portal:stdout");
-            destroyChannel("portal:stderr");
-        }
+        Assert.assertTrue(errorMessage.contains("Unable to execute HTTP request"));
+        Assert.assertTrue(portalStdout.isEmpty());
+        Assert.assertTrue(portalStderr.isEmpty());
+
+        // clean up
+        System.out.println("-- cleanup scenario --");
+        destroyChannel("channel_1");
+        destroyChannel("portal:stdout");
+        destroyChannel("portal:stderr");
+
     }
 
     @Test
@@ -76,12 +70,7 @@ public class IncorrectCasesPortalTest extends PortalTest {
     }
 
     private void openOutputSlotOnPortalBeforeInputOne() throws Exception {
-        // portal
-        startServant("portal");
-        server.waitServantStart("portal");
-        createChannel("portal:stdout");
-        createChannel("portal:stderr");
-        server.startPortalOn("portal");
+        startPortal();
 
         var portalStdout = readPortalSlot("portal:stdout");
         var portalStderr = readPortalSlot("portal:stderr");
@@ -95,34 +84,29 @@ public class IncorrectCasesPortalTest extends PortalTest {
         Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- RUN SCENARIO -----------------------------------------\n");
 
-        try {
-            // open portal output slot before input one was opened, there must be an error here
-            String errorMessage = server.openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest.newBuilder()
-                .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
-                    .setSnapshot(makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
-                    .setSlot(makeOutputFileSlot("/slot_2"))
-                    .setChannelId("channel_1"))
-                .build());
 
-            Assert.assertEquals("Snapshot with id 'snapshot_1-lzy-bucket-http:localhost:8001' not found", errorMessage);
-            Assert.assertTrue(portalStdout.isEmpty());
-            Assert.assertTrue(portalStderr.isEmpty());
-        } finally {
-            // clean up
-            System.out.println("-- cleanup scenario --");
-            destroyChannel("channel_1");
-            destroyChannel("portal:stdout");
-            destroyChannel("portal:stderr");
-        }
+        // open portal output slot before input one was opened, there must be an error here
+        String errorMessage = server.openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest.newBuilder()
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSnapshot(makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
+                .setSlot(makeOutputFileSlot("/slot_2"))
+                .setChannelId("channel_1"))
+            .build());
+
+        Assert.assertEquals("Snapshot with id 'snapshot_1-lzy-bucket-http:localhost:8001' not found", errorMessage);
+        Assert.assertTrue(portalStdout.isEmpty());
+        Assert.assertTrue(portalStderr.isEmpty());
+
+        // clean up
+        System.out.println("-- cleanup scenario --");
+        destroyChannel("channel_1");
+        destroyChannel("portal:stdout");
+        destroyChannel("portal:stderr");
+
     }
 
     private void snapshotSlotThatAlreadyWas() throws Exception {
-        // portal
-        startServant("portal");
-        server.waitServantStart("portal");
-        createChannel("portal:stdout");
-        createChannel("portal:stderr");
-        server.startPortalOn("portal");
+        startPortal();
 
         var portalStdout = readPortalSlot("portal:stdout");
         var portalStderr = readPortalSlot("portal:stderr");
@@ -148,37 +132,32 @@ public class IncorrectCasesPortalTest extends PortalTest {
         Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- RUN SCENARIO -----------------------------------------\n");
 
-        try {
-            // snapshot portal_slot_1 one more time, there must be an error here
-            String errorMessage = server.openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest.newBuilder()
-                .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
-                    .setSnapshot(makeAmazonSnapshot("snapshot_2", BUCKET_NAME, S3_ADDRESS))
-                    .setSlot(makeInputFileSlot("/portal_slot_1"))
-                    .setChannelId("channel_2")
-                    .build())
-                .build());
 
-            Assert.assertEquals("Slot '/portal_slot_1' already associated with snapshot "
-                + "'snapshot_1-lzy-bucket-http:localhost:8001'", errorMessage);
-            Assert.assertTrue(portalStdout.isEmpty());
-            Assert.assertTrue(portalStderr.isEmpty());
-        } finally {
-            // clean up
-            System.out.println("-- cleanup scenario --");
-            destroyChannel("channel_1");
-            destroyChannel("channel_2");
-            destroyChannel("portal:stdout");
-            destroyChannel("portal:stderr");
-        }
+        // snapshot portal_slot_1 one more time, there must be an error here
+        String errorMessage = server.openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest.newBuilder()
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSnapshot(makeAmazonSnapshot("snapshot_2", BUCKET_NAME, S3_ADDRESS))
+                .setSlot(makeInputFileSlot("/portal_slot_1"))
+                .setChannelId("channel_2")
+                .build())
+            .build());
+
+        Assert.assertEquals("Slot '/portal_slot_1' already associated with snapshot "
+            + "'snapshot_1-lzy-bucket-http:localhost:8001'", errorMessage);
+        Assert.assertTrue(portalStdout.isEmpty());
+        Assert.assertTrue(portalStderr.isEmpty());
+
+        // clean up
+        System.out.println("-- cleanup scenario --");
+        destroyChannel("channel_1");
+        destroyChannel("channel_2");
+        destroyChannel("portal:stdout");
+        destroyChannel("portal:stderr");
+
     }
 
     private void reopeningNewInputSlotForAlreadyExistsSnapshot() throws Exception {
-        // portal
-        startServant("portal");
-        server.waitServantStart("portal");
-        createChannel("portal:stdout");
-        createChannel("portal:stderr");
-        server.startPortalOn("portal");
+        startPortal();
 
         var portalStdout = readPortalSlot("portal:stdout");
         var portalStderr = readPortalSlot("portal:stderr");
@@ -195,49 +174,41 @@ public class IncorrectCasesPortalTest extends PortalTest {
         Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- RUN SCENARIO -----------------------------------------\n");
 
-        try {
-            // configure portal to snapshot `channel-1` data
-            server.openPortalSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
-                .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
-                    .setSnapshot(makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
-                    .setSlot(makeInputFileSlot("/portal_slot_1"))
-                    .setChannelId("channel_1")
-                    .build())
-                .build());
 
-            // configure portal to snapshot `channel-2` data with same snapshot id, there must be an error here
-            String errorMessage = server.openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest.newBuilder()
-                .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
-                    .setSnapshot(makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
-                    .setSlot(makeInputFileSlot("/portal_slot_2"))
-                    .setChannelId("channel_2")
-                    .build())
-                .build());
+        // configure portal to snapshot `channel-1` data
+        server.openPortalSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSnapshot(makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
+                .setSlot(makeInputFileSlot("/portal_slot_1"))
+                .setChannelId("channel_1")
+                .build())
+            .build());
 
-            Assert.assertEquals("Snapshot with id 'snapshot_1-lzy-bucket-http:localhost:8001' "
-                + "already associated with data", errorMessage);
-            Assert.assertTrue(portalStdout.isEmpty());
-            Assert.assertTrue(portalStderr.isEmpty());
-        } finally {
-            // clean up
-            System.out.println("-- cleanup scenario --");
-            destroyChannel("channel_1");
-            destroyChannel("channel_2");
-            destroyChannel("portal:stdout");
-            destroyChannel("portal:stderr");
-        }
+        // configure portal to snapshot `channel-2` data with same snapshot id, there must be an error here
+        String errorMessage = server.openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest.newBuilder()
+            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+                .setSnapshot(makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
+                .setSlot(makeInputFileSlot("/portal_slot_2"))
+                .setChannelId("channel_2")
+                .build())
+            .build());
+
+        Assert.assertEquals("Snapshot with id 'snapshot_1-lzy-bucket-http:localhost:8001' "
+            + "already associated with data", errorMessage);
+        Assert.assertTrue(portalStdout.isEmpty());
+        Assert.assertTrue(portalStderr.isEmpty());
+
+        // clean up
+        System.out.println("-- cleanup scenario --");
+        destroyChannel("channel_1");
+        destroyChannel("channel_2");
+        destroyChannel("portal:stdout");
+        destroyChannel("portal:stderr");
+
     }
 
     private void readSnapshotOutputSlotBeforeInputWasConnected() throws Exception {
-        // portal
-        startServant("portal");
-        server.waitServantStart("portal");
-        createChannel("portal:stdout");
-        createChannel("portal:stderr");
-        server.startPortalOn("portal");
-
-        var portalStdout = readPortalSlot("portal:stdout");
-        var portalStderr = readPortalSlot("portal:stderr");
+        startPortal();
 
         // just for logs
         Thread.sleep(Duration.ofSeconds(1).toMillis());
@@ -295,35 +266,35 @@ public class IncorrectCasesPortalTest extends PortalTest {
         Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- RUN SCENARIO -----------------------------------------\n");
 
-        try {
-            var snapshotData = readPortalSlot("channel_2");
-            Object obj = snapshotData.take();
 
-            Assert.assertSame(obj.getClass(), StatusRuntimeException.class);
+        var snapshotData = readPortalSlot("channel_2");
+        Object obj = snapshotData.take();
 
-            var expected = "Input slot of this snapshot is not already connected";
-            var actual = ((StatusRuntimeException) obj).getStatus().getDescription();
+        Assert.assertSame(obj.getClass(), StatusRuntimeException.class);
 
-            Assert.assertEquals(expected, actual);
+        var expected = "Input slot of this snapshot is not already connected";
+        var actual = ((StatusRuntimeException) obj).getStatus().getDescription();
 
-            server.waitPortalCompleted();
+        Assert.assertEquals(expected, actual);
 
-            Assert.assertTrue(snapshotData.isEmpty());
-        } finally {
-            // task_1 clean up
-            System.out.println("-- cleanup task1 scenario --");
-            destroyChannel("channel_1");
-            destroyChannel("task_1:stdout");
-            destroyChannel("task_1:stderr");
+        server.waitPortalCompleted();
 
-            // task_2 clean up
-            System.out.println("-- cleanup task2 scenario --");
-            destroyChannel("channel_2");
-            destroyChannel("task_2:stdout");
-            destroyChannel("task_2:stderr");
+        Assert.assertTrue(snapshotData.isEmpty());
 
-            destroyChannel("portal:stdout");
-            destroyChannel("portal:stderr");
-        }
+        // task_1 clean up
+        System.out.println("-- cleanup task1 scenario --");
+        destroyChannel("channel_1");
+        destroyChannel("task_1:stdout");
+        destroyChannel("task_1:stderr");
+
+        // task_2 clean up
+        System.out.println("-- cleanup task2 scenario --");
+        destroyChannel("channel_2");
+        destroyChannel("task_2:stdout");
+        destroyChannel("task_2:stderr");
+
+        destroyChannel("portal:stdout");
+        destroyChannel("portal:stderr");
+
     }
 }
