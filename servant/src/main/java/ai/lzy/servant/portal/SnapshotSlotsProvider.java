@@ -9,7 +9,7 @@ import ai.lzy.servant.portal.s3.S3Repository;
 import ai.lzy.servant.portal.slots.SnapshotSlot;
 import ai.lzy.v1.LzyPortalApi;
 import ai.lzy.v1.LzyPortalApi.PortalSlotDesc.Snapshot;
-import com.amazonaws.SdkClientException;
+import com.amazonaws.AmazonClientException;
 import com.azure.storage.common.implementation.connectionstring.StorageConnectionString;
 import com.google.protobuf.ByteString;
 
@@ -46,7 +46,7 @@ public class SnapshotSlotsProvider {
         boolean s3ContainsSnapshot;
         try {
             s3ContainsSnapshot = s3Repo.contains(bucket, key); // request to s3
-        } catch (SdkClientException e) {
+        } catch (AmazonClientException e) {
             throw new CreateSlotException(e);
         }
 

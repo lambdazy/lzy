@@ -403,9 +403,9 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
                     .setControl(LzyFsApi.Message.Controls.EOS)
                     .build());
                 response.onCompleted();
-            } catch (IOException e) {
+            } catch (Exception e) {
                 LOG.error("Error while uploading data: {}", e.getMessage(), e);
-                response.onError(e);
+                response.onError(Status.INTERNAL.withDescription(e.getMessage()).asRuntimeException());
             }
         };
 

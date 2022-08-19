@@ -155,7 +155,7 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
         Assert.assertTrue(response.getDescription(), response.getSuccess());
     }
 
-    String openPortalSlotWithFail(LzyPortalApi.OpenSlotsRequest request) {
+    String openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest request) {
         var response = portal().portalStub.openSlots(request);
         Assert.assertFalse(response.getSuccess());
         return response.getDescription();
@@ -284,8 +284,8 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
                     slot -> {
                         System.out.println("[portal slot] " + JsonUtils.printSingleLine(slot));
                         return switch (slot.getSlot().getDirection()) {
-                            case INPUT ->
-                                Set.of(SlotStatus.State.OPEN, SlotStatus.State.DESTROYED).contains(slot.getState());
+                            case INPUT -> Set.of(SlotStatus.State.UNBOUND, SlotStatus.State.OPEN,
+                                SlotStatus.State.DESTROYED).contains(slot.getState());
                             case OUTPUT -> true;
                             case UNKNOWN, UNRECOGNIZED -> throw new RuntimeException("Unexpected state");
                         };
