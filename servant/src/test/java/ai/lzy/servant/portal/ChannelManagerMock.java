@@ -23,11 +23,13 @@ import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.grpc.Status.INVALID_ARGUMENT;
+import static io.grpc.Status.NOT_FOUND;
 import static java.util.Objects.requireNonNull;
 
 public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerImplBase {
@@ -232,9 +234,41 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
     }
 
     @Override
-    public void unbind(ChannelManager.SlotDetach request,
-                       StreamObserver<ChannelManager.SlotDetachStatus> response) {
-        response.onError(INVALID_ARGUMENT.withDescription("Unknown command").asException());
+    public void unbind(ChannelManager.SlotDetach request, StreamObserver<ChannelManager.SlotDetachStatus> response) {
+        var slotInstance = request.getSlotInstance();
+        var channel = directChannels.get(slotInstance.getChannelId());
+
+        if (Objects.isNull(channel)) {
+            LOG.error("Can not find direct channel with id {} for slot {}", slotInstance.getChannelId(),
+                slotInstance.getSlot().getName());
+            response.onError(NOT_FOUND.withDescription("Slot with unknown channel id").asException());
+            return;
+        }
+
+        switch (slotInstance.getSlot().getDirection()) {
+            case INPUT -> {
+                Endpoint inputEndpoint = channel.inputEndpoint.get();
+                if (inputEndpoint != null) {
+                    inputEndpoint.destroy();
+                }
+                response.onNext(ChannelManager.SlotDetachStatus.getDefaultInstance());
+            }
+            case OUTPUT -> {
+                var outputEndpoint = channel.outputEndpoint.get();
+                if (outputEndpoint != null) {
+                    outputEndpoint.destroy();
+                }
+                response.onNext(ChannelManager.SlotDetachStatus.getDefaultInstance());
+            }
+            default -> {
+                LOG.error("Invalid direction of the slot {}: {}", slotInstance.getSlot().getName(),
+                    slotInstance.getSlot().getDirection());
+                response.onError(INVALID_ARGUMENT.withDescription("Invalid slot direction").asException());
+                return;
+            }
+        }
+
+        response.onCompleted();
     }
 
     public int port() {

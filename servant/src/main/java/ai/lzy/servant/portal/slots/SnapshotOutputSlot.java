@@ -22,7 +22,7 @@ import java.util.stream.Stream;
 import static ai.lzy.v1.Operations.SlotStatus.State.OPEN;
 
 public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot {
-    private static final Logger LOG = LogManager.getLogger(SnapshotInputSlot.class);
+    private static final Logger LOG = LogManager.getLogger(SnapshotOutputSlot.class);
 
     private final String key;
     private final String bucket;
