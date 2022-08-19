@@ -1,14 +1,13 @@
 package ai.lzy.test.impl;
 
-import ai.lzy.iam.config.IamClientConfiguration;
-import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.model.grpc.ChannelBuilder;
 import ai.lzy.model.grpc.ClientHeaderInterceptor;
 import ai.lzy.model.grpc.GrpcHeaders;
-import ai.lzy.v1.LzyStorageGrpc;
 import ai.lzy.storage.LzyStorage;
 import ai.lzy.storage.StorageConfig;
 import ai.lzy.test.LzyStorageTestContext;
+import ai.lzy.util.auth.credentials.JwtCredentials;
+import ai.lzy.v1.LzyStorageGrpc;
 import ai.lzy.whiteboard.api.SnapshotApi;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
@@ -22,15 +21,9 @@ import io.micronaut.context.env.PropertySource;
 import org.apache.logging.log4j.LogManager;
 
 import java.io.IOException;
-import java.io.Reader;
-import java.io.StringReader;
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
-
-import static ai.lzy.util.auth.credentials.JwtUtils.buildJWT;
 
 @SuppressWarnings("UnstableApiUsage")
 public class StorageThreadContext implements LzyStorageTestContext {
@@ -90,7 +83,7 @@ public class StorageThreadContext implements LzyStorageTestContext {
             }
 
             var config = context.getBean(StorageConfig.class);
-            internalUserCreds = internalUserCredentials(config.getIam());
+            internalUserCreds = config.getIam().createCredentials();
         }
 
         var channel = ChannelBuilder.forAddress(address())
@@ -115,14 +108,6 @@ public class StorageThreadContext implements LzyStorageTestContext {
             storage.awaitTermination();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
-        }
-    }
-
-    private JwtCredentials internalUserCredentials(IamClientConfiguration iam) {
-        try (final Reader reader = new StringReader(iam.getInternalUserPrivateKey())) {
-            return new JwtCredentials(buildJWT(iam.getInternalUserName(), reader));
-        } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
-            throw new RuntimeException("Cannot build credentials: " + e.getMessage(), e);
         }
     }
 }

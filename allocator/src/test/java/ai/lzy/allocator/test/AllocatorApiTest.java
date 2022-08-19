@@ -72,8 +72,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
             .forAddress(HostAndPort.fromString(config.getAddress()))
             .usePlaintext()
             .build();
-        var credentials = JwtUtils.credentials(config.getIam().getInternalUserName(),
-            config.getIam().getInternalUserPrivateKey());
+        var credentials = config.getIam().createCredentials();
         unauthorizedAllocatorBlockingStub = AllocatorGrpc.newBlockingStub(channel);
         operationServiceApiBlockingStub = OperationServiceApiGrpc.newBlockingStub(channel).withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
