@@ -17,7 +17,7 @@ fi
 function latest-branch-image-tag {
   br=$1
   MINOR=-1
-  for TAG in $(wget -q "https://registry.hub.docker.com/v1/repositories/lzydock/$IMAGE/tags" -O - | jq -r '.[].name'); do
+  for TAG in $(wget -q "https://registry.hub.docker.com/v2/repositories/lzydock/$IMAGE/tags?page_size=1000" -O - | jq -r '.results[].name'); do
     if [[ -n $(echo "$TAG" | grep -E "$br-[0-9]+\.[0-9]+") ]]; then
       VERSION=$(echo "$TAG" | sed "s/$br-//")
       CUR_MAJOR=$(echo "$VERSION" | awk -F. '{print $1}')

@@ -28,15 +28,6 @@ public class ServiceConfig {
     @ConfigurationBuilder("iam")
     private final IamClientConfiguration iam = new IamClientConfiguration();
 
-    private ThreadAllocator threadAllocator = new ThreadAllocator();
-    private DockerAllocator dockerAllocator = new DockerAllocator();
-    private KuberAllocator kuberAllocator = new KuberAllocator();
-
-    private DiskManagerConfig diskManagerConfig = new DiskManagerConfig();
-
-    private YcCredentialsConfig ycCredentialsConfig = new YcCredentialsConfig();
-    private AzureCredentialsConfig azureCredentialsConfig = new AzureCredentialsConfig();
-
     @Getter
     @Setter
     @ConfigurationProperties("thread-allocator")

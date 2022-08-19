@@ -1,19 +1,18 @@
 package ai.lzy.kharon.workflow;
 
-import ai.lzy.util.auth.credentials.JwtCredentials;
-import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.utils.CredentialsHelper;
 import ai.lzy.kharon.KharonConfig;
-import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.model.grpc.ClientHeaderInterceptor;
-import ai.lzy.model.grpc.GrpcHeaders;
+import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.ClientHeaderInterceptor;
+import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.model.utils.FreePortFinder;
-import ai.lzy.v1.LzyWorkflowApi.CreateWorkflowRequest;
-import ai.lzy.v1.LzyWorkflowApi.FinishWorkflowRequest;
-import ai.lzy.v1.LzyWorkflowGrpc;
 import ai.lzy.storage.impl.MockS3Storage;
+import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
+import ai.lzy.v1.workflow.LWS.CreateWorkflowRequest;
+import ai.lzy.v1.workflow.LWS.FinishWorkflowRequest;
+import ai.lzy.v1.workflow.LzyWorkflowGrpc;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
 import io.grpc.Status;
@@ -27,13 +26,10 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.io.StringReader;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
-
-import static ai.lzy.util.auth.credentials.JwtUtils.buildJWT;
 
 public class WorkflowServiceTest {
     private ApplicationContext ctx;
@@ -53,10 +49,7 @@ public class WorkflowServiceTest {
         ctx = ApplicationContext.run(PropertySource.of(props));
         var iam = ctx.getBean(KharonConfig.class).getIam();
 
-        final JwtCredentials internalUser;
-        try (var reader = new StringReader(iam.getInternalUserPrivateKey())) {
-            internalUser = new JwtCredentials(buildJWT(iam.getInternalUserName(), reader));
-        }
+        var internalUser = iam.createCredentials();
 
         var authInterceptor = new AuthServerInterceptor(credentials -> {
             var issuer = CredentialsHelper.issuerFromJWT(credentials.token());

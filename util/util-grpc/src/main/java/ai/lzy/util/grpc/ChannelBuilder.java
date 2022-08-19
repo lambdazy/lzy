@@ -1,4 +1,4 @@
-package ai.lzy.model.grpc;
+package ai.lzy.util.grpc;
 
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;

@@ -79,7 +79,7 @@ public abstract class LocalScenario extends LzyBaseTest {
     public void tearDown() {
         super.tearDown();
         //wait until all servants unmount fs
-        final boolean flagUp = Utils.waitFlagUp(() -> LzyFsServer.mounted.get() == 0, 60, TimeUnit.SECONDS);
+        final boolean flagUp = TimeUtils.waitFlagUp(() -> LzyFsServer.mounted.get() == 0, 60, TimeUnit.SECONDS);
         Assert.assertTrue("Not all fs servers are unmounted", flagUp);
 
         kharonContext.close();

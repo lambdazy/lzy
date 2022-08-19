@@ -1,6 +1,7 @@
 package ai.lzy.test.scenarios;
 
 import ai.lzy.model.utils.FreePortFinder;
+import ai.lzy.test.TimeUtils;
 import ai.lzy.v1.Tasks;
 import ai.lzy.servant.agents.AgentStatus;
 import ai.lzy.test.LzyTerminalTestContext;
@@ -71,7 +72,7 @@ public class TerminalCrashTest extends LocalScenario {
         terminal1.createSlot(localFileName, channelId, Utils.outFileSlot());
         terminal1.publish(cat);
         ForkJoinPool.commonPool().execute(() -> {
-            Utils.waitFlagUp(() -> {
+            TimeUtils.waitFlagUp(() -> {
                     final Tasks.TaskStatus task = getTaskStatusByName(terminal1, cat.name());
                     if (task == null) {
                         return false;
@@ -99,7 +100,7 @@ public class TerminalCrashTest extends LocalScenario {
 
         //Assert
         Assert.assertTrue(
-            Utils.waitFlagUp(() -> getTaskStatusByName(terminal2, cat.name()) == null,
+            TimeUtils.waitFlagUp(() -> getTaskStatusByName(terminal2, cat.name()) == null,
                 Config.TIMEOUT_SEC,
                 TimeUnit.SECONDS
             )
@@ -107,7 +108,7 @@ public class TerminalCrashTest extends LocalScenario {
 
         var exception = new AtomicReference<Exception>(null);
         Assert.assertTrue(
-            Utils.waitFlagUp(() -> {
+            TimeUtils.waitFlagUp(() -> {
                     try {
                         final String channelStatus = terminal2.channelStatus(channelId);
                         return channelStatus.equals("Got exception while channel status (status_code=NOT_FOUND)\n");
@@ -194,7 +195,7 @@ public class TerminalCrashTest extends LocalScenario {
         //Act
         ForkJoinPool.commonPool().execute(() -> terminal1.run(sleep.name(), "", Map.of()));
         ForkJoinPool.commonPool().execute(() -> {
-            Utils.waitFlagUp(() -> {
+            TimeUtils.waitFlagUp(() -> {
                     final Tasks.TaskStatus task = getTaskStatusByName(terminal1, sleep.name());
                     if (task == null) {
                         return false;
@@ -264,7 +265,7 @@ public class TerminalCrashTest extends LocalScenario {
             )
         ));
 
-        Utils.waitFlagUp(() -> {
+        TimeUtils.waitFlagUp(() -> {
                 final Tasks.TaskStatus task = getTaskStatusByName(terminal, cat.name());
                 if (task == null) {
                     return false;
@@ -277,7 +278,7 @@ public class TerminalCrashTest extends LocalScenario {
         terminal.shutdownNow();
         terminal.waitForShutdown();
 
-        final boolean flagUp = Utils.waitFlagUp(() -> terminal2.channelsStatus().equals(""), Config.TIMEOUT_SEC,
+        final boolean flagUp = TimeUtils.waitFlagUp(() -> terminal2.channelsStatus().equals(""), Config.TIMEOUT_SEC,
             TimeUnit.SECONDS);
 
         //Assert

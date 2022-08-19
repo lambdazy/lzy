@@ -21,6 +21,7 @@ pkgs.mkShell {
 
       # proto paths
       export proto_out="$(pwd)/ai/lzy/v1"
-      export proto_path="$(pwd)/../model/src/main/proto/"
+      export proto_model_path="$(pwd)/../model/src/main/proto/"
+      export proto_workflow_path="$(pwd)/../workflow-api/src/main/proto/"
     '';
 }

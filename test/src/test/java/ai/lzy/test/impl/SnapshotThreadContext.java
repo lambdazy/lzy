@@ -8,7 +8,7 @@ import io.grpc.ServerBuilder;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import org.apache.logging.log4j.LogManager;
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.whiteboard.api.SnapshotApi;
 import ai.lzy.whiteboard.api.WhiteboardApi;
 import ai.lzy.v1.SnapshotApiGrpc;

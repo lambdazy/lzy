@@ -1,8 +1,7 @@
 package ai.lzy.allocator.alloc;
 
+import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.model.Vm;
-import ai.lzy.model.db.TransactionHandle;
-
 import javax.annotation.Nullable;
 
 public interface VmAllocator {
@@ -10,7 +9,7 @@ public interface VmAllocator {
      * Start vm allocation
      * @param vm vm to allocate
      */
-    void allocate(Vm vm, @Nullable TransactionHandle transaction);
+    void allocate(Vm vm) throws InvalidConfigurationException;
 
     /**
      * Idempotent operation to destroy vm

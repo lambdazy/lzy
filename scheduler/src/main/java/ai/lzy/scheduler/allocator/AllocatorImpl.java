@@ -1,7 +1,7 @@
 package ai.lzy.scheduler.allocator;
 
 import ai.lzy.model.Operation;
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.OperationService;

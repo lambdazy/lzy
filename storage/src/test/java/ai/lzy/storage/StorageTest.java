@@ -1,9 +1,9 @@
 package ai.lzy.storage;
 
 import ai.lzy.iam.test.BaseTestWithIam;
-import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.model.grpc.ClientHeaderInterceptor;
-import ai.lzy.model.grpc.GrpcHeaders;
+import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.ClientHeaderInterceptor;
+import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.v1.LzyStorageApi;
 import ai.lzy.v1.LzyStorageGrpc;
@@ -131,8 +131,7 @@ public class StorageTest extends BaseTestWithIam {
 
     @Test
     public void testSuccess() throws IOException {
-        var credentials = JwtUtils.credentials(storageConfig.getIam().getInternalUserName(),
-            storageConfig.getIam().getInternalUserPrivateKey());
+        var credentials = storageConfig.getIam().createCredentials();
 
         var client = storageClient.withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));

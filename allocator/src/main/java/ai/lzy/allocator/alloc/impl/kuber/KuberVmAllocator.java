@@ -1,27 +1,37 @@
 package ai.lzy.allocator.alloc.impl.kuber;
 
 import ai.lzy.allocator.alloc.VmAllocator;
-import ai.lzy.allocator.configs.ServiceConfig;
+import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
-import ai.lzy.model.db.TransactionHandle;
-import io.fabric8.kubernetes.api.model.*;
-import io.fabric8.kubernetes.client.*;
+import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
+import io.fabric8.kubernetes.api.model.EnvVarBuilder;
+import io.fabric8.kubernetes.api.model.ListOptionsBuilder;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.SecurityContext;
+import io.fabric8.kubernetes.api.model.Toleration;
+import io.fabric8.kubernetes.api.model.TolerationBuilder;
+import io.fabric8.kubernetes.client.KubernetesClient;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import javax.annotation.Nullable;
 import java.io.File;
 import java.net.URISyntaxException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import javax.annotation.Nullable;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 @Singleton
 @Requires(property = "allocator.kuber-allocator.enabled", value = "true")
 public class KuberVmAllocator implements VmAllocator {
+
     private static final Logger LOG = LogManager.getLogger(KuberVmAllocator.class);
     private static final String NAMESPACE = "default";
     private static final List<Toleration> GPU_VM_POD_TOLERATIONS = List.of(
@@ -38,39 +48,45 @@ public class KuberVmAllocator implements VmAllocator {
 
     private final VmDao dao;
     private final ClusterRegistry poolRegistry;
-    private final KuberClusterFactory factory;
-    private final ServiceConfig.KuberAllocator config;
+    private final KuberClientFactory factory;
 
     @Inject
-    public KuberVmAllocator(ServiceConfig.KuberAllocator config, VmDao dao, ClusterRegistry poolRegistry,
-            KuberClusterFactory factory) {
+    public KuberVmAllocator(VmDao dao, ClusterRegistry poolRegistry, KuberClientFactory factory) {
         this.dao = dao;
         this.poolRegistry = poolRegistry;
         this.factory = factory;
-        this.config = config;
     }
 
     @Override
-    public void allocate(Vm vm, @Nullable TransactionHandle transaction) {
-
+    public void allocate(Vm vm) throws InvalidConfigurationException {
         final var cluster = poolRegistry.findCluster(vm.poolLabel(), vm.zone(), ClusterRegistry.ClusterType.User);
+        if (cluster == null) {
+            throw new InvalidConfigurationException(
+                "Cannot find pool for label " + vm.poolLabel() + " and zone " + vm.zone());
+        }
 
         try (final var client = factory.build(cluster)) {
             final Pod vmPodSpec = createVmPodSpec(vm, client);
-            final Pod pod = client.pods()
-                .inNamespace(NAMESPACE)
-                .resource(vmPodSpec)
-                .create();
-
-            LOG.debug("Created pod in Kuber: {}", pod);
-            Objects.requireNonNull(pod.getMetadata());
-            Objects.requireNonNull(pod.getMetadata().getNamespace());
-            Objects.requireNonNull(pod.getMetadata().getName());
+            LOG.debug("Creating pod with podspec: {}", vmPodSpec);
             dao.saveAllocatorMeta(vm.vmId(), Map.of(
-                NAMESPACE_KEY, pod.getMetadata().getNamespace(),
-                POD_NAME_KEY, pod.getMetadata().getName(),
+                NAMESPACE_KEY, NAMESPACE,
+                POD_NAME_KEY, vmPodSpec.getMetadata().getName(),
                 CLUSTER_ID_KEY, cluster.clusterId()
-            ), transaction);
+            ), null);
+
+            final Pod pod;
+            try {
+                pod = client.pods()
+                    .inNamespace(NAMESPACE)
+                    .resource(vmPodSpec)
+                    .create();
+            } catch (Exception e) {
+                LOG.error("Failed to allocate pod", e);
+                deallocate(vm);
+                //TODO (tomato): add retries here if the error is caused due to temporal problems with kuber
+                throw new RuntimeException(e);
+            }
+            LOG.debug("Created pod in Kuber: {}", pod);
         }
     }
 
@@ -112,6 +128,8 @@ public class KuberVmAllocator implements VmAllocator {
                     .inNamespace(ns)
                     .resource(pod)
                     .delete();
+            } else {
+                LOG.warn("Pod with name {} not found", podName);
             }
         }
     }
@@ -181,9 +199,9 @@ public class KuberVmAllocator implements VmAllocator {
     private Pod readPod(KubernetesClient client) {
         final File file;
         try {
-            file = new File(getClass()
-                .getClassLoader()
-                .getResource("kubernetes/lzy-vm-pod-template.yaml")
+            file = new File(Objects.requireNonNull(getClass()
+                    .getClassLoader()
+                    .getResource("kubernetes/lzy-vm-pod-template.yaml"))
                 .toURI());
         } catch (URISyntaxException e) {
             throw new RuntimeException("Error while reading pod template", e);
@@ -195,10 +213,8 @@ public class KuberVmAllocator implements VmAllocator {
 
     private List<Container> buildContainers(Vm vm) {
         final List<Container> containers = new ArrayList<>();
-        for (var workload: vm.workloads()) {
-
+        for (var workload : vm.workloads()) {
             final var container = new Container();
-
             final var envList = workload.env().entrySet()
                 .stream()
                 .map(e -> new EnvVarBuilder()

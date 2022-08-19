@@ -1,8 +1,8 @@
 package ai.lzy.kharon;
 
-import ai.lzy.model.JsonUtils;
-import ai.lzy.model.grpc.ClientHeaderInterceptor;
-import ai.lzy.model.grpc.GrpcHeaders;
+import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.util.grpc.ClientHeaderInterceptor;
+import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.ChannelManager.ChannelDestroyAllRequest;
 import ai.lzy.v1.IAM.UserCredentials;
 import ai.lzy.v1.Kharon;

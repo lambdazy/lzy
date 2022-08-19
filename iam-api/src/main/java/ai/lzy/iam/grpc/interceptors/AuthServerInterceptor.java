@@ -17,7 +17,7 @@ import java.util.Arrays;
 import java.util.Set;
 import java.util.function.Function;
 
-import static ai.lzy.model.grpc.GrpcHeaders.AUTHORIZATION;
+import static ai.lzy.util.grpc.GrpcHeaders.AUTHORIZATION;
 
 public class AuthServerInterceptor implements ServerInterceptor {
     public static final Logger LOG = LogManager.getLogger(AuthServerInterceptor.class);

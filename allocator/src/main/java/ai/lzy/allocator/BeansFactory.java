@@ -1,7 +1,7 @@
 package ai.lzy.allocator;
 
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.model.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -24,11 +24,11 @@ public class BeansFactory {
 
     @Bean
     @Requires(property = "allocator.yc-credentials.enabled", value = "true")
-    public ServiceFactory serviceFactory(ServiceConfig config) {
+    public ServiceFactory serviceFactory(ServiceConfig.YcCredentialsConfig config) {
         return ServiceFactory.builder()
             .credentialProvider(
                 Auth.apiKeyBuilder()
-                    .fromFile(Path.of(config.getYcCredentialsConfig().getServiceAccountFile()))
+                    .fromFile(Path.of(config.getServiceAccountFile()))
                     .build())
             .requestTimeout(YC_CALL_TIMEOUT)
             .build();

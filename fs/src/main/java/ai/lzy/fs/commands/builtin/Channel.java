@@ -3,11 +3,11 @@ package ai.lzy.fs.commands.builtin;
 import static ai.lzy.model.GrpcConverter.to;
 
 import ai.lzy.fs.commands.LzyCommand;
-import ai.lzy.model.JsonUtils;
+import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.model.data.DataSchema;
-import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.model.grpc.ClientHeaderInterceptor;
-import ai.lzy.model.grpc.GrpcHeaders;
+import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.ClientHeaderInterceptor;
+import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.ChannelManager;
 import ai.lzy.v1.Channels;
 import ai.lzy.v1.IAM;

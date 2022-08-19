@@ -7,7 +7,7 @@ import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import jakarta.inject.Singleton;
 
 @Singleton
-public class KuberClusterFactoryImpl implements KuberClusterFactory {
+public class KuberClientFactoryImpl implements KuberClientFactory {
     @Override
     public KubernetesClient build(ClusterRegistry.ClusterDescription credentials) {
         final var config = new ConfigBuilder()

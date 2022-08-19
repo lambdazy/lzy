@@ -1,18 +1,16 @@
 package ai.lzy.kharon.workflow;
 
-import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.kharon.KharonConfig;
 import ai.lzy.kharon.KharonDataSource;
-import ai.lzy.model.JsonUtils;
+import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.model.db.Transaction;
-import ai.lzy.model.grpc.ChannelBuilder;
-import ai.lzy.model.grpc.ClientHeaderInterceptor;
-import ai.lzy.model.grpc.GrpcHeaders;
+import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.ClientHeaderInterceptor;
+import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.LzyStorageApi;
 import ai.lzy.v1.LzyStorageGrpc;
-import ai.lzy.v1.LzyWorkflowApi.*;
-import ai.lzy.v1.LzyWorkflowGrpc.LzyWorkflowImplBase;
+import ai.lzy.v1.workflow.LWS.*;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
@@ -25,11 +23,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nullable;
-import java.io.IOException;
-import java.io.Reader;
-import java.io.StringReader;
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -37,7 +30,7 @@ import java.time.Instant;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 
-import static ai.lzy.util.auth.credentials.JwtUtils.buildJWT;
+import static ai.lzy.v1.workflow.LzyWorkflowGrpc.LzyWorkflowImplBase;
 
 @SuppressWarnings("UnstableApiUsage")
 @Singleton
@@ -52,13 +45,8 @@ public class WorkflowService extends LzyWorkflowImplBase {
     public WorkflowService(KharonConfig config, KharonDataSource db) {
         this.db = db;
 
-        JwtCredentials internalUser;
-        try (final Reader reader = new StringReader(config.getIam().getInternalUserPrivateKey())) {
-            internalUser = new JwtCredentials(buildJWT(config.getIam().getInternalUserName(), reader));
-            LOG.info("Init Internal User '{}' credentials", config.getIam().getInternalUserName());
-        } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
-            throw new RuntimeException("Cannot build credentials: " + e.getMessage(), e);
-        }
+        var internalUser = config.getIam().createCredentials();
+        LOG.info("Init Internal User '{}' credentials", config.getIam().getInternalUserName());
 
         storageServiceChannel = ChannelBuilder.forAddress(HostAndPort.fromString(config.getStorage().getAddress()))
             .usePlaintext()
