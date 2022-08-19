@@ -5,12 +5,13 @@ import ai.lzy.kharon.KharonConfig;
 import ai.lzy.kharon.KharonDataSource;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.model.db.Transaction;
+import ai.lzy.v1.LSS;
+import ai.lzy.v1.LzyStorageServiceGrpc;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.v1.LzyStorageApi;
-import ai.lzy.v1.LzyStorageGrpc;
 import ai.lzy.v1.workflow.LWS.*;
+import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
@@ -30,16 +31,14 @@ import java.time.Instant;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 
-import static ai.lzy.v1.workflow.LzyWorkflowGrpc.LzyWorkflowImplBase;
-
 @SuppressWarnings("UnstableApiUsage")
 @Singleton
-public class WorkflowService extends LzyWorkflowImplBase {
+public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBase {
     private static final Logger LOG = LogManager.getLogger(WorkflowService.class);
 
     private final KharonDataSource db;
     private final ManagedChannel storageServiceChannel;
-    private final LzyStorageGrpc.LzyStorageBlockingStub storageServiceClient;
+    private final LzyStorageServiceGrpc.LzyStorageServiceBlockingStub storageServiceClient;
 
     @Inject
     public WorkflowService(KharonConfig config, KharonDataSource db) {
@@ -50,9 +49,9 @@ public class WorkflowService extends LzyWorkflowImplBase {
 
         storageServiceChannel = ChannelBuilder.forAddress(HostAndPort.fromString(config.getStorage().getAddress()))
             .usePlaintext()
-            .enableRetry(LzyStorageGrpc.SERVICE_NAME)
+            .enableRetry(LzyStorageServiceGrpc.SERVICE_NAME)
             .build();
-        storageServiceClient = LzyStorageGrpc.newBlockingStub(storageServiceChannel)
+        storageServiceClient = LzyStorageServiceGrpc.newBlockingStub(storageServiceChannel)
             .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, internalUser::token));
     }
 
@@ -75,14 +74,14 @@ public class WorkflowService extends LzyWorkflowImplBase {
         try {
             final String[] executionId = {null};
             final String[] bucket = {null};
-            final LzyStorageApi.CreateS3BucketResponse[] bucketCredentials = {null};
+            final LSS.CreateS3BucketResponse[] bucketCredentials = {null};
 
             var success = Transaction.execute(db, conn -> {
                 var st = conn.prepareStatement("""
-                    SELECT active_execution_id
-                    FROM workflows
-                    WHERE user_id = ? AND workflow_name = ?
-                    FOR UPDATE""",        // TODO: add `nowait` and handle it's warning or error
+                        SELECT active_execution_id
+                        FROM workflows
+                        WHERE user_id = ? AND workflow_name = ?
+                        FOR UPDATE""",        // TODO: add `nowait` and handle it's warning or error
                     ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
                 st.setString(1, userId);
                 st.setString(2, request.getWorkflowName());
@@ -234,10 +233,10 @@ public class WorkflowService extends LzyWorkflowImplBase {
 
             var success = Transaction.execute(db, conn -> {
                 var st = conn.prepareStatement("""
-                    SELECT execution_id, finished_at, finished_with_error, storage_bucket
-                    FROM workflow_executions
-                    WHERE execution_id = ?
-                    FOR UPDATE""",
+                        SELECT execution_id, finished_at, finished_with_error, storage_bucket
+                        FROM workflow_executions
+                        WHERE execution_id = ?
+                        FOR UPDATE""",
                     ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
                 st.setString(1, request.getExecutionId());
 
@@ -245,7 +244,7 @@ public class WorkflowService extends LzyWorkflowImplBase {
                 if (rs.next()) {
                     if (rs.getTimestamp("finished_at") != null) {
                         LOG.warn("Attempt to finish already finished workflow '{}' ('{}'). "
-                            + "Finished at '{}' with reason '{}'",
+                                + "Finished at '{}' with reason '{}'",
                             request.getExecutionId(), request.getWorkflowName(),
                             rs.getTimestamp("finished_at"), rs.getString("finished_with_error"));
 
@@ -297,12 +296,12 @@ public class WorkflowService extends LzyWorkflowImplBase {
     }
 
     @Nullable
-    private LzyStorageApi.CreateS3BucketResponse createTempStorageBucket(String userId, String bucket) {
+    private LSS.CreateS3BucketResponse createTempStorageBucket(String userId, String bucket) {
         LOG.info("Creating new temp storage bucket '{}' for user '{}'", bucket, userId);
 
         try {
             return storageServiceClient.createS3Bucket(
-                LzyStorageApi.CreateS3BucketRequest.newBuilder()
+                LSS.CreateS3BucketRequest.newBuilder()
                     .setUserId(userId)
                     .setBucket(bucket)
                     .build());
@@ -323,7 +322,7 @@ public class WorkflowService extends LzyWorkflowImplBase {
         try {
             @SuppressWarnings("unused")
             var resp = storageServiceClient.deleteS3Bucket(
-                LzyStorageApi.DeleteS3BucketRequest.newBuilder()
+                LSS.DeleteS3BucketRequest.newBuilder()
                     .setBucket(bucket)
                     .build());
         } catch (StatusRuntimeException e) {

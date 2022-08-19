@@ -1,6 +1,6 @@
 package ai.lzy.test;
 
-import ai.lzy.v1.LzyStorageGrpc;
+import ai.lzy.v1.LzyStorageServiceGrpc;
 import com.amazonaws.services.s3.AmazonS3;
 import com.google.common.net.HostAndPort;
 
@@ -8,7 +8,7 @@ import com.google.common.net.HostAndPort;
 public interface LzyStorageTestContext extends AutoCloseable {
     HostAndPort address();
 
-    LzyStorageGrpc.LzyStorageBlockingStub client();
+    LzyStorageServiceGrpc.LzyStorageServiceBlockingStub client();
 
     AmazonS3 s3(String endpoint);
 

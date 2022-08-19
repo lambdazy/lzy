@@ -7,7 +7,7 @@ import ai.lzy.storage.LzyStorage;
 import ai.lzy.storage.StorageConfig;
 import ai.lzy.test.LzyStorageTestContext;
 import ai.lzy.util.auth.credentials.JwtCredentials;
-import ai.lzy.v1.LzyStorageGrpc;
+import ai.lzy.v1.LzyStorageServiceGrpc;
 import ai.lzy.whiteboard.api.SnapshotApi;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
@@ -34,7 +34,7 @@ public class StorageThreadContext implements LzyStorageTestContext {
 
     private final HostAndPort iamAddress;
     private LzyStorage storage;
-    private LzyStorageGrpc.LzyStorageBlockingStub client;
+    private LzyStorageServiceGrpc.LzyStorageServiceBlockingStub client;
 
     public StorageThreadContext(HostAndPort iamAddress) {
         this.iamAddress = iamAddress;
@@ -46,7 +46,7 @@ public class StorageThreadContext implements LzyStorageTestContext {
     }
 
     @Override
-    public LzyStorageGrpc.LzyStorageBlockingStub client() {
+    public LzyStorageServiceGrpc.LzyStorageServiceBlockingStub client() {
         return client.withInterceptors();
     }
 
@@ -88,10 +88,10 @@ public class StorageThreadContext implements LzyStorageTestContext {
 
         var channel = ChannelBuilder.forAddress(address())
             .usePlaintext()
-            .enableRetry(LzyStorageGrpc.SERVICE_NAME)
+            .enableRetry(LzyStorageServiceGrpc.SERVICE_NAME)
             .build();
 
-        client = LzyStorageGrpc.newBlockingStub(channel)
+        client = LzyStorageServiceGrpc.newBlockingStub(channel)
             .withWaitForReady()
             .withDeadlineAfter(STORAGE_STARTUP_TIME.getSeconds(), TimeUnit.SECONDS)
             .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, internalUserCreds::token));

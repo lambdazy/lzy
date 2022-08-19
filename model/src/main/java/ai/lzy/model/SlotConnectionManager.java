@@ -3,11 +3,12 @@ package ai.lzy.model;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.LzyFsGrpc;
 import io.grpc.ManagedChannel;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class SlotConnectionManager {
 

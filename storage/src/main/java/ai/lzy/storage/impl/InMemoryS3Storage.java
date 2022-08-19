@@ -1,8 +1,8 @@
 package ai.lzy.storage.impl;
 
 import ai.lzy.storage.StorageConfig;
-import ai.lzy.v1.LzyStorageApi.*;
-import ai.lzy.v1.LzyStorageGrpc;
+import ai.lzy.v1.LSS.*;
+import ai.lzy.v1.LzyStorageServiceGrpc;
 import ai.lzy.v1.workflow.LWSD;
 import com.amazonaws.SdkClientException;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
@@ -22,7 +22,7 @@ import org.apache.logging.log4j.Logger;
 
 @Singleton
 @Requires(property = "storage.s3.memory.enabled", value = "true")
-public class InMemoryS3Storage extends LzyStorageGrpc.LzyStorageImplBase {
+public class InMemoryS3Storage extends LzyStorageServiceGrpc.LzyStorageServiceImplBase {
     private static final Logger LOG = LogManager.getLogger(InMemoryS3Storage.class);
 
     private final String endpoint;

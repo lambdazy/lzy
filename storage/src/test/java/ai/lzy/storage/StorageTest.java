@@ -5,8 +5,8 @@ import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.auth.credentials.JwtUtils;
-import ai.lzy.v1.LzyStorageApi;
-import ai.lzy.v1.LzyStorageGrpc;
+import ai.lzy.v1.LSS;
+import ai.lzy.v1.LzyStorageServiceGrpc;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
@@ -31,7 +31,7 @@ public class StorageTest extends BaseTestWithIam {
     private StorageConfig storageConfig;
     private LzyStorage storageApp;
 
-    private LzyStorageGrpc.LzyStorageBlockingStub storageClient;
+    private LzyStorageServiceGrpc.LzyStorageServiceBlockingStub storageClient;
 
     @Before
     public void before() throws IOException {
@@ -45,7 +45,7 @@ public class StorageTest extends BaseTestWithIam {
             .forAddress(HostAndPort.fromString(storageConfig.getAddress()))
             .usePlaintext()
             .build();
-        storageClient = LzyStorageGrpc.newBlockingStub(channel);
+        storageClient = LzyStorageServiceGrpc.newBlockingStub(channel);
     }
 
     @After
@@ -63,7 +63,7 @@ public class StorageTest extends BaseTestWithIam {
     @Test
     public void testUnauthenticated() {
         try {
-            storageClient.createS3Bucket(LzyStorageApi.CreateS3BucketRequest.newBuilder()
+            storageClient.createS3Bucket(LSS.CreateS3BucketRequest.newBuilder()
                 .setUserId("test-user")
                 .setBucket("bucket-1")
                 .build());
@@ -73,7 +73,7 @@ public class StorageTest extends BaseTestWithIam {
         }
 
         try {
-            storageClient.getS3BucketCredentials(LzyStorageApi.GetS3BucketCredentialsRequest.newBuilder()
+            storageClient.getS3BucketCredentials(LSS.GetS3BucketCredentialsRequest.newBuilder()
                 .setUserId("test-user")
                 .setBucket("bucket-1")
                 .build());
@@ -83,7 +83,7 @@ public class StorageTest extends BaseTestWithIam {
         }
 
         try {
-            storageClient.deleteS3Bucket(LzyStorageApi.DeleteS3BucketRequest.newBuilder()
+            storageClient.deleteS3Bucket(LSS.DeleteS3BucketRequest.newBuilder()
                 .setBucket("bucket-1")
                 .build());
             Assert.fail();
@@ -100,7 +100,7 @@ public class StorageTest extends BaseTestWithIam {
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
 
         try {
-            client.createS3Bucket(LzyStorageApi.CreateS3BucketRequest.newBuilder()
+            client.createS3Bucket(LSS.CreateS3BucketRequest.newBuilder()
                 .setUserId("test-user")
                 .setBucket("bucket-1")
                 .build());
@@ -110,7 +110,7 @@ public class StorageTest extends BaseTestWithIam {
         }
 
         try {
-            client.getS3BucketCredentials(LzyStorageApi.GetS3BucketCredentialsRequest.newBuilder()
+            client.getS3BucketCredentials(LSS.GetS3BucketCredentialsRequest.newBuilder()
                 .setUserId("test-user")
                 .setBucket("bucket-1")
                 .build());
@@ -120,7 +120,7 @@ public class StorageTest extends BaseTestWithIam {
         }
 
         try {
-            client.deleteS3Bucket(LzyStorageApi.DeleteS3BucketRequest.newBuilder()
+            client.deleteS3Bucket(LSS.DeleteS3BucketRequest.newBuilder()
                 .setBucket("bucket-1")
                 .build());
             Assert.fail();
@@ -136,7 +136,7 @@ public class StorageTest extends BaseTestWithIam {
         var client = storageClient.withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
 
-        var resp = client.createS3Bucket(LzyStorageApi.CreateS3BucketRequest.newBuilder()
+        var resp = client.createS3Bucket(LSS.CreateS3BucketRequest.newBuilder()
             .setUserId("test-user")
             .setBucket("bucket-1")
             .build());
@@ -157,14 +157,14 @@ public class StorageTest extends BaseTestWithIam {
         var content = new String(obj.getObjectContent().readAllBytes(), StandardCharsets.UTF_8);
         Assert.assertEquals("content", content);
 
-        var credsResp = client.getS3BucketCredentials(LzyStorageApi.GetS3BucketCredentialsRequest.newBuilder()
+        var credsResp = client.getS3BucketCredentials(LSS.GetS3BucketCredentialsRequest.newBuilder()
             .setUserId("test-user")
             .setBucket("bucket-1")
             .build());
         Assert.assertTrue(credsResp.hasAmazon());
         Assert.assertEquals(resp.getAmazon(), credsResp.getAmazon());
 
-        client.deleteS3Bucket(LzyStorageApi.DeleteS3BucketRequest.newBuilder()
+        client.deleteS3Bucket(LSS.DeleteS3BucketRequest.newBuilder()
             .setBucket("bucket-1")
             .build());
 

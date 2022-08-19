@@ -12,7 +12,8 @@ import ai.lzy.storage.impl.MockS3Storage;
 import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
 import ai.lzy.v1.workflow.LWS.CreateWorkflowRequest;
 import ai.lzy.v1.workflow.LWS.FinishWorkflowRequest;
-import ai.lzy.v1.workflow.LzyWorkflowGrpc;
+import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
+import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
 import io.grpc.Status;
@@ -35,7 +36,7 @@ public class WorkflowServiceTest {
     private ApplicationContext ctx;
     private Server storageServer;
     private Server workflowServer;
-    private LzyWorkflowGrpc.LzyWorkflowBlockingStub workflowClient;
+    private LzyWorkflowServiceBlockingStub workflowClient;
 
     @Before
     public void setUp() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
@@ -77,7 +78,7 @@ public class WorkflowServiceTest {
             .usePlaintext()
             .build();
 
-        workflowClient = LzyWorkflowGrpc.newBlockingStub(channel)
+        workflowClient = LzyWorkflowServiceGrpc.newBlockingStub(channel)
             .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, internalUser::token));
     }
 

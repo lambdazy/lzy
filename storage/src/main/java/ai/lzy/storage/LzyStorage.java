@@ -3,8 +3,8 @@ package ai.lzy.storage;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
+import ai.lzy.v1.LzyStorageServiceGrpc;
 import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.v1.LzyStorageGrpc;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
@@ -33,7 +33,7 @@ public class LzyStorage {
         var address = HostAndPort.fromString(config.getAddress());
         var iamAddress = HostAndPort.fromString(config.getIam().getAddress());
 
-        var service = context.getBean(LzyStorageGrpc.LzyStorageImplBase.class);
+        var service = context.getBean(LzyStorageServiceGrpc.LzyStorageServiceImplBase.class);
 
         iamChannel = ChannelBuilder.forAddress(iamAddress)
             .usePlaintext()
