@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from ai.lzy.v1.whiteboard_pb2 import Snapshot
+from ai.lzy.v1.oldwb.whiteboard_pb2 import Snapshot
 
 
 class SnapshotApi(ABC):
