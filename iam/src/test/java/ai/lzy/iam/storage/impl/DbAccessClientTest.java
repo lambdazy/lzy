@@ -1,25 +1,20 @@
 package ai.lzy.iam.storage.impl;
 
-import ai.lzy.iam.resources.AccessBinding;
-import ai.lzy.iam.resources.AccessBindingDelta;
-import ai.lzy.iam.resources.AuthPermission;
-import ai.lzy.iam.resources.AuthResource;
-import ai.lzy.iam.resources.Role;
+import ai.lzy.iam.resources.*;
+import ai.lzy.iam.resources.impl.Whiteboard;
+import ai.lzy.iam.resources.impl.Workflow;
+import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.storage.db.IamDataSource;
+import ai.lzy.model.db.test.DatabaseCleaner;
+import ai.lzy.util.auth.exceptions.AuthBadRequestException;
 import io.micronaut.context.ApplicationContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import ai.lzy.util.auth.exceptions.AuthBadRequestException;
-import ai.lzy.iam.resources.impl.Whiteboard;
-import ai.lzy.iam.resources.impl.Workflow;
-import ai.lzy.iam.resources.subjects.Subject;
 
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -177,13 +172,7 @@ public class DbAccessClientTest {
 
     @After
     public void tearDown() {
-        try (var conn = storage.connect();
-             var st = conn.prepareStatement("DROP ALL OBJECTS DELETE FILES;")
-        ) {
-            st.executeUpdate();
-        } catch (SQLException e) {
-            LOG.error(e);
-        }
+        DatabaseCleaner.cleanup(storage);
         ctx.stop();
     }
 }

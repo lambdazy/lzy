@@ -3,25 +3,28 @@ package ai.lzy.allocator.test;
 import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.SessionDao;
 import ai.lzy.allocator.dao.VmDao;
+import ai.lzy.allocator.dao.impl.AllocatorDataSource;
 import ai.lzy.allocator.model.CachePolicy;
 import ai.lzy.allocator.model.Operation;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.model.db.test.DatabaseCleaner;
 import ai.lzy.v1.VmAllocatorApi;
 import com.google.protobuf.Any;
 import io.grpc.Status;
 import io.micronaut.context.ApplicationContext;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
 
 public class DaoTest {
     private OperationDao opDao;
@@ -41,12 +44,8 @@ public class DaoTest {
 
     @After
     public void tearDown() {
+        DatabaseCleaner.cleanup(context.getBean(AllocatorDataSource.class));
         context.stop();
-        context = null;
-        opDao = null;
-        sessionDao = null;
-        storage = null;
-        vmDao = null;
     }
 
     @Test

@@ -1,19 +1,17 @@
 package ai.lzy.iam.storage.impl;
 
+import ai.lzy.iam.resources.credentials.SubjectCredentials;
+import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.storage.db.IamDataSource;
+import ai.lzy.model.db.test.DatabaseCleaner;
+import ai.lzy.util.auth.exceptions.AuthBadRequestException;
 import io.micronaut.context.ApplicationContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import ai.lzy.util.auth.exceptions.AuthBadRequestException;
-import ai.lzy.iam.resources.credentials.SubjectCredentials;
-import ai.lzy.iam.resources.subjects.Subject;
-
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -34,11 +32,7 @@ public class DbSubjectServiceTest {
 
     @After
     public void tearDown() {
-        try (PreparedStatement st = storage.connect().prepareStatement("DROP ALL OBJECTS DELETE FILES;")) {
-            st.executeUpdate();
-        } catch (SQLException e) {
-            LOG.error(e);
-        }
+        DatabaseCleaner.cleanup(storage);
         ctx.stop();
     }
 
