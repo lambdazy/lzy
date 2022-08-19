@@ -37,10 +37,11 @@ public class ServantCrashTest extends LocalScenario {
                 List.of(fileOutName.substring("/tmp/lzy1".length())),
                 "/tmp/lzy1/sbin/cat " + fileName + " > " + fileOutName
         );
-        terminal.createChannel(channelName);
-        terminal.createSlot(localFileName, channelName, Utils.outFileSlot());
-        terminal.createChannel(channelOutName);
-        terminal.createSlot(localFileOutName, channelOutName, Utils.inFileSlot());
+
+        final String channelId = terminal.createChannel(channelName);
+        terminal.createSlot(localFileName, channelId, Utils.outFileSlot());
+        final String channelOutId = terminal.createChannel(channelOutName);
+        terminal.createSlot(localFileOutName, channelOutId, Utils.inFileSlot());
         ForkJoinPool.commonPool()
                 .execute(() -> terminal.execute("echo " + fileContent + " > " + localFileName));
         terminal.publish(cat_to_file);
@@ -53,16 +54,16 @@ public class ServantCrashTest extends LocalScenario {
                 cat_to_file.name(),
                 "",
                 Map.of(
-                        fileName.substring("/tmp/lzy1".length()), channelName,
-                        fileOutName.substring("/tmp/lzy1".length()), channelOutName
+                        fileName.substring("/tmp/lzy1".length()), channelId,
+                        fileOutName.substring("/tmp/lzy1".length()), channelOutId
                 )
         );
 
         //Assert
         Assert.assertEquals(ReturnCodes.INTERNAL_ERROR.getRc(), run.exitCode());
 
-        terminal.destroyChannel(channelName);
-        terminal.destroyChannel(channelOutName);
+        terminal.destroyChannel(channelId);
+        terminal.destroyChannel(channelOutId);
         try {
             Thread.sleep(10_000);
         } catch (InterruptedException e) {
@@ -88,10 +89,10 @@ public class ServantCrashTest extends LocalScenario {
                 List.of(fileOutName.substring("/tmp/lzy1".length())),
                 "/tmp/lzy1/sbin/cat " + fileName + " > " + fileOutName
         );
-        terminal.createChannel(channelName);
-        terminal.createSlot(localFileName, channelName, Utils.outFileSlot());
-        terminal.createChannel(channelOutName);
-        terminal.createSlot(localFileOutName, channelOutName, Utils.inFileSlot());
+        final String channelId = terminal.createChannel(channelName);
+        terminal.createSlot(localFileName, channelId, Utils.outFileSlot());
+        final String channelOutId = terminal.createChannel(channelOutName);
+        terminal.createSlot(localFileOutName, channelOutId, Utils.inFileSlot());
         ForkJoinPool.commonPool()
                 .execute(() -> terminal.execute("echo " + fileContent + " > " + localFileName));
         terminal.publish(cat_to_file);
@@ -102,15 +103,15 @@ public class ServantCrashTest extends LocalScenario {
                 cat_to_file.name(),
                 "",
                 Map.of(
-                        fileName.substring("/tmp/lzy1".length()), channelName,
-                        fileOutName.substring("/tmp/lzy1".length()), channelOutName
+                        fileName.substring("/tmp/lzy1".length()), channelId,
+                        fileOutName.substring("/tmp/lzy1".length()), channelOutId
                 )
         );
 
         //Assert
         Assert.assertEquals(ReturnCodes.INTERNAL_ERROR.getRc(), run.exitCode());
 
-        terminal.destroyChannel(channelName);
-        terminal.destroyChannel(channelOutName);
+        terminal.destroyChannel(channelId);
+        terminal.destroyChannel(channelOutId);
     }
 }

@@ -151,8 +151,8 @@ public class SnapshotTest extends LocalScenario {
             Assert.assertEquals(fileContent + "\n", content);
         }
 
-        terminal.link(wbId, localFileName, channelId);
-        terminal.link(wbId, localFileOutName, channelOutId);
+        terminal.link(wbId, localFileName, channelName);
+        terminal.link(wbId, localFileOutName, channelOutName);
 
         terminal.finalizeSnapshot(spId);
         String whiteboard = terminal.getWhiteboard(wbId);

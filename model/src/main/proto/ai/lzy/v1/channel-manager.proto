@@ -14,7 +14,7 @@ service LzyChannelManager {
   rpc Destroy (ChannelDestroyRequest) returns (ChannelDestroyResponse);
   rpc DestroyAll (ChannelDestroyAllRequest) returns (ChannelDestroyAllResponse);
   rpc Status (ChannelStatusRequest) returns (ChannelStatus);
-  rpc ChannelsStatus (ChannelsStatusRequest) returns (ChannelStatusList);
+  rpc StatusAll (ChannelStatusAllRequest) returns (ChannelStatusList);
   rpc Bind (SlotAttach) returns (SlotAttachStatus);
   rpc Unbind (SlotDetach) returns (SlotDetachStatus);
 }
@@ -50,7 +50,9 @@ message ChannelStatus {
   string channelId = 3;
 }
 
-message ChannelsStatusRequest {}
+message ChannelStatusAllRequest {
+  string workflow_id = 1;
+}
 
 message ChannelStatusList {
   repeated ChannelStatus statuses = 1;

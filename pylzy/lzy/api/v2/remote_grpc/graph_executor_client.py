@@ -42,7 +42,7 @@ def prepare_task(call: "LzyCall") -> TaskDesc:
         for s_name in non_loc_args
     ]
 
-    zygote = python_func_zygote(
+    operation = python_func_zygote(
         call.signature.func,
         call.env,
         call.provisioning,
@@ -50,7 +50,7 @@ def prepare_task(call: "LzyCall") -> TaskDesc:
 
     return TaskDesc(
         id=str(uuid4()),
-        zygote=zygote,
+        operation=operation,
         slotAssignments=slot_assignments,
     )
 

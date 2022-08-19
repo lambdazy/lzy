@@ -53,13 +53,13 @@ public class ChannelManagerThreadContext implements ChannelManagerContext {
     public void init() {
         LOG.info("Starting channel-manager...");
 
-        Map<String, Object> appProperties = Map.of(
-            "channel-manager.address", "localhost:" + Config.PORT,
-            "channel-manager.whiteboard-address", whiteboardAddress,
-            "channel-manager.iam.address", iamAddress
-        );
+        var props = Utils.loadModuleTestProperties("channel-manager");
+        props.put("channel-manager.address", "localhost:" + Config.PORT);
+        props.put("channel-manager.whiteboard-address", whiteboardAddress);
+        props.put("channel-manager.iam.address", iamAddress);
+
         try {
-            context = ApplicationContext.run(PropertySource.of(appProperties));
+            context = ApplicationContext.run(PropertySource.of(props));
 
             channelManager = new ChannelManager(context);
             channelManager.start();

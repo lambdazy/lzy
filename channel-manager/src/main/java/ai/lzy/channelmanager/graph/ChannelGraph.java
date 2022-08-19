@@ -11,6 +11,7 @@ public interface ChannelGraph {
 
     Set<Endpoint> senders();
     Set<Endpoint> receivers();
+    Set<Endpoint> adjacent(Endpoint endpoint);
 
     default Endpoint firstSender() {
         return senders().iterator().next();

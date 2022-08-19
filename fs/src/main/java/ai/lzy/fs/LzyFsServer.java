@@ -209,12 +209,13 @@ public final class LzyFsServer {
         final LzySlot lzySlot = slotsManager.getOrCreateSlot(request.getTaskId(), slotSpec, request.getChannelId());
 
         // TODO: It will be removed after creating Portal
-        final URI channelUri = URI.create(request.getChannelId());
+        final String channelName = request.getChannelId().split("!")[1];
+        final URI channelUri = URI.create(channelName);
         if (Objects.equals(channelUri.getScheme(), "snapshot") && lzySlot instanceof LzyOutputSlot) {
             if (slotConnectionManager.snapshooter() == null) {
                 return onSlotError("Snapshot service was not initialized. Operation is not available.");
             }
-            String entryId = request.getChannelId();
+            String entryId = channelName;
             String snapshotId = "snapshot://" + channelUri.getHost();
             slotConnectionManager.snapshooter().registerSlot(lzySlot, snapshotId, entryId);
         }

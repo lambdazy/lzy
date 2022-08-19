@@ -488,9 +488,9 @@ public class LzyKharon {
         }
 
         @Override
-        public void channelsStatus(ChannelManager.ChannelsStatusRequest request,
+        public void statusAll(ChannelManager.ChannelStatusAllRequest request,
                                    StreamObserver<ChannelManager.ChannelStatusList> responseObserver) {
-            ProxyCall.exec(channelManager::channelsStatus, request, responseObserver);
+            ProxyCall.exec(channelManager::statusAll, request, responseObserver);
         }
 
         @Override

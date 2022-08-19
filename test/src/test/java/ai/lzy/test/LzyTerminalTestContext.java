@@ -161,7 +161,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             final String response = executeLzyCommand(
                 BuiltinCommandHolder.channel,
                 "create",
-                channelName,
+                "-n", channelName,
                 "-t", "direct"
             ).stdout();
             return parseChannelIdFromCreateChannelResponse(response);
@@ -171,7 +171,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
             final String response = executeLzyCommand(
                 BuiltinCommandHolder.channel,
                 "create",
-                channelName,
+                "-n", channelName,
                 "-t", "snapshot",
                 "-s", snapshotId,
                 "-e", entryId

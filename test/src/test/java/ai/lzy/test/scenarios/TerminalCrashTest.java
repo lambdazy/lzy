@@ -68,8 +68,8 @@ public class TerminalCrashTest extends LocalScenario {
         final CountDownLatch terminalFailsLatch = new CountDownLatch(1);
 
         //Act
-        terminal1.createChannel(channelName);
-        terminal1.createSlot(localFileName, channelName, Utils.outFileSlot());
+        final String channelId = terminal1.createChannel(channelName);
+        terminal1.createSlot(localFileName, channelId, Utils.outFileSlot());
         terminal1.publish(cat);
         ForkJoinPool.commonPool().execute(() -> {
             TimeUtils.waitFlagUp(() -> {
@@ -89,7 +89,7 @@ public class TerminalCrashTest extends LocalScenario {
         terminal1.run(
             cat.name(),
             "",
-            Map.of(fileName.substring("/tmp/lzy1".length()), channelName)
+            Map.of(fileName.substring("/tmp/lzy1".length()), channelId)
         );
 
         LzyTerminalTestContext.Terminal terminal2 = createTerminal(
@@ -110,7 +110,7 @@ public class TerminalCrashTest extends LocalScenario {
         Assert.assertTrue(
             TimeUtils.waitFlagUp(() -> {
                     try {
-                        final String channelStatus = terminal2.channelStatus(channelName);
+                        final String channelStatus = terminal2.channelStatus(channelId);
                         return channelStatus.equals("Got exception while channel status (status_code=NOT_FOUND)\n");
                     } catch (LzyTerminalTestContext.TerminalCommandFailedException e) {
                         if (e.getResult().stdout().equals(
@@ -247,10 +247,10 @@ public class TerminalCrashTest extends LocalScenario {
             "sleep 600; /tmp/lzy1/sbin/cat " + fileName + " > " + fileOutName
         );
 
-        terminal.createChannel(channelName);
-        terminal.createSlot(localFileName, channelName, Utils.outFileSlot());
-        terminal.createChannel(channelOutName);
-        terminal.createSlot(localFileOutName, channelOutName, Utils.inFileSlot());
+        final String channelId = terminal.createChannel(channelName);
+        terminal.createSlot(localFileName, channelId, Utils.outFileSlot());
+        final String channelOutId = terminal.createChannel(channelOutName);
+        terminal.createSlot(localFileOutName, channelOutId, Utils.inFileSlot());
         terminal.publish(cat);
 
         //Act
@@ -260,8 +260,8 @@ public class TerminalCrashTest extends LocalScenario {
             cat.name(),
             "",
             Map.of(
-                fileName.substring("/tmp/lzy1".length()), channelName,
-                fileOutName.substring("/tmp/lzy1".length()), channelOutName
+                fileName.substring("/tmp/lzy1".length()), channelId,
+                fileOutName.substring("/tmp/lzy1".length()), channelOutId
             )
         ));
 

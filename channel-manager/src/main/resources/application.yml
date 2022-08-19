@@ -3,3 +3,10 @@ channel-manager:
   whiteboard-address: 'localhost:8999'
   iam:
     address: 'localhost:8443'
+  database:
+    url: ""
+    username: "test"
+    password: ""
+    enabled: true
+    min-pool-size: 5
+    max-pool-size: 100

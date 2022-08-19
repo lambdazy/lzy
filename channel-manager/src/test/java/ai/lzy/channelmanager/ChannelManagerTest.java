@@ -6,16 +6,7 @@ import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.test.GrpcUtils;
 import ai.lzy.util.auth.credentials.JwtUtils;
-import ai.lzy.v1.ChannelManager.ChannelCreateRequest;
-import ai.lzy.v1.ChannelManager.ChannelCreateResponse;
-import ai.lzy.v1.ChannelManager.ChannelDestroyAllRequest;
-import ai.lzy.v1.ChannelManager.ChannelDestroyRequest;
-import ai.lzy.v1.ChannelManager.ChannelDestroyResponse;
-import ai.lzy.v1.ChannelManager.ChannelStatus;
-import ai.lzy.v1.ChannelManager.ChannelStatusRequest;
-import ai.lzy.v1.ChannelManager.ChannelsStatusRequest;
-import ai.lzy.v1.ChannelManager.SlotAttach;
-import ai.lzy.v1.ChannelManager.SlotDetach;
+import ai.lzy.v1.ChannelManager.*;
 import ai.lzy.v1.Channels.ChannelSpec;
 import ai.lzy.v1.Channels.DirectChannelType;
 import ai.lzy.v1.LzyChannelManagerGrpc;
@@ -101,7 +92,7 @@ public class ChannelManagerTest extends BaseTestWithIam {
         }
 
         try {
-            unauthorizedChannelManagerClient.channelsStatus(ChannelsStatusRequest.newBuilder().build());
+            unauthorizedChannelManagerClient.statusAll(ChannelStatusAllRequest.newBuilder().build());
             Assert.fail();
         } catch (StatusRuntimeException e) {
             Assert.assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
@@ -131,7 +122,6 @@ public class ChannelManagerTest extends BaseTestWithIam {
     }
 
     @Test
-    @Ignore
     public void testCreateEmptyWorkflow() {
         try {
             authorizedChannelManagerClient.create(
@@ -149,7 +139,6 @@ public class ChannelManagerTest extends BaseTestWithIam {
     }
 
     @Test
-    @Ignore
     public void testCreateEmptyChannelSpec() {
         try {
             authorizedChannelManagerClient.create(
@@ -163,7 +152,6 @@ public class ChannelManagerTest extends BaseTestWithIam {
     }
 
     @Test
-    @Ignore
     public void testCreateEmptySpecName() {
         try {
             authorizedChannelManagerClient.create(
@@ -182,7 +170,6 @@ public class ChannelManagerTest extends BaseTestWithIam {
     }
 
     @Test
-    @Ignore
     public void testCreateEmptySpecType() {
         try {
             authorizedChannelManagerClient.create(
@@ -199,7 +186,6 @@ public class ChannelManagerTest extends BaseTestWithIam {
     }
 
     @Test
-    @Ignore
     public void testCreateEmptySpecContentType() {
         try {
             authorizedChannelManagerClient.create(
@@ -216,7 +202,6 @@ public class ChannelManagerTest extends BaseTestWithIam {
     }
 
     @Test
-    @Ignore
     public void testCreateEmptySpecContentTypeType() {
         try {
             authorizedChannelManagerClient.create(
@@ -235,7 +220,6 @@ public class ChannelManagerTest extends BaseTestWithIam {
     }
 
     @Test
-    @Ignore
     public void testCreateEmptySpecContentTypeSchemeType() {
         try {
             authorizedChannelManagerClient.create(
@@ -304,7 +288,6 @@ public class ChannelManagerTest extends BaseTestWithIam {
     }
 
     @Test
-    @Ignore
     public void testDestroyAllSameChannelName() {
         final String workflowId = UUID.randomUUID().toString();
         final ChannelCreateResponse channel1CreateResponse = authorizedChannelManagerClient.create(
