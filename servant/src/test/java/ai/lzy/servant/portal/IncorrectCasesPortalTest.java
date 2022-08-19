@@ -158,8 +158,8 @@ public class IncorrectCasesPortalTest extends PortalTest {
                     .build())
                 .build());
 
-            Assert.assertEquals("Slot '/portal_slot_1' already associated with snapshot " +
-                "'snapshot_1-lzy-bucket-http:localhost:8001'", errorMessage);
+            Assert.assertEquals("Slot '/portal_slot_1' already associated with snapshot "
+                + "'snapshot_1-lzy-bucket-http:localhost:8001'", errorMessage);
             Assert.assertTrue(portalStdout.isEmpty());
             Assert.assertTrue(portalStderr.isEmpty());
         } finally {
