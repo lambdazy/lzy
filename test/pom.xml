@@ -81,7 +81,7 @@
     </dependency>
     <dependency>
       <groupId>ai.lzy</groupId>
-      <artifactId>whiteboard</artifactId>
+      <artifactId>whiteboard-old</artifactId>
       <version>1.0-SNAPSHOT</version>
       <scope>test</scope>
       <exclusions>

@@ -3,18 +3,18 @@ syntax = "proto3";
 import "ai/lzy/v1/zygote.proto";
 import "google/protobuf/timestamp.proto";
 
-package ai.lzy.v1.wb; //TODO: remove wb suffix
+package ai.lzy.v1;
 
-option java_outer_classname = "LzyWhiteboardV2";
+option java_outer_classname = "LWB";
 option java_package = "ai.lzy.v1";
 
 service WhiteboardService {
-  rpc CreateWhiteboard (CreateWhiteboardRequest) returns (Whiteboard);
-  rpc LinkWhiteboardField (LinkFieldRequest) returns (LinkFieldResponse);
-  rpc FinalizeWhiteboard (FinalizeWhiteboardRequest) returns (FinalizeWhiteboardResponse);
+  rpc Create (CreateRequest) returns (Whiteboard);
+  rpc LinkField (LinkFieldRequest) returns (LinkFieldResponse);
+  rpc Finalize (FinalizeRequest) returns (FinalizeResponse);
 
-  rpc GetWhiteboard (GetWhiteboardRequest) returns (Whiteboard);
-  rpc QueryWhiteboards (QueryWhiteboardsRequest) returns (QueryWhiteboardsResponse);
+  rpc Get (GetRequest) returns (Whiteboard);
+  rpc List (ListRequest) returns (ListResponse);
 }
 
 message Whiteboard {
@@ -27,7 +27,7 @@ message Whiteboard {
   google.protobuf.Timestamp createdAt = 7;
 
   enum WhiteboardStatus {
-    UNSPECIFIED = 0;
+    WHITEBOARD_STATUS_UNSPECIFIED = 0;
     CREATED = 1;
     FINALIZED = 2;
   }
@@ -40,7 +40,7 @@ message WhiteboardField {
   string storageUri = 4;
 
   enum Status {
-    UNKNOWN = 0;
+    WHITEBOARD_FIELD_STATUS_UNSPECIFIED = 0;
     CREATED = 1;
     LINKED = 2;
   }
@@ -51,7 +51,7 @@ message Storage {
   string description = 2;
 }
 
-message CreateWhiteboardRequest {
+message CreateRequest {
   repeated string fieldNames = 1;
   Storage storage = 2;
   repeated string tags = 3;
@@ -68,18 +68,18 @@ message LinkFieldRequest {
 message LinkFieldResponse {
 }
 
-message FinalizeWhiteboardRequest {
+message FinalizeRequest {
   string whiteboardId = 1;
 }
 
-message FinalizeWhiteboardResponse {
+message FinalizeResponse {
 }
 
-message GetWhiteboardRequest {
+message GetRequest {
   string whiteboardId = 1;
 }
 
-message QueryWhiteboardsRequest {
+message ListRequest {
   repeated string tags = 1;
   oneof query {
     DateTimeQuery dateTimeQuery = 2;
@@ -92,7 +92,7 @@ message DateTimeQuery {
   google.protobuf.Timestamp to = 2;
 }
 
-message QueryWhiteboardsResponse {
+message ListResponse {
   repeated Whiteboard whiteboards = 1;
 }
 
