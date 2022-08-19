@@ -23,7 +23,7 @@
         <module>test</module>
         <module>pylzy</module>
         <module>parent</module>
-        <module>whiteboard</module>
+        <module>whiteboard-old</module>
         <module>fs</module>
         <module>iam</module>
         <module>iam-api</module>
@@ -36,5 +36,6 @@
         <module>allocator</module>
         <module>coverage</module>
         <module>workflow-api</module>
+        <module>whiteboard-api</module>
     </modules>
 </project>

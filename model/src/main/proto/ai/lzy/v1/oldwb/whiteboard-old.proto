@@ -5,7 +5,7 @@ import "ai/lzy/v1/backoffice.proto";
 import "ai/lzy/v1/zygote.proto";
 import "google/protobuf/timestamp.proto";
 
-package ai.lzy.v1;
+package ai.lzy.v1.oldwb;
 
 option java_outer_classname = "LzyWhiteboard";
 option java_package = "ai.lzy.v1";
