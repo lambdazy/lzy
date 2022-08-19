@@ -10,8 +10,7 @@ import ai.lzy.model.grpc.ClientHeaderInterceptor;
 import ai.lzy.model.grpc.GrpcHeaders;
 import ai.lzy.v1.LzyStorageApi;
 import ai.lzy.v1.LzyStorageGrpc;
-import ai.lzy.v1.LzyWorkflowApi.*;
-import ai.lzy.v1.LzyWorkflowGrpc.LzyWorkflowImplBase;
+import ai.lzy.v1.workflow.LWS.*;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
@@ -30,6 +29,8 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.UUID;
 import java.util.function.BiConsumer;
+
+import static ai.lzy.v1.workflow.LzyWorkflowGrpc.LzyWorkflowImplBase;
 
 @SuppressWarnings("UnstableApiUsage")
 @Singleton
