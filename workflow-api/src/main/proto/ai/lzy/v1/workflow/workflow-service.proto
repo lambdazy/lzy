@@ -7,7 +7,7 @@ option java_package = "ai.lzy.v1.workflow";
 
 import "ai/lzy/v1/workflow/workflow.proto";
 
-service LzyWorkflow {
+service LzyWorkflowService {
   rpc CreateWorkflow (CreateWorkflowRequest) returns (CreateWorkflowResponse);
   rpc AttachWorkflow (AttachWorkflowRequest) returns (AttachWorkflowResponse);
   rpc FinishWorkflow (FinishWorkflowRequest) returns (FinishWorkflowResponse);

@@ -11,7 +11,7 @@ import ai.lzy.model.grpc.GrpcHeaders;
 import ai.lzy.v1.LSS;
 import ai.lzy.v1.LzyStorageServiceGrpc;
 import ai.lzy.v1.workflow.LWS.*;
-import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBase;
+import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
@@ -33,7 +33,7 @@ import java.util.function.BiConsumer;
 
 @SuppressWarnings("UnstableApiUsage")
 @Singleton
-public class WorkflowService extends LzyWorkflowServiceImplBase {
+public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBase {
     private static final Logger LOG = LogManager.getLogger(WorkflowService.class);
 
     private final KharonDataSource db;
@@ -78,10 +78,10 @@ public class WorkflowService extends LzyWorkflowServiceImplBase {
 
             var success = Transaction.execute(db, conn -> {
                 var st = conn.prepareStatement("""
-                    SELECT active_execution_id
-                    FROM workflows
-                    WHERE user_id = ? AND workflow_name = ?
-                    FOR UPDATE""",        // TODO: add `nowait` and handle it's warning or error
+                        SELECT active_execution_id
+                        FROM workflows
+                        WHERE user_id = ? AND workflow_name = ?
+                        FOR UPDATE""",        // TODO: add `nowait` and handle it's warning or error
                     ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
                 st.setString(1, userId);
                 st.setString(2, request.getWorkflowName());
@@ -233,10 +233,10 @@ public class WorkflowService extends LzyWorkflowServiceImplBase {
 
             var success = Transaction.execute(db, conn -> {
                 var st = conn.prepareStatement("""
-                    SELECT execution_id, finished_at, finished_with_error, storage_bucket
-                    FROM workflow_executions
-                    WHERE execution_id = ?
-                    FOR UPDATE""",
+                        SELECT execution_id, finished_at, finished_with_error, storage_bucket
+                        FROM workflow_executions
+                        WHERE execution_id = ?
+                        FOR UPDATE""",
                     ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
                 st.setString(1, request.getExecutionId());
 
@@ -244,7 +244,7 @@ public class WorkflowService extends LzyWorkflowServiceImplBase {
                 if (rs.next()) {
                     if (rs.getTimestamp("finished_at") != null) {
                         LOG.warn("Attempt to finish already finished workflow '{}' ('{}'). "
-                            + "Finished at '{}' with reason '{}'",
+                                + "Finished at '{}' with reason '{}'",
                             request.getExecutionId(), request.getWorkflowName(),
                             rs.getTimestamp("finished_at"), rs.getString("finished_with_error"));
 
