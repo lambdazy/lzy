@@ -1,8 +1,10 @@
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import AsyncIterator, Optional, Tuple, Union, cast
 
 from grpclib.client import Channel
 
+from ai.lzy.v1 import server_pb2
+from ai.lzy.v1.workflow.workflow_pb2 import SnapshotStorage
 from ai.lzy.v1.workflow.workflow_service_grpc import LzyWorkflowServiceStub
 from ai.lzy.v1.workflow.workflow_service_pb2 import (
     AttachWorkflowRequest,
@@ -28,23 +30,41 @@ class WorkflowServiceClient:
     def __init__(self, channel: Channel):
         self.stub = LzyWorkflowServiceStub(channel)
 
-    async def create_workflow(self, name: str) -> Tuple[str, StorageEndpoint]:
-        request = CreateWorkflowRequest(workflowName=name)
-        response = await self.stub.CreateWorkflow(request)
+    def create_storage_endpoint(
+        self,
+        response: CreateWorkflowResponse,
+    ) -> StorageEndpoint:
+        error_msg = "no storage credentials provided"
 
-        endpoint: Optional[StorageEndpoint] = None
-        if response.HasField("internalSnapshotStorage"):
-            store = response.internalSnapshotStorage
-            creds: Optional[StorageCredentials] = None
-            if store.HasField("azure"):
-                creds = converter.storage_creds.from_(store.azure)
-            if store.HasField("amazon"):
-                creds = converter.storage_creds.from_(store.amazon)
-            assert creds is not None
-            endpoint = StorageEndpoint(store.bucket, creds)
+        assert response.HasField("internalSnapshotStorage"), error_msg
+        store: SnapshotStorage = response.internalSnapshotStorage
 
-        assert endpoint is not None
-        return response.executionId, endpoint
+        grpc_creds: converter.storage_creds.grpc_STORAGE_CREDS
+        if store.HasField("azure"):
+            grpc_creds = store.azure
+        elif store.HasField("amazon"):
+            grpc_creds = store.amazon
+        else:
+            raise ValueError(error_msg)
+
+        creds: StorageCredentials = converter.storage_creds.from_(grpc_creds)
+        return StorageEndpoint(store.bucket, creds)
+
+    async def create_workflow(
+        self,
+        name: str,
+    ) -> AsyncIterator[Tuple[str, StorageEndpoint]]:
+        async with self.stub.CreateWorkflow.open() as stream:
+            await stream.send_request()  # init
+
+            request = CreateWorkflowRequest(workflowName=name)
+            await stream.send_message(request)
+
+            async for response in stream:
+                yield (
+                    response.executionId,
+                    self.create_storage_endpoint(response),
+                )
 
     async def attach_workflow(
         self,
