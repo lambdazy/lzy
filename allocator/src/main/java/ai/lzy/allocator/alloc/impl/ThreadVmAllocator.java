@@ -76,7 +76,6 @@ public class ThreadVmAllocator implements VmAllocator {
 
     @Override
     public void allocate(Vm vm) {
-        // TODO(artolord) add token
         requestAllocation(vm.vmId(), vm.workloads().get(0).args());  // Supports only one workload
     }
 

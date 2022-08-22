@@ -3,9 +3,11 @@ package ai.lzy.servant.agents;
 import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.fs.LzyFsServer;
 import ai.lzy.fs.fs.LzyFileSlot;
+import ai.lzy.fs.slots.LineReaderSlot;
 import ai.lzy.model.*;
 import ai.lzy.model.exceptions.EnvironmentInstallationException;
 import ai.lzy.model.scheduler.SchedulerAgent;
+import ai.lzy.model.slots.TextLinesOutSlot;
 import ai.lzy.servant.env.Environment;
 import ai.lzy.servant.env.EnvironmentFactory;
 import ai.lzy.util.grpc.ChannelBuilder;
@@ -28,9 +30,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.LineNumberReader;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -227,6 +232,29 @@ public class Worker {
 
                 final var exec = new LzyExecution(tid, task.operation().command(), "",
                     lzyFs.getMountPoint().toString());
+
+
+                final var stdoutSpec = task.operation().stdout();
+                final var stderrSpec = task.operation().stderr();
+
+                if (stdoutSpec != null) {
+                    final var slot = (LineReaderSlot) lzyFs.getSlotsManager().getOrCreateSlot(tid,
+                        new TextLinesOutSlot(stdoutSpec.slotName()), stdoutSpec.channelId());
+                    slot.setStream(new LineNumberReader(new InputStreamReader(
+                        exec.process().out(),
+                        StandardCharsets.UTF_8
+                    )));
+                }
+
+                if (stderrSpec != null) {
+                    final var slot = (LineReaderSlot) lzyFs.getSlotsManager().getOrCreateSlot(tid,
+                        new TextLinesOutSlot(stderrSpec.slotName()), stderrSpec.channelId());
+                    slot.setStream(new LineNumberReader(new InputStreamReader(
+                        exec.process().err(),
+                        StandardCharsets.UTF_8
+                    )));
+                }
+
                 exec.start(env.get());
                 schedulerAgent.executing();
 

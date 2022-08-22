@@ -80,7 +80,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
             dao.update(new Vm.VmBuilder(vm)
                 .setState(Vm.State.RUNNING)
                 .setVmMeta(request.getMetadataMap())
-                .setLastActivityTime(Instant.now().plus(config.getHeartbeatTimeout()))  // TODO(artolord) add to config
+                .setLastActivityTime(Instant.now().plus(config.getHeartbeatTimeout()))
                 .build(), transaction);
 
             operations.update(op.complete(Any.pack(AllocateResponse.newBuilder()
@@ -114,7 +114,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
         }
 
         dao.update(new Vm.VmBuilder(vm)
-            .setLastActivityTime(Instant.now().plus(config.getHeartbeatTimeout()))  // TODO(artolord) add to config
+            .setLastActivityTime(Instant.now().plus(config.getHeartbeatTimeout()))
             .build(), null);
 
         responseObserver.onNext(HeartbeatResponse.newBuilder().build());
