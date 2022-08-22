@@ -68,7 +68,7 @@ public class SnapshotInputSlot extends LzyInputSlotBase {
             try {
                 FileChannel channel = FileChannel.open(storage, StandardOpenOption.READ);
                 s3Repository.put(bucket, key, OutFileSlot.readFileChannel(definition().name(), 0, channel, () -> true));
-            } catch (IOException e) {
+            } catch (Exception e) {
                 LOG.error("Error while storing slot '{}' content in s3 storage: {}", name(), e.getMessage(), e);
             }
         }, "reader-from-" + slotUri + "-to-" + definition().name());

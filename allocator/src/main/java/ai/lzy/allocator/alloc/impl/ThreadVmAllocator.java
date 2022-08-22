@@ -6,6 +6,9 @@ import ai.lzy.allocator.model.Vm;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -14,9 +17,6 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
-import javax.annotation.Nullable;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 @Singleton
 @Requires(property = "allocator.thread-allocator.enabled", value = "true")
@@ -33,7 +33,7 @@ public class ThreadVmAllocator implements VmAllocator {
 
             if (!allocatorConfig.getVmJarFile().isEmpty()) {
                 final File vmJar = new File(allocatorConfig.getVmJarFile());
-                final URLClassLoader classLoader = new URLClassLoader(new URL[]{vmJar.toURI().toURL()},
+                final URLClassLoader classLoader = new URLClassLoader(new URL[] {vmJar.toURI().toURL()},
                     ClassLoader.getSystemClassLoader());
                 vmClass = Class.forName(allocatorConfig.getVmClassName(), true, classLoader);
             } else {
@@ -78,11 +78,5 @@ public class ThreadVmAllocator implements VmAllocator {
         //noinspection removal
         vmThreads.get(vm.vmId()).stop();
         vmThreads.remove(vm.vmId());
-    }
-
-    @Nullable
-    @Override
-    public VmDesc getVmDesc(Vm vm) {
-        return new VmDesc(vm.sessionId(), vm.vmId(), VmStatus.RUNNING);
     }
 }

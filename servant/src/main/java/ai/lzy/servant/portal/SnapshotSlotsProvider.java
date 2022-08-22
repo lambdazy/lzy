@@ -6,11 +6,15 @@ import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.model.SlotInstance;
 import ai.lzy.servant.portal.s3.ByteStringStreamConverter;
 import ai.lzy.servant.portal.s3.S3Repository;
+import ai.lzy.servant.portal.slots.SnapshotInputSlot;
 import ai.lzy.servant.portal.slots.SnapshotSlot;
 import ai.lzy.v1.LzyPortalApi;
 import ai.lzy.v1.LzyPortalApi.PortalSlotDesc.Snapshot;
+import com.amazonaws.AmazonClientException;
 import com.azure.storage.common.implementation.connectionstring.StorageConnectionString;
 import com.google.protobuf.ByteString;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -23,6 +27,8 @@ import static ai.lzy.servant.portal.Portal.CreateSlotException;
 import static ai.lzy.v1.LzyPortalApi.*;
 
 public class SnapshotSlotsProvider {
+    private static final Logger LOG = LogManager.getLogger(SnapshotSlotsProvider.class);
+
     private final Map<String, SnapshotSlot> snapshots = new HashMap<>(); // snapshot id -> snapshot slot
     private final Map<String, String> name2id = new HashMap<>(); // slot name -> snapshot id
 
@@ -41,18 +47,25 @@ public class SnapshotSlotsProvider {
         }
 
         S3Repository<Stream<ByteString>> s3Repo = getS3RepositoryForSnapshots(snapshotData.getS3());
+
+        boolean s3ContainsSnapshot;
+        try {
+            s3ContainsSnapshot = s3Repo.contains(bucket, key); // request to s3
+        } catch (AmazonClientException e) {
+            LOG.error("Unable to connect to S3 storage: {}", e.getMessage(), e);
+            throw new CreateSlotException(e);
+        }
+
         LzySlot lzySlot = switch (instance.spec().direction()) {
             case INPUT -> {
-                if (snapshots.containsKey(snapshotId)
-                    || s3Repo.contains(bucket, key)) { // request to s3
+                if (snapshots.containsKey(snapshotId) || s3ContainsSnapshot) {
                     throw new CreateSlotException("Snapshot with id '" + snapshotId + "' already associated with data");
                 }
 
                 yield getOrCreateSnapshotSlot(s3Repo, snapshotId, key, bucket).setInputSlot(instance);
             }
             case OUTPUT -> {
-                if (!snapshots.containsKey(snapshotId)
-                    && !s3Repo.contains(bucket, key)) { // request to s3
+                if (!snapshots.containsKey(snapshotId) && !s3ContainsSnapshot) {
                     throw new CreateSlotException("Snapshot with id '" + snapshotId + "' not found");
                 }
 

@@ -25,7 +25,6 @@ import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.IOException;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -403,9 +402,9 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
                     .setControl(LzyFsApi.Message.Controls.EOS)
                     .build());
                 response.onCompleted();
-            } catch (IOException e) {
+            } catch (Exception e) {
                 LOG.error("Error while uploading data: {}", e.getMessage(), e);
-                response.onError(e);
+                response.onError(Status.INTERNAL.withDescription(e.getMessage()).asRuntimeException());
             }
         };
 
@@ -451,6 +450,10 @@ public class Portal extends LzyFsGrpc.LzyFsImplBase {
     public static class CreateSlotException extends Exception {
         public CreateSlotException(String message) {
             super(message);
+        }
+
+        public CreateSlotException(Throwable cause) {
+            super(cause);
         }
     }
 }

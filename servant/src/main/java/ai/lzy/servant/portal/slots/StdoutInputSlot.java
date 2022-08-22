@@ -2,7 +2,6 @@ package ai.lzy.servant.portal.slots;
 
 import ai.lzy.fs.slots.LzyInputSlotBase;
 import ai.lzy.model.SlotInstance;
-import ai.lzy.v1.Operations;
 import com.google.protobuf.ByteString;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -28,9 +27,8 @@ public class StdoutInputSlot extends LzyInputSlotBase {
         LOG.info("Attempt to connect to " + slotUri + " slot " + this);
 
         var t = new Thread(READER_TG, this::readAll, "reader-from-" + slotUri + "-to-" + definition().name());
+        t.setDaemon(true);
         t.start();
-
-        onState(Operations.SlotStatus.State.DESTROYED, t::interrupt);
     }
 
     @Override

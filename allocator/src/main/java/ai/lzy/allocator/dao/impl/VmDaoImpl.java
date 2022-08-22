@@ -38,15 +38,15 @@ public class VmDaoImpl implements VmDao {
 
     @Override
     public Vm create(String sessionId, String poolLabel, String zone, List<Workload> workload, String opId,
-        @Nullable TransactionHandle transaction) {
-        final var vm = new Vm(sessionId, UUID.randomUUID().toString(), poolLabel,
-            zone, Vm.State.CREATED, opId, workload, null, null, null, null);
+                     @Nullable TransactionHandle transaction) {
+        final var vm = new Vm.VmBuilder(sessionId, UUID.randomUUID().toString(), poolLabel, zone, opId, workload,
+            Vm.State.CREATED).build();
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(
                 "INSERT INTO vm ("
-                + FIELDS + """
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """)) {
+                    + FIELDS + """
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """)) {
                 writeVm(s, vm);
                 s.execute();
             } catch (JsonProcessingException e) {
@@ -61,10 +61,10 @@ public class VmDaoImpl implements VmDao {
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(
                 "UPDATE vm SET ("
-                + FIELDS + """
-                ) = (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                WHERE id = ?
-                """)) {
+                    + FIELDS + """
+                    ) = (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    WHERE id = ?
+                    """)) {
                 writeVm(s, vm);
                 s.setString(12, vm.vmId());
                 s.executeUpdate();
@@ -80,9 +80,9 @@ public class VmDaoImpl implements VmDao {
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(
                 "SELECT " + FIELDS + """
-                 FROM vm
-                 WHERE session_id = ?
-                """)) {
+                     FROM vm
+                     WHERE session_id = ?
+                    """)) {
                 s.setString(1, sessionId);
                 final var res = s.executeQuery();
                 while (res.next()) {
@@ -103,9 +103,9 @@ public class VmDaoImpl implements VmDao {
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(
                 "SELECT " + FIELDS + """
-                 FROM vm
-                 WHERE id = ?
-                """)) {
+                     FROM vm
+                     WHERE id = ?
+                    """)) {
                 s.setString(1, vmId);
                 final var res = s.executeQuery();
                 if (!res.next()) {
@@ -126,12 +126,12 @@ public class VmDaoImpl implements VmDao {
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(
                 "SELECT " + FIELDS + """
-                 FROM vm
-                 WHERE (state = 'IDLE' AND deadline IS NOT NULL AND deadline < NOW())
-                   OR (state = 'CONNECTING' AND allocation_deadline IS NOT NULL AND allocation_deadline < NOW())
-                   OR (state != 'CREATED' AND state != 'DEAD' AND last_activity_time < NOW())
-                 LIMIT ?
-                """)) {
+                     FROM vm
+                     WHERE (state = 'IDLE' AND deadline IS NOT NULL AND deadline < NOW())
+                       OR (state = 'CONNECTING' AND allocation_deadline IS NOT NULL AND allocation_deadline < NOW())
+                       OR (state != 'CREATED' AND state != 'DEAD' AND last_activity_time < NOW())
+                     LIMIT ?
+                    """)) {
                 s.setInt(1, limit);
                 final var res = s.executeQuery();
                 while (res.next()) {
@@ -153,10 +153,10 @@ public class VmDaoImpl implements VmDao {
         DbOperation.execute(tx, storage, con -> {
             try (final var s = con.prepareStatement(
                 "SELECT " + FIELDS + """
-                FROM vm
-                WHERE session_id = ? AND pool_label = ? AND zone = ? AND state = 'IDLE'
-                LIMIT 1
-                FOR UPDATE"""
+                    FROM vm
+                    WHERE session_id = ? AND pool_label = ? AND zone = ? AND state = 'IDLE'
+                    LIMIT 1
+                    FOR UPDATE"""
             )) {
                 s.setString(1, sessionId);
                 s.setString(2, poolId);
@@ -227,7 +227,8 @@ public class VmDaoImpl implements VmDao {
                 if (dumpedMeta == null) {
                     meta.set(null);
                 } else {
-                    meta.set(objectMapper.readValue(res.getString(1), new TypeReference<>() {}));
+                    meta.set(objectMapper.readValue(res.getString(1), new TypeReference<>() {
+                    }));
                 }
             } catch (JsonProcessingException e) {
                 throw new RuntimeException("Cannot dump values", e);
@@ -258,7 +259,8 @@ public class VmDaoImpl implements VmDao {
         final var state = Vm.State.valueOf(res.getString(5));
         final var allocationOpId = res.getString(6);
         final var workloads = objectMapper.readValue(res.getString(7),
-            new TypeReference<List<Workload>>() {});
+            new TypeReference<List<Workload>>() {
+            });
 
         final var lastActivityTimeTs = res.getTimestamp(8);
         final var lastActivityTime = lastActivityTimeTs == null ? null : lastActivityTimeTs.toInstant();
@@ -270,7 +272,8 @@ public class VmDaoImpl implements VmDao {
         final var allocationDeadline = allocationDeadlineTs == null ? null : allocationDeadlineTs.toInstant();
 
         final var vmMeta = objectMapper.readValue(res.getString(11),
-            new TypeReference<Map<String, String>>() {});
+            new TypeReference<Map<String, String>>() {
+            });
         return new Vm(sessionIdRes, id, poolLabel, zone, state, allocationOpId, workloads,
             lastActivityTime, deadline, allocationDeadline, vmMeta);
     }
