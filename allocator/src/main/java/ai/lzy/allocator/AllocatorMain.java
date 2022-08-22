@@ -12,6 +12,7 @@ import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
@@ -81,7 +82,7 @@ public class AllocatorMain {
         server.awaitTermination();
     }
 
-    // only for tests
+    @VisibleForTesting
     public void destroyAll() {
         LOG.info("Deallocating all vms");
         final var vms = vmDao.list(null);

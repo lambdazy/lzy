@@ -229,7 +229,7 @@ public class SchedulerTest extends LocalScenario {
                 inputs.stream().map(t -> buildSlot(t, Slot.Direction.INPUT)),
                 outputs.stream().map(t -> buildSlot(t, Slot.Direction.OUTPUT))
             ).toList(),
-            "", ""
+            "", "", null, null
         ).toProto();
 
         return ai.lzy.v1.graph.GraphExecutorApi.TaskDesc.newBuilder()

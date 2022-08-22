@@ -6,6 +6,7 @@ import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.AllocatorPrivateGrpc;
 import ai.lzy.v1.VmAllocatorPrivateApi;
 import io.grpc.ManagedChannel;
+import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -15,7 +16,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
 
-public class AllocatorAgent extends TimerTask {
+public class AllocatorAgent extends TimerTask{
     private static final Logger LOG = LogManager.getLogger(AllocatorAgent.class);
 
     public static final String VM_ID_KEY = "LZY_ALLOCATOR_VM_ID";
@@ -28,7 +29,7 @@ public class AllocatorAgent extends TimerTask {
     private final ManagedChannel channel;
 
     public AllocatorAgent(String iamToken, @Nullable String vmId, @Nullable String allocatorAddress,
-                          @Nullable Duration heartbeatPeriod) {
+                          @Nullable Duration heartbeatPeriod) throws RegisterException {
         this.vmId = vmId == null ? System.getenv(VM_ID_KEY) : vmId;
         final var allocAddress = allocatorAddress == null
             ? System.getenv(VM_ALLOCATOR_ADDRESS) : allocatorAddress;
@@ -42,18 +43,27 @@ public class AllocatorAgent extends TimerTask {
         stub = AllocatorPrivateGrpc.newBlockingStub(channel)
             .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> iamToken));
 
-        stub.register(VmAllocatorPrivateApi.RegisterRequest.newBuilder()
-            .setVmId(vmId)
-            .build());
+        try {
+            stub.register(VmAllocatorPrivateApi.RegisterRequest.newBuilder()
+                .setVmId(vmId)
+                .build());
+        } catch (StatusRuntimeException e) {
+            LOG.error("Cannot register allocator", e);
+            throw new RegisterException(e);
+        }
         timer = new Timer("allocator-agent-timer-" + vmId);
         timer.scheduleAtFixedRate(this, period.toMillis(), period.toMillis());
     }
 
     @Override
     public void run() {
-        stub.heartbeat(VmAllocatorPrivateApi.HeartbeatRequest.newBuilder()
-            .setVmId(vmId)
-            .build());
+        try {
+            stub.heartbeat(VmAllocatorPrivateApi.HeartbeatRequest.newBuilder()
+                .setVmId(vmId)
+                .build());
+        } catch (StatusRuntimeException e) {
+            LOG.error("Cannot send heartbeat to allocator", e);
+        }
     }
 
     public void shutdown() {
@@ -63,6 +73,12 @@ public class AllocatorAgent extends TimerTask {
             channel.awaitTermination(5, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             LOG.error("Error while stopping allocator agent", e);
+        }
+    }
+
+    public static class RegisterException extends Exception {
+        public RegisterException(Throwable e) {
+            super(e);
         }
     }
 }

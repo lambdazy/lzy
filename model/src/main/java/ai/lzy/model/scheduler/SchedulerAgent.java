@@ -10,6 +10,7 @@ import ai.lzy.v1.lzy.SchedulerPrivateApi.ServantProgress.Idle;
 import ai.lzy.v1.lzy.SchedulerPrivateGrpc;
 import ai.lzy.v1.lzy.SchedulerPrivateGrpc.SchedulerPrivateBlockingStub;
 import io.grpc.ManagedChannel;
+import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -51,14 +52,20 @@ public class SchedulerAgent extends Thread {
 
         this.start();
 
-        stub.registerServant(SchedulerPrivateApi.RegisterServantRequest.newBuilder()
-            .setServantId(servantId)
-            .setWorkflowName(workflowName)
-            .setApiPort(apiPort)
-            .build());
+        try {
+            stub.registerServant(SchedulerPrivateApi.RegisterServantRequest.newBuilder()
+                .setServantId(servantId)
+                .setWorkflowName(workflowName)
+                .setApiPort(apiPort)
+                .build());
+        } catch (StatusRuntimeException e) {
+            LOG.error("Error while registering agent");
+            shutdown();
+            throw new RuntimeException(e);
+        }
     }
 
-    public synchronized void progress(ServantProgress progress) {
+    public synchronized void reportProgress(ServantProgress progress) {
         try {
             progressQueue.put(progress);
         } catch (InterruptedException e) {
@@ -76,15 +83,28 @@ public class SchedulerAgent extends Thread {
                 continue;
             }
 
-            stub.servantProgress(SchedulerPrivateApi.ServantProgressRequest.newBuilder()
-                .setServantId(servantId)
-                .setWorkflowName(workflowName)
-                .setProgress(progress)
-                .build());
+            var retryCount = 0;
+            while (++retryCount < 5) {
+                try {
+                    stub.servantProgress(SchedulerPrivateApi.ServantProgressRequest.newBuilder()
+                        .setServantId(servantId)
+                        .setWorkflowName(workflowName)
+                        .setProgress(progress)
+                        .build());
+                    break;
+                } catch (StatusRuntimeException e) {
+                    LOG.error("Cannot send progress to scheduler. Retrying...", e);
+                }
+            }
+
+            if (retryCount == 5) {
+                LOG.error("Cannot send progress to scheduler. Stopping thread");
+                throw new RuntimeException("Cannot send progress to scheduler");
+            }
         }
     }
 
-    public synchronized void idling() {
+    public synchronized void reportIdle() {
         if (task.get() != null) {
             task.get().cancel();
             timer.purge();
@@ -93,7 +113,7 @@ public class SchedulerAgent extends Thread {
             new TimerTask() {
                 @Override
                 public void run() {
-                    progress(ServantProgress.newBuilder()
+                    reportProgress(ServantProgress.newBuilder()
                         .setIdling(Idle.newBuilder().build())
                         .build());
                 }
@@ -101,7 +121,7 @@ public class SchedulerAgent extends Thread {
         timer.scheduleAtFixedRate(task.get(), heartbeatPeriod.toMillis(), heartbeatPeriod.toMillis());
     }
 
-    public synchronized void executing() {
+    public synchronized void reportExecuting() {
         if (task.get() != null) {
             task.get().cancel();
             timer.purge();
@@ -110,7 +130,7 @@ public class SchedulerAgent extends Thread {
             new TimerTask() {
                 @Override
                 public void run() {
-                    progress(ServantProgress.newBuilder()
+                    reportProgress(ServantProgress.newBuilder()
                         .setExecuting(Executing.newBuilder().build())
                         .build());
                 }
@@ -118,7 +138,7 @@ public class SchedulerAgent extends Thread {
         timer.scheduleAtFixedRate(task.get(), heartbeatPeriod.toMillis(), heartbeatPeriod.toMillis());
     }
 
-    public synchronized void stopping() {
+    public synchronized void reportStop() {
         if (task.get() != null) {
             task.get().cancel();
             timer.purge();
@@ -127,7 +147,7 @@ public class SchedulerAgent extends Thread {
     }
 
     public void shutdown() {
-        stopping();
+        reportStop();
         this.interrupt();
         channel.shutdown();
         try {

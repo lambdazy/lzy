@@ -1,6 +1,7 @@
 package ai.lzy.graph.model;
 
 import ai.lzy.graph.api.SchedulerApi;
+import ai.lzy.v1.SchedulerApi.TaskStatus;
 import ai.lzy.v1.graph.GraphExecutorApi;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphExecutionStatus.Completed;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphExecutionStatus.Executing;
@@ -10,6 +11,10 @@ import ai.lzy.v1.graph.GraphExecutorApi.TaskExecutionStatus;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.grpc.StatusRuntimeException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -27,6 +32,8 @@ public record GraphExecutionState(
         Status status,
         String errorDescription
 ) {
+
+    private static final Logger LOG = LogManager.getLogger(GraphExecutionState.class);
 
     public enum Status {
        WAITING, EXECUTING, COMPLETED, FAILED
@@ -47,7 +54,16 @@ public record GraphExecutionState(
             case EXECUTING -> {
                 final List<TaskExecutionStatus> statuses = new ArrayList<>();
                 for (var task: executions) {
-                    final var status = schedulerApi.status(workflowId, task.id());
+                    final TaskStatus status;
+                    try {
+                        status = schedulerApi.status(workflowId, task.id());
+                    } catch (StatusRuntimeException e) {
+                        LOG.error("Cannot get status of task", e);
+                        statuses.add(TaskExecutionStatus.newBuilder()
+                            .setTaskDescriptionId(task.description().id())
+                            .build());
+                        continue;
+                    }
                     statuses.add(TaskExecutionStatus.newBuilder()
                         .setProgress(status)
                         .setTaskDescriptionId(task.description().id())

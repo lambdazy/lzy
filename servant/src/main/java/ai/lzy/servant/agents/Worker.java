@@ -100,7 +100,11 @@ public class Worker {
             throw new RuntimeException(e);
         }
 
-        allocatorAgent = new AllocatorAgent(token, vmId, allocatorAddress, allocatorHeartbeatPeriod);
+        try {
+            allocatorAgent = new AllocatorAgent(token, vmId, allocatorAddress, allocatorHeartbeatPeriod);
+        } catch (AllocatorAgent.RegisterException e) {
+            throw new RuntimeException(e);
+        }
 
         schedulerAgent = new SchedulerAgent(schedulerAddress, servantId, workflowName, schedulerHeartbeatPeriod,
                 apiPort, token);
@@ -109,13 +113,13 @@ public class Worker {
     private void stop() {
         LOG.error("Stopping servant");
         server.shutdown();
-        schedulerAgent.stopping();
+        schedulerAgent.reportStop();
         allocatorAgent.shutdown();
         if (execution.get() != null) {
             LOG.info("Found current execution, killing it");
             execution.get().signal(Signal.KILL.sig());
         }
-        schedulerAgent.progress(ServantProgress.newBuilder()
+        schedulerAgent.reportProgress(ServantProgress.newBuilder()
             .setFinished(Finished.newBuilder().build())
             .build());
         lzyFs.stop();
@@ -164,10 +168,10 @@ public class Worker {
             LOG.info("Configuring worker");
             responseObserver.onNext(ConfigureResponse.newBuilder().build());
             responseObserver.onCompleted();
-            try {
 
+            try {
                 final var e = EnvironmentFactory.create(GrpcConverter.from(request.getEnv()));
-                schedulerAgent.progress(ServantProgress.newBuilder()
+                schedulerAgent.reportProgress(ServantProgress.newBuilder()
                     .setConfigured(Configured.newBuilder()
                         .setOk(Ok.newBuilder().build())
                         .build())
@@ -176,7 +180,7 @@ public class Worker {
 
             } catch (EnvironmentInstallationException e) {
                 LOG.error("Unable to install environment", e);
-                schedulerAgent.progress(ServantProgress.newBuilder()
+                schedulerAgent.reportProgress(ServantProgress.newBuilder()
                     .setConfigured(Configured.newBuilder()
                         .setErr(Err.newBuilder()
                             .setDescription(e.getMessage())
@@ -185,7 +189,7 @@ public class Worker {
                     .build());
             } catch (Exception e) {
                 LOG.error("Error while preparing env, stopping servant", e);
-                schedulerAgent.progress(ServantProgress.newBuilder()
+                schedulerAgent.reportProgress(ServantProgress.newBuilder()
                     .setConfigured(Configured.newBuilder()
                         .setErr(Err.newBuilder()
                             .setDescription("Internal exception")
@@ -256,16 +260,16 @@ public class Worker {
                 }
 
                 exec.start(env.get());
-                schedulerAgent.executing();
+                schedulerAgent.reportExecuting();
 
                 final int rc = exec.waitFor();
-                schedulerAgent.progress(ServantProgress.newBuilder()
+                schedulerAgent.reportProgress(ServantProgress.newBuilder()
                     .setExecutionCompleted(ServantProgress.ExecutionCompleted.newBuilder()
                         .setRc(rc)
                         .setDescription(rc == 0 ? "Success" : "Failure")  // TODO(artolord) add better description
                         .build())
                     .build());
-                schedulerAgent.idling();
+                schedulerAgent.reportIdle();
             } catch (Exception e) {
                 LOG.error("Error while executing task, stopping servant", e);
                 Worker.this.stop();

@@ -66,7 +66,7 @@ public class BfsGraphProcessor implements GraphProcessor {
                 if (completed == graph.description().tasks().size()) {
                     yield complete(graph);
                 }
-                if (graph.currentExecutionGroup().size() == 0) {
+                if (graph.currentExecutionGroup().isEmpty()) {
                     LOG.error("Some error while processing graph {}: executionGroup size is 0, but graph not completed",
                         graph.id());
                     yield stop(graph, "Some internal error");

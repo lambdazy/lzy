@@ -57,6 +57,7 @@
                 <filtering>true</filtering>
                 <includes>
                     <include>**/*.yaml</include>
+                    <include>**/*.yml</include>
                 </includes>
             </resource>
         </resources>

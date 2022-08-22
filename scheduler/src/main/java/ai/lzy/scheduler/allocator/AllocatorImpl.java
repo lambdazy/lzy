@@ -107,6 +107,7 @@ public class AllocatorImpl implements ServantsAllocator {
         try {
             final var subj = subjectClient.createSubject(new Servant(servantId),
                     authConfig.serviceUid(), servantId);
+
             final var keys = RsaUtils.generateRsaKeys();
             try (final var reader = new FileReader(keys.privateKeyPath().toFile())) {
                 credentials = new JwtCredentials(buildJWT(subj.id(), reader));
@@ -121,6 +122,7 @@ public class AllocatorImpl implements ServantsAllocator {
             LOG.error("Cannot build credentials for servant", e);
             throw new RuntimeException(e);
         }
+
         // TODO(artolord) add session caching
         final var session = allocator.createSession(CreateSessionRequest.newBuilder()
             .setOwner("lzy-scheduler")
