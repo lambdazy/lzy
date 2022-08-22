@@ -17,7 +17,8 @@ public class SubjectServiceStub implements SubjectService {
     }
 
     @Override
-    public Subject createSubject(String id, String authProvider, String providerSubjectId, SubjectType type) throws AuthException {
+    public Subject createSubject(String id, String authProvider, String providerSubjectId, SubjectType type)
+            throws AuthException {
         return switch (type) {
             case USER -> new User(id);
             case SERVANT -> new Servant(id);

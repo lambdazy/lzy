@@ -11,7 +11,8 @@ public interface SubjectService {
 
     SubjectService withToken(Supplier<Credentials> tokenSupplier);
 
-    Subject createSubject(String id, String authProvider, String providerSubjectId, SubjectType type) throws AuthException;
+    Subject createSubject(String id, String authProvider, String providerSubjectId, SubjectType type)
+            throws AuthException;
 
     void removeSubject(Subject subject) throws AuthException;
 
