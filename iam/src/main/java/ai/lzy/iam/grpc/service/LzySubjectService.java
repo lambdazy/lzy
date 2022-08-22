@@ -1,5 +1,6 @@
 package ai.lzy.iam.grpc.service;
 
+import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
@@ -20,7 +21,9 @@ import ai.lzy.v1.iam.IAM;
 import ai.lzy.v1.iam.LSS;
 import ai.lzy.v1.iam.LzySubjectServiceGrpc;
 
+import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Singleton
 public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceImplBase {
@@ -71,6 +74,20 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
     }
 
     @Override
+    public void getSubject(LSS.GetSubjectRequest request, StreamObserver<IAM.Subject> responseObserver) {
+        try {
+            if (internalAccess()) {
+                Subject subject = subjectService.subject(request.getId());
+                responseObserver.onNext(GrpcConverter.from(subject));
+                responseObserver.onCompleted();
+            }
+        } catch (AuthException e) {
+            LOG.error("Auth exception::", e);
+            responseObserver.onError(e.status().asException());
+        }
+    }
+
+    @Override
     public void addCredentials(
             LSS.AddCredentialsRequest request,
             StreamObserver<LSS.AddCredentialsResponse> responseObserver) {
@@ -108,6 +125,28 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
                 return;
             }
             responseObserver.onError(Status.UNAUTHENTICATED.asException());
+        } catch (AuthException e) {
+            LOG.error("Auth exception::", e);
+            responseObserver.onError(e.status().asException());
+        }
+    }
+
+    @Override
+    public void listCredentials(
+            LSS.ListCredentialsRequest request,
+            StreamObserver<LSS.ListCredentialsResponse> responseObserver) {
+        try {
+            if (internalAccess()) {
+                List<SubjectCredentials> subjectCredentials = subjectService.listCredentials(
+                        GrpcConverter.to(request.getSubject())
+                );
+                responseObserver.onNext(LSS.ListCredentialsResponse.newBuilder()
+                        .addAllCredentialsList(
+                            subjectCredentials.stream().map(GrpcConverter::from).collect(Collectors.toList())
+                        )
+                        .build());
+                responseObserver.onCompleted();
+            }
         } catch (AuthException e) {
             LOG.error("Auth exception::", e);
             responseObserver.onError(e.status().asException());

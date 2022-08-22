@@ -7,7 +7,6 @@ import ai.lzy.iam.configs.ServiceConfig;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
-import ai.lzy.iam.storage.impl.DbSubjectService;
 import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.credentials.JwtCredentials;
@@ -30,7 +29,6 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
 
     ApplicationContext ctx;
     SubjectServiceGrpcClient subjectClient;
-    DbSubjectService dbSubjectService;  // for getting credentials and subjects from DB
     LzyIAM lzyIAM;
 
     @Before
@@ -50,7 +48,6 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
             GrpcConfig.from("localhost:" + iamConfig.getServerPort()),
             () -> credentials
         );
-        dbSubjectService = ctx.getBean(DbSubjectService.class);
     }
 
     @After
@@ -60,7 +57,7 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
 
     @Override
     protected Subject subject(String id) {
-        return dbSubjectService.subject(id);
+        return subjectClient.getSubject(id);
     }
 
     @Override
@@ -74,8 +71,12 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
     }
 
     @Override
-    protected SubjectCredentials credentials(Subject subject, String id) {
-        return dbSubjectService.credentials(subject, id);
+    protected SubjectCredentials credentials(Subject subject, String name) {
+        return subjectClient.listCredentials(subject)
+                .stream()
+                .filter(c -> name.equals(c.name()))
+                .findAny()
+                .orElseThrow();
     }
 
     @Override
