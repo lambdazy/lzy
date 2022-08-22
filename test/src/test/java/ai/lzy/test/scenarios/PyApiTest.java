@@ -2,10 +2,11 @@ package ai.lzy.test.scenarios;
 
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.servant.agents.AgentStatus;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public class PyApiTest extends LocalScenario {
     @Before

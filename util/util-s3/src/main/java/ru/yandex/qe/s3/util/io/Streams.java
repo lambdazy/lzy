@@ -4,11 +4,12 @@ import com.amazonaws.util.LengthCheckInputStream;
 import com.gc.iotools.stream.is.inspection.StatsInputStream;
 import com.gc.iotools.stream.os.inspection.StatsOutputStream;
 import com.gc.iotools.stream.utils.StreamUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * User: terry Date: 06.09.13 Time: 22:51

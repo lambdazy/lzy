@@ -1,13 +1,9 @@
 package ai.lzy.whiteboard.hibernate.models;
 
-import java.util.Date;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.EnumType;
-import javax.persistence.Enumerated;
-import javax.persistence.Id;
-import javax.persistence.Table;
 import ai.lzy.model.snapshot.WhiteboardStatus;
+
+import javax.persistence.*;
+import java.util.Date;
 
 @Entity
 @Table(name = "whiteboard")

@@ -1,16 +1,11 @@
 package ai.lzy.whiteboard.hibernate.models;
 
+import ai.lzy.model.snapshot.SnapshotEntryStatus;
+
+import javax.annotation.Nullable;
+import javax.persistence.*;
 import java.io.Serializable;
 import java.util.Objects;
-import javax.annotation.Nullable;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.EnumType;
-import javax.persistence.Enumerated;
-import javax.persistence.Id;
-import javax.persistence.IdClass;
-import javax.persistence.Table;
-import ai.lzy.model.snapshot.SnapshotEntryStatus;
 
 @Entity
 @Table(name = "snapshot_entry")
