@@ -1,5 +1,6 @@
 package ai.lzy.iam.grpc.client;
 
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.iam.clients.SubjectService;
@@ -51,15 +52,14 @@ public class SubjectServiceGrpcClient implements SubjectService {
     }
 
     @Override
-    public Subject createSubject(Subject subj, String authProvider, String providerSubjectId) throws AuthException {
+    public Subject createSubject(String id, String authProvider, String providerSubjectId, SubjectType type)
+            throws AuthException {
         try {
             final IAM.Subject subject = subjectService.createSubject(LSS.CreateSubjectRequest.newBuilder()
-                    .setName(subj.id())
-                    .setType(subj.type().name())
+                    .setName(id)
                     .setAuthProvider(authProvider)
                     .setProviderSubjectId(providerSubjectId)
-                    // TODO: add type to api
-                    .setType("USER")
+                    .setType(type.toString())
                     .build());
             return GrpcConverter.to(subject);
         } catch (StatusRuntimeException e) {

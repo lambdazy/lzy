@@ -60,13 +60,18 @@ public class DbSubjectService {
     public Subject subject(String id) throws AuthException {
         try (var connect = storage.connect()) {
             final PreparedStatement st = connect.prepareStatement(
-                "SELECT user_id FROM users WHERE user_id = ?");
+                "SELECT user_id, user_type FROM users WHERE user_id = ?");
 
             int parameterIndex = 0;
             st.setString(++parameterIndex, id);
             ResultSet rs = st.executeQuery();
             if (rs.next()) {
-                return new User(rs.getString("user_id"));
+                final String user_id = rs.getString("user_id");
+                final SubjectType type = SubjectType.valueOf(rs.getString("user_type"));
+                return switch (type) {
+                    case USER -> new User(user_id);
+                    case SERVANT -> new Servant(user_id);
+                };
             } else {
                 throw new AuthBadRequestException("Subject:: " + id + " NOT_FOND");
             }
