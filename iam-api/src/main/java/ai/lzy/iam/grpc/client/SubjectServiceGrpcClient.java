@@ -58,6 +58,8 @@ public class SubjectServiceGrpcClient implements SubjectService {
                     .setType(subj.type().name())
                     .setAuthProvider(authProvider)
                     .setProviderSubjectId(providerSubjectId)
+                    // TODO: add type to api
+                    .setType("USER")
                     .build());
             return GrpcConverter.to(subject);
         } catch (StatusRuntimeException e) {
