@@ -6,6 +6,7 @@ import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.resources.AccessBinding;
 import ai.lzy.iam.resources.impl.Workflow;
 import ai.lzy.iam.resources.subjects.Servant;
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.model.Operation;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.model.utils.FreePortFinder;
@@ -94,8 +95,8 @@ public class AllocatorImpl implements ServantsAllocator {
 
         final Credentials credentials;
         try {
-            final var subj = subjectClient.createSubject(new Servant(servantId),
-                    authConfig.getInternalUserName(), servantId);
+            final var subj = subjectClient.createSubject(servantId,
+                    authConfig.getInternalUserName(), servantId, SubjectType.SERVANT);
 
             final var cred = JwtUtils.generateCredentials(subj.id());
             credentials = cred.credentials();

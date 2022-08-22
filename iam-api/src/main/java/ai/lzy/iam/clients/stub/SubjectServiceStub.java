@@ -1,5 +1,7 @@
 package ai.lzy.iam.clients.stub;
 
+import ai.lzy.iam.resources.subjects.Servant;
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.iam.clients.SubjectService;
@@ -15,8 +17,11 @@ public class SubjectServiceStub implements SubjectService {
     }
 
     @Override
-    public Subject createSubject(Subject subj, String authProvider, String providerSubjectId) throws AuthException {
-        return subj;
+    public Subject createSubject(String id, String authProvider, String providerSubjectId, SubjectType type) throws AuthException {
+        return switch (type) {
+            case USER -> new User(id);
+            case SERVANT -> new Servant(id);
+        };
     }
 
     @Override
