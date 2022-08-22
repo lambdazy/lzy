@@ -12,9 +12,13 @@ service LzySubjectService {
 
   rpc RemoveSubject (RemoveSubjectRequest) returns (RemoveSubjectResponse);
 
+  rpc GetSubject (GetSubjectRequest) returns (ai.lzy.v1.iam.Subject);
+
   rpc AddCredentials (AddCredentialsRequest) returns (AddCredentialsResponse);
 
   rpc RemoveCredentials (RemoveCredentialsRequest) returns (RemoveCredentialsResponse);
+
+  rpc ListCredentials (ListCredentialsRequest) returns (ListCredentialsResponse);
 }
 
 message CreateSubjectRequest {
@@ -31,6 +35,10 @@ message RemoveSubjectRequest {
 message RemoveSubjectResponse {
 }
 
+message GetSubjectRequest {
+  string id = 1;
+}
+
 message AddCredentialsRequest {
   ai.lzy.v1.iam.Subject subject = 1;
   ai.lzy.v1.iam.Credentials credentials = 2;
@@ -45,4 +53,12 @@ message RemoveCredentialsRequest {
 }
 
 message RemoveCredentialsResponse {
+}
+
+message ListCredentialsRequest {
+  ai.lzy.v1.iam.Subject subject = 1;
+}
+
+message ListCredentialsResponse {
+  repeated ai.lzy.v1.iam.Credentials credentialsList = 1;
 }

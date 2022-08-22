@@ -48,8 +48,8 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
     }
 
     @Override
-    protected SubjectCredentials credentials(Subject subject, String id) {
-        return subjectService.credentials(subject, id);
+    protected SubjectCredentials credentials(Subject subject, String name) {
+        return subjectService.credentials(subject, name);
     }
 
     @Override

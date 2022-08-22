@@ -9,6 +9,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Test;
 
+import java.util.NoSuchElementException;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -78,6 +80,8 @@ public abstract class BaseSubjectServiceApiTest {
         try {
             credentials(user, "1");
             fail();
+        } catch (NoSuchElementException e) {
+            LOG.info("Valid exception {}", e.getMessage());
         } catch (AuthBadRequestException e) {
             LOG.info("Valid exception {}", e.getInternalDetails());
         }
@@ -91,6 +95,8 @@ public abstract class BaseSubjectServiceApiTest {
         try {
             credentials(user, "2");
             fail();
+        } catch (NoSuchElementException e) {
+            LOG.info("Valid exception {}", e.getMessage());
         } catch (AuthBadRequestException e) {
             LOG.info("Valid exception {}", e.getInternalDetails());
         }
@@ -129,7 +135,7 @@ public abstract class BaseSubjectServiceApiTest {
 
     protected abstract void removeSubject(Subject subject);
 
-    protected abstract SubjectCredentials credentials(Subject subject, String id);
+    protected abstract SubjectCredentials credentials(Subject subject, String name);
 
     protected abstract void addCredentials(Subject subject, String name);
 

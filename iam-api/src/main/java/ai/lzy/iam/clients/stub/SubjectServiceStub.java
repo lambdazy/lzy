@@ -1,5 +1,6 @@
 package ai.lzy.iam.clients.stub;
 
+import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.Servant;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.util.auth.credentials.Credentials;
@@ -8,6 +9,7 @@ import ai.lzy.iam.clients.SubjectService;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.User;
 
+import java.util.List;
 import java.util.function.Supplier;
 
 public class SubjectServiceStub implements SubjectService {
@@ -26,11 +28,21 @@ public class SubjectServiceStub implements SubjectService {
     }
 
     @Override
+    public Subject getSubject(String id) throws AuthException {
+        return new User(id);
+    }
+
+    @Override
     public void removeSubject(Subject subject) throws AuthException {
     }
 
     @Override
     public void addCredentials(Subject subject, String name, String value, String type) throws AuthException {
+    }
+
+    @Override
+    public List<SubjectCredentials> listCredentials(Subject subject) throws AuthException {
+        return List.of();
     }
 
     @Override
