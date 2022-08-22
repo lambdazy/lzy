@@ -336,7 +336,8 @@ public class AllocatorApiTest extends BaseTestWithIam {
             authorizedAllocatorBlockingStub.free(FreeRequest.newBuilder().setVmId(allocateMetadata.getVmId()).build());
             Assert.fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.FAILED_PRECONDITION.getCode(), e.getStatus().getCode());
+            Assert.assertEquals(e.getStatus().toString(), Status.FAILED_PRECONDITION.getCode(),
+                e.getStatus().getCode());
         }
     }
 
