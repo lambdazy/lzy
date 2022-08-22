@@ -103,6 +103,11 @@
             </goals>
           </execution>
         </executions>
+        <configuration>
+          <excludes>
+            <exclude>ai/lzy/v1/**/*</exclude>
+          </excludes>
+        </configuration>
       </plugin>
     </plugins>
   </build>
