@@ -33,6 +33,12 @@
       <groupId>ai.lzy</groupId>
       <artifactId>allocator</artifactId>
       <version>1.0-SNAPSHOT</version>
+      <exclusions>
+        <exclusion>
+          <groupId>io.grpc</groupId>
+          <artifactId>grpc-core</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>ai.lzy</groupId>
