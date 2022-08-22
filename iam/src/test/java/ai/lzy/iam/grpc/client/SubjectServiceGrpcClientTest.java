@@ -9,7 +9,7 @@ import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.util.auth.credentials.Credentials;
-import ai.lzy.util.auth.credentials.JwtCredentials;
+import ai.lzy.util.auth.credentials.JwtUtils;
 import io.micronaut.context.ApplicationContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -17,13 +17,7 @@ import org.junit.After;
 import org.junit.Before;
 
 import java.io.IOException;
-import java.io.Reader;
-import java.io.StringReader;
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
 import java.util.NoSuchElementException;
-
-import static ai.lzy.iam.utils.CredentialsHelper.buildJWT;
 
 public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
     private static final Logger LOG = LogManager.getLogger(SubjectServiceGrpcClientTest.class);
@@ -36,12 +30,10 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
     public void setUp() throws IOException {
         ctx = ApplicationContext.run();
         InternalUserConfig internalUserConfig = ctx.getBean(InternalUserConfig.class);
-        Credentials credentials;
-        try (final Reader reader = new StringReader(internalUserConfig.credentialPrivateKey())) {
-            credentials = new JwtCredentials(buildJWT(internalUserConfig.userName(), reader));
-        } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
-            throw new RuntimeException("Cannot build credentials");
-        }
+        Credentials credentials = JwtUtils.credentials(
+            internalUserConfig.userName(),
+            internalUserConfig.credentialPrivateKey()
+        );
         lzyIAM = new LzyIAM(ctx);
         lzyIAM.start();
         ServiceConfig iamConfig = ctx.getBean(ServiceConfig.class);
@@ -54,6 +46,7 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
     @After
     public void shutdown() {
         lzyIAM.close();
+        ctx.close();
     }
 
     @Override

@@ -18,8 +18,12 @@ public abstract class BaseSubjectServiceApiTest {
     public static final Logger LOG = LogManager.getLogger(BaseSubjectServiceApiTest.class);
 
     @Test
-    public void createAndDeleteTest() {
+    public void createAndDeleteUserTest() {
         createAndDeleteScenario(SubjectType.USER);
+    }
+
+    @Test
+    public void createAndDeleteServantTest() {
         createAndDeleteScenario(SubjectType.SERVANT);
     }
 
@@ -27,14 +31,14 @@ public abstract class BaseSubjectServiceApiTest {
         createSubject("1", subjectType);
         createSubject("2", subjectType);
 
-        Subject user1 = subject("1");
-        assertEquals("1", user1.id());
-        assertEquals(subjectType, user1.type());
-        Subject user2 = subject("2");
-        assertEquals("2", user2.id());
-        assertEquals(subjectType, user2.type());
+        Subject subject1 = subject("1");
+        assertEquals("1", subject1.id());
+        assertEquals(subjectType, subject1.type());
+        Subject subject2 = subject("2");
+        assertEquals("2", subject2.id());
+        assertEquals(subjectType, subject2.type());
 
-        removeSubject(user1);
+        removeSubject(subject1);
         try {
             subject("1");
             fail();
@@ -42,11 +46,11 @@ public abstract class BaseSubjectServiceApiTest {
             LOG.info("Valid exception {}", e.getInternalDetails());
         }
 
-        user2 = subject("2");
-        assertEquals("2", user2.id());
-        assertEquals(subjectType, user2.type());
+        subject2 = subject("2");
+        assertEquals("2", subject2.id());
+        assertEquals(subjectType, subject2.type());
 
-        removeSubject(user2);
+        removeSubject(subject2);
         try {
             subject("2");
             fail();
@@ -56,29 +60,33 @@ public abstract class BaseSubjectServiceApiTest {
     }
 
     @Test
-    public void createAndRemoveWithCredentialsTest() {
+    public void createAndRemoveUserWithCredentialsTest() {
         createAndRemoveWithCredentialsScenario(SubjectType.USER);
+    }
+
+    @Test
+    public void createAndRemoveServantWithCredentialsTest() {
         createAndRemoveWithCredentialsScenario(SubjectType.SERVANT);
     }
 
     public void createAndRemoveWithCredentialsScenario(SubjectType subjectType) {
         createSubject("1", subjectType);
-        Subject user = subject("1");
-        addCredentials(user, "1");
-        addCredentials(user, "2");
+        Subject subject = subject("1");
+        addCredentials(subject, "1");
+        addCredentials(subject, "2");
 
-        SubjectCredentials credentials1 = credentials(user, "1");
+        SubjectCredentials credentials1 = credentials(subject, "1");
         assertEquals("1", credentials1.name());
         assertEquals("Value", credentials1.value());
         assertEquals("Type", credentials1.type());
-        SubjectCredentials credentials2 = credentials(user, "2");
+        SubjectCredentials credentials2 = credentials(subject, "2");
         assertEquals("2", credentials2.name());
         assertEquals("Value", credentials2.value());
         assertEquals("Type", credentials2.type());
 
-        removeCredentials(user, "1");
+        removeCredentials(subject, "1");
         try {
-            credentials(user, "1");
+            credentials(subject, "1");
             fail();
         } catch (NoSuchElementException e) {
             LOG.info("Valid exception {}", e.getMessage());
@@ -86,21 +94,21 @@ public abstract class BaseSubjectServiceApiTest {
             LOG.info("Valid exception {}", e.getInternalDetails());
         }
 
-        credentials2 = credentials(user, "2");
+        credentials2 = credentials(subject, "2");
         assertEquals("2", credentials2.name());
         assertEquals("Value", credentials2.value());
         assertEquals("Type", credentials2.type());
 
-        removeCredentials(user, "2");
+        removeCredentials(subject, "2");
         try {
-            credentials(user, "2");
+            credentials(subject, "2");
             fail();
         } catch (NoSuchElementException e) {
             LOG.info("Valid exception {}", e.getMessage());
         } catch (AuthBadRequestException e) {
             LOG.info("Valid exception {}", e.getInternalDetails());
         }
-        removeSubject(user);
+        removeSubject(subject);
     }
 
     @Test
@@ -114,7 +122,7 @@ public abstract class BaseSubjectServiceApiTest {
     public void restrictEqualSubjectIdsScenario(SubjectType subjectType1, SubjectType subjectType2) {
         String subjectId = "1";
         createSubject(subjectId, subjectType1);
-        Subject user1 = subject(subjectId);
+        Subject subject1 = subject(subjectId);
 
         try {
             createSubject(subjectId, subjectType2);
@@ -123,10 +131,10 @@ public abstract class BaseSubjectServiceApiTest {
             LOG.info("Valid exception {}", e.getMessage());
         }
 
-        Subject user2 = subject(subjectId);
-        assertEquals(user1, user2);
+        Subject subject2 = subject(subjectId);
+        assertEquals(subject1, subject2);
 
-        removeSubject(user1);
+        removeSubject(subject1);
     }
 
     protected abstract Subject subject(String id);
