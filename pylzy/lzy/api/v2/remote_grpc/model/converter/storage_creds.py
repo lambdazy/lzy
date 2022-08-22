@@ -1,7 +1,7 @@
 from functools import singledispatch
 from typing import Union, cast, overload
 
-from ai.lzy.v1 import server_pb2
+from ai.lzy.v1.workflow import workflow_pb2
 from lzy.storage.credentials import (
     AmazonCredentials,
     AzureCredentials,
@@ -10,9 +10,8 @@ from lzy.storage.credentials import (
 )
 
 grpc_STORAGE_CREDS = Union[
-    server_pb2.AmazonCredentials,
-    server_pb2.AzureCredentials,
-    server_pb2.AzureSASCredentials,
+    workflow_pb2.AmazonCredentials,
+    workflow_pb2.AzureCredentials,
 ]
 
 
@@ -23,7 +22,7 @@ def _to(credentials: StorageCredentials) -> grpc_STORAGE_CREDS:
 
 @_to.register
 def _(credentials: AmazonCredentials) -> grpc_STORAGE_CREDS:
-    return server_pb2.AmazonCredentials(
+    return workflow_pb2.AmazonCredentials(
         endpoint=credentials.endpoint,
         accessToken=credentials.access_token,
         secretToken=credentials.secret_token,
@@ -32,31 +31,23 @@ def _(credentials: AmazonCredentials) -> grpc_STORAGE_CREDS:
 
 @_to.register  # type: ignore[no-redef]
 def _(credentials: AzureCredentials) -> grpc_STORAGE_CREDS:
-    return server_pb2.AzureCredentials(
+    return workflow_pb2.AzureCredentials(
         connectionString=credentials.connection_string,
     )
 
 
-@_to.register  # type: ignore[no-redef]
-def _(credentials: AzureSasCredentials) -> grpc_STORAGE_CREDS:
-    return server_pb2.AzureSASCredentials(
-        endpoint=credentials.endpoint,
-        signature=credentials.signature,
-    )
-
-
 @overload
-def to(obj: AmazonCredentials) -> server_pb2.AmazonCredentials:
+def to(obj: AmazonCredentials) -> workflow_pb2.AmazonCredentials:
     ...
 
 
 @overload
-def to(obj: AzureCredentials) -> server_pb2.AzureCredentials:
+def to(obj: AzureCredentials) -> workflow_pb2.AzureCredentials:
     ...
 
 
 @overload
-def to(obj: AzureSasCredentials) -> server_pb2.AzureSASCredentials:
+def to(obj: AzureSasCredentials) -> workflow_pb2.AzureCredentials:
     ...
 
 
@@ -70,7 +61,7 @@ def _from(creds: grpc_STORAGE_CREDS) -> StorageCredentials:
 
 
 @_from.register
-def _(creds: server_pb2.AmazonCredentials) -> StorageCredentials:
+def _(creds: workflow_pb2.AmazonCredentials) -> StorageCredentials:
     return AmazonCredentials(
         access_token=creds.accessToken,
         endpoint=creds.endpoint,
@@ -79,32 +70,19 @@ def _(creds: server_pb2.AmazonCredentials) -> StorageCredentials:
 
 
 @_from.register  # type: ignore[no-redef]
-def _(creds: server_pb2.AzureCredentials) -> StorageCredentials:
+def _(creds: workflow_pb2.AzureCredentials) -> StorageCredentials:
     return AzureCredentials(
         connection_string=creds.connectionString,
     )
 
 
-@_from.register  # type: ignore[no-redef]
-def _(creds: server_pb2.AzureSASCredentials) -> StorageCredentials:
-    return AzureSasCredentials(
-        endpoint=creds.endpoint,
-        signature=creds.signature,
-    )
-
-
 @overload
-def from_(obj: server_pb2.AmazonCredentials) -> AmazonCredentials:
+def from_(obj: workflow_pb2.AmazonCredentials) -> AmazonCredentials:
     ...
 
 
 @overload
-def from_(obj: server_pb2.AzureCredentials) -> AzureCredentials:
-    ...
-
-
-@overload
-def from_(obj: server_pb2.AzureSASCredentials) -> AzureSasCredentials:
+def from_(obj: workflow_pb2.AzureCredentials) -> AzureCredentials:
     ...
 
 
