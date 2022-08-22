@@ -17,6 +17,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+
 import java.io.File;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -25,13 +26,13 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nullable;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 @Singleton
 @Requires(property = "allocator.kuber-allocator.enabled", value = "true")
 public class KuberVmAllocator implements VmAllocator {
-
     private static final Logger LOG = LogManager.getLogger(KuberVmAllocator.class);
     private static final String NAMESPACE = "default";
     private static final List<Toleration> GPU_VM_POD_TOLERATIONS = List.of(
@@ -45,6 +46,7 @@ public class KuberVmAllocator implements VmAllocator {
     private static final String NAMESPACE_KEY = "namespace";
     private static final String POD_NAME_KEY = "pod-name";
     private static final String CLUSTER_ID_KEY = "cluster-id";
+    public static final String POD_NAME_PREFIX = "lzy-vm-";
 
     private final VmDao dao;
     private final ClusterRegistry poolRegistry;
@@ -140,7 +142,7 @@ public class KuberVmAllocator implements VmAllocator {
 
         pod.getSpec().setContainers(buildContainers(vm));
 
-        final String podName = "lzy-vm-" + vm.vmId().toLowerCase(Locale.ROOT);
+        final String podName = POD_NAME_PREFIX + vm.vmId().toLowerCase(Locale.ROOT);
         // k8s pod name can only contain symbols [-a-z0-9]
         pod.getMetadata().setName(podName.replaceAll("[^-a-z0-9]", "-"));
         var labels = pod.getMetadata().getLabels();
