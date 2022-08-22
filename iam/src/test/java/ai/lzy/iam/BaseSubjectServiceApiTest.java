@@ -17,7 +17,7 @@ public abstract class BaseSubjectServiceApiTest {
 
     @Test
     public void createAndDeleteTest() {
-//        createAndDeleteScenario(SubjectType.USER);
+        createAndDeleteScenario(SubjectType.USER);
         createAndDeleteScenario(SubjectType.SERVANT);
     }
 
@@ -55,7 +55,7 @@ public abstract class BaseSubjectServiceApiTest {
 
     @Test
     public void createAndRemoveWithCredentialsTest() {
-//        createAndRemoveWithCredentialsScenario(SubjectType.USER);
+        createAndRemoveWithCredentialsScenario(SubjectType.USER);
         createAndRemoveWithCredentialsScenario(SubjectType.SERVANT);
     }
 
