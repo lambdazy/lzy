@@ -15,8 +15,8 @@ public class SubjectServiceStub implements SubjectService {
     }
 
     @Override
-    public Subject createSubject(String id, String authProvider, String providerSubjectId) throws AuthException {
-        return new User(id);
+    public Subject createSubject(Subject subj, String authProvider, String providerSubjectId) throws AuthException {
+        return subj;
     }
 
     @Override

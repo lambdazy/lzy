@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 public class EventProcessorTest {
 
     private static final Logger LOG = LogManager.getLogger(EventProcessorTest.class);
-    public static final ApplicationContext context = ApplicationContext.run();
+    public static final ApplicationContext context = ApplicationContext.run("scheduler");
 
     public static final ServantEventDao events = context.getBean(ServantEventDao.class);
     public static final ServantDao servantDao = context.getBean(ServantDao.class);

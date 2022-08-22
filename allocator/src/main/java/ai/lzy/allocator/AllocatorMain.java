@@ -1,6 +1,8 @@
 package ai.lzy.allocator;
 
+import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
+import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.services.AllocatorApi;
 import ai.lzy.allocator.services.AllocatorPrivateApi;
 import ai.lzy.allocator.services.OperationApi;
@@ -34,12 +36,16 @@ public class AllocatorMain {
     private final ServiceConfig config;
     private final Server server;
     private final GarbageCollector gc;
+    private final VmDao vmDao;
+    private final VmAllocator alloc;
 
     public AllocatorMain(AllocatorApi allocator, AllocatorPrivateApi allocatorPrivate, OperationApi opApi,
                          ServiceConfig config, GarbageCollector gc, VmPoolService vmPool,
-                         @Named("IamGrpcChannel") ManagedChannel iamChannel) {
+                         @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel, VmDao vmDao, VmAllocator alloc) {
         this.config = config;
         this.gc = gc;
+        this.vmDao = vmDao;
+        this.alloc = alloc;
 
         final HostAndPort address = HostAndPort.fromString(config.getAddress());
         ServerBuilder<?> builder = NettyServerBuilder.forAddress(
@@ -73,6 +79,13 @@ public class AllocatorMain {
 
     public void awaitTermination() throws InterruptedException {
         server.awaitTermination();
+    }
+
+    // only for tests
+    public void destroyAll() {
+        LOG.info("Deallocating all vms");
+        final var vms = vmDao.list(null);
+        vms.forEach(alloc::deallocate);
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {

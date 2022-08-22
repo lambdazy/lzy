@@ -1,10 +1,12 @@
 package ai.lzy.graph.model;
 
+import ai.lzy.graph.api.SchedulerApi;
 import ai.lzy.v1.graph.GraphExecutorApi;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphExecutionStatus.Completed;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphExecutionStatus.Executing;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphExecutionStatus.Failed;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphExecutionStatus.Waiting;
+import ai.lzy.v1.graph.GraphExecutorApi.TaskExecutionStatus;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -30,7 +32,7 @@ public record GraphExecutionState(
        WAITING, EXECUTING, COMPLETED, FAILED
     }
 
-    public GraphExecutorApi.GraphExecutionStatus toGrpc() {
+    public GraphExecutorApi.GraphExecutionStatus toGrpc(SchedulerApi schedulerApi) {
         GraphExecutorApi.GraphExecutionStatus.Builder statusBuilder = GraphExecutorApi.GraphExecutionStatus.newBuilder()
             .setWorkflowId(workflowId)
             .setGraphId(id);
@@ -42,9 +44,21 @@ public record GraphExecutionState(
                     .setDescription(errorDescription)
                     .build()
             );
-            case EXECUTING -> statusBuilder.setExecuting(
-                Executing.newBuilder().build() //TODO(artolord) add tasks progress here
-            );
+            case EXECUTING -> {
+                final List<TaskExecutionStatus> statuses = new ArrayList<>();
+                for (var task: executions) {
+                    final var status = schedulerApi.status(workflowId, task.id());
+                    statuses.add(TaskExecutionStatus.newBuilder()
+                        .setProgress(status)
+                        .setTaskDescriptionId(task.description().id())
+                        .build());
+                }
+                statusBuilder.setExecuting(
+                    Executing.newBuilder()
+                        .addAllExecutingTasks(statuses)
+                        .build()
+                );
+            }
             default -> { } // Unreachable
         }
         return statusBuilder.build();

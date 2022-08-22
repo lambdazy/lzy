@@ -57,15 +57,15 @@ public final class LzyFsServer {
     private final URI channelManagerUri;
     private final IAM.Auth auth;
     private final SlotsManager slotsManager;
-    private final ManagedChannel lzyServerChannel;
     private final ManagedChannel channelManagerChannel;
     private final SlotConnectionManager slotConnectionManager;
     private final Server localServer;
     private final AtomicBoolean stopped = new AtomicBoolean(false);
     private final AtomicReference<LzyFsGrpc.LzyFsImplBase> slotApiInterceptor = new AtomicReference<>(null);
 
-    public LzyFsServer(String agentId, String mountPoint, URI selfUri, URI lzyServerUri, URI lzyWhiteboardUri,
-        URI channelManagerUri, IAM.Auth auth) throws IOException {
+    @Deprecated
+    public LzyFsServer(String agentId, String mountPoint, URI selfUri, @Nullable URI lzyServerUri,
+                       @Nullable URI lzyWhiteboardUri, URI channelManagerUri, IAM.Auth auth) throws IOException {
         this.agentId = agentId;
         this.channelManagerUri = channelManagerUri;
         assert LzyFs.scheme().equals(selfUri.getScheme());
@@ -103,23 +103,30 @@ public final class LzyFsServer {
 
         // TODO: remove it from LzyFs
         // <<<
-        lzyServerChannel = ChannelBuilder
-            .forAddress(lzyServerUri.getHost(), lzyServerUri.getPort())
-            .usePlaintext()
-            .enableRetry(LzyKharonGrpc.SERVICE_NAME)
-            .build();
-        final LzyServerGrpc.LzyServerBlockingStub lzyServerClient = LzyServerGrpc.newBlockingStub(lzyServerChannel);
 
-        final String bucket = lzyServerClient
-            .getBucket(Lzy.GetBucketRequest.newBuilder().setAuth(auth).build())
-            .getBucket();
-        final Lzy.GetS3CredentialsResponse credentials = lzyServerClient
-            .getS3Credentials(Lzy.GetS3CredentialsRequest.newBuilder()
-                .setAuth(auth)
-                .setBucket(bucket)
-                .build());
+        if (lzyServerUri != null) {
+            final var lzyServerChannel = ChannelBuilder
+                .forAddress(lzyServerUri.getHost(), lzyServerUri.getPort())
+                .usePlaintext()
+                .enableRetry(LzyKharonGrpc.SERVICE_NAME)
+                .build();
+            final LzyServerGrpc.LzyServerBlockingStub lzyServerClient = LzyServerGrpc.newBlockingStub(lzyServerChannel);
 
-        slotConnectionManager = new SlotConnectionManager(credentials, auth, lzyWhiteboardUri, bucket);
+            final String bucket = lzyServerClient
+                .getBucket(Lzy.GetBucketRequest.newBuilder().setAuth(auth).build())
+                .getBucket();
+            final Lzy.GetS3CredentialsResponse credentials = lzyServerClient
+                .getS3Credentials(Lzy.GetS3CredentialsRequest.newBuilder()
+                    .setAuth(auth)
+                    .setBucket(bucket)
+                    .build());
+
+            lzyServerChannel.shutdown();
+
+            slotConnectionManager = new SlotConnectionManager(credentials, auth, lzyWhiteboardUri, bucket);
+        } else {
+            slotConnectionManager = new SlotConnectionManager();
+        }
         // >>>
 
         LOG.info("Registering lzy commands...");
@@ -128,6 +135,15 @@ public final class LzyFsServer {
         }
 
         LOG.info("LzyFs started on {}.", selfUri);
+    }
+
+    public LzyFsServer(String agentId, String mountPoint, URI selfUri,
+                       URI channelManagerUri, String iamToken) throws IOException {
+        this(agentId, mountPoint, selfUri, null, null, channelManagerUri, IAM.Auth.newBuilder()
+            .setUser(IAM.UserCredentials.newBuilder()
+                .setToken(iamToken)
+                .build())
+            .build());
     }
 
     private String generateJwtServantToken(String servantId) {
@@ -160,7 +176,6 @@ public final class LzyFsServer {
         LOG.info("LzyFs shutdown request at {}, path {}", selfUri, mountPoint);
         if (stopped.compareAndSet(false, true)) {
             try {
-                lzyServerChannel.shutdown();
                 channelManagerChannel.shutdown();
                 localServer.shutdown();
             } finally {
@@ -394,7 +409,9 @@ public final class LzyFsServer {
         commandParts.add("-classpath");
         commandParts.add('"' + System.getProperty("java.class.path") + '"');
         commandParts.add(BashApi.class.getCanonicalName());
-        commandParts.addAll(List.of("--lzy-address", lzyServerUri.getHost() + ":" + lzyServerUri.getPort()));
+        if (lzyServerUri != null) {
+            commandParts.addAll(List.of("--lzy-address", lzyServerUri.toString()));
+        }
         commandParts.addAll(List.of("--channel-manager",
             channelManagerUri.getHost() + ":" + channelManagerUri.getPort()));
         //commandParts.addAll(List.of("--lzy-whiteboard", whiteboardAddress.toString()));

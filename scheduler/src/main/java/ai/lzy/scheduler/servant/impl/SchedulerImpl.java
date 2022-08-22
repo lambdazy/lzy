@@ -104,6 +104,15 @@ public class SchedulerImpl extends Thread implements Scheduler {
         try {
             List<Servant> servants = dao.get(workflowName);
             servants.forEach(s -> s.stop(issue));
+            if (config.test()) {  // For tests await servant destroying
+                while (dao.get(workflowName).size() > 0) {
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
         } catch (DaoException e) {
             LOG.error("Error while getting servant from db", e);
             throw Status.INTERNAL.asException();

@@ -1,8 +1,23 @@
 package ai.lzy.scheduler.allocator;
 
+import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
+import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
+import ai.lzy.iam.resources.AccessBinding;
+import ai.lzy.iam.resources.AuthResource;
+import ai.lzy.iam.resources.impl.Workflow;
+import ai.lzy.iam.resources.subjects.Servant;
 import ai.lzy.model.Operation;
 import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.model.utils.FreePortFinder;
+import ai.lzy.scheduler.configs.AuthConfig;
+import ai.lzy.scheduler.configs.ServantEventProcessorConfig;
 import ai.lzy.scheduler.configs.ServiceConfig;
+import ai.lzy.util.auth.credentials.Credentials;
+import ai.lzy.util.auth.credentials.JwtCredentials;
+import ai.lzy.util.auth.credentials.JwtUtils;
+import ai.lzy.util.auth.credentials.RsaUtils;
+import ai.lzy.util.grpc.ClientHeaderInterceptor;
+import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.OperationService;
 import ai.lzy.v1.OperationServiceApiGrpc;
@@ -10,48 +25,102 @@ import ai.lzy.v1.OperationServiceApiGrpc.OperationServiceApiBlockingStub;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmAllocatorApi.AllocateRequest.Workload;
 import ai.lzy.v1.VmAllocatorApi.CreateSessionRequest;
+import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import com.google.common.net.HostAndPort;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.protobuf.Duration;
+import io.grpc.ManagedChannel;
 import io.gsonfire.builders.JsonObjectBuilder;
 import jakarta.inject.Singleton;
+import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nullable;
+import javax.inject.Named;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.Reader;
+import java.io.StringReader;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static ai.lzy.util.auth.credentials.JwtUtils.buildJWT;
 
 @Singleton
 public class AllocatorImpl implements ServantsAllocator {
     private static final Logger LOG = LogManager.getLogger(AllocatorImpl.class);
 
     private final ServiceConfig config;
+    private final ServantEventProcessorConfig processorConfig;
     private final ServantMetaStorage metaStorage;
     private final AllocatorGrpc.AllocatorBlockingStub allocator;
     private final OperationServiceApiBlockingStub operations;
+    private final AtomicInteger testServantCounter = new AtomicInteger(0);
+    private final AuthConfig authConfig;
+    private final ManagedChannel iamChan;
+    private final SubjectServiceGrpcClient subjectClient;
+    private final AccessBindingServiceGrpcClient abClient;
 
-    public AllocatorImpl(ServiceConfig config, ServantMetaStorage metaStorage) {
+    public AllocatorImpl(ServiceConfig config, ServantEventProcessorConfig processorConfig,
+                         ServantMetaStorage metaStorage, AuthConfig authConfig) {
         this.config = config;
+        this.processorConfig = processorConfig;
         this.metaStorage = metaStorage;
+        this.authConfig = authConfig;
+        this.iamChan = ChannelBuilder
+            .forAddress(authConfig.iamAddress())
+            .usePlaintext()
+            .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
+            .build();
+
         final var address = HostAndPort.fromString(config.allocatorAddress());
         final var channel = new ChannelBuilder(address.getHost(), address.getPort())
             .enableRetry(AllocatorGrpc.SERVICE_NAME)
             .usePlaintext()
             .build();
-        allocator = AllocatorGrpc.newBlockingStub(channel);
+        final var credentials = JwtUtils.credentials(authConfig.serviceUid(),
+            authConfig.privateKey());
+        allocator = AllocatorGrpc.newBlockingStub(channel).withInterceptors(
+            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
 
         final var opChannel = new ChannelBuilder(address.getHost(), address.getPort())
             .enableRetry(OperationServiceApiGrpc.SERVICE_NAME)
             .usePlaintext()
             .build();
-        operations = OperationServiceApiGrpc.newBlockingStub(opChannel);
+        operations = OperationServiceApiGrpc.newBlockingStub(opChannel).withInterceptors(
+            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
+        subjectClient = new SubjectServiceGrpcClient(iamChan, this::credentialsSupplier);
+        abClient = new AccessBindingServiceGrpcClient(iamChan, this::credentialsSupplier);
     }
 
 
     @Override
     public void allocate(String workflowName, String servantId, Operation.Requirements requirements) {
+
+        final Credentials credentials;
+        try {
+            final var subj = subjectClient.createSubject(new Servant(servantId),
+                    authConfig.serviceUid(), servantId);
+            final var keys = RsaUtils.generateRsaKeys();
+            try (final var reader = new FileReader(keys.privateKeyPath().toFile())) {
+                credentials = new JwtCredentials(buildJWT(subj.id(), reader));
+            }
+
+            final var publicKey = FileUtils.readFileToString(keys.publicKeyPath().toFile());
+
+            subjectClient.addCredentials(subj, "main", publicKey, credentials.type());
+            abClient.setAccessBindings(new Workflow(workflowName),
+                List.of(new AccessBinding("lzy.workflow.owner", subj)));
+        } catch (Exception e) {
+            LOG.error("Cannot build credentials for servant", e);
+            throw new RuntimeException(e);
+        }
         // TODO(artolord) add session caching
         final var session = allocator.createSession(CreateSessionRequest.newBuilder()
             .setOwner("lzy-scheduler")
@@ -63,18 +132,42 @@ public class AllocatorImpl implements ServantsAllocator {
                 .build())
             .build());
 
+        final int port;
+        final int fsPort;
+        final String mountPoint;
+
+        if (config.test()) {
+            port = FreePortFinder.find(10000, 11000);
+            fsPort = FreePortFinder.find(11000, 12000);
+            mountPoint = "/tmp/lzy" + testServantCounter.incrementAndGet();
+        } else {
+            port = 9999;
+            fsPort = 9988;
+            mountPoint = "/tmp/lzy";
+        }
+
+        final var ports = Map.of(
+            port, port,
+            fsPort, fsPort
+        );
+
         final var args = List.of(
+            "--workflow-name", workflowName,
+            "--port", String.valueOf(port),
+            "--fs-port", String.valueOf(fsPort),
             "--scheduler-address", config.schedulerAddress(),
-            "--channel-manager-address", config.channelManagerAddress(),
-            "--lzy-mount", "/tmp/lzy",
-            "--port", "9999",
+            "--channel-manager", config.channelManagerAddress(),
+            "--lzy-mount", mountPoint,
+            "--host", "localhost",
+            "--token", '"' + credentials.token() + '"',
             "--servant-id", servantId,
-            "--workflow-name", workflowName
+            "--scheduler-heartbeat-period", processorConfig.executingHeartbeatPeriod().toString()
         );
         final var workload = Workload.newBuilder()
             .setName(servantId)
             .setImage(config.servantImage())
             .addAllArgs(args)
+            .putAllPortBindings(ports)
             .build();
 
         final var request = VmAllocatorApi.AllocateRequest.newBuilder()
@@ -90,6 +183,8 @@ public class AllocatorImpl implements ServantsAllocator {
 
     @Override
     public void free(String workflowName, String servantId) throws Exception {
+
+        subjectClient.removeSubject(new Servant(servantId));
         final var s = metaStorage.getMeta(workflowName, servantId);
         if (s == null) {
             LOG.error("Cannot get meta. WfName: {}, servantId: {}", workflowName, servantId);
@@ -103,7 +198,7 @@ public class AllocatorImpl implements ServantsAllocator {
         }
 
         final var op = operations.get(OperationService.GetOperationRequest.newBuilder()
-            .setOperationId(meta.sessionId)
+            .setOperationId(meta.opId)
             .build()
         );
 
@@ -141,6 +236,14 @@ public class AllocatorImpl implements ServantsAllocator {
                 return null;
             }
             return new KuberMeta(namespace.getAsString(), podName.getAsString());
+        }
+    }
+
+    private Credentials credentialsSupplier() {
+        try (final Reader reader = new StringReader(authConfig.privateKey())) {
+            return new JwtCredentials(buildJWT(authConfig.serviceUid(), reader));
+        } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
+            throw new RuntimeException("Cannot build credentials");
         }
     }
 }

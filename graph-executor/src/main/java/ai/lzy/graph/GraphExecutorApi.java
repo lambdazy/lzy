@@ -3,6 +3,7 @@ package ai.lzy.graph;
 import static ai.lzy.util.auth.credentials.JwtUtils.buildJWT;
 
 import ai.lzy.graph.algo.GraphBuilder;
+import ai.lzy.graph.api.SchedulerApi;
 import ai.lzy.graph.config.AuthConfig;
 import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.model.db.DaoException;
@@ -64,12 +65,13 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
     private final AuthConfig authConfig;
     private final QueueManager queueManager;
     private final AccessClient accessClient;
+    private final SchedulerApi schedulerApi;
 
     private Server server;
 
     @Inject
     public GraphExecutorApi(GraphExecutionDao dao, ServiceConfig config, GraphBuilder graphBuilder,
-                            QueueManager queueManager, AuthConfig authConfig) {
+                            QueueManager queueManager, AuthConfig authConfig, SchedulerApi schedulerApi) {
         this.dao = dao;
         this.config = config;
         this.graphBuilder = graphBuilder;
@@ -78,6 +80,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
         accessClient = new AccessServiceGrpcClient(
             new GrpcConfig(authConfig.iamHost(), authConfig.iamPort()),
             this::credentialsSupplier);
+        this.schedulerApi = schedulerApi;
     }
 
     @Override
@@ -99,7 +102,9 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
             responseObserver.onError(e);
             return;
         }
-        responseObserver.onNext(GraphExecuteResponse.newBuilder().setStatus(graphExecution.toGrpc()).build());
+        responseObserver.onNext(GraphExecuteResponse.newBuilder()
+            .setStatus(graphExecution.toGrpc(schedulerApi))
+            .build());
         responseObserver.onCompleted();
     }
 
@@ -126,7 +131,9 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
             return;
         }
 
-        responseObserver.onNext(GraphStatusResponse.newBuilder().setStatus(state.toGrpc()).build());
+        responseObserver.onNext(GraphStatusResponse.newBuilder()
+            .setStatus(state.toGrpc(schedulerApi))
+            .build());
         responseObserver.onCompleted();
     }
 
@@ -139,7 +146,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
         try {
             graphs = dao.list(request.getWorkflowId())
                 .stream()
-                .map(GraphExecutionState::toGrpc)
+                .map(t -> t.toGrpc(schedulerApi))
                 .collect(Collectors.toList());
         } catch (DaoException e) {
 
@@ -170,7 +177,9 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
                 .withDescription("DirectedGraph <" + request.getGraphId() + "> not found").asException());
             return;
         }
-        responseObserver.onNext(GraphStopResponse.newBuilder().setStatus(state.toGrpc()).build());
+        responseObserver.onNext(GraphStopResponse.newBuilder()
+            .setStatus(state.toGrpc(schedulerApi))
+            .build());
         responseObserver.onCompleted();
     }
 

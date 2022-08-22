@@ -32,6 +32,10 @@ public class DirectedGraph<T extends Vertex, E extends Edge<T>> {
             .add(edge);
     }
 
+    public void addVertex(T vertex) {
+        vertexes.add(vertex);
+    }
+
     public Set<T> vertexes() {
         return vertexes;
     }

@@ -69,7 +69,7 @@ public class SchedulerTest {
     @Test
     public void testSimple() throws Exception {
         ServiceConfig config = new ServiceConfig(1234, 1, Map.of(), 1, "localhost:1000", "localhost:1000",
-            "", null, null);
+            "", null, null, true);
         var processorConfig = new ProcessorConfigBuilder()
             .setIdleTimeout(100)
             .build();
@@ -132,7 +132,7 @@ public class SchedulerTest {
     @Test
     public void testParallel() throws Exception {
         ServiceConfig config = new ServiceConfig(1234, /*maxServantsPerWorkflow*/2, Map.of(),
-                /*maxDefaultServant*/ 2, "localhost:1000", "localhost:1000", "", null, null);
+                /*maxDefaultServant*/ 2, "localhost:1000", "localhost:1000", "", null, null, true);
         var processorConfig = new ProcessorConfigBuilder()
             .setIdleTimeout(100)
             .build();
@@ -205,7 +205,7 @@ public class SchedulerTest {
     @Test
     public void testRestart() throws Exception {
         ServiceConfig config = new ServiceConfig(1234, 1, Map.of(), 1, "localhost:1000", "localhost:1000",
-            "", null, null);
+            "", null, null, true);
         var processorConfig = new ProcessorConfigBuilder()
             .setIdleTimeout(100)
             .build();

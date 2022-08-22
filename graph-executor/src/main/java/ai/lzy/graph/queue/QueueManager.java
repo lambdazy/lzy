@@ -156,8 +156,14 @@ public class QueueManager extends Thread {
     }
 
     private void process(@NotNull GraphExecutionKey stateKey) {
+        final GraphExecutionState state;
         try {
-            final GraphExecutionState state = dao.acquire(stateKey.workflowId(), stateKey.graphId());
+            state = dao.acquire(stateKey.workflowId(), stateKey.graphId());
+        } catch (DaoException e) {
+            LOG.error("Cannot acquire state", e);
+            return;
+        }
+        try {
             if (state == null) {
                 return;
             }
@@ -170,13 +176,17 @@ public class QueueManager extends Thread {
             dao.free(newState);
             if (!Set.of(Status.FAILED, Status.COMPLETED).contains(newState.status())) {
                 putIntoQueue(stateKey);
+            } else {
+                LOG.info("Processing of graph {} stopped", state.id());
             }
         } catch (Exception e) {
+            LOG.error("Error while executing graph", e);
             try {
-                putIntoQueue(stateKey);
+                dao.free(state);  // Free state if it is acquired
                 stopGraph(stateKey.workflowId(), stateKey.graphId(),
                     "Stopped because of exception in executor");
-            } catch (StatusException ex) {
+                putIntoQueue(stateKey);
+            } catch (StatusException | DaoException ex) {
                 LOG.error("Cannot stop graph <{}> from workflow <{}>",
                     stateKey.workflowId(), stateKey.graphId(), ex);
             }

@@ -6,6 +6,7 @@ public class DatabaseConfiguration {
     private String password;
     private int minPoolSize;
     private int maxPoolSize;
+    private boolean enabled;
 
     public String getUrl() {
         return url;
@@ -45,5 +46,14 @@ public class DatabaseConfiguration {
 
     public void setMaxPoolSize(int maxPoolSize) {
         this.maxPoolSize = maxPoolSize;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public DatabaseConfiguration setEnabled(boolean enabled) {
+        this.enabled = enabled;
+        return this;
     }
 }

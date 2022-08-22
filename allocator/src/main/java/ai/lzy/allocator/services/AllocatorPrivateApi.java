@@ -5,6 +5,7 @@ import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.VmDao;
+import ai.lzy.allocator.dao.impl.AllocatorDataSource;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
@@ -35,7 +36,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
     private final Storage storage;
     private final ServiceConfig config;
 
-    public AllocatorPrivateApi(VmDao dao, OperationDao operations, VmAllocator allocator, Storage storage,
+    public AllocatorPrivateApi(VmDao dao, OperationDao operations, VmAllocator allocator, AllocatorDataSource storage,
                                ServiceConfig config) {
         this.dao = dao;
         this.operations = operations;

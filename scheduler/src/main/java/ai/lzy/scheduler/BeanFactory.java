@@ -1,7 +1,12 @@
-package ai.lzy.scheduler.db;
+package ai.lzy.scheduler;
 
+import ai.lzy.scheduler.configs.AuthConfig;
 import ai.lzy.scheduler.configs.DbConfig;
+import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
+import io.grpc.ManagedChannel;
+import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
@@ -10,11 +15,12 @@ import javax.inject.Named;
 import javax.sql.DataSource;
 
 @Factory
-public class DataSourceFactory {
+public class BeanFactory {
     private static final String VALIDATION_QUERY_SQL = "select 1";
 
     @Singleton
     @Requires(property = "scheduler.database.enabled", value = "true")
+    @Named("SchedulerDataSource")
     DataSource dataSource(DbConfig dbConfig) {
         final ComboPooledDataSource dataSource = new ComboPooledDataSource();
         dataSource.setJdbcUrl(dbConfig.getUrl());
@@ -27,5 +33,15 @@ public class DataSourceFactory {
         dataSource.setTestConnectionOnCheckout(true);
         dataSource.setPreferredTestQuery(VALIDATION_QUERY_SQL);
         return dataSource;
+    }
+
+    @Bean(preDestroy = "shutdown")
+    @Named("IamGrpcChannel")
+    public ManagedChannel iamChannel(AuthConfig config) {
+        return ChannelBuilder
+            .forAddress(config.iamAddress())
+            .usePlaintext()
+            .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
+            .build();
     }
 }

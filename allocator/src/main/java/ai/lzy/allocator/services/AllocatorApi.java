@@ -6,6 +6,7 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.SessionDao;
 import ai.lzy.allocator.dao.VmDao;
+import ai.lzy.allocator.dao.impl.AllocatorDataSource;
 import ai.lzy.allocator.model.CachePolicy;
 import ai.lzy.allocator.model.Session;
 import ai.lzy.allocator.model.Vm;
@@ -44,7 +45,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
     @Inject
     public AllocatorApi(VmDao dao, OperationDao operations, SessionDao sessions,
-                        VmAllocator allocator, ServiceConfig config, Storage storage) {
+                        VmAllocator allocator, ServiceConfig config, AllocatorDataSource storage) {
         this.dao = dao;
         this.operations = operations;
         this.sessions = sessions;

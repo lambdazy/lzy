@@ -16,6 +16,7 @@ import ru.yandex.qe.s3.transfer.Transmitter;
 import ru.yandex.qe.s3.transfer.download.DownloadRequestBuilder;
 import ai.lzy.v1.*;
 
+import javax.annotation.Nullable;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.*;
@@ -31,7 +32,9 @@ public class SlotConnectionManager {
     private final Map<String, Transmitter> transmitters = new HashMap<>();
     private final Snapshooter snapshooter;
 
-    public SlotConnectionManager(Lzy.GetS3CredentialsResponse credentials, IAM.Auth auth, URI wb, String bucket) {
+    @Deprecated
+    public SlotConnectionManager(@Nullable Lzy.GetS3CredentialsResponse credentials, IAM.Auth auth, @Nullable URI wb,
+                                 String bucket) {
         final StorageClient client = StorageClient.create(credentials);
         final String endpoint;
         if (credentials.hasAmazon()) {
@@ -58,6 +61,10 @@ public class SlotConnectionManager {
         } else {
             this.snapshooter = null;
         }
+    }
+
+    public SlotConnectionManager() {
+        snapshooter = null;
     }
 
     public static Stream<ByteString> connectToSlot(SlotInstance slotInstance, long offset) {

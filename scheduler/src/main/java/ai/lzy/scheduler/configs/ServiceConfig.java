@@ -15,6 +15,7 @@ public record ServiceConfig(
         String baseEnvDefaultImage,
 
         String allocatorAddress,
-        String servantImage
+        String servantImage,
+        boolean test
 ) {
 }

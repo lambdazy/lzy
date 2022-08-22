@@ -10,7 +10,6 @@ import lombok.Setter;
 import java.time.Duration;
 import java.util.List;
 
-// TODO(artolord) Optional fields are always empty
 @Getter
 @Setter
 @ConfigurationProperties("allocator")

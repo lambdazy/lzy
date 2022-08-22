@@ -1,11 +1,10 @@
-package ai.lzy.graph.config;
+package ai.lzy.scheduler.configs;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
 
-@ConfigurationProperties("graph-executor.auth")
+@ConfigurationProperties("scheduler.auth")
 public record AuthConfig(
     String serviceUid,
     String privateKey,
-    String iamHost,
-    int iamPort
+    String iamAddress
 ) {}

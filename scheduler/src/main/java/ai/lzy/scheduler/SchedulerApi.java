@@ -1,7 +1,13 @@
 package ai.lzy.scheduler;
 
+import ai.lzy.iam.clients.AuthenticateService;
+import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
+import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
+import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
+import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
+import ai.lzy.scheduler.configs.AuthConfig;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.scheduler.grpc.RemoteAddressInterceptor;
 import io.grpc.*;
@@ -11,6 +17,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.inject.Singleton;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -22,7 +29,8 @@ public class SchedulerApi {
     private final SchedulerApiImpl impl;
 
     @Inject
-    public SchedulerApi(SchedulerApiImpl impl, PrivateSchedulerApiImpl privateApi, ServiceConfig config) {
+    public SchedulerApi(SchedulerApiImpl impl, PrivateSchedulerApiImpl privateApi, ServiceConfig config,
+                        @Named("IamGrpcChannel") ManagedChannel iamChannel) {
         this.impl = impl;
 
         ServerBuilder<?> builder = NettyServerBuilder.forPort(config.port())
@@ -30,7 +38,10 @@ public class SchedulerApi {
                 .permitKeepAliveWithoutCalls(true)
                 .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES);
 
-        builder.addService(ServerInterceptors.intercept(impl, new GrpcLogsInterceptor()));
+        builder.intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(iamChannel)));
+        var internalOnly = new AllowInternalUserOnlyInterceptor(iamChannel);
+
+        builder.addService(ServerInterceptors.intercept(impl, new GrpcLogsInterceptor(), internalOnly));
         builder.addService(ServerInterceptors.intercept(privateApi, new GrpcLogsInterceptor()));
         server = builder.build();
 

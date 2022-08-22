@@ -1,7 +1,9 @@
 package ai.lzy.allocator.alloc.impl.kuber;
 
+import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
+import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
@@ -51,12 +53,14 @@ public class KuberVmAllocator implements VmAllocator {
     private final VmDao dao;
     private final ClusterRegistry poolRegistry;
     private final KuberClientFactory factory;
+    private final ServiceConfig config;
 
     @Inject
-    public KuberVmAllocator(VmDao dao, ClusterRegistry poolRegistry, KuberClientFactory factory) {
+    public KuberVmAllocator(VmDao dao, ClusterRegistry poolRegistry, KuberClientFactory factory, ServiceConfig config) {
         this.dao = dao;
         this.poolRegistry = poolRegistry;
         this.factory = factory;
+        this.config = config;
     }
 
     @Override
@@ -193,6 +197,22 @@ public class KuberVmAllocator implements VmAllocator {
                     .build()
                 )
                 .toList();
+
+            envList.addAll(List.of(
+                new EnvVarBuilder()
+                    .withName(AllocatorAgent.VM_ALLOCATOR_ADDRESS)
+                    .withValue(config.getAddress())
+                    .build(),
+                new EnvVarBuilder()
+                    .withName(AllocatorAgent.VM_ID_KEY)
+                    .withValue(vm.vmId())
+                    .build(),
+                new EnvVarBuilder()
+                    .withName(AllocatorAgent.VM_HEARTBEAT_PERIOD)
+                    .withValue(config.getHeartbeatTimeout().dividedBy(2).toString())
+                    .build()
+            ));
+
             container.setEnv(envList);
 
             container.setArgs(workload.args());

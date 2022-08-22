@@ -15,6 +15,7 @@ import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -25,9 +26,12 @@ public class ThreadVmAllocator implements VmAllocator {
 
     private final Method vmMain;
     private final ConcurrentHashMap<String, Thread> vmThreads = new ConcurrentHashMap<>();
+    private final ServiceConfig cfg;
 
     @Inject
-    public ThreadVmAllocator(ServiceConfig.ThreadAllocator allocatorConfig) {
+    public ThreadVmAllocator(ServiceConfig serviceConfig, ServiceConfig.ThreadAllocator allocatorConfig) {
+        cfg = serviceConfig;
+
         try {
             Class<?> vmClass;
 
@@ -48,13 +52,19 @@ public class ThreadVmAllocator implements VmAllocator {
 
     private void requestAllocation(String vmId, List<String> args) {
         LOG.info("Allocating vm {}", vmId);
+        final var newArgs = new ArrayList<>(args);
+        newArgs.addAll(List.of(
+            "--vm-id", vmId,
+            "--allocator-address", cfg.getAddress(),
+            "--allocator-heartbeat-period", cfg.getHeartbeatTimeout().dividedBy(2).toString()
+        ));
 
         @SuppressWarnings("CheckStyle")
         Thread task = new Thread("vm-" + vmId) {
             @Override
             public void run() {
                 try {
-                    vmMain.invoke(null, (Object) args.toArray(new String[0]));
+                    vmMain.invoke(null, (Object) newArgs.toArray(new String[0]));
                 } catch (IllegalAccessException | InvocationTargetException e) {
                     LOG.error(e);
                 }

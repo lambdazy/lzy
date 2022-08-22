@@ -26,6 +26,8 @@ message ConfigureResponse {}
 
 message ExecuteRequest {
   ai.lzy.v1.common.TaskDesc taskDesc = 1;
+  string taskId = 2;
+  string executionId = 3;
 }
 
 message ExecuteResponse {

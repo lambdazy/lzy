@@ -66,6 +66,11 @@ public class BfsGraphProcessor implements GraphProcessor {
                 if (completed == graph.description().tasks().size()) {
                     yield complete(graph);
                 }
+                if (graph.currentExecutionGroup().size() == 0) {
+                    LOG.error("Some error while processing graph {}: executionGroup size is 0, but graph not completed",
+                        graph.id());
+                    yield stop(graph, "Some internal error");
+                }
                 yield nextStep(graph);
             }
         };
@@ -86,11 +91,18 @@ public class BfsGraphProcessor implements GraphProcessor {
                 .withStatus(Status.FAILED)
                 .build();
             case EXECUTING -> {
-                graph.executions().forEach(t -> api.kill(graph.workflowId(), t.id()));
-                yield graph.copyFromThis()
+                final var state = graph.copyFromThis()
                     .withErrorDescription(errorDescription)
                     .withStatus(Status.FAILED)
                     .build();
+                graph.executions().forEach(t -> {
+                    try {
+                        api.kill(graph.workflowId(), t.id());
+                    } catch (Exception e) {
+                        LOG.error("Cannot stop graph task {} in scheduler", t.id(), e);
+                    }
+                });
+                yield state;
             }
         };
     }
@@ -105,10 +117,12 @@ public class BfsGraphProcessor implements GraphProcessor {
 
             final Set<TaskDescription> diff = new HashSet<>(newExecutionGroup);
             diff.removeAll(oldExecutionGroup);
+
             final List<TaskExecution> newExecutions = diff
                 .stream()
                 .map(t -> {
-                    final TaskStatus progress = api.execute(graph.workflowId(), t);
+                    LOG.info("Sending task {} from graph {} to scheduler", t.id(), graph.id());
+                    final TaskStatus progress = api.execute(graph.workflowName(), graph.workflowId(), t);
                     return new TaskExecution(progress.getTaskId(), t);
                 })
                 .collect(Collectors.toList());
@@ -132,6 +146,7 @@ public class BfsGraphProcessor implements GraphProcessor {
     }
 
     private GraphExecutionState complete(GraphExecutionState graph) {
+        LOG.info("Graph {} is completed", graph.id());
         return graph.copyFromThis()
             .withStatus(Status.COMPLETED)
             .build();
@@ -158,7 +173,14 @@ public class BfsGraphProcessor implements GraphProcessor {
                 );
             }
         } else if (graphExecution.status() == Status.WAITING) {
-            currentExecutionComponents = Algorithms.findRoots(condensedGraph);
+            currentExecutionComponents = Algorithms.findRoots(condensedGraph);  // Graph is starting, return roots
+            LOG.info("Starting execution of graph {} from workflow {}", graphExecution.id(),
+                graphExecution.workflowId());
+            return currentExecutionComponents.stream()
+                .map(CondensedComponent::vertices)
+                .flatMap(Collection::stream)
+                .map(TaskVertex::description)
+                .collect(Collectors.toSet());
         } else {
             throw new GraphBuilder.GraphValidationException(
                 String.format("Invalid status of graph <%s>: %s", graphExecution.id(), graphExecution.status())
@@ -171,21 +193,41 @@ public class BfsGraphProcessor implements GraphProcessor {
             .executions()
             .forEach(t -> alreadyProcessed.add(condensedGraph.vertexNameToComponentMap().get(t.description().id())));
 
-        final var nextBfsGroup = Algorithms
-            .getNextBfsGroup(
-                condensedGraph,
-                currentExecutionComponents.stream().toList(),
-                alreadyProcessed,
-                t -> t.condensedEdges()
-                        .stream()
-                        .allMatch(edge -> {
-                            ChannelChecker checker = checkerFactory.checker(taskDescIdToTaskExec,
-                                graphExecution.workflowId(), edge.channelDesc());
-                            return checker.ready(edge);
-                        })
-            );
+        final Set<CondensedComponent<TaskVertex>> nextGroup = new HashSet<>();
 
-        return nextBfsGroup.stream()
+        for (var comp: currentExecutionComponents) {  // Getting statuses of current group before next edges
+            if (!comp.vertices().stream()
+                .allMatch(
+                    v -> {
+                        final var exec = taskDescIdToTaskExec.get(v.description().id());
+                        if (exec == null) {
+                            return false;
+                        }
+                        final var status = api.status(graphExecution.workflowId(), exec.id());
+                        return status != null && status.hasSuccess();
+                    })) {
+                nextGroup.add(comp);
+            }
+        }
+
+        final var nextBfsGroup = Algorithms
+            .getNextBfsGroup(condensedGraph, currentExecutionComponents.stream().toList())
+            .stream()
+            .filter(comp -> condensedGraph.parents(comp.name())
+                .stream()
+                .allMatch(
+                    e -> e.condensedEdges()
+                        .stream()
+                        .allMatch(edge -> checkerFactory.checker(taskDescIdToTaskExec,
+                            graphExecution.workflowId(), edge.channelDesc()).ready(edge))
+                )
+            )
+            .filter(comp -> !alreadyProcessed.contains(comp))
+            .collect(Collectors.toSet());
+
+        nextGroup.addAll(nextBfsGroup);
+
+        return nextGroup.stream()
             .map(CondensedComponent::vertices)
             .flatMap(Collection::stream)
             .map(TaskVertex::description)
