@@ -12,6 +12,8 @@ import org.apache.logging.log4j.Logger;
 import org.junit.After;
 import org.junit.Before;
 
+import java.util.NoSuchElementException;
+
 public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
     public static final Logger LOG = LogManager.getLogger(DbSubjectServiceTest.class);
 
@@ -48,7 +50,7 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
     }
 
     @Override
-    protected SubjectCredentials credentials(Subject subject, String name) {
+    protected SubjectCredentials credentials(Subject subject, String name) throws NoSuchElementException {
         return subjectService.credentials(subject, name);
     }
 

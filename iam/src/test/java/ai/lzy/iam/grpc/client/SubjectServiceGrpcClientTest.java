@@ -21,6 +21,7 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
+import java.util.NoSuchElementException;
 
 import static ai.lzy.iam.utils.CredentialsHelper.buildJWT;
 
@@ -71,7 +72,7 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
     }
 
     @Override
-    protected SubjectCredentials credentials(Subject subject, String name) {
+    protected SubjectCredentials credentials(Subject subject, String name) throws NoSuchElementException {
         return subjectClient.listCredentials(subject)
                 .stream()
                 .filter(c -> name.equals(c.name()))

@@ -135,7 +135,7 @@ public abstract class BaseSubjectServiceApiTest {
 
     protected abstract void removeSubject(Subject subject);
 
-    protected abstract SubjectCredentials credentials(Subject subject, String name);
+    protected abstract SubjectCredentials credentials(Subject subject, String name) throws NoSuchElementException;
 
     protected abstract void addCredentials(Subject subject, String name);
 
