@@ -1,12 +1,13 @@
 package ru.yandex.cloud.ml.platform.model.util.latch;
 
-import java.time.Instant;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import javax.annotation.Nullable;
 import org.apache.curator.framework.CuratorFramework;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
+import java.time.Instant;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class DistributedLatchManager implements LatchManager {
 
@@ -41,12 +42,12 @@ public class DistributedLatchManager implements LatchManager {
 
     @Override
     public Latch create(String key, int count) {
-            {
-                final DistributedLatch latch = latches.get(this.prefix + "-" + key);
-                if (latch != null && latch.count() >= 0 && !isExpired(key, latch)) {
-                    throw new RuntimeException("Cannot create latch for key " + key + ": latch already exists");
-                }
+        {
+            final DistributedLatch latch = latches.get(this.prefix + "-" + key);
+            if (latch != null && latch.count() >= 0 && !isExpired(key, latch)) {
+                throw new RuntimeException("Cannot create latch for key " + key + ": latch already exists");
             }
+        }
         final DistributedLatch latch = new DistributedLatch(zookeeperClient, count, this.prefix + "-" + key);
         latches.put(this.prefix + "-" + key, latch);
         return latch;

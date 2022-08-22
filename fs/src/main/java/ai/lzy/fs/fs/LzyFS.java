@@ -266,21 +266,21 @@ public class LzyFS extends FuseStubFS {
         } else if (slots.containsKey(path)) {
             final LzyFileSlot slot = slots.get(path);
             time = -1;
-                {
-                    final long mtime = slot.mtime();
-                    stat.st_mtim.tv_sec.set(TimeUnit.MILLISECONDS.toSeconds(mtime));
-                    stat.st_mtim.tv_nsec.set(TimeUnit.MILLISECONDS.toNanos(mtime));
-                }
-                {
-                    final long atime = slot.atime();
-                    stat.st_atim.tv_sec.set(TimeUnit.MILLISECONDS.toSeconds(atime));
-                    stat.st_atim.tv_nsec.set(TimeUnit.MILLISECONDS.toNanos(atime));
-                }
-                {
-                    final long ctime = slot.ctime();
-                    stat.st_ctim.tv_sec.set(TimeUnit.MILLISECONDS.toSeconds(ctime));
-                    stat.st_ctim.tv_nsec.set(TimeUnit.MILLISECONDS.toNanos(ctime));
-                }
+            {
+                final long mtime = slot.mtime();
+                stat.st_mtim.tv_sec.set(TimeUnit.MILLISECONDS.toSeconds(mtime));
+                stat.st_mtim.tv_nsec.set(TimeUnit.MILLISECONDS.toNanos(mtime));
+            }
+            {
+                final long atime = slot.atime();
+                stat.st_atim.tv_sec.set(TimeUnit.MILLISECONDS.toSeconds(atime));
+                stat.st_atim.tv_nsec.set(TimeUnit.MILLISECONDS.toNanos(atime));
+            }
+            {
+                final long ctime = slot.ctime();
+                stat.st_ctim.tv_sec.set(TimeUnit.MILLISECONDS.toSeconds(ctime));
+                stat.st_ctim.tv_nsec.set(TimeUnit.MILLISECONDS.toNanos(ctime));
+            }
             stat.st_mode.set(0640 | slot.mtype());
             stat.st_size.set(4096); //set page size & disable caches
         } else {
