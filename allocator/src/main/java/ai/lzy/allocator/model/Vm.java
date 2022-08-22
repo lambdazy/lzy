@@ -2,6 +2,7 @@ package ai.lzy.allocator.model;
 
 import javax.annotation.Nullable;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -17,7 +18,7 @@ public record Vm(
     @Nullable Instant lastActivityTime,
     @Nullable Instant deadline,
     @Nullable Instant allocationDeadline,
-    @Nullable Map<String, String> vmMeta
+    Map<String, String> vmMeta
 ) {
     @Override
     public String toString() {
@@ -49,8 +50,8 @@ public record Vm(
         private final String zone;
         private final String opId;
         private final List<Workload> workload;
+        private final Map<String, String> vmMeta;
         private State state;
-        private Map<String, String> vmMeta;
         private Instant lastActivityTime;
         private Instant deadline;
         private Instant allocationDeadline;
@@ -64,6 +65,7 @@ public record Vm(
             this.opId = opId;
             this.workload = workload;
             this.state = state;
+            this.vmMeta = new HashMap<>();
         }
 
         public VmBuilder(Vm vm) {
@@ -77,6 +79,7 @@ public record Vm(
             this.lastActivityTime = vm.lastActivityTime();
             this.deadline = vm.deadline();
             this.allocationDeadline = vm.allocationDeadline();
+            this.vmMeta = vm.vmMeta();
         }
 
         public VmBuilder setState(State state) {
@@ -100,7 +103,8 @@ public record Vm(
         }
 
         public VmBuilder setVmMeta(Map<String, String> vmMeta) {
-            this.vmMeta = vmMeta;
+            this.vmMeta.clear();
+            this.vmMeta.putAll(vmMeta);
             return this;
         }
 

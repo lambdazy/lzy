@@ -36,7 +36,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
     private final ServiceConfig config;
 
     public AllocatorPrivateApi(VmDao dao, OperationDao operations, VmAllocator allocator, Storage storage,
-           ServiceConfig config) {
+                               ServiceConfig config) {
         this.dao = dao;
         this.operations = operations;
         this.allocator = allocator;
@@ -52,14 +52,12 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
             return;
         }
 
-        if (vm.state() != Vm.State.CONNECTING) {
-            LOG.error("Wrong status of vm while register, expected CONNECTING: {}", vm);
-            responseObserver.onError(Status.FAILED_PRECONDITION.asException());
+        if (vm.state() == Vm.State.RUNNING) {
+            LOG.error("Vm {} has been already registered", vm);
+            responseObserver.onError(Status.ALREADY_EXISTS.asException());
             return;
-        }
-        final var desc = allocator.getVmDesc(vm);
-        if (desc == null || desc.status() != VmAllocator.VmStatus.RUNNING) {
-            LOG.error("Register while real pod is not running. vm: {}", vm);
+        } else if (vm.state() != Vm.State.CONNECTING) {
+            LOG.error("Wrong status of vm while register, expected CONNECTING: {}", vm);
             responseObserver.onError(Status.FAILED_PRECONDITION.asException());
             return;
         }

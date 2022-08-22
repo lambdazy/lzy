@@ -15,11 +15,11 @@ import com.github.dockerjava.core.DockerClientBuilder;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.commons.lang.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.util.Map;
 
 @Singleton
 @Requires(property = "allocator.docker-allocator.enabled", value = "true")
@@ -95,11 +95,5 @@ public class DockerVmAllocator implements VmAllocator {
         }
         DOCKER.killContainerCmd(containerId).exec();
         DOCKER.removeContainerCmd(containerId).exec();
-    }
-
-    @Nullable
-    @Override
-    public VmDesc getVmDesc(Vm vm) {
-        return new VmDesc(vm.sessionId(), vm.vmId(), VmStatus.RUNNING);
     }
 }

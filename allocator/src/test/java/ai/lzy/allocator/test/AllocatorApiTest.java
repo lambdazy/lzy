@@ -4,46 +4,42 @@ import ai.lzy.allocator.AllocatorMain;
 import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactory;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.iam.test.BaseTestWithIam;
+import ai.lzy.test.TimeUtils;
+import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.test.TimeUtils;
-import ai.lzy.util.auth.credentials.JwtUtils;
-import ai.lzy.v1.AllocatorGrpc;
+import ai.lzy.v1.*;
 import ai.lzy.v1.OperationService.GetOperationRequest;
 import ai.lzy.v1.OperationService.Operation;
-import ai.lzy.v1.OperationServiceApiGrpc;
-import ai.lzy.v1.VmAllocatorApi.AllocateRequest;
-import ai.lzy.v1.VmAllocatorApi.CachePolicy;
-import ai.lzy.v1.VmAllocatorApi.CreateSessionRequest;
-import ai.lzy.v1.VmAllocatorApi.CreateSessionResponse;
-import ai.lzy.v1.VmAllocatorApi.DeleteSessionRequest;
-import ai.lzy.v1.VmAllocatorApi.DeleteSessionResponse;
-import ai.lzy.v1.VmAllocatorApi.FreeRequest;
+import ai.lzy.v1.VmAllocatorApi.*;
 import com.google.common.net.HostAndPort;
 import com.google.protobuf.Duration;
+import com.google.protobuf.InvalidProtocolBufferException;
 import io.fabric8.kubernetes.api.model.PodListBuilder;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
-import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+
 public class AllocatorApiTest extends BaseTestWithIam {
 
-    private static final int OPERATION_TIMEOUT_SEC = 600;
+    private static final int TIMEOUT_SEC = 300;
 
     private ApplicationContext allocatorCtx;
     private AllocatorGrpc.AllocatorBlockingStub unauthorizedAllocatorBlockingStub;
     private AllocatorGrpc.AllocatorBlockingStub authorizedAllocatorBlockingStub;
+    private AllocatorPrivateGrpc.AllocatorPrivateBlockingStub privateAllocatorBlockingStub;
     private OperationServiceApiGrpc.OperationServiceApiBlockingStub operationServiceApiBlockingStub;
     private AllocatorMain allocatorApp;
     private KubernetesServer kubernetesServer;
@@ -74,6 +70,8 @@ public class AllocatorApiTest extends BaseTestWithIam {
             .build();
         var credentials = config.getIam().createCredentials();
         unauthorizedAllocatorBlockingStub = AllocatorGrpc.newBlockingStub(channel);
+        privateAllocatorBlockingStub = AllocatorPrivateGrpc.newBlockingStub(channel).withInterceptors(
+            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
         operationServiceApiBlockingStub = OperationServiceApiGrpc.newBlockingStub(channel).withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
         authorizedAllocatorBlockingStub = unauthorizedAllocatorBlockingStub.withInterceptors(
@@ -265,12 +263,166 @@ public class AllocatorApiTest extends BaseTestWithIam {
         Assert.assertEquals(Status.INVALID_ARGUMENT.getCode().value(), allocate.getError().getCode());
     }
 
+    @Test
+    public void allocateInvalidSessionTest() {
+        try {
+            waitOp(authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
+                .setSessionId(UUID.randomUUID().toString())
+                .setPoolLabel("S")
+                .build()));
+            Assert.fail();
+        } catch (StatusRuntimeException e) {
+            Assert.assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
+        }
+
+    }
+
+    @Test
+    public void allocateFreeSuccessTest() throws InvalidProtocolBufferException {
+        final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
+            CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
+                    CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(1000).build()).build())
+                .build());
+        final Operation allocationStarted = authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
+            .setSessionId(createSessionResponse.getSessionId())
+            .setPoolLabel("S")
+            .build());
+        final VmAllocatorApi.AllocateMetadata allocateMetadata =
+            allocationStarted.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
+        registerVm(allocateMetadata.getVmId());
+
+        final Operation allocate = waitOp(allocationStarted);
+        final VmAllocatorApi.AllocateResponse allocateResponse =
+            allocate.getResponse().unpack(VmAllocatorApi.AllocateResponse.class);
+        //noinspection ResultOfMethodCallIgnored
+        authorizedAllocatorBlockingStub.free(FreeRequest.newBuilder().setVmId(allocateMetadata.getVmId()).build());
+
+        Assert.assertTrue(allocate.getDone());
+        Assert.assertEquals(createSessionResponse.getSessionId(), allocateResponse.getSessionId());
+        Assert.assertEquals("S", allocateResponse.getPoolId());
+    }
+
+    @Test
+    public void freeNonexistentVmTest() {
+        try {
+            //noinspection ResultOfMethodCallIgnored
+            authorizedAllocatorBlockingStub.free(
+                FreeRequest.newBuilder().setVmId(UUID.randomUUID().toString()).build());
+            Assert.fail();
+        } catch (StatusRuntimeException e) {
+            Assert.assertEquals(e.getStatus().toString(), Status.NOT_FOUND.getCode(), e.getStatus().getCode());
+        }
+    }
+
+    @Test
+    public void repeatedFreeTest() throws InvalidProtocolBufferException {
+        final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
+            CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
+                    CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(1000).build()).build())
+                .build());
+        final Operation allocationStarted = authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
+            .setSessionId(createSessionResponse.getSessionId())
+            .setPoolLabel("S")
+            .build());
+        final VmAllocatorApi.AllocateMetadata allocateMetadata =
+            allocationStarted.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
+        registerVm(allocateMetadata.getVmId());
+        waitOp(allocationStarted);
+        //noinspection ResultOfMethodCallIgnored
+        authorizedAllocatorBlockingStub.free(FreeRequest.newBuilder().setVmId(allocateMetadata.getVmId()).build());
+
+        try {
+            //noinspection ResultOfMethodCallIgnored
+            authorizedAllocatorBlockingStub.free(FreeRequest.newBuilder().setVmId(allocateMetadata.getVmId()).build());
+            Assert.fail();
+        } catch (StatusRuntimeException e) {
+            Assert.assertEquals(e.getStatus().toString(), Status.FAILED_PRECONDITION.getCode(),
+                e.getStatus().getCode());
+        }
+    }
+
+
+    @Test
+    public void repeatedServantRegister() throws InvalidProtocolBufferException {
+        final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
+            CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
+                    CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(1000).build()).build())
+                .build());
+        final Operation allocate = authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
+            .setSessionId(createSessionResponse.getSessionId())
+            .setPoolLabel("S")
+            .build());
+        final VmAllocatorApi.AllocateMetadata allocateMetadata =
+            allocate.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
+        registerVm(allocateMetadata.getVmId());
+
+        try {
+            //noinspection ResultOfMethodCallIgnored
+            privateAllocatorBlockingStub.register(
+                VmAllocatorPrivateApi.RegisterRequest.newBuilder().setVmId(allocateMetadata.getVmId()).build());
+            Assert.fail();
+        } catch (StatusRuntimeException e) {
+            Assert.assertEquals(e.getStatus().toString(), Status.ALREADY_EXISTS.getCode(),
+                e.getStatus().getCode());
+        }
+    }
+
+    @Test
+    public void allocateFromCacheTest() throws InvalidProtocolBufferException {
+        final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
+            CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
+                    CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(1000).build()).build())
+                .build());
+
+        final Operation operationFirst = authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
+            .setSessionId(createSessionResponse.getSessionId())
+            .setPoolLabel("S")
+            .build());
+        final VmAllocatorApi.AllocateMetadata allocateMetadataFirst =
+            operationFirst.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
+        registerVm(allocateMetadataFirst.getVmId());
+        waitOp(operationFirst);
+
+        //noinspection ResultOfMethodCallIgnored
+        authorizedAllocatorBlockingStub.free(FreeRequest.newBuilder().setVmId(allocateMetadataFirst.getVmId()).build());
+
+        final Operation operationSecond = authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
+            .setSessionId(createSessionResponse.getSessionId())
+            .setPoolLabel("S")
+            .build());
+        final VmAllocatorApi.AllocateMetadata allocateMetadataSecond =
+            operationSecond.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
+        waitOp(operationSecond);
+
+        //noinspection ResultOfMethodCallIgnored
+        authorizedAllocatorBlockingStub.free(
+            FreeRequest.newBuilder().setVmId(allocateMetadataSecond.getVmId()).build());
+
+        Assert.assertEquals(allocateMetadataFirst.getVmId(), allocateMetadataSecond.getVmId());
+    }
+
+    private void registerVm(String vmId) {
+        TimeUtils.waitFlagUp(() -> {
+            try {
+                //noinspection ResultOfMethodCallIgnored
+                privateAllocatorBlockingStub.register(
+                    VmAllocatorPrivateApi.RegisterRequest.newBuilder().setVmId(vmId).build());
+                return true;
+            } catch (StatusRuntimeException e) {
+                if (e.getStatus().getCode() == Status.Code.FAILED_PRECONDITION) {
+                    return false;
+                }
+                throw new RuntimeException(e);
+            }
+        }, TIMEOUT_SEC, TimeUnit.SECONDS);
+    }
+
     private Operation waitOp(Operation operation) {
         TimeUtils.waitFlagUp(() -> {
             final Operation op = operationServiceApiBlockingStub.get(
                 GetOperationRequest.newBuilder().setOperationId(operation.getId()).build());
             return op.getDone();
-        }, OPERATION_TIMEOUT_SEC, TimeUnit.SECONDS);
+        }, TIMEOUT_SEC, TimeUnit.SECONDS);
         return operationServiceApiBlockingStub.get(
             GetOperationRequest.newBuilder().setOperationId(operation.getId()).build());
     }
