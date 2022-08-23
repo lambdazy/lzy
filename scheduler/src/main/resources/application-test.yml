@@ -1,6 +1,5 @@
 scheduler:
   port: 2392
-  test: true
 
   base-env-default-image: ""
   max-servants-per-workflow: 1

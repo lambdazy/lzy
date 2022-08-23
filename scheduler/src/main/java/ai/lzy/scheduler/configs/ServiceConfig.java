@@ -22,8 +22,6 @@ public class ServiceConfig {
     private String allocatorAddress;
     private String servantImage;
 
-    private boolean test = false;
-
     @ConfigurationBuilder("auth")
     private IamClientConfiguration auth = new IamClientConfiguration();
 }

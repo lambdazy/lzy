@@ -52,7 +52,6 @@ allocator:
   allocation-timeout: 15m
 
 scheduler:
-  test: true
 
   base-env-default-image: ""
   max-servants-per-workflow: 2

@@ -210,7 +210,6 @@ public class SchedulerTest {
         config.setMaxServantsPerWorkflow(maxServants);
         config.setDefaultProvisioningLimit(maxServants);
         config.setProvisioningLimits(Map.of());
-        config.setTest(true);
         return config;
     }
 

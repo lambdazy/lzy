@@ -128,7 +128,8 @@ public class JwtUtils {
     ) {}
 
     public static GeneratedCredentials generateCredentials(String subjectId)
-            throws IOException, InterruptedException, NoSuchAlgorithmException, InvalidKeySpecException {
+            throws IOException, InterruptedException, NoSuchAlgorithmException, InvalidKeySpecException
+    {
 
         final var keys = RsaUtils.generateRsaKeys();
         final JwtCredentials credentials;

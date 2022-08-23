@@ -31,27 +31,20 @@ import com.google.protobuf.Duration;
 import io.grpc.ManagedChannel;
 import io.gsonfire.builders.JsonObjectBuilder;
 import jakarta.inject.Singleton;
-import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nullable;
-import javax.inject.Named;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.Reader;
-import java.io.StringReader;
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static ai.lzy.util.auth.credentials.JwtUtils.buildJWT;
 
 @Singleton
 public class AllocatorImpl implements ServantsAllocator {
     private static final Logger LOG = LogManager.getLogger(AllocatorImpl.class);
+    private static final AtomicBoolean randomServantPorts = new AtomicBoolean(false);
 
     private final ServiceConfig config;
     private final ServantEventProcessorConfig processorConfig;
@@ -130,7 +123,7 @@ public class AllocatorImpl implements ServantsAllocator {
         final int fsPort;
         final String mountPoint;
 
-        if (config.isTest()) {
+        if (randomServantPorts.get()) {
             port = FreePortFinder.find(10000, 11000);
             fsPort = FreePortFinder.find(11000, 12000);
             mountPoint = "/tmp/lzy" + testServantCounter.incrementAndGet();
