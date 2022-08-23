@@ -2,6 +2,7 @@ package ai.lzy.scheduler.test;
 
 import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.iam.test.BaseTestWithIam;
+import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.scheduler.BeanFactory;
@@ -50,8 +51,9 @@ public class IntegrationTest extends BaseTestWithIam {
             SchedulerApiImpl impl = context.getBean(SchedulerApiImpl.class);
             PrivateSchedulerApiImpl privateApi = context.getBean(PrivateSchedulerApiImpl.class);
             ServiceConfig config = context.getBean(ServiceConfig.class);
+            final var dao = context.getBean(ServantDao.class);
             auth = config.getAuth();
-            api = new SchedulerApi(impl, privateApi, config, new BeanFactory().iamChannel(config));
+            api = new SchedulerApi(impl, privateApi, config, new BeanFactory().iamChannel(config), dao);
             allocator = context.getBean(AllocatorMock.class);
         }
         chan = ChannelBuilder.forAddress("localhost", 2392)

@@ -5,10 +5,13 @@ import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.utils.GrpcConfig;
+import ai.lzy.model.db.DaoException;
+import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.scheduler.grpc.RemoteAddressInterceptor;
+import com.google.common.annotations.VisibleForTesting;
 import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.context.ApplicationContext;
@@ -26,11 +29,13 @@ public class SchedulerApi {
     private static final Logger LOG = LogManager.getLogger(SchedulerApi.class);
     private final Server server;
     private final SchedulerApiImpl impl;
+    private final ServantDao dao;
 
     @Inject
     public SchedulerApi(SchedulerApiImpl impl, PrivateSchedulerApiImpl privateApi, ServiceConfig config,
-                        @Named("IamGrpcChannel") ManagedChannel iamChannel) {
+                        @Named("IamGrpcChannel") ManagedChannel iamChannel, ServantDao dao) {
         this.impl = impl;
+        this.dao = dao;
 
         ServerBuilder<?> builder = NettyServerBuilder.forPort(config.getPort())
                 .intercept(new RemoteAddressInterceptor())
@@ -63,6 +68,23 @@ public class SchedulerApi {
     public void awaitTermination() throws InterruptedException {
         impl.awaitTermination();
         server.awaitTermination();
+    }
+
+    @VisibleForTesting
+    public void awaitWorkflowTermination(String workflowName) {
+        while (true) {
+            try {
+                if (!(dao.get(workflowName).size() > 0)) break;
+            } catch (DaoException e) {
+                LOG.error("Cannot execute request to dao", e);
+                throw new RuntimeException(e);
+            }
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     public static void main(String[] args) {

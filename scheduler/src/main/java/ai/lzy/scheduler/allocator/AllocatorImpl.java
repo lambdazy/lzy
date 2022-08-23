@@ -12,9 +12,7 @@ import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.scheduler.configs.ServantEventProcessorConfig;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.util.auth.credentials.Credentials;
-import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.JwtUtils;
-import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.AllocatorGrpc;
@@ -106,14 +104,10 @@ public class AllocatorImpl implements ServantsAllocator {
             final var subj = subjectClient.createSubject(new Servant(servantId),
                     authConfig.getInternalUserName(), servantId);
 
-            final var keys = RsaUtils.generateRsaKeys();
-            try (final var reader = new FileReader(keys.privateKeyPath().toFile())) {
-                credentials = new JwtCredentials(buildJWT(subj.id(), reader));
-            }
+            final var cred = JwtUtils.generateCredentials(subj.id());
+            credentials = cred.credentials();
 
-            final var publicKey = FileUtils.readFileToString(keys.publicKeyPath().toFile());
-
-            subjectClient.addCredentials(subj, "main", publicKey, credentials.type());
+            subjectClient.addCredentials(subj, "main", cred.publicKey(), cred.credentials().type());
             abClient.setAccessBindings(new Workflow(workflowName),
                 List.of(new AccessBinding("lzy.workflow.owner", subj)));
         } catch (Exception e) {

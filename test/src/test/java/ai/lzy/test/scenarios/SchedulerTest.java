@@ -128,7 +128,7 @@ public class SchedulerTest extends LocalScenario {
             .setWorkflowName("wf")
             .setIssue("test")
             .build());
-        stub.list(TaskListRequest.newBuilder().setWorkflowId("wf_id").build());
+        scheduler.awaitWorkflowTermination("wf");
         alloc.destroyAll();
     }
 

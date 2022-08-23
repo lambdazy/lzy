@@ -5,9 +5,12 @@ import static java.security.Security.addProvider;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
+import java.nio.file.Files;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
@@ -117,5 +120,24 @@ public class JwtUtils {
             PublicKey rsaKey = factory.generatePublic(pubKeySpec);
             return checkJWT(rsaKey, jwt, uid);
         }
+    }
+
+    public record GeneratedCredentials(
+        String publicKey,
+        JwtCredentials credentials
+    ) {}
+
+    public static GeneratedCredentials generateCredentials(String subjectId)
+            throws IOException, InterruptedException, NoSuchAlgorithmException, InvalidKeySpecException {
+
+        final var keys = RsaUtils.generateRsaKeys();
+        final JwtCredentials credentials;
+        try (final var reader = new FileReader(keys.privateKeyPath().toFile())) {
+            credentials = new JwtCredentials(buildJWT(subjectId, reader));
+        }
+
+        final var publicKey = Files.readString(keys.publicKeyPath());
+
+        return new GeneratedCredentials(publicKey, credentials);
     }
 }

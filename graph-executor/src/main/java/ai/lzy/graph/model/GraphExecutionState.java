@@ -75,7 +75,10 @@ public record GraphExecutionState(
                         .build()
                 );
             }
-            default -> { } // Unreachable
+            default -> {
+                LOG.error("Undefined status of graph execution {}: {}", id, status);
+                throw new RuntimeException("Undefined status of graph execution");
+            }
         }
         return statusBuilder.build();
     }

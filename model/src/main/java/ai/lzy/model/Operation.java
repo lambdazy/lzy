@@ -18,8 +18,8 @@ public record Operation(
     String description,
     String name,
 
-    @Nullable DevSlotDesc stdout,
-    @Nullable DevSlotDesc stderr
+    @Nullable StdSlotDesc stdout,
+    @Nullable StdSlotDesc stderr
 ) {
 
     @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
@@ -33,7 +33,7 @@ public record Operation(
     @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
     @JsonSerialize
     @JsonDeserialize
-    public record DevSlotDesc(
+    public record StdSlotDesc(
         String slotName,
         String channelId
     ){ }
@@ -43,17 +43,17 @@ public record Operation(
             operation.getRequirements().getPoolLabel(),
             operation.getRequirements().getZone());
 
-        DevSlotDesc stdout = null;
+        StdSlotDesc stdout = null;
         if (operation.hasStdout()) {
-            stdout = new DevSlotDesc(
+            stdout = new StdSlotDesc(
                 operation.getStdout().getName(),
                 operation.getStdout().getChannelId()
             );
         }
 
-        DevSlotDesc stderr = null;
+        StdSlotDesc stderr = null;
         if (operation.hasStdout()) {
-            stderr = new DevSlotDesc(
+            stderr = new StdSlotDesc(
                 operation.getStdout().getName(),
                 operation.getStdout().getChannelId()
             );
@@ -91,14 +91,14 @@ public record Operation(
             .setName(name);
 
         if (stdout != null) {
-            builder.setStdout(LzyCommon.Operation.DevSlotDesc.newBuilder()
+            builder.setStdout(LzyCommon.Operation.StdSlotDesc.newBuilder()
                 .setChannelId(stdout.channelId)
                 .setName(stdout.slotName)
                 .build());
         }
 
         if (stderr != null) {
-            builder.setStdout(LzyCommon.Operation.DevSlotDesc.newBuilder()
+            builder.setStdout(LzyCommon.Operation.StdSlotDesc.newBuilder()
                 .setChannelId(stderr.channelId)
                 .setName(stderr.slotName)
                 .build());
