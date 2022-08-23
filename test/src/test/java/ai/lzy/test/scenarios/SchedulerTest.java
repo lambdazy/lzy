@@ -10,6 +10,7 @@ import ai.lzy.model.graph.BaseEnv;
 import ai.lzy.model.graph.Env;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.scheduler.SchedulerApi;
+import ai.lzy.scheduler.allocator.AllocatorImpl;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
@@ -22,9 +23,6 @@ import ai.lzy.v1.LzyChannelManagerGrpc;
 import ai.lzy.v1.Operations;
 import ai.lzy.v1.Operations.DataScheme;
 import ai.lzy.v1.SchedulerApi.KillAllRequest;
-import ai.lzy.v1.SchedulerApi.TaskListRequest;
-import ai.lzy.v1.SchedulerApi.TaskScheduleRequest;
-import ai.lzy.v1.SchedulerApi.TaskStatusRequest;
 import ai.lzy.v1.SchedulerGrpc;
 import ai.lzy.v1.graph.GraphExecutorApi.*;
 import ai.lzy.v1.graph.GraphExecutorGrpc;
@@ -82,6 +80,7 @@ public class SchedulerTest extends LocalScenario {
 
     static {
         try {
+            AllocatorImpl.randomServantPorts.set(true);
             alloc.start();
             graphExecutor.start();
         } catch (IOException | InterruptedException e) {

@@ -44,7 +44,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Singleton
 public class AllocatorImpl implements ServantsAllocator {
     private static final Logger LOG = LogManager.getLogger(AllocatorImpl.class);
-    private static final AtomicBoolean randomServantPorts = new AtomicBoolean(false);
+    public static final AtomicBoolean randomServantPorts = new AtomicBoolean(false);
 
     private final ServiceConfig config;
     private final ServantEventProcessorConfig processorConfig;

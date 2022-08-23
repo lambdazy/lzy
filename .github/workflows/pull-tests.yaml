@@ -141,7 +141,7 @@ jobs:
           cd test && mvn test -Dtest=PyApiTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'SchedulerTest'
-        timeout-minutes: 20
+        timeout-minutes: 5
         run: |
           cd test && mvn test -Dtest=SchedulerTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
