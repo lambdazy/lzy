@@ -4,6 +4,7 @@ package ai.lzy.allocator.services;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.OperationDao;
+import ai.lzy.allocator.dao.SessionDao;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.model.db.Storage;
@@ -32,50 +33,65 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
     private final VmDao dao;
     private final OperationDao operations;
     private final VmAllocator allocator;
+    private final SessionDao sessions;
     private final Storage storage;
     private final ServiceConfig config;
 
-    public AllocatorPrivateApi(VmDao dao, OperationDao operations, VmAllocator allocator, Storage storage,
+    public AllocatorPrivateApi(VmDao dao,
+                               OperationDao operations,
+                               VmAllocator allocator,
+                               SessionDao sessions,
+                               Storage storage,
                                ServiceConfig config) {
         this.dao = dao;
         this.operations = operations;
         this.allocator = allocator;
+        this.sessions = sessions;
         this.storage = storage;
         this.config = config;
     }
 
     @Override
     public void register(RegisterRequest request, StreamObserver<RegisterResponse> responseObserver) {
-        final var vm = dao.get(request.getVmId(), null);
-        if (vm == null) {
-            responseObserver.onError(Status.NOT_FOUND.withDescription("Vm with this id not found").asException());
-            return;
-        }
-
-        if (vm.state() == Vm.State.RUNNING) {
-            LOG.error("Vm {} has been already registered", vm);
-            responseObserver.onError(Status.ALREADY_EXISTS.asException());
-            return;
-        } else if (vm.state() != Vm.State.CONNECTING) {
-            LOG.error("Wrong status of vm while register, expected CONNECTING: {}", vm);
-            responseObserver.onError(Status.FAILED_PRECONDITION.asException());
-            return;
-        }
-
-        final var op = operations.get(vm.allocationOperationId(), null);
-        if (op == null) {
-            responseObserver.onError(Status.NOT_FOUND.withDescription("Op not found").asException());
-            return;
-        }
-
-        if (op.error() != null && op.error().getCode() == Status.Code.CANCELLED) {  // Op is cancelled by client
-            allocator.deallocate(vm);
-            dao.update(new Vm.VmBuilder(vm).setState(Vm.State.DEAD).build(), null);
-            responseObserver.onError(Status.NOT_FOUND.withDescription("Op not found").asException());
-            return;
-        }
-
+        Vm vm = null;
         try (final var transaction = new TransactionHandle(storage)) {
+            vm = dao.get(request.getVmId(), transaction);
+            if (vm == null) {
+                responseObserver.onError(Status.NOT_FOUND.withDescription("Vm with this id not found").asException());
+                return;
+            }
+
+            if (vm.state() == Vm.State.RUNNING) {
+                LOG.error("Vm {} has been already registered", vm);
+                responseObserver.onError(Status.ALREADY_EXISTS.asException());
+                return;
+            } else if (vm.state() != Vm.State.CONNECTING) {
+                LOG.error("Wrong status of vm while register, expected CONNECTING: {}", vm);
+                responseObserver.onError(Status.FAILED_PRECONDITION.asException());
+                return;
+            }
+
+            final var op = operations.get(vm.allocationOperationId(), transaction);
+            if (op == null) {
+                responseObserver.onError(Status.NOT_FOUND.withDescription("Op not found").asException());
+                return;
+            }
+
+            final var session = sessions.get(vm.sessionId(), transaction);
+            if (session == null) {
+                LOG.error("Session {} does not exist", vm.sessionId());
+                responseObserver.onError(Status.NOT_FOUND.withDescription("Session not found").asException());
+                return;
+            }
+
+            if (op.error() != null && op.error().getCode() == Status.Code.CANCELLED) {
+                // Op is cancelled by client, add VM to cache
+                dao.update(new Vm.VmBuilder(vm).setDeadline(Instant.now().plus(session.cachePolicy().minIdleTimeout()))
+                    .setState(Vm.State.IDLE).build(), transaction);
+                transaction.commit();
+                responseObserver.onError(Status.NOT_FOUND.withDescription("Op not found").asException());
+                return;
+            }
             dao.update(new Vm.VmBuilder(vm)
                 .setState(Vm.State.RUNNING)
                 .setVmMeta(request.getMetadataMap())
@@ -92,7 +108,11 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
             transaction.commit();
         } catch (SQLException e) {
             LOG.error("Error while registering vm", e);
-            allocator.deallocate(vm);
+            responseObserver.onError(Status.INTERNAL.withDescription("Error while registering vm").asException());
+            if (vm != null) {
+                allocator.deallocate(vm);
+            }
+            return;
         }
         responseObserver.onNext(RegisterResponse.newBuilder().build());
         responseObserver.onCompleted();
