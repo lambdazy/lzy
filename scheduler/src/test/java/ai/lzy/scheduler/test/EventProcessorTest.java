@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 public class EventProcessorTest {
 
     private static final Logger LOG = LogManager.getLogger(EventProcessorTest.class);
-    public static final ApplicationContext context = ApplicationContext.run();
+    public static final ApplicationContext context = ApplicationContext.run("scheduler");
 
     public static final ServantEventDao events = context.getBean(ServantEventDao.class);
     public static final ServantDao servantDao = context.getBean(ServantDao.class);
@@ -396,7 +396,7 @@ public class EventProcessorTest {
     }
 
     public static Operation buildOp(String... tags) {
-        return new Operation(null, new Operation.Requirements("", ""), "", List.of(), "", "");
+        return new Operation(null, new Operation.Requirements("", ""), "", List.of(), "", "", null, null);
     }
 
     public class ProcessorContext implements AutoCloseable {

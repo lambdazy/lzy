@@ -19,6 +19,9 @@ import ai.lzy.scheduler.test.mocks.*;
 import io.micronaut.context.ApplicationContext;
 import java.util.Objects;
 import org.apache.curator.shaded.com.google.common.net.HostAndPort;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -33,6 +36,7 @@ import java.util.function.Function;
 import static ai.lzy.scheduler.test.EventProcessorTest.buildOp;
 
 public class SchedulerTest {
+    public static final Logger LOG = LogManager.getLogger(SchedulerTest.class);
 
     public static final ApplicationContext context = ApplicationContext.run();
 
@@ -68,8 +72,7 @@ public class SchedulerTest {
 
     @Test
     public void testSimple() throws Exception {
-        ServiceConfig config = new ServiceConfig(1234, 1, Map.of(), 1, "localhost:1000", "localhost:1000",
-            "", null, null);
+        ServiceConfig config = buildConfig(1);
         var processorConfig = new ProcessorConfigBuilder()
             .setIdleTimeout(100)
             .build();
@@ -131,8 +134,7 @@ public class SchedulerTest {
 
     @Test
     public void testParallel() throws Exception {
-        ServiceConfig config = new ServiceConfig(1234, /*maxServantsPerWorkflow*/2, Map.of(),
-                /*maxDefaultServant*/ 2, "localhost:1000", "localhost:1000", "", null, null);
+        ServiceConfig config = buildConfig(2);
         var processorConfig = new ProcessorConfigBuilder()
             .setIdleTimeout(100)
             .build();
@@ -202,10 +204,18 @@ public class SchedulerTest {
         awaitState(r2.workflowId(), r2.servantId(), ServantState.Status.DESTROYED);
     }
 
+    @NotNull
+    private ServiceConfig buildConfig(int maxServants) {
+        ServiceConfig config = new ServiceConfig();
+        config.setMaxServantsPerWorkflow(maxServants);
+        config.setDefaultProvisioningLimit(maxServants);
+        config.setProvisioningLimits(Map.of());
+        return config;
+    }
+
     @Test
     public void testRestart() throws Exception {
-        ServiceConfig config = new ServiceConfig(1234, 1, Map.of(), 1, "localhost:1000", "localhost:1000",
-            "", null, null);
+        ServiceConfig config = buildConfig(1);
         var processorConfig = new ProcessorConfigBuilder()
             .setIdleTimeout(100)
             .build();

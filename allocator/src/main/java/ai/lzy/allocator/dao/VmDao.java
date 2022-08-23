@@ -14,6 +14,7 @@ public interface VmDao {
     void update(Vm vm, @Nullable TransactionHandle transaction);
 
     List<Vm> list(String sessionId, @Nullable TransactionHandle transaction);
+    List<Vm> list(@Nullable TransactionHandle transaction);
     @Nullable
     Vm get(String vmId, TransactionHandle transaction);
     List<Vm> getExpired(int limit, @Nullable TransactionHandle transaction);

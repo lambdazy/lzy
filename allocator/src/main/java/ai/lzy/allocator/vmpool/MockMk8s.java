@@ -1,8 +1,5 @@
-package ai.lzy.allocator.test;
+package ai.lzy.allocator.vmpool;
 
-import ai.lzy.allocator.vmpool.ClusterRegistry;
-import ai.lzy.allocator.vmpool.VmPoolRegistry;
-import ai.lzy.allocator.vmpool.VmPoolSpec;
 import com.google.common.net.HostAndPort;
 import io.micronaut.context.annotation.Primary;
 import io.micronaut.context.annotation.Requires;
@@ -10,7 +7,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.inject.Singleton;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 @SuppressWarnings("UnstableApiUsage")
 @Singleton

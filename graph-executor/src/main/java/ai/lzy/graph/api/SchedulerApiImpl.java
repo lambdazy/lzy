@@ -4,6 +4,9 @@ import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.graph.model.TaskDescription;
 import ai.lzy.model.TaskDesc;
 import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.auth.credentials.JwtUtils;
+import ai.lzy.util.grpc.ClientHeaderInterceptor;
+import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.SchedulerApi.*;
 import ai.lzy.v1.SchedulerGrpc;
 import ai.lzy.v1.SchedulerGrpc.SchedulerBlockingStub;
@@ -21,16 +24,20 @@ public class SchedulerApiImpl implements SchedulerApi {
 
     @Inject
     public SchedulerApiImpl(ServiceConfig config) {
-        channel = ChannelBuilder.forAddress(config.scheduler().host(), config.scheduler().port())
+        channel = ChannelBuilder.forAddress(config.getScheduler().getHost(), config.getScheduler().getPort())
             .usePlaintext()
             .enableRetry(SchedulerGrpc.SERVICE_NAME)
             .build();
-        stub = SchedulerGrpc.newBlockingStub(channel);
+
+        final var credentials = config.getAuth().createCredentials();
+        stub = SchedulerGrpc.newBlockingStub(channel).withInterceptors(
+            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
     }
 
     @Override
-    public TaskStatus execute(String workflowId, TaskDescription task) {
+    public TaskStatus execute(String workflowName, String workflowId, TaskDescription task) {
         var res = stub.schedule(TaskScheduleRequest.newBuilder()
+            .setWorkflowName(workflowName)
             .setWorkflowId(workflowId)
             .setTask(new TaskDesc(task.operation(), task.slotsToChannelsAssignments()).toProto())
             .build());

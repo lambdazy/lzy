@@ -18,7 +18,7 @@ public class SessionDaoImpl implements SessionDao {
     private final Storage storage;
     private final ObjectMapper objectMapper;
 
-    public SessionDaoImpl(Storage storage, ObjectMapper objectMapper) {
+    public SessionDaoImpl(AllocatorDataSource storage, ObjectMapper objectMapper) {
         this.storage = storage;
         this.objectMapper = objectMapper;
     }

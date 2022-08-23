@@ -7,9 +7,7 @@ public class Algorithms {
 
     public static <T extends DirectedGraph.Vertex, E extends DirectedGraph.Edge<T>> Set<T> getNextBfsGroup(
         DirectedGraph<T, E> graph,
-        List<T> currentGroup,
-        Set<T> alreadyProcessed,
-        Function<E, Boolean> canProcessEdge
+        List<T> currentGroup
     ) {
         final Set<T> next = new HashSet<>();
 
@@ -18,22 +16,7 @@ public class Algorithms {
         for (T current : currentExecutions) {
             for (E edge : graph.children(current.name())) {
                 final T vertex = edge.output();
-                if (!next.contains(vertex) && !alreadyProcessed.contains(vertex)) {
-                    if (
-                        graph.parents(vertex.name())
-                            .stream()
-                            .allMatch(canProcessEdge::apply)
-                    ) {
-                        next.add(vertex);
-                    }
-                }
-            }
-            if (
-                !graph.children(current.name())
-                    .stream()
-                    .allMatch(canProcessEdge::apply)
-            ) {
-                next.add(current);
+                next.add(vertex);
             }
         }
 
@@ -107,10 +90,13 @@ public class Algorithms {
         final Map<EdgeKey, CondensedEdge<T, E>> edges = new HashMap<>();
 
         for (T input : graph.vertexes()) {
+            condensedGraph.addVertex(vertexToComponentMapping.get(input.name()));
+
             for (E edge : graph.children(input.name())) {
                 final T output = edge.output();
                 final CondensedComponent<T> inputComponent = vertexToComponentMapping.get(input.name());
                 final CondensedComponent<T> outputComponent = vertexToComponentMapping.get(output.name());
+
                 if (!inputComponent.equals(outputComponent)) {
 
                     final CondensedEdge<T, E> condensedEdge = edges.computeIfAbsent(
@@ -180,7 +166,7 @@ public class Algorithms {
         }
 
         @Override
-        String name() {
+        public String name() {
             return name;
         }
 

@@ -51,10 +51,11 @@ public class SubjectServiceGrpcClient implements SubjectService {
     }
 
     @Override
-    public Subject createSubject(String id, String authProvider, String providerSubjectId) throws AuthException {
+    public Subject createSubject(Subject subj, String authProvider, String providerSubjectId) throws AuthException {
         try {
             final IAM.Subject subject = subjectService.createSubject(LSS.CreateSubjectRequest.newBuilder()
-                    .setName(id)
+                    .setName(subj.id())
+                    .setType(subj.type().name())
                     .setAuthProvider(authProvider)
                     .setProviderSubjectId(providerSubjectId)
                     .build());

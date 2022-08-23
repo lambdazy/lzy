@@ -4,6 +4,7 @@ import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.VmDao;
+import ai.lzy.allocator.dao.impl.AllocatorDataSource;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
@@ -29,7 +30,7 @@ public class GarbageCollector extends TimerTask {
 
     @Inject
     public GarbageCollector(VmDao dao, OperationDao operations, VmAllocator allocator,
-        ServiceConfig config, Storage storage) {
+        ServiceConfig config, AllocatorDataSource storage) {
         this.dao = dao;
         this.operations = operations;
         this.allocator = allocator;

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
+import javax.annotation.Nullable;
 import java.util.List;
 
 
@@ -15,7 +16,10 @@ public record Operation(
     String command,
     List<Slot> slots,
     String description,
-    String name
+    String name,
+
+    @Nullable StdSlotDesc stdout,
+    @Nullable StdSlotDesc stderr
 ) {
 
     @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
@@ -26,10 +30,34 @@ public record Operation(
         String zone
     ) { }
 
+    @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
+    @JsonSerialize
+    @JsonDeserialize
+    public record StdSlotDesc(
+        String slotName,
+        String channelId
+    ){ }
+
     public static Operation fromProto(LzyCommon.Operation operation) {
         final var req = new Requirements(
             operation.getRequirements().getPoolLabel(),
             operation.getRequirements().getZone());
+
+        StdSlotDesc stdout = null;
+        if (operation.hasStdout()) {
+            stdout = new StdSlotDesc(
+                operation.getStdout().getName(),
+                operation.getStdout().getChannelId()
+            );
+        }
+
+        StdSlotDesc stderr = null;
+        if (operation.hasStdout()) {
+            stderr = new StdSlotDesc(
+                operation.getStdout().getName(),
+                operation.getStdout().getChannelId()
+            );
+        }
 
         return new Operation(
             GrpcConverter.from(operation.getEnv()),
@@ -40,7 +68,9 @@ public record Operation(
                 .map(GrpcConverter::from)
                 .toList(),
             operation.getDescription(),
-            operation.getName()
+            operation.getName(),
+            stdout,
+            stderr
         );
     }
 
@@ -50,7 +80,7 @@ public record Operation(
             .setZone(requirements.zone)
             .build();
 
-        return LzyCommon.Operation.newBuilder()
+        final var builder =  LzyCommon.Operation.newBuilder()
             .setEnv(GrpcConverter.to(env))
             .setRequirements(req)
             .setCommand(command)
@@ -58,7 +88,22 @@ public record Operation(
                 .map(GrpcConverter::to)
                 .toList())
             .setDescription(description)
-            .setName(name)
-            .build();
+            .setName(name);
+
+        if (stdout != null) {
+            builder.setStdout(LzyCommon.Operation.StdSlotDesc.newBuilder()
+                .setChannelId(stdout.channelId)
+                .setName(stdout.slotName)
+                .build());
+        }
+
+        if (stderr != null) {
+            builder.setStdout(LzyCommon.Operation.StdSlotDesc.newBuilder()
+                .setChannelId(stderr.channelId)
+                .setName(stderr.slotName)
+                .build());
+        }
+
+        return builder.build();
     }
 }

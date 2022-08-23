@@ -107,17 +107,17 @@ public class GraphExecutorTest {
 
             // Step 2
             tester.waitForStatus(QUEUE, "3", "6", "10");
-            tester.awaitExecutingNow("3", "10");
+            tester.awaitExecutingNow("3", "10", "6");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "6", "10");
 
             // Step 3
             tester.waitForStatus(QUEUE, "3", "8");
-            tester.awaitExecutingNow("3");
+            tester.awaitExecutingNow("3", "8");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "3", "8");
 
             // Step 4
             tester.waitForStatus(QUEUE, "2", "4");
-            tester.awaitExecutingNow();
+            tester.awaitExecutingNow("2", "4");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "2", "4");
 
             // Step 5
@@ -142,7 +142,7 @@ public class GraphExecutorTest {
             tester.changeStatus(SchedulerApiMock.COMPLETED, "1");
 
             // Step 2
-            tester.waitForStatus(QUEUE, "2");
+            tester.waitForStatus(QUEUE, "2", "3");
             tester.changeStatus(SchedulerApiMock.EXECUTING, "2", "3");
 
             // Step 3
@@ -202,7 +202,7 @@ public class GraphExecutorTest {
 
             // Step 3
             tester.waitForStatus(QUEUE, "3", "4", "5");
-            tester.awaitExecutingNow();
+            tester.awaitExecutingNow("3", "4", "5");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "3", "4", "5");
 
             //Step 4
@@ -237,12 +237,12 @@ public class GraphExecutorTest {
 
             // Step 2
             tester.waitForStatus(QUEUE, "3", "6", "10");
-            tester.awaitExecutingNow("3", "10");
+            tester.awaitExecutingNow("3", "6", "10");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "6", "10");
 
             // Step 3
             tester.waitForStatus(QUEUE, "3", "8");
-            tester.awaitExecutingNow("3");
+            tester.awaitExecutingNow("3", "8");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "3", "8");
         }
 
@@ -250,11 +250,86 @@ public class GraphExecutorTest {
 
             // Step 4
             tester.waitForStatus(QUEUE, "2", "4");
-            tester.awaitExecutingNow();
+            tester.awaitExecutingNow("2", "4");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "2", "4");
 
             // Step 5
             tester.waitForStatus(GraphExecutionState.Status.COMPLETED);
+
+        }
+    }
+
+    @Test
+    public void testOneVertex() throws InterruptedException, DaoException, StatusException {
+        final GraphDescription graph = new GraphDescriptionBuilder()
+            .addVertexes("1")
+            .build();
+
+        try (var tester = new GraphTester(graph)) {
+
+            // Step 1
+            tester.waitForStatus(QUEUE, "1");
+            tester.awaitExecutingNow("1");
+            tester.changeStatus(SchedulerApiMock.COMPLETED, "1");
+
+            // Step 2
+            tester.waitForStatus(GraphExecutionState.Status.COMPLETED);
+
+        }
+    }
+
+    @Test
+    public void testRhombus() throws InterruptedException, DaoException, StatusException {
+        final GraphDescription graph = new GraphDescriptionBuilder()
+                .addVertexes("1", "2", "3", "4")
+                .addEdge("1", "2")
+                .addEdge("1", "3")
+                .addEdge("2", "4")
+                .addEdge("3", "4")
+                .build();
+
+        try (var tester = new GraphTester(graph)) {
+
+            // Step 1
+            tester.waitForStatus(QUEUE, "1");
+            tester.awaitExecutingNow("1");
+            tester.changeStatus(SchedulerApiMock.COMPLETED, "1");
+
+            // Step 2
+            tester.waitForStatus(QUEUE, "2", "3");
+            tester.awaitExecutingNow("2", "3");
+            tester.changeStatus(SchedulerApiMock.COMPLETED, "3");
+
+            // Step 3
+            tester.waitForStatus(QUEUE, "2");
+            tester.awaitExecutingNow("2");
+            tester.changeStatus(SchedulerApiMock.COMPLETED, "2");
+
+            // Step 4
+            tester.waitForStatus(QUEUE, "4");
+            tester.changeStatus(SchedulerApiMock.COMPLETED, "4");
+
+            // Step 2
+            tester.waitForStatus(GraphExecutionState.Status.COMPLETED);
+
+        }
+    }
+
+    @Test
+    public void testError() throws InterruptedException, DaoException, StatusException {
+        final GraphDescription graph = new GraphDescriptionBuilder()
+                .addVertexes("1")
+                .build();
+
+        try (var tester = new GraphTester(graph)) {
+
+            // Step 1
+            tester.waitForStatus(QUEUE, "1");
+            tester.awaitExecutingNow("1");
+            tester.raiseSchedulerException("1");
+
+            // Step 2
+            tester.waitForStatus(GraphExecutionState.Status.FAILED);
 
         }
     }
@@ -290,6 +365,10 @@ public class GraphExecutorTest {
             }
         }
 
+        public void raiseSchedulerException(String taskId) {
+            scheduler.raiseException(taskId);
+        }
+
         public void waitForStatus(TaskStatus.StatusCase s, String... taskIds) throws InterruptedException {
             for (String task : taskIds) {
                 scheduler.waitForStatus(task, s);
@@ -315,7 +394,7 @@ public class GraphExecutorTest {
             outputs.stream()
                 .map(s -> buildSlot(s, Slot.Direction.OUTPUT)))
             .toList();
-        return new Operation(null, new Operation.Requirements("", ""), "", slots, "", "");
+        return new Operation(null, new Operation.Requirements("", ""), "", slots, "", "", null, null);
     }
 
     public static Slot buildSlot(String name, Slot.Direction direction) {
@@ -386,7 +465,12 @@ public class GraphExecutorTest {
         GraphBuilder builder = new GraphBuilderImpl();
         ChannelCheckerFactory factory = new ChannelCheckerFactory(scheduler);
         GraphProcessor processor = new BfsGraphProcessor(scheduler, builder, factory);
-        ServiceConfig config = new ServiceConfig(1234, 1, new ServiceConfig.Scheduler("localhost", 1));
+
+        ServiceConfig config = new ServiceConfig();
+        config.setPort(1234);
+        config.setExecutorsCount(1);
+        config.setScheduler(new ServiceConfig.Scheduler());
+
         return new QueueManager(processor, dao, config, queueEventDao);
     }
 }

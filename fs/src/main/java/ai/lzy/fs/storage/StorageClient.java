@@ -1,6 +1,9 @@
 package ai.lzy.fs.storage;
 
 import java.net.URI;
+
+import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.StorageCredentials;
 import ru.yandex.qe.s3.transfer.Transmitter;
 import ai.lzy.v1.Lzy;
 
@@ -24,6 +27,10 @@ public interface StorageClient {
 
     static StorageClient create(Lzy.GetS3CredentialsResponse credentials) {
         return create(credentials, DEFAULT_TRANSMITTER_NAME, DEFAULT_DOWNLOAD_POOL_SIZE, DEFAULT_UPLOAD_POOL_SIZE);
+    }
+
+    static StorageClient create(StorageCredentials credentials) {
+        return create(GrpcConverter.to(credentials));
     }
 
     static StorageClient createAmazonS3Client(URI endpoint, String accessToken, String secretToken) {

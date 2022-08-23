@@ -70,13 +70,13 @@ public class LzyContext implements AutoCloseable {
         env = EnvironmentFactory.create(from, storage);
     }
 
-    public LzyExecution execute(String taskId, AtomicZygote zygote, Consumer<ServantProgress> onProgress) {
+    public LzyExecution execute(String taskId, String command, Consumer<ServantProgress> onProgress) {
         if (env == null) {
             LOG.error("env is null before execution");
             throw new IllegalStateException("Cannot execute before prepare");
         }
 
-        final LzyExecution execution = new LzyExecution(contextId, zygote, arguments, mountRoot);
+        final LzyExecution execution = new LzyExecution(contextId, command, arguments, mountRoot);
         final LineReaderSlot stdoutSlot = (LineReaderSlot) getOrCreateSlot(taskId, Slot.STDOUT, null);
         final LineReaderSlot stderrSlot = (LineReaderSlot) getOrCreateSlot(taskId, Slot.STDERR, null);
         execution.onProgress(progress -> {
