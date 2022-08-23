@@ -122,8 +122,8 @@ public class SchedulerImpl extends Thread implements Scheduler {
     @Override
     public void terminate() {
         stopping.set(true);
-        this.interrupt();
         pool.shutdown();
+        tasks.add(Task.NOOP);
     }
 
     @Override
@@ -138,6 +138,9 @@ public class SchedulerImpl extends Thread implements Scheduler {
             final Task task;
             try {
                 task = tasks.take();
+                if (task == Task.NOOP) {
+                    continue;
+                }
             } catch (InterruptedException e) {
                 LOG.debug("Thread interrupted", e);
                 continue;

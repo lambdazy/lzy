@@ -286,7 +286,7 @@ public class LzyServant implements Closeable {
                 });
 
                 final long start = System.currentTimeMillis();
-                final LzyExecution lzyExecution = context.execute(tid, zygote, progress -> {
+                final LzyExecution lzyExecution = context.execute(tid, zygote.fuze(), progress -> {
                     LOG.info("Servant::progress {} {}", agent.uri(), JsonUtils.printRequest(progress));
                     UserEventLogger.log(new UserEvent(
                         "Servant execution progress",

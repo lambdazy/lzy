@@ -1,9 +1,17 @@
 package ai.lzy.scheduler;
 
+import ai.lzy.iam.clients.AuthenticateService;
+import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
+import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
+import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
+import ai.lzy.iam.utils.GrpcConfig;
+import ai.lzy.model.db.DaoException;
+import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.scheduler.grpc.RemoteAddressInterceptor;
+import com.google.common.annotations.VisibleForTesting;
 import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.context.ApplicationContext;
@@ -11,6 +19,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.inject.Singleton;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -20,21 +29,27 @@ public class SchedulerApi {
     private static final Logger LOG = LogManager.getLogger(SchedulerApi.class);
     private final Server server;
     private final SchedulerApiImpl impl;
+    private final ServantDao dao;
 
     @Inject
-    public SchedulerApi(SchedulerApiImpl impl, PrivateSchedulerApiImpl privateApi, ServiceConfig config) {
+    public SchedulerApi(SchedulerApiImpl impl, PrivateSchedulerApiImpl privateApi, ServiceConfig config,
+                        @Named("IamGrpcChannel") ManagedChannel iamChannel, ServantDao dao) {
         this.impl = impl;
+        this.dao = dao;
 
-        ServerBuilder<?> builder = NettyServerBuilder.forPort(config.port())
+        ServerBuilder<?> builder = NettyServerBuilder.forPort(config.getPort())
                 .intercept(new RemoteAddressInterceptor())
                 .permitKeepAliveWithoutCalls(true)
                 .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES);
 
-        builder.addService(ServerInterceptors.intercept(impl, new GrpcLogsInterceptor()));
+        builder.intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(iamChannel)));
+        var internalOnly = new AllowInternalUserOnlyInterceptor(iamChannel);
+
+        builder.addService(ServerInterceptors.intercept(impl, new GrpcLogsInterceptor(), internalOnly));
         builder.addService(ServerInterceptors.intercept(privateApi, new GrpcLogsInterceptor()));
         server = builder.build();
 
-        LOG.info("Starting scheduler on port {}...", config.port());
+        LOG.info("Starting scheduler on port {}...", config.getPort());
 
         try {
             server.start();
@@ -53,6 +68,23 @@ public class SchedulerApi {
     public void awaitTermination() throws InterruptedException {
         impl.awaitTermination();
         server.awaitTermination();
+    }
+
+    @VisibleForTesting
+    public void awaitWorkflowTermination(String workflowName) {
+        while (true) {
+            try {
+                if (!(dao.get(workflowName).size() > 0)) break;
+            } catch (DaoException e) {
+                LOG.error("Cannot execute request to dao", e);
+                throw new RuntimeException(e);
+            }
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     public static void main(String[] args) {

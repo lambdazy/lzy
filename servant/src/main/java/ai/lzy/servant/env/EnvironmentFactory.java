@@ -15,6 +15,7 @@ public class EnvironmentFactory {
     private static Supplier<Environment> envForTests = null;
     private static boolean IS_DOCKER_SUPPORTED = true;
 
+    @Deprecated
     public static Environment create(Env env, StorageClient storage) throws EnvironmentInstallationException {
         //to mock environment in tests
         if (envForTests != null) {
@@ -49,6 +50,13 @@ public class EnvironmentFactory {
             LOG.info("No auxEnv provided, using SimpleBashEnvironment");
             return new SimpleBashEnvironment(baseEnv);
         }
+    }
+
+    public static Environment create(Env env) throws EnvironmentInstallationException {
+        if (env.auxEnv() instanceof PythonEnv) {
+            return create(env, StorageClient.create(((PythonEnv) env.auxEnv()).credentials()));
+        }
+        return create(env, null);
     }
 
     @VisibleForTesting

@@ -83,7 +83,7 @@ public class LzyStorage {
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        try (ApplicationContext context = ApplicationContext.run()) {
+        try (ApplicationContext context = ApplicationContext.run("storage")) {
             var app = new LzyStorage(context);
 
             app.start();

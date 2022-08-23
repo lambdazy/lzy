@@ -1,7 +1,13 @@
 package ai.lzy.scheduler.test;
 
+import ai.lzy.iam.config.IamClientConfiguration;
+import ai.lzy.iam.test.BaseTestWithIam;
+import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.model.utils.FreePortFinder;
+import ai.lzy.scheduler.BeanFactory;
+import ai.lzy.util.grpc.ClientHeaderInterceptor;
+import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.Operations;
 import ai.lzy.v1.SchedulerApi.TaskScheduleRequest;
 import ai.lzy.v1.SchedulerGrpc;
@@ -29,7 +35,7 @@ import org.junit.Test;
 
 import java.util.concurrent.*;
 
-public class IntegrationTest {
+public class IntegrationTest extends BaseTestWithIam {
 
     private SchedulerApi api;
     private AllocatorMock allocator;
@@ -40,21 +46,30 @@ public class IntegrationTest {
 
     @Before
     public void setUp() {
-        try (var context = ApplicationContext.run()) {
+        final IamClientConfiguration auth;
+        try (var context = ApplicationContext.run("scheduler")) {
             SchedulerApiImpl impl = context.getBean(SchedulerApiImpl.class);
             PrivateSchedulerApiImpl privateApi = context.getBean(PrivateSchedulerApiImpl.class);
             ServiceConfig config = context.getBean(ServiceConfig.class);
-            api = new SchedulerApi(impl, privateApi, config);
+            final var dao = context.getBean(ServantDao.class);
+            auth = config.getAuth();
+            api = new SchedulerApi(impl, privateApi, config, new BeanFactory().iamChannel(config), dao);
             allocator = context.getBean(AllocatorMock.class);
         }
         chan = ChannelBuilder.forAddress("localhost", 2392)
             .usePlaintext()
             .build();
-        stub = SchedulerGrpc.newBlockingStub(chan);
+
+        var credentials = auth.createCredentials();
+        stub = SchedulerGrpc.newBlockingStub(chan).withInterceptors(
+            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
+
         privateChan = ChannelBuilder.forAddress("localhost", 2392)
             .usePlaintext()
             .build();
-        privateStub = SchedulerPrivateGrpc.newBlockingStub(privateChan);
+
+        privateStub = SchedulerPrivateGrpc.newBlockingStub(privateChan).withInterceptors(
+            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
         Configurator.setAllLevels("ai.lzy.scheduler", Level.ALL);
     }
 

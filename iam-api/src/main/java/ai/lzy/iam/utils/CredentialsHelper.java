@@ -34,6 +34,9 @@ public class CredentialsHelper {
         try (PemReader pemReader = new PemReader(keyReader)) {
             KeyFactory factory = KeyFactory.getInstance("RSA");
             PemObject pemObject = pemReader.readPemObject();
+            if (pemObject == null) {
+                return false;
+            }
             byte[] content = pemObject.getContent();
             X509EncodedKeySpec pubKeySpec = new X509EncodedKeySpec(content);
             PublicKey rsaKey = factory.generatePublic(pubKeySpec);

@@ -50,6 +50,8 @@ public class GraphBuilderImpl implements GraphBuilder {
                 );
             }
 
+            graph.addVertex(new TaskVertex(task.id(), task));
+
             for (Map.Entry<String, String> entry : task.slotsToChannelsAssignments().entrySet()) {
 
                 ChannelHolder channel = channels.get(entry.getValue());

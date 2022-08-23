@@ -4,13 +4,17 @@ import ai.lzy.graph.api.SchedulerApi;
 import ai.lzy.graph.model.TaskDescription;
 import ai.lzy.v1.SchedulerApi.TaskStatus;
 import ai.lzy.v1.Tasks;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 
 import javax.annotation.Nullable;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class SchedulerApiMock implements SchedulerApi {
     private final Map<String, TaskStatus> statusByTaskId = new ConcurrentHashMap<>();
+    private final Set<String> exceptions = ConcurrentHashMap.newKeySet();
     private final OnExecute callback;
 
     public SchedulerApiMock(OnExecute callback) {
@@ -22,7 +26,7 @@ public class SchedulerApiMock implements SchedulerApi {
     }
 
     @Override
-    public TaskStatus execute(String workflowId, TaskDescription tasks) {
+    public TaskStatus execute(String wfName, String workflowId, TaskDescription tasks) {
         String taskId = callback.call(workflowId, tasks, this);
         return status(workflowId, taskId);
     }
@@ -30,6 +34,9 @@ public class SchedulerApiMock implements SchedulerApi {
     @Override
     @Nullable
     public TaskStatus status(String workflowId, String taskId) {
+        if (exceptions.contains(taskId)) {
+            throw Status.INTERNAL.asRuntimeException();
+        }
         return statusByTaskId.get(taskId);
     }
 
@@ -41,6 +48,10 @@ public class SchedulerApiMock implements SchedulerApi {
 
     public void changeStatus(String taskId, TaskStatus status) {
         statusByTaskId.put(taskId, status);
+    }
+
+    public void raiseException(String taskId) {
+        exceptions.add(taskId);
     }
 
     public static final TaskStatus QUEUE = TaskStatus.newBuilder()

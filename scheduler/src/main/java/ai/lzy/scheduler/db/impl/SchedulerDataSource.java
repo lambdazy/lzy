@@ -3,6 +3,7 @@ package ai.lzy.scheduler.db.impl;
 import ai.lzy.model.db.Storage;
 import ai.lzy.scheduler.configs.DbConfig;
 import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.flywaydb.core.Flyway;
 
@@ -16,7 +17,7 @@ public class SchedulerDataSource implements Storage {
     private final DbConfig config;
 
     @Inject
-    public SchedulerDataSource(DataSource dataSource, DbConfig config) {
+    public SchedulerDataSource(@Named("SchedulerDataSource") DataSource dataSource, DbConfig config) {
         this.config = config;
         var flyway = Flyway.configure()
             .dataSource(config.getUrl(), config.getUsername(), config.getPassword())
