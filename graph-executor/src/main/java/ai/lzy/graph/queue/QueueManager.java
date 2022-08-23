@@ -50,7 +50,7 @@ public class QueueManager extends Thread {
         this.processor = processor;
         this.dao = dao;
         this.eventDao = eventDao;
-        this.executor = Executors.newFixedThreadPool(config.executorsCount(), new ThreadFactory() {
+        this.executor = Executors.newFixedThreadPool(config.getExecutorsCount(), new ThreadFactory() {
             private int count = 0;
 
             @Override

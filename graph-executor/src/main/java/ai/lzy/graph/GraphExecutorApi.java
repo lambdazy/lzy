@@ -1,10 +1,7 @@
 package ai.lzy.graph;
 
-import static ai.lzy.util.auth.credentials.JwtUtils.buildJWT;
-
 import ai.lzy.graph.algo.GraphBuilder;
 import ai.lzy.graph.api.SchedulerApi;
-import ai.lzy.graph.config.AuthConfig;
 import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.model.db.DaoException;
 import ai.lzy.graph.db.GraphExecutionDao;
@@ -62,7 +59,6 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
     private final GraphExecutionDao dao;
     private final GraphBuilder graphBuilder;
     private final ServiceConfig config;
-    private final AuthConfig authConfig;
     private final QueueManager queueManager;
     private final AccessClient accessClient;
     private final SchedulerApi schedulerApi;
@@ -71,15 +67,14 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
 
     @Inject
     public GraphExecutorApi(GraphExecutionDao dao, ServiceConfig config, GraphBuilder graphBuilder,
-                            QueueManager queueManager, AuthConfig authConfig, SchedulerApi schedulerApi) {
+                            QueueManager queueManager, SchedulerApi schedulerApi) {
         this.dao = dao;
         this.config = config;
         this.graphBuilder = graphBuilder;
         this.queueManager = queueManager;
-        this.authConfig = authConfig;
         accessClient = new AccessServiceGrpcClient(
-            new GrpcConfig(authConfig.iamHost(), authConfig.iamPort()),
-            this::credentialsSupplier);
+            GrpcConfig.from(config.getAuth().getAddress()),
+            config.getAuth()::createCredentials);
         this.schedulerApi = schedulerApi;
     }
 
@@ -197,9 +192,9 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
         queueManager.start();
 
         final AuthenticateService service = new AuthenticateServiceGrpcClient(
-            new GrpcConfig(authConfig.iamHost(), authConfig.iamPort()));
+            GrpcConfig.from(config.getAuth().getAddress()));
 
-        ServerBuilder<?> builder = NettyServerBuilder.forPort(config.port())
+        ServerBuilder<?> builder = NettyServerBuilder.forPort(config.getPort())
             .intercept(new AuthServerInterceptor(service))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES);
@@ -234,14 +229,6 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
             } catch (InterruptedException | IOException e) {
                 LOG.error("Error while starting GraphExecutor", e);
             }
-        }
-    }
-
-    private Credentials credentialsSupplier() {
-        try (final Reader reader = new StringReader(authConfig.privateKey())) {
-            return new JwtCredentials(buildJWT(authConfig.serviceUid(), reader));
-        } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
-            throw new RuntimeException("Cannot build credentials");
         }
     }
 

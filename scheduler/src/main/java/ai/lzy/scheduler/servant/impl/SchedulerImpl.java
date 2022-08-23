@@ -104,7 +104,7 @@ public class SchedulerImpl extends Thread implements Scheduler {
         try {
             List<Servant> servants = dao.get(workflowName);
             servants.forEach(s -> s.stop(issue));
-            if (config.test()) {  // For tests await servant destroying
+            if (config.isTest()) {  // For tests await servant destroying
                 while (dao.get(workflowName).size() > 0) {
                     try {
                         Thread.sleep(100);
@@ -131,8 +131,8 @@ public class SchedulerImpl extends Thread implements Scheduler {
     @Override
     public void terminate() {
         stopping.set(true);
-        this.interrupt();
         pool.shutdown();
+        tasks.add(Task.NOOP);
     }
 
     @Override
@@ -147,6 +147,9 @@ public class SchedulerImpl extends Thread implements Scheduler {
             final Task task;
             try {
                 task = tasks.take();
+                if (task == Task.NOOP) {
+                    continue;
+                }
             } catch (InterruptedException e) {
                 LOG.debug("Thread interrupted", e);
                 continue;

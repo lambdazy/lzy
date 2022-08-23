@@ -16,7 +16,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
 
-public class AllocatorAgent extends TimerTask{
+public class AllocatorAgent extends TimerTask {
     private static final Logger LOG = LogManager.getLogger(AllocatorAgent.class);
 
     public static final String VM_ID_KEY = "LZY_ALLOCATOR_VM_ID";

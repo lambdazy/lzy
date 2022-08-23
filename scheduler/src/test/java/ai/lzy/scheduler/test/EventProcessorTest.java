@@ -396,7 +396,7 @@ public class EventProcessorTest {
     }
 
     public static Operation buildOp(String... tags) {
-        return new Operation(null, new Operation.Requirements("", ""), "", List.of(), "", "");
+        return new Operation(null, new Operation.Requirements("", ""), "", List.of(), "", "", null, null);
     }
 
     public class ProcessorContext implements AutoCloseable {

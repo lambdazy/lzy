@@ -1,6 +1,5 @@
 package ai.lzy.graph.api;
 
-import ai.lzy.graph.config.AuthConfig;
 import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.graph.model.TaskDescription;
 import ai.lzy.model.TaskDesc;
@@ -24,14 +23,13 @@ public class SchedulerApiImpl implements SchedulerApi {
     private final ManagedChannel channel;
 
     @Inject
-    public SchedulerApiImpl(ServiceConfig config, AuthConfig authConfig) {
-        channel = ChannelBuilder.forAddress(config.scheduler().host(), config.scheduler().port())
+    public SchedulerApiImpl(ServiceConfig config) {
+        channel = ChannelBuilder.forAddress(config.getScheduler().getHost(), config.getScheduler().getPort())
             .usePlaintext()
             .enableRetry(SchedulerGrpc.SERVICE_NAME)
             .build();
 
-        final var credentials = JwtUtils.credentials(authConfig.serviceUid(),
-            authConfig.privateKey());
+        final var credentials = config.getAuth().createCredentials();
         stub = SchedulerGrpc.newBlockingStub(channel).withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
     }

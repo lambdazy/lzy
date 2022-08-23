@@ -81,9 +81,9 @@ scheduler:
     servant-stop-timeout: 100ms
 
   auth:
-    iamAddress: 'localhost:8443'
-    serviceUid: "lzy-internal-user"
-    private-key: |
+    address: 'localhost:8443'
+    internal-user-name: "lzy-internal-user"
+    internal-user-private-key: |
       -----BEGIN RSA PRIVATE KEY-----
       MIIEpQIBAAKCAQEAzSwjDn/LTQkfK79LAo6N/270UHSG/xae07tUL3yHcrVr98st
       2RxHA05JyUi8e6kBIV/Err0E8gcPcmEsAhu3U8uVZT9fOW+9/qit7si6wwk6NYih
@@ -122,10 +122,9 @@ graph-executor:
     enabled: true
 
   auth:
-    iamHost: 'localhost'
-    iamPort: 8443
-    serviceUid: "lzy-internal-user"
-    private-key: |
+    address: 'localhost:8443'
+    internal-user-name: "lzy-internal-user"
+    internal-user-private-key: |
       -----BEGIN RSA PRIVATE KEY-----
       MIIEpQIBAAKCAQEAzSwjDn/LTQkfK79LAo6N/270UHSG/xae07tUL3yHcrVr98st
       2RxHA05JyUi8e6kBIV/Err0E8gcPcmEsAhu3U8uVZT9fOW+9/qit7si6wwk6NYih
@@ -153,5 +152,3 @@ graph-executor:
       /R0NeRjKxaOebS9NKgaWI9YB+9kxCa3R//sGkRvAOHa7H986mQ1Vx1y14GGtuSTr
       l7I2m1fDWAE7ibup2fO9VSexAlqwoDnv4dWQ03f/ifRpFE/Tg7NV5OM=
       -----END RSA PRIVATE KEY-----
-  
-  

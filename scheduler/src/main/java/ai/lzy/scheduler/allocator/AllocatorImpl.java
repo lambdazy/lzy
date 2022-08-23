@@ -1,15 +1,14 @@
 package ai.lzy.scheduler.allocator;
 
+import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.resources.AccessBinding;
-import ai.lzy.iam.resources.AuthResource;
 import ai.lzy.iam.resources.impl.Workflow;
 import ai.lzy.iam.resources.subjects.Servant;
 import ai.lzy.model.Operation;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.model.utils.FreePortFinder;
-import ai.lzy.scheduler.configs.AuthConfig;
 import ai.lzy.scheduler.configs.ServantEventProcessorConfig;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.util.auth.credentials.Credentials;
@@ -62,30 +61,29 @@ public class AllocatorImpl implements ServantsAllocator {
     private final AllocatorGrpc.AllocatorBlockingStub allocator;
     private final OperationServiceApiBlockingStub operations;
     private final AtomicInteger testServantCounter = new AtomicInteger(0);
-    private final AuthConfig authConfig;
+    private final IamClientConfiguration authConfig;
     private final ManagedChannel iamChan;
     private final SubjectServiceGrpcClient subjectClient;
     private final AccessBindingServiceGrpcClient abClient;
 
     public AllocatorImpl(ServiceConfig config, ServantEventProcessorConfig processorConfig,
-                         ServantMetaStorage metaStorage, AuthConfig authConfig) {
+                         ServantMetaStorage metaStorage) {
         this.config = config;
         this.processorConfig = processorConfig;
         this.metaStorage = metaStorage;
-        this.authConfig = authConfig;
+        this.authConfig = config.getAuth();
         this.iamChan = ChannelBuilder
-            .forAddress(authConfig.iamAddress())
+            .forAddress(authConfig.getAddress())
             .usePlaintext()
             .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
             .build();
 
-        final var address = HostAndPort.fromString(config.allocatorAddress());
+        final var address = HostAndPort.fromString(config.getAllocatorAddress());
         final var channel = new ChannelBuilder(address.getHost(), address.getPort())
             .enableRetry(AllocatorGrpc.SERVICE_NAME)
             .usePlaintext()
             .build();
-        final var credentials = JwtUtils.credentials(authConfig.serviceUid(),
-            authConfig.privateKey());
+        final var credentials = authConfig.createCredentials();
         allocator = AllocatorGrpc.newBlockingStub(channel).withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
 
@@ -95,8 +93,8 @@ public class AllocatorImpl implements ServantsAllocator {
             .build();
         operations = OperationServiceApiGrpc.newBlockingStub(opChannel).withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
-        subjectClient = new SubjectServiceGrpcClient(iamChan, this::credentialsSupplier);
-        abClient = new AccessBindingServiceGrpcClient(iamChan, this::credentialsSupplier);
+        subjectClient = new SubjectServiceGrpcClient(iamChan, authConfig::createCredentials);
+        abClient = new AccessBindingServiceGrpcClient(iamChan, authConfig::createCredentials);
     }
 
 
@@ -106,7 +104,7 @@ public class AllocatorImpl implements ServantsAllocator {
         final Credentials credentials;
         try {
             final var subj = subjectClient.createSubject(new Servant(servantId),
-                    authConfig.serviceUid(), servantId);
+                    authConfig.getInternalUserName(), servantId);
 
             final var keys = RsaUtils.generateRsaKeys();
             try (final var reader = new FileReader(keys.privateKeyPath().toFile())) {
@@ -138,7 +136,7 @@ public class AllocatorImpl implements ServantsAllocator {
         final int fsPort;
         final String mountPoint;
 
-        if (config.test()) {
+        if (config.isTest()) {
             port = FreePortFinder.find(10000, 11000);
             fsPort = FreePortFinder.find(11000, 12000);
             mountPoint = "/tmp/lzy" + testServantCounter.incrementAndGet();
@@ -157,8 +155,8 @@ public class AllocatorImpl implements ServantsAllocator {
             "--workflow-name", workflowName,
             "--port", String.valueOf(port),
             "--fs-port", String.valueOf(fsPort),
-            "--scheduler-address", config.schedulerAddress(),
-            "--channel-manager", config.channelManagerAddress(),
+            "--scheduler-address", config.getSchedulerAddress(),
+            "--channel-manager", config.getChannelManagerAddress(),
             "--lzy-mount", mountPoint,
             "--host", "localhost",
             "--token", '"' + credentials.token() + '"',
@@ -167,7 +165,7 @@ public class AllocatorImpl implements ServantsAllocator {
         );
         final var workload = Workload.newBuilder()
             .setName(servantId)
-            .setImage(config.servantImage())
+            .setImage(config.getServantImage())
             .addAllArgs(args)
             .putAllPortBindings(ports)
             .build();
@@ -238,14 +236,6 @@ public class AllocatorImpl implements ServantsAllocator {
                 return null;
             }
             return new KuberMeta(namespace.getAsString(), podName.getAsString());
-        }
-    }
-
-    private Credentials credentialsSupplier() {
-        try (final Reader reader = new StringReader(authConfig.privateKey())) {
-            return new JwtCredentials(buildJWT(authConfig.serviceUid(), reader));
-        } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
-            throw new RuntimeException("Cannot build credentials");
         }
     }
 }

@@ -394,7 +394,7 @@ public class GraphExecutorTest {
             outputs.stream()
                 .map(s -> buildSlot(s, Slot.Direction.OUTPUT)))
             .toList();
-        return new Operation(null, new Operation.Requirements("", ""), "", slots, "", "");
+        return new Operation(null, new Operation.Requirements("", ""), "", slots, "", "", null, null);
     }
 
     public static Slot buildSlot(String name, Slot.Direction direction) {
@@ -465,7 +465,12 @@ public class GraphExecutorTest {
         GraphBuilder builder = new GraphBuilderImpl();
         ChannelCheckerFactory factory = new ChannelCheckerFactory(scheduler);
         GraphProcessor processor = new BfsGraphProcessor(scheduler, builder, factory);
-        ServiceConfig config = new ServiceConfig(1234, 1, new ServiceConfig.Scheduler("localhost", 1));
+
+        ServiceConfig config = new ServiceConfig();
+        config.setPort(1234);
+        config.setExecutorsCount(1);
+        config.setScheduler(new ServiceConfig.Scheduler());
+
         return new QueueManager(processor, dao, config, queueEventDao);
     }
 }

@@ -1,11 +1,10 @@
 package ai.lzy.scheduler.test;
 
+import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.model.utils.FreePortFinder;
-import ai.lzy.scheduler.configs.AuthConfig;
 import ai.lzy.scheduler.BeanFactory;
-import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.Operations;
@@ -46,21 +45,20 @@ public class IntegrationTest extends BaseTestWithIam {
 
     @Before
     public void setUp() {
-        final AuthConfig authConfig;
+        final IamClientConfiguration auth;
         try (var context = ApplicationContext.run("scheduler")) {
             SchedulerApiImpl impl = context.getBean(SchedulerApiImpl.class);
-            authConfig = context.getBean(AuthConfig.class);
             PrivateSchedulerApiImpl privateApi = context.getBean(PrivateSchedulerApiImpl.class);
             ServiceConfig config = context.getBean(ServiceConfig.class);
-            api = new SchedulerApi(impl, privateApi, config, new BeanFactory().iamChannel(authConfig));
+            auth = config.getAuth();
+            api = new SchedulerApi(impl, privateApi, config, new BeanFactory().iamChannel(config));
             allocator = context.getBean(AllocatorMock.class);
         }
         chan = ChannelBuilder.forAddress("localhost", 2392)
             .usePlaintext()
             .build();
 
-        var credentials = JwtUtils.credentials(authConfig.serviceUid(),
-                authConfig.privateKey());
+        var credentials = auth.createCredentials();
         stub = SchedulerGrpc.newBlockingStub(chan).withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
 

@@ -460,7 +460,7 @@ public class ServantEventProcessor extends Thread {
     private static class AssertionException extends Exception {}
 
     public void shutdown() {
-        this.queue.put(ServantEvent.noop(workflowName, servantId));
         this.stopping.set(true);
+        this.queue.put(ServantEvent.noop(workflowName, servantId));
     }
 }

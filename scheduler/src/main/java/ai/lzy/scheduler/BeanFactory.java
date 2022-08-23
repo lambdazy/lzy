@@ -1,7 +1,7 @@
 package ai.lzy.scheduler;
 
-import ai.lzy.scheduler.configs.AuthConfig;
 import ai.lzy.scheduler.configs.DbConfig;
+import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
@@ -37,9 +37,9 @@ public class BeanFactory {
 
     @Bean(preDestroy = "shutdown")
     @Named("IamGrpcChannel")
-    public ManagedChannel iamChannel(AuthConfig config) {
+    public ManagedChannel iamChannel(ServiceConfig config) {
         return ChannelBuilder
-            .forAddress(config.iamAddress())
+            .forAddress(config.getAuth().getAddress())
             .usePlaintext()
             .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
             .build();

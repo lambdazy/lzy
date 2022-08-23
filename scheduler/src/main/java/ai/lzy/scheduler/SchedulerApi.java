@@ -7,7 +7,6 @@ import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
-import ai.lzy.scheduler.configs.AuthConfig;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.scheduler.grpc.RemoteAddressInterceptor;
 import io.grpc.*;
@@ -33,7 +32,7 @@ public class SchedulerApi {
                         @Named("IamGrpcChannel") ManagedChannel iamChannel) {
         this.impl = impl;
 
-        ServerBuilder<?> builder = NettyServerBuilder.forPort(config.port())
+        ServerBuilder<?> builder = NettyServerBuilder.forPort(config.getPort())
                 .intercept(new RemoteAddressInterceptor())
                 .permitKeepAliveWithoutCalls(true)
                 .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES);
@@ -45,7 +44,7 @@ public class SchedulerApi {
         builder.addService(ServerInterceptors.intercept(privateApi, new GrpcLogsInterceptor()));
         server = builder.build();
 
-        LOG.info("Starting scheduler on port {}...", config.port());
+        LOG.info("Starting scheduler on port {}...", config.getPort());
 
         try {
             server.start();

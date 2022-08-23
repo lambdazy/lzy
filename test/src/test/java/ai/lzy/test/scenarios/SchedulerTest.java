@@ -1,22 +1,16 @@
 package ai.lzy.test.scenarios;
 
 import ai.lzy.allocator.AllocatorMain;
-import ai.lzy.allocator.dao.impl.AllocatorDataSource;
 import ai.lzy.graph.GraphExecutorApi;
-import ai.lzy.graph.db.impl.GraphExecutorDataSource;
 import ai.lzy.model.Operation;
 import ai.lzy.model.Slot;
-import ai.lzy.model.TaskDesc;
 import ai.lzy.model.data.DataSchema;
-import ai.lzy.model.db.test.DatabaseCleaner;
 import ai.lzy.model.graph.AuxEnv;
 import ai.lzy.model.graph.BaseEnv;
 import ai.lzy.model.graph.Env;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.scheduler.SchedulerApi;
-import ai.lzy.scheduler.configs.AuthConfig;
-import ai.lzy.scheduler.db.impl.SchedulerDataSource;
-import ai.lzy.util.auth.credentials.JwtUtils;
+import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
@@ -104,9 +98,8 @@ public class SchedulerTest extends LocalScenario {
             .usePlaintext()
             .enableRetry(SchedulerGrpc.SERVICE_NAME)
             .build();
-        final var authConfig = context.getBean(AuthConfig.class);
-        final var credentials = JwtUtils.credentials(authConfig.serviceUid(),
-                authConfig.privateKey());
+        final var config = context.getBean(ServiceConfig.class);
+        final var credentials = config.getAuth().createCredentials();
         stub = SchedulerGrpc.newBlockingStub(channel).withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
 
