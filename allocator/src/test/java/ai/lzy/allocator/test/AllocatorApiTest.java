@@ -414,6 +414,68 @@ public class AllocatorApiTest extends BaseTestWithIam {
     }
 
     @Test
+    public void deleteSessionWithActiveVmsAfterRegister()
+        throws InvalidProtocolBufferException, InterruptedException {
+        final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
+            CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
+                    CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(0).build()).build())
+                .build());
+        final Operation allocate = authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
+            .setSessionId(createSessionResponse.getSessionId())
+            .setPoolLabel("S")
+            .build());
+        final VmAllocatorApi.AllocateMetadata allocateMetadata =
+            allocate.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
+
+        final String podName = KuberVmAllocator.POD_NAME_PREFIX + allocateMetadata.getVmId();
+        mockGetPod(podName, true);
+        final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
+        mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
+
+        registerVm(allocateMetadata.getVmId());
+        //noinspection ResultOfMethodCallIgnored
+        authorizedAllocatorBlockingStub.deleteSession(
+            DeleteSessionRequest.newBuilder().setSessionId(createSessionResponse.getSessionId()).build());
+
+        Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
+    }
+
+    @Test
+    public void deleteSessionWithActiveVmsBeforeRegister()
+        throws InvalidProtocolBufferException, InterruptedException {
+        final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
+            CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
+                    CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(0).build()).build())
+                .build());
+        final Operation allocate = authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
+            .setSessionId(createSessionResponse.getSessionId())
+            .setPoolLabel("S")
+            .build());
+        final VmAllocatorApi.AllocateMetadata allocateMetadata =
+            allocate.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
+
+        final String podName = KuberVmAllocator.POD_NAME_PREFIX + allocateMetadata.getVmId();
+        mockGetPod(podName, true);
+        final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
+        mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
+
+        //noinspection ResultOfMethodCallIgnored
+        authorizedAllocatorBlockingStub.deleteSession(
+            DeleteSessionRequest.newBuilder().setSessionId(createSessionResponse.getSessionId()).build());
+        try {
+            //noinspection ResultOfMethodCallIgnored
+            privateAllocatorBlockingStub.register(
+                VmAllocatorPrivateApi.RegisterRequest.newBuilder().setVmId(allocateMetadata.getVmId()).build());
+            Assert.fail();
+        } catch (StatusRuntimeException e) {
+            Assert.assertEquals(e.getStatus().toString(), Status.FAILED_PRECONDITION.getCode(),
+                e.getStatus().getCode());
+        }
+
+        Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
+    }
+
+    @Test
     public void freeNonexistentVmTest() {
         try {
             //noinspection ResultOfMethodCallIgnored
