@@ -7,7 +7,7 @@ import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.model.db.Storage;
-import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.model.db.TransactionHandleImpl;
 import ai.lzy.v1.AllocatorPrivateGrpc.AllocatorPrivateImplBase;
 import ai.lzy.v1.VmAllocatorApi.AllocateResponse;
 import ai.lzy.v1.VmAllocatorPrivateApi.HeartbeatRequest;
@@ -18,12 +18,11 @@ import com.google.protobuf.Any;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Singleton;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Set;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 @Singleton
 public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
@@ -75,7 +74,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
             return;
         }
 
-        try (final var transaction = new TransactionHandle(storage)) {
+        try (final var transaction = new TransactionHandleImpl(storage)) {
             dao.update(new Vm.VmBuilder(vm)
                 .setState(Vm.State.RUNNING)
                 .setVmMeta(request.getMetadataMap())

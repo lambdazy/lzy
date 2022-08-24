@@ -1,5 +1,8 @@
 package ai.lzy.channelmanager;
 
+import static ai.lzy.model.GrpcConverter.from;
+import static ai.lzy.model.GrpcConverter.to;
+
 import ai.lzy.channelmanager.channel.Channel;
 import ai.lzy.channelmanager.channel.ChannelException;
 import ai.lzy.channelmanager.channel.ChannelImpl;
@@ -11,17 +14,31 @@ import ai.lzy.iam.clients.stub.AuthenticateServiceStub;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.model.GrpcConverter;
-import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.model.SlotInstance;
 import ai.lzy.model.channel.ChannelSpec;
 import ai.lzy.model.channel.DirectChannelSpec;
 import ai.lzy.model.channel.SnapshotChannelSpec;
 import ai.lzy.model.db.DaoException;
-import ai.lzy.model.db.ProtoObjectMapper;
 import ai.lzy.model.db.NotFoundException;
+import ai.lzy.model.db.ProtoObjectMapper;
+import ai.lzy.model.db.ReadMode;
 import ai.lzy.model.db.Transaction;
 import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.v1.ChannelManager.*;
+import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.v1.ChannelManager.ChannelCreateRequest;
+import ai.lzy.v1.ChannelManager.ChannelCreateResponse;
+import ai.lzy.v1.ChannelManager.ChannelDestroyAllRequest;
+import ai.lzy.v1.ChannelManager.ChannelDestroyAllResponse;
+import ai.lzy.v1.ChannelManager.ChannelDestroyRequest;
+import ai.lzy.v1.ChannelManager.ChannelDestroyResponse;
+import ai.lzy.v1.ChannelManager.ChannelStatus;
+import ai.lzy.v1.ChannelManager.ChannelStatusAllRequest;
+import ai.lzy.v1.ChannelManager.ChannelStatusList;
+import ai.lzy.v1.ChannelManager.ChannelStatusRequest;
+import ai.lzy.v1.ChannelManager.SlotAttach;
+import ai.lzy.v1.ChannelManager.SlotAttachStatus;
+import ai.lzy.v1.ChannelManager.SlotDetach;
+import ai.lzy.v1.ChannelManager.SlotDetachStatus;
 import ai.lzy.v1.Channels;
 import ai.lzy.v1.LzyChannelManagerGrpc;
 import ai.lzy.v1.LzyFsApi;
@@ -36,11 +53,6 @@ import io.grpc.Status;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
-import org.apache.commons.cli.*;
-import org.apache.commons.lang3.NotImplementedException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.io.IOException;
@@ -59,7 +71,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -73,9 +84,6 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import static ai.lzy.model.GrpcConverter.from;
-import static ai.lzy.model.GrpcConverter.to;
 
 @SuppressWarnings("UnstableApiUsage")
 public class ChannelManager {
@@ -257,7 +265,7 @@ public class ChannelManager {
 
                 final AtomicReference<Channel> channel = new AtomicReference<>();
                 Transaction.execute(dataSource, conn -> {
-                    channel.set(channelStorage.findChannel(conn, ChannelStorage.ReadMode.FOR_UPDATE, channelId));
+                    channel.set(channelStorage.findChannel(conn, ReadMode.FOR_UPDATE, channelId));
                     if (channel.get() == null) {
                         throw new NotFoundException("Channel with id " + channelId + " not found");
                     }
@@ -308,7 +316,7 @@ public class ChannelManager {
                 List<Channel> channels = new ArrayList<>();
                 Transaction.execute(dataSource, conn -> {
                     channels.addAll(channelStorage.listChannels(
-                        conn, ChannelStorage.ReadMode.FOR_UPDATE, userId, workflowId
+                        conn, ReadMode.FOR_UPDATE, userId, workflowId
                     ).toList());
                     channelStorage.setChannelLifeStatus(conn,
                         channels.stream().map(Channel::id), ChannelStorage.ChannelLifeStatus.DESTROYING.name()
@@ -352,7 +360,7 @@ public class ChannelManager {
 
                 final AtomicReference<Channel> channel = new AtomicReference<>();
                 Transaction.execute(dataSource, conn -> {
-                    channel.set(channelStorage.findChannel(conn, ChannelStorage.ReadMode.DEFAULT, channelId));
+                    channel.set(channelStorage.findChannel(conn, ReadMode.DEFAULT, channelId));
                     if (channel.get() == null) {
                         String errorMessage = String.format("Channel with id %s not found", channelId);
                         LOG.error(errorMessage);
@@ -393,7 +401,7 @@ public class ChannelManager {
                 List<Channel> channels = new ArrayList<>();
                 Transaction.execute(dataSource, conn -> {
                     channels.addAll(channelStorage.listChannels(
-                        conn, ChannelStorage.ReadMode.DEFAULT, userId, workflowId
+                        conn, ReadMode.DEFAULT, userId, workflowId
                     ).toList());
                     return true;
                 });
@@ -436,7 +444,7 @@ public class ChannelManager {
 
                 Transaction.execute(dataSource, conn -> {
                     final Channel channel = channelStorage.findChannel(
-                        conn, ChannelStorage.ReadMode.FOR_UPDATE, channelId
+                        conn, ReadMode.FOR_UPDATE, channelId
                     );
                     if (channel == null) {
                         String errorMessage = String.format("Channel with id %s not found", channelId);
@@ -444,7 +452,7 @@ public class ChannelManager {
                         throw new NotFoundException(errorMessage);
                     }
 
-                    List<String> boundChannels = channelStorage.listBoundChannels(conn, ChannelStorage.ReadMode.DEFAULT,
+                    List<String> boundChannels = channelStorage.listBoundChannels(conn, ReadMode.DEFAULT,
                             userId, channel.workflowId(), endpoint.uri().toString());
 
                     if (boundChannels.size() > 0) {
@@ -529,7 +537,7 @@ public class ChannelManager {
 
                 Transaction.execute(dataSource, conn -> {
                     final Channel channel = channelStorage.findChannel(
-                        conn, ChannelStorage.ReadMode.FOR_UPDATE, channelId
+                        conn, ReadMode.FOR_UPDATE, channelId
                     );
                     if (channel == null) {
                         String errorMessage = String.format("Channel with id %s not found", channelId);
@@ -918,12 +926,6 @@ public class ChannelManager {
         private enum ChannelLifeStatus {
             ALIVE,
             DESTROYING,
-            ;
-        }
-
-        private enum ReadMode {
-            DEFAULT,
-            FOR_UPDATE,
             ;
         }
 

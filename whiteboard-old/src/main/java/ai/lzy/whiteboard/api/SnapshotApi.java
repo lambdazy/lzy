@@ -9,6 +9,7 @@ import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.net.URI;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
@@ -128,12 +129,16 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
                         .asException());
                     return;
                 }
-                repository.createFromSnapshot(fromSnapshotId,
-                    new Snapshot.Impl(snapshotId, URI.create(request.getAuth().getUser().getUserId()),
-                        GrpcConverter.from(request.getCreationDateUTC()), request.getWorkflowName(), fromSnapshotId));
+                repository.createFromSnapshot(fromSnapshotId, new Snapshot.Impl(
+                    snapshotId,
+                    URI.create(request.getAuth().getUser().getUserId()),
+                    Date.from(GrpcConverter.from(request.getCreationDateUTC())),
+                    request.getWorkflowName(),
+                    fromSnapshotId
+                ));
             } else {
                 repository.create(new Snapshot.Impl(snapshotId, URI.create(request.getAuth().getUser().getUserId()),
-                    GrpcConverter.from(request.getCreationDateUTC()), request.getWorkflowName(), null));
+                    Date.from(GrpcConverter.from(request.getCreationDateUTC())), request.getWorkflowName(), null));
             }
         } catch (SnapshotRepositoryException e) {
             LOG.error("SnapshotApi::createSnapshot: Got exception while creating snapshot {}", e.getMessage());

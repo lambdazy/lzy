@@ -21,12 +21,12 @@ message Whiteboard {
   string id = 1;
   repeated WhiteboardField fields = 2;
   Storage storage = 3;
-  WhiteboardStatus status = 4;
+  Status status = 4;
   repeated string tags = 5;
   string namespace = 6;
   google.protobuf.Timestamp createdAt = 7;
 
-  enum WhiteboardStatus {
+  enum Status {
     WHITEBOARD_STATUS_UNSPECIFIED = 0;
     CREATED = 1;
     FINALIZED = 2;
@@ -35,14 +35,18 @@ message Whiteboard {
 
 message WhiteboardField {
   string fieldName = 1;
-  DataScheme scheme = 2;
-  Status status = 3;
-  string storageUri = 4;
 
-  enum Status {
-    WHITEBOARD_FIELD_STATUS_UNSPECIFIED = 0;
-    CREATED = 1;
-    LINKED = 2;
+  oneof state {
+    CreatedField createdState = 2;
+    LinkedField linkedState = 3;
+  }
+
+  message CreatedField {
+  }
+
+  message LinkedField {
+    DataScheme scheme = 1;
+    string storageUri = 2;
   }
 }
 

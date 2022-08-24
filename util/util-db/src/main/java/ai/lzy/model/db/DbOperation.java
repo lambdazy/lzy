@@ -22,21 +22,15 @@ public interface DbOperation {
         try {
             op.execute(con);
         } catch (SQLException e) {
+            throw new RuntimeException("Cannot execute sql request", e);
+        } finally {
             if (transaction == null) {
                 try {
                     con.close();
                 } catch (SQLException ex) {
-                    throw new RuntimeException("Cannot execute sql request", ex);
+                    throw new RuntimeException("Cannot close connection", ex);
                 }
             }
-            throw new RuntimeException("Cannot execute sql request", e);
-        }
-        try {
-            if (transaction == null) {
-                con.close();
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException("Cannot close connection", e);
         }
     }
 }

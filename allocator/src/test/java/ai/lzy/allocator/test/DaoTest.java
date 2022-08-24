@@ -9,7 +9,7 @@ import ai.lzy.allocator.model.Operation;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.model.db.Storage;
-import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.model.db.TransactionHandleImpl;
 import ai.lzy.model.db.test.DatabaseCleaner;
 import ai.lzy.v1.VmAllocatorApi;
 import com.google.protobuf.Any;
@@ -74,7 +74,7 @@ public class DaoTest {
             .setVmId("id")
             .build();
         Operation op;
-        try (final var tx = new TransactionHandle(storage)) {
+        try (final var tx = new TransactionHandleImpl(storage)) {
             op = opDao.create("Some op", "test", Any.pack(meta), tx);
             // Do not commit
         }
@@ -82,7 +82,7 @@ public class DaoTest {
         final var op1 = opDao.get(op.id(), null);
         Assert.assertNull(op1);
 
-        try (final var tx = new TransactionHandle(storage)) {
+        try (final var tx = new TransactionHandleImpl(storage)) {
             op = opDao.create("Some op", "test", Any.pack(meta), tx);
             tx.commit();
         }

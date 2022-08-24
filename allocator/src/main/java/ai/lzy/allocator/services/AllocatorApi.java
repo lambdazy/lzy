@@ -11,7 +11,7 @@ import ai.lzy.allocator.model.Session;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.model.db.Storage;
-import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.model.db.TransactionHandleImpl;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.OperationService.Operation;
@@ -89,7 +89,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
     public void deleteSession(DeleteSessionRequest request, StreamObserver<DeleteSessionResponse> responseObserver) {
         responseObserver.onNext(DeleteSessionResponse.newBuilder().build());
         responseObserver.onCompleted();
-        try (var transaction = new TransactionHandle(storage)) {
+        try (var transaction = new TransactionHandleImpl(storage)) {
             final List<Vm> vms = dao.list(request.getSessionId(), transaction);
             vms.forEach(vm -> {
                 dao.update(new Vm.VmBuilder(vm)
@@ -123,7 +123,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             null
         );
         Vm vm;
-        try (var transaction = new TransactionHandle(storage)) {
+        try (var transaction = new TransactionHandleImpl(storage)) {
             final var existingVm = dao.acquire(request.getSessionId(), request.getPoolLabel(),
                 request.getZone(), transaction);
             if (existingVm != null) {

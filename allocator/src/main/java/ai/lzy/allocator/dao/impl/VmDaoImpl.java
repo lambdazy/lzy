@@ -6,6 +6,7 @@ import ai.lzy.allocator.model.Workload;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.model.db.TransactionHandleImpl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -149,7 +150,7 @@ public class VmDaoImpl implements VmDao {
     @Override
     public Vm acquire(String sessionId, String poolId, String zone, @Nullable TransactionHandle transaction) {
         final Vm[] vm = new Vm[1];
-        final var tx = transaction == null ? new TransactionHandle(storage) : transaction;
+        final var tx = transaction == null ? new TransactionHandleImpl(storage) : transaction;
         DbOperation.execute(tx, storage, con -> {
             try (final var s = con.prepareStatement(
                 "SELECT " + FIELDS + """
