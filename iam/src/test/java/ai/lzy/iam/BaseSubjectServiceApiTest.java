@@ -5,15 +5,21 @@ import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.util.auth.exceptions.AuthBadRequestException;
 import ai.lzy.util.auth.exceptions.AuthInternalException;
+import junitparams.JUnitParamsRunner;
+import junitparams.Parameters;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.NoSuchElementException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+@RunWith(JUnitParamsRunner.class)
 public abstract class BaseSubjectServiceApiTest {
     public static final Logger LOG = LogManager.getLogger(BaseSubjectServiceApiTest.class);
 
@@ -111,15 +117,20 @@ public abstract class BaseSubjectServiceApiTest {
         removeSubject(subject);
     }
 
-    @Test
-    public void restrictEqualSubjectIdsTest() {
-        restrictEqualSubjectIdsScenario(SubjectType.SERVANT, SubjectType.SERVANT);
-        restrictEqualSubjectIdsScenario(SubjectType.SERVANT, SubjectType.USER);
-        restrictEqualSubjectIdsScenario(SubjectType.USER, SubjectType.SERVANT);
-        restrictEqualSubjectIdsScenario(SubjectType.USER, SubjectType.USER);
+    public static Collection<Object[]> restrictEqualSubjectIdsParams() {
+        return Arrays.asList(
+                new Object[][]{
+                        {SubjectType.USER, SubjectType.USER},
+                        {SubjectType.USER, SubjectType.SERVANT},
+                        {SubjectType.SERVANT, SubjectType.USER},
+                        {SubjectType.SERVANT, SubjectType.SERVANT}
+                }
+        );
     }
 
-    public void restrictEqualSubjectIdsScenario(SubjectType subjectType1, SubjectType subjectType2) {
+    @Test
+    @Parameters(method = "restrictEqualSubjectIdsParams")
+    public void restrictEqualSubjectIdsTest(SubjectType subjectType1, SubjectType subjectType2) {
         String subjectId = "1";
         createSubject(subjectId, subjectType1);
         Subject subject1 = subject(subjectId);
