@@ -1,26 +1,22 @@
 package ai.lzy.channelmanager;
 
-import ai.lzy.channelmanager.channel.Channel;
-import ai.lzy.channelmanager.channel.ChannelException;
-import ai.lzy.channelmanager.channel.ChannelImpl;
-import ai.lzy.channelmanager.channel.Endpoint;
-import ai.lzy.channelmanager.channel.SlotEndpoint;
+import ai.lzy.channelmanager.channel.*;
 import ai.lzy.channelmanager.control.DirectChannelController;
 import ai.lzy.channelmanager.control.SnapshotChannelController;
 import ai.lzy.iam.clients.stub.AuthenticateServiceStub;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.model.GrpcConverter;
-import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.model.SlotInstance;
 import ai.lzy.model.channel.ChannelSpec;
 import ai.lzy.model.channel.DirectChannelSpec;
 import ai.lzy.model.channel.SnapshotChannelSpec;
 import ai.lzy.model.db.DaoException;
-import ai.lzy.model.db.ProtoObjectMapper;
 import ai.lzy.model.db.NotFoundException;
+import ai.lzy.model.db.ProtoObjectMapper;
 import ai.lzy.model.db.Transaction;
 import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.ChannelManager.*;
 import ai.lzy.v1.Channels;
 import ai.lzy.v1.LzyChannelManagerGrpc;
@@ -36,43 +32,24 @@ import io.grpc.Status;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 import org.apache.commons.cli.*;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import jakarta.inject.Inject;
-import jakarta.inject.Singleton;
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
+import java.sql.*;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
-
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.annotation.Nullable;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
-import org.apache.commons.lang3.NotImplementedException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import static ai.lzy.model.GrpcConverter.from;
 import static ai.lzy.model.GrpcConverter.to;
@@ -243,10 +220,7 @@ public class ChannelManager {
         }
 
         @Override
-        public void destroy(
-            ChannelDestroyRequest request,
-            StreamObserver<ChannelDestroyResponse> responseObserver
-        ) {
+        public void destroy(ChannelDestroyRequest request, StreamObserver<ChannelDestroyResponse> responseObserver) {
             LOG.info("Destroy channel {}", request.getChannelId());
 
             try {
@@ -268,10 +242,10 @@ public class ChannelManager {
                 });
 
                 channel.get().destroy();
-                Transaction.execute(dataSource, conn -> {
+
+                try (var conn = dataSource.connect()) {
                     channelStorage.removeChannel(conn, channelId);
-                    return true;
-                });
+                }
 
                 responseObserver.onNext(ChannelDestroyResponse.getDefaultInstance());
                 LOG.info("Destroy channel {} done", channelId);
@@ -291,10 +265,9 @@ public class ChannelManager {
         }
 
         @Override
-        public void destroyAll(
-            ChannelDestroyAllRequest request,
-            StreamObserver<ChannelDestroyAllResponse> responseObserver
-        ) {
+        public void destroyAll(ChannelDestroyAllRequest request,
+                               StreamObserver<ChannelDestroyAllResponse> responseObserver)
+        {
             LOG.info("Destroying all channels for workflow {}", request.getWorkflowId());
 
             try {
@@ -318,10 +291,9 @@ public class ChannelManager {
 
                 for (final Channel channel : channels) {
                     channel.destroy();
-                    Transaction.execute(dataSource, conn -> {
+                    try (var conn = dataSource.connect()) {
                         channelStorage.removeChannel(conn, channel.id());
-                        return true;
-                    });
+                    }
                 }
 
                 responseObserver.onNext(ChannelDestroyAllResponse.getDefaultInstance());
