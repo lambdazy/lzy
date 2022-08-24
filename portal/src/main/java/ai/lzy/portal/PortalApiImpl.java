@@ -32,7 +32,7 @@ class PortalApiImpl extends LzyPortalImplBase {
     @Override
     public void stop(Empty request, StreamObserver<Empty> responseObserver) {
         this.requirePortalIsActive(responseObserver, () -> {
-            portal.stop();
+            portal.close();
             responseObserver.onNext(Empty.getDefaultInstance());
             responseObserver.onCompleted();
         });

@@ -1,23 +1,25 @@
 package ai.lzy.portal.config;
 
-import lombok.Builder;
+import io.micronaut.context.annotation.ConfigurationProperties;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.time.Duration;
 
 @Getter
-@Builder
+@Setter
+@ConfigurationProperties("portal")
 public class PortalConfig {
-    private final String servantId;
-    private final String vmId;
-    private final String allocatorAddress;
-    private final int apiPort;
-    private final int fsPort;
-    private final String fsRoot;
-    private final String channelManagerAddress;
-    private final String host;
-    private final String token;
-    private final Duration allocatorHeartbeatPeriod;
-    private final String stdoutChannelId;
-    private final String stderrChannelId;
+    private String servantId;
+    private String vmId;
+    private String token;
+    private String host;
+    private String channelManagerAddress;
+    private String allocatorAddress;
+    private Duration allocatorHeartbeatPeriod;
+    private int apiPort;
+    private int fsPort;
+    private String fsRoot;
+    private String stdoutChannelId;
+    private String stderrChannelId;
 }

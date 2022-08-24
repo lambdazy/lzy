@@ -12,6 +12,7 @@ import ai.lzy.util.grpc.ChannelBuilder;
 import com.google.common.net.HostAndPort;
 import io.grpc.Server;
 import io.grpc.netty.NettyServerBuilder;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -25,6 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static ai.lzy.model.UriScheme.LzyFs;
 
+@Singleton
 public class Portal implements AutoCloseable {
     private static final Logger LOG = LogManager.getLogger(Portal.class);
 
@@ -68,7 +70,7 @@ public class Portal implements AutoCloseable {
 
         } catch (IOException | AllocatorAgent.RegisterException | URISyntaxException e) {
             LOG.error(e);
-            stop();
+            this.close();
             throw new RuntimeException(e);
         }
 
@@ -132,22 +134,18 @@ public class Portal implements AutoCloseable {
         return active.get();
     }
 
-    void stop() {
-        if (active.compareAndSet(true, false)) {
-            LOG.error("Stopping portal");
-            grpcServer.shutdown();
-            allocatorAgent.shutdown();
-            fsServer.stop();
-        }
-    }
-
     public void awaitTermination() throws InterruptedException {
         grpcServer.awaitTermination();
     }
 
     @Override
     public void close() {
-        stop();
+        if (active.compareAndSet(true, false)) {
+            LOG.error("Stopping portal");
+            grpcServer.shutdown();
+            allocatorAgent.shutdown();
+            fsServer.stop();
+        }
     }
 
     public static class CreateSlotException extends Exception {
