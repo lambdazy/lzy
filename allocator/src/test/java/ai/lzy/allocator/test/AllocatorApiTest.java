@@ -5,8 +5,10 @@ import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactory;
 import ai.lzy.allocator.alloc.impl.kuber.KuberLabels;
 import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
+import ai.lzy.allocator.dao.impl.AllocatorDataSource;
 import ai.lzy.allocator.dao.impl.SessionDaoImpl;
 import ai.lzy.iam.test.BaseTestWithIam;
+import ai.lzy.model.db.test.DatabaseCleaner;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
@@ -103,6 +105,8 @@ public class AllocatorApiTest extends BaseTestWithIam {
         } catch (InterruptedException ignored) {
             //ignored
         }
+
+        DatabaseCleaner.cleanup(allocatorCtx.getBean(AllocatorDataSource.class));
 
         allocatorCtx.stop();
         kubernetesServer.after();
