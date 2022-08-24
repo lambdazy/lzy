@@ -10,8 +10,6 @@ allocator:
     max-pool-size: 2
     enabled: true
 
-  prometheus-metrics:
-
   metrics:
     kind: 'Disabled'
     logger-level: 'error'

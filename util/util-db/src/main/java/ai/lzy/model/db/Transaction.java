@@ -14,7 +14,7 @@ public interface Transaction {
         try (final Connection con = storage.connect()) {
             try {
                 con.setAutoCommit(false); // To execute many queries in one transaction
-                con.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+                con.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
                 if (transaction.execute(con)) {
                     con.commit();
                     return true;
