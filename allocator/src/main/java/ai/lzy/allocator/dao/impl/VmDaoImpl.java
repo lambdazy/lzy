@@ -75,7 +75,7 @@ public class VmDaoImpl implements VmDao {
         final List<Vm> vms = new ArrayList<>();
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(
-                "SELECT " + FIELDS + " FROM vm WHERE session_id = ?"))
+                "SELECT " + FIELDS + " FROM vm WHERE session_id = ?" + forUpdate(transaction)))
             {
                 s.setString(1, sessionId);
                 final var res = s.executeQuery();
@@ -95,7 +95,7 @@ public class VmDaoImpl implements VmDao {
         final List<Vm> vms = new ArrayList<>();
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(
-                "SELECT " + FIELDS + " FROM vm WHERE state != 'DEAD'"))
+                "SELECT " + FIELDS + " FROM vm WHERE state != 'DEAD'" + forUpdate(transaction)))
             {
                 final var res = s.executeQuery();
                 while (res.next()) {
@@ -115,7 +115,7 @@ public class VmDaoImpl implements VmDao {
         final Vm[] vm = new Vm[1];
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(
-                "SELECT " + FIELDS + " FROM vm WHERE id = ?"))
+                "SELECT " + FIELDS + " FROM vm WHERE id = ?" + forUpdate(transaction)))
             {
                 s.setString(1, vmId);
                 final var res = s.executeQuery();
@@ -141,7 +141,7 @@ public class VmDaoImpl implements VmDao {
                  WHERE (state = 'IDLE' AND deadline IS NOT NULL AND deadline < NOW())
                    OR (state = 'CONNECTING' AND allocation_deadline IS NOT NULL AND allocation_deadline < NOW())
                    OR (state != 'CREATED' AND state != 'DEAD' AND last_activity_time < NOW())
-                 LIMIT ?"""))
+                 LIMIT ?""" + forUpdate(transaction)))
             {
                 s.setInt(1, limit);
                 final var res = s.executeQuery();
@@ -223,7 +223,7 @@ public class VmDaoImpl implements VmDao {
         final AtomicReference<Map<String, String>> meta = new AtomicReference<>();
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(
-                "SELECT allocator_meta_json FROM vm WHERE id = ?"))
+                "SELECT allocator_meta_json FROM vm WHERE id = ?" + forUpdate(transaction)))
             {
                 final ObjectMapper objectMapper = new ObjectMapper();
                 s.setString(1, vmId);
@@ -286,5 +286,9 @@ public class VmDaoImpl implements VmDao {
             });
         return new Vm(sessionIdRes, id, poolLabel, zone, state, allocationOpId, workloads,
             lastActivityTime, deadline, allocationDeadline, vmMeta);
+    }
+
+    private static String forUpdate(@Nullable TransactionHandle tx) {
+        return tx != null ? " FOR UPDATE" : "";
     }
 }

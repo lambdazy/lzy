@@ -54,7 +54,7 @@ public class OperationDaoImpl implements OperationDao {
         LOG.info("Getting op with id={}", opId);
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(
-                "SELECT" + FIELDS + " FROM operation WHERE id = ?"))
+                "SELECT" + FIELDS + " FROM operation WHERE id = ?" + forUpdate(transaction)))
             {
                 s.setString(1, opId);
                 final var res = s.executeQuery();
@@ -130,5 +130,9 @@ public class OperationDaoImpl implements OperationDao {
         } else {
             s.setBytes(9, null);
         }
+    }
+
+    private static String forUpdate(@Nullable TransactionHandle tx) {
+        return tx != null ? " FOR UPDATE" : "";
     }
 }

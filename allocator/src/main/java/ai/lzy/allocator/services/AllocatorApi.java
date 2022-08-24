@@ -220,12 +220,12 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                 allocator.allocate(vm);
                 timer.close();
             } catch (InvalidConfigurationException e) {
-                LOG.error("Error while allocating", e);
+                LOG.error("Error while allocating: {}", e.getMessage(), e);
                 metrics.allocationError.inc();
                 operations.update(op.complete(Status.INVALID_ARGUMENT.withDescription(e.getMessage())), null);
             }
         } catch (Exception e) {
-            LOG.error("Error during allocation", e);
+            LOG.error("Error during allocation: {}", e.getMessage(), e);
             metrics.allocationError.inc();
             operations.update(op.complete(Status.INTERNAL.withDescription("Error while executing request")), null);
         }

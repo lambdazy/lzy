@@ -74,6 +74,12 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
                 return;
             }
 
+            if (vm.state() == Vm.State.DEAD) {
+                LOG.error("Vm {} is DEAD", vm);
+                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("VM is dead").asException());
+                return;
+            }
+
             if (vm.state() != Vm.State.CONNECTING) {
                 LOG.error("Wrong status of vm while register, expected CONNECTING: {}", vm);
                 responseObserver.onError(Status.FAILED_PRECONDITION.asException());
@@ -132,12 +138,17 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
 
             metrics.registered.inc();
         } catch (Exception e) {
-            LOG.error("Error while registering vm {}: {}", vm, e.getMessage(), e);
+            LOG.error("Error while registering vm {}: {}",
+                vm != null ? vm.toString() : request.getVmId(), e.getMessage(), e);
+
             metrics.failed.inc();
 
-            responseObserver.onError(Status.INTERNAL.withDescription("Error while registering vm").asException());
+            responseObserver.onError(
+                Status.INTERNAL.withDescription("Error while registering vm %s: %s".formatted(vm, e.getMessage()))
+                    .asException());
 
             if (vm != null) {
+                LOG.info("Deallocating failed vm {}", vm);
                 allocator.deallocate(vm);
             }
             return;

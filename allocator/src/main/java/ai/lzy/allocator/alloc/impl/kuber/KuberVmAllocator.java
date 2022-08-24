@@ -75,10 +75,10 @@ public class KuberVmAllocator implements VmAllocator {
                     .resource(vmPodSpec)
                     .create();
             } catch (Exception e) {
-                LOG.error("Failed to allocate pod", e);
+                LOG.error("Failed to allocate pod: {}", e.getMessage(), e);
                 deallocate(vm);
                 //TODO (tomato): add retries here if the error is caused due to temporal problems with kuber
-                throw new RuntimeException(e);
+                throw new RuntimeException("Failed to allocate pod: " + e.getMessage(), e);
             }
             LOG.debug("Created pod in Kuber: {}", pod);
         }
