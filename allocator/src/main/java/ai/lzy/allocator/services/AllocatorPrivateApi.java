@@ -132,7 +132,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
 
             metrics.registered.inc();
         } catch (Exception e) {
-            LOG.error("Error while registering vm", e);
+            LOG.error("Error while registering vm {}: {}", vm, e.getMessage(), e);
             metrics.failed.inc();
 
             responseObserver.onError(Status.INTERNAL.withDescription("Error while registering vm").asException());
@@ -151,13 +151,15 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
     public void heartbeat(HeartbeatRequest request, StreamObserver<HeartbeatResponse> responseObserver) {
         final var vm = dao.get(request.getVmId(), null);
         if (vm == null) {
+            LOG.error("Heartbeat from unknown VM {}", request.getVmId());
             metrics.hbUnknownVm.inc();
             responseObserver.onError(Status.NOT_FOUND.withDescription("Vm with this id not found").asException());
             return;
         }
 
         if (!Set.of(Vm.State.RUNNING, Vm.State.IDLE).contains(vm.state())) {
-            LOG.error("Wrong status of vm while receiving heartbeat: {}, expected RUNNING or IDLING", vm.state());
+            LOG.error("Wrong status of vm {} while receiving heartbeat: {}, expected RUNNING or IDLING",
+                vm.vmId(), vm.state());
             metrics.hbInvalidVm.inc();
             responseObserver.onError(
                 Status.FAILED_PRECONDITION.withDescription("Wrong state for heartbeat").asException());
