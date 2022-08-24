@@ -11,10 +11,11 @@ import ai.lzy.model.db.TransactionHandle;
 import io.grpc.Status;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import java.util.Timer;
-import java.util.TimerTask;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.util.Timer;
+import java.util.TimerTask;
 
 @Singleton
 public class GarbageCollector extends TimerTask {
@@ -29,8 +30,9 @@ public class GarbageCollector extends TimerTask {
 
 
     @Inject
-    public GarbageCollector(VmDao dao, OperationDao operations, VmAllocator allocator,
-        ServiceConfig config, AllocatorDataSource storage) {
+    public GarbageCollector(VmDao dao, OperationDao operations, VmAllocator allocator, ServiceConfig config,
+                            AllocatorDataSource storage)
+    {
         this.dao = dao;
         this.operations = operations;
         this.allocator = allocator;

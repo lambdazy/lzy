@@ -38,15 +38,14 @@ public class VmDaoImpl implements VmDao {
 
     @Override
     public Vm create(String sessionId, String poolLabel, String zone, List<Workload> workload, String opId,
-                     @Nullable TransactionHandle transaction) {
+                     @Nullable TransactionHandle transaction)
+    {
         final var vm = new Vm.VmBuilder(sessionId, UUID.randomUUID().toString(), poolLabel, zone, opId, workload,
             Vm.State.CREATED).build();
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(
-                "INSERT INTO vm ("
-                    + FIELDS + """
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """)) {
+                "INSERT INTO vm (" + FIELDS + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"))
+            {
                 writeVm(s, vm);
                 s.execute();
             } catch (JsonProcessingException e) {
@@ -60,11 +59,8 @@ public class VmDaoImpl implements VmDao {
     public void update(Vm vm, @Nullable TransactionHandle transaction) {
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(
-                "UPDATE vm SET ("
-                    + FIELDS + """
-                    ) = (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    WHERE id = ?
-                    """)) {
+                "UPDATE vm SET (" + FIELDS + ") = (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) WHERE id = ?"))
+            {
                 writeVm(s, vm);
                 s.setString(12, vm.vmId());
                 s.executeUpdate();
@@ -79,10 +75,8 @@ public class VmDaoImpl implements VmDao {
         final List<Vm> vms = new ArrayList<>();
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(
-                "SELECT " + FIELDS + """
-                     FROM vm
-                     WHERE session_id = ?
-                    """)) {
+                "SELECT " + FIELDS + " FROM vm WHERE session_id = ?"))
+            {
                 s.setString(1, sessionId);
                 final var res = s.executeQuery();
                 while (res.next()) {
@@ -101,10 +95,8 @@ public class VmDaoImpl implements VmDao {
         final List<Vm> vms = new ArrayList<>();
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(
-                "SELECT " + FIELDS + """
-                 FROM vm
-                 WHERE state != 'DEAD'
-                """)) {
+                "SELECT " + FIELDS + " FROM vm WHERE state != 'DEAD'"))
+            {
                 final var res = s.executeQuery();
                 while (res.next()) {
                     final Vm vm = readVm(res);
@@ -123,10 +115,8 @@ public class VmDaoImpl implements VmDao {
         final Vm[] vm = new Vm[1];
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(
-                "SELECT " + FIELDS + """
-                     FROM vm
-                     WHERE id = ?
-                    """)) {
+                "SELECT " + FIELDS + " FROM vm WHERE id = ?"))
+            {
                 s.setString(1, vmId);
                 final var res = s.executeQuery();
                 if (!res.next()) {
@@ -147,12 +137,12 @@ public class VmDaoImpl implements VmDao {
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(
                 "SELECT " + FIELDS + """
-                     FROM vm
-                     WHERE (state = 'IDLE' AND deadline IS NOT NULL AND deadline < NOW())
-                       OR (state = 'CONNECTING' AND allocation_deadline IS NOT NULL AND allocation_deadline < NOW())
-                       OR (state != 'CREATED' AND state != 'DEAD' AND last_activity_time < NOW())
-                     LIMIT ?
-                    """)) {
+                 FROM vm
+                 WHERE (state = 'IDLE' AND deadline IS NOT NULL AND deadline < NOW())
+                   OR (state = 'CONNECTING' AND allocation_deadline IS NOT NULL AND allocation_deadline < NOW())
+                   OR (state != 'CREATED' AND state != 'DEAD' AND last_activity_time < NOW())
+                 LIMIT ?"""))
+            {
                 s.setInt(1, limit);
                 final var res = s.executeQuery();
                 while (res.next()) {
@@ -174,11 +164,11 @@ public class VmDaoImpl implements VmDao {
         DbOperation.execute(tx, storage, con -> {
             try (final var s = con.prepareStatement(
                 "SELECT " + FIELDS + """
-                    FROM vm
-                    WHERE session_id = ? AND pool_label = ? AND zone = ? AND state = 'IDLE'
-                    LIMIT 1
-                    FOR UPDATE"""
-            )) {
+                 FROM vm
+                 WHERE session_id = ? AND pool_label = ? AND zone = ? AND state = 'IDLE'
+                 LIMIT 1
+                 FOR UPDATE"""))
+            {
                 s.setString(1, sessionId);
                 s.setString(2, poolId);
                 s.setString(3, zone);
@@ -215,8 +205,8 @@ public class VmDaoImpl implements VmDao {
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement("""
                 UPDATE vm SET allocator_meta_json = ?
-                WHERE id = ?
-                """)) {
+                WHERE id = ?"""))
+            {
                 final ObjectMapper objectMapper = new ObjectMapper();
                 s.setString(1, objectMapper.writeValueAsString(meta));
                 s.setString(2, vmId);
@@ -232,10 +222,9 @@ public class VmDaoImpl implements VmDao {
     public Map<String, String> getAllocatorMeta(String vmId, @Nullable TransactionHandle transaction) {
         final AtomicReference<Map<String, String>> meta = new AtomicReference<>();
         DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement("""
-                SELECT allocator_meta_json FROM vm
-                WHERE id = ?
-                """)) {
+            try (final var s = con.prepareStatement(
+                "SELECT allocator_meta_json FROM vm WHERE id = ?"))
+            {
                 final ObjectMapper objectMapper = new ObjectMapper();
                 s.setString(1, vmId);
                 final var res = s.executeQuery();

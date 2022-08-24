@@ -5,12 +5,14 @@ import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactory;
 import ai.lzy.allocator.alloc.impl.kuber.KuberLabels;
 import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
+import ai.lzy.allocator.dao.impl.SessionDaoImpl;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
+import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.v1.*;
 import ai.lzy.v1.OperationService.GetOperationRequest;
 import ai.lzy.v1.OperationService.Operation;
@@ -227,6 +229,25 @@ public class AllocatorApiTest extends BaseTestWithIam {
     }
 
     @Test
+    public void errorWhileCreatingSession() {
+        allocatorCtx.getBean(SessionDaoImpl.class).injectError(new RuntimeException("any error message here"));
+
+        try {
+            var resp = authorizedAllocatorBlockingStub.createSession(
+                CreateSessionRequest.newBuilder()
+                    .setOwner(UUID.randomUUID().toString())
+                    .setCachePolicy(CachePolicy.newBuilder()
+                        .setIdleTimeout(ProtoConverter.toProto(java.time.Duration.ofHours(1)))
+                        .build())
+                    .build());
+            Assert.fail(resp.getSessionId());
+        } catch (StatusRuntimeException e) {
+            Assert.assertEquals(Status.Code.INTERNAL, e.getStatus().getCode());
+            Assert.assertEquals("any error message here", e.getStatus().getDescription());
+        }
+    }
+
+    @Test
     public void allocateKuberErrorWhileCreateTest() throws InvalidProtocolBufferException, InterruptedException {
         //simulate kuber api error on pod creation
         kubernetesServer.getKubernetesMockServer().clearExpectations();
@@ -414,8 +435,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
     }
 
     @Test
-    public void deleteSessionWithActiveVmsAfterRegister()
-        throws InvalidProtocolBufferException, InterruptedException {
+    public void deleteSessionWithActiveVmsAfterRegister() throws InvalidProtocolBufferException, InterruptedException {
         final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(0).build()).build())
@@ -441,8 +461,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
     }
 
     @Test
-    public void deleteSessionWithActiveVmsBeforeRegister()
-        throws InvalidProtocolBufferException, InterruptedException {
+    public void deleteSessionWithActiveVmsBeforeRegister() throws InvalidProtocolBufferException, InterruptedException {
         final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(0).build()).build())
@@ -520,7 +539,6 @@ public class AllocatorApiTest extends BaseTestWithIam {
         }
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
     }
-
 
     @Test
     public void repeatedServantRegister() throws InvalidProtocolBufferException, InterruptedException {

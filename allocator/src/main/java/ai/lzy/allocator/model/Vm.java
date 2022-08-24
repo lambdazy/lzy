@@ -43,6 +43,10 @@ public record Vm(
         DEAD
     }
 
+    public static VmBuilder from(Vm vm) {
+        return new VmBuilder(vm);
+    }
+
     public static class VmBuilder {
         private final String sessionId;
         private final String vmId;
@@ -57,7 +61,8 @@ public record Vm(
         private Instant allocationDeadline;
 
         public VmBuilder(String sessionId, String vmId, String poolLabel, String zone, String opId,
-                         List<Workload> workload, State state) {
+                         List<Workload> workload, State state)
+        {
             this.sessionId = sessionId;
             this.vmId = vmId;
             this.poolLabel = poolLabel;

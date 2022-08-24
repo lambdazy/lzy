@@ -3,21 +3,21 @@ package ai.lzy.util.grpc;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.util.JsonFormat;
-import io.grpc.*;
 import io.grpc.ForwardingServerCallListener.SimpleForwardingServerCallListener;
-
-import java.util.UUID;
-
+import io.grpc.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.util.UUID;
 
 public class GrpcLogsInterceptor implements ServerInterceptor {
     private static final Logger logger = LogManager.getLogger(GrpcLogsInterceptor.class);
 
     @Override
-    public <M, R> ServerCall.Listener<M> interceptCall(
-        ServerCall<M, R> call, Metadata headers, ServerCallHandler<M, R> next) {
-
+    public <M, R> ServerCall.Listener<M> interceptCall(ServerCall<M, R> call,
+                                                       Metadata headers,
+                                                       ServerCallHandler<M, R> next)
+    {
         final String callId = UUID.randomUUID().toString();
 
         GrpcServerCall<M, R> grpcServerCall = new GrpcServerCall<>(call, callId);
@@ -39,7 +39,6 @@ public class GrpcLogsInterceptor implements ServerInterceptor {
     }
 
     private static class GrpcServerCall<M, R> extends ServerCall<M, R> {
-
         final ServerCall<M, R> serverCall;
         final String callId;
 
@@ -60,10 +59,8 @@ public class GrpcLogsInterceptor implements ServerInterceptor {
 
         @Override
         public void sendMessage(R message) {
-            logger.info(
-                "{}::<{}>: response: {}",
-                serverCall.getMethodDescriptor().getFullMethodName(), callId, message
-            );
+            logger.info("{}::<{}>: response: {}",
+                serverCall.getMethodDescriptor().getFullMethodName(), callId, message);
             serverCall.sendMessage(message);
         }
 
@@ -84,7 +81,6 @@ public class GrpcLogsInterceptor implements ServerInterceptor {
     }
 
     private static class GrpcForwardingServerCallListener<M, R> extends SimpleForwardingServerCallListener<M> {
-
         final String methodName;
 
         protected GrpcForwardingServerCallListener(MethodDescriptor<M, R> method, ServerCall.Listener<M> listener) {
