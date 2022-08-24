@@ -1,4 +1,4 @@
-package ai.lzy.servant.portal;
+package ai.lzy.portal;
 
 import static java.util.Objects.requireNonNull;
 

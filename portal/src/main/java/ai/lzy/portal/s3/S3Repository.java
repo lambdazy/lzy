@@ -1,4 +1,4 @@
-package ai.lzy.servant.portal.s3;
+package ai.lzy.portal.s3;
 
 public interface S3Repository<T> {
     void put(String bucket, String key, T value);

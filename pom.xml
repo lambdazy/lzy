@@ -19,6 +19,7 @@
         <module>backoffice</module>
         <module>server</module>
         <module>servant</module>
+        <module>portal</module>
         <module>kharon</module>
         <module>test</module>
         <module>pylzy</module>

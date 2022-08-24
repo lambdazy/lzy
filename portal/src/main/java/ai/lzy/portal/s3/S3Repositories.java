@@ -1,8 +1,5 @@
-package ai.lzy.servant.portal;
+package ai.lzy.portal.s3;
 
-import ai.lzy.servant.portal.s3.AmazonS3RepositoryAdapter;
-import ai.lzy.servant.portal.s3.AzureRepositoryAdapter;
-import ai.lzy.servant.portal.s3.S3Repository;
 import ai.lzy.util.azure.blobstorage.AzureTransmitterFactory;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
@@ -57,7 +54,7 @@ public class S3Repositories<T> {
             Transmitter transmitter = new AmazonTransmitterFactory(client).fixedPoolsTransmitter(
                 DEFAULT_TRANSMITTER_NAME, DEFAULT_DOWNLOAD_POOL_SIZE, DEFAULT_UPLOAD_POOL_SIZE
             );
-            return new AmazonS3RepositoryAdapter<T>(client, transmitter, DEFAULT_DOWNLOAD_POOL_SIZE, converter);
+            return new AmazonS3RepositoryAdapter<>(client, transmitter, DEFAULT_DOWNLOAD_POOL_SIZE, converter);
         }
     }
 
@@ -73,7 +70,7 @@ public class S3Repositories<T> {
             var transmitter = new AzureTransmitterFactory(client).fixedPoolsTransmitter(
                 DEFAULT_TRANSMITTER_NAME, DEFAULT_DOWNLOAD_POOL_SIZE, DEFAULT_UPLOAD_POOL_SIZE
             );
-            return new AzureRepositoryAdapter<T>(client, transmitter, DEFAULT_DOWNLOAD_POOL_SIZE, converter);
+            return new AzureRepositoryAdapter<>(client, transmitter, DEFAULT_DOWNLOAD_POOL_SIZE, converter);
         }
     }
 }

@@ -1,4 +1,4 @@
-package ai.lzy.servant.portal.s3;
+package ai.lzy.portal.s3;
 
 import com.azure.storage.blob.BlobServiceClient;
 import org.apache.commons.lang3.StringUtils;

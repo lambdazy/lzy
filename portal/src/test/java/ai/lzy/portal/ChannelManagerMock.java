@@ -1,4 +1,4 @@
-package ai.lzy.servant.portal;
+package ai.lzy.portal;
 
 import ai.lzy.model.GrpcConverter;
 import ai.lzy.util.grpc.JsonUtils;

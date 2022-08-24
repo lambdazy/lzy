@@ -1,4 +1,4 @@
-package ai.lzy.servant.portal.utils;
+package ai.lzy.portal.utils;
 
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;

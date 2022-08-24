@@ -1,12 +1,9 @@
-package ai.lzy.servant.portal;
+package ai.lzy.portal.slots;
 
 import ai.lzy.model.Slot;
 import ai.lzy.model.SlotInstance;
-import ai.lzy.servant.portal.Portal.CreateSlotException;
-import ai.lzy.servant.portal.s3.S3Repository;
-import ai.lzy.servant.portal.slots.SnapshotInputSlot;
-import ai.lzy.servant.portal.slots.SnapshotOutputSlot;
-import ai.lzy.servant.portal.slots.SnapshotSlot;
+import ai.lzy.portal.Portal.CreateSlotException;
+import ai.lzy.portal.s3.S3Repository;
 import com.google.protobuf.ByteString;
 
 import javax.annotation.Nullable;

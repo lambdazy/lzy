@@ -1,4 +1,4 @@
-package ai.lzy.servant.portal.s3;
+package ai.lzy.portal.s3;
 
 import com.amazonaws.services.s3.AmazonS3;
 import org.apache.commons.lang3.StringUtils;

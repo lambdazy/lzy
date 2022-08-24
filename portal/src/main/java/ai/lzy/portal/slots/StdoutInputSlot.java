@@ -1,4 +1,4 @@
-package ai.lzy.servant.portal.slots;
+package ai.lzy.portal.slots;
 
 import ai.lzy.fs.slots.LzyInputSlotBase;
 import ai.lzy.model.SlotInstance;

@@ -1,4 +1,4 @@
-package ai.lzy.servant.portal.slots;
+package ai.lzy.portal.slots;
 
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
@@ -6,21 +6,22 @@ import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.fs.slots.LzySlotBase;
 import ai.lzy.model.SlotInstance;
 import ai.lzy.model.slots.TextLinesOutSlot;
-import ai.lzy.servant.portal.Portal.CreateSlotException;
 import ai.lzy.v1.Operations;
 import com.google.protobuf.ByteString;
-import java.net.URI;
 import org.apache.commons.collections4.queue.CircularFifoQueue;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.net.URI;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+
+import static ai.lzy.portal.Portal.*;
 
 public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
     private static final Logger LOG = LogManager.getLogger(StdoutSlot.class);

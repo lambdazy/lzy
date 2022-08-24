@@ -1,4 +1,4 @@
-package ai.lzy.servant.portal.s3;
+package ai.lzy.portal.s3;
 
 import com.google.protobuf.ByteString;
 import org.apache.logging.log4j.LogManager;

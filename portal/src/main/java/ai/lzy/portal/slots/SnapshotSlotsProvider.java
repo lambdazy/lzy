@@ -1,13 +1,12 @@
-package ai.lzy.servant.portal;
+package ai.lzy.portal.slots;
 
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.model.SlotInstance;
-import ai.lzy.servant.portal.s3.ByteStringStreamConverter;
-import ai.lzy.servant.portal.s3.S3Repository;
-import ai.lzy.servant.portal.slots.SnapshotInputSlot;
-import ai.lzy.servant.portal.slots.SnapshotSlot;
+import ai.lzy.portal.s3.ByteStringStreamConverter;
+import ai.lzy.portal.s3.S3Repositories;
+import ai.lzy.portal.s3.S3Repository;
 import ai.lzy.v1.LzyPortalApi;
 import ai.lzy.v1.LzyPortalApi.PortalSlotDesc.Snapshot;
 import com.amazonaws.AmazonClientException;
@@ -23,7 +22,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
 
-import static ai.lzy.servant.portal.Portal.CreateSlotException;
+import static ai.lzy.portal.Portal.CreateSlotException;
 import static ai.lzy.v1.LzyPortalApi.*;
 
 public class SnapshotSlotsProvider {

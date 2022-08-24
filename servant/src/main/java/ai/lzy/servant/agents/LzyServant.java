@@ -6,32 +6,26 @@ import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.fs.storage.StorageClient;
 import ai.lzy.model.GrpcConverter;
-import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.Signal;
 import ai.lzy.model.UriScheme;
 import ai.lzy.model.exceptions.EnvironmentInstallationException;
 import ai.lzy.model.graph.AtomicZygote;
-import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.model.logs.MetricEvent;
 import ai.lzy.model.logs.MetricEventLogger;
 import ai.lzy.model.logs.UserEvent;
 import ai.lzy.model.logs.UserEvent.UserEventType;
 import ai.lzy.model.logs.UserEventLogger;
-import ai.lzy.servant.portal.Portal;
-import ai.lzy.v1.IAM;
-import ai.lzy.v1.Lzy;
-import ai.lzy.v1.LzyPortalApi;
-import ai.lzy.v1.LzyPortalGrpc;
-import ai.lzy.v1.LzyServantGrpc;
-import ai.lzy.v1.LzyServerGrpc;
-import ai.lzy.v1.Operations;
-import ai.lzy.v1.Servant;
-import ai.lzy.v1.Tasks;
-import com.google.protobuf.Empty;
+import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.v1.*;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
@@ -40,9 +34,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class LzyServant implements Closeable {
 
@@ -53,12 +44,11 @@ public class LzyServant implements Closeable {
     private final LzyFsServer lzyFs;
     private final LzyContext context;
     private final AtomicReference<LzyExecution> currentExecution = new AtomicReference<>(null);
-    private final Portal portal;
     private final CompletableFuture<Boolean> started = new CompletableFuture<>();
 
     public LzyServant(LzyAgentConfig config)
         throws URISyntaxException, IOException {
-        agent = new LzyAgent(config, "LzyServant", new ServantImpl(), new PortalImpl());
+        agent = new LzyAgent(config, "LzyServant", new ServantImpl());
         LOG.info("Starting servant at {}://{}:{}/{} with fs at {}:{}",
             UriScheme.LzyServant.scheme(),
             config.getAgentHost(),
@@ -117,7 +107,6 @@ public class LzyServant implements Closeable {
 
         lzyFs = agent.fs();
         context = agent.context();
-        portal = new Portal(config.getAgentId(), lzyFs);
 
         finish = System.currentTimeMillis();
         MetricEventLogger.log(
@@ -144,7 +133,6 @@ public class LzyServant implements Closeable {
     private void forceStop(Throwable th) {
         LOG.error("Force terminate servant {}: {}", agent.id(), th);
         try {
-            portal.stop();
             cleanupExecution();
             agent.shutdownNow();
         } finally {
@@ -174,7 +162,7 @@ public class LzyServant implements Closeable {
         @Override
         public void env(Operations.EnvSpec request, StreamObserver<Servant.EnvResult> responseObserver) {
             try {
-                if (portal.isActive() || agent.getStatus() != AgentStatus.REGISTERED) {
+                if (agent.getStatus() != AgentStatus.REGISTERED) {
                     responseObserver.onError(Status.FAILED_PRECONDITION.asException());
                     return;
                 }
@@ -219,7 +207,7 @@ public class LzyServant implements Closeable {
         @Override
         public void start(IAM.Empty request, StreamObserver<Servant.ServantProgress> responseObserver) {
             waitForStart();
-            if (portal.isActive() || agent.getStatus() != AgentStatus.REGISTERED) {
+            if (agent.getStatus() != AgentStatus.REGISTERED) {
                 responseObserver.onError(Status.FAILED_PRECONDITION.asException());
                 return;
             }
@@ -236,7 +224,7 @@ public class LzyServant implements Closeable {
         @Override
         public void execute(Tasks.TaskSpec request, StreamObserver<Servant.ExecutionStarted> responseObserver) {
             try {
-                if (portal.isActive() || agent.getStatus() != AgentStatus.REGISTERED) {
+                if (agent.getStatus() != AgentStatus.REGISTERED) {
                     responseObserver.onError(Status.FAILED_PRECONDITION.asException());
                     return;
                 }
@@ -269,8 +257,8 @@ public class LzyServant implements Closeable {
                         LzySlot slot = context.getOrCreateSlot(tid, entry.slot(), entry.binding());
                         // TODO: It will be removed after creating Portal
                         final String channelName = entry.binding().contains("!")
-                                                 ? entry.binding().split("!")[1]
-                                                 : entry.binding();
+                            ? entry.binding().split("!")[1]
+                            : entry.binding();
                         if (channelName.startsWith("snapshot://") && slot instanceof LzyOutputSlot) {
                             final URI channelUri = URI.create(channelName);
                             String snapshotId = "snapshot://" + channelUri.getHost();
@@ -346,7 +334,6 @@ public class LzyServant implements Closeable {
                     ),
                     UserEvent.UserEventType.TaskStop
                 ));
-                portal.stop();
                 agent.shutdown();
             } catch (Exception e) {
                 LOG.error("Error during agent server shutdown", e);
@@ -357,7 +344,7 @@ public class LzyServant implements Closeable {
 
         @Override
         public void signal(Tasks.TaskSignal request, StreamObserver<IAM.Empty> responseObserver) {
-            if (portal.isActive() || agent.getStatus().getValue() < AgentStatus.EXECUTING.getValue()) {
+            if (agent.getStatus().getValue() < AgentStatus.EXECUTING.getValue()) {
                 responseObserver.onError(Status.FAILED_PRECONDITION.asException());
                 return;
             }
@@ -376,85 +363,12 @@ public class LzyServant implements Closeable {
 
         @Override
         public void update(IAM.Auth request, StreamObserver<IAM.Empty> responseObserver) {
-            if (portal.isActive()) {
-                responseObserver.onError(Status.FAILED_PRECONDITION.asException());
-                return;
-            }
             agent.update(server.zygotes(request), responseObserver);
         }
 
         @Override
         public void status(IAM.Empty request, StreamObserver<Servant.ServantStatus> responseObserver) {
             agent.status(request, responseObserver);
-        }
-    }
-
-    private class PortalImpl extends LzyPortalGrpc.LzyPortalImplBase {
-
-        @Override
-        public void start(LzyPortalApi.StartPortalRequest request,
-            StreamObserver<LzyPortalApi.StartPortalResponse> responseObserver) {
-            if (currentExecution.get() != null) {
-                responseObserver.onError(Status.FAILED_PRECONDITION.asException());
-                return;
-            }
-            if (portal.start(request)) {
-                responseObserver.onNext(LzyPortalApi.StartPortalResponse.getDefaultInstance());
-                responseObserver.onCompleted();
-            } else {
-                responseObserver.onError(Status.ALREADY_EXISTS.asException());
-            }
-        }
-
-        @Override
-        public void stop(Empty request, StreamObserver<Empty> responseObserver) {
-            if (currentExecution.get() != null) {
-                responseObserver.onError(Status.FAILED_PRECONDITION.asException());
-                return;
-            }
-            if (portal.stop()) {
-                portal.stop();
-                responseObserver.onNext(Empty.getDefaultInstance());
-                responseObserver.onCompleted();
-            } else {
-                responseObserver.onError(Status.NOT_FOUND.asException());
-            }
-        }
-
-        @Override
-        public void status(Empty request, StreamObserver<LzyPortalApi.PortalStatus> responseObserver) {
-            if (currentExecution.get() != null) {
-                responseObserver.onError(Status.FAILED_PRECONDITION.asException());
-                return;
-            }
-            if (portal.isActive()) {
-                var response = portal.status();
-                responseObserver.onNext(response);
-                responseObserver.onCompleted();
-            } else {
-                responseObserver.onError(Status.NOT_FOUND.asException());
-            }
-        }
-
-        @Override
-        public void openSlots(LzyPortalApi.OpenSlotsRequest request,
-            StreamObserver<LzyPortalApi.OpenSlotsResponse> responseObserver) {
-            if (currentExecution.get() != null) {
-                responseObserver.onError(Status.FAILED_PRECONDITION.asException());
-                return;
-            }
-            if (portal.isActive()) {
-                try {
-                    var response = portal.openSlots(request);
-                    responseObserver.onNext(response);
-                    responseObserver.onCompleted();
-                } catch (Exception e) {
-                    LOG.error(e.getMessage(), e);
-                    responseObserver.onError(e);
-                }
-            } else {
-                responseObserver.onError(Status.UNIMPLEMENTED.asException());
-            }
         }
     }
 }

@@ -1,10 +1,9 @@
-package ai.lzy.servant.portal.slots;
+package ai.lzy.portal.slots;
 
 import ai.lzy.fs.slots.LzyInputSlotBase;
 import ai.lzy.fs.slots.OutFileSlot;
 import ai.lzy.model.SlotInstance;
-import ai.lzy.servant.portal.S3SnapshotSlot;
-import ai.lzy.servant.portal.s3.S3Repository;
+import ai.lzy.portal.s3.S3Repository;
 import ai.lzy.v1.Operations;
 import com.google.protobuf.ByteString;
 import org.apache.logging.log4j.LogManager;
