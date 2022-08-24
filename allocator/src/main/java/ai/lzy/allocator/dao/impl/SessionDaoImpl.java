@@ -18,7 +18,7 @@ import java.util.UUID;
 public class SessionDaoImpl implements SessionDao {
     private final Storage storage;
     private final ObjectMapper objectMapper;
-    private RuntimeException injectedError = null;
+    private volatile RuntimeException injectedError = null;
 
     public SessionDaoImpl(AllocatorDataSource storage, ObjectMapper objectMapper) {
         this.storage = storage;
