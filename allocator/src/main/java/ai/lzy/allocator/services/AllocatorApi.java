@@ -121,6 +121,8 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
     public void allocate(AllocateRequest request, StreamObserver<Operation> responseObserver) {
         LOG.info("Allocation request {}", JsonUtils.printSingleLine(request));
 
+        final var startedAt = Instant.now();
+
         final Session session;
         try {
             session = sessions.get(request.getSessionId(), null);
@@ -181,8 +183,8 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                 .map(Workload::fromGrpc)
                 .toList();
 
-            vm = dao.create(request.getSessionId(), request.getPoolLabel(),
-                request.getZone(), workloads, op.id(), transaction);
+            vm = dao.create(request.getSessionId(), request.getPoolLabel(), request.getZone(), workloads, op.id(),
+                startedAt, transaction);
 
             op = op.modifyMeta(Any.pack(AllocateMetadata.newBuilder()
                 .setVmId(vm.vmId())

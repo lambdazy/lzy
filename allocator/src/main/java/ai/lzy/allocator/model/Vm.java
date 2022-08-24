@@ -13,6 +13,7 @@ public record Vm(
     String zone,
     State state,
     String allocationOperationId,
+    Instant allocationStartedAt,
     List<Workload> workloads,
 
     @Nullable Instant lastActivityTime,
@@ -23,8 +24,7 @@ public record Vm(
     @Override
     public String toString() {
         return "<"
-            + "sessionId='"
-            + sessionId + '\''
+            + "sessionId='" + sessionId + '\''
             + ", vmId='" + vmId + '\''
             + ", poolLabel='" + poolLabel + '\''
             + ", state=" + state
@@ -53,6 +53,7 @@ public record Vm(
         private final String poolLabel;
         private final String zone;
         private final String opId;
+        private final Instant startedAt;
         private final List<Workload> workload;
         private final Map<String, String> vmMeta;
         private State state;
@@ -60,7 +61,7 @@ public record Vm(
         private Instant deadline;
         private Instant allocationDeadline;
 
-        public VmBuilder(String sessionId, String vmId, String poolLabel, String zone, String opId,
+        public VmBuilder(String sessionId, String vmId, String poolLabel, String zone, String opId, Instant startedAt,
                          List<Workload> workload, State state)
         {
             this.sessionId = sessionId;
@@ -68,6 +69,7 @@ public record Vm(
             this.poolLabel = poolLabel;
             this.zone = zone;
             this.opId = opId;
+            this.startedAt = startedAt;
             this.workload = workload;
             this.state = state;
             this.vmMeta = new HashMap<>();
@@ -79,6 +81,7 @@ public record Vm(
             this.poolLabel = vm.poolLabel();
             this.zone = vm.zone();
             this.opId = vm.allocationOperationId();
+            this.startedAt = vm.allocationStartedAt();
             this.workload = vm.workloads();
             this.state = vm.state();
             this.lastActivityTime = vm.lastActivityTime();
@@ -114,7 +117,7 @@ public record Vm(
         }
 
         public Vm build() {
-            return new Vm(sessionId, vmId, poolLabel, zone, state, opId, workload, lastActivityTime,
+            return new Vm(sessionId, vmId, poolLabel, zone, state, opId, startedAt, workload, lastActivityTime,
                     deadline, allocationDeadline, vmMeta);
         }
     }

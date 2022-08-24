@@ -17,6 +17,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -25,8 +26,10 @@ import java.util.concurrent.atomic.AtomicReference;
 
 @Singleton
 public class VmDaoImpl implements VmDao {
-    private static final String FIELDS = " id, session_id, pool_label, \"zone\", state, allocation_op_id,"
-        + " workloads_json, last_activity_time, deadline, allocation_deadline, vm_meta_json ";
+    private static final String FIELDS =
+        " id, session_id, pool_label, \"zone\", state, allocation_op_id, allocation_started_at," +
+        " workloads_json, last_activity_time, deadline, allocation_deadline, vm_meta_json ";
+
     private final Storage storage;
     private final ObjectMapper objectMapper;
 
@@ -37,14 +40,14 @@ public class VmDaoImpl implements VmDao {
     }
 
     @Override
-    public Vm create(String sessionId, String poolLabel, String zone, List<Workload> workload, String opId,
+    public Vm create(String sessionId, String poolLabel, String zone, List<Workload> workload, String opId, Instant now,
                      @Nullable TransactionHandle transaction)
     {
-        final var vm = new Vm.VmBuilder(sessionId, UUID.randomUUID().toString(), poolLabel, zone, opId, workload,
+        final var vm = new Vm.VmBuilder(sessionId, UUID.randomUUID().toString(), poolLabel, zone, opId, now, workload,
             Vm.State.CREATED).build();
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(
-                "INSERT INTO vm (" + FIELDS + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"))
+                "INSERT INTO vm (" + FIELDS + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"))
             {
                 writeVm(s, vm);
                 s.execute();
@@ -59,10 +62,10 @@ public class VmDaoImpl implements VmDao {
     public void update(Vm vm, @Nullable TransactionHandle transaction) {
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(
-                "UPDATE vm SET (" + FIELDS + ") = (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) WHERE id = ?"))
+                "UPDATE vm SET (" + FIELDS + ") = (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) WHERE id = ?"))
             {
                 writeVm(s, vm);
-                s.setString(12, vm.vmId());
+                s.setString(13, vm.vmId());
                 s.executeUpdate();
             } catch (JsonProcessingException e) {
                 throw new RuntimeException("Cannot dump values", e);
@@ -254,11 +257,12 @@ public class VmDaoImpl implements VmDao {
         s.setString(4, vm.zone());
         s.setString(5, vm.state().name());
         s.setString(6, vm.allocationOperationId());
-        s.setString(7, objectMapper.writeValueAsString(vm.workloads()));
-        s.setTimestamp(8, vm.lastActivityTime() == null ? null : Timestamp.from(vm.lastActivityTime()));
-        s.setTimestamp(9, vm.deadline() == null ? null : Timestamp.from(vm.deadline()));
-        s.setTimestamp(10, vm.allocationDeadline() == null ? null : Timestamp.from(vm.allocationDeadline()));
-        s.setString(11, objectMapper.writeValueAsString(vm.vmMeta()));
+        s.setTimestamp(7, Timestamp.from(vm.allocationStartedAt()));
+        s.setString(8, objectMapper.writeValueAsString(vm.workloads()));
+        s.setTimestamp(9, vm.lastActivityTime() == null ? null : Timestamp.from(vm.lastActivityTime()));
+        s.setTimestamp(10, vm.deadline() == null ? null : Timestamp.from(vm.deadline()));
+        s.setTimestamp(11, vm.allocationDeadline() == null ? null : Timestamp.from(vm.allocationDeadline()));
+        s.setString(12, objectMapper.writeValueAsString(vm.vmMeta()));
     }
 
     private Vm readVm(ResultSet res) throws SQLException, JsonProcessingException {
@@ -268,23 +272,21 @@ public class VmDaoImpl implements VmDao {
         final var zone = res.getString(4);
         final var state = Vm.State.valueOf(res.getString(5));
         final var allocationOpId = res.getString(6);
-        final var workloads = objectMapper.readValue(res.getString(7),
-            new TypeReference<List<Workload>>() {
-            });
+        final var allocationStartedAt = res.getTimestamp(7).toInstant();
+        final var workloads = objectMapper.readValue(res.getString(8), new TypeReference<List<Workload>>() {});
 
-        final var lastActivityTimeTs = res.getTimestamp(8);
+        final var lastActivityTimeTs = res.getTimestamp(9);
         final var lastActivityTime = lastActivityTimeTs == null ? null : lastActivityTimeTs.toInstant();
 
-        final var deadlineTs = res.getTimestamp(9);
+        final var deadlineTs = res.getTimestamp(10);
         final var deadline = deadlineTs == null ? null : deadlineTs.toInstant();
 
-        final var allocationDeadlineTs = res.getTimestamp(10);
+        final var allocationDeadlineTs = res.getTimestamp(11);
         final var allocationDeadline = allocationDeadlineTs == null ? null : allocationDeadlineTs.toInstant();
 
-        final var vmMeta = objectMapper.readValue(res.getString(11),
-            new TypeReference<Map<String, String>>() {
-            });
-        return new Vm(sessionIdRes, id, poolLabel, zone, state, allocationOpId, workloads,
+        final var vmMeta = objectMapper.readValue(res.getString(12), new TypeReference<Map<String, String>>() {});
+
+        return new Vm(sessionIdRes, id, poolLabel, zone, state, allocationOpId, allocationStartedAt, workloads,
             lastActivityTime, deadline, allocationDeadline, vmMeta);
     }
 

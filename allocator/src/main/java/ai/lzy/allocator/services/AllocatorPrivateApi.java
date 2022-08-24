@@ -22,11 +22,13 @@ import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
 import io.prometheus.client.Counter;
+import io.prometheus.client.Histogram;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.inject.Inject;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Set;
 
@@ -137,6 +139,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
             transaction.commit();
 
             metrics.registered.inc();
+            metrics.allocationTime.observe(Duration.between(vm.allocationStartedAt(), Instant.now()).toSeconds());
         } catch (Exception e) {
             LOG.error("Error while registering vm {}: {}",
                 vm != null ? vm.toString() : request.getVmId(), e.getMessage(), e);
@@ -225,6 +228,12 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
         private final Counter hbInvalidVm = Counter
             .build("hb_invalid_vm", "Heartbits from VMs in invalid states")
             .subsystem("allocator_private")
+            .register();
+
+        private final Histogram allocationTime = Histogram
+            .build("allocation_time", "Total allocation time (sec), from request till register")
+            .subsystem("allocator")
+            .buckets(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 30, 45, 60)
             .register();
     }
 }

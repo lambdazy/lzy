@@ -11,6 +11,7 @@ CREATE TABLE vm (
     zone varchar(255) NOT NULL,
     state varchar(255) NOT NULL,
     allocation_op_id varchar(255) NOT NULL,
+    allocation_started_at timestamp NOT NULL,
     workloads_json varchar(10485760) NOT NULL,
 
     last_activity_time timestamp NULL,
