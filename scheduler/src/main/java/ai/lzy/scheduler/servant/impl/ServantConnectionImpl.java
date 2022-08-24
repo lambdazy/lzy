@@ -41,6 +41,7 @@ public class ServantConnectionImpl implements ServantConnection {
                 //noinspection ResultOfMethodCallIgnored
                 servantBlockingStub.execute(Worker.ExecuteRequest.newBuilder()
                     .setTaskDesc(task.toProto())
+                    .setTaskId(taskId)
                     .build());
             }
 

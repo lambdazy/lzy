@@ -25,7 +25,7 @@ public class OperationDaoImpl implements OperationDao {
         + " done, response, \"error\" ";
     private final Storage storage;
 
-    public OperationDaoImpl(Storage storage) {
+    public OperationDaoImpl(AllocatorDataSource storage) {
         this.storage = storage;
     }
 

@@ -1,5 +1,7 @@
 package ai.lzy.iam.grpc.client;
 
+import ai.lzy.iam.resources.credentials.SubjectCredentials;
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.iam.clients.SubjectService;
@@ -17,7 +19,9 @@ import ai.lzy.v1.iam.IAM;
 import ai.lzy.v1.iam.LSS;
 import ai.lzy.v1.iam.LzySubjectServiceGrpc;
 
+import java.util.List;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 public class SubjectServiceGrpcClient implements SubjectService {
     private static final Logger LOG = LogManager.getLogger(SubjectServiceGrpcClient.class);
@@ -51,13 +55,25 @@ public class SubjectServiceGrpcClient implements SubjectService {
     }
 
     @Override
-    public Subject createSubject(String id, String authProvider, String providerSubjectId) throws AuthException {
+    public Subject createSubject(String id, String authProvider, String providerSubjectId, SubjectType type)
+            throws AuthException {
         try {
             final IAM.Subject subject = subjectService.createSubject(LSS.CreateSubjectRequest.newBuilder()
                     .setName(id)
                     .setAuthProvider(authProvider)
                     .setProviderSubjectId(providerSubjectId)
+                    .setType(type.toString())
                     .build());
+            return GrpcConverter.to(subject);
+        } catch (StatusRuntimeException e) {
+            throw AuthException.fromStatusRuntimeException(e);
+        }
+    }
+
+    @Override
+    public Subject getSubject(String id) throws AuthException {
+        try {
+            final IAM.Subject subject = subjectService.getSubject(LSS.GetSubjectRequest.newBuilder().setId(id).build());
             return GrpcConverter.to(subject);
         } catch (StatusRuntimeException e) {
             throw AuthException.fromStatusRuntimeException(e);
@@ -89,6 +105,22 @@ public class SubjectServiceGrpcClient implements SubjectService {
                                     .setType(type)
                                     .build())
                     .build());
+        } catch (StatusRuntimeException e) {
+            throw AuthException.fromStatusRuntimeException(e);
+        }
+    }
+
+    @Override
+    public List<SubjectCredentials> listCredentials(Subject subject) throws AuthException {
+        try {
+            LSS.ListCredentialsResponse listCredentialsResponse = subjectService.listCredentials(
+                    LSS.ListCredentialsRequest.newBuilder()
+                            .setSubject(GrpcConverter.from(subject))
+                            .build());
+            return listCredentialsResponse.getCredentialsListList()
+                    .stream()
+                    .map(GrpcConverter::to)
+                    .collect(Collectors.toList());
         } catch (StatusRuntimeException e) {
             throw AuthException.fromStatusRuntimeException(e);
         }

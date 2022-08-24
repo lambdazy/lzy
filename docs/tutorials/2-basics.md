@@ -85,4 +85,4 @@ with env.workflow("training", eager=True):
 
 ---
 
-In the [**next**](3-environment.md) part, we will dive into the environment setup.
+In the [**next**](3-data.md) part, we will touch the data transfer.

@@ -1,14 +1,14 @@
 allocator:
-  gc-period: 15s
+  gc-period: 2s
   allocation-timeout: 5s
 
   database:
-    enabled: true
     url: 'jdbc:h2:mem:testdb_allocator;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false'
     username: 'test'
     password: ''
     min-pool-size: 1
     max-pool-size: 2
+    enabled: true
 
   mock-mk8s:
     enabled: true
@@ -47,7 +47,7 @@ allocator:
 
   yc-credentials:
     service-account-file: '/tmp/sa-key.json'
-    enabled: true
+    enabled: false
 
   disk-manager:
     folder-id: 'b1gqcrinonvsj9u3th3h'

@@ -589,6 +589,13 @@ public abstract class GrpcConverter {
             return new ArrayList<>(localModules);
         }
 
+        @Nullable
+        @Override
+        public StorageCredentials credentials() {
+            // TODO(artolord) add credentials to proto
+            return null;
+        }
+
         @Override
         public URI uri() {
             return URI.create("conda/" + name());

@@ -1,7 +1,9 @@
 package ai.lzy.allocator.alloc.impl.kuber;
 
+import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
+import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
@@ -17,6 +19,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+
 import java.io.File;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -25,13 +28,13 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nullable;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 @Singleton
 @Requires(property = "allocator.kuber-allocator.enabled", value = "true")
 public class KuberVmAllocator implements VmAllocator {
-
     private static final Logger LOG = LogManager.getLogger(KuberVmAllocator.class);
     private static final String NAMESPACE = "default";
     private static final List<Toleration> GPU_VM_POD_TOLERATIONS = List.of(
@@ -45,16 +48,19 @@ public class KuberVmAllocator implements VmAllocator {
     private static final String NAMESPACE_KEY = "namespace";
     private static final String POD_NAME_KEY = "pod-name";
     private static final String CLUSTER_ID_KEY = "cluster-id";
+    public static final String POD_NAME_PREFIX = "lzy-vm-";
 
     private final VmDao dao;
     private final ClusterRegistry poolRegistry;
     private final KuberClientFactory factory;
+    private final ServiceConfig config;
 
     @Inject
-    public KuberVmAllocator(VmDao dao, ClusterRegistry poolRegistry, KuberClientFactory factory) {
+    public KuberVmAllocator(VmDao dao, ClusterRegistry poolRegistry, KuberClientFactory factory, ServiceConfig config) {
         this.dao = dao;
         this.poolRegistry = poolRegistry;
         this.factory = factory;
+        this.config = config;
     }
 
     @Override
@@ -140,7 +146,7 @@ public class KuberVmAllocator implements VmAllocator {
 
         pod.getSpec().setContainers(buildContainers(vm));
 
-        final String podName = "lzy-vm-" + vm.vmId().toLowerCase(Locale.ROOT);
+        final String podName = POD_NAME_PREFIX + vm.vmId().toLowerCase(Locale.ROOT);
         // k8s pod name can only contain symbols [-a-z0-9]
         pod.getMetadata().setName(podName.replaceAll("[^-a-z0-9]", "-"));
         var labels = pod.getMetadata().getLabels();
@@ -191,6 +197,22 @@ public class KuberVmAllocator implements VmAllocator {
                     .build()
                 )
                 .toList();
+
+            envList.addAll(List.of(
+                new EnvVarBuilder()
+                    .withName(AllocatorAgent.VM_ALLOCATOR_ADDRESS)
+                    .withValue(config.getAddress())
+                    .build(),
+                new EnvVarBuilder()
+                    .withName(AllocatorAgent.VM_ID_KEY)
+                    .withValue(vm.vmId())
+                    .build(),
+                new EnvVarBuilder()
+                    .withName(AllocatorAgent.VM_HEARTBEAT_PERIOD)
+                    .withValue(config.getHeartbeatTimeout().dividedBy(2).toString())
+                    .build()
+            ));
+
             container.setEnv(envList);
 
             container.setArgs(workload.args());

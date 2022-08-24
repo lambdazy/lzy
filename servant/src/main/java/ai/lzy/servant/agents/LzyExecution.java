@@ -22,22 +22,23 @@ public class LzyExecution {
 
     @SuppressWarnings("FieldCanBeLocal")
     private final String taskId;
-    private final AtomicZygote zygote;
+    private final String command;
     private final String arguments;
     private final List<Consumer<Servant.ServantProgress>> listeners = new ArrayList<>();
     private final String lzyMount;
     private Environment.LzyProcess process;
 
-    public LzyExecution(String taskId, AtomicZygote zygote, String arguments, String lzyMount) {
+    public LzyExecution(String taskId, String command, String arguments, String lzyMount) {
         this.taskId = taskId;
-        this.zygote = zygote;
+        this.command = command;
         this.arguments = arguments;
         this.lzyMount = lzyMount;
     }
 
+    // TODO(artolord) remove progress
     public void start(Environment environment) {
         final long startMillis = System.currentTimeMillis();
-        if (zygote == null) {
+        if (command == null) {
             throw new IllegalStateException("Unable to start execution while in terminal mode");
         } else if (process != null) {
             throw new IllegalStateException("LzyExecution has been already started");
@@ -48,7 +49,7 @@ public class LzyExecution {
             .build()
         );
 
-        final String command = zygote.fuze() + " " + arguments;
+        final String command = this.command + " " + arguments;
         LOG.info("Going to exec command " + command);
         final long envExecStartMillis = System.currentTimeMillis();
         try {
@@ -63,8 +64,7 @@ public class LzyExecution {
             UserEventLogger.log(new UserEvent(
                 "Servant execution start",
                 Map.of(
-                    "task_id", taskId,
-                    "zygote_description", zygote.description()
+                    "task_id", taskId
                 ),
                 UserEvent.UserEventType.ExecutionStart
             ));
@@ -81,15 +81,17 @@ public class LzyExecution {
         }
     }
 
+    @Deprecated
     public synchronized void progress(Servant.ServantProgress progress) {
         listeners.forEach(l -> l.accept(progress));
     }
 
+    @Deprecated
     public synchronized void onProgress(Consumer<Servant.ServantProgress> listener) {
         listeners.add(listener);
     }
 
-    public void waitFor() {
+    public int waitFor() {
         int rc = process.waitFor();
         String resultDescription = (rc == 0) ? "Success" : "Failure";
         LOG.info("Result description: " + resultDescription);
@@ -100,6 +102,7 @@ public class LzyExecution {
                 .build())
             .build()
         );
+        return rc;
     }
 
     public void signal(int sigValue) {
@@ -111,11 +114,6 @@ public class LzyExecution {
         } catch (Exception e) {
             LOG.warn("Unable to send signal to process", e);
         }
-    }
-
-    @SuppressWarnings("unused")
-    public Zygote zygote() {
-        return zygote;
     }
 
     public Environment.LzyProcess process() {

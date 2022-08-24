@@ -30,6 +30,7 @@ import static ai.lzy.model.GrpcConverter.to;
 import static ai.lzy.v1.Operations.SlotStatus.State.DESTROYED;
 import static ai.lzy.v1.Operations.SlotStatus.State.SUSPENDED;
 
+// TODO(artolord) remove progress from here in v2 servant
 public class SlotsManager implements AutoCloseable {
     private static final Logger LOG = LogManager.getLogger(SlotsManager.class);
 

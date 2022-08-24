@@ -6,19 +6,21 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.micronaut.context.annotation.Primary;
 import jakarta.inject.Singleton;
 
+import java.util.function.Supplier;
+
 
 @Primary
 @Singleton
 public class MockKuberClientFactory implements KuberClientFactory {
 
-    private KubernetesClient client;
+    private Supplier<KubernetesClient> clientSupplier;
 
-    public void setClient(KubernetesClient client) {
-        this.client = client;
+    public void setClientSupplier(Supplier<KubernetesClient> clientSupplier) {
+        this.clientSupplier = clientSupplier;
     }
 
     @Override
     public KubernetesClient build(ClusterDescription credentials) {
-        return client;
+        return clientSupplier.get();
     }
 }

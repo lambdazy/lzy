@@ -100,12 +100,15 @@ public class ServantsPoolImpl implements ServantsPool {
     @Override
     public void waitForShutdown() throws InterruptedException {
         for (var processor: processors) {
+            processor.shutdown();
             processor.join();
         }
+        processors.clear();
     }
 
     private int limit(Operation.Requirements requirements) {
-        return config.provisioningLimits().getOrDefault(requirements.poolLabel(), config.defaultProvisioningLimit());
+        return config.getProvisioningLimits().getOrDefault(requirements.poolLabel(),
+            config.getDefaultProvisioningLimit());
     }
 
     private void restore() {

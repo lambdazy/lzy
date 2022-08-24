@@ -10,6 +10,42 @@ Configuration:
 
   Loggers:
     Root:
-      level: info
+      level: error
       AppenderRef:
         ref: Console
+    Logger:
+      - name: "ai.lzy.scheduler"
+        additivity: false
+        level: debug
+        AppenderRef:
+          ref: Console
+
+      - name: "ai.lzy.allocator"
+        additivity: false
+        level: debug
+        AppenderRef:
+          ref: Console
+
+      - name: "ai.lzy.graph"
+        additivity: false
+        level: info
+        AppenderRef:
+          ref: Console
+
+      - name: "ai.lzy.servant"
+        additivity: false
+        level: debug
+        AppenderRef:
+          ref: Console
+
+      - name: "ai.lzy.channelmanager"
+        additivity: false
+        level: debug
+        AppenderRef:
+          ref: Console
+
+      - name: "ai.lzy.test"
+        additivity: false
+        level: debug
+        AppenderRef:
+          ref: Console

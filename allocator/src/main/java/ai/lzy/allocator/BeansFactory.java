@@ -40,7 +40,7 @@ public class BeansFactory {
     }
 
     @Bean(preDestroy = "shutdown")
-    @Named("IamGrpcChannel")
+    @Named("AllocatorIamGrpcChannel")
     public ManagedChannel iamChannel(ServiceConfig config) {
         return ChannelBuilder
             .forAddress(config.getIam().getAddress())

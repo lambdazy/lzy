@@ -97,6 +97,27 @@ public class VmDaoImpl implements VmDao {
         return vms;
     }
 
+    @Override
+    public List<Vm> list(@Nullable TransactionHandle transaction) {
+        final List<Vm> vms = new ArrayList<>();
+        DbOperation.execute(transaction, storage, con -> {
+            try (final var s = con.prepareStatement(
+                "SELECT " + FIELDS + """
+                 FROM vm
+                 WHERE state != 'DEAD'
+                """)) {
+                final var res = s.executeQuery();
+                while (res.next()) {
+                    final Vm vm = readVm(res);
+                    vms.add(vm);
+                }
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Cannot write vm", e);
+            }
+        });
+        return vms;
+    }
+
     @Nullable
     @Override
     public Vm get(String vmId, TransactionHandle transaction) {

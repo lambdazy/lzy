@@ -8,12 +8,21 @@ option java_package = "ai.lzy.v1.common";
 import "ai/lzy/v1/zygote.proto";
 
 message Operation {
+  message StdSlotDesc {
+    string name = 1;
+    string channelId = 2;
+  }
+
   EnvSpec env = 1;
   Requirements requirements = 2;
   string command = 3;
   repeated Slot slots = 4;
   string description = 5;
   string name = 6;
+
+  // Std slots for stderr and stdout. Optional
+  StdSlotDesc stdout = 7;
+  StdSlotDesc stderr = 8;
 }
 
 message Requirements {

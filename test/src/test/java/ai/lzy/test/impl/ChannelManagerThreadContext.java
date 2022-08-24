@@ -29,7 +29,7 @@ public class ChannelManagerThreadContext implements ChannelManagerContext {
     private ManagedChannel channel;
     private ApplicationContext context;
 
-    static class Config extends Utils.Defaults {
+    public static class Config extends Utils.Defaults {
         private static final long STARTUP_TIMEOUT_SEC = 60;
         private static final int PORT = 8122;
     }

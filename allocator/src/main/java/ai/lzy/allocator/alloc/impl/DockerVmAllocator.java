@@ -1,10 +1,13 @@
 package ai.lzy.allocator.alloc.impl;
 
+import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
+import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
+import ai.lzy.model.db.TransactionHandle;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.model.ExposedPort;
@@ -19,6 +22,8 @@ import org.apache.commons.lang.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.annotation.Nullable;
+import java.util.List;
 import java.util.Map;
 
 @Singleton
@@ -30,13 +35,15 @@ public class DockerVmAllocator implements VmAllocator {
     private static final Logger LOG = LogManager.getLogger(DockerVmAllocator.class);
 
     private final VmDao dao;
+    private final ServiceConfig config;
 
     @Inject
-    public DockerVmAllocator(VmDao dao) {
+    public DockerVmAllocator(VmDao dao, ServiceConfig config) {
         this.dao = dao;
+        this.config = config;
     }
 
-    private String requestAllocation(Workload workload) {
+    private String requestAllocation(Workload workload, String vmId) {
 
         final HostConfig hostConfig = new HostConfig();
 
@@ -61,6 +68,12 @@ public class DockerVmAllocator implements VmAllocator {
             .map(e -> e.getKey() + "=" + e.getValue())
             .toList();
 
+        envs.addAll(List.of(
+            AllocatorAgent.VM_ALLOCATOR_ADDRESS + "=" + config.getAddress(),
+            AllocatorAgent.VM_HEARTBEAT_PERIOD + "=" + config.getHeartbeatTimeout().dividedBy(2).toString(),
+            AllocatorAgent.VM_ID_KEY + "=" + vmId
+        ));
+
         final CreateContainerResponse container = DOCKER.createContainerCmd(workload.image())
             .withAttachStdout(true)
             .withAttachStderr(true)
@@ -79,7 +92,7 @@ public class DockerVmAllocator implements VmAllocator {
         if (vm.workloads().size() > 1) {
             throw new InvalidConfigurationException("Docker allocator supports only one workload");
         }
-        var containerId = requestAllocation(vm.workloads().get(0));
+        var containerId = requestAllocation(vm.workloads().get(0), vm.vmId());
         dao.saveAllocatorMeta(vm.vmId(), Map.of(CONTAINER_ID_KEY, containerId), null);
     }
 

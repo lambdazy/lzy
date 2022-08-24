@@ -20,6 +20,8 @@ import org.apache.logging.log4j.Logger;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 @Singleton
 @Requires(beans = IamDataSource.class)
@@ -60,13 +62,18 @@ public class DbSubjectService {
     public Subject subject(String id) throws AuthException {
         try (var connect = storage.connect()) {
             final PreparedStatement st = connect.prepareStatement(
-                "SELECT user_id FROM users WHERE user_id = ?");
+                "SELECT user_id, user_type FROM users WHERE user_id = ?");
 
             int parameterIndex = 0;
             st.setString(++parameterIndex, id);
             ResultSet rs = st.executeQuery();
             if (rs.next()) {
-                return new User(rs.getString("user_id"));
+                final String user_id = rs.getString("user_id");
+                final SubjectType type = SubjectType.valueOf(rs.getString("user_type"));
+                return switch (type) {
+                    case USER -> new User(user_id);
+                    case SERVANT -> new Servant(user_id);
+                };
             } else {
                 throw new AuthBadRequestException("Subject:: " + id + " NOT_FOND");
             }
@@ -127,6 +134,33 @@ public class DbSubjectService {
             } else {
                 throw new AuthBadRequestException("Credentials:: " + name + " NOT_FOND");
             }
+        } catch (SQLException e) {
+            throw new AuthInternalException(e);
+        }
+    }
+
+    public List<SubjectCredentials> listCredentials(Subject subject) throws AuthException {
+        try (var connect = storage.connect()) {
+            final PreparedStatement st = connect.prepareStatement("""
+                SELECT *
+                FROM credentials
+                WHERE user_id = ?
+                """);
+
+            int parameterIndex = 0;
+            st.setString(++parameterIndex, subject.id());
+            ResultSet rs = st.executeQuery();
+            List<SubjectCredentials> result = new ArrayList<>();
+            while (rs.next()) {
+                result.add(
+                    new SubjectCredentials(
+                        rs.getString("name"),
+                        rs.getString("value"),
+                        rs.getString("type")
+                    )
+                );
+            }
+            return result;
         } catch (SQLException e) {
             throw new AuthInternalException(e);
         }

@@ -6,6 +6,7 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.SessionDao;
 import ai.lzy.allocator.dao.VmDao;
+import ai.lzy.allocator.dao.impl.AllocatorDataSource;
 import ai.lzy.allocator.model.CachePolicy;
 import ai.lzy.allocator.model.Session;
 import ai.lzy.allocator.model.Vm;
@@ -15,29 +16,20 @@ import ai.lzy.model.db.TransactionHandleImpl;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.OperationService.Operation;
-import ai.lzy.v1.VmAllocatorApi.AllocateMetadata;
-import ai.lzy.v1.VmAllocatorApi.AllocateRequest;
-import ai.lzy.v1.VmAllocatorApi.AllocateResponse;
-import ai.lzy.v1.VmAllocatorApi.CreateSessionRequest;
-import ai.lzy.v1.VmAllocatorApi.CreateSessionResponse;
-import ai.lzy.v1.VmAllocatorApi.DeleteSessionRequest;
-import ai.lzy.v1.VmAllocatorApi.DeleteSessionResponse;
-import ai.lzy.v1.VmAllocatorApi.FreeRequest;
-import ai.lzy.v1.VmAllocatorApi.FreeResponse;
+import ai.lzy.v1.VmAllocatorApi.*;
 import com.google.protobuf.Any;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 @Singleton
 public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
@@ -53,7 +45,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
     @Inject
     public AllocatorApi(VmDao dao, OperationDao operations, SessionDao sessions,
-                        VmAllocator allocator, ServiceConfig config, Storage storage) {
+                        VmAllocator allocator, ServiceConfig config, AllocatorDataSource storage) {
         this.dao = dao;
         this.operations = operations;
         this.sessions = sessions;
@@ -87,23 +79,23 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
     @Override
     public void deleteSession(DeleteSessionRequest request, StreamObserver<DeleteSessionResponse> responseObserver) {
-        responseObserver.onNext(DeleteSessionResponse.newBuilder().build());
-        responseObserver.onCompleted();
         try (var transaction = new TransactionHandleImpl(storage)) {
             final List<Vm> vms = dao.list(request.getSessionId(), transaction);
-            vms.forEach(vm -> {
-                dao.update(new Vm.VmBuilder(vm)
-                        .setState(Vm.State.DEAD)
-                        .build(),
-                    transaction
-                );
-                allocator.deallocate(vm);
-            });
+            vms.forEach(vm -> dao.update(new Vm.VmBuilder(vm)
+                    .setDeadline(Instant.now())
+                    .setState(Vm.State.IDLE)
+                    .build(),
+                transaction
+            ));
             sessions.delete(request.getSessionId(), transaction);
             transaction.commit();
         } catch (SQLException e) {
             LOG.error("Error while executing request", e);
+            responseObserver.onError(Status.INTERNAL.withDescription("Error while executing request").asException());
+            return;
         }
+        responseObserver.onNext(DeleteSessionResponse.newBuilder().build());
+        responseObserver.onCompleted();
     }
 
 
@@ -154,7 +146,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             vm = new Vm.VmBuilder(vm)
                 .setState(Vm.State.CONNECTING)
                 .setAllocationDeadline(
-                    Instant.now().plus(config.getAllocationTimeout()))  // TODO(artolord) add to config
+                    Instant.now().plus(config.getAllocationTimeout()))
                 .build();
             dao.update(vm, transaction);
 
@@ -185,29 +177,35 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
     @Override
     public void free(FreeRequest request, StreamObserver<FreeResponse> responseObserver) {
-        var vm = dao.get(request.getVmId(), null);
-        if (vm == null) {
-            responseObserver.onError(Status.NOT_FOUND.withDescription("Cannot found vm").asException());
-            return;
-        }
-        // TODO(artolord) validate that client can free this vm
-        if (vm.state() != Vm.State.RUNNING) {
-            LOG.error("Freed vm {} in status {}, expected RUNNING", vm, vm.state());
-            responseObserver.onError(Status.FAILED_PRECONDITION.asException());
-            return;
-        }
-        var session = sessions.get(vm.sessionId(), null);
-        if (session == null) {
-            LOG.error("Corrupted vm with incorrect session id");
-            responseObserver.onError(Status.INTERNAL.asException());
-            return;
-        }
+        try (var transaction = new TransactionHandleImpl(storage)) {
+            var vm = dao.get(request.getVmId(), transaction);
+            if (vm == null) {
+                responseObserver.onError(Status.NOT_FOUND.withDescription("Cannot found vm").asException());
+                return;
+            }
+            // TODO(artolord) validate that client can free this vm
+            if (vm.state() != Vm.State.RUNNING) {
+                LOG.error("Freed vm {} in status {}, expected RUNNING", vm, vm.state());
+                responseObserver.onError(Status.FAILED_PRECONDITION.asException());
+                return;
+            }
+            var session = sessions.get(vm.sessionId(), transaction);
+            if (session == null) {
+                LOG.error("Corrupted vm with incorrect session id");
+                responseObserver.onError(Status.INTERNAL.asException());
+                return;
+            }
 
-        dao.update(new Vm.VmBuilder(vm)
-            .setState(Vm.State.IDLE)
-            .setDeadline(Instant.now().plus(session.cachePolicy().minIdleTimeout()))
-            .build(), null);
-
+            dao.update(new Vm.VmBuilder(vm)
+                .setState(Vm.State.IDLE)
+                .setDeadline(Instant.now().plus(session.cachePolicy().minIdleTimeout()))
+                .build(), transaction);
+            transaction.commit();
+        } catch (SQLException e) {
+            LOG.error("Error while freeing", e);
+            responseObserver.onError(Status.INTERNAL.withDescription("Error while freeing").asException());
+            return;
+        }
         responseObserver.onNext(FreeResponse.newBuilder().build());
         responseObserver.onCompleted();
     }
