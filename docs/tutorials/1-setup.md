@@ -25,6 +25,8 @@ Python 3.10: 3.10.0, 3.10.3, 3.10.4
 
 ### Installation
 
+[![Pypi version](https://img.shields.io/pypi/v/pylzy)](https://pypi.org/project/pylzy/)
+
 `pip install pylzy`
 
 ### Sign Up
