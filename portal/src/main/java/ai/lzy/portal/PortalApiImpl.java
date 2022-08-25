@@ -12,7 +12,6 @@ import ai.lzy.v1.LzyPortalApi.OpenSlotsResponse;
 import ai.lzy.v1.LzyPortalApi.PortalStatus;
 import ai.lzy.v1.LzyPortalGrpc.LzyPortalImplBase;
 import com.google.protobuf.Empty;
-import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
@@ -31,46 +30,43 @@ class PortalApiImpl extends LzyPortalImplBase {
 
     @Override
     public void stop(Empty request, StreamObserver<Empty> responseObserver) {
-        this.requirePortalIsActive(responseObserver, () -> {
-            portal.close();
-            responseObserver.onNext(Empty.getDefaultInstance());
-            responseObserver.onCompleted();
-        });
+        portal.shutdown();
+        responseObserver.onNext(Empty.getDefaultInstance());
+        responseObserver.onCompleted();
+
     }
 
     @Override
     public synchronized void status(Empty request, StreamObserver<PortalStatus> responseObserver) {
-        this.requirePortalIsActive(responseObserver, () -> {
-            var response = LzyPortalApi.PortalStatus.newBuilder();
+        var response = LzyPortalApi.PortalStatus.newBuilder();
 
-            var snapshots = portal.getSnapshots();
-            snapshots.getInputSlots().forEach(slot ->
-                response.addSlots(PortalUtils.buildInputSlotStatus(slot)));
-            snapshots.getOutputSlots().forEach(slot ->
-                response.addSlots(PortalUtils.buildOutputSlotStatus(slot)));
+        var snapshots = portal.getSnapshots();
+        snapshots.getInputSlots().forEach(slot ->
+            response.addSlots(PortalUtils.buildInputSlotStatus(slot)));
+        snapshots.getOutputSlots().forEach(slot ->
+            response.addSlots(PortalUtils.buildOutputSlotStatus(slot)));
 
-            for (var stdSlot : portal.getOutErrSlots()) {
-                response.addSlots(PortalUtils.buildOutputSlotStatus(stdSlot));
-                stdSlot.forEachSlot(slot -> response.addSlots(PortalUtils.buildInputSlotStatus(slot)));
-            }
+        for (var stdSlot : portal.getOutErrSlots()) {
+            response.addSlots(PortalUtils.buildOutputSlotStatus(stdSlot));
+            stdSlot.forEachSlot(slot -> response.addSlots(PortalUtils.buildInputSlotStatus(slot)));
+        }
 
-            responseObserver.onNext(response.build());
-            responseObserver.onCompleted();
-        });
+        responseObserver.onNext(response.build());
+        responseObserver.onCompleted();
+
     }
 
     @Override
     public synchronized void openSlots(OpenSlotsRequest request, StreamObserver<OpenSlotsResponse> responseObserver) {
-        this.requirePortalIsActive(responseObserver, () -> {
-            try {
-                var response = openInternal(request);
-                responseObserver.onNext(response);
-                responseObserver.onCompleted();
-            } catch (Exception e) {
-                LOG.error(e.getMessage(), e);
-                responseObserver.onError(e);
-            }
-        });
+        try {
+            var response = openInternal(request);
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            LOG.error(e.getMessage(), e);
+            responseObserver.onError(e);
+        }
+
     }
 
     private OpenSlotsResponse openInternal(OpenSlotsRequest request) {
@@ -117,14 +113,6 @@ class PortalApiImpl extends LzyPortalImplBase {
         }
 
         return response.build();
-    }
-
-    private <T> void requirePortalIsActive(StreamObserver<T> response, Runnable action) {
-        if (portal.isActive()) {
-            action.run();
-        } else {
-            response.onError(Status.FAILED_PRECONDITION.withDescription("Portal not active").asRuntimeException());
-        }
     }
 
     private static String portalSlotToSafeString(LzyPortalApi.PortalSlotDesc slotDesc) {

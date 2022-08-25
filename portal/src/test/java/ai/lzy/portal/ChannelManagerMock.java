@@ -89,7 +89,7 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
         }
 
         @Override
-        public void close() throws IOException {
+        public void close() {
             channel.shutdown();
         }
     }
@@ -105,7 +105,7 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
         }
 
         @Override
-        public void close() throws IOException {
+        public void close() {
             final Endpoint inputEnd = inputEndpoint.get();
             if (inputEnd != null) {
                 inputEnd.close();
