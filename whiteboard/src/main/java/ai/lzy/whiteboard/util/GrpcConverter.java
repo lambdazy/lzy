@@ -1,7 +1,7 @@
 package ai.lzy.whiteboard.util;
 
 import ai.lzy.v1.LWBS;
-import ai.lzy.whiteboard.Whiteboard;
+import ai.lzy.whiteboard.model.Whiteboard;
 
 public class GrpcConverter {
 

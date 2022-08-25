@@ -1,4 +1,4 @@
-package ai.lzy.whiteboard;
+package ai.lzy.whiteboard.model;
 
 import ai.lzy.model.data.DataSchema;
 import java.time.Instant;
@@ -15,6 +15,18 @@ public record Whiteboard(
     Instant createdAt
 ) {
 
+    public boolean hasField(String fieldName) {
+        if (createdFieldNames.contains(fieldName)) {
+            return true;
+        }
+        return linkedFields.stream().anyMatch(f -> f.name().contains(fieldName));
+    }
+
+    public enum Status {
+        CREATED,
+        FINALIZED,
+    }
+
     public record Storage(
         String name,
         String description
@@ -25,20 +37,4 @@ public record Whiteboard(
         String storageUri,
         DataSchema schema
     ) { }
-
-    public enum Status {
-        CREATED,
-        FINALIZED,
-        ;
-    }
-
-    public boolean hasField(String fieldName) {
-        if (createdFieldNames.contains(fieldName)) {
-            return true;
-        }
-        if (linkedFields.stream().anyMatch(f -> f.name().contains(fieldName))) {
-            return true;
-        }
-        return false;
-    }
 }

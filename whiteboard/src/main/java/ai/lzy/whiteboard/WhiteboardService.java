@@ -7,6 +7,8 @@ import ai.lzy.model.db.TransactionHandleImpl;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.LWBS;
 import ai.lzy.v1.LzyWhiteboardServiceGrpc;
+import ai.lzy.whiteboard.model.Whiteboard;
+import ai.lzy.whiteboard.storage.WhiteboardDataSource;
 import ai.lzy.whiteboard.storage.WhiteboardStorage;
 import ai.lzy.whiteboard.util.GrpcConverter;
 import io.grpc.Status;
@@ -166,7 +168,7 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
             LOG.error("Finalize whiteboard {} failed, invalid argument: {}",
                 request.getWhiteboardId(), e.getMessage(), e);
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
-        }  catch (Exception e) {
+        } catch (Exception e) {
             LOG.error("Finalize whiteboard {} failed, got exception: {}",
                 request.getWhiteboardId(), e.getMessage(), e);
             responseObserver.onError(Status.INTERNAL.withCause(e).asException());

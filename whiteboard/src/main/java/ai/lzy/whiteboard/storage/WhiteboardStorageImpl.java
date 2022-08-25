@@ -8,8 +8,7 @@ import ai.lzy.model.db.ReadMode;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.TransactionHandleDelegate;
-import ai.lzy.whiteboard.Whiteboard;
-import ai.lzy.whiteboard.WhiteboardDataSource;
+import ai.lzy.whiteboard.model.Whiteboard;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
 import java.sql.PreparedStatement;
@@ -223,7 +222,9 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
         });
     }
 
-    private void insertWhiteboardFieldNames(String whiteboardId, Set<String> fieldNames, TransactionHandle transaction) {
+    private void insertWhiteboardFieldNames(String whiteboardId, Set<String> fieldNames,
+                                            TransactionHandle transaction)
+    {
         DbOperation.execute(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 INSERT INTO whiteboard_fields(whiteboard_id, field_name)

@@ -1,6 +1,7 @@
-package ai.lzy.whiteboard;
+package ai.lzy.whiteboard.storage;
 
 import ai.lzy.model.db.Storage;
+import ai.lzy.whiteboard.WhiteboardConfig;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;

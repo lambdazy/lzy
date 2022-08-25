@@ -3,7 +3,7 @@ package ai.lzy.whiteboard.storage;
 import ai.lzy.model.db.NotFoundException;
 import ai.lzy.model.db.ReadMode;
 import ai.lzy.model.db.TransactionHandle;
-import ai.lzy.whiteboard.Whiteboard;
+import ai.lzy.whiteboard.model.Whiteboard;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;

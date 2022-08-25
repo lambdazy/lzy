@@ -7,7 +7,6 @@ import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import com.google.common.net.HostAndPort;
-import io.grpc.Grpc;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
@@ -58,6 +57,18 @@ public class LzyWhiteboard {
             .build();
     }
 
+    public static void main(String[] args) throws IOException, InterruptedException {
+        try (ApplicationContext context = ApplicationContext.run()) {
+            var app = new LzyWhiteboard(context);
+
+            app.start();
+            app.awaitTermination();
+        } catch (NoSuchBeanException e) {
+            LOG.fatal(e.getMessage(), e);
+            System.exit(-1);
+        }
+    }
+
     public void start() throws IOException {
         whiteboardServer.start();
         LOG.info("Whiteboard server started on {}",
@@ -66,8 +77,12 @@ public class LzyWhiteboard {
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("gRPC server is shutting down!");
-            close(false);
+            stop();
         }));
+    }
+
+    public void stop() {
+        close(false);
     }
 
     public void close(boolean force) {
@@ -89,17 +104,5 @@ public class LzyWhiteboard {
     public void awaitTermination() throws InterruptedException {
         whiteboardServer.awaitTermination();
         iamChannel.awaitTermination(10, TimeUnit.SECONDS);
-    }
-
-    public static void main(String[] args) throws IOException, InterruptedException {
-        try (ApplicationContext context = ApplicationContext.run()) {
-            var app = new LzyWhiteboard(context);
-
-            app.start();
-            app.awaitTermination();
-        } catch (NoSuchBeanException e) {
-            LOG.fatal(e.getMessage(), e);
-            System.exit(-1);
-        }
     }
 }
