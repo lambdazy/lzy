@@ -2,24 +2,34 @@ package ai.lzy.scheduler.test;
 
 import ai.lzy.model.Operation;
 import ai.lzy.model.db.DaoException;
-import ai.lzy.model.graph.Provisioning;
+import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.scheduler.allocator.ServantMetaStorage;
 import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.scheduler.db.ServantDao.AcquireException;
 import ai.lzy.scheduler.models.ServantState;
 import ai.lzy.scheduler.servant.Servant;
 import io.micronaut.context.ApplicationContext;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Test;
+import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
+import io.zonky.test.db.postgres.junit.PreparedDbRule;
+import org.junit.*;
 
 import java.util.Set;
 import java.util.stream.Collectors;
 
 public class ServantDaoTest {
-    public static final ApplicationContext context = ApplicationContext.run();
-    public static final ServantDao dao = context.getBean(ServantDao.class);
-    public static final ServantMetaStorage meta = context.getBean(ServantMetaStorage.class);
+    @Rule
+    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+
+    public ApplicationContext context;
+    public ServantDao dao;
+    public ServantMetaStorage meta;
+
+    @Before
+    public void setUp() {
+        context = ApplicationContext.run(DatabaseTestUtils.preparePostgresConfig("scheduler", db.getConnectionInfo()));
+        dao = context.getBean(ServantDao.class);
+        meta = context.getBean(ServantMetaStorage.class);
+    }
 
     @After
     public void tearDown() throws DaoException {
@@ -29,6 +39,7 @@ public class ServantDaoTest {
         for (Servant servant : dao.getAllAcquired()) {
             dao.invalidate(servant, "destroy");
         }
+        context.close();
     }
 
     @Test

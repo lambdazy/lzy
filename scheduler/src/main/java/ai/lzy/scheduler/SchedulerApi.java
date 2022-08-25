@@ -1,18 +1,19 @@
 package ai.lzy.scheduler;
 
-import ai.lzy.iam.clients.AuthenticateService;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
-import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.model.db.DaoException;
+import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.scheduler.db.ServantDao;
+import ai.lzy.scheduler.grpc.RemoteAddressInterceptor;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
-import ai.lzy.scheduler.configs.ServiceConfig;
-import ai.lzy.scheduler.grpc.RemoteAddressInterceptor;
 import com.google.common.annotations.VisibleForTesting;
-import io.grpc.*;
+import io.grpc.ManagedChannel;
+import io.grpc.Server;
+import io.grpc.ServerBuilder;
+import io.grpc.ServerInterceptors;
 import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.context.ApplicationContext;
 import org.apache.logging.log4j.LogManager;
@@ -33,7 +34,8 @@ public class SchedulerApi {
 
     @Inject
     public SchedulerApi(SchedulerApiImpl impl, PrivateSchedulerApiImpl privateApi, ServiceConfig config,
-                        @Named("IamGrpcChannel") ManagedChannel iamChannel, ServantDao dao) {
+                        @Named("IamGrpcChannel") ManagedChannel iamChannel, ServantDao dao)
+    {
         this.impl = impl;
         this.dao = dao;
 

@@ -1,31 +1,41 @@
 package ai.lzy.graph.test;
 
-import static ai.lzy.graph.test.GraphExecutorTest.*;
-
-import ai.lzy.graph.db.impl.GraphExecutionDaoImpl;
-import io.micronaut.context.ApplicationContext;
-import java.util.List;
-import java.util.Set;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
 import ai.lzy.graph.db.GraphExecutionDao;
-import ai.lzy.model.db.DaoException;
+import ai.lzy.graph.db.impl.GraphExecutionDaoImpl;
 import ai.lzy.graph.model.GraphDescription;
 import ai.lzy.graph.model.GraphExecutionState;
+import ai.lzy.model.db.DaoException;
+import io.micronaut.context.ApplicationContext;
+import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
+import io.zonky.test.db.postgres.junit.PreparedDbRule;
+import org.junit.*;
 import org.junit.rules.Timeout;
 
+import java.util.List;
+import java.util.Set;
+
+import static ai.lzy.graph.test.GraphExecutorTest.GraphDescriptionBuilder;
+import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
+
 public class DaoTest {
-    private GraphExecutionDao dao;
 
     @Rule
     public Timeout globalTimeout = Timeout.seconds(10);
+    @Rule
+    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+
+    private ApplicationContext context;
+    private GraphExecutionDao dao;
 
     @Before
     public void setUp() {
-        ApplicationContext context = ApplicationContext.run();
+        context = ApplicationContext.run(preparePostgresConfig("graph-executor", db.getConnectionInfo()));
         dao = context.getBean(GraphExecutionDaoImpl.class);
+    }
+
+    @After
+    public void tearDown() {
+        context.close();
     }
 
     @Test
