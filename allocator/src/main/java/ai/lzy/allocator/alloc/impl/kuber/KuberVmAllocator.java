@@ -199,6 +199,14 @@ public class KuberVmAllocator implements VmAllocator {
                 new EnvVarBuilder()
                     .withName(AllocatorAgent.VM_HEARTBEAT_PERIOD)
                     .withValue(config.getHeartbeatTimeout().dividedBy(2).toString())
+                    .build(),
+                new EnvVarBuilder()
+                    .withName(AllocatorAgent.VM_IP_ADDRESS)
+                    .withValueFrom(
+                        new EnvVarSourceBuilder()
+                            .withNewFieldRef("v1", "status.podIP")
+                            .build()
+                    )
                     .build()
             ));
 

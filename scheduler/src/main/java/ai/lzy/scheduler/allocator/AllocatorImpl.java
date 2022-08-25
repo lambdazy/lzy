@@ -146,7 +146,6 @@ public class AllocatorImpl implements ServantsAllocator {
             "--scheduler-address", config.getSchedulerAddress(),
             "--channel-manager", config.getChannelManagerAddress(),
             "--lzy-mount", mountPoint,
-            "--host", "localhost",
             "--token", '"' + credentials.token() + '"',
             "--servant-id", servantId,
             "--scheduler-heartbeat-period", processorConfig.executingHeartbeatPeriod().toString()
