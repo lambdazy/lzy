@@ -29,7 +29,6 @@ public class AuthenticateServiceGrpcClientTest extends BaseAuthServiceApiTest {
 
     @Before
     public void setUp() throws IOException {
-        System.out.println("HEREEEEEEEEEEEEEEEEEE");
         ctx = ApplicationContext.run();
         lzyIAM = new LzyIAM(ctx);
         lzyIAM.start();

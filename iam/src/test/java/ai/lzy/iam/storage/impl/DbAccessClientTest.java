@@ -1,5 +1,6 @@
 package ai.lzy.iam.storage.impl;
 
+import ai.lzy.iam.BaseAccessServiceApiTest;
 import ai.lzy.iam.resources.*;
 import ai.lzy.iam.resources.impl.Whiteboard;
 import ai.lzy.iam.resources.impl.Workflow;
@@ -17,10 +18,11 @@ import org.junit.Test;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.junit.Assert.*;
 
-public class DbAccessClientTest {
+public class DbAccessClientTest extends BaseAccessServiceApiTest {
     public static final Logger LOG = LogManager.getLogger(DbAccessClientTest.class);
 
     private ApplicationContext ctx;
@@ -38,136 +40,39 @@ public class DbAccessClientTest {
         accessBindingClient = ctx.getBean(DbAccessBindingClient.class);
     }
 
-    @Test
-    public void validAccessUser() {
-        validAccess(SubjectType.USER);
+    @Override
+    protected Subject subject(String id) {
+        return subjectService.subject(id);
     }
 
-    @Test
-    public void validAccessServant() {
-        validAccess(SubjectType.SERVANT);
+    @Override
+    protected void createSubject(String id, String name, String value, SubjectType subjectType) {
+        subjectService.createSubject(id, "", "", subjectType);
     }
 
-    public void validAccess(SubjectType subjectType) {
-        String userId = "user1";
-        subjectService.createSubject(userId, "", "", subjectType);
-        final Subject user = subjectService.subject(userId);
-
-        AuthResource whiteboardResource = new Whiteboard("whiteboard");
-        accessBindingClient.setAccessBindings(whiteboardResource, List.of(
-                new AccessBinding(Role.LZY_WHITEBOARD_OWNER.role(), user)
-        ));
-        assertTrue(accessClient.hasResourcePermission(
-                user,
-                whiteboardResource.resourceId(),
-                AuthPermission.WHITEBOARD_GET)
-        );
-        assertTrue(accessClient.hasResourcePermission(
-                user,
-                whiteboardResource.resourceId(),
-                AuthPermission.WHITEBOARD_UPDATE)
-        );
-        assertTrue(accessClient.hasResourcePermission(
-                user,
-                whiteboardResource.resourceId(),
-                AuthPermission.WHITEBOARD_CREATE)
-        );
-        assertTrue(accessClient.hasResourcePermission(
-                user,
-                whiteboardResource.resourceId(),
-                AuthPermission.WHITEBOARD_DELETE)
-        );
-
-        AuthResource workflowResource = new Workflow("workflow");
-        List<AccessBinding> workflowAccessBinding = List.of(
-                new AccessBinding(Role.LZY_WORKFLOW_OWNER.role(), user)
-        );
-        accessBindingClient.setAccessBindings(workflowResource, workflowAccessBinding);
-        assertTrue(accessClient.hasResourcePermission(
-                user,
-                workflowResource.resourceId(),
-                AuthPermission.WORKFLOW_RUN)
-        );
-        assertTrue(accessClient.hasResourcePermission(
-                user,
-                workflowResource.resourceId(),
-                AuthPermission.WORKFLOW_STOP)
-        );
-        assertTrue(accessClient.hasResourcePermission(
-                user,
-                workflowResource.resourceId(),
-                AuthPermission.WORKFLOW_DELETE)
-        );
-        assertTrue(accessClient.hasResourcePermission(
-                user,
-                workflowResource.resourceId(),
-                AuthPermission.WORKFLOW_GET)
-        );
-        assertEquals(
-                workflowAccessBinding,
-                accessBindingClient.listAccessBindings(workflowResource).collect(Collectors.toList())
-        );
+    @Override
+    protected void removeSubject(Subject subject) {
+        subjectService.removeSubject(subject);
     }
 
-    @Test
-    public void invalidAccessUser() {
-        invalidAccess(SubjectType.USER);
+    @Override
+    protected void setAccessBindings(AuthResource resource, List<AccessBinding> accessBinding) {
+        accessBindingClient.setAccessBindings(resource, accessBinding);
     }
 
-    @Test
-    public void invalidAccessServant() {
-        invalidAccess(SubjectType.SERVANT);
+    @Override
+    protected Stream<AccessBinding> listAccessBindings(AuthResource resource) {
+        return accessBindingClient.listAccessBindings(resource);
     }
 
-    public void invalidAccess(SubjectType subjectType) {
-        String userId = "user1";
-        subjectService.createSubject(userId, "", "", subjectType);
-        final Subject user = subjectService.subject(userId);
+    @Override
+    protected void updateAccessBindings(AuthResource resource, List<AccessBindingDelta> accessBinding) {
+        accessBindingClient.updateAccessBindings(resource, accessBinding);
+    }
 
-        AuthResource whiteboardResource = new Whiteboard("whiteboard");
-        accessBindingClient.setAccessBindings(whiteboardResource, List.of(
-                new AccessBinding(Role.LZY_WHITEBOARD_OWNER.role(), user)
-        ));
-        assertTrue(accessClient.hasResourcePermission(
-                user,
-                whiteboardResource.resourceId(),
-                AuthPermission.WHITEBOARD_GET)
-        );
-
-        accessBindingClient.updateAccessBindings(whiteboardResource, List.of(
-                new AccessBindingDelta(
-                        AccessBindingDelta.AccessBindingAction.REMOVE,
-                        new AccessBinding(Role.LZY_WHITEBOARD_OWNER.role(), user))
-        ));
-        try {
-            accessClient.hasResourcePermission(user, whiteboardResource.resourceId(), AuthPermission.WHITEBOARD_GET);
-            fail();
-        } catch (AuthBadRequestException e) {
-            LOG.info("Valid exception::{}", e.getInternalDetails());
-        }
-
-        AuthResource workflowResource = new Workflow("workflow");
-        accessBindingClient.setAccessBindings(workflowResource, List.of(
-                new AccessBinding(Role.LZY_WORKFLOW_OWNER.role(), user)
-        ));
-        assertTrue(accessClient.hasResourcePermission(
-                user,
-                workflowResource.resourceId(),
-                AuthPermission.WORKFLOW_RUN)
-        );
-
-        accessBindingClient.updateAccessBindings(workflowResource, List.of(
-                        new AccessBindingDelta(
-                                AccessBindingDelta.AccessBindingAction.REMOVE,
-                                new AccessBinding(Role.LZY_WORKFLOW_OWNER.role(), user))
-                )
-        );
-        try {
-            accessClient.hasResourcePermission(user, workflowResource.resourceId(), AuthPermission.WORKFLOW_RUN);
-            fail();
-        } catch (AuthBadRequestException e) {
-            LOG.info("Valid exception::{}", e.getInternalDetails());
-        }
+    @Override
+    protected boolean hasResourcePermission(Subject subject, AuthResource resource, AuthPermission permission) {
+        return accessClient.hasResourcePermission(subject, resource.resourceId(), permission);
     }
 
     @After
