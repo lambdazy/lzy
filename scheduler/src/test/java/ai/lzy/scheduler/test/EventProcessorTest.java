@@ -1,25 +1,26 @@
 package ai.lzy.scheduler.test;
 
 import ai.lzy.model.Operation;
-import ai.lzy.model.Slot;
+import ai.lzy.model.TaskDesc;
 import ai.lzy.model.db.DaoException;
-import ai.lzy.model.graph.*;
+import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.model.utils.FreePortFinder;
-import ai.lzy.v1.Operations;
 import ai.lzy.scheduler.configs.ProcessorConfigBuilder;
 import ai.lzy.scheduler.configs.ServantEventProcessorConfig;
 import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.scheduler.db.ServantEventDao;
 import ai.lzy.scheduler.db.TaskDao;
 import ai.lzy.scheduler.models.ServantState;
-import ai.lzy.model.TaskDesc;
 import ai.lzy.scheduler.servant.Servant;
 import ai.lzy.scheduler.servant.impl.EventQueueManager;
 import ai.lzy.scheduler.servant.impl.ServantEventProcessor;
 import ai.lzy.scheduler.task.Task;
-import ai.lzy.scheduler.test.mocks.*;
+import ai.lzy.scheduler.test.mocks.AllocatedServantMock;
+import ai.lzy.scheduler.test.mocks.AllocatorMock;
 import io.grpc.Status;
 import io.micronaut.context.ApplicationContext;
+import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
+import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.apache.curator.shaded.com.google.common.net.HostAndPort;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -27,21 +28,24 @@ import org.junit.*;
 import org.junit.rules.Timeout;
 
 import java.io.IOException;
-import java.net.URI;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.stream.Collectors;
 
 public class EventProcessorTest {
-
     private static final Logger LOG = LogManager.getLogger(EventProcessorTest.class);
-    public static final ApplicationContext context = ApplicationContext.run("scheduler");
 
-    public static final ServantEventDao events = context.getBean(ServantEventDao.class);
-    public static final ServantDao servantDao = context.getBean(ServantDao.class);
-    public static final TaskDao tasks = context.getBean(TaskDao.class);
-    public static final EventQueueManager manager = context.getBean(EventQueueManager.class);
+    @Rule
+    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+
+    public ApplicationContext context;
+    public ServantEventDao events;
+    public ServantDao servantDao;
+    public TaskDao tasks;
+    public EventQueueManager manager;
 
     public AllocatorMock allocator;
     public String workflowId;
@@ -52,6 +56,13 @@ public class EventProcessorTest {
 
     @Before
     public void setUp() {
+        context = ApplicationContext.run(DatabaseTestUtils.preparePostgresConfig("scheduler", db.getConnectionInfo()));
+
+        events = context.getBean(ServantEventDao.class);
+        servantDao = context.getBean(ServantDao.class);
+        tasks = context.getBean(TaskDao.class);
+        manager = context.getBean(EventQueueManager.class);
+
         workflowId = "wf" + UUID.randomUUID();
         allocator = new AllocatorMock();
         servantReady = new CountDownLatch(1);
@@ -66,6 +77,8 @@ public class EventProcessorTest {
         for (var task : tasks.list(workflowId)) {
             task.notifyExecutionCompleted(1, "End of test");
         }
+
+        context.close();
     }
 
     @Test(timeout = 1000)

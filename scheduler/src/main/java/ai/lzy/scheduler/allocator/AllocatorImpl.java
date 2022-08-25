@@ -59,11 +59,12 @@ public class AllocatorImpl implements ServantsAllocator {
     private final AccessBindingServiceGrpcClient abClient;
 
     public AllocatorImpl(ServiceConfig config, ServantEventProcessorConfig processorConfig,
-                         ServantMetaStorage metaStorage) {
+                         ServantMetaStorage metaStorage)
+    {
         this.config = config;
         this.processorConfig = processorConfig;
         this.metaStorage = metaStorage;
-        this.authConfig = config.getAuth();
+        this.authConfig = config.getIam();
         this.iamChan = ChannelBuilder
             .forAddress(authConfig.getAddress())
             .usePlaintext()

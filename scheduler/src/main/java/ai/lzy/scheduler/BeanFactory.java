@@ -39,7 +39,7 @@ public class BeanFactory {
     @Named("IamGrpcChannel")
     public ManagedChannel iamChannel(ServiceConfig config) {
         return ChannelBuilder
-            .forAddress(config.getAuth().getAddress())
+            .forAddress(config.getIam().getAddress())
             .usePlaintext()
             .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
             .build();

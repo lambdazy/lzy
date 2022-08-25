@@ -1,18 +1,18 @@
 package ai.lzy.graph.db.impl;
 
+import ai.lzy.graph.db.QueueEventDao;
+import ai.lzy.graph.model.QueueEvent;
+import ai.lzy.model.db.DaoException;
 import ai.lzy.model.db.Transaction;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import java.sql.Connection;
+
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import ai.lzy.model.db.DaoException;
-import ai.lzy.graph.db.QueueEventDao;
-import ai.lzy.graph.model.QueueEvent;
 
 @Singleton
 public class QueueEventDaoImpl implements QueueEventDao {
@@ -25,12 +25,12 @@ public class QueueEventDaoImpl implements QueueEventDao {
 
     @Override
     public void add(QueueEvent.Type type, String workflowId, String graphId, String description) throws DaoException {
-        try (
-            Connection con = storage.connect();
-            PreparedStatement st = con.prepareStatement("""
+        try (var con = storage.connect();
+             var st = con.prepareStatement("""
                 INSERT INTO queue_event (
                     id, type, workflow_id, graph_id, acquired, description
-                ) VALUES (?, ?, ?, ?, ?, ?)""")) {
+                ) VALUES (?, ?::event_type, ?, ?, ?, ?)"""))
+        {
 
             final QueueEvent event = new QueueEvent(
                 UUID.randomUUID().toString(), workflowId,
@@ -53,12 +53,12 @@ public class QueueEventDaoImpl implements QueueEventDao {
         final List<QueueEvent> ret = new ArrayList<>();
         Transaction.execute(storage, con -> {
             try (PreparedStatement st = con.prepareStatement("""
-                SELECT id, type, workflow_id, graph_id, description
+                SELECT id, type::event_type, workflow_id, graph_id, description
                 FROM queue_event
                 WHERE acquired = false
                 LIMIT ?
-                FOR UPDATE""")
-            ) {
+                FOR UPDATE"""))
+            {
                 st.setInt(1, limit);
 
                 try (final ResultSet s = st.executeQuery()) {
@@ -80,7 +80,7 @@ public class QueueEventDaoImpl implements QueueEventDao {
                 }
             }
 
-            try (PreparedStatement st = con.prepareStatement("UPDATE queue_event SET acquired = true WHERE id = ?")) {
+            try (var st = con.prepareStatement("UPDATE queue_event SET acquired = true WHERE id = ?")) {
                 for (QueueEvent event: ret) {
                     st.setString(1, event.id());
                     st.addBatch();
@@ -95,9 +95,9 @@ public class QueueEventDaoImpl implements QueueEventDao {
 
     @Override
     public void remove(QueueEvent event) throws DaoException {
-        try (
-            Connection con = storage.connect();
-            PreparedStatement st = con.prepareStatement("DELETE FROM queue_event WHERE id = ?")) {
+        try (var con = storage.connect();
+             var st = con.prepareStatement("DELETE FROM queue_event WHERE id = ?"))
+        {
             if (event.id() == null) {
                 throw new DaoException("Cannot delete event with id null");
             }
@@ -110,9 +110,9 @@ public class QueueEventDaoImpl implements QueueEventDao {
 
     @Override
     public void removeAllAcquired() throws DaoException {
-        try (
-            Connection con = storage.connect();
-            PreparedStatement st = con.prepareStatement("DELETE FROM queue_event WHERE acquired = true")) {
+        try (var con = storage.connect();
+             var st = con.prepareStatement("DELETE FROM queue_event WHERE acquired = true"))
+        {
             st.execute();
         } catch (SQLException e) {
             throw new DaoException(e);
