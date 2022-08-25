@@ -56,7 +56,8 @@ public class ThreadVmAllocator implements VmAllocator {
         newArgs.addAll(List.of(
             "--vm-id", vmId,
             "--allocator-address", cfg.getAddress(),
-            "--allocator-heartbeat-period", cfg.getHeartbeatTimeout().dividedBy(2).toString()
+            "--allocator-heartbeat-period", cfg.getHeartbeatTimeout().dividedBy(2).toString(),
+            "--host", "localhost"
         ));
 
         @SuppressWarnings("CheckStyle")
