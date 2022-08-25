@@ -9,14 +9,15 @@ import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.rpc.Status;
 import jakarta.inject.Singleton;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import javax.annotation.Nullable;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.UUID;
-import javax.annotation.Nullable;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 @Singleton
 public class OperationDaoImpl implements OperationDao {
@@ -36,9 +37,8 @@ public class OperationDaoImpl implements OperationDao {
         LOG.info("Operation {} is creating", op);
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(
-                "INSERT INTO operation (" + FIELDS + """
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """)) {
+                "INSERT INTO operation (" + FIELDS + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"))
+            {
                 writeOp(op, s);
                 s.execute();
             }
@@ -54,10 +54,8 @@ public class OperationDaoImpl implements OperationDao {
         LOG.info("Getting op with id={}", opId);
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(
-                "SELECT" + FIELDS + """
-                FROM operation
-                WHERE id = ?
-                """)) {
+                "SELECT" + FIELDS + " FROM operation WHERE id = ?" + forUpdate(transaction)))
+            {
                 s.setString(1, opId);
                 final var res = s.executeQuery();
                 if (!res.next()) {
@@ -103,10 +101,8 @@ public class OperationDaoImpl implements OperationDao {
         LOG.info("Operation {} is updating", op);
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(
-                "UPDATE operation SET (" + FIELDS + """
-                ) = (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                WHERE id = ?
-                """)) {
+                "UPDATE operation SET (" + FIELDS + ") = (?, ?, ?, ?, ?, ?, ?, ?, ?) WHERE id = ?"))
+            {
                 s.setString(10, op.id());
                 writeOp(op, s);
                 s.execute();
@@ -134,5 +130,9 @@ public class OperationDaoImpl implements OperationDao {
         } else {
             s.setBytes(9, null);
         }
+    }
+
+    private static String forUpdate(@Nullable TransactionHandle tx) {
+        return tx != null ? " FOR UPDATE" : "";
     }
 }

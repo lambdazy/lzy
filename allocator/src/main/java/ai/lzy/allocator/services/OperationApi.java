@@ -30,7 +30,7 @@ public class OperationApi extends OperationServiceApiImplBase {
             responseObserver.onError(Status.NOT_FOUND.withDescription("Operation not found").asException());
             return;
         }
-        responseObserver.onNext(op.toGrpc());
+        responseObserver.onNext(op.toProto());
         responseObserver.onCompleted();
     }
 
@@ -44,7 +44,7 @@ public class OperationApi extends OperationServiceApiImplBase {
         }
         var newOp = op.complete(Status.CANCELLED);
         operations.update(newOp, null);
-        responseObserver.onNext(newOp.toGrpc());
+        responseObserver.onNext(newOp.toProto());
         responseObserver.onCompleted();
     }
 }

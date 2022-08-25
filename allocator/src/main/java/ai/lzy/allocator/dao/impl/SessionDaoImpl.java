@@ -8,15 +8,21 @@ import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import jakarta.inject.Singleton;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nullable;
 import java.util.UUID;
 
 @Singleton
 public class SessionDaoImpl implements SessionDao {
+    private static final Logger LOG = LogManager.getLogger(SessionDaoImpl.class);
+
     private final Storage storage;
     private final ObjectMapper objectMapper;
+    private volatile RuntimeException injectedError = null;
 
     public SessionDaoImpl(AllocatorDataSource storage, ObjectMapper objectMapper) {
         this.storage = storage;
@@ -25,19 +31,22 @@ public class SessionDaoImpl implements SessionDao {
 
     @Override
     public Session create(String owner, CachePolicy cachePolicy, @Nullable TransactionHandle transaction) {
+        LOG.debug("Create session for {} in tx {}", owner, transaction);
+
+        throwInjectedError();
+
         final var session = new Session(UUID.randomUUID().toString(), owner, cachePolicy);
+
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(
-                    "INSERT INTO session (id, owner, cache_policy_json) VALUES (?, ?, ?)")) {
+                "INSERT INTO session (id, owner, cache_policy_json) VALUES (?, ?, ?)"))
+            {
                 s.setString(1, session.sessionId());
                 s.setString(2, session.owner());
                 s.setString(3, objectMapper.writeValueAsString(session.cachePolicy()));
                 s.execute();
             } catch (JsonProcessingException e) {
                 throw new RuntimeException("Cannot dump cache policy", e);
-            }
-            if (transaction == null) {
-                con.close();
             }
         });
         return session;
@@ -46,12 +55,17 @@ public class SessionDaoImpl implements SessionDao {
     @Nullable
     @Override
     public Session get(String sessionId, @Nullable TransactionHandle transaction) {
+        LOG.debug("Get session {} in tx {}", sessionId, transaction);
+
+        throwInjectedError();
+
         final Session[] session = {null};
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement("""
                 SELECT id, owner, cache_policy_json
-                 FROM session
-                 WHERE id = ?""")) {
+                FROM session
+                WHERE id = ?""" + forUpdate(transaction)))
+            {
                 s.setString(1, sessionId);
                 final var rs = s.executeQuery();
                 if (!rs.next()) {
@@ -71,13 +85,34 @@ public class SessionDaoImpl implements SessionDao {
 
     @Override
     public void delete(String sessionId, @Nullable TransactionHandle transaction) {
+        LOG.debug("Delete session {} in tx {}", sessionId, transaction);
+
+        throwInjectedError();
+
         DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement("""
-                DELETE FROM session
-                 WHERE id = ?""")) {
+            try (final var s = con.prepareStatement(
+                "DELETE FROM session WHERE id = ?"))
+            {
                 s.setString(1, sessionId);
                 s.execute();
             }
         });
+    }
+
+    @VisibleForTesting
+    public void injectError(RuntimeException error) {
+        injectedError = error;
+    }
+
+    private void throwInjectedError() {
+        final var error = injectedError;
+        if (error != null) {
+            injectedError = null;
+            throw error;
+        }
+    }
+
+    private static String forUpdate(@Nullable TransactionHandle tx) {
+        return tx != null ? " FOR UPDATE" : "";
     }
 }

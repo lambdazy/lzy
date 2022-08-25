@@ -1,4 +1,4 @@
-package ai.lzy.model.logs;
+package ai.lzy.logs;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

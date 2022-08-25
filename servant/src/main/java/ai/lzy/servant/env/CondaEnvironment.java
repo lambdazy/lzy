@@ -14,15 +14,15 @@ import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.stream.Collectors;
+
 import net.lingala.zip4j.core.ZipFile;
 import net.lingala.zip4j.exception.ZipException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.model.exceptions.EnvironmentInstallationException;
 import ai.lzy.model.graph.PythonEnv;
-import ai.lzy.model.logs.MetricEvent;
-import ai.lzy.model.logs.MetricEventLogger;
+import ai.lzy.logs.MetricEvent;
+import ai.lzy.logs.MetricEventLogger;
 import ai.lzy.fs.storage.StorageClient;
 import ru.yandex.qe.s3.transfer.TransferStatus;
 import ru.yandex.qe.s3.transfer.Transmitter;

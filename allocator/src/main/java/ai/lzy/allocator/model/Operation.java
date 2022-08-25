@@ -1,8 +1,8 @@
 package ai.lzy.allocator.model;
 
+import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.v1.OperationService;
 import com.google.protobuf.Any;
-import com.google.protobuf.Timestamp;
 import io.grpc.Status;
 
 import javax.annotation.Nullable;
@@ -33,22 +33,15 @@ public record Operation(
         return new Operation(id, meta, createdBy, createdAt, Instant.now(), description, done, response, error);
     }
 
-    public OperationService.Operation toGrpc() {
+    public OperationService.Operation toProto() {
         final var builder =  OperationService.Operation.newBuilder()
-            .setDescription(this.description())
-            .setCreatedAt(Timestamp.newBuilder()
-                .setSeconds(createdAt.getEpochSecond())
-                .setNanos(createdAt.getNano())
-                .build())
-            .setCreatedBy(this.createdBy())
-            .setId(this.id())
-            .setDone(this.done())
-            .setMetadata(this.meta())
-                .setModifiedAt(
-                    Timestamp.newBuilder()
-                        .setSeconds(modifiedAt.getEpochSecond())
-                        .setNanos(modifiedAt.getNano())
-                        .build());
+            .setDescription(description)
+            .setCreatedAt(ProtoConverter.toProto(createdAt))
+            .setCreatedBy(createdBy)
+            .setId(id)
+            .setDone(done)
+            .setMetadata(meta)
+            .setModifiedAt(ProtoConverter.toProto(modifiedAt));
         if (response != null) {
             builder.setResponse(response);
         }

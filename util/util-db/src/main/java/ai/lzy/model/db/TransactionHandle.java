@@ -2,12 +2,11 @@ package ai.lzy.model.db;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
-public class TransactionHandle implements AutoCloseable {
+public final class TransactionHandle implements AutoCloseable {
+
     private final Storage storage;
     private boolean committed = false;
-
     private Connection con = null;
 
     public TransactionHandle(Storage storage) {
@@ -19,6 +18,7 @@ public class TransactionHandle implements AutoCloseable {
             return con;
         }
         con = storage.connect();
+        con.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
         con.setAutoCommit(false);
         return con;
     }

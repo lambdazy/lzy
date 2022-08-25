@@ -15,7 +15,8 @@ public class ProxyServerHeaderInterceptor implements ServerInterceptor {
 
     @Override
     public <T, R> ServerCall.Listener<T> interceptCall(ServerCall<T, R> call, Metadata headers,
-                                                       ServerCallHandler<T, R> next) {
+                                                       ServerCallHandler<T, R> next)
+    {
         Context context = Context.current().withValue(ProxyHeaderContext.KEY, new ProxyHeaderContext(headers));
         return Contexts.interceptCall(context, call, headers, next);
     }
