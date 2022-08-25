@@ -66,6 +66,7 @@ public class SubjectServiceGrpcClient implements SubjectService {
                     .build());
             return GrpcConverter.to(subject);
         } catch (StatusRuntimeException e) {
+            System.out.println(e);
             throw AuthException.fromStatusRuntimeException(e);
         }
     }
