@@ -1,22 +1,20 @@
 package ai.lzy.iam.storage.impl;
 
+import ai.lzy.iam.BaseSubjectServiceApiTest;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.storage.db.IamDataSource;
 import ai.lzy.model.db.test.DatabaseCleaner;
-import ai.lzy.util.auth.exceptions.AuthBadRequestException;
 import io.micronaut.context.ApplicationContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import java.util.NoSuchElementException;
 
-public class DbSubjectServiceTest {
+public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
     public static final Logger LOG = LogManager.getLogger(DbSubjectServiceTest.class);
 
     private ApplicationContext ctx;
@@ -36,90 +34,33 @@ public class DbSubjectServiceTest {
         ctx.stop();
     }
 
-    @Test
-    public void createAndDeleteTest() {
-        createAndDeleteScenario(SubjectType.USER);
-        createAndDeleteScenario(SubjectType.SERVANT);
+    @Override
+    protected Subject subject(String id) {
+        return subjectService.subject(id);
     }
 
-    public void createAndDeleteScenario(SubjectType subjectType) {
-        create("1", subjectType);
-        create("2", subjectType);
-
-        Subject user1 = subjectService.subject("1");
-        assertEquals("1", user1.id());
-        Subject user2 = subjectService.subject("2");
-        assertEquals("2", user2.id());
-
-        subjectService.removeSubject(user1);
-        try {
-            subjectService.subject("1");
-            fail();
-        } catch (AuthBadRequestException e) {
-            LOG.info("Valid exception {}", e.getInternalDetails());
-        }
-
-        user2 = subjectService.subject("2");
-        assertEquals("2", user2.id());
-
-        subjectService.removeSubject(user2);
-        try {
-            subjectService.subject("2");
-            fail();
-        } catch (AuthBadRequestException e) {
-            LOG.info("Valid exception {}", e.getInternalDetails());
-        }
-    }
-
-    @Test
-    public void createAndRemoveWithCredentialsTest() {
-        createAndRemoveWithCredentialsScenario(SubjectType.USER);
-        createAndRemoveWithCredentialsScenario(SubjectType.SERVANT);
-    }
-
-    public void createAndRemoveWithCredentialsScenario(SubjectType subjectType) {
-        create("1", subjectType);
-        Subject user = subjectService.subject("1");
-        addCredentials(user, "1");
-        addCredentials(user, "2");
-
-        SubjectCredentials credentials1 = subjectService.credentials(user, "1");
-        assertEquals("1", credentials1.name());
-        assertEquals("Value", credentials1.value());
-        assertEquals("Type", credentials1.type());
-        SubjectCredentials credentials2 = subjectService.credentials(user, "2");
-        assertEquals("2", credentials2.name());
-        assertEquals("Value", credentials2.value());
-        assertEquals("Type", credentials2.type());
-
-        subjectService.removeCredentials(user, "1");
-        try {
-            subjectService.credentials(user, "1");
-            fail();
-        } catch (AuthBadRequestException e) {
-            LOG.info("Valid exception {}", e.getInternalDetails());
-        }
-
-        credentials2 = subjectService.credentials(user, "2");
-        assertEquals("2", credentials2.name());
-        assertEquals("Value", credentials2.value());
-        assertEquals("Type", credentials2.type());
-
-        subjectService.removeCredentials(user, "2");
-        try {
-            subjectService.credentials(user, "2");
-            fail();
-        } catch (AuthBadRequestException e) {
-            LOG.info("Valid exception {}", e.getInternalDetails());
-        }
-        subjectService.removeSubject(user);
-    }
-
-    private void create(String id, SubjectType subjectType) {
+    @Override
+    protected void createSubject(String id, SubjectType subjectType) {
         subjectService.createSubject(id, "provider", "providerID", subjectType);
     }
 
-    private void addCredentials(Subject subject, String name) {
+    @Override
+    protected void removeSubject(Subject subject) {
+        subjectService.removeSubject(subject);
+    }
+
+    @Override
+    protected SubjectCredentials credentials(Subject subject, String name) throws NoSuchElementException {
+        return subjectService.credentials(subject, name);
+    }
+
+    @Override
+    protected void addCredentials(Subject subject, String name) {
         subjectService.addCredentials(subject, name, "Value", "Type");
+    }
+
+    @Override
+    protected void removeCredentials(Subject subject, String name) {
+        subjectService.removeCredentials(subject, name);
     }
 }

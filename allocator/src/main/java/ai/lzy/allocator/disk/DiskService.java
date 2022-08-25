@@ -8,19 +8,22 @@ import io.grpc.stub.StreamObserver;
 public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
     @Override
     public void createDisk(DiskServiceApi.CreateDiskRequest request,
-                           StreamObserver<OperationService.Operation> responseObserver) {
+                           StreamObserver<OperationService.Operation> responseObserver)
+    {
         super.createDisk(request, responseObserver);
     }
 
     @Override
     public void cloneDisk(DiskServiceApi.CloneDiskRequest request,
-                          StreamObserver<OperationService.Operation> responseObserver) {
+                          StreamObserver<OperationService.Operation> responseObserver)
+    {
         super.cloneDisk(request, responseObserver);
     }
 
     @Override
     public void deleteDisk(DiskServiceApi.DeleteDiskRequest request,
-                           StreamObserver<OperationService.Operation> responseObserver) {
+                           StreamObserver<OperationService.Operation> responseObserver)
+    {
         super.deleteDisk(request, responseObserver);
     }
 }

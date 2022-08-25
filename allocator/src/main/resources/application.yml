@@ -10,6 +10,10 @@ allocator:
   heartbeat-timeout: 1m
   allocation-timeout: 15m
 
+  metrics:
+    kind: 'Prometheus'
+    port: 17080
+
   kuber-allocator:
     enabled: true
 

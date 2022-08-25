@@ -36,8 +36,8 @@ Please read the [tutorial](1-setup.md) for details:
 
 1. [Setup](1-setup.md)
 2. [Basics](2-basics.md)
-2. [Dev Environment](3-environment.md)
-2. [Data Caching](4-cache.md)
+2. [Data transfer](3-data.md)
+2. [Dev Environment](4-environment.md)
 2. [Managing Graph Results - Whiteboards](5-whiteboards.md)
 2. [Managing Graph Results - Views](6-views.md)
 2. [Integrations (catboost native)](7-integrations.md)

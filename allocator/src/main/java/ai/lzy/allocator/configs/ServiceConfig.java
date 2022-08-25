@@ -72,4 +72,20 @@ public class ServiceConfig {
         private String folderId;
         private Duration defaultOperationTimeout;
     }
+
+    public enum MetricsKind {
+        Disabled,
+        Logger,
+        Prometheus,
+    }
+
+    @Getter
+    @Setter
+    @ConfigurationProperties("metrics")
+    public static final class MetricsConfig {
+        private MetricsKind kind = MetricsKind.Disabled;
+        private int port = 17080;
+        private String loggerName = "LogMetricReporter";
+        private String loggerLevel = "info";
+    }
 }

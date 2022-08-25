@@ -5,12 +5,16 @@ import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactory;
 import ai.lzy.allocator.alloc.impl.kuber.KuberLabels;
 import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
+import ai.lzy.allocator.dao.impl.AllocatorDataSource;
+import ai.lzy.allocator.dao.impl.SessionDaoImpl;
 import ai.lzy.iam.test.BaseTestWithIam;
+import ai.lzy.model.db.test.DatabaseCleaner;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
+import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.v1.*;
 import ai.lzy.v1.OperationService.GetOperationRequest;
 import ai.lzy.v1.OperationService.Operation;
@@ -101,6 +105,8 @@ public class AllocatorApiTest extends BaseTestWithIam {
         } catch (InterruptedException ignored) {
             //ignored
         }
+
+        DatabaseCleaner.cleanup(allocatorCtx.getBean(AllocatorDataSource.class));
 
         allocatorCtx.stop();
         kubernetesServer.after();
@@ -223,6 +229,25 @@ public class AllocatorApiTest extends BaseTestWithIam {
             Assert.fail();
         } catch (StatusRuntimeException e) {
             Assert.assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
+        }
+    }
+
+    @Test
+    public void errorWhileCreatingSession() {
+        allocatorCtx.getBean(SessionDaoImpl.class).injectError(new RuntimeException("any error message here"));
+
+        try {
+            var resp = authorizedAllocatorBlockingStub.createSession(
+                CreateSessionRequest.newBuilder()
+                    .setOwner(UUID.randomUUID().toString())
+                    .setCachePolicy(CachePolicy.newBuilder()
+                        .setIdleTimeout(ProtoConverter.toProto(java.time.Duration.ofHours(1)))
+                        .build())
+                    .build());
+            Assert.fail(resp.getSessionId());
+        } catch (StatusRuntimeException e) {
+            Assert.assertEquals(Status.Code.INTERNAL, e.getStatus().getCode());
+            Assert.assertEquals("any error message here", e.getStatus().getDescription());
         }
     }
 
@@ -414,6 +439,66 @@ public class AllocatorApiTest extends BaseTestWithIam {
     }
 
     @Test
+    public void deleteSessionWithActiveVmsAfterRegister() throws InvalidProtocolBufferException, InterruptedException {
+        final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
+            CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
+                    CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(0).build()).build())
+                .build());
+        final Operation allocate = authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
+            .setSessionId(createSessionResponse.getSessionId())
+            .setPoolLabel("S")
+            .build());
+        final VmAllocatorApi.AllocateMetadata allocateMetadata =
+            allocate.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
+
+        final String podName = KuberVmAllocator.POD_NAME_PREFIX + allocateMetadata.getVmId();
+        mockGetPod(podName, true);
+        final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
+        mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
+
+        registerVm(allocateMetadata.getVmId());
+        //noinspection ResultOfMethodCallIgnored
+        authorizedAllocatorBlockingStub.deleteSession(
+            DeleteSessionRequest.newBuilder().setSessionId(createSessionResponse.getSessionId()).build());
+
+        Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
+    }
+
+    @Test
+    public void deleteSessionWithActiveVmsBeforeRegister() throws InvalidProtocolBufferException, InterruptedException {
+        final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
+            CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
+                    CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(0).build()).build())
+                .build());
+        final Operation allocate = authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
+            .setSessionId(createSessionResponse.getSessionId())
+            .setPoolLabel("S")
+            .build());
+        final VmAllocatorApi.AllocateMetadata allocateMetadata =
+            allocate.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
+
+        final String podName = KuberVmAllocator.POD_NAME_PREFIX + allocateMetadata.getVmId();
+        mockGetPod(podName, true);
+        final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
+        mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
+
+        //noinspection ResultOfMethodCallIgnored
+        authorizedAllocatorBlockingStub.deleteSession(
+            DeleteSessionRequest.newBuilder().setSessionId(createSessionResponse.getSessionId()).build());
+        try {
+            //noinspection ResultOfMethodCallIgnored
+            privateAllocatorBlockingStub.register(
+                VmAllocatorPrivateApi.RegisterRequest.newBuilder().setVmId(allocateMetadata.getVmId()).build());
+            Assert.fail();
+        } catch (StatusRuntimeException e) {
+            Assert.assertEquals(e.getStatus().toString(), Status.FAILED_PRECONDITION.getCode(),
+                e.getStatus().getCode());
+        }
+
+        Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
+    }
+
+    @Test
     public void freeNonexistentVmTest() {
         try {
             //noinspection ResultOfMethodCallIgnored
@@ -458,7 +543,6 @@ public class AllocatorApiTest extends BaseTestWithIam {
         }
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
     }
-
 
     @Test
     public void repeatedServantRegister() throws InvalidProtocolBufferException, InterruptedException {

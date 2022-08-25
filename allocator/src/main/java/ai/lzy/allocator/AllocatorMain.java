@@ -10,6 +10,8 @@ import ai.lzy.allocator.vmpool.VmPoolService;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
+import ai.lzy.metrics.MetricReporter;
+import ai.lzy.metrics.MetricsGrpcInterceptor;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
 import com.google.common.annotations.VisibleForTesting;
@@ -29,32 +31,35 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
-@SuppressWarnings("UnstableApiUsage")
 @Singleton
 public class AllocatorMain {
-
     private static final Logger LOG = LogManager.getLogger(AllocatorMain.class);
+
     private final ServiceConfig config;
     private final Server server;
     private final GarbageCollector gc;
     private final VmDao vmDao;
     private final VmAllocator alloc;
+    private final MetricReporter metricReporter;
 
-    public AllocatorMain(AllocatorApi allocator, AllocatorPrivateApi allocatorPrivate, OperationApi opApi,
-                         ServiceConfig config, GarbageCollector gc, VmPoolService vmPool,
-                         @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel, VmDao vmDao, VmAllocator alloc) {
+    public AllocatorMain(MetricReporter metricReporter, AllocatorApi allocator, AllocatorPrivateApi allocatorPrivate,
+                         OperationApi opApi, ServiceConfig config, GarbageCollector gc, VmPoolService vmPool,
+                         @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel, VmDao vmDao, VmAllocator alloc)
+    {
         this.config = config;
         this.gc = gc;
         this.vmDao = vmDao;
         this.alloc = alloc;
+        this.metricReporter = metricReporter;
 
         final HostAndPort address = HostAndPort.fromString(config.getAddress());
-        ServerBuilder<?> builder = NettyServerBuilder.forAddress(
-                new InetSocketAddress(address.getHost(), address.getPort()))
+        ServerBuilder<?> builder = NettyServerBuilder
+            .forAddress(new InetSocketAddress(address.getHost(), address.getPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES);
 
         // TODO: X-REQUEST-ID header (and others) interceptor(s)
+        builder.intercept(MetricsGrpcInterceptor.server("Allocator"));
         builder.intercept(new GrpcLogsInterceptor());
         builder.intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(iamChannel)));
 
@@ -65,16 +70,18 @@ public class AllocatorMain {
         builder.addService(ServerInterceptors.intercept(opApi, internalOnly));
         builder.addService(ServerInterceptors.intercept(vmPool, internalOnly));
 
-        server = builder.build();
+        this.server = builder.build();
     }
 
     public void start() throws IOException {
         LOG.info("Starting allocator at {}...", config.getAddress());
+        metricReporter.start();
         server.start();
     }
 
     public void stop() {
         server.shutdown();
+        metricReporter.stop();
         gc.shutdown();
     }
 

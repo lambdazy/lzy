@@ -11,10 +11,11 @@ import ai.lzy.model.db.TransactionHandle;
 import io.grpc.Status;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import java.util.Timer;
-import java.util.TimerTask;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.util.Timer;
+import java.util.TimerTask;
 
 @Singleton
 public class GarbageCollector extends TimerTask {
@@ -29,8 +30,9 @@ public class GarbageCollector extends TimerTask {
 
 
     @Inject
-    public GarbageCollector(VmDao dao, OperationDao operations, VmAllocator allocator,
-        ServiceConfig config, AllocatorDataSource storage) {
+    public GarbageCollector(VmDao dao, OperationDao operations, VmAllocator allocator, ServiceConfig config,
+                            AllocatorDataSource storage)
+    {
         this.dao = dao;
         this.operations = operations;
         this.allocator = allocator;
@@ -45,7 +47,7 @@ public class GarbageCollector extends TimerTask {
             LOG.debug("Found {} expired entries", vms.size());
             vms.forEach(vm -> {
                 try {
-                    LOG.debug("Vm {} is expired", vm);
+                    LOG.info("Vm {} is expired", vm);
                     try (var tr = new TransactionHandle(storage)) {
                         var op = operations.get(vm.allocationOperationId(), tr);
                         if (op != null) {
@@ -60,13 +62,11 @@ public class GarbageCollector extends TimerTask {
                     //will retry deallocate if it fails
                     dao.update(new Vm.VmBuilder(vm).setState(Vm.State.DEAD).build(), null);
                 } catch (Exception e) {
-                    LOG.error("Error during clean up Vm {}", vm);
-                    e.printStackTrace();
+                    LOG.error("Error during clean up Vm {}", vm, e);
                 }
             });
         } catch (Exception e) {
-            LOG.error("Error during GC", e);
-            e.printStackTrace();
+            LOG.error("Error during GC: " + e.getMessage(), e);
         }
     }
 

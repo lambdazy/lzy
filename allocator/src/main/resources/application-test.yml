@@ -10,6 +10,10 @@ allocator:
     max-pool-size: 2
     enabled: true
 
+  metrics:
+    kind: 'Disabled'
+    logger-level: 'error'
+
   mock-mk8s:
     enabled: true
 

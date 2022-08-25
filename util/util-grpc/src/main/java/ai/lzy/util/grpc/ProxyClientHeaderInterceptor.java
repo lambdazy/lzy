@@ -15,8 +15,8 @@ public class ProxyClientHeaderInterceptor implements ClientInterceptor {
 
     @Override
     public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(MethodDescriptor<ReqT, RespT> methodDescriptor,
-                                                               CallOptions callOptions,
-                                                               Channel channel) {
+                                                               CallOptions callOptions, Channel channel)
+    {
         return new ForwardingClientCall.SimpleForwardingClientCall<>(channel.newCall(methodDescriptor, callOptions)) {
             public void start(Listener<RespT> responseListener, Metadata headers) {
                 final ProxyHeaderContext proxyHeaderContext = ProxyHeaderContext.current();
