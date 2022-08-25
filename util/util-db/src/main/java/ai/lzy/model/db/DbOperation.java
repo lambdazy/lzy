@@ -16,19 +16,19 @@ public interface DbOperation {
                 con = transaction.connect();
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Cannot connect to db", e);
+            throw new RuntimeException("Cannot connect to db: " + e.getMessage(), e);
         }
 
         try {
             op.execute(con);
         } catch (SQLException e) {
-            throw new RuntimeException("Cannot execute sql request", e);
+            throw new RuntimeException("Cannot execute sql request: " + e.getMessage(), e);
         } finally {
             if (transaction == null) {
                 try {
                     con.close();
                 } catch (SQLException ex) {
-                    throw new RuntimeException("Cannot close connection", ex);
+                    throw new RuntimeException("Cannot close connection: " + ex.getMessage(), ex);
                 }
             }
         }

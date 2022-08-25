@@ -1,4 +1,4 @@
-package ai.lzy.model.logs;
+package ai.lzy.logs;
 
 import java.util.Map;
 

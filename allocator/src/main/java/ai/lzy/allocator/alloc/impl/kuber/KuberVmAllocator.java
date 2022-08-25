@@ -7,30 +7,18 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
-import io.fabric8.kubernetes.api.model.Container;
-import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
-import io.fabric8.kubernetes.api.model.EnvVarBuilder;
-import io.fabric8.kubernetes.api.model.ListOptionsBuilder;
-import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.SecurityContext;
-import io.fabric8.kubernetes.api.model.Toleration;
-import io.fabric8.kubernetes.api.model.TolerationBuilder;
+import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
-import java.io.File;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import javax.annotation.Nullable;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import javax.annotation.Nullable;
+import java.io.File;
+import java.net.URISyntaxException;
+import java.util.*;
 
 @Singleton
 @Requires(property = "allocator.kuber-allocator.enabled", value = "true")
@@ -87,10 +75,10 @@ public class KuberVmAllocator implements VmAllocator {
                     .resource(vmPodSpec)
                     .create();
             } catch (Exception e) {
-                LOG.error("Failed to allocate pod", e);
+                LOG.error("Failed to allocate pod: {}", e.getMessage(), e);
                 deallocate(vm);
                 //TODO (tomato): add retries here if the error is caused due to temporal problems with kuber
-                throw new RuntimeException(e);
+                throw new RuntimeException("Failed to allocate pod: " + e.getMessage(), e);
             }
             LOG.debug("Created pod in Kuber: {}", pod);
         }
@@ -110,7 +98,8 @@ public class KuberVmAllocator implements VmAllocator {
         final var podSpec = podsList.get(0);
         if (podSpec.getMetadata() != null
             && podSpec.getMetadata().getName() != null
-            && podSpec.getMetadata().getName().equals(name)) {
+            && podSpec.getMetadata().getName().equals(name))
+        {
             return podSpec;
         }
         return null;

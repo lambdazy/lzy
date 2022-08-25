@@ -18,8 +18,8 @@ import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.Slot;
 import ai.lzy.model.Zygote;
 import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.model.logs.MetricEvent;
-import ai.lzy.model.logs.MetricEventLogger;
+import ai.lzy.logs.MetricEvent;
+import ai.lzy.logs.MetricEventLogger;
 import ai.lzy.v1.*;
 
 import java.io.*;

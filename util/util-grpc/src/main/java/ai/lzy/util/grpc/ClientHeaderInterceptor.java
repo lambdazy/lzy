@@ -26,10 +26,10 @@ public class ClientHeaderInterceptor<T> implements ClientInterceptor {
     @Override
     public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(MethodDescriptor<ReqT, RespT> methodDescriptor,
                                                                CallOptions callOptions,
-                                                               Channel channel) {
+                                                               Channel channel)
+    {
         return new ForwardingClientCall.SimpleForwardingClientCall<>(channel.newCall(methodDescriptor, callOptions)) {
             public void start(Listener<RespT> responseListener, Metadata headers) {
-                LOG.info("start key={} value={}", key, value.get());
                 T v = ClientHeaderInterceptor.this.value.get();
                 if (v != null) {
                     headers.put(ClientHeaderInterceptor.this.key, v);

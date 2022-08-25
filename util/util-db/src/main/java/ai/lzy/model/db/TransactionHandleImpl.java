@@ -3,10 +3,10 @@ package ai.lzy.model.db;
 import java.sql.Connection;
 import java.sql.SQLException;
 
-public class TransactionHandleImpl implements TransactionHandle {
+public final class TransactionHandleImpl implements TransactionHandle {
+
     private final Storage storage;
     private boolean committed = false;
-
     private Connection con = null;
 
     public TransactionHandleImpl(Storage storage) {
@@ -19,6 +19,7 @@ public class TransactionHandleImpl implements TransactionHandle {
             return con;
         }
         con = storage.connect();
+        con.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
         con.setAutoCommit(false);
         return con;
     }

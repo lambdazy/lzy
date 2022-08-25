@@ -251,10 +251,7 @@ public class ChannelManager {
         }
 
         @Override
-        public void destroy(
-            ChannelDestroyRequest request,
-            StreamObserver<ChannelDestroyResponse> responseObserver
-        ) {
+        public void destroy(ChannelDestroyRequest request, StreamObserver<ChannelDestroyResponse> responseObserver) {
             LOG.info("Destroy channel {}", request.getChannelId());
 
             try {
@@ -276,10 +273,10 @@ public class ChannelManager {
                 });
 
                 channel.get().destroy();
-                Transaction.execute(dataSource, conn -> {
+
+                try (var conn = dataSource.connect()) {
                     channelStorage.removeChannel(conn, channelId);
-                    return true;
-                });
+                }
 
                 responseObserver.onNext(ChannelDestroyResponse.getDefaultInstance());
                 LOG.info("Destroy channel {} done", channelId);
@@ -299,10 +296,9 @@ public class ChannelManager {
         }
 
         @Override
-        public void destroyAll(
-            ChannelDestroyAllRequest request,
-            StreamObserver<ChannelDestroyAllResponse> responseObserver
-        ) {
+        public void destroyAll(ChannelDestroyAllRequest request,
+                               StreamObserver<ChannelDestroyAllResponse> responseObserver)
+        {
             LOG.info("Destroying all channels for workflow {}", request.getWorkflowId());
 
             try {
@@ -326,10 +322,9 @@ public class ChannelManager {
 
                 for (final Channel channel : channels) {
                     channel.destroy();
-                    Transaction.execute(dataSource, conn -> {
+                    try (var conn = dataSource.connect()) {
                         channelStorage.removeChannel(conn, channel.id());
-                        return true;
-                    });
+                    }
                 }
 
                 responseObserver.onNext(ChannelDestroyAllResponse.getDefaultInstance());

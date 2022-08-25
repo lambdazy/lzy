@@ -5,8 +5,8 @@ import static ai.lzy.model.UriScheme.LzyFs;
 
 import ai.lzy.fs.LzyFsServer;
 import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.model.logs.MetricEvent;
-import ai.lzy.model.logs.MetricEventLogger;
+import ai.lzy.logs.MetricEvent;
+import ai.lzy.logs.MetricEventLogger;
 import ai.lzy.v1.IAM;
 import ai.lzy.v1.Operations;
 import ai.lzy.v1.Servant;

@@ -4,10 +4,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.model.Zygote;
 import ai.lzy.model.graph.AtomicZygote;
-import ai.lzy.model.logs.MetricEvent;
-import ai.lzy.model.logs.MetricEventLogger;
-import ai.lzy.model.logs.UserEvent;
-import ai.lzy.model.logs.UserEventLogger;
+import ai.lzy.logs.MetricEvent;
+import ai.lzy.logs.MetricEventLogger;
+import ai.lzy.logs.UserEvent;
+import ai.lzy.logs.UserEventLogger;
 import ai.lzy.servant.env.Environment;
 import ai.lzy.v1.Servant;
 
