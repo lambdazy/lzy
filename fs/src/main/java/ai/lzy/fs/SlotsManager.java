@@ -178,8 +178,8 @@ public class SlotsManager implements AutoCloseable {
             throw new AssertionError();
         }
 
-        if (spec.equals(Slot.STDOUT) || spec.equals(Slot.STDERR)) {
-            return new LineReaderSlot(new SlotInstance(new TextLinesOutSlot(spec.name()), taskId, channelId, slotUri));
+        if (spec instanceof TextLinesOutSlot) {
+            return new LineReaderSlot(new SlotInstance(spec, taskId, channelId, slotUri));
         }
 
         return switch (spec.media()) {

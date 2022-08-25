@@ -2,11 +2,8 @@ import os
 import tempfile
 import uuid
 from pathlib import Path
-from typing import Any, BinaryIO, Callable, Dict, List, Optional, cast
+from typing import Any, BinaryIO, Callable, Dict, List, cast, Optional
 
-# model
-from ai.lzy.v1.graph.graph_executor_pb2 import TaskDesc
-from ai.lzy.v1.task_pb2 import TaskSpec
 from ai.lzy.v1.zygote_pb2 import _SLOT_DIRECTION  # type: ignore
 from ai.lzy.v1.zygote_pb2 import AuxEnv, BaseEnv, EnvSpec, Slot, Zygote
 from lzy.api.v2 import LzyCall
@@ -18,14 +15,10 @@ from lzy.api.v2.remote_grpc.graph_executor_client import (
 )
 from lzy.api.v2.remote_grpc.model.converter import env
 from lzy.api.v2.remote_grpc.model.slot import file_slot_t
-from lzy.api.v2.remote_grpc.model.zygote import python_func_zygote
 from lzy.api.v2.runtime import ProgressStep, Runtime
-from lzy.api.v2.snapshot.snapshot import Snapshot
-from lzy.api.v2.utils.types import unwrap
 from lzy.serialization.api import SerializersRegistry
 from lzy.storage import from_credentials
 from lzy.storage.credentials import StorageCredentials
-from lzy.storage.storage_client import StorageClient
 
 
 def _generate_channel_name(call_id: str):
@@ -51,13 +44,13 @@ def _get_or_generate_call_ids(call) -> Dict[str, str]:
 class GrpcRuntime(Runtime):
     def __init__(
         self,
-        storage_client: StorageClient,
-        bucket: str,
-        graph_executor_client: GraphExecutorClient,
+        username: str,
+        workflow_address: Optional[str] = None,
+        key_path: Optional[str] = None
     ):
-        self._storage_client = storage_client
-        self._bucket = bucket
-        self._graph_executor_client = graph_executor_client
+        self._username = username
+        self._workflow_address = workflow_address
+        self._key_path = key_path
 
     @classmethod
     def from_credentials(
@@ -92,33 +85,6 @@ class GrpcRuntime(Runtime):
 
     def _env(self, call: LzyCall) -> EnvSpec:
         return env.to(call.env)
-
-        # local_modules_uploaded = []
-        # for local_module in aux_env.local_modules_paths:
-        #     with tempfile.NamedTemporaryFile("rb") as archive:
-        #         if not os.path.isdir(local_module):
-        #             with zipfile.ZipFile(archive.name, "w") as z:
-        #                 z.write(local_module, os.path.basename(local_module))
-        #         else:
-        #             with zipfile.ZipFile(archive.name, "w") as z:
-        #                 zipdir(local_module, z)
-        #         archive.seek(0)
-        #         key = (
-        #             "local_modules/"
-        #             + os.path.basename(local_module)
-        #             + "/"
-        #             + fileobj_hash(archive.file)  # type: ignore
-        #         )  # type: ignore
-        #         archive.seek(0)
-        #         if not self._storage_client.blob_exists(self._bucket, key):
-        #             self._storage_client.write(self._bucket, key, archive)  # type: ignore
-        #         uri = self._storage_client.generate_uri(self._bucket, key)
-        #     local_modules_uploaded.append((os.path.basename(local_module), uri))
-
-        # py_env = PyEnv(aux_env.name, aux_env.conda_yaml, local_modules_uploaded)
-        # if base_env is None:
-        #     return Env(aux_env=py_env)
-        # return Env(aux_env=py_env, base_env=BaseEnv(base_env.base_docker_image))
 
     def _dump_arguments(
         self,
@@ -188,7 +154,6 @@ class GrpcRuntime(Runtime):
     def exec(
         self,
         graph: List[LzyCall],
-        snapshot: Snapshot,
         progress: Callable[[ProgressStep], None],
     ) -> None:
         raise NotImplementedError()

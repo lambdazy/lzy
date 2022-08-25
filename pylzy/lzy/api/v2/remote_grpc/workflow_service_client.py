@@ -1,9 +1,8 @@
 from dataclasses import dataclass
-from typing import AsyncIterator, Optional, Tuple, Union, cast
+from typing import Optional, Tuple
 
 from grpclib.client import Channel
 
-from ai.lzy.v1 import server_pb2
 from ai.lzy.v1.workflow.workflow_pb2 import SnapshotStorage
 from ai.lzy.v1.workflow.workflow_service_grpc import LzyWorkflowServiceStub
 from ai.lzy.v1.workflow.workflow_service_pb2 import (
@@ -12,12 +11,11 @@ from ai.lzy.v1.workflow.workflow_service_pb2 import (
     CreateWorkflowRequest,
     CreateWorkflowResponse,
     DeleteWorkflowRequest,
-    DeleteWorkflowResponse,
     FinishWorkflowRequest,
-    FinishWorkflowResponse,
 )
 from lzy.api.v2.remote_grpc.model import converter
-from lzy.storage.credentials import StorageCredentials
+from lzy.api.v2.remote_grpc.model.converter.storage_creds import to, from_
+from lzy.storage.credentials import StorageCredentials, AmazonCredentials
 
 
 @dataclass
@@ -53,18 +51,24 @@ class WorkflowServiceClient:
     async def create_workflow(
         self,
         name: str,
-    ) -> AsyncIterator[Tuple[str, StorageEndpoint]]:
-        async with self.stub.CreateWorkflow.open() as stream:
-            await stream.send_request()  # init
+        storage: Optional[StorageEndpoint] = None
+    ) -> Tuple[str, Optional[StorageEndpoint]]:
 
-            request = CreateWorkflowRequest(workflowName=name)
-            await stream.send_message(request)
+        s: Optional[SnapshotStorage] = None
 
-            async for response in stream:
-                yield (
-                    response.executionId,
-                    self.create_storage_endpoint(response),
-                )
+        if storage is not None:
+            if isinstance(storage.creds, AmazonCredentials):
+                s = SnapshotStorage(bucket=storage.bucket, amazon=to(storage.creds))
+            else:
+                s = SnapshotStorage(bucket=storage.bucket, azure=to(storage.creds))
+
+        res = await self.stub.CreateWorkflow(CreateWorkflowRequest(workflowName=name, snapshotStorage=s))
+        exec_id = res.executionId
+
+        if res.internalSnapshotStorage is not None:
+            return exec_id, self.create_storage_endpoint(res)
+
+        return exec_id, None
 
     async def attach_workflow(
         self,

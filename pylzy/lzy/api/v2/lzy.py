@@ -1,5 +1,8 @@
 import os
-from typing import Any, Iterator
+from typing import Any, Iterator, Optional
+
+from lzy.api.v2.storage import StorageRegistry
+from lzy.storage.credentials import StorageCredentials
 
 from lzy.api.v2.local.runtime import LocalRuntime
 from lzy.api.v2.local.snapshot_provider import LocalSnapshotProvider
@@ -18,14 +21,12 @@ class Lzy:
         self,
         env_provider: EnvProvider = LzyEnvProvider(),
         runtime: Runtime = LocalRuntime(),
-        snapshot_provider: SnapshotProvider = LocalSnapshotProvider(),
-        lzy_mount: str = os.getenv("LZY_MOUNT", default="/tmp/lzy"),
+        storage_client: StorageRegistry = StorageRegistry()
     ):
         self._env_provider = env_provider
         self._runtime = runtime
-        self._snapshot_provider = snapshot_provider
-        self._lzy_mount = lzy_mount
         self._serializer = DefaultSerializersRegistry()
+        self._storage_client = storage_client
 
     @property
     def serializer(self) -> SerializersRegistry:
@@ -36,16 +37,12 @@ class Lzy:
         return self._env_provider
 
     @property
-    def lzy_mount(self) -> str:
-        return self._lzy_mount
-
-    @property
     def runtime(self) -> Runtime:
         return self._runtime
 
     @property
-    def snapshot_provider(self) -> SnapshotProvider:
-        return self._snapshot_provider
+    def storage_registry(self) -> StorageRegistry:
+        return self._storage_client
 
     def whiteboard(self, wid: str) -> Any:
         # TODO: implement
@@ -64,4 +61,4 @@ class Lzy:
         name: str,
         eager: bool = False,
     ) -> LzyWorkflow:
-        return LzyWorkflow(name, self.lzy_mount, self, eager)
+        return LzyWorkflow(name, self, eager)

@@ -1,7 +1,11 @@
 package ai.lzy.test.scenarios;
 
 import ai.lzy.allocator.AllocatorMain;
+import ai.lzy.fs.LzyFsServer;
+import ai.lzy.fs.fs.LzyFS;
+import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.graph.GraphExecutorApi;
+import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.Operation;
 import ai.lzy.model.Slot;
 import ai.lzy.model.data.DataSchema;
@@ -17,26 +21,29 @@ import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.v1.*;
 import ai.lzy.v1.ChannelManager.ChannelCreateRequest;
 import ai.lzy.v1.Channels.ChannelSpec;
 import ai.lzy.v1.Channels.DirectChannelType;
-import ai.lzy.v1.LzyChannelManagerGrpc;
-import ai.lzy.v1.Operations;
 import ai.lzy.v1.Operations.DataScheme;
+import ai.lzy.v1.Operations.SchemeType;
 import ai.lzy.v1.SchedulerApi.KillAllRequest;
-import ai.lzy.v1.SchedulerGrpc;
 import ai.lzy.v1.graph.GraphExecutorApi.*;
 import ai.lzy.v1.graph.GraphExecutorGrpc;
 import io.micronaut.context.ApplicationContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.*;
+import org.testcontainers.shaded.com.fasterxml.jackson.databind.util.ArrayBuilders;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URI;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.List;
@@ -199,7 +206,9 @@ public class SchedulerTest extends LocalScenario {
 
             LOG.info("Exec status: {}", JsonUtils.printRequest(status));
 
-        } while (!status.hasCompleted());
+        } while (!status.hasCompleted() && !status.hasFailed());
+
+        Assert.assertTrue(status.hasCompleted());
     }
 
     @NotNull
@@ -210,7 +219,7 @@ public class SchedulerTest extends LocalScenario {
                 .setChannelName(value)
                 .setDirect(DirectChannelType.newBuilder().build())
                     .setContentType(DataScheme.newBuilder()
-                        .setSchemeType(Operations.SchemeType.plain)
+                        .setSchemeType(SchemeType.plain)
                         .setType("text")
                         .build())
                 .build())
