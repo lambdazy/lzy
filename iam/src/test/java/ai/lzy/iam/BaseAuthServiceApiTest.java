@@ -112,12 +112,16 @@ public abstract class BaseAuthServiceApiTest {
     }
 
     public void validAuth(SubjectType subjectType) throws Exception {
-        String userId = "user1";
-        createSubject(userId, "", "", subjectType);
-        final Subject user = subject(userId);
-        addCredentials(user, "testCred", PUBLIC_PEM2, "public_key");
+        String subjectId = "subject1";
+        createSubject(subjectId, "", "", subjectType);
+        final Subject subject = subject(subjectId);
+        String credName = "testCred";
+        addCredentials(subject, credName, PUBLIC_PEM2, "public_key");
 
-        authenticate(new JwtCredentials(CredentialsHelper.buildJWT(userId, PRIVATE_PEM2)));
+        authenticate(new JwtCredentials(CredentialsHelper.buildJWT(subjectId, PRIVATE_PEM2)));
+
+        removeSubject(subject);
+        removeCredentials(subject, credName);
     }
 
     @Test
@@ -131,23 +135,31 @@ public abstract class BaseAuthServiceApiTest {
     }
 
     public void invalidAuth(SubjectType subjectType) throws Exception {
-        String userId = "user1";
-        createSubject(userId, "", "", subjectType);
-        final Subject user = subject(userId);
-        addCredentials(user, "testCred", PUBLIC_PEM2, "public_key");
+        String subjectId = "subject1";
+        createSubject(subjectId, "", "", subjectType);
+        final Subject subject = subject(subjectId);
+        String credName = "testCred";
+        addCredentials(subject, credName, PUBLIC_PEM2, "public_key");
 
         try {
-            authenticate(new JwtCredentials(CredentialsHelper.buildJWT(userId, PRIVATE_PEM1)));
+            authenticate(new JwtCredentials(CredentialsHelper.buildJWT(subjectId, PRIVATE_PEM1)));
         } catch (AuthPermissionDeniedException e) {
             LOG.info("Valid error::{}", e.getInternalDetails());
         }
+
+        removeSubject(subject);
+        removeCredentials(subject, credName);
     }
 
     protected abstract Subject subject(String id);
 
     protected abstract void createSubject(String id, String name, String value, SubjectType subjectType);
 
+    protected abstract void removeSubject(Subject subject);
+
     protected abstract void addCredentials(Subject subject, String name, String value, String type);
+    
+    protected abstract void removeCredentials(Subject subject, String name);
 
     protected abstract void authenticate(Credentials credentials);
 }

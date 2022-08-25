@@ -45,8 +45,18 @@ public class DbAuthServiceTest extends BaseAuthServiceApiTest {
     }
 
     @Override
+    protected void removeSubject(Subject subject) {
+        subjectService.removeSubject(subject);
+    }
+
+    @Override
     protected void addCredentials(Subject subject, String name, String value, String type) {
         subjectService.addCredentials(subject, name, value, type);
+    }
+
+    @Override
+    protected void removeCredentials(Subject subject, String name) {
+        subjectService.removeCredentials(subject, name);
     }
 
     @Override

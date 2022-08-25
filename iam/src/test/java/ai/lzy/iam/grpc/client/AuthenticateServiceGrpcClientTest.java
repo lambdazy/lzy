@@ -26,8 +26,6 @@ public class AuthenticateServiceGrpcClientTest extends BaseAuthServiceApiTest {
     private AuthenticateServiceGrpcClient authenticateService;
     private SubjectServiceGrpcClient subjectService;
     private LzyIAM lzyIAM;
-    // TODO: delete entities after every test with services interfaces instead of DB
-    private IamDataSource storage;
 
     @Before
     public void setUp() throws IOException {
@@ -43,14 +41,12 @@ public class AuthenticateServiceGrpcClientTest extends BaseAuthServiceApiTest {
                 () -> JwtUtils.credentials(internalUserConfig.userName(), internalUserConfig.credentialPrivateKey())
         );
         authenticateService = new AuthenticateServiceGrpcClient(grpcConfig);
-        storage = ctx.getBean(IamDataSource.class);
     }
 
     @After
     public void tearDown() {
         lzyIAM.close();
         ctx.close();
-        DatabaseCleaner.cleanup(storage);
     }
 
     @Override
@@ -64,8 +60,18 @@ public class AuthenticateServiceGrpcClientTest extends BaseAuthServiceApiTest {
     }
 
     @Override
+    protected void removeSubject(Subject subject) {
+        subjectService.removeSubject(subject);
+    }
+
+    @Override
     protected void addCredentials(Subject subject, String name, String value, String type) {
         subjectService.addCredentials(subject, name, value, type);
+    }
+
+    @Override
+    protected void removeCredentials(Subject subject, String name) {
+        subjectService.removeCredentials(subject, name);
     }
 
     @Override
