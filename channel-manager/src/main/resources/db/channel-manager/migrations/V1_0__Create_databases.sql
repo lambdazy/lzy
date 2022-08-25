@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS endpoint_connections (
     sender_uri   varchar(255)      NOT NULL,
     receiver_uri varchar(255)      NOT NULL,
 
-    CONSTRAINT endpoint_connections PRIMARY KEY (channel_id, sender_uri, receiver_uri),
+    CONSTRAINT endpoint_connections_pkey PRIMARY KEY (channel_id, sender_uri, receiver_uri),
 
     CONSTRAINT endpoint_connections_sender_fkey
         FOREIGN KEY (channel_id, sender_uri) REFERENCES channel_endpoints(channel_id, slot_uri)

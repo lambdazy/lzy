@@ -5,17 +5,23 @@ import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.storage.db.IamDataSource;
-import ai.lzy.model.db.test.DatabaseCleaner;
+import ai.lzy.model.db.test.DatabaseTestUtils;
 import io.micronaut.context.ApplicationContext;
+import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
+import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 
 import java.util.NoSuchElementException;
 
 public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
     public static final Logger LOG = LogManager.getLogger(DbSubjectServiceTest.class);
+
+    @Rule
+    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
 
     private ApplicationContext ctx;
     private DbSubjectService subjectService;
@@ -23,14 +29,15 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
 
     @Before
     public void setUp() {
-        ctx = ApplicationContext.run();
+        ctx = ApplicationContext.run(DatabaseTestUtils.preparePostgresConfig("iam", db.getConnectionInfo()));
+
         storage = ctx.getBean(IamDataSource.class);
         subjectService = ctx.getBean(DbSubjectService.class);
     }
 
     @After
     public void tearDown() {
-        DatabaseCleaner.cleanup(storage);
+        DatabaseTestUtils.cleanup(storage);
         ctx.stop();
     }
 

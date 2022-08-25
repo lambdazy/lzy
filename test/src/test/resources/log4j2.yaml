@@ -49,3 +49,9 @@ Configuration:
         level: debug
         AppenderRef:
           ref: Console
+
+      - name: "org.flywaydb"
+        additivity: false
+        level: info
+        AppenderRef:
+          ref: Console

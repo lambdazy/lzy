@@ -4,18 +4,24 @@ import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.storage.db.IamDataSource;
 import ai.lzy.iam.utils.CredentialsHelper;
-import ai.lzy.model.db.test.DatabaseCleaner;
+import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
 import io.micronaut.context.ApplicationContext;
+import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
+import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 public class DbAuthServiceTest {
     public static final Logger LOG = LogManager.getLogger(DbAuthServiceTest.class);
+
+    @Rule
+    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
 
     private static final String PUBLIC_PEM1 =
             """
@@ -112,10 +118,17 @@ public class DbAuthServiceTest {
 
     @Before
     public void setUp() {
-        ctx = ApplicationContext.run();
+        ctx = ApplicationContext.run(DatabaseTestUtils.preparePostgresConfig("iam", db.getConnectionInfo()));
+
         storage = ctx.getBean(IamDataSource.class);
         subjectService = ctx.getBean(DbSubjectService.class);
         authenticateService = ctx.getBean(DbAuthService.class);
+    }
+
+    @After
+    public void tearDown() {
+        DatabaseTestUtils.cleanup(storage);
+        ctx.stop();
     }
 
     @Test
@@ -159,11 +172,4 @@ public class DbAuthServiceTest {
             LOG.info("Valid error::{}", e.getInternalDetails());
         }
     }
-
-    @After
-    public void tearDown() {
-        DatabaseCleaner.cleanup(storage);
-        ctx.stop();
-    }
-
 }
