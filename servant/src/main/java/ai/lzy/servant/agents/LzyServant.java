@@ -5,6 +5,10 @@ import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.fs.storage.StorageClient;
+import ai.lzy.logs.MetricEvent;
+import ai.lzy.logs.MetricEventLogger;
+import ai.lzy.logs.UserEvent;
+import ai.lzy.logs.UserEventLogger;
 import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.Signal;
@@ -12,11 +16,6 @@ import ai.lzy.model.UriScheme;
 import ai.lzy.model.exceptions.EnvironmentInstallationException;
 import ai.lzy.model.graph.AtomicZygote;
 import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.model.logs.MetricEvent;
-import ai.lzy.model.logs.MetricEventLogger;
-import ai.lzy.model.logs.UserEvent;
-import ai.lzy.model.logs.UserEvent.UserEventType;
-import ai.lzy.model.logs.UserEventLogger;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.*;
 import io.grpc.ManagedChannel;
@@ -283,7 +282,7 @@ public class LzyServant implements Closeable {
                             "zygote_description", zygote.description(),
                             "progress", JsonUtils.printRequest(progress)
                         ),
-                        UserEventType.ExecutionProgress
+                        UserEvent.UserEventType.ExecutionProgress
                     ));
                     if (progress.hasExecuteStop()) {
                         UserEventLogger.log(new UserEvent(
@@ -293,7 +292,7 @@ public class LzyServant implements Closeable {
                                 "zygote_description", zygote.description(),
                                 "exit_code", String.valueOf(progress.getExecuteStop().getRc())
                             ),
-                            UserEventType.ExecutionComplete
+                            UserEvent.UserEventType.ExecutionComplete
                         ));
                         LOG.info("Servant::executionStop {}, ready for the new one", agent.uri());
                         agent.updateStatus(AgentStatus.REGISTERED);
