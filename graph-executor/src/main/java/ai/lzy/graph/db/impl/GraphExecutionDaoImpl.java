@@ -29,7 +29,7 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
         graph_description_json, task_executions_json, current_execution_group_json, last_updated, acquired""";
 
     private static final String GRAPH_SELECT_FIELDS_LIST = """
-        workflow_id, workflow_name, id, error_description, status::text,
+        workflow_id, workflow_name, id, error_description, status::text as status,
         graph_description_json, task_executions_json, current_execution_group_json, last_updated, acquired""";
 
     @Inject
