@@ -8,7 +8,7 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.impl.AllocatorDataSource;
 import ai.lzy.allocator.dao.impl.SessionDaoImpl;
 import ai.lzy.iam.test.BaseTestWithIam;
-import ai.lzy.model.db.test.DatabaseCleaner;
+import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
@@ -31,10 +31,9 @@ import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
+import io.zonky.test.db.postgres.junit.PreparedDbRule;
+import org.junit.*;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
@@ -48,6 +47,11 @@ public class AllocatorApiTest extends BaseTestWithIam {
 
     private static final int TIMEOUT_SEC = 300;
 
+    @Rule
+    public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+    @Rule
+    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+
     private ApplicationContext allocatorCtx;
     private AllocatorGrpc.AllocatorBlockingStub unauthorizedAllocatorBlockingStub;
     private AllocatorGrpc.AllocatorBlockingStub authorizedAllocatorBlockingStub;
@@ -59,14 +63,16 @@ public class AllocatorApiTest extends BaseTestWithIam {
 
     @Before
     public void before() throws IOException {
-        super.before();
+        super.setUp(DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo()));
 
         kubernetesServer = new KubernetesServer();
         kubernetesServer.before();
         kubernetesServer.expect().post().withPath("/api/v1/namespaces/default/pods")
             .andReturn(HttpURLConnection.HTTP_OK, new PodListBuilder().build()).always();
 
-        allocatorCtx = ApplicationContext.run();
+        var props = DatabaseTestUtils.preparePostgresConfig("allocator", db.getConnectionInfo());
+
+        allocatorCtx = ApplicationContext.run(props);
         ((MockKuberClientFactory) allocatorCtx.getBean(KuberClientFactory.class)).setClientSupplier(
             () -> kubernetesServer.getKubernetesMockServer().createClient()
         );
@@ -106,7 +112,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
             //ignored
         }
 
-        DatabaseCleaner.cleanup(allocatorCtx.getBean(AllocatorDataSource.class));
+        DatabaseTestUtils.cleanup(allocatorCtx.getBean(AllocatorDataSource.class));
 
         allocatorCtx.stop();
         kubernetesServer.after();

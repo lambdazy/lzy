@@ -7,20 +7,25 @@ import ai.lzy.iam.configs.ServiceConfig;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
+import ai.lzy.iam.storage.db.IamDataSource;
 import ai.lzy.iam.utils.GrpcConfig;
+import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import io.micronaut.context.ApplicationContext;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
+import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
 
 public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
-    private static final Logger LOG = LogManager.getLogger(SubjectServiceGrpcClientTest.class);
+
+    @Rule
+    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
 
     ApplicationContext ctx;
     SubjectServiceGrpcClient subjectClient;
@@ -28,7 +33,8 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
 
     @Before
     public void setUp() throws IOException {
-        ctx = ApplicationContext.run();
+        ctx = ApplicationContext.run(DatabaseTestUtils.preparePostgresConfig("iam", db.getConnectionInfo()));
+
         InternalUserConfig internalUserConfig = ctx.getBean(InternalUserConfig.class);
         Credentials credentials = JwtUtils.credentials(
             internalUserConfig.userName(),
@@ -45,6 +51,8 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
 
     @After
     public void shutdown() {
+        DatabaseTestUtils.cleanup(ctx.getBean(IamDataSource.class));
+
         lzyIAM.close();
         ctx.close();
     }

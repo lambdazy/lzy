@@ -2,10 +2,16 @@ package ai.lzy.scheduler.test;
 
 import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.iam.test.BaseTestWithIam;
-import ai.lzy.scheduler.db.ServantDao;
-import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.scheduler.BeanFactory;
+import ai.lzy.scheduler.PrivateSchedulerApiImpl;
+import ai.lzy.scheduler.SchedulerApi;
+import ai.lzy.scheduler.SchedulerApiImpl;
+import ai.lzy.scheduler.configs.ServiceConfig;
+import ai.lzy.scheduler.db.ServantDao;
+import ai.lzy.scheduler.test.mocks.AllocatedServantMock;
+import ai.lzy.scheduler.test.mocks.AllocatorMock;
+import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.Operations;
@@ -19,12 +25,6 @@ import ai.lzy.v1.lzy.SchedulerPrivateApi.ServantProgress.ExecutionCompleted;
 import ai.lzy.v1.lzy.SchedulerPrivateApi.ServantProgress.Finished;
 import ai.lzy.v1.lzy.SchedulerPrivateApi.ServantProgressRequest;
 import ai.lzy.v1.lzy.SchedulerPrivateGrpc;
-import ai.lzy.scheduler.PrivateSchedulerApiImpl;
-import ai.lzy.scheduler.SchedulerApi;
-import ai.lzy.scheduler.SchedulerApiImpl;
-import ai.lzy.scheduler.configs.ServiceConfig;
-import ai.lzy.scheduler.test.mocks.AllocatedServantMock;
-import ai.lzy.scheduler.test.mocks.AllocatorMock;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
 import org.apache.logging.log4j.Level;
@@ -33,6 +33,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.concurrent.*;
 
 public class IntegrationTest extends BaseTestWithIam {
@@ -45,7 +46,9 @@ public class IntegrationTest extends BaseTestWithIam {
     ManagedChannel chan;
 
     @Before
-    public void setUp() {
+    public void setUp() throws IOException {
+        super.before();
+
         final IamClientConfiguration auth;
         try (var context = ApplicationContext.run("scheduler")) {
             SchedulerApiImpl impl = context.getBean(SchedulerApiImpl.class);

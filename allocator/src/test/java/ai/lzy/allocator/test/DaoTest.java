@@ -10,15 +10,14 @@ import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
-import ai.lzy.model.db.test.DatabaseCleaner;
+import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.v1.VmAllocatorApi;
 import com.google.protobuf.Any;
 import io.grpc.Status;
 import io.micronaut.context.ApplicationContext;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
+import io.zonky.test.db.postgres.junit.PreparedDbRule;
+import org.junit.*;
 
 import java.sql.SQLException;
 import java.time.Duration;
@@ -27,6 +26,10 @@ import java.util.List;
 import java.util.Map;
 
 public class DaoTest {
+
+    @Rule
+    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+
     private OperationDao opDao;
     private SessionDao sessionDao;
     private VmDao vmDao;
@@ -35,7 +38,7 @@ public class DaoTest {
 
     @Before
     public void setUp() {
-        context = ApplicationContext.run();
+        context = ApplicationContext.run(DatabaseTestUtils.preparePostgresConfig("allocator", db.getConnectionInfo()));
         opDao = context.getBean(OperationDao.class);
         storage = context.getBean(Storage.class);
         sessionDao = context.getBean(SessionDao.class);
@@ -44,7 +47,7 @@ public class DaoTest {
 
     @After
     public void tearDown() {
-        DatabaseCleaner.cleanup(context.getBean(AllocatorDataSource.class));
+        DatabaseTestUtils.cleanup(context.getBean(AllocatorDataSource.class));
         context.stop();
     }
 
