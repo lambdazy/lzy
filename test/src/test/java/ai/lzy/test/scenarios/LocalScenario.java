@@ -27,7 +27,7 @@ public abstract class LocalScenario extends LzyBaseTest {
     protected LzyServerTestContext serverContext;
     protected LzySnapshotTestContext whiteboardContext;
     protected LzyKharonTestContext kharonContext;
-    protected ChannelManagerContext channelManagerContext;
+    protected LzyChannelManagerContext lzyChannelManagerContext;
     protected S3Mock s3Mock;
     protected LzyTerminalTestContext.Terminal terminal;
     protected RsaUtils.Keys terminalKeys;
@@ -59,13 +59,13 @@ public abstract class LocalScenario extends LzyBaseTest {
         whiteboardContext = new SnapshotThreadContext(serverContext.address());
         whiteboardContext.init();
 
-        channelManagerContext = new ChannelManagerThreadContext(whiteboardContext.address(), iamContext.address());
-        channelManagerContext.init();
+        lzyChannelManagerContext = new ChannelManagerThreadContext(whiteboardContext.address(), iamContext.address());
+        lzyChannelManagerContext.init();
 
         kharonContext = new KharonThreadContext(
             serverContext.address(),
             whiteboardContext.address(),
-            channelManagerContext.address(),
+            lzyChannelManagerContext.address(),
             iamContext.address());
         kharonContext.init();
 
@@ -85,7 +85,7 @@ public abstract class LocalScenario extends LzyBaseTest {
         kharonContext.close();
         serverContext.close();
         whiteboardContext.close();
-        channelManagerContext.close();
+        lzyChannelManagerContext.close();
         storageContext.close();
         iamContext.close();
         s3Mock.shutdown();

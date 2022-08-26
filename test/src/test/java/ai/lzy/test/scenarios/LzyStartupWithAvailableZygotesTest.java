@@ -1,15 +1,14 @@
 package ai.lzy.test.scenarios;
 
-import io.grpc.StatusRuntimeException;
-import org.junit.Assert;
-import org.junit.Test;
 import ai.lzy.servant.agents.AgentStatus;
 import ai.lzy.v1.Lzy;
 import ai.lzy.v1.Operations;
+import io.grpc.StatusRuntimeException;
+import org.junit.Assert;
+import org.junit.Test;
 
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class LzyStartupWithAvailableZygotesTest extends LocalScenario {
@@ -17,10 +16,8 @@ public class LzyStartupWithAvailableZygotesTest extends LocalScenario {
     public void testRegisteredZygotesAvailable() {
         //Arrange
         final List<Operations.Zygote> zygotes = IntStream.range(0, 10)
-                .mapToObj(
-                    value -> Operations.Zygote.newBuilder().setName("test_op_" + value).build()
-                )
-            .collect(Collectors.toList());
+            .mapToObj(value -> Operations.Zygote.newBuilder().setName("test_op_" + value).build())
+            .toList();
 
         //noinspection ResultOfMethodCallIgnored
         zygotes.forEach(zygote -> serverContext.client().publish(
@@ -59,7 +56,7 @@ public class LzyStartupWithAvailableZygotesTest extends LocalScenario {
         //Arrange
         final List<Operations.Zygote> zygotesBeforeStart = IntStream.range(0, 10)
             .mapToObj(value -> Operations.Zygote.newBuilder().setName("test_op_" + value).build())
-            .collect(Collectors.toList());
+            .toList();
         //noinspection ResultOfMethodCallIgnored
         zygotesBeforeStart.forEach(zygote -> serverContext.client().publish(
             Lzy.PublishRequest.newBuilder().setOperation(zygote).build())
@@ -68,7 +65,7 @@ public class LzyStartupWithAvailableZygotesTest extends LocalScenario {
 
         final List<Operations.Zygote> zygotesAfterStart = IntStream.range(10, 20)
             .mapToObj(value -> Operations.Zygote.newBuilder().setName("test_op_" + value).build())
-            .collect(Collectors.toList());
+            .toList();
         //noinspection ResultOfMethodCallIgnored
         zygotesAfterStart.forEach(zygote -> serverContext.client().publish(
             Lzy.PublishRequest.newBuilder().setOperation(zygote).build())

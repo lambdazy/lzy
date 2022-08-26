@@ -38,10 +38,9 @@ public class KharonThreadContext implements LzyKharonTestContext {
     private ManagedChannel channel;
     private LzyKharonGrpc.LzyKharonBlockingStub lzyKharonClient;
 
-    public KharonThreadContext(String serverAddress,
-                               String whiteboardAddress,
-                               String channelManagerAddress,
-                               HostAndPort iamAddress) {
+    public KharonThreadContext(String serverAddress, String whiteboardAddress, String channelManagerAddress,
+                               HostAndPort iamAddress)
+    {
         var sa = URI.create(serverAddress);
         var wa = URI.create(whiteboardAddress);
         var parsedChannelManagerAddress = URI.create(channelManagerAddress);
@@ -82,6 +81,7 @@ public class KharonThreadContext implements LzyKharonTestContext {
     @Override
     public void init() {
         var props = Utils.loadModuleTestProperties("kharon");
+        props.putAll(Utils.createModuleDatabase("kharon"));
 
         props.put("kharon.address", "localhost:" + LZY_KHARON_PORT);
         props.put("kharon.external-host", "localhost");
