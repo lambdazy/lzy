@@ -372,7 +372,7 @@ public class ChannelManager {
                 try (final var transaction = new TransactionHandle(dataSource)) {
                     channelStorage.lockChannel(channelId, transaction);
 
-                    final Channel channel = channelStorage.findChannel(channelId, ChannelLifeStatus.ALIVE, null);
+                    final Channel channel = channelStorage.findChannel(channelId, ChannelLifeStatus.ALIVE, transaction);
                     if (channel == null) {
                         throw new NotFoundException("Channel with id " + channelId + " not found");
                     }
@@ -409,6 +409,7 @@ public class ChannelManager {
                     };
                     channelStorage.insertEndpointConnections(channelId, addedEdges, transaction);
 
+                    transaction.commit();
                 }
 
                 responseObserver.onNext(SlotAttachStatus.getDefaultInstance());
@@ -453,7 +454,7 @@ public class ChannelManager {
                 try (final var transaction = new TransactionHandle(dataSource)) {
                     channelStorage.lockChannel(channelId, transaction);
 
-                    final Channel channel = channelStorage.findChannel(channelId, ChannelLifeStatus.ALIVE, null);
+                    final Channel channel = channelStorage.findChannel(channelId, ChannelLifeStatus.ALIVE, transaction);
                     if (channel == null) {
                         throw new NotFoundException("Channel with id " + channelId + " not found");
                     }
@@ -465,6 +466,8 @@ public class ChannelManager {
                     }
 
                     channelStorage.removeEndpointWithConnections(channelId, endpoint, transaction);
+
+                    transaction.commit();
                 }
 
                 responseObserver.onNext(SlotDetachStatus.getDefaultInstance());
