@@ -29,6 +29,7 @@ public class SchedulerAgent extends Thread {
     private final String servantId;
     private final String workflowName;
     private final Duration heartbeatPeriod;
+    private final int apiPort;
     private final ManagedChannel channel;
 
     private final SchedulerPrivateBlockingStub stub;
@@ -38,19 +39,24 @@ public class SchedulerAgent extends Thread {
     private final AtomicReference<TimerTask> task = new AtomicReference<>();
 
     public SchedulerAgent(String schedulerAddress, String servantId, String workflowName,
-                          Duration heartbeatPeriod, int apiPort, String iamToken) {
+                          Duration heartbeatPeriod, int apiPort, String iamToken)
+    {
         super("scheduler-agent-" + servantId);
         this.servantId = servantId;
         this.workflowName = workflowName;
         this.heartbeatPeriod = heartbeatPeriod;
+        this.apiPort = apiPort;
+
         channel = ChannelBuilder.forAddress(schedulerAddress)
             .usePlaintext()
             .enableRetry(SchedulerPrivateGrpc.SERVICE_NAME)
             .build();
         stub = SchedulerPrivateGrpc.newBlockingStub(channel)
             .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> iamToken));
+    }
 
-        this.start();
+    public void start() {
+        super.start();
 
         try {
             stub.registerServant(SchedulerPrivateApi.RegisterServantRequest.newBuilder()
