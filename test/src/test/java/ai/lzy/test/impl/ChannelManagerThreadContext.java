@@ -1,10 +1,10 @@
 package ai.lzy.test.impl;
 
 import ai.lzy.channelmanager.ChannelManager;
+import ai.lzy.test.LzyChannelManagerContext;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.LzyChannelManagerGrpc;
 import ai.lzy.v1.LzyKharonGrpc;
-import ai.lzy.test.ChannelManagerContext;
 import com.google.common.net.HostAndPort;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
@@ -14,12 +14,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
 @SuppressWarnings("UnstableApiUsage")
-public class ChannelManagerThreadContext implements ChannelManagerContext {
+public class ChannelManagerThreadContext implements LzyChannelManagerContext {
     private static final Logger LOG = LogManager.getLogger(ChannelManagerThreadContext.class);
 
     private final String whiteboardAddress;
@@ -54,6 +53,7 @@ public class ChannelManagerThreadContext implements ChannelManagerContext {
         LOG.info("Starting channel-manager...");
 
         var props = Utils.loadModuleTestProperties("channel-manager");
+        props.putAll(Utils.createModuleDatabase("channel-manager"));
         props.put("channel-manager.address", "localhost:" + Config.PORT);
         props.put("channel-manager.whiteboard-address", whiteboardAddress);
         props.put("channel-manager.iam.address", iamAddress);

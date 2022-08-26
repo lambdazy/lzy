@@ -12,6 +12,8 @@
   <properties>
     <maven.compiler.source>17</maven.compiler.source>
     <maven.compiler.target>17</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <maven-dependency-plugin.version>3.0.0</maven-dependency-plugin.version>
     <maven-help-plugin.version>3.2.0</maven-help-plugin.version>
     <build-helper-maven-plugin.version>3.1.0</build-helper-maven-plugin.version>

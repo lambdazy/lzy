@@ -110,6 +110,8 @@ public class Worker {
 
         schedulerAgent = new SchedulerAgent(schedulerAddress, servantId, workflowName, schedulerHeartbeatPeriod,
                 apiPort, token);
+
+        schedulerAgent.start();
     }
 
     private void stop() {
@@ -165,11 +167,10 @@ public class Worker {
     private class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
 
         @Override
-        public synchronized void configure(ConfigureRequest request,
-                                           StreamObserver<ConfigureResponse> responseObserver) {
+        public synchronized void configure(ConfigureRequest request, StreamObserver<ConfigureResponse> response) {
             LOG.info("Configuring worker");
-            responseObserver.onNext(ConfigureResponse.newBuilder().build());
-            responseObserver.onCompleted();
+            response.onNext(ConfigureResponse.newBuilder().build());
+            response.onCompleted();
 
             try {
                 final var e = EnvironmentFactory.create(GrpcConverter.from(request.getEnv()));

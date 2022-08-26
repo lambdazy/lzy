@@ -40,6 +40,8 @@ public record Vm(
         IDLE,
         // Vm is running and client is holding control of it
         RUNNING,
+        // VM is going to be deleted (session removed)
+        DELETING,
         DEAD
     }
 

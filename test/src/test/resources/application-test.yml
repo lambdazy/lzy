@@ -1,6 +1,6 @@
 allocator:
   database:
-    url: 'jdbc:h2:mem:testdb_allocator;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false'
+    url: 'embedded-postgres'
     username: 'test'
     password: ''
     min-pool-size: 1
@@ -62,8 +62,7 @@ scheduler:
     l: 10
 
   database:
-    url: 'jdbc:h2:mem:testdb_scheduler;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false'
-    #  url: 'jdbc:postgresql://localhost:5432/lzy-scheduler'
+    url: 'embedded-postgres'
     username: 'test'
     password: ''
     min-pool-size: 1
@@ -112,7 +111,7 @@ scheduler:
 
 graph-executor:
   database:
-    url: 'jdbc:h2:mem:testdb_ge;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false'
+    url: 'embedded-postgres'
     username: 'test'
     password: ''
     min-pool-size: 1
@@ -186,7 +185,7 @@ channel-manager:
       l7I2m1fDWAE7ibup2fO9VSexAlqwoDnv4dWQ03f/ifRpFE/Tg7NV5OM=
       -----END RSA PRIVATE KEY-----
   database:
-    url: "jdbc:h2:mem:testdb_channel_manager;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;NON_KEYWORDS=USER;DATABASE_TO_UPPER=false"
+    url: "embedded-postgres"
     username: "test"
     password: ""
     enabled: true
