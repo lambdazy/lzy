@@ -2,7 +2,6 @@ from lzy.api.v2.remote_grpc.graph_executor_client import (
     GraphExecutorClient,
     prepare_tasks_and_channels,
 )
-from lzy.api.v2.remote_grpc.portal_client import Portal
 from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
 
 

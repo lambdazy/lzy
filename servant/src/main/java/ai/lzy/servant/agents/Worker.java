@@ -74,7 +74,9 @@ public class Worker {
                   Duration allocatorHeartbeatPeriod, Duration schedulerHeartbeatPeriod, int apiPort, int fsPort,
                   String fsRoot, String channelManagerAddress, String host, String token) {
 
-        server = NettyServerBuilder.forAddress(new InetSocketAddress(host, apiPort))
+        final var realHost = host != null ? host : System.getenv(AllocatorAgent.VM_IP_ADDRESS);
+
+        server = NettyServerBuilder.forAddress(new InetSocketAddress(realHost, apiPort))
                 .permitKeepAliveWithoutCalls(true)
                 .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
                 .addService(new WorkerApiImpl())

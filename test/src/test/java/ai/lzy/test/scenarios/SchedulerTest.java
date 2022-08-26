@@ -98,7 +98,7 @@ public class SchedulerTest extends LocalScenario {
             .enableRetry(SchedulerGrpc.SERVICE_NAME)
             .build();
         final var config = context.getBean(ServiceConfig.class);
-        final var credentials = config.getAuth().createCredentials();
+        final var credentials = config.getIam().createCredentials();
         stub = SchedulerGrpc.newBlockingStub(channel).withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
 

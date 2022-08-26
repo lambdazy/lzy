@@ -6,13 +6,16 @@ import ai.lzy.iam.resources.impl.Workflow;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.storage.db.IamDataSource;
-import ai.lzy.model.db.test.DatabaseCleaner;
+import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.util.auth.exceptions.AuthBadRequestException;
 import io.micronaut.context.ApplicationContext;
+import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
+import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.List;
@@ -23,6 +26,9 @@ import static org.junit.Assert.*;
 public class DbAccessClientTest {
     public static final Logger LOG = LogManager.getLogger(DbAccessClientTest.class);
 
+    @Rule
+    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+
     private ApplicationContext ctx;
     private DbSubjectService subjectService;
     private IamDataSource storage;
@@ -31,11 +37,19 @@ public class DbAccessClientTest {
 
     @Before
     public void setUp() {
-        ctx = ApplicationContext.run();
+        ctx = ApplicationContext.run(DatabaseTestUtils.preparePostgresConfig("iam", db.getConnectionInfo()));
+
         storage = ctx.getBean(IamDataSource.class);
         subjectService = ctx.getBean(DbSubjectService.class);
         accessClient = ctx.getBean(DbAccessClient.class);
         accessBindingClient = ctx.getBean(DbAccessBindingClient.class);
+    }
+
+
+    @After
+    public void tearDown() {
+        DatabaseTestUtils.cleanup(storage);
+        ctx.stop();
     }
 
     @Test
@@ -168,11 +182,5 @@ public class DbAccessClientTest {
         } catch (AuthBadRequestException e) {
             LOG.info("Valid exception::{}", e.getInternalDetails());
         }
-    }
-
-    @After
-    public void tearDown() {
-        DatabaseCleaner.cleanup(storage);
-        ctx.stop();
     }
 }

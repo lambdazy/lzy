@@ -2,10 +2,16 @@ package ai.lzy.scheduler.test;
 
 import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.iam.test.BaseTestWithIam;
-import ai.lzy.scheduler.db.ServantDao;
-import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.scheduler.BeanFactory;
+import ai.lzy.scheduler.PrivateSchedulerApiImpl;
+import ai.lzy.scheduler.SchedulerApi;
+import ai.lzy.scheduler.SchedulerApiImpl;
+import ai.lzy.scheduler.configs.ServiceConfig;
+import ai.lzy.scheduler.db.ServantDao;
+import ai.lzy.scheduler.test.mocks.AllocatedServantMock;
+import ai.lzy.scheduler.test.mocks.AllocatorMock;
+import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.Operations;
@@ -19,23 +25,28 @@ import ai.lzy.v1.lzy.SchedulerPrivateApi.ServantProgress.ExecutionCompleted;
 import ai.lzy.v1.lzy.SchedulerPrivateApi.ServantProgress.Finished;
 import ai.lzy.v1.lzy.SchedulerPrivateApi.ServantProgressRequest;
 import ai.lzy.v1.lzy.SchedulerPrivateGrpc;
-import ai.lzy.scheduler.PrivateSchedulerApiImpl;
-import ai.lzy.scheduler.SchedulerApi;
-import ai.lzy.scheduler.SchedulerApiImpl;
-import ai.lzy.scheduler.configs.ServiceConfig;
-import ai.lzy.scheduler.test.mocks.AllocatedServantMock;
-import ai.lzy.scheduler.test.mocks.AllocatorMock;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
+import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
+import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.concurrent.*;
 
+import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
+
 public class IntegrationTest extends BaseTestWithIam {
+
+    @Rule
+    public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+    @Rule
+    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
 
     private SchedulerApi api;
     private AllocatorMock allocator;
@@ -45,14 +56,16 @@ public class IntegrationTest extends BaseTestWithIam {
     ManagedChannel chan;
 
     @Before
-    public void setUp() {
+    public void setUp() throws IOException {
+        super.setUp(preparePostgresConfig("iam", iamDb.getConnectionInfo()));
+
         final IamClientConfiguration auth;
-        try (var context = ApplicationContext.run("scheduler")) {
+        try (var context = ApplicationContext.run(preparePostgresConfig("scheduler", db.getConnectionInfo()))) {
             SchedulerApiImpl impl = context.getBean(SchedulerApiImpl.class);
             PrivateSchedulerApiImpl privateApi = context.getBean(PrivateSchedulerApiImpl.class);
             ServiceConfig config = context.getBean(ServiceConfig.class);
             final var dao = context.getBean(ServantDao.class);
-            auth = config.getAuth();
+            auth = config.getIam();
             api = new SchedulerApi(impl, privateApi, config, new BeanFactory().iamChannel(config), dao);
             allocator = context.getBean(AllocatorMock.class);
         }

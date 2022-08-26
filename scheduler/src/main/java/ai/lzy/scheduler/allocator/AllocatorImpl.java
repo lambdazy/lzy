@@ -59,11 +59,12 @@ public class AllocatorImpl implements ServantsAllocator {
     private final AccessBindingServiceGrpcClient abClient;
 
     public AllocatorImpl(ServiceConfig config, ServantEventProcessorConfig processorConfig,
-                         ServantMetaStorage metaStorage) {
+                         ServantMetaStorage metaStorage)
+    {
         this.config = config;
         this.processorConfig = processorConfig;
         this.metaStorage = metaStorage;
-        this.authConfig = config.getAuth();
+        this.authConfig = config.getIam();
         this.iamChan = ChannelBuilder
             .forAddress(authConfig.getAddress())
             .usePlaintext()
@@ -146,7 +147,6 @@ public class AllocatorImpl implements ServantsAllocator {
             "--scheduler-address", config.getSchedulerAddress(),
             "--channel-manager", config.getChannelManagerAddress(),
             "--lzy-mount", mountPoint,
-            "--host", "localhost",
             "--token", '"' + credentials.token() + '"',
             "--servant-id", servantId,
             "--scheduler-heartbeat-period", processorConfig.executingHeartbeatPeriod().toString()
