@@ -83,14 +83,18 @@ class _GenericClientInterceptor(aio.UnaryUnaryClientInterceptor, aio.UnaryStream
     async def intercept_unary_unary(self, continuation, client_call_details, request):
         new_details, new_request_iterator, postprocess = await self._fn(
             client_call_details, async_iter((request,)))
-        response = await continuation(new_details, await new_request_iterator.__anext__())
+        response = None
+        async for resp in new_request_iterator:
+            response = await continuation(new_details, resp)
         return postprocess(response) if postprocess else response
 
     async def intercept_unary_stream(self, continuation, client_call_details, request):
         new_details, new_request_iterator, postprocess = await self._fn(
             client_call_details, async_iter((request,)))
-        response_it = continuation(new_details, await new_request_iterator.__anext__())
-        return postprocess(response_it) if postprocess else response_it
+        response = None
+        async for resp in new_request_iterator:
+            response = continuation(new_details, resp)
+        return postprocess(response) if postprocess else response
 
     async def intercept_stream_unary(self, continuation, client_call_details, request_iterator):
         new_details, new_request_iterator, postprocess = await self._fn(
