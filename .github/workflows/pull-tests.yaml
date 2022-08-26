@@ -84,6 +84,11 @@ jobs:
           file_type: binary
           gist_file_name: ${{ (github.head_ref || github.ref_name) }}-java-coverage.svg
 
+      - name: 'SchedulerTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=SchedulerTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
       - name: 'LzyDryStartupTest'
         timeout-minutes: 5
         run: |
@@ -139,11 +144,6 @@ jobs:
         timeout-minutes: 30
         run: |
           cd test && mvn test -Dtest=PyApiTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-
-      - name: 'SchedulerTest'
-        timeout-minutes: 5
-        run: |
-          cd test && mvn test -Dtest=SchedulerTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'Clean docker files'
         run: |

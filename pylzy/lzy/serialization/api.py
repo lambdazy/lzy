@@ -6,10 +6,6 @@ T = TypeVar("T")
 
 class Serializer(abc.ABC):
     @abc.abstractmethod
-    def name(self) -> str:
-        pass
-
-    @abc.abstractmethod
     def serialize(self, obj: Any, dest: BinaryIO) -> None:
         pass
 
@@ -33,20 +29,26 @@ class Serializer(abc.ABC):
 class SerializersRegistry(abc.ABC):
     @abc.abstractmethod
     def register_serializer(
-        self, serializer: Serializer, priority: Optional[int] = None
+        self, name: str, serializer: Serializer, priority: Optional[int] = None
     ) -> None:
         pass
 
     @abc.abstractmethod
-    def unregister_serializer(self, serializer: Serializer) -> None:
+    def unregister_serializer(self, name: str) -> None:
         pass
 
     @abc.abstractmethod
-    def find_serializer_by_type(self, typ: Type) -> Serializer:
+    def find_serializer_by_type(
+        self, typ: Type
+    ) -> Serializer:  # we assume that default serializer always can be found
         pass
 
     @abc.abstractmethod
     def find_serializer_by_name(self, serializer_name: str) -> Optional[Serializer]:
+        pass
+
+    @abc.abstractmethod
+    def resolve_name(self, serializer: Serializer) -> Optional[str]:
         pass
 
 
