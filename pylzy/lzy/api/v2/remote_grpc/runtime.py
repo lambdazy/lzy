@@ -30,12 +30,12 @@ def _build_token(username: str, key_path: Optional[str] = None) -> str:
 
     with open(key_path, "r") as f:
         private_key = f.read()
-        return jwt.encode({  # TODO(artolrod) add renewing of token
+        return str(jwt.encode({  # TODO(artolrod) add renewing of token
             "iat": time.time(),
             "nbf": time.time(),
             "exp": time.time() + 7 * 24 * 60 * 60,  # 7 days
             "iss": username
-        }, private_key, algorithm="PS256")
+        }, private_key, algorithm="PS256"))
 
 
 class GrpcRuntime(Runtime):
