@@ -99,7 +99,7 @@ public class SchedulerAgent extends Thread {
                         .build());
                     break;
                 } catch (StatusRuntimeException e) {
-                    LOG.error("Cannot send progress to scheduler. Retrying...", e);
+                    LOG.error("Cannot send progress to scheduler: {}. Retrying...", e.getStatus());
                 }
             }
 

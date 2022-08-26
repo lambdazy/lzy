@@ -142,6 +142,7 @@ public class VmDaoImpl implements VmDao {
                 "SELECT " + FIELDS + """
                  FROM vm
                  WHERE (state = 'IDLE' AND deadline IS NOT NULL AND deadline < NOW())
+                   OR (state = 'DELETING')
                    OR (state = 'CONNECTING' AND allocation_deadline IS NOT NULL AND allocation_deadline < NOW())
                    OR (state != 'CREATED' AND state != 'DEAD' AND last_activity_time < NOW())
                  LIMIT ?""" + forUpdate(transaction)))

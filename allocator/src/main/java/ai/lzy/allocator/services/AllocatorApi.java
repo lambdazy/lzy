@@ -92,18 +92,17 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
     @Override
     public void deleteSession(DeleteSessionRequest request, StreamObserver<DeleteSessionResponse> responseObserver) {
-        try (var transaction = new TransactionHandle(storage)) {
-            final List<Vm> vms = dao.list(request.getSessionId(), transaction);
-            final var now = Instant.now();
+        try {
+            sessions.delete(request.getSessionId(), null);
+
+            final List<Vm> vms = dao.list(request.getSessionId(), null);
             vms.forEach(vm ->
-                dao.update(Vm.from(vm)
-                    .setDeadline(now)
-                    .setState(Vm.State.IDLE)
-                    .build(),
-                transaction
-            ));
-            sessions.delete(request.getSessionId(), transaction);
-            transaction.commit();
+                dao.update(
+                    Vm.from(vm)
+                        .setState(Vm.State.DELETING)
+                        .build(),
+                    null)
+            );
         } catch (Exception e) {
             LOG.error("Error while executing `deleteSession` request, sessionId={}: {}",
                 request.getSessionId(), e.getMessage(), e);
