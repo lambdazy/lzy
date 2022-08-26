@@ -3,3 +3,4 @@ types-setuptools
 types-requests
 boto3-stubs[s3]
 grpc-stubs
+mypy
