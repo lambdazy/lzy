@@ -31,6 +31,10 @@ class LzyWorkflow:
     def owner(self) -> "Lzy":
         return self._owner
 
+    @property
+    def name(self) -> str:
+        return self._name
+
     def register_call(self, call: "LzyCall") -> Any:
         self._call_queue.append(call)
         if self._eager:
@@ -49,16 +53,12 @@ class LzyWorkflow:
         if type(self).instance is not None:
             raise RuntimeError("Simultaneous workflows are not supported")
         type(self).instance = self
-        self._runtime.start()
+        self._runtime.start(self)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         try:
-            if not exc_val:
-                self.barrier()
-                self._snapshot.finalize()
-            else:
-                self._snapshot.error()
+            self.barrier()
         finally:
             self._runtime.destroy()
             type(self).instance = None

@@ -3,9 +3,12 @@ from dataclasses import dataclass
 from typing import Callable, List, Any
 
 from lzy._proxy.result import Result
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from lzy.api.v2 import LzyWorkflow
 
 from lzy.api.v2.call import LzyCall
-from lzy.api.v2.snapshot.snapshot import Snapshot
 
 
 @dataclass
@@ -16,7 +19,7 @@ class ProgressStep:
 class Runtime(ABC):
 
     @abstractmethod
-    def start(self):
+    def start(self, workflow: "LzyWorkflow"):
         pass
 
     @abstractmethod

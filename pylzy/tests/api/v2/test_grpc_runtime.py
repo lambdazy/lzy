@@ -1,77 +1,65 @@
-import uuid
-from typing import IO
-from unittest import TestCase, skip
+import logging
+import tempfile
+from concurrent import futures
+from unittest import TestCase
 
-from lzy.api.v2 import op
-from lzy.api.v2.lzy import Lzy
+import grpc.aio
+
+from ai.lzy.v1.workflow.workflow_pb2 import SnapshotStorage, AmazonCredentials
+from ai.lzy.v1.workflow.workflow_service_pb2 import CreateWorkflowRequest, CreateWorkflowResponse, \
+    FinishWorkflowResponse, FinishWorkflowRequest
+from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceServicer,\
+    add_LzyWorkflowServiceServicer_to_server
+from lzy.api.v2 import Lzy
 from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
-from lzy.api.v2.utils._pickle import unpickle
-from lzy.serialization.registry import DefaultSerializersRegistry
-from lzy.storage.storage_client import StorageClient
+from Crypto.PublicKey import RSA
 
 
-class MockStorageClient(StorageClient):
-    def __init__(self):
-        super().__init__()
-        self.storage = {}
-
-    def read_to_file(self, url: str, path: str):
-        pass
-
-    def blob_exists(self, container: str, blob: str) -> bool:
-        uri = self.generate_uri(container, blob)
-        return uri in self.storage
-
-    def read(self, url: str, dest: IO) -> None:
-        dest.write(self.storage[url])
-
-    def write(self, container: str, blob: str, data: IO):
-        uri = self.generate_uri(container, blob)
-        self.storage[uri] = data.read()
-        return uri
-
-    def generate_uri(self, container: str, blob: str) -> str:
-        return container + "/" + blob
+LOG = logging.getLogger(__name__)
 
 
-@op
-def foo(a: str) -> int:
-    return int(a) + 10
+class WorkflowServiceMock(LzyWorkflowServiceServicer):
 
+    def CreateWorkflow(self, request: CreateWorkflowRequest, context: grpc.RpcContext) -> CreateWorkflowResponse:
+        LOG.info(f"Creating wf {request}")
+        return CreateWorkflowResponse(executionId="exec_id", internalSnapshotStorage=SnapshotStorage(
+            bucket="",
+            amazon=AmazonCredentials(
+                endpoint="",
+                accessToken="",
+                secretToken=""
+            )
+        ))
 
-@op
-def bar(a: str, b: int) -> str:
-    return a + str(b)
+    def FinishWorkflow(self, request: FinishWorkflowRequest, context: grpc.RpcContext) -> FinishWorkflowResponse:
+        LOG.info(f"Finishing workflow {request}")
+        assert request.workflowName == "some_name"
+        assert request.executionId == "exec_id"
+        return FinishWorkflowResponse()
 
 
 class GrpcRuntimeTests(TestCase):
-    def setUp(self):
-        self._WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
-        self._storage_client = MockStorageClient()
-        self._bucket = str(uuid.uuid4())
-        self._runtime = GrpcRuntime(self._storage_client, self._bucket)
-        self._lzy = Lzy(runtime=self._runtime)
-        self._serializer = DefaultSerializersRegistry()
+    def setUp(self) -> None:
+        self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+        add_LzyWorkflowServiceServicer_to_server(WorkflowServiceMock(), self.server)
+        self.server.add_insecure_port("localhost:12345")
+        self.server.start()
 
-    @skip("runtime is not written")
-    def test_argument_upload(self):
-        with self._lzy.workflow(self._WORKFLOW_NAME, False) as workflow:
-            f = foo("24")
-            b = bar("42", f)
-            # graph: Graph = (
-            #     GraphBuilder()
-            #     .snapshot_id(str(uuid.uuid4()))
-            #     .add_call(b.lzy_call)
-            #     .build()
-            # )
-            graph = None
-            self._runtime._load_args(graph, DefaultSerializersRegistry())
-            self.assertTrue(len(self._storage_client.storage) == 2)
-            values = list(
-                map(
-                    lambda x: unpickle(x, str),
-                    list(self._storage_client.storage.values()),
-                )
-            )
-            self.assertTrue("42" in values)
-            self.assertTrue("24" in values)
+    def tearDown(self) -> None:
+        self.server.stop(10)
+        self.server.wait_for_termination()
+
+    def test_simple(self):
+        key = RSA.generate(2048)
+        fd, name = tempfile.mkstemp()
+        with open(name, "wb") as f:
+            f.write(key.export_key('PEM'))
+        runtime = GrpcRuntime("ArtoLord", "localhost:12345", name)
+        lzy = Lzy()
+        runtime.start(lzy.workflow("some_name"))
+
+        self.assertIsNotNone(lzy.storage_registry.get_default_credentials())
+
+        runtime.destroy()
+
+        self.assertIsNone(lzy.storage_registry.get_default_credentials())

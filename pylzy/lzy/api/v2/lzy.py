@@ -21,12 +21,12 @@ class Lzy:
         self,
         env_provider: EnvProvider = LzyEnvProvider(),
         runtime: Runtime = LocalRuntime(),
-        storage_client: StorageRegistry = StorageRegistry()
+        storage_registry: StorageRegistry = StorageRegistry()
     ):
         self._env_provider = env_provider
         self._runtime = runtime
         self._serializer = DefaultSerializersRegistry()
-        self._storage_client = storage_client
+        self._storage_registry = storage_registry
 
     @property
     def serializer(self) -> SerializersRegistry:
@@ -42,7 +42,7 @@ class Lzy:
 
     @property
     def storage_registry(self) -> StorageRegistry:
-        return self._storage_client
+        return self._storage_registry
 
     def whiteboard(self, wid: str) -> Any:
         # TODO: implement

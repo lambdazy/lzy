@@ -11,7 +11,7 @@ class LocalRuntime(Runtime):
     def __init__(self):
         self.__data: Dict[str, Any] = {}
 
-    def start(self):
+    def start(self, workflow):
         pass
 
     def exec(
