@@ -1,6 +1,9 @@
 package ai.lzy.graph.test;
 
+import ai.lzy.graph.algo.GraphBuilder;
+import ai.lzy.graph.algo.GraphBuilderImpl;
 import ai.lzy.graph.config.ServiceConfig;
+import ai.lzy.graph.db.QueueEventDao;
 import ai.lzy.graph.exec.BfsGraphProcessor;
 import ai.lzy.graph.exec.ChannelCheckerFactory;
 import ai.lzy.graph.exec.GraphProcessor;
@@ -12,48 +15,44 @@ import ai.lzy.graph.queue.QueueManager;
 import ai.lzy.graph.test.mocks.GraphDaoMock;
 import ai.lzy.graph.test.mocks.SchedulerApiMock;
 import ai.lzy.model.Operation;
+import ai.lzy.model.Slot;
+import ai.lzy.model.data.DataSchema;
+import ai.lzy.model.db.DaoException;
 import ai.lzy.v1.SchedulerApi.TaskStatus;
 import io.grpc.StatusException;
 import io.micronaut.context.ApplicationContext;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Stream;
-import ai.lzy.model.db.DaoException;
-import ai.lzy.graph.db.QueueEventDao;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
+import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.junit.*;
-import ai.lzy.graph.algo.GraphBuilderImpl;
-import ai.lzy.graph.algo.GraphBuilder;
-import ai.lzy.model.Slot;
-import ai.lzy.model.Zygote;
-import ai.lzy.model.data.DataSchema;
 import org.junit.rules.Timeout;
 
+import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
 import static ai.lzy.v1.SchedulerApi.TaskStatus.StatusCase.ERROR;
 import static ai.lzy.v1.SchedulerApi.TaskStatus.StatusCase.QUEUE;
 
-@MicronautTest
 public class GraphExecutorTest {
-
-    private SchedulerApiMock scheduler;
-    private static final ApplicationContext context = ApplicationContext.run();
-    private static final GraphDaoMock dao = context.getBean(GraphDaoMock.class);
-    private static final QueueEventDao queueEventDao = context.getBean(QueueEventDao.class);
-    private static final Logger LOG = LogManager.getLogger(GraphExecutorTest.class);
 
     @Rule
     public Timeout globalTimeout = Timeout.seconds(10);
+    @Rule
+    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+
+    private ApplicationContext context;
+    private GraphDaoMock dao;
+    private QueueEventDao queueEventDao;
+    private SchedulerApiMock scheduler;
+
 
     @Before
     public void setUp() {
+        context = ApplicationContext.run(preparePostgresConfig("graph-executor", db.getConnectionInfo()));
+        dao = context.getBean(GraphDaoMock.class);
+        queueEventDao = context.getBean(QueueEventDao.class);
+
         scheduler = new SchedulerApiMock((a, b, sch) -> {
             sch.changeStatus(b.id(), TaskStatus.newBuilder()
                 .setTaskId(b.id())
@@ -82,6 +81,8 @@ public class GraphExecutorTest {
             }
             events = queueEventDao.acquireWithLimit(100);
         }
+
+        context.close();
     }
 
     @Test

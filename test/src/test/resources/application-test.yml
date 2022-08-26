@@ -78,7 +78,7 @@ scheduler:
     idle-timeout: 1m
     servant-stop-timeout: 100ms
 
-  auth:
+  iam:
     address: 'localhost:8443'
     internal-user-name: "lzy-internal-user"
     internal-user-private-key: |

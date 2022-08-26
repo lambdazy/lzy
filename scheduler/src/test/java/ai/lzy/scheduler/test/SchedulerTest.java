@@ -1,6 +1,8 @@
 package ai.lzy.scheduler.test;
 
+import ai.lzy.model.TaskDesc;
 import ai.lzy.model.db.DaoException;
+import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.scheduler.configs.ProcessorConfigBuilder;
 import ai.lzy.scheduler.configs.ServiceConfig;
@@ -8,19 +10,18 @@ import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.scheduler.db.ServantEventDao;
 import ai.lzy.scheduler.db.TaskDao;
 import ai.lzy.scheduler.models.ServantState;
-import ai.lzy.model.TaskDesc;
 import ai.lzy.scheduler.servant.Servant;
 import ai.lzy.scheduler.servant.ServantsPool;
 import ai.lzy.scheduler.servant.impl.EventQueueManager;
 import ai.lzy.scheduler.servant.impl.SchedulerImpl;
 import ai.lzy.scheduler.servant.impl.ServantsPoolImpl;
 import ai.lzy.scheduler.test.EventProcessorTest.AllocationRequest;
-import ai.lzy.scheduler.test.mocks.*;
+import ai.lzy.scheduler.test.mocks.AllocatedServantMock;
+import ai.lzy.scheduler.test.mocks.AllocatorMock;
 import io.micronaut.context.ApplicationContext;
-import java.util.Objects;
+import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
+import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.apache.curator.shaded.com.google.common.net.HostAndPort;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.junit.After;
 import org.junit.Before;
@@ -29,21 +30,26 @@ import org.junit.Test;
 import org.junit.rules.Timeout;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.*;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Function;
 
 import static ai.lzy.scheduler.test.EventProcessorTest.buildOp;
 
 public class SchedulerTest {
-    public static final Logger LOG = LogManager.getLogger(SchedulerTest.class);
 
-    public static final ApplicationContext context = ApplicationContext.run();
+    @Rule
+    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
 
-    public static final ServantEventDao events = context.getBean(ServantEventDao.class);
-    public static final ServantDao servantDao = context.getBean(ServantDao.class);
-    public static final TaskDao tasks = context.getBean(TaskDao.class);
-    public static final EventQueueManager manager = context.getBean(EventQueueManager.class);
+    public ApplicationContext context;
+    public ServantEventDao events;
+    public ServantDao servantDao;
+    public TaskDao tasks;
+    public EventQueueManager manager;
 
     public AllocatorMock allocator;
     public String workflowId;
@@ -54,6 +60,13 @@ public class SchedulerTest {
 
     @Before
     public void setUp() {
+        context = ApplicationContext.run(DatabaseTestUtils.preparePostgresConfig("scheduler", db.getConnectionInfo()));
+
+        events = context.getBean(ServantEventDao.class);
+        servantDao = context.getBean(ServantDao.class);
+        tasks = context.getBean(TaskDao.class);
+        manager = context.getBean(EventQueueManager.class);
+
         workflowId = "wfid" + UUID.randomUUID();
         workflowName = "wf" + UUID.randomUUID();
         allocator = new AllocatorMock();
@@ -68,6 +81,7 @@ public class SchedulerTest {
         for (var task : tasks.list(workflowId)) {
             task.notifyExecutionCompleted(1, "End of test");
         }
+        context.close();
     }
 
     @Test

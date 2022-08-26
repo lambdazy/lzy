@@ -22,6 +22,6 @@ public class ServiceConfig {
     private String allocatorAddress;
     private String servantImage;
 
-    @ConfigurationBuilder("auth")
-    private IamClientConfiguration auth = new IamClientConfiguration();
+    @ConfigurationBuilder("iam")
+    private IamClientConfiguration iam = new IamClientConfiguration();
 }

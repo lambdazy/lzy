@@ -16,42 +16,42 @@ Configuration:
     Logger:
       - name: "ai.lzy.scheduler"
         additivity: false
-        level: debug
+        level: error
         AppenderRef:
           ref: Console
 
       - name: "ai.lzy.allocator"
         additivity: false
-        level: debug
+        level: error
         AppenderRef:
           ref: Console
 
       - name: "ai.lzy.graph"
         additivity: false
-        level: info
+        level: error
         AppenderRef:
           ref: Console
 
       - name: "ai.lzy.servant"
         additivity: false
-        level: debug
+        level: error
         AppenderRef:
           ref: Console
 
       - name: "ai.lzy.channelmanager"
         additivity: false
-        level: debug
+        level: error
         AppenderRef:
           ref: Console
 
       - name: "ai.lzy.test"
         additivity: false
-        level: debug
+        level: info
         AppenderRef:
           ref: Console
 
       - name: "org.flywaydb"
         additivity: false
-        level: info
+        level: error
         AppenderRef:
           ref: Console

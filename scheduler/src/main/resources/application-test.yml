@@ -16,7 +16,6 @@ scheduler:
 
   database:
     url: 'jdbc:h2:mem:testdb_scheduler;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false'
-    #  url: 'jdbc:postgresql://localhost:5432/lzy-scheduler'
     username: 'test'
     password: ''
     min-pool-size: 1
@@ -31,7 +30,7 @@ scheduler:
     idle-timeout: 100ms
     servant-stop-timeout: 100ms
 
-  auth:
+  iam:
     address: 'localhost:8443'
     internal-user-name: "lzy-internal-user"
     internal-user-private-key: |

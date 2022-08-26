@@ -4,12 +4,13 @@ import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.utils.CredentialsHelper;
 import ai.lzy.kharon.KharonConfig;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.util.grpc.ClientHeaderInterceptor;
-import ai.lzy.util.grpc.GrpcHeaders;
+import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.storage.impl.MockS3Storage;
 import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
+import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.ClientHeaderInterceptor;
+import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.workflow.LWS.CreateWorkflowRequest;
 import ai.lzy.v1.workflow.LWS.FinishWorkflowRequest;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
@@ -21,18 +22,19 @@ import io.grpc.StatusRuntimeException;
 import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
+import io.zonky.test.db.postgres.junit.PreparedDbRule;
+import org.junit.*;
 
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
-import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 
 public class WorkflowServiceTest {
+    @Rule
+    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+
     private ApplicationContext ctx;
     private Server storageServer;
     private Server workflowServer;
@@ -43,7 +45,7 @@ public class WorkflowServiceTest {
         var storagePort = FreePortFinder.find(10000, 11000);
         var workflowPort = FreePortFinder.find(storagePort + 1, 11000);
 
-        var props = new HashMap<String, Object>();
+        var props = DatabaseTestUtils.preparePostgresConfig("kharon", db.getConnectionInfo());
         props.put("kharon.address", "localhost:" + workflowPort);
         props.put("kharon.storage.address", "localhost:" + storagePort);
 

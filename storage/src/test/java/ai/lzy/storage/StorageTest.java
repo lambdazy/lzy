@@ -1,10 +1,11 @@
 package ai.lzy.storage;
 
 import ai.lzy.iam.test.BaseTestWithIam;
+import ai.lzy.model.db.test.DatabaseTestUtils;
+import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.v1.LSS;
 import ai.lzy.v1.LzyStorageServiceGrpc;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
@@ -16,16 +17,20 @@ import com.google.common.net.HostAndPort;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
+import io.zonky.test.db.postgres.junit.PreparedDbRule;
+import org.junit.*;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 @SuppressWarnings({"UnstableApiUsage", "ResultOfMethodCallIgnored"})
 public class StorageTest extends BaseTestWithIam {
+
+    @Rule
+    public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+    @Rule
+    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
 
     private ApplicationContext storageCtx;
     private StorageConfig storageConfig;
@@ -35,8 +40,9 @@ public class StorageTest extends BaseTestWithIam {
 
     @Before
     public void before() throws IOException {
-        super.before();
-        storageCtx = ApplicationContext.run("../storage/src/main/resources/application-test.yml");
+        super.setUp(DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo()));
+
+        storageCtx = ApplicationContext.run(DatabaseTestUtils.preparePostgresConfig("storage", db.getConnectionInfo()));
         storageConfig = storageCtx.getBean(StorageConfig.class);
         storageApp = new LzyStorage(storageCtx);
         storageApp.start();
