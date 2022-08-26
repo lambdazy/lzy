@@ -9,15 +9,12 @@ class ProtoMessageSerializer(Serializer):
     def __init__(self):
         self._log = logging.getLogger(str(self.__class__))
 
-    def name(self) -> str:
-        return "PROTO_MESSAGE_SERIALIZER"
-
     def serialize(self, obj: Any, dest: BinaryIO) -> None:
         obj.dump(dest)
 
     def deserialize(self, source: BinaryIO, typ: Type) -> Any:
         from pure_protobuf.dataclasses_ import load  # type: ignore
-
+        # noinspection PyTypeChecker
         return load(typ, source)
 
     def available(self) -> bool:

@@ -10,9 +10,6 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 
 # noinspection PyPackageRequirements,PyMethodMayBeStatic
 class CatboostPoolSerializer(Serializer):
-    def name(self) -> str:
-        return "CATBOOST_POOL_SERIALIZER"
-
     def __init__(self):
         self._log = logging.getLogger(str(self.__class__))
 
