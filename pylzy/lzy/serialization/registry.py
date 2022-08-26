@@ -20,21 +20,33 @@ class DefaultSerializersRegistry(SerializersRegistry):
         self._name_registry: Dict[str, Serializer] = OrderedDict()
         self._serializer_priorities: Dict[str, int] = {}
 
-        self.register_serializer("LZY_CATBOOST_POOL_SERIALIZER", CatboostPoolSerializer(), self._default_priority)
-        self.register_serializer("LZY_FILE_SERIALIZER", FileSerializer(), self._default_priority)
+        self.register_serializer(
+            "LZY_CATBOOST_POOL_SERIALIZER",
+            CatboostPoolSerializer(),
+            self._default_priority,
+        )
+        self.register_serializer(
+            "LZY_FILE_SERIALIZER", FileSerializer(), self._default_priority
+        )
 
-        self.register_serializer("LZY_PROTO_MESSAGE_SERIALIZER", ProtoMessageSerializer(), self._default_priority)
-        self.register_serializer("LZY_CLOUDPICKLE_SERIALIZER", CloudpickleSerializer(), sys.maxsize - 1)
+        self.register_serializer(
+            "LZY_PROTO_MESSAGE_SERIALIZER",
+            ProtoMessageSerializer(),
+            self._default_priority,
+        )
+        self.register_serializer(
+            "LZY_CLOUDPICKLE_SERIALIZER", CloudpickleSerializer(), sys.maxsize - 1
+        )
 
-    def register_serializer(self, name: str, serializer: Serializer, priority: Optional[int] = None) -> None:
+    def register_serializer(
+        self, name: str, serializer: Serializer, priority: Optional[int] = None
+    ) -> None:
         if not serializer.available():
             self._log.warning(f"Serializer {name} cannot be registered")
             return
 
         if name in self._serializer_priorities:
-            raise ValueError(
-                f"Serializer {name} has been already registered"
-            )
+            raise ValueError(f"Serializer {name} has been already registered")
 
         if isinstance(serializer.supported_types(), Type) and serializer.supported_types() in self._type_registry:  # type: ignore
             raise ValueError(
@@ -64,14 +76,17 @@ class DefaultSerializersRegistry(SerializersRegistry):
         filter_ser_priority = sys.maxsize
         for name, serializer in self._name_registry.items():
             if (
-                    not isinstance(serializer.supported_types(), Type)
-                    and serializer.supported_types()(typ)
-                    and self._serializer_priorities[name] < filter_ser_priority
+                # mypy issue: https://github.com/python/mypy/issues/3060
+                not isinstance(serializer.supported_types(), Type)  # type: ignore
+                and serializer.supported_types()(typ)
+                and self._serializer_priorities[name] < filter_ser_priority
             ):
                 filter_ser_priority = self._serializer_priorities[name]
                 filter_ser = serializer
 
-        obj_type_ser: Optional[Serializer] = (self._type_registry[typ] if typ in self._type_registry else None)
+        obj_type_ser: Optional[Serializer] = (
+            self._type_registry[typ] if typ in self._type_registry else None
+        )
         obj_type_ser_priority = (
             sys.maxsize
             if obj_type_ser is None
@@ -79,7 +94,11 @@ class DefaultSerializersRegistry(SerializersRegistry):
         )
 
         if obj_type_ser is not None:
-            return cast(Serializer, filter_ser) if filter_ser_priority < obj_type_ser_priority else obj_type_ser
+            return (
+                cast(Serializer, filter_ser)
+                if filter_ser_priority < obj_type_ser_priority
+                else obj_type_ser
+            )
         return cast(Serializer, filter_ser)
 
     def find_serializer_by_name(self, serializer_name: str) -> Optional[Serializer]:

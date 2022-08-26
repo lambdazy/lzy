@@ -28,7 +28,9 @@ class Serializer(abc.ABC):
 
 class SerializersRegistry(abc.ABC):
     @abc.abstractmethod
-    def register_serializer(self, name: str, serializer: Serializer, priority: Optional[int] = None) -> None:
+    def register_serializer(
+        self, name: str, serializer: Serializer, priority: Optional[int] = None
+    ) -> None:
         pass
 
     @abc.abstractmethod
@@ -36,7 +38,9 @@ class SerializersRegistry(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def find_serializer_by_type(self, typ: Type) -> Serializer:  # we assume that default serializer always can be found
+    def find_serializer_by_type(
+        self, typ: Type
+    ) -> Serializer:  # we assume that default serializer always can be found
         pass
 
     @abc.abstractmethod
