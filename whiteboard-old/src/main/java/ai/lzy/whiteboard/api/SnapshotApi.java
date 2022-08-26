@@ -1,5 +1,6 @@
 package ai.lzy.whiteboard.api;
 
+import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.whiteboard.SnapshotRepository;
 import ai.lzy.whiteboard.auth.Authenticator;
 import io.grpc.ManagedChannel;
@@ -132,13 +133,13 @@ public class SnapshotApi extends SnapshotApiGrpc.SnapshotApiImplBase {
                 repository.createFromSnapshot(fromSnapshotId, new Snapshot.Impl(
                     snapshotId,
                     URI.create(request.getAuth().getUser().getUserId()),
-                    Date.from(GrpcConverter.from(request.getCreationDateUTC())),
+                    Date.from(ProtoConverter.fromProto(request.getCreationDateUTC())),
                     request.getWorkflowName(),
                     fromSnapshotId
                 ));
             } else {
                 repository.create(new Snapshot.Impl(snapshotId, URI.create(request.getAuth().getUser().getUserId()),
-                    Date.from(GrpcConverter.from(request.getCreationDateUTC())), request.getWorkflowName(), null));
+                    Date.from(ProtoConverter.fromProto(request.getCreationDateUTC())), request.getWorkflowName(), null));
             }
         } catch (SnapshotRepositoryException e) {
             LOG.error("SnapshotApi::createSnapshot: Got exception while creating snapshot {}", e.getMessage());

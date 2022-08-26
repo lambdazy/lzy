@@ -22,20 +22,20 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
 
 @SuppressWarnings("UnstableApiUsage")
-public class LzyWhiteboard {
+public class WhiteboardMain {
 
     public static final Logger LOG;
 
     static {
         LoggerContext ctx = (LoggerContext) LogManager.getContext();
         ctx.reconfigure();
-        LOG = LogManager.getLogger(LzyWhiteboard.class);
+        LOG = LogManager.getLogger(WhiteboardMain.class);
     }
 
     private final Server whiteboardServer;
     private final ManagedChannel iamChannel;
 
-    public LzyWhiteboard(ApplicationContext context) {
+    public WhiteboardMain(ApplicationContext context) {
         final var config = context.getBean(WhiteboardConfig.class);
         final HostAndPort address = HostAndPort.fromString(config.getAddress());
         final var whiteboardService = context.getBean(WhiteboardService.class);
@@ -59,7 +59,7 @@ public class LzyWhiteboard {
 
     public static void main(String[] args) throws IOException, InterruptedException {
         try (ApplicationContext context = ApplicationContext.run()) {
-            var app = new LzyWhiteboard(context);
+            var app = new WhiteboardMain(context);
 
             app.start();
             app.awaitTermination();

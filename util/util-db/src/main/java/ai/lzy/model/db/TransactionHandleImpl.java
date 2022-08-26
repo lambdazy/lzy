@@ -9,7 +9,7 @@ public final class TransactionHandleImpl implements TransactionHandle {
     private boolean committed = false;
     private Connection con = null;
 
-    public TransactionHandleImpl(Storage storage) {
+    TransactionHandleImpl(Storage storage) {
         this.storage = storage;
     }
 

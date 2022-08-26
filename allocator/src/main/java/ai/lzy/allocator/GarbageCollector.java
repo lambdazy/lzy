@@ -7,7 +7,7 @@ import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.dao.impl.AllocatorDataSource;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.model.db.Storage;
-import ai.lzy.model.db.TransactionHandleImpl;
+import ai.lzy.model.db.TransactionHandle;
 import io.grpc.Status;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -48,7 +48,7 @@ public class GarbageCollector extends TimerTask {
             vms.forEach(vm -> {
                 try {
                     LOG.info("Vm {} is expired", vm);
-                    try (var tr = new TransactionHandleImpl(storage)) {
+                    try (var tr = TransactionHandle.create(storage)) {
                         var op = operations.get(vm.allocationOperationId(), tr);
                         if (op != null) {
                             operations.update(op.complete(Status.DEADLINE_EXCEEDED.withDescription("Vm is expired")),

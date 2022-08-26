@@ -2,6 +2,7 @@ package ai.lzy.whiteboard.api;
 
 import static ai.lzy.model.GrpcConverter.to;
 
+import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.whiteboard.SnapshotRepository;
 import ai.lzy.whiteboard.WhiteboardRepository;
 import ai.lzy.whiteboard.auth.Authenticator;
@@ -102,7 +103,7 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
                 new Impl(wbId, new HashSet<>(request.getFieldNamesList()),
                     snapshotStatus.get().snapshot(), new HashSet<>(request.getTagsList()),
                     resolveNamespace(request.getNamespace(), request.getAuth().getUser().getUserId()),
-                    Date.from(GrpcConverter.from(request.getCreationDateUTC()))));
+                    Date.from(ProtoConverter.fromProto(request.getCreationDateUTC()))));
             responseObserver.onNext(buildWhiteboard(status));
             responseObserver.onCompleted();
         } catch (WhiteboardRepositoryException e) {
@@ -263,12 +264,12 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
         Date toDate = Date.from(Instant.ofEpochSecond(LocalDateTime.of(9999, 12, 31, 23, 59, 59)
             .toEpochSecond(ZoneOffset.UTC)));
         if (request.hasFromDateUTC()) {
-            fromDate = Date.from(GrpcConverter.from(request.getFromDateUTC()));
+            fromDate = Date.from(ProtoConverter.fromProto(request.getFromDateUTC()));
             LOG.info("WhiteboardApi::whiteboardsList: Parsed date lower bound to {}",
                 new SimpleDateFormat("dd MMMM yyyy zzzz").format(fromDate));
         }
         if (request.hasToDateUTC()) {
-            toDate = Date.from(GrpcConverter.from(request.getToDateUTC()));
+            toDate = Date.from(ProtoConverter.fromProto(request.getToDateUTC()));
             LOG.info("WhiteboardApi::whiteboardsList: Parsed date upper bound to {}",
                 new SimpleDateFormat("dd MMMM yyyy zzzz").format(toDate));
         }

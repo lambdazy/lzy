@@ -1,5 +1,6 @@
 package ai.lzy.whiteboard.util;
 
+import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.v1.LWBS;
 import ai.lzy.whiteboard.model.Whiteboard;
 
@@ -14,7 +15,7 @@ public class GrpcConverter {
             .setStorage(to(whiteboard.storage()))
             .setStatus(LWBS.Whiteboard.Status.valueOf(whiteboard.status().name()))
             .setNamespace(whiteboard.namespace())
-            .setCreatedAt(ai.lzy.model.GrpcConverter.to(whiteboard.createdAt()))
+            .setCreatedAt(ProtoConverter.toProto(whiteboard.createdAt()))
             .build();
     }
 

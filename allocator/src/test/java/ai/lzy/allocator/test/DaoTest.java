@@ -9,6 +9,7 @@ import ai.lzy.allocator.model.Operation;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.model.db.Storage;
+import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.TransactionHandleImpl;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.v1.VmAllocatorApi;
@@ -77,7 +78,7 @@ public class DaoTest {
             .setVmId("id")
             .build();
         Operation op;
-        try (final var tx = new TransactionHandleImpl(storage)) {
+        try (final var tx = TransactionHandle.create(storage)) {
             op = opDao.create("Some op", "test", Any.pack(meta), tx);
             // Do not commit
         }
@@ -85,7 +86,7 @@ public class DaoTest {
         final var op1 = opDao.get(op.id(), null);
         Assert.assertNull(op1);
 
-        try (final var tx = new TransactionHandleImpl(storage)) {
+        try (final var tx = TransactionHandle.create(storage)) {
             op = opDao.create("Some op", "test", Any.pack(meta), tx);
             tx.commit();
         }
@@ -108,7 +109,7 @@ public class DaoTest {
     }
 
     @Test
-    public void testVm() {
+    public void testVm() throws SQLException {
         final var wl1 = new Workload("wl1", "im", Map.of("a", "b"), List.of("a1", "a2"), Map.of(1111, 2222));
         final var vm = vmDao.create("session", "pool", "zone", List.of(wl1), "op1", Instant.now(), null);
 

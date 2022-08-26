@@ -4,6 +4,7 @@ import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.model.db.TransactionHandle;
 
+import java.sql.SQLException;
 import javax.annotation.Nullable;
 import java.time.Instant;
 import java.util.List;
@@ -28,7 +29,8 @@ public interface VmDao {
      * Find vm with this session and pool id with status IDLING and set its status to RUNNING
      */
     @Nullable
-    Vm acquire(String sessionId, String poolId, String zone, @Nullable TransactionHandle transaction);
+    Vm acquire(String sessionId, String poolId, String zone,
+               @Nullable TransactionHandle transaction) throws SQLException;
 
     void saveAllocatorMeta(String vmId, Map<String, String> meta, @Nullable TransactionHandle transaction);
 

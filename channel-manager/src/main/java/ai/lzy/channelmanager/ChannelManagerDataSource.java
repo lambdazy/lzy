@@ -24,9 +24,10 @@ public class ChannelManagerDataSource implements Storage {
     private final ComboPooledDataSource dataSource;
 
     @Inject
-    public ChannelManagerDataSource(ChannelManagerConfig.DbConfig dbConfig) {
-
+    public ChannelManagerDataSource(ChannelManagerConfig config) {
+        final var dbConfig = config.getDatabase();
         final ComboPooledDataSource dataSource = new ComboPooledDataSource();
+
         dataSource.setJdbcUrl(dbConfig.getUrl());
         dataSource.setUser(dbConfig.getUsername());
         dataSource.setPassword(dbConfig.getPassword());

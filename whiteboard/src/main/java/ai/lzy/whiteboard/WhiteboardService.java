@@ -3,8 +3,10 @@ package ai.lzy.whiteboard;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.model.db.NotFoundException;
 import ai.lzy.model.db.ReadMode;
+import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.TransactionHandleImpl;
 import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.v1.LWBS;
 import ai.lzy.v1.LzyWhiteboardServiceGrpc;
 import ai.lzy.whiteboard.model.Whiteboard;
@@ -90,7 +92,7 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
             final var linkedField = new Whiteboard.LinkedField(fieldName, request.getStorageUri(),
                 ai.lzy.model.GrpcConverter.contentTypeFrom(request.getScheme()));
 
-            try (final var transaction = new TransactionHandleImpl(dataSource)) {
+            try (final var transaction = TransactionHandle.create(dataSource)) {
                 final Whiteboard whiteboard = whiteboardStorage.getWhiteboard(
                     userId, whiteboardId, transaction, ReadMode.FOR_UPDATE
                 );
@@ -139,7 +141,7 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
             }
 
             final Instant finalizedAt = Instant.now();
-            try (final var transaction = new TransactionHandleImpl(dataSource)) {
+            try (final var transaction = TransactionHandle.create(dataSource)) {
                 final Whiteboard whiteboard = whiteboardStorage.getWhiteboard(
                     userId, whiteboardId, transaction, ReadMode.FOR_UPDATE
                 );
@@ -230,8 +232,8 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
                     }
 
                     yield whiteboards
-                        .filter(wb -> wb.createdAt().isAfter(ai.lzy.model.GrpcConverter.from(dateTimeQuery.getFrom())))
-                        .filter(wb -> wb.createdAt().isBefore(ai.lzy.model.GrpcConverter.from(dateTimeQuery.getTo())));
+                        .filter(wb -> wb.createdAt().isAfter(ProtoConverter.fromProto(dateTimeQuery.getFrom())))
+                        .filter(wb -> wb.createdAt().isBefore(ProtoConverter.fromProto(dateTimeQuery.getTo())));
                 }
                 default -> throw new IllegalArgumentException("Incorrect query type " + request.getQueryCase().name());
             };

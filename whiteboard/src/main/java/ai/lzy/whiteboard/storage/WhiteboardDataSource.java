@@ -25,9 +25,10 @@ public class WhiteboardDataSource implements Storage {
     private final ComboPooledDataSource dataSource;
 
     @Inject
-    public WhiteboardDataSource(WhiteboardConfig.DbConfig dbConfig) {
-
+    public WhiteboardDataSource(WhiteboardConfig config) {
+        final var dbConfig = config.getDatabase();
         final ComboPooledDataSource dataSource = new ComboPooledDataSource();
+
         dataSource.setJdbcUrl(dbConfig.getUrl());
         dataSource.setUser(dbConfig.getUsername());
         dataSource.setPassword(dbConfig.getPassword());

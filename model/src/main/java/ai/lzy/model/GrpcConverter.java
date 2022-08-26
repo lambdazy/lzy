@@ -109,10 +109,6 @@ public abstract class GrpcConverter {
             .map(ass -> new Context.SlotAssignment(ass.getTaskId(), from(ass.getSlot()), ass.getBinding()));
     }
 
-    public static Instant from(Timestamp date) {
-        return Instant.ofEpochSecond(date.getSeconds(), date.getNanos());
-    }
-
     public static ExecutionSnapshot from(LzyWhiteboard.ExecutionDescription description) {
         ArrayList<ExecutionValue> outputs = new ArrayList<>();
         ArrayList<InputExecutionValue> inputs = new ArrayList<>();
@@ -371,13 +367,6 @@ public abstract class GrpcConverter {
             .setTaskId(slotInstance.taskId())
             .setChannelId(slotInstance.channelId())
             .setSlotUri(slotInstance.uri().toString())
-            .build();
-    }
-
-    public static Timestamp to(Instant time) {
-        return Timestamp.newBuilder()
-            .setSeconds(time.getEpochSecond())
-            .setNanos(time.getNano())
             .build();
     }
 

@@ -7,7 +7,7 @@ import ai.lzy.model.db.ProtoObjectMapper;
 import ai.lzy.model.db.ReadMode;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
-import ai.lzy.model.db.TransactionHandleDelegate;
+import ai.lzy.model.db.DelegatingTransactionHandle;
 import ai.lzy.whiteboard.model.Whiteboard;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
@@ -47,7 +47,7 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                                  @Nullable TransactionHandle outerTransaction) throws SQLException
     {
         LOG.debug("Inserting whiteboard (userId={},whiteboardId={})", userId, whiteboard.id());
-        try (final TransactionHandle transaction = new TransactionHandleDelegate(dataSource, outerTransaction)) {
+        try (final TransactionHandle transaction = TransactionHandle.getOrCreate(dataSource, outerTransaction)) {
             insertWhiteboardInfo(userId, whiteboard, transaction);
             insertWhiteboardFieldNames(whiteboard.id(), whiteboard.createdFieldNames(), transaction);
             insertWhiteboardTags(whiteboard.id(), whiteboard.tags(), transaction);

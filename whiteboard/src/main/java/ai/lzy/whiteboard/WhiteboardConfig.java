@@ -1,6 +1,7 @@
 package ai.lzy.whiteboard;
 
 import ai.lzy.iam.config.IamClientConfiguration;
+import ai.lzy.model.db.DatabaseConfiguration;
 import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
 import lombok.Getter;
@@ -15,14 +16,6 @@ public class WhiteboardConfig {
     @ConfigurationBuilder("iam")
     private final IamClientConfiguration iam = new IamClientConfiguration();
 
-    @Getter
-    @Setter
-    @ConfigurationProperties("database")
-    public static final class DbConfig {
-        private String url;
-        private String username;
-        private String password;
-        private int minPoolSize;
-        private int maxPoolSize;
-    }
+    @ConfigurationBuilder("database")
+    private final DatabaseConfiguration database = new DatabaseConfiguration();
 }

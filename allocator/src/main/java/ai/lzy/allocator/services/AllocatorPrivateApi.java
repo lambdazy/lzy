@@ -10,7 +10,7 @@ import ai.lzy.allocator.dao.impl.AllocatorDataSource;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.model.db.Storage;
-import ai.lzy.model.db.TransactionHandleImpl;
+import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.v1.AllocatorPrivateGrpc.AllocatorPrivateImplBase;
 import ai.lzy.v1.VmAllocatorApi.AllocateResponse;
 import ai.lzy.v1.VmAllocatorPrivateApi.HeartbeatRequest;
@@ -60,7 +60,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
     @Override
     public void register(RegisterRequest request, StreamObserver<RegisterResponse> responseObserver) {
         Vm vm = null;
-        try (final var transaction = new TransactionHandleImpl(storage)) {
+        try (final var transaction = TransactionHandle.create(storage)) {
             vm = dao.get(request.getVmId(), transaction);
             if (vm == null) {
                 LOG.error("VM {} does not exist", request.getVmId());

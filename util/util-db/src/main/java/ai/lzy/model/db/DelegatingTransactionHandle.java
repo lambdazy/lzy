@@ -5,17 +5,17 @@ import java.sql.SQLException;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
-public class TransactionHandleDelegate implements TransactionHandle {
+public class DelegatingTransactionHandle implements TransactionHandle {
 
     private final TransactionHandle transaction;
     private final boolean acquired;
 
-    public TransactionHandleDelegate(TransactionHandle transaction) {
-        this.transaction = Objects.requireNonNull(transaction);
+    DelegatingTransactionHandle(TransactionHandle transaction) {
+        this.transaction = transaction;
         acquired = true;
     }
 
-    public TransactionHandleDelegate(Storage storage, @Nullable TransactionHandle transaction) {
+    DelegatingTransactionHandle(Storage storage, @Nullable TransactionHandle transaction) {
         if (transaction == null) {
             this.transaction = new TransactionHandleImpl(storage);
             acquired = false;

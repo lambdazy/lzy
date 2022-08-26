@@ -6,7 +6,6 @@ import ai.lzy.allocator.model.Workload;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
-import ai.lzy.model.db.TransactionHandleImpl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -162,42 +161,36 @@ public class VmDaoImpl implements VmDao {
 
     @Nullable
     @Override
-    public Vm acquire(String sessionId, String poolId, String zone, @Nullable TransactionHandle transaction) {
+    public Vm acquire(String sessionId, String poolId, String zone,
+                      @Nullable TransactionHandle outerTransaction) throws SQLException
+    {
         final Vm[] vm = new Vm[1];
-        final var tx = transaction == null ? new TransactionHandleImpl(storage) : transaction;
-        DbOperation.execute(tx, storage, con -> {
-            try (final var s = con.prepareStatement(
-                "SELECT " + FIELDS + """
-                 FROM vm
-                 WHERE session_id = ? AND pool_label = ? AND zone = ? AND state = 'IDLE'
-                 LIMIT 1
-                 FOR UPDATE"""))
-            {
-                s.setString(1, sessionId);
-                s.setString(2, poolId);
-                s.setString(3, zone);
-                final var res = s.executeQuery();
-                if (!res.next()) {
-                    vm[0] = null;
-                    return;
+        try (final var transaction = TransactionHandle.getOrCreate(storage, outerTransaction)) {
+                DbOperation.execute(transaction, storage, con -> {
+                    try (final var s = con.prepareStatement(
+                        "SELECT " + FIELDS + """
+                     FROM vm
+                     WHERE session_id = ? AND pool_label = ? AND zone = ? AND state = 'IDLE'
+                     LIMIT 1
+                     FOR UPDATE"""))
+                {
+                    s.setString(1, sessionId);
+                    s.setString(2, poolId);
+                    s.setString(3, zone);
+                    final var res = s.executeQuery();
+                    if (!res.next()) {
+                        vm[0] = null;
+                        return;
+                    }
+                    vm[0] = readVm(res);
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException("Cannot dump values", e);
                 }
-                vm[0] = readVm(res);
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException("Cannot dump values", e);
-            }
-        });
+            });
 
-        if (vm[0] != null) {
-            vm[0] = new Vm.VmBuilder(vm[0]).setState(Vm.State.RUNNING).build();
-            update(vm[0], tx);
-        }
-
-        if (transaction == null) {  // If executing in local transaction
-            try {
-                tx.commit();
-                tx.close();
-            } catch (SQLException e) {
-                throw new RuntimeException("Cannot close transaction", e);
+            if (vm[0] != null) {
+                vm[0] = new Vm.VmBuilder(vm[0]).setState(Vm.State.RUNNING).build();
+                update(vm[0], transaction);
             }
         }
 
