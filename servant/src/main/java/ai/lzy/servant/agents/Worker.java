@@ -103,7 +103,7 @@ public class Worker {
         }
 
         try {
-            allocatorAgent = new AllocatorAgent(token, vmId, allocatorAddress, allocatorHeartbeatPeriod);
+            allocatorAgent = new AllocatorAgent(token, vmId, allocatorAddress, allocatorHeartbeatPeriod, realHost);
         } catch (AllocatorAgent.RegisterException e) {
             throw new RuntimeException(e);
         }

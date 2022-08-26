@@ -39,8 +39,8 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
     final ApplicationContext ctx;
     final Server server;
 
-    public ChannelManagerMock() {
-        port = GrpcUtils.rollPort();
+    public ChannelManagerMock(int port) {
+        this.port = port;
         Map<String, Object> properties = Map.of("channel-manager.port", port);
         ctx = ApplicationContext.run(properties);
         server = NettyServerBuilder.forPort(port)

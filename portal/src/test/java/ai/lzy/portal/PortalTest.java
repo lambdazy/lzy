@@ -1,5 +1,7 @@
 package ai.lzy.portal;
 
+import ai.lzy.allocator.AllocatorAgent;
+import ai.lzy.fs.LzyFsServer;
 import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.SlotInstance;
 import ai.lzy.portal.config.PortalConfig;
@@ -14,9 +16,11 @@ import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.google.common.net.HostAndPort;
 import com.google.protobuf.Empty;
 import io.findify.s3mock.S3Mock;
 import io.grpc.ManagedChannel;
+import io.micronaut.context.ApplicationContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.After;
@@ -34,8 +38,12 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
-public abstract class PortalTest {
+import static ai.lzy.model.UriScheme.LzyFs;
+
+public class PortalTest {
     private static final Logger LOG = LogManager.getLogger(PortalTest.class);
+
+    private final ApplicationContext context = ApplicationContext.run("test");
 
     protected ServerMock server;
     private ChannelManagerMock channelManager;
@@ -46,10 +54,10 @@ public abstract class PortalTest {
     protected static final String S3_ADDRESS = "http://localhost:" + S3_PORT;
     protected static final String BUCKET_NAME = "lzy-bucket";
 
-    protected S3Mock s3;
+    private S3Mock s3;
 
-    protected LzyPortalGrpc.LzyPortalBlockingStub portalStub;
-    protected LzyFsGrpc.LzyFsBlockingStub portalFsStub;
+    private LzyPortalGrpc.LzyPortalBlockingStub portalStub;
+    private LzyFsGrpc.LzyFsBlockingStub portalFsStub;
 
     @Before
     public void before() throws IOException {
@@ -57,10 +65,13 @@ public abstract class PortalTest {
         startS3();
         server = new ServerMock();
         server.startup();
-        channelManager = new ChannelManagerMock();
-        channelManager.start();
         servants = new HashMap<>();
-        startPortal();
+        var config = context.getBean(PortalConfig.class);
+        channelManager = new ChannelManagerMock(Integer.parseInt(
+            config.getChannelManagerAddress().substring("localhost:".length())
+        ));
+        channelManager.start();
+        startPortal(config);
     }
 
     @After
@@ -95,35 +106,33 @@ public abstract class PortalTest {
         }
     }
 
-    private void startPortal() {
+    private void startPortal(PortalConfig config) {
         createChannel("portal:stdout");
         createChannel("portal:stderr");
 
-        int portalPort = GrpcUtils.rollPort();
-        int fsPort = GrpcUtils.rollPort();
-        portal = new Portal(PortalConfig.builder()
-            .portalId("portal")
-            .apiPort(portalPort)
-            .host("localhost")
-            .token("token_portal")
-            .stdoutChannelId("portal:stdout")
-            .stderrChannelId("portal:stderr")
-            .vmId("portal_vm")
-            .allocatorAddress("localhost:" + server.port)
-            .allocatorHeartbeatPeriod(Duration.ofSeconds(5))
-            .fsPort(fsPort)
-            .fsRoot("/tmp/lzy_portal/")
-            .channelManagerAddress("localhost:" + channelManager.port())
-            .build());
-        portal.start();
+        try {
+            var fsUri = new URI(LzyFs.scheme(), null, config.getHost(), config.getFsApiPort(), null, null, null);
+            var cm = HostAndPort.fromString(config.getChannelManagerAddress());
+            var channelManagerUri = new URI("http", null, cm.getHost(), cm.getPort(), null, null, null);
+
+            var agent = new AllocatorAgent("portal_token", "portal_vm",
+                "localhost:" + server.port, Duration.ofSeconds(5), "localhost");
+            var fs = new LzyFsServer(config.getPortalId(), config.getFsRoot(), fsUri, channelManagerUri,
+                config.getToken());
+
+            portal = new Portal(config, agent, fs);
+            portal.start();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
 
         portalStub = LzyPortalGrpc.newBlockingStub(
-            ChannelBuilder.forAddress("localhost", portalPort)
+            ChannelBuilder.forAddress("localhost", config.getPortalApiPort())
                 .usePlaintext()
                 .enableRetry(LzyPortalGrpc.SERVICE_NAME)
                 .build());
         portalFsStub = LzyFsGrpc.newBlockingStub(
-            ChannelBuilder.forAddress("localhost", fsPort)
+            ChannelBuilder.forAddress("localhost", config.getFsApiPort())
                 .usePlaintext()
                 .enableRetry(LzyFsGrpc.SERVICE_NAME)
                 .build());
