@@ -10,6 +10,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import jakarta.inject.Singleton;
+import lombok.Lombok;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -23,7 +24,7 @@ public class SessionDaoImpl implements SessionDao {
 
     private final Storage storage;
     private final ObjectMapper objectMapper;
-    private volatile RuntimeException injectedError = null;
+    private volatile Throwable injectedError = null;
 
     public SessionDaoImpl(AllocatorDataSource storage, ObjectMapper objectMapper) {
         this.storage = storage;
@@ -101,7 +102,7 @@ public class SessionDaoImpl implements SessionDao {
     }
 
     @VisibleForTesting
-    public void injectError(RuntimeException error) {
+    public void injectError(Throwable error) {
         injectedError = error;
     }
 
@@ -109,7 +110,7 @@ public class SessionDaoImpl implements SessionDao {
         final var error = injectedError;
         if (error != null) {
             injectedError = null;
-            throw error;
+            Lombok.sneakyThrow(error);
         }
     }
 

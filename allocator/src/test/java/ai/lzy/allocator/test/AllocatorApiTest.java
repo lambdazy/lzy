@@ -8,6 +8,7 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.impl.AllocatorDataSource;
 import ai.lzy.allocator.dao.impl.SessionDaoImpl;
 import ai.lzy.iam.test.BaseTestWithIam;
+import ai.lzy.model.db.RetryableSqlOperation;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.util.auth.credentials.JwtUtils;
@@ -39,6 +40,7 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.sql.SQLException;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -240,7 +242,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
 
     @Test
     public void errorWhileCreatingSession() {
-        allocatorCtx.getBean(SessionDaoImpl.class).injectError(new RuntimeException("any error message here"));
+        allocatorCtx.getBean(SessionDaoImpl.class).injectError(new SQLException("non retryable", "xxx"));
 
         try {
             var resp = authorizedAllocatorBlockingStub.createSession(
@@ -253,8 +255,23 @@ public class AllocatorApiTest extends BaseTestWithIam {
             Assert.fail(resp.getSessionId());
         } catch (StatusRuntimeException e) {
             Assert.assertEquals(Status.Code.INTERNAL, e.getStatus().getCode());
-            Assert.assertEquals("any error message here", e.getStatus().getDescription());
+            Assert.assertEquals("non retryable", e.getStatus().getDescription());
         }
+    }
+
+    @Test
+    public void retryableSqlErrorWhileCreatingSession() {
+        allocatorCtx.getBean(SessionDaoImpl.class).injectError(
+            new SQLException("retry plz", RetryableSqlOperation.PSQL_CannotSerializeTransaction));
+
+        var resp = authorizedAllocatorBlockingStub.createSession(
+            CreateSessionRequest.newBuilder()
+                .setOwner(UUID.randomUUID().toString())
+                .setCachePolicy(CachePolicy.newBuilder()
+                    .setIdleTimeout(ProtoConverter.toProto(java.time.Duration.ofHours(1)))
+                    .build())
+                .build());
+        Assert.assertNotNull(resp.getSessionId());
     }
 
     @Test

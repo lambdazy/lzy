@@ -12,6 +12,7 @@ import ai.lzy.allocator.model.Session;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.metrics.MetricReporter;
+import ai.lzy.model.db.RetryableSqlOperation;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.util.grpc.ProtoConverter;
@@ -33,6 +34,9 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.util.UUID;
 import java.util.function.BiFunction;
+
+import static ai.lzy.model.db.RetryableSqlOperation.defaultRetryPolicy;
+import static ai.lzy.model.db.RetryableSqlOperation.withRetries;
 
 @Singleton
 @Requires(beans = MetricReporter.class)
@@ -76,39 +80,47 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         final var minIdleTimeout = ProtoConverter.fromProto(request.getCachePolicy().getIdleTimeout());
         final var policy = new CachePolicy(minIdleTimeout);
 
-        final Session session;
         try {
-            session = sessions.create(request.getOwner(), policy, null);
+            var session = withRetries(defaultRetryPolicy(), LOG, seq -> sessions.create(request.getOwner(), policy, null));
+
+            responseObserver.onNext(CreateSessionResponse.newBuilder()
+                .setSessionId(session.sessionId())
+                .build());
+            responseObserver.onCompleted();
+        } catch (RetryableSqlOperation.RetryCountExceededException e) {
+            LOG.error("Cannot create session: database retries limit exceeded");
+            responseObserver.onError(
+                Status.INTERNAL.withDescription("Database error").asException());
         } catch (Exception e) {
             LOG.error("Cannot create session: {}", e.getMessage(), e);
             responseObserver.onError(
                 Status.INTERNAL.withDescription(e.getMessage()).asException());
-            return;
         }
-
-        responseObserver.onNext(CreateSessionResponse.newBuilder()
-            .setSessionId(session.sessionId())
-            .build());
-        responseObserver.onCompleted();
     }
 
     @Override
     public void deleteSession(DeleteSessionRequest request, StreamObserver<DeleteSessionResponse> responseObserver) {
         try {
-            sessions.delete(request.getSessionId(), null);
-            dao.delete(request.getSessionId());
+            withRetries(defaultRetryPolicy(), LOG, seq -> {
+                sessions.delete(request.getSessionId(), null);
+                dao.delete(request.getSessionId());
+                return (Void) null;
+            });
+
+            responseObserver.onNext(DeleteSessionResponse.getDefaultInstance());
+            responseObserver.onCompleted();
+        } catch (RetryableSqlOperation.RetryCountExceededException e) {
+            LOG.error("Error while executing `deleteSession` request, sessionId={}: Database error",
+                request.getSessionId());
+            responseObserver.onError(
+                Status.INTERNAL.withDescription("Database error").asException());
         } catch (Exception e) {
             LOG.error("Error while executing `deleteSession` request, sessionId={}: {}",
                 request.getSessionId(), e.getMessage(), e);
             responseObserver.onError(
                 Status.INTERNAL.withDescription(e.getMessage()).asException());
-            return;
         }
-
-        responseObserver.onNext(DeleteSessionResponse.getDefaultInstance());
-        responseObserver.onCompleted();
     }
-
 
     @Override
     public void allocate(AllocateRequest request, StreamObserver<Operation> responseObserver) {
@@ -177,12 +189,6 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                     .putAllMetadata(existingVm.vmMeta())
                     .build()));
                 operations.update(op, transaction);
-
-                dao.update(
-                    Vm.from(existingVm)
-                        .setState(Vm.State.RUNNING)
-                        .build(),
-                    transaction);
 
                 transaction.commit();
 
