@@ -157,7 +157,11 @@ public class ChannelManager {
                 final String workflowId = request.getWorkflowId();
                 final Channels.ChannelSpec channelSpec = request.getChannelSpec();
                 if (workflowId.isBlank() || !isChannelSpecValid(channelSpec)) {
-                    throw new IllegalArgumentException("Request shouldn't contain empty fields");
+                    String errorMessage = "Request shouldn't contain empty fields";
+                    LOG.error("Create channel {} failed, invalid argument: {}",
+                        request.getChannelSpec().getChannelName(), errorMessage);
+                    responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(errorMessage).asException());
+                    return;
                 }
 
                 final String channelName = channelSpec.getChannelName();
@@ -168,6 +172,7 @@ public class ChannelManager {
                  */
                 final String channelId = String.join("-", "channel", userId, workflowId)
                     .replaceAll("[^a-zA-z0-9-]+", "-") + "!" + channelName;
+
                 final var channelType = channelSpec.getTypeCase();
                 final ChannelSpec spec = switch (channelSpec.getTypeCase()) {
                     case DIRECT -> new DirectChannelSpec(
@@ -217,14 +222,20 @@ public class ChannelManager {
             try {
                 final String channelId = request.getChannelId();
                 if (channelId.isBlank()) {
-                    throw new IllegalArgumentException("Empty channel id, request shouldn't contain empty fields");
+                    String errorMessage = "Empty channel id, request shouldn't contain empty fields";
+                    LOG.error("Destroy channel {} failed, invalid argument: {}", request.getChannelId(), errorMessage);
+                    responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(errorMessage).asException());
+                    return;
                 }
 
                 channelStorage.setChannelLifeStatus(channelId, ChannelLifeStatus.DESTROYING, null);
 
                 final Channel channel = channelStorage.findChannel(channelId, ChannelLifeStatus.DESTROYING, null);
                 if (channel == null) {
-                    throw new NotFoundException("Channel with id " + channelId + " not found");
+                    String errorMessage = "Channel with id " + channelId + " not found";
+                    LOG.error("Destroy channel {} failed, channel not found", request.getChannelId());
+                    responseObserver.onError(Status.NOT_FOUND.withDescription(errorMessage).asException());
+                    return;
                 }
 
                 channel.destroy();
@@ -237,9 +248,6 @@ public class ChannelManager {
                 LOG.error("Destroy channel {} failed, invalid argument: {}",
                     request.getChannelId(), e.getMessage(), e);
                 responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
-            } catch (NotFoundException e) {
-                LOG.error("Destroy channel {} failed, channel not found", request.getChannelId(), e);
-                responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asException());
             } catch (Exception e) {
                 LOG.error("Destroy channel {} failed, got exception: {}",
                     request.getChannelId(), e.getMessage(), e);
@@ -258,7 +266,11 @@ public class ChannelManager {
                 final String userId = Objects.requireNonNull(authenticationContext).getSubject().id();
                 final String workflowId = request.getWorkflowId();
                 if (workflowId.isBlank()) {
-                    throw new IllegalArgumentException("Empty workflow id, request shouldn't contain empty fields");
+                    String errorMessage = "Empty workflow id, request shouldn't contain empty fields";
+                    LOG.error("Destroying all channels for workflow {} failed, invalid argument: {}",
+                        request.getWorkflowId(), errorMessage);
+                    responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(errorMessage).asException());
+                    return;
                 }
 
                 channelStorage.setChannelLifeStatus(userId, workflowId, ChannelLifeStatus.DESTROYING, null);
@@ -294,12 +306,18 @@ public class ChannelManager {
             try {
                 final String channelId = request.getChannelId();
                 if (channelId.isBlank()) {
-                    throw new IllegalArgumentException("Empty channel id, request shouldn't contain empty fields");
+                    String errorMessage = "Empty channel id, request shouldn't contain empty fields";
+                    LOG.error("Destroy channel {} failed, invalid argument: {}", request.getChannelId(), errorMessage);
+                    responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(errorMessage).asException());
+                    return;
                 }
 
                 final Channel channel = channelStorage.findChannel(channelId, ChannelLifeStatus.ALIVE, null);
                 if (channel == null) {
-                    throw new NotFoundException("Channel with id " + channelId + " not found");
+                    String errorMessage = "Channel with id " + channelId + " not found";
+                    LOG.error("Get status for channel {} failed, channel not found", request.getChannelId());
+                    responseObserver.onError(Status.NOT_FOUND.withDescription(errorMessage).asException());
+                    return;
                 }
 
                 responseObserver.onNext(toChannelStatus(channel));
@@ -309,9 +327,6 @@ public class ChannelManager {
                 LOG.error("Destroy channel {} failed, invalid argument: {}",
                     request.getChannelId(), e.getMessage(), e);
                 responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
-            } catch (NotFoundException e) {
-                LOG.error("Get status for channel {} failed, channel not found", request.getChannelId(), e);
-                responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asException());
             } catch (Exception e) {
                 LOG.error("Get status for channel {} failed, got exception: {}",
                     request.getChannelId(), e.getMessage(), e);
@@ -328,7 +343,11 @@ public class ChannelManager {
                 final String userId = Objects.requireNonNull(authenticationContext).getSubject().id();
                 final String workflowId = request.getWorkflowId();
                 if (workflowId.isBlank()) {
-                    throw new IllegalArgumentException("Empty workflow id, request shouldn't contain empty fields");
+                    String errorMessage = "Empty workflow id, request shouldn't contain empty fields";
+                    LOG.error("Destroying all channels for workflow {} failed, invalid argument: {}",
+                        request.getWorkflowId(), errorMessage);
+                    responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(errorMessage).asException());
+                    return;
                 }
 
                 List<Channel> channels = channelStorage.listChannels(userId, workflowId, ChannelLifeStatus.ALIVE, null);
@@ -359,7 +378,13 @@ public class ChannelManager {
                 JsonUtils.printRequest(attach));
 
             if (!isSlotInstanceValid(attach.getSlotInstance())) {
-                throw new IllegalArgumentException("Request shouldn't contain empty fields");
+                String errorMessage = "Request shouldn't contain empty fields";
+                LOG.error("Bind slot={} to channel={} failed, invalid argument: {}",
+                    attach.getSlotInstance().getSlot().getName(),
+                    attach.getSlotInstance().getChannelId(),
+                    errorMessage);
+                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(errorMessage).asException());
+                return;
             }
 
             try {
@@ -370,37 +395,39 @@ public class ChannelManager {
                 final String channelId = slotInstance.channelId();
 
                 try (final var transaction = new TransactionHandle(dataSource)) {
-                    channelStorage.lockChannel(channelId, transaction);
-
                     final Channel channel = channelStorage.findChannel(channelId, ChannelLifeStatus.ALIVE, transaction);
                     if (channel == null) {
-                        throw new NotFoundException("Channel with id " + channelId + " not found");
+                        String errorMessage = "Channel with id " + channelId + " not found";
+                        LOG.error("Bind slot={} to channel={} failed, channel not found",
+                            attach.getSlotInstance().getSlot().getName(), attach.getSlotInstance().getChannelId());
+                        responseObserver.onError(Status.NOT_FOUND.withDescription(errorMessage).asException());
+                        return;
                     }
 
                     List<String> boundChannels = channelStorage.listBoundChannels(
                         userId, channel.workflowId(), endpoint.uri().toString(), transaction
                     );
-                    if (boundChannels.size() > 0) {
-                        if (boundChannels.size() == 1) {
-                            final String otherChannelId = boundChannels.get(0);
-                            if (channelId.equals(otherChannelId)) {
-                                LOG.warn("Endpoint {} is already bound to this channel", endpoint);
-                            } else {
-                                throw new IllegalArgumentException(
-                                    endpoint + " is bound to another channel " + otherChannelId
-                                );
-                            }
+                    if (boundChannels.size() > 1) {
+                        throw new IllegalStateException(endpoint + " is bound to more than one channel");
+                    }
+                    if (boundChannels.size() != 0) {
+                        final String otherChannelId = boundChannels.get(0);
+                        if (channelId.equals(otherChannelId)) {
+                            LOG.warn("Endpoint {} is already bound to this channel", endpoint);
                         } else {
-                            throw new IllegalStateException(endpoint + " is bound to more than one channel");
+                            String errorMessage = endpoint + " is bound to another channel " + otherChannelId;
+                            LOG.error("Bind slot={} to channel={} failed, invalid argument: {}",
+                                attach.getSlotInstance().getSlot().getName(),
+                                attach.getSlotInstance().getChannelId(),
+                                errorMessage);
+                            responseObserver.onError(Status.INVALID_ARGUMENT
+                                .withDescription(errorMessage).asException());
+                            return;
                         }
                     }
 
                     final Stream<Endpoint> newBound;
-                    try {
-                        newBound = channel.bind(endpoint);
-                    } catch (ChannelException e) {
-                        throw new IllegalArgumentException(e);
-                    }
+                    newBound = channel.bind(endpoint);
 
                     channelStorage.insertEndpoint(channelId, endpoint, transaction);
                     final Map<Endpoint, Endpoint> addedEdges = switch (endpoint.slotSpec().direction()) {
@@ -416,16 +443,12 @@ public class ChannelManager {
                 LOG.info("Bind slot={} to channel={} done",
                     attach.getSlotInstance().getSlot().getName(), attach.getSlotInstance().getChannelId());
                 responseObserver.onCompleted();
-            } catch (IllegalArgumentException e) {
+            } catch (ChannelException | IllegalArgumentException e) {
                 LOG.error("Bind slot={} to channel={} failed, invalid argument: {}",
                     attach.getSlotInstance().getSlot().getName(),
                     attach.getSlotInstance().getChannelId(),
                     e.getMessage(), e);
                 responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
-            } catch (NotFoundException e) {
-                LOG.error("Bind slot={} to channel={} failed, channel not found",
-                    attach.getSlotInstance().getSlot().getName(), attach.getSlotInstance().getChannelId(), e);
-                responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asException());
             } catch (Exception e) {
                 LOG.error("Bind slot={} to channel={} failed, got exception: {}",
                     attach.getSlotInstance().getSlot().getName(),
@@ -443,7 +466,13 @@ public class ChannelManager {
                 JsonUtils.printRequest(detach));
 
             if (!isSlotInstanceValid(detach.getSlotInstance())) {
-                throw new IllegalArgumentException("Request shouldn't contain empty fields");
+                String errorMessage = "Request shouldn't contain empty fields";
+                LOG.error("Unbind slot={} to channel={} failed, invalid argument: {}",
+                    detach.getSlotInstance().getSlot().getName(),
+                    detach.getSlotInstance().getChannelId(),
+                    errorMessage);
+                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(errorMessage).asException());
+                return;
             }
 
             try {
@@ -452,19 +481,16 @@ public class ChannelManager {
                 final String channelId = slotInstance.channelId();
 
                 try (final var transaction = new TransactionHandle(dataSource)) {
-                    channelStorage.lockChannel(channelId, transaction);
-
                     final Channel channel = channelStorage.findChannel(channelId, ChannelLifeStatus.ALIVE, transaction);
                     if (channel == null) {
-                        throw new NotFoundException("Channel with id " + channelId + " not found");
+                        String errorMessage = "Channel with id " + channelId + " not found";
+                        LOG.error("Unbind slot={} to channel={} failed, channel not found",
+                            detach.getSlotInstance().getSlot().getName(), detach.getSlotInstance().getChannelId());
+                        responseObserver.onError(Status.NOT_FOUND.withDescription(errorMessage).asException());
+                        return;
                     }
 
-                    try {
-                        channel.unbind(endpoint);
-                    } catch (ChannelException e) {
-                        throw new IllegalArgumentException(e);
-                    }
-
+                    channel.unbind(endpoint);
                     channelStorage.removeEndpointWithConnections(channelId, endpoint, transaction);
 
                     transaction.commit();
@@ -472,16 +498,12 @@ public class ChannelManager {
 
                 responseObserver.onNext(SlotDetachStatus.getDefaultInstance());
                 responseObserver.onCompleted();
-            } catch (IllegalArgumentException e) {
+            } catch (ChannelException | IllegalArgumentException e) {
                 LOG.error("Unbind slot={} to channel={} failed, invalid argument: {}",
                     detach.getSlotInstance().getSlot().getName(),
                     detach.getSlotInstance().getChannelId(),
                     e.getMessage(), e);
                 responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
-            } catch (NotFoundException e) {
-                LOG.error("Unbind slot={} to channel={} failed, channel not found",
-                    detach.getSlotInstance().getSlot().getName(), detach.getSlotInstance().getChannelId(), e);
-                responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asException());
             } catch (Exception e) {
                 LOG.error("Unbind slot={} to channel={} failed, got exception: {}",
                     detach.getSlotInstance().getSlot().getName(),
