@@ -1,6 +1,6 @@
 #!/bin/bash
 
-su - postgres
+sudo su - postgres
 
 createuser lzy_user
 psql -c "alter user lzy_user with encrypted password 'q'"
