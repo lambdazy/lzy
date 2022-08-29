@@ -81,7 +81,8 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         final var policy = new CachePolicy(minIdleTimeout);
 
         try {
-            var session = withRetries(defaultRetryPolicy(), LOG, seq -> sessions.create(request.getOwner(), policy, null));
+            var session = withRetries(defaultRetryPolicy(), LOG,
+                seq -> sessions.create(request.getOwner(), policy, null));
 
             responseObserver.onNext(CreateSessionResponse.newBuilder()
                 .setSessionId(session.sessionId())
