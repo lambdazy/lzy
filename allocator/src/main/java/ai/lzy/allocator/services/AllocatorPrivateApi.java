@@ -28,6 +28,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.inject.Inject;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Set;
@@ -105,12 +106,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
 
             if (op.error() != null && op.error().getCode() == Status.Code.CANCELLED) {
                 // Op is cancelled by client, add VM to cache
-                dao.update(
-                    Vm.from(vm)
-                        .setDeadline(Instant.now().plus(session.cachePolicy().minIdleTimeout()))
-                        .setState(Vm.State.IDLE)
-                        .build(),
-                    transaction);
+                dao.release(vm.vmId(), Instant.now().plus(session.cachePolicy().minIdleTimeout()), transaction);
 
                 transaction.commit();
 
@@ -163,11 +159,22 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
 
     @Override
     public void heartbeat(HeartbeatRequest request, StreamObserver<HeartbeatResponse> responseObserver) {
-        final var vm = dao.get(request.getVmId(), null);
+        final Vm vm;
+        try {
+            vm = dao.get(request.getVmId(), null);
+        } catch (SQLException e) {
+            // TODO: retry
+            LOG.error("Cannot read VM {}: {}", request.getVmId(), e.getMessage(), e);
+            responseObserver.onError(
+                Status.INTERNAL.withDescription("Database error: " + e.getMessage()).asException());
+            return;
+        }
+
         if (vm == null) {
             LOG.error("Heartbeat from unknown VM {}", request.getVmId());
             metrics.hbUnknownVm.inc();
-            responseObserver.onError(Status.NOT_FOUND.withDescription("Vm with this id not found").asException());
+            responseObserver.onError(
+                Status.NOT_FOUND.withDescription("Vm not found").asException());
             return;
         }
 
@@ -179,13 +186,17 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
                 Status.FAILED_PRECONDITION.withDescription("Wrong state for heartbeat").asException());
         }
 
-        dao.update(
-            Vm.from(vm)
-                .setLastActivityTime(Instant.now().plus(config.getHeartbeatTimeout()))
-                .build(),
-            null);
+        try {
+            // TODO: rename `lastActivityTime` to `activityDeadline`
+            // TODO: retry
+            dao.updateLastActivityTime(vm.vmId(), Instant.now().plus(config.getHeartbeatTimeout()));
+        } catch (Exception e) {
+            LOG.error("Cannot update VM {} last activity time: {}", vm, e.getMessage(), e);
+            responseObserver.onError(
+                Status.INTERNAL.withDescription("Database error: " + e.getMessage()).asException());
+        }
 
-        responseObserver.onNext(HeartbeatResponse.newBuilder().build());
+        responseObserver.onNext(HeartbeatResponse.getDefaultInstance());
         responseObserver.onCompleted();
     }
 

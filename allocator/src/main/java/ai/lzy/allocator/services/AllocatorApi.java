@@ -29,8 +29,10 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.sql.SQLException;
 import java.time.Instant;
-import java.util.List;
+import java.util.UUID;
+import java.util.function.BiFunction;
 
 @Singleton
 @Requires(beans = MetricReporter.class)
@@ -94,15 +96,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
     public void deleteSession(DeleteSessionRequest request, StreamObserver<DeleteSessionResponse> responseObserver) {
         try {
             sessions.delete(request.getSessionId(), null);
-
-            final List<Vm> vms = dao.list(request.getSessionId(), null);
-            vms.forEach(vm ->
-                dao.update(
-                    Vm.from(vm)
-                        .setState(Vm.State.DELETING)
-                        .build(),
-                    null)
-            );
+            dao.delete(request.getSessionId());
         } catch (Exception e) {
             LOG.error("Error while executing `deleteSession` request, sessionId={}: {}",
                 request.getSessionId(), e.getMessage(), e);
@@ -138,11 +132,32 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             return;
         }
 
-        var op = operations.create(
-            "Allocating VM",
-            session.owner(),
-            Any.pack(AllocateMetadata.getDefaultInstance()),
-            null);
+        ai.lzy.allocator.model.Operation op;
+        try {
+            op = operations.create(
+                UUID.randomUUID().toString(),
+                "Allocating VM",
+                session.owner(),
+                Any.pack(AllocateMetadata.getDefaultInstance()),
+                null);
+        } catch (Exception e) {
+            LOG.error("Cannot create allocate vm operation for session {}: {}",
+                request.getSessionId(), e.getMessage(), e);
+            responseObserver.onError(
+                Status.INTERNAL.withDescription(e.getMessage()).asException());
+            return;
+        }
+
+        BiFunction<ai.lzy.allocator.model.Operation, String, ai.lzy.allocator.model.Operation> failOperation =
+            (opa, msg) -> {
+                opa = opa.complete(Status.INTERNAL.withDescription(msg));
+                try {
+                    operations.update(opa, null);
+                } catch (SQLException e) {
+                    LOG.error("Cannot fail operation {} with reason {}: {}", opa, msg, e.getMessage(), e);
+                }
+                return opa;
+            };
 
         Vm vm;
         try (var transaction = new TransactionHandle(storage)) {
@@ -205,8 +220,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             responseObserver.onCompleted();
         } catch (Exception e) {
             LOG.error("Error while executing transaction", e);
-            op = op.complete(Status.INTERNAL.withDescription(e.getMessage()));
-            operations.update(op, null);
+            op = failOperation.apply(op, e.getMessage());
 
             metrics.allocationError.inc();
 
@@ -228,7 +242,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         } catch (Exception e) {
             LOG.error("Error during allocation: {}", e.getMessage(), e);
             metrics.allocationError.inc();
-            operations.update(op.complete(Status.INTERNAL.withDescription("Error while executing request")), null);
+            failOperation.apply(op, "Error while executing request");
         }
     }
 
@@ -245,7 +259,8 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             // TODO(artolord) validate that client can free this vm
             if (vm.state() != Vm.State.RUNNING) {
                 LOG.error("Freed vm {} in status {}, expected RUNNING", vm, vm.state());
-                responseObserver.onError(Status.FAILED_PRECONDITION.asException());
+                responseObserver.onError(
+                    Status.FAILED_PRECONDITION.withDescription("State is " + vm.state()).asException());
                 return;
             }
 
@@ -256,12 +271,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                 return;
             }
 
-            dao.update(
-                Vm.from(vm)
-                    .setState(Vm.State.IDLE)
-                    .setDeadline(Instant.now().plus(session.cachePolicy().minIdleTimeout()))
-                    .build(),
-                transaction);
+            dao.release(vm.vmId(), Instant.now().plus(session.cachePolicy().minIdleTimeout()), transaction);
 
             transaction.commit();
         } catch (Exception e) {

@@ -43,7 +43,7 @@ public class GarbageCollector extends TimerTask {
     @Override
     public void run() {
         try {
-            var vms = dao.getExpired(100, null);
+            var vms = dao.listExpired(100);
             LOG.debug("Found {} expired entries", vms.size());
             vms.forEach(vm -> {
                 try {
@@ -62,7 +62,11 @@ public class GarbageCollector extends TimerTask {
                     //will retry deallocate if it fails
                     dao.update(new Vm.VmBuilder(vm).setState(Vm.State.DEAD).build(), null);
                 } catch (Exception e) {
-                    LOG.error("Error during clean up Vm {}", vm, e);
+                    if (e.getMessage() != null && e.getMessage().contains("relation \"vm\" does not exist")) {
+                        // not an issue in tests
+                    } else {
+                        LOG.error("Error during clean up Vm {}", vm, e);
+                    }
                 }
             });
         } catch (Exception e) {
