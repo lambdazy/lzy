@@ -420,6 +420,8 @@ public class ChannelManager {
                     }
 
                     channelStorage.insertEndpoint(endpoint, transaction);
+
+                    transaction.commit();
                 }
 
                 final Stream<Endpoint> newBound;
