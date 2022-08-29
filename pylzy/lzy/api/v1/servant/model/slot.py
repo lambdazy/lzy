@@ -3,9 +3,10 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, cast
+from typing import Dict, cast
 
 import cloudpickle
+from pure_protobuf.dataclasses_ import Message
 
 from lzy.serialization.types import File
 
@@ -44,6 +45,7 @@ class Direction(Enum):
 
 
 PLAINTEXT_SCHEME_TYPE = "plain"
+PROTO_SCHEME_TYPE = "proto"
 FILE_TYPE = "file"
 
 CLOUDPICKLE_SCHEME_TYPE = "cloudpickle"
@@ -61,8 +63,11 @@ class DataSchema:
             if self.type_ == FILE_TYPE:
                 return File
             raise ValueError("Unsupported DataScheme type")
-        if self.schemeType == CLOUDPICKLE_SCHEME_TYPE:
+        elif self.schemeType == CLOUDPICKLE_SCHEME_TYPE:
             return unpickle_type(self.type_)
+        elif self.schemeType == PROTO_SCHEME_TYPE:
+            return unpickle_type(self.type_)
+
         raise ValueError("Unsupported DataScheme type")
 
     def to_dict(self) -> Dict[str, str]:
@@ -79,6 +84,8 @@ class DataSchema:
     def generate_schema(typ: type) -> "DataSchema":
         if typ == File:
             return DataSchema(FILE_TYPE, PLAINTEXT_SCHEME_TYPE)
+        elif issubclass(typ, Message):
+            return DataSchema(pickle_type(typ), PROTO_SCHEME_TYPE)
         return DataSchema(pickle_type(typ), CLOUDPICKLE_SCHEME_TYPE)
 
 
