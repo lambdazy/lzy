@@ -73,6 +73,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
             .andReturn(HttpURLConnection.HTTP_OK, new PodListBuilder().build()).always();
 
         var props = DatabaseTestUtils.preparePostgresConfig("allocator", db.getConnectionInfo());
+        // props.putAll(DatabaseTestUtils.prepareLocalhostConfig("allocator"));
 
         allocatorCtx = ApplicationContext.run(props);
         ((MockKuberClientFactory) allocatorCtx.getBean(KuberClientFactory.class)).setClientSupplier(

@@ -1,6 +1,8 @@
 package ai.lzy.model.db;
 
 import org.apache.logging.log4j.Logger;
+import org.postgresql.util.PSQLException;
+import org.postgresql.util.PSQLState;
 
 import java.sql.SQLException;
 
@@ -15,7 +17,7 @@ public interface RetryableSqlOperation<T> {
         for (int attempt = 1; ; ++attempt) {
             try {
                 return op.run(attempt);
-            } catch (SQLException e) {
+            } catch (PSQLException e) {
                 if (canRetry(e)) {
                     var delay = retryPolicy.getNextDelayMs();
                     if (delay < 0) {
@@ -71,12 +73,21 @@ public interface RetryableSqlOperation<T> {
 
     String PSQL_CannotSerializeTransaction = "40001";
 
-    static boolean canRetry(SQLException e) {
-        switch (e.getSQLState()) {
-            case PSQL_CannotSerializeTransaction -> {
-                return true;
+    static boolean canRetry(PSQLException e) {
+        if (e.getSQLState() == null) {
+            if (e.getCause() instanceof PSQLException ex) {
+                e = ex;
+            } else if (e.getCause() != null && e.getCause().getCause() instanceof PSQLException ex) {
+                e = ex;
+            } else {
+                return false;
             }
         }
-        return false;
+
+        if (PSQL_CannotSerializeTransaction.equals(e.getSQLState())) {
+            return true;
+        }
+
+        return PSQLState.isConnectionError(e.getSQLState());
     }
 }
