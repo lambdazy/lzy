@@ -128,9 +128,12 @@ def create_lazy_constructor(
         if len(output_types) == 1:
             if issubclass(output_types[0], type(None)):
                 return None
-            return lzy_proxy(lzy_call, 0)
+            return lzy_proxy(lzy_call.entry_ids[0], lzy_call.signature.func.output_types[0], lzy_call.parent_wflow)
 
-        return tuple(lzy_proxy(lzy_call, i) for i in range(len(lzy_call.entry_ids)))
+        return tuple(
+            lzy_proxy(lzy_call.entry_ids[i], lzy_call.signature.func.output_types[i], lzy_call.parent_wflow)
+            for i in range(len(lzy_call.entry_ids))
+        )
 
     return lazy
 
