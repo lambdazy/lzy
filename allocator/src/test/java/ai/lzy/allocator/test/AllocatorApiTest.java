@@ -8,7 +8,6 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.impl.AllocatorDataSource;
 import ai.lzy.allocator.dao.impl.SessionDaoImpl;
 import ai.lzy.iam.test.BaseTestWithIam;
-import ai.lzy.model.db.RetryableSqlOperation;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.util.auth.credentials.JwtUtils;
@@ -35,6 +34,8 @@ import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.junit.*;
+import org.postgresql.util.PSQLException;
+import org.postgresql.util.PSQLState;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
@@ -263,7 +264,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
     @Test
     public void retryableSqlErrorWhileCreatingSession() {
         allocatorCtx.getBean(SessionDaoImpl.class).injectError(
-            new SQLException("retry plz", RetryableSqlOperation.PSQL_CannotSerializeTransaction));
+            new PSQLException("retry me, plz", PSQLState.CONNECTION_FAILURE));
 
         var resp = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder()

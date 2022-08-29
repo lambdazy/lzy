@@ -19,7 +19,7 @@ public record Workload(
     List<String> args,
     Map<Integer, Integer> portBindings
 ) {
-    public static Workload fromGrpc(AllocateRequest.Workload workload) {
+    public static Workload fromProto(AllocateRequest.Workload workload) {
         return new Workload(workload.getName(), workload.getImage(), workload.getEnvMap(),
             workload.getArgsList(), workload.getPortBindingsMap());
     }

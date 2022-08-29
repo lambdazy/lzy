@@ -12,7 +12,6 @@ import ai.lzy.allocator.model.Session;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.metrics.MetricReporter;
-import ai.lzy.model.db.RetryableSqlOperation;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.util.grpc.ProtoConverter;
@@ -29,14 +28,14 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.glassfish.jersey.internal.util.Producer;
 
-import java.sql.SQLException;
 import java.time.Instant;
 import java.util.UUID;
-import java.util.function.BiFunction;
+import java.util.function.Consumer;
 
-import static ai.lzy.model.db.RetryableSqlOperation.defaultRetryPolicy;
-import static ai.lzy.model.db.RetryableSqlOperation.withRetries;
+import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
+import static ai.lzy.model.db.DbHelper.withRetries;
 
 @Singleton
 @Requires(beans = MetricReporter.class)
@@ -80,47 +79,54 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         final var minIdleTimeout = ProtoConverter.fromProto(request.getCachePolicy().getIdleTimeout());
         final var policy = new CachePolicy(minIdleTimeout);
 
-        try {
-            var session = withRetries(defaultRetryPolicy(), LOG,
-                seq -> sessions.create(request.getOwner(), policy, null));
-
-            responseObserver.onNext(CreateSessionResponse.newBuilder()
-                .setSessionId(session.sessionId())
-                .build());
-            responseObserver.onCompleted();
-        } catch (RetryableSqlOperation.RetryCountExceededException e) {
-            LOG.error("Cannot create session: database retries limit exceeded");
-            responseObserver.onError(
-                Status.INTERNAL.withDescription("Database error").asException());
-        } catch (Exception e) {
-            LOG.error("Cannot create session: {}", e.getMessage(), e);
-            responseObserver.onError(
-                Status.INTERNAL.withDescription(e.getMessage()).asException());
-        }
+        withRetries(
+            defaultRetryPolicy(),
+            LOG,
+            () -> sessions.create(request.getOwner(), policy, null),
+            session -> {
+                responseObserver.onNext(CreateSessionResponse.newBuilder()
+                    .setSessionId(session.sessionId())
+                    .build());
+                responseObserver.onCompleted();
+            },
+            __ -> {
+                LOG.error("Cannot create session: database retries limit exceeded");
+                responseObserver.onError(
+                    Status.INTERNAL.withDescription("Database error").asException());
+            },
+            ex -> {
+                LOG.error("Cannot create session: {}", ex.getMessage(), ex);
+                responseObserver.onError(
+                    Status.INTERNAL.withDescription(ex.getMessage()).asException());
+            });
     }
 
     @Override
     public void deleteSession(DeleteSessionRequest request, StreamObserver<DeleteSessionResponse> responseObserver) {
-        try {
-            withRetries(defaultRetryPolicy(), LOG, seq -> {
+        withRetries(
+            defaultRetryPolicy(),
+            LOG,
+            () -> {
                 sessions.delete(request.getSessionId(), null);
                 dao.delete(request.getSessionId());
                 return (Void) null;
+            },
+            ok -> {
+                responseObserver.onNext(DeleteSessionResponse.getDefaultInstance());
+                responseObserver.onCompleted();
+            },
+            __ -> {
+                LOG.error("Error while executing `deleteSession` request, sessionId={}: Database error",
+                    request.getSessionId());
+                responseObserver.onError(
+                    Status.INTERNAL.withDescription("Database error").asException());
+            },
+            ex -> {
+                LOG.error("Error while executing `deleteSession` request, sessionId={}: {}",
+                    request.getSessionId(), ex.getMessage(), ex);
+                responseObserver.onError(
+                    Status.INTERNAL.withDescription(ex.getMessage()).asException());
             });
-
-            responseObserver.onNext(DeleteSessionResponse.getDefaultInstance());
-            responseObserver.onCompleted();
-        } catch (RetryableSqlOperation.RetryCountExceededException e) {
-            LOG.error("Error while executing `deleteSession` request, sessionId={}: Database error",
-                request.getSessionId());
-            responseObserver.onError(
-                Status.INTERNAL.withDescription("Database error").asException());
-        } catch (Exception e) {
-            LOG.error("Error while executing `deleteSession` request, sessionId={}: {}",
-                request.getSessionId(), e.getMessage(), e);
-            responseObserver.onError(
-                Status.INTERNAL.withDescription(e.getMessage()).asException());
-        }
     }
 
     @Override
@@ -129,166 +135,227 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
         final var startedAt = Instant.now();
 
-        final Session session;
-        try {
-            session = sessions.get(request.getSessionId(), null);
-        } catch (Exception e) {
-            LOG.error("Cannot get session {}: {}", request.getSessionId(), e.getMessage(), e);
-            responseObserver.onError(
-                Status.INTERNAL.withDescription(e.getMessage()).asException());
-            return;
-        }
-
-        if (session == null) {
-            responseObserver.onError(
-                Status.INVALID_ARGUMENT.withDescription("Session not found").asException());
-            return;
-        }
-
-        ai.lzy.allocator.model.Operation op;
-        try {
-            op = operations.create(
-                UUID.randomUUID().toString(),
-                "Allocating VM",
-                session.owner(),
-                Any.pack(AllocateMetadata.getDefaultInstance()),
-                null);
-        } catch (Exception e) {
-            LOG.error("Cannot create allocate vm operation for session {}: {}",
-                request.getSessionId(), e.getMessage(), e);
-            responseObserver.onError(
-                Status.INTERNAL.withDescription(e.getMessage()).asException());
-            return;
-        }
-
-        BiFunction<ai.lzy.allocator.model.Operation, String, ai.lzy.allocator.model.Operation> failOperation =
-            (opa, msg) -> {
-                opa = opa.complete(Status.INTERNAL.withDescription(msg));
-                try {
-                    operations.update(opa, null);
-                } catch (SQLException e) {
-                    LOG.error("Cannot fail operation {} with reason {}: {}", opa, msg, e.getMessage(), e);
+        final Session[] session = {null};
+        withRetries(
+            defaultRetryPolicy(),
+            LOG,
+            () -> sessions.get(request.getSessionId(), null),
+            ss -> {
+                if (ss != null) {
+                    session[0] = ss;
+                } else {
+                    responseObserver.onError(
+                        Status.INVALID_ARGUMENT.withDescription("Session not found").asException());
                 }
-                return opa;
-            };
-
-        Vm vm;
-        try (var transaction = new TransactionHandle(storage)) {
-            final var existingVm = dao.acquire(request.getSessionId(), request.getPoolLabel(),
-                request.getZone(), transaction);
-
-            if (existingVm != null) {
-                LOG.info("Found existing VM {}", existingVm);
-
-                op = op.modifyMeta(Any.pack(AllocateMetadata.newBuilder()
-                    .setVmId(existingVm.vmId())
-                    .build()));
-                op = op.complete(Any.pack(AllocateResponse.newBuilder()
-                    .setSessionId(existingVm.sessionId())
-                    .setPoolId(existingVm.poolLabel())
-                    .setVmId(existingVm.vmId())
-                    .putAllMetadata(existingVm.vmMeta())
-                    .build()));
-                operations.update(op, transaction);
-
-                transaction.commit();
-
-                metrics.allocateVmExisting.inc();
-
-                responseObserver.onNext(op.toProto());
-                responseObserver.onCompleted();
-                return;
+            },
+            __ -> {
+                LOG.error("Error while executing `allocate` request, sessionId={}: Database error",
+                    request.getSessionId());
+                responseObserver.onError(
+                    Status.INTERNAL.withDescription("Database error").asException());
+            },
+            ex -> {
+                LOG.error("Cannot get session {}: {}", request.getSessionId(), ex.getMessage(), ex);
+                responseObserver.onError(
+                    Status.INTERNAL.withDescription(ex.getMessage()).asException());
             }
+        );
 
-            var workloads = request.getWorkloadList().stream()
-                .map(Workload::fromGrpc)
-                .toList();
+        if (session[0] == null) {
+            return;
+        }
 
-            vm = dao.create(request.getSessionId(), request.getPoolLabel(), request.getZone(), workloads, op.id(),
-                startedAt, transaction);
+        final ai.lzy.allocator.model.Operation[] opRef = {null};
+        withRetries(
+            defaultRetryPolicy(),
+            LOG,
+            () -> operations.create(UUID.randomUUID().toString(), "Allocating VM", session[0].owner(),
+                Any.pack(AllocateMetadata.getDefaultInstance()), null),
+            op -> opRef[0] = op,
+            __ -> {
+                LOG.error("Cannot create allocate vm operation for session {}: Database error", request.getSessionId());
+                responseObserver.onError(
+                    Status.INTERNAL.withDescription("Database error").asException());
+            },
+            ex -> {
+                LOG.error("Cannot create allocate vm operation for session {}: {}",
+                    request.getSessionId(), ex.getMessage(), ex);
+                responseObserver.onError(
+                    Status.INTERNAL.withDescription(ex.getMessage()).asException());
+            }
+        );
 
-            op = op.modifyMeta(Any.pack(AllocateMetadata.newBuilder()
-                .setVmId(vm.vmId())
-                .build()));
+        if (opRef[0] == null) {
+            return;
+        }
 
-            operations.update(op, transaction);
+        Consumer<String> failOperation = msg -> {
+            opRef[0] = opRef[0].complete(Status.INTERNAL.withDescription(msg));
 
-            vm = Vm.from(vm)
-                .setState(Vm.State.CONNECTING)
-                .setAllocationDeadline(Instant.now().plus(config.getAllocationTimeout()))
-                .build();
-            dao.update(vm, transaction);
+            withRetries(
+                defaultRetryPolicy(),
+                LOG,
+                () -> {
+                    operations.update(opRef[0], null);
+                    return null;
+                },
+                ok -> {},
+                __ -> LOG.error("Cannot fail operation {}: Databse error", opRef[0]),
+                ex -> LOG.error("Cannot fail operation {} with reason {}: {}", opRef[0], msg, ex.getMessage(), ex));
+        };
 
-            transaction.commit();
+        final Vm[] vmRef = {null};
+        withRetries(
+            defaultRetryPolicy(),
+            LOG,
+            () -> {
+                try (var transaction = new TransactionHandle(storage)) {
+                    final var existingVm = dao.acquire(request.getSessionId(), request.getPoolLabel(),
+                        request.getZone(), transaction);
 
-            metrics.allocateVmNew.inc();
+                    if (existingVm != null) {
+                        LOG.info("Found existing VM {}", existingVm);
 
-            responseObserver.onNext(op.toProto());
-            responseObserver.onCompleted();
-        } catch (Exception e) {
-            LOG.error("Error while executing transaction", e);
-            op = failOperation.apply(op, e.getMessage());
+                        opRef[0] = opRef[0].modifyMeta(Any.pack(AllocateMetadata.newBuilder()
+                            .setVmId(existingVm.vmId())
+                            .build()));
+                        opRef[0] = opRef[0].complete(Any.pack(AllocateResponse.newBuilder()
+                            .setSessionId(existingVm.sessionId())
+                            .setPoolId(existingVm.poolLabel())
+                            .setVmId(existingVm.vmId())
+                            .putAllMetadata(existingVm.vmMeta())
+                            .build()));
+                        operations.update(opRef[0], transaction);
 
-            metrics.allocationError.inc();
+                        transaction.commit();
 
-            responseObserver.onNext(op.toProto());
-            responseObserver.onCompleted();
+                        metrics.allocateVmExisting.inc();
+                        return null;
+                    }
+
+                    var workloads = request.getWorkloadList().stream()
+                        .map(Workload::fromProto)
+                        .toList();
+
+                    var vm = dao.create(request.getSessionId(), request.getPoolLabel(), request.getZone(), workloads,
+                        opRef[0].id(), startedAt, transaction);
+
+                    opRef[0] = opRef[0].modifyMeta(Any.pack(AllocateMetadata.newBuilder()
+                        .setVmId(vm.vmId())
+                        .build()));
+
+                    operations.update(opRef[0], transaction);
+
+                    vm = Vm.from(vm)
+                        .setState(Vm.State.CONNECTING)
+                        .setAllocationDeadline(Instant.now().plus(config.getAllocationTimeout()))
+                        .build();
+                    dao.update(vm, transaction);
+
+                    transaction.commit();
+                    metrics.allocateVmNew.inc();
+
+                    return vm;
+                }
+            },
+            vm -> {
+                vmRef[0] = vm;
+                responseObserver.onNext(opRef[0].toProto());
+                responseObserver.onCompleted();
+            },
+            __ -> {
+                LOG.error("Error while executing transaction: Database error");
+                failOperation.accept("Database error");
+
+                metrics.allocationError.inc();
+
+                responseObserver.onNext(opRef[0].toProto());
+                responseObserver.onCompleted();
+            },
+            ex -> {
+                LOG.error("Error while executing transaction: {}", ex.getMessage(), ex);
+                failOperation.accept(ex.getMessage());
+
+                metrics.allocationError.inc();
+
+                responseObserver.onNext(opRef[0].toProto());
+                responseObserver.onCompleted();
+            }
+        );
+
+        if (vmRef[0] == null) {
             return;
         }
 
         try {
             try {
                 var timer = metrics.allocateDuration.startTimer();
-                allocator.allocate(vm);
+                allocator.allocate(vmRef[0]);
                 timer.close();
             } catch (InvalidConfigurationException e) {
                 LOG.error("Error while allocating: {}", e.getMessage(), e);
                 metrics.allocationError.inc();
-                operations.update(op.complete(Status.INVALID_ARGUMENT.withDescription(e.getMessage())), null);
+                operations.update(opRef[0].complete(Status.INVALID_ARGUMENT.withDescription(e.getMessage())), null);
             }
         } catch (Exception e) {
             LOG.error("Error during allocation: {}", e.getMessage(), e);
             metrics.allocationError.inc();
-            failOperation.apply(op, "Error while executing request");
+            failOperation.accept("Error while executing request");
         }
     }
 
     @Override
     public void free(FreeRequest request, StreamObserver<FreeResponse> responseObserver) {
-        try (var transaction = new TransactionHandle(storage)) {
-            var vm = dao.get(request.getVmId(), transaction);
-            if (vm == null) {
-                responseObserver.onError(
-                    Status.NOT_FOUND.withDescription("Cannot find vm").asException());
-                return;
+        withRetries(
+            defaultRetryPolicy(),
+            LOG,
+            () -> {
+                try (var transaction = new TransactionHandle(storage)) {
+                    var vm = dao.get(request.getVmId(), transaction);
+                    if (vm == null) {
+                        return (Producer<Status>) () -> Status.NOT_FOUND.withDescription("Cannot find vm");
+                    }
+
+                    // TODO(artolord) validate that client can free this vm
+                    if (vm.state() != Vm.State.RUNNING) {
+                        return (Producer<Status>) () -> {
+                            LOG.error("Freed vm {} in status {}, expected RUNNING", vm, vm.state());
+                            return Status.FAILED_PRECONDITION.withDescription("State is " + vm.state());
+                        };
+                    }
+
+                    var session = sessions.get(vm.sessionId(), transaction);
+                    if (session == null) {
+                        return (Producer<Status>) () -> {
+                            LOG.error("Corrupted vm with incorrect session id: {}", vm);
+                            return Status.INTERNAL;
+                        };
+                    }
+
+                    dao.release(vm.vmId(), Instant.now().plus(session.cachePolicy().minIdleTimeout()), transaction);
+
+                    transaction.commit();
+                    return (Producer<Status>) () -> Status.OK;
+                }
+            },
+            st -> {
+                var result = st.call();
+                if (Status.Code.OK.equals(result.getCode())) {
+                    responseObserver.onNext(FreeResponse.getDefaultInstance());
+                    responseObserver.onCompleted();
+                } else {
+                    responseObserver.onError(result.asException());
+                }
+            },
+            __ -> {
+                LOG.error("Error while free vm {}: Database error", request.getVmId());
+                responseObserver.onError(Status.INTERNAL.withDescription("Database error").asException());
+            },
+            ex -> {
+                LOG.error("Error while free vm {}: {}", request.getVmId(), ex.getMessage(), ex);
+                responseObserver.onError(Status.INTERNAL.withDescription("Error while free").asException());
             }
-
-            // TODO(artolord) validate that client can free this vm
-            if (vm.state() != Vm.State.RUNNING) {
-                LOG.error("Freed vm {} in status {}, expected RUNNING", vm, vm.state());
-                responseObserver.onError(
-                    Status.FAILED_PRECONDITION.withDescription("State is " + vm.state()).asException());
-                return;
-            }
-
-            var session = sessions.get(vm.sessionId(), transaction);
-            if (session == null) {
-                LOG.error("Corrupted vm with incorrect session id: {}", vm);
-                responseObserver.onError(Status.INTERNAL.asException());
-                return;
-            }
-
-            dao.release(vm.vmId(), Instant.now().plus(session.cachePolicy().minIdleTimeout()), transaction);
-
-            transaction.commit();
-        } catch (Exception e) {
-            LOG.error("Error while freeing", e);
-            responseObserver.onError(Status.INTERNAL.withDescription("Error while freeing").asException());
-            return;
-        }
-
-        responseObserver.onNext(FreeResponse.getDefaultInstance());
-        responseObserver.onCompleted();
+        );
     }
 
     private static final class Metrics {
