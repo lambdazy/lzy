@@ -47,6 +47,7 @@ public abstract class PortalTest {
     protected static final String BUCKET_NAME = "lzy-bucket";
 
     protected S3Mock s3;
+    protected AmazonS3 s3Client;
 
     protected LzyPortalGrpc.LzyPortalBlockingStub portalStub;
     protected LzyFsGrpc.LzyFsBlockingStub portalFsStub;
@@ -66,12 +67,12 @@ public abstract class PortalTest {
     @After
     public void after() throws InterruptedException, IOException {
         stopS3();
+        shutdownAndAwaitTerminationPortal();
         channelManager.stop();
         server.stop();
         for (var servant : servants.values()) {
             servant.close();
         }
-        shutdownAndAwaitTerminationPortal();
         server = null;
         channelManager = null;
         servants = null;
@@ -80,7 +81,7 @@ public abstract class PortalTest {
     private void startS3() {
         s3 = new S3Mock.Builder().withPort(S3_PORT).withInMemoryBackend().build();
         s3.start();
-        AmazonS3 s3Client = AmazonS3ClientBuilder.standard()
+        s3Client = AmazonS3ClientBuilder.standard()
             .withPathStyleAccessEnabled(true)
             .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(S3_ADDRESS, "us-west-2"))
             .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
@@ -92,6 +93,10 @@ public abstract class PortalTest {
         if (Objects.nonNull(s3)) {
             s3.shutdown();
             s3 = null;
+        }
+        if (Objects.nonNull(s3Client)) {
+            s3Client.shutdown();
+            s3Client = null;
         }
     }
 
