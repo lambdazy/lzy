@@ -49,6 +49,8 @@ import org.apache.commons.cli.*;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
+import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
 
 @SuppressWarnings("UnstableApiUsage")
 public class ChannelManager {
@@ -132,6 +134,7 @@ public class ChannelManager {
         private final ChannelManagerDataSource dataSource;
         private final ChannelStorage channelStorage;
         private final URI whiteboardAddress;
+        private final LockManager lockManager;
 
         @Inject
         public ChannelManagerService(
@@ -140,6 +143,7 @@ public class ChannelManager {
             this.dataSource = dataSource;
             this.channelStorage = channelStorage;
             this.whiteboardAddress = URI.create(config.getWhiteboardAddress());
+            this.lockManager = new LocalLockManager().withPrefix("channel-manager");
         }
 
         @Override
@@ -172,31 +176,35 @@ public class ChannelManager {
                  */
                 final String channelId = String.join("-", "channel", userId, workflowId)
                     .replaceAll("[^a-zA-z0-9-]+", "-") + "!" + channelName;
-
-                final var channelType = channelSpec.getTypeCase();
-                final ChannelSpec spec = switch (channelSpec.getTypeCase()) {
-                    case DIRECT -> new DirectChannelSpec(
-                        channelSpec.getChannelName(),
-                        GrpcConverter.contentTypeFrom(channelSpec.getContentType())
-                    );
-                    case SNAPSHOT -> new SnapshotChannelSpec(
-                        channelSpec.getChannelName(),
-                        GrpcConverter.contentTypeFrom(channelSpec.getContentType()),
-                        channelSpec.getSnapshot().getSnapshotId(),
-                        channelSpec.getSnapshot().getEntryId(),
-                        whiteboardAddress
-                    );
-                    default -> {
-                        final String errorMessage = String.format(
-                            "Unexpected chanel type \"%s\", only snapshot and direct channels are supported",
-                            channelSpec.getTypeCase()
+                lockManager.getOrCreate(channelId);
+                try {
+                    final var channelType = channelSpec.getTypeCase();
+                    final ChannelSpec spec = switch (channelSpec.getTypeCase()) {
+                        case DIRECT -> new DirectChannelSpec(
+                            channelSpec.getChannelName(),
+                            GrpcConverter.contentTypeFrom(channelSpec.getContentType())
                         );
-                        LOG.error(errorMessage);
-                        throw new NotImplementedException(errorMessage);
-                    }
-                };
+                        case SNAPSHOT -> new SnapshotChannelSpec(
+                            channelSpec.getChannelName(),
+                            GrpcConverter.contentTypeFrom(channelSpec.getContentType()),
+                            channelSpec.getSnapshot().getSnapshotId(),
+                            channelSpec.getSnapshot().getEntryId(),
+                            whiteboardAddress
+                        );
+                        default -> {
+                            final String errorMessage = String.format(
+                                "Unexpected chanel type \"%s\", only snapshot and direct channels are supported",
+                                channelSpec.getTypeCase()
+                            );
+                            LOG.error(errorMessage);
+                            throw new NotImplementedException(errorMessage);
+                        }
+                    };
 
-                channelStorage.insertChannel(channelId, userId, workflowId, channelName, channelType, spec, null);
+                    channelStorage.insertChannel(channelId, userId, workflowId, channelName, channelType, spec, null);
+                } finally {
+                    lockManager.remove(channelId);
+                }
 
                 responseObserver.onNext(ChannelCreateResponse.newBuilder()
                     .setChannelId(channelId)
@@ -227,6 +235,7 @@ public class ChannelManager {
                     responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(errorMessage).asException());
                     return;
                 }
+                lockManager.getOrCreate(channelId);
 
                 channelStorage.setChannelLifeStatus(channelId, ChannelLifeStatus.DESTROYING, null);
 
@@ -252,6 +261,8 @@ public class ChannelManager {
                 LOG.error("Destroy channel {} failed, got exception: {}",
                     request.getChannelId(), e.getMessage(), e);
                 responseObserver.onError(Status.INTERNAL.withCause(e).asException());
+            } finally {
+                lockManager.remove(request.getChannelId());
             }
         }
 
@@ -279,8 +290,13 @@ public class ChannelManager {
                     userId, workflowId, ChannelLifeStatus.DESTROYING, null
                 );
                 for (final Channel channel : channels) {
-                    channel.destroy();
-                    channelStorage.removeChannel(channel.id(), null);
+                    try {
+                        lockManager.getOrCreate(channel.id());
+                        channel.destroy();
+                        channelStorage.removeChannel(channel.id(), null);
+                    } finally {
+                        lockManager.remove(channel.id());
+                    }
                 }
 
                 responseObserver.onNext(ChannelDestroyAllResponse.getDefaultInstance());
@@ -394,6 +410,7 @@ public class ChannelManager {
                 final Endpoint endpoint = SlotEndpoint.getInstance(slotInstance);
                 final String channelId = slotInstance.channelId();
 
+                lockManager.getOrCreate(channelId);
                 try (final var transaction = new TransactionHandle(dataSource)) {
                     final Channel channel = channelStorage.findChannel(channelId, ChannelLifeStatus.ALIVE, transaction);
                     if (channel == null) {
@@ -437,6 +454,8 @@ public class ChannelManager {
                     channelStorage.insertEndpointConnections(channelId, addedEdges, transaction);
 
                     transaction.commit();
+                } finally {
+                    lockManager.remove(channelId);
                 }
 
                 responseObserver.onNext(SlotAttachStatus.getDefaultInstance());
@@ -480,6 +499,7 @@ public class ChannelManager {
                 final Endpoint endpoint = SlotEndpoint.getInstance(slotInstance);
                 final String channelId = slotInstance.channelId();
 
+                lockManager.getOrCreate(channelId);
                 try (final var transaction = new TransactionHandle(dataSource)) {
                     final Channel channel = channelStorage.findChannel(channelId, ChannelLifeStatus.ALIVE, transaction);
                     if (channel == null) {
@@ -494,6 +514,8 @@ public class ChannelManager {
                     channelStorage.removeEndpointWithConnections(channelId, endpoint, transaction);
 
                     transaction.commit();
+                } finally {
+                    lockManager.remove(channelId);
                 }
 
                 responseObserver.onNext(SlotDetachStatus.getDefaultInstance());

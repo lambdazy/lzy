@@ -17,8 +17,6 @@ public interface ChannelStorage {
 
     void removeChannel(String channelId, @Nullable TransactionHandle transaction);
 
-    void lockChannel(String channelId, @Nullable TransactionHandle transaction);
-
     void insertEndpoint(String channelId, Endpoint endpoint, TransactionHandle transaction);
 
     void insertEndpointConnections(String channelId, Map<Endpoint, Endpoint> edges, TransactionHandle transaction);

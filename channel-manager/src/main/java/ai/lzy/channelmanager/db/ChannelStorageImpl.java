@@ -95,19 +95,6 @@ public class ChannelStorageImpl implements ChannelStorage {
     }
 
     @Override
-    public void lockChannel(String channelId, @Nullable TransactionHandle transaction) {
-        DbOperation.execute(transaction, dataSource, sqlConnection -> {
-            try (final PreparedStatement st = sqlConnection.prepareStatement(
-                "SELECT channel_id FROM channels WHERE channel_id = ? FOR UPDATE"
-            )) {
-                int index = 0;
-                st.setString(++index, channelId);
-                st.execute();
-            }
-        });
-    }
-
-    @Override
     public void insertEndpoint(String channelId, Endpoint endpoint, TransactionHandle transaction) {
         DbOperation.execute(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
