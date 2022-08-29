@@ -17,7 +17,6 @@ import ai.lzy.model.SlotInstance;
 import ai.lzy.model.channel.ChannelSpec;
 import ai.lzy.model.channel.DirectChannelSpec;
 import ai.lzy.model.channel.SnapshotChannelSpec;
-import ai.lzy.model.db.NotFoundException;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.JsonUtils;
@@ -403,16 +402,15 @@ public class ChannelManager {
                 return;
             }
 
+            lockManager.getOrCreate(attach.getSlotInstance().getChannelId());
             try {
-                final var authenticationContext = AuthenticationContext.current();
-                final String userId = Objects.requireNonNull(authenticationContext).getSubject().id();
                 final SlotInstance slotInstance = from(attach.getSlotInstance());
                 final Endpoint endpoint = SlotEndpoint.getInstance(slotInstance);
-                final String channelId = slotInstance.channelId();
+                final String channelId = endpoint.slotInstance().channelId();
 
-                lockManager.getOrCreate(channelId);
+                final Channel channel;
                 try (final var transaction = new TransactionHandle(dataSource)) {
-                    final Channel channel = channelStorage.findChannel(channelId, ChannelLifeStatus.ALIVE, transaction);
+                    channel = channelStorage.findChannel(channelId, ChannelLifeStatus.ALIVE, transaction);
                     if (channel == null) {
                         String errorMessage = "Channel with id " + channelId + " not found";
                         LOG.error("Bind slot={} to channel={} failed, channel not found",
@@ -421,42 +419,22 @@ public class ChannelManager {
                         return;
                     }
 
-                    List<String> boundChannels = channelStorage.listBoundChannels(
-                        userId, channel.workflowId(), endpoint.uri().toString(), transaction
-                    );
-                    if (boundChannels.size() > 1) {
-                        throw new IllegalStateException(endpoint + " is bound to more than one channel");
-                    }
-                    if (boundChannels.size() != 0) {
-                        final String otherChannelId = boundChannels.get(0);
-                        if (channelId.equals(otherChannelId)) {
-                            LOG.warn("Endpoint {} is already bound to this channel", endpoint);
-                        } else {
-                            String errorMessage = endpoint + " is bound to another channel " + otherChannelId;
-                            LOG.error("Bind slot={} to channel={} failed, invalid argument: {}",
-                                attach.getSlotInstance().getSlot().getName(),
-                                attach.getSlotInstance().getChannelId(),
-                                errorMessage);
-                            responseObserver.onError(Status.INVALID_ARGUMENT
-                                .withDescription(errorMessage).asException());
-                            return;
-                        }
-                    }
-
-                    final Stream<Endpoint> newBound;
-                    newBound = channel.bind(endpoint);
-
-                    channelStorage.insertEndpoint(channelId, endpoint, transaction);
-                    final Map<Endpoint, Endpoint> addedEdges = switch (endpoint.slotSpec().direction()) {
-                        case OUTPUT -> newBound.collect(Collectors.toMap(e -> endpoint, e -> e));
-                        case INPUT -> newBound.collect(Collectors.toMap(e -> e, e -> endpoint));
-                    };
-                    channelStorage.insertEndpointConnections(channelId, addedEdges, transaction);
-
-                    transaction.commit();
-                } finally {
-                    lockManager.remove(channelId);
+                    channelStorage.insertEndpoint(endpoint, transaction);
                 }
+
+                final Stream<Endpoint> newBound;
+                try {
+                    newBound = channel.bind(endpoint);
+                } catch (Exception e) {
+                    channelStorage.removeEndpointWithConnections(endpoint, null);
+                    throw e;
+                }
+
+                final Map<Endpoint, Endpoint> addedEdges = switch (endpoint.slotSpec().direction()) {
+                    case OUTPUT -> newBound.collect(Collectors.toMap(e -> endpoint, e -> e));
+                    case INPUT -> newBound.collect(Collectors.toMap(e -> e, e -> endpoint));
+                };
+                channelStorage.insertEndpointConnections(channelId, addedEdges, null);
 
                 responseObserver.onNext(SlotAttachStatus.getDefaultInstance());
                 LOG.info("Bind slot={} to channel={} done",
@@ -474,6 +452,8 @@ public class ChannelManager {
                     attach.getSlotInstance().getChannelId(),
                     e.getMessage(), e);
                 responseObserver.onError(Status.INTERNAL.withCause(e).asException());
+            } finally {
+                lockManager.remove(attach.getSlotInstance().getChannelId());
             }
         }
 
@@ -494,14 +474,15 @@ public class ChannelManager {
                 return;
             }
 
+            lockManager.getOrCreate(detach.getSlotInstance().getChannelId());
             try {
                 final SlotInstance slotInstance = from(detach.getSlotInstance());
                 final Endpoint endpoint = SlotEndpoint.getInstance(slotInstance);
-                final String channelId = slotInstance.channelId();
+                final String channelId = endpoint.slotInstance().channelId();
 
-                lockManager.getOrCreate(channelId);
+                final Channel channel;
                 try (final var transaction = new TransactionHandle(dataSource)) {
-                    final Channel channel = channelStorage.findChannel(channelId, ChannelLifeStatus.ALIVE, transaction);
+                    channel = channelStorage.findChannel(channelId, ChannelLifeStatus.ALIVE, transaction);
                     if (channel == null) {
                         String errorMessage = "Channel with id " + channelId + " not found";
                         LOG.error("Unbind slot={} to channel={} failed, channel not found",
@@ -511,11 +492,9 @@ public class ChannelManager {
                     }
 
                     channel.unbind(endpoint);
-                    channelStorage.removeEndpointWithConnections(channelId, endpoint, transaction);
+                    channelStorage.removeEndpointWithConnections(endpoint, transaction);
 
                     transaction.commit();
-                } finally {
-                    lockManager.remove(channelId);
                 }
 
                 responseObserver.onNext(SlotDetachStatus.getDefaultInstance());
@@ -532,6 +511,8 @@ public class ChannelManager {
                     detach.getSlotInstance().getChannelId(),
                     e.getMessage(), e);
                 responseObserver.onError(Status.INTERNAL.withCause(e).asException());
+            } finally {
+                lockManager.remove(detach.getSlotInstance().getChannelId());
             }
         }
 
