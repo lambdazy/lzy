@@ -23,3 +23,48 @@ message SnapshotStorage {
     AzureCredentials azure = 3;
   }
 }
+
+
+message Operation {
+  string name = 1;
+  /* optional */ string description = 2;
+  string command = 3;  // command to execute
+  repeated string inputSlots = 4;
+  repeated string outputSlots = 5;
+
+  optional string dockerImage = 6;  // Optional. If not set, running on default Lzy image
+
+  oneof env {
+    /* optional */ PythonEnvSpec python = 7;
+  }
+
+  Requirements requirements = 8;
+
+  message Requirements {
+    int32 cpu = 1;  // Minimal required cpu
+    string mem = 2;  // Minimal required mem
+    string gpu = 3;  // Minimal required gpu
+    string driveSize = 4;  // Minimal required drive size
+  }
+
+  message PythonEnvSpec {
+    string name = 1;
+    string yaml = 2;
+    repeated LocalModule localModules = 3;
+
+    message LocalModule {
+      string name = 1;
+      string uri = 2;
+    }
+  }
+}
+
+message Graph {
+  string name = 1;
+
+  repeated EdgeDescription links = 2;
+
+  message EdgeDescription {
+
+  }
+}
