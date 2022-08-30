@@ -8,6 +8,7 @@ import ai.lzy.model.db.TransactionHandle;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.rpc.Status;
+import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -16,53 +17,73 @@ import javax.annotation.Nullable;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.time.Instant;
-import java.util.UUID;
 
 @Singleton
 public class OperationDaoImpl implements OperationDao {
     private static final Logger LOG = LogManager.getLogger(OperationDaoImpl.class);
-    private static final String FIELDS = " id, meta, created_by, created_at, modified_at, description,"
-        + " done, response, \"error\" ";
+
+    private static final String FIELDS = " id, meta, created_by," +
+                                         " created_at, modified_at, description," +
+                                         " done, response, \"error\" ";
+
+    private static final String QUERY_CREATE_OPERATION = """
+        INSERT INTO operation (%s)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""".formatted(FIELDS);
+
+    private static final String QUERY_READ_OPERATION = """
+        SELECT %s
+        FROM operation
+        WHERE id = ?""".formatted(FIELDS);
+
+    private static final String QUERY_UPDATE_OPERATION = """
+        UPDATE operation
+        SET (%s) = (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        WHERE id = ?""".formatted(FIELDS);
+
     private final Storage storage;
 
+    @Inject
     public OperationDaoImpl(AllocatorDataSource storage) {
         this.storage = storage;
     }
 
     @Override
-    public Operation create(String description, String createdBy, Any meta, @Nullable TransactionHandle transaction) {
-        final var op = new Operation(UUID.randomUUID().toString(), meta, createdBy, Instant.now(), Instant.now(),
-            description, false, null, null);
-        LOG.info("Operation {} is creating", op);
-        DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement(
-                "INSERT INTO operation (" + FIELDS + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"))
-            {
+    public Operation create(String opId, String description, String createdBy, Any meta, @Nullable TransactionHandle th)
+        throws SQLException
+    {
+        final var op = Operation.create(opId, createdBy, description, meta);
+
+        LOG.info("Create operation {}", op.toShortString());
+
+        DbOperation.execute(th, storage, con -> {
+            try (final var s = con.prepareStatement(QUERY_CREATE_OPERATION)) {
                 writeOp(op, s);
                 s.execute();
             }
         });
-        LOG.info("Operation with id={} has been created", op.id());
+
+        LOG.info("Operation {} has been created", op.id());
         return op;
     }
 
     @Nullable
     @Override
-    public Operation get(String opId, @Nullable TransactionHandle transaction) {
-        final Operation[] op = new Operation[1];
-        LOG.info("Getting op with id={}", opId);
-        DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement(
-                "SELECT" + FIELDS + " FROM operation WHERE id = ?" + forUpdate(transaction)))
-            {
+    public Operation get(String opId, @Nullable TransactionHandle th) throws SQLException {
+        LOG.info("Get op {}", opId);
+
+        final Operation[] op = {null};
+
+        DbOperation.execute(th, storage, con -> {
+            try (final var s = con.prepareStatement(QUERY_READ_OPERATION + forUpdate(th))) {
                 s.setString(1, opId);
+
                 final var res = s.executeQuery();
                 if (!res.next()) {
                     op[0] = null;
-                    LOG.info("Op with id={} not found in the storage", opId);
+                    LOG.info("Op {} not found in the storage", opId);
                     return;
                 }
+
                 final var id = res.getString(1);
                 final var meta = Any.parseFrom(res.getBytes(2));
                 final var createdBy = res.getString(3);
@@ -71,12 +92,7 @@ public class OperationDaoImpl implements OperationDao {
                 final var description = res.getString(6);
                 final var done = res.getBoolean(7);
                 final var responseBytes = res.getBytes(8);
-                final Any response;
-                if (responseBytes == null) {
-                    response = null;
-                } else {
-                    response = Any.parseFrom(responseBytes);
-                }
+                final Any response = responseBytes == null ? null : Any.parseFrom(responseBytes);
                 final var errorBytes = res.getBytes(9);
                 final io.grpc.Status error;
                 if (errorBytes == null) {
@@ -92,23 +108,24 @@ public class OperationDaoImpl implements OperationDao {
                 throw new RuntimeException("Cannot parse proto", e);
             }
         });
-        LOG.info("Return op={}", op[0]);
+
+        LOG.info("Return op {}", op[0]);
         return op[0];
     }
 
     @Override
-    public void update(Operation op, @Nullable TransactionHandle transaction) {
-        LOG.info("Operation {} is updating", op);
-        DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement(
-                "UPDATE operation SET (" + FIELDS + ") = (?, ?, ?, ?, ?, ?, ?, ?, ?) WHERE id = ?"))
-            {
+    public void update(Operation op, @Nullable TransactionHandle th) throws SQLException {
+        LOG.info("Update operation {}", op);
+
+        DbOperation.execute(th, storage, con -> {
+            try (final var s = con.prepareStatement(QUERY_UPDATE_OPERATION)) {
                 s.setString(10, op.id());
                 writeOp(op, s);
                 s.execute();
             }
         });
-        LOG.info("Operation with id={} has been updated", op.id());
+
+        LOG.info("Operation {} has been updated", op.id());
     }
 
     private void writeOp(Operation op, PreparedStatement s) throws SQLException {

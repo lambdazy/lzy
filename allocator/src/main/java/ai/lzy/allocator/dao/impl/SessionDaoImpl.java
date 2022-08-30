@@ -10,10 +10,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import jakarta.inject.Singleton;
+import lombok.Lombok;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nullable;
+import java.sql.SQLException;
 import java.util.UUID;
 
 @Singleton
@@ -22,7 +24,7 @@ public class SessionDaoImpl implements SessionDao {
 
     private final Storage storage;
     private final ObjectMapper objectMapper;
-    private volatile RuntimeException injectedError = null;
+    private volatile Throwable injectedError = null;
 
     public SessionDaoImpl(AllocatorDataSource storage, ObjectMapper objectMapper) {
         this.storage = storage;
@@ -30,14 +32,14 @@ public class SessionDaoImpl implements SessionDao {
     }
 
     @Override
-    public Session create(String owner, CachePolicy cachePolicy, @Nullable TransactionHandle transaction) {
-        LOG.debug("Create session for {} in tx {}", owner, transaction);
+    public Session create(String owner, CachePolicy cachePolicy, @Nullable TransactionHandle th) throws SQLException {
+        LOG.debug("Create session for {} in tx {}", owner, th);
 
         throwInjectedError();
 
         final var session = new Session(UUID.randomUUID().toString(), owner, cachePolicy);
 
-        DbOperation.execute(transaction, storage, con -> {
+        DbOperation.execute(th, storage, con -> {
             try (final var s = con.prepareStatement(
                 "INSERT INTO session (id, owner, cache_policy_json) VALUES (?, ?, ?)"))
             {
@@ -54,7 +56,7 @@ public class SessionDaoImpl implements SessionDao {
 
     @Nullable
     @Override
-    public Session get(String sessionId, @Nullable TransactionHandle transaction) {
+    public Session get(String sessionId, @Nullable TransactionHandle transaction) throws SQLException {
         LOG.debug("Get session {} in tx {}", sessionId, transaction);
 
         throwInjectedError();
@@ -84,7 +86,7 @@ public class SessionDaoImpl implements SessionDao {
     }
 
     @Override
-    public void delete(String sessionId, @Nullable TransactionHandle transaction) {
+    public void delete(String sessionId, @Nullable TransactionHandle transaction) throws SQLException {
         LOG.debug("Delete session {} in tx {}", sessionId, transaction);
 
         throwInjectedError();
@@ -100,7 +102,7 @@ public class SessionDaoImpl implements SessionDao {
     }
 
     @VisibleForTesting
-    public void injectError(RuntimeException error) {
+    public void injectError(Throwable error) {
         injectedError = error;
     }
 
@@ -108,7 +110,7 @@ public class SessionDaoImpl implements SessionDao {
         final var error = injectedError;
         if (error != null) {
             injectedError = null;
-            throw error;
+            Lombok.sneakyThrow(error);
         }
     }
 

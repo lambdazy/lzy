@@ -37,6 +37,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -127,7 +128,7 @@ public class SchedulerTest extends LocalScenario {
     }
 
     @After
-    public void after() {
+    public void after() throws SQLException {
         stub.killAll(KillAllRequest.newBuilder()
             .setWorkflowName("wf")
             .setIssue("test")
