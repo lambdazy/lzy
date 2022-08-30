@@ -73,6 +73,10 @@ let
       doCheck = false;
     });
 
+    catboost = super.catboost.overridePythonAttrs(old: rec {
+      doCheck = false;
+    });
+
     # doesn't work
     # protobuf = super.protobuf.overridePythonAttrs(old: rec {
     #   version = "4.21.5";
