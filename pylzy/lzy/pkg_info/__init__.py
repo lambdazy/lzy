@@ -75,7 +75,9 @@ def exists_in_pypi(package_name: str) -> bool:
     if package_name in pypi_existence_cache:
         return pypi_existence_cache[package_name]
 
-    response = requests.get(f"https://pypi.python.org/pypi/{package_name}/json")
+    with requests.Session() as session:
+        session.max_redirects = 5  # limit redirects to handle possible pypi incidents with redirect cycles
+        response = session.get(f"https://pypi.python.org/pypi/{package_name}/json")
     result: bool = 200 <= response.status_code < 300
     pypi_existence_cache[package_name] = result
     return result
