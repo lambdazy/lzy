@@ -89,11 +89,6 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                     .build());
                 responseObserver.onCompleted();
             },
-            __ -> {
-                LOG.error("Cannot create session: database retries limit exceeded");
-                responseObserver.onError(
-                    Status.INTERNAL.withDescription("Database error").asException());
-            },
             ex -> {
                 LOG.error("Cannot create session: {}", ex.getMessage(), ex);
                 responseObserver.onError(
@@ -114,12 +109,6 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             ok -> {
                 responseObserver.onNext(DeleteSessionResponse.getDefaultInstance());
                 responseObserver.onCompleted();
-            },
-            __ -> {
-                LOG.error("Error while executing `deleteSession` request, sessionId={}: Database error",
-                    request.getSessionId());
-                responseObserver.onError(
-                    Status.INTERNAL.withDescription("Database error").asException());
             },
             ex -> {
                 LOG.error("Error while executing `deleteSession` request, sessionId={}: {}",
@@ -148,12 +137,6 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                         Status.INVALID_ARGUMENT.withDescription("Session not found").asException());
                 }
             },
-            __ -> {
-                LOG.error("Error while executing `allocate` request, sessionId={}: Database error",
-                    request.getSessionId());
-                responseObserver.onError(
-                    Status.INTERNAL.withDescription("Database error").asException());
-            },
             ex -> {
                 LOG.error("Cannot get session {}: {}", request.getSessionId(), ex.getMessage(), ex);
                 responseObserver.onError(
@@ -172,11 +155,6 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             () -> operations.create(UUID.randomUUID().toString(), "Allocating VM", session[0].owner(),
                 Any.pack(AllocateMetadata.getDefaultInstance()), null),
             op -> opRef[0] = op,
-            __ -> {
-                LOG.error("Cannot create allocate vm operation for session {}: Database error", request.getSessionId());
-                responseObserver.onError(
-                    Status.INTERNAL.withDescription("Database error").asException());
-            },
             ex -> {
                 LOG.error("Cannot create allocate vm operation for session {}: {}",
                     request.getSessionId(), ex.getMessage(), ex);
@@ -200,7 +178,6 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                     return null;
                 },
                 ok -> {},
-                __ -> LOG.error("Cannot fail operation {}: Databse error", opRef[0]),
                 ex -> LOG.error("Cannot fail operation {} with reason {}: {}", opRef[0], msg, ex.getMessage(), ex));
         };
 
@@ -260,15 +237,6 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             },
             vm -> {
                 vmRef[0] = vm;
-                responseObserver.onNext(opRef[0].toProto());
-                responseObserver.onCompleted();
-            },
-            __ -> {
-                LOG.error("Error while executing transaction: Database error");
-                failOperation.accept("Database error");
-
-                metrics.allocationError.inc();
-
                 responseObserver.onNext(opRef[0].toProto());
                 responseObserver.onCompleted();
             },
@@ -346,10 +314,6 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                 } else {
                     responseObserver.onError(result.asException());
                 }
-            },
-            __ -> {
-                LOG.error("Error while free vm {}: Database error", request.getVmId());
-                responseObserver.onError(Status.INTERNAL.withDescription("Database error").asException());
             },
             ex -> {
                 LOG.error("Error while free vm {}: {}", request.getVmId(), ex.getMessage(), ex);

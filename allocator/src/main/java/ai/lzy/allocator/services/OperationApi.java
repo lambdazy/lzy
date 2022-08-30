@@ -12,7 +12,8 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.SQLException;
+import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
+import static ai.lzy.model.db.DbHelper.withRetries;
 
 @Singleton
 public class OperationApi extends OperationServiceApiImplBase {
@@ -27,56 +28,71 @@ public class OperationApi extends OperationServiceApiImplBase {
 
     @Override
     public void get(GetOperationRequest request, StreamObserver<Operation> responseObserver) {
-        ai.lzy.allocator.model.Operation op;
-
-        try {
-            op = operations.get(request.getOperationId(), null);
-        } catch (SQLException e) {
-            LOG.error("Cannot get operation {}: {}", request.getOperationId(), e.getMessage(), e);
-            responseObserver.onError(
-                Status.INTERNAL.withDescription("Database error: " + e.getMessage()).asException());
-            return;
-        }
-
-        if (op == null) {
-            responseObserver.onError(Status.NOT_FOUND.withDescription("Operation not found").asException());
-            return;
-        }
-
-        responseObserver.onNext(op.toProto());
-        responseObserver.onCompleted();
+        withRetries(
+            defaultRetryPolicy(),
+            LOG,
+            () -> operations.get(request.getOperationId(), null),
+            op -> {
+                if (op != null) {
+                    responseObserver.onNext(op.toProto());
+                    responseObserver.onCompleted();
+                } else {
+                    responseObserver.onError(Status.NOT_FOUND.withDescription("Operation not found").asException());
+                }
+            },
+            ex -> {
+                LOG.error("Cannot get operation {}: {}", request.getOperationId(), ex.getMessage(), ex);
+                responseObserver.onError(
+                    Status.INTERNAL.withDescription("Database error: " + ex.getMessage()).asException());
+            });
     }
 
     @Override
     public void cancel(OperationService.CancelOperationRequest request, StreamObserver<Operation> responseObserver) {
         // TODO(artolord) add more logic here
 
-        ai.lzy.allocator.model.Operation op;
-        try {
-            op = operations.get(request.getOperationId(), null);
-        } catch (SQLException e) {
-            LOG.error("Cannot get operation {}: {}", request.getOperationId(), e.getMessage(), e);
-            responseObserver.onError(
-                Status.INTERNAL.withDescription("Database error: " + e.getMessage()).asException());
-            return;
-        }
+        final ai.lzy.allocator.model.Operation[] opRef = {null};
+        withRetries(
+            defaultRetryPolicy(),
+            LOG,
+            () -> operations.get(request.getOperationId(), null),
+            op -> {
+                if (op != null) {
+                    opRef[0] = op;
+                } else {
+                    responseObserver.onError(Status.NOT_FOUND.withDescription("Operation not found").asException());
+                }
+            },
+            ex -> {
+                LOG.error("Cannot get operation {}: {}", request.getOperationId(), ex.getMessage(), ex);
+                responseObserver.onError(
+                    Status.INTERNAL.withDescription("Database error: " + ex.getMessage()).asException());
+            }
+        );
 
+        var op = opRef[0];
         if (op == null) {
-            responseObserver.onError(Status.NOT_FOUND.withDescription("Operation not found").asException());
             return;
         }
 
-        var newOp = op.complete(Status.CANCELLED);
-        try {
-            operations.update(newOp, null);
-        } catch (SQLException e) {
-            LOG.error("Cannot cancel operation {}: {}", request.getOperationId(), e.getMessage(), e);
-            responseObserver.onError(
-                Status.INTERNAL.withDescription("Database error: " + e.getMessage()).asException());
-            return;
-        }
+        final var newOp = op.complete(Status.CANCELLED);
 
-        responseObserver.onNext(newOp.toProto());
-        responseObserver.onCompleted();
+        withRetries(
+            defaultRetryPolicy(),
+            LOG,
+            () -> {
+                operations.update(newOp, null);
+                return (Void) null;
+            },
+            ok -> {
+                responseObserver.onNext(newOp.toProto());
+                responseObserver.onCompleted();
+            },
+            ex -> {
+                LOG.error("Cannot cancel operation {}: {}", request.getOperationId(), ex.getMessage(), ex);
+                responseObserver.onError(
+                    Status.INTERNAL.withDescription("Database error: " + ex.getMessage()).asException());
+            }
+        );
     }
 }

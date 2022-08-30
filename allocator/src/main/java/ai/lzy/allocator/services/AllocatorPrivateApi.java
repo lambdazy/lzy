@@ -28,10 +28,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.inject.Inject;
-import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Set;
+
+import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
+import static ai.lzy.model.db.DbHelper.withRetries;
 
 @Singleton
 @Requires(beans = MetricReporter.class)
@@ -60,123 +62,148 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
 
     @Override
     public void register(RegisterRequest request, StreamObserver<RegisterResponse> responseObserver) {
-        Vm vm = null;
-        try (final var transaction = new TransactionHandle(storage)) {
-            vm = dao.get(request.getVmId(), transaction);
-            if (vm == null) {
-                LOG.error("VM {} does not exist", request.getVmId());
-                metrics.unknownVm.inc();
-                responseObserver.onError(Status.NOT_FOUND.withDescription("Vm with this id not found").asException());
-                return;
-            }
+        final Vm[] vmRef = {null};
+        withRetries(
+            defaultRetryPolicy(),
+            LOG,
+            () -> {
+                try (final var transaction = new TransactionHandle(storage)) {
+                    var vm = dao.get(request.getVmId(), transaction);
+                    if (vm == null) {
+                        LOG.error("VM {} does not exist", request.getVmId());
+                        metrics.unknownVm.inc();
+                        responseObserver.onError(
+                            Status.NOT_FOUND.withDescription("Vm with this id not found").asException());
+                        return null;
+                    }
 
-            if (vm.state() == Vm.State.RUNNING) {
-                LOG.error("Vm {} has been already registered", vm);
-                metrics.alreadyRegistered.inc();
-                responseObserver.onError(Status.ALREADY_EXISTS.asException());
-                return;
-            }
+                    if (vm.state() == Vm.State.RUNNING) {
+                        LOG.error("Vm {} has been already registered", vm);
+                        metrics.alreadyRegistered.inc();
+                        responseObserver.onError(Status.ALREADY_EXISTS.asException());
+                        return null;
+                    }
 
-            if (vm.state() == Vm.State.DEAD) {
-                LOG.error("Vm {} is DEAD", vm);
-                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("VM is dead").asException());
-                return;
-            }
+                    if (vm.state() == Vm.State.DEAD) {
+                        LOG.error("Vm {} is DEAD", vm);
+                        responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("VM is dead").asException());
+                        return null;
+                    }
 
-            if (vm.state() != Vm.State.CONNECTING) {
-                LOG.error("Wrong status of vm while register, expected CONNECTING: {}", vm);
-                responseObserver.onError(Status.FAILED_PRECONDITION.asException());
-                return;
-            }
+                    if (vm.state() != Vm.State.CONNECTING) {
+                        LOG.error("Wrong status of vm while register, expected CONNECTING: {}", vm);
+                        responseObserver.onError(Status.FAILED_PRECONDITION.asException());
+                        return null;
+                    }
 
-            final var op = operations.get(vm.allocationOperationId(), transaction);
-            if (op == null) {
-                LOG.error("Operation {} does not exist", vm.allocationOperationId());
-                responseObserver.onError(Status.NOT_FOUND.withDescription("Op not found").asException());
-                return;
-            }
+                    final var op = operations.get(vm.allocationOperationId(), transaction);
+                    if (op == null) {
+                        LOG.error("Operation {} does not exist", vm.allocationOperationId());
+                        responseObserver.onError(Status.NOT_FOUND.withDescription("Op not found").asException());
+                        return null;
+                    }
 
-            final var session = sessions.get(vm.sessionId(), transaction);
-            if (session == null) {
-                LOG.error("Session {} does not exist", vm.sessionId());
-                metrics.unknownSession.inc();
-                responseObserver.onError(Status.NOT_FOUND.withDescription("Session not found").asException());
-                return;
-            }
+                    final var session = sessions.get(vm.sessionId(), transaction);
+                    if (session == null) {
+                        LOG.error("Session {} does not exist", vm.sessionId());
+                        metrics.unknownSession.inc();
+                        responseObserver.onError(Status.NOT_FOUND.withDescription("Session not found").asException());
+                        return null;
+                    }
 
-            if (op.error() != null && op.error().getCode() == Status.Code.CANCELLED) {
-                // Op is cancelled by client, add VM to cache
-                dao.release(vm.vmId(), Instant.now().plus(session.cachePolicy().minIdleTimeout()), transaction);
+                    if (op.error() != null && op.error().getCode() == Status.Code.CANCELLED) {
+                        // Op is cancelled by client, add VM to cache
+                        dao.release(vm.vmId(), Instant.now().plus(session.cachePolicy().minIdleTimeout()), transaction);
 
-                transaction.commit();
+                        transaction.commit();
 
-                metrics.registerCancelledVm.inc();
-                responseObserver.onError(Status.NOT_FOUND.withDescription("Op not found").asException());
-                return;
-            }
+                        metrics.registerCancelledVm.inc();
+                        responseObserver.onError(Status.NOT_FOUND.withDescription("Op not found").asException());
+                        return null;
+                    }
 
-            dao.update(
-                Vm.from(vm)
-                    .setState(Vm.State.RUNNING)
-                    .setVmMeta(request.getMetadataMap())
-                    .setLastActivityTime(Instant.now().plus(config.getHeartbeatTimeout()))
-                    .build(),
-                transaction);
+                    dao.update(
+                        Vm.from(vm)
+                            .setState(Vm.State.RUNNING)
+                            .setVmMeta(request.getMetadataMap())
+                            .setLastActivityTime(Instant.now().plus(config.getHeartbeatTimeout()))
+                            .build(),
+                        transaction);
 
-            operations.update(
-                op.complete(Any.pack(AllocateResponse.newBuilder()
-                    .setPoolId(vm.poolLabel())
-                    .setSessionId(vm.sessionId())
-                    .setVmId(vm.vmId())
-                    .putAllMetadata(request.getMetadataMap())
-                    .build())),
-                transaction);
+                    operations.update(
+                        op.complete(Any.pack(AllocateResponse.newBuilder()
+                            .setPoolId(vm.poolLabel())
+                            .setSessionId(vm.sessionId())
+                            .setVmId(vm.vmId())
+                            .putAllMetadata(request.getMetadataMap())
+                            .build())),
+                        transaction);
 
-            transaction.commit();
+                    transaction.commit();
 
-            metrics.registered.inc();
-            metrics.allocationTime.observe(Duration.between(vm.allocationStartedAt(), Instant.now()).toSeconds());
-        } catch (Exception e) {
-            LOG.error("Error while registering vm {}: {}",
-                vm != null ? vm.toString() : request.getVmId(), e.getMessage(), e);
+                    metrics.registered.inc();
+                    metrics.allocationTime.observe(
+                        Duration.between(vm.allocationStartedAt(), Instant.now()).toSeconds());
 
-            metrics.failed.inc();
+                    return vm;
+                }
+            },
+            vm -> {
+                if (vm != null) {
+                    vmRef[0] = vm;
+                    responseObserver.onNext(RegisterResponse.getDefaultInstance());
+                    responseObserver.onCompleted();
+                }
+            },
+            ex -> {
+                var vm = vmRef[0];
 
-            responseObserver.onError(
-                Status.INTERNAL.withDescription("Error while registering vm %s: %s".formatted(vm, e.getMessage()))
-                    .asException());
+                LOG.error("Error while registering vm {}: {}",
+                    vm != null ? vm.toString() : request.getVmId(), ex.getMessage(), ex);
 
-            if (vm != null) {
-                LOG.info("Deallocating failed vm {}", vm);
-                allocator.deallocate(vm);
-            }
-            return;
-        }
+                metrics.failed.inc();
 
-        responseObserver.onNext(RegisterResponse.getDefaultInstance());
-        responseObserver.onCompleted();
+                responseObserver.onError(
+                    Status.INTERNAL.withDescription("Error while registering vm %s: %s".formatted(vm, ex.getMessage()))
+                        .asException());
+
+                if (vm != null) {
+                    LOG.info("Deallocating failed vm {}", vm);
+                    allocator.deallocate(vm);
+                }
+            });
     }
 
     @Override
     public void heartbeat(HeartbeatRequest request, StreamObserver<HeartbeatResponse> responseObserver) {
-        final Vm vm;
-        try {
-            vm = dao.get(request.getVmId(), null);
-        } catch (SQLException e) {
-            // TODO: retry
-            LOG.error("Cannot read VM {}: {}", request.getVmId(), e.getMessage(), e);
-            responseObserver.onError(
-                Status.INTERNAL.withDescription("Database error: " + e.getMessage()).asException());
+        final Vm[] vmRef = {null};
+
+        withRetries(
+            defaultRetryPolicy(),
+            LOG,
+            () -> dao.get(request.getVmId(), null),
+            vm -> {
+                if (vm != null) {
+                    vmRef[0] = vm;
+                } else {
+                    LOG.error("Heartbeat from unknown VM {}", request.getVmId());
+                    metrics.hbUnknownVm.inc();
+                    responseObserver.onError(
+                        Status.NOT_FOUND.withDescription("Vm not found").asException());
+                }
+            },
+            ex -> {
+                LOG.error("Cannot read VM {}: {}", request.getVmId(), ex.getMessage(), ex);
+                responseObserver.onError(
+                    Status.INTERNAL.withDescription("Database error: " + ex.getMessage()).asException());
+            }
+        );
+
+        var vm = vmRef[0];
+        if (vm == null) {
             return;
         }
 
-        if (vm == null) {
-            LOG.error("Heartbeat from unknown VM {}", request.getVmId());
-            metrics.hbUnknownVm.inc();
-            responseObserver.onError(
-                Status.NOT_FOUND.withDescription("Vm not found").asException());
-            return;
-        }
 
         if (!Set.of(Vm.State.RUNNING, Vm.State.IDLE).contains(vm.state())) {
             LOG.error("Wrong status of vm {} while receiving heartbeat: {}, expected RUNNING or IDLING",
@@ -186,18 +213,23 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
                 Status.FAILED_PRECONDITION.withDescription("Wrong state for heartbeat").asException());
         }
 
-        try {
-            // TODO: rename `lastActivityTime` to `activityDeadline`
-            // TODO: retry
-            dao.updateLastActivityTime(vm.vmId(), Instant.now().plus(config.getHeartbeatTimeout()));
-        } catch (Exception e) {
-            LOG.error("Cannot update VM {} last activity time: {}", vm, e.getMessage(), e);
-            responseObserver.onError(
-                Status.INTERNAL.withDescription("Database error: " + e.getMessage()).asException());
-        }
-
-        responseObserver.onNext(HeartbeatResponse.getDefaultInstance());
-        responseObserver.onCompleted();
+        withRetries(
+            defaultRetryPolicy(),
+            LOG,
+            () -> {
+                dao.updateLastActivityTime(vm.vmId(), Instant.now().plus(config.getHeartbeatTimeout()));
+                return (Void) null;
+            },
+            ok -> {
+                responseObserver.onNext(HeartbeatResponse.getDefaultInstance());
+                responseObserver.onCompleted();
+            },
+            ex -> {
+                LOG.error("Cannot update VM {} last activity time: {}", vm, ex.getMessage(), ex);
+                responseObserver.onError(
+                    Status.INTERNAL.withDescription("Database error: " + ex.getMessage()).asException());
+            }
+        );
     }
 
     private static final class Metrics {
