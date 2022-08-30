@@ -39,5 +39,6 @@
         <module>coverage</module>
         <module>workflow-api</module>
         <module>whiteboard-api</module>
+        <module>whiteboard</module>
     </modules>
 </project>

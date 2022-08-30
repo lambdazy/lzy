@@ -19,6 +19,15 @@ public enum DbHelper {
         void run() throws SQLException;
     }
 
+    public static void withRetries(RetryPolicy retryPolicy, Logger logger, Op fn)
+        throws RetryCountExceededException, SQLException, InterruptedException
+    {
+        withRetries(retryPolicy, logger, () -> {
+            fn.run();
+            return true;
+        });
+    }
+
     public static <T> T withRetries(RetryPolicy retryPolicy, Logger logger, Func<T> fn)
         throws RetryCountExceededException, SQLException, InterruptedException
     {
