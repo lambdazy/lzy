@@ -1,4 +1,4 @@
-name: Test on pull request
+name: Publish allocator api
 on:
   workflow_dispatch:
 
@@ -24,21 +24,12 @@ jobs:
             [{
               "id": "repsy",
               "username": "lzy",
-              "password": ${{ secrets.REPSY_PASSWORD }}
+              "password": "${{ secrets.REPSY_PASSWORD }}"
             }]
-
-      - name: "Build allocator api"
-        timeout-minutes: 10
-        run:
-          cd allocator-api/
-          mvn clean install --also-make-dependents
-          cd ..
 
       - name: "Publish allocator api"
         timeout-minutes: 10
         run:
-          cd allocator-api/ 
-          mvn deploy
+          cd allocator-api/
+          mvn clean deploy --also-make-dependents
           cd ..
-
-
