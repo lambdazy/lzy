@@ -241,43 +241,34 @@ public class VmDaoImpl implements VmDao {
     public Vm acquire(String sessionId, String poolId, String zone, @Nullable TransactionHandle transaction)
         throws SQLException
     {
-        final var tx = transaction == null ? new TransactionHandle(storage) : transaction;
         final Vm[] vm = {null};
+        try (final var tx = TransactionHandle.getOrCreate(storage, transaction)) {
+            DbOperation.execute(tx, storage, con -> {
+                try (final var s = con.prepareStatement(QUERY_ACQUIRE_VM,
+                    ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE))
+                {
+                    s.setString(1, sessionId);
+                    s.setString(2, poolId);
+                    s.setString(3, zone);
 
-        DbOperation.execute(tx, storage, con -> {
-            try (final var s = con.prepareStatement(QUERY_ACQUIRE_VM,
-                ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE))
-            {
-                s.setString(1, sessionId);
-                s.setString(2, poolId);
-                s.setString(3, zone);
+                    final var res = s.executeQuery();
+                    if (!res.next()) {
+                        vm[0] = null;
+                        return;
+                    }
 
-                final var res = s.executeQuery();
-                if (!res.next()) {
-                    vm[0] = null;
-                    return;
+                    vm[0] = readVm(res);
+                    vm[0] = Vm.from(vm[0])
+                        .setState(Vm.State.RUNNING)
+                        .build();
+
+                    res.updateString("state", "RUNNING");
+                    res.updateRow();
+
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException("Cannot dump values", e);
                 }
-
-                vm[0] = readVm(res);
-                vm[0] = Vm.from(vm[0])
-                    .setState(Vm.State.RUNNING)
-                    .build();
-
-                res.updateString("state", "RUNNING");
-                res.updateRow();
-
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException("Cannot dump values", e);
-            }
-        });
-
-        if (transaction == null) {  // If executing in local transaction
-            try {
-                tx.commit();
-                tx.close();
-            } catch (SQLException e) {
-                throw new RuntimeException("Cannot close transaction", e);
-            }
+            });
         }
 
         return vm[0];

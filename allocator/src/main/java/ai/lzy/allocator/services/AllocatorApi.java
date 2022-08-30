@@ -186,7 +186,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             defaultRetryPolicy(),
             LOG,
             () -> {
-                try (var transaction = new TransactionHandle(storage)) {
+                try (var transaction = TransactionHandle.create(storage)) {
                     final var existingVm = dao.acquire(request.getSessionId(), request.getPoolLabel(),
                         request.getZone(), transaction);
 
@@ -278,7 +278,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             defaultRetryPolicy(),
             LOG,
             () -> {
-                try (var transaction = new TransactionHandle(storage)) {
+                try (var transaction = TransactionHandle.create(storage)) {
                     var vm = dao.get(request.getVmId(), transaction);
                     if (vm == null) {
                         return (Producer<Status>) () -> Status.NOT_FOUND.withDescription("Cannot find vm");

@@ -78,7 +78,7 @@ public class DaoTest {
             .setVmId("id")
             .build();
         Operation op;
-        try (final var tx = new TransactionHandle(storage)) {
+        try (final var tx = TransactionHandle.create(storage)) {
             op = opDao.create(UUID.randomUUID().toString(), "Some op", "test", Any.pack(meta), tx);
             // Do not commit
         }
@@ -86,7 +86,7 @@ public class DaoTest {
         final var op1 = opDao.get(op.id(), null);
         Assert.assertNull(op1);
 
-        try (final var tx = new TransactionHandle(storage)) {
+        try (final var tx = TransactionHandle.create(storage)) {
             op = opDao.create(UUID.randomUUID().toString(), "Some op", "test", Any.pack(meta), tx);
             tx.commit();
         }

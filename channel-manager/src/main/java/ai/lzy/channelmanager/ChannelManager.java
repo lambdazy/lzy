@@ -413,7 +413,7 @@ public class ChannelManager {
                 final String channelId = endpoint.slotInstance().channelId();
 
                 final Channel channel;
-                try (final var transaction = new TransactionHandle(dataSource)) {
+                try (final var transaction = TransactionHandle.create(dataSource)) {
                     channel = channelStorage.findChannel(channelId, ChannelLifeStatus.ALIVE, transaction);
                     if (channel == null) {
                         String errorMessage = "Channel with id " + channelId + " not found";
@@ -489,7 +489,7 @@ public class ChannelManager {
                 final String channelId = endpoint.slotInstance().channelId();
 
                 final Channel channel;
-                try (final var transaction = new TransactionHandle(dataSource)) {
+                try (final var transaction = TransactionHandle.create(dataSource)) {
                     channel = channelStorage.findChannel(channelId, ChannelLifeStatus.ALIVE, transaction);
                     if (channel == null) {
                         String errorMessage = "Channel with id " + channelId + " not found";
