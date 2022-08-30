@@ -49,7 +49,7 @@ public class GarbageCollector extends TimerTask {
             vms.forEach(vm -> {
                 try {
                     LOG.info("Vm {} is expired", vm);
-                    try (var tr = new TransactionHandle(storage)) {
+                    try (var tr = TransactionHandle.create(storage)) {
                         var op = operations.get(vm.allocationOperationId(), tr);
                         if (op != null) {
                             operations.update(op.complete(Status.DEADLINE_EXCEEDED.withDescription("Vm is expired")),

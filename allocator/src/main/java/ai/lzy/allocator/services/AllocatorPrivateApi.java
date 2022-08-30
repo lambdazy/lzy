@@ -67,7 +67,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
             defaultRetryPolicy(),
             LOG,
             () -> {
-                try (final var transaction = new TransactionHandle(storage)) {
+                try (final var transaction = TransactionHandle.create(storage)) {
                     var vm = dao.get(request.getVmId(), transaction);
                     if (vm == null) {
                         LOG.error("VM {} does not exist", request.getVmId());
