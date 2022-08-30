@@ -40,7 +40,7 @@ Configuration:
 
       - name: "ai.lzy.channelmanager"
         additivity: false
-        level: error
+        level: info
         AppenderRef:
           ref: Console
 
