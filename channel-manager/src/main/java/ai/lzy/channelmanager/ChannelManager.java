@@ -175,7 +175,8 @@ public class ChannelManager {
                  */
                 final String channelId = String.join("-", "channel", userId, workflowId)
                     .replaceAll("[^a-zA-z0-9-]+", "-") + "!" + channelName;
-                lockManager.getOrCreate(channelId);
+
+                lockManager.getOrCreate(channelId).lock();
                 try {
                     final var channelType = channelSpec.getTypeCase();
                     final ChannelSpec spec = switch (channelSpec.getTypeCase()) {
@@ -202,7 +203,7 @@ public class ChannelManager {
 
                     channelStorage.insertChannel(channelId, userId, workflowId, channelName, channelType, spec, null);
                 } finally {
-                    lockManager.remove(channelId);
+                    lockManager.getOrCreate(channelId).unlock();
                 }
 
                 responseObserver.onNext(ChannelCreateResponse.newBuilder()
@@ -234,7 +235,6 @@ public class ChannelManager {
                     responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(errorMessage).asException());
                     return;
                 }
-                lockManager.getOrCreate(channelId);
 
                 channelStorage.setChannelLifeStatus(channelId, ChannelLifeStatus.DESTROYING, null);
 
@@ -261,6 +261,7 @@ public class ChannelManager {
                     request.getChannelId(), e.getMessage(), e);
                 responseObserver.onError(Status.INTERNAL.withCause(e).asException());
             } finally {
+                lockManager.getOrCreate(request.getChannelId()).unlock();
                 lockManager.remove(request.getChannelId());
             }
         }
@@ -289,11 +290,13 @@ public class ChannelManager {
                     userId, workflowId, ChannelLifeStatus.DESTROYING, null
                 );
                 for (final Channel channel : channels) {
+                    final var lock = lockManager.getOrCreate(channel.id());
                     try {
-                        lockManager.getOrCreate(channel.id());
+                        lock.lock();
                         channel.destroy();
                         channelStorage.removeChannel(channel.id(), null);
                     } finally {
+                        lock.unlock();
                         lockManager.remove(channel.id());
                     }
                 }
@@ -402,7 +405,8 @@ public class ChannelManager {
                 return;
             }
 
-            lockManager.getOrCreate(attach.getSlotInstance().getChannelId());
+            //lockManager.getOrCreate("endpoints").lock();
+            lockManager.getOrCreate(attach.getSlotInstance().getChannelId()).lock();
             try {
                 final SlotInstance slotInstance = from(attach.getSlotInstance());
                 final Endpoint endpoint = SlotEndpoint.getInstance(slotInstance);
@@ -455,7 +459,8 @@ public class ChannelManager {
                     e.getMessage(), e);
                 responseObserver.onError(Status.INTERNAL.withCause(e).asException());
             } finally {
-                lockManager.remove(attach.getSlotInstance().getChannelId());
+                lockManager.getOrCreate(attach.getSlotInstance().getChannelId()).unlock();
+                //lockManager.getOrCreate("endpoints").unlock();
             }
         }
 
@@ -476,7 +481,8 @@ public class ChannelManager {
                 return;
             }
 
-            lockManager.getOrCreate(detach.getSlotInstance().getChannelId());
+            //lockManager.getOrCreate("endpoints");
+            lockManager.getOrCreate(detach.getSlotInstance().getChannelId()).lock();
             try {
                 final SlotInstance slotInstance = from(detach.getSlotInstance());
                 final Endpoint endpoint = SlotEndpoint.getInstance(slotInstance);
@@ -514,7 +520,8 @@ public class ChannelManager {
                     e.getMessage(), e);
                 responseObserver.onError(Status.INTERNAL.withCause(e).asException());
             } finally {
-                lockManager.remove(detach.getSlotInstance().getChannelId());
+                lockManager.getOrCreate(detach.getSlotInstance().getChannelId()).unlock();
+                lockManager.getOrCreate("endpoints").unlock();
             }
         }
 
