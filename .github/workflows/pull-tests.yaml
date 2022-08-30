@@ -29,7 +29,7 @@ jobs:
           sudo rm -rf /tmp/temp* /tmp/test* /tmp/*json /tmp/*txt /tmp/*so /tmp/*lck /tmp/*sh
 
       - name: 'python-test'
-        timeout-minutes: 5
+        timeout-minutes: 20
         run: |
           cd pylzy/
           ./scripts/gen_proto.sh
