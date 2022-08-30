@@ -44,9 +44,7 @@ class LzyWorkflow:
         # TODO[ottergottaott]: prepare tasks before?
         # seems it's better to prepare them inside of runtime
         # graph = prepare_tasks_and_channels(self._id, self._call_queue)
-        self._runtime.exec(
-            self._call_queue, lambda x: print(x)
-        )
+        self._runtime.exec(self._call_queue, lambda x: print(x))
         self._call_queue = []
 
     def __enter__(self) -> "LzyWorkflow":

@@ -29,10 +29,6 @@ let
       doCheck = false;
     });
 
-    catboost = super.catboost.overridePythonAttrs(old: rec {
-      doCheck = false;
-    });
-
     coverage = super.coverage.overridePythonAttrs(old: rec {
       # propagatedBuildInputs = [
       #   trio
@@ -113,6 +109,14 @@ let
     types-pyyaml = self.callPackage ./types-pyyaml.nix { };
 
     grpclib = self.callPackage ./grpclib.nix { };
+
+    grpcio = self.callPackage ./grpcio.nix { };
+
+    pycryptodome = self.callPackage ./pycryptodome.nix { };
+
+    types-PyJWT = self.callPackage ./types-PyJWT.nix { };
+
+    types-cryptography = self.callPackage ./types-cryptography.nix { };
 
     betterproto = self.callPackage ./betterproto.nix {
       inherit grpclib;

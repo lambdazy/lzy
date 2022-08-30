@@ -2,7 +2,7 @@ import functools
 import inspect
 import sys
 import uuid
-from typing import Any, Callable, Optional, TypeVar, Sequence
+from typing import Any, Callable, Optional, Sequence, TypeVar
 
 from lzy._proxy.result import Nothing
 from lzy.api.v2.call import LzyCall
@@ -105,12 +105,7 @@ def create_lazy_constructor(
         env: EnvSpec = active_wflow._env_provider.provide(caller_globals)
 
         # create
-        lzy_call = LzyCall(
-            active_wflow,
-            signature,
-            provisioning,
-            env
-        )
+        lzy_call = LzyCall(active_wflow, signature, provisioning, env)
         # and register LzyCall
         active_wflow.register_call(lzy_call)
 
@@ -128,10 +123,18 @@ def create_lazy_constructor(
         if len(output_types) == 1:
             if issubclass(output_types[0], type(None)):
                 return None
-            return lzy_proxy(lzy_call.entry_ids[0], lzy_call.signature.func.output_types[0], lzy_call.parent_wflow)
+            return lzy_proxy(
+                lzy_call.entry_ids[0],
+                lzy_call.signature.func.output_types[0],
+                lzy_call.parent_wflow,
+            )
 
         return tuple(
-            lzy_proxy(lzy_call.entry_ids[i], lzy_call.signature.func.output_types[i], lzy_call.parent_wflow)
+            lzy_proxy(
+                lzy_call.entry_ids[i],
+                lzy_call.signature.func.output_types[i],
+                lzy_call.parent_wflow,
+            )
             for i in range(len(lzy_call.entry_ids))
         )
 

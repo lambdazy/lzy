@@ -24,7 +24,10 @@ class LzyCall:
         self._sign = sign
         self._provisioning = provisioning
         self._env = env
-        self._entry_ids = [str(uuid.uuid4()) for _ in range(len(sign.func.output_types))]
+        self._entry_ids = [
+            parent_wflow.owner.snapshot.create_entry(typ).id
+            for typ in sign.func.output_types
+        ]
 
     @property
     def provisioning(self) -> Provisioning:

@@ -12,10 +12,10 @@ from ai.lzy.v1.workflow.workflow_service_pb2 import (
 )
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceStub
 from lzy.api.v2.remote_grpc.model import converter
-from lzy.api.v2.remote_grpc.model.converter.storage_creds import to, from_
-from lzy.api.v2.remote_grpc.utils import build_channel, add_headers_interceptor
+from lzy.api.v2.remote_grpc.model.converter.storage_creds import from_, to
+from lzy.api.v2.remote_grpc.utils import add_headers_interceptor, build_channel
 from lzy.api.v2.storage import Credentials
-from lzy.storage.credentials import StorageCredentials, AmazonCredentials
+from lzy.storage.credentials import AmazonCredentials, StorageCredentials
 
 
 @dataclass
@@ -25,7 +25,7 @@ class StorageEndpoint:
 
 
 def _create_storage_endpoint(
-        response: CreateWorkflowResponse,
+    response: CreateWorkflowResponse,
 ) -> Credentials:
     error_msg = "no storage credentials provided"
 
@@ -46,20 +46,29 @@ def _create_storage_endpoint(
 
 class WorkflowServiceClient:
     def __init__(self, address: str, token: str):
-        channel = build_channel(address, interceptors=[add_headers_interceptor({"Authorization": token})])
+        channel = build_channel(
+            address, interceptors=[add_headers_interceptor({"Authorization": token})]
+        )
         self.stub = LzyWorkflowServiceStub(channel)
 
-    async def create_workflow(self, name: str, storage: Optional[Credentials] = None) \
-            -> Tuple[str, Optional[Credentials]]:
+    async def create_workflow(
+        self, name: str, storage: Optional[Credentials] = None
+    ) -> Tuple[str, Optional[Credentials]]:
         s: Optional[SnapshotStorage] = None
 
         if storage is not None:
             if isinstance(storage.storage_credentials, AmazonCredentials):
-                s = SnapshotStorage(bucket=storage.bucket, amazon=to(storage.storage_credentials))
+                s = SnapshotStorage(
+                    bucket=storage.bucket, amazon=to(storage.storage_credentials)
+                )
             else:
-                s = SnapshotStorage(bucket=storage.bucket, azure=to(storage.storage_credentials))
+                s = SnapshotStorage(
+                    bucket=storage.bucket, azure=to(storage.storage_credentials)
+                )
 
-        res = await self.stub.CreateWorkflow(CreateWorkflowRequest(workflowName=name, snapshotStorage=s))
+        res = await self.stub.CreateWorkflow(
+            CreateWorkflowRequest(workflowName=name, snapshotStorage=s)
+        )
         exec_id = res.executionId
 
         if res.internalSnapshotStorage is not None:

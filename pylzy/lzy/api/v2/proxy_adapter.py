@@ -1,10 +1,11 @@
-from typing import Any, Type, TypeVar, cast, TYPE_CHECKING
-
-from lzy._proxy.result import Nothing, Just
+from typing import TYPE_CHECKING, Any
 
 from lzy._proxy.automagic import proxy
+from lzy._proxy.result import Just
+
 if TYPE_CHECKING:
     from lzy.api.v2 import LzyWorkflow
+
 from lzy.api.v2.exceptions import LzyExecutionException
 
 ____lzy_proxied = "__lzy_proxied__"
@@ -25,13 +26,13 @@ def materialize(obj: Any) -> Any:
 
 def lzy_proxy(entry_id: str, typ: type, wflow: "LzyWorkflow") -> Any:
     def materialize():
-        data = wflow.owner.runtime.resolve_data(entry_id)
+        data = wflow.owner.snapshot.get_data(entry_id)
         if isinstance(data, Just):
             return data.value
 
         wflow.barrier()
 
-        new_data = wflow.owner.runtime.resolve_data(entry_id)
+        new_data = wflow.owner.snapshot.get_data(entry_id)
         if isinstance(new_data, Just):
             return new_data.value
         raise LzyExecutionException("Cannot materialize data")

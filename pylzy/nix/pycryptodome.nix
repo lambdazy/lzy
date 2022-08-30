@@ -1,18 +1,15 @@
 {
   buildPythonPackage,
   fetchPypi,
-  grpcio
 }:
 buildPythonPackage rec {
-  pname = "grpc-stubs";
-  version = "1.24.10";
-
+  pname = "pycryptodome";
+  version = "3.15.0";
   src = fetchPypi {
     inherit pname version;
-    sha256 = "92460dbabea0e77e34241afe7594b86f5cef2f9ae6ca0230f1ae2430427c20f9";
+    sha256 = "9135dddad504592bcc18b0d2d95ce86c3a5ea87ec6447ef25cfedea12d6018b8";
   };
-
   propagatedBuildInputs = [
-  grpcio
   ];
+  doCheck = false;
 }

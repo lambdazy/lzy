@@ -7,9 +7,10 @@ from typing import (
     Generic,
     Iterable,
     Iterator,
+    Sequence,
     Tuple,
     Type,
-    TypeVar, Sequence,
+    TypeVar,
 )
 
 T = TypeVar("T")  # pylint: disable=invalid-name

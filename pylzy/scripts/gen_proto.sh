@@ -1,12 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env nix-shell
+#! nix-shell build.nix -A dev -i bash
 
 set -eux
 
 src_dir="$(dirname $0)"
 source "$src_dir/util.sh"
-
-proto_workflow_path="$(pwd)/../workflow-api/src/main/proto/"
-proto_out="$(pwd)/ai/lzy/v1"
 
 # this has to be declared as env variable in mk-python-env.nix
 # proto_out="lzy/proto"
@@ -14,7 +12,10 @@ proto_out="$(pwd)/ai/lzy/v1"
 
 [ -d "$proto_out" ] || mkdir -p "$proto_out"
 
-pip install mypy-protobuf grpcio-tools
+# check mypy, it's hack actually but for some reason it's not installed
+# ok with nix
+python -m mypy_protobuf 1>/dev/null 2>&1\
+    || pip install mypy-protobuf
 
 print_green "Generating protobuf, grpclib and mypy proto stubs"
 

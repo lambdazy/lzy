@@ -1,9 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Callable, List, Any
-
-from lzy._proxy.result import Result
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, List
 
 if TYPE_CHECKING:
     from lzy.api.v2 import LzyWorkflow
@@ -17,7 +14,6 @@ class ProgressStep:
 
 
 class Runtime(ABC):
-
     @abstractmethod
     def start(self, workflow: "LzyWorkflow"):
         pass
@@ -28,10 +24,6 @@ class Runtime(ABC):
         graph: List[LzyCall],
         progress: Callable[[ProgressStep], None],
     ) -> None:
-        pass
-
-    @abstractmethod
-    def resolve_data(self, entry_id: str) -> Result[Any]:
         pass
 
     @abstractmethod

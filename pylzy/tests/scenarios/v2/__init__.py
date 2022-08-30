@@ -2,9 +2,7 @@ from asyncio import get_event_loop
 
 import grpc.aio as aio
 
-from lzy.api.v2.remote_grpc.workflow_service_client import (
-    WorkflowServiceClient,
-)
+from lzy.api.v2.remote_grpc.workflow_service_client import WorkflowServiceClient
 
 
 async def main():

@@ -1,10 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env nix-shell
+#! nix-shell build.nix -A tests -i bash
 
 src_dir="$(dirname $0)"
 source "$src_dir/util.sh"
-
-pip install catboost coverage coverage-badge
-pip install -r requirements.txt
 
 start
 

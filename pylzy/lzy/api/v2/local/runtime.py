@@ -1,6 +1,7 @@
-from typing import Callable, List, Any, Dict
+from typing import TYPE_CHECKING, Callable, List, Optional
 
-from lzy._proxy.result import Result, Nothing, Just
+if TYPE_CHECKING:
+    from lzy.api.v2 import LzyWorkflow
 
 from lzy.api.v2.call import LzyCall
 from lzy.api.v2.proxy_adapter import is_lzy_proxy
@@ -9,7 +10,7 @@ from lzy.api.v2.runtime import ProgressStep, Runtime
 
 class LocalRuntime(Runtime):
     def __init__(self):
-        self.__data: Dict[str, Any] = {}
+        self.__wflow: Optional["LzyWorkflow"] = None
 
     def start(self, workflow):
         pass
@@ -19,6 +20,7 @@ class LocalRuntime(Runtime):
         graph: List[LzyCall],
         progress: Callable[[ProgressStep], None],
     ):
+        assert self.__wflow is not None
         for call in graph:
             args = tuple(
                 # TODO[ottergottaott]: hide this __lzy_origin__ attr access
@@ -32,16 +34,10 @@ class LocalRuntime(Runtime):
 
             value = call.signature.func.callable(*args, **kwargs)
             if len(call.entry_ids) == 0:
-                self.__data[call.entry_ids[0]] = value
+                self.__wflow.owner.snapshot.put_data(call.entry_ids[0], value)
                 continue
             for i, data in enumerate(value):
-                self.__data[call.entry_ids[i]] = data
-
-    def resolve_data(self, entry_id: str) -> Result[Any]:
-        res = self.__data.get(entry_id, Nothing())
-        if not isinstance(res, Nothing):
-            return Just(res)
-        return Nothing()
+                self.__wflow.owner.snapshot.put_data(call.entry_ids[i], data)
 
     def destroy(self) -> None:
         pass

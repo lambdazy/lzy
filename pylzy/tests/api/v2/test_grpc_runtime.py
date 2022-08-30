@@ -4,34 +4,41 @@ from concurrent import futures
 from unittest import TestCase
 
 import grpc.aio
-
-from ai.lzy.v1.workflow.workflow_pb2 import SnapshotStorage, AmazonCredentials
-from ai.lzy.v1.workflow.workflow_service_pb2 import CreateWorkflowRequest, CreateWorkflowResponse, \
-    FinishWorkflowResponse, FinishWorkflowRequest
-from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceServicer,\
-    add_LzyWorkflowServiceServicer_to_server
-from lzy.api.v2 import Lzy
-from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
 from Crypto.PublicKey import RSA
 
+from ai.lzy.v1.workflow.workflow_pb2 import AmazonCredentials, SnapshotStorage
+from ai.lzy.v1.workflow.workflow_service_pb2 import (
+    CreateWorkflowRequest,
+    CreateWorkflowResponse,
+    FinishWorkflowRequest,
+    FinishWorkflowResponse,
+)
+from ai.lzy.v1.workflow.workflow_service_pb2_grpc import (
+    LzyWorkflowServiceServicer,
+    add_LzyWorkflowServiceServicer_to_server,
+)
+from lzy.api.v2 import Lzy
+from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
 
 LOG = logging.getLogger(__name__)
 
 
 class WorkflowServiceMock(LzyWorkflowServiceServicer):
-
-    def CreateWorkflow(self, request: CreateWorkflowRequest, context: grpc.RpcContext) -> CreateWorkflowResponse:
+    def CreateWorkflow(
+        self, request: CreateWorkflowRequest, context: grpc.RpcContext
+    ) -> CreateWorkflowResponse:
         LOG.info(f"Creating wf {request}")
-        return CreateWorkflowResponse(executionId="exec_id", internalSnapshotStorage=SnapshotStorage(
-            bucket="",
-            amazon=AmazonCredentials(
-                endpoint="",
-                accessToken="",
-                secretToken=""
-            )
-        ))
+        return CreateWorkflowResponse(
+            executionId="exec_id",
+            internalSnapshotStorage=SnapshotStorage(
+                bucket="",
+                amazon=AmazonCredentials(endpoint="", accessToken="", secretToken=""),
+            ),
+        )
 
-    def FinishWorkflow(self, request: FinishWorkflowRequest, context: grpc.RpcContext) -> FinishWorkflowResponse:
+    def FinishWorkflow(
+        self, request: FinishWorkflowRequest, context: grpc.RpcContext
+    ) -> FinishWorkflowResponse:
         LOG.info(f"Finishing workflow {request}")
         assert request.workflowName == "some_name"
         assert request.executionId == "exec_id"
@@ -53,7 +60,7 @@ class GrpcRuntimeTests(TestCase):
         key = RSA.generate(2048)
         fd, name = tempfile.mkstemp()
         with open(name, "wb") as f:
-            f.write(key.export_key('PEM'))
+            f.write(key.export_key("PEM"))
         runtime = GrpcRuntime("ArtoLord", "localhost:12345", name)
         lzy = Lzy()
         runtime.start(lzy.workflow("some_name"))

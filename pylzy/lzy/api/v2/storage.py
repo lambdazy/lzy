@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, Dict
+from typing import Dict, Optional
 
 from lzy.storage.credentials import StorageCredentials
 
@@ -16,7 +16,9 @@ class StorageRegistry:
         self.__default: Optional[Credentials] = None
         self.__default_name: Optional[str] = None
 
-    def register_credentials(self, name: str, creds: Credentials, default: bool = False):
+    def register_credentials(
+        self, name: str, creds: Credentials, default: bool = False
+    ):
         self.__credentials_map[name] = creds
         if default:
             self.__default = creds

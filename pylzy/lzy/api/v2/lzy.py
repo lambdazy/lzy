@@ -1,14 +1,12 @@
 import os
 from typing import Any, Iterator, Optional
 
-from lzy.api.v2.storage import StorageRegistry
-from lzy.storage.credentials import StorageCredentials
-
 from lzy.api.v2.local.runtime import LocalRuntime
-from lzy.api.v2.local.snapshot_provider import LocalSnapshotProvider
+from lzy.api.v2.local.snapshot import LocalSnapshot
 from lzy.api.v2.query import Query
 from lzy.api.v2.runtime import Runtime
-from lzy.api.v2.snapshot.snapshot_provider import SnapshotProvider
+from lzy.api.v2.snapshot.snapshot import Snapshot
+from lzy.api.v2.storage import StorageRegistry
 from lzy.api.v2.workflow import LzyWorkflow
 from lzy.env.env_provider import EnvProvider
 from lzy.env.lzy_env_provider import LzyEnvProvider
@@ -21,12 +19,13 @@ class Lzy:
         self,
         env_provider: EnvProvider = LzyEnvProvider(),
         runtime: Runtime = LocalRuntime(),
-        storage_registry: StorageRegistry = StorageRegistry()
+        storage_registry: StorageRegistry = StorageRegistry(),
     ):
         self._env_provider = env_provider
         self._runtime = runtime
         self._serializer = DefaultSerializersRegistry()
         self._storage_registry = storage_registry
+        self._snapshot = LocalSnapshot()
 
     @property
     def serializer(self) -> SerializersRegistry:
@@ -43,6 +42,10 @@ class Lzy:
     @property
     def storage_registry(self) -> StorageRegistry:
         return self._storage_registry
+
+    @property
+    def snapshot(self) -> Snapshot:
+        return self._snapshot
 
     def whiteboard(self, wid: str) -> Any:
         # TODO: implement

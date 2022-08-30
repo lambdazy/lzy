@@ -1,7 +1,16 @@
 import uuid
 from inspect import getfullargspec
 from itertools import chain
-from typing import Callable, Optional, Type, TypeVar, cast, get_type_hints, Union, Sequence
+from typing import (
+    Callable,
+    Optional,
+    Sequence,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+    get_type_hints,
+)
 
 from lzy._proxy.result import Just, Nothing, Result
 from lzy.api.v2.proxy_adapter import is_lzy_proxy
@@ -67,7 +76,7 @@ def infer_return_type(func: Callable) -> TypeInferResult:
 
     or_type = infer_real_type(or_type)
     if isinstance(or_type, type):
-        return Just(tuple((or_type, )))
+        return Just(tuple((or_type,)))
 
     return Nothing()
 
