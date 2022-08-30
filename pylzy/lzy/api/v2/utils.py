@@ -18,6 +18,8 @@ from typing import (
 )
 from zipfile import ZipFile
 
+from pure_protobuf.dataclasses_ import Message
+
 # noinspection PyProtectedMember
 from lzy._proxy import proxy
 from lzy._proxy.result import Just, Nothing, Result
@@ -84,7 +86,7 @@ def wrap_local_value(obj: Any):
 def check_message_field(obj: Any) -> bool:
     if obj is None:
         return False
-    return hasattr(obj, "LZY_MESSAGE")
+    return hasattr(obj, "LZY_MESSAGE") or issubclass(obj, Message)
 
 
 def zipdir(path: str, zipfile: ZipFile):
