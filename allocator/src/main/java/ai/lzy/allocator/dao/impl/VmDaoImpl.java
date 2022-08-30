@@ -238,12 +238,12 @@ public class VmDaoImpl implements VmDao {
 
     @Nullable
     @Override
-    public Vm acquire(String sessionId, String poolId, String zone, @Nullable TransactionHandle transaction)
+    public Vm acquire(String sessionId, String poolId, String zone, @Nullable TransactionHandle outerTransaction)
         throws SQLException
     {
         final Vm[] vm = {null};
-        try (final var tx = TransactionHandle.getOrCreate(storage, transaction)) {
-            DbOperation.execute(tx, storage, con -> {
+        try (final var transaction = TransactionHandle.getOrCreate(storage, outerTransaction)) {
+            DbOperation.execute(transaction, storage, con -> {
                 try (final var s = con.prepareStatement(QUERY_ACQUIRE_VM,
                     ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE))
                 {
@@ -269,6 +269,8 @@ public class VmDaoImpl implements VmDao {
                     throw new RuntimeException("Cannot dump values", e);
                 }
             });
+
+            transaction.commit();
         }
 
         return vm[0];

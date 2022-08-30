@@ -30,7 +30,9 @@ public class DelegatingTransactionHandle implements TransactionHandle {
     }
 
     public synchronized void commit() throws SQLException {
-        transaction.connect();
+        if (!acquired) {
+            transaction.commit();
+        }
     }
 
     @Override

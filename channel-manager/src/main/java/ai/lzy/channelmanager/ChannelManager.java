@@ -405,7 +405,6 @@ public class ChannelManager {
                 return;
             }
 
-            //lockManager.getOrCreate("endpoints").lock();
             lockManager.getOrCreate(attach.getSlotInstance().getChannelId()).lock();
             try {
                 final SlotInstance slotInstance = from(attach.getSlotInstance());
@@ -460,7 +459,6 @@ public class ChannelManager {
                 responseObserver.onError(Status.INTERNAL.withCause(e).asException());
             } finally {
                 lockManager.getOrCreate(attach.getSlotInstance().getChannelId()).unlock();
-                //lockManager.getOrCreate("endpoints").unlock();
             }
         }
 
@@ -481,7 +479,6 @@ public class ChannelManager {
                 return;
             }
 
-            //lockManager.getOrCreate("endpoints");
             lockManager.getOrCreate(detach.getSlotInstance().getChannelId()).lock();
             try {
                 final SlotInstance slotInstance = from(detach.getSlotInstance());
@@ -521,7 +518,6 @@ public class ChannelManager {
                 responseObserver.onError(Status.INTERNAL.withCause(e).asException());
             } finally {
                 lockManager.getOrCreate(detach.getSlotInstance().getChannelId()).unlock();
-                lockManager.getOrCreate("endpoints").unlock();
             }
         }
 
