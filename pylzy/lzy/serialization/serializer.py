@@ -24,7 +24,7 @@ class FileSerializerImpl(FileSerializer):
         if typ in self._registry:
             dumper = self._registry[typ]
             dumper.dump(obj, file)
-        elif check_message_field(typ) or check_message_field(obj):
+        elif check_message_field(typ):
             obj.dump(file)  # type: ignore
         else:
             cloudpickle.dump(obj, file)

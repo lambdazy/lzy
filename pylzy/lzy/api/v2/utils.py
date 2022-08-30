@@ -83,10 +83,10 @@ def wrap_local_value(obj: Any):
     obj.__lzy_local_value__ = True
 
 
-def check_message_field(obj: Any) -> bool:
-    if obj is None:
+def check_message_field(typ: Type) -> bool:
+    if typ is None:
         return False
-    return hasattr(obj, "LZY_MESSAGE") or issubclass(obj, Message)
+    return hasattr(typ, "LZY_MESSAGE") or issubclass(typ, Message)
 
 
 def zipdir(path: str, zipfile: ZipFile):
