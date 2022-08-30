@@ -31,7 +31,7 @@ jobs:
         timeout-minutes: 10
         run:
           cd allocator-api/
-          mvn clean install
+          mvn clean install --also-make-dependents
           cd ..
 
       - name: "Publish allocator api"
