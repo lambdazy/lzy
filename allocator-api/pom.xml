@@ -76,4 +76,12 @@
             </plugin>
         </plugins>
     </build>
+
+    <distributionManagement>
+        <repository>
+            <id>repsy</id>
+            <name>lzy allocator repo</name>
+            <url>https://repo.repsy.io/mvn/lzy/lzy-allocator-api</url>
+        </repository>
+    </distributionManagement>
 </project>

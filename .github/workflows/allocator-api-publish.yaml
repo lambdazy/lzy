@@ -1,0 +1,44 @@
+name: Test on pull request
+on:
+  workflow_dispatch:
+
+jobs:
+
+  all-tests:
+    runs-on: self-hosted
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - name: "Chown for checkout"
+        run: sudo chown -R $USER:$USER /home/ubuntu/actions-runner/_work/lzy/
+
+      - name: "Checkout"
+        uses: actions/checkout@v3
+
+      - name: "Setup maven settings"
+        uses: s4u/maven-settings-action@v2.6.0
+        with:
+          servers: |
+            [{
+              "id": "repsy",
+              "username": "lzy",
+              "password": ${{ secrets.REPSY_PASSWORD }}
+            }]
+
+      - name: "Build allocator api"
+        timeout-minutes: 10
+        run:
+          cd allocator-api/
+          mvn clean install
+          cd ..
+
+      - name: "Publish allocator api"
+        timeout-minutes: 10
+        run:
+          cd allocator-api/ 
+          mvn deploy
+          cd ..
+
+
