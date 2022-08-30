@@ -92,30 +92,18 @@ public class ChannelStorageImpl implements ChannelStorage {
     }
 
     @Override
-    public void lockChannel(String channelId, @Nullable TransactionHandle transaction) {
-        DbOperation.executeUnsafe(transaction, dataSource, sqlConnection -> {
-            try (final PreparedStatement st = sqlConnection.prepareStatement(
-                "SELECT channel_id FROM channels WHERE channel_id = ? FOR UPDATE"
-            )) {
-                int index = 0;
-                st.setString(++index, channelId);
-                st.execute();
-            }
-        });
-    }
-
-    @Override
-    public void insertEndpoint(String channelId, Endpoint endpoint, TransactionHandle transaction) {
+    public void insertEndpoint(Endpoint endpoint, TransactionHandle transaction) {
         DbOperation.executeUnsafe(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 INSERT INTO channel_endpoints(
-                    channel_id, slot_uri, direction, task_id, slot_spec
-                ) VALUES (?, ?, ?, ?, ?)
+                    channel_id, "slot_name", slot_uri, direction, task_id, slot_spec
+                ) VALUES (?, ?, ?, ?, ?, ?)
                 """)
             ) {
                 String slotSpecJson = objectMapper.writeValueAsString(GrpcConverter.to(endpoint.slotSpec()));
                 int index = 0;
-                st.setString(++index, channelId);
+                st.setString(++index, endpoint.slotInstance().channelId());
+                st.setString(++index, endpoint.slotSpec().name());
                 st.setString(++index, endpoint.uri().toString());
                 st.setString(++index, endpoint.slotSpec().direction().name());
                 st.setString(++index, endpoint.taskId());
@@ -156,13 +144,12 @@ public class ChannelStorageImpl implements ChannelStorage {
     }
 
     @Override
-    public void removeEndpointWithConnections(String channelId, Endpoint endpoint, TransactionHandle transaction) {
+    public void removeEndpointWithConnections(Endpoint endpoint, TransactionHandle transaction) {
         DbOperation.executeUnsafe(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement(
-                "DELETE FROM channel_endpoints WHERE channel_id = ? AND slot_uri = ?"
+                "DELETE FROM channel_endpoints WHERE slot_uri = ?"
             )) {
                 int index = 0;
-                st.setString(++index, channelId);
                 st.setString(++index, endpoint.uri().toString());
                 st.execute();
             }
@@ -276,32 +263,6 @@ public class ChannelStorageImpl implements ChannelStorage {
                 channels.addAll(parseChannels(st.executeQuery()).toList());
             } catch (JsonProcessingException e) {
                 throw new SQLException(e);
-            }
-        });
-        return channels;
-    }
-
-    @Override
-    public List<String> listBoundChannels(String userId, String workflowId, String slotUri,
-                                          @Nullable TransactionHandle transaction)
-    {
-        final List<String> channels = new ArrayList<>();
-        DbOperation.executeUnsafe(transaction, dataSource, sqlConnection -> {
-            try (final PreparedStatement st = sqlConnection.prepareStatement("""
-                SELECT ch.channel_id as channel_id
-                FROM channels ch INNER JOIN channel_endpoints e ON ch.channel_id = e.channel_id
-                WHERE ch.user_id = ? AND ch.workflow_id = ? AND e.slot_uri = ? AND ch.channel_life_status = ?
-                """)
-            ) {
-                int index = 0;
-                st.setString(++index, userId);
-                st.setString(++index, workflowId);
-                st.setString(++index, slotUri);
-                st.setString(++index, ChannelLifeStatus.ALIVE.name());
-                ResultSet rs = st.executeQuery();
-                while (rs.next()) {
-                    channels.add(rs.getString("channel_id"));
-                }
             }
         });
         return channels;

@@ -12,17 +12,21 @@ CREATE TABLE IF NOT EXISTS channels (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS user_id_workflow_id_channel_name_idx
-    ON channels(user_id, workflow_id, channel_name);
-
+    ON channels(workflow_id, channel_name);
 
 CREATE TABLE IF NOT EXISTS channel_endpoints (
-    channel_id varchar(255)      NOT NULL,
-    slot_uri   varchar(255)      NOT NULL,
-    direction  varchar(255)      NOT NULL,
-    task_id    varchar(255)      NOT NULL,
-    slot_spec  varchar(10485760) NOT NULL,
+    slot_uri    varchar(255)      NOT NULL,
+    "slot_name" varchar(255)      NOT NULL,
+    task_id     varchar(255)      NOT NULL,
+    channel_id  varchar(255)      NOT NULL,
+    direction   varchar(255)      NOT NULL,
+    slot_spec   varchar(10485760) NOT NULL,
 
-    CONSTRAINT channel_endpoints_pkey PRIMARY KEY (channel_id, slot_uri),
+    CONSTRAINT channel_endpoints_pkey PRIMARY KEY (slot_uri),
+
+    CONSTRAINT channel_endpoints_channel_id_slot_uri_unique UNIQUE (channel_id, slot_uri),
+
+    CONSTRAINT channel_endpoints_slot_name_task_id_unique UNIQUE ("slot_name", task_id),
 
     CONSTRAINT channel_endpoints_channel_id_fkey
         FOREIGN KEY (channel_id) REFERENCES channels(channel_id)
