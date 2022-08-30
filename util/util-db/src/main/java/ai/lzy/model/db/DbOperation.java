@@ -7,7 +7,22 @@ import java.sql.SQLException;
 public interface DbOperation {
     void execute(Connection connection) throws SQLException;
 
-    static void execute(@Nullable TransactionHandle transaction, Storage storage, DbOperation op) {
+    static void execute(@Nullable TransactionHandle transaction, Storage storage, DbOperation op) throws SQLException {
+        var con = transaction == null ? storage.connect() : transaction.connect();
+        try {
+            op.execute(con);
+        } finally {
+            if (transaction == null && con != null) {
+                try {
+                    con.close();
+                } catch (SQLException e) {
+                    // ignored
+                }
+            }
+        }
+    }
+
+    static void executeUnsafe(@Nullable TransactionHandle transaction, Storage storage, DbOperation op) {
         final Connection con;
         try {
             if (transaction == null) {

@@ -18,6 +18,7 @@ import org.apache.logging.log4j.Logger;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.net.URISyntaxException;
+import java.sql.SQLException;
 import java.util.*;
 
 @Singleton
@@ -81,6 +82,8 @@ public class KuberVmAllocator implements VmAllocator {
                 throw new RuntimeException("Failed to allocate pod: " + e.getMessage(), e);
             }
             LOG.debug("Created pod in Kuber: {}", pod);
+        } catch (SQLException e) {
+            throw new RuntimeException("Database error: " + e.getMessage(), e);
         }
     }
 
@@ -107,7 +110,13 @@ public class KuberVmAllocator implements VmAllocator {
 
     @Override
     public void deallocate(Vm vm) {
-        final var meta = dao.getAllocatorMeta(vm.vmId(), null);
+        final Map<String, String> meta;
+        try {
+            meta = dao.getAllocatorMeta(vm.vmId(), null);
+        } catch (SQLException e) {
+            throw new RuntimeException("Database error: " + e.getMessage(), e);
+        }
+
         if (meta == null) {
             throw new RuntimeException("Cannot get allocatorMeta");
         }
@@ -116,6 +125,7 @@ public class KuberVmAllocator implements VmAllocator {
         final var credentials = poolRegistry.getCluster(clusterId);
         final var ns = meta.get(NAMESPACE_KEY);
         final var podName = meta.get(POD_NAME_KEY);
+
         try (final var client = factory.build(credentials)) {
             final var pod = getPod(ns, podName, client);
             if (pod != null) {

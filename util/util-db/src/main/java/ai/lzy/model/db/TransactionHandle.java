@@ -19,7 +19,7 @@ public final class TransactionHandle implements AutoCloseable {
         }
         con = storage.connect();
         con.setAutoCommit(false);
-        con.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+        con.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
         return con;
     }
 

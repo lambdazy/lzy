@@ -21,6 +21,11 @@ public record Operation(
     @Nullable Status error
 ) {
 
+    public static Operation create(String id, String owner, String description, Any meta) {
+        final var now = Instant.now(); // TODO: not idempotent...
+        return new Operation(id, meta, owner, now, now, description, /* done */ false, /* resp */ null, /* err */ null);
+    }
+
     public Operation complete(Any response) {
         return new Operation(id, meta, createdBy, createdAt, Instant.now(), description, true, response, null);
     }
@@ -69,5 +74,10 @@ public record Operation(
             ", response=" + response +
             ", error=" + error +
             '}';
+    }
+
+    public String toShortString() {
+        return "Operation{id='%s', description='%s', createdBy='%s', meta='%s'}"
+            .formatted(id, description, createdBy, meta);
     }
 }

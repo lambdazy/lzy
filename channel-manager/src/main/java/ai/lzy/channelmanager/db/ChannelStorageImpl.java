@@ -20,23 +20,20 @@ import ai.lzy.v1.Operations;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
+import org.apache.commons.lang3.NotImplementedException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import javax.annotation.Nullable;
 import java.net.URI;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
-import javax.annotation.Nullable;
-import org.apache.commons.lang3.NotImplementedException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class ChannelStorageImpl implements ChannelStorage {
 
@@ -56,7 +53,7 @@ public class ChannelStorageImpl implements ChannelStorage {
                               Channels.ChannelSpec.TypeCase channelType, ChannelSpec channelSpec,
                               @Nullable TransactionHandle transaction)
     {
-        DbOperation.execute(transaction, dataSource, sqlConnection -> {
+        DbOperation.executeUnsafe(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 INSERT INTO channels(
                     channel_id, user_id, workflow_id, channel_name,
@@ -83,7 +80,7 @@ public class ChannelStorageImpl implements ChannelStorage {
 
     @Override
     public void removeChannel(String channelId, @Nullable TransactionHandle transaction) {
-        DbOperation.execute(transaction, dataSource, sqlConnection -> {
+        DbOperation.executeUnsafe(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement(
                 "DELETE FROM channels WHERE channel_id = ?"
             )) {
@@ -95,30 +92,18 @@ public class ChannelStorageImpl implements ChannelStorage {
     }
 
     @Override
-    public void lockChannel(String channelId, @Nullable TransactionHandle transaction) {
-        DbOperation.execute(transaction, dataSource, sqlConnection -> {
-            try (final PreparedStatement st = sqlConnection.prepareStatement(
-                "SELECT channel_id FROM channels WHERE channel_id = ? FOR UPDATE"
-            )) {
-                int index = 0;
-                st.setString(++index, channelId);
-                st.execute();
-            }
-        });
-    }
-
-    @Override
-    public void insertEndpoint(String channelId, Endpoint endpoint, TransactionHandle transaction) {
-        DbOperation.execute(transaction, dataSource, sqlConnection -> {
+    public void insertEndpoint(Endpoint endpoint, TransactionHandle transaction) {
+        DbOperation.executeUnsafe(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 INSERT INTO channel_endpoints(
-                    channel_id, slot_uri, direction, task_id, slot_spec
-                ) VALUES (?, ?, ?, ?, ?)
+                    channel_id, "slot_name", slot_uri, direction, task_id, slot_spec
+                ) VALUES (?, ?, ?, ?, ?, ?)
                 """)
             ) {
                 String slotSpecJson = objectMapper.writeValueAsString(GrpcConverter.to(endpoint.slotSpec()));
                 int index = 0;
-                st.setString(++index, channelId);
+                st.setString(++index, endpoint.slotInstance().channelId());
+                st.setString(++index, endpoint.slotSpec().name());
                 st.setString(++index, endpoint.uri().toString());
                 st.setString(++index, endpoint.slotSpec().direction().name());
                 st.setString(++index, endpoint.taskId());
@@ -134,7 +119,7 @@ public class ChannelStorageImpl implements ChannelStorage {
     public void insertEndpointConnections(String channelId, Map<Endpoint, Endpoint> edges,
                                           TransactionHandle transaction)
     {
-        DbOperation.execute(transaction, dataSource, sqlConnection -> {
+        DbOperation.executeUnsafe(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 INSERT INTO endpoint_connections (
                     channel_id, sender_uri, receiver_uri
@@ -159,13 +144,12 @@ public class ChannelStorageImpl implements ChannelStorage {
     }
 
     @Override
-    public void removeEndpointWithConnections(String channelId, Endpoint endpoint, TransactionHandle transaction) {
-        DbOperation.execute(transaction, dataSource, sqlConnection -> {
+    public void removeEndpointWithConnections(Endpoint endpoint, TransactionHandle transaction) {
+        DbOperation.executeUnsafe(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement(
-                "DELETE FROM channel_endpoints WHERE channel_id = ? AND slot_uri = ?"
+                "DELETE FROM channel_endpoints WHERE slot_uri = ?"
             )) {
                 int index = 0;
-                st.setString(++index, channelId);
                 st.setString(++index, endpoint.uri().toString());
                 st.execute();
             }
@@ -176,7 +160,7 @@ public class ChannelStorageImpl implements ChannelStorage {
     public void setChannelLifeStatus(String channelId, ChannelLifeStatus lifeStatus,
                                      @Nullable TransactionHandle transaction)
     {
-        DbOperation.execute(transaction, dataSource, sqlConnection -> {
+        DbOperation.executeUnsafe(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement(
                 "UPDATE channels SET channel_life_status = ? WHERE channel_id = ?"
             )) {
@@ -192,7 +176,7 @@ public class ChannelStorageImpl implements ChannelStorage {
     public void setChannelLifeStatus(String userId, String workflowId, ChannelLifeStatus lifeStatus,
                                      @Nullable TransactionHandle transaction)
     {
-        DbOperation.execute(transaction, dataSource, sqlConnection -> {
+        DbOperation.executeUnsafe(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement(
                 "UPDATE channels SET channel_life_status = ? WHERE user_id = ? AND workflow_id = ?"
             )) {
@@ -211,7 +195,7 @@ public class ChannelStorageImpl implements ChannelStorage {
                                @Nullable TransactionHandle transaction)
     {
         final AtomicReference<Channel> channel = new AtomicReference<>();
-        DbOperation.execute(transaction, dataSource, sqlConnection -> {
+        DbOperation.executeUnsafe(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 SELECT
                     ch.channel_id as channel_id,
@@ -250,7 +234,7 @@ public class ChannelStorageImpl implements ChannelStorage {
                                       @Nullable TransactionHandle transaction)
     {
         final List<Channel> channels = new ArrayList<>();
-        DbOperation.execute(transaction, dataSource, sqlConnection -> {
+        DbOperation.executeUnsafe(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 SELECT
                     ch.channel_id as channel_id,
@@ -279,32 +263,6 @@ public class ChannelStorageImpl implements ChannelStorage {
                 channels.addAll(parseChannels(st.executeQuery()).toList());
             } catch (JsonProcessingException e) {
                 throw new SQLException(e);
-            }
-        });
-        return channels;
-    }
-
-    @Override
-    public List<String> listBoundChannels(String userId, String workflowId, String slotUri,
-                                          @Nullable TransactionHandle transaction)
-    {
-        final List<String> channels = new ArrayList<>();
-        DbOperation.execute(transaction, dataSource, sqlConnection -> {
-            try (final PreparedStatement st = sqlConnection.prepareStatement("""
-                SELECT ch.channel_id as channel_id
-                FROM channels ch INNER JOIN channel_endpoints e ON ch.channel_id = e.channel_id
-                WHERE ch.user_id = ? AND ch.workflow_id = ? AND e.slot_uri = ? AND ch.channel_life_status = ?
-                """)
-            ) {
-                int index = 0;
-                st.setString(++index, userId);
-                st.setString(++index, workflowId);
-                st.setString(++index, slotUri);
-                st.setString(++index, ChannelLifeStatus.ALIVE.name());
-                ResultSet rs = st.executeQuery();
-                while (rs.next()) {
-                    channels.add(rs.getString("channel_id"));
-                }
             }
         });
         return channels;

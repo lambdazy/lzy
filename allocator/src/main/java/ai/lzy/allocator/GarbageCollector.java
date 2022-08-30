@@ -14,6 +14,7 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.sql.SQLException;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -43,7 +44,7 @@ public class GarbageCollector extends TimerTask {
     @Override
     public void run() {
         try {
-            var vms = dao.getExpired(100, null);
+            var vms = dao.listExpired(100);
             LOG.debug("Found {} expired entries", vms.size());
             vms.forEach(vm -> {
                 try {
@@ -61,6 +62,14 @@ public class GarbageCollector extends TimerTask {
                     allocator.deallocate(vm);
                     //will retry deallocate if it fails
                     dao.update(new Vm.VmBuilder(vm).setState(Vm.State.DEAD).build(), null);
+                } catch (SQLException e) {
+                    if ("42P01".equals(e.getSQLState())) {
+                        // ERROR: relation <xxx> does not exist
+                        // not an issue in tests
+                        LOG.debug("Error during clean up Vm {}", vm);
+                    } else {
+                        LOG.error("Error during clean up Vm {}", vm, e);
+                    }
                 } catch (Exception e) {
                     LOG.error("Error during clean up Vm {}", vm, e);
                 }

@@ -29,6 +29,7 @@ import org.apache.logging.log4j.Logger;
 import javax.inject.Named;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.sql.SQLException;
 import java.util.concurrent.TimeUnit;
 
 @Singleton
@@ -90,9 +91,9 @@ public class AllocatorMain {
     }
 
     @VisibleForTesting
-    public void destroyAll() {
+    public void destroyAll() throws SQLException {
         LOG.info("Deallocating all vms");
-        final var vms = vmDao.list(null);
+        final var vms = vmDao.listAlive();
         vms.forEach(alloc::deallocate);
     }
 

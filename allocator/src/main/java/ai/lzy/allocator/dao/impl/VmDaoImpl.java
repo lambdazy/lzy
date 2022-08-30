@@ -9,6 +9,7 @@ import ai.lzy.model.db.TransactionHandle;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
@@ -26,9 +27,76 @@ import java.util.concurrent.atomic.AtomicReference;
 
 @Singleton
 public class VmDaoImpl implements VmDao {
-    private static final String FIELDS =
-        " id, session_id, pool_label, \"zone\", state, allocation_op_id, allocation_started_at," +
-        " workloads_json, last_activity_time, deadline, allocation_deadline, vm_meta_json ";
+    private static final String FIELDS = " id, session_id, pool_label, \"zone\", state," +
+                                         " allocation_op_id, allocation_started_at," +
+                                         " workloads_json, last_activity_time, deadline," +
+                                         " allocation_deadline, vm_meta_json ";
+
+    private static final String QUERY_CREATE_VM = """
+        INSERT INTO vm (%s)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""".formatted(FIELDS);
+
+    private static final String QUERY_UPDATE_VM = """
+        UPDATE vm
+        SET (%s) = (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        WHERE id = ?""".formatted(FIELDS);
+
+    private static final String QUERY_UPDATE_VM_ACTIVITY = """
+        UPDATE vm
+        SET last_activity_time = ?
+        WHERE id = ?""";
+
+    private static final String QUERY_LIST_SESSION_VMS = """
+        SELECT %s
+        FROM vm
+        WHERE session_id = ?""".formatted(FIELDS);
+
+    private static final String QUERY_DELETE_SESSION_VMS = """
+        UPDATE vm
+        SET state = 'DELETING'
+        WHERE session_id = ?""";
+
+    private static final String QUERY_LIST_ALIVE_VMS = """
+        SELECT %s
+        FROM vm
+        WHERE state != 'DEAD'""".formatted(FIELDS);
+
+    private static final String QUERY_READ_VM = """
+        SELECT %s
+        FROM vm
+        WHERE id = ?""".formatted(FIELDS);
+
+    private static final String QUERY_LIST_EXPIRED_VMS = """
+        SELECT %s
+        FROM vm
+        WHERE (state = 'IDLE' AND deadline IS NOT NULL AND deadline < NOW())
+           OR (state = 'DELETING')
+           OR (state = 'CONNECTING' AND allocation_deadline IS NOT NULL AND allocation_deadline < NOW())
+           OR (state != 'CREATED' AND state != 'DEAD' AND last_activity_time < NOW())
+        LIMIT ?""".formatted(FIELDS);
+
+    private static final String QUERY_ACQUIRE_VM = """
+        SELECT %s
+        FROM vm
+        WHERE
+            session_id = ? AND pool_label = ? AND zone = ? AND state = 'IDLE'
+        LIMIT 1
+        FOR UPDATE""".formatted(FIELDS);
+
+    private static final String QUERY_RELEASE_VM = """
+        UPDATE vm
+        SET state = 'IDLE', deadline = ?
+        WHERE id = ?""";
+
+    private static final String QUERY_UPDATE_VM_ALLOCATION_META = """
+        UPDATE vm
+        SET allocator_meta_json = ?
+        WHERE id = ?""";
+
+    private static final String QUERY_READ_VM_ALLOCATION_META = """
+        SELECT allocator_meta_json
+        FROM vm
+        WHERE id = ?""";
 
     private final Storage storage;
     private final ObjectMapper objectMapper;
@@ -41,14 +109,14 @@ public class VmDaoImpl implements VmDao {
 
     @Override
     public Vm create(String sessionId, String poolLabel, String zone, List<Workload> workload, String opId, Instant now,
-                     @Nullable TransactionHandle transaction)
+                     @Nullable TransactionHandle transaction) throws SQLException
     {
-        final var vm = new Vm.VmBuilder(sessionId, UUID.randomUUID().toString(), poolLabel, zone, opId, now, workload,
-            Vm.State.CREATED).build();
+        final var vmId = UUID.randomUUID().toString();
+        final var vm = new Vm.VmBuilder(sessionId, vmId, poolLabel, zone, opId, now, workload, Vm.State.CREATED)
+            .build();
+
         DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement(
-                "INSERT INTO vm (" + FIELDS + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"))
-            {
+            try (final var s = con.prepareStatement(QUERY_CREATE_VM)) {
                 writeVm(s, vm);
                 s.execute();
             } catch (JsonProcessingException e) {
@@ -59,11 +127,9 @@ public class VmDaoImpl implements VmDao {
     }
 
     @Override
-    public void update(Vm vm, @Nullable TransactionHandle transaction) {
+    public void update(Vm vm, @Nullable TransactionHandle transaction) throws SQLException {
         DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement(
-                "UPDATE vm SET (" + FIELDS + ") = (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) WHERE id = ?"))
-            {
+            try (final var s = con.prepareStatement(QUERY_UPDATE_VM)) {
                 writeVm(s, vm);
                 s.setString(13, vm.vmId());
                 s.executeUpdate();
@@ -74,52 +140,88 @@ public class VmDaoImpl implements VmDao {
     }
 
     @Override
-    public List<Vm> list(String sessionId, @Nullable TransactionHandle transaction) {
-        final List<Vm> vms = new ArrayList<>();
-        DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement(
-                "SELECT " + FIELDS + " FROM vm WHERE session_id = ?" + forUpdate(transaction)))
-            {
-                s.setString(1, sessionId);
-                final var res = s.executeQuery();
-                while (res.next()) {
-                    final Vm vm = readVm(res);
-                    vms.add(vm);
-                }
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException("Cannot write vm", e);
-            }
-        });
-        return vms;
+    public void updateLastActivityTime(String vmId, Instant time) throws SQLException {
+        try (var conn = storage.connect();
+             var st = conn.prepareStatement(QUERY_UPDATE_VM_ACTIVITY))
+        {
+            st.setString(1, vmId);
+            st.setTimestamp(2, Timestamp.from(time));
+            st.executeUpdate();
+        }
     }
 
     @Override
-    public List<Vm> list(@Nullable TransactionHandle transaction) {
-        final List<Vm> vms = new ArrayList<>();
-        DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement(
-                "SELECT " + FIELDS + " FROM vm WHERE state != 'DEAD'" + forUpdate(transaction)))
-            {
-                final var res = s.executeQuery();
-                while (res.next()) {
-                    final Vm vm = readVm(res);
-                    vms.add(vm);
-                }
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException("Cannot write vm", e);
+    public List<Vm> list(String sessionId) throws SQLException {
+        try (var conn = storage.connect();
+             var st = conn.prepareStatement(QUERY_LIST_SESSION_VMS))
+        {
+            st.setString(1, sessionId);
+            final var res = st.executeQuery();
+
+            final List<Vm> vms = new ArrayList<>();
+            while (res.next()) {
+                final Vm vm = readVm(res);
+                vms.add(vm);
             }
-        });
-        return vms;
+            return vms;
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Cannot read vm", e);
+        }
+    }
+
+    @Override
+    public void delete(String sessionId) throws SQLException {
+        try (var conn = storage.connect();
+             var st = conn.prepareStatement(QUERY_DELETE_SESSION_VMS))
+        {
+            st.setString(1, sessionId);
+            st.execute();
+        }
+    }
+
+    @Override
+    @VisibleForTesting
+    public List<Vm> listAlive() throws SQLException {
+        try (var conn = storage.connect();
+             var st = conn.prepareStatement(QUERY_LIST_ALIVE_VMS))
+        {
+            final var res = st.executeQuery();
+            final List<Vm> vms = new ArrayList<>();
+            while (res.next()) {
+                final Vm vm = readVm(res);
+                vms.add(vm);
+            }
+            return vms;
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Cannot write vm", e);
+        }
+    }
+
+    @Override
+    public List<Vm> listExpired(int limit) throws SQLException {
+        try (var conn = storage.connect();
+             var st = conn.prepareStatement(QUERY_LIST_EXPIRED_VMS))
+        {
+            st.setInt(1, limit);
+            final var res = st.executeQuery();
+
+            final List<Vm> vms = new ArrayList<>();
+            while (res.next()) {
+                final Vm vm = readVm(res);
+                vms.add(vm);
+            }
+            return vms;
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Cannot write vm", e);
+        }
     }
 
     @Nullable
     @Override
-    public Vm get(String vmId, TransactionHandle transaction) {
-        final Vm[] vm = new Vm[1];
+    public Vm get(String vmId, TransactionHandle transaction) throws SQLException {
+        final Vm[] vm = {null};
         DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement(
-                "SELECT " + FIELDS + " FROM vm WHERE id = ?" + forUpdate(transaction)))
-            {
+            try (final var s = con.prepareStatement(QUERY_READ_VM + forUpdate(transaction))) {
                 s.setString(1, vmId);
                 final var res = s.executeQuery();
                 if (!res.next()) {
@@ -134,63 +236,40 @@ public class VmDaoImpl implements VmDao {
         return vm[0];
     }
 
-    @Override
-    public List<Vm> getExpired(int limit, @Nullable TransactionHandle transaction) {
-        final List<Vm> vms = new ArrayList<>();
-        DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement(
-                "SELECT " + FIELDS + """
-                 FROM vm
-                 WHERE (state = 'IDLE' AND deadline IS NOT NULL AND deadline < NOW())
-                   OR (state = 'DELETING')
-                   OR (state = 'CONNECTING' AND allocation_deadline IS NOT NULL AND allocation_deadline < NOW())
-                   OR (state != 'CREATED' AND state != 'DEAD' AND last_activity_time < NOW())
-                 LIMIT ?""" + forUpdate(transaction)))
-            {
-                s.setInt(1, limit);
-                final var res = s.executeQuery();
-                while (res.next()) {
-                    final Vm vm = readVm(res);
-                    vms.add(vm);
-                }
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException("Cannot write vm", e);
-            }
-        });
-        return vms;
-    }
-
     @Nullable
     @Override
-    public Vm acquire(String sessionId, String poolId, String zone, @Nullable TransactionHandle transaction) {
-        final Vm[] vm = new Vm[1];
+    public Vm acquire(String sessionId, String poolId, String zone, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
         final var tx = transaction == null ? new TransactionHandle(storage) : transaction;
+        final Vm[] vm = {null};
+
         DbOperation.execute(tx, storage, con -> {
-            try (final var s = con.prepareStatement(
-                "SELECT " + FIELDS + """
-                 FROM vm
-                 WHERE session_id = ? AND pool_label = ? AND zone = ? AND state = 'IDLE'
-                 LIMIT 1
-                 FOR UPDATE"""))
+            try (final var s = con.prepareStatement(QUERY_ACQUIRE_VM,
+                ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE))
             {
                 s.setString(1, sessionId);
                 s.setString(2, poolId);
                 s.setString(3, zone);
+
                 final var res = s.executeQuery();
                 if (!res.next()) {
                     vm[0] = null;
                     return;
                 }
+
                 vm[0] = readVm(res);
+                vm[0] = Vm.from(vm[0])
+                    .setState(Vm.State.RUNNING)
+                    .build();
+
+                res.updateString("state", "RUNNING");
+                res.updateRow();
+
             } catch (JsonProcessingException e) {
                 throw new RuntimeException("Cannot dump values", e);
             }
         });
-
-        if (vm[0] != null) {
-            vm[0] = new Vm.VmBuilder(vm[0]).setState(Vm.State.RUNNING).build();
-            update(vm[0], tx);
-        }
 
         if (transaction == null) {  // If executing in local transaction
             try {
@@ -205,12 +284,22 @@ public class VmDaoImpl implements VmDao {
     }
 
     @Override
-    public void saveAllocatorMeta(String vmId, Map<String, String> meta, @Nullable TransactionHandle transaction) {
+    public void release(String vmId, Instant deadline, @Nullable TransactionHandle transaction) throws SQLException {
+        DbOperation.execute(transaction, storage, conn -> {
+            try (var st = conn.prepareStatement(QUERY_RELEASE_VM)) {
+                st.setTimestamp(1, Timestamp.from(deadline));
+                st.setString(2, vmId);
+                st.execute();
+            }
+        });
+    }
+
+    @Override
+    public void saveAllocatorMeta(String vmId, Map<String, String> meta, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
         DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement("""
-                UPDATE vm SET allocator_meta_json = ?
-                WHERE id = ?"""))
-            {
+            try (final var s = con.prepareStatement(QUERY_UPDATE_VM_ALLOCATION_META)) {
                 final ObjectMapper objectMapper = new ObjectMapper();
                 s.setString(1, objectMapper.writeValueAsString(meta));
                 s.setString(2, vmId);
@@ -223,12 +312,12 @@ public class VmDaoImpl implements VmDao {
 
     @Nullable
     @Override
-    public Map<String, String> getAllocatorMeta(String vmId, @Nullable TransactionHandle transaction) {
+    public Map<String, String> getAllocatorMeta(String vmId, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
         final AtomicReference<Map<String, String>> meta = new AtomicReference<>();
         DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement(
-                "SELECT allocator_meta_json FROM vm WHERE id = ?" + forUpdate(transaction)))
-            {
+            try (final var s = con.prepareStatement(QUERY_READ_VM_ALLOCATION_META + forUpdate(transaction))) {
                 final ObjectMapper objectMapper = new ObjectMapper();
                 s.setString(1, vmId);
                 final var res = s.executeQuery();

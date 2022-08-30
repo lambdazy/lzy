@@ -29,6 +29,17 @@ public enum DatabaseTestUtils {
         }
     }
 
+    @SuppressWarnings("checkstyle:Indentation")
+    public static HashMap<String, Object> prepareLocalhostConfig(String app) {
+        return new HashMap<>() {{
+            put(app + ".database.enabled", "true");
+            put(app + ".database.url", "jdbc:postgresql://localhost:5432/lzy_%s_db"
+                .formatted(app.replaceAll("-", "_")));
+            put(app + ".database.username", "lzy_user");
+            put(app + ".database.password", "q");
+        }};
+    }
+
     public static void cleanup(Storage storage) {
         try (var conn = storage.connect()) {
             if (conn.getMetaData().getDatabaseProductName().startsWith("PostgreSQL")) {

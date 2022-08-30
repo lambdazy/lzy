@@ -7,7 +7,7 @@ allocator:
     username: 'test'
     password: ''
     min-pool-size: 1
-    max-pool-size: 2
+    max-pool-size: 5
     enabled: true
 
   metrics:
