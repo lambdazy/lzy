@@ -26,45 +26,78 @@ message SnapshotStorage {
 
 
 message Operation {
-  string name = 1;
-  /* optional */ string description = 2;
+  string name = 1;  // Some human-readable name to show in UI
+  /* optional */ string description = 2;  // Some human-readable description
   string command = 3;  // command to execute
+
+  // Paths of slots to open. Must be uniq per workflow
   repeated string inputSlots = 4;
   repeated string outputSlots = 5;
 
-  optional string dockerImage = 6;  // Optional. If not set, running on default Lzy image
+  /* optional */ string dockerImage = 6;  // If not set, running on default Lzy image
 
   oneof env {
-    /* optional */ PythonEnvSpec python = 7;
+    /* optional */ PythonEnvSpec python = 7;  // If not set, running in default bash env
   }
 
-  Requirements requirements = 8;
+  /* optional */ Requirements requirements = 8;
 
   message Requirements {
-    int32 cpu = 1;  // Minimal required cpu
-    string mem = 2;  // Minimal required mem
-    string gpu = 3;  // Minimal required gpu
-    string driveSize = 4;  // Minimal required drive size
+    // All fields are optional
+    // If not set, using minimal requirements
+
+    /* optional */ int32 cpu = 1;  // Minimal required cpu
+    /* optional */ string mem = 2;  // Minimal required mem
+    /* optional */ string gpu = 3;  // Minimal required gpu
+    /* optional */ string driveSize = 4;  // Minimal required drive size
   }
 
   message PythonEnvSpec {
-    string name = 1;
-    string yaml = 2;
+    string yaml = 2;  // Conda yaml to install before execution
     repeated LocalModule localModules = 3;
 
     message LocalModule {
-      string name = 1;
-      string uri = 2;
+      string name = 1;  // Name of module
+      string url = 2;  // Url in storage to get module from
     }
   }
 }
 
 message Graph {
-  string name = 1;
+  string name = 1;  // Human-readable name to show in UI
 
-  repeated EdgeDescription links = 2;
+  repeated EdgeDescription edges = 2;
+  repeated VertexDescription vertexes = 3;
 
   message EdgeDescription {
+    /* optional */ DataScheme dataScheme = 1;  // If not set, using plain scheme
+    /* optional */ string storageUri = 2;  // If not set, not using snapshotting
 
+    // If input or outputs not set, storageUri must be set to get data from it
+    // Edge without input and outputs is not valid
+    /* optional */ VertexRef input = 3;
+    /* optional */ repeated VertexRef outputs = 4;
+
+    /* optional */ WhiteboardRef whiteboardRef = 5;  // Whiteboard field to link data to
+
+    message DataScheme {
+      string type = 1;
+      string schemeType = 2;  // plain, proto, cloudpickle, etc
+    }
+
+    message VertexRef {
+      string vertexId = 1;
+      string slotName = 2;
+    }
+
+    message WhiteboardRef {
+      string whiteboardId = 1;
+      string fieldName = 2;
+    }
+  }
+
+  message VertexDescription {
+    string id = 1;
+    Operation operation = 2;
   }
 }

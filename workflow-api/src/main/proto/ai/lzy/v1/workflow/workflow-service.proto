@@ -12,6 +12,12 @@ service LzyWorkflowService {
   rpc AttachWorkflow (AttachWorkflowRequest) returns (AttachWorkflowResponse);
   rpc FinishWorkflow (FinishWorkflowRequest) returns (FinishWorkflowResponse);
   rpc DeleteWorkflow (DeleteWorkflowRequest) returns (DeleteWorkflowResponse);
+
+  rpc ExecuteGraph (ExecuteGraphRequest) returns (ExecuteGraphResponse);
+  rpc GraphStatus (GraphStatusRequest) returns (GraphStatusResponse);
+  rpc StopGraph (StopGraphRequest) returns (StopGraphResponse);
+
+  rpc ReadStdSlots (ReadStdSlotsRequest) returns (stream ReadStdSlotsResponse);
 }
 
 message CreateWorkflowRequest {
@@ -48,4 +54,69 @@ message DeleteWorkflowRequest {
 }
 
 message DeleteWorkflowResponse {
+}
+
+
+// ==================== ExecuteGraph =====================
+
+message ExecuteGraphRequest {
+  string executionId = 1;
+  Graph graph = 2;
+}
+
+message ExecuteGraphResponse {
+  string graphId = 1;
+}
+
+
+// ==================== GraphStatus =====================
+
+message GraphStatusRequest {
+  string executionId = 1;
+  string graphId = 2;
+}
+
+message GraphStatusResponse {
+  oneof status {
+    Waiting waiting = 1;
+    Executing executing = 2;
+    Completed completed = 3;
+    Failed failed = 4;
+  }
+
+  message Waiting {}
+  message Executing {
+    repeated string tasksCompleted = 1;  // List of completed tasks
+    repeated string tasksExecuting = 2;  // List of currently executing tasks
+    repeated string tasksWaiting = 3;  // List of waiting tasks
+    string message = 4;  // Human-readable message to show user
+  }
+  message Completed {}
+  message Failed {
+    string description = 1;
+  }
+}
+
+
+// ==================== StopGraph =====================
+
+message StopGraphRequest {
+  string executionId = 1;
+  string graphId = 2;
+}
+
+message StopGraphResponse {}
+
+
+// ==================== ReadStdSlots =====================
+
+message ReadStdSlotsRequest {
+  string executionId = 1;
+}
+
+message ReadStdSlotsResponse {
+  oneof data {
+    string stdout = 1;
+    string stderr = 2;
+  }
 }
