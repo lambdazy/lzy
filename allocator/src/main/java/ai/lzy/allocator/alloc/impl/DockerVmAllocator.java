@@ -87,7 +87,7 @@ public class DockerVmAllocator implements VmAllocator {
     }
 
     @Override
-    public void allocate(Vm vm) throws InvalidConfigurationException {
+    public void allocate(Vm.Spec vm) throws InvalidConfigurationException {
         if (vm.workloads().size() > 1) {
             throw new InvalidConfigurationException("Docker allocator supports only one workload");
         }
@@ -101,10 +101,10 @@ public class DockerVmAllocator implements VmAllocator {
     }
 
     @Override
-    public void deallocate(Vm vm) {
+    public void deallocate(String vmId) {
         Map<String, String> meta;
         try {
-            meta = dao.getAllocatorMeta(vm.vmId(), null);
+            meta = dao.getAllocatorMeta(vmId, null);
         } catch (SQLException e) {
             throw new RuntimeException("Database error: " + e.getMessage(), e);
         }

@@ -4,12 +4,13 @@ import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactory;
 import ai.lzy.allocator.vmpool.ClusterRegistry.ClusterDescription;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.micronaut.context.annotation.Primary;
+import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 
 import java.util.function.Supplier;
 
 
-@Primary
+@Requires(property = "allocator.mock-mk8s.enabled", value = "true")
 @Singleton
 public class MockKuberClientFactory implements KuberClientFactory {
 

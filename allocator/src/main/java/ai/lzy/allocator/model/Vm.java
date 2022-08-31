@@ -1,37 +1,59 @@
 package ai.lzy.allocator.model;
 
-import javax.annotation.Nullable;
+import ai.lzy.allocator.volume.VolumeClaim;
+import ai.lzy.allocator.volume.VolumeRequest;
 import java.time.Instant;
+import java.time.temporal.Temporal;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 public record Vm(
-    String sessionId,
-    String vmId,
-    String poolLabel,
-    String zone,
+    Spec spec,
     State state,
-    String allocationOperationId,
-    Instant allocationStartedAt,
-    List<Workload> workloads,
-
-    @Nullable Instant lastActivityTime,
-    @Nullable Instant deadline,
-    @Nullable Instant allocationDeadline,
-    Map<String, String> vmMeta
+    String allocationOperationId
 ) {
     @Override
     public String toString() {
         return "<"
-            + "sessionId='" + sessionId + '\''
-            + ", vmId='" + vmId + '\''
-            + ", poolLabel='" + poolLabel + '\''
-            + ", state=" + state
+            + "sessionId='"
+            + sessionId() + '\''
+            + ", vmId='" + vmId() + '\''
+            + ", poolLabel='" + poolLabel() + '\''
+            + ", state=" + status()
             + '>';
     }
 
-    public enum State {
+    public Temporal allocationStartedAt() {
+        return spec.allocationStartedAt();
+    }
+
+    public record Spec(
+        String vmId,
+        String sessionId,
+        Instant allocationStartedAt,
+
+        String poolLabel,
+        String zone,
+
+        List<Workload> workloads,
+        List<VolumeRequest> volumeRequests
+    ) {}
+
+
+    public record State(
+        VmStatus status,
+        @Nullable Instant lastActivityTime,
+        @Nullable Instant deadline,
+        @Nullable Instant allocationDeadline,
+        Map<String, String> vmMeta,
+
+        List<VolumeClaim> volumeClaims
+    ) {}
+
+    public enum VmStatus {
         // Vm created, but allocation not started yet
         CREATED,
         // Vm is allocating
@@ -45,82 +67,91 @@ public record Vm(
         DEAD
     }
 
-    public static VmBuilder from(Vm vm) {
-        return new VmBuilder(vm);
+    public String sessionId() {
+        return spec.sessionId();
     }
 
-    public static class VmBuilder {
-        private final String sessionId;
-        private final String vmId;
-        private final String poolLabel;
-        private final String zone;
-        private final String opId;
-        private final Instant startedAt;
-        private final List<Workload> workload;
-        private final Map<String, String> vmMeta;
-        private State state;
+    public String vmId() {
+        return spec.vmId();
+    }
+
+    public String poolLabel() {
+        return spec.poolLabel();
+    }
+
+    public String zone() {
+        return spec.zone();
+    }
+
+    public List<Workload> workloads() {
+        return spec.workloads();
+    }
+
+    public List<VolumeClaim> volumeClaims() {
+        return state.volumeClaims();
+    }
+
+    public VmStatus status() {
+        return state.status();
+    }
+
+    public Map<String, String> vmMeta() {
+        return state.vmMeta();
+    }
+
+    public static class VmStateBuilder {
+        private VmStatus vmStatus;
         private Instant lastActivityTime;
         private Instant deadline;
         private Instant allocationDeadline;
+        private final Map<String, String> vmMeta = new HashMap<>();
+        private final List<VolumeClaim> volumeClaims = new ArrayList<>();
 
-        public VmBuilder(String sessionId, String vmId, String poolLabel, String zone, String opId, Instant startedAt,
-                         List<Workload> workload, State state)
-        {
-            this.sessionId = sessionId;
-            this.vmId = vmId;
-            this.poolLabel = poolLabel;
-            this.zone = zone;
-            this.opId = opId;
-            this.startedAt = startedAt;
-            this.workload = workload;
-            this.state = state;
-            this.vmMeta = new HashMap<>();
+        public VmStateBuilder() {}
+
+        public VmStateBuilder(State existingState) {
+            this.vmStatus = existingState.status;
+            this.vmMeta.putAll(existingState.vmMeta);
+            this.lastActivityTime = existingState.lastActivityTime;
+            this.deadline = existingState.deadline;
+            this.allocationDeadline = existingState.allocationDeadline;
+            this.volumeClaims.addAll(existingState.volumeClaims);
         }
 
-        public VmBuilder(Vm vm) {
-            this.sessionId = vm.sessionId();
-            this.vmId = vm.vmId();
-            this.poolLabel = vm.poolLabel();
-            this.zone = vm.zone();
-            this.opId = vm.allocationOperationId();
-            this.startedAt = vm.allocationStartedAt();
-            this.workload = vm.workloads();
-            this.state = vm.state();
-            this.lastActivityTime = vm.lastActivityTime();
-            this.deadline = vm.deadline();
-            this.allocationDeadline = vm.allocationDeadline();
-            this.vmMeta = vm.vmMeta();
-        }
-
-        public VmBuilder setState(State state) {
-            this.state = state;
+        public VmStateBuilder setStatus(VmStatus vmStatus) {
+            this.vmStatus = vmStatus;
             return this;
         }
 
-        public VmBuilder setLastActivityTime(Instant lastActivityTime) {
+        public VmStateBuilder setLastActivityTime(Instant lastActivityTime) {
             this.lastActivityTime = lastActivityTime;
             return this;
         }
 
-        public VmBuilder setDeadline(Instant deadline) {
+        public VmStateBuilder setDeadline(Instant deadline) {
             this.deadline = deadline;
             return this;
         }
 
-        public VmBuilder setAllocationDeadline(Instant allocationDeadline) {
+        public VmStateBuilder setAllocationDeadline(Instant allocationDeadline) {
             this.allocationDeadline = allocationDeadline;
             return this;
         }
 
-        public VmBuilder setVmMeta(Map<String, String> vmMeta) {
+        public VmStateBuilder setVmMeta(Map<String, String> vmMeta) {
             this.vmMeta.clear();
             this.vmMeta.putAll(vmMeta);
             return this;
         }
 
-        public Vm build() {
-            return new Vm(sessionId, vmId, poolLabel, zone, state, opId, startedAt, workload, lastActivityTime,
-                    deadline, allocationDeadline, vmMeta);
+        public VmStateBuilder setVolumeClaims(List<VolumeClaim> volumeClaims) {
+            this.volumeClaims.clear();
+            this.volumeClaims.addAll(volumeClaims);
+            return this;
+        }
+
+        public State build() {
+            return new State(vmStatus, lastActivityTime, deadline, allocationDeadline, vmMeta, volumeClaims);
         }
     }
 }

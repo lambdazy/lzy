@@ -22,6 +22,7 @@ import org.junit.*;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -110,8 +111,8 @@ public class DaoTest {
 
     @Test
     public void testVm() throws SQLException {
-        final var wl1 = new Workload("wl1", "im", Map.of("a", "b"), List.of("a1", "a2"), Map.of(1111, 2222));
-        final var vm = vmDao.create("session", "pool", "zone", List.of(wl1), "op1", Instant.now(), null);
+        final var wl1 = new Workload("wl1", "im", Map.of("a", "b"), List.of("a1", "a2"), Map.of(1111, 2222), Collections.emptyList());
+        final var vm = vmDao.create("session", "pool", "zone", List.of(wl1), Collections.emptyList(), "op1", Instant.now(), null);
 
         final var vm1 = vmDao.get(vm.vmId(), null);
         Assert.assertNotNull(vm1);
@@ -120,23 +121,21 @@ public class DaoTest {
         Assert.assertEquals("zone", vm1.zone());
         Assert.assertEquals(List.of(wl1), vm1.workloads());
         Assert.assertEquals("op1", vm1.allocationOperationId());
-        Assert.assertEquals(Vm.State.CREATED, vm1.state());
+        Assert.assertEquals(Vm.VmStatus.CREATED, vm1.status());
 
-        vmDao.update(new Vm.VmBuilder(vm1).setState(Vm.State.IDLE).build(), null);
+        vmDao.updateStatus(vm1.vmId(), Vm.VmStatus.IDLE, null);
         final var vm2 = vmDao.acquire("session", "pool", "zone", null);
         Assert.assertNotNull(vm2);
         Assert.assertEquals(vm1.vmId(), vm2.vmId());
-        Assert.assertEquals(Vm.State.RUNNING, vm2.state());
+        Assert.assertEquals(Vm.VmStatus.RUNNING, vm2.status());
 
         final var vms = vmDao.list("session");
         Assert.assertEquals(List.of(vm2), vms);
 
-        final var vm3 = new Vm.VmBuilder(vm2)
-            .setState(Vm.State.IDLE)
+        vmDao.update(vm2.vmId(), new Vm.VmStateBuilder(vm2.state())
+            .setStatus(Vm.VmStatus.IDLE)
             .setDeadline(Instant.now().minus(Duration.ofSeconds(1)))
-            .build();
-
-        vmDao.update(vm3, null);
+            .build(), null);
 
         final var vms2 = vmDao.listExpired(100);
         Assert.assertEquals(vm.vmId(), vms2.get(0).vmId());

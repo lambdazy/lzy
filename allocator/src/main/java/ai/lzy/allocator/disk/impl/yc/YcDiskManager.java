@@ -1,4 +1,4 @@
-package ai.lzy.allocator.disk.cloudspecific.yc;
+package ai.lzy.allocator.disk.impl.yc;
 
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.Disk;
@@ -9,6 +9,7 @@ import ai.lzy.allocator.disk.exceptions.NotFoundException;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -33,6 +34,7 @@ import static yandex.cloud.api.compute.v1.SnapshotOuterClass.Snapshot;
 import static yandex.cloud.api.compute.v1.SnapshotServiceGrpc.SnapshotServiceBlockingStub;
 import static yandex.cloud.api.operation.OperationOuterClass.Operation;
 
+@Requires(property = "allocator.yc-credentials.enabled", value = "true")
 @Singleton
 public class YcDiskManager implements DiskManager {
     private static final Logger LOG = LogManager.getLogger(YcDiskManager.class);
@@ -199,8 +201,7 @@ public class YcDiskManager implements DiskManager {
     }
 
     @Override
-    public void delete(Disk disk) throws NotFoundException {
-        final String diskId = disk.id();
+    public void delete(String diskId) throws NotFoundException {
         LOG.info("Deleting disk with id {}", diskId);
         final DeleteDiskRequest deleteDiskRequest = DeleteDiskRequest.newBuilder()
             .setDiskId(diskId)

@@ -11,6 +11,7 @@ import ai.lzy.allocator.model.CachePolicy;
 import ai.lzy.allocator.model.Session;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
+import ai.lzy.allocator.volume.VolumeRequest;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.JsonUtils;
@@ -181,7 +182,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                 ex -> LOG.error("Cannot fail operation {} with reason {}: {}", opRef[0], msg, ex.getMessage(), ex));
         };
 
-        final Vm[] vmRef = {null};
+        final Vm.Spec[] vmSpecRef = {null};
         withRetries(
             defaultRetryPolicy(),
             LOG,
@@ -213,30 +214,33 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                     var workloads = request.getWorkloadList().stream()
                         .map(Workload::fromProto)
                         .toList();
+                    final var volumes = request.getVolumesList().stream()
+                        .map(VolumeRequest::fromProto)
+                        .toList();
 
-                    var vm = dao.create(request.getSessionId(), request.getPoolLabel(), request.getZone(), workloads,
-                        opRef[0].id(), startedAt, transaction);
+                    var vmSpec = dao.create(request.getSessionId(), request.getPoolLabel(), request.getZone(),
+                        workloads, volumes, opRef[0].id(), startedAt, transaction);
 
                     opRef[0] = opRef[0].modifyMeta(Any.pack(AllocateMetadata.newBuilder()
-                        .setVmId(vm.vmId())
+                        .setVmId(vmSpec.vmId())
                         .build()));
 
                     operations.update(opRef[0], transaction);
 
-                    vm = Vm.from(vm)
-                        .setState(Vm.State.CONNECTING)
+                    final var vmState = new Vm.VmStateBuilder()
+                        .setStatus(Vm.VmStatus.CONNECTING)
                         .setAllocationDeadline(Instant.now().plus(config.getAllocationTimeout()))
                         .build();
-                    dao.update(vm, transaction);
+                    dao.update(vmSpec.vmId(), vmState, transaction);
 
                     transaction.commit();
                     metrics.allocateVmNew.inc();
 
-                    return vm;
+                    return vmSpec;
                 }
             },
-            vm -> {
-                vmRef[0] = vm;
+            vmSpec -> {
+                vmSpecRef[0] = vmSpec;
                 responseObserver.onNext(opRef[0].toProto());
                 responseObserver.onCompleted();
             },
@@ -251,14 +255,14 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             }
         );
 
-        if (vmRef[0] == null) {
+        if (vmSpecRef[0] == null) {
             return;
         }
 
         try {
             try {
                 var timer = metrics.allocateDuration.startTimer();
-                allocator.allocate(vmRef[0]);
+                allocator.allocate(vmSpecRef[0]);
                 timer.close();
             } catch (InvalidConfigurationException e) {
                 LOG.error("Error while allocating: {}", e.getMessage(), e);
@@ -285,7 +289,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                     }
 
                     // TODO(artolord) validate that client can free this vm
-                    if (vm.state() != Vm.State.RUNNING) {
+                    if (vm.status() != Vm.VmStatus.RUNNING) {
                         return (Producer<Status>) () -> {
                             LOG.error("Freed vm {} in status {}, expected RUNNING", vm, vm.state());
                             return Status.FAILED_PRECONDITION.withDescription("State is " + vm.state());

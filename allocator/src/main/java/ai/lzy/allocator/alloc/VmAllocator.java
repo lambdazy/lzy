@@ -7,15 +7,15 @@ public interface VmAllocator {
     /**
      * Start vm allocation
      *
-     * @param vm vm to allocate
+     * @param vmSpec specify parameters for vm allocation
      */
-    void allocate(Vm vm) throws InvalidConfigurationException;
+    void allocate(Vm.Spec vmSpec) throws InvalidConfigurationException;
 
     /**
      * Idempotent operation to destroy vm
      * If vm is not allocated, does nothing
      *
-     * @param vm vm to deallocate
+     * @param vmId of vm to deallocate
      */
-    void deallocate(Vm vm);
+    void deallocate(String vmId);
 }
