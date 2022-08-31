@@ -11,7 +11,7 @@ class LocalSnapshot(Snapshot):
     def create_entry(
         self, typ: Type, storage_name: Optional[str] = None
     ) -> SnapshotEntry:
-        e = SnapshotEntry(str(uuid.uuid4()), typ, storage_name)
+        e = SnapshotEntry(str(uuid.uuid4()), typ, "", storage_name)
         self._entry_id_to_entry[e.id] = e
         return e
 

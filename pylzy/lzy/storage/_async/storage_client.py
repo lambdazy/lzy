@@ -8,12 +8,12 @@ class AsyncStorageClient(ABC):
         pass
 
     @abstractmethod
-    async def write(self, container: str, blob: str, data: BinaryIO) -> str:
-        """
-        @return: url in what data was written
-        """
+    async def write(self, container: str, blob: str, data: BinaryIO):
         pass
 
     @abstractmethod
     async def blob_exists(self, container: str, blob: str) -> bool:
+        pass
+
+    def generate_uri(self, container: str, blob: str) -> str:
         pass

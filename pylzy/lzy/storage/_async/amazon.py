@@ -61,3 +61,6 @@ class AmazonClient(AsyncStorageClient):
                     return
 
                 yield data
+
+    def generate_uri(self, container: str, blob: str) -> str:
+        return url_from_bucket(self.scheme, container, blob)

@@ -11,6 +11,7 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 class SnapshotEntry:
     id: str
     typ: Type
+    storage_url: str
     storage_name: Optional[str] = None
 
 
