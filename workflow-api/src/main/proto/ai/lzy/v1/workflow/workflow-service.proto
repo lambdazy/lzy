@@ -86,9 +86,9 @@ message GraphStatusResponse {
 
   message Waiting {}
   message Executing {
-    repeated string tasksCompleted = 1;  // List of completed tasks
-    repeated string tasksExecuting = 2;  // List of currently executing tasks
-    repeated string tasksWaiting = 3;  // List of waiting tasks
+    repeated string operationsCompleted = 1;  // List of completed operations
+    repeated string operationsExecuting = 2;  // List of currently executing operations
+    repeated string operationsWaiting = 3;  // List of waiting operations
     string message = 4;  // Human-readable message to show user
   }
   message Completed {}

@@ -67,11 +67,13 @@ message Graph {
   string name = 1;  // Human-readable name to show in UI
 
   repeated EdgeDescription edges = 2;
-  repeated VertexDescription vertexes = 3;
+  repeated VertexDescription vertices = 3;
 
   message EdgeDescription {
     /* optional */ DataScheme dataScheme = 1;  // If not set, using plain scheme
-    /* optional */ string storageUri = 2;  // If not set, not using snapshotting
+
+    /* optional */ string storageUri = 2;  // If storageUri set, saving all data to storage
+                                           // If input not set, getting it from storage
 
     // If input or outputs not set, storageUri must be set to get data from it
     // Edge without input and outputs is not valid
