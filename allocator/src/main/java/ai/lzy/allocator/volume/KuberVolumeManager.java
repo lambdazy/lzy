@@ -18,16 +18,17 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 public class KuberVolumeManager implements VolumeManager {
     public static final String REQUESTED_VOLUME_NAME_LABEL = "lzy-requested-volume-name";
-    private static final Logger LOG = LoggerFactory.getLogger(KuberVolumeManager.class);
+    private static final Logger LOG = LogManager.getLogger(KuberVolumeManager.class);
     private static final String CAPACITY_STORAGE_KEY = "storage";
     private static final String KUBER_GB_NAME = "Gi";
     private static final String DEFAULT_NAMESPACE = "default";
     private static final String EMPTY_STORAGE_CLASS_NAME = "";
+
     private final KubernetesClient client;
     private final DiskManager diskManager;
 
@@ -37,8 +38,8 @@ public class KuberVolumeManager implements VolumeManager {
     }
 
     public static List<VolumeClaim> allocateVolumes(
-        KubernetesClient client, DiskManager diskManager, List<DiskVolumeDescription> volumeRequests
-    ) {
+        KubernetesClient client, DiskManager diskManager, List<DiskVolumeDescription> volumeRequests)
+    {
         LOG.info("Allocate volume " + volumeRequests.stream().map(Objects::toString).collect(Collectors.joining(", ")));
         final VolumeManager volumeManager = new KuberVolumeManager(client, diskManager);
         return volumeRequests.stream()

@@ -22,11 +22,12 @@ message HostPathVolumeType {
   HostPathType host_path_type = 2;
 
   enum HostPathType {
-    DIRECTORY_OR_CREATE = 0;
-    DIRECTORY = 1;
-    FILE_OR_CREATE = 2;
-    FILE = 3;
-    SOCKET = 4;
+    UNSPECIFIED = 0;
+    DIRECTORY_OR_CREATE = 1;
+    DIRECTORY = 2;
+    FILE_OR_CREATE = 3;
+    FILE = 4;
+    SOCKET = 5;
   }
 }
 
