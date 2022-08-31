@@ -5,17 +5,8 @@ import "google/protobuf/timestamp.proto";
 
 package ai.lzy.v1;
 
-option java_outer_classname = "LWBS";
+option java_outer_classname = "LWB";
 option java_package = "ai.lzy.v1";
-
-service LzyWhiteboardService {
-  rpc Create (CreateRequest) returns (Whiteboard);
-  rpc LinkField (LinkFieldRequest) returns (LinkFieldResponse);
-  rpc Finalize (FinalizeRequest) returns (FinalizeResponse);
-
-  rpc Get (GetRequest) returns (Whiteboard);
-  rpc List (ListRequest) returns (ListResponse);
-}
 
 message Whiteboard {
   string id = 1;
@@ -56,48 +47,7 @@ message Storage {
   string description = 2;
 }
 
-message CreateRequest {
-  string whiteboardName = 1;
-  repeated string fieldNames = 2;
-  Storage storage = 3;
-  repeated string tags = 4;
-  string namespace = 5;
-}
-
-message LinkFieldRequest {
-  string whiteboardId = 1;
-  string fieldName = 2;
-  string storageUri = 3;
-  DataScheme scheme = 4;
-}
-
-message LinkFieldResponse {
-}
-
-message FinalizeRequest {
-  string whiteboardId = 1;
-}
-
-message FinalizeResponse {
-}
-
-message GetRequest {
-  string whiteboardId = 1;
-}
-
-message ListRequest {
-  /* optional */ string name = 1;
-  repeated string tags = 2;
-  /* optional */ TimeBounds createdTimeBounds = 3;
-}
-
 message TimeBounds {
   google.protobuf.Timestamp from = 1;
   google.protobuf.Timestamp to = 2;
 }
-
-message ListResponse {
-  repeated Whiteboard whiteboards = 1;
-}
-
-
