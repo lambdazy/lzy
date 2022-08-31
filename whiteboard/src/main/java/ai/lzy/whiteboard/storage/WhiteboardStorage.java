@@ -13,8 +13,8 @@ public interface WhiteboardStorage {
     void insertWhiteboard(String userId, Whiteboard whiteboard,
                           @Nullable TransactionHandle transaction) throws SQLException;
 
-    void linkField(String whiteboardId, String fieldName, Whiteboard.LinkedField linkedField, Instant linkedAt,
-                   @Nullable TransactionHandle transaction) throws SQLException;
+    void markFieldLinked(String whiteboardId, Whiteboard.LinkedField linkedField, Instant linkedAt,
+                         @Nullable TransactionHandle transaction) throws SQLException;
 
     void setWhiteboardFinalized(String whiteboardId, Instant finalizedAt,
                                 @Nullable TransactionHandle transaction) throws SQLException;
@@ -34,7 +34,7 @@ public interface WhiteboardStorage {
     }
 
     Stream<Whiteboard> listWhiteboards(String userId, @Nullable String whiteboardName, List<String> tags,
-                                       @Nullable Instant createdAtUpperBound, @Nullable Instant createdAtLowerBound,
+                                       @Nullable Instant createdAtLowerBound, @Nullable Instant createdAtUpperBound,
                                        @Nullable TransactionHandle transaction) throws SQLException;
 
 }

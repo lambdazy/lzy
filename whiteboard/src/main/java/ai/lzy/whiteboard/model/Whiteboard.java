@@ -7,7 +7,7 @@ import java.util.Set;
 public record Whiteboard(
     String id,
     String name,
-    Set<String> createdFieldNames,
+    Set<String> createdFieldNames, // not linked yet
     Set<LinkedField> linkedFields,
     Set<String> tags,
     Storage storage,
@@ -17,9 +17,10 @@ public record Whiteboard(
 ) {
 
     public boolean hasField(String fieldName) {
-        if (createdFieldNames.contains(fieldName)) {
-            return true;
-        }
+        return createdFieldNames.contains(fieldName) || hasLinkedField(fieldName);
+    }
+
+    public boolean hasLinkedField(String fieldName) {
         return linkedFields.stream().anyMatch(f -> f.name().contains(fieldName));
     }
 

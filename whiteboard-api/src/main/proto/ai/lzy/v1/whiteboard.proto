@@ -86,10 +86,9 @@ message GetRequest {
 }
 
 message ListRequest {
-  // All fields are optional
-  string name = 1;
+  /* optional */ string name = 1;
   repeated string tags = 2;
-  TimeBounds createdTimeBounds = 3;
+  /* optional */ TimeBounds createdTimeBounds = 3;
 }
 
 message TimeBounds {

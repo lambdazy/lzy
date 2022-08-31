@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS whiteboards (
     whiteboard_name      varchar(255)  NOT NULL,
     user_id              varchar(255)  NOT NULL,
     storage_name         varchar(255)  NOT NULL,
-    storage_description  varchar(255)  NOT NULL,
+    storage_description  text          NOT NULL,
     namespace            varchar(255)  NOT NULL,
     whiteboard_status    varchar(255)  NOT NULL,
     created_at           timestamp     NOT NULL,

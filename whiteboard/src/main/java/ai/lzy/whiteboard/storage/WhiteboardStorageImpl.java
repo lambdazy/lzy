@@ -3,16 +3,19 @@ package ai.lzy.whiteboard.storage;
 import ai.lzy.model.data.DataSchema;
 import ai.lzy.model.data.types.SchemeType;
 import ai.lzy.model.db.DbOperation;
+import ai.lzy.model.db.NotFoundException;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.whiteboard.model.Whiteboard;
 import jakarta.inject.Inject;
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -46,10 +49,10 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
     }
 
     @Override
-    public void linkField(String whiteboardId, String fieldName, Whiteboard.LinkedField linkedField, Instant linkedAt,
-                          @Nullable TransactionHandle transaction) throws SQLException
+    public void markFieldLinked(String whiteboardId, Whiteboard.LinkedField linkedField, Instant linkedAt,
+                                @Nullable TransactionHandle transaction) throws SQLException
     {
-        LOG.debug("Linking field (whiteboardId={},fieldName={})", whiteboardId, fieldName);
+        LOG.debug("Linking field (whiteboardId={},fieldName={})", whiteboardId, linkedField.name());
         DbOperation.execute(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 UPDATE whiteboard_fields SET
@@ -67,11 +70,17 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                 st.setTimestamp(++index, Timestamp.from(linkedAt));
 
                 st.setString(++index, whiteboardId);
-                st.setString(++index, fieldName);
-                st.executeUpdate();
+                st.setString(++index, linkedField.name());
+
+                int affectedRows = st.executeUpdate();
+                if (affectedRows == 0) {
+                    throw new NotFoundException("Field to link not found");
+                } if (affectedRows > 1) {
+                    throw new IllegalStateException(affectedRows + " fields linked, expected exactly 1");
+                }
             }
         });
-        LOG.debug("Linking field (whiteboardId={},fieldName={}) done", whiteboardId, fieldName);
+        LOG.debug("Linking field (whiteboardId={},fieldName={}) done", whiteboardId, linkedField.name());
     }
 
     @Override
@@ -81,13 +90,19 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
         LOG.debug("Finalizing whiteboard (whiteboardId={})", whiteboardId);
         DbOperation.execute(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement(
-                "UPDATE whiteboards SET finalized_at = ? WHERE whiteboard_id = ?"
+                "UPDATE whiteboards SET whiteboard_status = ?, finalized_at = ? WHERE whiteboard_id = ?"
             )) {
                 int index = 0;
+                st.setString(++index, Whiteboard.Status.FINALIZED.name());
                 st.setTimestamp(++index, Timestamp.from(finalizedAt));
-
                 st.setString(++index, whiteboardId);
-                st.executeUpdate();
+
+                int affectedRows = st.executeUpdate();
+                if (affectedRows == 0) {
+                    throw new NotFoundException("Whiteboard to finalize not found");
+                } if (affectedRows > 1) {
+                    throw new IllegalStateException(affectedRows + " whiteboards finalized, expected exactly 1");
+                }
             }
         });
         LOG.debug("Finalizing whiteboard (whiteboardId={}) done", whiteboardId);
@@ -120,7 +135,7 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                     t.tags as tags
                 FROM whiteboards wb
                 INNER JOIN whiteboard_fields f ON wb.whiteboard_id = f.whiteboard_id
-                INNER JOIN (
+                LEFT JOIN (
                     SELECT whiteboard_id, ARRAY_AGG(whiteboard_tag) as tags
                     FROM whiteboard_tags
                     GROUP BY whiteboard_id
@@ -141,16 +156,56 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
 
     @Override
     public Stream<Whiteboard> listWhiteboards(String userId, @Nullable String whiteboardName, List<String> tags,
-                                              @Nullable Instant createdAtUpperBound,
-                                              @Nullable Instant createdAtLowerBound,
+                                              @Nullable Instant createdAtLowerBound, @Nullable Instant createdAtUpperBound,
                                               @Nullable TransactionHandle transaction) throws SQLException
     {
         LOG.debug("Listing whiteboards (userId={})", userId);
+
+        AtomicInteger index = new AtomicInteger(0);
+        List<StatementModifier> statementConditionsSuffixFillers = new ArrayList<>();
+        String statementConditionsSuffix = "WHERE user_id = ?";
+        statementConditionsSuffixFillers.add((conn, st) -> {
+            st.setString(index.incrementAndGet(), userId);
+            return st;
+        });
+        if (whiteboardName != null) {
+            statementConditionsSuffix += " AND whiteboard_name = ?";
+            statementConditionsSuffixFillers.add((conn, st) -> {
+                st.setString(index.incrementAndGet(), whiteboardName);
+                return st;
+            });
+        }
+        if (!tags.isEmpty()) {
+            statementConditionsSuffix += " AND tags @> ?";
+            statementConditionsSuffixFillers.add((conn, st) -> {
+                st.setArray(index.incrementAndGet(), conn.createArrayOf("varchar", tags.toArray()));
+                return st;
+            });
+        }
+        if (createdAtLowerBound != null) {
+            statementConditionsSuffix += " AND created_at >= ?";
+            statementConditionsSuffixFillers.add((conn, st) -> {
+                st.setTimestamp(index.incrementAndGet(), Timestamp.from(createdAtLowerBound));
+                return st;
+            });
+        }
+        if (createdAtUpperBound != null) {
+            statementConditionsSuffix += " AND created_at <= ?";
+            statementConditionsSuffixFillers.add((conn, st) -> {
+                st.setTimestamp(index.incrementAndGet(), Timestamp.from(createdAtUpperBound));
+                return st;
+            });
+        }
+
+        final String statementSuffix = statementConditionsSuffix;
+        final StatementModifier statementSuffixFiller = statementConditionsSuffixFillers.stream()
+            .reduce((conn, st) -> st, (f1, f2) -> (conn, st) -> f2.apply(conn, f1.apply(conn, st)));
         final List<Whiteboard> whiteboards = new ArrayList<>();
         DbOperation.execute(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 SELECT
                     wb.whiteboard_id,
+                    wb.whiteboard_name,
                     wb.user_id,
                     wb.storage_name,
                     wb.storage_description,
@@ -171,14 +226,9 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                     FROM whiteboard_tags
                     GROUP BY whiteboard_id
                 ) t ON wb.whiteboard_id = t.whiteboard_id
-                WHERE wb.user_id = ? and wb.whiteboard_id IN (
-                    SELECT whiteboard_id FROM whiteboard_tags WHERE whiteboard_tag = ANY(?)
-                )
-                """)
+                """  + statementSuffix)
             ) {
-                int index = 0;
-                st.setString(++index, userId);
-                st.setArray(++index, sqlConnection.createArrayOf("text", tags.toArray()));
+                statementSuffixFiller.apply(sqlConnection, st);
                 whiteboards.addAll(parseWhiteboards(st.executeQuery()).toList());
             }
         });
@@ -276,7 +326,7 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
             if (sqlLinkedAt == null) {
                 whiteboardsById.get(whiteboardId).createdFieldNames().add(fieldName);
             } else {
-                final String storageUri = rs.getString("storage_uri");
+                final String storageUri = rs.getString("field_storage_uri");
                 final String type = rs.getString("field_type");
                 final String typeScheme = rs.getString("field_type_scheme");
 
@@ -293,5 +343,9 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
             }
         }
         return whiteboardsById.values().stream();
+    }
+
+    private interface StatementModifier {
+        PreparedStatement apply(Connection sqlConnection, PreparedStatement statement) throws SQLException;
     }
 }

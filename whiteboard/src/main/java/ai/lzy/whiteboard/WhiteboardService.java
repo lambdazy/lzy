@@ -123,13 +123,13 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
                     if (!whiteboard.hasField(fieldName)) {
                         throw new NotFoundException("Field " + fieldName + " of whiteboard " + whiteboardId + " not found");
                     }
-                    if (whiteboard.linkedFields().stream().anyMatch(f -> f.name().contains(fieldName))) {
+                    if (whiteboard.hasLinkedField(fieldName)) {
                         throw new IllegalArgumentException(
                             "Field " + fieldName + " of whiteboard " + whiteboardId + " already linked"
                         );
                     }
 
-                    whiteboardStorage.linkField(whiteboardId, fieldName, linkedField, linkedAt, transaction);
+                    whiteboardStorage.markFieldLinked(whiteboardId, linkedField, linkedAt, transaction);
 
                     transaction.commit();
                 } finally {
