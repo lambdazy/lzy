@@ -110,6 +110,11 @@ public class VmDaoImpl implements VmDao {
         SET volumes_json = ?
         WHERE id = ?""";
 
+    private static final String QUERY_GET_VOLUME_CLAIMS = """
+        SELECT volume_claims
+        FROM vm
+        WHERE id = ?""";
+
     private final Storage storage;
     private final ObjectMapper objectMapper;
 
@@ -395,7 +400,7 @@ public class VmDaoImpl implements VmDao {
     public List<VolumeClaim> getVolumeClaims(String vmId, @Nullable TransactionHandle transaction) throws SQLException {
         final AtomicReference<List<VolumeClaim>> volumeClaims = new AtomicReference<>();
         DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement(QUERY_UPDATE_VOLUME_CLAIMS)) {
+            try (final var s = con.prepareStatement(QUERY_GET_VOLUME_CLAIMS)) {
                 s.setString(1, vmId);
                 final var resultSet = s.executeQuery();
                 if (!resultSet.next()) {
