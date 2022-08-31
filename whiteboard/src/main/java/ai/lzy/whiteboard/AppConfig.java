@@ -10,7 +10,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @ConfigurationProperties("whiteboard")
-public class WhiteboardConfig {
+public class AppConfig {
     private String address;
 
     @ConfigurationBuilder("iam")

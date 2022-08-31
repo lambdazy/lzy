@@ -1,7 +1,7 @@
 package ai.lzy.whiteboard.storage;
 
 import ai.lzy.model.db.Storage;
-import ai.lzy.whiteboard.WhiteboardConfig;
+import ai.lzy.whiteboard.AppConfig;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
@@ -25,7 +25,7 @@ public class WhiteboardDataSource implements Storage {
     private final ComboPooledDataSource dataSource;
 
     @Inject
-    public WhiteboardDataSource(WhiteboardConfig config) {
+    public WhiteboardDataSource(AppConfig config) {
         final var dbConfig = config.getDatabase();
         final ComboPooledDataSource dataSource = new ComboPooledDataSource();
 

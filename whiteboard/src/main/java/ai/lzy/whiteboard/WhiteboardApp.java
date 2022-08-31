@@ -5,7 +5,8 @@ import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
-import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
+import ai.lzy.whiteboard.grpc.WhiteboardPrivateService;
+import ai.lzy.whiteboard.grpc.WhiteboardService;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
@@ -13,38 +14,26 @@ import io.grpc.ServerInterceptors;
 import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.exceptions.NoSuchBeanException;
+import jakarta.inject.Named;
+import jakarta.inject.Singleton;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.LoggerContext;
 
-@SuppressWarnings("UnstableApiUsage")
-public class WhiteboardMain {
+@Singleton
+public class WhiteboardApp {
 
-    public static final Logger LOG;
-
-    static {
-        LoggerContext ctx = (LoggerContext) LogManager.getContext();
-        ctx.reconfigure();
-        LOG = LogManager.getLogger(WhiteboardMain.class);
-    }
+    private static final Logger LOG = LogManager.getLogger(WhiteboardApp.class);
 
     private final Server whiteboardServer;
-    private final ManagedChannel iamChannel;
 
-    public WhiteboardMain(ApplicationContext context) {
-        final var config = context.getBean(WhiteboardConfig.class);
+    public WhiteboardApp(AppConfig config, @Named("WhiteboardIamGrpcChannel") ManagedChannel iamChannel,
+                         WhiteboardService whiteboardService, WhiteboardPrivateService whiteboardPrivateService)
+    {
         final HostAndPort address = HostAndPort.fromString(config.getAddress());
-        final var whiteboardService = context.getBean(WhiteboardService.class);
-
-        final HostAndPort iamAddress = HostAndPort.fromString(config.getIam().getAddress());
-        iamChannel = ChannelBuilder.forAddress(iamAddress)
-            .usePlaintext()
-            .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
-            .build();
         final var internalUserOnlyInterceptor = new AllowInternalUserOnlyInterceptor(iamChannel);
 
         whiteboardServer = NettyServerBuilder
@@ -53,13 +42,14 @@ public class WhiteboardMain {
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(iamChannel)))
             .intercept(new GrpcLogsInterceptor())
-            .addService(ServerInterceptors.intercept(whiteboardService, internalUserOnlyInterceptor))
+            .addService(whiteboardService)
+            .addService(ServerInterceptors.intercept(whiteboardPrivateService, internalUserOnlyInterceptor))
             .build();
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
         try (ApplicationContext context = ApplicationContext.run()) {
-            var app = new WhiteboardMain(context);
+            var app = context.getBean(WhiteboardApp.class);
 
             app.start();
             app.awaitTermination();
@@ -82,27 +72,10 @@ public class WhiteboardMain {
     }
 
     public void stop() {
-        close(false);
-    }
-
-    public void close(boolean force) {
-        try {
-            if (force) {
-                whiteboardServer.shutdownNow();
-            } else {
-                whiteboardServer.shutdown();
-            }
-        } finally {
-            if (force) {
-                iamChannel.shutdownNow();
-            } else {
-                iamChannel.shutdown();
-            }
-        }
+        whiteboardServer.shutdown();
     }
 
     public void awaitTermination() throws InterruptedException {
         whiteboardServer.awaitTermination();
-        iamChannel.awaitTermination(10, TimeUnit.SECONDS);
     }
 }
