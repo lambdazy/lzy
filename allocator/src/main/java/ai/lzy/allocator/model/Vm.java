@@ -5,9 +5,11 @@ import ai.lzy.allocator.volume.VolumeRequest;
 import java.time.Instant;
 import java.time.temporal.Temporal;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import javax.annotation.Nullable;
 
 public record Vm(
@@ -28,6 +30,10 @@ public record Vm(
 
     public Temporal allocationStartedAt() {
         return spec.allocationStartedAt();
+    }
+
+    public List<VolumeRequest> volumeRequests() {
+        return Collections.unmodifiableList(spec.volumeRequests());
     }
 
     public record Spec(
@@ -104,18 +110,24 @@ public record Vm(
         private Instant lastActivityTime;
         private Instant deadline;
         private Instant allocationDeadline;
-        private final Map<String, String> vmMeta = new HashMap<>();
-        private final List<VolumeClaim> volumeClaims = new ArrayList<>();
+        private Map<String, String> vmMeta;
+        private List<VolumeClaim> volumeClaims;
 
         public VmStateBuilder() {}
 
         public VmStateBuilder(State existingState) {
             this.vmStatus = existingState.status;
-            this.vmMeta.putAll(existingState.vmMeta);
+            if (existingState.vmMeta != null) {
+                this.vmMeta = new HashMap<>();
+                this.vmMeta.putAll(existingState.vmMeta);
+            }
             this.lastActivityTime = existingState.lastActivityTime;
             this.deadline = existingState.deadline;
             this.allocationDeadline = existingState.allocationDeadline;
-            this.volumeClaims.addAll(existingState.volumeClaims);
+            if (existingState.volumeClaims != null) {
+                this.volumeClaims = new ArrayList<>();
+                this.volumeClaims.addAll(existingState.volumeClaims);
+            }
         }
 
         public VmStateBuilder setStatus(VmStatus vmStatus) {
@@ -139,13 +151,13 @@ public record Vm(
         }
 
         public VmStateBuilder setVmMeta(Map<String, String> vmMeta) {
-            this.vmMeta.clear();
+            this.vmMeta = new HashMap<>();
             this.vmMeta.putAll(vmMeta);
             return this;
         }
 
         public VmStateBuilder setVolumeClaims(List<VolumeClaim> volumeClaims) {
-            this.volumeClaims.clear();
+            this.volumeClaims = new ArrayList<>();
             this.volumeClaims.addAll(volumeClaims);
             return this;
         }

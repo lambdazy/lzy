@@ -439,9 +439,12 @@ public class VmDaoImpl implements VmDao {
         final var allocationDeadlineTs = res.getTimestamp(12);
         final var allocationDeadline = allocationDeadlineTs == null ? null : allocationDeadlineTs.toInstant();
 
-        final var vmMeta = objectMapper.readValue(res.getString(13),
+        final String vmMetaString = res.getString(13);
+        final var vmMeta = vmMetaString == null ? null : objectMapper.readValue(vmMetaString,
             new TypeReference<Map<String, String>>() {});
-        final var volumeClaims = objectMapper.readValue(res.getString(14),
+
+        final String volumeClaimString = res.getString(14);
+        final var volumeClaims = volumeClaimString == null ? null : objectMapper.readValue(volumeClaimString,
             new TypeReference<List<VolumeClaim>>() {});
         return new Vm(
             new Vm.Spec(id, sessionIdRes, allocationStartedAt, poolLabel, zone, workloads, volumeRequests),

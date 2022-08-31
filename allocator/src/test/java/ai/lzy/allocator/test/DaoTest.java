@@ -8,6 +8,9 @@ import ai.lzy.allocator.model.CachePolicy;
 import ai.lzy.allocator.model.Operation;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
+import ai.lzy.allocator.volume.DiskVolumeDescription;
+import ai.lzy.allocator.volume.VolumeMount;
+import ai.lzy.allocator.volume.VolumeRequest;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.test.DatabaseTestUtils;
@@ -111,8 +114,12 @@ public class DaoTest {
 
     @Test
     public void testVm() throws SQLException {
-        final var wl1 = new Workload("wl1", "im", Map.of("a", "b"), List.of("a1", "a2"), Map.of(1111, 2222), Collections.emptyList());
-        final var vm = vmDao.create("session", "pool", "zone", List.of(wl1), Collections.emptyList(), "op1", Instant.now(), null);
+        final VolumeMount volume = new VolumeMount(
+            "volume", "/mnt/volume", false, VolumeMount.MountPropagation.BIDIRECTIONAL);
+        final var wl1 = new Workload(
+            "wl1", "im", Map.of("a", "b"), List.of("a1", "a2"), Map.of(1111, 2222), List.of(volume));
+        final var volumeRequest = new VolumeRequest(new DiskVolumeDescription("diskVolume", "diskId"));
+        final var vm = vmDao.create("session", "pool", "zone", List.of(wl1), List.of(volumeRequest), "op1", Instant.now(), null);
 
         final var vm1 = vmDao.get(vm.vmId(), null);
         Assert.assertNotNull(vm1);
@@ -122,6 +129,7 @@ public class DaoTest {
         Assert.assertEquals(List.of(wl1), vm1.workloads());
         Assert.assertEquals("op1", vm1.allocationOperationId());
         Assert.assertEquals(Vm.VmStatus.CREATED, vm1.status());
+        Assert.assertEquals(List.of(volumeRequest), vm1.volumeRequests());
 
         vmDao.updateStatus(vm1.vmId(), Vm.VmStatus.IDLE, null);
         final var vm2 = vmDao.acquire("session", "pool", "zone", null);

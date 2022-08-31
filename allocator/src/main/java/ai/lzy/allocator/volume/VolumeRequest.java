@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import java.util.Objects;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
 public class VolumeRequest {
@@ -29,6 +30,23 @@ public class VolumeRequest {
         return "VolumeRequest{" +
             "volumeDescription=" + volumeDescription +
             '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        VolumeRequest that = (VolumeRequest) o;
+        return Objects.equals(volumeDescription, that.volumeDescription);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(volumeDescription);
     }
 
     @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "type")

@@ -3,6 +3,7 @@ package ai.lzy.allocator.volume;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.Objects;
 import java.util.UUID;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
@@ -16,8 +17,8 @@ public class HostPathVolumeDescription extends VolumeRequest.VolumeDescription {
     public HostPathVolumeDescription(
         @JsonProperty("name") String name,
         @JsonProperty("path") String path,
-        @JsonProperty("host_path_type") HostPathType hostPathType
-    ) {
+        @JsonProperty("host_path_type") HostPathType hostPathType)
+    {
         this.name = name;
         this.volumeId = "host-path-volume-" + UUID.randomUUID();
         this.path = path;
@@ -67,5 +68,23 @@ public class HostPathVolumeDescription extends VolumeRequest.VolumeDescription {
             ", path='" + path + '\'' +
             ", hostPathType=" + hostPathType +
             '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        HostPathVolumeDescription that = (HostPathVolumeDescription) o;
+        return Objects.equals(volumeId, that.volumeId) && Objects.equals(name, that.name)
+            && Objects.equals(path, that.path) && hostPathType == that.hostPathType;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(volumeId, name, path, hostPathType);
     }
 }
