@@ -119,7 +119,8 @@ public class DaoTest {
         final var wl1 = new Workload(
             "wl1", "im", Map.of("a", "b"), List.of("a1", "a2"), Map.of(1111, 2222), List.of(volume));
         final var volumeRequest = new VolumeRequest(new DiskVolumeDescription("diskVolume", "diskId"));
-        final var vm = vmDao.create("session", "pool", "zone", List.of(wl1), List.of(volumeRequest), "op1", Instant.now(), null);
+        final var vm = vmDao.create("session", "pool", "zone", List.of(wl1),
+            List.of(volumeRequest), "op1", Instant.now(), null);
 
         final var vm1 = vmDao.get(vm.vmId(), null);
         Assert.assertNotNull(vm1);
