@@ -6,11 +6,12 @@ from azure.storage.blob.aio import BlobServiceClient, ContainerClient
 
 # TODO[ottergottaott]: drop this dependency
 from lzy.api.v2.utils.types import unwrap
+from lzy.storage._async import AsyncStorageClient
 from lzy.storage.credentials import AzureCredentials, AzureSasCredentials
 from lzy.storage.url import Scheme, bucket_from_url, url_from_bucket
 
 
-class AzureClient:
+class AzureClientAsync(AsyncStorageClient):
     scheme = Scheme.azure
 
     def __init__(self, client: BlobServiceClient):
@@ -51,16 +52,19 @@ class AzureClient:
             yield chunk
 
     @staticmethod
-    def from_cred(creds: AzureCredentials) -> "AzureClient":
-        return AzureClient(
+    def from_cred(creds: AzureCredentials) -> "AzureClientAsync":
+        return AzureClientAsync(
             BlobServiceClient.from_connection_string(creds.connection_string)
         )
 
     @staticmethod
-    def from_sas_cred(creds: AzureSasCredentials) -> "AzureClient":
-        return AzureClient(
+    def from_sas_cred(creds: AzureSasCredentials) -> "AzureClientAsync":
+        return AzureClientAsync(
             BlobServiceClient.from_connection_string(
                 conn_str=creds.endpoint,
                 credential=creds.signature,
             )
         )
+
+    def generate_uri(self, container: str, blob: str) -> str:
+        return url_from_bucket(self.scheme, container, blob)

@@ -11,21 +11,23 @@ from lzy.env.env import EnvSpec
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
-class LzyCall(Generic[T]):
+class LzyCall:
     def __init__(
         self,
         parent_wflow: LzyWorkflow,
-        sign: CallSignature[T],
+        sign: CallSignature,
         provisioning: Provisioning,
         env: EnvSpec,
-        entry_id: str,
     ):
         self._id = str(uuid.uuid4())
         self._wflow = parent_wflow
         self._sign = sign
         self._provisioning = provisioning
         self._env = env
-        self._entry_id = entry_id
+        self._entry_ids = [
+            parent_wflow.owner.snapshot.create_entry(typ).id
+            for typ in sign.func.output_types
+        ]
 
     @property
     def provisioning(self) -> Provisioning:
@@ -40,7 +42,7 @@ class LzyCall(Generic[T]):
         return self._wflow
 
     @property
-    def signature(self) -> CallSignature[T]:
+    def signature(self) -> CallSignature:
         return self._sign
 
     @property
@@ -52,8 +54,8 @@ class LzyCall(Generic[T]):
         return self._sign.func.name
 
     @property
-    def entry_id(self) -> str:
-        return self._entry_id
+    def entry_ids(self) -> typing.Sequence[str]:
+        return self._entry_ids
 
     @property
     def args(self) -> Tuple[Any, ...]:

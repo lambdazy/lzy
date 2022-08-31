@@ -24,20 +24,9 @@ find . -iname "*.proto" -type f \
        -exec python -m grpc_tools.protoc -I . \
                     --python_out="$OLDPWD" \
                     --mypy_out="$OLDPWD" \
-                    --grpclib_python_out="$OLDPWD" \
+                    --grpc_python_out="$OLDPWD" \
                     --proto_path="$proto_workflow_path" \
                     '{}' +
-cd "$OLDPWD"
-
-cd "$proto_model_path"
-find . -iname "*.proto" -type f \
-       -exec python -m grpc_tools.protoc -I . -I "$proto_workflow_path" \
-                    --python_out="$OLDPWD" \
-                    --mypy_out="$OLDPWD" \
-                    --grpclib_python_out="$OLDPWD" \
-                    --proto_path="$proto_model_path" \
-                    '{}' +
-
 cd "$OLDPWD"
 
 find "ai" -type d \

@@ -1,8 +1,11 @@
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Callable, List
+from typing import TYPE_CHECKING, Callable, List
+
+if TYPE_CHECKING:
+    from lzy.api.v2 import LzyWorkflow
 
 from lzy.api.v2.call import LzyCall
-from lzy.api.v2.snapshot.snapshot import Snapshot
 
 
 @dataclass
@@ -10,14 +13,19 @@ class ProgressStep:
     pass
 
 
-class Runtime:
+class Runtime(ABC):
+    @abstractmethod
+    def start(self, workflow: "LzyWorkflow"):
+        pass
+
+    @abstractmethod
     def exec(
         self,
         graph: List[LzyCall],
-        snapshot: Snapshot,
         progress: Callable[[ProgressStep], None],
     ) -> None:
         pass
 
+    @abstractmethod
     def destroy(self) -> None:
         pass
