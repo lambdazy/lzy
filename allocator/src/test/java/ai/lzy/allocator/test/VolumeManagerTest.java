@@ -17,6 +17,11 @@ import ai.lzy.allocator.volume.VolumeManager;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.jsonwebtoken.lang.Assert;
 import io.micronaut.context.ApplicationContext;
+import io.micronaut.context.env.PropertySource;
+import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.time.Duration;
@@ -28,13 +33,16 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
+@Ignore
 public class VolumeManagerTest {
     private DiskManager diskManager;
     private VolumeManager volumeManager;
 
     @Before
-    public void before() {
-        ApplicationContext context = ApplicationContext.run();
+    public void before() throws IOException {
+        var properties = new YamlPropertySourceLoader()
+            .read("allocator", new FileInputStream("../allocator/src/main/resources/application-test-manual.yml"));
+        ApplicationContext context = ApplicationContext.run(PropertySource.of(properties));
         diskManager = context.getBean(DiskManager.class);
         final ServiceConfig serviceConfig = context.getBean(ServiceConfig.class);
         final ClusterRegistry clusterRegistry = context.getBean(ClusterRegistry.class);
