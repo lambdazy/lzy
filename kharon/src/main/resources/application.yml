@@ -6,6 +6,8 @@ kharon:
   snapshot-address: 'localhost:8999'
   channel-manager-address: 'localhost:8122'
   channel-manager-proxy-port: 8123
+  allocator-address: 'localhost:8899'
+  operation-service-address: 'localhost:8899'
   servant-proxy-port: 8900
   servant-fs-proxy-port: 8901
 
@@ -26,3 +28,12 @@ kharon:
     address: 'localhost:8443'
     internal-user-name: "lzy-internal-user"
     internal-user-private-key: ""
+
+  portal:
+    host: 'localhost'
+    portal-api-port: '${random.port}'
+    fs-api-port: '${random.port}'
+    fs-root: 'lzy-fs'
+    portal-image: 'portal-image'
+    stdout-channel-id: 'portal:stdout'
+    stderr-channel-id: 'portal:stderr'

@@ -1,5 +1,7 @@
 package ai.lzy.kharon.workflow;
 
+import ai.lzy.allocator.mock.AllocatorMock;
+import ai.lzy.allocator.mock.OperationServiceMock;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.utils.CredentialsHelper;
@@ -47,6 +49,8 @@ public class WorkflowServiceTest {
 
         var props = DatabaseTestUtils.preparePostgresConfig("kharon", db.getConnectionInfo());
         props.put("kharon.address", "localhost:" + workflowPort);
+        props.put("kharon.allocatorAddress", "localhost:" + workflowPort);
+        props.put("kharon.operationServiceAddress", "localhost:" + workflowPort);
         props.put("kharon.storage.address", "localhost:" + storagePort);
 
         ctx = ApplicationContext.run(PropertySource.of(props));
@@ -73,6 +77,8 @@ public class WorkflowServiceTest {
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(ServerInterceptors.intercept(ctx.getBean(WorkflowService.class), authInterceptor))
+            .addService(ServerInterceptors.intercept(new AllocatorMock(), authInterceptor))
+            .addService(ServerInterceptors.intercept(new OperationServiceMock(), authInterceptor))
             .build();
         workflowServer.start();
 

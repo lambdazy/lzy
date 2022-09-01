@@ -15,11 +15,11 @@ public class PortalConfig {
     @NotBlank
     private String portalId;
 
+    private String host;
+
     @NotNull
     @Positive
     private Integer portalApiPort;
-
-    private String host;
 
     @NotNull
     private String token;
