@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+import "ai/lzy/v1/zygote.proto";
+import "ai/lzy/v1/whiteboard.proto";
+
+package ai.lzy.v1;
+
+option java_outer_classname = "LWBPS";
+option java_package = "ai.lzy.v1";
+
+service LzyWhiteboardPrivateService {
+  rpc Create (CreateRequest) returns (CreateResponse);
+  rpc LinkField (LinkFieldRequest) returns (LinkFieldResponse);
+  rpc Finalize (FinalizeRequest) returns (FinalizeResponse);
+}
+
+message CreateRequest {
+  string whiteboardName = 1;
+  repeated string fieldNames = 2;
+  Storage storage = 3;
+  repeated string tags = 4;
+  string namespace = 5;
+}
+
+message CreateResponse {
+  Whiteboard whiteboard = 1;
+}
+
+message LinkFieldRequest {
+  string whiteboardId = 1;
+  string fieldName = 2;
+  string storageUri = 3;
+  DataScheme scheme = 4;
+}
+
+message LinkFieldResponse {
+}
+
+message FinalizeRequest {
+  string whiteboardId = 1;
+}
+
+message FinalizeResponse {
+}
