@@ -44,7 +44,7 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
                 throw new IllegalArgumentException("Request shouldn't contain empty fields");
             }
 
-            final Whiteboard whiteboard = whiteboardStorage.getWhiteboard(whiteboardId, null);
+            final Whiteboard whiteboard = whiteboardStorage.getWhiteboard(userId, whiteboardId, null);
 
             responseObserver.onNext(LWBS.GetResponse.newBuilder()
                 .setWhiteboard(ProtoConverter.to(whiteboard))

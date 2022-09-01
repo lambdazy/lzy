@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+@SuppressWarnings("UnstableApiUsage")
 @Singleton
 public class WhiteboardApp {
 
@@ -34,7 +35,7 @@ public class WhiteboardApp {
                          WhiteboardService whiteboardService, WhiteboardPrivateService whiteboardPrivateService)
     {
         final HostAndPort address = HostAndPort.fromString(config.getAddress());
-        final var internalUserOnlyInterceptor = new AllowInternalUserOnlyInterceptor(iamChannel);
+        final var internalUserOnly = new AllowInternalUserOnlyInterceptor(iamChannel);
 
         whiteboardServer = NettyServerBuilder
             .forAddress(new InetSocketAddress(address.getHost(), address.getPort()))
@@ -43,7 +44,7 @@ public class WhiteboardApp {
             .intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(iamChannel)))
             .intercept(new GrpcLogsInterceptor())
             .addService(whiteboardService)
-            .addService(ServerInterceptors.intercept(whiteboardPrivateService, internalUserOnlyInterceptor))
+            .addService(ServerInterceptors.intercept(whiteboardPrivateService, internalUserOnly))
             .build();
     }
 

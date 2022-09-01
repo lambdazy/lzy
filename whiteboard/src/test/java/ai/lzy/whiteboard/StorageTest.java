@@ -21,7 +21,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class WhiteboardStorageTest {
+public class StorageTest {
 
     @Rule
     public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
@@ -54,7 +54,7 @@ public class WhiteboardStorageTest {
         );
 
         wbStorage.insertWhiteboard(userId, wb, null);
-        Assert.assertEquals(wb, wbStorage.getWhiteboard(wb.id(), null));
+        Assert.assertEquals(wb, wbStorage.getWhiteboard(userId, wb.id(), null));
 
         final var wbTagged = new Whiteboard(
             "id2", "wb-name-1", Set.of("f1"), Set.of(), Set.of("lol", "kek", "cheburek"),
@@ -63,7 +63,7 @@ public class WhiteboardStorageTest {
         );
 
         wbStorage.insertWhiteboard(userId, wbTagged, null);
-        Assert.assertEquals(wbTagged, wbStorage.getWhiteboard(wbTagged.id(), null));
+        Assert.assertEquals(wbTagged, wbStorage.getWhiteboard(userId, wbTagged.id(), null));
     }
 
     @Test
@@ -78,7 +78,7 @@ public class WhiteboardStorageTest {
         final var f0 = genLinkedField("f0");
 
         wbStorage.markFieldLinked(wb.id(), f1, Instant.now(), null);
-        wb = wbStorage.getWhiteboard(wb.id(), null);
+        wb = wbStorage.getWhiteboard(userId, wb.id(), null);
         Assert.assertEquals(1, wb.createdFieldNames().size());
         Assert.assertEquals(1, wb.linkedFields().size());
         Assert.assertTrue(wb.linkedFields().contains(f1));
@@ -94,7 +94,7 @@ public class WhiteboardStorageTest {
         }
 
         wbStorage.markFieldLinked(wb.id(), f2, Instant.now(), null);
-        wb = wbStorage.getWhiteboard(wb.id(), null);
+        wb = wbStorage.getWhiteboard(userId, wb.id(), null);
         Assert.assertEquals(0, wb.createdFieldNames().size());
         Assert.assertEquals(2, wb.linkedFields().size());
         Assert.assertTrue(wb.linkedFields().contains(f1));
@@ -119,7 +119,7 @@ public class WhiteboardStorageTest {
         final var expectedFinalizedWb = new Whiteboard(
             wb.id(), wb.name(), Set.of(), Set.of(f1, f2), wb.tags(),
             wb.storage(), wb.namespace(), Whiteboard.Status.FINALIZED, wb.createdAt());
-        final var finalizedWb = wbStorage.getWhiteboard(wb.id(), null);
+        final var finalizedWb = wbStorage.getWhiteboard(userId, wb.id(), null);
         Assert.assertEquals(expectedFinalizedWb, finalizedWb);
     }
 

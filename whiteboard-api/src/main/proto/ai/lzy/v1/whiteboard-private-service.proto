@@ -15,11 +15,12 @@ service LzyWhiteboardPrivateService {
 }
 
 message CreateRequest {
-  string whiteboardName = 1;
-  repeated string fieldNames = 2;
-  Storage storage = 3;
-  repeated string tags = 4;
-  string namespace = 5;
+  string userId = 1;
+  string whiteboardName = 2;
+  repeated string fieldNames = 3;
+  Storage storage = 4;
+  repeated string tags = 5;
+  string namespace = 6;
 }
 
 message CreateResponse {

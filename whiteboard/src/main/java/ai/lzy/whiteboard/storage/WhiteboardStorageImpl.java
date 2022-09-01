@@ -110,10 +110,10 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
 
     @Nullable
     @Override
-    public Whiteboard findWhiteboard(String whiteboardId, @Nullable TransactionHandle transaction)
+    public Whiteboard findWhiteboard(String userId, String whiteboardId, @Nullable TransactionHandle transaction)
         throws SQLException
     {
-        LOG.debug("Finding whiteboard (whiteboardId={})", whiteboardId);
+        LOG.debug("Finding whiteboard (userId={},whiteboardId={})", userId, whiteboardId);
         final AtomicReference<Whiteboard> whiteboard = new AtomicReference<>();
         DbOperation.execute(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
@@ -140,17 +140,18 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                     FROM whiteboard_tags
                     GROUP BY whiteboard_id
                 ) t ON wb.whiteboard_id = t.whiteboard_id
-                WHERE wb.whiteboard_id = ?
+                WHERE wb.user_id = ? AND wb.whiteboard_id = ?
                 """)
             ) {
                 int index = 0;
+                st.setString(++index, userId);
                 st.setString(++index, whiteboardId);
                 Stream<Whiteboard> whiteboards = parseWhiteboards(st.executeQuery());
                 whiteboard.set(whiteboards.findFirst().orElse(null));
             }
         });
-        LOG.debug("Finding whiteboard (whiteboardId={}) done, {}",
-            whiteboardId, whiteboard.get() == null ? "not found" : "found");
+        LOG.debug("Finding whiteboard (userId={},whiteboardId={}) done, {}",
+            userId, whiteboardId, whiteboard.get() == null ? "not found" : "found");
         return whiteboard.get();
     }
 

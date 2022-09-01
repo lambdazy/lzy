@@ -6,7 +6,6 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.model.db.NotFoundException;
 import ai.lzy.model.db.TransactionHandle;
-import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.LWBPS;
 import ai.lzy.v1.LzyWhiteboardPrivateServiceGrpc;
 import ai.lzy.whiteboard.model.Whiteboard;
@@ -42,12 +41,9 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
 
     @Override
     public void create(LWBPS.CreateRequest request, StreamObserver<LWBPS.CreateResponse> responseObserver) {
-        LOG.info("Create whiteboard: {}", JsonUtils.printRequest(request));
+        LOG.info("Create whiteboard {}", request.getWhiteboardName());
 
         try {
-            final var authenticationContext = AuthenticationContext.current();
-            final String userId = Objects.requireNonNull(authenticationContext).getSubject().id();
-
             if (!isRequestValid(request)) {
                 String errorMessage = "Request shouldn't contain empty fields";
                 LOG.error("Create whiteboard failed, invalid argument: {}", errorMessage);
@@ -72,7 +68,7 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
                 final var lock = lockManager.getOrCreate(whiteboardId);
                 lock.lock();
                 try {
-                    whiteboardStorage.insertWhiteboard(userId, whiteboard, null);
+                    whiteboardStorage.insertWhiteboard(request.getUserId(), whiteboard, null);
                 } finally {
                     lock.unlock();
                 }
@@ -81,13 +77,13 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
             responseObserver.onNext(LWBPS.CreateResponse.newBuilder()
                 .setWhiteboard(ProtoConverter.to(whiteboard))
                 .build());
-            LOG.info("Create whiteboard done, id = {}", whiteboardId);
+            LOG.info("Create whiteboard {} done, id = {}", request.getWhiteboardName(), whiteboardId);
             responseObserver.onCompleted();
         } catch (IllegalArgumentException e) {
-            LOG.error("Create whiteboard failed, invalid argument: {}", e.getMessage(), e);
+            LOG.error("Create whiteboard {} failed, invalid argument: {}", request.getWhiteboardName(), e.getMessage(), e);
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
         } catch (Exception e) {
-            LOG.error("Create whiteboard failed, got exception: {}", e.getMessage(), e);
+            LOG.error("Create whiteboard {} failed, got exception: {}", request.getWhiteboardName(), e.getMessage(), e);
             responseObserver.onError(Status.INTERNAL.withCause(e).asException());
         }
     }
@@ -97,6 +93,8 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
         LOG.info("Link field {} to whiteboard {}", request.getFieldName(), request.getWhiteboardId());
 
         try {
+            final var authenticationContext = AuthenticationContext.current();
+            final String userId = Objects.requireNonNull(authenticationContext).getSubject().id();
             final String whiteboardId = request.getWhiteboardId();
             final String fieldName = request.getFieldName();
 
@@ -115,7 +113,7 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
                 final var lock = lockManager.getOrCreate(whiteboardId);
                 lock.lock();
                 try (final var transaction = TransactionHandle.create(dataSource)) {
-                    final Whiteboard whiteboard = whiteboardStorage.getWhiteboard(whiteboardId, transaction);
+                    final Whiteboard whiteboard = whiteboardStorage.getWhiteboard(userId, whiteboardId, transaction);
 
                     if (!whiteboard.hasField(fieldName)) {
                         throw new NotFoundException("Field " + fieldName + " of whiteboard " + whiteboardId + " not found");
@@ -169,7 +167,7 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
 
             withRetries(defaultRetryPolicy(), LOG, () -> {
                 try (final var transaction = TransactionHandle.create(dataSource)) {
-                    final Whiteboard whiteboard = whiteboardStorage.getWhiteboard(whiteboardId, transaction);
+                    final Whiteboard whiteboard = whiteboardStorage.getWhiteboard(userId, whiteboardId, transaction);
 
                     if (!whiteboard.createdFieldNames().isEmpty()) {
                         String errorMessage = "whiteboard has unlinked fields: "
@@ -205,6 +203,7 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
     private boolean isRequestValid(LWBPS.CreateRequest request) {
         try {
             boolean isValid = true;
+            isValid = isValid && !request.getUserId().isBlank();
             isValid = isValid && !request.getWhiteboardName().isBlank();
             isValid = isValid && request.getFieldNamesCount() != 0;
             isValid = isValid && !request.getNamespace().isBlank();
