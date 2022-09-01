@@ -34,7 +34,7 @@ public class Operation {
     }
 
     public Operation(String id, Any meta, String createdBy, Instant createdAt, Instant modifiedAt, String description,
-                     boolean done, Any response, Status error)
+                     boolean done, @Nullable Any response, @Nullable Status error)
     {
         this.id = id;
         this.meta = meta;
@@ -47,13 +47,13 @@ public class Operation {
         this.error = error;
     }
 
-    public void complete(Any response) {
+    public void setResponse(Any response) {
         modifiedAt = Instant.now();
         done = true;
         this.response = response;
     }
 
-    public void complete(Status error) {
+    public void setError(Status error) {
         modifiedAt = Instant.now();
         done = true;
         this.error = error;
@@ -135,10 +135,12 @@ public class Operation {
         return done;
     }
 
+    @Nullable
     public Any response() {
         return response;
     }
 
+    @Nullable
     public Status error() {
         return error;
     }

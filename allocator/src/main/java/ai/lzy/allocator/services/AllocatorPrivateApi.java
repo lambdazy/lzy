@@ -131,7 +131,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
                             .build(),
                         transaction);
 
-                    op.complete(Any.pack(AllocateResponse.newBuilder()
+                    op.setResponse(Any.pack(AllocateResponse.newBuilder()
                         .setPoolId(vm.poolLabel())
                         .setSessionId(vm.sessionId())
                         .setVmId(vm.vmId())

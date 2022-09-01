@@ -75,7 +75,7 @@ public class OperationApi extends OperationServiceApiImplBase {
             return;
         }
 
-        op.complete(Status.CANCELLED);
+        op.setError(Status.CANCELLED);
 
         withRetries(
             defaultRetryPolicy(),

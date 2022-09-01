@@ -168,7 +168,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         }
 
         Consumer<String> failOperation = msg -> {
-            opRef[0].complete(Status.INTERNAL.withDescription(msg));
+            opRef[0].setError(Status.INTERNAL.withDescription(msg));
 
             withRetries(
                 defaultRetryPolicy(),
@@ -196,7 +196,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                         opRef[0].modifyMeta(Any.pack(AllocateMetadata.newBuilder()
                             .setVmId(existingVm.vmId())
                             .build()));
-                        opRef[0].complete(Any.pack(AllocateResponse.newBuilder()
+                        opRef[0].setResponse(Any.pack(AllocateResponse.newBuilder()
                             .setSessionId(existingVm.sessionId())
                             .setPoolId(existingVm.poolLabel())
                             .setVmId(existingVm.vmId())
@@ -266,7 +266,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             } catch (InvalidConfigurationException e) {
                 LOG.error("Error while allocating: {}", e.getMessage(), e);
                 metrics.allocationError.inc();
-                opRef[0].complete(Status.INVALID_ARGUMENT.withDescription(e.getMessage()));
+                opRef[0].setError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()));
                 operations.update(opRef[0], null);
             }
         } catch (Exception e) {

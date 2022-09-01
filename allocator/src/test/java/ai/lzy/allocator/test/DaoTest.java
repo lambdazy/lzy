@@ -25,10 +25,8 @@ import org.junit.*;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 public class DaoTest {
 
@@ -68,7 +66,7 @@ public class DaoTest {
         Assert.assertFalse(op2.done());
         Assert.assertEquals("Some op", op2.description());
 
-        op2.complete(Status.NOT_FOUND.withDescription("Error"));
+        op2.setError(Status.NOT_FOUND.withDescription("Error"));
         opDao.update(op2, null);
         final var op3 = opDao.get(op1.id(), null);
         Assert.assertNotNull(op3);
