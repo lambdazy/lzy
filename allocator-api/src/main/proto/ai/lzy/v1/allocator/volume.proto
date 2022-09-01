@@ -38,8 +38,9 @@ message Mount {
   MountPropagation mount_propagation = 4;
 
   enum MountPropagation {
-      NONE = 0;
-      HOST_TO_CONTAINER = 1;
-      BIDIRECTIONAL = 2;
+      UNSPECIFIED = 0;
+      NONE = 1;
+      HOST_TO_CONTAINER = 2;
+      BIDIRECTIONAL = 3;
   }
 }
