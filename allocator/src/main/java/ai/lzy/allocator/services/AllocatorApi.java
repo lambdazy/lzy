@@ -32,7 +32,6 @@ import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.internal.util.Producer;
 
 import java.time.Instant;
-import java.util.UUID;
 import java.util.function.Consumer;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
@@ -153,7 +152,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         withRetries(
             defaultRetryPolicy(),
             LOG,
-            () -> operations.create(UUID.randomUUID().toString(), "Allocating VM", session[0].owner(),
+            () -> operations.create("Allocating VM", session[0].owner(),
                 Any.pack(AllocateMetadata.getDefaultInstance()), null),
             op -> opRef[0] = op,
             ex -> {
@@ -169,7 +168,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         }
 
         Consumer<String> failOperation = msg -> {
-            opRef[0] = opRef[0].complete(Status.INTERNAL.withDescription(msg));
+            opRef[0].complete(Status.INTERNAL.withDescription(msg));
 
             withRetries(
                 defaultRetryPolicy(),
@@ -194,10 +193,10 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                     if (existingVm != null) {
                         LOG.info("Found existing VM {}", existingVm);
 
-                        opRef[0] = opRef[0].modifyMeta(Any.pack(AllocateMetadata.newBuilder()
+                        opRef[0].modifyMeta(Any.pack(AllocateMetadata.newBuilder()
                             .setVmId(existingVm.vmId())
                             .build()));
-                        opRef[0] = opRef[0].complete(Any.pack(AllocateResponse.newBuilder()
+                        opRef[0].complete(Any.pack(AllocateResponse.newBuilder()
                             .setSessionId(existingVm.sessionId())
                             .setPoolId(existingVm.poolLabel())
                             .setVmId(existingVm.vmId())
@@ -221,7 +220,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                     var vmSpec = dao.create(request.getSessionId(), request.getPoolLabel(), request.getZone(),
                         workloads, volumes, opRef[0].id(), startedAt, transaction);
 
-                    opRef[0] = opRef[0].modifyMeta(Any.pack(AllocateMetadata.newBuilder()
+                    opRef[0].modifyMeta(Any.pack(AllocateMetadata.newBuilder()
                         .setVmId(vmSpec.vmId())
                         .build()));
 
@@ -267,7 +266,8 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             } catch (InvalidConfigurationException e) {
                 LOG.error("Error while allocating: {}", e.getMessage(), e);
                 metrics.allocationError.inc();
-                operations.update(opRef[0].complete(Status.INVALID_ARGUMENT.withDescription(e.getMessage())), null);
+                opRef[0].complete(Status.INVALID_ARGUMENT.withDescription(e.getMessage()));
+                operations.update(opRef[0], null);
             }
         } catch (Exception e) {
             LOG.error("Error during allocation: {}", e.getMessage(), e);

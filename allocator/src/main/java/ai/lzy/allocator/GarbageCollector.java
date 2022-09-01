@@ -52,8 +52,8 @@ public class GarbageCollector extends TimerTask {
                     try (var tr = TransactionHandle.create(storage)) {
                         var op = operations.get(vm.allocationOperationId(), tr);
                         if (op != null) {
-                            operations.update(op.complete(Status.DEADLINE_EXCEEDED.withDescription("Vm is expired")),
-                                tr);
+                            op.complete(Status.DEADLINE_EXCEEDED.withDescription("Vm is expired"));
+                            operations.update(op, tr);
                         } else {
                             LOG.warn("Op with id={} not found", vm.allocationOperationId());
                         }

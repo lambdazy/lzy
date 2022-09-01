@@ -70,22 +70,22 @@ public class OperationApi extends OperationServiceApiImplBase {
             }
         );
 
-        var op = opRef[0];
+        final var op = opRef[0];
         if (op == null) {
             return;
         }
 
-        final var newOp = op.complete(Status.CANCELLED);
+        op.complete(Status.CANCELLED);
 
         withRetries(
             defaultRetryPolicy(),
             LOG,
             () -> {
-                operations.update(newOp, null);
+                operations.update(op, null);
                 return (Void) null;
             },
             ok -> {
-                responseObserver.onNext(newOp.toProto());
+                responseObserver.onNext(op.toProto());
                 responseObserver.onCompleted();
             },
             ex -> {

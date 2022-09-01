@@ -131,15 +131,13 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
                             .build(),
                         transaction);
 
-                    operations.update(
-                        op.complete(Any.pack(AllocateResponse.newBuilder()
-                            .setPoolId(vm.poolLabel())
-                            .setSessionId(vm.sessionId())
-                            .setVmId(vm.vmId())
-                            .putAllMetadata(request.getMetadataMap())
-                            .build())),
-                        transaction);
-
+                    op.complete(Any.pack(AllocateResponse.newBuilder()
+                        .setPoolId(vm.poolLabel())
+                        .setSessionId(vm.sessionId())
+                        .setVmId(vm.vmId())
+                        .putAllMetadata(request.getMetadataMap())
+                        .build()));
+                    operations.update(op, transaction);
                     transaction.commit();
 
                     metrics.registered.inc();
