@@ -134,7 +134,7 @@ public enum DbHelper {
 
     private static final String PSQL_CannotSerializeTransaction = "40001";
 
-    private static boolean canRetry(PSQLException e) {
+    public static boolean canRetry(PSQLException e) {
         if (e.getSQLState() == null) {
             if (e.getCause() instanceof PSQLException ex) {
                 e = ex;

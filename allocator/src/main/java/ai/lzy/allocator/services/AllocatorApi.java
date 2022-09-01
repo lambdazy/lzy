@@ -14,6 +14,7 @@ import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.allocator.volume.VolumeRequest;
 import ai.lzy.metrics.MetricReporter;
+import ai.lzy.model.db.DbHelper;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.util.grpc.ProtoConverter;
@@ -32,42 +33,38 @@ import com.google.protobuf.Any;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
+import io.micronaut.retry.annotation.RetryPredicate;
 import io.micronaut.retry.annotation.Retryable;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
-import jakarta.inject.Inject;
-import jakarta.inject.Singleton;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.postgresql.util.PSQLException;
 
 @Singleton
 @Requires(beans = MetricReporter.class)
 public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
     private static final Logger LOG = LogManager.getLogger(AllocatorApi.class);
 
-    private final VmDao dao;
-    private final OperationDao operations;
-    private final SessionDao sessions;
     private final VmAllocator allocator;
-    private final ServiceConfig config;
-    private final AllocatorDataSource storage;
-    private final Metrics metrics = new Metrics();
-    private final AllocatorImpl allocatorImpl = new AllocatorImpl();
+    private final Metrics metrics;
+    private final AllocatorImpl allocatorImpl;
+    private final RetryableOperation retryableOperation;
 
     @Inject
-    public AllocatorApi(VmDao dao, OperationDao operations, SessionDao sessions, VmAllocator allocator,
-                        ServiceConfig config, AllocatorDataSource storage)
+    public AllocatorApi(AllocatorImpl allocatorImpl, RetryableOperation retryableOperation,
+                        VmAllocator allocator, Metrics metrics)
     {
-        this.dao = dao;
-        this.operations = operations;
-        this.sessions = sessions;
         this.allocator = allocator;
-        this.config = config;
-        this.storage = storage;
+        this.allocatorImpl = allocatorImpl;
+        this.retryableOperation = retryableOperation;
+        this.metrics = metrics;
     }
 
     @Override
@@ -134,7 +131,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
         Operation operation;
         try {
-            operation = allocatorImpl.createOperation(session.owner());
+            operation = retryableOperation.createOperation(session.owner());
         } catch (SQLException e) {
             LOG.error("Cannot create allocate vm operation for session {}: {}",
                 request.getSessionId(), e.getMessage(), e);
@@ -145,12 +142,16 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         final Vm.Spec vmSpec;
         try {
             vmSpec = allocatorImpl.createVmSpec(request, startedAt, operation);
+            operation = retryableOperation.getOperation(operation.id());
             responseObserver.onNext(operation.toProto());
             responseObserver.onCompleted();
+            if (vmSpec == null) {
+                return;
+            }
         } catch (SQLException e) {
             final String exceptionMessage = e.getMessage();
             LOG.error("Error while executing transaction: {}", exceptionMessage, e);
-            failOperation(operation, exceptionMessage);
+            retryableOperation.failOperation(operation, exceptionMessage);
             metrics.allocationError.inc();
 
             responseObserver.onNext(operation.toProto());
@@ -166,12 +167,13 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             } catch (InvalidConfigurationException e) {
                 LOG.error("Error while allocating: {}", e.getMessage(), e);
                 metrics.allocationError.inc();
-                operations.update(operation.complete(Status.INVALID_ARGUMENT.withDescription(e.getMessage())), null);
+                retryableOperation.update(
+                    operation.complete(Status.INVALID_ARGUMENT.withDescription(e.getMessage())), null);
             }
         } catch (Exception e) {
             LOG.error("Error during allocation: {}", e.getMessage(), e);
             metrics.allocationError.inc();
-            failOperation(operation, "Error while executing request");
+            retryableOperation.failOperation(operation, "Error while executing request");
         }
     }
 
@@ -191,36 +193,58 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         }
     }
 
-    private final class AllocatorImpl {
-        @Retryable
+    public static class DbRetryPredicate implements RetryPredicate {
+        @Override
+        public boolean test(Throwable throwable) {
+            if (throwable instanceof PSQLException) {
+                return DbHelper.canRetry((PSQLException) throwable);
+            }
+            return false;
+        }
+    }
+
+    @Singleton
+    @Retryable(delay = "50ms", multiplier = "2.0",
+        predicate = DbRetryPredicate.class, capturedException = PSQLException.class)
+    public static class AllocatorImpl {
+        private final VmDao vmDao;
+        private final SessionDao sessions;
+        private final AllocatorDataSource storage;
+        private final RetryableOperation retryableOperation;
+        private final ServiceConfig config;
+        private final Metrics metrics;
+
+        @Inject
+        public AllocatorImpl(VmDao vmDao, SessionDao sessions, AllocatorDataSource storage,
+                             RetryableOperation retryableOperation, ServiceConfig config, Metrics metrics)
+        {
+            this.vmDao = vmDao;
+            this.sessions = sessions;
+            this.storage = storage;
+            this.retryableOperation = retryableOperation;
+            this.config = config;
+            this.metrics = metrics;
+        }
+
         Session createSession(String owner, CachePolicy cachePolicy) throws SQLException {
             return sessions.create(owner, cachePolicy, null);
         }
 
-        @Retryable
         public void deleteSession(String sessionId) throws SQLException {
             sessions.delete(sessionId, null);
-            dao.delete(sessionId);
+            vmDao.delete(sessionId);
         }
 
         @Nullable
-        @Retryable
         public Session getSession(String sessionId) throws SQLException {
             return sessions.get(sessionId, null);
         }
 
-        @Retryable
-        public Operation createOperation(String owner) throws SQLException {
-            return operations.create(UUID.randomUUID().toString(), "Allocating VM", owner,
-                Any.pack(AllocateMetadata.getDefaultInstance()), null);
-        }
-
-        @Retryable
         public Vm.Spec createVmSpec(AllocateRequest request, Instant startedAt, Operation operation)
             throws SQLException
         {
             try (var transaction = TransactionHandle.create(storage)) {
-                final var existingVm = dao.acquire(request.getSessionId(),
+                final var existingVm = vmDao.acquire(request.getSessionId(),
                     request.getPoolLabel(), request.getZone(), transaction);
 
                 if (existingVm != null) {
@@ -235,12 +259,12 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                         .setVmId(existingVm.vmId())
                         .putAllMetadata(existingVm.vmMeta())
                         .build()));
-                    operations.update(operation, transaction);
+                    retryableOperation.update(operation, transaction);
 
                     transaction.commit();
 
                     metrics.allocateVmExisting.inc();
-                    return existingVm.spec();
+                    return null;
                 }
 
                 var workloads = request.getWorkloadList().stream()
@@ -250,20 +274,20 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                     .map(VolumeRequest::fromProto)
                     .toList();
 
-                var vmSpec = dao.create(request.getSessionId(), request.getPoolLabel(), request.getZone(),
+                var vmSpec = vmDao.create(request.getSessionId(), request.getPoolLabel(), request.getZone(),
                     workloads, volumes, operation.id(), startedAt, transaction);
 
                 operation = operation.modifyMeta(Any.pack(AllocateMetadata.newBuilder()
                     .setVmId(vmSpec.vmId())
                     .build()));
 
-                operations.update(operation, transaction);
+                retryableOperation.update(operation, transaction);
 
                 final var vmState = new Vm.VmStateBuilder()
                     .setStatus(Vm.VmStatus.CONNECTING)
                     .setAllocationDeadline(Instant.now().plus(config.getAllocationTimeout()))
                     .build();
-                dao.update(vmSpec.vmId(), vmState, transaction);
+                vmDao.update(vmSpec.vmId(), vmState, transaction);
 
                 transaction.commit();
                 metrics.allocateVmNew.inc();
@@ -272,10 +296,9 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             }
         }
 
-        @Retryable
         public Status free(String vmId) throws SQLException {
             try (var transaction = TransactionHandle.create(storage)) {
-                var vm = dao.get(vmId, transaction);
+                var vm = vmDao.get(vmId, transaction);
                 if (vm == null) {
                     return Status.NOT_FOUND.withDescription("Cannot find vm");
                 }
@@ -292,7 +315,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                     return Status.INTERNAL;
                 }
 
-                dao.release(vm.vmId(), Instant.now().plus(session.cachePolicy().minIdleTimeout()), transaction);
+                vmDao.release(vm.vmId(), Instant.now().plus(session.cachePolicy().minIdleTimeout()), transaction);
 
                 transaction.commit();
                 return Status.OK;
@@ -300,17 +323,43 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         }
     }
 
-    @Retryable
-    private void failOperation(Operation operation, String exceptionMessage) {
-        try {
-            operation = operation.complete(Status.INTERNAL.withDescription(exceptionMessage));
-            operations.update(operation, null);
-        } catch (SQLException ex) {
-            LOG.error("Cannot fail operation {} with reason {}: {}", operation, exceptionMessage, ex.getMessage(), ex);
+    @Singleton
+    @Retryable(delay = "50ms", multiplier = "2.0",
+        predicate = DbRetryPredicate.class, capturedException = PSQLException.class)
+    public static class RetryableOperation {
+        private final OperationDao operations;
+
+        @Inject
+        public RetryableOperation(OperationDao operations) {
+            this.operations = operations;
+        }
+
+        public Operation createOperation(String owner) throws SQLException {
+            return operations.create(UUID.randomUUID().toString(), "Allocating VM", owner,
+                Any.pack(AllocateMetadata.getDefaultInstance()), null);
+        }
+
+        public void failOperation(Operation operation, String exceptionMessage) {
+            try {
+                operation = operation.complete(Status.INTERNAL.withDescription(exceptionMessage));
+                operations.update(operation, null);
+            } catch (SQLException ex) {
+                LOG.error("Cannot fail operation {} with reason {}: {}",
+                    operation, exceptionMessage, ex.getMessage(), ex);
+            }
+        }
+
+        public void update(Operation operation, TransactionHandle tx) throws SQLException {
+            operations.update(operation, tx);
+        }
+
+        public Operation getOperation(String id) throws SQLException {
+            return operations.get(id, null);
         }
     }
 
-    private static final class Metrics {
+    @Singleton
+    public static final class Metrics {
         private final Counter allocateVmExisting = Counter
             .build("allocate_vm_existing", "Allocate VM from cache")
             .subsystem("allocator")
