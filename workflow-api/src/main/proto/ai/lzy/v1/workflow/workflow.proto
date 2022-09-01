@@ -40,17 +40,7 @@ message Operation {
     /* optional */ PythonEnvSpec python = 7;  // If not set, running in default bash env
   }
 
-  /* optional */ Requirements requirements = 8;
-
-  message Requirements {
-    // All fields are optional
-    // If not set, using minimal requirements
-
-    /* optional */ int32 cpu = 1;  // Minimal required cpu
-    /* optional */ string mem = 2;  // Minimal required mem
-    /* optional */ string gpu = 3;  // Minimal required gpu
-    /* optional */ string driveSize = 4;  // Minimal required drive size
-  }
+  string requiredPoolLabel = 8;  // Label to execute operation in
 
   message PythonEnvSpec {
     string yaml = 2;  // Conda yaml to install before execution
@@ -68,6 +58,8 @@ message Graph {
 
   repeated EdgeDescription edges = 2;
   repeated VertexDescription vertices = 3;
+
+  string zone = 4;  // Availability zone to execute graph in
 
   message EdgeDescription {
     /* optional */ DataScheme dataScheme = 1;  // If not set, using plain scheme
@@ -102,4 +94,14 @@ message Graph {
     string id = 1;
     Operation operation = 2;
   }
+}
+
+message VmPoolSpec {
+  string label = 1;             // 's', 'm', 'l', ...
+  string cpu_type = 2;          // IceLake, CascadeLake, Broadwell, ...
+  uint32 cpu_count = 3;         // # of CPU cores
+  string gpu_type = 4;          // V100, A100, ...
+  uint32 gpu_count = 5;         // # of GPU cores
+  uint32 ram_gb = 6;            // RAM in GB
+  repeated string zones = 7;    // availability zones
 }

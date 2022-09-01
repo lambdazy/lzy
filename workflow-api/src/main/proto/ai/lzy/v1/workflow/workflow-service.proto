@@ -18,6 +18,8 @@ service LzyWorkflowService {
   rpc StopGraph (StopGraphRequest) returns (StopGraphResponse);
 
   rpc ReadStdSlots (ReadStdSlotsRequest) returns (stream ReadStdSlotsResponse);
+
+  rpc GetAvailablePools (GetAvailablePoolsRequest) returns (GetAvailablePoolsResponse);
 }
 
 message CreateWorkflowRequest {
@@ -116,7 +118,22 @@ message ReadStdSlotsRequest {
 
 message ReadStdSlotsResponse {
   oneof data {
-    string stdout = 1;
-    string stderr = 2;
+    Data stdout = 1;
+    Data stderr = 2;
   }
+
+  message Data {
+    repeated string data = 1;
+  }
+}
+
+
+// ==================== GetAvailablePools =====================
+
+message GetAvailablePoolsRequest {
+  string executionId = 1;
+}
+
+message GetAvailablePoolsResponse {
+  repeated VmPoolSpec poolSpecs = 1;
 }
