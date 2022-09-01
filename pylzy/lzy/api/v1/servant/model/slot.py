@@ -6,7 +6,7 @@ from enum import Enum
 from typing import Dict, cast
 
 import cloudpickle
-from pure_protobuf.dataclasses_ import Message
+from pure_protobuf.dataclasses_ import Message  # type: ignore
 
 from lzy.serialization.types import File
 
