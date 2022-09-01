@@ -1,6 +1,7 @@
 import logging
 import tempfile
 from concurrent import futures
+from typing import Generator, Iterator
 from unittest import TestCase
 
 import grpc.aio
@@ -11,7 +12,7 @@ from ai.lzy.v1.workflow.workflow_service_pb2 import (
     CreateWorkflowRequest,
     CreateWorkflowResponse,
     FinishWorkflowRequest,
-    FinishWorkflowResponse,
+    FinishWorkflowResponse, ReadStdSlotsResponse, ReadStdSlotsRequest,
 )
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import (
     LzyWorkflowServiceServicer,
@@ -43,6 +44,13 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
         assert request.workflowName == "some_name"
         assert request.executionId == "exec_id"
         return FinishWorkflowResponse()
+
+    def ReadStdSlots(
+            self, request: ReadStdSlotsRequest, context: grpc.RpcContext
+    ) -> Iterator[ReadStdSlotsResponse]:
+        LOG.info(f"Registered listener")
+        yield ReadStdSlotsResponse(stdout="Some stdout")
+        yield ReadStdSlotsResponse(stderr="Some stderr")
 
 
 class GrpcRuntimeTests(TestCase):

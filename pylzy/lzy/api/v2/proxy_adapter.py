@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 from lzy.api.v2.exceptions import LzyExecutionException
 
 ____lzy_proxied = "__lzy_proxied__"
+____entry_id = "__lzy_entry_id__"
 
 
 def is_lzy_proxy(obj: Any) -> bool:
@@ -40,5 +41,5 @@ def lzy_proxy(entry_id: str, typ: type, wflow: "LzyWorkflow") -> Any:
     return proxy(
         materialize,
         typ,  # type: ignore
-        cls_attrs={____lzy_proxied: True},
+        cls_attrs={____lzy_proxied: True, ____entry_id: entry_id},
     )

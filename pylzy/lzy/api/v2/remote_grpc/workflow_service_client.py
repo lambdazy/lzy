@@ -1,27 +1,47 @@
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Optional, Tuple, AsyncGenerator, Union, AsyncIterable, List, AsyncIterator
 
-from ai.lzy.v1.workflow.workflow_pb2 import SnapshotStorage
+from ai.lzy.v1.workflow.workflow_pb2 import SnapshotStorage, Graph
 from ai.lzy.v1.workflow.workflow_service_pb2 import (
     AttachWorkflowRequest,
-    AttachWorkflowResponse,
     CreateWorkflowRequest,
     CreateWorkflowResponse,
     DeleteWorkflowRequest,
-    FinishWorkflowRequest,
+    FinishWorkflowRequest, ReadStdSlotsRequest, ReadStdSlotsResponse, ExecuteGraphRequest, ExecuteGraphResponse,
+    GraphStatusResponse, GraphStatusRequest, StopGraphRequest,
 )
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceStub
 from lzy.api.v2.remote_grpc.model import converter
-from lzy.api.v2.remote_grpc.model.converter.storage_creds import from_, to
+from lzy.api.v2.remote_grpc.model.converter.storage_creds import to
 from lzy.api.v2.remote_grpc.utils import add_headers_interceptor, build_channel
 from lzy.api.v2.storage import Credentials
 from lzy.storage.credentials import AmazonCredentials, StorageCredentials
 
 
 @dataclass
-class StorageEndpoint:
-    bucket: str
-    creds: StorageCredentials
+class Waiting:
+    pass
+
+
+@dataclass
+class Executing:
+    operations_completed: List[str]
+    operations_executing: List[str]
+    operations_waiting: List[str]
+    message: str
+
+
+@dataclass
+class Completed:
+    pass
+
+
+@dataclass
+class Failed:
+    description: str
+
+
+GraphStatus = Union[Waiting, Executing, Completed, Failed]
 
 
 def _create_storage_endpoint(
@@ -42,6 +62,19 @@ def _create_storage_endpoint(
 
     creds: StorageCredentials = converter.storage_creds.from_(grpc_creds)
     return Credentials(creds, store.bucket)
+
+
+@dataclass
+class StdoutMessage:
+    data: str
+
+
+@dataclass
+class StderrMessage:
+    data: str
+
+
+Message = Union[StderrMessage, StdoutMessage]
 
 
 class WorkflowServiceClient:
@@ -103,3 +136,53 @@ class WorkflowServiceClient:
     async def delete_workflow(self, name: str) -> None:
         request = DeleteWorkflowRequest(workflowName=name)
         await self.stub.DeleteWorkflow(request)
+
+    async def read_std_slots(self, execution_id: str) -> AsyncIterator[Message]:
+        stream: AsyncIterable[ReadStdSlotsResponse] = self.stub.ReadStdSlots(
+            ReadStdSlotsRequest(executionId=execution_id)
+        )
+
+        async for msg in stream:
+            if msg.HasField("stderr"):
+                yield StderrMessage(msg.stderr)
+            elif msg.HasField("stdout"):
+                yield StdoutMessage(msg.stdout)
+
+    async def execute_graph(self, execution_id: str, graph: Graph) -> str:
+        res: ExecuteGraphResponse = await self.stub.ExecuteGraph(
+            ExecuteGraphRequest(executionId=execution_id, graph=graph)
+        )
+
+        return res.graphId
+
+    async def graph_status(self, execution_id: str, graph_id: str) -> GraphStatus:
+        res: GraphStatusResponse = await self.stub.GraphStatus(
+            GraphStatusRequest(
+                executionId=execution_id,
+                graphId=graph_id
+            )
+        )
+
+        if res.HasField("waiting"):
+            return Waiting()
+
+        if res.HasField("completed"):
+            return Completed()
+
+        if res.HasField("failed"):
+            return Failed(res.failed.description)
+
+        return Executing(
+            res.executing.tasksCompleted,
+            res.executing.tasksExecuting,
+            res.executing.tasksWaiting,
+            res.executing.message
+        )
+
+    async def graph_stop(self, execution_id: str, graph_id: str):
+        await self.stub.StopGraph(
+            StopGraphRequest(
+                executionId=execution_id,
+                graphId=graph_id
+            )
+        )

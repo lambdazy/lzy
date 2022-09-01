@@ -4,6 +4,7 @@ from itertools import chain
 from typing import Any, Dict, Generic, Iterator, Tuple, TypeVar
 
 from lzy.api.v2.provisioning import Provisioning
+from lzy.api.v2.proxy_adapter import is_lzy_proxy
 from lzy.api.v2.signatures import CallSignature
 from lzy.api.v2.workflow import LzyWorkflow
 from lzy.env.env import EnvSpec
@@ -28,6 +29,27 @@ class LzyCall:
             parent_wflow.owner.snapshot.create_entry(typ).id
             for typ in sign.func.output_types
         ]
+
+        self._args_entry_ids: typing.List[str] = []
+
+        for arg in self._sign.args:
+            if is_lzy_proxy(arg):
+                self._args_entry_ids.append(arg.__lzy_entry_id__)
+            else:
+                self._args_entry_ids.append(
+                    parent_wflow.owner.snapshot.create_entry(type(arg)).id
+                )
+
+        self._kwargs_entry_ids: Dict[str, str] = {}
+
+        for name, kwarg in self._sign.kwargs.items():
+            entry_id: str
+            if is_lzy_proxy(kwarg):
+                entry_id = kwarg.__lzy_entry_id__
+            else:
+                entry_id = parent_wflow.owner.snapshot.create_entry(type(kwarg)).id
+
+            self._kwargs_entry_ids[name] = entry_id
 
     @property
     def provisioning(self) -> Provisioning:
@@ -60,6 +82,14 @@ class LzyCall:
     @property
     def args(self) -> Tuple[Any, ...]:
         return self._sign.args
+
+    @property
+    def arg_entry_ids(self) -> typing.Sequence[str]:
+        return self._args_entry_ids
+
+    @property
+    def kwarg_entry_ids(self) -> typing.Mapping[str, str]:
+        return self.kwarg_entry_ids
 
     @property
     def kwargs(self) -> Dict[str, Any]:
