@@ -144,9 +144,11 @@ class WorkflowServiceClient:
 
         async for msg in stream:
             if msg.HasField("stderr"):
-                yield StderrMessage(msg.stderr)
+                for line in msg.stderr.data:
+                    yield StderrMessage(line)
             elif msg.HasField("stdout"):
-                yield StdoutMessage(msg.stdout)
+                for line in msg.stdout.data:
+                    yield StdoutMessage(line)
 
     async def execute_graph(self, execution_id: str, graph: Graph) -> str:
         res: ExecuteGraphResponse = await self.stub.ExecuteGraph(

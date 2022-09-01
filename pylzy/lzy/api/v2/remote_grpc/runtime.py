@@ -5,7 +5,6 @@ import sys
 import time
 from asyncio import Task
 from collections import defaultdict
-from concurrent.futures import CancelledError
 from threading import Thread
 from typing import Any, Callable, List, Optional, Tuple, Dict, Union
 
@@ -22,6 +21,7 @@ from lzy.api.v2.runtime import ProgressStep, Runtime
 
 KEY_PATH_ENV = "LZY_KEY_PATH"
 LZY_ADDRESS_ENV = "LZY_ADDRESS_ENV"
+FETCH_STATUS_PERIOD_SEC = 10
 
 
 _LOG = logging.getLogger(__name__)
@@ -97,7 +97,13 @@ class GrpcRuntime(Runtime):
         graph: List[LzyCall],
         progress: Callable[[ProgressStep], None],
     ) -> None:
-        pass
+        task = asyncio.run_coroutine_threadsafe(self._execute_graph(graph), self.__loop)
+        try:
+            task.result()
+        except LzyExecutionException as e:
+            raise e
+        except Exception as e:
+            raise LzyExecutionException("Cannot destroy workflow") from e  # TODO(artolord) Add more details
 
     def destroy(self):
         task = asyncio.run_coroutine_threadsafe(self._finish_workflow(), self.__loop)
@@ -171,13 +177,13 @@ class GrpcRuntime(Runtime):
             output_slots: List[str] = []
 
             for i, eid in enumerate(call.arg_entry_ids):
-                input_slots.append(f"{call.id}_arg_{i}")
+                input_slots.append(f"/{call.id}/arg_{i}")
 
             for name, eid in call.kwarg_entry_ids.items():
-                input_slots.append(f"{call.id}_kwarg_{name}")
+                input_slots.append(f"/{call.id}/arg_{name}")
 
             for i in range(len(call.entry_ids)):
-                output_slots.append(f"{call.id}_ret_{i}")
+                output_slots.append(f"/{call.id}/ret_{i}")
 
             vertices[call.id] = Graph.VertexDescription(
                 id=call.id,
@@ -185,20 +191,44 @@ class GrpcRuntime(Runtime):
                     name=call.signature.func.__name__,
                     description=call.description,
                     inputSlots=input_slots,
-                    outputSlots=output_slots
+                    outputSlots=output_slots,
+                    command="",  # TODO(artolord) add command generation and v2 startup
+                    dockerImage=call.env.base_env.name,  # TODO(artolord) change env api
+                    python=Operation.PythonEnvSpec(  # TODO(artolord) add local modules loading
+                        yaml=call.env.aux_env.conda_yaml
+                    ),
+                    requiredPoolLabel="S"  # TODO(artolord) add label resolving
                 )
             )
 
         edges: List[Graph.EdgeDescription] = []
         for entry_id in entry_id_to_call.keys():
             entry = self.__workflow.owner.snapshot.get(entry_id)
-            Graph.EdgeDescription(
+            edges.append(Graph.EdgeDescription(
                 storageUri=entry.storage_url,
+                input=Graph.EdgeDescription.VertexRef(
+                    vertexId=entry_id_to_call[entry_id][0].id,
+                    slotName=f"/{entry_id_to_call[entry_id][0].id}/ret_{entry_id_to_call[entry_id][1]}"
+                ),
+                outputs=[
+                    Graph.EdgeDescription.VertexRef(
+                        vertexId=data[0].id,
+                        slotName=f"/{data[0].id}/arg_{data[1]}"
+                    ) for data in entry_id_to_output_calls[entry_id]
+                ],
                 dataScheme=Graph.EdgeDescription.DataScheme(
-                    typ
-                )
-            )
-        pass
+                    type=entry.data_scheme.type,
+                    schemeType=entry.data_scheme.scheme_type
+                ) if entry.data_scheme is not None else None,
+                whiteboardRef=None  # TODO(artolord) add whiteboards linking
+            ))
+
+        return Graph(
+            name="",
+            edges=edges,
+            vertices=vertices.values(),
+            zone=""  # TODO(artolord) Add zone resolving
+        )
 
     async def _execute_graph(self, calls: List[LzyCall]):
         assert self.__execution_id is not None
@@ -206,12 +236,14 @@ class GrpcRuntime(Runtime):
         _LOG.info("Building graph")
         graph = self._build_graph(calls)
 
+        # TODO(artolord) add args loading
+
         graph_id = await self.__workflow_client.execute_graph(self.__execution_id, graph)
         _LOG.info(f"Send graph to Lzy, graph_id={graph_id}")
 
         is_executing = False
         while True:
-            await asyncio.sleep(10)
+            await asyncio.sleep(FETCH_STATUS_PERIOD_SEC)
             status = await self.__workflow_client.graph_status(self.__execution_id, graph_id)
 
             if isinstance(status, Executing) and not is_executing:

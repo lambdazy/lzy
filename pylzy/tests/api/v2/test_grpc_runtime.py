@@ -12,7 +12,8 @@ from ai.lzy.v1.workflow.workflow_service_pb2 import (
     CreateWorkflowRequest,
     CreateWorkflowResponse,
     FinishWorkflowRequest,
-    FinishWorkflowResponse, ReadStdSlotsResponse, ReadStdSlotsRequest,
+    FinishWorkflowResponse, ReadStdSlotsResponse, ReadStdSlotsRequest, ExecuteGraphRequest, ExecuteGraphResponse,
+    GraphStatusRequest, GraphStatusResponse,
 )
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import (
     LzyWorkflowServiceServicer,
@@ -49,8 +50,22 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
             self, request: ReadStdSlotsRequest, context: grpc.RpcContext
     ) -> Iterator[ReadStdSlotsResponse]:
         LOG.info(f"Registered listener")
-        yield ReadStdSlotsResponse(stdout="Some stdout")
-        yield ReadStdSlotsResponse(stderr="Some stderr")
+        yield ReadStdSlotsResponse(stdout=ReadStdSlotsResponse.Data(
+            data=("Some stdout",)
+        ))
+        yield ReadStdSlotsResponse(stderr=ReadStdSlotsResponse.Data(
+            data=("Some stderr",)
+        ))
+
+    def ExecuteGraph(
+            self, request: ExecuteGraphRequest, context: grpc.RpcContext
+    ) -> ExecuteGraphResponse:
+        pass
+
+    def GraphStatus(
+            self, request: GraphStatusRequest, context: grpc.RpcContext
+    ) -> GraphStatusResponse:
+        pass
 
 
 class GrpcRuntimeTests(TestCase):
