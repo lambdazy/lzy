@@ -63,6 +63,7 @@ public class StorageThreadContext implements LzyStorageTestContext {
     @Override
     public void init() {
         var props = Utils.loadModuleTestProperties("storage");
+        props.putAll(Utils.createModuleDatabase("storage"));
 
         props.put("storage.address", "localhost:" + STORAGE_PORT);
         props.put("storage.iam.address", iamAddress.toString());

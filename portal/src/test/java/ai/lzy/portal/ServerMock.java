@@ -63,6 +63,9 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
             servant.shutdown();
             servant.join();
         }
+        for (var servant : servantHandlers.values()) {
+            servant.awaitTermination(2, TimeUnit.SECONDS);
+        }
         server.shutdown();
         server.awaitTermination();
     }
@@ -143,7 +146,6 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
 
             this.servantId = req.getServantId();
             var servantUri = req.getServantURI();
-            var servantFsUri = req.getFsURI();
             this.servantStub = LzyServantGrpc.newBlockingStub(
                 ChannelBuilder.forAddress(servantUri.substring("servant://".length()))
                     .usePlaintext()
@@ -153,19 +155,15 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
 
         public void shutdown() {
             servantStub.stop(IAM.Empty.getDefaultInstance());
+            ((ManagedChannel) servantStub.getChannel()).shutdown();
+        }
+
+        public boolean awaitTermination(long c, TimeUnit timeUnit) throws InterruptedException {
+            return ((ManagedChannel) servantStub.getChannel()).awaitTermination(c, timeUnit);
         }
 
         public void waitStart() throws Exception {
             started.get();
-        }
-
-        public void assertServantNotActive() {
-            try {
-                servantStub.execute(Tasks.TaskSpec.getDefaultInstance());
-                Assert.fail("Servant is active at '" + servantId + "'");
-            } catch (StatusRuntimeException e) {
-                Assert.assertEquals(Status.FAILED_PRECONDITION.getCode(), e.getStatus().getCode());
-            }
         }
 
         public void startTask(Tasks.TaskSpec request, StreamObserver<Tasks.TaskProgress> response) {
@@ -214,7 +212,6 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
                 e.printStackTrace(System.err);
                 assert false;
             }
-            ((ManagedChannel) servantStub.getChannel()).shutdown();
         }
     }
 }

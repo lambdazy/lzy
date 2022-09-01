@@ -1,7 +1,8 @@
+from abc import ABC
 from typing import BinaryIO, Protocol
 
 
-class StorageClient(Protocol):
+class StorageClient(ABC):
     def read(self, url: str, dest: BinaryIO):
         pass
 

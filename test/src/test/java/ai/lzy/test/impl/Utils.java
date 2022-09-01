@@ -2,12 +2,17 @@ package ai.lzy.test.impl;
 
 import ai.lzy.model.Slot;
 import ai.lzy.model.data.DataSchema;
+import ai.lzy.model.db.test.DatabaseTestUtils;
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
+import io.zonky.test.db.postgres.embedded.PreparedDbProvider;
+
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.SQLException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class Utils {
@@ -100,6 +105,17 @@ public class Utils {
             assert !props.isEmpty();
             return props;
         } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static Map<String, Object> createModuleDatabase(String module) {
+        try {
+            var provider = PreparedDbProvider.forPreparer(x -> {}, List.of());
+            var connectionInfo = provider.createNewDatabase();
+            provider.createDataSourceFromConnectionInfo(connectionInfo);
+            return DatabaseTestUtils.preparePostgresConfig(module, connectionInfo);
+        } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }

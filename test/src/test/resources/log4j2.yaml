@@ -40,7 +40,7 @@ Configuration:
 
       - name: "ai.lzy.channelmanager"
         additivity: false
-        level: error
+        level: info
         AppenderRef:
           ref: Console
 
@@ -53,5 +53,11 @@ Configuration:
       - name: "org.flywaydb"
         additivity: false
         level: error
+        AppenderRef:
+          ref: Console
+
+      - name: "ai.lzy.fs"
+        additivity: false
+        level: debug
         AppenderRef:
           ref: Console

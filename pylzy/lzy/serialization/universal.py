@@ -7,9 +7,6 @@ from lzy.serialization.api import Serializer
 
 # noinspection PyMethodMayBeStatic
 class CloudpickleSerializer(Serializer):
-    def name(self) -> str:
-        return "CLOUDPICKLE_SERIALIZER"
-
     def serialize(self, obj: Any, dest: BinaryIO) -> None:
         cloudpickle.dump(obj, dest)
 

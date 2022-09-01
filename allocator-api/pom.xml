@@ -3,12 +3,13 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
-        <artifactId>lzy</artifactId>
+        <artifactId>parent</artifactId>
         <groupId>ai.lzy</groupId>
         <version>1.0-SNAPSHOT</version>
+        <relativePath>../parent</relativePath>
     </parent>
-    <modelVersion>4.0.0</modelVersion>
 
+    <modelVersion>4.0.0</modelVersion>
     <artifactId>allocator-api</artifactId>
 
     <properties>
@@ -76,4 +77,12 @@
             </plugin>
         </plugins>
     </build>
+
+    <distributionManagement>
+        <repository>
+            <id>repsy</id>
+            <name>lzy allocator repo</name>
+            <url>https://repo.repsy.io/mvn/lzy/api</url>
+        </repository>
+    </distributionManagement>
 </project>

@@ -1,6 +1,7 @@
 {
   buildPythonPackage,
   fetchPypi,
+  grpcio
 }:
 buildPythonPackage rec {
   pname = "grpc-stubs";
@@ -12,6 +13,6 @@ buildPythonPackage rec {
   };
 
   propagatedBuildInputs = [
-
+  grpcio
   ];
 }

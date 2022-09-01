@@ -2,7 +2,7 @@ package ai.lzy.test;
 
 import ai.lzy.v1.LzyChannelManagerGrpc;
 
-public interface ChannelManagerContext extends AutoCloseable {
+public interface LzyChannelManagerContext extends AutoCloseable {
     String address();
 
     LzyChannelManagerGrpc.LzyChannelManagerBlockingStub client();

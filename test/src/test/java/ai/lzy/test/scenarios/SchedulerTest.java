@@ -12,6 +12,7 @@ import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.scheduler.SchedulerApi;
 import ai.lzy.scheduler.allocator.AllocatorImpl;
 import ai.lzy.scheduler.configs.ServiceConfig;
+import ai.lzy.test.impl.Utils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
@@ -36,6 +37,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -71,6 +73,10 @@ public class SchedulerTest extends LocalScenario {
     static {
         opt.putAll(options1);
         opt.putAll(options2);
+        opt.putAll(Utils.createModuleDatabase("iam"));
+        opt.putAll(Utils.createModuleDatabase("allocator"));
+        opt.putAll(Utils.createModuleDatabase("scheduler"));
+        opt.putAll(Utils.createModuleDatabase("graph-executor"));
     }
 
     static final ApplicationContext context = ApplicationContext.run(opt);
@@ -122,7 +128,7 @@ public class SchedulerTest extends LocalScenario {
     }
 
     @After
-    public void after() {
+    public void after() throws SQLException {
         stub.killAll(KillAllRequest.newBuilder()
             .setWorkflowName("wf")
             .setIssue("test")
@@ -212,7 +218,8 @@ public class SchedulerTest extends LocalScenario {
     }
 
     private ai.lzy.v1.graph.GraphExecutorApi.TaskDesc buildTask(String id, String command, List<String> inputs,
-        List<String> outputs, Map<String, String> bindings) {
+                                                                List<String> outputs, Map<String, String> bindings)
+    {
         final var op = new Operation(
             buildEnv(),
             new Operation.Requirements("s", "A"),

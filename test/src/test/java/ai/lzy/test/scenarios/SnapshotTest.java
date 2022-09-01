@@ -46,15 +46,17 @@ public class SnapshotTest extends LocalScenario {
     }
 
     private String createWhiteboard(String spId, List<String> fileNames, List<String> tags, String namespace)
-        throws ParseException {
+        throws ParseException
+    {
         String wbIdJson = terminal.createWhiteboard(spId, fileNames, tags, namespace);
         JSONObject wbIdObject = (JSONObject) (new JSONParser()).parse(wbIdJson);
         return (String) wbIdObject.get("id");
     }
 
     private List<LzyWhiteboard.Whiteboard> getWhiteboardsList(String namespace, List<String> tags,
-        Long fromDateLocalTimezone, Long toDateLocalTimezone)
-        throws InvalidProtocolBufferException {
+                                                              Long fromDateLocalTimezone, Long toDateLocalTimezone)
+        throws InvalidProtocolBufferException
+    {
         String whiteboardsJson = terminal.whiteboards(namespace, tags, fromDateLocalTimezone, toDateLocalTimezone);
         LzyWhiteboard.WhiteboardsResponse.Builder builder = LzyWhiteboard.WhiteboardsResponse.newBuilder();
         JsonFormat.parser().merge(whiteboardsJson, builder);

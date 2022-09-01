@@ -1,11 +1,11 @@
 name: Publish release pylzy package
 
 on:
-  push:
-    branches:
-      - master
-    paths:
-      - pylzy/version # TODO: replace with tag change?
+#  push:
+#    branches:
+#      - master
+#    paths:
+#      - pylzy/version # TODO: replace with tag change?
   workflow_dispatch:
 
 jobs:

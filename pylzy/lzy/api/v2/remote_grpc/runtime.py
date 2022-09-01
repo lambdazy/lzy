@@ -1,216 +1,105 @@
+import asyncio
 import os
-import tempfile
-import uuid
-from pathlib import Path
-from typing import Any, BinaryIO, Callable, Dict, List, Optional, cast
+import time
+from typing import Any, Callable, List, Optional
 
-# model
-from ai.lzy.v1.graph.graph_executor_pb2 import TaskDesc
-from ai.lzy.v1.task_pb2 import TaskSpec
-from ai.lzy.v1.zygote_pb2 import _SLOT_DIRECTION  # type: ignore
-from ai.lzy.v1.zygote_pb2 import AuxEnv, BaseEnv, EnvSpec, Slot, Zygote
-from lzy.api.v2 import LzyCall
-from lzy.api.v2.proxy_adapter import is_lzy_proxy, materialized
-from lzy.api.v2.remote_grpc.graph_executor_client import (
-    GraphExecutorClient,
-    TaskDesc,
-    prepare_task,
-)
-from lzy.api.v2.remote_grpc.model.converter import env
-from lzy.api.v2.remote_grpc.model.slot import file_slot_t
-from lzy.api.v2.remote_grpc.model.zygote import python_func_zygote
+import jwt
+
+from lzy._proxy.result import Nothing, Result
+from lzy.api.v2 import LzyCall, LzyWorkflow
+from lzy.api.v2.remote_grpc.workflow_service_client import WorkflowServiceClient
 from lzy.api.v2.runtime import ProgressStep, Runtime
-from lzy.api.v2.snapshot.snapshot import Snapshot
-from lzy.api.v2.utils.types import unwrap
-from lzy.serialization.api import SerializersRegistry
-from lzy.storage import from_credentials
-from lzy.storage.credentials import StorageCredentials
-from lzy.storage.storage_client import StorageClient
+
+KEY_PATH_ENV = "LZY_KEY_PATH"
+LZY_ADDRESS_ENV = "LZY_ADDRESS_ENV"
 
 
-def _generate_channel_name(call_id: str):
-    return f"local://{call_id}/return"
+def _build_token(username: str, key_path: Optional[str] = None) -> str:
+    if key_path is None:
+        key_path = os.getenv(KEY_PATH_ENV)
+        if key_path is None:
+            raise ValueError(
+                f"Key path must be specified by env variable {KEY_PATH_ENV} or in Runtime"
+            )
 
-
-def _get_slot_path(slot: Slot) -> Path:
-    # TODO: should mount point be passed from user?
-    mount = Path(os.getenv("LZY_MOUNT", default="/tmp/lzy"))
-    return mount.joinpath(slot.name.lstrip(os.path.sep))
-
-
-def _get_or_generate_call_ids(call) -> Dict[str, str]:
-    arg_name_to_call_id = {}
-    for name, arg in call.named_arguments():
-        if is_lzy_proxy(arg):
-            arg_name_to_call_id[name] = arg.lzy_call.id
-        else:
-            arg_name_to_call_id[name] = str(uuid.uuid4())
-    return arg_name_to_call_id
+    with open(key_path, "r") as f:
+        private_key = f.read()
+        return str(
+            jwt.encode(
+                {  # TODO(artolrod) add renewing of token
+                    "iat": time.time(),
+                    "nbf": time.time(),
+                    "exp": time.time() + 7 * 24 * 60 * 60,  # 7 days
+                    "iss": username,
+                },
+                private_key,
+                algorithm="PS256",
+            )
+        )
 
 
 class GrpcRuntime(Runtime):
     def __init__(
         self,
-        storage_client: StorageClient,
-        bucket: str,
-        graph_executor_client: GraphExecutorClient,
+        username: str,
+        address: Optional[str] = None,
+        key_path: Optional[str] = None,
     ):
-        self._storage_client = storage_client
-        self._bucket = bucket
-        self._graph_executor_client = graph_executor_client
-
-    @classmethod
-    def from_credentials(
-        cls,
-        credentials: StorageCredentials,
-        bucket: str,
-        graph_executor_client: GraphExecutorClient,
-    ) -> "GrpcRuntime":
-        return cls(
-            from_credentials(credentials),
-            bucket,
-            graph_executor_client,
+        self.__username = username
+        self.__workflow_address = (
+            address
+            if address is not None
+            else os.getenv(LZY_ADDRESS_ENV, "api.lzy.ai:8899")
         )
+        self.__key_path = key_path
+        self.__workflow_client = WorkflowServiceClient(
+            self.__workflow_address, _build_token(username, key_path)
+        )
+        self.__workflow: Optional[LzyWorkflow] = None
+        self.__execution_id: Optional[str] = None
 
-    def _load_arg(self, entry_id: str, data: Any, serializer: SerializersRegistry):
-        with tempfile.NamedTemporaryFile("wb", delete=True) as write_file:
-            serializer.find_serializer_by_type(type(data)).serialize(
-                data, cast(BinaryIO, write_file)
-            )
-            write_file.flush()
-            with open(write_file.name, "rb") as read_file:
-                read_file.seek(0)
-                uri = self._storage_client.write(self._bucket, entry_id, read_file)
-                # TODO: make a call to snapshot component to store entry_id and uri
-
-    def _load_args(self, graph: List[LzyCall], serializer: SerializersRegistry):
-        for call in graph:
-            for name, arg in call.named_arguments():
-                if not is_lzy_proxy(arg):
-                    entry_id = str(uuid.uuid4())
-                    self._load_arg(entry_id, arg, serializer)
-
-    def _env(self, call: LzyCall) -> EnvSpec:
-        return env.to(call.env)
-
-        # local_modules_uploaded = []
-        # for local_module in aux_env.local_modules_paths:
-        #     with tempfile.NamedTemporaryFile("rb") as archive:
-        #         if not os.path.isdir(local_module):
-        #             with zipfile.ZipFile(archive.name, "w") as z:
-        #                 z.write(local_module, os.path.basename(local_module))
-        #         else:
-        #             with zipfile.ZipFile(archive.name, "w") as z:
-        #                 zipdir(local_module, z)
-        #         archive.seek(0)
-        #         key = (
-        #             "local_modules/"
-        #             + os.path.basename(local_module)
-        #             + "/"
-        #             + fileobj_hash(archive.file)  # type: ignore
-        #         )  # type: ignore
-        #         archive.seek(0)
-        #         if not self._storage_client.blob_exists(self._bucket, key):
-        #             self._storage_client.write(self._bucket, key, archive)  # type: ignore
-        #         uri = self._storage_client.generate_uri(self._bucket, key)
-        #     local_modules_uploaded.append((os.path.basename(local_module), uri))
-
-        # py_env = PyEnv(aux_env.name, aux_env.conda_yaml, local_modules_uploaded)
-        # if base_env is None:
-        #     return Env(aux_env=py_env)
-        # return Env(aux_env=py_env, base_env=BaseEnv(base_env.base_docker_image))
-
-    def _dump_arguments(
-        self,
-        call: LzyCall,
-        arg_name_to_call_id: Dict[str, str],
-        snapshot_id: str,
-        serializer: SerializersRegistry,
-    ):
-        fnc = call.signature.func
-        for name, arg in call.named_arguments():
-            if is_lzy_proxy(arg):
-                continue
-            call_id = arg_name_to_call_id[name]
-            slot = file_slot_t(
-                Path("tasks") / "snapshot" / snapshot_id / call_id,
-                _SLOT_DIRECTION.OUTPUT,
-                fnc.input_types[name],
-            )
-            # self._channel_manager.touch(
-            #     slot, self._channel_manager.snapshot_channel(snapshot_id, call_id)
-            # )
-            # path = _get_slot_path(slot)
-            # with path.open('wb') as handle:
-            #     serializer.serialize_to_file(arg, handle)
-            #     handle.flush()
-            #     os.fsync(handle.fileno())
-            #
-
-    #  def _zygote(self, call: LzyCall, serializer: Serializer) -> Zygote:
-    #      if call.op.provisioning.gpu is not None and call.op.provisioning.gpu.is_any:
-    #          provisioning = Provisioning(Gpu.any())
-    #      else:
-    #          provisioning = Provisioning()
-
-    def _bindings(
-        self,
-        call: LzyCall,
-        zygote: Zygote,
-        snapshot_id: str,
-        arg_name_to_call_id: Dict[str, str],
-    ):
-        # bindings: List[int] = []
-        for name, arg in call.named_arguments():
-            # slot: Slot = zygote.slot(name)
-            if is_lzy_proxy(arg) and not materialized(arg):
-                call_id = arg.lzy_call.id
-            else:
-                call_id = arg_name_to_call_id[name]
-            # channel = self._channel_manager.snapshot_channel(
-            #     snapshot_id, _generate_channel_name(call_id)
-            # )
-            # bindings.append(Binding(slot, channel))
-        # return bindings
-
-    def _task_spec(
-        self, call: LzyCall, snapshot_id: str, serializer: SerializersRegistry
-    ) -> TaskDesc:
-        # zygote = python_func_zygote(call)
-        # arg_name_to_call_id: Dict[str, str] = _get_or_generate_call_ids(call)
-        # bindings: List[Binding] = self._bindings(
-        #     call, zygote, snapshot_id, arg_name_to_call_id
-        # )
-        # self._dump_arguments(call, arg_name_to_call_id, snapshot_id, serializer)
-        # TODO[ottergottaott]: what to do with prepare_task?
-        return prepare_task(call)
+    def start(self, workflow: LzyWorkflow):
+        self.__workflow = workflow
+        asyncio.get_event_loop().run_until_complete(self._start_workflow())
 
     def exec(
         self,
         graph: List[LzyCall],
-        snapshot: Snapshot,
         progress: Callable[[ProgressStep], None],
     ) -> None:
-        raise NotImplementedError()
-        # TODO[ottergottaott]: write this part up
-        # zygote = python_func_zygote(
-        #     active_wflow.owner._serializer,
-        #     signature.func,
-        #     active_wflow._env_provider.for_op(caller_globals),
-        #     provisioning,
-        # )
-
-        # try:
-        #     task_specs: List[TaskSpec] = []
-        #     for call in graph.calls():
-        #         task_specs.append(
-        #             self._task_spec(call, snapshot.id(), snapshot.serializer())
-        #         )
-        #     # here workflow_id == snapshot_id is assumed, but need to make it separate later
-        #     self._graph_executor_client.execute(snapshot.id(), task_specs)
-        # finally:
-        #     self._channel_manager.destroy()
-
-    def destroy(self) -> None:
-        # self._channel_manager.destroy()
         pass
+
+    def resolve_data(self, entry_id: str) -> Result[Any]:
+        return Nothing()
+
+    def destroy(self):
+        asyncio.get_event_loop().run_until_complete(self._finish_workflow())
+
+    async def _start_workflow(self):
+        assert self.__workflow is not None
+        default_creds = self.__workflow.owner.storage_registry.get_default_credentials()
+
+        exec_id, creds = await self.__workflow_client.create_workflow(
+            self.__workflow.name, default_creds
+        )
+
+        self.__execution_id = exec_id
+        if creds is not None:
+            self.__workflow.owner.storage_registry.register_credentials(
+                exec_id, creds, default=True
+            )
+
+    async def _finish_workflow(self):
+        assert self.__execution_id is not None
+        assert self.__workflow is not None
+
+        await self.__workflow_client.finish_workflow(
+            self.__workflow.name, self.__execution_id, "Workflow completed"
+        )
+
+        self.__workflow.owner.storage_registry.unregister_credentials(
+            self.__execution_id
+        )
+
+        self.__execution_id = None
+        self.__workflow = None

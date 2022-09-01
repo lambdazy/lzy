@@ -1,12 +1,12 @@
 package ai.lzy.test.impl;
 
 import ai.lzy.iam.LzyIAM;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.v1.iam.LzyAccessServiceGrpc;
-import ai.lzy.v1.iam.LzySubjectServiceGrpc;
 import ai.lzy.test.LzyIAMTestContext;
+import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.iam.LzyAccessBindingServiceGrpc;
+import ai.lzy.v1.iam.LzyAccessServiceGrpc;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
+import ai.lzy.v1.iam.LzySubjectServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
@@ -65,7 +65,7 @@ public class IAMThreadContext implements LzyIAMTestContext {
     @Override
     public void init() {
         var props = Utils.loadModuleTestProperties("iam");
-
+        props.putAll(Utils.createModuleDatabase("iam"));
         props.put("iam.server-port", IAM_PORT);
 
         try {

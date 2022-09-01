@@ -6,6 +6,7 @@ option java_outer_classname = "VmAllocatorApi";
 option java_package = "ai.lzy.v1";
 
 import "ai/lzy/v1/operation-service/operation.proto";
+import "ai/lzy/v1/allocator/volume.proto";
 import "google/protobuf/duration.proto";
 
 //
@@ -57,18 +58,21 @@ message AllocateRequest {
   message Workload {
     string name = 1;
 
-    // image must contains allocator agent to notify allocator about livecycle
+    // image must contains allocator agent to notify allocator about lifecycle
     string image = 2;
 
     map<string, string> env = 16;
     repeated string args = 17;
     map<uint32, uint32> port_bindings = 18;  // host port: container port
+
+    repeated Mount volumeMounts = 20;
   }
 
   string session_id = 1;
   string pool_label = 2;
   string zone = 3;
   repeated Workload workload = 4;
+  repeated Volume volumes = 5;
 }
 
 message AllocateResponse {

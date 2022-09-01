@@ -8,9 +8,6 @@ from lzy.serialization.types import File
 
 # noinspection PyMethodMayBeStatic
 class FileSerializer(Serializer):
-    def name(self) -> str:
-        return "FILE_SERIALIZER"
-
     def serialize(self, obj: File, dest: BinaryIO) -> None:
         with obj.path.open("rb") as f:
             data = f.read(4096)

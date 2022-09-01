@@ -1,28 +1,25 @@
 package ai.lzy.test.scenarios;
 
 import ai.lzy.model.utils.FreePortFinder;
-import ai.lzy.test.TimeUtils;
-import ai.lzy.v1.Tasks;
 import ai.lzy.servant.agents.AgentStatus;
 import ai.lzy.test.LzyTerminalTestContext;
+import ai.lzy.test.TimeUtils;
 import ai.lzy.test.impl.Utils;
+import ai.lzy.v1.Tasks;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
-import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import org.jetbrains.annotations.Nullable;
 import org.junit.Assert;
 import org.junit.Test;
 import org.testcontainers.shaded.com.fasterxml.jackson.databind.JsonNode;
 import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class TerminalCrashTest extends LocalScenario {
 
@@ -114,7 +111,8 @@ public class TerminalCrashTest extends LocalScenario {
                         return channelStatus.equals("Got exception while channel status (status_code=NOT_FOUND)\n");
                     } catch (LzyTerminalTestContext.TerminalCommandFailedException e) {
                         if (e.getResult().stdout().equals(
-                            "Got exception while channel status (status_code=NOT_FOUND)\n")) {
+                                "Got exception while channel status (status_code=NOT_FOUND)\n"))
+                        {
                             return true;
                         }
                         exception.set(e);

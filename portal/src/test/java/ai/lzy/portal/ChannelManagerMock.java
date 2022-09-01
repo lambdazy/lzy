@@ -55,6 +55,9 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
     }
 
     public void stop() throws InterruptedException {
+        for (var channel : directChannels.values()) {
+            channel.close();
+        }
         server.shutdown();
         server.awaitTermination();
     }

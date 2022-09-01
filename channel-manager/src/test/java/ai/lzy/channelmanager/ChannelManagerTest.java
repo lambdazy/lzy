@@ -1,6 +1,7 @@
 package ai.lzy.channelmanager;
 
 import ai.lzy.iam.test.BaseTestWithIam;
+import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
@@ -13,9 +14,13 @@ import ai.lzy.v1.LzyChannelManagerGrpc;
 import ai.lzy.v1.Operations.DataScheme;
 import ai.lzy.v1.Operations.SchemeType;
 import com.google.common.net.HostAndPort;
+import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
+import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
+import io.zonky.test.db.postgres.junit.PreparedDbRule;
+import java.util.concurrent.TimeUnit;
 import org.junit.*;
 
 import java.io.IOException;
@@ -24,23 +29,32 @@ import java.util.UUID;
 @SuppressWarnings({"UnstableApiUsage", "ResultOfMethodCallIgnored"})
 public class ChannelManagerTest extends BaseTestWithIam {
 
+    @Rule
+    public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+    @Rule
+    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+
     private ApplicationContext channelManagerCtx;
     @SuppressWarnings("FieldCanBeLocal")
     private ChannelManagerConfig channelManagerConfig;
     private ChannelManager channelManagerApp;
+    private ManagedChannel channel;
 
     private LzyChannelManagerGrpc.LzyChannelManagerBlockingStub unauthorizedChannelManagerClient;
     private LzyChannelManagerGrpc.LzyChannelManagerBlockingStub authorizedChannelManagerClient;
 
     @Before
     public void before() throws IOException {
-        super.before();
-        channelManagerCtx = ApplicationContext.run();
+        super.setUp(DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo()));
+
+        var props = DatabaseTestUtils.preparePostgresConfig("channel-manager", db.getConnectionInfo());
+        channelManagerCtx = ApplicationContext.run(props);
+
         channelManagerConfig = channelManagerCtx.getBean(ChannelManagerConfig.class);
         channelManagerApp = new ChannelManager(channelManagerCtx);
         channelManagerApp.start();
 
-        var channel = ChannelBuilder
+        channel = ChannelBuilder
             .forAddress(HostAndPort.fromString(channelManagerConfig.getAddress()))
             .usePlaintext()
             .build();
@@ -57,6 +71,16 @@ public class ChannelManagerTest extends BaseTestWithIam {
         } catch (InterruptedException ignored) {
             // ignored
         }
+
+        channel.shutdown();
+        try {
+            channel.awaitTermination(60, TimeUnit.SECONDS);
+        } catch (InterruptedException ignored) {
+            //ignored
+        }
+
+        DatabaseTestUtils.cleanup(channelManagerCtx.getBean(ChannelManagerDataSource.class));
+
         channelManagerCtx.close();
         super.after();
     }

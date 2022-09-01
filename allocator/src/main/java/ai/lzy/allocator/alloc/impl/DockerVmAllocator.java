@@ -7,7 +7,6 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
-import ai.lzy.model.db.TransactionHandle;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.model.ExposedPort;
@@ -22,7 +21,7 @@ import org.apache.commons.lang.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.annotation.Nullable;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
@@ -88,17 +87,28 @@ public class DockerVmAllocator implements VmAllocator {
     }
 
     @Override
-    public void allocate(Vm vm) throws InvalidConfigurationException {
+    public void allocate(Vm.Spec vm) throws InvalidConfigurationException {
         if (vm.workloads().size() > 1) {
             throw new InvalidConfigurationException("Docker allocator supports only one workload");
         }
         var containerId = requestAllocation(vm.workloads().get(0), vm.vmId());
-        dao.saveAllocatorMeta(vm.vmId(), Map.of(CONTAINER_ID_KEY, containerId), null);
+        try {
+            dao.saveAllocatorMeta(vm.vmId(), Map.of(CONTAINER_ID_KEY, containerId), null);
+        } catch (SQLException e) {
+            LOG.error("Cannot allocate VM: {}", e.getMessage(), e);
+            throw new RuntimeException("Cannot allocate VM: " + e.getMessage(), e);
+        }
     }
 
     @Override
-    public void deallocate(Vm vm) {
-        var meta = dao.getAllocatorMeta(vm.vmId(), null);
+    public void deallocate(String vmId) {
+        Map<String, String> meta;
+        try {
+            meta = dao.getAllocatorMeta(vmId, null);
+        } catch (SQLException e) {
+            throw new RuntimeException("Database error: " + e.getMessage(), e);
+        }
+
         if (meta == null) {
             throw new RuntimeException("Allocator metadata is null");
         }

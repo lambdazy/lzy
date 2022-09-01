@@ -17,7 +17,7 @@ public class SlotConnectionManager {
 
     public synchronized LzyFsGrpc.LzyFsBlockingStub getOrCreate(URI uri) {
         LOG.info("getOrCreate connection for uri " + uri);
-        if (connectionMap.containsKey(uri)) {
+        if (connectionMap.containsKey(uri) /* TODO: fix potential bug: not by uri, by host-port*/) {
             final Connection connection = connectionMap.get(uri);
             connection.increaseCounter();
             return connection.getStub();

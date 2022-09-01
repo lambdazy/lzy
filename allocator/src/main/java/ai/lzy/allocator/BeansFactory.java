@@ -28,7 +28,7 @@ public class BeansFactory {
 
     private static final Duration YC_CALL_TIMEOUT = Duration.ofSeconds(30);
 
-    @Bean
+    @Singleton
     @Requires(property = "allocator.yc-credentials.enabled", value = "true")
     public ServiceFactory serviceFactory(ServiceConfig.YcCredentialsConfig config) {
         return ServiceFactory.builder()
@@ -46,6 +46,7 @@ public class BeansFactory {
     }
 
     @Bean(preDestroy = "shutdown")
+    @Singleton
     @Named("AllocatorIamGrpcChannel")
     public ManagedChannel iamChannel(ServiceConfig config) {
         return ChannelBuilder
@@ -55,7 +56,7 @@ public class BeansFactory {
             .build();
     }
 
-    @Bean
+    @Singleton
     @Requires(beans = ServiceConfig.MetricsConfig.class)
     public MetricReporter metricReporter(ServiceConfig.MetricsConfig config) {
         CollectorRegistry.defaultRegistry.clear();

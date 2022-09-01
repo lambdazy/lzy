@@ -2,36 +2,54 @@ package ai.lzy.allocator.dao;
 
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
+import ai.lzy.allocator.volume.VolumeClaim;
+import ai.lzy.allocator.volume.VolumeRequest;
 import ai.lzy.model.db.TransactionHandle;
+import com.google.common.annotations.VisibleForTesting;
 
 import javax.annotation.Nullable;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
 public interface VmDao {
-    Vm create(String sessionId, String poolId, String zone, List<Workload> workload, String allocationOpId,
-              Instant startedAt, @Nullable TransactionHandle transaction);
+    Vm.Spec create(String sessionId, String poolId, String zone, List<Workload> workload,
+                  List<VolumeRequest> volumeRequests, String allocationOpId, Instant startedAt,
+                  @Nullable TransactionHandle transaction) throws SQLException;
+    void update(String vmId, Vm.State state, @Nullable TransactionHandle transaction) throws SQLException;
+    void updateStatus(String vmId, Vm.VmStatus status, @Nullable TransactionHandle transaction) throws SQLException;
+    void updateLastActivityTime(String vmId, Instant time) throws SQLException;
 
-    void update(Vm vm, @Nullable TransactionHandle transaction);
+    List<Vm> list(String sessionId) throws SQLException;
 
-    List<Vm> list(String sessionId, @Nullable TransactionHandle transaction);
+    void delete(String sessionId) throws SQLException;
 
-    List<Vm> list(@Nullable TransactionHandle transaction);
+    @VisibleForTesting
+    List<Vm> listAlive() throws SQLException;
+
+    List<Vm> listExpired(int limit) throws SQLException;
 
     @Nullable
-    Vm get(String vmId, TransactionHandle transaction);
-
-    List<Vm> getExpired(int limit, @Nullable TransactionHandle transaction);
+    Vm get(String vmId, TransactionHandle transaction) throws SQLException;
 
     /**
      * Find vm with this session and pool id with status IDLING and set its status to RUNNING
      */
     @Nullable
-    Vm acquire(String sessionId, String poolId, String zone, @Nullable TransactionHandle transaction);
+    Vm acquire(String sessionId, String poolId, String zone, @Nullable TransactionHandle transaction)
+        throws SQLException;
 
-    void saveAllocatorMeta(String vmId, Map<String, String> meta, @Nullable TransactionHandle transaction);
+    void release(String vmId, Instant deadline, @Nullable TransactionHandle transaction) throws SQLException;
+
+    void saveAllocatorMeta(String vmId, Map<String, String> meta, @Nullable TransactionHandle transaction)
+        throws SQLException;
 
     @Nullable
-    Map<String, String> getAllocatorMeta(String vmId, @Nullable TransactionHandle transaction);
+    Map<String, String> getAllocatorMeta(String vmId, @Nullable TransactionHandle transaction) throws SQLException;
+
+    void setVolumeClaims(String vmId, List<VolumeClaim> volumeClaims, @Nullable TransactionHandle transaction)
+        throws SQLException;
+
+    List<VolumeClaim> getVolumeClaims(String vmId, @Nullable TransactionHandle transaction) throws SQLException;
 }

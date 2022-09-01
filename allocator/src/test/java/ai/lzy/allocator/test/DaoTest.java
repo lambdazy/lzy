@@ -8,6 +8,9 @@ import ai.lzy.allocator.model.CachePolicy;
 import ai.lzy.allocator.model.Operation;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
+import ai.lzy.allocator.volume.DiskVolumeDescription;
+import ai.lzy.allocator.volume.VolumeMount;
+import ai.lzy.allocator.volume.VolumeRequest;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.test.DatabaseTestUtils;
@@ -22,8 +25,10 @@ import org.junit.*;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 public class DaoTest {
 
@@ -52,11 +57,11 @@ public class DaoTest {
     }
 
     @Test
-    public void testOp() {
+    public void testOp() throws SQLException {
         final var meta = VmAllocatorApi.AllocateMetadata.newBuilder()
             .setVmId("id")
             .build();
-        final var op1 = opDao.create("Some op", "test", Any.pack(meta), null);
+        final var op1 = opDao.create(UUID.randomUUID().toString(), "Some op", "test", Any.pack(meta), null);
 
         final var op2 = opDao.get(op1.id(), null);
         Assert.assertNotNull(op2);
@@ -77,16 +82,16 @@ public class DaoTest {
             .setVmId("id")
             .build();
         Operation op;
-        try (final var tx = new TransactionHandle(storage)) {
-            op = opDao.create("Some op", "test", Any.pack(meta), tx);
+        try (final var tx = TransactionHandle.create(storage)) {
+            op = opDao.create(UUID.randomUUID().toString(), "Some op", "test", Any.pack(meta), tx);
             // Do not commit
         }
 
         final var op1 = opDao.get(op.id(), null);
         Assert.assertNull(op1);
 
-        try (final var tx = new TransactionHandle(storage)) {
-            op = opDao.create("Some op", "test", Any.pack(meta), tx);
+        try (final var tx = TransactionHandle.create(storage)) {
+            op = opDao.create(UUID.randomUUID().toString(), "Some op", "test", Any.pack(meta), tx);
             tx.commit();
         }
 
@@ -95,7 +100,7 @@ public class DaoTest {
     }
 
     @Test
-    public void testSession() {
+    public void testSession() throws SQLException {
         final var s = sessionDao.create("test", new CachePolicy(Duration.ofSeconds(10)), null);
 
         final var s1 = sessionDao.get(s.sessionId(), null);
@@ -108,9 +113,14 @@ public class DaoTest {
     }
 
     @Test
-    public void testVm() {
-        final var wl1 = new Workload("wl1", "im", Map.of("a", "b"), List.of("a1", "a2"), Map.of(1111, 2222));
-        final var vm = vmDao.create("session", "pool", "zone", List.of(wl1), "op1", Instant.now(), null);
+    public void testVm() throws SQLException {
+        final VolumeMount volume = new VolumeMount(
+            "volume", "/mnt/volume", false, VolumeMount.MountPropagation.BIDIRECTIONAL);
+        final var wl1 = new Workload(
+            "wl1", "im", Map.of("a", "b"), List.of("a1", "a2"), Map.of(1111, 2222), List.of(volume));
+        final var volumeRequest = new VolumeRequest(new DiskVolumeDescription("diskVolume", "diskId"));
+        final var vm = vmDao.create("session", "pool", "zone", List.of(wl1),
+            List.of(volumeRequest), "op1", Instant.now(), null);
 
         final var vm1 = vmDao.get(vm.vmId(), null);
         Assert.assertNotNull(vm1);
@@ -119,25 +129,24 @@ public class DaoTest {
         Assert.assertEquals("zone", vm1.zone());
         Assert.assertEquals(List.of(wl1), vm1.workloads());
         Assert.assertEquals("op1", vm1.allocationOperationId());
-        Assert.assertEquals(Vm.State.CREATED, vm1.state());
+        Assert.assertEquals(Vm.VmStatus.CREATED, vm1.status());
+        Assert.assertEquals(List.of(volumeRequest), vm1.volumeRequests());
 
-        vmDao.update(new Vm.VmBuilder(vm1).setState(Vm.State.IDLE).build(), null);
+        vmDao.updateStatus(vm1.vmId(), Vm.VmStatus.IDLE, null);
         final var vm2 = vmDao.acquire("session", "pool", "zone", null);
         Assert.assertNotNull(vm2);
         Assert.assertEquals(vm1.vmId(), vm2.vmId());
-        Assert.assertEquals(Vm.State.RUNNING, vm2.state());
+        Assert.assertEquals(Vm.VmStatus.RUNNING, vm2.status());
 
-        final var vms = vmDao.list("session", null);
+        final var vms = vmDao.list("session");
         Assert.assertEquals(List.of(vm2), vms);
 
-        final var vm3 = new Vm.VmBuilder(vm2)
-            .setState(Vm.State.IDLE)
+        vmDao.update(vm2.vmId(), new Vm.VmStateBuilder(vm2.state())
+            .setStatus(Vm.VmStatus.IDLE)
             .setDeadline(Instant.now().minus(Duration.ofSeconds(1)))
-            .build();
+            .build(), null);
 
-        vmDao.update(vm3, null);
-
-        final var vms2 = vmDao.getExpired(100, null);
+        final var vms2 = vmDao.listExpired(100);
         Assert.assertEquals(vm.vmId(), vms2.get(0).vmId());
 
         final var meta = Map.of("a", "b", "c", "d");

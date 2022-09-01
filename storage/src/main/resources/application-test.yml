@@ -34,7 +34,7 @@ storage:
       -----END RSA PRIVATE KEY-----
 
   database:
-    url: 'jdbc:h2:mem:testdb_storage;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false'
+    url: 'embedded-postgres'
     username: 'test'
     password: ''
     min-pool-size: 1

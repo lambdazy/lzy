@@ -1,5 +1,7 @@
 package ai.lzy.allocator.test;
 
+import static ai.lzy.allocator.test.Utils.waitOperation;
+
 import ai.lzy.allocator.AllocatorMain;
 import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactory;
 import ai.lzy.allocator.alloc.impl.kuber.KuberLabels;
@@ -16,7 +18,6 @@ import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.v1.*;
-import ai.lzy.v1.OperationService.GetOperationRequest;
 import ai.lzy.v1.OperationService.Operation;
 import ai.lzy.v1.VmAllocatorApi.*;
 import com.google.common.net.HostAndPort;
@@ -34,11 +35,14 @@ import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.junit.*;
+import org.postgresql.util.PSQLException;
+import org.postgresql.util.PSQLState;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.sql.SQLException;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -71,6 +75,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
             .andReturn(HttpURLConnection.HTTP_OK, new PodListBuilder().build()).always();
 
         var props = DatabaseTestUtils.preparePostgresConfig("allocator", db.getConnectionInfo());
+        // props.putAll(DatabaseTestUtils.prepareLocalhostConfig("allocator"));
 
         allocatorCtx = ApplicationContext.run(props);
         ((MockKuberClientFactory) allocatorCtx.getBean(KuberClientFactory.class)).setClientSupplier(
@@ -240,7 +245,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
 
     @Test
     public void errorWhileCreatingSession() {
-        allocatorCtx.getBean(SessionDaoImpl.class).injectError(new RuntimeException("any error message here"));
+        allocatorCtx.getBean(SessionDaoImpl.class).injectError(new SQLException("non retryable", "xxx"));
 
         try {
             var resp = authorizedAllocatorBlockingStub.createSession(
@@ -253,8 +258,23 @@ public class AllocatorApiTest extends BaseTestWithIam {
             Assert.fail(resp.getSessionId());
         } catch (StatusRuntimeException e) {
             Assert.assertEquals(Status.Code.INTERNAL, e.getStatus().getCode());
-            Assert.assertEquals("any error message here", e.getStatus().getDescription());
+            Assert.assertEquals("non retryable", e.getStatus().getDescription());
         }
+    }
+
+    @Test
+    public void retryableSqlErrorWhileCreatingSession() {
+        allocatorCtx.getBean(SessionDaoImpl.class).injectError(
+            new PSQLException("retry me, plz", PSQLState.CONNECTION_FAILURE));
+
+        var resp = authorizedAllocatorBlockingStub.createSession(
+            CreateSessionRequest.newBuilder()
+                .setOwner(UUID.randomUUID().toString())
+                .setCachePolicy(CachePolicy.newBuilder()
+                    .setIdleTimeout(ProtoConverter.toProto(java.time.Duration.ofHours(1)))
+                    .build())
+                .build());
+        Assert.assertNotNull(resp.getSessionId());
     }
 
     @Test
@@ -623,12 +643,6 @@ public class AllocatorApiTest extends BaseTestWithIam {
     }
 
     private Operation waitOp(Operation operation) {
-        TimeUtils.waitFlagUp(() -> {
-            final Operation op = operationServiceApiBlockingStub.get(
-                GetOperationRequest.newBuilder().setOperationId(operation.getId()).build());
-            return op.getDone();
-        }, TIMEOUT_SEC, TimeUnit.SECONDS);
-        return operationServiceApiBlockingStub.get(
-            GetOperationRequest.newBuilder().setOperationId(operation.getId()).build());
+        return waitOperation(operationServiceApiBlockingStub, operation, TIMEOUT_SEC);
     }
 }

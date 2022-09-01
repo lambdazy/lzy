@@ -77,12 +77,12 @@ public class PortalTest {
     @After
     public void after() throws InterruptedException, IOException {
         stopS3();
+        shutdownAndAwaitTerminationPortal();
         channelManager.stop();
         server.stop();
         for (var servant : servants.values()) {
             servant.close();
         }
-        shutdownAndAwaitTerminationPortal();
         server = null;
         channelManager = null;
         servants = null;

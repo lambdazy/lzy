@@ -8,4 +8,9 @@ public class NotFoundException extends DaoException {
     public NotFoundException(String e) {
         super(e);
     }
+
+    @Override
+    public synchronized Throwable fillInStackTrace() {
+        return this;
+    }
 }

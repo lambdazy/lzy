@@ -5,28 +5,20 @@ import "google/protobuf/timestamp.proto";
 
 package ai.lzy.v1;
 
-option java_outer_classname = "LWBS";
+option java_outer_classname = "LWB";
 option java_package = "ai.lzy.v1";
-
-service LzyWhiteboardService {
-  rpc Create (CreateRequest) returns (Whiteboard);
-  rpc LinkField (LinkFieldRequest) returns (LinkFieldResponse);
-  rpc Finalize (FinalizeRequest) returns (FinalizeResponse);
-
-  rpc Get (GetRequest) returns (Whiteboard);
-  rpc List (ListRequest) returns (ListResponse);
-}
 
 message Whiteboard {
   string id = 1;
-  repeated WhiteboardField fields = 2;
-  Storage storage = 3;
-  WhiteboardStatus status = 4;
-  repeated string tags = 5;
+  string name = 2;
+  repeated string tags = 3;
+  repeated WhiteboardField fields = 4;
+  Storage storage = 5;
   string namespace = 6;
-  google.protobuf.Timestamp createdAt = 7;
+  Status status = 7;
+  google.protobuf.Timestamp createdAt = 8;
 
-  enum WhiteboardStatus {
+  enum Status {
     WHITEBOARD_STATUS_UNSPECIFIED = 0;
     CREATED = 1;
     FINALIZED = 2;
@@ -35,14 +27,18 @@ message Whiteboard {
 
 message WhiteboardField {
   string fieldName = 1;
-  DataScheme scheme = 2;
-  Status status = 3;
-  string storageUri = 4;
 
-  enum Status {
-    WHITEBOARD_FIELD_STATUS_UNSPECIFIED = 0;
-    CREATED = 1;
-    LINKED = 2;
+  oneof state {
+    CreatedField createdState = 2;
+    LinkedField linkedState = 3;
+  }
+
+  message CreatedField {
+  }
+
+  message LinkedField {
+    DataScheme scheme = 1;
+    string storageUri = 2;
   }
 }
 
@@ -51,49 +47,7 @@ message Storage {
   string description = 2;
 }
 
-message CreateRequest {
-  repeated string fieldNames = 1;
-  Storage storage = 2;
-  repeated string tags = 3;
-  string namespace = 4;
-}
-
-message LinkFieldRequest {
-  string whiteboardId = 1;
-  string fieldName = 2;
-  string storageUri = 3;
-  DataScheme scheme = 4;
-}
-
-message LinkFieldResponse {
-}
-
-message FinalizeRequest {
-  string whiteboardId = 1;
-}
-
-message FinalizeResponse {
-}
-
-message GetRequest {
-  string whiteboardId = 1;
-}
-
-message ListRequest {
-  repeated string tags = 1;
-  oneof query {
-    DateTimeQuery dateTimeQuery = 2;
-    //more query types
-  }
-}
-
-message DateTimeQuery {
+message TimeBounds {
   google.protobuf.Timestamp from = 1;
   google.protobuf.Timestamp to = 2;
 }
-
-message ListResponse {
-  repeated Whiteboard whiteboards = 1;
-}
-
-

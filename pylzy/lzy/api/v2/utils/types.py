@@ -1,7 +1,16 @@
 import uuid
 from inspect import getfullargspec
 from itertools import chain
-from typing import Callable, Optional, Type, TypeVar, cast, get_type_hints
+from typing import (
+    Callable,
+    Optional,
+    Sequence,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+    get_type_hints,
+)
 
 from lzy._proxy.result import Just, Nothing, Result
 from lzy.api.v2.proxy_adapter import is_lzy_proxy
@@ -9,11 +18,11 @@ from lzy.api.v2.signatures import CallSignature, FuncSignature
 
 T = TypeVar("T")
 
-TypeInferResult = Result[type]
+TypeInferResult = Result[Sequence[type]]
 
 
 def infer_call_signature(
-    f: Callable, output_type: type, *args, **kwargs
+    f: Callable, output_type: Sequence[type], *args, **kwargs
 ) -> CallSignature:
     types_mapping = {}
     argspec = getfullargspec(f)
@@ -61,9 +70,13 @@ def infer_return_type(func: Callable) -> TypeInferResult:
         return Nothing()
 
     or_type = hints["return"]
+
+    if isinstance(or_type, tuple):
+        return Just(tuple(infer_real_type(typ) for typ in or_type))
+
     or_type = infer_real_type(or_type)
     if isinstance(or_type, type):
-        return Just(or_type)
+        return Just(tuple((or_type,)))
 
     return Nothing()
 
