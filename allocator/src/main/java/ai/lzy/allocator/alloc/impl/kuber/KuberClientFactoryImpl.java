@@ -4,8 +4,10 @@ import ai.lzy.allocator.vmpool.ClusterRegistry;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
+import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 
+@Requires(property = "allocator.yc-mk8s.enabled", value = "true")
 @Singleton
 public class KuberClientFactoryImpl implements KuberClientFactory {
     @Override

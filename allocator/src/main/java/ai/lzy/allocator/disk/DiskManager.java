@@ -11,5 +11,5 @@ public interface DiskManager {
 
     Disk clone(Disk disk, DiskSpec cloneDiskSpec) throws NotFoundException;
 
-    void delete(Disk disk) throws NotFoundException;
+    void delete(String diskId) throws NotFoundException;
 }

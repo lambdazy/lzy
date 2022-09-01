@@ -77,20 +77,20 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
                         return null;
                     }
 
-                    if (vm.state() == Vm.State.RUNNING) {
+                    if (vm.status() == Vm.VmStatus.RUNNING) {
                         LOG.error("Vm {} has been already registered", vm);
                         metrics.alreadyRegistered.inc();
                         responseObserver.onError(Status.ALREADY_EXISTS.asException());
                         return null;
                     }
 
-                    if (vm.state() == Vm.State.DEAD) {
+                    if (vm.status() == Vm.VmStatus.DEAD) {
                         LOG.error("Vm {} is DEAD", vm);
                         responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("VM is dead").asException());
                         return null;
                     }
 
-                    if (vm.state() != Vm.State.CONNECTING) {
+                    if (vm.status() != Vm.VmStatus.CONNECTING) {
                         LOG.error("Wrong status of vm while register, expected CONNECTING: {}", vm);
                         responseObserver.onError(Status.FAILED_PRECONDITION.asException());
                         return null;
@@ -123,8 +123,9 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
                     }
 
                     dao.update(
-                        Vm.from(vm)
-                            .setState(Vm.State.RUNNING)
+                        vm.vmId(),
+                        new Vm.VmStateBuilder(vm.state())
+                            .setStatus(Vm.VmStatus.RUNNING)
                             .setVmMeta(request.getMetadataMap())
                             .setLastActivityTime(Instant.now().plus(config.getHeartbeatTimeout()))
                             .build(),
@@ -169,7 +170,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
 
                 if (vm != null) {
                     LOG.info("Deallocating failed vm {}", vm);
-                    allocator.deallocate(vm);
+                    allocator.deallocate(vm.vmId());
                 }
             });
     }
@@ -205,9 +206,9 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
         }
 
 
-        if (!Set.of(Vm.State.RUNNING, Vm.State.IDLE).contains(vm.state())) {
+        if (!Set.of(Vm.VmStatus.RUNNING, Vm.VmStatus.IDLE).contains(vm.status())) {
             LOG.error("Wrong status of vm {} while receiving heartbeat: {}, expected RUNNING or IDLING",
-                vm.vmId(), vm.state());
+                vm.vmId(), vm.status());
             metrics.hbInvalidVm.inc();
             responseObserver.onError(
                 Status.FAILED_PRECONDITION.withDescription("Wrong state for heartbeat").asException());

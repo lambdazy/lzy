@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package ai.lzy.v1.allocator;
+
+option java_outer_classname = "VolumeApi";
+option java_package = "ai.lzy.v1";
+
+message Volume {
+  string name = 1;
+  oneof VolumeType {
+    DiskVolumeType disk_volume = 2;
+    HostPathVolumeType host_path_volume = 3;
+  }
+}
+
+message DiskVolumeType {
+  string disk_id = 1;
+}
+
+message HostPathVolumeType {
+  string path = 1;
+  HostPathType host_path_type = 2;
+
+  enum HostPathType {
+    UNSPECIFIED = 0;
+    DIRECTORY_OR_CREATE = 1;
+    DIRECTORY = 2;
+    FILE_OR_CREATE = 3;
+    FILE = 4;
+    SOCKET = 5;
+  }
+}
+
+message Mount {
+  string volume_name = 1;
+  string mount_path = 2;
+  bool read_only = 3;
+  MountPropagation mount_propagation = 4;
+
+  enum MountPropagation {
+      UNSPECIFIED = 0;
+      NONE = 1;
+      HOST_TO_CONTAINER = 2;
+      BIDIRECTIONAL = 3;
+  }
+}

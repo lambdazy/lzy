@@ -59,9 +59,9 @@ public class GarbageCollector extends TimerTask {
                         }
                         tr.commit();
                     }
-                    allocator.deallocate(vm);
+                    allocator.deallocate(vm.vmId());
                     //will retry deallocate if it fails
-                    dao.update(new Vm.VmBuilder(vm).setState(Vm.State.DEAD).build(), null);
+                    dao.updateStatus(vm.vmId(), Vm.VmStatus.DEAD, null);
                 } catch (SQLException e) {
                     if ("42P01".equals(e.getSQLState())) {
                         // ERROR: relation <xxx> does not exist

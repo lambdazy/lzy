@@ -1,17 +1,21 @@
 package ai.lzy.allocator.alloc.impl.kuber;
 
-import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.VmDao;
+import ai.lzy.allocator.disk.DiskManager;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
+import ai.lzy.allocator.volume.*;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import java.util.List;
+import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -26,13 +30,6 @@ import java.util.*;
 public class KuberVmAllocator implements VmAllocator {
     private static final Logger LOG = LogManager.getLogger(KuberVmAllocator.class);
     private static final String NAMESPACE = "default";
-    private static final List<Toleration> GPU_VM_POD_TOLERATIONS = List.of(
-        new TolerationBuilder()
-            .withKey("sku")
-            .withOperator("Equal")
-            .withValue("gpu")
-            .withEffect("NoSchedule")
-            .build());
 
     private static final String NAMESPACE_KEY = "namespace";
     private static final String POD_NAME_KEY = "pod-name";
@@ -43,27 +40,46 @@ public class KuberVmAllocator implements VmAllocator {
     private final ClusterRegistry poolRegistry;
     private final KuberClientFactory factory;
     private final ServiceConfig config;
+    private final DiskManager diskManager;
 
     @Inject
-    public KuberVmAllocator(VmDao dao, ClusterRegistry poolRegistry, KuberClientFactory factory, ServiceConfig config) {
+    public KuberVmAllocator(VmDao dao, ClusterRegistry poolRegistry, DiskManager diskManager,
+                            KuberClientFactory factory, ServiceConfig config)
+    {
         this.dao = dao;
         this.poolRegistry = poolRegistry;
+        this.diskManager = diskManager;
         this.factory = factory;
         this.config = config;
     }
 
     @Override
-    public void allocate(Vm vm) throws InvalidConfigurationException {
-        final var cluster = poolRegistry.findCluster(vm.poolLabel(), vm.zone(), ClusterRegistry.ClusterType.User);
+    public void allocate(Vm.Spec vmSpec) throws InvalidConfigurationException {
+        final var cluster = poolRegistry.findCluster(
+            vmSpec.poolLabel(), vmSpec.zone(), ClusterRegistry.ClusterType.User);
         if (cluster == null) {
             throw new InvalidConfigurationException(
-                "Cannot find pool for label " + vm.poolLabel() + " and zone " + vm.zone());
+                "Cannot find pool for label " + vmSpec.poolLabel() + " and zone " + vmSpec.zone());
         }
 
         try (final var client = factory.build(cluster)) {
-            final Pod vmPodSpec = createVmPodSpec(vm, client);
+            final List<DiskVolumeDescription> diskVolumeDescriptions = vmSpec.volumeRequests().stream()
+                .filter(volumeRequest -> volumeRequest.volumeDescription() instanceof DiskVolumeDescription)
+                .map(volumeRequest -> (DiskVolumeDescription) volumeRequest.volumeDescription())
+                .toList();
+            final List<VolumeClaim> volumeClaims = KuberVolumeManager.allocateVolumes(
+                client, diskManager, diskVolumeDescriptions);
+            dao.setVolumeClaims(vmSpec.vmId(), volumeClaims, null);
+            final Pod vmPodSpec = new PodSpecBuilder(vmSpec, client, config)
+                .withWorkloads(vmSpec.workloads())
+                .withVolumes(volumeClaims)
+                .withHostVolumes(vmSpec.volumeRequests().stream()
+                    .filter(v -> v.volumeDescription() instanceof HostPathVolumeDescription)
+                    .map(v -> (HostPathVolumeDescription) v.volumeDescription())
+                    .toList())
+                .build();
             LOG.debug("Creating pod with podspec: {}", vmPodSpec);
-            dao.saveAllocatorMeta(vm.vmId(), Map.of(
+            dao.saveAllocatorMeta(vmSpec.vmId(), Map.of(
                 NAMESPACE_KEY, NAMESPACE,
                 POD_NAME_KEY, vmPodSpec.getMetadata().getName(),
                 CLUSTER_ID_KEY, cluster.clusterId()
@@ -77,7 +93,7 @@ public class KuberVmAllocator implements VmAllocator {
                     .create();
             } catch (Exception e) {
                 LOG.error("Failed to allocate pod: {}", e.getMessage(), e);
-                deallocate(vm);
+                deallocate(vmSpec.vmId());
                 //TODO (tomato): add retries here if the error is caused due to temporal problems with kuber
                 throw new RuntimeException("Failed to allocate pod: " + e.getMessage(), e);
             }
@@ -109,10 +125,10 @@ public class KuberVmAllocator implements VmAllocator {
     }
 
     @Override
-    public void deallocate(Vm vm) {
+    public void deallocate(String vmId) {
         final Map<String, String> meta;
         try {
-            meta = dao.getAllocatorMeta(vm.vmId(), null);
+            meta = dao.getAllocatorMeta(vmId, null);
         } catch (SQLException e) {
             throw new RuntimeException("Database error: " + e.getMessage(), e);
         }
@@ -136,115 +152,11 @@ public class KuberVmAllocator implements VmAllocator {
             } else {
                 LOG.warn("Pod with name {} not found", podName);
             }
+            try {
+                KuberVolumeManager.freeVolumes(client, diskManager, dao.getVolumeClaims(vmId, null));
+            } catch (SQLException e) {
+                throw new RuntimeException("Database error: " + e.getMessage(), e);
+            }
         }
-    }
-
-    public Pod createVmPodSpec(Vm vm, KubernetesClient client) {
-
-        final Pod pod = readPod(client);
-
-        pod.getSpec().setContainers(buildContainers(vm));
-
-        final String podName = POD_NAME_PREFIX + vm.vmId().toLowerCase(Locale.ROOT);
-        // k8s pod name can only contain symbols [-a-z0-9]
-        pod.getMetadata().setName(podName.replaceAll("[^-a-z0-9]", "-"));
-        var labels = pod.getMetadata().getLabels();
-
-        Objects.requireNonNull(labels);
-        labels.putAll(Map.of(
-            KuberLabels.LZY_POD_NAME_LABEL, podName,
-            KuberLabels.LZY_POD_SESSION_ID_LABEL, vm.sessionId()
-        ));
-        pod.getMetadata().setLabels(labels);
-
-        pod.getSpec().setTolerations(GPU_VM_POD_TOLERATIONS);
-
-        final Map<String, String> nodeSelector = Map.of(
-            KuberLabels.NODE_POOL_LABEL, vm.poolLabel(),
-            KuberLabels.NODE_POOL_AZ_LABEL, vm.zone(),
-            KuberLabels.NODE_POOL_STATE_LABEL, "ACTIVE"
-        );
-        pod.getSpec().setNodeSelector(nodeSelector);
-
-        return pod;
-    }
-
-    private Pod readPod(KubernetesClient client) {
-        final File file;
-        try {
-            file = new File(Objects.requireNonNull(getClass()
-                    .getClassLoader()
-                    .getResource("kubernetes/lzy-vm-pod-template.yaml"))
-                .toURI());
-        } catch (URISyntaxException e) {
-            throw new RuntimeException("Error while reading pod template", e);
-        }
-        return client.pods()
-            .load(file)
-            .get();
-    }
-
-    private List<Container> buildContainers(Vm vm) {
-        final List<Container> containers = new ArrayList<>();
-        for (var workload : vm.workloads()) {
-            final var container = new Container();
-            final var envList = workload.env().entrySet()
-                .stream()
-                .map(e -> new EnvVarBuilder()
-                    .withName(e.getKey())
-                    .withName(e.getValue())
-                    .build()
-                )
-                .toList();
-
-            envList.addAll(List.of(
-                new EnvVarBuilder()
-                    .withName(AllocatorAgent.VM_ALLOCATOR_ADDRESS)
-                    .withValue(config.getAddress())
-                    .build(),
-                new EnvVarBuilder()
-                    .withName(AllocatorAgent.VM_ID_KEY)
-                    .withValue(vm.vmId())
-                    .build(),
-                new EnvVarBuilder()
-                    .withName(AllocatorAgent.VM_HEARTBEAT_PERIOD)
-                    .withValue(config.getHeartbeatTimeout().dividedBy(2).toString())
-                    .build(),
-                new EnvVarBuilder()
-                    .withName(AllocatorAgent.VM_IP_ADDRESS)
-                    .withValueFrom(
-                        new EnvVarSourceBuilder()
-                            .withNewFieldRef("v1", "status.podIP")
-                            .build()
-                    )
-                    .build()
-            ));
-
-            container.setEnv(envList);
-
-            container.setArgs(workload.args());
-            container.setName(workload.name());
-            container.setImage(workload.image());
-
-            container.setPorts(
-                workload.portBindings()
-                    .entrySet()
-                    .stream()
-                    .map(e -> new ContainerPortBuilder()
-                        .withContainerPort(e.getKey())
-                        .withHostPort(e.getValue())
-                        .build())
-                    .toList()
-            );
-
-            final var context = new SecurityContext();
-            context.setPrivileged(true);
-            context.setRunAsUser(0L);
-            container.setSecurityContext(context);
-
-            containers.add(container);
-        }
-
-        return containers;
     }
 }
