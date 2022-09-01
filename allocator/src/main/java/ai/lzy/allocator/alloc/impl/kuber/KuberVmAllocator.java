@@ -7,23 +7,25 @@ import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.disk.DiskManager;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
-import ai.lzy.allocator.volume.*;
-import io.fabric8.kubernetes.api.model.*;
+import ai.lzy.allocator.volume.DiskVolumeDescription;
+import ai.lzy.allocator.volume.HostPathVolumeDescription;
+import ai.lzy.allocator.volume.KuberVolumeManager;
+import ai.lzy.allocator.volume.VolumeClaim;
+import io.fabric8.kubernetes.api.model.ListOptionsBuilder;
+import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import java.util.List;
-import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nullable;
-import java.io.File;
-import java.net.URISyntaxException;
-import java.sql.SQLException;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+
+import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
+import static ai.lzy.model.db.DbHelper.withRetries;
 
 @Singleton
 @Requires(property = "allocator.kuber-allocator.enabled", value = "true")
@@ -79,11 +81,25 @@ public class KuberVmAllocator implements VmAllocator {
                     .toList())
                 .build();
             LOG.debug("Creating pod with podspec: {}", vmPodSpec);
-            dao.saveAllocatorMeta(vmSpec.vmId(), Map.of(
-                NAMESPACE_KEY, NAMESPACE,
-                POD_NAME_KEY, vmPodSpec.getMetadata().getName(),
-                CLUSTER_ID_KEY, cluster.clusterId()
-            ), null);
+
+            withRetries(
+                defaultRetryPolicy(),
+                LOG,
+                () -> {
+                    dao.saveAllocatorMeta(
+                        vmSpec.vmId(),
+                        Map.of(
+                            NAMESPACE_KEY, NAMESPACE,
+                            POD_NAME_KEY, vmPodSpec.getMetadata().getName(),
+                            CLUSTER_ID_KEY, cluster.clusterId()),
+                        null);
+                    return (Void) null;
+                },
+                ok -> {
+                },
+                ex -> {
+                    throw new RuntimeException(ex);
+                });
 
             final Pod pod;
             try {
@@ -98,7 +114,9 @@ public class KuberVmAllocator implements VmAllocator {
                 throw new RuntimeException("Failed to allocate pod: " + e.getMessage(), e);
             }
             LOG.debug("Created pod in Kuber: {}", pod);
-        } catch (SQLException e) {
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
             throw new RuntimeException("Database error: " + e.getMessage(), e);
         }
     }
@@ -126,37 +144,47 @@ public class KuberVmAllocator implements VmAllocator {
 
     @Override
     public void deallocate(String vmId) {
-        final Map<String, String> meta;
-        try {
-            meta = dao.getAllocatorMeta(vmId, null);
-        } catch (SQLException e) {
-            throw new RuntimeException("Database error: " + e.getMessage(), e);
-        }
+        withRetries(
+            defaultRetryPolicy(),
+            LOG,
+            () -> dao.getAllocatorMeta(vmId, null),
+            meta -> {
+                if (meta == null) {
+                    throw new RuntimeException("Cannot get allocator metadata for vmId " + vmId);
+                }
 
-        if (meta == null) {
-            throw new RuntimeException("Cannot get allocatorMeta");
-        }
+                final var clusterId = meta.get(CLUSTER_ID_KEY);
+                final var credentials = poolRegistry.getCluster(clusterId);
+                final var ns = meta.get(NAMESPACE_KEY);
+                final var podName = meta.get(POD_NAME_KEY);
 
-        final var clusterId = meta.get(CLUSTER_ID_KEY);
-        final var credentials = poolRegistry.getCluster(clusterId);
-        final var ns = meta.get(NAMESPACE_KEY);
-        final var podName = meta.get(POD_NAME_KEY);
+                try (final var client = factory.build(credentials)) {
+                    final var pod = getPod(ns, podName, client);
+                    if (pod != null) {
+                        client.pods()
+                            .inNamespace(ns)
+                            .resource(pod)
+                            .delete();
+                    } else {
+                        LOG.warn("Pod with name {} not found", podName);
+                    }
 
-        try (final var client = factory.build(credentials)) {
-            final var pod = getPod(ns, podName, client);
-            if (pod != null) {
-                client.pods()
-                    .inNamespace(ns)
-                    .resource(pod)
-                    .delete();
-            } else {
-                LOG.warn("Pod with name {} not found", podName);
-            }
-            try {
-                KuberVolumeManager.freeVolumes(client, diskManager, dao.getVolumeClaims(vmId, null));
-            } catch (SQLException e) {
-                throw new RuntimeException("Database error: " + e.getMessage(), e);
-            }
-        }
+                    withRetries(
+                        defaultRetryPolicy(),
+                        LOG,
+                        () -> {
+                            KuberVolumeManager.freeVolumes(client, diskManager, dao.getVolumeClaims(vmId, null));
+                            return (Void) null;
+                        },
+                        ok -> {
+                        },
+                        ex -> {
+                            throw new RuntimeException("Database error: " + ex.getMessage(), ex);
+                        });
+                }
+            },
+            ex -> {
+                throw new RuntimeException("Database error: " + ex.getMessage(), ex);
+            });
     }
 }

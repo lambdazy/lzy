@@ -22,6 +22,7 @@ public interface DbOperation {
         }
     }
 
+    @Deprecated
     static void executeUnsafe(@Nullable TransactionHandle transaction, Storage storage, DbOperation op) {
         final Connection con;
         try {

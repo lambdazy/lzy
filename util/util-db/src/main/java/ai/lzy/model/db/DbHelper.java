@@ -130,6 +130,11 @@ public enum DbHelper {
         public RetryCountExceededException(int count) {
             super("Database retries limit " + count + " exceeded.");
         }
+
+        @Override
+        public synchronized Throwable fillInStackTrace() {
+            return this;
+        }
     }
 
     private static final String PSQL_CannotSerializeTransaction = "40001";

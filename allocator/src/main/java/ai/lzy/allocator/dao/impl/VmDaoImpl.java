@@ -310,7 +310,7 @@ public class VmDaoImpl implements VmDao {
                         vm[0].allocationOperationId()
                     );
 
-                    res.updateString("status", "RUNNING");
+                    res.updateString("status", Vm.VmStatus.RUNNING.name());
                     res.updateRow();
 
                 } catch (JsonProcessingException e) {
