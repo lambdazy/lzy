@@ -25,10 +25,8 @@ import org.junit.*;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 public class DaoTest {
 
@@ -61,14 +59,15 @@ public class DaoTest {
         final var meta = VmAllocatorApi.AllocateMetadata.newBuilder()
             .setVmId("id")
             .build();
-        final var op1 = opDao.create(UUID.randomUUID().toString(), "Some op", "test", Any.pack(meta), null);
+        final var op1 = opDao.create("Some op", "test", Any.pack(meta), null);
 
         final var op2 = opDao.get(op1.id(), null);
         Assert.assertNotNull(op2);
         Assert.assertFalse(op2.done());
         Assert.assertEquals("Some op", op2.description());
 
-        opDao.update(op2.complete(Status.NOT_FOUND.withDescription("Error")), null);
+        op2.setError(Status.NOT_FOUND.withDescription("Error"));
+        opDao.update(op2, null);
         final var op3 = opDao.get(op1.id(), null);
         Assert.assertNotNull(op3);
         Assert.assertTrue(op3.done());
@@ -83,7 +82,7 @@ public class DaoTest {
             .build();
         Operation op;
         try (final var tx = TransactionHandle.create(storage)) {
-            op = opDao.create(UUID.randomUUID().toString(), "Some op", "test", Any.pack(meta), tx);
+            op = opDao.create("Some op", "test", Any.pack(meta), tx);
             // Do not commit
         }
 
@@ -91,7 +90,7 @@ public class DaoTest {
         Assert.assertNull(op1);
 
         try (final var tx = TransactionHandle.create(storage)) {
-            op = opDao.create(UUID.randomUUID().toString(), "Some op", "test", Any.pack(meta), tx);
+            op = opDao.create("Some op", "test", Any.pack(meta), tx);
             tx.commit();
         }
 

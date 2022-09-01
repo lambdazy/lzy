@@ -8,7 +8,7 @@ import javax.annotation.Nullable;
 import java.sql.SQLException;
 
 public interface OperationDao {
-    Operation create(String opId, String description, String createdBy, Any meta, @Nullable TransactionHandle th)
+    Operation create(String description, String createdBy, Any meta, @Nullable TransactionHandle th)
         throws SQLException;
 
     @Nullable
