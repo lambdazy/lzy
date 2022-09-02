@@ -122,7 +122,7 @@ public class DockerVmAllocator implements VmAllocator {
             DOCKER.killContainerCmd(containerId).exec();
             DOCKER.removeContainerCmd(containerId).exec();
         } catch (NotFoundException e) {
-            LOG.info("Container not found", e);  // Destroyed before
+            LOG.info("Container {} for vm {} destroyed before", containerId, vmId, e);
         }
     }
 }
