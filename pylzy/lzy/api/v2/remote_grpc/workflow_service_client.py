@@ -1,14 +1,29 @@
 from dataclasses import dataclass
-from typing import Optional, Tuple, AsyncGenerator, Union, AsyncIterable, List, AsyncIterator
+from typing import (
+    AsyncGenerator,
+    AsyncIterable,
+    AsyncIterator,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
-from ai.lzy.v1.workflow.workflow_pb2 import SnapshotStorage, Graph
+from ai.lzy.v1.workflow.workflow_pb2 import Graph, SnapshotStorage
 from ai.lzy.v1.workflow.workflow_service_pb2 import (
     AttachWorkflowRequest,
     CreateWorkflowRequest,
     CreateWorkflowResponse,
     DeleteWorkflowRequest,
-    FinishWorkflowRequest, ReadStdSlotsRequest, ReadStdSlotsResponse, ExecuteGraphRequest, ExecuteGraphResponse,
-    GraphStatusResponse, GraphStatusRequest, StopGraphRequest,
+    ExecuteGraphRequest,
+    ExecuteGraphResponse,
+    FinishWorkflowRequest,
+    GraphStatusRequest,
+    GraphStatusResponse,
+    ReadStdSlotsRequest,
+    ReadStdSlotsResponse,
+    StopGraphRequest,
 )
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceStub
 from lzy.api.v2.remote_grpc.model import converter
@@ -25,9 +40,9 @@ class Waiting:
 
 @dataclass
 class Executing:
-    operations_completed: List[str]
-    operations_executing: List[str]
-    operations_waiting: List[str]
+    operations_completed: Sequence[str]
+    operations_executing: Sequence[str]
+    operations_waiting: Sequence[str]
     message: str
 
 
@@ -159,10 +174,7 @@ class WorkflowServiceClient:
 
     async def graph_status(self, execution_id: str, graph_id: str) -> GraphStatus:
         res: GraphStatusResponse = await self.stub.GraphStatus(
-            GraphStatusRequest(
-                executionId=execution_id,
-                graphId=graph_id
-            )
+            GraphStatusRequest(executionId=execution_id, graphId=graph_id)
         )
 
         if res.HasField("waiting"):
@@ -175,16 +187,13 @@ class WorkflowServiceClient:
             return Failed(res.failed.description)
 
         return Executing(
-            res.executing.tasksCompleted,
-            res.executing.tasksExecuting,
-            res.executing.tasksWaiting,
-            res.executing.message
+            res.executing.operationsCompleted,
+            res.executing.operationsExecuting,
+            res.executing.operationsWaiting,
+            res.executing.message,
         )
 
     async def graph_stop(self, execution_id: str, graph_id: str):
         await self.stub.StopGraph(
-            StopGraphRequest(
-                executionId=execution_id,
-                graphId=graph_id
-            )
+            StopGraphRequest(executionId=execution_id, graphId=graph_id)
         )

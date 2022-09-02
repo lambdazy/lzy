@@ -10,7 +10,7 @@ class ImagePullPolicy(Enum):
 
 @dataclass
 class BaseEnv:
-    name: str
+    name: Optional[str] = None  # TODO(artolord) change env model
 
 
 @dataclass

@@ -6,7 +6,7 @@ import time
 from asyncio import Task
 from collections import defaultdict
 from threading import Thread
-from typing import Any, Callable, List, Optional, Tuple, Dict, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import jwt
 
@@ -15,8 +15,14 @@ from ai.lzy.v1.workflow.workflow_pb2 import Graph, Operation
 from lzy._proxy.result import Nothing, Result
 from lzy.api.v2 import LzyCall, LzyWorkflow
 from lzy.api.v2.exceptions import LzyExecutionException
-from lzy.api.v2.remote_grpc.workflow_service_client import WorkflowServiceClient, StderrMessage, StdoutMessage, \
-    Completed, Executing, Failed
+from lzy.api.v2.remote_grpc.workflow_service_client import (
+    Completed,
+    Executing,
+    Failed,
+    StderrMessage,
+    StdoutMessage,
+    WorkflowServiceClient,
+)
 from lzy.api.v2.runtime import ProgressStep, Runtime
 
 KEY_PATH_ENV = "LZY_KEY_PATH"
@@ -71,7 +77,7 @@ class GrpcRuntime(Runtime):
             name="runtime-thread",
             target=self._run_loop_thread,
             args=(self.__loop,),
-            daemon=True
+            daemon=True,
         )
         self.__loop_thread.start()
         asyncio.set_event_loop(self.__loop)
@@ -127,7 +133,9 @@ class GrpcRuntime(Runtime):
                 exec_id, creds, default=True
             )
 
-        self.__std_slots_listener = asyncio.create_task(self._listen_to_std_slots(exec_id))
+        self.__std_slots_listener = asyncio.create_task(
+            self._listen_to_std_slots(exec_id)
+        )
 
     async def _listen_to_std_slots(self, execution_id: str):
         async for data in self.__workflow_client.read_std_slots(execution_id):
@@ -158,8 +166,12 @@ class GrpcRuntime(Runtime):
         self.__std_slots_listener = None
 
     def _build_graph(self, calls: List[LzyCall]) -> Graph:
+        assert self.__workflow is not None
+
         entry_id_to_call: Dict[str, Tuple[LzyCall, int]] = {}
-        entry_id_to_output_calls: Dict[str, List[Tuple[LzyCall, Union[int, str]]]] = defaultdict(list)
+        entry_id_to_output_calls: Dict[
+            str, List[Tuple[LzyCall, Union[int, str]]]
+        ] = defaultdict(list)
         for call in calls:
             for i, entry_id in enumerate(call.entry_ids):
                 entry_id_to_call[entry_id] = (call, i)
@@ -185,49 +197,57 @@ class GrpcRuntime(Runtime):
             for i in range(len(call.entry_ids)):
                 output_slots.append(f"/{call.id}/ret_{i}")
 
+            docker_image = call.env.base_env.name
+
             vertices[call.id] = Graph.VertexDescription(
                 id=call.id,
                 operation=Operation(
-                    name=call.signature.func.__name__,
+                    name=call.signature.func.name,
                     description=call.description,
                     inputSlots=input_slots,
                     outputSlots=output_slots,
                     command="",  # TODO(artolord) add command generation and v2 startup
-                    dockerImage=call.env.base_env.name,  # TODO(artolord) change env api
+                    dockerImage=docker_image
+                    if docker_image is not None
+                    else "",  # TODO(artolord) change env api
                     python=Operation.PythonEnvSpec(  # TODO(artolord) add local modules loading
                         yaml=call.env.aux_env.conda_yaml
                     ),
-                    requiredPoolLabel="S"  # TODO(artolord) add label resolving
-                )
+                    poolSpecName="S",  # TODO(artolord) add label resolving
+                ),
             )
 
         edges: List[Graph.EdgeDescription] = []
         for entry_id in entry_id_to_call.keys():
             entry = self.__workflow.owner.snapshot.get(entry_id)
-            edges.append(Graph.EdgeDescription(
-                storageUri=entry.storage_url,
-                input=Graph.EdgeDescription.VertexRef(
-                    vertexId=entry_id_to_call[entry_id][0].id,
-                    slotName=f"/{entry_id_to_call[entry_id][0].id}/ret_{entry_id_to_call[entry_id][1]}"
-                ),
-                outputs=[
-                    Graph.EdgeDescription.VertexRef(
-                        vertexId=data[0].id,
-                        slotName=f"/{data[0].id}/arg_{data[1]}"
-                    ) for data in entry_id_to_output_calls[entry_id]
-                ],
-                dataScheme=Graph.EdgeDescription.DataScheme(
-                    type=entry.data_scheme.type,
-                    schemeType=entry.data_scheme.scheme_type
-                ) if entry.data_scheme is not None else None,
-                whiteboardRef=None  # TODO(artolord) add whiteboards linking
-            ))
+            edges.append(
+                Graph.EdgeDescription(
+                    storageUri=entry.storage_url,
+                    input=Graph.EdgeDescription.VertexRef(
+                        vertexId=entry_id_to_call[entry_id][0].id,
+                        slotName=f"/{entry_id_to_call[entry_id][0].id}/ret_{entry_id_to_call[entry_id][1]}",
+                    ),
+                    outputs=[
+                        Graph.EdgeDescription.VertexRef(
+                            vertexId=data[0].id, slotName=f"/{data[0].id}/arg_{data[1]}"
+                        )
+                        for data in entry_id_to_output_calls[entry_id]
+                    ],
+                    dataScheme=Graph.EdgeDescription.DataScheme(
+                        type=entry.data_scheme.type,
+                        schemeType=entry.data_scheme.scheme_type,
+                    )
+                    if entry.data_scheme is not None
+                    else None,
+                    whiteboardRef=None,  # TODO(artolord) add whiteboards linking
+                )
+            )
 
         return Graph(
             name="",
             edges=edges,
             vertices=vertices.values(),
-            zone=""  # TODO(artolord) Add zone resolving
+            zone="",  # TODO(artolord) Add zone resolving
         )
 
     async def _execute_graph(self, calls: List[LzyCall]):
@@ -238,13 +258,17 @@ class GrpcRuntime(Runtime):
 
         # TODO(artolord) add args loading
 
-        graph_id = await self.__workflow_client.execute_graph(self.__execution_id, graph)
+        graph_id = await self.__workflow_client.execute_graph(
+            self.__execution_id, graph
+        )
         _LOG.info(f"Send graph to Lzy, graph_id={graph_id}")
 
         is_executing = False
         while True:
             await asyncio.sleep(FETCH_STATUS_PERIOD_SEC)
-            status = await self.__workflow_client.graph_status(self.__execution_id, graph_id)
+            status = await self.__workflow_client.graph_status(
+                self.__execution_id, graph_id
+            )
 
             if isinstance(status, Executing) and not is_executing:
                 is_executing = True
@@ -256,7 +280,9 @@ class GrpcRuntime(Runtime):
 
             if isinstance(status, Failed):
                 _LOG.info(f"Graph {graph_id} execution failed: {status.description}")
-                raise LzyExecutionException(f"Failed executing graph {graph_id}: {status.description}")
+                raise LzyExecutionException(
+                    f"Failed executing graph {graph_id}: {status.description}"
+                )
 
     @staticmethod
     def _run_loop_thread(loop: asyncio.AbstractEventLoop):

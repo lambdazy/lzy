@@ -12,9 +12,14 @@ from ai.lzy.v1.workflow.workflow_pb2 import AmazonCredentials, SnapshotStorage
 from ai.lzy.v1.workflow.workflow_service_pb2 import (
     CreateWorkflowRequest,
     CreateWorkflowResponse,
+    ExecuteGraphRequest,
+    ExecuteGraphResponse,
     FinishWorkflowRequest,
-    FinishWorkflowResponse, ReadStdSlotsResponse, ReadStdSlotsRequest, ExecuteGraphRequest, ExecuteGraphResponse,
-    GraphStatusRequest, GraphStatusResponse,
+    FinishWorkflowResponse,
+    GraphStatusRequest,
+    GraphStatusResponse,
+    ReadStdSlotsRequest,
+    ReadStdSlotsResponse,
 )
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import (
     LzyWorkflowServiceServicer,
@@ -62,7 +67,7 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
         return FinishWorkflowResponse()
 
     def ReadStdSlots(
-            self, request: ReadStdSlotsRequest, context: grpc.ServicerContext
+        self, request: ReadStdSlotsRequest, context: grpc.ServicerContext
     ) -> Iterator[ReadStdSlotsResponse]:
         LOG.info(f"Registered listener")
 
@@ -70,15 +75,15 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
             self.fail = False
             context.abort(StatusCode.INTERNAL, "some_error")
 
-        yield ReadStdSlotsResponse(stdout=ReadStdSlotsResponse.Data(
-            data=("Some stdout",)
-        ))
-        yield ReadStdSlotsResponse(stderr=ReadStdSlotsResponse.Data(
-            data=("Some stderr",)
-        ))
+        yield ReadStdSlotsResponse(
+            stdout=ReadStdSlotsResponse.Data(data=("Some stdout",))
+        )
+        yield ReadStdSlotsResponse(
+            stderr=ReadStdSlotsResponse.Data(data=("Some stderr",))
+        )
 
     def ExecuteGraph(
-            self, request: ExecuteGraphRequest, context: grpc.ServicerContext
+        self, request: ExecuteGraphRequest, context: grpc.ServicerContext
     ) -> ExecuteGraphResponse:
         if self.fail:
             self.fail = False
@@ -86,7 +91,7 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
         pass
 
     def GraphStatus(
-            self, request: GraphStatusRequest, context: grpc.ServicerContext
+        self, request: GraphStatusRequest, context: grpc.ServicerContext
     ) -> GraphStatusResponse:
         if self.fail:
             self.fail = False
@@ -133,5 +138,3 @@ class GrpcRuntimeTests(TestCase):
         self.mock.fail = False
 
         self.assertIsNone(lzy.storage_registry.get_default_credentials())
-
-
