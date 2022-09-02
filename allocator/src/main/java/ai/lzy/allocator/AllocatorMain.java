@@ -14,6 +14,7 @@ import ai.lzy.metrics.MetricReporter;
 import ai.lzy.metrics.MetricsGrpcInterceptor;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
+import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
@@ -45,7 +46,7 @@ public class AllocatorMain {
 
     public AllocatorMain(MetricReporter metricReporter, AllocatorApi allocator, AllocatorPrivateApi allocatorPrivate,
                          OperationApi opApi, ServiceConfig config, GarbageCollector gc, VmPoolService vmPool,
-                         @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel, VmDao vmDao, VmAllocator alloc)
+                         VmDao vmDao, VmAllocator alloc)
     {
         this.config = config;
         this.gc = gc;
@@ -62,14 +63,29 @@ public class AllocatorMain {
         // TODO: X-REQUEST-ID header (and others) interceptor(s)
         builder.intercept(MetricsGrpcInterceptor.server("Allocator"));
         builder.intercept(new GrpcLogsInterceptor());
-        builder.intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(iamChannel)));
 
-        var internalOnly = new AllowInternalUserOnlyInterceptor(iamChannel);
+        if (config.getIam().isEnabled()) {
 
-        builder.addService(ServerInterceptors.intercept(allocator, internalOnly));
+            final var iamChannel = ChannelBuilder
+                .forAddress(config.getIam().getAddress())
+                .usePlaintext() // TODO
+                .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
+                .build();
+
+            builder.intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(iamChannel)));
+
+            var internalOnly = new AllowInternalUserOnlyInterceptor(iamChannel);
+
+            builder.addService(ServerInterceptors.intercept(allocator, internalOnly));
+            builder.addService(ServerInterceptors.intercept(opApi, internalOnly));
+            builder.addService(ServerInterceptors.intercept(vmPool, internalOnly));
+        } else {
+            builder.addService(allocator);
+            builder.addService(opApi);
+            builder.addService(vmPool);
+        }
+
         builder.addService(allocatorPrivate);
-        builder.addService(ServerInterceptors.intercept(opApi, internalOnly));
-        builder.addService(ServerInterceptors.intercept(vmPool, internalOnly));
 
         this.server = builder.build();
     }

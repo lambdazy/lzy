@@ -45,18 +45,7 @@ public class BeansFactory {
         return new ObjectMapper().registerModule(new JavaTimeModule());
     }
 
-    @Bean(preDestroy = "shutdown")
-    @Singleton
-    @Named("AllocatorIamGrpcChannel")
-    public ManagedChannel iamChannel(ServiceConfig config) {
-        return ChannelBuilder
-            .forAddress(config.getIam().getAddress())
-            .usePlaintext() // TODO
-            .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
-            .build();
-    }
-
-    @Singleton
+    @Bean
     @Requires(beans = ServiceConfig.MetricsConfig.class)
     public MetricReporter metricReporter(ServiceConfig.MetricsConfig config) {
         CollectorRegistry.defaultRegistry.clear();

@@ -7,8 +7,11 @@ public final class IamClientConfiguration {
     private String address;
     private String internalUserName;
     private String internalUserPrivateKey;
+    private boolean enabled = true;
 
     public JwtCredentials createCredentials() {
+        if (!enabled)
+            return null;
         return JwtUtils.credentials(internalUserName, internalUserPrivateKey);
     }
 
@@ -34,5 +37,14 @@ public final class IamClientConfiguration {
 
     public void setInternalUserPrivateKey(String internalUserPrivateKey) {
         this.internalUserPrivateKey = internalUserPrivateKey;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public IamClientConfiguration setEnabled(boolean enabled) {
+        this.enabled = enabled;
+        return this;
     }
 }

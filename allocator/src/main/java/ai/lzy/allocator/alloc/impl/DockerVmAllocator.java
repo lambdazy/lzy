@@ -24,6 +24,7 @@ import org.apache.logging.log4j.Logger;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Singleton
 @Requires(property = "allocator.docker-allocator.enabled", value = "true")
@@ -61,11 +62,11 @@ public class DockerVmAllocator implements VmAllocator {
 
         final var exposedPorts = workload.portBindings().values().stream()
             .map(ExposedPort::tcp)
-            .toList();
+            .collect(Collectors.toList());
 
         final var envs = workload.env().entrySet().stream()
             .map(e -> e.getKey() + "=" + e.getValue())
-            .toList();
+            .collect(Collectors.toList());
 
         envs.addAll(List.of(
             AllocatorAgent.VM_ALLOCATOR_ADDRESS + "=" + config.getAddress(),

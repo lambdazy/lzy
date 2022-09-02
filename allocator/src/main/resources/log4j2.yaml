@@ -1,0 +1,34 @@
+Configuration:
+  status: warn
+
+  Appenders:
+    Console:
+      name: Console
+      target: SYSTEM_OUT
+      PatternLayout:
+        Pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS}{UTC} [%t] %-5level %logger{36} - %msg%n"
+
+  Loggers:
+    Root:
+      level: error
+      AppenderRef:
+        ref: Console
+
+    Logger:
+      - name: UserEventLogs
+        additivity: false
+        level: error
+        AppenderRef:
+          ref: Console
+
+      - name: "ai.lzy.model.utils.FreePortFinder"
+        additivity: false
+        level: error
+        AppenderRef:
+          ref: Console
+
+      - name: "ai.lzy.allocator"
+        additivity: false
+        level: info
+        AppenderRef:
+          ref: Console
