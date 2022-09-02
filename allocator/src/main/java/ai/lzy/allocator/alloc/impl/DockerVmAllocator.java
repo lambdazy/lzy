@@ -9,6 +9,7 @@ import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
+import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.api.model.ExposedPort;
 import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.PortBinding;
@@ -117,7 +118,11 @@ public class DockerVmAllocator implements VmAllocator {
         if (containerId == null) {
             throw new RuntimeException("Container is not set in metadata");
         }
-        DOCKER.killContainerCmd(containerId).exec();
-        DOCKER.removeContainerCmd(containerId).exec();
+        try {
+            DOCKER.killContainerCmd(containerId).exec();
+            DOCKER.removeContainerCmd(containerId).exec();
+        } catch (NotFoundException e) {
+            LOG.info("Container not found", e);  // Destroyed before
+        }
     }
 }
