@@ -40,7 +40,7 @@ message Operation {
     /* optional */ PythonEnvSpec python = 7;  // If not set, running in default bash env
   }
 
-  string requiredPoolLabel = 8;  // Label to execute operation in
+  string poolSpecName = 8;  // Label to execute operation in
 
   message PythonEnvSpec {
     string yaml = 2;  // Conda yaml to install before execution
@@ -97,7 +97,7 @@ message Graph {
 }
 
 message VmPoolSpec {
-  string label = 1;             // 's', 'm', 'l', ...
+  string poolSpecName = 1;       // 's', 'm', 'l', ...
   string cpu_type = 2;          // IceLake, CascadeLake, Broadwell, ...
   uint32 cpu_count = 3;         // # of CPU cores
   string gpu_type = 4;          // V100, A100, ...
