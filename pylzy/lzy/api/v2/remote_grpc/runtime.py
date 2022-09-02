@@ -90,7 +90,7 @@ class GrpcRuntime(Runtime):
         try:
             task.result()
         except Exception as e:
-            raise LzyExecutionException("Cannot start workflow") from e  # TODO(artolord) Add more details in exception
+            raise LzyExecutionException("Cannot start workflow") from e
 
     def exec(
         self,
@@ -103,14 +103,14 @@ class GrpcRuntime(Runtime):
         except LzyExecutionException as e:
             raise e
         except Exception as e:
-            raise LzyExecutionException("Cannot destroy workflow") from e  # TODO(artolord) Add more details
+            raise LzyExecutionException("Cannot destroy workflow") from e
 
     def destroy(self):
         task = asyncio.run_coroutine_threadsafe(self._finish_workflow(), self.__loop)
         try:
             task.result()
         except Exception as e:
-            raise LzyExecutionException("Cannot destroy workflow") from e  # TODO(artolord) Add more details
+            raise LzyExecutionException("Cannot destroy workflow") from e
 
     async def _start_workflow(self):
         assert self.__workflow is not None
