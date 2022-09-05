@@ -133,7 +133,7 @@ class GrpcRuntimeTests(TestCase):
         runtime = GrpcRuntime("ArtoLord", "localhost:12345", self.__key_path)
         lzy = Lzy()
         self.mock.fail = True
-        with self.assertRaises(expected_exception=LzyExecutionException):
+        with self.assertRaises(expected_exception=RuntimeError):
             runtime.start(lzy.workflow("some_name"))
         self.mock.fail = False
 

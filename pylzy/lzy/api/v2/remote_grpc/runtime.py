@@ -6,20 +6,17 @@ import time
 from asyncio import Task
 from collections import defaultdict
 from threading import Thread
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import jwt
 
-import lzy.api.v2.runtime
 from ai.lzy.v1.workflow.workflow_pb2 import Graph, Operation
-from lzy._proxy.result import Nothing, Result
 from lzy.api.v2 import LzyCall, LzyWorkflow
 from lzy.api.v2.exceptions import LzyExecutionException
 from lzy.api.v2.remote_grpc.workflow_service_client import (
     Completed,
     Executing,
     Failed,
-    StderrMessage,
     StdoutMessage,
     WorkflowServiceClient,
 )
@@ -96,7 +93,7 @@ class GrpcRuntime(Runtime):
         try:
             task.result()
         except Exception as e:
-            raise LzyExecutionException("Cannot start workflow") from e
+            raise RuntimeError(f"Cannot start workflow {workflow.name}") from e
 
     def exec(
         self,
@@ -109,14 +106,14 @@ class GrpcRuntime(Runtime):
         except LzyExecutionException as e:
             raise e
         except Exception as e:
-            raise LzyExecutionException("Cannot destroy workflow") from e
+            raise RuntimeError("Cannot execute graph") from e
 
     def destroy(self):
         task = asyncio.run_coroutine_threadsafe(self._finish_workflow(), self.__loop)
         try:
             task.result()
         except Exception as e:
-            raise LzyExecutionException("Cannot destroy workflow") from e
+            raise RuntimeError("Cannot destroy workflow") from e
 
     async def _start_workflow(self):
         assert self.__workflow is not None

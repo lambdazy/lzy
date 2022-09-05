@@ -36,7 +36,9 @@ def lzy_proxy(entry_id: str, typ: type, wflow: "LzyWorkflow") -> Any:
         new_data = wflow.owner.snapshot.get_data(entry_id)
         if isinstance(new_data, Just):
             return new_data.value
-        raise LzyExecutionException("Cannot materialize data")
+        raise RuntimeError(
+            f"Cannot materialize data with entry id {entry_id} from workflow {wflow.name}"
+        )
 
     return proxy(
         materialize,
