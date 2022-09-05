@@ -1,11 +1,10 @@
 import typing
 import uuid
-from itertools import chain
-from typing import Any, Dict, Generic, Iterator, Mapping, Sequence, Tuple, TypeVar
+from typing import Any, Dict, Iterator, Mapping, Sequence, Tuple, TypeVar
 
 from lzy.api.v2.provisioning import Provisioning
-from lzy.api.v2.proxy_adapter import is_lzy_proxy
 from lzy.api.v2.signatures import CallSignature
+from lzy.api.v2.utils.proxy_adapter import is_lzy_proxy
 from lzy.api.v2.workflow import LzyWorkflow
 from lzy.env.env import EnvSpec
 
@@ -26,8 +25,7 @@ class LzyCall:
         self.__provisioning = provisioning
         self.__env = env
         self.__entry_ids = [
-            parent_wflow.owner.snapshot.create_entry(typ).id
-            for typ in sign.func.output_types
+            parent_wflow.snapshot.create_entry(typ).id for typ in sign.func.output_types
         ]
 
         self.__args_entry_ids: typing.List[str] = []
@@ -37,7 +35,7 @@ class LzyCall:
                 self.__args_entry_ids.append(arg.__lzy_entry_id__)
             else:
                 self.__args_entry_ids.append(
-                    parent_wflow.owner.snapshot.create_entry(type(arg)).id
+                    parent_wflow.snapshot.create_entry(type(arg)).id
                 )
 
         self.__kwargs_entry_ids: Dict[str, str] = {}
@@ -47,7 +45,7 @@ class LzyCall:
             if is_lzy_proxy(kwarg):
                 entry_id = kwarg.__lzy_entry_id__
             else:
-                entry_id = parent_wflow.owner.snapshot.create_entry(type(kwarg)).id
+                entry_id = parent_wflow.snapshot.create_entry(type(kwarg)).id
 
             self.__kwargs_entry_ids[name] = entry_id
 

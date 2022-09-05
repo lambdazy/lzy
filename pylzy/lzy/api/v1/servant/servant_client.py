@@ -18,7 +18,7 @@ from lzy.api.v1.servant.model.execution import (
 )
 from lzy.api.v1.servant.model.slot import Slot
 from lzy.api.v1.servant.model.zygote import Zygote
-from lzy.storage.credentials import AmazonCredentials, StorageCredentials
+from lzy.storage.api import AmazonCredentials, StorageCredentials
 
 
 class CredentialsTypes(Enum):

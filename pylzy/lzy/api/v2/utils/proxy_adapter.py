@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Any
 
-from lzy._proxy.automagic import proxy
-from lzy._proxy.result import Just
+from lzy.proxy.automagic import proxy
+from lzy.proxy.result import Just
 
 if TYPE_CHECKING:
     from lzy.api.v2 import LzyWorkflow
@@ -26,7 +26,7 @@ def materialize(obj: Any) -> Any:
 
 
 def lzy_proxy(entry_id: str, typ: type, wflow: "LzyWorkflow") -> Any:
-    def materialize():
+    def __materialize():
         data = wflow.owner.snapshot.get_data(entry_id)
         if isinstance(data, Just):
             return data.value
@@ -41,7 +41,7 @@ def lzy_proxy(entry_id: str, typ: type, wflow: "LzyWorkflow") -> Any:
         )
 
     return proxy(
-        materialize,
+        __materialize,
         typ,  # type: ignore
         cls_attrs={__lzy_proxied: True, __entry_id: entry_id},
     )

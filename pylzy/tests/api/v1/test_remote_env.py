@@ -12,7 +12,7 @@ from lzy.api.v1.env import LzyRemoteEnv
 from lzy.api.v1.servant.bash_servant_client import BashServantClient
 from lzy.api.v1.servant.servant_client import ServantClientMock
 from lzy.api.v1.whiteboard.model import InMemSnapshotApi, InMemWhiteboardApi
-from lzy.storage.storage_client import StorageClient
+from lzy.storage.deprecated import StorageClient
 
 
 class MockStorageClient(StorageClient):

@@ -1,14 +1,5 @@
 from dataclasses import dataclass
-from typing import (
-    AsyncGenerator,
-    AsyncIterable,
-    AsyncIterator,
-    List,
-    Optional,
-    Sequence,
-    Tuple,
-    Union,
-)
+from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Tuple, Union
 
 from ai.lzy.v1.workflow.workflow_pb2 import Graph, SnapshotStorage
 from ai.lzy.v1.workflow.workflow_service_pb2 import (
@@ -29,8 +20,7 @@ from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceStub
 from lzy.api.v2.remote_grpc.model import converter
 from lzy.api.v2.remote_grpc.model.converter.storage_creds import to
 from lzy.api.v2.remote_grpc.utils import add_headers_interceptor, build_channel
-from lzy.api.v2.storage import Credentials
-from lzy.storage.credentials import AmazonCredentials, StorageCredentials
+from lzy.storage.api import AmazonCredentials, StorageConfig, StorageCredentials
 
 
 @dataclass
@@ -61,7 +51,7 @@ GraphStatus = Union[Waiting, Executing, Completed, Failed]
 
 def _create_storage_endpoint(
     response: CreateWorkflowResponse,
-) -> Credentials:
+) -> StorageConfig:
     error_msg = "no storage credentials provided"
 
     assert response.HasField("internalSnapshotStorage"), error_msg
@@ -76,7 +66,7 @@ def _create_storage_endpoint(
         raise ValueError(error_msg)
 
     creds: StorageCredentials = converter.storage_creds.from_(grpc_creds)
-    return Credentials(creds, store.bucket)
+    return StorageConfig(creds, store.bucket)
 
 
 @dataclass
@@ -100,18 +90,18 @@ class WorkflowServiceClient:
         self.stub = LzyWorkflowServiceStub(channel)
 
     async def create_workflow(
-        self, name: str, storage: Optional[Credentials] = None
-    ) -> Tuple[str, Optional[Credentials]]:
+        self, name: str, storage: Optional[StorageConfig] = None
+    ) -> Tuple[str, Optional[StorageConfig]]:
         s: Optional[SnapshotStorage] = None
 
         if storage is not None:
-            if isinstance(storage.storage_credentials, AmazonCredentials):
+            if isinstance(storage.credentials, AmazonCredentials):
                 s = SnapshotStorage(
-                    bucket=storage.bucket, amazon=to(storage.storage_credentials)
+                    bucket=storage.bucket, amazon=to(storage.credentials)
                 )
             else:
                 s = SnapshotStorage(
-                    bucket=storage.bucket, azure=to(storage.storage_credentials)
+                    bucket=storage.bucket, azure=to(storage.credentials)
                 )
 
         res = await self.stub.CreateWorkflow(

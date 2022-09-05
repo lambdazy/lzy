@@ -1,13 +1,10 @@
-from pathlib import Path
-from typing import IO, Any, AsyncIterator, BinaryIO, cast
-from urllib.parse import urlparse
+from typing import Any, AsyncIterator, BinaryIO
 
 from azure.storage.blob.aio import BlobServiceClient, ContainerClient
 
 # TODO[ottergottaott]: drop this dependency
 from lzy.api.v2.utils.types import unwrap
-from lzy.storage._async import AsyncStorageClient
-from lzy.storage.credentials import AzureCredentials, AzureSasCredentials
+from lzy.storage.api import AsyncStorageClient, AzureCredentials, AzureSasCredentials
 from lzy.storage.url import Scheme, bucket_from_url, url_from_bucket
 
 

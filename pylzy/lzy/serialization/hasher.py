@@ -2,7 +2,7 @@ import hashlib
 from typing import Any
 
 from lzy.serialization.api import Hasher
-from lzy.serialization.registry import SerializersRegistry
+from lzy.serialization.registry import SerializerRegistry
 
 
 class HashableFileLikeObj:
@@ -28,7 +28,7 @@ class HashableHasher(Hasher):
 
 
 class SerializingHasher(Hasher):
-    def __init__(self, serializer: SerializersRegistry):
+    def __init__(self, serializer: SerializerRegistry):
         self._serializer = serializer
 
     def hash(self, data: Any) -> str:
@@ -42,7 +42,7 @@ class SerializingHasher(Hasher):
 
 
 class DelegatingHasher(Hasher):
-    def __init__(self, serializer: SerializersRegistry):
+    def __init__(self, serializer: SerializerRegistry):
         self._hashers = [HashableHasher(), SerializingHasher(serializer)]
 
     def hash(self, data: Any) -> str:
