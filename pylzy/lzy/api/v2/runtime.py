@@ -23,9 +23,9 @@ class Runtime(ABC):
         self,
         graph: List[LzyCall],
         progress: Callable[[ProgressStep], None],
-    ) -> None:
+    ):
         pass
 
     @abstractmethod
-    def destroy(self) -> None:
+    def destroy(self):
         pass

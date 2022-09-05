@@ -21,31 +21,31 @@ class Lzy:
         runtime: Runtime = LocalRuntime(),
         storage_registry: StorageRegistry = StorageRegistry(),
     ):
-        self._env_provider = env_provider
-        self._runtime = runtime
-        self._serializer = DefaultSerializersRegistry()
-        self._storage_registry = storage_registry
-        self._snapshot = LocalSnapshot()
+        self.__env_provider = env_provider
+        self.__runtime = runtime
+        self.__serializer = DefaultSerializersRegistry()
+        self.__storage_registry = storage_registry
+        self.__snapshot = LocalSnapshot()
 
     @property
     def serializer(self) -> SerializersRegistry:
-        return self._serializer
+        return self.__serializer
 
     @property
     def env_provider(self) -> EnvProvider:
-        return self._env_provider
+        return self.__env_provider
 
     @property
     def runtime(self) -> Runtime:
-        return self._runtime
+        return self.__runtime
 
     @property
     def storage_registry(self) -> StorageRegistry:
-        return self._storage_registry
+        return self.__storage_registry
 
     @property
     def snapshot(self) -> Snapshot:
-        return self._snapshot
+        return self.__snapshot
 
     def whiteboard(self, wid: str) -> Any:
         # TODO: implement
