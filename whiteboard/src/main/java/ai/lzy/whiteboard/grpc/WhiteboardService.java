@@ -4,6 +4,7 @@ import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.model.db.NotFoundException;
 import ai.lzy.v1.LWBS;
 import ai.lzy.v1.LzyWhiteboardServiceGrpc;
+import ai.lzy.whiteboard.access.AccessManager;
 import ai.lzy.whiteboard.model.Whiteboard;
 import ai.lzy.whiteboard.storage.WhiteboardDataSource;
 import ai.lzy.whiteboard.storage.WhiteboardStorage;
@@ -22,11 +23,15 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
 
     private static final Logger LOG = LogManager.getLogger(WhiteboardService.class);
 
+    private final AccessManager accessManager;
     private final WhiteboardStorage whiteboardStorage;
     private final WhiteboardDataSource dataSource;
 
     @Inject
-    public WhiteboardService(WhiteboardStorage whiteboardStorage, WhiteboardDataSource dataSource) {
+    public WhiteboardService(AccessManager accessManager,
+                             WhiteboardStorage whiteboardStorage,
+                             WhiteboardDataSource dataSource) {
+        this.accessManager = accessManager;
         this.whiteboardStorage = whiteboardStorage;
         this.dataSource = dataSource;
     }
@@ -44,7 +49,12 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
                 throw new IllegalArgumentException("Request shouldn't contain empty fields");
             }
 
-            final Whiteboard whiteboard = whiteboardStorage.getWhiteboard(userId, whiteboardId, null);
+            if (!accessManager.checkAccess(userId, whiteboardId)) {
+                LOG.error("Get whiteboard {} failed, permission denied", request.getWhiteboardId());
+                responseObserver.onError(Status.PERMISSION_DENIED.asException());
+            }
+
+            final Whiteboard whiteboard = whiteboardStorage.getWhiteboard(whiteboardId, null);
 
             responseObserver.onNext(LWBS.GetResponse.newBuilder()
                 .setWhiteboard(ProtoConverter.to(whiteboard))

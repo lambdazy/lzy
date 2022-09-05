@@ -8,6 +8,7 @@ import ai.lzy.model.db.NotFoundException;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.v1.LWBPS;
 import ai.lzy.v1.LzyWhiteboardPrivateServiceGrpc;
+import ai.lzy.whiteboard.access.AccessManager;
 import ai.lzy.whiteboard.model.Whiteboard;
 import ai.lzy.whiteboard.storage.WhiteboardDataSource;
 import ai.lzy.whiteboard.storage.WhiteboardStorage;
@@ -28,12 +29,17 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
 
     private static final Logger LOG = LogManager.getLogger(WhiteboardPrivateService.class);
 
+    private final AccessManager accessManager;
     private final WhiteboardStorage whiteboardStorage;
     private final WhiteboardDataSource dataSource;
     private final LockManager lockManager;
 
     @Inject
-    public WhiteboardPrivateService(WhiteboardStorage whiteboardStorage, WhiteboardDataSource dataSource) {
+    public WhiteboardPrivateService(AccessManager accessManager,
+                                    WhiteboardStorage whiteboardStorage,
+                                    WhiteboardDataSource dataSource)
+    {
+        this.accessManager = accessManager;
         this.whiteboardStorage = whiteboardStorage;
         this.dataSource = dataSource;
         this.lockManager = new LocalLockManager().withPrefix("whiteboard");
@@ -64,8 +70,8 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
                 new Whiteboard.Storage(request.getStorage().getName(), request.getStorage().getDescription()),
                 request.getNamespace(), Whiteboard.Status.CREATED, createdAt);
 
+            final var lock = lockManager.getOrCreate(whiteboardId);
             withRetries(defaultRetryPolicy(), LOG, () -> {
-                final var lock = lockManager.getOrCreate(whiteboardId);
                 lock.lock();
                 try {
                     whiteboardStorage.insertWhiteboard(request.getUserId(), whiteboard, null);
@@ -73,6 +79,24 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
                     lock.unlock();
                 }
             });
+
+            try {
+                accessManager.addAccess(request.getUserId(), whiteboardId);
+            } catch (Exception e) {
+                String errorMessage = "Failed to get access to whiteboard for user " + request.getUserId();
+                LOG.error("Create whiteboard {} failed, got exception: {}", request.getWhiteboardName(), errorMessage, e);
+                LOG.info("Undo creating whiteboard {}, id = {}", request.getWhiteboardName(), whiteboardId);
+                withRetries(defaultRetryPolicy(), LOG, () -> {
+                    lock.lock();
+                    try {
+                        whiteboardStorage.deleteWhiteboard(whiteboardId, null);
+                    } finally {
+                        lock.unlock();
+                    }
+                });
+                LOG.info("Undo creating whiteboard {} done", request.getWhiteboardName());
+                responseObserver.onError(Status.INTERNAL.withCause(e).asException());
+            }
 
             responseObserver.onNext(LWBPS.CreateResponse.newBuilder()
                 .setWhiteboard(ProtoConverter.to(whiteboard))
@@ -93,8 +117,6 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
         LOG.info("Link field {} to whiteboard {}", request.getFieldName(), request.getWhiteboardId());
 
         try {
-            final var authenticationContext = AuthenticationContext.current();
-            final String userId = Objects.requireNonNull(authenticationContext).getSubject().id();
             final String whiteboardId = request.getWhiteboardId();
             final String fieldName = request.getFieldName();
 
@@ -113,7 +135,7 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
                 final var lock = lockManager.getOrCreate(whiteboardId);
                 lock.lock();
                 try (final var transaction = TransactionHandle.create(dataSource)) {
-                    final Whiteboard whiteboard = whiteboardStorage.getWhiteboard(userId, whiteboardId, transaction);
+                    final Whiteboard whiteboard = whiteboardStorage.getWhiteboard(whiteboardId, transaction);
 
                     if (!whiteboard.hasField(fieldName)) {
                         throw new NotFoundException("Field " + fieldName + " of whiteboard " + whiteboardId + " not found");
@@ -155,10 +177,7 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
         LOG.info("Finalize whiteboard {}", request.getWhiteboardId());
 
         try {
-            final var authenticationContext = AuthenticationContext.current();
-            final String userId = Objects.requireNonNull(authenticationContext).getSubject().id();
             final String whiteboardId = request.getWhiteboardId();
-
             if (whiteboardId.isBlank()) {
                 throw new IllegalArgumentException("Request shouldn't contain empty fields");
             }
@@ -167,7 +186,7 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
 
             withRetries(defaultRetryPolicy(), LOG, () -> {
                 try (final var transaction = TransactionHandle.create(dataSource)) {
-                    final Whiteboard whiteboard = whiteboardStorage.getWhiteboard(userId, whiteboardId, transaction);
+                    final Whiteboard whiteboard = whiteboardStorage.getWhiteboard(whiteboardId, transaction);
 
                     if (!whiteboard.createdFieldNames().isEmpty()) {
                         String errorMessage = "whiteboard has unlinked fields: "
@@ -198,7 +217,6 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
             responseObserver.onError(Status.INTERNAL.withCause(e).asException());
         }
     }
-
 
     private boolean isRequestValid(LWBPS.CreateRequest request) {
         try {

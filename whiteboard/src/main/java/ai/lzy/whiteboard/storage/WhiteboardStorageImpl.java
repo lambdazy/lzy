@@ -75,7 +75,8 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                 int affectedRows = st.executeUpdate();
                 if (affectedRows == 0) {
                     throw new NotFoundException("Field to link not found");
-                } if (affectedRows > 1) {
+                }
+                if (affectedRows > 1) {
                     throw new IllegalStateException(affectedRows + " fields linked, expected exactly 1");
                 }
             }
@@ -100,20 +101,37 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                 int affectedRows = st.executeUpdate();
                 if (affectedRows == 0) {
                     throw new NotFoundException("Whiteboard to finalize not found");
-                } if (affectedRows > 1) {
-                    throw new IllegalStateException(affectedRows + " whiteboards finalized, expected exactly 1");
                 }
             }
         });
         LOG.debug("Finalizing whiteboard (whiteboardId={}) done", whiteboardId);
     }
 
+    @Override
+    public void deleteWhiteboard(String whiteboardId, @Nullable TransactionHandle transaction) throws SQLException {
+        LOG.debug("Deleting whiteboard (whiteboardId={})", whiteboardId);
+        DbOperation.execute(transaction, dataSource, sqlConnection -> {
+            try (final PreparedStatement st = sqlConnection.prepareStatement(
+                "DELETE FROM whiteboards WHERE whiteboard_id = ?"
+            )) {
+                int index = 0;
+                st.setString(++index, whiteboardId);
+
+                int affectedRows = st.executeUpdate();
+                if (affectedRows == 0) {
+                    throw new NotFoundException("Whiteboard to delete not found");
+                }
+            }
+        });
+        LOG.debug("Deleting whiteboard (whiteboardId={}) done", whiteboardId);
+    }
+
     @Nullable
     @Override
-    public Whiteboard findWhiteboard(String userId, String whiteboardId, @Nullable TransactionHandle transaction)
+    public Whiteboard findWhiteboard(String whiteboardId, @Nullable TransactionHandle transaction)
         throws SQLException
     {
-        LOG.debug("Finding whiteboard (userId={},whiteboardId={})", userId, whiteboardId);
+        LOG.debug("Finding whiteboard (whiteboardId={})", whiteboardId);
         final AtomicReference<Whiteboard> whiteboard = new AtomicReference<>();
         DbOperation.execute(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
@@ -144,14 +162,13 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                 """)
             ) {
                 int index = 0;
-                st.setString(++index, userId);
                 st.setString(++index, whiteboardId);
                 Stream<Whiteboard> whiteboards = parseWhiteboards(st.executeQuery());
                 whiteboard.set(whiteboards.findFirst().orElse(null));
             }
         });
-        LOG.debug("Finding whiteboard (userId={},whiteboardId={}) done, {}",
-            userId, whiteboardId, whiteboard.get() == null ? "not found" : "found");
+        LOG.debug("Finding whiteboard (whiteboardId={}) done, {}",
+            whiteboardId, whiteboard.get() == null ? "not found" : "found");
         return whiteboard.get();
     }
 

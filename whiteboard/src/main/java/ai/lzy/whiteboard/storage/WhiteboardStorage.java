@@ -19,14 +19,16 @@ public interface WhiteboardStorage {
     void setWhiteboardFinalized(String whiteboardId, Instant finalizedAt,
                                 @Nullable TransactionHandle transaction) throws SQLException;
 
+    void deleteWhiteboard(String whiteboardId, @Nullable TransactionHandle transaction) throws SQLException;
+
     @Nullable
-    Whiteboard findWhiteboard(String userId, String whiteboardId, @Nullable TransactionHandle transaction)
+    Whiteboard findWhiteboard(String whiteboardId, @Nullable TransactionHandle transaction)
         throws SQLException;
 
-    default Whiteboard getWhiteboard(String userId, String whiteboardId, @Nullable TransactionHandle transaction)
+    default Whiteboard getWhiteboard(String whiteboardId, @Nullable TransactionHandle transaction)
         throws SQLException
     {
-        final var whiteboard = findWhiteboard(userId, whiteboardId, transaction);
+        final var whiteboard = findWhiteboard(whiteboardId, transaction);
         if (whiteboard == null) {
             throw new SQLException("Whiteboard " + whiteboardId + " not found");
         }
