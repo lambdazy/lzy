@@ -3,6 +3,7 @@ package ai.lzy.iam.utils;
 import ai.lzy.iam.resources.AccessBinding;
 import ai.lzy.iam.resources.AccessBindingDelta;
 import ai.lzy.iam.resources.AuthResource;
+import ai.lzy.iam.resources.Role;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.impl.Whiteboard;
 import ai.lzy.iam.resources.impl.Workflow;
@@ -23,7 +24,7 @@ public class GrpcConverter {
     }
 
     public static AccessBinding to(IAM.AccessBinding accessBinding) {
-        return new AccessBinding(accessBinding.getRole(), to(accessBinding.getSubject()));
+        return new AccessBinding(Role.of(accessBinding.getRole()), to(accessBinding.getSubject()));
     }
 
     public static AccessBindingDelta to(IAM.AccessBindingDelta accessBindingDelta) {
@@ -58,7 +59,7 @@ public class GrpcConverter {
 
     public static IAM.AccessBinding from(AccessBinding accessBinding) {
         return IAM.AccessBinding.newBuilder()
-                .setRole(accessBinding.role())
+                .setRole(accessBinding.role().value())
                 .setSubject(from(accessBinding.subject()))
                 .build();
     }

@@ -4,7 +4,7 @@ import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.exceptions.AuthException;
-import ai.lzy.iam.clients.SubjectService;
+import ai.lzy.iam.clients.SubjectServiceClient;
 import ai.lzy.iam.utils.GrpcConfig;
 import io.grpc.Channel;
 import io.grpc.StatusRuntimeException;
@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-public class SubjectServiceGrpcClient implements SubjectService {
+public class SubjectServiceGrpcClient implements SubjectServiceClient {
     private static final Logger LOG = LogManager.getLogger(SubjectServiceGrpcClient.class);
 
     private final Channel channel;

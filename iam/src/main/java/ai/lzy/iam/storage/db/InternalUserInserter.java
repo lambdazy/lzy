@@ -79,7 +79,7 @@ public class InternalUserInserter {
                 st.setString(1, config.userName());
                 st.setString(2, Root.INSTANCE.resourceId());
                 st.setString(3, Root.INSTANCE.type());
-                st.setString(4, Role.LZY_INTERNAL_USER.role());
+                st.setString(4, Role.LZY_INTERNAL_USER.value());
                 st.executeUpdate();
 
                 return true;

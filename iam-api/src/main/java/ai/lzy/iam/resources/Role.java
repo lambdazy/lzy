@@ -42,13 +42,22 @@ public enum Role {
     ))
     ;
 
-    private final String role;
+    private final String value;
 
     private final Set<AuthPermission> permissions;
 
-    Role(String role, Set<AuthPermission> permissions) {
-        this.role = role;
+    Role(String value, Set<AuthPermission> permissions) {
+        this.value = value;
         this.permissions = permissions;
+    }
+
+    public static Role of(String roleValue) {
+        for (var role : Role.values()) {
+            if (role.value().equals(roleValue)) {
+                return role;
+            }
+        }
+        throw new IllegalArgumentException("Unexpected role " + roleValue);
     }
 
     public static Stream<Role> rolesByPermission(AuthPermission permission) {
@@ -61,11 +70,12 @@ public enum Role {
         return roles.stream();
     }
 
-    public String role() {
-        return role;
+    public String value() {
+        return value;
     }
 
     public Set<AuthPermission> permissions() {
         return permissions;
     }
+
 }
