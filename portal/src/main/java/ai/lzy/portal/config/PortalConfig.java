@@ -4,39 +4,17 @@ import io.micronaut.context.annotation.ConfigurationProperties;
 import lombok.Getter;
 import lombok.Setter;
 
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Positive;
-
 @Getter
 @Setter
 @ConfigurationProperties("portal")
 public class PortalConfig {
-    @NotBlank
     private String portalId;
-
     private String host;
-
-    @NotNull
-    @Positive
-    private Integer portalApiPort;
-
-    @NotNull
+    private int portalApiPort;
     private String token;
-
-    @NotBlank
     private String stdoutChannelId;
-
-    @NotBlank
     private String stderrChannelId;
-
-    @NotNull
-    @Positive
-    private Integer fsApiPort;
-
-    @NotNull
+    private int fsApiPort;
     private String fsRoot;
-
-    @NotNull
     private String channelManagerAddress;
 }

@@ -9,6 +9,7 @@ import ai.lzy.kharon.KharonConfig;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.storage.impl.MockS3Storage;
+import ai.lzy.test.TimeUtils;
 import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
@@ -33,27 +34,35 @@ import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.concurrent.TimeUnit;
 
+@SuppressWarnings("ResultOfMethodCallIgnored")
 public class WorkflowServiceTest {
     @Rule
-    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {
+    });
 
     private ApplicationContext ctx;
+
+    private MockS3Storage storageMock;
+
     private Server storageServer;
+    private Server allocatorServer;
     private Server workflowServer;
+
     private LzyWorkflowServiceBlockingStub workflowClient;
 
     @Before
     public void setUp() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
         var storagePort = FreePortFinder.find(10000, 11000);
         var workflowPort = FreePortFinder.find(storagePort + 1, 11000);
+        var allocatorPort = FreePortFinder.find(workflowPort + 1, 11000);
 
         var props = DatabaseTestUtils.preparePostgresConfig("kharon", db.getConnectionInfo());
         props.put("kharon.address", "localhost:" + workflowPort);
-        props.put("kharon.allocatorAddress", "localhost:" + workflowPort);
-        props.put("kharon.operationServiceAddress", "localhost:" + workflowPort);
+        props.put("kharon.allocator-address", "localhost:" + allocatorPort);
+        props.put("kharon.operation-service-address", "localhost:" + allocatorPort);
         props.put("kharon.storage.address", "localhost:" + storagePort);
 
-        ctx = ApplicationContext.run(PropertySource.of(props));
+        ctx = ApplicationContext.run(PropertySource.of(props), "test");
         var iam = ctx.getBean(KharonConfig.class).getIam();
 
         var internalUser = iam.createCredentials();
@@ -66,19 +75,27 @@ public class WorkflowServiceTest {
             throw new AuthUnauthenticatedException("heck");
         });
 
+        storageMock = new MockS3Storage();
         storageServer = NettyServerBuilder.forPort(storagePort)
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .addService(ServerInterceptors.intercept(new MockS3Storage(), authInterceptor))
+            .addService(ServerInterceptors.intercept(storageMock, authInterceptor))
             .build();
         storageServer.start();
+
+        allocatorServer = NettyServerBuilder.forPort(allocatorPort)
+            .permitKeepAliveWithoutCalls(true)
+            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
+            .addService(ServerInterceptors.intercept(new AllocatorMock(), authInterceptor))
+            .addService(ServerInterceptors.intercept(new OperationServiceMock(), authInterceptor))
+            .build();
+        allocatorServer.start();
 
         workflowServer = NettyServerBuilder.forPort(workflowPort)
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(ServerInterceptors.intercept(ctx.getBean(WorkflowService.class), authInterceptor))
             .addService(ServerInterceptors.intercept(new AllocatorMock(), authInterceptor))
-            .addService(ServerInterceptors.intercept(new OperationServiceMock(), authInterceptor))
             .build();
         workflowServer.start();
 
@@ -93,6 +110,7 @@ public class WorkflowServiceTest {
     @After
     public void tearDown() {
         storageServer.shutdown();
+        allocatorServer.shutdown();
         workflowServer.shutdown();
         ctx.stop();
     }
@@ -109,6 +127,37 @@ public class WorkflowServiceTest {
                 e.printStackTrace(System.err);
                 Assert.fail(e.getMessage());
             }
+        }
+    }
+
+    @Test
+    public void tempBucketCreationFailed() {
+        storageServer.shutdown();
+        try {
+            workflowClient.createWorkflow(CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build());
+            Assert.fail();
+        } catch (StatusRuntimeException e) {
+            if (!Status.INTERNAL.getCode().equals(e.getStatus().getCode())) {
+                e.printStackTrace(System.err);
+                Assert.fail(e.getMessage());
+            }
+        }
+    }
+
+    @Test
+    public void tempBucketDeletedIfCreateExecutionFailed() {
+        workflowClient.createWorkflow(CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build());
+
+        try {
+            workflowClient.createWorkflow(CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build());
+            Assert.fail();
+        } catch (StatusRuntimeException e) {
+            if (!Status.ALREADY_EXISTS.getCode().equals(e.getStatus().getCode())) {
+                e.printStackTrace(System.err);
+                Assert.fail(e.getMessage());
+            }
+            TimeUtils.waitFlagUp(() -> storageMock.getBuckets().size() == 1, 300, TimeUnit.SECONDS);
+            Assert.assertEquals(1, storageMock.getBuckets().size());
         }
     }
 

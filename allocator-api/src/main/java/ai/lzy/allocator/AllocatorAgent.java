@@ -16,6 +16,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
 
+@SuppressWarnings("ResultOfMethodCallIgnored")
 public class AllocatorAgent extends TimerTask {
     private static final Logger LOG = LogManager.getLogger(AllocatorAgent.class);
 
@@ -30,7 +31,8 @@ public class AllocatorAgent extends TimerTask {
     private final ManagedChannel channel;
 
     public AllocatorAgent(String iamToken, @Nullable String vmId, @Nullable String allocatorAddress,
-                          @Nullable Duration heartbeatPeriod, String vmIpAddress) throws RegisterException {
+                          @Nullable Duration heartbeatPeriod, String vmIpAddress) throws RegisterException
+    {
         this.vmId = vmId == null ? System.getenv(VM_ID_KEY) : vmId;
         final var allocAddress = allocatorAddress == null
             ? System.getenv(VM_ALLOCATOR_ADDRESS) : allocatorAddress;
@@ -46,7 +48,9 @@ public class AllocatorAgent extends TimerTask {
 
         try {
             stub.register(VmAllocatorPrivateApi.RegisterRequest.newBuilder()
-                .setVmId(vmId).putMetadata(VM_IP_ADDRESS, vmIpAddress).build());
+                .setVmId(vmId)
+                .putMetadata(VM_IP_ADDRESS, vmIpAddress)
+                .build());
         } catch (StatusRuntimeException e) {
             LOG.error("Cannot register allocator", e);
             throw new RegisterException(e);

@@ -12,14 +12,10 @@ import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.*;
-import ai.lzy.v1.VmAllocatorApi.AllocateMetadata;
-import ai.lzy.v1.VmAllocatorApi.AllocateRequest;
-import ai.lzy.v1.VmAllocatorApi.CreateSessionRequest;
-import ai.lzy.v1.VmAllocatorApi.CreateSessionResponse;
+import ai.lzy.v1.VmAllocatorApi.*;
 import ai.lzy.v1.workflow.LWS.*;
 import ai.lzy.v1.workflow.LWSD.SnapshotStorage;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
-import com.github.rholder.retry.RetryException;
 import com.google.common.net.HostAndPort;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.Durations;
@@ -29,40 +25,37 @@ import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.core.util.functional.ThrowingFunction;
+import jakarta.annotation.Nullable;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.annotation.Nullable;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.sql.*;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.LockSupport;
 import java.util.function.BiConsumer;
 
 import static ai.lzy.kharon.KharonConfig.PortalConfig;
+import static ai.lzy.model.db.DbHelper.*;
 
 @SuppressWarnings("UnstableApiUsage")
 @Singleton
 public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBase {
     private static final Logger LOG = LogManager.getLogger(WorkflowService.class);
 
-    private static final Duration START_TIME_THRESHOLD = Duration.ofSeconds(30);
-
     private final PortalConfig portalConfig;
     private final String channelManagerAddress;
-    private final JwtCredentials credentials;
+    private final JwtCredentials internalUserCredentials;
+
+    private final Duration waitAllocateTimeoutMS;
 
     private final KharonDataSource db;
 
@@ -78,10 +71,11 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
     @Inject
     public WorkflowService(KharonConfig config, KharonDataSource db) {
         portalConfig = config.getPortal();
+        waitAllocateTimeoutMS = Duration.ofMillis(config.getWorkflow().getWaitAllocateTimeoutMS());
         channelManagerAddress = config.getChannelManagerAddress();
         this.db = db;
 
-        credentials = config.getIam().createCredentials();
+        internalUserCredentials = config.getIam().createCredentials();
         LOG.info("Init Internal User '{}' credentials", config.getIam().getInternalUserName());
 
         storageServiceChannel = ChannelBuilder.forAddress(HostAndPort.fromString(config.getStorage().getAddress()))
@@ -89,26 +83,28 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
             .enableRetry(LzyStorageServiceGrpc.SERVICE_NAME)
             .build();
         storageServiceClient = LzyStorageServiceGrpc.newBlockingStub(storageServiceChannel)
-            .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
+            .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION,
+                internalUserCredentials::token));
 
         allocatorServiceChannel = ChannelBuilder.forAddress(HostAndPort.fromString(config.getAllocatorAddress()))
             .usePlaintext()
             .enableRetry(AllocatorGrpc.SERVICE_NAME)
             .build();
         allocatorServiceClient = AllocatorGrpc.newBlockingStub(allocatorServiceChannel)
-            .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
+            .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION,
+                internalUserCredentials::token));
 
         operationServiceChannel = ChannelBuilder.forAddress(HostAndPort.fromString(config.getOperationServiceAddress()))
             .usePlaintext()
             .enableRetry(OperationServiceApiGrpc.SERVICE_NAME)
             .build();
         operationServiceApiBlockingStub = OperationServiceApiGrpc.newBlockingStub(operationServiceChannel)
-            .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
+            .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION,
+                internalUserCredentials::token));
     }
 
     @Override
     public void createWorkflow(CreateWorkflowRequest request, StreamObserver<CreateWorkflowResponse> response) {
-        var deadline = Instant.now().plus(START_TIME_THRESHOLD);
         var userId = AuthenticationContext.currentSubject().id();
         var workflowName = request.getWorkflowName();
         var executionId = workflowName + "_" + UUID.randomUUID();
@@ -120,13 +116,15 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
         if (internalSnapshotStorage) {
             storageType = "internal";
             try {
-                storageData = executeWithRetry(deadline, () -> createTempStorageBucket(userId, executionId));
-            } catch (ExecutionException | RetryException e) {
-                response.onError(Status.INTERNAL.withDescription(e.getMessage()).asRuntimeException());
+                storageData = createTempStorageBucket(userId, executionId);
+            } catch (StatusRuntimeException e) {
+                response.onError(Status.INTERNAL.withDescription("Cannot create internal storage: " + e.getMessage())
+                    .asRuntimeException());
                 return;
             }
             if (storageData == null) {
-                response.onError(Status.INTERNAL.withDescription("Cannot create temp bucket").asRuntimeException());
+                response.onError(Status.INTERNAL.withDescription("Cannot create internal storage")
+                    .asRuntimeException());
                 return;
             }
         } else {
@@ -146,8 +144,9 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
                 createExecution(connection, executionId, userId, workflowName, storageType, storageData, response)
             );
         } catch (DaoException e) {
-            LOG.error("Cannot create execution: " + e.getMessage(), e);
-            response.onError(Status.INTERNAL.withDescription(e.getMessage()).asRuntimeException());
+            var desc = "Cannot create execution: " + e.getMessage();
+            LOG.error(desc, e);
+            response.onError(Status.INTERNAL.withDescription(desc).asRuntimeException());
             return;
         }
 
@@ -158,99 +157,141 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
             return;
         }
 
-        try {
-            startPortal(deadline, executionId, userId);
-        } catch (ExecutionException e) {
-            LOG.error(e.getMessage(), e);
-            response.onError(Status.INTERNAL.withDescription(e.getMessage()).asRuntimeException());
-            return;
-        } catch (RetryException e) {
-            if (e.getLastFailedAttempt().hasException()) {
-                var cause = e.getLastFailedAttempt().getExceptionCause();
-                LOG.error(e.getMessage(), cause);
-                response.onError(Status.INTERNAL.withDescription(cause.getMessage()).asRuntimeException());
+        if (startPortal(executionId, userId, response)) {
+            var result = CreateWorkflowResponse.newBuilder().setExecutionId(executionId);
+            if (internalSnapshotStorage) {
+                result.setInternalSnapshotStorage(storageData);
             }
-            LOG.error(e.getMessage(), e);
-            response.onError(Status.INTERNAL.withDescription(e.getMessage()).asRuntimeException());
-
-            return;
+            response.onNext(result.build());
+            response.onCompleted();
         }
-
-        var result = CreateWorkflowResponse.newBuilder().setExecutionId(executionId);
-        if (internalSnapshotStorage) {
-            result.setInternalSnapshotStorage(storageData);
-        }
-        response.onNext(result.build());
-        response.onCompleted();
     }
 
-    private void startPortal(Instant deadline, String executionId, String userId)
-        throws ExecutionException, RetryException {
+    private boolean startPortal(String executionId, String userId, StreamObserver<CreateWorkflowResponse> response) {
+        boolean updated;
 
-        executeWithRetry(deadline, () -> updateDatabase(connection -> {
-            var st = connection.prepareStatement("""
-                UPDATE workflow_executions
-                SET portal = cast(? as portal_status)
-                WHERE execution_id = ?""");
-            st.setString(1, "creating_session");
-            st.setString(2, executionId);
-            return st;
-        }));
+        updated = withRetries(
+            defaultRetryPolicy(),
+            LOG,
+            () -> updateDatabase(connection -> {
+                var st = connection.prepareStatement("""
+                    UPDATE workflow_executions
+                    SET portal = cast(? as portal_status)
+                    WHERE execution_id = ?""");
+                st.setString(1, PortalStatus.CREATING_SESSION.name());
+                st.setString(2, executionId);
+                return st;
+            }),
+            ok -> {
+            },
+            error -> LOG.error("Cannot set initial portal status in database", error)
+        );
 
-        var sessionId = executeWithRetry(deadline, () -> createSession(userId));
+        if (!updated) {
+            response.onError(Status.INTERNAL.withDescription("Cannot save portal execution data").asRuntimeException());
+            return false;
+        }
 
-        executeWithRetry(deadline, () -> updateDatabase(connection -> {
-            var st = connection.prepareStatement("""
-                UPDATE workflow_executions
-                SET portal = cast(? as portal_status), session_id = ?
-                WHERE execution_id = ?""");
-            st.setString(1, "request_vm");
-            st.setString(2, sessionId);
-            st.setString(3, executionId);
-            return st;
-        }));
+        var sessionId = createSession(userId);
 
-        var operation = executeWithRetry(deadline, () -> startAllocation(sessionId));
-        var operationId = operation.getId();
+        updated = withRetries(
+            defaultRetryPolicy(),
+            LOG,
+            () -> updateDatabase(connection -> {
+                var st = connection.prepareStatement("""
+                    UPDATE workflow_executions
+                    SET portal = cast(? as portal_status), allocator_session_id = ?
+                    WHERE execution_id = ?""");
+                st.setString(1, PortalStatus.REQUEST_VM.name());
+                st.setString(2, sessionId);
+                st.setString(3, executionId);
+                return st;
+            }),
+            ok -> {
+            },
+            error -> LOG.error("Cannot save session id in database", error)
+        );
+
+        if (!updated) {
+            response.onError(Status.INTERNAL.withDescription("Cannot save portal execution data").asRuntimeException());
+            return false;
+        }
+
+        var startAllocationTime = Instant.now();
+        var operation = startAllocation(sessionId, executionId);
+        var opId = operation.getId();
 
         AllocateMetadata allocateMetadata;
         try {
             allocateMetadata = operation.getMetadata().unpack(AllocateMetadata.class);
         } catch (InvalidProtocolBufferException e) {
-            throw new ExecutionException("Invalid allocate operation metadata: VM ID missed. Op ID: " + operationId, e);
+            response.onError(Status.INTERNAL
+                .withDescription("Invalid allocate operation metadata: VM id missed. Operation id: " + opId)
+                .asRuntimeException());
+            return false;
         }
         var vmId = allocateMetadata.getVmId();
 
-        executeWithRetry(deadline, () -> updateDatabase(connection -> {
-            var st = connection.prepareStatement("""
-                UPDATE workflow_executions
-                SET portal = cast(? as portal_status), allocate_op_id = ?, portal_vm_id = ?
-                WHERE execution_id = ?""");
-            st.setString(1, "allocating_vm");
-            st.setString(2, operationId);
-            st.setString(3, vmId);
-            st.setString(4, executionId);
-            return st;
-        }));
+        updated = withRetries(
+            defaultRetryPolicy(),
+            LOG,
+            () -> updateDatabase(connection -> {
+                var st = connection.prepareStatement("""
+                    UPDATE workflow_executions
+                    SET portal = cast(? as portal_status), allocate_op_id = ?, portal_vm_id = ?
+                    WHERE execution_id = ?""");
+                st.setString(1, PortalStatus.ALLOCATING_VM.name());
+                st.setString(2, opId);
+                st.setString(3, vmId);
+                st.setString(4, executionId);
+                return st;
+            }),
+            ok -> {
+            },
+            error -> LOG.error("Cannot save allocation operation id and vm id in database", error)
+        );
 
-        VmAllocatorApi.AllocateResponse allocateResponse = executeWithRetry(deadline, () ->
-            waitAllocationUntil(deadline, operationId));
+        if (!updated) {
+            response.onError(Status.INTERNAL.withDescription("Cannot save portal execution data").asRuntimeException());
+            return false;
+        }
 
-        executeWithRetry(deadline, () -> updateDatabase(connection -> {
-            var st = connection.prepareStatement("""
-                UPDATE workflow_executions
-                SET portal = cast(? as portal_status), portal_vm_address = ?
-                WHERE execution_id = ?""");
-            st.setString(1, "vm_ready");
-            st.setString(2, allocateResponse.getMetadataOrDefault(AllocatorAgent.VM_IP_ADDRESS, null));
-            st.setString(3, executionId);
-            return st;
-        }));
+        AllocateResponse allocateResponse = waitAllocation(startAllocationTime.plus(waitAllocateTimeoutMS), opId);
+        if (allocateResponse == null) {
+            LOG.error("Cannot wait allocate operation response. Operation id: " + opId);
+            response.onError(Status.DEADLINE_EXCEEDED.withDescription("Allocation timeout").asRuntimeException());
+            return false;
+        }
+
+        updated = withRetries(
+            defaultRetryPolicy(),
+            LOG,
+            () -> updateDatabase(connection -> {
+                var st = connection.prepareStatement("""
+                    UPDATE workflow_executions
+                    SET portal = cast(? as portal_status), portal_vm_address = ?
+                    WHERE execution_id = ?""");
+                st.setString(1, PortalStatus.VM_READY.name());
+                st.setString(2, allocateResponse.getMetadataOrDefault(AllocatorAgent.VM_IP_ADDRESS, null));
+                st.setString(3, executionId);
+                return st;
+            }),
+            ok -> {
+            },
+            error -> LOG.error("Cannot save portal vm address in database", error)
+        );
+
+        if (!updated) {
+            response.onError(Status.INTERNAL.withDescription("Cannot save portal execution data").asRuntimeException());
+        }
+
+        return updated;
     }
 
     private boolean createExecution(Connection conn, String executionId, String userId,
                                     String workflowName, String storageType, SnapshotStorage storageData,
-                                    StreamObserver<CreateWorkflowResponse> response) throws SQLException, IOException {
+                                    StreamObserver<CreateWorkflowResponse> response) throws SQLException, IOException
+    {
         var st = conn.prepareStatement("""
                 SELECT active_execution_id
                 FROM workflows
@@ -277,16 +318,15 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
 
         var st2 = conn.prepareStatement("""
             INSERT INTO workflow_executions
-            (execution_id, created_at, storage, storage_bucket, storage_credentials, portal)
-            VALUES (?, ?, cast(? as storage_type), ?, ?, cast(? as portal_status))""");
+            (execution_id, created_at, storage, storage_bucket, storage_credentials)
+            VALUES (?, ?, cast(? as storage_type), ?, ?)""");
         st2.setString(1, executionId);
         st2.setTimestamp(2, Timestamp.from(Instant.now()));
-        st2.setString(3, storageType);
+        st2.setString(3, storageType.toUpperCase(Locale.ROOT));
         st2.setString(4, storageData.getBucket());
         var out = new ByteArrayOutputStream(4096);
         storageData.writeTo(out);
         st2.setString(5, out.toString(StandardCharsets.UTF_8));
-        st2.setString(6, "not_started");
         st2.executeUpdate();
 
         if (update) {
@@ -310,7 +350,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
         return true;
     }
 
-    private String createSession(String userId) {
+    public String createSession(String userId) {
         CreateSessionResponse session = allocatorServiceClient.createSession(
             CreateSessionRequest.newBuilder()
                 .setOwner(userId)
@@ -319,14 +359,14 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
         return session.getSessionId();
     }
 
-    private OperationService.Operation startAllocation(String sessionId) {
-        var portalId = "portal_" + UUID.randomUUID();
+    public OperationService.Operation startAllocation(String sessionId, String executionId) {
+        var portalId = "portal_" + executionId + UUID.randomUUID();
 
         var envs = Map.of(
             "PORTAL_ID", portalId,
             "HOST", portalConfig.getHost(),
             "PORTAL_API_PORT", portalConfig.getPortalApiPort().toString(),
-            "TOKEN", credentials.token(),
+            "TOKEN", internalUserCredentials.token(),
             "STDOUT_CHANNEL_ID", portalConfig.getStdoutChannelId(),
             "STDERR_CHANNEL_ID", portalConfig.getStderrChannelId(),
             "FS_API_PORT", portalConfig.getFsApiPort().toString(),
@@ -350,19 +390,23 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
                 .build());
     }
 
-    private VmAllocatorApi.AllocateResponse waitAllocationUntil(Instant deadline, String operationId)
-        throws InvalidProtocolBufferException {
+    @Nullable
+    public AllocateResponse waitAllocation(Instant deadline, String operationId) {
         // TODO: ssokolvyak -- replace on streaming request
-        var request = OperationService.GetOperationRequest.newBuilder()
-            .setOperationId(operationId).build();
-        OperationService.Operation allocateOperation = operationServiceApiBlockingStub.get(request);
+        var request = OperationService.GetOperationRequest.newBuilder().setOperationId(operationId).build();
+        OperationService.Operation allocateOperation;
 
-        while (!allocateOperation.getDone() && Instant.now().isBefore(deadline)) {
-            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(100));
+        while (Instant.now().isBefore(deadline)) {
             allocateOperation = operationServiceApiBlockingStub.get(request);
+            if (allocateOperation.getDone()) {
+                try {
+                    return allocateOperation.getResponse().unpack(AllocateResponse.class);
+                } catch (InvalidProtocolBufferException e) {
+                    LOG.warn("Cannot deserialize allocate response from operation with id: " + operationId);
+                }
+            }
         }
-
-        return allocateOperation.getResponse().unpack(VmAllocatorApi.AllocateResponse.class);
+        return null;
     }
 
     @Override
@@ -492,39 +536,19 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
         operationServiceChannel.shutdown();
     }
 
-    private void executeWithRetry(Instant deadline, WorkflowUtils.ThrowingRunnable action)
-        throws ExecutionException, RetryException {
-
-        BiConsumer<Long, Throwable> exceptionListener = (attemptNum, exception) ->
-            LOG.warn("Error while {} attempt: {}", attemptNum, exception.getMessage());
-
-        WorkflowUtils.executeWithRetry(exceptionListener, List.of(DaoException.class), action, deadline);
-    }
-
-    private <T> T executeWithRetry(Instant deadline, Callable<T> action)
-        throws ExecutionException, RetryException {
-
-        BiConsumer<Long, Throwable> exceptionListener = (attemptNum, exception) ->
-            LOG.warn("Error while {} attempt: {}", attemptNum, exception.getMessage());
-
-        return WorkflowUtils.executeWithRetry(exceptionListener, List.of(IOException.class,
-            StatusRuntimeException.class), action, deadline);
-    }
-
-    private void updateDatabase(ThrowingFunction<Connection, PreparedStatement, SQLException> function)
-        throws DaoException {
+    public int updateDatabase(ThrowingFunction<Connection, PreparedStatement, SQLException> function)
+        throws SQLException
+    {
         try (var connection = db.connect()) {
             var rs = function.apply(connection).executeUpdate();
             if (rs < 1) {
-                throw new DaoException("Database UPDATE query changed no one row");
+                throw new SQLException("Database UPDATE query changed no one row");
             }
-        } catch (SQLException e) {
-            throw new DaoException(e);
+            return rs;
         }
     }
 
-    @Nullable
-    private SnapshotStorage createTempStorageBucket(String userId, String executionId) {
+    public SnapshotStorage createTempStorageBucket(String userId, String executionId) {
         var bucket = "tmp__user_" + userId + "__" + executionId;
         LOG.info("Creating new temp storage bucket '{}' for user '{}'", bucket, userId);
 
@@ -536,8 +560,8 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
 
         // there something else except AMAZON or AZURE may be returned here?
         return switch (response.getCredentialsCase()) {
-            case AMAZON -> SnapshotStorage.newBuilder().setAmazon(response.getAmazon()).build();
-            case AZURE -> SnapshotStorage.newBuilder().setAzure(response.getAzure()).build();
+            case AMAZON -> SnapshotStorage.newBuilder().setAmazon(response.getAmazon()).setBucket(bucket).build();
+            case AZURE -> SnapshotStorage.newBuilder().setAzure(response.getAzure()).setBucket(bucket).build();
             default -> {
                 LOG.error("Unsupported bucket storage type {}", response.getCredentialsCase());
                 safeDeleteTempStorageBucket(bucket);
@@ -562,5 +586,9 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
         } catch (StatusRuntimeException e) {
             LOG.error("Can't delete temp bucket '{}': ({}) {}", bucket, e.getStatus(), e.getMessage(), e);
         }
+    }
+
+    public enum PortalStatus {
+        CREATING_SESSION, REQUEST_VM, ALLOCATING_VM, VM_READY
     }
 }

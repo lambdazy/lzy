@@ -62,7 +62,7 @@ public class Portal {
             .build();
 
         this.snapshots = new SnapshotSlotsProvider();
-        this.portalTaskId = "portal:" + UUID.randomUUID() + "@" + config.getPortalId();
+        this.portalTaskId = "portal:" + config.getPortalId();
     }
 
     public void start() {

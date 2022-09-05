@@ -28,12 +28,3 @@ kharon:
     address: 'localhost:8443'
     internal-user-name: "lzy-internal-user"
     internal-user-private-key: ""
-
-  portal:
-    host: 'localhost'
-    portal-api-port: '${random.port}'
-    fs-api-port: '${random.port}'
-    fs-root: 'lzy-fs'
-    portal-image: 'portal-image'
-    stdout-channel-id: 'portal:stdout'
-    stderr-channel-id: 'portal:stderr'

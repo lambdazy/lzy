@@ -5,7 +5,6 @@ import ai.lzy.model.db.DatabaseConfiguration;
 import ai.lzy.storage.config.StorageClientConfiguration;
 import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
-import io.micronaut.http.annotation.Get;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -45,6 +44,7 @@ public class KharonConfig {
     @ConfigurationProperties("workflow")
     public static class WorkflowConfig {
         private boolean enabled;
+        private long waitAllocateTimeoutMS;
     }
 
     private PortalConfig portal;

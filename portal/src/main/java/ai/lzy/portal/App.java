@@ -45,7 +45,7 @@ public class App {
         var context = ApplicationContext.run();
         var config = context.getBean(PortalConfig.class);
 
-        if (Objects.isNull(config.getHost())) {
+        if (config.getHost() == null) {
             config.setHost(System.getenv(AllocatorAgent.VM_IP_ADDRESS));
         }
 

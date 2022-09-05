@@ -9,12 +9,15 @@ import ai.lzy.v1.workflow.LWSD;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class MockS3Storage extends LzyStorageServiceGrpc.LzyStorageServiceImplBase {
     private final Map<String, LWSD.AmazonCredentials> buckets = new ConcurrentHashMap<>();
+
+    public Map<String, LWSD.AmazonCredentials> getBuckets() {
+        return buckets;
+    }
 
     @Override
     public void createS3Bucket(CreateS3BucketRequest request, StreamObserver<CreateS3BucketResponse> response) {
