@@ -2,7 +2,7 @@ package ai.lzy.iam.resources;
 
 import ai.lzy.iam.resources.subjects.Subject;
 
-public record AccessBinding(String role,
+public record AccessBinding(Role role,
                             Subject subject) {
 
     @Override
@@ -14,6 +14,6 @@ public record AccessBinding(String role,
             return false;
         }
         final AccessBinding that = (AccessBinding) o;
-        return this.role().equals(that.role()) && this.subject().id().equals(that.subject().id());
+        return this.role() == that.role() && this.subject().id().equals(that.subject().id());
     }
 }

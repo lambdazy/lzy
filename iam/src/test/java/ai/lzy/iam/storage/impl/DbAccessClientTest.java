@@ -69,7 +69,7 @@ public class DbAccessClientTest {
 
         AuthResource whiteboardResource = new Whiteboard("whiteboard");
         accessBindingClient.setAccessBindings(whiteboardResource, List.of(
-                new AccessBinding(Role.LZY_WHITEBOARD_OWNER.role(), user)
+                new AccessBinding(Role.LZY_WHITEBOARD_OWNER, user)
         ));
         assertTrue(accessClient.hasResourcePermission(
                 user,
@@ -94,7 +94,7 @@ public class DbAccessClientTest {
 
         AuthResource workflowResource = new Workflow("workflow");
         List<AccessBinding> workflowAccessBinding = List.of(
-                new AccessBinding(Role.LZY_WORKFLOW_OWNER.role(), user)
+                new AccessBinding(Role.LZY_WORKFLOW_OWNER, user)
         );
         accessBindingClient.setAccessBindings(workflowResource, workflowAccessBinding);
         assertTrue(accessClient.hasResourcePermission(
@@ -140,7 +140,7 @@ public class DbAccessClientTest {
 
         AuthResource whiteboardResource = new Whiteboard("whiteboard");
         accessBindingClient.setAccessBindings(whiteboardResource, List.of(
-                new AccessBinding(Role.LZY_WHITEBOARD_OWNER.role(), user)
+                new AccessBinding(Role.LZY_WHITEBOARD_OWNER, user)
         ));
         assertTrue(accessClient.hasResourcePermission(
                 user,
@@ -151,7 +151,7 @@ public class DbAccessClientTest {
         accessBindingClient.updateAccessBindings(whiteboardResource, List.of(
                 new AccessBindingDelta(
                         AccessBindingDelta.AccessBindingAction.REMOVE,
-                        new AccessBinding(Role.LZY_WHITEBOARD_OWNER.role(), user))
+                        new AccessBinding(Role.LZY_WHITEBOARD_OWNER, user))
         ));
         try {
             accessClient.hasResourcePermission(user, whiteboardResource.resourceId(), AuthPermission.WHITEBOARD_GET);
@@ -162,7 +162,7 @@ public class DbAccessClientTest {
 
         AuthResource workflowResource = new Workflow("workflow");
         accessBindingClient.setAccessBindings(workflowResource, List.of(
-                new AccessBinding(Role.LZY_WORKFLOW_OWNER.role(), user)
+                new AccessBinding(Role.LZY_WORKFLOW_OWNER, user)
         ));
         assertTrue(accessClient.hasResourcePermission(
                 user,
@@ -173,7 +173,7 @@ public class DbAccessClientTest {
         accessBindingClient.updateAccessBindings(workflowResource, List.of(
                         new AccessBindingDelta(
                                 AccessBindingDelta.AccessBindingAction.REMOVE,
-                                new AccessBinding(Role.LZY_WORKFLOW_OWNER.role(), user))
+                                new AccessBinding(Role.LZY_WORKFLOW_OWNER, user))
                 )
         );
         try {
