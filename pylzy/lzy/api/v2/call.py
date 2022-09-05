@@ -1,7 +1,7 @@
 import typing
 import uuid
 from itertools import chain
-from typing import Any, Dict, Generic, Iterator, Tuple, TypeVar
+from typing import Any, Dict, Generic, Iterator, Mapping, Sequence, Tuple, TypeVar
 
 from lzy.api.v2.provisioning import Provisioning
 from lzy.api.v2.proxy_adapter import is_lzy_proxy
@@ -20,84 +20,84 @@ class LzyCall:
         provisioning: Provisioning,
         env: EnvSpec,
     ):
-        self._id = str(uuid.uuid4())
-        self._wflow = parent_wflow
-        self._sign = sign
-        self._provisioning = provisioning
-        self._env = env
-        self._entry_ids = [
+        self.__id = str(uuid.uuid4())
+        self.__wflow = parent_wflow
+        self.__sign = sign
+        self.__provisioning = provisioning
+        self.__env = env
+        self.__entry_ids = [
             parent_wflow.owner.snapshot.create_entry(typ).id
             for typ in sign.func.output_types
         ]
 
-        self._args_entry_ids: typing.List[str] = []
+        self.__args_entry_ids: typing.List[str] = []
 
-        for arg in self._sign.args:
+        for arg in self.__sign.args:
             if is_lzy_proxy(arg):
-                self._args_entry_ids.append(arg.__lzy_entry_id__)
+                self.__args_entry_ids.append(arg.__lzy_entry_id__)
             else:
-                self._args_entry_ids.append(
+                self.__args_entry_ids.append(
                     parent_wflow.owner.snapshot.create_entry(type(arg)).id
                 )
 
-        self._kwargs_entry_ids: Dict[str, str] = {}
+        self.__kwargs_entry_ids: Dict[str, str] = {}
 
-        for name, kwarg in self._sign.kwargs.items():
+        for name, kwarg in self.__sign.kwargs.items():
             entry_id: str
             if is_lzy_proxy(kwarg):
                 entry_id = kwarg.__lzy_entry_id__
             else:
                 entry_id = parent_wflow.owner.snapshot.create_entry(type(kwarg)).id
 
-            self._kwargs_entry_ids[name] = entry_id
+            self.__kwargs_entry_ids[name] = entry_id
 
     @property
     def provisioning(self) -> Provisioning:
-        return self._provisioning
+        return self.__provisioning
 
     @property
     def env(self) -> EnvSpec:
-        return self._env
+        return self.__env
 
     @property
     def parent_wflow(self) -> LzyWorkflow:
-        return self._wflow
+        return self.__wflow
 
     @property
     def signature(self) -> CallSignature:
-        return self._sign
+        return self.__sign
 
     @property
     def id(self) -> str:
-        return self._id
+        return self.__id
 
     @property
     def operation_name(self) -> str:
-        return self._sign.func.name
+        return self.__sign.func.name
 
     @property
-    def entry_ids(self) -> typing.Sequence[str]:
-        return self._entry_ids
+    def entry_ids(self) -> Sequence[str]:
+        return self.__entry_ids
 
     @property
     def args(self) -> Tuple[Any, ...]:
-        return self._sign.args
+        return self.__sign.args
 
     @property
-    def arg_entry_ids(self) -> typing.Sequence[str]:
-        return self._args_entry_ids
+    def arg_entry_ids(self) -> Sequence[str]:
+        return self.__args_entry_ids
 
     @property
-    def kwarg_entry_ids(self) -> typing.Mapping[str, str]:
+    def kwarg_entry_ids(self) -> Mapping[str, str]:
         return self.kwarg_entry_ids
 
     @property
     def kwargs(self) -> Dict[str, Any]:
-        return self._sign.kwargs
+        return self.__sign.kwargs
 
     def named_arguments(self) -> Iterator[Tuple[str, Any]]:
-        return self._sign.named_arguments()
+        return self.__sign.named_arguments()
 
     @property
     def description(self) -> str:
-        return self._sign.description  # TODO(artolord) Add arguments description here
+        return self.__sign.description  # TODO(artolord) Add arguments description here
