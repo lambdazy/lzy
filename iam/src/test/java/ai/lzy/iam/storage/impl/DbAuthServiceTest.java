@@ -142,8 +142,7 @@ public class DbAuthServiceTest {
     }
 
     public void validAuth(SubjectType subjectType) throws Exception {
-        String userId = "user1";
-        subjectService.createSubject(userId, "", "", subjectType);
+        var userId = subjectService.createSubject("", "", subjectType).id();
         final Subject user = subjectService.subject(userId);
         subjectService.addCredentials(user, "testCred", PUBLIC_PEM2, "public_key");
 
@@ -161,8 +160,7 @@ public class DbAuthServiceTest {
     }
 
     public void invalidAuth(SubjectType subjectType) throws Exception {
-        String userId = "user1";
-        subjectService.createSubject(userId, "", "", subjectType);
+        var userId = subjectService.createSubject("", "", subjectType).id();
         final Subject user = subjectService.subject(userId);
         subjectService.addCredentials(user, "testCred", PUBLIC_PEM2, "public_key");
 

@@ -7,7 +7,7 @@ import org.postgresql.util.PSQLState;
 import java.sql.SQLException;
 import java.util.function.Consumer;
 
-@SuppressWarnings("BusyWait")
+@SuppressWarnings({"BusyWait"})
 public enum DbHelper {
     ;
 
@@ -15,48 +15,27 @@ public enum DbHelper {
         T run() throws SQLException;
     }
 
-    public interface Op {
-        void run() throws SQLException;
-    }
-
-    public static <T> T withRetries(RetryPolicy retryPolicy, Logger logger, Func<T> fn)
-        throws RetryCountExceededException, SQLException, InterruptedException
-    {
-        final Object[] resultRef = {null};
-        boolean success = withRetries(
-            retryPolicy,
-            logger,
-            fn,
-            rv -> resultRef[0] = rv,
-            ex -> resultRef[0] = ex
-        );
-
-        if (success) {
-            return (T) resultRef[0];
-        }
-
-        if (resultRef[0] instanceof RetryCountExceededException e) {
-            throw e;
-        }
-
-        if (resultRef[0] instanceof SQLException e) {
-            throw e;
-        }
-
-        if (resultRef[0] instanceof InterruptedException e) {
-            throw e;
-        }
-
-        if (resultRef[0] instanceof Exception e) {
-            throw DbHelper.<RuntimeException>cast(e);
-        }
-
-        throw new RuntimeException("Unexpected result ref: " + resultRef[0]);
+    public interface ErrorAdapter<E extends Exception> {
+        E fail(Exception e);
     }
 
     public static <T> boolean withRetries(RetryPolicy retryPolicy, Logger logger, Func<T> fn,
                                           Consumer<T> onSuccess, Consumer<Exception> onError)
     {
+        /* it looks weird...
+        final class Done extends Exception {}
+
+        try {
+            var result = withRetries(retryPolicy, logger, fn, ex -> {
+                onError.accept(ex);
+                return new Done();
+            });
+            onSuccess.accept(result);
+        } catch (Done e) {
+            // ignored
+        }
+        */
+
         int delay = 0;
         for (int attempt = 1; ; ++attempt) {
             if (delay > 0) {
@@ -93,6 +72,45 @@ public enum DbHelper {
                 onError.accept(e);
             }
             return false;
+        }
+    }
+
+    public static <T, E extends Exception> T withRetries(RetryPolicy retryPolicy, Logger logger, Func<T> fn,
+                                                         ErrorAdapter<E> error) throws E
+    {
+        int delay = 0;
+        for (int attempt = 1; ; ++attempt) {
+            if (delay > 0) {
+                try {
+                    Thread.sleep(delay);
+                } catch (InterruptedException e) {
+                    throw error.fail(e);
+                }
+            }
+
+            try {
+                return fn.run();
+            } catch (PSQLException e) {
+                if (canRetry(e)) {
+                    delay = retryPolicy.getNextDelayMs();
+                    if (delay >= 0) {
+                        logger.error("Got retryable database error #{}: [{}] {}. Retry after {}ms.",
+                            attempt, e.getSQLState(), e.getMessage(), delay);
+                        //noinspection UnnecessaryContinue
+                        continue;
+                    } else {
+                        logger.error("Got retryable database error: [{}] {}. Retries limit {} exceeded.",
+                            e.getSQLState(), e.getMessage(), attempt);
+                        throw error.fail(new RetryCountExceededException(attempt));
+                    }
+                } else {
+                    logger.error("Got non-retryable database error: [{}] {}.", e.getSQLState(), e.getMessage());
+                    throw error.fail(e);
+                }
+            } catch (Exception e) {
+                logger.error("Got non-retryable error: {}.", e.getMessage(), e);
+                throw error.fail(e);
+            }
         }
     }
 
@@ -155,9 +173,5 @@ public enum DbHelper {
         }
 
         return PSQLState.isConnectionError(e.getSQLState());
-    }
-
-    private static <T extends Throwable> T cast(Exception e) {
-        return (T) e;
     }
 }

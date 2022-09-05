@@ -63,8 +63,7 @@ public class DbAccessClientTest {
     }
 
     public void validAccess(SubjectType subjectType) {
-        String userId = "user1";
-        subjectService.createSubject(userId, "", "", subjectType);
+        var userId = subjectService.createSubject("", "", subjectType).id();
         final Subject user = subjectService.subject(userId);
 
         AuthResource whiteboardResource = new Whiteboard("whiteboard");
@@ -134,8 +133,7 @@ public class DbAccessClientTest {
     }
 
     public void invalidAccess(SubjectType subjectType) {
-        String userId = "user1";
-        subjectService.createSubject(userId, "", "", subjectType);
+        var userId = subjectService.createSubject("", "", subjectType).id();
         final Subject user = subjectService.subject(userId);
 
         AuthResource whiteboardResource = new Whiteboard("whiteboard");
