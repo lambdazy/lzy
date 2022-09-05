@@ -27,6 +27,16 @@ jobs:
               "password": "${{ secrets.REPSY_PASSWORD }}"
             }]
 
+      - name: "Publish parent"
+        timeout-minutes: 10
+        run: |
+          cd parent/ && mvn clean deploy --also-make-dependents && cd ..
+
+      - name: "Publish util-grpc"
+        timeout-minutes: 10
+        run: |
+          cd util/util-grpc/ && mvn clean deploy --also-make-dependents && cd ../..
+
       - name: "Publish allocator api"
         timeout-minutes: 10
         run: |

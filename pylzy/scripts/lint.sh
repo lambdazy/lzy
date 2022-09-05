@@ -6,6 +6,8 @@ set -u
 src_dir="$(dirname $0)"
 source "$src_dir/util.sh"
 
+pip install -r lint_requirements.txt
+
 start
 
 run $_f \
@@ -15,11 +17,8 @@ run $_f \
     isort lzy/ tests/ examples/ setup.py
 
 run $_t \
-    mypy --install-types --non-interactive --check-untyped-defs \
+    mypy --install-types --non-interactive \
       --show-error-codes --pretty  \
-      -p ai.lzy.v1 -p lzy
-      # --strict \
-
-# run $_t pyright --stats --lib
+      -p lzy
 
 finish

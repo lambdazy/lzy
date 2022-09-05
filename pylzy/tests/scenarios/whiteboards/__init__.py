@@ -245,3 +245,12 @@ wb = env.whiteboard_by_id(wb_id)
 print(
     f"Value a in DefaultWhiteboard is {wb.a}, b length is {len(wb.b)}, c is {wb.c}, d is {wb.d}"
 )
+
+wb = WhiteboardWithOneLzyMessageField()
+with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
+    wb.a = MessageClass("local_data", int32(2), [int32(1), int32(1)], int32(0), Test1(int32(5)), TestEnum.FOO)
+    wb_id = wb.__id__
+
+env = LzyRemoteEnv()
+wb = env.whiteboard(wb_id, WhiteboardWithOneLzyMessageField)
+print(f"Value a.string_field in WhiteboardWithOneLzyMessageField is {wb.a.string_field}")

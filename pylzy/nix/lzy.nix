@@ -10,6 +10,8 @@
   protobuf,
   requests,
   stdlib-list,
+  grpcio,
+  pycryptodome
 }:
 buildPythonPackage rec {
     name = "lzy";
@@ -27,6 +29,8 @@ buildPythonPackage rec {
       protobuf
       requests
       stdlib-list
+      grpcio
+      pycryptodome
     ];
     doCheck = false;
 }

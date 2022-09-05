@@ -9,6 +9,7 @@ import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
+import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.api.model.ExposedPort;
 import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.PortBinding;
@@ -24,6 +25,7 @@ import org.apache.logging.log4j.Logger;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Singleton
 @Requires(property = "allocator.docker-allocator.enabled", value = "true")
@@ -61,11 +63,11 @@ public class DockerVmAllocator implements VmAllocator {
 
         final var exposedPorts = workload.portBindings().values().stream()
             .map(ExposedPort::tcp)
-            .toList();
+            .collect(Collectors.toList());
 
         final var envs = workload.env().entrySet().stream()
             .map(e -> e.getKey() + "=" + e.getValue())
-            .toList();
+            .collect(Collectors.toList());
 
         envs.addAll(List.of(
             AllocatorAgent.VM_ALLOCATOR_ADDRESS + "=" + config.getAddress(),
@@ -87,7 +89,7 @@ public class DockerVmAllocator implements VmAllocator {
     }
 
     @Override
-    public void allocate(Vm vm) throws InvalidConfigurationException {
+    public void allocate(Vm.Spec vm) throws InvalidConfigurationException {
         if (vm.workloads().size() > 1) {
             throw new InvalidConfigurationException("Docker allocator supports only one workload");
         }
@@ -101,10 +103,10 @@ public class DockerVmAllocator implements VmAllocator {
     }
 
     @Override
-    public void deallocate(Vm vm) {
+    public void deallocate(String vmId) {
         Map<String, String> meta;
         try {
-            meta = dao.getAllocatorMeta(vm.vmId(), null);
+            meta = dao.getAllocatorMeta(vmId, null);
         } catch (SQLException e) {
             throw new RuntimeException("Database error: " + e.getMessage(), e);
         }
@@ -116,7 +118,11 @@ public class DockerVmAllocator implements VmAllocator {
         if (containerId == null) {
             throw new RuntimeException("Container is not set in metadata");
         }
-        DOCKER.killContainerCmd(containerId).exec();
-        DOCKER.removeContainerCmd(containerId).exec();
+        try {
+            DOCKER.killContainerCmd(containerId).exec();
+            DOCKER.removeContainerCmd(containerId).exec();
+        } catch (NotFoundException e) {
+            LOG.info("Container {} for vm {} destroyed before", containerId, vmId, e);
+        }
     }
 }

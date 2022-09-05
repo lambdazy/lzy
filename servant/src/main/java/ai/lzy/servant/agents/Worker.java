@@ -240,30 +240,29 @@ public class Worker {
                 final var exec = new LzyExecution(tid, task.operation().command(), "",
                     lzyFs.getMountPoint().toString());
 
+                exec.start(env.get());
+                schedulerAgent.reportExecuting();
 
                 final var stdoutSpec = task.operation().stdout();
                 final var stderrSpec = task.operation().stderr();
 
                 if (stdoutSpec != null) {
                     final var slot = (LineReaderSlot) lzyFs.getSlotsManager().getOrCreateSlot(tid,
-                        new TextLinesOutSlot(stdoutSpec.slotName()), stdoutSpec.channelId());
+                            new TextLinesOutSlot(stdoutSpec.slotName()), stdoutSpec.channelId());
                     slot.setStream(new LineNumberReader(new InputStreamReader(
-                        exec.process().out(),
-                        StandardCharsets.UTF_8
+                            exec.process().out(),
+                            StandardCharsets.UTF_8
                     )));
                 }
 
                 if (stderrSpec != null) {
                     final var slot = (LineReaderSlot) lzyFs.getSlotsManager().getOrCreateSlot(tid,
-                        new TextLinesOutSlot(stderrSpec.slotName()), stderrSpec.channelId());
+                            new TextLinesOutSlot(stderrSpec.slotName()), stderrSpec.channelId());
                     slot.setStream(new LineNumberReader(new InputStreamReader(
-                        exec.process().err(),
-                        StandardCharsets.UTF_8
+                            exec.process().err(),
+                            StandardCharsets.UTF_8
                     )));
                 }
-
-                exec.start(env.get());
-                schedulerAgent.reportExecuting();
 
                 final int rc = exec.waitFor();
                 schedulerAgent.reportProgress(ServantProgress.newBuilder()

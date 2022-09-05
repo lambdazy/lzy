@@ -2,7 +2,7 @@ import functools
 import inspect
 import sys
 import uuid
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, Callable, Optional, Sequence, TypeVar
 
 from lzy._proxy.result import Nothing
 from lzy.api.v2.call import LzyCall
@@ -44,6 +44,7 @@ FuncT = TypeVar(
     bound=Callable[..., Any],
 )
 
+
 # pylint: disable=[invalid-name]
 def op(
     func: Optional[FuncT] = None,
@@ -66,7 +67,7 @@ def op(
                     f"annotate return type of your function."
                 )
             else:
-                output_type = infer_result.value
+                output_types = infer_result.value  # expecting multiple return types
 
         # yep, create lazy constructor and return it
         # instead of function
@@ -86,7 +87,7 @@ def op(
 
 def create_lazy_constructor(
     f: Callable[..., Any],
-    output_type: type,
+    output_types: Sequence[type],
     provisioning: Provisioning,
 ) -> Callable[..., Any]:
     @functools.wraps(f)
@@ -94,7 +95,7 @@ def create_lazy_constructor(
         # TODO: defaults?
         active_wflow: LzyWorkflow = LzyWorkflow.get_active()
 
-        signature = infer_call_signature(f, output_type, *args, **kwargs)
+        signature = infer_call_signature(f, output_types, *args, **kwargs)
 
         # we need specify globals() for caller site to find all
         # required modules
@@ -104,13 +105,7 @@ def create_lazy_constructor(
         env: EnvSpec = active_wflow._env_provider.provide(caller_globals)
 
         # create
-        lzy_call = LzyCall(
-            active_wflow,
-            signature,
-            provisioning,
-            env,
-            str(uuid.uuid4()),
-        )
+        lzy_call = LzyCall(active_wflow, signature, provisioning, env)
         # and register LzyCall
         active_wflow.register_call(lzy_call)
 
@@ -125,10 +120,23 @@ def create_lazy_constructor(
         # >>> obj = op_none_operation()
         # >>> obj is None
         # >>> False
-        if issubclass(output_type, type(None)):
-            return None
+        if len(output_types) == 1:
+            if issubclass(output_types[0], type(None)):
+                return None
+            return lzy_proxy(
+                lzy_call.entry_ids[0],
+                lzy_call.signature.func.output_types[0],
+                lzy_call.parent_wflow,
+            )
 
-        return lzy_proxy(lzy_call)
+        return tuple(
+            lzy_proxy(
+                lzy_call.entry_ids[i],
+                lzy_call.signature.func.output_types[i],
+                lzy_call.parent_wflow,
+            )
+            for i in range(len(lzy_call.entry_ids))
+        )
 
     return lazy
 

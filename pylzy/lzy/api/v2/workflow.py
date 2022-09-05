@@ -17,16 +17,12 @@ class LzyWorkflow:
         assert cls.instance is not None, "There is no active LzyWorkflow"
         return cls.instance
 
-    def __init__(self, name: str, lzy_mount: str, owner: "Lzy", eager: bool = False):
+    def __init__(self, name: str, owner: "Lzy", eager: bool = False):
         self._name = name
         self._eager = eager
         self._owner = owner
         self._env_provider: EnvProvider = self._owner.env_provider
-        self._lzy_mount = lzy_mount
         self._runtime = self._owner.runtime
-        self._snapshot = self._owner.snapshot_provider.get(
-            lzy_mount, self._owner._serializer
-        )
         self._call_queue: List["LzyCall"] = []
 
         self._id = str(uuid4())
@@ -35,8 +31,9 @@ class LzyWorkflow:
     def owner(self) -> "Lzy":
         return self._owner
 
-    def snapshot(self) -> "Snapshot":
-        return self._snapshot
+    @property
+    def name(self) -> str:
+        return self._name
 
     def register_call(self, call: "LzyCall") -> Any:
         self._call_queue.append(call)
@@ -47,24 +44,19 @@ class LzyWorkflow:
         # TODO[ottergottaott]: prepare tasks before?
         # seems it's better to prepare them inside of runtime
         # graph = prepare_tasks_and_channels(self._id, self._call_queue)
-        self._runtime.exec(
-            self._call_queue, self._snapshot, lambda x: print("progress")
-        )
+        self._runtime.exec(self._call_queue, lambda x: print(x))
         self._call_queue = []
 
     def __enter__(self) -> "LzyWorkflow":
         if type(self).instance is not None:
             raise RuntimeError("Simultaneous workflows are not supported")
         type(self).instance = self
+        self._runtime.start(self)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         try:
-            if not exc_val:
-                self.barrier()
-                self._snapshot.finalize()
-            else:
-                self._snapshot.error()
+            self.barrier()
         finally:
             self._runtime.destroy()
             type(self).instance = None

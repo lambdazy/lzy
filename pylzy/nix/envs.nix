@@ -18,6 +18,8 @@ let
       azure-storage-blob
       stdlib-list
       aioboto3
+      pycryptodome
+      pure-protobuf
 
       pip
 
@@ -25,7 +27,7 @@ let
       protobuf
       grpcio-status
       grpcio-tools
-      grpclib
+      grpcio
       betterproto
       mypy-protobuf
     ];
@@ -34,7 +36,7 @@ let
       (lzy ps)
       # too long, install through pip
       # catboost
-      
+
       # needed for tests/serialization/test_serializer.py
       pure-protobuf
 
@@ -60,7 +62,10 @@ let
       pyright
 
       # type stubs:
-      grpclib
+      grpcio
+      grpc-stubs
+      types-PyJWT
+      types-cryptography
       types-setuptools
       types-requests
       types-protobuf

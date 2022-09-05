@@ -35,6 +35,7 @@ public class BeanFactory {
         return dataSource;
     }
 
+    @Singleton
     @Bean(preDestroy = "shutdown")
     @Singleton
     @Named("SchedulerIamGrpcChannel")

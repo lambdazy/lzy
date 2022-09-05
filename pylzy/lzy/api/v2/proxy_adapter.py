@@ -1,7 +1,12 @@
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from lzy._proxy.automagic import proxy
-from lzy.api.v2.call import LzyCall
+from lzy._proxy.result import Just
+
+if TYPE_CHECKING:
+    from lzy.api.v2 import LzyWorkflow
+
+from lzy.api.v2.exceptions import LzyExecutionException
 
 ____lzy_proxied = "__lzy_proxied__"
 
@@ -19,18 +24,21 @@ def materialize(obj: Any) -> Any:
     return obj.__lzy_origin__  # type: ignore
 
 
-def lzy_proxy(lzy_call: "LzyCall"):
+def lzy_proxy(entry_id: str, typ: type, wflow: "LzyWorkflow") -> Any:
     def materialize():
-        wflow = lzy_call.parent_wflow
-        value = wflow.snapshot().get(lzy_call.entry_id)
-        if value is not None:
-            return value
+        data = wflow.owner.snapshot.get_data(entry_id)
+        if isinstance(data, Just):
+            return data.value
+
         wflow.barrier()
-        # check if returned None here
-        return wflow.snapshot().get(lzy_call.entry_id)
+
+        new_data = wflow.owner.snapshot.get_data(entry_id)
+        if isinstance(new_data, Just):
+            return new_data.value
+        raise LzyExecutionException("Cannot materialize data")
 
     return proxy(
         materialize,
-        lzy_call.signature.func.output_type,
+        typ,  # type: ignore
         cls_attrs={____lzy_proxied: True},
     )

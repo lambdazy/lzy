@@ -52,16 +52,16 @@ public class GarbageCollector extends TimerTask {
                     try (var tr = TransactionHandle.create(storage)) {
                         var op = operations.get(vm.allocationOperationId(), tr);
                         if (op != null) {
-                            operations.update(op.complete(Status.DEADLINE_EXCEEDED.withDescription("Vm is expired")),
-                                tr);
+                            op.setError(Status.DEADLINE_EXCEEDED.withDescription("Vm is expired"));
+                            operations.update(op, tr);
                         } else {
                             LOG.warn("Op with id={} not found", vm.allocationOperationId());
                         }
                         tr.commit();
                     }
-                    allocator.deallocate(vm);
+                    allocator.deallocate(vm.vmId());
                     //will retry deallocate if it fails
-                    dao.update(new Vm.VmBuilder(vm).setState(Vm.State.DEAD).build(), null);
+                    dao.updateStatus(vm.vmId(), Vm.VmStatus.DEAD, null);
                 } catch (SQLException e) {
                     if ("42P01".equals(e.getSQLState())) {
                         // ERROR: relation <xxx> does not exist

@@ -1,12 +1,19 @@
-from typing import BinaryIO, Protocol
+from abc import ABC, abstractmethod
+from typing import BinaryIO
 
 
-class StorageClient(Protocol):
+class AsyncStorageClient(ABC):
+    @abstractmethod
     async def read(self, url: str, dest: BinaryIO) -> None:
         pass
 
-    async def write(self, container: str, blob: str, data: BinaryIO) -> str:
+    @abstractmethod
+    async def write(self, container: str, blob: str, data: BinaryIO):
         pass
 
+    @abstractmethod
     async def blob_exists(self, container: str, blob: str) -> bool:
+        pass
+
+    def generate_uri(self, container: str, blob: str) -> str:
         pass

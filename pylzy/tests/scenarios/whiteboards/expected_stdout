@@ -24,3 +24,4 @@ int_field value in WhiteboardWithOneLzyMessageField is 3
 Could create WhiteboardWithTwoLzyMessageFields
 Could not create WhiteboardWithLzyMessageFields because of a missing field
 Value a in DefaultWhiteboard is 7, b length is 3, c is Hello, d is None
+Value a.string_field in WhiteboardWithOneLzyMessageField is local_data

@@ -76,17 +76,18 @@ public class ThreadVmAllocator implements VmAllocator {
     }
 
     @Override
-    public void allocate(Vm vm) {
+    public void allocate(Vm.Spec vm) {
+        // TODO(artolord) add token
         requestAllocation(vm.vmId(), vm.workloads().get(0).args());  // Supports only one workload
     }
 
     @Override
-    public void deallocate(Vm vm) {
-        if (!vmThreads.containsKey(vm.vmId())) {
+    public void deallocate(String vmId) {
+        if (!vmThreads.containsKey(vmId)) {
             return;
         }
         //noinspection removal
-        vmThreads.get(vm.vmId()).stop();
-        vmThreads.remove(vm.vmId());
+        vmThreads.get(vmId).stop();
+        vmThreads.remove(vmId);
     }
 }

@@ -23,3 +23,85 @@ message SnapshotStorage {
     AzureCredentials azure = 3;
   }
 }
+
+
+message Operation {
+  string name = 1;  // Some human-readable name to show in UI
+  /* optional */ string description = 2;  // Some human-readable description
+  string command = 3;  // command to execute
+
+  // Paths of slots to open. Must be uniq per workflow
+  repeated string inputSlots = 4;
+  repeated string outputSlots = 5;
+
+  /* optional */ string dockerImage = 6;  // If not set, running on default Lzy image
+
+  oneof env {
+    /* optional */ PythonEnvSpec python = 7;  // If not set, running in default bash env
+  }
+
+  string poolSpecName = 8;  // Label to execute operation in
+
+  message PythonEnvSpec {
+    string yaml = 2;  // Conda yaml to install before execution
+    repeated LocalModule localModules = 3;
+
+    message LocalModule {
+      string name = 1;  // Name of module
+      string url = 2;  // Url in storage to get module from
+    }
+  }
+}
+
+message Graph {
+  string name = 1;  // Human-readable name to show in UI
+
+  repeated EdgeDescription edges = 2;
+  repeated VertexDescription vertices = 3;
+
+  string zone = 4;  // Availability zone to execute graph in
+
+  message EdgeDescription {
+    /* optional */ DataScheme dataScheme = 1;  // If not set, using plain scheme
+
+    /* optional */ string storageUri = 2;  // If storageUri set, saving all data to storage
+                                           // If input not set, getting it from storage
+
+    // If input or outputs not set, storageUri must be set to get data from it
+    // Edge without input and outputs is not valid
+    /* optional */ VertexRef input = 3;
+    /* optional */ repeated VertexRef outputs = 4;
+
+    /* optional */ WhiteboardRef whiteboardRef = 5;  // Whiteboard field to link data to
+
+    message DataScheme {
+      string type = 1;
+      string schemeType = 2;  // plain, proto, cloudpickle, etc
+    }
+
+    message VertexRef {
+      string vertexId = 1;
+      string slotName = 2;
+    }
+
+    message WhiteboardRef {
+      string whiteboardId = 1;
+      string fieldName = 2;
+    }
+  }
+
+  message VertexDescription {
+    string id = 1;
+    Operation operation = 2;
+  }
+}
+
+message VmPoolSpec {
+  string poolSpecName = 1;       // 's', 'm', 'l', ...
+  string cpu_type = 2;          // IceLake, CascadeLake, Broadwell, ...
+  uint32 cpu_count = 3;         // # of CPU cores
+  string gpu_type = 4;          // V100, A100, ...
+  uint32 gpu_count = 5;         // # of GPU cores
+  uint32 ram_gb = 6;            // RAM in GB
+  repeated string zones = 7;    // availability zones
+}

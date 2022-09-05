@@ -7,10 +7,11 @@ import boto3
 from botocore.exceptions import ClientError
 
 from lzy.storage.credentials import AmazonCredentials
+from lzy.storage.storage_client import StorageClient
 from lzy.storage.url import Scheme, bucket_from_url
 
 
-class AmazonClient:
+class AmazonClient(StorageClient):
     scheme = Scheme.s3
 
     def __init__(self, credentials: AmazonCredentials):

@@ -1,5 +1,7 @@
 package ai.lzy.allocator.test;
 
+import static ai.lzy.allocator.test.Utils.waitOperation;
+
 import ai.lzy.allocator.AllocatorMain;
 import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactory;
 import ai.lzy.allocator.alloc.impl.kuber.KuberLabels;
@@ -16,7 +18,6 @@ import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.v1.*;
-import ai.lzy.v1.OperationService.GetOperationRequest;
 import ai.lzy.v1.OperationService.Operation;
 import ai.lzy.v1.VmAllocatorApi.*;
 import com.google.common.net.HostAndPort;
@@ -643,12 +644,6 @@ public class AllocatorApiTest extends BaseTestWithIam {
     }
 
     private Operation waitOp(Operation operation) {
-        TimeUtils.waitFlagUp(() -> {
-            final Operation op = operationServiceApiBlockingStub.get(
-                GetOperationRequest.newBuilder().setOperationId(operation.getId()).build());
-            return op.getDone();
-        }, TIMEOUT_SEC, TimeUnit.SECONDS);
-        return operationServiceApiBlockingStub.get(
-            GetOperationRequest.newBuilder().setOperationId(operation.getId()).build());
+        return waitOperation(operationServiceApiBlockingStub, operation, TIMEOUT_SEC);
     }
 }

@@ -11,6 +11,7 @@ import ai.lzy.allocator.model.CachePolicy;
 import ai.lzy.allocator.model.Session;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
+import ai.lzy.allocator.volume.VolumeRequest;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.JsonUtils;
@@ -31,7 +32,6 @@ import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.internal.util.Producer;
 
 import java.time.Instant;
-import java.util.UUID;
 import java.util.function.Consumer;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
@@ -152,7 +152,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         withRetries(
             defaultRetryPolicy(),
             LOG,
-            () -> operations.create(UUID.randomUUID().toString(), "Allocating VM", session[0].owner(),
+            () -> operations.create("Allocating VM", session[0].owner(),
                 Any.pack(AllocateMetadata.getDefaultInstance()), null),
             op -> opRef[0] = op,
             ex -> {
@@ -168,7 +168,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         }
 
         Consumer<String> failOperation = msg -> {
-            opRef[0] = opRef[0].complete(Status.INTERNAL.withDescription(msg));
+            opRef[0].setError(Status.INTERNAL.withDescription(msg));
 
             withRetries(
                 defaultRetryPolicy(),
@@ -181,7 +181,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                 ex -> LOG.error("Cannot fail operation {} with reason {}: {}", opRef[0], msg, ex.getMessage(), ex));
         };
 
-        final Vm[] vmRef = {null};
+        final Vm.Spec[] vmSpecRef = {null};
         withRetries(
             defaultRetryPolicy(),
             LOG,
@@ -193,10 +193,10 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                     if (existingVm != null) {
                         LOG.info("Found existing VM {}", existingVm);
 
-                        opRef[0] = opRef[0].modifyMeta(Any.pack(AllocateMetadata.newBuilder()
+                        opRef[0].modifyMeta(Any.pack(AllocateMetadata.newBuilder()
                             .setVmId(existingVm.vmId())
                             .build()));
-                        opRef[0] = opRef[0].complete(Any.pack(AllocateResponse.newBuilder()
+                        opRef[0].setResponse(Any.pack(AllocateResponse.newBuilder()
                             .setSessionId(existingVm.sessionId())
                             .setPoolId(existingVm.poolLabel())
                             .setVmId(existingVm.vmId())
@@ -213,30 +213,33 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                     var workloads = request.getWorkloadList().stream()
                         .map(Workload::fromProto)
                         .toList();
+                    final var volumes = request.getVolumesList().stream()
+                        .map(VolumeRequest::fromProto)
+                        .toList();
 
-                    var vm = dao.create(request.getSessionId(), request.getPoolLabel(), request.getZone(), workloads,
-                        opRef[0].id(), startedAt, transaction);
+                    var vmSpec = dao.create(request.getSessionId(), request.getPoolLabel(), request.getZone(),
+                        workloads, volumes, opRef[0].id(), startedAt, transaction);
 
-                    opRef[0] = opRef[0].modifyMeta(Any.pack(AllocateMetadata.newBuilder()
-                        .setVmId(vm.vmId())
+                    opRef[0].modifyMeta(Any.pack(AllocateMetadata.newBuilder()
+                        .setVmId(vmSpec.vmId())
                         .build()));
 
                     operations.update(opRef[0], transaction);
 
-                    vm = Vm.from(vm)
-                        .setState(Vm.State.CONNECTING)
+                    final var vmState = new Vm.VmStateBuilder()
+                        .setStatus(Vm.VmStatus.CONNECTING)
                         .setAllocationDeadline(Instant.now().plus(config.getAllocationTimeout()))
                         .build();
-                    dao.update(vm, transaction);
+                    dao.update(vmSpec.vmId(), vmState, transaction);
 
                     transaction.commit();
                     metrics.allocateVmNew.inc();
 
-                    return vm;
+                    return vmSpec;
                 }
             },
-            vm -> {
-                vmRef[0] = vm;
+            vmSpec -> {
+                vmSpecRef[0] = vmSpec;
                 responseObserver.onNext(opRef[0].toProto());
                 responseObserver.onCompleted();
             },
@@ -251,19 +254,20 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             }
         );
 
-        if (vmRef[0] == null) {
+        if (vmSpecRef[0] == null) {
             return;
         }
 
         try {
             try {
                 var timer = metrics.allocateDuration.startTimer();
-                allocator.allocate(vmRef[0]);
+                allocator.allocate(vmSpecRef[0]);
                 timer.close();
             } catch (InvalidConfigurationException e) {
                 LOG.error("Error while allocating: {}", e.getMessage(), e);
                 metrics.allocationError.inc();
-                operations.update(opRef[0].complete(Status.INVALID_ARGUMENT.withDescription(e.getMessage())), null);
+                opRef[0].setError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()));
+                operations.update(opRef[0], null);
             }
         } catch (Exception e) {
             LOG.error("Error during allocation: {}", e.getMessage(), e);
@@ -285,7 +289,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                     }
 
                     // TODO(artolord) validate that client can free this vm
-                    if (vm.state() != Vm.State.RUNNING) {
+                    if (vm.status() != Vm.VmStatus.RUNNING) {
                         return (Producer<Status>) () -> {
                             LOG.error("Freed vm {} in status {}, expected RUNNING", vm, vm.state());
                             return Status.FAILED_PRECONDITION.withDescription("State is " + vm.state());

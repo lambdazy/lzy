@@ -85,9 +85,9 @@ class WhiteboardBashApi(WhiteboardApi):
             # TODO(aleksZubakov): do we need retry here?
             self._whiteboard_storage(bucket).read(field_url, cast(BinaryIO, file))
             file.seek(0)
-            obj = self._serializer_registry.find_serializer_by_type(
-                real_type
-            ).deserialize(cast(BinaryIO, file), real_type)
+            serializer = self._serializer_registry.find_serializer_by_type(real_type)
+            self._log.info(f"Using serializer {serializer} for real type {real_type}")
+            obj = serializer.deserialize(cast(BinaryIO, file), real_type)
         return cast(T, obj)
 
     def create(
