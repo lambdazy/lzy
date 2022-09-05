@@ -34,7 +34,7 @@ public class SchedulerApi {
 
     @Inject
     public SchedulerApi(SchedulerApiImpl impl, PrivateSchedulerApiImpl privateApi, ServiceConfig config,
-                        @Named("IamGrpcChannel") ManagedChannel iamChannel, ServantDao dao)
+                        @Named("SchedulerIamGrpcChannel") ManagedChannel iamChannel, ServantDao dao)
     {
         this.impl = impl;
         this.dao = dao;

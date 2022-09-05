@@ -9,9 +9,9 @@ import ai.lzy.iam.resources.subjects.Subject;
 import java.util.List;
 import java.util.function.Supplier;
 
-public interface SubjectService {
+public interface SubjectServiceClient {
 
-    SubjectService withToken(Supplier<Credentials> tokenSupplier);
+    SubjectServiceClient withToken(Supplier<Credentials> tokenSupplier);
 
     Subject createSubject(String id, String authProvider, String providerSubjectId, SubjectType type)
             throws AuthException;

@@ -24,7 +24,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 
 @Factory
-public class BeansFactory {
+public class BeanFactory {
 
     private static final Duration YC_CALL_TIMEOUT = Duration.ofSeconds(30);
 

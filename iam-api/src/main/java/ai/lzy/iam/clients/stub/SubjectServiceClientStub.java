@@ -5,16 +5,16 @@ import ai.lzy.iam.resources.subjects.Servant;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.exceptions.AuthException;
-import ai.lzy.iam.clients.SubjectService;
+import ai.lzy.iam.clients.SubjectServiceClient;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.User;
 
 import java.util.List;
 import java.util.function.Supplier;
 
-public class SubjectServiceStub implements SubjectService {
+public class SubjectServiceClientStub implements SubjectServiceClient {
     @Override
-    public SubjectService withToken(Supplier<Credentials> tokenSupplier) {
+    public SubjectServiceClient withToken(Supplier<Credentials> tokenSupplier) {
         return this;
     }
 

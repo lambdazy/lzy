@@ -36,7 +36,7 @@ public class DbAccessClient {
                 int parameterIndex = 0;
                 st.setString(++parameterIndex, subject.id());
                 st.setString(++parameterIndex, Root.INSTANCE.resourceId());
-                st.setString(++parameterIndex, Role.LZY_INTERNAL_USER.role());
+                st.setString(++parameterIndex, Role.LZY_INTERNAL_USER.value());
                 final ResultSet rs = st.executeQuery();
                 if (rs.next()) {
                     if (rs.getInt(1) > 0) {
@@ -89,10 +89,10 @@ public class DbAccessClient {
         final boolean[] first = {true};
         Role.rolesByPermission(permission).forEach(r -> {
             if (first[0]) {
-                query.append("role = '").append(r.role()).append("' ");
+                query.append("role = '").append(r.value()).append("' ");
                 first[0] = false;
             } else {
-                query.append("OR role = '").append(r.role()).append("' ");
+                query.append("OR role = '").append(r.value()).append("' ");
             }
         });
         query.append(");");

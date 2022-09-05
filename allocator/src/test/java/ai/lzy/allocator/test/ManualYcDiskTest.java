@@ -1,21 +1,11 @@
 package ai.lzy.allocator.test;
 
-import ai.lzy.allocator.BeansFactory;
-import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.Disk;
 import ai.lzy.allocator.disk.DiskManager;
 import ai.lzy.allocator.disk.DiskSpec;
 import ai.lzy.allocator.disk.DiskType;
-import ai.lzy.allocator.disk.cloudspecific.yc.YcDiskManager;
 import ai.lzy.allocator.disk.exceptions.NotFoundException;
-import ai.lzy.util.auth.YcCredentials;
 import io.micronaut.context.ApplicationContext;
-import io.micronaut.context.env.PropertySource;
-import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.UUID;
 import org.junit.Assert;
 import org.junit.Before;

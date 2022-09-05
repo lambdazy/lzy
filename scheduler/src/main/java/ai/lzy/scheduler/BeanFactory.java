@@ -36,7 +36,8 @@ public class BeanFactory {
     }
 
     @Bean(preDestroy = "shutdown")
-    @Named("IamGrpcChannel")
+    @Singleton
+    @Named("SchedulerIamGrpcChannel")
     public ManagedChannel iamChannel(ServiceConfig config) {
         return ChannelBuilder
             .forAddress(config.getIam().getAddress())
