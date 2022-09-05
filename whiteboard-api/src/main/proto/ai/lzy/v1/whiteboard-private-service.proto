@@ -9,37 +9,37 @@ option java_outer_classname = "LWBPS";
 option java_package = "ai.lzy.v1";
 
 service LzyWhiteboardPrivateService {
-  rpc Create (CreateRequest) returns (CreateResponse);
-  rpc LinkField (LinkFieldRequest) returns (LinkFieldResponse);
-  rpc Finalize (FinalizeRequest) returns (FinalizeResponse);
+  rpc CreateWhiteboard (CreateWhiteboardRequest) returns (CreateWhiteboardResponse);
+  rpc FinalizeField (FinalizeFieldRequest) returns (FinalizeFieldResponse);
+  rpc FinalizeWhiteboard (FinalizeWhiteboardRequest) returns (FinalizeWhiteboardResponse);
 }
 
-message CreateRequest {
+message CreateWhiteboardRequest {
   string userId = 1;
   string whiteboardName = 2;
-  repeated string fieldNames = 3;
+  repeated WhiteboardFieldInfo fields = 3;
   Storage storage = 4;
   repeated string tags = 5;
   string namespace = 6;
 }
 
-message CreateResponse {
+message CreateWhiteboardResponse {
   Whiteboard whiteboard = 1;
 }
 
-message LinkFieldRequest {
+message FinalizeFieldRequest {
   string whiteboardId = 1;
   string fieldName = 2;
   string storageUri = 3;
   DataScheme scheme = 4;
 }
 
-message LinkFieldResponse {
+message FinalizeFieldResponse {
 }
 
-message FinalizeRequest {
+message FinalizeWhiteboardRequest {
   string whiteboardId = 1;
 }
 
-message FinalizeResponse {
+message FinalizeWhiteboardResponse {
 }
