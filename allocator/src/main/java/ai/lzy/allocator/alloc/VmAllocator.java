@@ -25,14 +25,14 @@ public interface VmAllocator {
     void deallocate(String vmId);
 
     /**
-     * Get hosts of vm to connect to it
+     * Get endpoints of vm to connect to it
      * @param vmId id of vm to get hosts
-     * @return List of host of vm
+     * @return list of vm's endpoints
      */
     List<VmEndpoint> getVmEndpoints(String vmId, @Nullable TransactionHandle transaction);
 
     record VmEndpoint(
-        VmEndpointType type,  // HostName, ExternalIP or InternalIP, like in k8s node
+        VmEndpointType type,
         String value
     ) {
 

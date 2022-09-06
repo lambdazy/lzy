@@ -87,7 +87,7 @@ message AllocateResponse {
     string value = 2;
 
     enum VmEndpointType {
-      NOT_SET = 0;
+      UNSPECIFIED = 0;
       HOST_NAME = 1;
       EXTERNAL_IP = 2;
       INTERNAL_IP = 3;
