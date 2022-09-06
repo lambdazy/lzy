@@ -172,33 +172,33 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
                             transaction);
 
                         final List<AllocateResponse.VmHost> hosts;
-                    try {
-                        hosts = allocator.vmHosts(vm.vmId(), transaction).stream()
-                            .map(h -> AllocateResponse.VmHost.newBuilder()
-                                .setType(h.type())
-                                .setValue(h.value())
-                                .build())
-                            .toList();
-                    } catch (Exception e) {
-                        LOG.error("Cannot get hosts of vm {}", vm.vmId());
-                        responseObserver.onError(Status.INTERNAL
-                            .withDescription("Cannot get hosts of vm").asException());
-                        return null;
-                    }
+                        try {
+                            hosts = allocator.vmHosts(vm.vmId(), transaction).stream()
+                                .map(h -> AllocateResponse.VmHost.newBuilder()
+                                    .setType(h.type())
+                                    .setValue(h.value())
+                                    .build())
+                                .toList();
+                        } catch (Exception e) {
+                            LOG.error("Cannot get hosts of vm {}", vm.vmId());
+                            responseObserver.onError(Status.INTERNAL
+                                .withDescription("Cannot get hosts of vm").asException());
+                            return;
+                        }
 
-                    op.setResponse(Any.pack(AllocateResponse.newBuilder()
-                        .setPoolId(vm.poolLabel())
-                        .setSessionId(vm.sessionId())
-                        .setVmId(vm.vmId())
-                        .addAllHosts(hosts)
-                            .putAllMetadata(request.getMetadataMap())
-                            .build()));
-                        operations.update(op, transaction);
-                        transaction.commit();
+                        op.setResponse(Any.pack(AllocateResponse.newBuilder()
+                            .setPoolId(vm.poolLabel())
+                            .setSessionId(vm.sessionId())
+                            .setVmId(vm.vmId())
+                            .addAllHosts(hosts)
+                                .putAllMetadata(request.getMetadataMap())
+                                .build()));
+                            operations.update(op, transaction);
+                            transaction.commit();
 
-                        metrics.registered.inc();
-                        metrics.allocationTime.observe(
-                            Duration.between(vm.allocationStartedAt(), Instant.now()).toSeconds());
+                            metrics.registered.inc();
+                            metrics.allocationTime.observe(
+                                Duration.between(vm.allocationStartedAt(), Instant.now()).toSeconds());
                     }
                 });
         } catch (Exception ex) {

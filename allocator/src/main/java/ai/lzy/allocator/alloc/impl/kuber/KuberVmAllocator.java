@@ -179,38 +179,35 @@ public class KuberVmAllocator implements VmAllocator {
     public List<VmHost> vmHosts(String vmId, @Nullable TransactionHandle transaction) {
         final List<VmHost> hosts = new ArrayList<>();
 
-        withRetries(
+        final var meta = withRetries(
             defaultRetryPolicy(),
             LOG,
             () -> dao.getAllocatorMeta(vmId, transaction),
-            meta -> {
-                if (meta == null) {
-                    throw new RuntimeException("Cannot get allocator metadata for vmId " + vmId);
-                }
+            ex -> new RuntimeException("Database error: " + ex.getMessage(), ex));
 
-                final var clusterId = meta.get(CLUSTER_ID_KEY);
-                final var credentials = poolRegistry.getCluster(clusterId);
-                final var ns = meta.get(NAMESPACE_KEY);
-                final var podName = meta.get(POD_NAME_KEY);
+        if (meta == null) {
+            throw new RuntimeException("Cannot get allocator metadata for vmId " + vmId);
+        }
 
-                try (final var client = factory.build(credentials)) {
-                    final var pod = getPod(ns, podName, client);
-                    if (pod != null) {
-                        final var nodeName = pod.getSpec().getNodeName();
-                        final var node = client.nodes()
-                            .withName(nodeName)
-                            .get();
-                        for (final var address: node.getStatus().getAddresses()) {
-                            hosts.add(new VmHost(address.getType(), address.getAddress()));
-                        }
-                    } else {
-                        throw new RuntimeException("Cannot get pod with name " + podName + " to get addresses");
-                    }
+        final var clusterId = meta.get(CLUSTER_ID_KEY);
+        final var credentials = poolRegistry.getCluster(clusterId);
+        final var ns = meta.get(NAMESPACE_KEY);
+        final var podName = meta.get(POD_NAME_KEY);
+
+        try (final var client = factory.build(credentials)) {
+            final var pod = getPod(ns, podName, client);
+            if (pod != null) {
+                final var nodeName = pod.getSpec().getNodeName();
+                final var node = client.nodes()
+                        .withName(nodeName)
+                        .get();
+                for (final var address: node.getStatus().getAddresses()) {
+                    hosts.add(new VmHost(address.getType(), address.getAddress()));
                 }
-            },
-            ex -> {
-                throw new RuntimeException("Database error: " + ex.getMessage(), ex);
-            });
+            } else {
+                throw new RuntimeException("Cannot get pod with name " + podName + " to get addresses");
+            }
+        }
         return hosts;
     }
 }
