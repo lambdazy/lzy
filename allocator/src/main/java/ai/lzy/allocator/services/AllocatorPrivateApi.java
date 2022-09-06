@@ -191,8 +191,8 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
                             .setSessionId(vm.sessionId())
                             .setVmId(vm.vmId())
                             .addAllHosts(hosts)
-                                .putAllMetadata(request.getMetadataMap())
-                                .build()));
+                            .putAllMetadata(request.getMetadataMap())
+                            .build()));
 
                         operations.update(op, transaction);
                         transaction.commit();
