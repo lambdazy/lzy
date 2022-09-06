@@ -21,6 +21,11 @@ public abstract class AuthException extends RuntimeException {
         this.internalDetails = details;
     }
 
+    @Override
+    public Throwable fillInStackTrace() {
+        return this;
+    }
+
     public String getInternalDetails() {
         return this.internalDetails;
     }

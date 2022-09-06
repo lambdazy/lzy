@@ -1,7 +1,6 @@
 import functools
 import inspect
 import sys
-import uuid
 from typing import Any, Callable, Optional, Sequence, TypeVar
 
 from lzy._proxy.result import Nothing
@@ -102,7 +101,7 @@ def create_lazy_constructor(
         caller_globals = inspect.stack()[1].frame.f_globals
 
         # form env to recreate remotely
-        env: EnvSpec = active_wflow._env_provider.provide(caller_globals)
+        env: EnvSpec = active_wflow.env_provider.provide(caller_globals)
 
         # create
         lzy_call = LzyCall(active_wflow, signature, provisioning, env)

@@ -1,29 +1,26 @@
 package ai.lzy.iam.grpc.service;
 
-import ai.lzy.iam.resources.credentials.SubjectCredentials;
+import ai.lzy.iam.grpc.context.AuthenticationContext;
+import ai.lzy.iam.resources.AuthPermission;
+import ai.lzy.iam.resources.impl.Root;
+import ai.lzy.iam.resources.subjects.Subject;
+import ai.lzy.iam.resources.subjects.SubjectType;
+import ai.lzy.iam.storage.impl.DbAccessClient;
+import ai.lzy.iam.storage.impl.DbSubjectService;
+import ai.lzy.iam.utils.GrpcConverter;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
-import ai.lzy.iam.grpc.context.AuthenticationContext;
-import ai.lzy.iam.resources.impl.Root;
-import ai.lzy.iam.resources.subjects.SubjectType;
+import ai.lzy.v1.iam.IAM;
+import ai.lzy.v1.iam.LSS;
+import ai.lzy.v1.iam.LzySubjectServiceGrpc;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ai.lzy.iam.resources.AuthPermission;
-import ai.lzy.iam.resources.subjects.Subject;
-import ai.lzy.iam.storage.impl.DbAccessClient;
-import ai.lzy.iam.storage.impl.DbSubjectService;
-import ai.lzy.iam.utils.GrpcConverter;
-import ai.lzy.v1.iam.IAM;
-import ai.lzy.v1.iam.LSS;
-import ai.lzy.v1.iam.LzySubjectServiceGrpc;
 
-import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 @Singleton
 public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceImplBase {
@@ -35,132 +32,130 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
     private DbAccessClient accessClient;
 
     @Override
-    public void createSubject(LSS.CreateSubjectRequest request, StreamObserver<IAM.Subject> responseObserver) {
+    public void createSubject(LSS.CreateSubjectRequest request, StreamObserver<IAM.Subject> response) {
         try {
             if (internalAccess()) {
                 Subject subject = subjectService.createSubject(
-                        request.getName(),
-                        request.getAuthProvider(),
-                        request.getProviderSubjectId(),
-                        SubjectType.valueOf(request.getType())
+                    request.getAuthProvider(),
+                    request.getProviderSubjectId(),
+                    SubjectType.valueOf(request.getType())
                 );
-                responseObserver.onNext(GrpcConverter.from(subject));
-                responseObserver.onCompleted();
+                response.onNext(GrpcConverter.from(subject));
+                response.onCompleted();
                 return;
             }
-            responseObserver.onError(Status.UNAUTHENTICATED.asException());
+            response.onError(Status.UNAUTHENTICATED.asException());
         } catch (AuthException e) {
             LOG.error("Auth exception::", e);
-            responseObserver.onError(e.status().asException());
+            response.onError(e.status().asException());
         }
     }
 
     @Override
-    public void removeSubject(
-            LSS.RemoveSubjectRequest request,
-            StreamObserver<LSS.RemoveSubjectResponse> responseObserver) {
+    public void removeSubject(LSS.RemoveSubjectRequest request, StreamObserver<LSS.RemoveSubjectResponse> response) {
         try {
             if (internalAccess()) {
                 subjectService.removeSubject(GrpcConverter.to(request.getSubject()));
-                responseObserver.onNext(LSS.RemoveSubjectResponse.getDefaultInstance());
-                responseObserver.onCompleted();
+                response.onNext(LSS.RemoveSubjectResponse.getDefaultInstance());
+                response.onCompleted();
                 return;
             }
-            responseObserver.onError(Status.UNAUTHENTICATED.asException());
+            response.onError(Status.UNAUTHENTICATED.asException());
         } catch (AuthException e) {
             LOG.error("Auth exception::", e);
-            responseObserver.onError(e.status().asException());
+            response.onError(e.status().asException());
         }
     }
 
     @Override
-    public void getSubject(LSS.GetSubjectRequest request, StreamObserver<IAM.Subject> responseObserver) {
+    public void getSubject(LSS.GetSubjectRequest request, StreamObserver<IAM.Subject> response) {
         try {
             if (internalAccess()) {
                 Subject subject = subjectService.subject(request.getId());
-                responseObserver.onNext(GrpcConverter.from(subject));
-                responseObserver.onCompleted();
+                response.onNext(GrpcConverter.from(subject));
+                response.onCompleted();
             }
         } catch (AuthException e) {
             LOG.error("Auth exception::", e);
-            responseObserver.onError(e.status().asException());
+            response.onError(e.status().asException());
         }
     }
 
     @Override
-    public void addCredentials(
-            LSS.AddCredentialsRequest request,
-            StreamObserver<LSS.AddCredentialsResponse> responseObserver) {
+    public void addCredentials(LSS.AddCredentialsRequest request, StreamObserver<LSS.AddCredentialsResponse> response) {
         try {
             if (internalAccess()) {
                 subjectService.addCredentials(
-                        GrpcConverter.to(request.getSubject()),
-                        request.getCredentials().getName(),
-                        request.getCredentials().getCredentials(),
-                        request.getCredentials().getType()
+                    GrpcConverter.to(request.getSubject()),
+                    request.getCredentials().getName(),
+                    request.getCredentials().getCredentials(),
+                    request.getCredentials().getType()
                 );
-                responseObserver.onNext(LSS.AddCredentialsResponse.getDefaultInstance());
-                responseObserver.onCompleted();
+                response.onNext(LSS.AddCredentialsResponse.getDefaultInstance());
+                response.onCompleted();
                 return;
             }
-            responseObserver.onError(Status.UNAUTHENTICATED.asException());
+            response.onError(Status.UNAUTHENTICATED.asException());
         } catch (AuthException e) {
             LOG.error("Auth exception::", e);
-            responseObserver.onError(e.status().asException());
+            response.onError(e.status().asException());
         }
     }
 
     @Override
-    public void removeCredentials(
-            LSS.RemoveCredentialsRequest request,
-            StreamObserver<LSS.RemoveCredentialsResponse> responseObserver) {
+    public void removeCredentials(LSS.RemoveCredentialsRequest request,
+                                  StreamObserver<LSS.RemoveCredentialsResponse> response)
+    {
         try {
             if (internalAccess()) {
                 subjectService.removeCredentials(
-                        GrpcConverter.to(request.getSubject()),
-                        request.getCredentialsName()
+                    GrpcConverter.to(request.getSubject()),
+                    request.getCredentialsName()
                 );
-                responseObserver.onNext(LSS.RemoveCredentialsResponse.getDefaultInstance());
-                responseObserver.onCompleted();
+                response.onNext(LSS.RemoveCredentialsResponse.getDefaultInstance());
+                response.onCompleted();
                 return;
             }
-            responseObserver.onError(Status.UNAUTHENTICATED.asException());
+            response.onError(Status.UNAUTHENTICATED.asException());
         } catch (AuthException e) {
             LOG.error("Auth exception::", e);
-            responseObserver.onError(e.status().asException());
+            response.onError(e.status().asException());
         }
     }
 
     @Override
-    public void listCredentials(
-            LSS.ListCredentialsRequest request,
-            StreamObserver<LSS.ListCredentialsResponse> responseObserver) {
+    public void listCredentials(LSS.ListCredentialsRequest request,
+                                StreamObserver<LSS.ListCredentialsResponse> response)
+    {
         try {
             if (internalAccess()) {
-                List<SubjectCredentials> subjectCredentials = subjectService.listCredentials(
-                        GrpcConverter.to(request.getSubject())
-                );
-                responseObserver.onNext(LSS.ListCredentialsResponse.newBuilder()
+                var subjectCredentials = subjectService.listCredentials(GrpcConverter.to(request.getSubject()));
+
+                response.onNext(
+                    LSS.ListCredentialsResponse.newBuilder()
                         .addAllCredentialsList(
-                            subjectCredentials.stream().map(GrpcConverter::from).collect(Collectors.toList())
-                        )
+                            subjectCredentials.stream()
+                                .map(GrpcConverter::from)
+                                .toList())
                         .build());
-                responseObserver.onCompleted();
+                response.onCompleted();
             }
         } catch (AuthException e) {
             LOG.error("Auth exception::", e);
-            responseObserver.onError(e.status().asException());
+            response.onError(e.status().asException());
         }
     }
 
     private boolean internalAccess() {
         var currentSubject = Objects.requireNonNull(AuthenticationContext.current()).getSubject();
-        if (!accessClient.hasResourcePermission(currentSubject,
-                new Root().resourceId(),
-                AuthPermission.INTERNAL_AUTHORIZE)) {
+
+        if (!accessClient.hasResourcePermission(
+                currentSubject, Root.INSTANCE.resourceId(), AuthPermission.INTERNAL_AUTHORIZE))
+        {
             LOG.error("Not INTERNAL user::{} try to create subjects", currentSubject.id());
             throw new AuthPermissionDeniedException("");
         }
+
         return true;
     }
 }

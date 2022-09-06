@@ -47,8 +47,8 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
     }
 
     @Override
-    protected void createSubject(String id, SubjectType subjectType) {
-        subjectService.createSubject(id, "provider", "providerID", subjectType);
+    protected Subject createSubject(SubjectType subjectType) {
+        return subjectService.createSubject("provider", "providerID", subjectType);
     }
 
     @Override

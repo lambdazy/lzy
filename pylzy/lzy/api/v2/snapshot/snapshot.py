@@ -8,11 +8,18 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 
 
 @dataclasses.dataclass(frozen=True)
+class DataScheme:
+    type: str
+    scheme_type: str
+
+
+@dataclasses.dataclass(frozen=True)
 class SnapshotEntry:
     id: str
     typ: Type
     storage_url: str
     storage_name: Optional[str] = None
+    data_scheme: Optional[DataScheme] = None
 
 
 class Snapshot(ABC):
