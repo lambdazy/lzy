@@ -7,6 +7,7 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
+import ai.lzy.model.db.TransactionHandle;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.exception.NotFoundException;
@@ -22,6 +23,7 @@ import org.apache.commons.lang.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.annotation.Nullable;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
@@ -127,7 +129,7 @@ public class DockerVmAllocator implements VmAllocator {
     }
 
     @Override
-    public List<VmHost> vmHosts(String vmId) {
+    public List<VmHost> vmHosts(String vmId, @Nullable TransactionHandle transaction) {
         final var name = SystemUtils.IS_OS_LINUX ? "localhost" : "host.docker.internal";
         return List.of(new VmHost("HostName", name));
     }

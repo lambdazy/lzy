@@ -2,7 +2,9 @@ package ai.lzy.allocator.alloc;
 
 import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.model.Vm;
+import ai.lzy.model.db.TransactionHandle;
 
+import javax.annotation.Nullable;
 import java.util.List;
 
 public interface VmAllocator {
@@ -26,7 +28,7 @@ public interface VmAllocator {
      * @param vmId id of vm to get hosts
      * @return List of host of vm
      */
-    List<VmHost> vmHosts(String vmId);
+    List<VmHost> vmHosts(String vmId, @Nullable TransactionHandle transaction);
 
     record VmHost(
         String type,  // HostName, ExternalIP or InternalIP, like in k8s node

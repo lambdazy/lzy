@@ -28,6 +28,7 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 import java.time.Duration;
 import java.time.Instant;
@@ -172,12 +173,12 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
 
                         final List<AllocateResponse.VmHost> hosts;
                     try {
-                        hosts = allocator.vmHosts(vm.vmId()).stream()
-                                .map(h -> AllocateResponse.VmHost.newBuilder()
-                                        .setType(h.type())
-                                        .setValue(h.value())
-                                        .build())
-                                .toList();
+                        hosts = allocator.vmHosts(vm.vmId(), transaction).stream()
+                            .map(h -> AllocateResponse.VmHost.newBuilder()
+                                .setType(h.type())
+                                .setValue(h.value())
+                                .build())
+                            .toList();
                     } catch (Exception e) {
                         LOG.error("Cannot get hosts of vm {}", vm.vmId());
                         responseObserver.onError(Status.INTERNAL

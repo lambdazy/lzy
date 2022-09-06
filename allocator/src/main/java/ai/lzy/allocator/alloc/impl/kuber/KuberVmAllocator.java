@@ -11,6 +11,7 @@ import ai.lzy.allocator.volume.DiskVolumeDescription;
 import ai.lzy.allocator.volume.HostPathVolumeDescription;
 import ai.lzy.allocator.volume.KuberVolumeManager;
 import ai.lzy.allocator.volume.VolumeClaim;
+import ai.lzy.model.db.TransactionHandle;
 import io.fabric8.kubernetes.api.model.ListOptionsBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -175,13 +176,13 @@ public class KuberVmAllocator implements VmAllocator {
     }
 
     @Override
-    public List<VmHost> vmHosts(String vmId) {
+    public List<VmHost> vmHosts(String vmId, @Nullable TransactionHandle transaction) {
         final List<VmHost> hosts = new ArrayList<>();
 
         withRetries(
             defaultRetryPolicy(),
             LOG,
-            () -> dao.getAllocatorMeta(vmId, null),
+            () -> dao.getAllocatorMeta(vmId, transaction),
             meta -> {
                 if (meta == null) {
                     throw new RuntimeException("Cannot get allocator metadata for vmId " + vmId);
