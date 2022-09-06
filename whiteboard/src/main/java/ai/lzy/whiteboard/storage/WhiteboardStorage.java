@@ -1,6 +1,7 @@
 package ai.lzy.whiteboard.storage;
 
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.whiteboard.model.LinkedField;
 import ai.lzy.whiteboard.model.Whiteboard;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -13,11 +14,11 @@ public interface WhiteboardStorage {
     void insertWhiteboard(String userId, Whiteboard whiteboard,
                           @Nullable TransactionHandle transaction) throws SQLException;
 
-    void markFieldLinked(String whiteboardId, Whiteboard.LinkedField linkedField, Instant linkedAt,
-                         @Nullable TransactionHandle transaction) throws SQLException;
+    void updateField(String whiteboardId, LinkedField field, @Nullable Instant finalizedAt,
+                     @Nullable TransactionHandle transaction) throws SQLException;
 
-    void setWhiteboardFinalized(String whiteboardId, Instant finalizedAt,
-                                @Nullable TransactionHandle transaction) throws SQLException;
+    void finalizeWhiteboard(String whiteboardId, Instant finalizedAt,
+                            @Nullable TransactionHandle transaction) throws SQLException;
 
     void deleteWhiteboard(String whiteboardId, @Nullable TransactionHandle transaction) throws SQLException;
 

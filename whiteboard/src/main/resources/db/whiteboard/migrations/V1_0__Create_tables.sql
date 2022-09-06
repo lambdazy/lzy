@@ -31,10 +31,11 @@ CREATE TABLE IF NOT EXISTS whiteboard_fields
 (
     whiteboard_id     varchar(255)  NOT NULL,
     field_name        varchar(255)  NOT NULL,
+    field_status      varchar(255)  NOT NULL,
     field_type        text,
     field_type_scheme varchar(255),
     storage_uri       varchar(255),
-    linked_at         timestamp,
+    finalized_at      timestamp,
 
     CONSTRAINT whiteboard_fields_pkey PRIMARY KEY (whiteboard_id, field_name),
 

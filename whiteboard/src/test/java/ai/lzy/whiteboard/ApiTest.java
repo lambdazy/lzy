@@ -82,85 +82,73 @@ public class ApiTest extends BaseTestWithIam {
         super.after();
     }
 
-    @SuppressWarnings("ResultOfMethodCallIgnored")
     @Test
     public void testUnauthenticated() {
-        final var unauthorizedWhiteboardClient = LzyWhiteboardServiceGrpc.newBlockingStub(channel);
-        try {
-            unauthorizedWhiteboardClient.get(LWBS.GetRequest.getDefaultInstance());
-            Assert.fail();
-        } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
-        }
-        try {
-            unauthorizedWhiteboardClient.list(LWBS.ListRequest.getDefaultInstance());
-            Assert.fail();
-        } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
-        }
+        final var unauthorizedPrivateClient = LzyWhiteboardPrivateServiceGrpc.newBlockingStub(channel);
+        apiAccessTest(unauthorizedPrivateClient, Status.UNAUTHENTICATED);
 
-        final var unauthorizedWhiteboardPrivateClient = LzyWhiteboardPrivateServiceGrpc.newBlockingStub(channel);
+        final var unauthorizedClient = LzyWhiteboardServiceGrpc.newBlockingStub(channel);
+        apiAccessTest(unauthorizedClient, Status.UNAUTHENTICATED);
+    }
+
+    @Test
+    public void testPermissionDeniedPrivateApi() {
+        final var invalidCredsPrivateClient = LzyWhiteboardPrivateServiceGrpc.newBlockingStub(channel)
+            .withInterceptors(ClientHeaderInterceptor.header(
+                GrpcHeaders.AUTHORIZATION, JwtUtils.invalidCredentials("user")::token
+            ));
+        apiAccessTest(invalidCredsPrivateClient, Status.PERMISSION_DENIED);
+    }
+
+    @Test
+    public void testPermissionDeniedPublicApi() {
+        final var invalidCredsClient = LzyWhiteboardServiceGrpc.newBlockingStub(channel)
+            .withInterceptors(ClientHeaderInterceptor.header(
+                GrpcHeaders.AUTHORIZATION, JwtUtils.invalidCredentials("user")::token
+            ));
+
+        apiAccessTest(invalidCredsClient, Status.PERMISSION_DENIED);
+    }
+
+    @SuppressWarnings("ResultOfMethodCallIgnored")
+    private void apiAccessTest(LzyWhiteboardPrivateServiceGrpc.LzyWhiteboardPrivateServiceBlockingStub client,
+                               Status expectedStatus)
+    {
         try {
-            unauthorizedWhiteboardPrivateClient.create(LWBPS.CreateRequest.getDefaultInstance());
+            client.createWhiteboard(LWBPS.CreateWhiteboardRequest.getDefaultInstance());
             Assert.fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
+            Assert.assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
         }
         try {
-            unauthorizedWhiteboardPrivateClient.linkField(LWBPS.LinkFieldRequest.getDefaultInstance());
+            client.finalizeField(LWBPS.FinalizeFieldRequest.getDefaultInstance());
             Assert.fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
+            Assert.assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
         }
         try {
-            unauthorizedWhiteboardPrivateClient.finalize(LWBPS.FinalizeRequest.getDefaultInstance());
+            client.finalizeWhiteboard(LWBPS.FinalizeWhiteboardRequest.getDefaultInstance());
             Assert.fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
+            Assert.assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
         }
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
-    @Test
-    public void testPermissionDenied() {
-        final var unauthorizedWhiteboardClient = LzyWhiteboardServiceGrpc.newBlockingStub(channel)
-            .withInterceptors(ClientHeaderInterceptor.header(
-                GrpcHeaders.AUTHORIZATION, JwtUtils.invalidCredentials("user")::token
-            ));
+    private void apiAccessTest(LzyWhiteboardServiceGrpc.LzyWhiteboardServiceBlockingStub client,
+                               Status expectedStatus)
+    {
         try {
-            unauthorizedWhiteboardClient.get(LWBS.GetRequest.getDefaultInstance());
+            client.get(LWBS.GetRequest.getDefaultInstance());
             Assert.fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.PERMISSION_DENIED.getCode(), e.getStatus().getCode());
+            Assert.assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
         }
         try {
-            unauthorizedWhiteboardClient.list(LWBS.ListRequest.getDefaultInstance());
+            client.list(LWBS.ListRequest.getDefaultInstance());
             Assert.fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.PERMISSION_DENIED.getCode(), e.getStatus().getCode());
-        }
-
-        final var unauthorizedWhiteboardPrivateClient = LzyWhiteboardPrivateServiceGrpc.newBlockingStub(channel)
-            .withInterceptors(ClientHeaderInterceptor.header(
-                GrpcHeaders.AUTHORIZATION, JwtUtils.invalidCredentials("user")::token
-            ));
-        try {
-            unauthorizedWhiteboardPrivateClient.create(LWBPS.CreateRequest.getDefaultInstance());
-            Assert.fail();
-        } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.PERMISSION_DENIED.getCode(), e.getStatus().getCode());
-        }
-        try {
-            unauthorizedWhiteboardPrivateClient.linkField(LWBPS.LinkFieldRequest.getDefaultInstance());
-            Assert.fail();
-        } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.PERMISSION_DENIED.getCode(), e.getStatus().getCode());
-        }
-        try {
-            unauthorizedWhiteboardPrivateClient.finalize(LWBPS.FinalizeRequest.getDefaultInstance());
-            Assert.fail();
-        } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.PERMISSION_DENIED.getCode(), e.getStatus().getCode());
+            Assert.assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
         }
     }
 

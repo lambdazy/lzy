@@ -1,8 +1,10 @@
 package ai.lzy.whiteboard;
 
 import ai.lzy.iam.clients.AccessBindingClient;
+import ai.lzy.iam.clients.AccessClient;
 import ai.lzy.iam.clients.SubjectServiceClient;
 import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
+import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
@@ -35,6 +37,14 @@ public class BeanFactory {
         @Named("WhiteboardIamGrpcChannel") ManagedChannel iamChannel, AppConfig config)
     {
         return new AccessBindingServiceGrpcClient(iamChannel, config.getIam()::createCredentials);
+    }
+
+    @Singleton
+    @Named("WhiteboardIamAccessClient")
+    public AccessClient iamAccessClient(
+        @Named("WhiteboardIamGrpcChannel") ManagedChannel iamChannel, AppConfig config)
+    {
+        return new AccessServiceGrpcClient(iamChannel, config.getIam()::createCredentials);
     }
 
     @Singleton

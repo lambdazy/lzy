@@ -3,12 +3,13 @@ package ai.lzy.whiteboard.grpc;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
-import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.model.db.NotFoundException;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.v1.LWBPS;
 import ai.lzy.v1.LzyWhiteboardPrivateServiceGrpc;
 import ai.lzy.whiteboard.access.AccessManager;
+import ai.lzy.whiteboard.model.Field;
+import ai.lzy.whiteboard.model.LinkedField;
 import ai.lzy.whiteboard.model.Whiteboard;
 import ai.lzy.whiteboard.storage.WhiteboardDataSource;
 import ai.lzy.whiteboard.storage.WhiteboardStorage;
@@ -17,9 +18,9 @@ import io.grpc.stub.StreamObserver;
 import jakarta.inject.Inject;
 import java.time.Instant;
 import java.util.HashSet;
-import java.util.Objects;
-import java.util.Set;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
@@ -46,18 +47,14 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
     }
 
     @Override
-    public void create(LWBPS.CreateRequest request, StreamObserver<LWBPS.CreateResponse> responseObserver) {
+    public void createWhiteboard(LWBPS.CreateWhiteboardRequest request,
+                       StreamObserver<LWBPS.CreateWhiteboardResponse> responseObserver)
+    {
         LOG.info("Create whiteboard {}", request.getWhiteboardName());
 
         try {
-            if (!isRequestValid(request)) {
+            if (!ProtoValidator.isValid(request)) {
                 String errorMessage = "Request shouldn't contain empty fields";
-                LOG.error("Create whiteboard failed, invalid argument: {}", errorMessage);
-                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(errorMessage).asException());
-                return;
-            }
-            if (request.getFieldNamesList().stream().anyMatch(String::isBlank)) {
-                String errorMessage = "Field shouldn't be empty";
                 LOG.error("Create whiteboard failed, invalid argument: {}", errorMessage);
                 responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(errorMessage).asException());
                 return;
@@ -65,9 +62,11 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
 
             final String whiteboardId = "whiteboard-" + UUID.randomUUID();
             final Instant createdAt = Instant.now();
-            final Whiteboard whiteboard = new Whiteboard(whiteboardId, request.getWhiteboardName(),
-                new HashSet<>(request.getFieldNamesList()), Set.of(), new HashSet<>(request.getTagsList()),
-                new Whiteboard.Storage(request.getStorage().getName(), request.getStorage().getDescription()),
+            final Map<String, Field> fields = request.getFieldsList().stream()
+                .map(ProtoConverter::fromProto)
+                .collect(Collectors.toMap(Field::name, x -> x));
+            final Whiteboard whiteboard = new Whiteboard(whiteboardId, request.getWhiteboardName(), fields,
+                new HashSet<>(request.getTagsList()), ProtoConverter.fromProto(request.getStorage()),
                 request.getNamespace(), Whiteboard.Status.CREATED, createdAt);
 
             final var lock = lockManager.getOrCreate(whiteboardId);
@@ -98,8 +97,8 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
                 responseObserver.onError(Status.INTERNAL.withCause(e).asException());
             }
 
-            responseObserver.onNext(LWBPS.CreateResponse.newBuilder()
-                .setWhiteboard(ProtoConverter.to(whiteboard))
+            responseObserver.onNext(LWBPS.CreateWhiteboardResponse.newBuilder()
+                .setWhiteboard(ProtoConverter.toProto(whiteboard))
                 .build());
             LOG.info("Create whiteboard {} done, id = {}", request.getWhiteboardName(), whiteboardId);
             responseObserver.onCompleted();
@@ -113,22 +112,24 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
     }
 
     @Override
-    public void linkField(LWBPS.LinkFieldRequest request, StreamObserver<LWBPS.LinkFieldResponse> responseObserver) {
-        LOG.info("Link field {} to whiteboard {}", request.getFieldName(), request.getWhiteboardId());
+    public void finalizeField(LWBPS.FinalizeFieldRequest request,
+                              StreamObserver<LWBPS.FinalizeFieldResponse> responseObserver)
+    {
+        LOG.info("Finalize field {} of whiteboard {}", request.getFieldName(), request.getWhiteboardId());
 
         try {
             final String whiteboardId = request.getWhiteboardId();
             final String fieldName = request.getFieldName();
 
-            if (!isRequestValid(request)) {
+            if (!ProtoValidator.isValid(request)) {
                 String errorMessage = "Request shouldn't contain empty fields";
-                LOG.error("Link field {} to whiteboard {} failed, invalid argument: {}",
+                LOG.error("Finalize field {} of whiteboard {} failed, invalid argument: {}",
                     request.getFieldName(), request.getWhiteboardId(), errorMessage);
                 responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(errorMessage).asException());
             }
 
-            final Instant linkedAt = Instant.now();
-            final var linkedField = new Whiteboard.LinkedField(fieldName, request.getStorageUri(),
+            final Instant finalizedAt = Instant.now();
+            final var linkedField = new LinkedField(fieldName, Field.Status.FINALIZED, request.getStorageUri(),
                 ai.lzy.model.GrpcConverter.contentTypeFrom(request.getScheme()));
 
             withRetries(defaultRetryPolicy(), LOG, () -> {
@@ -137,16 +138,19 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
                 try (final var transaction = TransactionHandle.create(dataSource)) {
                     final Whiteboard whiteboard = whiteboardStorage.getWhiteboard(whiteboardId, transaction);
 
-                    if (!whiteboard.hasField(fieldName)) {
+                    final Field field = whiteboard.getField(fieldName);
+                    if (field == null) {
                         throw new NotFoundException("Field " + fieldName + " of whiteboard " + whiteboardId + " not found");
                     }
-                    if (whiteboard.hasLinkedField(fieldName)) {
-                        throw new IllegalArgumentException(
-                            "Field " + fieldName + " of whiteboard " + whiteboardId + " already linked"
-                        );
+                    if (field.status() == Field.Status.FINALIZED) {
+                        throw new IllegalArgumentException("Field " + fieldName + " of whiteboard " + whiteboardId + " already finalized");
+                    }
+                    if (field instanceof LinkedField oldLinkedField) {
+                        LOG.info("Field {} of whiteboard {} has already linked with data [{}]. " +
+                                 "Data will be overwritten.", fieldName, whiteboardId, oldLinkedField.toString());
                     }
 
-                    whiteboardStorage.markFieldLinked(whiteboardId, linkedField, linkedAt, transaction);
+                    whiteboardStorage.updateField(whiteboardId, linkedField, finalizedAt, transaction);
 
                     transaction.commit();
                 } finally {
@@ -154,26 +158,28 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
                 }
             });
 
-            responseObserver.onNext(LWBPS.LinkFieldResponse.getDefaultInstance());
-            LOG.info("Link field {} to whiteboard {} done", fieldName, whiteboardId);
+            responseObserver.onNext(LWBPS.FinalizeFieldResponse.getDefaultInstance());
+            LOG.info("Finalize field {} of whiteboard {} done", fieldName, whiteboardId);
             responseObserver.onCompleted();
         } catch (NotFoundException e) {
-            LOG.error("Link field {} to whiteboard {} failed, not found exception: {}",
+            LOG.error("Finalize field {} of whiteboard {} failed, not found exception: {}",
                 request.getFieldName(), request.getWhiteboardId(), e.getMessage(), e);
             responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asException());
         } catch (IllegalArgumentException e) {
-            LOG.error("Link field {} to whiteboard {} failed, invalid argument: {}",
+            LOG.error("Finalize field {} of whiteboard {} failed, invalid argument: {}",
                 request.getFieldName(), request.getWhiteboardId(), e.getMessage(), e);
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
         } catch (Exception e) {
-            LOG.error("Link field {} to whiteboard {} failed, got exception: {}",
+            LOG.error("Finalize field {} of whiteboard {} failed, got exception: {}",
                 request.getFieldName(), request.getWhiteboardId(), e.getMessage(), e);
             responseObserver.onError(Status.INTERNAL.withCause(e).asException());
         }
     }
 
     @Override
-    public void finalize(LWBPS.FinalizeRequest request, StreamObserver<LWBPS.FinalizeResponse> responseObserver) {
+    public void finalizeWhiteboard(LWBPS.FinalizeWhiteboardRequest request,
+                         StreamObserver<LWBPS.FinalizeWhiteboardResponse> responseObserver)
+    {
         LOG.info("Finalize whiteboard {}", request.getWhiteboardId());
 
         try {
@@ -188,19 +194,23 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
                 try (final var transaction = TransactionHandle.create(dataSource)) {
                     final Whiteboard whiteboard = whiteboardStorage.getWhiteboard(whiteboardId, transaction);
 
-                    if (!whiteboard.createdFieldNames().isEmpty()) {
-                        String errorMessage = "whiteboard has unlinked fields: "
-                                              + String.join(",", whiteboard.createdFieldNames());
-                        throw new IllegalArgumentException(errorMessage);
+                    if (whiteboard.status() == Whiteboard.Status.FINALIZED) {
+                        throw new IllegalArgumentException("Whiteboard " + whiteboardId + " already finalized");
                     }
 
-                    whiteboardStorage.setWhiteboardFinalized(whiteboardId, finalizedAt, transaction);
+                    final var unlinkedFields = whiteboard.unlinkedFields();
+                    if (!unlinkedFields.isEmpty()) {
+                         LOG.info("Finalize whiteboard {} with unlinked fields: [{}]",
+                             whiteboardId, String.join(",", unlinkedFields.toString()));
+                    }
+
+                    whiteboardStorage.finalizeWhiteboard(whiteboardId, finalizedAt, transaction);
 
                     transaction.commit();
                 }
             });
 
-            responseObserver.onNext(LWBPS.FinalizeResponse.getDefaultInstance());
+            responseObserver.onNext(LWBPS.FinalizeWhiteboardResponse.getDefaultInstance());
             LOG.info("Finalize whiteboard {} done", whiteboardId);
             responseObserver.onCompleted();
         } catch (NotFoundException e) {
@@ -215,34 +225,6 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
             LOG.error("Finalize whiteboard {} failed, got exception: {}",
                 request.getWhiteboardId(), e.getMessage(), e);
             responseObserver.onError(Status.INTERNAL.withCause(e).asException());
-        }
-    }
-
-    private boolean isRequestValid(LWBPS.CreateRequest request) {
-        try {
-            boolean isValid = true;
-            isValid = isValid && !request.getUserId().isBlank();
-            isValid = isValid && !request.getWhiteboardName().isBlank();
-            isValid = isValid && request.getFieldNamesCount() != 0;
-            isValid = isValid && !request.getNamespace().isBlank();
-            isValid = isValid && !request.getStorage().getName().isBlank();
-            return isValid;
-        } catch (NullPointerException e) {
-            return false;
-        }
-    }
-
-    private boolean isRequestValid(LWBPS.LinkFieldRequest request) {
-        try {
-            boolean isValid = true;
-            isValid = isValid && !request.getWhiteboardId().isBlank();
-            isValid = isValid && !request.getFieldName().isBlank();
-            isValid = isValid && !request.getStorageUri().isBlank();
-            isValid = isValid && !request.getScheme().getType().isBlank();
-            isValid = isValid && request.getScheme().getSchemeType().getNumber() != 0;
-            return isValid;
-        } catch (NullPointerException e) {
-            return false;
         }
     }
 

@@ -1,14 +1,16 @@
 package ai.lzy.whiteboard.model;
 
-import ai.lzy.model.data.DataSchema;
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 public record Whiteboard(
     String id,
     String name,
-    Set<String> createdFieldNames, // not linked yet
-    Set<LinkedField> linkedFields,
+    Map<String, Field> fields,
     Set<String> tags,
     Storage storage,
     String namespace,
@@ -16,12 +18,22 @@ public record Whiteboard(
     Instant createdAt
 ) {
 
-    public boolean hasField(String fieldName) {
-        return createdFieldNames.contains(fieldName) || hasLinkedField(fieldName);
+    @Nullable
+    public Field getField(String name) {
+        return fields.get(name);
     }
 
-    public boolean hasLinkedField(String fieldName) {
-        return linkedFields.stream().anyMatch(f -> f.name().contains(fieldName));
+    public List<Field> unlinkedFields() {
+        return fields.values().stream()
+            .filter(f -> !(f instanceof LinkedField))
+            .collect(Collectors.toList());
+    }
+
+    public List<LinkedField> linkedFields() {
+        return fields.values().stream()
+            .filter(f -> f instanceof LinkedField)
+            .map(f -> (LinkedField) f)
+            .collect(Collectors.toList());
     }
 
     public enum Status {
@@ -34,9 +46,4 @@ public record Whiteboard(
         String description
     ) { }
 
-    public record LinkedField(
-        String name,
-        String storageUri,
-        DataSchema schema
-    ) { }
 }

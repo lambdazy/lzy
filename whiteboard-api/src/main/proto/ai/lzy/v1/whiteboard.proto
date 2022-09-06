@@ -28,7 +28,7 @@ message Whiteboard {
 message WhiteboardFieldInfo {
   string name = 1;
   oneof state {
-    NoneField createdState = 2;
+    NoneField noneState = 2;
     LinkedField linkedState = 3;
   }
 

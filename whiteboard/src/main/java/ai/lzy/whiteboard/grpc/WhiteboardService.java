@@ -57,7 +57,7 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
             final Whiteboard whiteboard = whiteboardStorage.getWhiteboard(whiteboardId, null);
 
             responseObserver.onNext(LWBS.GetResponse.newBuilder()
-                .setWhiteboard(ProtoConverter.to(whiteboard))
+                .setWhiteboard(ProtoConverter.toProto(whiteboard))
                 .build());
             LOG.info("Get whiteboard {} done", whiteboardId);
             responseObserver.onCompleted();
@@ -98,7 +98,7 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
                 createdAtLowerBound, createdAtUpperBound, null);
 
             var response = LWBS.ListResponse.newBuilder()
-                .addAllWhiteboards(whiteboards.map(ProtoConverter::to).toList())
+                .addAllWhiteboards(whiteboards.map(ProtoConverter::toProto).toList())
                 .build();
             responseObserver.onNext(response);
             LOG.info("List whiteboards done, {} found", response.getWhiteboardsCount());
