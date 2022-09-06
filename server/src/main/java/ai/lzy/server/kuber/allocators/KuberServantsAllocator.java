@@ -158,8 +158,7 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
                             new V1NetworkPolicyPeer().podSelector(
                                 new V1LabelSelector().matchLabels(
                                     Map.of(
-                                        "servant-session-id", kuberValidName(sessionId),
-                                        "lzy.ai/role", "system"
+                                        "servant-session-id", kuberValidName(sessionId)
                                     )
                                 )
                             )
@@ -171,8 +170,7 @@ public class KuberServantsAllocator extends ServantsAllocatorBase {
                             new V1NetworkPolicyPeer().podSelector(
                                 new V1LabelSelector().matchLabels(
                                     Map.of(
-                                        "servant-session-id", kuberValidName(sessionId),
-                                        "lzy.ai/role", "system"
+                                        "servant-session-id", kuberValidName(sessionId)
                                     )
                                 )
                             )
