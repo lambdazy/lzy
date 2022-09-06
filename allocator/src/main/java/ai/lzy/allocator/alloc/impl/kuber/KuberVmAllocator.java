@@ -93,13 +93,8 @@ public class KuberVmAllocator implements VmAllocator {
                             POD_NAME_KEY, vmPodSpec.getMetadata().getName(),
                             CLUSTER_ID_KEY, cluster.clusterId()),
                         null);
-                    return (Void) null;
                 },
-                ok -> {
-                },
-                ex -> {
-                    throw new RuntimeException(ex);
-                });
+                RuntimeException::new);
 
             final Pod pod;
             try {
@@ -144,47 +139,37 @@ public class KuberVmAllocator implements VmAllocator {
 
     @Override
     public void deallocate(String vmId) {
-        withRetries(
+        var meta = withRetries(
             defaultRetryPolicy(),
             LOG,
             () -> dao.getAllocatorMeta(vmId, null),
-            meta -> {
-                if (meta == null) {
-                    throw new RuntimeException("Cannot get allocator metadata for vmId " + vmId);
-                }
+            ex -> new RuntimeException("Database error: " + ex.getMessage(), ex));
 
-                final var clusterId = meta.get(CLUSTER_ID_KEY);
-                final var credentials = poolRegistry.getCluster(clusterId);
-                final var ns = meta.get(NAMESPACE_KEY);
-                final var podName = meta.get(POD_NAME_KEY);
+        if (meta == null) {
+            throw new RuntimeException("Cannot get allocator metadata for vmId " + vmId);
+        }
 
-                try (final var client = factory.build(credentials)) {
-                    final var pod = getPod(ns, podName, client);
-                    if (pod != null) {
-                        client.pods()
-                            .inNamespace(ns)
-                            .resource(pod)
-                            .delete();
-                    } else {
-                        LOG.warn("Pod with name {} not found", podName);
-                    }
+        final var clusterId = meta.get(CLUSTER_ID_KEY);
+        final var credentials = poolRegistry.getCluster(clusterId);
+        final var ns = meta.get(NAMESPACE_KEY);
+        final var podName = meta.get(POD_NAME_KEY);
 
-                    withRetries(
-                        defaultRetryPolicy(),
-                        LOG,
-                        () -> {
-                            KuberVolumeManager.freeVolumes(client, diskManager, dao.getVolumeClaims(vmId, null));
-                            return (Void) null;
-                        },
-                        ok -> {
-                        },
-                        ex -> {
-                            throw new RuntimeException("Database error: " + ex.getMessage(), ex);
-                        });
-                }
-            },
-            ex -> {
-                throw new RuntimeException("Database error: " + ex.getMessage(), ex);
-            });
+        try (final var client = factory.build(credentials)) {
+            final var pod = getPod(ns, podName, client);
+            if (pod != null) {
+                client.pods()
+                    .inNamespace(ns)
+                    .resource(pod)
+                    .delete();
+            } else {
+                LOG.warn("Pod with name {} not found", podName);
+            }
+
+            withRetries(
+                defaultRetryPolicy(),
+                LOG,
+                () -> KuberVolumeManager.freeVolumes(client, diskManager, dao.getVolumeClaims(vmId, null)),
+                ex -> new RuntimeException("Database error: " + ex.getMessage(), ex));
+        }
     }
 }
