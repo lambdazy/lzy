@@ -129,8 +129,9 @@ public class DockerVmAllocator implements VmAllocator {
     }
 
     @Override
-    public List<VmHost> vmHosts(String vmId, @Nullable TransactionHandle transaction) {
-        final var name = SystemUtils.IS_OS_LINUX ? "localhost" : "host.docker.internal";
-        return List.of(new VmHost("HostName", name));
+    public List<VmEndpoint> getVmEndpoints(String vmId, @Nullable TransactionHandle transaction) {
+        final var name = SystemUtils.IS_OS_MAC
+            ? "host.docker.internal" : "localhost";  // On mac docker cannot forward ports to localhost
+        return List.of(new VmEndpoint(VmEndpointType.HOST_NAME, name));
     }
 }

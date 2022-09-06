@@ -176,8 +176,8 @@ public class KuberVmAllocator implements VmAllocator {
     }
 
     @Override
-    public List<VmHost> vmHosts(String vmId, @Nullable TransactionHandle transaction) {
-        final List<VmHost> hosts = new ArrayList<>();
+    public List<VmEndpoint> getVmEndpoints(String vmId, @Nullable TransactionHandle transaction) {
+        final List<VmEndpoint> hosts = new ArrayList<>();
 
         final var meta = withRetries(
             defaultRetryPolicy(),
@@ -201,9 +201,17 @@ public class KuberVmAllocator implements VmAllocator {
                 final var node = client.nodes()
                         .withName(nodeName)
                         .get();
+
                 for (final var address: node.getStatus().getAddresses()) {
-                    hosts.add(new VmHost(address.getType(), address.getAddress()));
+                    final var type = switch (address.getType()) {
+                        case "HostName" -> VmEndpointType.HOST_NAME;
+                        case "InternalIp" -> VmEndpointType.INTERNAL_IP;
+                        case "ExternalIp" -> VmEndpointType.EXTERNAL_IP;
+                        default -> throw new RuntimeException("Undefined type of node address: " + address.getType());
+                    };
+                    hosts.add(new VmEndpoint(type, address.getAddress()));
                 }
+
             } else {
                 throw new RuntimeException("Cannot get pod with name " + podName + " to get addresses");
             }

@@ -94,7 +94,7 @@ public class ThreadVmAllocator implements VmAllocator {
     }
 
     @Override
-    public List<VmHost> vmHosts(String vmId, @Nullable TransactionHandle transaction) {
-        return List.of(new VmHost("HostName", "localhost"));
+    public List<VmEndpoint> getVmEndpoints(String vmId, @Nullable TransactionHandle transaction) {
+        return List.of(new VmEndpoint(VmEndpointType.HOST_NAME, "localhost"));
     }
 }

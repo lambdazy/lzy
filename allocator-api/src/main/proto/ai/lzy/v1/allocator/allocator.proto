@@ -80,11 +80,18 @@ message AllocateResponse {
   string vm_id = 2;
   string session_id = 3;
   map<string, string> metadata = 4;
-  repeated VmHost hosts = 5;
+  repeated VmEndpoint endpoints = 5;
 
-  message VmHost {
-    string type = 1;  // HostName, ExternalIP or InternalIP, like in k8s node
+  message VmEndpoint {
+    VmEndpointType type = 1;
     string value = 2;
+
+    enum VmEndpointType {
+      NOT_SET = 0;
+      HOST_NAME = 1;
+      EXTERNAL_IP = 2;
+      INTERNAL_IP = 3;
+    }
   }
 }
 

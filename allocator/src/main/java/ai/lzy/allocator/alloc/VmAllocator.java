@@ -3,6 +3,7 @@ package ai.lzy.allocator.alloc;
 import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.v1.VmAllocatorApi.AllocateResponse;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -28,10 +29,30 @@ public interface VmAllocator {
      * @param vmId id of vm to get hosts
      * @return List of host of vm
      */
-    List<VmHost> vmHosts(String vmId, @Nullable TransactionHandle transaction);
+    List<VmEndpoint> getVmEndpoints(String vmId, @Nullable TransactionHandle transaction);
 
-    record VmHost(
-        String type,  // HostName, ExternalIP or InternalIP, like in k8s node
+    record VmEndpoint(
+        VmEndpointType type,  // HostName, ExternalIP or InternalIP, like in k8s node
         String value
-    ) {}
+    ) {
+
+        public AllocateResponse.VmEndpoint toProto() {
+            final var typ = switch (type) {
+                case HOST_NAME -> AllocateResponse.VmEndpoint.VmEndpointType.HOST_NAME;
+                case EXTERNAL_IP -> AllocateResponse.VmEndpoint.VmEndpointType.EXTERNAL_IP;
+                case INTERNAL_IP -> AllocateResponse.VmEndpoint.VmEndpointType.INTERNAL_IP;
+            };
+
+            return AllocateResponse.VmEndpoint.newBuilder()
+                .setValue(value)
+                .setType(typ)
+                .build();
+        }
+    }
+
+    enum VmEndpointType {
+        HOST_NAME,
+        EXTERNAL_IP,
+        INTERNAL_IP
+    }
 }

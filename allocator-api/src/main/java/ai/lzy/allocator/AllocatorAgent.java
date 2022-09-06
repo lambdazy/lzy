@@ -31,7 +31,7 @@ public class AllocatorAgent extends TimerTask {
 
     public AllocatorAgent(String iamToken, @Nullable String vmId, @Nullable String allocatorAddress,
                           @Nullable Duration heartbeatPeriod) throws RegisterException
-     {
+    {
         this.vmId = vmId == null ? System.getenv(VM_ID_KEY) : vmId;
         final var allocAddress = allocatorAddress == null
             ? System.getenv(VM_ALLOCATOR_ADDRESS) : allocatorAddress;
