@@ -148,6 +148,7 @@ class GrpcRuntimeTests(TestCase):
         def test(a: str, *, b: File) -> str:
             with b.open("r") as f:
                 return a + f.readline()
+
         _, arg_file = tempfile.mkstemp()
         _, kwarg_file = tempfile.mkstemp()
         _, ret_file = tempfile.mkstemp()
@@ -167,7 +168,7 @@ class GrpcRuntimeTests(TestCase):
             op=test,
             args_paths=[(str, arg_file)],
             kwargs_paths={"b": (File, kwarg_file)},
-            output_paths=[ret_file]
+            output_paths=[ret_file],
         )
 
         main(pickle(req))

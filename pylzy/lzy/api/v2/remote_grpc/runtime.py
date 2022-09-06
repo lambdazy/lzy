@@ -6,7 +6,7 @@ import time
 from asyncio import Task
 from collections import defaultdict
 from threading import Thread
-from typing import Callable, Dict, List, Optional, Tuple, Union, Type
+from typing import Callable, Dict, List, Optional, Tuple, Type, Union
 
 import jwt
 
@@ -213,7 +213,7 @@ class GrpcRuntime(Runtime):
                 op=call.signature.func.callable,
                 args_paths=arg_descriptions,
                 kwargs_paths=kwarg_descriptions,
-                output_paths=ret_descriptions
+                output_paths=ret_descriptions,
             )
 
             _com = "".join(
