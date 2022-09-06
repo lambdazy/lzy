@@ -41,5 +41,6 @@ CREATE TABLE disk (
     name varchar(255) NOT NULL,
     type varchar(255) NOT NULL,
     size_gb int NOT NULL,
-    zone_id varchar(255) NOT NULL
+    zone_id varchar(255) NOT NULL,
+    user_id varchar(255) NOT NULL
 )

@@ -8,6 +8,7 @@ import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.Disk;
 import ai.lzy.allocator.disk.DiskManager;
+import ai.lzy.allocator.disk.DiskMeta;
 import ai.lzy.allocator.disk.exceptions.NotFoundException;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.allocator.volume.KuberVolumeManager;
@@ -212,7 +213,7 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
 
     @Test
     public void allocateTest() throws InvalidProtocolBufferException, NotFoundException {
-        final Disk disk = diskManager.create(createTestDiskSpec(3));
+        final Disk disk = diskManager.create(createTestDiskSpec(3), new DiskMeta("user-id"));
         final String volumeName = "volume";
         final String mountPath = "/mnt/volume";
         final String filePath = mountPath + "/echo42";
@@ -263,7 +264,7 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
     @Test
     public void bidirectionalMountTest()
         throws InvalidProtocolBufferException, NotFoundException, ExecutionException, InterruptedException {
-        final Disk disk = diskManager.create(createTestDiskSpec(3));
+        final Disk disk = diskManager.create(createTestDiskSpec(3), new DiskMeta("user-id"));
         final String hostDirVolumeName = "mountDir";
         final String diskVolumeName = "volume";
         final String hostDirMountPath = "/mnt";
