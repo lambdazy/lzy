@@ -15,6 +15,7 @@ import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -55,7 +56,7 @@ public class StorageTest {
             "f1", new Field("f1", Field.Status.CREATED),
             "f2", new Field("f2", Field.Status.CREATED),
             "f3", new Field("f3", Field.Status.CREATED)
-        ), Set.of(), new Whiteboard.Storage("s-name", ""), "namespace", Whiteboard.Status.CREATED, Instant.now());
+        ), Set.of(), new Whiteboard.Storage("s-name", ""), "namespace", Whiteboard.Status.CREATED, timestampNow());
 
         wbStorage.insertWhiteboard(userId, wb, null);
         Assert.assertEquals(wb, wbStorage.getWhiteboard(wb.id(), null));
@@ -65,7 +66,7 @@ public class StorageTest {
             "f2", genLinkedField("f2", Field.Status.CREATED),
             "f3", new Field("f3", Field.Status.CREATED),
             "f4", genLinkedField("f4", Field.Status.CREATED)
-        ), Set.of(), new Whiteboard.Storage("s-name", ""), "namespace", Whiteboard.Status.CREATED, Instant.now());
+        ), Set.of(), new Whiteboard.Storage("s-name", ""), "namespace", Whiteboard.Status.CREATED, timestampNow());
 
         wbStorage.insertWhiteboard(userId, wbWithDefaults, null);
         Assert.assertEquals(wbWithDefaults, wbStorage.getWhiteboard(wbWithDefaults.id(), null));
@@ -73,7 +74,7 @@ public class StorageTest {
         final var wbTagged = new Whiteboard("id3", "wb-name-1",
             Map.of("f1", new Field("f1", Field.Status.CREATED)), Set.of("lol", "kek", "cheburek"),
             new Whiteboard.Storage("s-name", "My super secret storage."), "namespace",
-            Whiteboard.Status.CREATED, Instant.now()
+            Whiteboard.Status.CREATED, timestampNow()
         );
 
         wbStorage.insertWhiteboard(userId, wbTagged, null);
@@ -84,14 +85,14 @@ public class StorageTest {
     public void finalizeWhiteboardAndFields() throws SQLException {
         final var userId = "uid-42";
 
-        Whiteboard wb = genWhiteboard("id", "wb-name", Set.of("f1", "f2"), Set.of("t1"), Instant.now());
+        Whiteboard wb = genWhiteboard("id", "wb-name", Set.of("f1", "f2"), Set.of("t1"), timestampNow());
         wbStorage.insertWhiteboard(userId, wb, null);
 
         final var f0 = genLinkedFinalizedField("f0");
         final var f1 = genLinkedFinalizedField("f1");
         final var f2 = new Field("f2", Field.Status.FINALIZED);
 
-        wbStorage.updateField(wb.id(), f1, Instant.now(), null);
+        wbStorage.updateField(wb.id(), f1, timestampNow(), null);
         wb = wbStorage.getWhiteboard(wb.id(), null);
         Assert.assertEquals(1, wb.unlinkedFields().size());
         Assert.assertEquals(1, wb.linkedFields().size());
@@ -99,7 +100,7 @@ public class StorageTest {
         Assert.assertEquals(Field.Status.CREATED, wb.getField(f2.name()).status());
 
         try {
-            wbStorage.updateField(wb.id(), f0, Instant.now(), null);
+            wbStorage.updateField(wb.id(), f0, timestampNow(), null);
             Assert.fail("Field doesn't exist, but has successfully linked");
         } catch (NotFoundException e) {
             // ignored
@@ -107,7 +108,7 @@ public class StorageTest {
             Assert.fail("Unexpected exception");
         }
 
-        wbStorage.finalizeWhiteboard(wb.id(), Instant.now(), null);
+        wbStorage.finalizeWhiteboard(wb.id(), timestampNow(), null);
         final var expectedFinalizedWb = new Whiteboard(
             wb.id(), wb.name(), Map.of(f1.name(), f1, f2.name(), f2), wb.tags(),
             wb.storage(), wb.namespace(), Whiteboard.Status.FINALIZED, wb.createdAt());
@@ -178,6 +179,10 @@ public class StorageTest {
             .collect(Collectors.toMap(Field::name, f -> f));
         return new Whiteboard(id, name, whiteboardFields, tags,
             new Whiteboard.Storage("s-name", ""), "namespace", Whiteboard.Status.CREATED, createdAt);
+    }
+
+    private static Instant timestampNow() {
+        return Instant.now().truncatedTo(ChronoUnit.MILLIS);
     }
 
     private LinkedField genLinkedFinalizedField(String name) {

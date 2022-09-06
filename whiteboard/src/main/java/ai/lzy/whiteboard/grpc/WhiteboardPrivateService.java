@@ -17,6 +17,7 @@ import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Inject;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.UUID;
@@ -61,7 +62,7 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
             }
 
             final String whiteboardId = "whiteboard-" + UUID.randomUUID();
-            final Instant createdAt = Instant.now();
+            final Instant createdAt = Instant.now().truncatedTo(ChronoUnit.MILLIS);
             final Map<String, Field> fields = request.getFieldsList().stream()
                 .map(ProtoConverter::fromProto)
                 .collect(Collectors.toMap(Field::name, x -> x));
@@ -128,7 +129,7 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
                 responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(errorMessage).asException());
             }
 
-            final Instant finalizedAt = Instant.now();
+            final Instant finalizedAt = Instant.now().truncatedTo(ChronoUnit.MILLIS);
             final var linkedField = new LinkedField(fieldName, Field.Status.FINALIZED, request.getStorageUri(),
                 ai.lzy.model.GrpcConverter.contentTypeFrom(request.getScheme()));
 
@@ -188,7 +189,7 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
                 throw new IllegalArgumentException("Request shouldn't contain empty fields");
             }
 
-            final Instant finalizedAt = Instant.now();
+            final Instant finalizedAt = Instant.now().truncatedTo(ChronoUnit.MILLIS);
 
             withRetries(defaultRetryPolicy(), LOG, () -> {
                 try (final var transaction = TransactionHandle.create(dataSource)) {

@@ -43,6 +43,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
+@SuppressWarnings("ResultOfMethodCallIgnored")
 public class ApiTest extends BaseTestWithIam {
 
     @Rule
@@ -152,8 +153,8 @@ public class ApiTest extends BaseTestWithIam {
             Assert.assertEquals(e.getStatus().toString(), Status.Code.NOT_FOUND, e.getStatus().getCode());
         }
 
-        final var createWhiteboardResponse = privateWhiteboardClient.createWhiteboard(genCreateWhiteboardRequest());
-        final var createdWhiteboard = createWhiteboardResponse.getWhiteboard();
+        final var createdWhiteboard = privateWhiteboardClient
+            .createWhiteboard(genCreateWhiteboardRequest()).getWhiteboard();
         final var getRequest = LWBS.GetRequest.newBuilder().setWhiteboardId(createdWhiteboard.getId()).build();
 
         Assert.assertEquals(LWB.Whiteboard.Status.CREATED, createdWhiteboard.getStatus());
@@ -231,7 +232,38 @@ public class ApiTest extends BaseTestWithIam {
         Assert.assertEquals("s-uri-4", finalizedFields.get("f4").getInfo().getLinkedState().getStorageUri());
     }
 
-    @SuppressWarnings("ResultOfMethodCallIgnored")
+    @Test
+    public void listWhiteboards() {
+        final var whiteboard1 = privateWhiteboardClient
+            .createWhiteboard(genCreateWhiteboardRequest(externalUser.id, "wb1", List.of("t1"))).getWhiteboard();
+        final var whiteboard2 = privateWhiteboardClient
+            .createWhiteboard(genCreateWhiteboardRequest(externalUser.id, "wb2", List.of("t2"))).getWhiteboard();
+        final var whiteboard3 = privateWhiteboardClient
+            .createWhiteboard(genCreateWhiteboardRequest(externalUser.id, "wb3", List.of("t1", "t2"))).getWhiteboard();
+        final var whiteboard4 = privateWhiteboardClient
+            .createWhiteboard(genCreateWhiteboardRequest(externalUser2.id, "wb", List.of("t1", "t2"))).getWhiteboard();
+
+        var listResult = externalUserWhiteboardClient.list(LWBS.ListRequest.newBuilder().build());
+        Assert.assertEquals(3, listResult.getWhiteboardsCount());
+
+        listResult = externalUser2WhiteboardClient.list(LWBS.ListRequest.newBuilder().build());
+        Assert.assertEquals(1, listResult.getWhiteboardsCount());
+        Assert.assertEquals(whiteboard4, listResult.getWhiteboards(0));
+
+        listResult = externalUserWhiteboardClient.list(LWBS.ListRequest.newBuilder()
+            .addAllTags(List.of("t1", "t2")).build());
+        Assert.assertEquals(1, listResult.getWhiteboardsCount());
+        Assert.assertEquals(whiteboard3, listResult.getWhiteboards(0));
+
+        listResult = externalUserWhiteboardClient.list(LWBS.ListRequest.newBuilder().setName("wb1").build());
+        Assert.assertEquals(1, listResult.getWhiteboardsCount());
+        Assert.assertEquals(whiteboard1, listResult.getWhiteboards(0));
+
+        listResult = externalUserWhiteboardClient.list(LWBS.ListRequest.newBuilder()
+            .setCreatedTimeBounds(LWB.TimeBounds.newBuilder().setTo(whiteboard2.getCreatedAt()).build()).build());
+        Assert.assertEquals(2, listResult.getWhiteboardsCount());
+    }
+
     private void apiAccessTest(LzyWhiteboardPrivateServiceGrpc.LzyWhiteboardPrivateServiceBlockingStub client,
                                Status expectedStatus)
     {
@@ -255,7 +287,6 @@ public class ApiTest extends BaseTestWithIam {
         }
     }
 
-    @SuppressWarnings("ResultOfMethodCallIgnored")
     private void apiAccessTest(LzyWhiteboardServiceGrpc.LzyWhiteboardServiceBlockingStub client,
                                Status expectedStatus)
     {
@@ -302,6 +333,24 @@ public class ApiTest extends BaseTestWithIam {
                     .build()))
             .setStorage(ProtoConverter.toProto(new Whiteboard.Storage("storage", "")))
             .addAllTags(List.of("t1, t2"))
+            .setNamespace("namespace")
+            .build();
+    }
+
+    private LWBPS.CreateWhiteboardRequest genCreateWhiteboardRequest(String userId, String name, List<String> tags) {
+        return LWBPS.CreateWhiteboardRequest.newBuilder()
+            .setUserId(userId)
+            .setWhiteboardName(name)
+            .addAllFields(List.of(
+                LWB.WhiteboardFieldInfo.newBuilder()
+                    .setName("f")
+                    .setLinkedState(LWB.WhiteboardFieldInfo.LinkedField.newBuilder()
+                        .setStorageUri("s-uri")
+                        .setScheme(ai.lzy.model.GrpcConverter.to(new DataSchema(SchemeType.plain, "default")))
+                        .build())
+                    .build()))
+            .setStorage(ProtoConverter.toProto(new Whiteboard.Storage("storage", "")))
+            .addAllTags(tags)
             .setNamespace("namespace")
             .build();
     }
