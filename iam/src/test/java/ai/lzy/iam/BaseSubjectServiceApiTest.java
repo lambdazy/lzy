@@ -4,9 +4,7 @@ import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.util.auth.exceptions.AuthBadRequestException;
-import ai.lzy.util.auth.exceptions.AuthInternalException;
 import junitparams.JUnitParamsRunner;
-import junitparams.Parameters;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Test;
@@ -34,31 +32,32 @@ public abstract class BaseSubjectServiceApiTest {
     }
 
     public void createAndDeleteScenario(SubjectType subjectType) {
-        createSubject("1", subjectType);
-        createSubject("2", subjectType);
+        var subj1 = createSubject(subjectType);
+        var subj2 = createSubject(subjectType);
 
-        Subject subject1 = subject("1");
-        assertEquals("1", subject1.id());
+        Subject subject1 = subject(subj1.id());
+        assertEquals(subj1.id(), subject1.id());
         assertEquals(subjectType, subject1.type());
-        Subject subject2 = subject("2");
-        assertEquals("2", subject2.id());
+
+        Subject subject2 = subject(subj2.id());
+        assertEquals(subj2.id(), subject2.id());
         assertEquals(subjectType, subject2.type());
 
         removeSubject(subject1);
         try {
-            subject("1");
+            subject(subj1.id());
             fail();
         } catch (AuthBadRequestException e) {
             LOG.info("Valid exception {}", e.getInternalDetails());
         }
 
-        subject2 = subject("2");
-        assertEquals("2", subject2.id());
+        subject2 = subject(subj2.id());
+        assertEquals(subj2.id(), subject2.id());
         assertEquals(subjectType, subject2.type());
 
         removeSubject(subject2);
         try {
-            subject("2");
+            subject(subj2.id());
             fail();
         } catch (AuthBadRequestException e) {
             LOG.info("Valid exception {}", e.getInternalDetails());
@@ -76,8 +75,8 @@ public abstract class BaseSubjectServiceApiTest {
     }
 
     public void createAndRemoveWithCredentialsScenario(SubjectType subjectType) {
-        createSubject("1", subjectType);
-        Subject subject = subject("1");
+        var subj1 = createSubject(subjectType);
+        Subject subject = subject(subj1.id());
         addCredentials(subject, "1");
         addCredentials(subject, "2");
 
@@ -128,29 +127,9 @@ public abstract class BaseSubjectServiceApiTest {
         );
     }
 
-    @Test
-    @Parameters(method = "restrictEqualSubjectIdsParams")
-    public void restrictEqualSubjectIdsTest(SubjectType subjectType1, SubjectType subjectType2) {
-        String subjectId = "1";
-        createSubject(subjectId, subjectType1);
-        Subject subject1 = subject(subjectId);
-
-        try {
-            createSubject(subjectId, subjectType2);
-            fail();
-        } catch (AuthInternalException e) {
-            LOG.info("Valid exception {}", e.getMessage());
-        }
-
-        Subject subject2 = subject(subjectId);
-        assertEquals(subject1, subject2);
-
-        removeSubject(subject1);
-    }
-
     protected abstract Subject subject(String id);
 
-    protected abstract void createSubject(String id, SubjectType subjectType);
+    protected abstract Subject createSubject(SubjectType subjectType);
 
     protected abstract void removeSubject(Subject subject);
 

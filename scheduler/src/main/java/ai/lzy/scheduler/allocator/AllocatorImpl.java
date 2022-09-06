@@ -97,8 +97,8 @@ public class AllocatorImpl implements ServantsAllocator {
 
         final Credentials credentials;
         try {
-            final var subj = subjectClient.createSubject(servantId,
-                    authConfig.getInternalUserName(), servantId, SubjectType.SERVANT);
+            final var subj = subjectClient.createSubject(
+                authConfig.getInternalUserName(), servantId, SubjectType.SERVANT);
 
             final var cred = JwtUtils.generateCredentials(subj.id());
             credentials = cred.credentials();

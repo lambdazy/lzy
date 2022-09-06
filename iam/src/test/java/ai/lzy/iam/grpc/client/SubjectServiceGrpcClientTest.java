@@ -63,8 +63,8 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
     }
 
     @Override
-    protected void createSubject(String id, SubjectType subjectType) {
-        subjectClient.createSubject(id, "provider", "providerID", subjectType);
+    protected Subject createSubject(SubjectType subjectType) {
+        return subjectClient.createSubject("provider", "providerID", subjectType);
     }
 
     @Override

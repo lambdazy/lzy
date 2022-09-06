@@ -10,6 +10,7 @@ import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.User;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 public class SubjectServiceClientStub implements SubjectServiceClient {
@@ -19,8 +20,8 @@ public class SubjectServiceClientStub implements SubjectServiceClient {
     }
 
     @Override
-    public Subject createSubject(String id, String authProvider, String providerSubjectId, SubjectType type)
-            throws AuthException {
+    public Subject createSubject(String authProvider, String providerSubjectId, SubjectType type) throws AuthException {
+        final var id = "user_stub_" + UUID.randomUUID();
         return switch (type) {
             case USER -> new User(id);
             case SERVANT -> new Servant(id);

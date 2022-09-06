@@ -13,8 +13,7 @@ public interface SubjectServiceClient {
 
     SubjectServiceClient withToken(Supplier<Credentials> tokenSupplier);
 
-    Subject createSubject(String id, String authProvider, String providerSubjectId, SubjectType type)
-            throws AuthException;
+    Subject createSubject(String authProvider, String providerSubjectId, SubjectType type) throws AuthException;
 
     Subject getSubject(String id) throws AuthException;
 
