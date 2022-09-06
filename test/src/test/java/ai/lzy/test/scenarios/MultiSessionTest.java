@@ -64,6 +64,12 @@ public class MultiSessionTest extends LocalScenario {
             evalScenario(terminal2, scenarioName, List.of("catboost"), custom_mnt2)
         ));
 
+        LOG.info("STDOUT1: {}", result1.get().stdout());
+        LOG.info("STDERR1: {}", result1.get().stderr());
+
+        LOG.info("STDOUT2: {}", result2.get().stdout());
+        LOG.info("STDERR2: {}", result2.get().stderr());
+
         assertWithExpected(scenarioName, result1.get());
         assertWithExpected(scenarioName, result2.get());
     }

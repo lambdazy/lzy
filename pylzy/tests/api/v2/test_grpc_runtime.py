@@ -28,6 +28,11 @@ from ai.lzy.v1.workflow.workflow_service_pb2_grpc import (
 from lzy.api.v2 import Lzy, LzyCall
 from lzy.api.v2.exceptions import LzyExecutionException
 from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
+from lzy.api.v2.startup import ProcessingRequest, main
+from lzy.api.v2.utils._pickle import pickle
+from lzy.serialization.api import SerializersRegistry
+from lzy.serialization.registry import DefaultSerializersRegistry
+from lzy.serialization.types import File
 
 LOG = logging.getLogger(__name__)
 
@@ -138,3 +143,36 @@ class GrpcRuntimeTests(TestCase):
         self.mock.fail = False
 
         self.assertIsNone(lzy.storage_registry.get_default_credentials())
+
+    def test_startup(self):
+        def test(a: str, *, b: File) -> str:
+            with b.open("r") as f:
+                return a + f.readline()
+
+        _, arg_file = tempfile.mkstemp()
+        _, kwarg_file = tempfile.mkstemp()
+        _, ret_file = tempfile.mkstemp()
+        _, data_file = tempfile.mkstemp()
+
+        file = File(data_file)
+        with open(data_file, "w") as f:
+            f.write("2")
+        ser = DefaultSerializersRegistry()
+
+        with open(arg_file, "wb") as arg, open(kwarg_file, "wb") as kwarg:
+            ser.find_serializer_by_type(str).serialize("4", arg)
+            ser.find_serializer_by_type(File).serialize(file, kwarg)
+
+        req = ProcessingRequest(
+            serializers=ser,
+            op=test,
+            args_paths=[(str, arg_file)],
+            kwargs_paths={"b": (File, kwarg_file)},
+            output_paths=[ret_file],
+        )
+
+        main(pickle(req))
+
+        with open(ret_file, "rb") as f:
+            ret = ser.find_serializer_by_type(str).deserialize(f, str)
+            self.assertEqual("42", ret)
