@@ -108,7 +108,6 @@ public class DbSubjectService {
                     st.setString(++parameterIndex, subject.id());
                     st.executeUpdate();
                 }
-                return (Void) null;
             },
             AuthInternalException::new);
     }
@@ -130,8 +129,6 @@ public class DbSubjectService {
                     st.setString(++parameterIndex, type);
                     st.executeUpdate();
                 }
-
-                return (Void) null;
             },
             AuthInternalException::new);
     }
@@ -206,7 +203,6 @@ public class DbSubjectService {
                     st.setString(++parameterIndex, name);
                     st.executeUpdate();
                 }
-                return (Void) null;
             },
             AuthInternalException::new);
     }

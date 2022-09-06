@@ -5,7 +5,6 @@ import org.postgresql.util.PSQLException;
 import org.postgresql.util.PSQLState;
 
 import java.sql.SQLException;
-import java.util.function.Consumer;
 
 @SuppressWarnings({"BusyWait"})
 public enum DbHelper {
@@ -15,64 +14,20 @@ public enum DbHelper {
         T run() throws SQLException;
     }
 
+    public interface FuncV {
+        void run() throws SQLException;
+    }
+
     public interface ErrorAdapter<E extends Exception> {
         E fail(Exception e);
     }
 
-    public static <T> boolean withRetries(RetryPolicy retryPolicy, Logger logger, Func<T> fn,
-                                          Consumer<T> onSuccess, Consumer<Exception> onError)
-    {
-        /* it looks weird...
-        final class Done extends Exception {}
+    public static <T> T withRetries(RetryPolicy retryPolicy, Logger logger, Func<T> fn) throws Exception {
+        return withRetries(retryPolicy, logger, fn, ex -> ex);
+    }
 
-        try {
-            var result = withRetries(retryPolicy, logger, fn, ex -> {
-                onError.accept(ex);
-                return new Done();
-            });
-            onSuccess.accept(result);
-        } catch (Done e) {
-            // ignored
-        }
-        */
-
-        int delay = 0;
-        for (int attempt = 1; ; ++attempt) {
-            if (delay > 0) {
-                try {
-                    Thread.sleep(delay);
-                } catch (InterruptedException ex) {
-                    onError.accept(ex);
-                    return false;
-                }
-            }
-
-            try {
-                var ret = fn.run();
-                onSuccess.accept(ret);
-                return true;
-            } catch (PSQLException e) {
-                if (canRetry(e)) {
-                    delay = retryPolicy.getNextDelayMs();
-                    if (delay >= 0) {
-                        logger.error("Got retryable database error #{}: [{}] {}. Retry after {}ms.",
-                            attempt, e.getSQLState(), e.getMessage(), delay);
-                        continue;
-                    } else {
-                        logger.error("Got retryable database error: [{}] {}. Retries limit {} exceeded.",
-                            e.getSQLState(), e.getMessage(), attempt);
-                        onError.accept(new RetryCountExceededException(attempt));
-                    }
-                } else {
-                    logger.error("Got non-retryable database error: [{}] {}.", e.getSQLState(), e.getMessage());
-                    onError.accept(e);
-                }
-            } catch (Exception e) {
-                logger.error("Got non-retryable error: {}.", e.getMessage(), e);
-                onError.accept(e);
-            }
-            return false;
-        }
+    public static void withRetries(RetryPolicy retryPolicy, Logger logger, FuncV fn) throws Exception {
+        withRetries(retryPolicy, logger, fn, ex -> ex);
     }
 
     public static <T, E extends Exception> T withRetries(RetryPolicy retryPolicy, Logger logger, Func<T> fn,
@@ -114,6 +69,20 @@ public enum DbHelper {
         }
     }
 
+    public static <E extends Exception> void withRetries(RetryPolicy retryPolicy, Logger logger, FuncV fn,
+                                                         ErrorAdapter<E> error) throws E
+    {
+        withRetries(
+            retryPolicy,
+            logger,
+            () -> {
+                fn.run();
+                return (Void) null;
+            },
+            error);
+    }
+
+
     interface RetryPolicy {
         int getNextDelayMs();
     }
@@ -150,7 +119,7 @@ public enum DbHelper {
         }
 
         @Override
-        public synchronized Throwable fillInStackTrace() {
+        public Throwable fillInStackTrace() {
             return this;
         }
     }
