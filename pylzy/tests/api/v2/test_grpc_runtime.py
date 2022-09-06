@@ -175,5 +175,3 @@ class GrpcRuntimeTests(TestCase):
         with open(ret_file, "rb") as f:
             ret = ser.find_serializer_by_type(str).deserialize(f, str)
             self.assertEqual("42", ret)
-
-

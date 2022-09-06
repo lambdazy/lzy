@@ -19,4 +19,4 @@ def pickle(obj: T) -> str:
 
 def unpickle(base64_str: str, obj_type: Type[T] = None) -> T:
     t_ = cloudpickle.loads(base64.b64decode(base64_str.encode("ascii")))
-    return cast(obj_type, t_)
+    return cast(T, t_)
