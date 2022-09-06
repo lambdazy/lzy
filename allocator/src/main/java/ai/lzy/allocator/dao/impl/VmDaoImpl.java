@@ -111,7 +111,7 @@ public class VmDaoImpl implements VmDao {
         WHERE id = ?""";
 
     private static final String QUERY_GET_VOLUME_CLAIMS = """
-        SELECT volume_claims
+        SELECT volumes_json
         FROM vm
         WHERE id = ?""";
 
