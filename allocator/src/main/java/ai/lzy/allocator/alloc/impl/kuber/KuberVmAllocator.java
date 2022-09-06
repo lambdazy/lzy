@@ -21,6 +21,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -171,5 +172,44 @@ public class KuberVmAllocator implements VmAllocator {
                 () -> KuberVolumeManager.freeVolumes(client, diskManager, dao.getVolumeClaims(vmId, null)),
                 ex -> new RuntimeException("Database error: " + ex.getMessage(), ex));
         }
+    }
+
+    @Override
+    public List<VmHost> vmHosts(String vmId) {
+        final List<VmHost> hosts = new ArrayList<>();
+
+        withRetries(
+            defaultRetryPolicy(),
+            LOG,
+            () -> dao.getAllocatorMeta(vmId, null),
+            meta -> {
+                if (meta == null) {
+                    throw new RuntimeException("Cannot get allocator metadata for vmId " + vmId);
+                }
+
+                final var clusterId = meta.get(CLUSTER_ID_KEY);
+                final var credentials = poolRegistry.getCluster(clusterId);
+                final var ns = meta.get(NAMESPACE_KEY);
+                final var podName = meta.get(POD_NAME_KEY);
+
+                try (final var client = factory.build(credentials)) {
+                    final var pod = getPod(ns, podName, client);
+                    if (pod != null) {
+                        final var nodeName = pod.getSpec().getNodeName();
+                        final var node = client.nodes()
+                            .withName(nodeName)
+                            .get();
+                        for (final var address: node.getStatus().getAddresses()) {
+                            hosts.add(new VmHost(address.getType(), address.getAddress()));
+                        }
+                    } else {
+                        throw new RuntimeException("Cannot get pod with name " + podName + " to get addresses");
+                    }
+                }
+            },
+            ex -> {
+                throw new RuntimeException("Database error: " + ex.getMessage(), ex);
+            });
+        return hosts;
     }
 }

@@ -90,4 +90,9 @@ public class ThreadVmAllocator implements VmAllocator {
         vmThreads.get(vmId).stop();
         vmThreads.remove(vmId);
     }
+
+    @Override
+    public List<VmHost> vmHosts(String vmId) {
+        return List.of(new VmHost("HostName", "localhost"));
+    }
 }

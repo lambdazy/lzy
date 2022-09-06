@@ -31,6 +31,7 @@ import org.apache.logging.log4j.Logger;
 import javax.inject.Inject;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Set;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
@@ -169,10 +170,26 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
                                 .build(),
                             transaction);
 
-                        op.setResponse(Any.pack(AllocateResponse.newBuilder()
-                            .setPoolId(vm.poolLabel())
-                            .setSessionId(vm.sessionId())
-                            .setVmId(vm.vmId())
+                        final List<AllocateResponse.VmHost> hosts;
+                    try {
+                        hosts = allocator.vmHosts(vm.vmId()).stream()
+                                .map(h -> AllocateResponse.VmHost.newBuilder()
+                                        .setType(h.type())
+                                        .setValue(h.value())
+                                        .build())
+                                .toList();
+                    } catch (Exception e) {
+                        LOG.error("Cannot get hosts of vm {}", vm.vmId());
+                        responseObserver.onError(Status.INTERNAL
+                            .withDescription("Cannot get hosts of vm").asException());
+                        return null;
+                    }
+
+                    op.setResponse(Any.pack(AllocateResponse.newBuilder()
+                        .setPoolId(vm.poolLabel())
+                        .setSessionId(vm.sessionId())
+                        .setVmId(vm.vmId())
+                        .addAllHosts(hosts)
                             .putAllMetadata(request.getMetadataMap())
                             .build()));
                         operations.update(op, transaction);

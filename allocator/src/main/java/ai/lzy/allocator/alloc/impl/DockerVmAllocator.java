@@ -125,4 +125,10 @@ public class DockerVmAllocator implements VmAllocator {
             LOG.info("Container {} for vm {} destroyed before", containerId, vmId, e);
         }
     }
+
+    @Override
+    public List<VmHost> vmHosts(String vmId) {
+        final var name = SystemUtils.IS_OS_LINUX ? "localhost" : "host.docker.internal";
+        return List.of(new VmHost("HostName", name));
+    }
 }

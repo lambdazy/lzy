@@ -80,6 +80,12 @@ message AllocateResponse {
   string vm_id = 2;
   string session_id = 3;
   map<string, string> metadata = 4;
+  repeated VmHost hosts = 5;
+
+  message VmHost {
+    string type = 1;  // HostName, ExternalIP or InternalIP, like in k8s node
+    string value = 2;
+  }
 }
 
 message AllocateMetadata {
