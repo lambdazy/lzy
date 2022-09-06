@@ -11,6 +11,7 @@ import ai.lzy.allocator.volume.DiskVolumeDescription;
 import ai.lzy.allocator.volume.HostPathVolumeDescription;
 import ai.lzy.allocator.volume.KuberVolumeManager;
 import ai.lzy.allocator.volume.VolumeClaim;
+import ai.lzy.model.db.TransactionHandle;
 import io.fabric8.kubernetes.api.model.ListOptionsBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -21,6 +22,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -171,5 +173,49 @@ public class KuberVmAllocator implements VmAllocator {
                 () -> KuberVolumeManager.freeVolumes(client, diskManager, dao.getVolumeClaims(vmId, null)),
                 ex -> new RuntimeException("Database error: " + ex.getMessage(), ex));
         }
+    }
+
+    @Override
+    public List<VmEndpoint> getVmEndpoints(String vmId, @Nullable TransactionHandle transaction) {
+        final List<VmEndpoint> hosts = new ArrayList<>();
+
+        final var meta = withRetries(
+            defaultRetryPolicy(),
+            LOG,
+            () -> dao.getAllocatorMeta(vmId, transaction),
+            ex -> new RuntimeException("Database error: " + ex.getMessage(), ex));
+
+        if (meta == null) {
+            throw new RuntimeException("Cannot get allocator metadata for vmId " + vmId);
+        }
+
+        final var clusterId = meta.get(CLUSTER_ID_KEY);
+        final var credentials = poolRegistry.getCluster(clusterId);
+        final var ns = meta.get(NAMESPACE_KEY);
+        final var podName = meta.get(POD_NAME_KEY);
+
+        try (final var client = factory.build(credentials)) {
+            final var pod = getPod(ns, podName, client);
+            if (pod != null) {
+                final var nodeName = pod.getSpec().getNodeName();
+                final var node = client.nodes()
+                        .withName(nodeName)
+                        .get();
+
+                for (final var address: node.getStatus().getAddresses()) {
+                    final var type = switch (address.getType()) {
+                        case "HostName" -> VmEndpointType.HOST_NAME;
+                        case "InternalIp" -> VmEndpointType.INTERNAL_IP;
+                        case "ExternalIp" -> VmEndpointType.EXTERNAL_IP;
+                        default -> throw new RuntimeException("Undefined type of node address: " + address.getType());
+                    };
+                    hosts.add(new VmEndpoint(type, address.getAddress()));
+                }
+
+            } else {
+                throw new RuntimeException("Cannot get pod with name " + podName + " to get addresses");
+            }
+        }
+        return hosts;
     }
 }

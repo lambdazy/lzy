@@ -31,6 +31,7 @@ import org.apache.logging.log4j.Logger;
 import javax.inject.Inject;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Set;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
@@ -169,12 +170,26 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
                                 .build(),
                             transaction);
 
+                        final List<AllocateResponse.VmEndpoint> hosts;
+                        try {
+                            hosts = allocator.getVmEndpoints(vm.vmId(), transaction).stream()
+                                .map(VmAllocator.VmEndpoint::toProto)
+                                .toList();
+                        } catch (Exception e) {
+                            LOG.error("Cannot get endpoints of vm {}", vm.vmId());
+                            responseObserver.onError(Status.INTERNAL
+                                .withDescription("Cannot get endpoints of vm").asException());
+                            return;
+                        }
+
                         op.setResponse(Any.pack(AllocateResponse.newBuilder()
                             .setPoolId(vm.poolLabel())
                             .setSessionId(vm.sessionId())
                             .setVmId(vm.vmId())
+                            .addAllEndpoints(hosts)
                             .putAllMetadata(request.getMetadataMap())
                             .build()));
+
                         operations.update(op, transaction);
                         transaction.commit();
 

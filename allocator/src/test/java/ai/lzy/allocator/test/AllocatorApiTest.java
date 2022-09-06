@@ -23,11 +23,9 @@ import ai.lzy.v1.VmAllocatorApi.*;
 import com.google.common.net.HostAndPort;
 import com.google.protobuf.Duration;
 import com.google.protobuf.InvalidProtocolBufferException;
-import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
-import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.PodListBuilder;
-import io.fabric8.kubernetes.api.model.StatusDetails;
+import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
+import io.fabric8.kubernetes.client.utils.Serialization;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -38,14 +36,15 @@ import org.junit.*;
 import org.postgresql.util.PSQLException;
 import org.postgresql.util.PSQLState;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
+import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 public class AllocatorApiTest extends BaseTestWithIam {
 
@@ -71,8 +70,23 @@ public class AllocatorApiTest extends BaseTestWithIam {
 
         kubernetesServer = new KubernetesServer();
         kubernetesServer.before();
-        kubernetesServer.expect().post().withPath("/api/v1/namespaces/default/pods")
+        kubernetesServer.expect().post().withPath("/api/v1/pods")
             .andReturn(HttpURLConnection.HTTP_OK, new PodListBuilder().build()).always();
+
+        final Node node = new Node();
+
+        node.setStatus(
+            new NodeStatusBuilder()
+                .withAddresses(new NodeAddressBuilder()
+                    .withAddress("localhost")
+                    .withType("HostName")
+                    .build())
+                .build()
+        );
+
+        kubernetesServer.expect().get().withPath("/api/v1/nodes/node")
+            .andReturn(HttpURLConnection.HTTP_OK, node)
+            .always();
 
         var props = DatabaseTestUtils.preparePostgresConfig("allocator", db.getConnectionInfo());
         // props.putAll(DatabaseTestUtils.prepareLocalhostConfig("allocator"));
@@ -297,7 +311,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
             operation.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
 
         final String podName = KuberVmAllocator.POD_NAME_PREFIX + allocateMetadata.getVmId();
-        mockGetPod(podName, true);
+        mockGetPod(podName);
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
         mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
 
@@ -307,19 +321,26 @@ public class AllocatorApiTest extends BaseTestWithIam {
     }
 
     @Test
-    public void allocateServantTimeoutTest() throws InvalidProtocolBufferException, InterruptedException {
+    public void allocateServantTimeoutTest() throws InvalidProtocolBufferException,
+            InterruptedException, ExecutionException
+    {
         final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(100).build()).build())
                 .build());
+
+        final var future = awaitAllocationRequest();
+
         final Operation operation = authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
             .setSessionId(createSessionResponse.getSessionId())
             .setPoolLabel("S")
             .build());
         final VmAllocatorApi.AllocateMetadata allocateMetadata =
             operation.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
-        final String podName = KuberVmAllocator.POD_NAME_PREFIX + allocateMetadata.getVmId();
-        mockGetPod(podName, true);
+
+        final String podName = future.get();
+        mockGetPod(podName);
+        
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
         mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
 
@@ -356,11 +377,16 @@ public class AllocatorApiTest extends BaseTestWithIam {
     }
 
     @Test
-    public void allocateFreeSuccessTest() throws InvalidProtocolBufferException, InterruptedException {
+    public void allocateFreeSuccessTest() throws InvalidProtocolBufferException,
+            InterruptedException, ExecutionException
+    {
         final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(0).build()).build())
                 .build());
+
+        final var future = awaitAllocationRequest();
+
         final Operation allocationStarted = authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
             .setSessionId(createSessionResponse.getSessionId())
             .setPoolLabel("S")
@@ -368,8 +394,8 @@ public class AllocatorApiTest extends BaseTestWithIam {
         final VmAllocatorApi.AllocateMetadata allocateMetadata =
             allocationStarted.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
 
-        final String podName = KuberVmAllocator.POD_NAME_PREFIX + allocateMetadata.getVmId();
-        mockGetPod(podName, true);
+        final String podName = future.get();
+        mockGetPod(podName);
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
         mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
 
@@ -387,11 +413,16 @@ public class AllocatorApiTest extends BaseTestWithIam {
     }
 
     @Test
-    public void eventualFreeAfterFailTest() throws InvalidProtocolBufferException, InterruptedException {
+    public void eventualFreeAfterFailTest() throws InvalidProtocolBufferException,
+            InterruptedException, ExecutionException
+    {
         final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(0).build()).build())
                 .build());
+
+        final var future = awaitAllocationRequest();
+
         final Operation allocationStarted = authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
             .setSessionId(createSessionResponse.getSessionId())
             .setPoolLabel("S")
@@ -399,8 +430,8 @@ public class AllocatorApiTest extends BaseTestWithIam {
         final VmAllocatorApi.AllocateMetadata allocateMetadata =
             allocationStarted.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
 
-        final String podName = KuberVmAllocator.POD_NAME_PREFIX + allocateMetadata.getVmId();
-        mockGetPod(podName, false);
+        final String podName = future.get();
+        mockGetPod(podName);
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(2);
         mockDeletePod(podName, () -> {
             kuberRemoveRequestLatch.countDown();
@@ -421,11 +452,15 @@ public class AllocatorApiTest extends BaseTestWithIam {
     }
 
     @Test
-    public void allocateFromCacheTest() throws InvalidProtocolBufferException, InterruptedException {
+    public void allocateFromCacheTest() throws InvalidProtocolBufferException,
+            InterruptedException, ExecutionException
+    {
         final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(5).build()).build())
                 .build());
+
+        final var future = awaitAllocationRequest();
 
         final Operation operationFirst = authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
             .setSessionId(createSessionResponse.getSessionId())
@@ -434,8 +469,8 @@ public class AllocatorApiTest extends BaseTestWithIam {
         final VmAllocatorApi.AllocateMetadata allocateMetadataFirst =
             operationFirst.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
 
-        final String firstPodName = KuberVmAllocator.POD_NAME_PREFIX + allocateMetadataFirst.getVmId();
-        mockGetPod(firstPodName, true);
+        final String firstPodName = future.get();
+        mockGetPod(firstPodName);
 
         registerVm(allocateMetadataFirst.getVmId());
         waitOp(operationFirst);
@@ -450,10 +485,8 @@ public class AllocatorApiTest extends BaseTestWithIam {
         final VmAllocatorApi.AllocateMetadata allocateMetadataSecond =
             operationSecond.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
 
-        final String secondPodName = KuberVmAllocator.POD_NAME_PREFIX + allocateMetadataSecond.getVmId();
-        mockGetPod(secondPodName, true);
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
-        mockDeletePod(secondPodName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
+        mockDeletePod(firstPodName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
         waitOp(operationSecond);
 
         //noinspection ResultOfMethodCallIgnored
@@ -465,11 +498,16 @@ public class AllocatorApiTest extends BaseTestWithIam {
     }
 
     @Test
-    public void deleteSessionWithActiveVmsAfterRegister() throws InvalidProtocolBufferException, InterruptedException {
+    public void deleteSessionWithActiveVmsAfterRegister() throws InvalidProtocolBufferException,
+            InterruptedException, ExecutionException
+    {
         final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(0).build()).build())
                 .build());
+
+        final var future = awaitAllocationRequest();
+
         final Operation allocate = authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
             .setSessionId(createSessionResponse.getSessionId())
             .setPoolLabel("S")
@@ -477,8 +515,8 @@ public class AllocatorApiTest extends BaseTestWithIam {
         final VmAllocatorApi.AllocateMetadata allocateMetadata =
             allocate.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
 
-        final String podName = KuberVmAllocator.POD_NAME_PREFIX + allocateMetadata.getVmId();
-        mockGetPod(podName, true);
+        final String podName = future.get();
+        mockGetPod(podName);
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
         mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
 
@@ -491,11 +529,16 @@ public class AllocatorApiTest extends BaseTestWithIam {
     }
 
     @Test
-    public void deleteSessionWithActiveVmsBeforeRegister() throws InvalidProtocolBufferException, InterruptedException {
+    public void deleteSessionWithActiveVmsBeforeRegister() throws InvalidProtocolBufferException,
+            InterruptedException, ExecutionException
+    {
         final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(0).build()).build())
                 .build());
+
+        final var future = awaitAllocationRequest();
+
         final Operation allocate = authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
             .setSessionId(createSessionResponse.getSessionId())
             .setPoolLabel("S")
@@ -503,8 +546,8 @@ public class AllocatorApiTest extends BaseTestWithIam {
         final VmAllocatorApi.AllocateMetadata allocateMetadata =
             allocate.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
 
-        final String podName = KuberVmAllocator.POD_NAME_PREFIX + allocateMetadata.getVmId();
-        mockGetPod(podName, true);
+        final String podName = future.get();
+        mockGetPod(podName);
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
         mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
 
@@ -537,11 +580,16 @@ public class AllocatorApiTest extends BaseTestWithIam {
     }
 
     @Test
-    public void repeatedFreeTest() throws InvalidProtocolBufferException, InterruptedException {
+    public void repeatedFreeTest() throws InvalidProtocolBufferException,
+            InterruptedException, ExecutionException
+    {
         final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(0).build()).build())
                 .build());
+
+        final var future = awaitAllocationRequest();
+
         final Operation allocationStarted = authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
             .setSessionId(createSessionResponse.getSessionId())
             .setPoolLabel("S")
@@ -549,8 +597,8 @@ public class AllocatorApiTest extends BaseTestWithIam {
         final VmAllocatorApi.AllocateMetadata allocateMetadata =
             allocationStarted.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
 
-        final String podName = KuberVmAllocator.POD_NAME_PREFIX + allocateMetadata.getVmId();
-        mockGetPod(podName, false);
+        final String podName = future.get();
+        mockGetPod(podName);
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
         mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
 
@@ -571,11 +619,14 @@ public class AllocatorApiTest extends BaseTestWithIam {
     }
 
     @Test
-    public void repeatedServantRegister() throws InvalidProtocolBufferException, InterruptedException {
+    public void repeatedServantRegister() throws InvalidProtocolBufferException,
+            InterruptedException, ExecutionException
+    {
         final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(0).build()).build())
                 .build());
+        final var future = awaitAllocationRequest();
         final Operation allocate = authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
             .setSessionId(createSessionResponse.getSessionId())
             .setPoolLabel("S")
@@ -583,8 +634,8 @@ public class AllocatorApiTest extends BaseTestWithIam {
         final VmAllocatorApi.AllocateMetadata allocateMetadata =
             allocate.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
 
-        final String podName = KuberVmAllocator.POD_NAME_PREFIX + allocateMetadata.getVmId();
-        mockGetPod(podName, false);
+        final String podName = future.get();
+        mockGetPod(podName);
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
         mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
 
@@ -604,18 +655,31 @@ public class AllocatorApiTest extends BaseTestWithIam {
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
     }
 
-    private void mockGetPod(String podName, boolean once) {
+    private void mockGetPod(String podName) {
         final Pod pod = new Pod();
         pod.setMetadata(new ObjectMetaBuilder().withName(podName).build());
+        pod.setSpec(new PodSpecBuilder()
+            .withNodeName("node")
+            .build());
         final var mock = kubernetesServer.expect().get()
             .withPath("/api/v1/namespaces/default/pods?labelSelector=" +
                 URLEncoder.encode(KuberLabels.LZY_POD_NAME_LABEL + "=" + podName, StandardCharsets.UTF_8))
-            .andReturn(HttpURLConnection.HTTP_OK, new PodListBuilder().withItems(pod).build());
-        if (once) {
-            mock.once();
-        } else {
-            mock.always();
-        }
+            .andReturn(HttpURLConnection.HTTP_OK, new PodListBuilder().withItems(pod).build())
+            .always();
+    }
+
+    private Future<String> awaitAllocationRequest() {
+        final var future = new CompletableFuture<String>();
+        kubernetesServer.expect().post()
+            .withPath("/api/v1/namespaces/default/pods")
+            .andReply(HttpURLConnection.HTTP_CREATED, (req) -> {
+                final var pod = Serialization.unmarshal(
+                    new ByteArrayInputStream(req.getBody().readByteArray()), Pod.class, Map.of());
+                future.complete(pod.getMetadata().getName());
+                return pod;
+            })
+            .once();
+        return future;
     }
 
     private void mockDeletePod(String podName, Runnable onDelete, int responseCode) {
