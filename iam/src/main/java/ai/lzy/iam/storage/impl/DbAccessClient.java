@@ -1,6 +1,6 @@
 package ai.lzy.iam.storage.impl;
 
-import ai.lzy.util.auth.exceptions.AuthBadRequestException;
+import ai.lzy.util.auth.exceptions.AuthNotFoundException;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthInternalException;
 import ai.lzy.iam.resources.AuthPermission;
@@ -59,7 +59,7 @@ public class DbAccessClient {
             st.setString(++parameterIndex, resourceId);
             final ResultSet rs = st.executeQuery();
             if (!rs.next()) {
-                throw new AuthBadRequestException("Resource: " + resourceId + " not found");
+                throw new AuthNotFoundException("Resource: " + resourceId + " not found");
             }
         } catch (SQLException e) {
             throw new AuthInternalException(e);

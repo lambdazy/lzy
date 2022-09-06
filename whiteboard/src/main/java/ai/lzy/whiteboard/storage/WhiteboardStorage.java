@@ -1,5 +1,6 @@
 package ai.lzy.whiteboard.storage;
 
+import ai.lzy.model.db.NotFoundException;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.whiteboard.model.LinkedField;
 import ai.lzy.whiteboard.model.Whiteboard;
@@ -31,7 +32,7 @@ public interface WhiteboardStorage {
     {
         final var whiteboard = findWhiteboard(whiteboardId, transaction);
         if (whiteboard == null) {
-            throw new SQLException("Whiteboard " + whiteboardId + " not found");
+            throw new NotFoundException("Whiteboard " + whiteboardId + " not found");
         }
         return whiteboard;
     }

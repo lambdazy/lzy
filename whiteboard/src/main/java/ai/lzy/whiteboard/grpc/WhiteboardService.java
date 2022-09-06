@@ -46,12 +46,15 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
             final String whiteboardId = request.getWhiteboardId();
 
             if (whiteboardId.isBlank()) {
-                throw new IllegalArgumentException("Request shouldn't contain empty fields");
+                final String errorMessage = "Request shouldn't contain empty fields";
+                LOG.error("Get whiteboard {} failed, invalid argument: {}", request.getWhiteboardId(), errorMessage);
+                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(errorMessage).asException());
             }
 
             if (!accessManager.checkAccess(userId, whiteboardId)) {
-                LOG.error("Get whiteboard {} failed, permission denied", request.getWhiteboardId());
-                responseObserver.onError(Status.PERMISSION_DENIED.asException());
+                LOG.error("Get whiteboard {} failed, permission denied.", request.getWhiteboardId());
+                final String clientErrorMessage = "Whiteboard " + whiteboardId + " not found";
+                responseObserver.onError(Status.NOT_FOUND.withDescription(clientErrorMessage).asException());
             }
 
             final Whiteboard whiteboard = whiteboardStorage.getWhiteboard(whiteboardId, null);

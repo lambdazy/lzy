@@ -30,6 +30,9 @@ public class ProtoConverter {
     }
 
     public static LWB.WhiteboardField toProto(Field field) {
+        if (field instanceof LinkedField linkedField) {
+            return toProto(linkedField);
+        }
         return LWB.WhiteboardField.newBuilder()
             .setStatus(LWB.WhiteboardField.Status.valueOf(field.status().name()))
             .setInfo(LWB.WhiteboardFieldInfo.newBuilder()
@@ -52,14 +55,18 @@ public class ProtoConverter {
             .build();
     }
 
-    public static Field fromProto(LWB.WhiteboardFieldInfo fieldInfo) {
+    public static Field fromProto(LWB.WhiteboardFieldInfo fieldInfo, Field.Status status) {
         return switch (fieldInfo.getStateCase()) {
-            case NONESTATE -> new Field(fieldInfo.getName(), Field.Status.CREATED);
-            case LINKEDSTATE -> new LinkedField(fieldInfo.getName(), Field.Status.CREATED,
+            case NONESTATE -> new Field(fieldInfo.getName(), status);
+            case LINKEDSTATE -> new LinkedField(fieldInfo.getName(), status,
                 fieldInfo.getLinkedState().getStorageUri(), contentTypeFrom(fieldInfo.getLinkedState().getScheme()));
             default -> throw new IllegalArgumentException("Unexpected whiteboard field state "
                                                           + fieldInfo.getStateCase());
         };
+    }
+
+    public static Field fromProto(LWB.WhiteboardFieldInfo fieldInfo) {
+        return fromProto(fieldInfo, Field.Status.CREATED);
     }
 
     public static Whiteboard.Storage fromProto(LWB.Storage storage) {

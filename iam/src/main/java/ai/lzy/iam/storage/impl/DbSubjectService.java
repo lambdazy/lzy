@@ -8,7 +8,7 @@ import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.storage.db.IamDataSource;
 import ai.lzy.iam.utils.UserVerificationType;
-import ai.lzy.util.auth.exceptions.AuthBadRequestException;
+import ai.lzy.util.auth.exceptions.AuthNotFoundException;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthInternalException;
 import io.micronaut.context.annotation.Requires;
@@ -89,7 +89,7 @@ public class DbSubjectService {
                         };
                     }
 
-                    throw new AuthBadRequestException("Subject:: " + id + " NOT_FOND");
+                    throw new AuthNotFoundException("Subject:: " + id + " NOT_FOND");
                 }
             },
             DbSubjectService::wrapError);
@@ -155,7 +155,7 @@ public class DbSubjectService {
                             rs.getString("type"));
                     }
 
-                    throw new AuthBadRequestException("Credentials:: " + name + " NOT_FOND");
+                    throw new AuthNotFoundException("Credentials:: " + name + " NOT_FOND");
                 }
             },
             DbSubjectService::wrapError);
