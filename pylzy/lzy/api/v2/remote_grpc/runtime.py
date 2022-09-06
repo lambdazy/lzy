@@ -6,7 +6,7 @@ import time
 from asyncio import Task
 from collections import defaultdict
 from threading import Thread
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union, Type
 
 import jwt
 
@@ -21,6 +21,8 @@ from lzy.api.v2.remote_grpc.workflow_service_client import (
     WorkflowServiceClient,
 )
 from lzy.api.v2.runtime import ProgressStep, Runtime
+from lzy.api.v2.startup import ProcessingRequest
+from lzy.api.v2.utils._pickle import pickle
 
 KEY_PATH_ENV = "LZY_KEY_PATH"
 LZY_ADDRESS_ENV = "LZY_ADDRESS_ENV"
@@ -184,17 +186,45 @@ class GrpcRuntime(Runtime):
         for call in calls:
             input_slots: List[str] = []
             output_slots: List[str] = []
+            arg_descriptions: List[Tuple[Type, str]] = []
+            kwarg_descriptions: Dict[str, Tuple[Type, str]] = {}
+            ret_descriptions: List[str] = []
 
             for i, eid in enumerate(call.arg_entry_ids):
-                input_slots.append(f"/{call.id}/arg_{i}")
+                entry = self.__workflow.owner.snapshot.get(eid)
+                slot_path = f"/{call.id}/arg_{i}"
+                input_slots.append(slot_path)
+                arg_descriptions.append((entry.typ, slot_path))
 
             for name, eid in call.kwarg_entry_ids.items():
-                input_slots.append(f"/{call.id}/arg_{name}")
+                entry = self.__workflow.owner.snapshot.get(eid)
+                slot_path = f"/{call.id}/arg_{name}"
+                input_slots.append(slot_path)
+                kwarg_descriptions[name] = (entry.typ, slot_path)
 
-            for i in range(len(call.entry_ids)):
-                output_slots.append(f"/{call.id}/ret_{i}")
+            for i, eid in enumerate(call.entry_ids):
+                slot_path = f"/{call.id}/ret_{i}"
+                output_slots.append(slot_path)
+                ret_descriptions.append(slot_path)
 
             docker_image = call.env.base_env.name
+            request = ProcessingRequest(
+                serializers=self.__workflow.owner.serializer,
+                op=call.signature.func.callable,
+                args_paths=arg_descriptions,
+                kwargs_paths=kwarg_descriptions,
+                output_paths=ret_descriptions
+            )
+
+            _com = "".join(
+                [
+                    "python ",
+                    "$(python -c 'import site; print(site.getsitepackages()[0])')",
+                    "/lzy/api/v2/startup.py ",
+                ]
+            )
+
+            command = _com + " " + pickle(request)
 
             vertices[call.id] = Graph.VertexDescription(
                 id=call.id,
@@ -203,7 +233,7 @@ class GrpcRuntime(Runtime):
                     description=call.description,
                     inputSlots=input_slots,
                     outputSlots=output_slots,
-                    command="",  # TODO(artolord) add command generation and v2 startup
+                    command=command,
                     dockerImage=docker_image
                     if docker_image is not None
                     else "",  # TODO(artolord) change env api
