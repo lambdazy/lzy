@@ -193,12 +193,13 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
                             .addAllHosts(hosts)
                                 .putAllMetadata(request.getMetadataMap())
                                 .build()));
-                            operations.update(op, transaction);
-                            transaction.commit();
 
-                            metrics.registered.inc();
-                            metrics.allocationTime.observe(
-                                Duration.between(vm.allocationStartedAt(), Instant.now()).toSeconds());
+                        operations.update(op, transaction);
+                        transaction.commit();
+
+                        metrics.registered.inc();
+                        metrics.allocationTime.observe(
+                            Duration.between(vm.allocationStartedAt(), Instant.now()).toSeconds());
                     }
                 });
         } catch (Exception ex) {
