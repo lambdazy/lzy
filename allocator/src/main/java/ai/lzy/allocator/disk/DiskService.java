@@ -9,10 +9,11 @@ import ai.lzy.allocator.model.Operation;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.OperationService;
-import ai.lzy.v1.allocator.DiskServiceApi;
-import ai.lzy.v1.allocator.DiskServiceGrpc;
+import ai.lzy.v1.DiskServiceApi;
+import ai.lzy.v1.DiskServiceGrpc;
 import com.google.protobuf.Any;
 import io.grpc.Status;
+import io.grpc.StatusException;
 import io.grpc.stub.StreamObserver;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
@@ -51,7 +52,12 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
         final Operation createDiskOperation;
         try {
             createDiskOperation = withRetries(LOG,
-                () -> operations.create("Create disk", request.getUserId(), null, null));
+                () -> operations.create(
+                    "Create disk",
+                    request.getUserId(),
+                    Any.pack(DiskServiceApi.CreateDiskMetadata.getDefaultInstance()),
+                    null)
+            );
         } catch (Exception e) {
             LOG.error("Cannot create \"create_disk_operation\" for owner {}: {}",
                 request.getUserId(), e.getMessage(), e);
@@ -128,7 +134,12 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
         final Operation cloneDiskOperation;
         try {
             cloneDiskOperation = withRetries(LOG,
-                () -> operations.create("Clone disk", request.getUserId(), null, null));
+                () -> operations.create(
+                    "Clone disk",
+                    request.getUserId(),
+                    Any.pack(DiskServiceApi.CloneDiskMetadata.getDefaultInstance()),
+                    null)
+            );
         } catch (Exception e) {
             LOG.error("Cannot create \"clone_disk_operation\" for owner {}: {}",
                 request.getUserId(), e.getMessage(), e);
@@ -142,25 +153,29 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
             withRetries(LOG,
                 () -> {
                     try (var transaction = TransactionHandle.create(storage)) {
-                        final String existingDiskId = request.getDiskId();
-                        final Disk existingDisk = getDisk(existingDiskId, transaction);
-
                         try {
+                            final String existingDiskId = request.getDiskId();
+                            final Disk existingDisk = getDisk(existingDiskId, transaction);
+
                             final Disk clonedDisk = diskManager.clone(
                                 existingDisk, DiskSpec.fromProto(request.getNewDiskSpec()),
                                 new DiskMeta(request.getUserId()));
+
                             diskStorage.insert(clonedDisk, transaction);
+
                             cloneDiskOperation.modifyMeta(Any.pack(DiskServiceApi.CloneDiskMetadata.newBuilder()
                                 .setDiskId(clonedDisk.id()).build()));
                             cloneDiskOperation.setResponse(Any.pack(DiskServiceApi.CloneDiskResponse.newBuilder()
                                 .setDisk(clonedDisk.toProto()).build()));
+
                             metrics.cloneDisk.inc();
-                        } catch (Exception e) {
-                            cloneDiskOperation.setError(Status.INTERNAL.withDescription(
-                                "CloneDisk operation with id " + cloneDiskOperation.id()
-                                    + " has failed with exception=" + e.getMessage()
+                        } catch (NotFoundException | IllegalArgumentException e) {
+                            cloneDiskOperation.setError(Status.INVALID_ARGUMENT.withDescription(
+                                "Unable to clone disk [operation_id=" + cloneDiskOperation.id() + "] "
+                                    + " Invalid argument; cause=" + e.getMessage()
                             ));
-                            metrics.cloneDiskError.inc();
+                        } catch (StatusException e) {
+                            cloneDiskOperation.setError(e.getStatus());
                         }
                         operations.update(cloneDiskOperation, transaction);
                         transaction.commit();
@@ -173,6 +188,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                 .formatted(cloneDiskOperation.id(), e.getMessage());
             LOG.error(errorMessage, e);
             failOperation(cloneDiskOperation, errorMessage);
+            metrics.cloneDiskError.inc();
         }
     }
 
@@ -189,14 +205,14 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                     responseObserver.onNext(DiskServiceApi.DeleteDiskResponse.getDefaultInstance());
                     responseObserver.onCompleted();
 
-                    try {
-                        diskStorage.remove(diskId, transaction);
-                        diskManager.delete(diskId);
-                    } catch (NotFoundException e) {
-                        LOG.error("Disk id={} deletion has failed with exception={}", diskId, e.getMessage(), e);
-                        metrics.deleteDiskError.inc();
-                    }
+                    diskStorage.remove(diskId, transaction);
+                    diskManager.delete(diskId);
                     transaction.commit();
+                } catch (NotFoundException e) {
+                    LOG.error("Disk with id={} not found for deletion exception={}", diskId, e.getMessage(), e);
+                    responseObserver.onError(Status.NOT_FOUND.asException());
+                } catch (StatusException e) {
+                    responseObserver.onError(e);
                 }
                 return null;
             });
@@ -207,17 +223,19 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
         }
     }
 
-    private Disk getDisk(String diskId, TransactionHandle transaction) throws SQLException {
+    private Disk getDisk(String diskId, TransactionHandle transaction)
+        throws SQLException, NotFoundException, StatusException
+    {
         final Disk dbDisk = diskStorage.get(diskId, transaction);
         final Disk disk = diskManager.get(diskId);
         if (dbDisk != null && !dbDisk.equals(disk)) {
             LOG.error("The disk with id={} is in DB but already deleted/modified from manager (e.g. YCloud)", diskId);
-            throw Status.INTERNAL
+            throw Status.DATA_LOSS
                 .withDescription("Disk id=" + diskId + " has been modified outside of disk service")
-                .asRuntimeException();
+                .asException();
         }
         if (dbDisk == null) {
-            throw Status.NOT_FOUND.withDescription("Disk with id=" + diskId + " not found").asRuntimeException();
+            throw new NotFoundException("Disk with id=" + diskId + " not found");
         }
         return disk;
     }

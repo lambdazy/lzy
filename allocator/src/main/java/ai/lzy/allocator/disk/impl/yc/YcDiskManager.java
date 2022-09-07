@@ -131,11 +131,10 @@ public class YcDiskManager implements DiskManager {
 
     @Override
     public Disk clone(Disk disk, DiskSpec cloneDiskSpec, DiskMeta clonedDiskMeta) throws NotFoundException {
-
         LOG.info("Clone disk {}; clone name={} size={}Gb zone={}",
             disk.spec().name(), cloneDiskSpec.name(), cloneDiskSpec.sizeGb(), cloneDiskSpec.zone());
         if (cloneDiskSpec.sizeGb() < disk.spec().sizeGb()) {
-            throw new RuntimeException("Cannot decrease size during clone");
+            throw new IllegalArgumentException("Cannot decrease size during clone");
         }
 
         try {

@@ -51,14 +51,14 @@ public class VolumeManagerTest {
             throw new RuntimeException("No user cluster was specified for manual test");
         }
         final KubernetesClient client = new KuberClientFactoryImpl().build(clusterRegistry.getCluster(clusterId));
-        volumeManager = new KuberVolumeManager(client, diskManager);
+        volumeManager = new KuberVolumeManager(client);
     }
 
     @Test
     public void createVolumeTest() throws NotFoundException {
         final Disk disk = diskManager.create(createTestDiskSpec(3), new DiskMeta("user-id"));
         final Volume volume = volumeManager.create(
-            new DiskVolumeDescription("some-volume-name", disk.id())
+            new DiskVolumeDescription("some-volume-name", disk.id(), disk.spec().sizeGb())
         );
         final VolumeClaim volumeClaim = volumeManager.createClaim(volume);
         Assert.notNull(volumeManager.get(volume.name()));
@@ -88,7 +88,7 @@ public class VolumeManagerTest {
 
             final Instant volumeCreation = Instant.now();
             final Volume volume = volumeManager.create(
-                new DiskVolumeDescription("some-volume-name", disk.id())
+                new DiskVolumeDescription("some-volume-name", disk.id(), disk.spec().sizeGb())
             );
 
             final Instant volumeClaimCreation = Instant.now();

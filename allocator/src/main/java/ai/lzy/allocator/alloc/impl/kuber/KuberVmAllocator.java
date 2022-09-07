@@ -1,10 +1,12 @@
 package ai.lzy.allocator.alloc.impl.kuber;
 
+import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
+import static ai.lzy.model.db.DbHelper.withRetries;
+
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.VmDao;
-import ai.lzy.allocator.disk.DiskManager;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.allocator.volume.DiskVolumeDescription;
@@ -18,16 +20,12 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
-import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
-import static ai.lzy.model.db.DbHelper.withRetries;
+import javax.annotation.Nullable;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 @Singleton
 @Requires(property = "allocator.kuber-allocator.enabled", value = "true")
@@ -44,15 +42,13 @@ public class KuberVmAllocator implements VmAllocator {
     private final ClusterRegistry poolRegistry;
     private final KuberClientFactory factory;
     private final ServiceConfig config;
-    private final DiskManager diskManager;
 
     @Inject
-    public KuberVmAllocator(VmDao dao, ClusterRegistry poolRegistry, DiskManager diskManager,
+    public KuberVmAllocator(VmDao dao, ClusterRegistry poolRegistry,
                             KuberClientFactory factory, ServiceConfig config)
     {
         this.dao = dao;
         this.poolRegistry = poolRegistry;
-        this.diskManager = diskManager;
         this.factory = factory;
         this.config = config;
     }
@@ -71,8 +67,7 @@ public class KuberVmAllocator implements VmAllocator {
                 .filter(volumeRequest -> volumeRequest.volumeDescription() instanceof DiskVolumeDescription)
                 .map(volumeRequest -> (DiskVolumeDescription) volumeRequest.volumeDescription())
                 .toList();
-            final List<VolumeClaim> volumeClaims = KuberVolumeManager.allocateVolumes(
-                client, diskManager, diskVolumeDescriptions);
+            final List<VolumeClaim> volumeClaims = KuberVolumeManager.allocateVolumes(client, diskVolumeDescriptions);
             dao.setVolumeClaims(vmSpec.vmId(), volumeClaims, null);
             final Pod vmPodSpec = new PodSpecBuilder(vmSpec, client, config)
                 .withWorkloads(vmSpec.workloads())
@@ -87,15 +82,13 @@ public class KuberVmAllocator implements VmAllocator {
             withRetries(
                 defaultRetryPolicy(),
                 LOG,
-                () -> {
-                    dao.saveAllocatorMeta(
-                        vmSpec.vmId(),
-                        Map.of(
-                            NAMESPACE_KEY, NAMESPACE,
-                            POD_NAME_KEY, vmPodSpec.getMetadata().getName(),
-                            CLUSTER_ID_KEY, cluster.clusterId()),
-                        null);
-                },
+                () -> dao.saveAllocatorMeta(
+                    vmSpec.vmId(),
+                    Map.of(
+                        NAMESPACE_KEY, NAMESPACE,
+                        POD_NAME_KEY, vmPodSpec.getMetadata().getName(),
+                        CLUSTER_ID_KEY, cluster.clusterId()),
+                    null),
                 RuntimeException::new);
 
             final Pod pod;
@@ -170,7 +163,7 @@ public class KuberVmAllocator implements VmAllocator {
             withRetries(
                 defaultRetryPolicy(),
                 LOG,
-                () -> KuberVolumeManager.freeVolumes(client, diskManager, dao.getVolumeClaims(vmId, null)),
+                () -> KuberVolumeManager.freeVolumes(client, dao.getVolumeClaims(vmId, null)),
                 ex -> new RuntimeException("Database error: " + ex.getMessage(), ex));
         }
     }

@@ -57,18 +57,4 @@ public class VolumeRequest {
     public abstract static class VolumeDescription {
         public abstract String name();
     }
-
-    public static VolumeRequest fromProto(VolumeApi.Volume volume) {
-        return new VolumeRequest(
-            switch (volume.getVolumeTypeCase()) {
-                case DISK_VOLUME -> new DiskVolumeDescription(volume.getName(), volume.getDiskVolume().getDiskId());
-                case HOST_PATH_VOLUME -> new HostPathVolumeDescription(
-                    volume.getName(),
-                    volume.getHostPathVolume().getPath(),
-                    HostPathVolumeDescription.HostPathType.valueOf(volume.getHostPathVolume().getHostPathType().name())
-                );
-                default -> throw new IllegalArgumentException("unknown volume type " + volume.getVolumeTypeCase());
-            }
-        );
-    }
 }
