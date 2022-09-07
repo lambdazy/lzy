@@ -15,7 +15,7 @@ public class BaseTestWithIam {
     private ApplicationContext iamCtx;
     private LzyIAM iamApp;
 
-    public void before() throws IOException {
+    public void before() throws IOException, InterruptedException {
         setUp(Map.of());
     }
 

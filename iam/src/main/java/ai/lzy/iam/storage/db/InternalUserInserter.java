@@ -3,6 +3,7 @@ package ai.lzy.iam.storage.db;
 import ai.lzy.iam.configs.InternalUserConfig;
 import ai.lzy.iam.resources.Role;
 import ai.lzy.iam.resources.impl.Root;
+import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.utils.UserVerificationType;
 import ai.lzy.model.db.DaoException;
 import ai.lzy.model.db.Transaction;
@@ -33,8 +34,8 @@ public class InternalUserInserter {
                     INSERT INTO users (user_id, auth_provider, provider_user_id, access_type)
                     VALUES (?, ?, ?, ?)
                     ON CONFLICT DO NOTHING""");
-                st.setString(1, config.userName());
-                st.setString(2, "INTERNAL_AGENT");
+                st.setString(1, config.userName()); // TODO: random id?
+                st.setString(2, AuthProvider.INTERNAL.name());
                 st.setString(3, config.userName());
                 st.setString(4, UserVerificationType.ACCESS_ALLOWED.toString());
                 st.executeUpdate();
@@ -43,7 +44,7 @@ public class InternalUserInserter {
                 // Postgres doesn't support (until PostgreSQL 15) `MERGE`,
                 // so do it manually...
                 st = connection.prepareStatement("""
-                    SELECT name, "value", user_id, type
+                    SELECT name, value, user_id, type
                     FROM credentials
                     WHERE name = ? AND user_id = ?
                     FOR UPDATE""");
@@ -53,7 +54,7 @@ public class InternalUserInserter {
                 if (rs.next()) {
                     st = connection.prepareStatement("""
                         UPDATE credentials
-                        SET "value" = ?, type = ?
+                        SET value = ?, type = ?
                         WHERE name = ? AND user_id = ?""");
                     st.setString(1, config.credentialValue());
                     st.setString(2, config.credentialType());
@@ -62,7 +63,7 @@ public class InternalUserInserter {
                     st.executeUpdate();
                 } else {
                     st = connection.prepareStatement("""                
-                        INSERT INTO credentials (name, "value", user_id, type)
+                        INSERT INTO credentials (name, value, user_id, type)
                         VALUES (?, ?, ?, ?)
                         ON CONFLICT DO NOTHING""");
                     st.setString(1, config.credentialName());

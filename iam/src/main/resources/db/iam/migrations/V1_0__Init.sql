@@ -17,6 +17,8 @@ CREATE TABLE users (
     user_type        TEXT NOT NULL DEFAULT 'USER' -- USER, SERVANT, ...
 );
 
+CREATE UNIQUE INDEX idx_users_provider ON users (provider_user_id, auth_provider);
+
 CREATE TABLE IF NOT EXISTS user_resource_roles (
     user_id       TEXT NOT NULL,
     resource_id   TEXT NOT NULL,

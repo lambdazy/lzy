@@ -1,7 +1,7 @@
 package ai.lzy.channelmanager;
 
 import ai.lzy.channelmanager.grpc.ChannelManagerService;
-import ai.lzy.iam.clients.stub.AuthenticateServiceStub;
+import ai.lzy.iam.clients.AuthenticateService;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
@@ -11,14 +11,15 @@ import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.context.ApplicationContext;
+import org.apache.commons.cli.*;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import org.apache.commons.cli.*;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 @SuppressWarnings("UnstableApiUsage")
 public class ChannelManager {
@@ -51,7 +52,8 @@ public class ChannelManager {
         try (ApplicationContext context = ApplicationContext.run(Map.of(
             "channel-manager.address", address,
             "channel-manager.whiteboard-address", whiteboardAddress.toString()
-        ))) {
+        )))
+        {
             final ChannelManager channelManager = new ChannelManager(context);
             channelManager.start();
             channelManager.awaitTermination();
@@ -89,7 +91,7 @@ public class ChannelManager {
             .forAddress(new InetSocketAddress(address.getHost(), address.getPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .intercept(new AuthServerInterceptor(new AuthenticateServiceStub()))
+            .intercept(new AuthServerInterceptor(ctx.getBean(AuthenticateService.class)))
             .intercept(new GrpcLogsInterceptor())
             .addService(ctx.getBean(ChannelManagerService.class))
             .build();

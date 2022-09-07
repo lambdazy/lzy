@@ -1,6 +1,8 @@
 package ai.lzy.iam.clients;
 
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.exceptions.AuthException;
@@ -13,13 +15,13 @@ public interface SubjectServiceClient {
 
     SubjectServiceClient withToken(Supplier<Credentials> tokenSupplier);
 
-    Subject createSubject(String authProvider, String providerSubjectId, SubjectType type) throws AuthException;
+    Subject createSubject(AuthProvider authProvider, String providerSubjectId, SubjectType type) throws AuthException;
 
     Subject getSubject(String id) throws AuthException;
 
     void removeSubject(Subject subject) throws AuthException;
 
-    void addCredentials(Subject subject, String name, String value, String type) throws AuthException;
+    void addCredentials(Subject subject, String name, String value, CredentialsType type) throws AuthException;
 
     List<SubjectCredentials> listCredentials(Subject subject) throws AuthException;
 

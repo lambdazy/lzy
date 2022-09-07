@@ -3,11 +3,13 @@ package ai.lzy.iam.grpc.service;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.impl.Root;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.storage.impl.DbAccessClient;
 import ai.lzy.iam.storage.impl.DbSubjectService;
-import ai.lzy.iam.utils.GrpcConverter;
+import ai.lzy.iam.utils.ProtoConverter;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
 import ai.lzy.v1.iam.IAM;
@@ -33,14 +35,23 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
 
     @Override
     public void createSubject(LSS.CreateSubjectRequest request, StreamObserver<IAM.Subject> response) {
+        AuthProvider authProvider;
+        try {
+            authProvider = AuthProvider.fromProto(request.getAuthProvider());
+        } catch (Exception e) {
+            LOG.error("Invalid auth provider {}", request.getAuthProvider());
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Invalid Auth Provider").asException());
+            return;
+        }
+
         try {
             if (internalAccess()) {
                 Subject subject = subjectService.createSubject(
-                    request.getAuthProvider(),
+                    authProvider,
                     request.getProviderSubjectId(),
                     SubjectType.valueOf(request.getType())
                 );
-                response.onNext(GrpcConverter.from(subject));
+                response.onNext(ProtoConverter.from(subject));
                 response.onCompleted();
                 return;
             }
@@ -55,7 +66,7 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
     public void removeSubject(LSS.RemoveSubjectRequest request, StreamObserver<LSS.RemoveSubjectResponse> response) {
         try {
             if (internalAccess()) {
-                subjectService.removeSubject(GrpcConverter.to(request.getSubject()));
+                subjectService.removeSubject(ProtoConverter.to(request.getSubject()));
                 response.onNext(LSS.RemoveSubjectResponse.getDefaultInstance());
                 response.onCompleted();
                 return;
@@ -72,7 +83,7 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
         try {
             if (internalAccess()) {
                 Subject subject = subjectService.subject(request.getId());
-                response.onNext(GrpcConverter.from(subject));
+                response.onNext(ProtoConverter.from(subject));
                 response.onCompleted();
             }
         } catch (AuthException e) {
@@ -86,10 +97,10 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
         try {
             if (internalAccess()) {
                 subjectService.addCredentials(
-                    GrpcConverter.to(request.getSubject()),
+                    ProtoConverter.to(request.getSubject()),
                     request.getCredentials().getName(),
                     request.getCredentials().getCredentials(),
-                    request.getCredentials().getType()
+                    CredentialsType.fromProto(request.getCredentials().getType())
                 );
                 response.onNext(LSS.AddCredentialsResponse.getDefaultInstance());
                 response.onCompleted();
@@ -109,7 +120,7 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
         try {
             if (internalAccess()) {
                 subjectService.removeCredentials(
-                    GrpcConverter.to(request.getSubject()),
+                    ProtoConverter.to(request.getSubject()),
                     request.getCredentialsName()
                 );
                 response.onNext(LSS.RemoveCredentialsResponse.getDefaultInstance());
@@ -129,13 +140,13 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
     {
         try {
             if (internalAccess()) {
-                var subjectCredentials = subjectService.listCredentials(GrpcConverter.to(request.getSubject()));
+                var subjectCredentials = subjectService.listCredentials(ProtoConverter.to(request.getSubject()));
 
                 response.onNext(
                     LSS.ListCredentialsResponse.newBuilder()
                         .addAllCredentialsList(
                             subjectCredentials.stream()
-                                .map(GrpcConverter::from)
+                                .map(ProtoConverter::from)
                                 .toList())
                         .build());
                 response.onCompleted();

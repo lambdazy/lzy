@@ -1,23 +1,26 @@
 package ai.lzy.iam.grpc.client;
 
+import ai.lzy.iam.clients.SubjectServiceClient;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.CredentialsType;
+import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
+import ai.lzy.iam.utils.GrpcConfig;
+import ai.lzy.iam.utils.ProtoConverter;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.exceptions.AuthException;
-import ai.lzy.iam.clients.SubjectServiceClient;
-import ai.lzy.iam.utils.GrpcConfig;
-import io.grpc.Channel;
-import io.grpc.StatusRuntimeException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ai.lzy.iam.resources.subjects.Subject;
-import ai.lzy.iam.utils.GrpcConverter;
+import ai.lzy.util.auth.exceptions.AuthInternalException;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.iam.IAM;
 import ai.lzy.v1.iam.LSS;
 import ai.lzy.v1.iam.LzySubjectServiceGrpc;
+import io.grpc.Channel;
+import io.grpc.StatusRuntimeException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 import java.util.function.Supplier;
@@ -53,15 +56,21 @@ public class SubjectServiceGrpcClient implements SubjectServiceClient {
     }
 
     @Override
-    public Subject createSubject(String authProvider, String providerSubjectId, SubjectType type) throws AuthException {
+    public Subject createSubject(AuthProvider authProvider, String providerSubjectId, SubjectType type)
+        throws AuthException
+    {
+        if (authProvider.isInternal() && type == SubjectType.USER) {
+            throw new AuthInternalException("Invalid auth provider");
+        }
+
         try {
             final IAM.Subject subject = subjectService.createSubject(
                 LSS.CreateSubjectRequest.newBuilder()
-                    .setAuthProvider(authProvider)
+                    .setAuthProvider(authProvider.toProto())
                     .setProviderSubjectId(providerSubjectId)
                     .setType(type.toString())
                     .build());
-            return GrpcConverter.to(subject);
+            return ProtoConverter.to(subject);
         } catch (StatusRuntimeException e) {
             throw AuthException.fromStatusRuntimeException(e);
         }
@@ -74,7 +83,7 @@ public class SubjectServiceGrpcClient implements SubjectServiceClient {
                 LSS.GetSubjectRequest.newBuilder()
                     .setId(id)
                     .build());
-            return GrpcConverter.to(subject);
+            return ProtoConverter.to(subject);
         } catch (StatusRuntimeException e) {
             throw AuthException.fromStatusRuntimeException(e);
         }
@@ -87,7 +96,7 @@ public class SubjectServiceGrpcClient implements SubjectServiceClient {
             //noinspection ResultOfMethodCallIgnored
             subjectService.removeSubject(
                 LSS.RemoveSubjectRequest.newBuilder()
-                    .setSubject(GrpcConverter.from(subject))
+                    .setSubject(ProtoConverter.from(subject))
                     .build());
         } catch (StatusRuntimeException e) {
             throw AuthException.fromStatusRuntimeException(e);
@@ -95,17 +104,17 @@ public class SubjectServiceGrpcClient implements SubjectServiceClient {
     }
 
     @Override
-    public void addCredentials(Subject subject, String name, String value, String type) throws AuthException {
+    public void addCredentials(Subject subject, String name, String value, CredentialsType type) throws AuthException {
         try {
             //Empty response, see lzy-subject-service.proto
             //noinspection ResultOfMethodCallIgnored
             subjectService.addCredentials(
                 LSS.AddCredentialsRequest.newBuilder()
-                    .setSubject(GrpcConverter.from(subject))
+                    .setSubject(ProtoConverter.from(subject))
                     .setCredentials(IAM.Credentials.newBuilder()
                         .setName(name)
                         .setCredentials(value)
-                        .setType(type)
+                        .setType(type.toProto())
                         .build())
                     .build());
         } catch (StatusRuntimeException e) {
@@ -118,11 +127,11 @@ public class SubjectServiceGrpcClient implements SubjectServiceClient {
         try {
             LSS.ListCredentialsResponse listCredentialsResponse = subjectService.listCredentials(
                 LSS.ListCredentialsRequest.newBuilder()
-                    .setSubject(GrpcConverter.from(subject))
+                    .setSubject(ProtoConverter.from(subject))
                     .build());
             return listCredentialsResponse.getCredentialsListList()
                 .stream()
-                .map(GrpcConverter::to)
+                .map(ProtoConverter::to)
                 .collect(Collectors.toList());
         } catch (StatusRuntimeException e) {
             throw AuthException.fromStatusRuntimeException(e);
@@ -136,7 +145,7 @@ public class SubjectServiceGrpcClient implements SubjectServiceClient {
             //noinspection ResultOfMethodCallIgnored
             subjectService.removeCredentials(
                 LSS.RemoveCredentialsRequest.newBuilder()
-                    .setSubject(GrpcConverter.from(subject))
+                    .setSubject(ProtoConverter.from(subject))
                     .setCredentialsName(name)
                     .build());
         } catch (StatusRuntimeException e) {

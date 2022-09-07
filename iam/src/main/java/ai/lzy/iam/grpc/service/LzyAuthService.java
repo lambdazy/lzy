@@ -7,7 +7,7 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.util.auth.exceptions.AuthException;
-import ai.lzy.iam.utils.GrpcConverter;
+import ai.lzy.iam.utils.ProtoConverter;
 import ai.lzy.v1.iam.IAM.Subject;
 import ai.lzy.v1.iam.LAS.AuthenticateRequest;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
@@ -24,7 +24,7 @@ public class LzyAuthService extends LzyAuthenticateServiceGrpc.LzyAuthenticateSe
         LOG.info("Authenticate user");
         try {
             var currentSubject = Objects.requireNonNull(AuthenticationContext.current()).getSubject();
-            responseObserver.onNext(GrpcConverter.from(currentSubject));
+            responseObserver.onNext(ProtoConverter.from(currentSubject));
             responseObserver.onCompleted();
         } catch (AuthException e) {
             LOG.error("Auth exception::", e);

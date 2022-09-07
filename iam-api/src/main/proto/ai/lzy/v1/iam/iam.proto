@@ -18,7 +18,13 @@ message Subject {
 message Credentials {
   string name = 1;
   string credentials = 2;
-  string type = 3;
+  Type type = 3;
+
+  enum Type {
+    CREDENTIALS_TYPE_UNSPECIFIED = 0;
+    PUBLIC_KEY = 1;
+    OTT = 2;
+  }
 }
 
 message AccessBinding {
@@ -27,7 +33,7 @@ message AccessBinding {
 }
 
 enum AccessBindingAction {
-  UNSPECIFIED = 0;
+  ACCESS_BINDING_ACTION_UNSPECIFIED = 0;
   ADD = 1;
   REMOVE = 2;
 }
@@ -35,4 +41,10 @@ enum AccessBindingAction {
 message AccessBindingDelta {
   AccessBinding binding = 1;
   AccessBindingAction action = 2;
+}
+
+enum AuthProvider {
+  AUTH_PROVIDER_UNSPECIFIED = 0;
+  INTERNAL = 1;
+  GITHUB = 2;
 }

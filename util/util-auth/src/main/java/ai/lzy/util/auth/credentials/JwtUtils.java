@@ -1,11 +1,15 @@
 package ai.lzy.util.auth.credentials;
 
-import static java.security.Security.addProvider;
-
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.util.io.pem.PemObject;
+import org.bouncycastle.util.io.pem.PemReader;
 
+import javax.annotation.Nullable;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
@@ -17,17 +21,20 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.X509EncodedKeySpec;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.Date;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.util.io.pem.PemObject;
-import org.bouncycastle.util.io.pem.PemReader;
+import java.util.Map;
 
-public class JwtUtils {
+import static java.security.Security.addProvider;
 
-    public static JwtCredentials invalidCredentials(String user) {
+public enum JwtUtils {
+    ;
+
+    public static final String CLAIM_PROVIDER = "pvd";
+
+    public static JwtCredentials invalidCredentials(String user, String provider) {
         var privateKey = """
             -----BEGIN RSA PRIVATE KEY-----
             MIIEowIBAAKCAQEAn5w8xQDuTg9cc7sP3kcIH+ynzEIBSGc6JFhuOd5r82GL7F+i
@@ -58,33 +65,35 @@ public class JwtUtils {
             -----END RSA PRIVATE KEY-----""";
 
         try (final Reader reader = new StringReader(privateKey)) {
-            return new JwtCredentials(buildJWT(user, reader));
+            return new JwtCredentials(buildJWT(user, provider, reader));
         } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
             throw new RuntimeException("Cannot build credentials: " + e.getMessage(), e);
         }
     }
 
-    public static JwtCredentials credentials(String user, String privateKey) {
+    public static JwtCredentials credentials(String user, String provider, String privateKey) {
         try (final Reader reader = new StringReader(privateKey)) {
-            return new JwtCredentials(buildJWT(user, reader));
+            return new JwtCredentials(buildJWT(user, provider, reader));
         } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
             throw new RuntimeException("Cannot build credentials: " + e.getMessage(), e);
         }
     }
 
-    public static String buildJWT(String uid, PrivateKey key) {
+    public static String buildJWT(String issuer, String provider, PrivateKey key) {
         Instant now = Instant.now();
         return Jwts.builder()
             .setIssuedAt(Date.from(now))
             .setNotBefore(Date.from(now))
             .setExpiration(Date.from(now.plus(Duration.ofDays(7))))
-            .setIssuer(uid)
+            .setIssuer(issuer)
+            .addClaims(Map.of(CLAIM_PROVIDER, provider))
             .signWith(key, SignatureAlgorithm.PS256)
             .compact();
     }
 
-    public static String buildJWT(String uid, Reader privateKeyReader)
-        throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+    public static String buildJWT(String issuer, String provider, Reader privateKeyReader)
+        throws IOException, NoSuchAlgorithmException, InvalidKeySpecException
+    {
         addProvider(new BouncyCastleProvider());
         KeyFactory factory = KeyFactory.getInstance("RSA");
         try (PemReader pemReader = new PemReader(privateKeyReader)) {
@@ -93,14 +102,43 @@ public class JwtUtils {
             PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(content);
             PrivateKey privateKey = factory.generatePrivate(privateKeySpec);
 
-            return buildJWT(uid, privateKey);
+            return buildJWT(issuer, provider, privateKey);
         }
     }
 
-    public static boolean checkJWT(PublicKey key, String jwt, String uid) {
+    @Deprecated
+    public static String legacyBuildJWT(String issuer, PrivateKey key) {
+        Instant now = Instant.now();
+        return Jwts.builder()
+            .setIssuedAt(Date.from(now))
+            .setNotBefore(Date.from(now))
+            .setExpiration(Date.from(now.plus(Duration.ofDays(7))))
+            .setIssuer(issuer)
+            .signWith(key, SignatureAlgorithm.PS256)
+            .compact();
+    }
+
+    @Deprecated
+    public static String legacyBuildJWT(String issuer, Reader privateKeyReader)
+        throws IOException, NoSuchAlgorithmException, InvalidKeySpecException
+    {
+        addProvider(new BouncyCastleProvider());
+        KeyFactory factory = KeyFactory.getInstance("RSA");
+        try (PemReader pemReader = new PemReader(privateKeyReader)) {
+            PemObject pemObject = pemReader.readPemObject();
+            byte[] content = pemObject.getContent();
+            PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(content);
+            PrivateKey privateKey = factory.generatePrivate(privateKeySpec);
+
+            return legacyBuildJWT(issuer, privateKey);
+        }
+    }
+
+    public static boolean checkJWT(PublicKey key, String jwt, String issuer, String provider) {
         try {
             Jwts.parserBuilder()
-                .requireIssuer(uid)
+                .requireIssuer(issuer)
+                .require(CLAIM_PROVIDER, provider)
                 .setSigningKey(key)
                 .build()
                 .parseClaimsJws(jwt);
@@ -110,15 +148,44 @@ public class JwtUtils {
         }
     }
 
-    public static boolean checkJWT(Reader keyReader, String jwt, String uid)
-        throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
-        try (PemReader pemReader = new PemReader(keyReader)) {
-            KeyFactory factory = KeyFactory.getInstance("RSA");
-            PemObject pemObject = pemReader.readPemObject();
-            byte[] content = pemObject.getContent();
-            X509EncodedKeySpec pubKeySpec = new X509EncodedKeySpec(content);
-            PublicKey rsaKey = factory.generatePublic(pubKeySpec);
-            return checkJWT(rsaKey, jwt, uid);
+    public static boolean checkJWT(Reader keyReader, String jwt, String issuer, String provider)
+        throws IOException, NoSuchAlgorithmException, InvalidKeySpecException
+    {
+        var publicKey = CredentialsUtils.readPublicKey(keyReader);
+        return checkJWT(publicKey, jwt, issuer, provider);
+    }
+
+    @Deprecated
+    public static boolean legacyCheckJWT(PublicKey key, String jwt, String issuer) {
+        try {
+            Jwts.parserBuilder()
+                .requireIssuer(issuer)
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(jwt);
+            return true;
+        } catch (JwtException ex) {
+            return false;
+        }
+    }
+
+    @Deprecated
+    public static boolean legacyCheckJWT(Reader keyReader, String jwt, String issuer)
+        throws IOException, NoSuchAlgorithmException, InvalidKeySpecException
+    {
+        var publicKey = CredentialsUtils.readPublicKey(keyReader);
+        return legacyCheckJWT(publicKey, jwt, issuer);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Nullable
+    public static Map<String, Object> parseJwt(String jwt) {
+        var chunks = jwt.split("\\.");
+        var payload = new String(Base64.getUrlDecoder().decode(chunks[1]));
+        try {
+            return (Map<String, Object>) objectMapper.readValue(payload, Map.class);
+        } catch (JsonProcessingException ignored) {
+            return null;
         }
     }
 
@@ -127,18 +194,19 @@ public class JwtUtils {
         JwtCredentials credentials
     ) {}
 
-    public static GeneratedCredentials generateCredentials(String subjectId)
+    public static GeneratedCredentials generateCredentials(String login, String provider)
             throws IOException, InterruptedException, NoSuchAlgorithmException, InvalidKeySpecException
     {
-
         final var keys = RsaUtils.generateRsaKeys();
         final JwtCredentials credentials;
         try (final var reader = new FileReader(keys.privateKeyPath().toFile())) {
-            credentials = new JwtCredentials(buildJWT(subjectId, reader));
+            credentials = new JwtCredentials(buildJWT(login, provider, reader));
         }
 
         final var publicKey = Files.readString(keys.publicKeyPath());
 
         return new GeneratedCredentials(publicKey, credentials);
     }
+
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 }

@@ -1,6 +1,7 @@
 package ai.lzy.iam;
 
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
+import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.util.auth.exceptions.AuthNotFoundException;
@@ -32,8 +33,8 @@ public abstract class BaseSubjectServiceApiTest {
     }
 
     public void createAndDeleteScenario(SubjectType subjectType) {
-        var subj1 = createSubject(subjectType);
-        var subj2 = createSubject(subjectType);
+        var subj1 = createSubject("user1", subjectType);
+        var subj2 = createSubject("user2", subjectType);
 
         Subject subject1 = subject(subj1.id());
         assertEquals(subj1.id(), subject1.id());
@@ -75,7 +76,7 @@ public abstract class BaseSubjectServiceApiTest {
     }
 
     public void createAndRemoveWithCredentialsScenario(SubjectType subjectType) {
-        var subj1 = createSubject(subjectType);
+        var subj1 = createSubject("user1", subjectType);
         Subject subject = subject(subj1.id());
         addCredentials(subject, "1");
         addCredentials(subject, "2");
@@ -83,11 +84,11 @@ public abstract class BaseSubjectServiceApiTest {
         SubjectCredentials credentials1 = credentials(subject, "1");
         assertEquals("1", credentials1.name());
         assertEquals("Value", credentials1.value());
-        assertEquals("Type", credentials1.type());
+        assertEquals(CredentialsType.PUBLIC_KEY, credentials1.type());
         SubjectCredentials credentials2 = credentials(subject, "2");
         assertEquals("2", credentials2.name());
         assertEquals("Value", credentials2.value());
-        assertEquals("Type", credentials2.type());
+        assertEquals(CredentialsType.PUBLIC_KEY, credentials2.type());
 
         removeCredentials(subject, "1");
         try {
@@ -102,7 +103,7 @@ public abstract class BaseSubjectServiceApiTest {
         credentials2 = credentials(subject, "2");
         assertEquals("2", credentials2.name());
         assertEquals("Value", credentials2.value());
-        assertEquals("Type", credentials2.type());
+        assertEquals(CredentialsType.PUBLIC_KEY, credentials2.type());
 
         removeCredentials(subject, "2");
         try {
@@ -129,7 +130,7 @@ public abstract class BaseSubjectServiceApiTest {
 
     protected abstract Subject subject(String id);
 
-    protected abstract Subject createSubject(SubjectType subjectType);
+    protected abstract Subject createSubject(String name, SubjectType subjectType);
 
     protected abstract void removeSubject(Subject subject);
 
