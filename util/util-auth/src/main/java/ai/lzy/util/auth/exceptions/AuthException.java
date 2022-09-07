@@ -35,7 +35,7 @@ public abstract class AuthException extends RuntimeException {
     public static AuthException fromStatusRuntimeException(StatusRuntimeException e) {
         return switch (e.getStatus().getCode()) {
             case PERMISSION_DENIED -> new AuthPermissionDeniedException(e.getMessage());
-            case INVALID_ARGUMENT -> new AuthBadRequestException(e.getMessage());
+            case NOT_FOUND -> new AuthNotFoundException(e.getMessage());
             case INTERNAL -> new AuthInternalException(e.getMessage());
             case UNAUTHENTICATED -> new AuthUnauthenticatedException(e.getMessage());
             case UNAVAILABLE -> new AuthUnavailableException(e.getMessage());

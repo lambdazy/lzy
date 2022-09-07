@@ -3,7 +3,7 @@ package ai.lzy.iam;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
-import ai.lzy.util.auth.exceptions.AuthBadRequestException;
+import ai.lzy.util.auth.exceptions.AuthNotFoundException;
 import junitparams.JUnitParamsRunner;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -47,7 +47,7 @@ public abstract class BaseSubjectServiceApiTest {
         try {
             subject(subj1.id());
             fail();
-        } catch (AuthBadRequestException e) {
+        } catch (AuthNotFoundException e) {
             LOG.info("Valid exception {}", e.getInternalDetails());
         }
 
@@ -59,7 +59,7 @@ public abstract class BaseSubjectServiceApiTest {
         try {
             subject(subj2.id());
             fail();
-        } catch (AuthBadRequestException e) {
+        } catch (AuthNotFoundException e) {
             LOG.info("Valid exception {}", e.getInternalDetails());
         }
     }
@@ -95,7 +95,7 @@ public abstract class BaseSubjectServiceApiTest {
             fail();
         } catch (NoSuchElementException e) {
             LOG.info("Valid exception {}", e.getMessage());
-        } catch (AuthBadRequestException e) {
+        } catch (AuthNotFoundException e) {
             LOG.info("Valid exception {}", e.getInternalDetails());
         }
 
@@ -110,7 +110,7 @@ public abstract class BaseSubjectServiceApiTest {
             fail();
         } catch (NoSuchElementException e) {
             LOG.info("Valid exception {}", e.getMessage());
-        } catch (AuthBadRequestException e) {
+        } catch (AuthNotFoundException e) {
             LOG.info("Valid exception {}", e.getInternalDetails());
         }
         removeSubject(subject);

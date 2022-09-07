@@ -7,7 +7,7 @@ import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.storage.db.IamDataSource;
 import ai.lzy.model.db.test.DatabaseTestUtils;
-import ai.lzy.util.auth.exceptions.AuthBadRequestException;
+import ai.lzy.util.auth.exceptions.AuthNotFoundException;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
@@ -154,7 +154,7 @@ public class DbAccessClientTest {
         try {
             accessClient.hasResourcePermission(user, whiteboardResource.resourceId(), AuthPermission.WHITEBOARD_GET);
             fail();
-        } catch (AuthBadRequestException e) {
+        } catch (AuthNotFoundException e) {
             LOG.info("Valid exception::{}", e.getInternalDetails());
         }
 
@@ -177,7 +177,7 @@ public class DbAccessClientTest {
         try {
             accessClient.hasResourcePermission(user, workflowResource.resourceId(), AuthPermission.WORKFLOW_RUN);
             fail();
-        } catch (AuthBadRequestException e) {
+        } catch (AuthNotFoundException e) {
             LOG.info("Valid exception::{}", e.getInternalDetails());
         }
     }
