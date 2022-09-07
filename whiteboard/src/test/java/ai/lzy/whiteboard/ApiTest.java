@@ -1,11 +1,10 @@
 package ai.lzy.whiteboard;
 
-import static ai.lzy.v1.LWB.WhiteboardFieldInfo.StateCase.LINKEDSTATE;
-import static ai.lzy.v1.LWB.WhiteboardFieldInfo.StateCase.NONESTATE;
-
 import ai.lzy.iam.clients.SubjectServiceClient;
 import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.data.DataSchema;
@@ -16,15 +15,9 @@ import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.v1.LWB;
-import ai.lzy.v1.LWBPS;
-import ai.lzy.v1.LWBS;
-import ai.lzy.v1.LzyWhiteboardPrivateServiceGrpc;
-import ai.lzy.v1.LzyWhiteboardServiceGrpc;
+import ai.lzy.v1.*;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.whiteboard.grpc.ProtoConverter;
-import ai.lzy.whiteboard.model.Field;
-import ai.lzy.whiteboard.model.LinkedField;
 import ai.lzy.whiteboard.model.Whiteboard;
 import ai.lzy.whiteboard.storage.WhiteboardDataSource;
 import com.google.common.net.HostAndPort;
@@ -34,14 +27,14 @@ import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
+import org.junit.*;
+
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+
+import static ai.lzy.v1.LWB.WhiteboardFieldInfo.StateCase.LINKEDSTATE;
+import static ai.lzy.v1.LWB.WhiteboardFieldInfo.StateCase.NONESTATE;
 
 @SuppressWarnings("ResultOfMethodCallIgnored")
 public class ApiTest extends BaseTestWithIam {
@@ -127,7 +120,7 @@ public class ApiTest extends BaseTestWithIam {
     public void testPermissionDenied() {
         final var invalidCredsPrivateClient = LzyWhiteboardPrivateServiceGrpc.newBlockingStub(channel)
             .withInterceptors(ClientHeaderInterceptor.header(
-                GrpcHeaders.AUTHORIZATION, JwtUtils.invalidCredentials("user")::token
+                GrpcHeaders.AUTHORIZATION, JwtUtils.invalidCredentials("user", "GITHUB")::token
             ));
         apiAccessTest(invalidCredsPrivateClient, Status.PERMISSION_DENIED);
 
@@ -139,7 +132,7 @@ public class ApiTest extends BaseTestWithIam {
 
         final var invalidCredsClient = LzyWhiteboardServiceGrpc.newBlockingStub(channel)
             .withInterceptors(ClientHeaderInterceptor.header(
-                GrpcHeaders.AUTHORIZATION, JwtUtils.invalidCredentials("user")::token
+                GrpcHeaders.AUTHORIZATION, JwtUtils.invalidCredentials("user", "GITHUB")::token
             ));
         apiAccessTest(invalidCredsClient, Status.PERMISSION_DENIED);
     }
@@ -371,11 +364,10 @@ public class ApiTest extends BaseTestWithIam {
             this.subjectClient = new SubjectServiceGrpcClient(channel, config::createCredentials);
         }
 
-        public User createUser(String name) throws Exception
-        {
-            var subj = subjectClient.createSubject("github", "github-" + name, SubjectType.USER);
-            var creds = JwtUtils.generateCredentials(subj.id());
-            subjectClient.addCredentials(subj, "main", creds.publicKey(), creds.credentials().type());
+        public User createUser(String name) throws Exception {
+            var subj = subjectClient.createSubject(AuthProvider.GITHUB, "github-" + name, SubjectType.USER);
+            var creds = JwtUtils.generateCredentials(subj.id(), "GITHUB");
+            subjectClient.addCredentials(subj, "main", creds.publicKey(), CredentialsType.PUBLIC_KEY);
             return new User(subj.id(), creds.credentials());
         }
 
