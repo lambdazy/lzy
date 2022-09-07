@@ -1,7 +1,7 @@
 package ai.lzy.whiteboard;
 
-import static ai.lzy.v1.LWB.WhiteboardFieldInfo.StateCase.LINKEDSTATE;
-import static ai.lzy.v1.LWB.WhiteboardFieldInfo.StateCase.NONESTATE;
+import static ai.lzy.v1.whiteboard.LWB.WhiteboardFieldInfo.StateCase.LINKEDSTATE;
+import static ai.lzy.v1.whiteboard.LWB.WhiteboardFieldInfo.StateCase.NONESTATE;
 
 import ai.lzy.iam.clients.SubjectServiceClient;
 import ai.lzy.iam.config.IamClientConfiguration;
@@ -16,15 +16,13 @@ import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.v1.LWB;
-import ai.lzy.v1.LWBPS;
-import ai.lzy.v1.LWBS;
-import ai.lzy.v1.LzyWhiteboardPrivateServiceGrpc;
-import ai.lzy.v1.LzyWhiteboardServiceGrpc;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
+import ai.lzy.v1.whiteboard.LWB;
+import ai.lzy.v1.whiteboard.LWBPS;
+import ai.lzy.v1.whiteboard.LWBS;
+import ai.lzy.v1.whiteboard.LzyWhiteboardPrivateServiceGrpc;
+import ai.lzy.v1.whiteboard.LzyWhiteboardServiceGrpc;
 import ai.lzy.whiteboard.grpc.ProtoConverter;
-import ai.lzy.whiteboard.model.Field;
-import ai.lzy.whiteboard.model.LinkedField;
 import ai.lzy.whiteboard.model.Whiteboard;
 import ai.lzy.whiteboard.storage.WhiteboardDataSource;
 import com.google.common.net.HostAndPort;

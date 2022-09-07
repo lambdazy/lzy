@@ -1,8 +1,8 @@
 package ai.lzy.whiteboard.grpc;
 
-import ai.lzy.v1.LWB;
-import ai.lzy.v1.LWBPS;
 import ai.lzy.v1.Operations;
+import ai.lzy.v1.whiteboard.LWB;
+import ai.lzy.v1.whiteboard.LWBPS;
 
 public class ProtoValidator {
 

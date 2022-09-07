@@ -5,8 +5,8 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 
 import ai.lzy.model.db.NotFoundException;
 import ai.lzy.model.db.TransactionHandle;
-import ai.lzy.v1.LWBPS;
-import ai.lzy.v1.LzyWhiteboardPrivateServiceGrpc;
+import ai.lzy.v1.whiteboard.LWBPS;
+import ai.lzy.v1.whiteboard.LzyWhiteboardPrivateServiceGrpc;
 import ai.lzy.whiteboard.access.AccessManager;
 import ai.lzy.whiteboard.model.Field;
 import ai.lzy.whiteboard.model.LinkedField;

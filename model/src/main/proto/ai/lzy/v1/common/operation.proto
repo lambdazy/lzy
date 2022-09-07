@@ -5,7 +5,7 @@ package ai.lzy.v1.common;
 option java_outer_classname = "LzyCommon";
 option java_package = "ai.lzy.v1.common";
 
-import "ai/lzy/v1/zygote.proto";
+import "ai/lzy/v1/common/zygote.proto";
 
 message Operation {
   message StdSlotDesc {

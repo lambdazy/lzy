@@ -6,12 +6,8 @@ import ai.lzy.model.json.OperationSerializer;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import java.util.Objects;
-import ai.lzy.model.Zygote;
-
 import java.util.Map;
-import ai.lzy.model.json.ZygoteDeserializer;
-import ai.lzy.model.json.ZygoteSerializer;
+import java.util.Objects;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
 @JsonSerialize

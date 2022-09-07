@@ -1,12 +1,12 @@
 syntax = "proto3";
 
-import "ai/lzy/v1/zygote.proto";
-import "ai/lzy/v1/whiteboard.proto";
+import "ai/lzy/v1/common/zygote.proto";
+import "ai/lzy/v1/whiteboard/whiteboard.proto";
 
 package ai.lzy.v1;
 
 option java_outer_classname = "LWBPS";
-option java_package = "ai.lzy.v1";
+option java_package = "ai.lzy.v1.whiteboard";
 
 service LzyWhiteboardPrivateService {
   rpc CreateWhiteboard (CreateWhiteboardRequest) returns (CreateWhiteboardResponse);

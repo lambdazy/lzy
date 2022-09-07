@@ -4,7 +4,7 @@ package ai.lzy.v1;
 
 import "ai/lzy/v1/channel.proto";
 import "ai/lzy/v1/fs.proto";
-import "ai/lzy/v1/zygote.proto";
+import "ai/lzy/v1/common/zygote.proto";
 
 option java_outer_classname = "ChannelManager";
 option java_package = "ai.lzy.v1";

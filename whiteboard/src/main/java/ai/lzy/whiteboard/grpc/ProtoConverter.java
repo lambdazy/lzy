@@ -2,7 +2,7 @@ package ai.lzy.whiteboard.grpc;
 
 import static ai.lzy.model.GrpcConverter.contentTypeFrom;
 
-import ai.lzy.v1.LWB;
+import ai.lzy.v1.whiteboard.LWB;
 import ai.lzy.whiteboard.model.Field;
 import ai.lzy.whiteboard.model.LinkedField;
 import ai.lzy.whiteboard.model.Whiteboard;
