@@ -26,7 +26,6 @@ from lzy.api.v2.runtime import (
     WhiteboardField,
     WhiteboardInstanceMeta,
 )
-
 from lzy.api.v2.startup import ProcessingRequest
 from lzy.api.v2.utils._pickle import pickle
 
@@ -208,13 +207,13 @@ class GrpcRuntime(Runtime):
             ret_descriptions: List[str] = []
 
             for i, eid in enumerate(call.arg_entry_ids):
-                entry = self.__workflow.owner.snapshot.get(eid)
+                entry = self.__workflow.snapshot.get(eid)
                 slot_path = f"/{call.id}/arg_{i}"
                 input_slots.append(slot_path)
                 arg_descriptions.append((entry.typ, slot_path))
 
             for name, eid in call.kwarg_entry_ids.items():
-                entry = self.__workflow.owner.snapshot.get(eid)
+                entry = self.__workflow.snapshot.get(eid)
                 slot_path = f"/{call.id}/arg_{name}"
                 input_slots.append(slot_path)
                 kwarg_descriptions[name] = (entry.typ, slot_path)

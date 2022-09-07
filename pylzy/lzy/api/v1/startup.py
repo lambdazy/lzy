@@ -10,8 +10,7 @@ from lzy.api.v1.servant.bash_servant_client import BashServantClient
 from lzy.api.v1.servant.model.execution import ExecutionDescription, InputExecutionValue
 from lzy.api.v1.servant.servant_client import ServantClient
 from lzy.api.v1.signatures import CallSignature, FuncSignature
-from lzy.api.v1.utils import lazy_proxy
-from lzy.api.v2.utils._pickle import unpickle
+from lzy.api.v1.utils import lazy_proxy, unpickle
 from lzy.serialization.hasher import DelegatingHasher
 from lzy.serialization.registry import DefaultSerializerRegistry
 

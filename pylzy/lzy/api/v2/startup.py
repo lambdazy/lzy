@@ -6,10 +6,10 @@ import time
 from typing import Any, Callable, Mapping, Sequence, Tuple, Type
 
 from lzy.api.v2.utils._pickle import unpickle
-from lzy.serialization.api import SerializersRegistry
+from lzy.serialization.api import SerializerRegistry
 
 
-def read_data(path: str, typ: Type, serializers: SerializersRegistry) -> Any:
+def read_data(path: str, typ: Type, serializers: SerializerRegistry) -> Any:
     with open(path, "rb") as file:
         # Wait for slot become open
         while file.read(1) is None:
@@ -19,7 +19,7 @@ def read_data(path: str, typ: Type, serializers: SerializersRegistry) -> Any:
         return data
 
 
-def write_data(path: str, data: Any, serializers: SerializersRegistry):
+def write_data(path: str, data: Any, serializers: SerializerRegistry):
     typ = type(data)
     with open(path, "wb") as out_handle:
         serializers.find_serializer_by_type(typ).serialize(data, out_handle)
@@ -37,7 +37,7 @@ def log(msg: str, *args, **kwargs):
 
 
 def process_execution(
-    serializers: SerializersRegistry,
+    serializers: SerializerRegistry,
     op: Callable,
     args_paths: Sequence[Tuple[Type, str]],
     kwargs_paths: Mapping[str, Tuple[Type, str]],
@@ -68,7 +68,7 @@ def process_execution(
 
 @dataclasses.dataclass
 class ProcessingRequest:
-    serializers: SerializersRegistry
+    serializers: SerializerRegistry
     op: Callable
     args_paths: Sequence[Tuple[Type, str]]
     kwargs_paths: Mapping[str, Tuple[Type, str]]
