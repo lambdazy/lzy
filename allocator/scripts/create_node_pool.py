@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-import os
+import sys
+from subprocess import Popen, PIPE
+
+
+def process(command: str) -> str:
+    p = Popen(command, shell=True, stdout=PIPE)
+    out, err = p.communicate()
+    return out.decode("utf-8")[:-1]
+
 
 cloud_id = input('cloud id for pool vms: ')
 folder_id = input('folder id for pool vms: ')
@@ -22,17 +30,17 @@ memory = input('memory for pool vms: ')
 
 ans = input("Are you sure you want to create node group with this configuration? (print 'YES!!!!!'): ")
 if ans != "YES!!!!!":
-    os.exit()
+    sys.exit()
 
 # ------------ SECURITY GROUPS ------------ #
-main_sg_id = os.system(
+main_sg_id = process(
     "yc vpc sg get --cloud-id {} --folder-id {} --name {}-main-sg --format json | jq -r '.id'".format(
         cloud_id,
         folder_id,
         cluster_name
     )
 )
-public_services_sg_id = os.system(
+public_services_sg_id = process(
     "yc vpc sg get --cloud-id {} --folder-id {} --name {}-public-services --format json | jq -r '.id'".format(
         cloud_id,
         folder_id,
@@ -41,7 +49,7 @@ public_services_sg_id = os.system(
 )
 
 # ------------ NODE POOL ------------ #
-os.system(
+process(
     "yc managed-kubernetes node-group create --help \
   --cloud-id {} \
   --folder-id {} \
