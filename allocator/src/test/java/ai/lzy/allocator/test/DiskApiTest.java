@@ -39,7 +39,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class DiskApiTest extends BaseTestWithIam {
-    private final int DEFAULT_TIMEOUT_SEC = 300;
+    private static final int DEFAULT_TIMEOUT_SEC = 300;
 
     @Rule
     public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
