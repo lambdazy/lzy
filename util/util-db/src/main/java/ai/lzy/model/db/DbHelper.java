@@ -22,6 +22,10 @@ public enum DbHelper {
         E fail(Exception e);
     }
 
+    public static <T> T withRetries(Logger logger, Func<T> fn) throws Exception {
+        return withRetries(defaultRetryPolicy(), logger, fn, ex -> ex);
+    }
+
     public static <T> T withRetries(RetryPolicy retryPolicy, Logger logger, Func<T> fn) throws Exception {
         return withRetries(retryPolicy, logger, fn, ex -> ex);
     }

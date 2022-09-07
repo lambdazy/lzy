@@ -2,6 +2,7 @@ package ai.lzy.allocator.disk.impl.mock;
 
 import ai.lzy.allocator.disk.Disk;
 import ai.lzy.allocator.disk.DiskManager;
+import ai.lzy.allocator.disk.DiskMeta;
 import ai.lzy.allocator.disk.DiskSpec;
 import ai.lzy.allocator.disk.exceptions.NotFoundException;
 import io.micronaut.context.annotation.Requires;
@@ -19,12 +20,12 @@ public class MockDiskManager implements DiskManager {
     }
 
     @Override
-    public Disk create(DiskSpec spec) {
+    public Disk create(DiskSpec spec, DiskMeta meta) {
         throw new NotImplementedException("Not implemented");
     }
 
     @Override
-    public Disk clone(Disk disk, DiskSpec cloneDiskSpec) throws NotFoundException {
+    public Disk clone(Disk disk, DiskSpec cloneDiskSpec, DiskMeta meta) throws NotFoundException {
         throw new NotImplementedException("Not implemented");
     }
 

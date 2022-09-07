@@ -25,17 +25,18 @@ service DiskService {
     };
   }
 
-  rpc DeleteDisk (DeleteDiskRequest) returns (ai.lzy.v1.Operation) {
-    option (ai.lzy.v1.operation) = {
-      metadata: "DeleteDiskMetadata"
-      response: "DeleteDiskResponse"
-    };
-  }
+  rpc DeleteDisk (DeleteDiskRequest) returns (DeleteDiskResponse);
 }
 
 message CreateDiskRequest {
-  DiskSpec disk_spec = 1;
-  string zone_id = 2;
+  string user_id = 1;
+  oneof DiskDescription {
+    DiskSpec disk_spec = 2;
+    ExistingDisk existing_disk = 3;
+  }
+  message ExistingDisk {
+    string disk_id = 1;
+  }
 }
 
 message CreateDiskMetadata {
@@ -47,9 +48,9 @@ message CreateDiskResponse {
 }
 
 message CloneDiskRequest {
-  string disk_id = 1;
-  DiskSpec new_disk_spec = 2;
-  string zone_id = 3;
+  string user_id = 1;
+  string disk_id = 2;
+  DiskSpec new_disk_spec = 3;
 }
 
 message CloneDiskMetadata {
@@ -64,8 +65,6 @@ message DeleteDiskRequest {
   string disk_id = 1;
 }
 
-message DeleteDiskMetadata {
-  string disk_id = 1;
-}
+message DeleteDiskMetadata {}
 
 message DeleteDiskResponse {}
