@@ -6,8 +6,8 @@ from urllib import parse
 import boto3
 from botocore.exceptions import ClientError
 
-from lzy.storage.credentials import AmazonCredentials
-from lzy.storage.storage_client import StorageClient
+from lzy.storage.api import AmazonCredentials
+from lzy.storage.deprecated.storage_client import StorageClient
 from lzy.storage.url import Scheme, bucket_from_url
 
 

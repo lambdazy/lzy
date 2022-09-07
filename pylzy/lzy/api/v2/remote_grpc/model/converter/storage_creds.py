@@ -1,8 +1,8 @@
 from functools import singledispatch
-from typing import Union, cast, overload
+from typing import Union, overload
 
 from ai.lzy.v1.workflow import workflow_pb2
-from lzy.storage.credentials import (
+from lzy.storage.api import (
     AmazonCredentials,
     AzureCredentials,
     AzureSasCredentials,

@@ -4,7 +4,6 @@ import logging
 import sys
 from typing import Callable, Optional, Sequence, Type
 
-from lzy._proxy.result import Nothing
 from lzy.api.v1.cache_policy import CachePolicy
 from lzy.api.v1.env import (
     LzyLocalEnv,
@@ -18,6 +17,7 @@ from lzy.api.v1.servant.model.zygote import Gpu, Provisioning
 from lzy.api.v1.utils import infer_call_signature, infer_return_type, lazy_proxy
 from lzy.api.v1.whiteboard import view, whiteboard
 from lzy.api.v1.whiteboard.model import UUIDEntryIdGenerator
+from lzy.proxy.result import Nothing
 
 logging.root.setLevel(logging.INFO)
 handler = logging.StreamHandler(sys.stdout)

@@ -2,9 +2,10 @@ from dataclasses import dataclass
 from typing import List, Optional
 from unittest import TestCase
 
-# noinspection PyProtectedMember
-from lzy._proxy import proxy_optional
 from lzy.api.v1.utils import infer_real_type
+
+# noinspection PyProtectedMember
+from lzy.proxy import proxy_optional
 
 
 class ClassWithStaticAndClassMethods:

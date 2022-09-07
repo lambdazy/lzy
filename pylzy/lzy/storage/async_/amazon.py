@@ -1,13 +1,9 @@
-import io
-from contextlib import AsyncExitStack
-from pathlib import Path
 from typing import AsyncIterator, BinaryIO
 
 from aioboto3 import Session
 from botocore.exceptions import ClientError
 
-from lzy.storage._async import AsyncStorageClient
-from lzy.storage.credentials import AmazonCredentials
+from lzy.storage.api import AmazonCredentials, AsyncStorageClient
 from lzy.storage.url import Scheme, bucket_from_url, url_from_bucket
 
 

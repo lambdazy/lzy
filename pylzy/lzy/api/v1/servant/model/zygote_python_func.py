@@ -8,7 +8,7 @@ from lzy.api.v1.servant.model.file_slots import create_slot
 from lzy.api.v1.servant.model.slot import DataSchema, Direction, Slot
 from lzy.api.v1.servant.model.zygote import Provisioning, Zygote
 from lzy.api.v1.signatures import FuncSignature
-from lzy.api.v2.utils._pickle import pickle
+from lzy.api.v1.utils import pickle
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 

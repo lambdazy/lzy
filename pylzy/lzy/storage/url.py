@@ -1,8 +1,7 @@
-import os
 from enum import Enum
 from pathlib import Path
 from typing import Tuple
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import urlsplit
 
 
 class Scheme(Enum):

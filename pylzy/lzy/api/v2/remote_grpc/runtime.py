@@ -6,7 +6,7 @@ import time
 from asyncio import Task
 from collections import defaultdict
 from threading import Thread
-from typing import Callable, Dict, List, Optional, Tuple, Type, Union
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 
 import jwt
 
@@ -20,7 +20,12 @@ from lzy.api.v2.remote_grpc.workflow_service_client import (
     StdoutMessage,
     WorkflowServiceClient,
 )
-from lzy.api.v2.runtime import ProgressStep, Runtime
+from lzy.api.v2.runtime import (
+    ProgressStep,
+    Runtime,
+    WhiteboardField,
+    WhiteboardInstanceMeta,
+)
 from lzy.api.v2.startup import ProcessingRequest
 from lzy.api.v2.utils._pickle import pickle
 
@@ -117,10 +122,23 @@ class GrpcRuntime(Runtime):
         except Exception as e:
             raise RuntimeError("Cannot destroy workflow") from e
 
+    def create_whiteboard(
+        self,
+        namespace: str,
+        name: str,
+        fields: Sequence[WhiteboardField],
+        storage_name: str,
+        tags: Sequence[str],
+    ) -> WhiteboardInstanceMeta:
+        pass
+
+    def link(self, wb_id: str, field_name: str, url: str) -> None:
+        pass
+
     async def _start_workflow(self):
         assert self.__workflow is not None
         _LOG.info(f"Starting workflow {self.__workflow.name}")
-        default_creds = self.__workflow.owner.storage_registry.get_default_credentials()
+        default_creds = self.__workflow.owner.storage_registry.default_config()
 
         exec_id, creds = await self.__workflow_client.create_workflow(
             self.__workflow.name, default_creds
@@ -128,7 +146,7 @@ class GrpcRuntime(Runtime):
 
         self.__execution_id = exec_id
         if creds is not None:
-            self.__workflow.owner.storage_registry.register_credentials(
+            self.__workflow.owner.storage_registry.register_storage(
                 exec_id, creds, default=True
             )
 
@@ -154,9 +172,7 @@ class GrpcRuntime(Runtime):
             self.__workflow.name, self.__execution_id, "Workflow completed"
         )
 
-        self.__workflow.owner.storage_registry.unregister_credentials(
-            self.__execution_id
-        )
+        self.__workflow.owner.storage_registry.unregister_storage(self.__execution_id)
 
         await self.__std_slots_listener  # read all stdout and stderr
 
@@ -191,13 +207,13 @@ class GrpcRuntime(Runtime):
             ret_descriptions: List[str] = []
 
             for i, eid in enumerate(call.arg_entry_ids):
-                entry = self.__workflow.owner.snapshot.get(eid)
+                entry = self.__workflow.snapshot.get(eid)
                 slot_path = f"/{call.id}/arg_{i}"
                 input_slots.append(slot_path)
                 arg_descriptions.append((entry.typ, slot_path))
 
             for name, eid in call.kwarg_entry_ids.items():
-                entry = self.__workflow.owner.snapshot.get(eid)
+                entry = self.__workflow.snapshot.get(eid)
                 slot_path = f"/{call.id}/arg_{name}"
                 input_slots.append(slot_path)
                 kwarg_descriptions[name] = (entry.typ, slot_path)
@@ -246,7 +262,7 @@ class GrpcRuntime(Runtime):
 
         edges: List[Graph.EdgeDescription] = []
         for entry_id in entry_id_to_call.keys():
-            entry = self.__workflow.owner.snapshot.get(entry_id)
+            entry = self.__workflow.snapshot.get(entry_id)
             edges.append(
                 Graph.EdgeDescription(
                     storageUri=entry.storage_url,

@@ -12,9 +12,9 @@ from typing import (
     get_type_hints,
 )
 
-from lzy._proxy.result import Just, Nothing, Result
-from lzy.api.v2.proxy_adapter import is_lzy_proxy
 from lzy.api.v2.signatures import CallSignature, FuncSignature
+from lzy.api.v2.utils.proxy_adapter import is_lzy_proxy
+from lzy.proxy.result import Just, Nothing, Result
 
 T = TypeVar("T")
 

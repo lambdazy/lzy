@@ -26,7 +26,7 @@ class Serializer(abc.ABC):
         pass
 
 
-class SerializersRegistry(abc.ABC):
+class SerializerRegistry(abc.ABC):
     @abc.abstractmethod
     def register_serializer(
         self, name: str, serializer: Serializer, priority: Optional[int] = None

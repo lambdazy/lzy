@@ -3,14 +3,14 @@ import inspect
 import sys
 from typing import Any, Callable, Optional, Sequence, TypeVar
 
-from lzy._proxy.result import Nothing
 from lzy.api.v2.call import LzyCall
 from lzy.api.v2.lzy import Lzy
 from lzy.api.v2.provisioning import Gpu, Provisioning
-from lzy.api.v2.proxy_adapter import lzy_proxy
+from lzy.api.v2.utils.proxy_adapter import lzy_proxy
 from lzy.api.v2.utils.types import infer_call_signature, infer_return_type
 from lzy.api.v2.workflow import LzyWorkflow
 from lzy.env.env import EnvSpec
+from lzy.proxy.result import Nothing
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -101,7 +101,7 @@ def create_lazy_constructor(
         caller_globals = inspect.stack()[1].frame.f_globals
 
         # form env to recreate remotely
-        env: EnvSpec = active_wflow.env_provider.provide(caller_globals)
+        env: EnvSpec = active_wflow.owner.env_provider.provide(caller_globals)
 
         # create
         lzy_call = LzyCall(active_wflow, signature, provisioning, env)

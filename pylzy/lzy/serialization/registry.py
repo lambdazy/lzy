@@ -3,14 +3,14 @@ import sys
 from collections import OrderedDict
 from typing import Dict, Optional, Type, cast
 
-from lzy.serialization.api import Serializer, SerializersRegistry
+from lzy.serialization.api import Serializer, SerializerRegistry
 from lzy.serialization.catboost import CatboostPoolSerializer
 from lzy.serialization.file import FileSerializer
 from lzy.serialization.proto import ProtoMessageSerializer
 from lzy.serialization.universal import CloudpickleSerializer
 
 
-class DefaultSerializersRegistry(SerializersRegistry):
+class DefaultSerializerRegistry(SerializerRegistry):
     def __init__(self):
         self._log = logging.getLogger(str(self.__class__))
 

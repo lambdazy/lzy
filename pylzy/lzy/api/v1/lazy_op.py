@@ -36,7 +36,7 @@ from lzy.api.v1.servant.servant_client import ServantClient
 from lzy.api.v1.signatures import CallSignature, FuncSignature
 from lzy.api.v1.utils import LzyExecutionException, is_lazy_proxy, resolve_if_proxy
 from lzy.api.v1.whiteboard.model import EntryIdGenerator, UUIDEntryIdGenerator
-from lzy.serialization.api import Hasher, SerializersRegistry
+from lzy.serialization.api import Hasher, SerializerRegistry
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -152,7 +152,7 @@ class LzyRemoteOp(LzyOp):
         signature: CallSignature[Tuple],
         snapshot_id: str,
         entry_id_generator: EntryIdGenerator,
-        file_serializer: SerializersRegistry,
+        file_serializer: SerializerRegistry,
         hasher: Hasher,
         provisioning: Optional[Provisioning] = None,
         base_env: Optional[BaseEnv] = None,
@@ -388,7 +388,7 @@ class LzyRemoteOp(LzyOp):
         provisioning: Provisioning,
         env: Env,
         snapshot_id: str,
-        file_serializer: SerializersRegistry,
+        file_serializer: SerializerRegistry,
         hasher: Hasher,
     ):
         op_ = LzyRemoteOp(

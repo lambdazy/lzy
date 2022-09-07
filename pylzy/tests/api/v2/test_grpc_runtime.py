@@ -25,14 +25,13 @@ from ai.lzy.v1.workflow.workflow_service_pb2_grpc import (
     LzyWorkflowServiceServicer,
     add_LzyWorkflowServiceServicer_to_server,
 )
-from lzy.api.v2 import Lzy, LzyCall
-from lzy.api.v2.exceptions import LzyExecutionException
+from lzy.api.v2 import Lzy
 from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
 from lzy.api.v2.startup import ProcessingRequest, main
 from lzy.api.v2.utils._pickle import pickle
-from lzy.serialization.api import SerializersRegistry
-from lzy.serialization.registry import DefaultSerializersRegistry
+from lzy.serialization.registry import DefaultSerializerRegistry
 from lzy.serialization.types import File
+from lzy.storage.api import StorageConfig
 
 LOG = logging.getLogger(__name__)
 
@@ -126,23 +125,26 @@ class GrpcRuntimeTests(TestCase):
     def test_simple(self):
         runtime = GrpcRuntime("ArtoLord", "localhost:12345", self.__key_path)
         lzy = Lzy()
+        lzy.storage_registry.register_storage(
+            "default", StorageConfig.yc_object_storage("bucket", "", ""), default=True
+        )
         runtime.start(lzy.workflow("some_name"))
 
-        self.assertIsNotNone(lzy.storage_registry.get_default_credentials())
+        self.assertIsNotNone(lzy.storage_registry.default_config())
 
         runtime.destroy()
 
-        self.assertIsNone(lzy.storage_registry.get_default_credentials())
+        self.assertIsNone(lzy.storage_registry.default_config())
 
     def test_error(self):
         runtime = GrpcRuntime("ArtoLord", "localhost:12345", self.__key_path)
         lzy = Lzy()
         self.mock.fail = True
-        with self.assertRaises(expected_exception=RuntimeError):
+        with self.assertRaises(expected_exception=ValueError):
             runtime.start(lzy.workflow("some_name"))
         self.mock.fail = False
 
-        self.assertIsNone(lzy.storage_registry.get_default_credentials())
+        self.assertIsNone(lzy.storage_registry.default_config())
 
     def test_startup(self):
         def test(a: str, *, b: File) -> str:
@@ -157,7 +159,7 @@ class GrpcRuntimeTests(TestCase):
         file = File(data_file)
         with open(data_file, "w") as f:
             f.write("2")
-        ser = DefaultSerializersRegistry()
+        ser = DefaultSerializerRegistry()
 
         with open(arg_file, "wb") as arg, open(kwarg_file, "wb") as kwarg:
             ser.find_serializer_by_type(str).serialize("4", arg)

@@ -1,14 +1,14 @@
 from functools import singledispatch
 
-from lzy.storage._async.amazon import AmazonClient
-from lzy.storage._async.azure import AzureClientAsync
-from lzy.storage._async.storage_client import AsyncStorageClient
-from lzy.storage.credentials import (
+from lzy.storage.api import (
     AmazonCredentials,
+    AsyncStorageClient,
     AzureCredentials,
     AzureSasCredentials,
     StorageCredentials,
 )
+from lzy.storage.async_.amazon import AmazonClient
+from lzy.storage.async_.azure import AzureClientAsync
 
 
 @singledispatch

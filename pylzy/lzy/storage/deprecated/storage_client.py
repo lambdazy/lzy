@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import BinaryIO, Protocol
+from typing import BinaryIO
 
 
 class StorageClient(ABC):

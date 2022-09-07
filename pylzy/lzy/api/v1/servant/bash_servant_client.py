@@ -28,7 +28,7 @@ from lzy.api.v1.servant.model.execution import (
 from lzy.api.v1.servant.model.slot import Direction, Slot
 from lzy.api.v1.servant.model.zygote import Zygote
 from lzy.api.v1.servant.servant_client import CredentialsTypes, ServantClient
-from lzy.storage.credentials import (
+from lzy.storage.api import (
     AmazonCredentials,
     AzureCredentials,
     AzureSasCredentials,
