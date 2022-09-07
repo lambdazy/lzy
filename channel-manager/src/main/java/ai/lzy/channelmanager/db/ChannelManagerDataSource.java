@@ -1,5 +1,6 @@
-package ai.lzy.channelmanager;
+package ai.lzy.channelmanager.db;
 
+import ai.lzy.channelmanager.ChannelManagerConfig;
 import ai.lzy.model.db.Storage;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
 import io.micronaut.context.annotation.Requires;
@@ -24,9 +25,10 @@ public class ChannelManagerDataSource implements Storage {
     private final ComboPooledDataSource dataSource;
 
     @Inject
-    public ChannelManagerDataSource(ChannelManagerConfig.DbConfig dbConfig) {
-
+    public ChannelManagerDataSource(ChannelManagerConfig config) {
+        final var dbConfig = config.getDatabase();
         final ComboPooledDataSource dataSource = new ComboPooledDataSource();
+
         dataSource.setJdbcUrl(dbConfig.getUrl());
         dataSource.setUser(dbConfig.getUsername());
         dataSource.setPassword(dbConfig.getPassword());

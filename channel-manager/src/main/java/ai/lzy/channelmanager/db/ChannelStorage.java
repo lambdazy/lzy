@@ -5,6 +5,7 @@ import ai.lzy.channelmanager.channel.Endpoint;
 import ai.lzy.model.channel.ChannelSpec;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.v1.Channels;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -13,26 +14,28 @@ public interface ChannelStorage {
 
     void insertChannel(String channelId, String userId, String workflowId,
                        String channelName, Channels.ChannelSpec.TypeCase channelType, ChannelSpec channelSpec,
-                       @Nullable TransactionHandle transaction);
+                       @Nullable TransactionHandle transaction) throws SQLException;
 
-    void removeChannel(String channelId, @Nullable TransactionHandle transaction);
+    void removeChannel(String channelId, @Nullable TransactionHandle transaction) throws SQLException;
 
-    void insertEndpoint(Endpoint endpoint, TransactionHandle transaction);
+    void insertEndpoint(Endpoint endpoint, TransactionHandle transaction) throws SQLException;
 
-    void insertEndpointConnections(String channelId, Map<Endpoint, Endpoint> edges, TransactionHandle transaction);
+    void insertEndpointConnections(String channelId, Map<Endpoint, Endpoint> edges,
+                                   TransactionHandle transaction) throws SQLException;
 
-    void removeEndpointWithConnections(Endpoint endpoint, TransactionHandle transaction);
+    void removeEndpointWithConnections(Endpoint endpoint, TransactionHandle transaction) throws SQLException;
 
     void setChannelLifeStatus(String channelId, ChannelLifeStatus lifeStatus,
-                              @Nullable TransactionHandle transaction);
+                              @Nullable TransactionHandle transaction) throws SQLException;
     void setChannelLifeStatus(String userId, String workflowId, ChannelLifeStatus lifeStatus,
-                              @Nullable TransactionHandle transaction);
+                              @Nullable TransactionHandle transaction) throws SQLException;
 
     @Nullable
-    Channel findChannel(String channelId, ChannelLifeStatus lifeStatus, @Nullable TransactionHandle transaction);
+    Channel findChannel(String channelId, ChannelLifeStatus lifeStatus,
+                        @Nullable TransactionHandle transaction) throws SQLException;
 
     List<Channel> listChannels(String userId, String workflowId, ChannelLifeStatus lifeStatus,
-                               @Nullable TransactionHandle transaction);
+                               @Nullable TransactionHandle transaction) throws SQLException;
 
     enum ChannelLifeStatus {
         ALIVE,

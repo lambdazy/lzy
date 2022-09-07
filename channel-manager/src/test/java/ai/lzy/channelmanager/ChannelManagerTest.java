@@ -1,5 +1,6 @@
 package ai.lzy.channelmanager;
 
+import ai.lzy.channelmanager.db.ChannelManagerDataSource;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
