@@ -14,6 +14,7 @@ import ai.lzy.allocator.model.CachePolicy;
 import ai.lzy.allocator.model.Session;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
+import ai.lzy.allocator.networkpolicy.NetworkPolicyManager;
 import ai.lzy.allocator.volume.DiskVolumeDescription;
 import ai.lzy.allocator.volume.HostPathVolumeDescription;
 import ai.lzy.allocator.volume.VolumeRequest;
@@ -42,6 +43,7 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.inject.Named;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
@@ -49,7 +51,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import javax.inject.Named;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -64,6 +65,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
     private final DiskStorage diskStorage;
     private final SessionDao sessions;
     private final VmAllocator allocator;
+    private final NetworkPolicyManager networkPolicyManager;
     private final ServiceConfig config;
     private final AllocatorDataSource storage;
     private final Metrics metrics = new Metrics();
@@ -71,7 +73,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
     @Inject
     public AllocatorApi(VmDao dao, OperationDao operations, SessionDao sessions, DiskStorage diskStorage,
-                        VmAllocator allocator, ServiceConfig config, AllocatorDataSource storage,
+                        VmAllocator allocator, NetworkPolicyManager networkPolicyManager, ServiceConfig config, AllocatorDataSource storage,
                         @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel)
     {
         this.dao = dao;
@@ -79,6 +81,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         this.sessions = sessions;
         this.diskStorage = diskStorage;
         this.allocator = allocator;
+        this.networkPolicyManager = networkPolicyManager;
         this.config = config;
         this.storage = storage;
 
@@ -108,6 +111,8 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                 defaultRetryPolicy(),
                 LOG,
                 () -> sessions.create(request.getOwner(), policy, null));
+            // It must be here?????
+            networkPolicyManager.createNetworkPolicy(session.sessionId());
         } catch (Exception ex) {
             LOG.error("Cannot create session: {}", ex.getMessage(), ex);
             responseObserver.onError(
@@ -131,6 +136,8 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                     sessions.delete(request.getSessionId(), null);
                     dao.delete(request.getSessionId());
                 });
+            // It must be here?????
+            networkPolicyManager.deleteNetworkPolicy(request.getSessionId());
         } catch (Exception ex) {
             LOG.error("Error while executing `deleteSession` request, sessionId={}: {}",
                 request.getSessionId(), ex.getMessage(), ex);

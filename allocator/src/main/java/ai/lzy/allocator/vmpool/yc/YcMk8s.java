@@ -28,6 +28,8 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static yandex.cloud.api.k8s.v1.ClusterOuterClass.Cluster;
 
@@ -122,6 +124,16 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
     public ClusterDescription getCluster(String clusterId) {
         final var desc = clusters.get(clusterId);
         return new ClusterDescription(desc.clusterId, desc.masterExternalAddress, desc.masterCert);
+    }
+
+    @Override
+    public List<ClusterDescription> listClusters(ClusterType type) {
+        final boolean system = ClusterType.System == type;
+        return (system ? systemFolders : userFolders).stream()
+            .flatMap(f -> folder2clusters.get(f).stream()
+                .map(clusters::get)
+                .map(desc -> new ClusterDescription(desc.clusterId, desc.masterExternalAddress, desc.masterCert)))
+            .collect(Collectors.toList());
     }
 
     // TODO: getters for YC-specific data

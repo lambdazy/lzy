@@ -4,6 +4,7 @@ import com.google.common.net.HostAndPort;
 import io.micronaut.context.annotation.Primary;
 import io.micronaut.context.annotation.Requires;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -43,6 +44,11 @@ public class MockMk8s implements VmPoolRegistry, ClusterRegistry {
     @Override
     public ClusterDescription getCluster(String clusterId) {
         return idsToClusters.get(clusterId);
+    }
+
+    @Override
+    public List<ClusterDescription> listClusters(ClusterType type) {
+        return List.copyOf(labelsToClusters.values());
     }
 
     @Override
