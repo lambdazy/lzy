@@ -1,8 +1,8 @@
 package ai.lzy.graph.model;
 
-import ai.lzy.model.Operation;
-import ai.lzy.model.json.OperationDeserializer;
-import ai.lzy.model.json.OperationSerializer;
+import ai.lzy.model.operation.Operation;
+import ai.lzy.model.operation.OperationDeserializer;
+import ai.lzy.model.operation.OperationSerializer;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;

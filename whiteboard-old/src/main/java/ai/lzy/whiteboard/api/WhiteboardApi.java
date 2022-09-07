@@ -1,7 +1,5 @@
 package ai.lzy.whiteboard.api;
 
-import static ai.lzy.model.GrpcConverter.to;
-
 import ai.lzy.whiteboard.SnapshotRepository;
 import ai.lzy.whiteboard.WhiteboardRepository;
 import ai.lzy.whiteboard.auth.Authenticator;
@@ -26,16 +24,15 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ai.lzy.model.GrpcConverter;
 import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.model.snapshot.SnapshotEntry;
-import ai.lzy.model.snapshot.SnapshotEntryStatus;
-import ai.lzy.model.snapshot.SnapshotStatus;
-import ai.lzy.model.snapshot.Whiteboard;
-import ai.lzy.model.snapshot.Whiteboard.Impl;
-import ai.lzy.model.snapshot.WhiteboardField;
-import ai.lzy.model.snapshot.WhiteboardStatus;
-import ai.lzy.model.snapshot.WhiteboardStatus.State;
+import ai.lzy.whiteboard.model.SnapshotEntry;
+import ai.lzy.whiteboard.model.SnapshotEntryStatus;
+import ai.lzy.whiteboard.model.SnapshotStatus;
+import ai.lzy.whiteboard.model.Whiteboard;
+import ai.lzy.whiteboard.model.Whiteboard.Impl;
+import ai.lzy.whiteboard.model.WhiteboardField;
+import ai.lzy.whiteboard.model.WhiteboardStatus;
+import ai.lzy.whiteboard.model.WhiteboardStatus.State;
 import ai.lzy.model.utils.Permissions;
 import ai.lzy.whiteboard.auth.SimpleAuthenticator;
 import ai.lzy.whiteboard.config.ServiceConfig;
@@ -235,14 +232,14 @@ public class WhiteboardApi extends WbApiGrpc.WbApiImplBase {
             .collect(Collectors.toList());
         return LzyWhiteboard.Whiteboard.newBuilder()
             .setId(wb.whiteboard().id().toString())
-            .setStatus(to(wb.state()))
+            .setStatus(GrpcConverter.to(wb.state()))
             .setSnapshot(LzyWhiteboard.Snapshot.newBuilder()
                 .setSnapshotId(wb.whiteboard().snapshot().id().toString())
                 .build())
             .addAllFields(fields)
             .addAllTags(wb.whiteboard().tags())
             .setNamespace(wb.whiteboard().namespace())
-            .setStatus(to(wb.state()))
+            .setStatus(GrpcConverter.to(wb.state()))
             .build();
     }
 

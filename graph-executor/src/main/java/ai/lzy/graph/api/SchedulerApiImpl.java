@@ -2,9 +2,8 @@ package ai.lzy.graph.api;
 
 import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.graph.model.TaskDescription;
-import ai.lzy.model.TaskDesc;
+import ai.lzy.model.basic.TaskDesc;
 import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.SchedulerApi.*;

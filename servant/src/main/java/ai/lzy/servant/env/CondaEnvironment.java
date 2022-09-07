@@ -19,7 +19,7 @@ import net.lingala.zip4j.core.ZipFile;
 import net.lingala.zip4j.exception.ZipException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ai.lzy.model.exceptions.EnvironmentInstallationException;
+import ai.lzy.model.EnvironmentInstallationException;
 import ai.lzy.model.graph.PythonEnv;
 import ai.lzy.logs.MetricEvent;
 import ai.lzy.logs.MetricEventLogger;

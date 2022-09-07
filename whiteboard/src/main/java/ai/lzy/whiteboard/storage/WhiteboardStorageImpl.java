@@ -1,7 +1,7 @@
 package ai.lzy.whiteboard.storage;
 
 import ai.lzy.model.data.DataSchema;
-import ai.lzy.model.data.types.SchemeType;
+import ai.lzy.model.data.SchemeType;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.NotFoundException;
 import ai.lzy.model.db.Storage;

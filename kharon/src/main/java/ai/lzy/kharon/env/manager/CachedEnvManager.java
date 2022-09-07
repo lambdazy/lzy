@@ -1,7 +1,7 @@
 package ai.lzy.kharon.env.manager;
 
-import ai.lzy.model.disk.DiskType;
 import ai.lzy.kharon.env.CachedEnv;
+import ai.lzy.kharon.env.model.DiskType;
 
 public interface CachedEnvManager {
 

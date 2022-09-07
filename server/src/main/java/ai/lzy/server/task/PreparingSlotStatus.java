@@ -2,8 +2,8 @@ package ai.lzy.server.task;
 
 import java.net.URI;
 import javax.annotation.Nullable;
-import ai.lzy.model.Slot;
-import ai.lzy.model.SlotStatus;
+import ai.lzy.model.slot.Slot;
+import ai.lzy.model.basic.SlotStatus;
 
 public class PreparingSlotStatus implements SlotStatus {
     private final String channelName;

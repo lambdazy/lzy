@@ -1,6 +1,6 @@
 package ai.lzy.fs;
 
-import ai.lzy.model.SlotInstance;
+import ai.lzy.model.basic.SlotInstance;
 import com.google.protobuf.ByteString;
 
 import java.io.File;
@@ -27,7 +27,7 @@ import org.junit.Test;
 import ai.lzy.fs.fs.LzyFSManager;
 import ai.lzy.fs.fs.LzyLinuxFsManagerImpl;
 import ai.lzy.fs.fs.LzyMacosFsManagerImpl;
-import ai.lzy.model.Slot;
+import ai.lzy.model.slot.Slot;
 import ai.lzy.model.data.DataSchema;
 import ai.lzy.fs.slots.InFileSlot;
 import ai.lzy.v1.Operations.SlotStatus.State;

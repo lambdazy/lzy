@@ -3,7 +3,8 @@ package ai.lzy.portal.utils;
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
-import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.deprecated.GrpcConverter;
+import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.v1.LzyPortalApi;
 import ai.lzy.v1.LzyPortalApi.PortalSlotStatus;
 
@@ -15,7 +16,7 @@ public class PortalUtils {
 
     private static LzyPortalApi.PortalSlotStatus.Builder commonSlotStatusBuilder(LzySlot slot) {
         return LzyPortalApi.PortalSlotStatus.newBuilder()
-            .setSlot(GrpcConverter.to(slot.definition()))
+            .setSlot(ProtoConverter.toProto(slot.definition()))
             .setState(slot.state());
     }
 

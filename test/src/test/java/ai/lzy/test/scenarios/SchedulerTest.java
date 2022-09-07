@@ -2,8 +2,8 @@ package ai.lzy.test.scenarios;
 
 import ai.lzy.allocator.AllocatorMain;
 import ai.lzy.graph.GraphExecutorApi;
-import ai.lzy.model.Operation;
-import ai.lzy.model.Slot;
+import ai.lzy.model.operation.Operation;
+import ai.lzy.model.slot.Slot;
 import ai.lzy.model.data.DataSchema;
 import ai.lzy.model.graph.AuxEnv;
 import ai.lzy.model.graph.BaseEnv;

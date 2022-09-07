@@ -1,5 +1,6 @@
 package ai.lzy.whiteboard;
 
+import static ai.lzy.model.grpc.ProtoConverter.toProto;
 import static ai.lzy.v1.whiteboard.LWB.WhiteboardFieldInfo.StateCase.LINKEDSTATE;
 import static ai.lzy.v1.whiteboard.LWB.WhiteboardFieldInfo.StateCase.NONESTATE;
 
@@ -9,8 +10,9 @@ import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.data.DataSchema;
-import ai.lzy.model.data.types.SchemeType;
+import ai.lzy.model.data.SchemeType;
 import ai.lzy.model.db.test.DatabaseTestUtils;
+import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
@@ -191,14 +193,14 @@ public class ApiTest extends BaseTestWithIam {
             .setWhiteboardId(createdWhiteboard.getId())
             .setFieldName("f1")
             .setStorageUri("s-uri-1")
-            .setScheme(ai.lzy.model.GrpcConverter.to(new DataSchema(SchemeType.plain, "default")))
+            .setScheme(toProto(new DataSchema(SchemeType.plain, "default")))
             .build());
 
         privateWhiteboardClient.finalizeField(LWBPS.FinalizeFieldRequest.newBuilder()
             .setWhiteboardId(createdWhiteboard.getId())
             .setFieldName("f4")
             .setStorageUri("s-uri-4")
-            .setScheme(ai.lzy.model.GrpcConverter.to(new DataSchema(SchemeType.plain, "default")))
+            .setScheme(toProto(new DataSchema(SchemeType.plain, "default")))
             .build());
 
         var whiteboard = whiteboardClient.get(getRequest).getWhiteboard();
@@ -319,14 +321,14 @@ public class ApiTest extends BaseTestWithIam {
                     .setName("f3")
                     .setLinkedState(LWB.WhiteboardFieldInfo.LinkedField.newBuilder()
                         .setStorageUri("s-uri-3")
-                        .setScheme(ai.lzy.model.GrpcConverter.to(new DataSchema(SchemeType.plain, "default")))
+                        .setScheme(toProto(new DataSchema(SchemeType.plain, "default")))
                         .build())
                     .build(),
                 LWB.WhiteboardFieldInfo.newBuilder()
                     .setName("f4")
                     .setLinkedState(LWB.WhiteboardFieldInfo.LinkedField.newBuilder()
                         .setStorageUri("s-uri-4-init")
-                        .setScheme(ai.lzy.model.GrpcConverter.to(new DataSchema(SchemeType.plain, "default")))
+                        .setScheme(toProto(new DataSchema(SchemeType.plain, "default")))
                         .build())
                     .build()))
             .setStorage(ProtoConverter.toProto(new Whiteboard.Storage("storage", "")))
@@ -344,7 +346,7 @@ public class ApiTest extends BaseTestWithIam {
                     .setName("f")
                     .setLinkedState(LWB.WhiteboardFieldInfo.LinkedField.newBuilder()
                         .setStorageUri("s-uri")
-                        .setScheme(ai.lzy.model.GrpcConverter.to(new DataSchema(SchemeType.plain, "default")))
+                        .setScheme(toProto(new DataSchema(SchemeType.plain, "default")))
                         .build())
                     .build()))
             .setStorage(ProtoConverter.toProto(new Whiteboard.Storage("storage", "")))

@@ -1,7 +1,7 @@
 package ai.lzy.disk.providers;
 
 import jakarta.inject.Inject;
-import ai.lzy.model.disk.DiskType;
+import ai.lzy.disk.model.DiskType;
 import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

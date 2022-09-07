@@ -4,7 +4,8 @@ import static ai.lzy.v1.Operations.SlotStatus.State.OPEN;
 import static ai.lzy.v1.Operations.SlotStatus.State.PREPARING;
 import static ai.lzy.v1.Operations.SlotStatus.State.UNBOUND;
 
-import ai.lzy.model.SlotInstance;
+import ai.lzy.model.basic.SlotInstance;
+import ai.lzy.model.grpc.ProtoConverter;
 import com.google.protobuf.ByteString;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -30,7 +31,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.serce.jnrfuse.struct.FileStat;
 import ru.serce.jnrfuse.struct.FuseFileInfo;
-import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.fs.fs.FileContents;
 import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
@@ -154,7 +155,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     public Operations.SlotStatus status() {
         return Operations.SlotStatus.newBuilder()
             .setState(state())
-            .setDeclaration(GrpcConverter.to(definition()))
+            .setDeclaration(ProtoConverter.toProto(definition()))
             .setTaskId(taskId())
             .build();
     }

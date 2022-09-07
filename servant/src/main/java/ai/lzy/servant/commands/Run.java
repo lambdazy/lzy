@@ -1,5 +1,6 @@
 package ai.lzy.servant.commands;
 
+import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
@@ -14,9 +15,9 @@ import org.apache.commons.cli.Option;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.fs.commands.LzyCommand;
-import ai.lzy.model.GrpcConverter;
-import ai.lzy.model.Slot;
-import ai.lzy.model.Zygote;
+import ai.lzy.model.deprecated.GrpcConverter;
+import ai.lzy.model.slot.Slot;
+import ai.lzy.model.deprecated.Zygote;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.logs.MetricEvent;
 import ai.lzy.logs.MetricEventLogger;
@@ -124,7 +125,7 @@ public class Run implements LzyCommand {
             }
             LOG.info("Slot " + slot.name() + " resolved to " + binding);
             taskSpecBuilder.addAssignmentsBuilder()
-                .setSlot(GrpcConverter.to(slot))
+                .setSlot(ProtoConverter.toProto(slot))
                 .setBinding(binding)
                 .build();
         });
@@ -295,7 +296,7 @@ public class Run implements LzyCommand {
     private void createSlotByProto(String channelId, String slotName, Slot slotProto) {
         LOG.info("Create slot `{}` for channel `{}` with taskId {}.", slotName, channelId, agentId);
         try {
-            final Operations.Slot slotDeclaration = Operations.Slot.newBuilder(GrpcConverter.to(slotProto))
+            final Operations.Slot slotDeclaration = Operations.Slot.newBuilder(ProtoConverter.toProto(slotProto))
                 .setName(slotName)
                 .build();
             var ret = servantFs.createSlot(LzyFsApi.CreateSlotRequest.newBuilder()
@@ -335,7 +336,7 @@ public class Run implements LzyCommand {
             ChannelManager.ChannelCreateRequest.newBuilder()
                 .setChannelSpec(Channels.ChannelSpec.newBuilder()
                     .setChannelName(channelName)
-                    .setContentType(GrpcConverter.to(slot.contentType()))
+                    .setContentType(ProtoConverter.toProto(slot.contentType()))
                     .setDirect(Channels.DirectChannelType.newBuilder().build())
                     .build())
                 .setWorkflowId(agentId)

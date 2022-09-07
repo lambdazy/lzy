@@ -6,11 +6,11 @@ import java.util.Optional;
 import java.util.stream.Stream;
 import javax.validation.constraints.NotNull;
 import ai.lzy.model.data.DataSchema;
-import ai.lzy.model.snapshot.ExecutionSnapshot;
-import ai.lzy.model.snapshot.Snapshot;
-import ai.lzy.model.snapshot.SnapshotEntry;
-import ai.lzy.model.snapshot.SnapshotEntryStatus;
-import ai.lzy.model.snapshot.SnapshotStatus;
+import ai.lzy.whiteboard.model.ExecutionSnapshot;
+import ai.lzy.whiteboard.model.Snapshot;
+import ai.lzy.whiteboard.model.SnapshotEntry;
+import ai.lzy.whiteboard.model.SnapshotEntryStatus;
+import ai.lzy.whiteboard.model.SnapshotStatus;
 import ai.lzy.whiteboard.exceptions.SnapshotRepositoryException;
 
 public interface SnapshotRepository {

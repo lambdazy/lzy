@@ -2,7 +2,8 @@ package ai.lzy.fs.snapshot;
 
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzySlot;
-import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.deprecated.GrpcConverter;
+import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.v1.IAM;
 import ai.lzy.v1.LzyWhiteboard;
 import ai.lzy.v1.SnapshotApiGrpc;
@@ -45,7 +46,7 @@ public class SnapshooterImpl implements Snapshooter {
         final LzyWhiteboard.SnapshotEntry.Builder entryBuilder = LzyWhiteboard.SnapshotEntry.newBuilder()
             .setEntryId(entryId)
             .setStorageUri(uri.toString())
-            .setType(GrpcConverter.to(slot.definition().contentType()));
+            .setType(ProtoConverter.toProto(slot.definition().contentType()));
 
         final LzyWhiteboard.PrepareCommand command = LzyWhiteboard.PrepareCommand
             .newBuilder()

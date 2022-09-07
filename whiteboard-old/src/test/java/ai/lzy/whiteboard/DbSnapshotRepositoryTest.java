@@ -1,9 +1,9 @@
 package ai.lzy.whiteboard;
 
-import static ai.lzy.model.snapshot.SnapshotEntryStatus.State.FINISHED;
-import static ai.lzy.model.snapshot.SnapshotStatus.State;
-import static ai.lzy.model.snapshot.SnapshotStatus.State.FINALIZED;
-import static ai.lzy.model.snapshot.WhiteboardStatus.State.ERRORED;
+import static ai.lzy.whiteboard.model.SnapshotEntryStatus.State.FINISHED;
+import static ai.lzy.whiteboard.model.SnapshotStatus.State;
+import static ai.lzy.whiteboard.model.SnapshotStatus.State.FINALIZED;
+import static ai.lzy.whiteboard.model.WhiteboardStatus.State.ERRORED;
 
 import ai.lzy.whiteboard.api.SnapshotApi;
 import io.micronaut.context.ApplicationContext;
@@ -24,15 +24,15 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import ai.lzy.model.data.DataSchema;
-import ai.lzy.model.snapshot.ExecutionSnapshot;
-import ai.lzy.model.snapshot.ExecutionValue;
-import ai.lzy.model.snapshot.InputExecutionValue;
-import ai.lzy.model.snapshot.Snapshot;
-import ai.lzy.model.snapshot.SnapshotEntry;
-import ai.lzy.model.snapshot.SnapshotEntryStatus;
-import ai.lzy.model.snapshot.SnapshotStatus;
-import ai.lzy.model.snapshot.Whiteboard.Impl;
-import ai.lzy.model.snapshot.WhiteboardStatus;
+import ai.lzy.whiteboard.model.ExecutionSnapshot;
+import ai.lzy.whiteboard.model.ExecutionValue;
+import ai.lzy.whiteboard.model.InputExecutionValue;
+import ai.lzy.whiteboard.model.Snapshot;
+import ai.lzy.whiteboard.model.SnapshotEntry;
+import ai.lzy.whiteboard.model.SnapshotEntryStatus;
+import ai.lzy.whiteboard.model.SnapshotStatus;
+import ai.lzy.whiteboard.model.Whiteboard.Impl;
+import ai.lzy.whiteboard.model.WhiteboardStatus;
 import ai.lzy.whiteboard.exceptions.SnapshotRepositoryException;
 import ai.lzy.whiteboard.exceptions.WhiteboardRepositoryException;
 import ai.lzy.whiteboard.hibernate.DbSnapshotRepository;

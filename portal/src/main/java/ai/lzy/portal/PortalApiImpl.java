@@ -1,9 +1,10 @@
 package ai.lzy.portal;
 
 import ai.lzy.fs.fs.LzySlot;
-import ai.lzy.model.GrpcConverter;
-import ai.lzy.model.Slot;
-import ai.lzy.model.SlotInstance;
+import ai.lzy.model.deprecated.GrpcConverter;
+import ai.lzy.model.grpc.ProtoConverter;
+import ai.lzy.model.slot.Slot;
+import ai.lzy.model.basic.SlotInstance;
 import ai.lzy.portal.utils.PortalUtils;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.LzyPortalApi;
@@ -84,7 +85,7 @@ class PortalApiImpl extends LzyPortalImplBase {
         for (LzyPortalApi.PortalSlotDesc slotDesc : request.getSlotsList()) {
             LOG.info("Open slot {}", portalSlotToSafeString(slotDesc));
 
-            final Slot slot = GrpcConverter.from(slotDesc.getSlot());
+            final Slot slot = ProtoConverter.fromProto(slotDesc.getSlot());
             if (Slot.STDIN.equals(slot) || Slot.ARGS.equals(slot)
                 || Slot.STDOUT.equals(slot) || Slot.STDERR.equals(slot)) {
                 return replyError.apply("Invalid slot " + slot);

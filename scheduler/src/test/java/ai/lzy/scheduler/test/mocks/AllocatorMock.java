@@ -1,7 +1,6 @@
 package ai.lzy.scheduler.test.mocks;
 
-import ai.lzy.model.Operation;
-import ai.lzy.model.graph.Provisioning;
+import ai.lzy.model.operation.Operation;
 import ai.lzy.scheduler.allocator.ServantsAllocator;
 import io.micronaut.context.annotation.Primary;
 

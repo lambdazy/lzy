@@ -1,6 +1,6 @@
 package ai.lzy.scheduler.servant;
 
-import ai.lzy.model.Operation;
+import ai.lzy.model.operation.Operation;
 import ai.lzy.scheduler.models.ServantState.Status;
 import ai.lzy.scheduler.task.Task;
 import org.apache.curator.shaded.com.google.common.net.HostAndPort;

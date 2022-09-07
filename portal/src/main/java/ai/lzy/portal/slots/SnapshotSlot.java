@@ -2,7 +2,7 @@ package ai.lzy.portal.slots;
 
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
-import ai.lzy.model.SlotInstance;
+import ai.lzy.model.basic.SlotInstance;
 
 import javax.annotation.Nullable;
 import java.util.Collection;

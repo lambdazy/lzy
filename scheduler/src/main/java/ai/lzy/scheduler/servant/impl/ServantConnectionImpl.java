@@ -1,11 +1,11 @@
 package ai.lzy.scheduler.servant.impl;
 
-import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.basic.TaskDesc;
 import ai.lzy.model.graph.Env;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.model.TaskDesc;
+import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.scheduler.servant.ServantApi;
 import ai.lzy.scheduler.servant.ServantConnection;
+import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.worker.Worker;
 import ai.lzy.v1.worker.WorkerApiGrpc;
 import io.grpc.ManagedChannel;
@@ -31,7 +31,7 @@ public class ServantConnectionImpl implements ServantConnection {
             public void configure(Env env) throws StatusRuntimeException {
                 //noinspection ResultOfMethodCallIgnored
                 servantBlockingStub.configure(Worker.ConfigureRequest.newBuilder()
-                    .setEnv(GrpcConverter.to(env))
+                    .setEnv(ProtoConverter.toProto(env))
                     .build());
             }
 

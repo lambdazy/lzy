@@ -1,6 +1,6 @@
 package ai.lzy.whiteboard.hibernate.models;
 
-import ai.lzy.model.snapshot.WhiteboardStatus;
+import ai.lzy.whiteboard.model.WhiteboardStatus;
 
 import javax.persistence.*;
 import java.util.Date;

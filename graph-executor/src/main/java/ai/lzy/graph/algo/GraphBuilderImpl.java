@@ -4,7 +4,7 @@ import ai.lzy.graph.model.ChannelDescription;
 import ai.lzy.graph.model.GraphDescription;
 import ai.lzy.graph.model.TaskDescription;
 import jakarta.inject.Singleton;
-import ai.lzy.model.Slot;
+import ai.lzy.model.slot.Slot;
 
 import java.util.*;
 

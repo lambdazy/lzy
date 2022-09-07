@@ -12,7 +12,7 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
-import ai.lzy.model.snapshot.Snapshot;
+import ai.lzy.whiteboard.model.Snapshot;
 
 @Entity
 @Table(name = "execution")

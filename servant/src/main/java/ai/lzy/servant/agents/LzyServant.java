@@ -9,12 +9,13 @@ import ai.lzy.logs.MetricEvent;
 import ai.lzy.logs.MetricEventLogger;
 import ai.lzy.logs.UserEvent;
 import ai.lzy.logs.UserEventLogger;
-import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.Signal;
 import ai.lzy.model.UriScheme;
-import ai.lzy.model.exceptions.EnvironmentInstallationException;
-import ai.lzy.model.graph.AtomicZygote;
+import ai.lzy.model.EnvironmentInstallationException;
+import ai.lzy.model.deprecated.AtomicZygote;
+import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.*;
@@ -189,7 +190,7 @@ public class LzyServant implements Closeable {
                                     .setAuth(agent.auth())
                                     .build()
                             );
-                            context.prepare(GrpcConverter.from(request), StorageClient.create(credentials));
+                            context.prepare(ProtoConverter.fromProto(request), StorageClient.create(credentials));
                         } catch (EnvironmentInstallationException e) {
                             LOG.error("Unable to install environment", e);
                             result.setRc(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc());

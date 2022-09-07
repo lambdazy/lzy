@@ -6,14 +6,15 @@ import ai.lzy.channelmanager.channel.Endpoint;
 import ai.lzy.channelmanager.channel.SlotEndpoint;
 import ai.lzy.channelmanager.control.DirectChannelController;
 import ai.lzy.channelmanager.control.SnapshotChannelController;
-import ai.lzy.model.GrpcConverter;
-import ai.lzy.model.SlotInstance;
-import ai.lzy.model.channel.ChannelSpec;
-import ai.lzy.model.channel.DirectChannelSpec;
-import ai.lzy.model.channel.SnapshotChannelSpec;
+import ai.lzy.model.deprecated.GrpcConverter;
+import ai.lzy.model.basic.SlotInstance;
+import ai.lzy.channelmanager.channel.ChannelSpec;
+import ai.lzy.channelmanager.channel.DirectChannelSpec;
+import ai.lzy.channelmanager.channel.SnapshotChannelSpec;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.ProtoObjectMapper;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.v1.Channels;
 import ai.lzy.v1.Operations;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -99,7 +100,7 @@ public class ChannelStorageImpl implements ChannelStorage {
                 ) VALUES (?, ?, ?, ?, ?, ?)
                 """)
             ) {
-                String slotSpecJson = objectMapper.writeValueAsString(GrpcConverter.to(endpoint.slotSpec()));
+                String slotSpecJson = objectMapper.writeValueAsString(ProtoConverter.toProto(endpoint.slotSpec()));
                 int index = 0;
                 st.setString(++index, endpoint.slotInstance().channelId());
                 st.setString(++index, endpoint.slotSpec().name());
@@ -310,7 +311,7 @@ public class ChannelStorageImpl implements ChannelStorage {
                 slotsUriByChannelId.get(channelId).add(slotUri);
                 var slot = objectMapper.readValue(rs.getString("slot_spec"), Operations.Slot.class);
                 var endpoint = SlotEndpoint.getInstance(new SlotInstance(
-                    GrpcConverter.from(slot),
+                    ProtoConverter.fromProto(slot),
                     rs.getString("task_id"),
                     channelId,
                     URI.create(slotUri)

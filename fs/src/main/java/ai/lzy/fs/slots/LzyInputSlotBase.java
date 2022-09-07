@@ -1,14 +1,14 @@
 package ai.lzy.fs.slots;
 
-import ai.lzy.model.SlotInstance;
+import ai.lzy.model.basic.SlotInstance;
+import ai.lzy.model.grpc.ProtoConverter;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.net.URI;
 import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ai.lzy.model.GrpcConverter;
-import ai.lzy.model.Slot;
+import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.v1.Operations;
 
@@ -77,7 +77,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
         final Operations.SlotStatus.Builder builder = Operations.SlotStatus.newBuilder()
             .setState(state())
             .setPointer(offset)
-            .setDeclaration(GrpcConverter.to(definition()))
+            .setDeclaration(ProtoConverter.toProto(definition()))
             .setTaskId(taskId());
 
         if (connected != null) {

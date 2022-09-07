@@ -5,9 +5,12 @@ import ai.lzy.fs.LzyFsServer;
 import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.fs.slots.LineReaderSlot;
 import ai.lzy.model.*;
-import ai.lzy.model.exceptions.EnvironmentInstallationException;
+import ai.lzy.model.basic.TaskDesc;
+import ai.lzy.model.EnvironmentInstallationException;
+import ai.lzy.model.deprecated.GrpcConverter;
+import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.scheduler.SchedulerAgent;
-import ai.lzy.model.slots.TextLinesOutSlot;
+import ai.lzy.model.slot.TextLinesOutSlot;
 import ai.lzy.servant.env.Environment;
 import ai.lzy.servant.env.EnvironmentFactory;
 import ai.lzy.util.grpc.ChannelBuilder;
@@ -173,7 +176,7 @@ public class Worker {
             response.onCompleted();
 
             try {
-                final var e = EnvironmentFactory.create(GrpcConverter.from(request.getEnv()));
+                final var e = EnvironmentFactory.create(ProtoConverter.fromProto(request.getEnv()));
                 schedulerAgent.reportProgress(ServantProgress.newBuilder()
                     .setConfigured(Configured.newBuilder()
                         .setOk(Ok.newBuilder().build())

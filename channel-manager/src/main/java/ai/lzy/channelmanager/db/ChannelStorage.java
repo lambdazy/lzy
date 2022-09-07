@@ -2,7 +2,7 @@ package ai.lzy.channelmanager.db;
 
 import ai.lzy.channelmanager.channel.Channel;
 import ai.lzy.channelmanager.channel.Endpoint;
-import ai.lzy.model.channel.ChannelSpec;
+import ai.lzy.channelmanager.channel.ChannelSpec;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.v1.Channels;
 import java.sql.SQLException;

@@ -1,10 +1,9 @@
 package ai.lzy.fs.slots;
 
-import ai.lzy.model.SlotInstance;
+import ai.lzy.model.basic.SlotInstance;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Writer;
-import ai.lzy.model.slots.TextLinesInSlot;
 
 public class WriterSlot extends LzyInputSlotBase {
     private Writer writer;

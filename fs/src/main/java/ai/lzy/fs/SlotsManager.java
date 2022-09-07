@@ -1,6 +1,6 @@
 package ai.lzy.fs;
 
-import ai.lzy.model.SlotInstance;
+import ai.lzy.model.basic.SlotInstance;
 import ai.lzy.v1.ChannelManager;
 import ai.lzy.v1.LzyChannelManagerGrpc;
 import io.grpc.StatusRuntimeException;
@@ -12,8 +12,8 @@ import ai.lzy.fs.slots.InFileSlot;
 import ai.lzy.fs.slots.LineReaderSlot;
 import ai.lzy.fs.slots.OutFileSlot;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.model.Slot;
-import ai.lzy.model.slots.TextLinesOutSlot;
+import ai.lzy.model.slot.Slot;
+import ai.lzy.model.slot.TextLinesOutSlot;
 import ai.lzy.v1.Servant;
 
 import javax.annotation.Nullable;
@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-import static ai.lzy.model.GrpcConverter.to;
+import static ai.lzy.model.deprecated.GrpcConverter.to;
 import static ai.lzy.v1.Operations.SlotStatus.State.DESTROYED;
 import static ai.lzy.v1.Operations.SlotStatus.State.SUSPENDED;
 

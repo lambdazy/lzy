@@ -2,9 +2,10 @@ package ai.lzy.fs;
 
 import ai.lzy.fs.commands.BuiltinCommandHolder;
 import ai.lzy.fs.fs.*;
-import ai.lzy.model.Slot;
-import ai.lzy.model.SlotInstance;
-import ai.lzy.model.Zygote;
+import ai.lzy.model.grpc.ProtoConverter;
+import ai.lzy.model.slot.Slot;
+import ai.lzy.model.basic.SlotInstance;
+import ai.lzy.model.deprecated.Zygote;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
@@ -37,7 +38,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static ai.lzy.model.Constants.LOGS_DIR;
-import static ai.lzy.model.GrpcConverter.from;
+import static ai.lzy.model.deprecated.GrpcConverter.from;
 import static ai.lzy.model.UriScheme.*;
 
 public final class LzyFsServer {
@@ -220,7 +221,7 @@ public final class LzyFsServer {
             return onSlotError("Slot `" + request.getSlot().getName() + "` already exists.");
         }
 
-        final Slot slotSpec = from(request.getSlot());
+        final Slot slotSpec = ProtoConverter.fromProto(request.getSlot());
         final LzySlot lzySlot = slotsManager.getOrCreateSlot(request.getTaskId(), slotSpec, request.getChannelId());
 
         // TODO: It will be removed after creating Portal

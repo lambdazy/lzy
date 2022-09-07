@@ -1,6 +1,6 @@
 package ai.lzy.graph.model;
 
-import ai.lzy.model.Operation;
+import ai.lzy.model.operation.Operation;
 import ai.lzy.v1.graph.GraphExecutorApi;
 import ai.lzy.v1.graph.GraphExecutorApi.ChannelDesc;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;

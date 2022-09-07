@@ -1,19 +1,19 @@
 package ai.lzy.server;
 
-import static ai.lzy.model.GrpcConverter.from;
-import static ai.lzy.model.GrpcConverter.to;
 import static ai.lzy.v1.Tasks.TaskProgress.Status.ERROR;
 import static ai.lzy.v1.Tasks.TaskProgress.Status.QUEUE;
 import static ai.lzy.v1.Tasks.TaskProgress.Status.SUCCESS;
 
+import ai.lzy.model.deprecated.GrpcConverter;
+import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.Signal;
-import ai.lzy.model.Slot;
+import ai.lzy.model.slot.Slot;
 import ai.lzy.model.StorageCredentials;
-import ai.lzy.model.Zygote;
-import ai.lzy.model.exceptions.EnvironmentInstallationException;
-import ai.lzy.model.graph.AtomicZygote;
+import ai.lzy.model.deprecated.Zygote;
+import ai.lzy.model.EnvironmentInstallationException;
+import ai.lzy.model.deprecated.AtomicZygote;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.logs.UserEvent;
 import ai.lzy.logs.UserEventLogger;
@@ -175,7 +175,7 @@ public class LzyServer {
                     .forEach(slotStatus -> {
                         final Operations.SlotStatus.Builder slotStateBuilder = builder.addConnectionsBuilder();
                         slotStateBuilder.setTaskId(task.tid());
-                        slotStateBuilder.setDeclaration(to(slotStatus.slot()));
+                        slotStateBuilder.setDeclaration(ProtoConverter.toProto(slotStatus.slot()));
                         URI connected = slotStatus.connected();
                         if (connected != null) {
                             slotStateBuilder.setConnectedTo(connected.toString());
@@ -205,7 +205,7 @@ public class LzyServer {
                 return;
             }
             final Operations.Zygote operation = request.getOperation();
-            if (!operations.publish(operation.getName(), from(operation))) {
+            if (!operations.publish(operation.getName(), GrpcConverter.from(operation))) {
                 responseObserver.onError(Status.ALREADY_EXISTS.asException());
                 return;
             }
@@ -226,7 +226,7 @@ public class LzyServer {
             final Operations.ZygoteList.Builder builder = Operations.ZygoteList.newBuilder();
             operations.list().filter(op -> this.auth.canAccess(op, user)).forEach(zyName ->
                 builder.addZygoteBuilder()
-                    .mergeFrom(to(operations.get(zyName)))
+                    .mergeFrom(GrpcConverter.to(operations.get(zyName)))
                     .build()
             );
             responseObserver.onNext(builder.build());
@@ -284,10 +284,10 @@ public class LzyServer {
                 LOG.info("Server::start request (tid={})", request.getTid());
             }
             final Operations.Zygote zygote = request.getZygote();
-            final Zygote workload = from(zygote);
+            final Zygote workload = GrpcConverter.from(zygote);
             final Map<Slot, String> assignments = new HashMap<>();
             request.getAssignmentsList()
-                .forEach(ass -> assignments.put(from(ass.getSlot()), ass.getBinding()));
+                .forEach(ass -> assignments.put(ProtoConverter.fromProto(ass.getSlot()), ass.getBinding()));
 
             final String uid = resolveUser(request.getAuth());
             final Task parent = resolveTask(request.getAuth());
@@ -302,7 +302,9 @@ public class LzyServer {
                 responseObserver.onNext(progress);
                 if (progress.getStatus() == QUEUE) {
                     final String sessionId = session.id();
-                    servantsAllocator.allocate(sessionId, from(zygote.getProvisioning()), from(zygote.getEnv()))
+                    servantsAllocator.allocate(sessionId,
+                            ProtoConverter.fromProto(zygote.getProvisioning()),
+                            ProtoConverter.fromProto(zygote.getEnv()))
                         .whenComplete((connection, th) -> {
                             if (th != null) {
                                 if (th instanceof EnvironmentInstallationException) {
@@ -437,7 +439,7 @@ public class LzyServer {
                 storageConfigs.isSeparated()
                     ? credentialsProvider.credentialsForBucket(owner, bucket) :
                     credentialsProvider.storageCredentials();
-            responseObserver.onNext(to(credentials));
+            responseObserver.onNext(GrpcConverter.to(credentials));
             responseObserver.onCompleted();
         }
 

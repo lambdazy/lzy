@@ -1,8 +1,8 @@
 package ai.lzy.fs;
 
-import static ai.lzy.model.GrpcConverter.to;
+import static ai.lzy.model.deprecated.GrpcConverter.to;
 
-import ai.lzy.model.SlotInstance;
+import ai.lzy.model.basic.SlotInstance;
 import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import ai.lzy.model.UriScheme;

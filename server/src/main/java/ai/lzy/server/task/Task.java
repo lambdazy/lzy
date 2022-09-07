@@ -1,14 +1,13 @@
 package ai.lzy.server.task;
 
 import ai.lzy.model.Signal;
-import ai.lzy.model.Slot;
-import ai.lzy.model.SlotStatus;
-import ai.lzy.model.Zygote;
+import ai.lzy.model.slot.Slot;
+import ai.lzy.model.basic.SlotStatus;
+import ai.lzy.model.deprecated.Zygote;
 import ai.lzy.server.ServantsAllocator;
 import ai.lzy.v1.Tasks;
 import java.net.URI;
 import java.util.function.Consumer;
-import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
 public interface Task {

@@ -3,7 +3,7 @@ package ai.lzy.scheduler;
 import ai.lzy.v1.SchedulerApi;
 import ai.lzy.v1.SchedulerApi.*;
 import ai.lzy.v1.SchedulerGrpc;
-import ai.lzy.model.TaskDesc;
+import ai.lzy.model.basic.TaskDesc;
 import ai.lzy.scheduler.servant.Scheduler;
 import ai.lzy.scheduler.task.Task;
 import io.grpc.StatusException;

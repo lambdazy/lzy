@@ -4,19 +4,19 @@ import static ai.lzy.server.task.Task.State.ERROR;
 import static ai.lzy.server.task.Task.State.EXECUTING;
 import static ai.lzy.server.task.Task.State.SUCCESS;
 
-import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.Signal;
-import ai.lzy.model.Slot;
-import ai.lzy.model.SlotStatus;
-import ai.lzy.model.Zygote;
+import ai.lzy.model.grpc.ProtoConverter;
+import ai.lzy.model.slot.Slot;
+import ai.lzy.model.basic.SlotStatus;
+import ai.lzy.model.deprecated.Zygote;
 import ai.lzy.v1.LzyFsApi;
 import ai.lzy.v1.LzyFsGrpc;
 import ai.lzy.v1.Operations;
 import ai.lzy.v1.Servant.ExecutionConcluded;
 import ai.lzy.v1.Tasks;
 import ai.lzy.server.ServantsAllocator;
-import ai.lzy.server.TasksManager;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -24,7 +24,6 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
@@ -160,7 +159,7 @@ public class TaskImpl implements Task {
         assignments.forEach((slot, binding) -> {
             // need to filter out std* slots because they don't exist on prepare
             taskSpecBuilder.addAssignmentsBuilder()
-                .setSlot(GrpcConverter.to(slot))
+                .setSlot(ProtoConverter.toProto(slot))
                 .setBinding(binding)
                 .build();
         });
@@ -207,7 +206,7 @@ public class TaskImpl implements Task {
                                 .build())
                         .build()
                 ).build());
-        return GrpcConverter.from(slotStatus.getStatus());
+        return ProtoConverter.fromProto(slotStatus.getStatus());
     }
 
     @Override

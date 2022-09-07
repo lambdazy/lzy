@@ -1,10 +1,10 @@
 package ai.lzy.server;
 
+import ai.lzy.model.grpc.ProtoConverter;
 import io.grpc.Status;
 import io.micronaut.context.ApplicationContext;
 import org.apache.http.client.utils.URIBuilder;
 import org.junit.*;
-import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.server.mocks.AllocatedServantMock;
@@ -204,7 +204,7 @@ public class ServantAllocatorBaseTest {
 
         //Act
         allocator.allocate(sid, new Provisioning.Any(),
-            GrpcConverter.from(Operations.EnvSpec.newBuilder().build()));
+            ProtoConverter.fromProto(Operations.EnvSpec.newBuilder().build()));
     }
 
     @Test
@@ -216,7 +216,7 @@ public class ServantAllocatorBaseTest {
         //Act
         CompletableFuture<ServantsAllocator.ServantConnection> feature = allocator.allocate(
             sid, new Provisioning.Any(),
-            GrpcConverter.from(Operations.EnvSpec.newBuilder().build()));
+            ProtoConverter.fromProto(Operations.EnvSpec.newBuilder().build()));
         final boolean allocated = allocator.waitForAllocations();
         final ServantAllocatorMock.AllocationRequest request = allocator.allocations().findFirst().orElseThrow();
         final SessionManager.Session session = allocator.byServant(request.servantId());
@@ -259,7 +259,7 @@ public class ServantAllocatorBaseTest {
 
         //Act
         CompletableFuture<?> feature = allocator.allocate(sid, new Provisioning.Any(),
-            GrpcConverter.from(Operations.EnvSpec.newBuilder().build()));
+            ProtoConverter.fromProto(Operations.EnvSpec.newBuilder().build()));
         final boolean allocationRequested = allocator.waitForAllocations();
         final ServantAllocatorMock.AllocationRequest request = allocator.allocations().findFirst().orElseThrow();
         allocator.deleteSession(sid);
@@ -280,7 +280,7 @@ public class ServantAllocatorBaseTest {
         //Act
         CompletableFuture<ServantsAllocator.ServantConnection> feature = allocator.allocate(
             sid, new Provisioning.Any(),
-            GrpcConverter.from(Operations.EnvSpec.newBuilder().build()));
+            ProtoConverter.fromProto(Operations.EnvSpec.newBuilder().build()));
         allocator.waitForAllocations();
         final ServantAllocatorMock.AllocationRequest request = allocator.allocations().findFirst().orElseThrow();
 
@@ -327,7 +327,7 @@ public class ServantAllocatorBaseTest {
         //Act
         CompletableFuture<ServantsAllocator.ServantConnection> feature = allocator.allocate(
             sid, new Provisioning.Any(),
-            GrpcConverter.from(Operations.EnvSpec.newBuilder().build()));
+            ProtoConverter.fromProto(Operations.EnvSpec.newBuilder().build()));
         allocator.waitForAllocations();
         final ServantAllocatorMock.AllocationRequest request = allocator.allocations().findFirst().orElseThrow();
 
@@ -368,7 +368,7 @@ public class ServantAllocatorBaseTest {
         //Act
         CompletableFuture<ServantsAllocator.ServantConnection> feature = allocator.allocate(
             sid, new Provisioning.Any(),
-            GrpcConverter.from(Operations.EnvSpec.newBuilder().build()));
+            ProtoConverter.fromProto(Operations.EnvSpec.newBuilder().build()));
         allocator.waitForAllocations();
 
         // Assert
@@ -392,7 +392,7 @@ public class ServantAllocatorBaseTest {
         //Act
         CompletableFuture<ServantsAllocator.ServantConnection> feature = allocator.allocate(
             sid, new Provisioning.Any(),
-            GrpcConverter.from(Operations.EnvSpec.newBuilder().build()));
+            ProtoConverter.fromProto(Operations.EnvSpec.newBuilder().build()));
         final boolean allocated = allocator.waitForAllocations();
         final ServantAllocatorMock.AllocationRequest request = allocator.allocations().findFirst().orElseThrow();
 

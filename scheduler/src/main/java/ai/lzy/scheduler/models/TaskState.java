@@ -1,6 +1,6 @@
 package ai.lzy.scheduler.models;
 
-import ai.lzy.model.TaskDesc;
+import ai.lzy.model.basic.TaskDesc;
 
 import javax.annotation.Nullable;
 

@@ -1,6 +1,6 @@
 package ai.lzy.fs.slots;
 
-import ai.lzy.model.SlotInstance;
+import ai.lzy.model.basic.SlotInstance;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -17,7 +17,6 @@ import org.apache.logging.log4j.Logger;
 import ru.serce.jnrfuse.ErrorCodes;
 import ru.serce.jnrfuse.struct.FileStat;
 import ru.serce.jnrfuse.struct.FuseFileInfo;
-import ai.lzy.model.Slot;
 import ai.lzy.fs.fs.FileContents;
 import ai.lzy.fs.fs.FileContentsBase;
 import ai.lzy.fs.fs.LzyFileSlot;

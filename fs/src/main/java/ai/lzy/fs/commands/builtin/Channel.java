@@ -1,8 +1,9 @@
 package ai.lzy.fs.commands.builtin;
 
-import static ai.lzy.model.GrpcConverter.to;
+import static ai.lzy.model.deprecated.GrpcConverter.to;
 
 import ai.lzy.fs.commands.LzyCommand;
+import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.model.data.DataSchema;
 import ai.lzy.util.grpc.ChannelBuilder;
@@ -22,7 +23,6 @@ import java.net.URI;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 import org.apache.logging.log4j.LogManager;
@@ -117,7 +117,7 @@ public final class Channel implements LzyCommand {
                 }
 
                 final Channels.ChannelSpec.Builder channelSpecBuilder = Channels.ChannelSpec.newBuilder();
-                channelSpecBuilder.setContentType(to(data));
+                channelSpecBuilder.setContentType(ProtoConverter.toProto(data));
                 channelSpecBuilder.setChannelName(channelName);
 
                 if ("snapshot".equals(localCmd.getOptionValue('t'))) {

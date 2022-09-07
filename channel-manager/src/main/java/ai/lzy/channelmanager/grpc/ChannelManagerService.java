@@ -1,26 +1,16 @@
 package ai.lzy.channelmanager.grpc;
 
-import static ai.lzy.model.GrpcConverter.from;
-import static ai.lzy.model.GrpcConverter.to;
-
 import ai.lzy.channelmanager.ChannelManagerConfig;
-import ai.lzy.channelmanager.channel.Channel;
-import ai.lzy.channelmanager.channel.ChannelException;
-import ai.lzy.channelmanager.channel.Endpoint;
-import ai.lzy.channelmanager.channel.SlotEndpoint;
+import ai.lzy.channelmanager.channel.*;
 import ai.lzy.channelmanager.db.ChannelManagerDataSource;
 import ai.lzy.channelmanager.db.ChannelStorage;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
-import ai.lzy.model.GrpcConverter;
-import ai.lzy.model.SlotInstance;
-import ai.lzy.model.channel.ChannelSpec;
-import ai.lzy.model.channel.DirectChannelSpec;
-import ai.lzy.model.channel.SnapshotChannelSpec;
+import ai.lzy.model.basic.SlotInstance;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.v1.ChannelManager;
 import ai.lzy.v1.Channels;
 import ai.lzy.v1.LzyChannelManagerGrpc;
-import ai.lzy.v1.Operations;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Inject;
@@ -255,7 +245,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 return;
             }
 
-            responseObserver.onNext(toChannelStatus(channel));
+            responseObserver.onNext(ProtoConverter.toChannelStatusProto(channel));
             LOG.info("Get status for channel {} done", request.getChannelId());
             responseObserver.onCompleted();
         } catch (IllegalArgumentException e) {
@@ -291,7 +281,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 channelStorage.listChannels(userId, workflowId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
 
             final ChannelManager.ChannelStatusList.Builder builder = ChannelManager.ChannelStatusList.newBuilder();
-            channels.forEach(channel -> builder.addStatuses(toChannelStatus(channel)));
+            channels.forEach(channel -> builder.addStatuses(ProtoConverter.toChannelStatusProto(channel)));
             var channelStatusList = builder.build();
 
             responseObserver.onNext(channelStatusList);
@@ -328,7 +318,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
 
         lockManager.getOrCreate(attach.getSlotInstance().getChannelId()).lock();
         try {
-            final SlotInstance slotInstance = from(attach.getSlotInstance());
+            final SlotInstance slotInstance = GrpcConverter.from(attach.getSlotInstance());
             final Endpoint endpoint = SlotEndpoint.getInstance(slotInstance);
             final String channelId = endpoint.slotInstance().channelId();
 
@@ -403,7 +393,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
 
         lockManager.getOrCreate(detach.getSlotInstance().getChannelId()).lock();
         try {
-            final SlotInstance slotInstance = from(detach.getSlotInstance());
+            final SlotInstance slotInstance = GrpcConverter.from(detach.getSlotInstance());
             final Endpoint endpoint = SlotEndpoint.getInstance(slotInstance);
             final String channelId = endpoint.slotInstance().channelId();
 
@@ -441,24 +431,6 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         } finally {
             lockManager.getOrCreate(detach.getSlotInstance().getChannelId()).unlock();
         }
-    }
-
-    private ChannelManager.ChannelStatus toChannelStatus(Channel channel) {
-        final ChannelManager.ChannelStatus.Builder statusBuilder = ChannelManager.ChannelStatus.newBuilder();
-        statusBuilder
-            .setChannelId(channel.id())
-            .setChannelSpec(to(channel.spec()));
-        channel.slotsStatus()
-            .map(slotStatus ->
-                Operations.SlotStatus.newBuilder()
-                    .setTaskId(slotStatus.tid())
-                    .setConnectedTo(channel.id())
-                    .setDeclaration(to(slotStatus.slot()))
-                    .setPointer(slotStatus.pointer())
-                    .setState(Operations.SlotStatus.State.valueOf(slotStatus.state().toString()))
-                    .build())
-            .forEach(statusBuilder::addConnected);
-        return statusBuilder.build();
     }
 
 }

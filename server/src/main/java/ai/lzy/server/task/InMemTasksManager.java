@@ -4,8 +4,8 @@ import static ai.lzy.v1.Tasks.TaskProgress.Status.ERROR;
 import static ai.lzy.v1.Tasks.TaskProgress.Status.SUCCESS;
 
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.model.Slot;
-import ai.lzy.model.Zygote;
+import ai.lzy.model.slot.Slot;
+import ai.lzy.model.deprecated.Zygote;
 import ai.lzy.server.Authenticator;
 import ai.lzy.server.TasksManager;
 import ai.lzy.model.Signal;
