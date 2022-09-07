@@ -4,6 +4,7 @@ from subprocess import Popen, PIPE
 
 
 def process(command: str) -> str:
+    print(command)
     p = Popen(command, shell=True, stdout=PIPE)
     out, err = p.communicate()
     return out.decode("utf-8")[:-1]
@@ -20,57 +21,61 @@ node_pool_label = input('node group label for pool vms: ')
 node_pool_kind = input('node group kind for pool vms: ')
 node_pool_az = input('node group az for pool vms: ')
 node_pool_state = input('node group state for pool vms: ')
-node_pool_tains = input('node group taints for pool vms (for example, sku=gpu:NoSchedule for gpu vms): ')
+node_pool_tains = input('node group taints for pool vms (for example, sku=gpu:NoSchedule for gpu vms, or empty): ')
 platform = input('platform for pool vms: ')
 cpu_count = input('cpu count for pool vms: ')
 gpu_count = input('gpu count for pool vms: ')
 disc_size = input('disc size for pool vms: ')
-disc_type = input('disc type for pool vms: ')
+disc_type = input('disc type for pool vms (must be >= 30: ')
 memory = input('memory for pool vms: ')
 
-ans = input("Are you sure you want to create node group with this configuration? (print 'YES!!!!!'): ")
-if ans != "YES!!!!!":
+ans = input("Are you sure you want to create node group with this configuration? (print 'YES!'): ")
+if ans != "YES!":
     sys.exit()
 
 # ------------ SECURITY GROUPS ------------ #
 main_sg_id = process(
-    "yc vpc sg get --cloud-id {} --folder-id {} --name {}-main-sg --format json | jq -r '.id'".format(
+    "yc vpc sg get --cloud-id {} --folder-id {} --name lzy-{}-main-sg --format json | jq -r '.id'".format(
         cloud_id,
         folder_id,
         cluster_name
     )
 )
 public_services_sg_id = process(
-    "yc vpc sg get --cloud-id {} --folder-id {} --name {}-public-services --format json | jq -r '.id'".format(
+    "yc vpc sg get --cloud-id {} --folder-id {} --name lzy-{}-public-services --format json | jq -r '.id'".format(
         cloud_id,
         folder_id,
         cluster_name
     )
 )
 
+# TODO: fixed scale or auto scale
+print("trying to create {} k8s node group...\n".format(cluster_name))
 # ------------ NODE POOL ------------ #
 process(
-    "yc managed-kubernetes node-group create --help \
+    "yc managed-kubernetes node-group create \
   --cloud-id {} \
   --folder-id {} \
   --cluster-name {} \
-  --labels lzy.ai/node-pool-id={} \
-  --labels lzy.ai/node-pool-label={} \
-  --labels lzy.ai/node-pool-kind={} \
-  --labels lzy.ai/node-pool-az={} \
-  --labels lzy.ai/node-pool-state={} \
-  --node-taints {} \
-  --network-interface security-group-ids={},{},subnets={},ipv4-address=auto,ipv6-address=true \
+  --name {} \
+  --node-labels lzy.ai/node-pool-id={} \
+  --node-labels lzy.ai/node-pool-label={} \
+  --node-labels lzy.ai/node-pool-kind={} \
+  --node-labels lzy.ai/node-pool-az={} \
+  --node-labels lzy.ai/node-pool-state={} \
+  --node-taints \"{}\" \
+  --network-interface security-group-ids=[{},{}],subnets={},ipv4-address=auto,ipv6-address=auto \
   --platform {} \
   --cores {} \
   --gpus {} \
   --disk-size {} \
   --disk-type {} \
-  --memory {} \
-  --name {}".format(
+  --fixed-size 2 \
+  --memory {}".format(
         cloud_id,
         folder_id,
         cluster_name,
+        node_pool_name,
         node_pool_id,
         node_pool_label,
         node_pool_kind,
@@ -85,7 +90,6 @@ process(
         gpu_count,
         disc_size,
         disc_type,
-        memory,
-        node_pool_name
+        memory
     )
 )
