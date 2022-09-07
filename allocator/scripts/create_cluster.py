@@ -1,23 +1,31 @@
 #!/usr/bin/env python3
-import os
+import sys
+from subprocess import Popen, PIPE
+
+
+def process(command: str) -> str:
+    p = Popen(command, shell=True, stdout=PIPE)
+    out, err = p.communicate()
+    return out.decode("utf-8")[:-1]
+
 
 cloud_id = input('cloud id for pool vms: ')
 folder_id = input('folder id for pool vms: ')
 subnet_id = input('subnet id for pool vms: ')
-network_id = os.system("yc vpc subnet get --id {} --format json | jq -r '.network_id'".format(subnet_id))
+network_id = process("yc vpc subnet get --id {} --format json | jq -r '.network_id'".format(subnet_id))
 service_account_id = input("service account id for pool vms: ")
 cluster_name = input('cluster name for pool vms: ')
 
 ans = input("Are you sure you want to create cluster with this configuration? ")
 if ans != "YES!!!!!":
-    os.exit()
+    sys.exit()
 
 # ------------ SECURITY GROUPS ------------ #
 # Source docs for security groups: https://cloud.yandex.ru/docs/managed-kubernetes/operations/connect/security-groups
 
 # for basic cluster efficiency
-subnet_v4_cidrs = os.system("yc vpc subnet get --id {} --format json | jq -r '.v4_cidr_blocks | join(",")'".format(subnet_id))
-os.system(
+subnet_v4_cidrs = process("yc vpc subnet get --id {} --format json | jq -r '.v4_cidr_blocks | join(,)'".format(subnet_id))
+process(
     "yc vpc sg create \
     --name {}-main-sg \
     --cloud-id {} \
@@ -34,7 +42,7 @@ os.system(
         subnet_v4_cidrs
     )
 )
-main_sg_id = os.system(
+main_sg_id = process(
     "yc vpc sg get --cloud-id {} --folder-id {} --name {}-main-sg --format json | jq -r '.id'".format(
         cloud_id,
         folder_id,
@@ -42,10 +50,9 @@ main_sg_id = os.system(
     )
 )
 
-
 # TODO: RESTRICT V4 AND V6 CIDRS!!!!!!!!!
 # for access to running services from yandex subnets
-os.system(
+process(
     "yc vpc sg create \
     --name {}-public-services \
     --cloud-id {} \
@@ -58,7 +65,7 @@ os.system(
         network_id,
     )
 )
-public_services_sg_id = os.system(
+public_services_sg_id = process(
     "yc vpc sg get --cloud-id {} --folder-id {} --name {}-public-services --format json | jq -r '.id'".format(
         cloud_id,
         folder_id,
@@ -67,7 +74,7 @@ public_services_sg_id = os.system(
 )
 
 # for k8s api access from everywhere (0.0.0.0/0)
-os.system(
+process(
     "yc vpc sg create \
     --name {}-master-whitelist \
     --cloud-id {} \
@@ -81,7 +88,7 @@ os.system(
         network_id,
     )
 )
-master_whitelist_sg_id = os.system(
+master_whitelist_sg_id = process(
     "yc vpc sg get --cloud-id {} --folder-id {} --name {}-master-whitelist --format json | jq -r '.id''".format(
         cloud_id,
         folder_id,
@@ -90,7 +97,7 @@ master_whitelist_sg_id = os.system(
 )
 
 # ------------ K8S CLUSTER ------------ #
-os.system(
+process(
     "yc managed-kubernetes cluster create --help \
   --cloud-id {} \
   --folder-id {} \
