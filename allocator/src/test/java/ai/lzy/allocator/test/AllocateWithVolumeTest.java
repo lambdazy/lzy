@@ -1,7 +1,5 @@
 package ai.lzy.allocator.test;
 
-import static ai.lzy.allocator.test.Utils.createTestDiskSpec;
-
 import ai.lzy.allocator.AllocatorMain;
 import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactoryImpl;
 import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
@@ -17,13 +15,8 @@ import ai.lzy.test.TimeUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.v1.AllocatorGrpc;
-import ai.lzy.v1.AllocatorPrivateGrpc;
-import ai.lzy.v1.OperationService;
-import ai.lzy.v1.VmAllocatorApi;
+import ai.lzy.v1.*;
 import ai.lzy.v1.VmAllocatorApi.AllocateRequest.Workload;
-import ai.lzy.v1.VmAllocatorPrivateApi;
-import ai.lzy.v1.VolumeApi;
 import com.google.common.net.HostAndPort;
 import com.google.protobuf.Duration;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -36,6 +29,10 @@ import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
+import org.junit.*;
+import yandex.cloud.sdk.Zone;
+
+import javax.annotation.Nullable;
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -47,13 +44,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.Nullable;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
-import yandex.cloud.sdk.Zone;
+
+import static ai.lzy.allocator.test.Utils.createTestDiskSpec;
 
 @Ignore
 public class AllocateWithVolumeTest extends BaseTestWithIam {
@@ -68,7 +60,7 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
     private DiskManager diskManager;
 
     @Before
-    public void before() throws IOException {
+    public void before() throws IOException, InterruptedException {
         super.before();
 
         var properties = new YamlPropertySourceLoader()

@@ -13,7 +13,7 @@ import ai.lzy.iam.resources.AuthResource;
 import ai.lzy.iam.resources.impl.Whiteboard;
 import ai.lzy.iam.resources.impl.Workflow;
 import ai.lzy.iam.storage.impl.DbAccessClient;
-import ai.lzy.iam.utils.GrpcConverter;
+import ai.lzy.iam.utils.ProtoConverter;
 import ai.lzy.v1.iam.IAM;
 import ai.lzy.v1.iam.LABS;
 import ai.lzy.v1.iam.LABS.ListAccessBindingsRequest;
@@ -38,13 +38,13 @@ public class LzyABSService extends LzyAccessBindingServiceGrpc.LzyAccessBindingS
     @Override
     public void listAccessBindings(ListAccessBindingsRequest request,
                                    StreamObserver<ListAccessBindingsResponse> responseObserver) {
-        if (invalidAccess(GrpcConverter.to(request.getResource()), ResourceAccessType.VIEW)) {
+        if (invalidAccess(ProtoConverter.to(request.getResource()), ResourceAccessType.VIEW)) {
             LOG.error("Resource::{} NOT_FOUND", request.getResource());
             responseObserver.onError(Status.NOT_FOUND.asException());
         }
         Stream<IAM.AccessBinding> bindings = accessBindingClient.listAccessBindings(
-                GrpcConverter.to(request.getResource())
-        ).map(GrpcConverter::from);
+                ProtoConverter.to(request.getResource())
+        ).map(ProtoConverter::from);
         responseObserver.onNext(ListAccessBindingsResponse.newBuilder()
                 .addAllBindings(bindings.collect(Collectors.toList())).build());
         responseObserver.onCompleted();
@@ -53,12 +53,12 @@ public class LzyABSService extends LzyAccessBindingServiceGrpc.LzyAccessBindingS
     @Override
     public void setAccessBindings(SetAccessBindingsRequest request,
                                   StreamObserver<LABS.SetAccessBindingsResponse> responseObserver) {
-        if (invalidAccess(GrpcConverter.to(request.getResource()), ResourceAccessType.EDIT)) {
+        if (invalidAccess(ProtoConverter.to(request.getResource()), ResourceAccessType.EDIT)) {
             LOG.error("Resource::{} NOT_FOUND", request.getResource());
             responseObserver.onError(Status.NOT_FOUND.asException());
         }
-        accessBindingClient.setAccessBindings(GrpcConverter.to(request.getResource()),
-                request.getBindingsList().stream().map(GrpcConverter::to).collect(Collectors.toList()));
+        accessBindingClient.setAccessBindings(ProtoConverter.to(request.getResource()),
+                request.getBindingsList().stream().map(ProtoConverter::to).collect(Collectors.toList()));
         responseObserver.onNext(LABS.SetAccessBindingsResponse.newBuilder().build());
         responseObserver.onCompleted();
     }
@@ -66,12 +66,12 @@ public class LzyABSService extends LzyAccessBindingServiceGrpc.LzyAccessBindingS
     @Override
     public void updateAccessBindings(UpdateAccessBindingsRequest request,
                                      StreamObserver<LABS.UpdateAccessBindingsResponse> responseObserver) {
-        if (invalidAccess(GrpcConverter.to(request.getResource()), ResourceAccessType.EDIT)) {
+        if (invalidAccess(ProtoConverter.to(request.getResource()), ResourceAccessType.EDIT)) {
             LOG.error("Resource::{} NOT_FOUND", request.getResource());
             responseObserver.onError(Status.NOT_FOUND.asException());
         }
-        accessBindingClient.updateAccessBindings(GrpcConverter.to(request.getResource()),
-                request.getDeltasList().stream().map(GrpcConverter::to).collect(Collectors.toList()));
+        accessBindingClient.updateAccessBindings(ProtoConverter.to(request.getResource()),
+                request.getDeltasList().stream().map(ProtoConverter::to).collect(Collectors.toList()));
         responseObserver.onNext(LABS.UpdateAccessBindingsResponse.newBuilder().build());
         responseObserver.onCompleted();
     }

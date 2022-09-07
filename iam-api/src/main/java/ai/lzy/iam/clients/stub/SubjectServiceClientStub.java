@@ -1,13 +1,10 @@
 package ai.lzy.iam.clients.stub;
 
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
-import ai.lzy.iam.resources.subjects.Servant;
-import ai.lzy.iam.resources.subjects.SubjectType;
+import ai.lzy.iam.resources.subjects.*;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.iam.clients.SubjectServiceClient;
-import ai.lzy.iam.resources.subjects.Subject;
-import ai.lzy.iam.resources.subjects.User;
 
 import java.util.List;
 import java.util.UUID;
@@ -20,7 +17,9 @@ public class SubjectServiceClientStub implements SubjectServiceClient {
     }
 
     @Override
-    public Subject createSubject(String authProvider, String providerSubjectId, SubjectType type) throws AuthException {
+    public Subject createSubject(AuthProvider authProvider, String providerSubjectId, SubjectType type)
+        throws AuthException
+    {
         final var id = "user_stub_" + UUID.randomUUID();
         return switch (type) {
             case USER -> new User(id);
@@ -38,7 +37,7 @@ public class SubjectServiceClientStub implements SubjectServiceClient {
     }
 
     @Override
-    public void addCredentials(Subject subject, String name, String value, String type) throws AuthException {
+    public void addCredentials(Subject subject, String name, String value, CredentialsType type) throws AuthException {
     }
 
     @Override

@@ -6,6 +6,8 @@ import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.resources.AccessBinding;
 import ai.lzy.iam.resources.Role;
 import ai.lzy.iam.resources.impl.Workflow;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.Servant;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.model.Operation;
@@ -94,16 +96,14 @@ public class AllocatorImpl implements ServantsAllocator {
 
     @Override
     public void allocate(String workflowName, String servantId, Operation.Requirements requirements) {
-
         final Credentials credentials;
         try {
-            final var subj = subjectClient.createSubject(
-                authConfig.getInternalUserName(), servantId, SubjectType.SERVANT);
+            final var subj = subjectClient.createSubject(AuthProvider.INTERNAL, servantId, SubjectType.SERVANT);
 
-            final var cred = JwtUtils.generateCredentials(subj.id());
+            final var cred = JwtUtils.generateCredentials(servantId, AuthProvider.INTERNAL.name());
             credentials = cred.credentials();
 
-            subjectClient.addCredentials(subj, "main", cred.publicKey(), cred.credentials().type());
+            subjectClient.addCredentials(subj, "main", cred.publicKey(), CredentialsType.PUBLIC_KEY);
             abClient.setAccessBindings(new Workflow(workflowName),
                 List.of(new AccessBinding(Role.LZY_WORKFLOW_OWNER, subj)));
         } catch (Exception e) {

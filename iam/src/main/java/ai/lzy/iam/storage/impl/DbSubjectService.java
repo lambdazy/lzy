@@ -2,10 +2,7 @@ package ai.lzy.iam.storage.impl;
 
 import ai.lzy.iam.configs.ServiceConfig;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
-import ai.lzy.iam.resources.subjects.Servant;
-import ai.lzy.iam.resources.subjects.Subject;
-import ai.lzy.iam.resources.subjects.SubjectType;
-import ai.lzy.iam.resources.subjects.User;
+import ai.lzy.iam.resources.subjects.*;
 import ai.lzy.iam.storage.db.IamDataSource;
 import ai.lzy.iam.utils.UserVerificationType;
 import ai.lzy.util.auth.exceptions.AuthNotFoundException;
@@ -37,10 +34,14 @@ public class DbSubjectService {
     @Inject
     private ServiceConfig serviceConfig;
 
-    public Subject createSubject(String authProvider, String providerSubjectId, SubjectType subjectType)
+    public Subject createSubject(AuthProvider authProvider, String providerSubjectId, SubjectType subjectType)
         throws AuthException
     {
-        final var id = UUID.randomUUID().toString();
+        if (authProvider.isInternal() && subjectType == SubjectType.USER) {
+            throw new AuthInternalException("Invalid auth provider");
+        }
+
+        final var subjectId = UUID.randomUUID().toString();
 
         return withRetries(
             defaultRetryPolicy(),
@@ -52,16 +53,16 @@ public class DbSubjectService {
                         VALUES (?, ?, ?, ?, ?)"""))
                 {
                     int parameterIndex = 0;
-                    st.setString(++parameterIndex, id);
-                    st.setString(++parameterIndex, authProvider);
+                    st.setString(++parameterIndex, subjectId);
+                    st.setString(++parameterIndex, authProvider.name());
                     st.setString(++parameterIndex, providerSubjectId);
                     st.setString(++parameterIndex, accessTypeForNewUser(connect).toString());
                     st.setString(++parameterIndex, subjectType.name());
                     st.executeUpdate();
 
                     return switch (subjectType) {
-                        case USER -> new User(id);
-                        case SERVANT -> new Servant(id);
+                        case USER -> new User(subjectId);
+                        case SERVANT -> new Servant(subjectId);
                     };
                 }
             },
@@ -75,17 +76,16 @@ public class DbSubjectService {
             () -> {
                 try (var connect = storage.connect();
                      var st = connect.prepareStatement(
-                         "SELECT user_id, user_type FROM users WHERE user_id = ?"))
+                         "SELECT user_type FROM users WHERE user_id = ?"))
                 {
                     int parameterIndex = 0;
                     st.setString(++parameterIndex, id);
                     ResultSet rs = st.executeQuery();
                     if (rs.next()) {
-                        final String user_id = rs.getString("user_id");
                         final SubjectType type = SubjectType.valueOf(rs.getString("user_type"));
                         return switch (type) {
-                            case USER -> new User(user_id);
-                            case SERVANT -> new Servant(user_id);
+                            case USER -> new User(id);
+                            case SERVANT -> new Servant(id);
                         };
                     }
 
@@ -112,21 +112,21 @@ public class DbSubjectService {
             AuthInternalException::new);
     }
 
-    public void addCredentials(Subject subject, String name, String value, String type) throws AuthException {
+    public void addCredentials(Subject subject, String name, String value, CredentialsType type) throws AuthException {
         withRetries(
             defaultRetryPolicy(),
             LOG,
             () -> {
                 try (var connect = storage.connect();
                      var st = connect.prepareStatement("""
-                        INSERT INTO credentials (name, "value", user_id, type)
+                        INSERT INTO credentials (name, value, user_id, type)
                         VALUES (?, ?, ?, ?)"""))
                 {
                     int parameterIndex = 0;
                     st.setString(++parameterIndex, name);
                     st.setString(++parameterIndex, value);
                     st.setString(++parameterIndex, subject.id());
-                    st.setString(++parameterIndex, type);
+                    st.setString(++parameterIndex, type.name());
                     st.executeUpdate();
                 }
             },
@@ -140,7 +140,7 @@ public class DbSubjectService {
             () -> {
                 try (var connect = storage.connect();
                      var st = connect.prepareStatement("""
-                        SELECT name, "value", type
+                        SELECT name, value, type
                         FROM credentials
                         WHERE user_id = ? AND name = ?"""))
                 {
@@ -152,7 +152,7 @@ public class DbSubjectService {
                         return new SubjectCredentials(
                             rs.getString("name"),
                             rs.getString("value"),
-                            rs.getString("type"));
+                            CredentialsType.valueOf(rs.getString("type")));
                     }
 
                     throw new AuthNotFoundException("Credentials:: " + name + " NOT_FOND");
@@ -168,7 +168,7 @@ public class DbSubjectService {
             () -> {
                 try (var connect = storage.connect();
                      var st = connect.prepareStatement("""
-                        SELECT *
+                        SELECT name, value, type
                         FROM credentials
                         WHERE user_id = ?"""))
                 {
@@ -181,7 +181,7 @@ public class DbSubjectService {
                             new SubjectCredentials(
                                 rs.getString("name"),
                                 rs.getString("value"),
-                                rs.getString("type")));
+                                CredentialsType.valueOf(rs.getString("type"))));
                     }
                     return result;
                 }

@@ -2,20 +2,21 @@ package ai.lzy.test.scenarios;
 
 import ai.lzy.test.LzyServerTestContext;
 import ai.lzy.test.LzyTerminalTestContext;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.Collections;
-import java.util.Map;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Collections;
+import java.util.Map;
+
 public class DockerServantTest extends LocalScenario {
 
     @Before
     public void setUp() {
-        setUp(LzyServerTestContext.LocalServantAllocatorType.DOCKER_ALLOCATOR);
+        setUp(LzyServerTestContext.LocalServantAllocatorType.DOCKER_ALLOCATOR, true);
         startTerminalWithDefaultConfig();
     }
 

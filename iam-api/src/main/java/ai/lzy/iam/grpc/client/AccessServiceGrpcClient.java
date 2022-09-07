@@ -11,7 +11,7 @@ import org.apache.logging.log4j.Logger;
 import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.AuthResource;
 import ai.lzy.iam.resources.subjects.Subject;
-import ai.lzy.iam.utils.GrpcConverter;
+import ai.lzy.iam.utils.ProtoConverter;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
@@ -58,9 +58,9 @@ public class AccessServiceGrpcClient implements AccessClient {
             AuthPermission permission) throws AuthException {
         try {
             var subj = accessService.authorize(LACS.AuthorizeRequest.newBuilder()
-                    .setSubject(GrpcConverter.from(subject))
+                    .setSubject(ProtoConverter.from(subject))
                     .setPermission(permission.permission())
-                    .setResource(GrpcConverter.from(resource))
+                    .setResource(ProtoConverter.from(resource))
                     .build());
             return subj.getId().equals(subject.id());
         } catch (StatusRuntimeException e) {

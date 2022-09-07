@@ -13,7 +13,7 @@ import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
 import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.impl.Root;
 import ai.lzy.iam.storage.impl.DbAccessClient;
-import ai.lzy.iam.utils.GrpcConverter;
+import ai.lzy.iam.utils.ProtoConverter;
 import ai.lzy.v1.iam.IAM.Subject;
 import ai.lzy.v1.iam.LACS.AuthorizeRequest;
 import ai.lzy.v1.iam.LzyAccessServiceGrpc;
@@ -40,7 +40,7 @@ public class LzyASService extends LzyAccessServiceGrpc.LzyAccessServiceImplBase 
                 throw new AuthPermissionDeniedException("");
             }
             if (accessClient.hasResourcePermission(
-                    GrpcConverter.to(request.getSubject()), request.getResource().getId(),
+                    ProtoConverter.to(request.getSubject()), request.getResource().getId(),
                     AuthPermission.fromString(request.getPermission()))) {
                 responseObserver.onNext(Subject.newBuilder()
                         .setId(request.getSubject().getId())

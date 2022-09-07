@@ -49,7 +49,7 @@ public class ChannelManagerThreadContext implements LzyChannelManagerContext {
     }
 
     @Override
-    public void init() {
+    public void init(boolean stubIam) {
         LOG.info("Starting channel-manager...");
 
         var props = Utils.loadModuleTestProperties("channel-manager");
@@ -57,6 +57,7 @@ public class ChannelManagerThreadContext implements LzyChannelManagerContext {
         props.put("channel-manager.address", "localhost:" + Config.PORT);
         props.put("channel-manager.whiteboard-address", whiteboardAddress);
         props.put("channel-manager.iam.address", iamAddress);
+        props.put("channel-manager.stub-iam", stubIam);
 
         try {
             context = ApplicationContext.run(PropertySource.of(props));

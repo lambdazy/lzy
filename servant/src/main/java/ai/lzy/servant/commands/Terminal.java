@@ -6,13 +6,14 @@ import ai.lzy.servant.agents.LzyAgentConfig;
 import ai.lzy.servant.agents.LzyInternalTerminal;
 import ai.lzy.servant.agents.LzyTerminal;
 import ai.lzy.util.auth.credentials.JwtUtils;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.Options;
+
 import java.io.FileReader;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.Options;
 
 public class Terminal implements LzyCommand {
     private static final Options options = new Options();
@@ -65,7 +66,7 @@ public class Terminal implements LzyCommand {
                 commandLine.getOptionValue('k', System.getenv("HOME") + "/.ssh/id_rsa"));
             if (Files.exists(privateKeyPath)) {
                 try (FileReader keyReader = new FileReader(String.valueOf(privateKeyPath))) {
-                    String token = JwtUtils.buildJWT(System.getenv("USER"), keyReader);
+                    String token = JwtUtils.legacyBuildJWT(System.getenv("USER"), keyReader);
                     builder.token(token);
                 }
             } else {

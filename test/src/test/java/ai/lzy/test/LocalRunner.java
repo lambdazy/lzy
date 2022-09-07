@@ -57,7 +57,7 @@ public class LocalRunner {
         whiteboardContext.init();
 
         var channelManagerContext = new ChannelManagerThreadContext(whiteboardContext.address(), iamContext.address());
-        channelManagerContext.init();
+        channelManagerContext.init(false);
 
         final KharonThreadContext kharonContext;
         if (args.length > 1 && args[1].equals("--no-kharon")) {

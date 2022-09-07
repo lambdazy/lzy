@@ -1,7 +1,5 @@
 package ai.lzy.allocator.test;
 
-import static ai.lzy.allocator.test.Utils.waitOperation;
-
 import ai.lzy.allocator.AllocatorMain;
 import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactory;
 import ai.lzy.allocator.alloc.impl.kuber.KuberLabels;
@@ -45,6 +43,8 @@ import java.sql.SQLException;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.*;
+
+import static ai.lzy.allocator.test.Utils.waitOperation;
 
 public class AllocatorApiTest extends BaseTestWithIam {
 
@@ -175,7 +175,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
         final AllocatorGrpc.AllocatorBlockingStub invalidAuthorizedAllocatorBlockingStub =
             unauthorizedAllocatorBlockingStub.withInterceptors(
                 ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION,
-                    JwtUtils.invalidCredentials("user")::token));
+                    JwtUtils.invalidCredentials("user", "GITHUB")::token));
         try {
             //noinspection ResultOfMethodCallIgnored
             invalidAuthorizedAllocatorBlockingStub.createSession(CreateSessionRequest.newBuilder().build());

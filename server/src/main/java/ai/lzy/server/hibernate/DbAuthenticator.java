@@ -206,7 +206,7 @@ public class DbAuthenticator implements Authenticator {
             Security.addProvider(new BouncyCastleProvider());
             for (PublicKeyModel userToken : user.getPublicKeys()) {
                 try (StringReader keyReader = new StringReader(userToken.getValue())) {
-                    if (JwtUtils.checkJWT(keyReader, token, userId)) {
+                    if (JwtUtils.legacyCheckJWT(keyReader, token, userId)) {
                         LOG.info("Successfully checked user token " + userId);
                         return true;
                     }
