@@ -1,11 +1,9 @@
 package ai.lzy.channelmanager;
 
 import ai.lzy.channelmanager.db.ChannelManagerDataSource;
-import ai.lzy.iam.clients.stub.AuthenticateServiceStub;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.test.GrpcUtils;
-import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
@@ -25,7 +23,6 @@ import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.junit.*;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -53,8 +50,6 @@ public class ChannelManagerTest extends BaseTestWithIam {
         var props = DatabaseTestUtils.preparePostgresConfig("channel-manager", db.getConnectionInfo());
         channelManagerCtx = ApplicationContext.run(props);
 
-        channelManagerCtx.registerSingleton(new AuthenticateServiceStub(Map.of("user@GITHUB", "user1")));
-
         channelManagerConfig = channelManagerCtx.getBean(ChannelManagerConfig.class);
         channelManagerApp = new ChannelManager(channelManagerCtx);
         channelManagerApp.start();
@@ -64,10 +59,10 @@ public class ChannelManagerTest extends BaseTestWithIam {
             .usePlaintext()
             .build();
         unauthorizedChannelManagerClient = LzyChannelManagerGrpc.newBlockingStub(channel);
+
+        var internalUser = channelManagerConfig.getIam().createCredentials();
         authorizedChannelManagerClient = unauthorizedChannelManagerClient.withInterceptors(
-            ClientHeaderInterceptor.header(
-                GrpcHeaders.AUTHORIZATION,
-                JwtUtils.invalidCredentials("user", "GITHUB")::token));
+            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, internalUser::token));
     }
 
     @After
