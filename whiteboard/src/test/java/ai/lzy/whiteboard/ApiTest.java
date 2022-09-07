@@ -81,6 +81,7 @@ public class ApiTest extends BaseTestWithIam {
         }
         externalUserWhiteboardClient = LzyWhiteboardServiceGrpc.newBlockingStub(channel).withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, externalUser.credentials::token));
+
         externalUser2WhiteboardClient = LzyWhiteboardServiceGrpc.newBlockingStub(channel).withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, externalUser2.credentials::token));
 
@@ -365,8 +366,9 @@ public class ApiTest extends BaseTestWithIam {
         }
 
         public User createUser(String name) throws Exception {
-            var subj = subjectClient.createSubject(AuthProvider.GITHUB, "github-" + name, SubjectType.USER);
-            var creds = JwtUtils.generateCredentials(subj.id(), "GITHUB");
+            var login = "github-" + name;
+            var subj = subjectClient.createSubject(AuthProvider.GITHUB, login, SubjectType.USER);
+            var creds = JwtUtils.generateCredentials(login, "GITHUB");
             subjectClient.addCredentials(subj, "main", creds.publicKey(), CredentialsType.PUBLIC_KEY);
             return new User(subj.id(), creds.credentials());
         }
