@@ -34,10 +34,12 @@ public abstract class LocalScenario extends LzyBaseTest {
 
     @Before
     public void setUp() {
-        this.setUp(LzyServerTestContext.LocalServantAllocatorType.THREAD_ALLOCATOR);
+        this.setUp(LzyServerTestContext.LocalServantAllocatorType.THREAD_ALLOCATOR, true);
     }
 
-    public void setUp(LzyServerTestContext.LocalServantAllocatorType servantAllocatorType) {
+    public void setUp(LzyServerTestContext.LocalServantAllocatorType servantAllocatorType,
+                      boolean stubIamForChannelManager)
+    {
         createResourcesFolder();
         createServantLzyFolder();
 
@@ -60,7 +62,7 @@ public abstract class LocalScenario extends LzyBaseTest {
         whiteboardContext.init();
 
         channelManagerContext = new ChannelManagerThreadContext(whiteboardContext.address(), iamContext.address());
-        channelManagerContext.init();
+        channelManagerContext.init(stubIamForChannelManager);
 
         kharonContext = new KharonThreadContext(
             serverContext.address(),

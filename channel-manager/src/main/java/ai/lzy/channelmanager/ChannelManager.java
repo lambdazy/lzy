@@ -1,6 +1,7 @@
 package ai.lzy.channelmanager;
 
 import ai.lzy.channelmanager.grpc.ChannelManagerService;
+import ai.lzy.iam.clients.stub.AuthenticateServiceStub;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.util.grpc.ChannelBuilder;
@@ -91,7 +92,8 @@ public class ChannelManager {
             .forAddress(new InetSocketAddress(address.getHost(), address.getPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(iamChannel)))
+            .intercept(new AuthServerInterceptor(
+                config.isStubIam() ? new AuthenticateServiceStub() : new AuthenticateServiceGrpcClient(iamChannel)))
             .intercept(new GrpcLogsInterceptor())
             .addService(ctx.getBean(ChannelManagerService.class))
             .build();
