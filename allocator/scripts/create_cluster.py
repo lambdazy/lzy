@@ -12,9 +12,6 @@ ans = input("Are you sure you want to create cluster with this configuration? ")
 if ans != "YES!!!!!":
     os.exit()
 
-
-# TODO: v6 addresses in sg
-
 # ------------ SECURITY GROUPS ------------ #
 # Source docs for security groups: https://cloud.yandex.ru/docs/managed-kubernetes/operations/connect/security-groups
 
@@ -29,7 +26,7 @@ os.system(
     --rule direction=ingress,port=0-65535,protocol=tcp,v4-cidrs=[198.18.235.0/24,198.18.248.0/24] \
     --rule direction=ingress,port=0-65535,protocol=any,predefined=self_security_group \
     --rule direction=ingress,port=0-65535,protocol=any,v4-cidrs=[{}] \
-    --rule direction=egress,port=0-65535,protocol=any,v4-cidrs=[0.0.0.0/0]".format(
+    --rule direction=egress,port=0-65535,protocol=any,v4-cidrs=[0.0.0.0/0],v6-cidrs=[0::/0]".format(
         cluster_name,
         cloud_id,
         folder_id,
@@ -45,6 +42,8 @@ main_sg_id = os.system(
     )
 )
 
+
+# TODO: RESTRICT V4 AND V6 CIDRS!!!!!!!!!
 # for access to running services from yandex subnets
 os.system(
     "yc vpc sg create \
@@ -52,7 +51,7 @@ os.system(
     --cloud-id {} \
     --folder-id {} \
     --network-id {} \
-    --rule direction=ingress,port=30000-32767,protocol=tcp,v4-cidrs=[0.0.0.0/0]".format(
+    --rule direction=ingress,port=30000-32767,protocol=tcp,v4-cidrs=[0.0.0.0/0],v6-cidrs=[0::/0]".format(
         cluster_name,
         cloud_id,
         folder_id,
