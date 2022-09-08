@@ -1,13 +1,13 @@
 package ai.lzy.kharon.env.manager;
 
-import ai.lzy.kharon.env.model.Disk;
-import ai.lzy.kharon.env.model.DiskType;
-import ai.lzy.kharon.env.model.EntityNotFoundException;
-import ai.lzy.kharon.env.model.grpc.DiskClient;
+import ai.lzy.disk.model.Disk;
+import ai.lzy.disk.model.DiskType;
+import ai.lzy.disk.model.EntityNotFoundException;
+import ai.lzy.disk.model.grpc.DiskClient;
+import ai.lzy.disk.model.grpc.GrpcConverter;
 import ai.lzy.kharon.env.CachedEnv;
 import ai.lzy.kharon.env.CachedEnvStatus;
 import ai.lzy.kharon.env.dao.CachedEnvDao;
-import ai.lzy.kharon.env.model.grpc.GrpcConverter;
 import ai.lzy.v1.disk.LD;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;

@@ -2,34 +2,10 @@ syntax = "proto3";
 
 package ai.lzy.v1;
 
-option java_outer_classname = "Operations";
+import "ai/lzy/v1/common/basic.proto";
+
+option java_outer_classname = "LCMS";
 option java_package = "ai.lzy.v1";
-
-message Zygote {
-  // TODO: return uri back
-  EnvSpec env = 1;
-  Provisioning provisioning = 2;
-  string fuze = 3;
-  repeated Slot slots = 4;
-  string description = 5;
-  string name = 6;
-}
-
-message ZygoteList {
-  repeated Zygote zygote = 1;
-}
-
-enum SchemeType {
-  UNSPECIFIED = 0;
-  plain = 1;
-  proto = 2;
-  cloudpickle = 3;
-}
-
-message DataScheme {
-  string type = 1;
-  SchemeType schemeType = 2;
-}
 
 message Slot {
   string name = 1;
@@ -79,35 +55,9 @@ message SlotStatus {
   }
 }
 
-message EnvSpec {
-  BaseEnv baseEnv = 1;
-  AuxEnv auxEnv = 2;
-}
-
-message BaseEnv {
-  string name = 1;
-}
-
-message AuxEnv {
-  oneof env {
-    PythonEnv pyenv = 1;
-  }
-}
-
-message PythonEnv {
-  string name = 1;
-  string yaml = 2;
-  repeated LocalModule localModules = 3;
-}
-
-message LocalModule {
-  string name = 1;
-  string uri = 2;
-}
-
-message Provisioning {
-  message Tag {
-    string tag = 1;
-  }
-  repeated Tag tags = 1;
+message SlotInstance {
+  string taskId = 1;
+  Slot slot = 2;
+  string slotUri = 3;
+  string channelId = 4;
 }

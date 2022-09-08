@@ -2,9 +2,8 @@ syntax = "proto3";
 
 package ai.lzy.v1;
 
-import "ai/lzy/v1/common/zygote.proto";
+import "ai/lzy/v1/common/slot.proto";
 import "google/protobuf/empty.proto";
-
 
 option java_outer_classname = "LzyPortalApi";
 option java_package = "ai.lzy.v1";

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package ai.lzy.v1;
 
-import "ai/lzy/v1/common/zygote.proto";
+import "ai/lzy/v1/common/slot.proto";
 
 option java_outer_classname = "LzyFsApi";
 option java_package = "ai.lzy.v1";
@@ -60,13 +60,6 @@ message SlotCommandStatus {
       ERROR = 1;
     }
   }
-}
-
-message SlotInstance {
-  string taskId = 1;
-  Slot slot = 2;
-  string slotUri = 3;
-  string channelId = 4;
 }
 
 message SlotRequest {

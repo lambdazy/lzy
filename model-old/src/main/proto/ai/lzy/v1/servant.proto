@@ -2,8 +2,9 @@ syntax = "proto3";
 
 package ai.lzy.v1;
 
+import "ai/lzy/v1/common/env.proto";
+import "ai/lzy/v1/common/slot.proto";
 import "ai/lzy/v1/auth.proto";
-import "ai/lzy/v1/common/zygote.proto";
 import "ai/lzy/v1/task.proto";
 
 option java_outer_classname = "Servant";
