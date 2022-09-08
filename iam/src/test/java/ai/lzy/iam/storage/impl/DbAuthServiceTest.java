@@ -1,5 +1,6 @@
 package ai.lzy.iam.storage.impl;
 
+import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.Subject;
@@ -19,6 +20,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+
+import java.util.List;
 
 public class DbAuthServiceTest {
     public static final Logger LOG = LogManager.getLogger(DbAuthServiceTest.class);
@@ -145,9 +148,10 @@ public class DbAuthServiceTest {
     }
 
     public void validAuth(SubjectType subjectType) throws Exception {
-        var userId = subjectService.createSubject(AuthProvider.GITHUB, "user1", subjectType).id();
+        var userId = subjectService.createSubject(AuthProvider.GITHUB, "user1", subjectType, List.of(
+            new SubjectCredentials("testCred", PUBLIC_PEM2, CredentialsType.PUBLIC_KEY))).id();
+
         final Subject user = subjectService.subject(userId);
-        subjectService.addCredentials(user, "testCred", PUBLIC_PEM2, CredentialsType.PUBLIC_KEY);
 
         var jwt = JwtUtils.buildJWT("user1", AuthProvider.GITHUB.name(), CredentialsUtils.readPrivateKey(PRIVATE_PEM2));
         authenticateService.authenticate(new JwtCredentials(jwt));
@@ -164,9 +168,10 @@ public class DbAuthServiceTest {
     }
 
     public void invalidAuth(SubjectType subjectType) throws Exception {
-        var userId = subjectService.createSubject(AuthProvider.GITHUB, "user1", subjectType).id();
+        var userId = subjectService.createSubject(AuthProvider.GITHUB, "user1", subjectType, List.of(
+            new SubjectCredentials("testCred", PUBLIC_PEM2, CredentialsType.PUBLIC_KEY))).id();
+
         final Subject user = subjectService.subject(userId);
-        subjectService.addCredentials(user, "testCred", PUBLIC_PEM2, CredentialsType.PUBLIC_KEY);
 
         var jwt = JwtUtils.buildJWT("user1", AuthProvider.GITHUB.name(), CredentialsUtils.readPrivateKey(PRIVATE_PEM2));
         try {

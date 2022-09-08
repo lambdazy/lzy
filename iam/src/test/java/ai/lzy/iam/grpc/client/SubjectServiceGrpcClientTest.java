@@ -21,6 +21,8 @@ import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.junit.*;
 
 import java.io.IOException;
+import java.util.Comparator;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
@@ -65,9 +67,27 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
         Assert.fail();
     }
 
+    @Test
     public void createSubjectServantWithInternalAuthProvider() {
         var subject = subjectClient.createSubject(AuthProvider.INTERNAL, "Superman", SubjectType.SERVANT);
         Assert.assertEquals(SubjectType.SERVANT, subject.type());
+    }
+
+    @Test
+    public void createSubjectWithCredentials() {
+        var creds1 = new SubjectCredentials("first", "first value", CredentialsType.PUBLIC_KEY);
+        var creds2 = new SubjectCredentials("second", "second value", CredentialsType.OTT);
+
+        var subject = subjectClient.createSubject(AuthProvider.INTERNAL, "Superman", SubjectType.SERVANT,
+            List.of(creds1, creds2));
+        Assert.assertEquals(SubjectType.SERVANT, subject.type());
+
+        var creds = subjectClient.listCredentials(subject);
+        Assert.assertEquals(2, creds.size());
+
+        creds = creds.stream().sorted(Comparator.comparing(SubjectCredentials::name)).toList();
+        Assert.assertEquals(creds1, creds.get(0));
+        Assert.assertEquals(creds2, creds.get(1));
     }
 
     @Override

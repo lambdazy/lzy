@@ -17,6 +17,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 
+import java.util.List;
 import java.util.NoSuchElementException;
 
 public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
@@ -50,7 +51,7 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
 
     @Override
     protected Subject createSubject(String name, SubjectType subjectType) {
-        return subjectService.createSubject(AuthProvider.GITHUB, name, subjectType);
+        return subjectService.createSubject(AuthProvider.GITHUB, name, subjectType, List.of());
     }
 
     @Override

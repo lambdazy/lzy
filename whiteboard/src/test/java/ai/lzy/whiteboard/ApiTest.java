@@ -3,6 +3,7 @@ package ai.lzy.whiteboard;
 import ai.lzy.iam.clients.SubjectServiceClient;
 import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
+import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.SubjectType;
@@ -367,9 +368,11 @@ public class ApiTest extends BaseTestWithIam {
 
         public User createUser(String name) throws Exception {
             var login = "github-" + name;
-            var subj = subjectClient.createSubject(AuthProvider.GITHUB, login, SubjectType.USER);
             var creds = JwtUtils.generateCredentials(login, "GITHUB");
-            subjectClient.addCredentials(subj, "main", creds.publicKey(), CredentialsType.PUBLIC_KEY);
+
+            var subj = subjectClient.createSubject(AuthProvider.GITHUB, login, SubjectType.USER, List.of(
+                new SubjectCredentials("main", creds.publicKey(), CredentialsType.PUBLIC_KEY)));
+
             return new User(subj.id(), creds.credentials());
         }
 

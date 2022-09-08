@@ -49,8 +49,12 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
                 Subject subject = subjectService.createSubject(
                     authProvider,
                     request.getProviderSubjectId(),
-                    SubjectType.valueOf(request.getType())
+                    SubjectType.valueOf(request.getType()),
+                    request.getCredentialsList().stream()
+                        .map(ProtoConverter::to)
+                        .toList()
                 );
+
                 response.onNext(ProtoConverter.from(subject));
                 response.onCompleted();
                 return;

@@ -56,8 +56,8 @@ public class SubjectServiceGrpcClient implements SubjectServiceClient {
     }
 
     @Override
-    public Subject createSubject(AuthProvider authProvider, String providerSubjectId, SubjectType type)
-        throws AuthException
+    public Subject createSubject(AuthProvider authProvider, String providerSubjectId, SubjectType type,
+                                 List<SubjectCredentials> credentials) throws AuthException
     {
         if (authProvider.isInternal() && type == SubjectType.USER) {
             throw new AuthInternalException("Invalid auth provider");
@@ -69,6 +69,10 @@ public class SubjectServiceGrpcClient implements SubjectServiceClient {
                     .setAuthProvider(authProvider.toProto())
                     .setProviderSubjectId(providerSubjectId)
                     .setType(type.toString())
+                    .addAllCredentials(
+                        credentials.stream()
+                            .map(ProtoConverter::from)
+                            .toList())
                     .build());
             return ProtoConverter.to(subject);
         } catch (StatusRuntimeException e) {

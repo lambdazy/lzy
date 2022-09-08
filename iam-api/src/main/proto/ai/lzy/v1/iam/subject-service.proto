@@ -25,6 +25,7 @@ message CreateSubjectRequest {
   AuthProvider auth_provider = 1;       // github, ...
   string provider_subject_id = 2;       // github login, ...
   string type = 3;
+  repeated ai.lzy.v1.iam.Credentials credentials = 4;
 }
 
 message RemoveSubjectRequest {
@@ -41,6 +42,7 @@ message GetSubjectRequest {
 message AddCredentialsRequest {
   ai.lzy.v1.iam.Subject subject = 1;
   ai.lzy.v1.iam.Credentials credentials = 2;
+  // TODO: google.protobuf.Duration ttl = 3;
 }
 
 message AddCredentialsResponse {

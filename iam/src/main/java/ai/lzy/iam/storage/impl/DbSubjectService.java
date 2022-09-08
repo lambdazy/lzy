@@ -5,9 +5,10 @@ import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.*;
 import ai.lzy.iam.storage.db.IamDataSource;
 import ai.lzy.iam.utils.UserVerificationType;
-import ai.lzy.util.auth.exceptions.AuthNotFoundException;
+import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthInternalException;
+import ai.lzy.util.auth.exceptions.AuthNotFoundException;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -34,7 +35,8 @@ public class DbSubjectService {
     @Inject
     private ServiceConfig serviceConfig;
 
-    public Subject createSubject(AuthProvider authProvider, String providerSubjectId, SubjectType subjectType)
+    public Subject createSubject(AuthProvider authProvider, String providerSubjectId, SubjectType subjectType,
+                                 List<SubjectCredentials> credentials)
         throws AuthException
     {
         if (authProvider.isInternal() && subjectType == SubjectType.USER) {
@@ -43,22 +45,65 @@ public class DbSubjectService {
 
         final var subjectId = UUID.randomUUID().toString();
 
+        if (credentials.isEmpty()) {
+            return withRetries(
+                defaultRetryPolicy(),
+                LOG,
+                () -> {
+                    try (var connect = storage.connect();
+                         var st = connect.prepareStatement("""
+                            INSERT INTO users (user_id, auth_provider, provider_user_id, access_type, user_type)
+                            VALUES (?, ?, ?, ?, ?)"""))
+                    {
+                        int parameterIndex = 0;
+                        st.setString(++parameterIndex, subjectId);
+                        st.setString(++parameterIndex, authProvider.name());
+                        st.setString(++parameterIndex, providerSubjectId);
+                        st.setString(++parameterIndex, accessTypeForNewUser(connect).toString());
+                        st.setString(++parameterIndex, subjectType.name());
+                        st.executeUpdate();
+
+                        return switch (subjectType) {
+                            case USER -> new User(subjectId);
+                            case SERVANT -> new Servant(subjectId);
+                        };
+                    }
+                },
+                AuthInternalException::new);
+        }
+
+
         return withRetries(
             defaultRetryPolicy(),
             LOG,
             () -> {
-                try (var connect = storage.connect();
-                     var st = connect.prepareStatement("""
-                        INSERT INTO users (user_id, auth_provider, provider_user_id, access_type, user_type)
-                        VALUES (?, ?, ?, ?, ?)"""))
+                try (var tx = TransactionHandle.create(storage);
+                     var conn = tx.connect();
+                     var subjSt = conn.prepareStatement("""
+                            INSERT INTO users (user_id, auth_provider, provider_user_id, access_type, user_type)
+                            VALUES (?, ?, ?, ?, ?)""");
+                     var credsSt = conn.prepareStatement("""
+                            INSERT INTO credentials (name, value, user_id, type)
+                            VALUES (?, ?, ?, ?)"""))
                 {
-                    int parameterIndex = 0;
-                    st.setString(++parameterIndex, subjectId);
-                    st.setString(++parameterIndex, authProvider.name());
-                    st.setString(++parameterIndex, providerSubjectId);
-                    st.setString(++parameterIndex, accessTypeForNewUser(connect).toString());
-                    st.setString(++parameterIndex, subjectType.name());
-                    st.executeUpdate();
+                    subjSt.setString(1, subjectId);
+                    subjSt.setString(2, authProvider.name());
+                    subjSt.setString(3, providerSubjectId);
+                    subjSt.setString(4, accessTypeForNewUser(conn).toString());
+                    subjSt.setString(5, subjectType.name());
+                    subjSt.executeUpdate();
+
+                    for (var creds : credentials) {
+                        credsSt.clearParameters();
+                        credsSt.setString(1, creds.name());
+                        credsSt.setString(2, creds.value());
+                        credsSt.setString(3, subjectId);
+                        credsSt.setString(4, creds.type().name());
+                        credsSt.addBatch();
+                    }
+                    credsSt.executeBatch();
+
+                    tx.commit();
 
                     return switch (subjectType) {
                         case USER -> new User(subjectId);
