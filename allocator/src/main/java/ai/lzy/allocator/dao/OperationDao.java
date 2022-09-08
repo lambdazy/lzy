@@ -2,6 +2,7 @@ package ai.lzy.allocator.dao;
 
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.allocator.model.Operation;
+import ai.lzy.v1.VmAllocatorApi;
 import com.google.protobuf.Any;
 
 import javax.annotation.Nullable;

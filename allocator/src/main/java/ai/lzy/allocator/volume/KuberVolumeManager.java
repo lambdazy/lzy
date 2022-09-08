@@ -30,18 +30,16 @@ public class KuberVolumeManager implements VolumeManager {
     private static final String EMPTY_STORAGE_CLASS_NAME = "";
 
     private final KubernetesClient client;
-    private final DiskManager diskManager;
 
-    public KuberVolumeManager(KubernetesClient client, DiskManager diskManager) {
+    public KuberVolumeManager(KubernetesClient client) {
         this.client = client;
-        this.diskManager = diskManager;
     }
 
     public static List<VolumeClaim> allocateVolumes(
-        KubernetesClient client, DiskManager diskManager, List<DiskVolumeDescription> volumeRequests)
+        KubernetesClient client, List<DiskVolumeDescription> volumeRequests)
     {
         LOG.info("Allocate volume " + volumeRequests.stream().map(Objects::toString).collect(Collectors.joining(", ")));
-        final VolumeManager volumeManager = new KuberVolumeManager(client, diskManager);
+        final VolumeManager volumeManager = new KuberVolumeManager(client);
         return volumeRequests.stream()
             .map(volumeRequest -> {
                 final Volume volume;
@@ -54,9 +52,9 @@ public class KuberVolumeManager implements VolumeManager {
             }).toList();
     }
 
-    public static void freeVolumes(KubernetesClient client, DiskManager diskManager, List<VolumeClaim> volumeClaims) {
+    public static void freeVolumes(KubernetesClient client, List<VolumeClaim> volumeClaims) {
         LOG.info("Free volumes " + volumeClaims.stream().map(Objects::toString).collect(Collectors.joining(", ")));
-        final VolumeManager volumeManager = new KuberVolumeManager(client, diskManager);
+        final VolumeManager volumeManager = new KuberVolumeManager(client);
         volumeClaims.forEach(volumeClaim -> {
             volumeManager.deleteClaim(volumeClaim.name());
             volumeManager.delete(volumeClaim.volumeName());
@@ -67,13 +65,7 @@ public class KuberVolumeManager implements VolumeManager {
     public Volume create(DiskVolumeDescription diskVolumeDescription) throws NotFoundException {
         try {
             final String diskId = diskVolumeDescription.diskId();
-            LOG.info("Searching for disk=" + diskId);
-            final Disk disk = diskManager.get(diskId);
-            if (disk == null) {
-                throw new NotFoundException("Disk id=" + diskId + " not found");
-            }
-
-            final int diskSize = disk.spec().sizeGb();
+            final int diskSize = diskVolumeDescription.sizeGb();
             LOG.info("Creating persistent volume for disk=" + diskId);
             final String volumeName = "volume-" + randomSuffix();
             final var accessMode = Volume.AccessMode.READ_WRITE_ONCE;

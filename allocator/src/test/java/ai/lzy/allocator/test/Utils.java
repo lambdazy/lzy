@@ -30,8 +30,8 @@ public class Utils {
     public static Operation waitOperation(
         OperationServiceApiGrpc.OperationServiceApiBlockingStub operationService,
         Operation operation,
-        long timeoutSeconds
-    ) {
+        long timeoutSeconds)
+    {
         TimeUtils.waitFlagUp(() -> {
             final OperationService.Operation op = operationService.get(
                 OperationService.GetOperationRequest.newBuilder().setOperationId(operation.getId()).build());

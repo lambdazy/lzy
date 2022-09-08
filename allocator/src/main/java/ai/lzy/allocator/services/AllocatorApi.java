@@ -7,10 +7,14 @@ import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.SessionDao;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.dao.impl.AllocatorDataSource;
+import ai.lzy.allocator.disk.Disk;
+import ai.lzy.allocator.disk.DiskStorage;
 import ai.lzy.allocator.model.CachePolicy;
 import ai.lzy.allocator.model.Session;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
+import ai.lzy.allocator.volume.DiskVolumeDescription;
+import ai.lzy.allocator.volume.HostPathVolumeDescription;
 import ai.lzy.allocator.volume.VolumeRequest;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.model.db.TransactionHandle;
@@ -27,6 +31,10 @@ import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -43,6 +51,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
     private final VmDao dao;
     private final OperationDao operations;
+    private final DiskStorage diskStorage;
     private final SessionDao sessions;
     private final VmAllocator allocator;
     private final ServiceConfig config;
@@ -50,12 +59,13 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
     private final Metrics metrics = new Metrics();
 
     @Inject
-    public AllocatorApi(VmDao dao, OperationDao operations, SessionDao sessions, VmAllocator allocator,
-                        ServiceConfig config, AllocatorDataSource storage)
+    public AllocatorApi(VmDao dao, OperationDao operations, SessionDao sessions, DiskStorage diskStorage,
+                        VmAllocator allocator, ServiceConfig config, AllocatorDataSource storage)
     {
         this.dao = dao;
         this.operations = operations;
         this.sessions = sessions;
+        this.diskStorage = diskStorage;
         this.allocator = allocator;
         this.config = config;
         this.storage = storage;
@@ -209,9 +219,10 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                         var workloads = request.getWorkloadList().stream()
                             .map(Workload::fromProto)
                             .toList();
-                        final var volumes = request.getVolumesList().stream()
-                            .map(VolumeRequest::fromProto)
-                            .toList();
+                        final List<VolumeRequest> volumes = getVolumeRequests(request, op, transaction);
+                        if (volumes == null) {
+                            return null;
+                        }
 
                         var vmSpec = dao.create(request.getSessionId(), request.getPoolLabel(), request.getZone(),
                             workloads, volumes, op.id(), startedAt, transaction);
@@ -264,6 +275,50 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             metrics.allocationError.inc();
             failOperation.accept(op, "Error while executing request");
         }
+    }
+
+    @Nullable
+    private List<VolumeRequest> getVolumeRequests(
+        AllocateRequest request, ai.lzy.allocator.model.Operation op, TransactionHandle transaction
+    ) throws SQLException
+    {
+        final List<VolumeRequest> volumes = new ArrayList<>();
+        for (var volume: request.getVolumesList()) {
+            if (volume.hasHostPathVolume()) {
+                final var hostPathVolume = volume.getHostPathVolume();
+                volumes.add(new VolumeRequest(new HostPathVolumeDescription(
+                    volume.getName(),
+                    hostPathVolume.getPath(),
+                    HostPathVolumeDescription.HostPathType.valueOf(
+                        hostPathVolume.getHostPathType().name()))
+                ));
+            } else if (volume.hasDiskVolume()) {
+                final var diskVolume = volume.getDiskVolume();
+                final Disk disk = diskStorage.get(diskVolume.getDiskId(), transaction);
+                if (disk == null) {
+                    final String message =
+                        "Disk with id %s not found in diskStorage".formatted(diskVolume.getDiskId());
+                    LOG.error(message);
+                    op.setError(Status.NOT_FOUND.withDescription(message));
+                    operations.update(op, transaction);
+                    transaction.commit();
+                    return null;
+                }
+
+                volumes.add(new VolumeRequest(new DiskVolumeDescription(
+                    volume.getName(), diskVolume.getDiskId(), disk.spec().sizeGb()
+                )));
+            } else {
+                final String message = "Unknown volumeType %s for volume=%s"
+                    .formatted(volume.getVolumeTypeCase(), volume.getName());
+                LOG.error(message);
+                op.setError(Status.INVALID_ARGUMENT.withDescription(message));
+                operations.update(op, transaction);
+                transaction.commit();
+                return null;
+            }
+        }
+        return volumes;
     }
 
     @Override
