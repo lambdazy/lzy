@@ -1,3 +1,4 @@
+import base64
 import hashlib
 import inspect
 import os
@@ -18,13 +19,11 @@ from typing import (
 )
 from zipfile import ZipFile
 
+import cloudpickle
+
 from lzy.api.v1.signatures import CallSignature, FuncSignature
 from lzy.proxy import proxy
 from lzy.proxy.result import Just, Nothing, Result
-
-import base64
-
-import cloudpickle
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -76,7 +75,7 @@ def resolve_if_proxy(obj: Any) -> Any:
 
 
 def lazy_proxy(
-        materialization: Callable[[], T], return_type: Type[T], obj_attrs: Dict[str, Any]
+    materialization: Callable[[], T], return_type: Type[T], obj_attrs: Dict[str, Any]
 ) -> Any:
     return proxy(
         materialization,
@@ -123,7 +122,7 @@ def fileobj_hash(fileobj: BytesIO) -> str:
 
 
 def infer_call_signature(
-        f: Callable, output_types: Sequence[Type], *args, **kwargs
+    f: Callable, output_types: Sequence[Type], *args, **kwargs
 ) -> CallSignature:
     types_mapping = {}
     argspec = inspect.getfullargspec(f)
@@ -134,7 +133,7 @@ def infer_call_signature(
         types_mapping[name] = arg._op.type if is_lazy_proxy(arg) else type(arg)
 
     generated_names = []
-    for arg in args[len(argspec.args):]:
+    for arg in args[len(argspec.args) :]:
         name = str(uuid.uuid4())
         generated_names.append(name)
         # noinspection PyProtectedMember

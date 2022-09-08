@@ -1,14 +1,17 @@
 import dataclasses
-from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Type, TypeVar
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Type, TypeVar
 
+from lzy.api.v2.env import DockerPullPolicy, Env
 from lzy.api.v2.snapshot import Snapshot
+from lzy.api.v2.utils.env import generate_env
 from lzy.api.v2.whiteboard_declaration import fetch_whiteboard_meta
+from lzy.py_env.api import PyEnv
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 if TYPE_CHECKING:
+    from lzy.api.v2 import Lzy
     from lzy.api.v2.call import LzyCall
-    from lzy.api.v2.lzy import Lzy
     from lzy.api.v2.runtime import WhiteboardField
 
 
@@ -16,18 +19,40 @@ class LzyWorkflow:
     instance: Optional["LzyWorkflow"] = None
 
     @classmethod
-    def get_active(cls) -> "LzyWorkflow":
-        assert cls.instance is not None, "There is no active LzyWorkflow"
+    def get_active(cls) -> Optional["LzyWorkflow"]:
         return cls.instance
 
     def __init__(
-        self, name: str, owner: "Lzy", snapshot: Snapshot, eager: bool = False
+        self,
+        name: str,
+        owner: "Lzy",
+        snapshot: Snapshot,
+        namespace: Dict[str, Any],
+        *,
+        eager: bool = False,
+        python_version: Optional[str] = None,
+        libraries: Optional[Dict[str, str]] = None,
+        conda_yaml_path: Optional[str] = None,
+        docker_image: Optional[str] = None,
+        docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
+        local_modules_path: Optional[Sequence[str]] = None,
     ):
         self.__snapshot = snapshot
         self.__name = name
         self.__eager = eager
         self.__owner = owner
         self.__call_queue: List["LzyCall"] = []
+
+        self.__auto_py_env: PyEnv = owner.env_provider.provide(namespace)
+        self.__default_env: Env = generate_env(
+            self.__auto_py_env,
+            python_version,
+            libraries,
+            conda_yaml_path,
+            docker_image,
+            docker_pull_policy,
+            local_modules_path,
+        )
 
     @property
     def owner(self) -> "Lzy":
@@ -40,6 +65,14 @@ class LzyWorkflow:
     @property
     def name(self) -> str:
         return self.__name
+
+    @property
+    def auto_py_env(self) -> PyEnv:
+        return self.__auto_py_env
+
+    @property
+    def default_env(self) -> Env:
+        return self.__default_env
 
     def register_call(self, call: "LzyCall") -> Any:
         self.__call_queue.append(call)

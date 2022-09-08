@@ -5,7 +5,7 @@ from unittest import TestCase
 
 from some_imported_file import bar
 
-from lzy.pkg_info import select_modules
+from lzy.api.v1.pkg_info import select_modules
 from test_modules.level1.level1 import Level1
 from test_modules.level1.level2_nb import level_foo
 
