@@ -15,7 +15,8 @@ public interface SubjectServiceClient {
 
     SubjectServiceClient withToken(Supplier<Credentials> tokenSupplier);
 
-    Subject createSubject(AuthProvider authProvider, String providerSubjectId, SubjectType type) throws AuthException;
+    Subject createSubject(AuthProvider authProvider, String providerSubjectId, SubjectType type,
+                          SubjectCredentials... credentials) throws AuthException;
 
     Subject getSubject(String id) throws AuthException;
 

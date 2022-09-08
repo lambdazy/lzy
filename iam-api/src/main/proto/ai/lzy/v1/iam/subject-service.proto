@@ -25,6 +25,7 @@ message CreateSubjectRequest {
   AuthProvider auth_provider = 1;       // github, ...
   string provider_subject_id = 2;       // github login, ...
   string type = 3;
+  repeated ai.lzy.v1.iam.Credentials credentials = 4;
 }
 
 message RemoveSubjectRequest {

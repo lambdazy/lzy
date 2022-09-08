@@ -31,14 +31,14 @@ import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.annotation.Nullable;
+import java.sql.SQLException;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.BiConsumer;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;

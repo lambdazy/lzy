@@ -36,7 +36,7 @@ public final class TransactionHandleImpl implements TransactionHandle {
 
     @Override
     public synchronized void close() throws SQLException {
-        if (con == null) {
+        if (con == null || con.isClosed()) {
             return;
         }
         if (!committed) {

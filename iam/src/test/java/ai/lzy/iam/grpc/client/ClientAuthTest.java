@@ -3,6 +3,7 @@ package ai.lzy.iam.grpc.client;
 import ai.lzy.iam.LzyIAM;
 import ai.lzy.iam.configs.InternalUserConfig;
 import ai.lzy.iam.configs.ServiceConfig;
+import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.SubjectType;
@@ -58,11 +59,9 @@ public class ClientAuthTest {
         var keys = RsaUtils.generateRsaKeys();
         var login = "user1";
 
-        var subject = subjectClient.createSubject(AuthProvider.GITHUB, login, SubjectType.USER);
+        var subject = subjectClient.createSubject(AuthProvider.GITHUB, login, SubjectType.USER,
+            new SubjectCredentials("main", Files.readString(keys.publicKeyPath()), CredentialsType.PUBLIC_KEY));
         Assert.assertEquals(SubjectType.USER, subject.type());
-
-        subjectClient.addCredentials(
-            subject, "main", Files.readString(keys.publicKeyPath()), CredentialsType.PUBLIC_KEY);
 
         var subject2 = authClient.authenticate(
             JwtUtils.credentials(login, AuthProvider.GITHUB.name(), Files.readString(keys.privateKeyPath())));
