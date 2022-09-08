@@ -2,14 +2,6 @@
 import sys
 from subprocess import Popen, PIPE
 
-
-def process(command: str) -> str:
-    print(command)
-    p = Popen(command, shell=True, stdout=PIPE)
-    out, err = p.communicate()
-    return out.decode("utf-8")[:-1]
-
-
 cloud_id = input('cloud id for pool vms: ')
 folder_id = input('folder id for pool vms: ')
 subnet_id = input('subnet id for pool vms: ')
@@ -34,20 +26,31 @@ if ans != "YES!":
     sys.exit()
 
 # ------------ SECURITY GROUPS ------------ #
-main_sg_id = process(
-    "yc vpc sg get --cloud-id {} --folder-id {} --name lzy-{}-main-sg --format json | jq -r '.id'".format(
-        cloud_id,
-        folder_id,
-        cluster_name
-    )
-)
-public_services_sg_id = process(
-    "yc vpc sg get --cloud-id {} --folder-id {} --name lzy-{}-public-services --format json | jq -r '.id'".format(
-        cloud_id,
-        folder_id,
-        cluster_name
-    )
-)
+# main_sg_id = process(
+#     "yc vpc sg get --cloud-id {} --folder-id {} --name lzy-{}-main-sg --format json | jq -r '.id'".format(
+#         cloud_id,
+#         folder_id,
+#         cluster_name
+#     )
+# )
+security_groups = sg_service.List(ListSecurityGroupsRequest(folder_id=folder_id)).security_groups
+main_sg_id = list(filter(
+    lambda sg: sg.name == "lzy-{}-main-sg".format(cluster_name),
+    security_groups
+))[0].id
+
+# public_services_sg_id = process(
+#     "yc vpc sg get --cloud-id {} --folder-id {} --name lzy-{}-public-services --format json | jq -r '.id'".format(
+#         cloud_id,
+#         folder_id,
+#         cluster_name
+#     )
+# )
+security_groups = sg_service.List(ListSecurityGroupsRequest(folder_id=folder_id)).security_groups
+main_sg_id = list(filter(
+    lambda sg: sg.name == "lzy-{}-public-services".format(cluster_name),
+    security_groups
+))[0].id
 
 # TODO: fixed scale or auto scale
 print("trying to create {} k8s node group...\n".format(cluster_name))

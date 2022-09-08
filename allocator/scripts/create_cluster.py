@@ -110,7 +110,7 @@ except grpc.RpcError as e:
         print("lzy-{}-public-services is already exist\n".format(cluster_name))
         security_groups = sg_service.List(ListSecurityGroupsRequest(folder_id=folder_id)).security_groups
         public_services_sg_id = list(filter(
-            lambda sg: sg.name == "lzy-{}-main-sg".format(cluster_name),
+            lambda sg: sg.name == "lzy-{}-public-services".format(cluster_name),
             security_groups
         ))[0].id
     else:
