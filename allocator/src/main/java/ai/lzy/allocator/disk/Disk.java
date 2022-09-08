@@ -17,12 +17,12 @@ public record Disk(
                 .setSizeGb(spec.sizeGb())
                 .setZoneId(spec.zone())
                 .build())
-            .setCreatedBy(meta.user())
+            .setOwner(meta.user())
             .build();
     }
 
     public static Disk fromProto(DiskApi.Disk disk) {
-        return new Disk(disk.getDiskId(), DiskSpec.fromProto(disk.getSpec()), new DiskMeta(disk.getCreatedBy()));
+        return new Disk(disk.getDiskId(), DiskSpec.fromProto(disk.getSpec()), new DiskMeta(disk.getOwner()));
     }
 
     @Override

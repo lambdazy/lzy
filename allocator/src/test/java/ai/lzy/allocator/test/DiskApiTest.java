@@ -121,12 +121,12 @@ public class DiskApiTest extends BaseTestWithIam {
             createDiskOperation.getResponse().unpack(DiskServiceApi.CreateDiskResponse.class);
         final DiskApi.Disk disk = createDiskResponse.getDisk();
         Assert.assertEquals(defaultDiskSpec, DiskSpec.fromProto(disk.getSpec()));
-        Assert.assertEquals(defaultUserName, disk.getCreatedBy());
+        Assert.assertEquals(defaultUserName, disk.getOwner());
 
         Assert.assertNotNull(diskManager.get(disk.getDiskId()));
 
         deleteDisk(disk);
-        Assert.assertNull(diskManager.get(disk.getDiskId()));
+        Assert.assertTrue(waitDiskDeletion(disk));
     }
 
     @Test
@@ -194,7 +194,7 @@ public class DiskApiTest extends BaseTestWithIam {
         final DiskApi.Disk clonedDisk = cloneDiskResponse.getDisk();
 
         Assert.assertEquals(clonedDiskSpec, DiskSpec.fromProto(clonedDisk.getSpec()));
-        Assert.assertEquals(newUserId, clonedDisk.getCreatedBy());
+        Assert.assertEquals(newUserId, clonedDisk.getOwner());
 
         Assert.assertNotNull(diskManager.get(disk.getDiskId()));
         Assert.assertNotNull(diskManager.get(clonedDisk.getDiskId()));

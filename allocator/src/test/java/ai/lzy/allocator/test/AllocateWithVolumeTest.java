@@ -145,7 +145,8 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
     }
 
     private String runWorkloadWithDisk(List<Workload> workloads, String cmd, List<VolumeApi.Volume> volumes)
-        throws InvalidProtocolBufferException {
+        throws InvalidProtocolBufferException
+    {
         var execResult = runWorkloadWithDisk(workloads, volumes, (podName) -> execInPod(podName, cmd));
         if (execResult == null || execResult.exitCode() != 0) {
             throw new IllegalStateException("Workload has failed");
@@ -159,7 +160,8 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
         List<Workload> workloads,
         List<VolumeApi.Volume> volumes,
         ExecPodFunc execPodFunc
-    ) throws InvalidProtocolBufferException {
+    ) throws InvalidProtocolBufferException
+    {
         final VmAllocatorApi.CreateSessionResponse createSessionResponse = allocator.createSession(
             VmAllocatorApi.CreateSessionRequest.newBuilder()
                 .setOwner(UUID.randomUUID().toString())
@@ -263,7 +265,8 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
 
     @Test
     public void bidirectionalMountTest()
-        throws InvalidProtocolBufferException, NotFoundException, ExecutionException, InterruptedException {
+        throws InvalidProtocolBufferException, NotFoundException, ExecutionException, InterruptedException
+    {
         final Disk disk = diskManager.create(createTestDiskSpec(3), new DiskMeta("user-id"));
         final String hostDirVolumeName = "mountDir";
         final String diskVolumeName = "volume";

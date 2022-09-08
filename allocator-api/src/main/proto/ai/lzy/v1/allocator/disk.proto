@@ -23,5 +23,5 @@ message DiskSpec {
 message Disk {
   string disk_id = 1;
   DiskSpec spec = 2;
-  string created_by = 3;
+  string owner = 3;
 }
