@@ -20,7 +20,6 @@ import org.junit.*;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.List;
 
 public class ClientAuthTest {
 
@@ -60,8 +59,8 @@ public class ClientAuthTest {
         var keys = RsaUtils.generateRsaKeys();
         var login = "user1";
 
-        var subject = subjectClient.createSubject(AuthProvider.GITHUB, login, SubjectType.USER, List.of(
-            new SubjectCredentials("main", Files.readString(keys.publicKeyPath()), CredentialsType.PUBLIC_KEY)));
+        var subject = subjectClient.createSubject(AuthProvider.GITHUB, login, SubjectType.USER,
+            new SubjectCredentials("main", Files.readString(keys.publicKeyPath()), CredentialsType.PUBLIC_KEY));
         Assert.assertEquals(SubjectType.USER, subject.type());
 
         var subject2 = authClient.authenticate(

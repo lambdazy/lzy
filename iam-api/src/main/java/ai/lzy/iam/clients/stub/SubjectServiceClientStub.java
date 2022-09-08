@@ -18,7 +18,7 @@ public class SubjectServiceClientStub implements SubjectServiceClient {
 
     @Override
     public Subject createSubject(AuthProvider authProvider, String providerSubjectId, SubjectType type,
-                                 List<SubjectCredentials> credentials) throws AuthException
+                                 SubjectCredentials... credentials) throws AuthException
     {
         final var id = "user_stub_" + UUID.randomUUID();
         return switch (type) {

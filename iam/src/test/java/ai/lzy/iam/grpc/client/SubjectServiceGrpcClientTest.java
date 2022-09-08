@@ -22,7 +22,6 @@ import org.junit.*;
 
 import java.io.IOException;
 import java.util.Comparator;
-import java.util.List;
 import java.util.NoSuchElementException;
 
 public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
@@ -79,7 +78,7 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
         var creds2 = new SubjectCredentials("second", "second value", CredentialsType.OTT);
 
         var subject = subjectClient.createSubject(AuthProvider.INTERNAL, "Superman", SubjectType.SERVANT,
-            List.of(creds1, creds2));
+            creds1, creds2);
         Assert.assertEquals(SubjectType.SERVANT, subject.type());
 
         var creds = subjectClient.listCredentials(subject);

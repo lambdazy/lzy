@@ -103,7 +103,7 @@ public class AllocatorImpl implements ServantsAllocator {
             credentials = cred.credentials();
 
             final var subj = subjectClient.createSubject(AuthProvider.INTERNAL, servantId, SubjectType.SERVANT,
-                List.of(new SubjectCredentials("main", cred.publicKey(), CredentialsType.PUBLIC_KEY)));
+                new SubjectCredentials("main", cred.publicKey(), CredentialsType.PUBLIC_KEY));
 
             abClient.setAccessBindings(new Workflow(workflowName),
                 List.of(new AccessBinding(Role.LZY_WORKFLOW_OWNER, subj)));

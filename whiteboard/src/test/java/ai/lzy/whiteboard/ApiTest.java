@@ -370,8 +370,8 @@ public class ApiTest extends BaseTestWithIam {
             var login = "github-" + name;
             var creds = JwtUtils.generateCredentials(login, "GITHUB");
 
-            var subj = subjectClient.createSubject(AuthProvider.GITHUB, login, SubjectType.USER, List.of(
-                new SubjectCredentials("main", creds.publicKey(), CredentialsType.PUBLIC_KEY)));
+            var subj = subjectClient.createSubject(AuthProvider.GITHUB, login, SubjectType.USER,
+                new SubjectCredentials("main", creds.publicKey(), CredentialsType.PUBLIC_KEY));
 
             return new User(subj.id(), creds.credentials());
         }
