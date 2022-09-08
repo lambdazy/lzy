@@ -42,7 +42,6 @@ message GetSubjectRequest {
 message AddCredentialsRequest {
   ai.lzy.v1.iam.Subject subject = 1;
   ai.lzy.v1.iam.Credentials credentials = 2;
-  // TODO: google.protobuf.Duration ttl = 3;
 }
 
 message AddCredentialsResponse {
