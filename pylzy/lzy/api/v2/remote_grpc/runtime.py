@@ -33,7 +33,6 @@ KEY_PATH_ENV = "LZY_KEY_PATH"
 LZY_ADDRESS_ENV = "LZY_ADDRESS_ENV"
 FETCH_STATUS_PERIOD_SEC = 10
 
-
 _LOG = logging.getLogger(__name__)
 
 
@@ -223,7 +222,9 @@ class GrpcRuntime(Runtime):
                 output_slots.append(slot_path)
                 ret_descriptions.append(slot_path)
 
-            docker_image = call.env.base_env.name
+            docker_image = (
+                call.env.docker.image  # type: ignore
+            )  # TODO(tomato): call.env.docker can be none
             request = ProcessingRequest(
                 serializers=self.__workflow.owner.serializer,
                 op=call.signature.func.callable,
@@ -254,7 +255,7 @@ class GrpcRuntime(Runtime):
                     if docker_image is not None
                     else "",  # TODO(artolord) change env api
                     python=Operation.PythonEnvSpec(  # TODO(artolord) add local modules loading
-                        yaml=call.env.aux_env.conda_yaml
+                        yaml=call.env.conda.yaml
                     ),
                     poolSpecName="S",  # TODO(artolord) add label resolving
                 ),

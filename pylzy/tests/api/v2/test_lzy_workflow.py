@@ -1,8 +1,7 @@
 import uuid
 from unittest import TestCase, skip
 
-from lzy.api.v2 import op
-from lzy.api.v2.lzy import Lzy
+from lzy.api.v2 import Lzy, op
 
 
 @op
