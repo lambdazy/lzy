@@ -16,6 +16,10 @@ import ai.lzy.allocator.model.Workload;
 import ai.lzy.allocator.volume.DiskVolumeDescription;
 import ai.lzy.allocator.volume.HostPathVolumeDescription;
 import ai.lzy.allocator.volume.VolumeRequest;
+import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.CredentialsType;
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.JsonUtils;
@@ -24,6 +28,7 @@ import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.OperationService.Operation;
 import ai.lzy.v1.VmAllocatorApi.*;
 import com.google.protobuf.Any;
+import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
@@ -31,14 +36,16 @@ import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.annotation.Nullable;
+import javax.inject.Named;
+import java.sql.SQLException;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 import java.util.function.BiConsumer;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
@@ -57,10 +64,12 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
     private final ServiceConfig config;
     private final AllocatorDataSource storage;
     private final Metrics metrics = new Metrics();
+    private final SubjectServiceGrpcClient subjectClient;
 
     @Inject
     public AllocatorApi(VmDao dao, OperationDao operations, SessionDao sessions, DiskStorage diskStorage,
-                        VmAllocator allocator, ServiceConfig config, AllocatorDataSource storage)
+                        VmAllocator allocator, ServiceConfig config, AllocatorDataSource storage,
+                        @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel)
     {
         this.dao = dao;
         this.operations = operations;
@@ -69,6 +78,8 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         this.allocator = allocator;
         this.config = config;
         this.storage = storage;
+
+        this.subjectClient = new SubjectServiceGrpcClient(iamChannel, config.getIam()::createCredentials);
     }
 
     @Override
@@ -258,6 +269,12 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
         responseObserver.onNext(op.toProto());
         responseObserver.onCompleted();
+
+        {
+            var vmSubj = subjectClient.createSubject(AuthProvider.INTERNAL, "vm-" + spec.vmId(), SubjectType.SERVANT);
+            var token = UUID.randomUUID().toString();
+            subjectClient.addCredentials(vmSubj, "main", token, CredentialsType.OTT);
+        }
 
         try {
             try {
