@@ -155,6 +155,10 @@ class Lzy:
             name,
             self,
             namespace,
+            snapshot=DefaultSnapshot(
+                storage_registry=self.storage_registry,
+                serializer_registry=self.serializer,
+            ),
             eager=eager,
             python_version=python_version,
             libraries=libraries,

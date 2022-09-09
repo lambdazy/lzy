@@ -41,6 +41,7 @@ class LzyWorkflow:
         name: str,
         owner: "Lzy",
         namespace: Dict[str, Any],
+        snapshot: Snapshot,
         *,
         eager: bool = False,
         python_version: Optional[str] = None,
@@ -50,7 +51,7 @@ class LzyWorkflow:
         docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
         local_modules_path: Optional[Sequence[str]] = None,
     ):
-        self.__snapshot: Optional[Snapshot] = None
+        self.__snapshot = snapshot
         self.__name = name
         self.__eager = eager
         self.__owner = owner
@@ -82,15 +83,6 @@ class LzyWorkflow:
 
     @property
     def snapshot(self) -> Snapshot:
-        if not self.__started:
-            raise RuntimeError("Cannot get snapshot, please start workflow")
-
-        if (
-            self.__snapshot is None
-        ):  # lazy construction to enable credentials from workflow
-            self.__snapshot = DefaultSnapshot(
-                self.owner.storage_registry, self.owner.serializer
-            )
         return self.__snapshot
 
     @property
