@@ -5,22 +5,21 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Awaitable,
+    Dict,
     List,
     Optional,
     Sequence,
     Type,
     TypeVar,
-    Dict
 )
 
-from lzy.api.v2.snapshot import DefaultSnapshot, Snapshot
-from lzy.api.v2.utils.proxy_adapter import is_lzy_proxy
 from lzy.api.v2.env import DockerPullPolicy, Env
-from lzy.api.v2.snapshot import Snapshot
+from lzy.api.v2.snapshot import DefaultSnapshot, Snapshot
 from lzy.api.v2.utils.env import generate_env
+from lzy.api.v2.utils.proxy_adapter import is_lzy_proxy
 from lzy.api.v2.whiteboard_declaration import fetch_whiteboard_meta
-from lzy.storage.api import StorageRegistry
 from lzy.py_env.api import PyEnv
+from lzy.storage.api import StorageRegistry
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -51,7 +50,7 @@ class LzyWorkflow:
         docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
         local_modules_path: Optional[Sequence[str]] = None,
     ):
-        self.__snapshot = None
+        self.__snapshot: Optional[Snapshot] = None
         self.__name = name
         self.__eager = eager
         self.__owner = owner
@@ -85,6 +84,7 @@ class LzyWorkflow:
     def snapshot(self) -> Snapshot:
         if not self.__started:
             raise RuntimeError("Cannot get snapshot, please start workflow")
+
         if (
             self.__snapshot is None
         ):  # lazy construction to enable credentials from workflow
