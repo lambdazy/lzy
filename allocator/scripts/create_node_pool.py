@@ -143,7 +143,7 @@ try:
                 },
                 network_interface_specs=[
                     NetworkInterfaceSpec(
-                        subnet_ids=[subnet_id],
+                        subnet_ids=[config.subnet_id],
                         primary_v4_address_spec=NodeAddressSpec(),
                         primary_v6_address_spec=NodeAddressSpec(),
                         security_group_ids=[main_sg_id, public_services_sg_id]
