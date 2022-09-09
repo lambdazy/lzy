@@ -39,6 +39,8 @@ let
 
       # needed for tests/serialization/test_serializer.py
       pure-protobuf
+      moto
+      requests
 
       coverage
       coverage-badge

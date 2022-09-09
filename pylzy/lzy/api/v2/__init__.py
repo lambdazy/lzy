@@ -27,26 +27,6 @@ from lzy.storage.registry import DefaultStorageRegistry
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
-
-def handlers():
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-    handler.setFormatter(formatter)
-    yield handler
-
-
-def init_logger():
-    logging.basicConfig(
-        handlers=handlers(),
-        level=logging.INFO,
-    )
-
-
-init_logger()
-
 FuncT = TypeVar(
     "FuncT",
     bound=Callable[..., Any],
@@ -174,7 +154,6 @@ class Lzy:
         return LzyWorkflow(
             name,
             self,
-            DefaultSnapshot(self.__storage_registry, self.__serializer_registry),
             namespace,
             eager=eager,
             python_version=python_version,

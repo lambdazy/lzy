@@ -13,7 +13,8 @@ from typing import (
 )
 
 from lzy.api.v2.signatures import CallSignature, FuncSignature
-from lzy.api.v2.utils.proxy_adapter import is_lzy_proxy
+from lzy.api.v2.snapshot import Snapshot
+from lzy.api.v2.utils.proxy_adapter import get_proxy_entry_id, is_lzy_proxy
 from lzy.proxy.result import Just, Nothing, Result
 
 T = TypeVar("T")
@@ -22,7 +23,7 @@ TypeInferResult = Result[Sequence[type]]
 
 
 def infer_call_signature(
-    f: Callable, output_type: Sequence[type], *args, **kwargs
+    f: Callable, output_type: Sequence[type], snapshot: Snapshot, *args, **kwargs
 ) -> CallSignature:
     types_mapping = {}
     argspec = getfullargspec(f)
@@ -30,9 +31,12 @@ def infer_call_signature(
     # pylint: disable=protected-access
     for name, arg in chain(zip(argspec.args, args), kwargs.items()):
         # noinspection PyProtectedMember
-        types_mapping[name] = (
-            arg.lzy_call._op.output_type if is_lzy_proxy(arg) else type(arg)
-        )
+        if is_lzy_proxy(arg):
+            eid = get_proxy_entry_id(arg)
+            entry = snapshot.get(eid)
+            types_mapping[name] = entry.typ
+        else:
+            types_mapping[name] = type(arg)
 
     generated_names = []
     for arg in args[len(argspec.args) :]:

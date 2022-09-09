@@ -1,13 +1,16 @@
+import asyncio
 import dataclasses
+import logging
 import uuid
 from abc import ABC, abstractmethod
+from io import BytesIO
 from typing import Any, Dict, Optional, Type, TypeVar, cast
 
 from lzy.proxy.result import Just, Nothing, Result
 from lzy.serialization.api import SerializerRegistry
 from lzy.storage.api import AsyncStorageClient, StorageRegistry
 
-T = TypeVar("T")  # pylint: disable=invalid-name
+_LOG = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -32,11 +35,11 @@ class Snapshot(ABC):
         pass
 
     @abstractmethod
-    def get_data(self, entry_id: str) -> Result[Any]:
+    async def get_data(self, entry_id: str) -> Result[Any]:
         pass
 
     @abstractmethod
-    def put_data(self, entry_id: str, data: Any) -> None:
+    async def put_data(self, entry_id: str, data: Any) -> None:
         pass
 
     @abstractmethod
@@ -66,24 +69,49 @@ class DefaultSnapshot(Snapshot):
             AsyncStorageClient, storage_registry.default_client()
         )
         self.__storage_name = cast(str, storage_registry.default_storage_name())
-        self.__entry_id_to_value: Dict[str, str] = {}
         self.__entry_id_to_entry: Dict[str, SnapshotEntry] = {}
+
+        config = storage_registry.config(self.__storage_name)
+        if config is None:
+            raise ValueError("Cannot initialize snapshot: no default storage")
+        self.__storage_bucket = config.bucket
 
         # TODO (tomato): add uploading/downloading from storage
 
     def create_entry(self, typ: Type) -> SnapshotEntry:
-        e = SnapshotEntry(str(uuid.uuid4()), typ, "", self.__storage_name)
+        eid = str(uuid.uuid4())
+        url = self.__storage_client.generate_uri(self.__storage_bucket, eid)
+        e = SnapshotEntry(eid, typ, url, self.__storage_name)
         self.__entry_id_to_entry[e.id] = e
+        _LOG.debug(f"Created entry {e}")
         return e
 
-    def get_data(self, entry_id: str) -> Result[Any]:
-        res = self.__entry_id_to_value.get(entry_id, Nothing())
-        if isinstance(res, Nothing):
-            return res
-        return Just(res)
+    async def get_data(self, entry_id: str) -> Result[Any]:
+        _LOG.debug(f"Getting data for entry {entry_id}")
+        entry = self.__entry_id_to_entry.get(entry_id, None)
+        if entry is None:
+            return Nothing()
 
-    def put_data(self, entry_id: str, data: Any):
-        self.__entry_id_to_value[entry_id] = data
+        with BytesIO() as f:
+            await self.__storage_client.read(entry.storage_url, f)
+            f.seek(0)
+            res = self.__serializer_registry.find_serializer_by_type(
+                entry.typ
+            ).deserialize(f, entry.typ)
+            return Just(res)
+
+    async def put_data(self, entry_id: str, data: Any) -> None:
+        _LOG.debug(f"Putting data for entry {entry_id}")
+        entry = self.__entry_id_to_entry.get(entry_id, None)
+        if entry is None:
+            raise ValueError(f"Cannot get entry {entry_id}")
+
+        with BytesIO() as f:
+            self.__serializer_registry.find_serializer_by_type(entry.typ).serialize(
+                data, f
+            )
+            f.seek(0)
+            await self.__storage_client.write(entry.storage_url, f)
 
     def get(self, entry_id: str) -> SnapshotEntry:
         return self.__entry_id_to_entry[entry_id]

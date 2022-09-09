@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from lzy.proxy.automagic import proxy
 from lzy.proxy.result import Just
@@ -17,6 +17,12 @@ def is_lzy_proxy(obj: Any) -> bool:
     return hasattr(cls, __lzy_proxied) and getattr(cls, __lzy_proxied)
 
 
+def get_proxy_entry_id(obj: Any) -> str:
+    assert is_lzy_proxy(obj)
+    cls = type(obj)
+    return cast(str, getattr(cls, __entry_id))
+
+
 def materialized(obj: Any) -> bool:
     return obj.__lzy_materialized__  # type: ignore
 
@@ -26,14 +32,14 @@ def materialize(obj: Any) -> Any:
 
 
 def lzy_proxy(entry_id: str, typ: type, wflow: "LzyWorkflow") -> Any:
-    def __materialize():
-        data = wflow.owner.snapshot.get_data(entry_id)
+    async def __materialize() -> Any:
+        data = await wflow.snapshot.get_data(entry_id)
         if isinstance(data, Just):
             return data.value
 
-        wflow.barrier()
+        await wflow._barrier()
 
-        new_data = wflow.owner.snapshot.get_data(entry_id)
+        new_data = await wflow.snapshot.get_data(entry_id)
         if isinstance(new_data, Just):
             return new_data.value
         raise RuntimeError(
@@ -41,7 +47,7 @@ def lzy_proxy(entry_id: str, typ: type, wflow: "LzyWorkflow") -> Any:
         )
 
     return proxy(
-        __materialize,
+        lambda: wflow._run_async(__materialize()),
         typ,  # type: ignore
         cls_attrs={__lzy_proxied: True, __entry_id: entry_id},
     )

@@ -39,7 +39,9 @@ class StorageConfig:
         bucket: str, access_token: str, secret_token: str
     ) -> "StorageConfig":
         return StorageConfig(
-            AmazonCredentials("storage.yandexcloud.net", access_token, secret_token),
+            AmazonCredentials(
+                "https://storage.yandexcloud.net", access_token, secret_token
+            ),
             bucket,
         )
 
@@ -60,11 +62,15 @@ class AsyncStorageClient(ABC):
         pass
 
     @abstractmethod
-    async def write(self, container: str, blob: str, data: BinaryIO):
+    async def write(self, url: str, data: BinaryIO):
         pass
 
     @abstractmethod
     async def blob_exists(self, container: str, blob: str) -> bool:
+        pass
+
+    @abstractmethod
+    async def bucket_exists(self, bucket: str) -> bool:
         pass
 
     @abstractmethod
