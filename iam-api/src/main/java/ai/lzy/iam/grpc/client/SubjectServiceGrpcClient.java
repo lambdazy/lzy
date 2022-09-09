@@ -3,7 +3,6 @@ package ai.lzy.iam.grpc.client;
 import ai.lzy.iam.clients.SubjectServiceClient;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.AuthProvider;
-import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.utils.GrpcConfig;
@@ -109,18 +108,14 @@ public class SubjectServiceGrpcClient implements SubjectServiceClient {
     }
 
     @Override
-    public void addCredentials(Subject subject, String name, String value, CredentialsType type) throws AuthException {
+    public void addCredentials(Subject subject, SubjectCredentials credentials) throws AuthException {
         try {
             //Empty response, see lzy-subject-service.proto
             //noinspection ResultOfMethodCallIgnored
             subjectService.addCredentials(
                 LSS.AddCredentialsRequest.newBuilder()
                     .setSubject(ProtoConverter.from(subject))
-                    .setCredentials(IAM.Credentials.newBuilder()
-                        .setName(name)
-                        .setCredentials(value)
-                        .setType(type.toProto())
-                        .build())
+                    .setCredentials(ProtoConverter.from(credentials))
                     .build());
         } catch (StatusRuntimeException e) {
             throw AuthException.fromStatusRuntimeException(e);
