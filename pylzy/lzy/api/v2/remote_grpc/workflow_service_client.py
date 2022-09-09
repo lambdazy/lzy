@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Tuple, Union
 
+from grpc.aio import Channel
+
 from ai.lzy.v1.workflow.workflow_pb2 import Graph, SnapshotStorage
 from ai.lzy.v1.workflow.workflow_service_pb2 import (
     AttachWorkflowRequest,
@@ -83,11 +85,18 @@ Message = Union[StderrMessage, StdoutMessage]
 
 
 class WorkflowServiceClient:
-    def __init__(self, address: str, token: str):
+    @staticmethod
+    async def create(address: str, token: str) -> "WorkflowServiceClient":
         channel = build_channel(
             address, interceptors=[add_headers_interceptor({"Authorization": token})]
         )
-        self.stub = LzyWorkflowServiceStub(channel)
+        await channel.channel_ready()
+        stub = LzyWorkflowServiceStub(channel)
+        return WorkflowServiceClient(stub, channel)
+
+    def __init__(self, stub: LzyWorkflowServiceStub, channel: Channel):
+        self.__stub = stub
+        self.__channel = channel
 
     async def create_workflow(
         self, name: str, storage: Optional[StorageConfig] = None
@@ -104,7 +113,7 @@ class WorkflowServiceClient:
                     bucket=storage.bucket, azure=to(storage.credentials)
                 )
 
-        res = await self.stub.CreateWorkflow(
+        res = await self.__stub.CreateWorkflow(
             CreateWorkflowRequest(workflowName=name, snapshotStorage=s)
         )
         exec_id = res.executionId
@@ -123,7 +132,7 @@ class WorkflowServiceClient:
             workflowName=name,
             executionId=execution_id,
         )
-        await self.stub.AttachWorkflow(request)
+        await self.__stub.AttachWorkflow(request)
 
     async def finish_workflow(
         self,
@@ -136,14 +145,14 @@ class WorkflowServiceClient:
             executionId=execution_id,
             reason=reason,
         )
-        await self.stub.FinishWorkflow(request)
+        await self.__stub.FinishWorkflow(request)
 
     async def delete_workflow(self, name: str) -> None:
         request = DeleteWorkflowRequest(workflowName=name)
-        await self.stub.DeleteWorkflow(request)
+        await self.__stub.DeleteWorkflow(request)
 
     async def read_std_slots(self, execution_id: str) -> AsyncIterator[Message]:
-        stream: AsyncIterable[ReadStdSlotsResponse] = self.stub.ReadStdSlots(
+        stream: AsyncIterable[ReadStdSlotsResponse] = self.__stub.ReadStdSlots(
             ReadStdSlotsRequest(executionId=execution_id)
         )
 
@@ -156,14 +165,14 @@ class WorkflowServiceClient:
                     yield StdoutMessage(line)
 
     async def execute_graph(self, execution_id: str, graph: Graph) -> str:
-        res: ExecuteGraphResponse = await self.stub.ExecuteGraph(
+        res: ExecuteGraphResponse = await self.__stub.ExecuteGraph(
             ExecuteGraphRequest(executionId=execution_id, graph=graph)
         )
 
         return res.graphId
 
     async def graph_status(self, execution_id: str, graph_id: str) -> GraphStatus:
-        res: GraphStatusResponse = await self.stub.GraphStatus(
+        res: GraphStatusResponse = await self.__stub.GraphStatus(
             GraphStatusRequest(executionId=execution_id, graphId=graph_id)
         )
 
@@ -184,6 +193,9 @@ class WorkflowServiceClient:
         )
 
     async def graph_stop(self, execution_id: str, graph_id: str):
-        await self.stub.StopGraph(
+        await self.__stub.StopGraph(
             StopGraphRequest(executionId=execution_id, graphId=graph_id)
         )
+
+    async def stop(self):
+        await self.__channel.close()

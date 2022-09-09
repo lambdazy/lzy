@@ -1,11 +1,11 @@
 import inspect
 import sys
-from importlib_metadata import packages_distributions  # type: ignore
 from types import ModuleType
 from typing import Any, Dict, Iterable, List, Union, cast
 
 import pkg_resources
 import requests
+from importlib_metadata import packages_distributions  # type: ignore
 from stdlib_list import stdlib_list
 
 from lzy.py_env.api import PyEnv, PyEnvProvider
