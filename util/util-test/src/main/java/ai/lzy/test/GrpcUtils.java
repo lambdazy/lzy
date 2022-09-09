@@ -1,7 +1,6 @@
 package ai.lzy.test;
 
 import ai.lzy.model.utils.FreePortFinder;
-import ai.lzy.v1.ChannelManager;
 import ai.lzy.v1.Channels;
 import ai.lzy.v1.LzyPortalApi;
 import ai.lzy.v1.Operations;
@@ -10,11 +9,12 @@ import org.junit.Assert;
 
 import java.util.function.Consumer;
 
+import static ai.lzy.v1.ChannelManager.*;
+
 public class GrpcUtils {
 
-    public static ChannelManager.ChannelCreateRequest makeCreateDirectChannelCommand(String workflowId,
-        String channelName) {
-        return ChannelManager.ChannelCreateRequest.newBuilder()
+    public static ChannelCreateRequest makeCreateDirectChannelCommand(String workflowId, String channelName) {
+        return ChannelCreateRequest.newBuilder()
             .setWorkflowId(workflowId)
             .setChannelSpec(
                 Channels.ChannelSpec.newBuilder()
@@ -25,14 +25,14 @@ public class GrpcUtils {
             ).build();
     }
 
-    public static ChannelManager.ChannelDestroyRequest makeDestroyChannelCommand(String channelId) {
-        return ChannelManager.ChannelDestroyRequest.newBuilder()
+    public static ChannelDestroyRequest makeDestroyChannelCommand(String channelId) {
+        return ChannelDestroyRequest.newBuilder()
             .setChannelId(channelId)
             .build();
     }
 
-    public static ChannelManager.ChannelDestroyAllRequest makeDestroyAllCommand(String workflowId) {
-        return ChannelManager.ChannelDestroyAllRequest.newBuilder().setWorkflowId(workflowId).build();
+    public static ChannelDestroyAllRequest makeDestroyAllCommand(String workflowId) {
+        return ChannelDestroyAllRequest.newBuilder().setWorkflowId(workflowId).build();
     }
 
     public static Operations.DataScheme makePlainTextDataScheme() {
@@ -78,8 +78,7 @@ public class GrpcUtils {
             .build();
     }
 
-    public static LzyPortalApi.PortalSlotDesc.Snapshot makeAmazonSnapshot(String key, String bucket,
-                                                                          String endpoint) {
+    public static LzyPortalApi.PortalSlotDesc.Snapshot makeAmazonSnapshot(String key, String bucket, String endpoint) {
         return LzyPortalApi.PortalSlotDesc.Snapshot.newBuilder()
             .setS3(LzyPortalApi.S3Locator.newBuilder()
                 .setKey(key)

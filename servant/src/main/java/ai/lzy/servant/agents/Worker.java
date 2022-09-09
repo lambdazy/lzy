@@ -104,6 +104,7 @@ public class Worker {
 
         try {
             allocatorAgent = new AllocatorAgent(token, vmId, allocatorAddress, allocatorHeartbeatPeriod, realHost);
+            allocatorAgent.start();
         } catch (AllocatorAgent.RegisterException e) {
             throw new RuntimeException(e);
         }

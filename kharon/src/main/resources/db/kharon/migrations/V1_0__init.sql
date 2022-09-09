@@ -1,8 +1,8 @@
 create type storage_type as enum ('USER', 'INTERNAL');
 
 create type portal_status as enum (
-    'CREATING_SESSION', 'REQUEST_VM',
-    'ALLOCATING_VM', 'VM_READY'
+    'CREATING_STD_CHANNELS', 'CREATING_SESSION',
+    'REQUEST_VM', 'ALLOCATING_VM', 'VM_READY'
 );
 
 create table workflow_executions (
@@ -22,6 +22,9 @@ create table workflow_executions (
     allocate_op_id text,
     portal_vm_id text,
     portal_vm_address text,
+
+    portal_stdout_channel_id text,
+    portal_stderr_channel_id text,
 
     primary key (execution_id),
     check (finished_at >= created_at)

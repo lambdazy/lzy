@@ -81,6 +81,7 @@ public class AllocatorMain {
     }
 
     public void stop() {
+        LOG.info("Shutdown allocator at {}...", config.getAddress());
         server.shutdown();
         metricReporter.stop();
         gc.shutdown();

@@ -46,7 +46,9 @@ public record Vm(
 
         List<Workload> workloads,
         List<VolumeRequest> volumeRequests
-    ) {}
+    ) {
+        public static final String PORTAL_POOL_LABEL = "portals";
+    }
 
 
     public record State(

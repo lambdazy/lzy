@@ -65,7 +65,8 @@ public final class LzyFsServer {
 
     @Deprecated
     public LzyFsServer(String agentId, String mountPoint, URI selfUri, @Nullable URI lzyServerUri,
-                       @Nullable URI lzyWhiteboardUri, URI channelManagerUri, IAM.Auth auth) throws IOException {
+                       @Nullable URI lzyWhiteboardUri, URI channelManagerUri, IAM.Auth auth) throws IOException
+    {
         this.agentId = agentId;
         this.channelManagerUri = channelManagerUri;
         assert LzyFs.scheme().equals(selfUri.getScheme());
@@ -138,7 +139,8 @@ public final class LzyFsServer {
     }
 
     public LzyFsServer(String agentId, String mountPoint, URI selfUri,
-                       URI channelManagerUri, String iamToken) throws IOException {
+                       URI channelManagerUri, String iamToken) throws IOException
+    {
         this(agentId, mountPoint, selfUri, null, null, channelManagerUri, IAM.Auth.newBuilder()
             .setUser(IAM.UserCredentials.newBuilder()
                 .setToken(iamToken)

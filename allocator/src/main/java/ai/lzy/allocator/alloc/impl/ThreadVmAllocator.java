@@ -3,6 +3,7 @@ package ai.lzy.allocator.alloc.impl;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.model.Vm;
+import ai.lzy.allocator.model.Workload;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -35,13 +36,13 @@ public class ThreadVmAllocator implements VmAllocator {
         try {
             Class<?> vmClass;
 
-            if (!allocatorConfig.getVmJarFile().isEmpty()) {
+            if (allocatorConfig.getVmJarFile() != null) {
                 final File vmJar = new File(allocatorConfig.getVmJarFile());
                 final URLClassLoader classLoader = new URLClassLoader(new URL[] {vmJar.toURI().toURL()},
                     ClassLoader.getSystemClassLoader());
                 vmClass = Class.forName(allocatorConfig.getVmClassName(), true, classLoader);
             } else {
-                vmClass = Class.forName("ai.lzy.servant.BashApi");
+                vmClass = Class.forName(allocatorConfig.getVmClassName());
             }
 
             vmMain = vmClass.getDeclaredMethod("execute", String[].class);
@@ -50,39 +51,67 @@ public class ThreadVmAllocator implements VmAllocator {
         }
     }
 
-    private void requestAllocation(String vmId, List<String> args) {
-        LOG.info("Allocating vm {}", vmId);
-        final var newArgs = new ArrayList<>(args);
-        newArgs.addAll(List.of(
-            "--vm-id", vmId,
-            "--allocator-address", cfg.getAddress(),
-            "--allocator-heartbeat-period", cfg.getHeartbeatTimeout().dividedBy(2).toString(),
-            "--host", "localhost"
-        ));
+    @Override
+    public void allocate(Vm.Spec vm) {
+        allocateWithSingleWorkload(vm.vmId(), vm.poolLabel(), vm.workloads().get(0));
+    }
 
+    private void allocateWithSingleWorkload(String vmId, String poolLabel, Workload workload) {
+        LOG.info("Allocating vm with id: " + vmId);
+
+        // TODO(artolord) add token
+        //  ssokolvyak -- if allocate request for portal received then token already passed as workload arg
+        //noinspection Convert2Diamond
+        var startupArgs = new ArrayList<String>(workload.args());
+
+        List<String> additionalArgs;
+        if (poolLabel.contentEquals(Vm.Spec.PORTAL_POOL_LABEL)) {
+            additionalArgs = List.of(
+                "-portal.vm-id=" + vmId,
+                "-portal.allocator-address=" + cfg.getAddress(),
+                "-portal.allocator-heartbeat-period=" + cfg.getHeartbeatTimeout().dividedBy(2).toString(),
+                "-portal.host=localhost"
+            );
+        } else {
+            additionalArgs = List.of(
+                "--vm-id", vmId,
+                "--allocator-address", cfg.getAddress(),
+                "--allocator-heartbeat-period", cfg.getHeartbeatTimeout().dividedBy(2).toString(),
+                "--host", "localhost"
+            );
+        }
+        startupArgs.addAll(additionalArgs);
+
+        Thread vm = startThreadVm("vm-" + vmId, startupArgs);
+        vmThreads.put(vmId, vm);
+    }
+
+    private Thread startThreadVm(String threadName, List<String> args) {
         @SuppressWarnings("CheckStyle")
-        Thread task = new Thread("vm-" + vmId) {
+        var task = new Thread(threadName) {
             @Override
             public void run() {
                 try {
-                    vmMain.invoke(null, (Object) newArgs.toArray(new String[0]));
-                } catch (IllegalAccessException | InvocationTargetException e) {
-                    LOG.error(e);
+                    vmMain.invoke(null, (Object) args.toArray(new String[0]));
+                } catch (InvocationTargetException e) {
+                    LOG.error("Error while invocation of servant/portal method 'execute': " +
+                        e.getTargetException().getMessage(), e.getTargetException());
+                } catch (IllegalAccessException e) {
+                    LOG.error("Error while invocation of servant/portal method 'execute': " + e.getMessage(), e);
                 }
             }
         };
-        task.start();
-        vmThreads.put(vmId, task);
-    }
 
-    @Override
-    public void allocate(Vm.Spec vm) {
-        // TODO(artolord) add token
-        requestAllocation(vm.vmId(), vm.workloads().get(0).args());  // Supports only one workload
+        LOG.debug("Starting thread-vm with name: " + threadName);
+
+        task.start();
+        return task;
     }
 
     @Override
     public void deallocate(String vmId) {
+        LOG.info("Deallocate vm with id: " + vmId);
+
         if (!vmThreads.containsKey(vmId)) {
             return;
         }

@@ -4,6 +4,7 @@ import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.model.db.DatabaseConfiguration;
 import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
+import jakarta.annotation.Nullable;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -32,6 +33,7 @@ public class ServiceConfig {
     @ConfigurationProperties("thread-allocator")
     public static final class ThreadAllocator {
         private boolean enabled = false;
+        @Nullable
         private String vmJarFile;
         private String vmClassName;
     }

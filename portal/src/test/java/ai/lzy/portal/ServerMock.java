@@ -20,6 +20,7 @@ import io.grpc.StatusRuntimeException;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
+
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -81,7 +82,8 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
 
     @Override
     public void getS3Credentials(Lzy.GetS3CredentialsRequest request,
-                                 StreamObserver<Lzy.GetS3CredentialsResponse> responseObserver) {
+                                 StreamObserver<Lzy.GetS3CredentialsResponse> responseObserver)
+    {
         responseObserver.onNext(Lzy.GetS3CredentialsResponse.newBuilder()
             .setAmazon(Lzy.AmazonCredentials.newBuilder()
                 .setEndpoint("localhost:12345")

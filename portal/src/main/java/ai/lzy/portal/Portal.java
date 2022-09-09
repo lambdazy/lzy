@@ -13,10 +13,8 @@ import io.grpc.netty.NettyServerBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.annotation.WillCloseWhenClosed;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.model.UriScheme.LzyServant;
@@ -45,7 +43,7 @@ public class Portal {
 
     private final String portalTaskId;
 
-    public Portal(PortalConfig config, @WillCloseWhenClosed AllocatorAgent agent, @WillCloseWhenClosed LzyFsServer fs) {
+    public Portal(PortalConfig config, AllocatorAgent agent, LzyFsServer fs) {
         this.stdoutChannelId = config.getStdoutChannelId();
         this.stderrChannelId = config.getStderrChannelId();
 
@@ -71,8 +69,9 @@ public class Portal {
 
         try {
             grpcServer.start();
-            // TODO: zhvkgj -- startup allocator agent and fs server
-        } catch (IOException e) {
+            allocatorAgent.start();
+            // TODO: zhvkgj -- startup fs server
+        } catch (IOException | AllocatorAgent.RegisterException e) {
             LOG.error(e);
             this.shutdown();
             throw new RuntimeException(e);
@@ -80,6 +79,8 @@ public class Portal {
 
         var prev = fsServer.setSlotApiInterceptor(new FsApiImpl(this));
         assert prev == null;
+
+        LOG.info("Registering portal stdout/err slots...");
 
         final SlotsManager slotsManager = fsServer.getSlotsManager();
         stdoutSlot = new StdoutSlot(stdoutSlotName, portalTaskId, stdoutChannelId,
@@ -89,6 +90,8 @@ public class Portal {
         stderrSlot = new StdoutSlot(stderrSlotName, portalTaskId, stderrChannelId,
             slotsManager.resolveSlotUri(portalTaskId, stderrSlotName));
         slotsManager.registerSlot(stderrSlot);
+
+        LOG.info("Portal successfully started at '{}:{}'", host, port);
     }
 
     public void shutdown() {

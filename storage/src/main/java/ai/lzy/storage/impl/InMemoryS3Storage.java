@@ -67,6 +67,7 @@ public class InMemoryS3Storage extends LzyStorageServiceGrpc.LzyStorageServiceIm
             LOG.error("Can not create bucket '{}' for user '{}': {}",
                 request.getBucket(), request.getUserId(), e.getMessage(), e);
             response.onError(Status.INTERNAL.withCause(e).asException());
+            return;
         }
 
         response.onNext(CreateS3BucketResponse.newBuilder()

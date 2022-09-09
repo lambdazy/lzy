@@ -8,6 +8,7 @@ import ai.lzy.portal.config.PortalConfig;
 import ai.lzy.servant.agents.LzyAgentConfig;
 import ai.lzy.servant.agents.LzyServant;
 import ai.lzy.test.GrpcUtils;
+import ai.lzy.test.mocks.ChannelManagerMock;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.*;
@@ -67,9 +68,8 @@ public class PortalTest {
         server.startup();
         servants = new HashMap<>();
         var config = context.getBean(PortalConfig.class);
-        channelManager = new ChannelManagerMock(Integer.parseInt(
-            config.getChannelManagerAddress().substring("localhost:".length())
-        ));
+        //noinspection UnstableApiUsage
+        channelManager = new ChannelManagerMock(HostAndPort.fromString(config.getChannelManagerAddress()));
         channelManager.start();
         startPortal(config);
     }
@@ -106,6 +106,7 @@ public class PortalTest {
         }
     }
 
+    @SuppressWarnings("UnstableApiUsage")
     private void startPortal(PortalConfig config) {
         createChannel("portal:stdout");
         createChannel("portal:stderr");

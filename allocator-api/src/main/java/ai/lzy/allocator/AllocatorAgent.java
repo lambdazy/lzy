@@ -16,7 +16,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
 
-@SuppressWarnings("ResultOfMethodCallIgnored")
+
 public class AllocatorAgent extends TimerTask {
     private static final Logger LOG = LogManager.getLogger(AllocatorAgent.class);
 
@@ -27,17 +27,19 @@ public class AllocatorAgent extends TimerTask {
 
     private final String vmId;
     private final AllocatorPrivateGrpc.AllocatorPrivateBlockingStub stub;
+    private final Duration period;
     private final Timer timer;
     private final ManagedChannel channel;
+    private final String vmIpAddress;
 
     public AllocatorAgent(String iamToken, @Nullable String vmId, @Nullable String allocatorAddress,
-                          @Nullable Duration heartbeatPeriod, String vmIpAddress) throws RegisterException
+                          @Nullable Duration heartbeatPeriod, String vmIpAddress)
     {
         this.vmId = vmId == null ? System.getenv(VM_ID_KEY) : vmId;
         final var allocAddress = allocatorAddress == null
             ? System.getenv(VM_ALLOCATOR_ADDRESS) : allocatorAddress;
-        final var period = heartbeatPeriod == null
-            ? Duration.parse(System.getenv(VM_HEARTBEAT_PERIOD)) : heartbeatPeriod;
+        period = heartbeatPeriod == null ? Duration.parse(System.getenv(VM_HEARTBEAT_PERIOD)) : heartbeatPeriod;
+        this.vmIpAddress = vmIpAddress;
 
         channel = ChannelBuilder.forAddress(allocAddress)
             .usePlaintext()
@@ -46,7 +48,14 @@ public class AllocatorAgent extends TimerTask {
         stub = AllocatorPrivateGrpc.newBlockingStub(channel)
             .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> iamToken));
 
+        timer = new Timer("allocator-agent-timer-" + vmId);
+    }
+
+    public void start() throws RegisterException {
+        LOG.info("Register vm with id '{}' in allocator", vmId);
+
         try {
+            //noinspection ResultOfMethodCallIgnored
             stub.register(VmAllocatorPrivateApi.RegisterRequest.newBuilder()
                 .setVmId(vmId)
                 .putMetadata(VM_IP_ADDRESS, vmIpAddress)
@@ -55,13 +64,14 @@ public class AllocatorAgent extends TimerTask {
             LOG.error("Cannot register allocator", e);
             throw new RegisterException(e);
         }
-        timer = new Timer("allocator-agent-timer-" + vmId);
+
         timer.scheduleAtFixedRate(this, period.toMillis(), period.toMillis());
     }
 
     @Override
     public void run() {
         try {
+            //noinspection ResultOfMethodCallIgnored
             stub.heartbeat(VmAllocatorPrivateApi.HeartbeatRequest.newBuilder()
                 .setVmId(vmId)
                 .build());
