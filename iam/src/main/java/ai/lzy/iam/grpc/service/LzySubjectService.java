@@ -4,7 +4,6 @@ import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.impl.Root;
 import ai.lzy.iam.resources.subjects.AuthProvider;
-import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.storage.impl.DbAccessClient;
@@ -102,10 +101,7 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
             if (internalAccess()) {
                 subjectService.addCredentials(
                     ProtoConverter.to(request.getSubject()),
-                    request.getCredentials().getName(),
-                    request.getCredentials().getCredentials(),
-                    CredentialsType.fromProto(request.getCredentials().getType())
-                );
+                    ProtoConverter.to(request.getCredentials()));
                 response.onNext(LSS.AddCredentialsResponse.getDefaultInstance());
                 response.onCompleted();
                 return;

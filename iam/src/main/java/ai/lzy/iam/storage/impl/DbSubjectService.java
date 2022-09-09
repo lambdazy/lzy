@@ -17,6 +17,9 @@ import org.apache.logging.log4j.Logger;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
+import java.sql.Timestamp;
+import java.sql.Types;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -83,8 +86,8 @@ public class DbSubjectService {
                             INSERT INTO users (user_id, auth_provider, provider_user_id, access_type, user_type)
                             VALUES (?, ?, ?, ?, ?)""");
                      var credsSt = conn.prepareStatement("""
-                            INSERT INTO credentials (name, value, user_id, type)
-                            VALUES (?, ?, ?, ?)"""))
+                            INSERT INTO credentials (name, value, user_id, type, expired_at)
+                            VALUES (?, ?, ?, ?, ?)"""))
                 {
                     subjSt.setString(1, subjectId);
                     subjSt.setString(2, authProvider.name());
@@ -99,6 +102,11 @@ public class DbSubjectService {
                         credsSt.setString(2, creds.value());
                         credsSt.setString(3, subjectId);
                         credsSt.setString(4, creds.type().name());
+                        if (creds.expiredAt() != null) {
+                            credsSt.setTimestamp(5, Timestamp.from(creds.expiredAt().truncatedTo(ChronoUnit.SECONDS)));
+                        } else {
+                            credsSt.setNull(5, Types.TIMESTAMP);
+                        }
                         credsSt.addBatch();
                     }
                     credsSt.executeBatch();
@@ -157,21 +165,28 @@ public class DbSubjectService {
             AuthInternalException::new);
     }
 
-    public void addCredentials(Subject subject, String name, String value, CredentialsType type) throws AuthException {
+    public void addCredentials(Subject subject, SubjectCredentials credentials) throws AuthException {
         withRetries(
             defaultRetryPolicy(),
             LOG,
             () -> {
                 try (var connect = storage.connect();
                      var st = connect.prepareStatement("""
-                        INSERT INTO credentials (name, value, user_id, type)
-                        VALUES (?, ?, ?, ?)"""))
+                        INSERT INTO credentials (name, value, user_id, type, expired_at)
+                        VALUES (?, ?, ?, ?, ?)"""))
                 {
                     int parameterIndex = 0;
-                    st.setString(++parameterIndex, name);
-                    st.setString(++parameterIndex, value);
+                    st.setString(++parameterIndex, credentials.name());
+                    st.setString(++parameterIndex, credentials.value());
                     st.setString(++parameterIndex, subject.id());
-                    st.setString(++parameterIndex, type.name());
+                    st.setString(++parameterIndex, credentials.type().name());
+                    if (credentials.expiredAt() != null) {
+                        st.setTimestamp(++parameterIndex,
+                            Timestamp.from(credentials.expiredAt().truncatedTo(ChronoUnit.SECONDS)));
+                    } else {
+                        st.setNull(++parameterIndex, Types.TIMESTAMP);
+                    }
+
                     st.executeUpdate();
                 }
             },
@@ -185,19 +200,21 @@ public class DbSubjectService {
             () -> {
                 try (var connect = storage.connect();
                      var st = connect.prepareStatement("""
-                        SELECT name, value, type
+                        SELECT name, value, type, expired_at
                         FROM credentials
-                        WHERE user_id = ? AND name = ?"""))
+                        WHERE user_id = ? AND name = ? AND (expired_at IS NULL OR expired_at > NOW())"""))
                 {
                     int parameterIndex = 0;
                     st.setString(++parameterIndex, subject.id());
                     st.setString(++parameterIndex, name);
                     ResultSet rs = st.executeQuery();
                     if (rs.next()) {
+                        var expiredAt = rs.getTimestamp("expired_at");
                         return new SubjectCredentials(
                             rs.getString("name"),
                             rs.getString("value"),
-                            CredentialsType.valueOf(rs.getString("type")));
+                            CredentialsType.valueOf(rs.getString("type")),
+                            expiredAt != null ? expiredAt.toInstant() : null);
                     }
 
                     throw new AuthNotFoundException("Credentials:: " + name + " NOT_FOND");
@@ -213,20 +230,22 @@ public class DbSubjectService {
             () -> {
                 try (var connect = storage.connect();
                      var st = connect.prepareStatement("""
-                        SELECT name, value, type
+                        SELECT name, value, type, expired_at
                         FROM credentials
-                        WHERE user_id = ?"""))
+                        WHERE user_id = ? AND (expired_at IS NULL OR expired_at > NOW())"""))
                 {
                     int parameterIndex = 0;
                     st.setString(++parameterIndex, subject.id());
                     ResultSet rs = st.executeQuery();
                     List<SubjectCredentials> result = new ArrayList<>();
                     while (rs.next()) {
+                        var expiredAt = rs.getTimestamp("expired_at");
                         result.add(
                             new SubjectCredentials(
                                 rs.getString("name"),
                                 rs.getString("value"),
-                                CredentialsType.valueOf(rs.getString("type"))));
+                                CredentialsType.valueOf(rs.getString("type")),
+                                expiredAt != null ? expiredAt.toInstant() : null));
                     }
                     return result;
                 }

@@ -37,7 +37,7 @@ public class SubjectServiceClientStub implements SubjectServiceClient {
     }
 
     @Override
-    public void addCredentials(Subject subject, String name, String value, CredentialsType type) throws AuthException {
+    public void addCredentials(Subject subject, SubjectCredentials credentials) throws AuthException {
     }
 
     @Override

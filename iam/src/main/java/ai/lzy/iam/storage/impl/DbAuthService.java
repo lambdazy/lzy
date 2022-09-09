@@ -58,6 +58,7 @@ public class DbAuthService implements AuthenticateService {
                     JOIN users AS u
                       ON c.user_id = u.user_id
                     WHERE u.provider_user_id = ? AND u.auth_provider = ? AND c.type = ?
+                      AND (c.expired_at IS NULL OR c.expired_at > NOW())
                     """);
 
                 int parameterIndex = 0;
