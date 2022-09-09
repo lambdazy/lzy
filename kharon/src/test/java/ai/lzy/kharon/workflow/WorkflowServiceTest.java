@@ -4,7 +4,6 @@ import ai.lzy.allocator.test.BaseTestWithAllocator;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.test.BaseTestWithIam;
-import ai.lzy.iam.utils.CredentialsHelper;
 import ai.lzy.kharon.KharonConfig;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.storage.impl.MockS3Storage;
@@ -29,6 +28,7 @@ import io.grpc.ServerInterceptors;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.netty.NettyServerBuilder;
+import io.jsonwebtoken.Claims;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
@@ -85,17 +85,18 @@ public class WorkflowServiceTest {
         var storageAddress = HostAndPort.fromString(config.getStorage().getAddress());
         portalAddress = HostAndPort.fromParts("localhost", config.getPortal().getPortalApiPort());
 
+        var iam = config.getIam();
         var authInterceptor = new AuthServerInterceptor(credentials -> {
-            var issuer = CredentialsHelper.issuerFromJWT(credentials.token());
+            var user = JwtUtils.parseJwt(credentials.token()).get(Claims.ISSUER);
 
-            if (issuer == null) {
+            if (user == null) {
                 throw new AuthUnauthenticatedException("heck");
             }
-            if (!issuer.contentEquals(config.getIam().getInternalUserName())) {
+            if (!iam.getInternalUserName().equals(user)) {
                 throw new AuthPermissionDeniedException("heck");
             }
 
-            return new User(issuer);
+            return new User(iam.getInternalUserName());
         });
 
         storageMock = new MockS3Storage();
@@ -119,7 +120,7 @@ public class WorkflowServiceTest {
         workflowServer.start();
 
         var channel = ChannelBuilder.forAddress(workflowAddress).usePlaintext().build();
-        var internalUser = config.getIam().createCredentials();
+        var internalUser = iam.createCredentials();
         unauthorizedWorkflowClient = LzyWorkflowServiceGrpc.newBlockingStub(channel);
         authorizedWorkflowClient = unauthorizedWorkflowClient.withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, internalUser::token));
@@ -171,8 +172,8 @@ public class WorkflowServiceTest {
     public void testPermissionDenied() {
         var workflowName = "workflow_1";
         var executionId = "some-valid-id";
-        var client = unauthorizedWorkflowClient.withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, JwtUtils.invalidCredentials("user")::token));
+        var client = unauthorizedWorkflowClient.withInterceptors(ClientHeaderInterceptor.header(
+            GrpcHeaders.AUTHORIZATION, JwtUtils.invalidCredentials("user", "GITHUB")::token));
 
         var thrown = new ArrayList<StatusRuntimeException>() {
             {

@@ -3,6 +3,7 @@ package ai.lzy.allocator.alloc.impl;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.model.Vm;
+import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.allocator.model.Workload;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
@@ -10,6 +11,7 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -118,5 +120,10 @@ public class ThreadVmAllocator implements VmAllocator {
         //noinspection removal
         vmThreads.get(vmId).stop();
         vmThreads.remove(vmId);
+    }
+
+    @Override
+    public List<VmEndpoint> getVmEndpoints(String vmId, @Nullable TransactionHandle transaction) {
+        return List.of(new VmEndpoint(VmEndpointType.HOST_NAME, "localhost"));
     }
 }

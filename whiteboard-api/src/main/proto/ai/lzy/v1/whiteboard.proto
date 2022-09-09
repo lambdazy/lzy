@@ -25,20 +25,30 @@ message Whiteboard {
   }
 }
 
-message WhiteboardField {
-  string fieldName = 1;
-
+message WhiteboardFieldInfo {
+  string name = 1;
   oneof state {
-    CreatedField createdState = 2;
+    NoneField noneState = 2;
     LinkedField linkedState = 3;
   }
 
-  message CreatedField {
+  message NoneField {
   }
 
   message LinkedField {
     DataScheme scheme = 1;
     string storageUri = 2;
+  }
+}
+
+message WhiteboardField {
+  WhiteboardFieldInfo info = 1;
+  Status status = 4;
+
+  enum Status {
+    WHITEBOARD_FIELD_STATUS_UNSPECIFIED = 0;
+    CREATED = 1;
+    FINALIZED = 2;
   }
 }
 

@@ -80,6 +80,19 @@ message AllocateResponse {
   string vm_id = 2;
   string session_id = 3;
   map<string, string> metadata = 4;
+  repeated VmEndpoint endpoints = 5;
+
+  message VmEndpoint {
+    VmEndpointType type = 1;
+    string value = 2;
+
+    enum VmEndpointType {
+      UNSPECIFIED = 0;
+      HOST_NAME = 1;
+      EXTERNAL_IP = 2;
+      INTERNAL_IP = 3;
+    }
+  }
 }
 
 message AllocateMetadata {

@@ -3,6 +3,7 @@ package ai.lzy.allocator;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.VmDao;
+import ai.lzy.allocator.disk.DiskService;
 import ai.lzy.allocator.services.AllocatorApi;
 import ai.lzy.allocator.services.AllocatorPrivateApi;
 import ai.lzy.allocator.services.OperationApi;
@@ -43,7 +44,8 @@ public class AllocatorMain {
     private final VmAllocator alloc;
     private final MetricReporter metricReporter;
 
-    public AllocatorMain(MetricReporter metricReporter, AllocatorApi allocator, AllocatorPrivateApi allocatorPrivate,
+    public AllocatorMain(MetricReporter metricReporter, AllocatorApi allocator,
+                         AllocatorPrivateApi allocatorPrivate, DiskService diskService,
                          OperationApi opApi, ServiceConfig config, GarbageCollector gc, VmPoolService vmPool,
                          @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel, VmDao vmDao, VmAllocator alloc)
     {
@@ -70,6 +72,7 @@ public class AllocatorMain {
         builder.addService(allocatorPrivate);
         builder.addService(ServerInterceptors.intercept(opApi, internalOnly));
         builder.addService(ServerInterceptors.intercept(vmPool, internalOnly));
+        builder.addService(ServerInterceptors.intercept(diskService, internalOnly));
 
         this.server = builder.build();
     }

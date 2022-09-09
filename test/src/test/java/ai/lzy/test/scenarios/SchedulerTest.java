@@ -12,6 +12,7 @@ import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.scheduler.SchedulerApi;
 import ai.lzy.scheduler.allocator.AllocatorImpl;
 import ai.lzy.scheduler.configs.ServiceConfig;
+import ai.lzy.test.LzyServerTestContext;
 import ai.lzy.test.impl.Utils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
@@ -124,7 +125,8 @@ public class SchedulerTest extends LocalScenario {
     }
 
     @Before
-    public void before() {
+    public void setUp() {
+        super.setUp(LzyServerTestContext.LocalServantAllocatorType.THREAD_ALLOCATOR, false);
     }
 
     @After

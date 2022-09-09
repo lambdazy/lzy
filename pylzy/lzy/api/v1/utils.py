@@ -1,3 +1,4 @@
+import base64
 import hashlib
 import inspect
 import os
@@ -18,9 +19,11 @@ from typing import (
 )
 from zipfile import ZipFile
 
-from lzy._proxy import proxy
-from lzy._proxy.result import Just, Nothing, Result
+import cloudpickle
+
 from lzy.api.v1.signatures import CallSignature, FuncSignature
+from lzy.proxy import proxy
+from lzy.proxy.result import Just, Nothing, Result
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -152,3 +155,12 @@ class LzyExecutionException(Exception):
             " please send the following trace files: /tmp/lzy-log/"
         )
         super().__init__(message, *args)
+
+
+def pickle(obj: T) -> str:
+    return base64.b64encode(cloudpickle.dumps(obj)).decode("ascii")
+
+
+def unpickle(base64_str: str, obj_type: Type[T] = None) -> T:
+    t = cloudpickle.loads(base64.b64decode(base64_str.encode("ascii")))
+    return cast(T, t)

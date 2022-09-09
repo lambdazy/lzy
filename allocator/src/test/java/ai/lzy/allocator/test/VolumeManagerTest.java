@@ -6,6 +6,7 @@ import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactoryImpl;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.Disk;
 import ai.lzy.allocator.disk.DiskManager;
+import ai.lzy.allocator.disk.DiskMeta;
 import ai.lzy.allocator.disk.DiskSpec;
 import ai.lzy.allocator.disk.exceptions.NotFoundException;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
@@ -20,7 +21,6 @@ import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
@@ -51,14 +51,14 @@ public class VolumeManagerTest {
             throw new RuntimeException("No user cluster was specified for manual test");
         }
         final KubernetesClient client = new KuberClientFactoryImpl().build(clusterRegistry.getCluster(clusterId));
-        volumeManager = new KuberVolumeManager(client, diskManager);
+        volumeManager = new KuberVolumeManager(client);
     }
 
     @Test
     public void createVolumeTest() throws NotFoundException {
-        final Disk disk = diskManager.create(createTestDiskSpec(3));
+        final Disk disk = diskManager.create(createTestDiskSpec(3), new DiskMeta("user-id"));
         final Volume volume = volumeManager.create(
-            new DiskVolumeDescription("some-volume-name", disk.id())
+            new DiskVolumeDescription("some-volume-name", disk.id(), disk.spec().sizeGb())
         );
         final VolumeClaim volumeClaim = volumeManager.createClaim(volume);
         Assert.notNull(volumeManager.get(volume.name()));
@@ -84,11 +84,11 @@ public class VolumeManagerTest {
             final DiskSpec testDiskSpec = createTestDiskSpec(random.nextInt(minSizeGb, maxSizeGb));
 
             final Instant diskCreation = Instant.now();
-            final Disk disk = diskManager.create(testDiskSpec);
+            final Disk disk = diskManager.create(testDiskSpec, new DiskMeta("user-id"));
 
             final Instant volumeCreation = Instant.now();
             final Volume volume = volumeManager.create(
-                new DiskVolumeDescription("some-volume-name", disk.id())
+                new DiskVolumeDescription("some-volume-name", disk.id(), disk.spec().sizeGb())
             );
 
             final Instant volumeClaimCreation = Instant.now();

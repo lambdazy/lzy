@@ -16,9 +16,7 @@ public class AuthenticationContext {
     private final Credentials credentials;
     private final Subject subject;
 
-    public AuthenticationContext(@Nonnull TokenParser.Token token,
-                                 @Nonnull Credentials credentials,
-                                 @Nonnull Subject subject) {
+    public AuthenticationContext(TokenParser.Token token, Credentials credentials, Subject subject) {
         this.token = Objects.requireNonNull(token, "token is null");
         this.credentials = Objects.requireNonNull(credentials, "credentials is null");
         this.subject = Objects.requireNonNull(subject, "subject is null");

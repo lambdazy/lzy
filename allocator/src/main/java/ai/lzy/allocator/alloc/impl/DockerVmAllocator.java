@@ -7,8 +7,10 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
+import ai.lzy.model.db.TransactionHandle;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
+import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.api.model.ExposedPort;
 import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.PortBinding;
@@ -21,9 +23,11 @@ import org.apache.commons.lang.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.annotation.Nullable;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Singleton
 @Requires(property = "allocator.docker-allocator.enabled", value = "true")
@@ -61,11 +65,11 @@ public class DockerVmAllocator implements VmAllocator {
 
         final var exposedPorts = workload.portBindings().values().stream()
             .map(ExposedPort::tcp)
-            .toList();
+            .collect(Collectors.toList());
 
         final var envs = workload.env().entrySet().stream()
             .map(e -> e.getKey() + "=" + e.getValue())
-            .toList();
+            .collect(Collectors.toList());
 
         envs.addAll(List.of(
             AllocatorAgent.VM_ALLOCATOR_ADDRESS + "=" + config.getAddress(),
@@ -116,7 +120,18 @@ public class DockerVmAllocator implements VmAllocator {
         if (containerId == null) {
             throw new RuntimeException("Container is not set in metadata");
         }
-        DOCKER.killContainerCmd(containerId).exec();
-        DOCKER.removeContainerCmd(containerId).exec();
+        try {
+            DOCKER.killContainerCmd(containerId).exec();
+            DOCKER.removeContainerCmd(containerId).exec();
+        } catch (NotFoundException e) {
+            LOG.info("Container {} for vm {} destroyed before", containerId, vmId, e);
+        }
+    }
+
+    @Override
+    public List<VmEndpoint> getVmEndpoints(String vmId, @Nullable TransactionHandle transaction) {
+        final var name = SystemUtils.IS_OS_MAC
+            ? "host.docker.internal" : "localhost";  // On mac docker cannot forward ports to localhost
+        return List.of(new VmEndpoint(VmEndpointType.HOST_NAME, name));
     }
 }

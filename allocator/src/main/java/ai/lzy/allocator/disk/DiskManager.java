@@ -7,9 +7,9 @@ public interface DiskManager {
     @Nullable
     Disk get(String id);
 
-    Disk create(DiskSpec spec);
+    Disk create(DiskSpec spec, DiskMeta meta);
 
-    Disk clone(Disk disk, DiskSpec cloneDiskSpec) throws NotFoundException;
+    Disk clone(Disk disk, DiskSpec cloneDiskSpec, DiskMeta clonedDiskMeta) throws NotFoundException;
 
     void delete(String diskId) throws NotFoundException;
 }

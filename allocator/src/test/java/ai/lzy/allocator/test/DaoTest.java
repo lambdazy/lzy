@@ -4,6 +4,12 @@ import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.SessionDao;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.dao.impl.AllocatorDataSource;
+import ai.lzy.allocator.disk.Disk;
+import ai.lzy.allocator.disk.DiskMeta;
+import ai.lzy.allocator.disk.DiskSpec;
+import ai.lzy.allocator.disk.DiskStorage;
+import ai.lzy.allocator.disk.DiskType;
+import ai.lzy.allocator.disk.exceptions.NotFoundException;
 import ai.lzy.allocator.model.CachePolicy;
 import ai.lzy.allocator.model.Operation;
 import ai.lzy.allocator.model.Vm;
@@ -25,10 +31,8 @@ import org.junit.*;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 public class DaoTest {
 
@@ -38,6 +42,7 @@ public class DaoTest {
     private OperationDao opDao;
     private SessionDao sessionDao;
     private VmDao vmDao;
+    private DiskStorage diskStorage;
     private Storage storage;
     private ApplicationContext context;
 
@@ -48,6 +53,7 @@ public class DaoTest {
         storage = context.getBean(Storage.class);
         sessionDao = context.getBean(SessionDao.class);
         vmDao = context.getBean(VmDao.class);
+        diskStorage = context.getBean(DiskStorage.class);
     }
 
     @After
@@ -61,14 +67,15 @@ public class DaoTest {
         final var meta = VmAllocatorApi.AllocateMetadata.newBuilder()
             .setVmId("id")
             .build();
-        final var op1 = opDao.create(UUID.randomUUID().toString(), "Some op", "test", Any.pack(meta), null);
+        final var op1 = opDao.create("Some op", "test", Any.pack(meta), null);
 
         final var op2 = opDao.get(op1.id(), null);
         Assert.assertNotNull(op2);
         Assert.assertFalse(op2.done());
         Assert.assertEquals("Some op", op2.description());
 
-        opDao.update(op2.complete(Status.NOT_FOUND.withDescription("Error")), null);
+        op2.setError(Status.NOT_FOUND.withDescription("Error"));
+        opDao.update(op2, null);
         final var op3 = opDao.get(op1.id(), null);
         Assert.assertNotNull(op3);
         Assert.assertTrue(op3.done());
@@ -83,7 +90,7 @@ public class DaoTest {
             .build();
         Operation op;
         try (final var tx = TransactionHandle.create(storage)) {
-            op = opDao.create(UUID.randomUUID().toString(), "Some op", "test", Any.pack(meta), tx);
+            op = opDao.create("Some op", "test", Any.pack(meta), tx);
             // Do not commit
         }
 
@@ -91,7 +98,7 @@ public class DaoTest {
         Assert.assertNull(op1);
 
         try (final var tx = TransactionHandle.create(storage)) {
-            op = opDao.create(UUID.randomUUID().toString(), "Some op", "test", Any.pack(meta), tx);
+            op = opDao.create("Some op", "test", Any.pack(meta), tx);
             tx.commit();
         }
 
@@ -118,7 +125,7 @@ public class DaoTest {
             "volume", "/mnt/volume", false, VolumeMount.MountPropagation.BIDIRECTIONAL);
         final var wl1 = new Workload(
             "wl1", "im", Map.of("a", "b"), List.of("a1", "a2"), Map.of(1111, 2222), List.of(volume));
-        final var volumeRequest = new VolumeRequest(new DiskVolumeDescription("diskVolume", "diskId"));
+        final var volumeRequest = new VolumeRequest(new DiskVolumeDescription("diskVolume", "diskId", 3));
         final var vm = vmDao.create("session", "pool", "zone", List.of(wl1),
             List.of(volumeRequest), "op1", Instant.now(), null);
 
@@ -155,5 +162,22 @@ public class DaoTest {
 
         vmDao.saveAllocatorMeta(vm.vmId(), meta, null);
         Assert.assertEquals(meta, vmDao.getAllocatorMeta(vm.vmId(), null));
+    }
+
+    @Test
+    public void testDiskCreateRemove() throws SQLException {
+        final Disk disk = new Disk(
+            "disk-id",
+            new DiskSpec("disk-name", DiskType.HDD, 35, "ru-central1-a"),
+            new DiskMeta("user-id")
+        );
+        diskStorage.insert(disk, null);
+
+        final Disk getDisk = diskStorage.get(disk.id(), null);
+        Assert.assertEquals(disk, getDisk);
+
+        diskStorage.remove(disk.id(), null);
+
+        Assert.assertNull(diskStorage.get(disk.id(), null));
     }
 }

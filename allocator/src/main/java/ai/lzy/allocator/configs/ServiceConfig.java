@@ -9,6 +9,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 
 @Getter
@@ -19,8 +20,8 @@ public class ServiceConfig {
     private Duration gcPeriod;
     private Duration allocationTimeout;
     private Duration heartbeatTimeout;
-    private List<String> serviceClusters;
-    private List<String> userClusters;
+    private List<String> serviceClusters = new ArrayList<>();
+    private List<String> userClusters = new ArrayList<>();
 
     @ConfigurationBuilder("database")
     private final DatabaseConfiguration database = new DatabaseConfiguration();

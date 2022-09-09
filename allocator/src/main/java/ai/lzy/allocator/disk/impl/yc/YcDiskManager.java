@@ -3,6 +3,7 @@ package ai.lzy.allocator.disk.impl.yc;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.Disk;
 import ai.lzy.allocator.disk.DiskManager;
+import ai.lzy.allocator.disk.DiskMeta;
 import ai.lzy.allocator.disk.DiskSpec;
 import ai.lzy.allocator.disk.DiskType;
 import ai.lzy.allocator.disk.exceptions.NotFoundException;
@@ -39,6 +40,7 @@ import static yandex.cloud.api.operation.OperationOuterClass.Operation;
 public class YcDiskManager implements DiskManager {
     private static final Logger LOG = LogManager.getLogger(YcDiskManager.class);
     private static final int GB_SHIFT = 30;
+    private static final String USER_ID_LABEL = "user-id";
 
     private final Duration defaultOperationTimeout;
     private final String folderId;
@@ -73,7 +75,8 @@ public class YcDiskManager implements DiskManager {
                     DiskType.fromYcName(disk.getTypeId()),
                     (int) (disk.getSize() >> GB_SHIFT),
                     disk.getZoneId()
-                )
+                ),
+                new DiskMeta(disk.getLabelsOrThrow(USER_ID_LABEL))
             );
         } catch (StatusRuntimeException e) {
             if (e.getStatus().getCode() == Status.NOT_FOUND.getCode()) {
@@ -85,11 +88,11 @@ public class YcDiskManager implements DiskManager {
     }
 
     @Override
-    public Disk create(DiskSpec spec) {
-        return create(spec, null);
+    public Disk create(DiskSpec spec, DiskMeta meta) {
+        return create(spec, null, meta);
     }
 
-    private Disk create(DiskSpec spec, @Nullable String snapshotId) {
+    private Disk create(DiskSpec spec, @Nullable String snapshotId, DiskMeta meta) {
         LOG.info(
             "Creating disk with name = {} in compute, size = {}Gb, zone = {}",
             spec.name(), spec.sizeGb(), spec.zone()
@@ -99,7 +102,8 @@ public class YcDiskManager implements DiskManager {
             .setFolderId(folderId)
             .setSize(((long) spec.sizeGb()) << GB_SHIFT)
             .setTypeId(spec.type().toYcName())
-            .setZoneId(spec.zone());
+            .setZoneId(spec.zone())
+            .putLabels(USER_ID_LABEL, meta.user());
         if (snapshotId != null) {
             diskRequestBuilder.setSnapshotId(snapshotId);
         }
@@ -117,7 +121,7 @@ public class YcDiskManager implements DiskManager {
             }
             final String diskId = result.getResponse().unpack(DiskOuterClass.Disk.class).getId();
             LOG.info("Disk {} was created", spec.name());
-            return new Disk(diskId, spec);
+            return new Disk(diskId, spec, meta);
         } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException("Failed via createDisk name=" + spec.name(), e);
         } catch (InterruptedException e) {
@@ -126,12 +130,11 @@ public class YcDiskManager implements DiskManager {
     }
 
     @Override
-    public Disk clone(Disk disk, DiskSpec cloneDiskSpec) throws NotFoundException {
-
+    public Disk clone(Disk disk, DiskSpec cloneDiskSpec, DiskMeta clonedDiskMeta) throws NotFoundException {
         LOG.info("Clone disk {}; clone name={} size={}Gb zone={}",
             disk.spec().name(), cloneDiskSpec.name(), cloneDiskSpec.sizeGb(), cloneDiskSpec.zone());
         if (cloneDiskSpec.sizeGb() < disk.spec().sizeGb()) {
-            throw new RuntimeException("Cannot decrease size during clone");
+            throw new IllegalArgumentException("Cannot decrease size during clone");
         }
 
         try {
@@ -166,7 +169,7 @@ public class YcDiskManager implements DiskManager {
             LOG.info("Created snapshot of disk {}, snapshot id = {}", disk.spec().name(), snapshot.getId());
 
             LOG.info("Creating disk clone with name {} from snapshot {}", cloneDiskSpec.name(), snapshot.getId());
-            final Disk clonedDisk = create(cloneDiskSpec, snapshot.getId());
+            final Disk clonedDisk = create(cloneDiskSpec, snapshot.getId(), clonedDiskMeta);
 
             LOG.info("Deleting snapshot {}", snapshot.getId());
             final Operation deleteSnapshotOperation;

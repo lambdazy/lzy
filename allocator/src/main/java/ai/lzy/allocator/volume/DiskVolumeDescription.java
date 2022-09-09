@@ -9,11 +9,17 @@ import java.util.Objects;
 public class DiskVolumeDescription extends VolumeRequest.VolumeDescription {
     private final String name;
     private final String diskId;
+    private final int sizeGb;
 
     @JsonCreator
-    public DiskVolumeDescription(@JsonProperty("name") String name, @JsonProperty("diskId") String diskId) {
+    public DiskVolumeDescription(
+        @JsonProperty("name") String name,
+        @JsonProperty("diskId") String diskId,
+        @JsonProperty("sizeGb") int sizeGb)
+    {
         this.name = name;
         this.diskId = diskId;
+        this.sizeGb = sizeGb;
     }
 
     @Override
@@ -25,11 +31,16 @@ public class DiskVolumeDescription extends VolumeRequest.VolumeDescription {
         return diskId;
     }
 
+    public int sizeGb() {
+        return sizeGb;
+    }
+
     @Override
     public String toString() {
-        return "DiskVolumeRequest{" +
+        return "DiskVolumeDescription{" +
             "name='" + name + '\'' +
             ", diskId='" + diskId + '\'' +
+            ", sizeGb=" + sizeGb +
             '}';
     }
 

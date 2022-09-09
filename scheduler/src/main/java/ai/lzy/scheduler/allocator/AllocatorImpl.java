@@ -4,7 +4,11 @@ import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.resources.AccessBinding;
+import ai.lzy.iam.resources.Role;
+import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.impl.Workflow;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.Servant;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.model.Operation;
@@ -54,7 +58,7 @@ public class AllocatorImpl implements ServantsAllocator {
     private final OperationServiceApiBlockingStub operations;
     private final AtomicInteger testServantCounter = new AtomicInteger(0);
     private final IamClientConfiguration authConfig;
-    private final ManagedChannel iamChan;
+    private final ManagedChannel iamChannel;
     private final SubjectServiceGrpcClient subjectClient;
     private final AccessBindingServiceGrpcClient abClient;
 
@@ -65,7 +69,7 @@ public class AllocatorImpl implements ServantsAllocator {
         this.processorConfig = processorConfig;
         this.metaStorage = metaStorage;
         this.authConfig = config.getIam();
-        this.iamChan = ChannelBuilder
+        this.iamChannel = ChannelBuilder
             .forAddress(authConfig.getAddress())
             .usePlaintext()
             .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
@@ -86,25 +90,23 @@ public class AllocatorImpl implements ServantsAllocator {
             .build();
         operations = OperationServiceApiGrpc.newBlockingStub(opChannel).withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
-        subjectClient = new SubjectServiceGrpcClient(iamChan, authConfig::createCredentials);
-        abClient = new AccessBindingServiceGrpcClient(iamChan, authConfig::createCredentials);
+        subjectClient = new SubjectServiceGrpcClient(iamChannel, authConfig::createCredentials);
+        abClient = new AccessBindingServiceGrpcClient(iamChannel, authConfig::createCredentials);
     }
 
 
     @Override
     public void allocate(String workflowName, String servantId, Operation.Requirements requirements) {
-
         final Credentials credentials;
         try {
-            final var subj = subjectClient.createSubject(servantId,
-                    authConfig.getInternalUserName(), servantId, SubjectType.SERVANT);
-
-            final var cred = JwtUtils.generateCredentials(subj.id());
+            final var cred = JwtUtils.generateCredentials(servantId, AuthProvider.INTERNAL.name());
             credentials = cred.credentials();
 
-            subjectClient.addCredentials(subj, "main", cred.publicKey(), cred.credentials().type());
+            final var subj = subjectClient.createSubject(AuthProvider.INTERNAL, servantId, SubjectType.SERVANT,
+                new SubjectCredentials("main", cred.publicKey(), CredentialsType.PUBLIC_KEY));
+
             abClient.setAccessBindings(new Workflow(workflowName),
-                List.of(new AccessBinding("lzy.workflow.owner", subj)));
+                List.of(new AccessBinding(Role.LZY_WORKFLOW_OWNER, subj)));
         } catch (Exception e) {
             LOG.error("Cannot build credentials for servant", e);
             throw new RuntimeException(e);

@@ -1,11 +1,15 @@
 package ai.lzy.iam.storage.impl;
 
+import ai.lzy.iam.resources.credentials.SubjectCredentials;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.storage.db.IamDataSource;
-import ai.lzy.iam.utils.CredentialsHelper;
 import ai.lzy.model.db.test.DatabaseTestUtils;
+import ai.lzy.util.auth.credentials.CredentialsUtils;
 import ai.lzy.util.auth.credentials.JwtCredentials;
+import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
@@ -16,6 +20,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+
+import java.util.List;
 
 public class DbAuthServiceTest {
     public static final Logger LOG = LogManager.getLogger(DbAuthServiceTest.class);
@@ -142,12 +148,13 @@ public class DbAuthServiceTest {
     }
 
     public void validAuth(SubjectType subjectType) throws Exception {
-        String userId = "user1";
-        subjectService.createSubject(userId, "", "", subjectType);
-        final Subject user = subjectService.subject(userId);
-        subjectService.addCredentials(user, "testCred", PUBLIC_PEM2, "public_key");
+        var userId = subjectService.createSubject(AuthProvider.GITHUB, "user1", subjectType, List.of(
+            new SubjectCredentials("testCred", PUBLIC_PEM2, CredentialsType.PUBLIC_KEY))).id();
 
-        authenticateService.authenticate(new JwtCredentials(CredentialsHelper.buildJWT(userId, PRIVATE_PEM2)));
+        final Subject user = subjectService.subject(userId);
+
+        var jwt = JwtUtils.buildJWT("user1", AuthProvider.GITHUB.name(), CredentialsUtils.readPrivateKey(PRIVATE_PEM2));
+        authenticateService.authenticate(new JwtCredentials(jwt));
     }
 
     @Test
@@ -161,13 +168,14 @@ public class DbAuthServiceTest {
     }
 
     public void invalidAuth(SubjectType subjectType) throws Exception {
-        String userId = "user1";
-        subjectService.createSubject(userId, "", "", subjectType);
-        final Subject user = subjectService.subject(userId);
-        subjectService.addCredentials(user, "testCred", PUBLIC_PEM2, "public_key");
+        var userId = subjectService.createSubject(AuthProvider.GITHUB, "user1", subjectType, List.of(
+            new SubjectCredentials("testCred", PUBLIC_PEM2, CredentialsType.PUBLIC_KEY))).id();
 
+        final Subject user = subjectService.subject(userId);
+
+        var jwt = JwtUtils.buildJWT("user1", AuthProvider.GITHUB.name(), CredentialsUtils.readPrivateKey(PRIVATE_PEM2));
         try {
-            authenticateService.authenticate(new JwtCredentials(CredentialsHelper.buildJWT(userId, PRIVATE_PEM1)));
+            authenticateService.authenticate(new JwtCredentials(jwt));
         } catch (AuthPermissionDeniedException e) {
             LOG.info("Valid error::{}", e.getInternalDetails());
         }

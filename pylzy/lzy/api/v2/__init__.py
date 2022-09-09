@@ -1,25 +1,33 @@
-import functools
 import inspect
+import logging
 import sys
-import uuid
-from typing import Any, Callable, Optional, Sequence, TypeVar
+from typing import Any, Callable, Dict, Iterator, Optional, Sequence, TypeVar
 
-from lzy._proxy.result import Nothing
-from lzy.api.v2.call import LzyCall
-from lzy.api.v2.lzy import Lzy
+from lzy.api.v2.call import LzyCall, wrap_call
+from lzy.api.v2.env import CondaEnv, DockerEnv, DockerPullPolicy, Env
+from lzy.api.v2.local.runtime import LocalRuntime
 from lzy.api.v2.provisioning import Gpu, Provisioning
-from lzy.api.v2.proxy_adapter import lzy_proxy
+from lzy.api.v2.query import Query
+from lzy.api.v2.runtime import Runtime
+from lzy.api.v2.snapshot import DefaultSnapshot
+from lzy.api.v2.utils.conda import generate_conda_yaml
+from lzy.api.v2.utils.env import generate_env, merge_envs
+from lzy.api.v2.utils.packages import to_str_version
+from lzy.api.v2.utils.proxy_adapter import lzy_proxy
 from lzy.api.v2.utils.types import infer_call_signature, infer_return_type
+from lzy.api.v2.whiteboard_declaration import whiteboard_
 from lzy.api.v2.workflow import LzyWorkflow
-from lzy.env.env import EnvSpec
+from lzy.proxy.result import Nothing
+from lzy.py_env.api import PyEnvProvider
+from lzy.py_env.py_env_provider import AutomaticPyEnvProvider
+from lzy.serialization.api import SerializerRegistry
+from lzy.serialization.registry import DefaultSerializerRegistry
+from lzy.storage.api import StorageRegistry
+from lzy.storage.registry import DefaultStorageRegistry
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
-import logging
-
-
-# TODO[ottergottaott]:
 def handlers():
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(logging.DEBUG)
@@ -49,16 +57,21 @@ FuncT = TypeVar(
 def op(
     func: Optional[FuncT] = None,
     *,
-    gpu: Gpu = None,
-    output_type=None,
+    output_types: Optional[Sequence[type]] = None,
+    python_version: Optional[str] = None,
+    libraries: Optional[Dict[str, str]] = None,
+    conda_yaml_path: Optional[str] = None,
+    docker_image: Optional[str] = None,
+    docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
+    local_modules_path: Optional[Sequence[str]] = None,
 ):
     def deco(f):
         """
         Decorator which will try to infer return type of function
         and create lazy constructor instead of decorated function.
         """
-        nonlocal output_type
-        if output_type is None:
+        nonlocal output_types
+        if output_types is None:
             infer_result = infer_return_type(f)
             if isinstance(infer_result, Nothing):
                 raise TypeError(
@@ -69,15 +82,25 @@ def op(
             else:
                 output_types = infer_result.value  # expecting multiple return types
 
+        active_workflow: Optional[LzyWorkflow] = LzyWorkflow.get_active()
+        if active_workflow is None:
+            return f
+
+        generated_env = generate_env(
+            active_workflow.auto_py_env,
+            python_version,
+            libraries,
+            conda_yaml_path,
+            docker_image,
+            docker_pull_policy,
+            local_modules_path,
+        )
+        merged_env = merge_envs(generated_env, active_workflow.default_env)
         # yep, create lazy constructor and return it
         # instead of function
-        return create_lazy_constructor(
-            f,
-            output_type,
-            provisioning,
-        )
+        return wrap_call(f, output_types, provisioning_, merged_env, active_workflow)
 
-    provisioning = Provisioning(gpu)
+    provisioning_ = Provisioning()  # TODO (tomato): update provisioning
 
     if func is None:
         return deco
@@ -85,65 +108,86 @@ def op(
     return deco(func)
 
 
-def create_lazy_constructor(
-    f: Callable[..., Any],
-    output_types: Sequence[type],
-    provisioning: Provisioning,
-) -> Callable[..., Any]:
-    @functools.wraps(f)
-    def lazy(*args, **kwargs):
-        # TODO: defaults?
-        active_wflow: LzyWorkflow = LzyWorkflow.get_active()
+def whiteboard(name: str):
+    def wrap(cls):
+        return whiteboard_(cls, "default", name)
 
-        signature = infer_call_signature(f, output_types, *args, **kwargs)
+    return wrap
 
-        # we need specify globals() for caller site to find all
-        # required modules
-        caller_globals = inspect.stack()[1].frame.f_globals
 
-        # form env to recreate remotely
-        env: EnvSpec = active_wflow._env_provider.provide(caller_globals)
+class Lzy:
+    # noinspection PyShadowingNames
+    def __init__(
+        self,
+        *,
+        runtime: Runtime = LocalRuntime(),
+        py_env_provider: PyEnvProvider = AutomaticPyEnvProvider(),
+        storage_registry: StorageRegistry = DefaultStorageRegistry(),
+        serializer_registry: SerializerRegistry = DefaultSerializerRegistry(),
+    ):
+        self.__env_provider = py_env_provider
+        self.__runtime = runtime
+        self.__serializer_registry = serializer_registry
+        self.__storage_registry = storage_registry
 
-        # create
-        lzy_call = LzyCall(active_wflow, signature, provisioning, env)
-        # and register LzyCall
-        active_wflow.register_call(lzy_call)
+    @property
+    def serializer(self) -> SerializerRegistry:
+        return self.__serializer_registry
 
-        # Special case for NoneType, just leave op registered and return
-        # the real None. LzyEnv later will materialize it anyway.
-        #
-        # Otherwise `is` checks won't work, for example:
-        # >>> @op
-        # ... def op_none_operation() -> None:
-        # ...      pass
-        #
-        # >>> obj = op_none_operation()
-        # >>> obj is None
-        # >>> False
-        if len(output_types) == 1:
-            if issubclass(output_types[0], type(None)):
-                return None
-            return lzy_proxy(
-                lzy_call.entry_ids[0],
-                lzy_call.signature.func.output_types[0],
-                lzy_call.parent_wflow,
-            )
+    @property
+    def env_provider(self) -> PyEnvProvider:
+        return self.__env_provider
 
-        return tuple(
-            lzy_proxy(
-                lzy_call.entry_ids[i],
-                lzy_call.signature.func.output_types[i],
-                lzy_call.parent_wflow,
-            )
-            for i in range(len(lzy_call.entry_ids))
+    @property
+    def runtime(self) -> Runtime:
+        return self.__runtime
+
+    @property
+    def storage_registry(self) -> StorageRegistry:
+        return self.__storage_registry
+
+    def whiteboard(self, wid: str) -> Any:
+        # TODO: implement
+        pass
+
+    def whiteboards(self, query: Query) -> Iterator[Any]:
+        # TODO: implement
+        pass
+
+    # views(Iterator[Any], ViewType)
+    # whiteboards(T).views(ViewType)
+    # TODO: SQL for whiteboards?
+
+    def workflow(
+        self,
+        name: str,
+        *,
+        eager: bool = False,
+        python_version: Optional[str] = None,
+        libraries: Optional[Dict[str, str]] = None,
+        conda_yaml_path: Optional[str] = None,
+        docker_image: Optional[str] = None,
+        docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
+        local_modules_path: Optional[Sequence[str]] = None,
+    ) -> LzyWorkflow:
+        namespace = inspect.stack()[1].frame.f_globals
+        return LzyWorkflow(
+            name,
+            self,
+            DefaultSnapshot(self.__storage_registry, self.__serializer_registry),
+            namespace,
+            eager=eager,
+            python_version=python_version,
+            libraries=libraries,
+            conda_yaml_path=conda_yaml_path,
+            docker_image=docker_image,
+            docker_pull_policy=docker_pull_policy,
+            local_modules_path=local_modules_path,
         )
 
-    return lazy
-
-
-# register cloud injections
-# noinspection PyBroadException
-try:
-    from lzy.injections import catboost_injection
-except:
-    pass
+    # register cloud injections
+    # noinspection PyBroadException
+    try:
+        from lzy.injections import catboost_injection
+    except:
+        pass

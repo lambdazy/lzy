@@ -28,71 +28,64 @@ public class OperationApi extends OperationServiceApiImplBase {
 
     @Override
     public void get(GetOperationRequest request, StreamObserver<Operation> responseObserver) {
-        withRetries(
-            defaultRetryPolicy(),
-            LOG,
-            () -> operations.get(request.getOperationId(), null),
-            op -> {
-                if (op != null) {
-                    responseObserver.onNext(op.toProto());
-                    responseObserver.onCompleted();
-                } else {
-                    responseObserver.onError(Status.NOT_FOUND.withDescription("Operation not found").asException());
-                }
-            },
-            ex -> {
-                LOG.error("Cannot get operation {}: {}", request.getOperationId(), ex.getMessage(), ex);
-                responseObserver.onError(
-                    Status.INTERNAL.withDescription("Database error: " + ex.getMessage()).asException());
-            });
+        ai.lzy.allocator.model.Operation op;
+        try {
+            op = withRetries(
+                defaultRetryPolicy(),
+                LOG,
+                () -> operations.get(request.getOperationId(), null));
+        } catch (Exception ex) {
+            LOG.error("Cannot get operation {}: {}", request.getOperationId(), ex.getMessage(), ex);
+            responseObserver.onError(
+                Status.INTERNAL.withDescription("Database error: " + ex.getMessage()).asException());
+            return;
+        }
+
+        if (op != null) {
+            responseObserver.onNext(op.toProto());
+            responseObserver.onCompleted();
+        } else {
+            responseObserver.onError(Status.NOT_FOUND.withDescription("Operation not found").asException());
+        }
     }
 
     @Override
     public void cancel(OperationService.CancelOperationRequest request, StreamObserver<Operation> responseObserver) {
         // TODO(artolord) add more logic here
 
-        final ai.lzy.allocator.model.Operation[] opRef = {null};
-        withRetries(
-            defaultRetryPolicy(),
-            LOG,
-            () -> operations.get(request.getOperationId(), null),
-            op -> {
-                if (op != null) {
-                    opRef[0] = op;
-                } else {
-                    responseObserver.onError(Status.NOT_FOUND.withDescription("Operation not found").asException());
-                }
-            },
-            ex -> {
-                LOG.error("Cannot get operation {}: {}", request.getOperationId(), ex.getMessage(), ex);
-                responseObserver.onError(
-                    Status.INTERNAL.withDescription("Database error: " + ex.getMessage()).asException());
-            }
-        );
-
-        var op = opRef[0];
-        if (op == null) {
+        ai.lzy.allocator.model.Operation op;
+        try {
+            op = withRetries(
+                defaultRetryPolicy(),
+                LOG,
+                () -> operations.get(request.getOperationId(), null));
+        } catch (Exception ex) {
+            LOG.error("Cannot get operation {}: {}", request.getOperationId(), ex.getMessage(), ex);
+            responseObserver.onError(
+                Status.INTERNAL.withDescription("Database error: " + ex.getMessage()).asException());
             return;
         }
 
-        final var newOp = op.complete(Status.CANCELLED);
+        if (op == null) {
+            responseObserver.onError(Status.NOT_FOUND.withDescription("Operation not found").asException());
+            return;
+        }
 
-        withRetries(
-            defaultRetryPolicy(),
-            LOG,
-            () -> {
-                operations.update(newOp, null);
-                return (Void) null;
-            },
-            ok -> {
-                responseObserver.onNext(newOp.toProto());
-                responseObserver.onCompleted();
-            },
-            ex -> {
-                LOG.error("Cannot cancel operation {}: {}", request.getOperationId(), ex.getMessage(), ex);
-                responseObserver.onError(
-                    Status.INTERNAL.withDescription("Database error: " + ex.getMessage()).asException());
-            }
-        );
+        op.setError(Status.CANCELLED);
+
+        try {
+            withRetries(
+                defaultRetryPolicy(),
+                LOG,
+                () -> operations.update(op, null));
+        } catch (Exception ex) {
+            LOG.error("Cannot cancel operation {}: {}", request.getOperationId(), ex.getMessage(), ex);
+            responseObserver.onError(
+                Status.INTERNAL.withDescription("Database error: " + ex.getMessage()).asException());
+            return;
+        }
+
+        responseObserver.onNext(op.toProto());
+        responseObserver.onCompleted();
     }
 }

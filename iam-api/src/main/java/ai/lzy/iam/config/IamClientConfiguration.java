@@ -1,5 +1,6 @@
 package ai.lzy.iam.config;
 
+import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.JwtUtils;
 
@@ -9,7 +10,7 @@ public final class IamClientConfiguration {
     private String internalUserPrivateKey;
 
     public JwtCredentials createCredentials() {
-        return JwtUtils.credentials(internalUserName, internalUserPrivateKey);
+        return JwtUtils.credentials(internalUserName, AuthProvider.INTERNAL.name(), internalUserPrivateKey);
     }
 
     public String getAddress() {

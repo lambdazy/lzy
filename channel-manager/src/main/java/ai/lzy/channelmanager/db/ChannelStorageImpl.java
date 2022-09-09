@@ -1,6 +1,5 @@
 package ai.lzy.channelmanager.db;
 
-import ai.lzy.channelmanager.ChannelManagerDataSource;
 import ai.lzy.channelmanager.channel.Channel;
 import ai.lzy.channelmanager.channel.ChannelImpl;
 import ai.lzy.channelmanager.channel.Endpoint;
@@ -51,9 +50,9 @@ public class ChannelStorageImpl implements ChannelStorage {
     @Override
     public void insertChannel(String channelId, String userId, String workflowId, String channelName,
                               Channels.ChannelSpec.TypeCase channelType, ChannelSpec channelSpec,
-                              @Nullable TransactionHandle transaction)
+                              @Nullable TransactionHandle transaction) throws SQLException
     {
-        DbOperation.executeUnsafe(transaction, dataSource, sqlConnection -> {
+        DbOperation.execute(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 INSERT INTO channels(
                     channel_id, user_id, workflow_id, channel_name,
@@ -79,8 +78,8 @@ public class ChannelStorageImpl implements ChannelStorage {
     }
 
     @Override
-    public void removeChannel(String channelId, @Nullable TransactionHandle transaction) {
-        DbOperation.executeUnsafe(transaction, dataSource, sqlConnection -> {
+    public void removeChannel(String channelId, @Nullable TransactionHandle transaction) throws SQLException {
+        DbOperation.execute(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement(
                 "DELETE FROM channels WHERE channel_id = ?"
             )) {
@@ -92,8 +91,8 @@ public class ChannelStorageImpl implements ChannelStorage {
     }
 
     @Override
-    public void insertEndpoint(Endpoint endpoint, TransactionHandle transaction) {
-        DbOperation.executeUnsafe(transaction, dataSource, sqlConnection -> {
+    public void insertEndpoint(Endpoint endpoint, TransactionHandle transaction) throws SQLException {
+        DbOperation.execute(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 INSERT INTO channel_endpoints(
                     channel_id, "slot_name", slot_uri, direction, task_id, slot_spec
@@ -117,9 +116,9 @@ public class ChannelStorageImpl implements ChannelStorage {
 
     @Override
     public void insertEndpointConnections(String channelId, Map<Endpoint, Endpoint> edges,
-                                          TransactionHandle transaction)
+                                          TransactionHandle transaction) throws SQLException
     {
-        DbOperation.executeUnsafe(transaction, dataSource, sqlConnection -> {
+        DbOperation.execute(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 INSERT INTO endpoint_connections (
                     channel_id, sender_uri, receiver_uri
@@ -144,8 +143,8 @@ public class ChannelStorageImpl implements ChannelStorage {
     }
 
     @Override
-    public void removeEndpointWithConnections(Endpoint endpoint, TransactionHandle transaction) {
-        DbOperation.executeUnsafe(transaction, dataSource, sqlConnection -> {
+    public void removeEndpointWithConnections(Endpoint endpoint, TransactionHandle transaction) throws SQLException {
+        DbOperation.execute(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement(
                 "DELETE FROM channel_endpoints WHERE slot_uri = ?"
             )) {
@@ -158,9 +157,9 @@ public class ChannelStorageImpl implements ChannelStorage {
 
     @Override
     public void setChannelLifeStatus(String channelId, ChannelLifeStatus lifeStatus,
-                                     @Nullable TransactionHandle transaction)
+                                     @Nullable TransactionHandle transaction) throws SQLException
     {
-        DbOperation.executeUnsafe(transaction, dataSource, sqlConnection -> {
+        DbOperation.execute(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement(
                 "UPDATE channels SET channel_life_status = ? WHERE channel_id = ?"
             )) {
@@ -174,9 +173,9 @@ public class ChannelStorageImpl implements ChannelStorage {
 
     @Override
     public void setChannelLifeStatus(String userId, String workflowId, ChannelLifeStatus lifeStatus,
-                                     @Nullable TransactionHandle transaction)
+                                     @Nullable TransactionHandle transaction) throws SQLException
     {
-        DbOperation.executeUnsafe(transaction, dataSource, sqlConnection -> {
+        DbOperation.execute(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement(
                 "UPDATE channels SET channel_life_status = ? WHERE user_id = ? AND workflow_id = ?"
             )) {
@@ -192,10 +191,10 @@ public class ChannelStorageImpl implements ChannelStorage {
     @Nullable
     @Override
     public Channel findChannel(String channelId, ChannelLifeStatus lifeStatus,
-                               @Nullable TransactionHandle transaction)
+                               @Nullable TransactionHandle transaction) throws SQLException
     {
         final AtomicReference<Channel> channel = new AtomicReference<>();
-        DbOperation.executeUnsafe(transaction, dataSource, sqlConnection -> {
+        DbOperation.execute(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 SELECT
                     ch.channel_id as channel_id,
@@ -231,10 +230,10 @@ public class ChannelStorageImpl implements ChannelStorage {
 
     @Override
     public List<Channel> listChannels(String userId, String workflowId, ChannelLifeStatus lifeStatus,
-                                      @Nullable TransactionHandle transaction)
+                                      @Nullable TransactionHandle transaction) throws SQLException
     {
         final List<Channel> channels = new ArrayList<>();
-        DbOperation.executeUnsafe(transaction, dataSource, sqlConnection -> {
+        DbOperation.execute(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 SELECT
                     ch.channel_id as channel_id,

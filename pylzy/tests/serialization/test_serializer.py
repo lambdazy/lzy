@@ -13,7 +13,7 @@ from pure_protobuf.types import int32
 
 from lzy.serialization.api import Serializer
 from lzy.serialization.catboost import CatboostPoolSerializer
-from lzy.serialization.registry import DefaultSerializersRegistry
+from lzy.serialization.registry import DefaultSerializerRegistry
 from lzy.serialization.types import File
 
 
@@ -47,7 +47,7 @@ class A:
 
 class SerializationTests(TestCase):
     def setUp(self):
-        self.registry = DefaultSerializersRegistry()
+        self.registry = DefaultSerializerRegistry()
 
     def test_unpickled_message_keeps_subclass(self):
         @message

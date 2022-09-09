@@ -1,9 +1,8 @@
 package ai.lzy.model.db;
 
-public class NotFoundException extends DaoException {
-    public NotFoundException(Exception e) {
-        super(e);
-    }
+import java.sql.SQLException;
+
+public class NotFoundException extends SQLException {
 
     public NotFoundException(String e) {
         super(e);

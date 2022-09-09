@@ -11,7 +11,8 @@
   requests,
   stdlib-list,
   grpcio,
-  pycryptodome
+  pycryptodome,
+  aioboto3
 }:
 buildPythonPackage rec {
     name = "lzy";
@@ -31,6 +32,7 @@ buildPythonPackage rec {
       stdlib-list
       grpcio
       pycryptodome
+      aioboto3
     ];
     doCheck = false;
 }

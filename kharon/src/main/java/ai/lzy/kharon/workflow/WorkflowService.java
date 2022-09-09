@@ -315,157 +315,113 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
     }
 
     private boolean startPortal(String executionId, String userId, StreamObserver<CreateWorkflowResponse> response) {
-        boolean updated;
-
-        updated = withRetries(
-            defaultRetryPolicy(),
-            LOG,
-            () -> updateDatabase(connection -> {
-                var st = connection.prepareStatement("""
-                    UPDATE workflow_executions
-                    SET portal = cast(? as portal_status)
-                    WHERE execution_id = ?""");
-                st.setString(1, PortalStatus.CREATING_STD_CHANNELS.name());
-                st.setString(2, executionId);
-                return st;
-            }),
-            ok -> {
-            },
-            error -> LOG.error("Cannot set initial portal status in database", error)
-        );
-
-        if (!updated) {
-            response.onError(Status.INTERNAL.withDescription("Cannot save execution data about portal")
-                .asRuntimeException());
-            return false;
-        }
-
-        String[] portalChannelIds = createPortalStdChannels(executionId);
-        var stdoutChannelId = portalChannelIds[0];
-        var stderrChannelId = portalChannelIds[1];
-
-        updated = withRetries(
-            defaultRetryPolicy(),
-            LOG,
-            () -> updateDatabase(connection -> {
-                var st = connection.prepareStatement("""
-                    UPDATE workflow_executions
-                    SET portal_stdout_channel_id = ?, portal_stderr_channel_id = ?, portal = cast(? as portal_status)
-                    WHERE execution_id = ?""");
-                st.setString(1, stdoutChannelId);
-                st.setString(2, stderrChannelId);
-                st.setString(3, PortalStatus.CREATING_SESSION.name());
-                st.setString(4, executionId);
-                return st;
-            }),
-            ok -> {
-            },
-            error -> LOG.error("Cannot save portal stdout and stderr channel ids in database", error)
-        );
-
-        if (!updated) {
-            response.onError(Status.INTERNAL.withDescription("Cannot save execution data about portal")
-                .asRuntimeException());
-            return false;
-        }
-
-        var sessionId = createSession(userId);
-
-        updated = withRetries(
-            defaultRetryPolicy(),
-            LOG,
-            () -> updateDatabase(connection -> {
-                var st = connection.prepareStatement("""
-                    UPDATE workflow_executions
-                    SET portal = cast(? as portal_status), allocator_session_id = ?
-                    WHERE execution_id = ?""");
-                st.setString(1, PortalStatus.REQUEST_VM.name());
-                st.setString(2, sessionId);
-                st.setString(3, executionId);
-                return st;
-            }),
-            ok -> {
-            },
-            error -> LOG.error("Cannot save session id in database", error)
-        );
-
-        if (!updated) {
-            response.onError(Status.INTERNAL.withDescription("Cannot save execution data about portal")
-                .asRuntimeException());
-            return false;
-        }
-
-        var startAllocationTime = Instant.now();
-        var operation = startAllocation(sessionId, executionId, stdoutChannelId, stderrChannelId);
-        var opId = operation.getId();
-
-        AllocateMetadata allocateMetadata;
         try {
-            allocateMetadata = operation.getMetadata().unpack(AllocateMetadata.class);
-        } catch (InvalidProtocolBufferException e) {
-            response.onError(Status.INTERNAL
-                .withDescription("Invalid allocate operation metadata: VM id missed. Operation id: " + opId)
-                .asRuntimeException());
-            return false;
-        }
-        var vmId = allocateMetadata.getVmId();
+            withRetries(
+                defaultRetryPolicy(),
+                LOG,
+                () -> updateDatabase(connection -> {
+                    var st = connection.prepareStatement("""
+                        UPDATE workflow_executions
+                        SET portal = cast(? as portal_status)
+                        WHERE execution_id = ?""");
+                    st.setString(1, PortalStatus.CREATING_STD_CHANNELS.name());
+                    st.setString(2, executionId);
+                    return st;
+                }));
 
-        updated = withRetries(
-            defaultRetryPolicy(),
-            LOG,
-            () -> updateDatabase(connection -> {
-                var st = connection.prepareStatement("""
-                    UPDATE workflow_executions
-                    SET portal = cast(? as portal_status), allocate_op_id = ?, portal_vm_id = ?
-                    WHERE execution_id = ?""");
-                st.setString(1, PortalStatus.ALLOCATING_VM.name());
-                st.setString(2, opId);
-                st.setString(3, vmId);
-                st.setString(4, executionId);
-                return st;
-            }),
-            ok -> {
-            },
-            error -> LOG.error("Cannot save allocation operation id and vm id in database", error)
-        );
+            String[] portalChannelIds = createPortalStdChannels(executionId);
+            var stdoutChannelId = portalChannelIds[0];
+            var stderrChannelId = portalChannelIds[1];
 
-        if (!updated) {
+            withRetries(
+                defaultRetryPolicy(),
+                LOG,
+                () -> updateDatabase(connection -> {
+                    var st = connection.prepareStatement("""
+                        UPDATE workflow_executions
+                        SET portal_stdout_channel_id = ?, portal_stderr_channel_id = ?, 
+                            portal = cast(? as portal_status)
+                        WHERE execution_id = ?""");
+                    st.setString(1, stdoutChannelId);
+                    st.setString(2, stderrChannelId);
+                    st.setString(3, PortalStatus.CREATING_SESSION.name());
+                    st.setString(4, executionId);
+                    return st;
+                }));
+
+            var sessionId = createSession(userId);
+
+            withRetries(
+                defaultRetryPolicy(),
+                LOG,
+                () -> updateDatabase(connection -> {
+                    var st = connection.prepareStatement("""
+                        UPDATE workflow_executions
+                        SET portal = cast(? as portal_status), allocator_session_id = ?
+                        WHERE execution_id = ?""");
+                    st.setString(1, PortalStatus.REQUEST_VM.name());
+                    st.setString(2, sessionId);
+                    st.setString(3, executionId);
+                    return st;
+                }));
+
+            var startAllocationTime = Instant.now();
+            var operation = startAllocation(sessionId, executionId, stdoutChannelId, stderrChannelId);
+            var opId = operation.getId();
+
+            AllocateMetadata allocateMetadata;
+            try {
+                allocateMetadata = operation.getMetadata().unpack(AllocateMetadata.class);
+            } catch (InvalidProtocolBufferException e) {
+                response.onError(Status.INTERNAL
+                    .withDescription("Invalid allocate operation metadata: VM id missed. Operation id: " + opId)
+                    .asRuntimeException());
+                return false;
+            }
+            var vmId = allocateMetadata.getVmId();
+
+            withRetries(
+                defaultRetryPolicy(),
+                LOG,
+                () -> updateDatabase(connection -> {
+                    var st = connection.prepareStatement("""
+                        UPDATE workflow_executions
+                        SET portal = cast(? as portal_status), allocate_op_id = ?, portal_vm_id = ?
+                        WHERE execution_id = ?""");
+                    st.setString(1, PortalStatus.ALLOCATING_VM.name());
+                    st.setString(2, opId);
+                    st.setString(3, vmId);
+                    st.setString(4, executionId);
+                    return st;
+                }));
+
+            AllocateResponse allocateResponse = waitAllocation(startAllocationTime.plus(waitAllocateTimeout), opId);
+            if (allocateResponse == null) {
+                LOG.error("Cannot wait allocate operation response. Operation id: " + opId);
+                response.onError(Status.DEADLINE_EXCEEDED.withDescription("Allocation timeout").asRuntimeException());
+                return false;
+            }
+
+            withRetries(
+                defaultRetryPolicy(),
+                LOG,
+                () -> updateDatabase(connection -> {
+                    var st = connection.prepareStatement("""
+                        UPDATE workflow_executions
+                        SET portal = cast(? as portal_status), portal_vm_address = ?
+                        WHERE execution_id = ?""");
+                    st.setString(1, PortalStatus.VM_READY.name());
+                    st.setString(2, allocateResponse.getMetadataOrDefault(AllocatorAgent.VM_IP_ADDRESS, null));
+                    st.setString(3, executionId);
+                    return st;
+                }));
+
+        } catch (Exception e) {
             response.onError(Status.INTERNAL.withDescription("Cannot save execution data about portal")
                 .asRuntimeException());
             return false;
         }
-
-        AllocateResponse allocateResponse = waitAllocation(startAllocationTime.plus(waitAllocateTimeout), opId);
-        if (allocateResponse == null) {
-            LOG.error("Cannot wait allocate operation response. Operation id: " + opId);
-            response.onError(Status.DEADLINE_EXCEEDED.withDescription("Allocation timeout").asRuntimeException());
-            return false;
-        }
-
-        updated = withRetries(
-            defaultRetryPolicy(),
-            LOG,
-            () -> updateDatabase(connection -> {
-                var st = connection.prepareStatement("""
-                    UPDATE workflow_executions
-                    SET portal = cast(? as portal_status), portal_vm_address = ?
-                    WHERE execution_id = ?""");
-                st.setString(1, PortalStatus.VM_READY.name());
-                st.setString(2, allocateResponse.getMetadataOrDefault(AllocatorAgent.VM_IP_ADDRESS, null));
-                st.setString(3, executionId);
-                return st;
-            }),
-            ok -> {
-            },
-            error -> LOG.error("Cannot save portal vm address in database", error)
-        );
-
-        if (!updated) {
-            response.onError(Status.INTERNAL.withDescription("Cannot save execution data about portal")
-                .asRuntimeException());
-        }
-
-        return updated;
+        return true;
     }
 
     private String[] createPortalStdChannels(String executionId) {

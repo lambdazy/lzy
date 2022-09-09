@@ -1,6 +1,5 @@
-from lzy.storage import from_credentials
-from lzy.storage.credentials import StorageCredentials
-from lzy.storage.storage_client import StorageClient
+from lzy.storage.api import StorageCredentials
+from lzy.storage.deprecated import StorageClient, from_credentials
 
 
 class WhiteboardStorage:

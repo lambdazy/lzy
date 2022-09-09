@@ -48,10 +48,10 @@ public class OperationDaoImpl implements OperationDao {
     }
 
     @Override
-    public Operation create(String opId, String description, String createdBy, Any meta, @Nullable TransactionHandle th)
+    public Operation create(String description, String createdBy, Any meta, @Nullable TransactionHandle th)
         throws SQLException
     {
-        final var op = Operation.create(opId, createdBy, description, meta);
+        final var op = new Operation(createdBy, description, meta);
 
         LOG.info("Create operation {}", op.toShortString());
 
@@ -140,8 +140,9 @@ public class OperationDaoImpl implements OperationDao {
         if (op.error() != null) {
             final var status = Status.newBuilder()
                     .setCode(op.error().getCode().value());
-            if (op.error().getDescription() != null) {
-                status.setMessage(op.error().getDescription());
+            final String description = op.error().getDescription();
+            if (description != null) {
+                status.setMessage(description);
             }
             s.setBytes(9, status.build().toByteArray());
         } else {

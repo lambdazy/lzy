@@ -13,6 +13,7 @@ from yaml import safe_load
 from lzy.api.v1.buses import Bus
 from lzy.api.v1.cache_policy import CachePolicy
 from lzy.api.v1.lazy_op import LzyOp
+from lzy.api.v1.pkg_info import all_installed_packages, create_yaml, select_modules
 from lzy.api.v1.servant.bash_servant_client import BashServantClient
 from lzy.api.v1.servant.channel_manager import (
     ChannelManager,
@@ -45,12 +46,10 @@ from lzy.api.v1.whiteboard.model import (
     WhiteboardList,
 )
 from lzy.api.v2.utils.types import unwrap
-from lzy.pkg_info import all_installed_packages, create_yaml, select_modules
-from lzy.serialization.api import SerializersRegistry
+from lzy.serialization.api import SerializerRegistry
 from lzy.serialization.hasher import DelegatingHasher, Hasher
-from lzy.serialization.registry import DefaultSerializersRegistry
-from lzy.storage import from_credentials
-from lzy.storage.storage_client import StorageClient
+from lzy.serialization.registry import DefaultSerializerRegistry
+from lzy.storage.deprecated import StorageClient, from_credentials
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 BusList = List[Tuple[Callable, Bus]]
@@ -218,7 +217,7 @@ class LzyLocalEnv(LzyEnvBase):
             whiteboard_api=InMemWhiteboardApi(),
             snapshot_api=InMemSnapshotApi(),
         )
-        self._file_serializer = DefaultSerializersRegistry()
+        self._file_serializer = DefaultSerializerRegistry()
 
     def workflow(
         self,
@@ -243,7 +242,7 @@ class LzyRemoteEnv(LzyEnvBase):
     ):
         self._servant_client: BashServantClient = BashServantClient.instance(lzy_mount)
         self._lzy_mount = lzy_mount
-        self._file_serializer = DefaultSerializersRegistry()
+        self._file_serializer = DefaultSerializerRegistry()
         self._hasher = DelegatingHasher(self._file_serializer)
         super().__init__(
             whiteboard_api=WhiteboardBashApi(
@@ -386,7 +385,7 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
         name: str,
         whiteboard_api: WhiteboardApi,
         snapshot_api: SnapshotApi,
-        file_serializer: SerializersRegistry,
+        file_serializer: SerializerRegistry,
         hasher: Hasher,
         lzy_mount: str = os.getenv("LZY_MOUNT", default="/tmp/lzy"),
         conda_yaml_path: Optional[Path] = None,
@@ -447,7 +446,7 @@ class LzyRemoteWorkflow(LzyWorkflowBase):
     def channel_manager(self) -> ChannelManager:
         return self._channel_manager
 
-    def file_serializer(self) -> SerializersRegistry:
+    def file_serializer(self) -> SerializerRegistry:
         return self._file_serializer
 
     def hasher(self) -> Hasher:
@@ -518,7 +517,7 @@ class LzyLocalWorkflow(LzyWorkflowBase):
     def __init__(
         self,
         name: str,
-        file_serializer: SerializersRegistry,
+        file_serializer: SerializerRegistry,
         eager: bool = False,
         whiteboard: Any = None,
         buses: Optional[BusList] = None,

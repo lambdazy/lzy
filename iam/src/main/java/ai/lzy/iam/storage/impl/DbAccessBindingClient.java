@@ -1,5 +1,6 @@
 package ai.lzy.iam.storage.impl;
 
+import ai.lzy.iam.resources.Role;
 import ai.lzy.iam.storage.db.IamDataSource;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
@@ -56,7 +57,7 @@ public class DbAccessBindingClient {
                 st.setString(++parameterIndex, binding.subject().id());
                 st.setString(++parameterIndex, resource.resourceId());
                 st.setString(++parameterIndex, resource.type());
-                st.setString(++parameterIndex, binding.role());
+                st.setString(++parameterIndex, binding.role().value());
             }
             st.executeUpdate();
         } catch (SQLException e) {
@@ -84,10 +85,10 @@ public class DbAccessBindingClient {
                     st.setString(++parameterIndex, binding.binding().subject().id());
                     st.setString(++parameterIndex, resource.resourceId());
                     st.setString(++parameterIndex, resource.type());
-                    st.setString(++parameterIndex, binding.binding().role());
+                    st.setString(++parameterIndex, binding.binding().role().value());
                 } else if (binding.action() == AccessBindingAction.REMOVE) {
                     st.setString(++parameterIndex, binding.binding().subject().id());
-                    st.setString(++parameterIndex, binding.binding().role());
+                    st.setString(++parameterIndex, binding.binding().role().value());
                     st.setString(++parameterIndex, resource.resourceId());
                 } else {
                     throw new RuntimeException("Unknown bindingDelta action:: " + binding.action());
@@ -101,7 +102,7 @@ public class DbAccessBindingClient {
     }
 
     private AccessBinding toAccessBinding(ResourceBinding model) {
-        return new AccessBinding(model.role(), new User(model.userId()));
+        return new AccessBinding(Role.of(model.role()), new User(model.userId()));
     }
 
     private String deleteQuery() {
