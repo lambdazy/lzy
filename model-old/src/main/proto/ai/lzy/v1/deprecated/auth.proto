@@ -1,9 +1,9 @@
 syntax = "proto3";
 
-package ai.lzy.v1;
+package ai.lzy.v1.deprecated;
 
-option java_outer_classname = "IAM";
-option java_package = "ai.lzy.v1";
+option java_outer_classname = "LzyAuth";
+option java_package = "ai.lzy.v1.deprecated";
 
 message UserCredentials {
   string userId = 1;

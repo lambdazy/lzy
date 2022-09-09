@@ -1,12 +1,12 @@
 syntax = "proto3";
 
-package ai.lzy.v1;
+package ai.lzy.v1.deprecated;
 
 import "ai/lzy/v1/common/env.proto";
 import "ai/lzy/v1/common/slot.proto";
 
-option java_outer_classname = "Operations";
-option java_package = "ai.lzy.v1";
+option java_outer_classname = "LzyZygote";
+option java_package = "ai.lzy.v1.deprecated";
 
 message Zygote {
   // TODO: return uri back

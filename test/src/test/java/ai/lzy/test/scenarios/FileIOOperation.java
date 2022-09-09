@@ -10,7 +10,7 @@ import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.model.slot.TextLinesInSlot;
 import ai.lzy.model.slot.TextLinesOutSlot;
-import ai.lzy.v1.Operations;
+import ai.lzy.v1.deprecated.LzyZygote;
 
 class FileIOOperation implements AtomicZygote {
 
@@ -88,7 +88,7 @@ class FileIOOperation implements AtomicZygote {
     }
 
     @Override
-    public Operations.Zygote zygote() {
+    public LzyZygote.Zygote zygote() {
         return null;
     }
 

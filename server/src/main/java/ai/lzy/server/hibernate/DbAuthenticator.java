@@ -10,6 +10,7 @@ import ai.lzy.server.hibernate.models.TaskModel;
 import ai.lzy.server.hibernate.models.UserModel;
 import ai.lzy.server.task.Task;
 import ai.lzy.util.auth.credentials.JwtUtils;
+import ai.lzy.v1.deprecated.Lzy;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -19,7 +20,6 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import ai.lzy.model.utils.Permissions;
-import ai.lzy.v1.Lzy;
 
 import java.io.StringReader;
 import java.security.Security;

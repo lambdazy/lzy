@@ -3,11 +3,11 @@ package ai.lzy.servant.agents;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.model.UriScheme;
 import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.v1.IAM;
-import ai.lzy.v1.Lzy;
-import ai.lzy.v1.LzyServantGrpc;
-import ai.lzy.v1.LzyServerGrpc;
-import ai.lzy.v1.Servant;
+import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.v1.deprecated.Lzy;
+import ai.lzy.v1.deprecated.LzyServantGrpc;
+import ai.lzy.v1.deprecated.LzyServerGrpc;
+import ai.lzy.v1.deprecated.Servant;
 import io.grpc.Context;
 import io.grpc.ManagedChannel;
 import io.grpc.stub.StreamObserver;
@@ -92,7 +92,7 @@ public class LzyInternalTerminal implements Closeable {
     private class Impl extends LzyServantGrpc.LzyServantImplBase {
 
         @Override
-        public void start(IAM.Empty request, StreamObserver<Servant.ServantProgress> responseObserver) {
+        public void start(LzyAuth.Empty request, StreamObserver<Servant.ServantProgress> responseObserver) {
             waitForStart();
             agent.context().onProgress(progress -> {
                 LOG.info("LzyInternalTerminal::progress {} {}", agent.uri(), JsonUtils.printRequest(progress));
@@ -105,12 +105,12 @@ public class LzyInternalTerminal implements Closeable {
         }
 
         @Override
-        public void update(IAM.Auth request, StreamObserver<IAM.Empty> responseObserver) {
+        public void update(LzyAuth.Auth request, StreamObserver<LzyAuth.Empty> responseObserver) {
             agent.update(server.zygotes(request), responseObserver);
         }
 
         @Override
-        public void status(IAM.Empty request, StreamObserver<Servant.ServantStatus> responseObserver) {
+        public void status(LzyAuth.Empty request, StreamObserver<Servant.ServantStatus> responseObserver) {
             agent.status(request, responseObserver);
         }
     }

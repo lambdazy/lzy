@@ -2,8 +2,9 @@ package ai.lzy.whiteboard.api;
 
 import ai.lzy.model.data.DataSchema;
 import ai.lzy.model.grpc.ProtoConverter;
-import ai.lzy.v1.LzyWhiteboard;
-import ai.lzy.v1.Operations;
+import ai.lzy.v1.common.LMB;
+import ai.lzy.v1.deprecated.LzyWhiteboard;
+import ai.lzy.v1.deprecated.LzyZygote;
 import ai.lzy.whiteboard.model.*;
 import com.google.protobuf.Timestamp;
 import java.net.URI;
@@ -43,7 +44,7 @@ public class GrpcConverter {
         return Date.from(Instant.ofEpochSecond(date.getSeconds(), date.getNanos()));
     }
 
-    public static DataSchema contentTypeFrom(Operations.DataScheme dataScheme) {
+    public static DataSchema contentTypeFrom(LMB.DataScheme dataScheme) {
         return DataSchema.buildDataSchema(dataScheme.getSchemeType().name(), dataScheme.getType());
     }
 

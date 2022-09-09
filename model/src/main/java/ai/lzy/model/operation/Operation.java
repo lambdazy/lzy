@@ -3,13 +3,12 @@ package ai.lzy.model.operation;
 import ai.lzy.model.graph.Env;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
-import ai.lzy.v1.common.LzyCommon;
+import ai.lzy.v1.common.LMO;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-
-import javax.annotation.Nullable;
 import java.util.List;
+import javax.annotation.Nullable;
 
 
 public record Operation(
@@ -40,7 +39,7 @@ public record Operation(
         String channelId
     ){ }
 
-    public static Operation fromProto(LzyCommon.Operation operation) {
+    public static Operation fromProto(LMO.Operation operation) {
         final var req = new Requirements(
             operation.getRequirements().getPoolLabel(),
             operation.getRequirements().getZone());
@@ -76,13 +75,13 @@ public record Operation(
         );
     }
 
-    public LzyCommon.Operation toProto() {
-        final var req = LzyCommon.Requirements.newBuilder()
+    public LMO.Operation toProto() {
+        final var req = LMO.Requirements.newBuilder()
             .setPoolLabel(requirements.poolLabel)
             .setZone(requirements.zone)
             .build();
 
-        final var builder =  LzyCommon.Operation.newBuilder()
+        final var builder =  LMO.Operation.newBuilder()
             .setEnv(ProtoConverter.toProto(env))
             .setRequirements(req)
             .setCommand(command)
@@ -93,14 +92,14 @@ public record Operation(
             .setName(name);
 
         if (stdout != null) {
-            builder.setStdout(LzyCommon.Operation.StdSlotDesc.newBuilder()
+            builder.setStdout(LMO.Operation.StdSlotDesc.newBuilder()
                 .setChannelId(stdout.channelId)
                 .setName(stdout.slotName)
                 .build());
         }
 
         if (stderr != null) {
-            builder.setStdout(LzyCommon.Operation.StdSlotDesc.newBuilder()
+            builder.setStdout(LMO.Operation.StdSlotDesc.newBuilder()
                 .setChannelId(stderr.channelId)
                 .setName(stderr.slotName)
                 .build());

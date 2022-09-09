@@ -7,7 +7,7 @@ import ai.lzy.storage.LzyStorage;
 import ai.lzy.storage.StorageConfig;
 import ai.lzy.test.LzyStorageTestContext;
 import ai.lzy.util.auth.credentials.JwtCredentials;
-import ai.lzy.v1.LzyStorageServiceGrpc;
+import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import ai.lzy.whiteboard.api.SnapshotApi;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;

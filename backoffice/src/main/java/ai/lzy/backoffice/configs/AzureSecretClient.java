@@ -14,7 +14,7 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
-import ai.lzy.v1.IAM;
+import ai.lzy.v1.deprecated.LzyAuth;
 
 @Requires(property = "azure-providers", value = "true")
 @Singleton
@@ -36,7 +36,7 @@ public class AzureSecretClient implements CredentialsProvider {
         return secretClient;
     }
 
-    public IAM.UserCredentials createCreds() {
+    public LzyAuth.UserCredentials createCreds() {
         String token;
 
         try (StringReader reader = new StringReader(
@@ -47,7 +47,7 @@ public class AzureSecretClient implements CredentialsProvider {
             throw new HttpStatusException(HttpStatus.FORBIDDEN, "Corrupted backoffice token");
         }
 
-        return IAM.UserCredentials.newBuilder()
+        return LzyAuth.UserCredentials.newBuilder()
             .setToken(token)
             .setUserId(secretClient.getSecret("backofficeUserId").getValue())
             .build();

@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package ai.lzy.v1.graph;
+
+option java_outer_classname = "GraphExecutorApi";
+option java_package = "ai.lzy.v1.graph";
+
+import "ai/lzy/v1/graph/graph-executor.proto";
+import "ai/lzy/v1/scheduler/scheduler.proto";
+import "ai/lzy/v1/common/operation.proto";
+
+service GraphExecutor {
+  rpc Execute (GraphExecuteRequest) returns (GraphExecuteResponse);
+  rpc Status (GraphStatusRequest) returns (GraphStatusResponse);
+  rpc Stop (GraphStopRequest) returns (GraphStopResponse);
+  rpc List (GraphListRequest) returns (GraphListResponse);
+}
+
+// =========Execute=========
+
+message GraphExecuteRequest {
+  string workflowId = 1;
+  string workflowName = 2;
+  repeated TaskDesc tasks = 3;
+  string parentGraphId = 4;
+  repeated ChannelDesc channels = 5;
+}
+message GraphExecuteResponse {
+  GraphExecutionStatus status = 1;
+}
+
+// =========Status==========
+
+message GraphStatusRequest {
+  string workflowId = 1;
+  string graphId = 2;
+}
+message GraphStatusResponse {
+  GraphExecutionStatus status = 1;
+}
+
+// =========Stop============
+
+message GraphStopRequest {
+  string workflowId = 1;
+  string graphId = 2;
+  string issue = 3;
+}
+message GraphStopResponse {
+  GraphExecutionStatus status = 1;
+}
+
+// =========List============
+
+message GraphListRequest {
+  string workflowId = 1;
+}
+message GraphListResponse {
+  repeated GraphExecutionStatus graphs = 1;
+}

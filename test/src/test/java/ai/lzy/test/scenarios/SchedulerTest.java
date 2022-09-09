@@ -1,13 +1,15 @@
 package ai.lzy.test.scenarios;
 
+import static ai.lzy.test.impl.ChannelManagerThreadContext.Config.CHANNEL_MANAGER_PORT;
+
 import ai.lzy.allocator.AllocatorMain;
 import ai.lzy.graph.GraphExecutorApi;
-import ai.lzy.model.operation.Operation;
-import ai.lzy.model.slot.Slot;
 import ai.lzy.model.data.DataSchema;
 import ai.lzy.model.graph.AuxEnv;
 import ai.lzy.model.graph.BaseEnv;
 import ai.lzy.model.graph.Env;
+import ai.lzy.model.operation.Operation;
+import ai.lzy.model.slot.Slot;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.scheduler.SchedulerApi;
 import ai.lzy.scheduler.allocator.AllocatorImpl;
@@ -17,17 +19,26 @@ import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.v1.ChannelManager.ChannelCreateRequest;
-import ai.lzy.v1.Channels.ChannelSpec;
-import ai.lzy.v1.Channels.DirectChannelType;
-import ai.lzy.v1.LzyChannelManagerGrpc;
-import ai.lzy.v1.Operations;
-import ai.lzy.v1.Operations.DataScheme;
-import ai.lzy.v1.SchedulerApi.KillAllRequest;
-import ai.lzy.v1.SchedulerGrpc;
-import ai.lzy.v1.graph.GraphExecutorApi.*;
+import ai.lzy.v1.channel.LCM.ChannelSpec;
+import ai.lzy.v1.channel.LCM.DirectChannelType;
+import ai.lzy.v1.channel.LCMS.ChannelCreateRequest;
+import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.common.LMB;
+import ai.lzy.v1.common.LMB.DataScheme;
+import ai.lzy.v1.graph.GraphExecutor;
+import ai.lzy.v1.graph.GraphExecutor.ChannelDesc;
+import ai.lzy.v1.graph.GraphExecutorApi.GraphExecuteRequest;
+import ai.lzy.v1.graph.GraphExecutorApi.GraphStatusRequest;
 import ai.lzy.v1.graph.GraphExecutorGrpc;
+import ai.lzy.v1.scheduler.SchedulerApi.KillAllRequest;
+import ai.lzy.v1.scheduler.SchedulerGrpc;
 import io.micronaut.context.ApplicationContext;
+import java.io.IOException;
+import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
@@ -35,15 +46,6 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
-
-import java.io.IOException;
-import java.sql.SQLException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Stream;
-
-import static ai.lzy.test.impl.ChannelManagerThreadContext.Config.*;
 
 public class SchedulerTest extends LocalScenario {
     static final Logger LOG = LogManager.getLogger(SchedulerTest.class);
@@ -188,7 +190,7 @@ public class SchedulerTest extends LocalScenario {
             .addAllTasks(List.of(t1, t2, t3, t4))
             .build()).getStatus().getGraphId();
 
-        GraphExecutionStatus status;
+        GraphExecutor.GraphExecutionStatus status;
 
         do {
             Thread.sleep(1000);
@@ -210,15 +212,15 @@ public class SchedulerTest extends LocalScenario {
                 .setChannelName(value)
                 .setDirect(DirectChannelType.newBuilder().build())
                     .setContentType(DataScheme.newBuilder()
-                        .setSchemeType(Operations.SchemeType.plain)
+                        .setSchemeType(LMB.SchemeType.plain)
                         .setType("text")
                         .build())
                 .build())
             .build()).getChannelId();
     }
 
-    private ai.lzy.v1.graph.GraphExecutorApi.TaskDesc buildTask(String id, String command, List<String> inputs,
-                                                                List<String> outputs, Map<String, String> bindings)
+    private GraphExecutor.TaskDesc buildTask(String id, String command, List<String> inputs,
+                                             List<String> outputs, Map<String, String> bindings)
     {
         final var op = new Operation(
             buildEnv(),
@@ -231,13 +233,13 @@ public class SchedulerTest extends LocalScenario {
             "", "", null, null
         ).toProto();
 
-        return ai.lzy.v1.graph.GraphExecutorApi.TaskDesc.newBuilder()
+        return GraphExecutor.TaskDesc.newBuilder()
             .setOperation(op)
             .setId(id)
             .addAllSlotAssignments(
                 bindings.entrySet()
                     .stream()
-                    .map(e -> SlotToChannelAssignment.newBuilder()
+                    .map(e -> GraphExecutor.SlotToChannelAssignment.newBuilder()
                         .setSlotName(e.getKey())
                         .setChannelId(e.getValue())
                         .build()

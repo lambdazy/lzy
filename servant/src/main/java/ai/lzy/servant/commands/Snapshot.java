@@ -9,9 +9,9 @@ import java.util.Base64;
 import org.apache.commons.cli.CommandLine;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.v1.IAM;
-import ai.lzy.v1.LzyWhiteboard;
-import ai.lzy.v1.SnapshotApiGrpc;
+import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.v1.deprecated.LzyWhiteboard;
+import ai.lzy.v1.deprecated.SnapshotApiGrpc;
 
 public class Snapshot implements LzyCommand {
 
@@ -20,7 +20,7 @@ public class Snapshot implements LzyCommand {
         if (command.getArgs().length < 2) {
             throw new IllegalArgumentException("Please specify snapshot command");
         }
-        final IAM.Auth auth = IAM.Auth
+        final LzyAuth.Auth auth = LzyAuth.Auth
             .parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
         if (!auth.hasUser()) {
             throw new IllegalArgumentException("Please provide user credentials");

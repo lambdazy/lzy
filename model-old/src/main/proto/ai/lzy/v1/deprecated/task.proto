@@ -1,14 +1,14 @@
 syntax = "proto3";
 
-package ai.lzy.v1;
+package ai.lzy.v1.deprecated;
 
 import "ai/lzy/v1/common/env.proto";
 import "ai/lzy/v1/common/slot.proto";
-import "ai/lzy/v1/zygote.proto";
-import "ai/lzy/v1/auth.proto";
+import "ai/lzy/v1/deprecated/zygote.proto";
+import "ai/lzy/v1/deprecated/auth.proto";
 
-option java_outer_classname = "Tasks";
-option java_package = "ai.lzy.v1";
+option java_outer_classname = "LzyTask";
+option java_package = "ai.lzy.v1.deprecated";
 
 message TaskCommand {
   Auth auth = 1;

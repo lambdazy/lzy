@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package ai.lzy.v1.workflow;
 
-option java_outer_classname = "LWSD";
+option java_outer_classname = "LWF";
 option java_package = "ai.lzy.v1.workflow";
 
 message AzureCredentials {

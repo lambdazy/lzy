@@ -2,8 +2,8 @@ package ai.lzy.backoffice.models.auth;
 
 import io.micronaut.core.annotation.Introspected;
 import ai.lzy.backoffice.models.UserCredentials;
-import ai.lzy.v1.BackOffice;
-import ai.lzy.v1.IAM;
+import ai.lzy.v1.deprecated.BackOffice;
+import ai.lzy.v1.deprecated.LzyAuth;
 
 @Introspected
 public class CheckPermissionRequest {
@@ -27,7 +27,7 @@ public class CheckPermissionRequest {
         this.permissionName = permissionName;
     }
 
-    public BackOffice.CheckPermissionRequest toModel(IAM.UserCredentials creds) {
+    public BackOffice.CheckPermissionRequest toModel(LzyAuth.UserCredentials creds) {
         return BackOffice.CheckPermissionRequest.newBuilder()
             .setPermissionName(permissionName)
             .setCredentials(credentials.toModel())

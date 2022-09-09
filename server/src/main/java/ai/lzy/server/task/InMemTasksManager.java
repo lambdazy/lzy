@@ -1,7 +1,7 @@
 package ai.lzy.server.task;
 
-import static ai.lzy.v1.Tasks.TaskProgress.Status.ERROR;
-import static ai.lzy.v1.Tasks.TaskProgress.Status.SUCCESS;
+import static ai.lzy.v1.deprecated.LzyTask.TaskProgress.Status.ERROR;
+import static ai.lzy.v1.deprecated.LzyTask.TaskProgress.Status.SUCCESS;
 
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.model.slot.Slot;

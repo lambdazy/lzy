@@ -2,7 +2,7 @@ package ai.lzy.fs;
 
 import ai.lzy.model.UriScheme;
 import ai.lzy.util.auth.credentials.JwtUtils;
-import ai.lzy.v1.IAM;
+import ai.lzy.v1.deprecated.LzyAuth;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.URI;
@@ -71,7 +71,7 @@ public final class LzyFsApp {
         final String userId = cmdLine.getOptionValue("user");
         final String servantId = cmdLine.getOptionValue("servant-id");
 
-        final IAM.Auth.Builder authBuilder = IAM.Auth.newBuilder();
+        final LzyAuth.Auth.Builder authBuilder = LzyAuth.Auth.newBuilder();
         if (userId != null) {
             if (servantId != null) {
                 System.err.println("Either 'user' or 'servan-id' is allowed");
@@ -103,12 +103,12 @@ public final class LzyFsApp {
                     }
                 }
             }
-            authBuilder.setUser(IAM.UserCredentials.newBuilder()
+            authBuilder.setUser(LzyAuth.UserCredentials.newBuilder()
                 .setUserId(userId)
                 .setToken(token)
                 .build());
         } else {
-            authBuilder.setTask(IAM.TaskCredentials.newBuilder()
+            authBuilder.setTask(LzyAuth.TaskCredentials.newBuilder()
                 .setServantId(servantId)
                 .setServantToken(cmdLine.getOptionValue("servant-token", ""))
                 .build());

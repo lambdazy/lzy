@@ -1,13 +1,13 @@
 syntax = "proto3";
 
-import "ai/lzy/v1/auth.proto";
-import "ai/lzy/v1/zygote.proto";
-import "ai/lzy/v1/task.proto";
+package ai.lzy.v1.deprecated;
 
-package ai.lzy.v1;
+import "ai/lzy/v1/deprecated/auth.proto";
+import "ai/lzy/v1/deprecated/zygote.proto";
+import "ai/lzy/v1/deprecated/task.proto";
 
 option java_outer_classname = "Lzy";
-option java_package = "ai.lzy.v1";
+option java_package = "ai.lzy.v1.deprecated";
 
 service LzyServer {
   rpc Publish (PublishRequest) returns (PublishResponse);

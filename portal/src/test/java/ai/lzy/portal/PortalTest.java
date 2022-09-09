@@ -9,6 +9,14 @@ import ai.lzy.test.GrpcUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.*;
+import ai.lzy.v1.common.LMS;
+import ai.lzy.v1.deprecated.LzyTask;
+import ai.lzy.v1.deprecated.LzyZygote;
+import ai.lzy.v1.fs.LzyFsApi;
+import ai.lzy.v1.fs.LzyFsGrpc;
+import ai.lzy.v1.portal.LzyPortal;
+import ai.lzy.v1.portal.LzyPortalApi;
+import ai.lzy.v1.portal.LzyPortalGrpc;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
@@ -178,20 +186,20 @@ public abstract class PortalTest {
         createChannel(stdChannelNames[1]);
 
         String slotName = "/portal_slot_" + taskId;
-        Operations.Slot slot = isInput ? GrpcUtils.makeInputFileSlot(slotName) : GrpcUtils.makeOutputFileSlot(slotName);
+        LMS.Slot slot = isInput ? GrpcUtils.makeInputFileSlot(slotName) : GrpcUtils.makeOutputFileSlot(slotName);
 
         openPortalSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
-            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+            .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSnapshot(GrpcUtils.makeAmazonSnapshot(snapshotId, BUCKET_NAME, S3_ADDRESS))
                 .setSlot(slot)
                 .setChannelId(channelName)
                 .build())
-            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+            .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_%s:stdout".formatted(taskName)))
                 .setChannelId(stdChannelNames[0])
                 .setStdout(GrpcUtils.makeStdoutStorage(taskName))
                 .build())
-            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+            .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_%s:stderr".formatted(taskName)))
                 .setChannelId(stdChannelNames[1])
                 .setStderr(GrpcUtils.makeStderrStorage(taskName))
@@ -201,29 +209,29 @@ public abstract class PortalTest {
         return servant;
     }
 
-    protected String startTask(int taskNum, String fuze, Operations.Slot slot, String specifiedServant) {
+    protected String startTask(int taskNum, String fuze, LMS.Slot slot, String specifiedServant) {
         String taskId = "task_" + taskNum;
         String actualServant = Objects.isNull(specifiedServant) ? "servant_" + taskNum : specifiedServant;
 
         server.start(actualServant,
-            Tasks.TaskSpec.newBuilder()
+            LzyTask.TaskSpec.newBuilder()
                 .setTid(taskId)
-                .setZygote(Operations.Zygote.newBuilder()
+                .setZygote(LzyZygote.Zygote.newBuilder()
                     .setName("zygote_" + taskNum)
                     .addSlots(slot)
                     .setFuze(fuze)
                     .build())
-                .addAssignments(Tasks.SlotAssignment.newBuilder()
+                .addAssignments(LzyTask.SlotAssignment.newBuilder()
                     .setTaskId(taskId)
                     .setSlot(slot)
                     .setBinding("channel_" + taskNum)
                     .build())
-                .addAssignments(Tasks.SlotAssignment.newBuilder()
+                .addAssignments(LzyTask.SlotAssignment.newBuilder()
                     .setTaskId(taskId)
                     .setSlot(GrpcUtils.makeOutputPipeSlot("/dev/stdout"))
                     .setBinding(taskId + ":stdout")
                     .build())
-                .addAssignments(Tasks.SlotAssignment.newBuilder()
+                .addAssignments(LzyTask.SlotAssignment.newBuilder()
                     .setTaskId(taskId)
                     .setSlot(GrpcUtils.makeOutputPipeSlot("/dev/stderr"))
                     .setBinding(taskId + ":stderr")
@@ -260,8 +268,8 @@ public abstract class PortalTest {
                 slot -> {
                     System.out.println("[portal slot] " + JsonUtils.printSingleLine(slot));
                     return switch (slot.getSlot().getDirection()) {
-                        case INPUT -> Set.of(Operations.SlotStatus.State.UNBOUND, Operations.SlotStatus.State.OPEN,
-                            Operations.SlotStatus.State.DESTROYED).contains(slot.getState());
+                        case INPUT -> Set.of(LMS.SlotStatus.State.UNBOUND, LMS.SlotStatus.State.OPEN,
+                            LMS.SlotStatus.State.DESTROYED).contains(slot.getState());
                         case OUTPUT -> true;
                         case UNKNOWN, UNRECOGNIZED -> throw new RuntimeException("Unexpected state");
                     };

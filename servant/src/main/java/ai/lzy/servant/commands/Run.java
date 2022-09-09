@@ -4,6 +4,17 @@ import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
+import ai.lzy.v1.channel.LCM;
+import ai.lzy.v1.channel.LCMS;
+import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.common.LMS;
+import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.v1.deprecated.LzyKharonGrpc;
+import ai.lzy.v1.deprecated.LzyServerGrpc;
+import ai.lzy.v1.deprecated.LzyTask;
+import ai.lzy.v1.deprecated.LzyZygote;
+import ai.lzy.v1.fs.LzyFsApi;
+import ai.lzy.v1.fs.LzyFsGrpc;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
@@ -50,7 +61,7 @@ public class Run implements LzyCommand {
     private final CountDownLatch communicationLatch = new CountDownLatch(2);
     private final List<ChannelDescription> channels = new ArrayList<>();
     private LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManager;
-    private IAM.Auth auth;
+    private LzyAuth.Auth auth;
     private Map<String, Map<String, String>> pipesConfig;
     private LzyFsGrpc.LzyFsBlockingStub servantFs;
     private String agentId;
@@ -86,7 +97,7 @@ public class Run implements LzyCommand {
 
         final URI serverAddr = URI.create(command.getOptionValue('z'));
         final URI channelManagerAddr = URI.create(command.getOptionValue("channel-manager"));
-        auth = IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
+        auth = LzyAuth.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
 
         final ManagedChannel servant = ChannelBuilder
             .forAddress("localhost", Integer.parseInt(command.getOptionValue('q')))
@@ -106,11 +117,11 @@ public class Run implements LzyCommand {
                 auth.getUser()::getToken
             ));
 
-        final Operations.Zygote.Builder builder = Operations.Zygote.newBuilder();
+        final LzyZygote.Zygote.Builder builder = LzyZygote.Zygote.newBuilder();
         JsonFormat.parser().merge(System.getenv("ZYGOTE"), builder);
-        final Operations.Zygote grpcZygote = builder.build();
+        final LzyZygote.Zygote grpcZygote = builder.build();
         final Zygote zygote = GrpcConverter.from(grpcZygote);
-        final Tasks.TaskSpec.Builder taskSpecBuilder = Tasks.TaskSpec.newBuilder();
+        final LzyTask.TaskSpec.Builder taskSpecBuilder = LzyTask.TaskSpec.newBuilder();
         taskSpecBuilder.setAuth(auth);
         taskSpecBuilder.setZygote(grpcZygote);
         zygote.slots().forEach(slot -> {
@@ -137,16 +148,16 @@ public class Run implements LzyCommand {
             .build();
         final LzyServerGrpc.LzyServerBlockingStub server = LzyServerGrpc.newBlockingStub(serverCh);
         final long startTimeMillis = System.currentTimeMillis();
-        final Tasks.TaskSpec taskSpec = taskSpecBuilder.build();
+        final LzyTask.TaskSpec taskSpec = taskSpecBuilder.build();
         LOG.info("Running taskSpec: {}", JsonUtils.printRequest(taskSpec));
-        final Iterator<Tasks.TaskProgress> executionProgress = server.start(taskSpec);
+        final Iterator<LzyTask.TaskProgress> executionProgress = server.start(taskSpec);
         final int[] exit = new int[] {-1};
         final String[] descriptionArr = new String[] {"Got no exit code"};
         executionProgress.forEachRemaining(progress -> {
             try {
                 LOG.info("[progress] " + JsonFormat.printer().print(progress));
-                if (progress.getStatus() == Tasks.TaskProgress.Status.ERROR
-                    || progress.getStatus() == Tasks.TaskProgress.Status.SUCCESS) {
+                if (progress.getStatus() == LzyTask.TaskProgress.Status.ERROR
+                    || progress.getStatus() == LzyTask.TaskProgress.Status.SUCCESS) {
                     exit[0] = progress.getRc();
                     descriptionArr[0] = progress.getDescription();
                     System.in.close();
@@ -296,7 +307,7 @@ public class Run implements LzyCommand {
     private void createSlotByProto(String channelId, String slotName, Slot slotProto) {
         LOG.info("Create slot `{}` for channel `{}` with taskId {}.", slotName, channelId, agentId);
         try {
-            final Operations.Slot slotDeclaration = Operations.Slot.newBuilder(ProtoConverter.toProto(slotProto))
+            final LMS.Slot slotDeclaration = LMS.Slot.newBuilder(ProtoConverter.toProto(slotProto))
                 .setName(slotName)
                 .build();
             var ret = servantFs.createSlot(LzyFsApi.CreateSlotRequest.newBuilder()
@@ -316,8 +327,8 @@ public class Run implements LzyCommand {
 
     private void destroyChannel(ChannelDescription channelDescription) {
         try {
-            final ChannelManager.ChannelDestroyResponse destroyResponse =
-                channelManager.destroy(ChannelManager.ChannelDestroyRequest.newBuilder()
+            final LCMS.ChannelDestroyResponse destroyResponse =
+                channelManager.destroy(LCMS.ChannelDestroyRequest.newBuilder()
                     .setChannelId(channelDescription.channelId())
                     .build()
                 );
@@ -332,12 +343,12 @@ public class Run implements LzyCommand {
 
     private String createChannel(Slot slot, String channelName) {
         LOG.info("Create channel `{}` for slot `{}`.", channelName, slot.name());
-        final ChannelManager.ChannelCreateResponse channelCreateResponse = channelManager.create(
-            ChannelManager.ChannelCreateRequest.newBuilder()
-                .setChannelSpec(Channels.ChannelSpec.newBuilder()
+        final LCMS.ChannelCreateResponse channelCreateResponse = channelManager.create(
+            LCMS.ChannelCreateRequest.newBuilder()
+                .setChannelSpec(LCM.ChannelSpec.newBuilder()
                     .setChannelName(channelName)
                     .setContentType(ProtoConverter.toProto(slot.contentType()))
-                    .setDirect(Channels.DirectChannelType.newBuilder().build())
+                    .setDirect(LCM.DirectChannelType.newBuilder().build())
                     .build())
                 .setWorkflowId(agentId)
                 .build()

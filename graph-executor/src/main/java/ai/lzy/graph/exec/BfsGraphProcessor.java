@@ -1,6 +1,6 @@
 package ai.lzy.graph.exec;
 
-import ai.lzy.v1.SchedulerApi.TaskStatus;
+import ai.lzy.v1.scheduler.Scheduler;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -17,7 +17,6 @@ import ai.lzy.graph.model.GraphExecutionState;
 import ai.lzy.graph.model.GraphExecutionState.Status;
 import ai.lzy.graph.model.TaskDescription;
 import ai.lzy.graph.model.TaskExecution;
-import ai.lzy.v1.Tasks;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -46,7 +45,7 @@ public class BfsGraphProcessor implements GraphProcessor {
             case EXECUTING -> {
                 int completed = 0;
                 for (TaskExecution task: graph.executions()) {
-                    final TaskStatus status = api.status(graph.workflowId(), task.id());
+                    final Scheduler.TaskStatus status = api.status(graph.workflowId(), task.id());
                     if (status == null) {
                         LOG.error(String.format(
                             "TaskVertex <%s> not found in scheduler,"
@@ -122,7 +121,7 @@ public class BfsGraphProcessor implements GraphProcessor {
                 .stream()
                 .map(t -> {
                     LOG.info("Sending task {} from graph {} to scheduler", t.id(), graph.id());
-                    final TaskStatus progress = api.execute(graph.workflowName(), graph.workflowId(), t);
+                    final Scheduler.TaskStatus progress = api.execute(graph.workflowName(), graph.workflowId(), t);
                     return new TaskExecution(progress.getTaskId(), t);
                 })
                 .collect(Collectors.toList());

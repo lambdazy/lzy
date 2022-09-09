@@ -18,7 +18,8 @@ import ai.lzy.model.deprecated.AtomicZygote;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.v1.*;
+import ai.lzy.v1.common.LME;
+import ai.lzy.v1.deprecated.*;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
@@ -160,7 +161,7 @@ public class LzyServant implements Closeable {
     private class ServantImpl extends LzyServantGrpc.LzyServantImplBase {
 
         @Override
-        public void env(Operations.EnvSpec request, StreamObserver<Servant.EnvResult> responseObserver) {
+        public void env(LME.EnvSpec request, StreamObserver<Servant.EnvResult> responseObserver) {
             try {
                 if (agent.getStatus() != AgentStatus.REGISTERED) {
                     responseObserver.onError(Status.FAILED_PRECONDITION.asException());
@@ -205,7 +206,7 @@ public class LzyServant implements Closeable {
         }
 
         @Override
-        public void start(IAM.Empty request, StreamObserver<Servant.ServantProgress> responseObserver) {
+        public void start(LzyAuth.Empty request, StreamObserver<Servant.ServantProgress> responseObserver) {
             waitForStart();
             if (agent.getStatus() != AgentStatus.REGISTERED) {
                 responseObserver.onError(Status.FAILED_PRECONDITION.asException());
@@ -222,7 +223,7 @@ public class LzyServant implements Closeable {
         }
 
         @Override
-        public void execute(Tasks.TaskSpec request, StreamObserver<Servant.ExecutionStarted> responseObserver) {
+        public void execute(LzyTask.TaskSpec request, StreamObserver<Servant.ExecutionStarted> responseObserver) {
             try {
                 if (agent.getStatus() != AgentStatus.REGISTERED) {
                     responseObserver.onError(Status.FAILED_PRECONDITION.asException());
@@ -317,11 +318,11 @@ public class LzyServant implements Closeable {
         }
 
         @Override
-        public void stop(IAM.Empty request, StreamObserver<IAM.Empty> responseObserver) {
+        public void stop(LzyAuth.Empty request, StreamObserver<LzyAuth.Empty> responseObserver) {
             try {
                 LOG.info("Servant::stop {}", agent.uri());
                 cleanupExecution();
-                responseObserver.onNext(IAM.Empty.newBuilder().build());
+                responseObserver.onNext(LzyAuth.Empty.newBuilder().build());
                 responseObserver.onCompleted();
 
                 context.close(); //wait for slots to complete
@@ -343,7 +344,7 @@ public class LzyServant implements Closeable {
         }
 
         @Override
-        public void signal(Tasks.TaskSignal request, StreamObserver<IAM.Empty> responseObserver) {
+        public void signal(LzyTask.TaskSignal request, StreamObserver<LzyAuth.Empty> responseObserver) {
             if (agent.getStatus().getValue() < AgentStatus.EXECUTING.getValue()) {
                 responseObserver.onError(Status.FAILED_PRECONDITION.asException());
                 return;
@@ -357,17 +358,17 @@ public class LzyServant implements Closeable {
             if (lzyExecution != null) {
                 lzyExecution.signal(request.getSigValue());
             }
-            responseObserver.onNext(IAM.Empty.newBuilder().build());
+            responseObserver.onNext(LzyAuth.Empty.newBuilder().build());
             responseObserver.onCompleted();
         }
 
         @Override
-        public void update(IAM.Auth request, StreamObserver<IAM.Empty> responseObserver) {
+        public void update(LzyAuth.Auth request, StreamObserver<LzyAuth.Empty> responseObserver) {
             agent.update(server.zygotes(request), responseObserver);
         }
 
         @Override
-        public void status(IAM.Empty request, StreamObserver<Servant.ServantStatus> responseObserver) {
+        public void status(LzyAuth.Empty request, StreamObserver<Servant.ServantStatus> responseObserver) {
             agent.status(request, responseObserver);
         }
     }

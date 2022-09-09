@@ -18,13 +18,11 @@ import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.impl.Workflow;
 import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.util.auth.credentials.Credentials;
-import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
+import ai.lzy.v1.graph.GraphExecutor;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphExecuteRequest;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphExecuteResponse;
-import ai.lzy.v1.graph.GraphExecutorApi.GraphExecutionStatus;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphListRequest;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphListResponse;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphStatusRequest;
@@ -136,7 +134,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
     public void list(GraphListRequest request, StreamObserver<GraphListResponse> responseObserver) {
         assertAuthorized(request.getWorkflowId(), AuthPermission.WORKFLOW_GET);
 
-        final List<GraphExecutionStatus> graphs;
+        final List<GraphExecutor.GraphExecutionStatus> graphs;
 
         try {
             graphs = dao.list(request.getWorkflowId())

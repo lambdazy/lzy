@@ -4,7 +4,7 @@ import ai.lzy.channelmanager.channel.Channel;
 import ai.lzy.channelmanager.channel.Endpoint;
 import ai.lzy.channelmanager.channel.ChannelSpec;
 import ai.lzy.model.db.TransactionHandle;
-import ai.lzy.v1.Channels;
+import ai.lzy.v1.channel.LCM;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
@@ -13,7 +13,7 @@ import javax.annotation.Nullable;
 public interface ChannelStorage {
 
     void insertChannel(String channelId, String userId, String workflowId,
-                       String channelName, Channels.ChannelSpec.TypeCase channelType, ChannelSpec channelSpec,
+                       String channelName, LCM.ChannelSpec.TypeCase channelType, ChannelSpec channelSpec,
                        @Nullable TransactionHandle transaction) throws SQLException;
 
     void removeChannel(String channelId, @Nullable TransactionHandle transaction) throws SQLException;

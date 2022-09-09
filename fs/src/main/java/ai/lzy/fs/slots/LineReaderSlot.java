@@ -4,7 +4,8 @@ import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.model.basic.SlotInstance;
 import ai.lzy.model.grpc.ProtoConverter;
-import ai.lzy.v1.Operations;
+import ai.lzy.v1.common.LMS;
+import ai.lzy.v1.deprecated.LzyZygote;
 import com.google.protobuf.ByteString;
 import java.io.EOFException;
 import java.io.IOException;
@@ -28,7 +29,7 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
 
     public LineReaderSlot(SlotInstance instance) {
         super(instance);
-        state(Operations.SlotStatus.State.OPEN);
+        state(LMS.SlotStatus.State.OPEN);
     }
 
     public void setStream(LineNumberReader lnr) {
@@ -36,8 +37,8 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
     }
 
     @Override
-    public Operations.SlotStatus status() {
-        return Operations.SlotStatus.newBuilder()
+    public LMS.SlotStatus status() {
+        return LMS.SlotStatus.newBuilder()
             .setState(state())
             .setPointer(offset)
             .setDeclaration(ProtoConverter.toProto(definition()))

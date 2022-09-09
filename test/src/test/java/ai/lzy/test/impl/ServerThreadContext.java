@@ -17,7 +17,7 @@ import java.util.concurrent.locks.LockSupport;
 import org.apache.logging.log4j.LogManager;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.server.LzyServer;
-import ai.lzy.v1.LzyServerGrpc;
+import ai.lzy.v1.deprecated.LzyServerGrpc;
 
 public class ServerThreadContext implements LzyServerTestContext {
 

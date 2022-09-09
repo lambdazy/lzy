@@ -1,23 +1,21 @@
 package ai.lzy.graph.model;
 
 import ai.lzy.graph.api.SchedulerApi;
-import ai.lzy.v1.SchedulerApi.TaskStatus;
-import ai.lzy.v1.graph.GraphExecutorApi;
-import ai.lzy.v1.graph.GraphExecutorApi.GraphExecutionStatus.Completed;
-import ai.lzy.v1.graph.GraphExecutorApi.GraphExecutionStatus.Executing;
-import ai.lzy.v1.graph.GraphExecutorApi.GraphExecutionStatus.Failed;
-import ai.lzy.v1.graph.GraphExecutorApi.GraphExecutionStatus.Waiting;
-import ai.lzy.v1.graph.GraphExecutorApi.TaskExecutionStatus;
+import ai.lzy.v1.graph.GraphExecutor;
+import ai.lzy.v1.graph.GraphExecutor.GraphExecutionStatus.Completed;
+import ai.lzy.v1.graph.GraphExecutor.GraphExecutionStatus.Executing;
+import ai.lzy.v1.graph.GraphExecutor.GraphExecutionStatus.Failed;
+import ai.lzy.v1.graph.GraphExecutor.GraphExecutionStatus.Waiting;
+import ai.lzy.v1.scheduler.Scheduler;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.grpc.StatusRuntimeException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
 @JsonSerialize
@@ -39,8 +37,8 @@ public record GraphExecutionState(
        WAITING, EXECUTING, COMPLETED, FAILED
     }
 
-    public GraphExecutorApi.GraphExecutionStatus toGrpc(SchedulerApi schedulerApi) {
-        GraphExecutorApi.GraphExecutionStatus.Builder statusBuilder = GraphExecutorApi.GraphExecutionStatus.newBuilder()
+    public GraphExecutor.GraphExecutionStatus toGrpc(SchedulerApi schedulerApi) {
+        GraphExecutor.GraphExecutionStatus.Builder statusBuilder = GraphExecutor.GraphExecutionStatus.newBuilder()
             .setWorkflowId(workflowId)
             .setGraphId(id);
         switch (status) {
@@ -52,19 +50,19 @@ public record GraphExecutionState(
                     .build()
             );
             case EXECUTING -> {
-                final List<TaskExecutionStatus> statuses = new ArrayList<>();
+                final List<GraphExecutor.TaskExecutionStatus> statuses = new ArrayList<>();
                 for (var task: executions) {
-                    final TaskStatus status;
+                    final Scheduler.TaskStatus status;
                     try {
                         status = schedulerApi.status(workflowId, task.id());
                     } catch (StatusRuntimeException e) {
                         LOG.error("Cannot get status of task", e);
-                        statuses.add(TaskExecutionStatus.newBuilder()
+                        statuses.add(GraphExecutor.TaskExecutionStatus.newBuilder()
                             .setTaskDescriptionId(task.description().id())
                             .build());
                         continue;
                     }
-                    statuses.add(TaskExecutionStatus.newBuilder()
+                    statuses.add(GraphExecutor.TaskExecutionStatus.newBuilder()
                         .setProgress(status)
                         .setTaskDescriptionId(task.description().id())
                         .build());

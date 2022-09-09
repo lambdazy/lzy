@@ -5,9 +5,9 @@ import ai.lzy.model.db.Transaction;
 import ai.lzy.storage.StorageConfig;
 import ai.lzy.storage.StorageDataSource;
 import ai.lzy.util.auth.YcIamClient;
-import ai.lzy.v1.LSS.*;
-import ai.lzy.v1.LzyStorageServiceGrpc;
-import ai.lzy.v1.workflow.LWSD;
+import ai.lzy.v1.storage.LSS.*;
+import ai.lzy.v1.storage.LzyStorageServiceGrpc;
+import ai.lzy.v1.workflow.LWF;
 import com.amazonaws.SdkClientException;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
@@ -151,7 +151,7 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
         }
 
         response.onNext(CreateS3BucketResponse.newBuilder()
-            .setAmazon(LWSD.AmazonCredentials.newBuilder()
+            .setAmazon(LWF.AmazonCredentials.newBuilder()
                 .setEndpoint(s3Creds.getEndpoint())
                 .setAccessToken(tokens[1])
                 .setSecretToken(tokens[2])
@@ -185,7 +185,7 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
             var rs = st.executeQuery();
             if (rs.next()) {
                 response.onNext(GetS3BucketCredentialsResponse.newBuilder()
-                    .setAmazon(LWSD.AmazonCredentials.newBuilder()
+                    .setAmazon(LWF.AmazonCredentials.newBuilder()
                         .setEndpoint(s3Creds.getEndpoint())
                         .setAccessToken(rs.getString("access_token"))
                         .setSecretToken(rs.getString("secret_token"))

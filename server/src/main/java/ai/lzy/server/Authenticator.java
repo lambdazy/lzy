@@ -2,7 +2,7 @@ package ai.lzy.server;
 
 import ai.lzy.model.utils.Permissions;
 import ai.lzy.server.task.Task;
-import ai.lzy.v1.Lzy;
+import ai.lzy.v1.deprecated.Lzy;
 
 public interface Authenticator {
     boolean checkUser(String userId, String token);

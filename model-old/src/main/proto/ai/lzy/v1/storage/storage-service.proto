@@ -1,11 +1,11 @@
 syntax = "proto3";
 
-package ai.lzy.v1;
+package ai.lzy.v1.storage;
 
 import "ai/lzy/v1/workflow/workflow.proto";
 
 option java_outer_classname = "LSS";
-option java_package = "ai.lzy.v1";
+option java_package = "ai.lzy.v1.storage";
 
 service LzyStorageService {
   rpc CreateS3Bucket (CreateS3BucketRequest) returns (CreateS3BucketResponse);
@@ -22,8 +22,8 @@ message CreateS3BucketRequest {
 
 message CreateS3BucketResponse {
   oneof credentials {
-    ai.lzy.v1.workflow.AmazonCredentials amazon = 1;
-    ai.lzy.v1.workflow.AzureCredentials azure = 2;
+    workflow.AmazonCredentials amazon = 1;
+    workflow.AzureCredentials azure = 2;
   }
 }
 
@@ -41,7 +41,7 @@ message GetS3BucketCredentialsRequest {
 
 message GetS3BucketCredentialsResponse {
   oneof credentials {
-    ai.lzy.v1.workflow.AmazonCredentials amazon = 1;
-    ai.lzy.v1.workflow.AzureCredentials azure = 2;
+    workflow.AmazonCredentials amazon = 1;
+    workflow.AzureCredentials azure = 2;
   }
 }

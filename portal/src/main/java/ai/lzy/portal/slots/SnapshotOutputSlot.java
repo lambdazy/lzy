@@ -18,7 +18,7 @@ import java.nio.file.Path;
 import java.util.Objects;
 import java.util.stream.Stream;
 
-import static ai.lzy.v1.Operations.SlotStatus.State.OPEN;
+import static ai.lzy.v1.common.LMS.SlotStatus.State.OPEN;
 
 public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot {
     private static final Logger LOG = LogManager.getLogger(SnapshotOutputSlot.class);

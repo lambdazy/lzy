@@ -3,17 +3,13 @@ package ai.lzy.model.scheduler;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.v1.lzy.SchedulerPrivateApi;
-import ai.lzy.v1.lzy.SchedulerPrivateApi.ServantProgress;
-import ai.lzy.v1.lzy.SchedulerPrivateApi.ServantProgress.Executing;
-import ai.lzy.v1.lzy.SchedulerPrivateApi.ServantProgress.Idle;
-import ai.lzy.v1.lzy.SchedulerPrivateGrpc;
-import ai.lzy.v1.lzy.SchedulerPrivateGrpc.SchedulerPrivateBlockingStub;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress.Executing;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress.Idle;
+import ai.lzy.v1.scheduler.SchedulerPrivateGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.time.Duration;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -22,6 +18,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class SchedulerAgent extends Thread {
     private static final Logger LOG = LogManager.getLogger(SchedulerAgent.class);
@@ -32,7 +30,7 @@ public class SchedulerAgent extends Thread {
     private final int apiPort;
     private final ManagedChannel channel;
 
-    private final SchedulerPrivateBlockingStub stub;
+    private final SchedulerPrivateGrpc.SchedulerPrivateBlockingStub stub;
     private final AtomicBoolean stopping = new AtomicBoolean(false);
     private final BlockingQueue<ServantProgress> progressQueue = new LinkedBlockingQueue<>();
     private final Timer timer = new Timer();

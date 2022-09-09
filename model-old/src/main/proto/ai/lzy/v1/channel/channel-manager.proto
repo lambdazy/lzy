@@ -1,12 +1,12 @@
 syntax = "proto3";
 
-package ai.lzy.v1;
+package ai.lzy.v1.channel;
 
 import "ai/lzy/v1/common/slot.proto";
-import "ai/lzy/v1/channel.proto";
+import "ai/lzy/v1/channel/channel.proto";
 
-option java_outer_classname = "ChannelManager";
-option java_package = "ai.lzy.v1";
+option java_outer_classname = "LCMS";
+option java_package = "ai.lzy.v1.channel";
 
 service LzyChannelManager {
   rpc Create (ChannelCreateRequest) returns (ChannelCreateResponse);

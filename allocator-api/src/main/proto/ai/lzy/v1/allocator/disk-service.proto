@@ -11,14 +11,14 @@ import "ai/lzy/v1/operation-service/option.proto";
 
 
 service DiskService {
-  rpc CreateDisk (CreateDiskRequest) returns (ai.lzy.v1.Operation) {
+  rpc CreateDisk (CreateDiskRequest) returns (Operation) {
     option (ai.lzy.v1.operation) = {
       metadata: "CreateDiskMetadata"
       response: "CreateDiskResponse"
     };
   }
 
-  rpc CloneDisk (CloneDiskRequest) returns (ai.lzy.v1.Operation) {
+  rpc CloneDisk (CloneDiskRequest) returns (Operation) {
     option (ai.lzy.v1.operation) = {
       metadata: "CloneDiskMetadata"
       response: "CloneDiskResponse"

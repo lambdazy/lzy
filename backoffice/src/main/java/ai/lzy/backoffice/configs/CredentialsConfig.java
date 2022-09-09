@@ -2,7 +2,7 @@ package ai.lzy.backoffice.configs;
 
 import static ai.lzy.util.auth.credentials.JwtUtils.buildJWT;
 
-import ai.lzy.v1.IAM;
+import ai.lzy.v1.deprecated.LzyAuth;
 import io.micronaut.context.annotation.ConfigurationProperties;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.http.HttpStatus;
@@ -35,7 +35,7 @@ public class CredentialsConfig implements CredentialsProvider {
         this.privateKeyPath = privateKeyPath;
     }
 
-    public IAM.UserCredentials createCreds() {
+    public LzyAuth.UserCredentials createCreds() {
         String token;
         try (FileReader keyReader = new FileReader(privateKeyPath)) {
             token = buildJWT(userId, keyReader);
@@ -43,7 +43,7 @@ public class CredentialsConfig implements CredentialsProvider {
             throw new HttpStatusException(HttpStatus.FORBIDDEN, "Corrupted backoffice token");
         }
 
-        return IAM.UserCredentials.newBuilder()
+        return LzyAuth.UserCredentials.newBuilder()
             .setToken(token)
             .setUserId(userId)
             .build();

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package ai.lzy.v1.workflow;
 
-option java_outer_classname = "LWS";
+option java_outer_classname = "LWFS";
 option java_package = "ai.lzy.v1.workflow";
 
 import "ai/lzy/v1/workflow/workflow.proto";

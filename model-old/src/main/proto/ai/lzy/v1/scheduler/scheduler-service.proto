@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package ai.lzy.v1.scheduler;
+
+option java_outer_classname = "SchedulerApi";
+option java_package = "ai.lzy.v1.scheduler";
+
+import "ai/lzy/v1/scheduler/scheduler.proto";
+import "ai/lzy/v1/common/operation.proto";
+
+service Scheduler {
+  rpc Schedule (TaskScheduleRequest) returns (TaskScheduleResponse);
+  rpc Status (TaskStatusRequest) returns (TaskStatusResponse);
+  rpc List (TaskListRequest) returns (TaskListResponse);
+  rpc Stop (TaskStopRequest) returns (TaskStopResponse);
+  rpc KillAll (KillAllRequest) returns (KillAllResponse);
+}
+
+// =========== Schedule ============
+
+message TaskScheduleRequest {
+  string workflowId = 1;
+  string workflowName = 2;
+  TaskDesc task = 3;
+}
+message TaskScheduleResponse {
+  TaskStatus status = 1;
+}
+
+// =========== Status ============
+
+message TaskStatusRequest {
+  string workflowId = 1;
+  string taskId = 2;
+}
+message TaskStatusResponse {
+  TaskStatus status = 1;
+}
+
+// =========== List ============
+
+message TaskListRequest {
+  string workflowId = 1;
+}
+message TaskListResponse {
+  repeated TaskStatus status = 1;
+}
+
+// =========== Signal ============
+
+message TaskStopRequest {
+  string workflowId = 1;
+  string taskId = 2;
+
+  string issue = 3;
+}
+
+message TaskStopResponse {
+  TaskStatus status = 1;
+}
+
+// ============ KillAll =============
+
+message KillAllRequest {
+  string workflowName = 1;
+  string issue = 2;
+}
+message KillAllResponse {}
+

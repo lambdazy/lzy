@@ -1,11 +1,12 @@
 package ai.lzy.channelmanager.grpc;
 
-import ai.lzy.v1.Channels;
-import ai.lzy.v1.LzyFsApi;
+import ai.lzy.v1.channel.LCM;
+import ai.lzy.v1.common.LMS;
+import ai.lzy.v1.fs.LzyFsApi;
 
 public class ProtoValidator {
 
-    public static boolean isValid(Channels.ChannelSpec channelSpec) {
+    public static boolean isValid(LCM.ChannelSpec channelSpec) {
         try {
             boolean isValid = true;
             isValid = isValid && !channelSpec.getChannelName().isBlank();
@@ -18,7 +19,7 @@ public class ProtoValidator {
         }
     }
 
-    public static boolean isValid(LzyFsApi.SlotInstance slotInstance) {
+    public static boolean isValid(LMS.SlotInstance slotInstance) {
         try {
             boolean isValid = true;
             isValid = isValid && !slotInstance.getTaskId().isBlank();

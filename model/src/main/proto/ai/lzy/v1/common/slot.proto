@@ -4,8 +4,8 @@ package ai.lzy.v1;
 
 import "ai/lzy/v1/common/basic.proto";
 
-option java_outer_classname = "LCMS";
-option java_package = "ai.lzy.v1";
+option java_outer_classname = "LMS";
+option java_package = "ai.lzy.v1.common";
 
 message Slot {
   string name = 1;

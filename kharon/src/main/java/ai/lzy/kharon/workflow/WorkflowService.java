@@ -5,13 +5,13 @@ import ai.lzy.kharon.KharonConfig;
 import ai.lzy.kharon.KharonDataSource;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.model.db.Transaction;
-import ai.lzy.v1.LSS;
-import ai.lzy.v1.LzyStorageServiceGrpc;
+import ai.lzy.v1.storage.LSS;
+import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.v1.workflow.LWS.*;
-import ai.lzy.v1.workflow.LWSD;
+import ai.lzy.v1.workflow.LWFS.*;
+import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
@@ -178,7 +178,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
                     .setExecutionId(executionId[0]);
 
                 if (!request.hasSnapshotStorage()) {
-                    var storageBuilder = LWSD.SnapshotStorage.newBuilder()
+                    var storageBuilder = LWF.SnapshotStorage.newBuilder()
                         .setBucket(bucket[0]);
 
                     switch (bucketCredentials[0].getCredentialsCase()) {

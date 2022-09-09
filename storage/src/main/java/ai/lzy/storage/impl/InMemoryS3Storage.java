@@ -1,9 +1,9 @@
 package ai.lzy.storage.impl;
 
 import ai.lzy.storage.StorageConfig;
-import ai.lzy.v1.LSS.*;
-import ai.lzy.v1.LzyStorageServiceGrpc;
-import ai.lzy.v1.workflow.LWSD;
+import ai.lzy.v1.storage.LSS.*;
+import ai.lzy.v1.storage.LzyStorageServiceGrpc;
+import ai.lzy.v1.workflow.LWF;
 import com.amazonaws.SdkClientException;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
@@ -70,7 +70,7 @@ public class InMemoryS3Storage extends LzyStorageServiceGrpc.LzyStorageServiceIm
         }
 
         response.onNext(CreateS3BucketResponse.newBuilder()
-            .setAmazon(LWSD.AmazonCredentials.newBuilder()
+            .setAmazon(LWF.AmazonCredentials.newBuilder()
                 .setEndpoint(endpoint)
                 .build())
             .build());
@@ -101,7 +101,7 @@ public class InMemoryS3Storage extends LzyStorageServiceGrpc.LzyStorageServiceIm
             request.getUserId(), request.getBucket());
 
         response.onNext(GetS3BucketCredentialsResponse.newBuilder()
-            .setAmazon(LWSD.AmazonCredentials.newBuilder()
+            .setAmazon(LWF.AmazonCredentials.newBuilder()
                 .setEndpoint(endpoint)
                 .build())
             .build());

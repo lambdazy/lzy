@@ -1,11 +1,11 @@
 syntax = "proto3";
 
-package ai.lzy.v1;
+package ai.lzy.v1.channel;
 
 import "ai/lzy/v1/common/basic.proto";
 
-option java_outer_classname = "Channels";
-option java_package = "ai.lzy.v1";
+option java_outer_classname = "LCM";
+option java_package = "ai.lzy.v1.channel";
 
 message ChannelSpec {
   string channelName = 1;

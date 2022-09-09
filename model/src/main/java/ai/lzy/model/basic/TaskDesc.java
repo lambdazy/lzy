@@ -4,8 +4,8 @@ import ai.lzy.model.operation.Operation;
 import ai.lzy.model.operation.OperationDeserializer;
 import ai.lzy.model.operation.OperationSerializer;
 import ai.lzy.model.slot.Slot;
-import ai.lzy.v1.common.LzyCommon;
-import ai.lzy.v1.common.LzyCommon.SlotToChannelAssignment;
+import ai.lzy.v1.common.LMO;
+import ai.lzy.v1.common.LMO.SlotToChannelAssignment;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -23,7 +23,7 @@ public record TaskDesc(
     Operation operation,
     Map<String, String> slotsToChannelsAssignments
 ) {
-    public static TaskDesc fromProto(LzyCommon.TaskDesc taskDesc) {
+    public static TaskDesc fromProto(LMO.TaskDesc taskDesc) {
         Map<String, String> slotMapping = taskDesc.getSlotAssignmentsList()
             .stream()
             .collect(Collectors.toMap(SlotToChannelAssignment::getSlotName, SlotToChannelAssignment::getChannelId));
@@ -31,8 +31,8 @@ public record TaskDesc(
         return new TaskDesc(Operation.fromProto(taskDesc.getOperation()), slotMapping);
     }
 
-    public LzyCommon.TaskDesc toProto() {
-        LzyCommon.TaskDesc.Builder builder = LzyCommon.TaskDesc.newBuilder()
+    public LMO.TaskDesc toProto() {
+        LMO.TaskDesc.Builder builder = LMO.TaskDesc.newBuilder()
             .setOperation(operation.toProto());
         operation.slots().forEach(slot -> {
             if (Stream.of(Slot.STDOUT, Slot.STDERR)

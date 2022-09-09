@@ -1,10 +1,9 @@
 package ai.lzy.fs.fs;
 
 import ai.lzy.model.basic.SlotInstance;
-import com.google.protobuf.ByteString;
 import ai.lzy.model.slot.Slot;
-import ai.lzy.v1.Operations;
-
+import ai.lzy.v1.common.LMS;
+import com.google.protobuf.ByteString;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -22,19 +21,19 @@ public interface LzySlot {
     void destroy();
     void close();
 
-    Operations.SlotStatus status();
-    Operations.SlotStatus.State state();
+    LMS.SlotStatus status();
+    LMS.SlotStatus.State state();
 
     interface StateChangeAction extends Runnable {
         void onError(Throwable th);
     }
 
-    default void onState(Operations.SlotStatus.State state, StateChangeAction action) {
+    default void onState(LMS.SlotStatus.State state, StateChangeAction action) {
         onState(state, action::run);
     }
 
-    void onState(Operations.SlotStatus.State state, Runnable action);
-    void onState(Set<Operations.SlotStatus.State> state, StateChangeAction action);
+    void onState(LMS.SlotStatus.State state, Runnable action);
+    void onState(Set<LMS.SlotStatus.State> state, StateChangeAction action);
 
     void onChunk(Consumer<ByteString> trafficTracker);
 }

@@ -1,12 +1,12 @@
 syntax = "proto3";
 
-package ai.lzy.v1;
+package ai.lzy.v1.deprecated;
 
-import "ai/lzy/v1/auth.proto";
-import "ai/lzy/v1/task.proto";
+import "ai/lzy/v1/deprecated/auth.proto";
+import "ai/lzy/v1/deprecated/task.proto";
 
 option java_outer_classname = "BackOffice";
-option java_package = "ai.lzy.v1";
+option java_package = "ai.lzy.v1.deprecated";
 
 service LzyBackoffice{
   rpc AddKey(AddKeyRequest) returns (AddKeyResult);

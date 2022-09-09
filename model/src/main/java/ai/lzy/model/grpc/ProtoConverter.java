@@ -7,7 +7,9 @@ import ai.lzy.model.data.DataSchema;
 import ai.lzy.model.data.SchemeType;
 import ai.lzy.model.graph.*;
 import ai.lzy.model.slot.Slot;
-import ai.lzy.v1.Operations;
+import ai.lzy.v1.common.LMB;
+import ai.lzy.v1.common.LME;
+import ai.lzy.v1.common.LMS;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,21 +18,21 @@ import javax.annotation.Nullable;
 
 public class ProtoConverter {
 
-    public static Slot fromProto(Operations.Slot grpcSlot) {
+    public static Slot fromProto(LMS.Slot grpcSlot) {
         return new SlotAdapter(grpcSlot);
     }
 
-    public static SlotStatus fromProto(Operations.SlotStatus slotStatus) {
+    public static SlotStatus fromProto(LMS.SlotStatus slotStatus) {
         return new SlotStatusAdapter(slotStatus);
     }
     
-    public static Provisioning fromProto(Operations.Provisioning provisioning) {
+    public static Provisioning fromProto(LME.Provisioning provisioning) {
         return () -> provisioning.getTagsList().stream()
-            .map(Operations.Provisioning.Tag::getTag)
+            .map(LME.Provisioning.Tag::getTag)
             .collect(Collectors.toSet());
     }
 
-    public static Env fromProto(Operations.EnvSpec env) {
+    public static Env fromProto(LME.EnvSpec env) {
         final BaseEnv baseEnv;
         if (env.hasBaseEnv()) {
             baseEnv = fromProto(env.getBaseEnv());
@@ -46,29 +48,27 @@ public class ProtoConverter {
         return new EnvImpl(baseEnv, auxEnv);
     }
 
-    public static BaseEnv fromProto(Operations.BaseEnv env) {
+    public static BaseEnv fromProto(LME.BaseEnv env) {
         return new BaseEnvAdapter(env);
     }
 
-    public static AuxEnv fromProto(Operations.AuxEnv env) {
+    public static AuxEnv fromProto(LME.AuxEnv env) {
         if (env.hasPyenv()) {
             return fromProto(env.getPyenv());
         }
         return null;
     }
 
-    private static PythonEnv fromProto(Operations.PythonEnv env) {
+    private static PythonEnv fromProto(LME.PythonEnv env) {
         return new PythonEnvAdapter(env);
     }
 
-    public static DataSchema fromProto(Operations.DataScheme dataScheme) {
+    public static DataSchema fromProto(LMB.DataScheme dataScheme) {
         return DataSchema.buildDataSchema(dataScheme.getSchemeType().name(), dataScheme.getType());
     }
 
-
-
-    public static Operations.EnvSpec toProto(Env env) {
-        Operations.EnvSpec.Builder builder = Operations.EnvSpec.newBuilder();
+    public static LME.EnvSpec toProto(Env env) {
+        LME.EnvSpec.Builder builder = LME.EnvSpec.newBuilder();
         if (env != null) {
             if (env.baseEnv() != null) {
                 builder.setBaseEnv(toProto(env.baseEnv()));
@@ -80,60 +80,60 @@ public class ProtoConverter {
         return builder.build();
     }
 
-    public static Operations.BaseEnv toProto(BaseEnv env) {
-        Operations.BaseEnv.Builder builder = Operations.BaseEnv.newBuilder();
+    public static LME.BaseEnv toProto(BaseEnv env) {
+        LME.BaseEnv.Builder builder = LME.BaseEnv.newBuilder();
         if (env.name() != null) {
             builder.setName(env.name());
         }
         return builder.build();
     }
 
-    public static Operations.AuxEnv toProto(AuxEnv env) {
-        Operations.AuxEnv.Builder builder = Operations.AuxEnv.newBuilder();
+    public static LME.AuxEnv toProto(AuxEnv env) {
+        LME.AuxEnv.Builder builder = LME.AuxEnv.newBuilder();
         if (env instanceof PythonEnv) {
             builder.setPyenv(toProto((PythonEnv) env));
         }
         return builder.build();
     }
 
-    public static Operations.PythonEnv toProto(PythonEnv env) {
-        List<Operations.LocalModule> localModules = new ArrayList<>();
+    public static LME.PythonEnv toProto(PythonEnv env) {
+        List<LME.LocalModule> localModules = new ArrayList<>();
         env.localModules()
-            .forEach(localModule -> localModules.add(Operations.LocalModule.newBuilder()
+            .forEach(localModule -> localModules.add(LME.LocalModule.newBuilder()
                 .setName(localModule.name())
                 .setUri(localModule.uri())
                 .build()));
-        return Operations.PythonEnv.newBuilder()
+        return LME.PythonEnv.newBuilder()
             .setName(env.name())
             .setYaml(env.yaml())
             .addAllLocalModules(localModules)
             .build();
     }
 
-    public static Operations.Slot toProto(Slot slot) {
-        return Operations.Slot.newBuilder()
+    public static LMS.Slot toProto(Slot slot) {
+        return LMS.Slot.newBuilder()
             .setName(slot.name())
-            .setMedia(Operations.Slot.Media.valueOf(slot.media().name()))
-            .setDirection(Operations.Slot.Direction.valueOf(slot.direction().name()))
+            .setMedia(LMS.Slot.Media.valueOf(slot.media().name()))
+            .setDirection(LMS.Slot.Direction.valueOf(slot.direction().name()))
             .setContentType(toProto(slot.contentType()))
             .build();
     }
 
-    public static Operations.DataScheme toProto(DataSchema dataSchema) {
-        return Operations.DataScheme.newBuilder()
+    public static LMB.DataScheme toProto(DataSchema dataSchema) {
+        return LMB.DataScheme.newBuilder()
             .setType(dataSchema.typeContent())
             .setSchemeType(toProto(dataSchema.schemeType()))
             .build();
     }
 
-    public static Operations.SchemeType toProto(SchemeType dataSchema) {
-        return Operations.SchemeType.valueOf(dataSchema.name());
+    public static LMB.SchemeType toProto(SchemeType dataSchema) {
+        return LMB.SchemeType.valueOf(dataSchema.name());
     }
 
-    public static Operations.Provisioning toProto(Provisioning provisioning) {
-        return Operations.Provisioning.newBuilder()
+    public static LME.Provisioning toProto(Provisioning provisioning) {
+        return LME.Provisioning.newBuilder()
             .addAllTags(provisioning.tags().stream()
-                .map(tag -> Operations.Provisioning.Tag.newBuilder().setTag(tag).build())
+                .map(tag -> LME.Provisioning.Tag.newBuilder().setTag(tag).build())
                 .collect(Collectors.toList()))
             .build();
     }
@@ -164,7 +164,7 @@ public class ProtoConverter {
         private final String name;
         private final String uri;
 
-        public LocalModuleAdapter(Operations.LocalModule localModule) {
+        public LocalModuleAdapter(LME.LocalModule localModule) {
             this.name = localModule.getName();
             this.uri = localModule.getUri();
         }
@@ -180,10 +180,10 @@ public class ProtoConverter {
 
     private static class PythonEnvAdapter implements PythonEnv {
 
-        private final Operations.PythonEnv env;
+        private final LME.PythonEnv env;
         private final List<LocalModule> localModules;
 
-        public PythonEnvAdapter(Operations.PythonEnv env) {
+        public PythonEnvAdapter(LME.PythonEnv env) {
             this.env = env;
             localModules = new ArrayList<>();
             env.getLocalModulesList()
@@ -220,9 +220,9 @@ public class ProtoConverter {
 
     private static class BaseEnvAdapter implements BaseEnv {
 
-        private final Operations.BaseEnv env;
+        private final LME.BaseEnv env;
 
-        public BaseEnvAdapter(Operations.BaseEnv env) {
+        public BaseEnvAdapter(LME.BaseEnv env) {
             this.env = env;
         }
 
@@ -237,9 +237,9 @@ public class ProtoConverter {
 
     public static class SlotAdapter implements Slot {
 
-        private final Operations.Slot s;
+        private final LMS.Slot s;
 
-        public SlotAdapter(Operations.Slot s) {
+        public SlotAdapter(LMS.Slot s) {
             this.s = s;
         }
 
@@ -277,9 +277,9 @@ public class ProtoConverter {
 
     private static class SlotStatusAdapter implements SlotStatus {
 
-        private final Operations.SlotStatus slotStatus;
+        private final LMS.SlotStatus slotStatus;
 
-        SlotStatusAdapter(Operations.SlotStatus slotStatus) {
+        SlotStatusAdapter(LMS.SlotStatus slotStatus) {
             this.slotStatus = slotStatus;
         }
 

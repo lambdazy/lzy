@@ -3,7 +3,7 @@ package ai.lzy.whiteboard.model;
 import java.util.HashSet;
 import java.util.Set;
 import javax.annotation.Nullable;
-import ai.lzy.v1.Tasks;
+import ai.lzy.v1.deprecated.LzyTask;
 
 public class SnapshotMeta {
     private final Set<SlotMapping> slotMappings;
@@ -12,7 +12,7 @@ public class SnapshotMeta {
         this.slotMappings = slotMappings;
     }
 
-    public static SnapshotMeta from(Tasks.SnapshotMeta meta) {
+    public static SnapshotMeta from(LzyTask.SnapshotMeta meta) {
         HashSet<SlotMapping> mappings = new HashSet<>();
         for (var entry : meta.getMappingsList()) {
             mappings.add(new SlotMapping(entry.getSlotName(), entry.getEntryId()));
@@ -20,10 +20,10 @@ public class SnapshotMeta {
         return new SnapshotMeta(mappings);
     }
 
-    public static Tasks.SnapshotMeta to(SnapshotMeta meta) {
-        Tasks.SnapshotMeta.Builder builder = Tasks.SnapshotMeta.newBuilder();
+    public static LzyTask.SnapshotMeta to(SnapshotMeta meta) {
+        LzyTask.SnapshotMeta.Builder builder = LzyTask.SnapshotMeta.newBuilder();
         for (var entry : meta.slotMappings) {
-            builder.addMappings(Tasks.SlotMapping
+            builder.addMappings(LzyTask.SlotMapping
                 .newBuilder()
                 .setSlotName(entry.slotName)
                 .setEntryId(entry.entryId)

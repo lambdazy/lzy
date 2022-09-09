@@ -7,11 +7,12 @@ import ai.lzy.model.slot.Slot;
 import ai.lzy.model.basic.SlotInstance;
 import ai.lzy.portal.utils.PortalUtils;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.v1.LzyPortalApi;
-import ai.lzy.v1.LzyPortalApi.OpenSlotsRequest;
-import ai.lzy.v1.LzyPortalApi.OpenSlotsResponse;
-import ai.lzy.v1.LzyPortalApi.PortalStatus;
-import ai.lzy.v1.LzyPortalGrpc.LzyPortalImplBase;
+import ai.lzy.v1.portal.LzyPortal;
+import ai.lzy.v1.portal.LzyPortalApi;
+import ai.lzy.v1.portal.LzyPortalApi.OpenSlotsRequest;
+import ai.lzy.v1.portal.LzyPortalApi.OpenSlotsResponse;
+import ai.lzy.v1.portal.LzyPortalApi.PortalStatus;
+import ai.lzy.v1.portal.LzyPortalGrpc.LzyPortalImplBase;
 import com.google.protobuf.Empty;
 import io.grpc.stub.StreamObserver;
 import org.apache.commons.lang3.NotImplementedException;
@@ -82,7 +83,7 @@ class PortalApiImpl extends LzyPortalImplBase {
             return response.build();
         };
 
-        for (LzyPortalApi.PortalSlotDesc slotDesc : request.getSlotsList()) {
+        for (LzyPortal.PortalSlotDesc slotDesc : request.getSlotsList()) {
             LOG.info("Open slot {}", portalSlotToSafeString(slotDesc));
 
             final Slot slot = ProtoConverter.fromProto(slotDesc.getSlot());
@@ -116,7 +117,7 @@ class PortalApiImpl extends LzyPortalImplBase {
         return response.build();
     }
 
-    private static String portalSlotToSafeString(LzyPortalApi.PortalSlotDesc slotDesc) {
+    private static String portalSlotToSafeString(LzyPortal.PortalSlotDesc slotDesc) {
         var sb = new StringBuilder()
             .append("PortalSlotDesc{")
             .append("\"slot\": ").append(JsonUtils.printSingleLine(slotDesc))

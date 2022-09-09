@@ -1,14 +1,14 @@
 syntax = "proto3";
 
-import "ai/lzy/v1/auth.proto";
-import "ai/lzy/v1/backoffice.proto";
-import "ai/lzy/v1/common/zygote.proto";
+import "ai/lzy/v1/common/basic.proto";
+import "ai/lzy/v1/deprecated/auth.proto";
+import "ai/lzy/v1/deprecated/backoffice.proto";
 import "google/protobuf/timestamp.proto";
 
-package ai.lzy.v1.oldwb;
+package ai.lzy.v1.deprecated;
 
 option java_outer_classname = "LzyWhiteboard";
-option java_package = "ai.lzy.v1";
+option java_package = "ai.lzy.v1.deprecated";
 
 service SnapshotApi {
   rpc CreateSnapshot (CreateSnapshotCommand) returns (Snapshot);

@@ -1,5 +1,7 @@
 package ai.lzy.backoffice.grpc;
 
+import ai.lzy.backoffice.configs.CredentialsProvider;
+import ai.lzy.backoffice.configs.GrpcConfig;
 import ai.lzy.backoffice.models.auth.CheckPermissionRequest;
 import ai.lzy.backoffice.models.auth.CheckSessionRequest;
 import ai.lzy.backoffice.models.keys.AddPublicKeyRequest;
@@ -9,18 +11,16 @@ import ai.lzy.backoffice.models.tasks.GetTasksRequest;
 import ai.lzy.backoffice.models.users.CreateUserRequest;
 import ai.lzy.backoffice.models.users.DeleteUserRequest;
 import ai.lzy.backoffice.models.users.ListUsersRequest;
+import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.v1.deprecated.BackOffice;
+import ai.lzy.v1.deprecated.LzyBackofficeGrpc;
+import ai.lzy.v1.deprecated.WbApiGrpc;
 import io.grpc.Channel;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import ai.lzy.backoffice.configs.CredentialsProvider;
-import ai.lzy.backoffice.configs.GrpcConfig;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.v1.BackOffice;
-import ai.lzy.v1.LzyBackofficeGrpc;
-import ai.lzy.v1.WbApiGrpc;
 
 @Singleton
 public class Client {

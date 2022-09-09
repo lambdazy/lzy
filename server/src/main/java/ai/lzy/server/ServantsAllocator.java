@@ -2,9 +2,9 @@ package ai.lzy.server;
 
 import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
-import ai.lzy.v1.LzyFsGrpc;
-import ai.lzy.v1.LzyServantGrpc;
-import ai.lzy.v1.Servant;
+import ai.lzy.v1.fs.LzyFsGrpc;
+import ai.lzy.v1.deprecated.LzyServantGrpc;
+import ai.lzy.v1.deprecated.Servant;
 
 import java.net.URI;
 import java.util.concurrent.CompletableFuture;

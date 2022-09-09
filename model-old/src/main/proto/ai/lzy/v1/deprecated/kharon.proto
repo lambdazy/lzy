@@ -1,19 +1,20 @@
 syntax = "proto3";
 
-import "ai/lzy/v1/fs.proto";
-import "ai/lzy/v1/auth.proto";
+package ai.lzy.v1.deprecated;
 
-package ai.lzy.v1;
+import "ai/lzy/v1/deprecated/auth.proto";
+import "ai/lzy/v1/common/slot.proto";
+import "ai/lzy/v1/fs/fs-service.proto";
 
 option java_outer_classname = "Kharon";
-option java_package = "ai.lzy.v1";
+option java_package = "ai.lzy.v1.deprecated";
 
 
 service LzyKharon {
   // API for terminal
   rpc AttachTerminal (stream TerminalProgress) returns (stream TerminalCommand);
   rpc WriteToInputSlot(stream SendSlotDataMessage) returns (ReceivedDataStatus);
-  rpc OpenOutputSlot (SlotRequest) returns (stream Message);
+  rpc OpenOutputSlot (fs.SlotRequest) returns (stream fs.Message);
 }
 
 message TerminalProgress {
@@ -30,7 +31,7 @@ message Attach {
 message TerminalResponse {
   string commandId = 1;
   oneof content {
-    SlotCommandStatus slotStatus = 2;
+    fs.SlotCommandStatus slotStatus = 2;
   }
 }
 
@@ -38,11 +39,11 @@ message TerminalCommand {
   string commandId = 1;
   oneof command {
     TerminalAttachResponse terminalAttachResponse = 2;
-    CreateSlotRequest createSlot = 3;
-    ConnectSlotRequest connectSlot = 4;
-    DisconnectSlotRequest disconnectSlot = 5;
-    StatusSlotRequest statusSlot = 6;
-    DestroySlotRequest destroySlot = 7;
+    fs.CreateSlotRequest createSlot = 3;
+    fs.ConnectSlotRequest connectSlot = 4;
+    fs.DisconnectSlotRequest disconnectSlot = 5;
+    fs.StatusSlotRequest statusSlot = 6;
+    fs.DestroySlotRequest destroySlot = 7;
   }
 }
 
@@ -52,8 +53,8 @@ message TerminalAttachResponse {
 
 message SendSlotDataMessage {
   oneof writeCommand {
-    SlotRequest request = 1;
-    Message message = 2;
+    fs.SlotRequest request = 1;
+    fs.Message message = 2;
   }
 }
 

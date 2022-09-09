@@ -10,14 +10,11 @@ import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
-import ai.lzy.v1.Lzy;
-import ai.lzy.v1.Lzy.AmazonCredentials;
-import ai.lzy.v1.Lzy.AzureCredentials;
-import ai.lzy.v1.Lzy.AzureSASCredentials;
-import ai.lzy.v1.Lzy.GetS3CredentialsResponse;
-import ai.lzy.v1.LzyFsApi;
-import ai.lzy.v1.Operations;
-import ai.lzy.v1.Tasks;
+import ai.lzy.v1.common.LMB;
+import ai.lzy.v1.common.LMS;
+import ai.lzy.v1.deprecated.Lzy;
+import ai.lzy.v1.deprecated.LzyTask;
+import ai.lzy.v1.deprecated.LzyZygote;
 import java.net.URI;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -25,11 +22,11 @@ import javax.annotation.Nullable;
 @Deprecated
 public abstract class GrpcConverter {
 
-    public static AtomicZygote from(Operations.Zygote grpcOperation) {
+    public static AtomicZygote from(LzyZygote.Zygote grpcOperation) {
         return new AtomicZygoteAdapter(grpcOperation);
     }
 
-    public static SlotInstance from(LzyFsApi.SlotInstance slotInstance) {
+    public static SlotInstance from(LMS.SlotInstance slotInstance) {
         return new SlotInstance(
             fromProto(slotInstance.getSlot()),
             slotInstance.getTaskId(),
@@ -37,7 +34,7 @@ public abstract class GrpcConverter {
             URI.create(slotInstance.getSlotUri())
         );
     }
-    public static Context from(Tasks.ContextSpec spec) {
+    public static Context from(LzyTask.ContextSpec spec) {
         return new ContextImpl(
             fromProto(spec.getEnv()),
             fromProto(spec.getProvisioning()),
@@ -45,17 +42,17 @@ public abstract class GrpcConverter {
         );
     }
 
-    public static Stream<Context.SlotAssignment> from(Stream<Tasks.SlotAssignment> assignmentsList) {
+    public static Stream<Context.SlotAssignment> from(Stream<LzyTask.SlotAssignment> assignmentsList) {
         return assignmentsList
             .map(ass -> new Context.SlotAssignment(ass.getTaskId(), fromProto(ass.getSlot()), ass.getBinding()));
     }
 
-    public static DataSchema contentTypeFrom(Operations.DataScheme dataScheme) {
+    public static DataSchema contentTypeFrom(LMB.DataScheme dataScheme) {
         return DataSchema.buildDataSchema(dataScheme.getSchemeType().name(), dataScheme.getType());
     }
 
-    public static Operations.Zygote to(Zygote zygote) {
-        final Operations.Zygote.Builder builder = Operations.Zygote.newBuilder();
+    public static LzyZygote.Zygote to(Zygote zygote) {
+        final LzyZygote.Zygote.Builder builder = LzyZygote.Zygote.newBuilder();
         if (zygote instanceof AtomicZygote) {
             final AtomicZygote atomicZygote = (AtomicZygote) zygote;
             builder.setEnv(ProtoConverter.toProto(atomicZygote.env()));
@@ -79,14 +76,14 @@ public abstract class GrpcConverter {
                 return to((StorageCredentials.AmazonCredentials) credentials);
             default:
             case Empty:
-                return GetS3CredentialsResponse.newBuilder().build();
+                return Lzy.GetS3CredentialsResponse.newBuilder().build();
         }
     }
 
     public static Lzy.GetS3CredentialsResponse to(StorageCredentials.AzureCredentials credentials) {
-        return GetS3CredentialsResponse.newBuilder()
+        return Lzy.GetS3CredentialsResponse.newBuilder()
             .setAzure(
-                AzureCredentials.newBuilder()
+                Lzy.AzureCredentials.newBuilder()
                     .setConnectionString(credentials.connectionString())
                     .build()
             )
@@ -95,8 +92,8 @@ public abstract class GrpcConverter {
 
     public static Lzy.GetS3CredentialsResponse to(
         StorageCredentials.AmazonCredentials credentials) {
-        return GetS3CredentialsResponse.newBuilder()
-            .setAmazon(AmazonCredentials.newBuilder()
+        return Lzy.GetS3CredentialsResponse.newBuilder()
+            .setAmazon(Lzy.AmazonCredentials.newBuilder()
                 .setEndpoint(credentials.endpoint())
                 .setAccessToken(credentials.accessToken())
                 .setSecretToken(credentials.secretToken())
@@ -106,9 +103,9 @@ public abstract class GrpcConverter {
 
     public static Lzy.GetS3CredentialsResponse to(
         StorageCredentials.AzureSASCredentials credentials) {
-        return GetS3CredentialsResponse.newBuilder()
+        return Lzy.GetS3CredentialsResponse.newBuilder()
             .setAzureSas(
-                AzureSASCredentials.newBuilder()
+                Lzy.AzureSASCredentials.newBuilder()
                     .setSignature(credentials.signature())
                     .setEndpoint(credentials.endpoint())
                     .build()
@@ -116,8 +113,8 @@ public abstract class GrpcConverter {
             .build();
     }
 
-    public static LzyFsApi.SlotInstance to(SlotInstance slotInstance) {
-        return LzyFsApi.SlotInstance.newBuilder()
+    public static LMS.SlotInstance to(SlotInstance slotInstance) {
+        return LMS.SlotInstance.newBuilder()
             .setSlot(ProtoConverter.toProto(slotInstance.spec()))
             .setTaskId(slotInstance.taskId())
             .setChannelId(slotInstance.channelId())
@@ -125,7 +122,7 @@ public abstract class GrpcConverter {
             .build();
     }
 
-    private record AtomicZygoteAdapter(Operations.Zygote operation) implements AtomicZygote {
+    private record AtomicZygoteAdapter(LzyZygote.Zygote operation) implements AtomicZygote {
 
         @Override
         public String name() {
@@ -139,7 +136,7 @@ public abstract class GrpcConverter {
         @Override
         public Slot[] input() {
             return operation.getSlotsList().stream()
-                .filter(s -> s.getDirection() == Operations.Slot.Direction.INPUT)
+                .filter(s -> s.getDirection() == LMS.Slot.Direction.INPUT)
                 .map(SlotAdapter::new)
                 .toArray(Slot[]::new);
         }
@@ -147,7 +144,7 @@ public abstract class GrpcConverter {
         @Override
         public Slot[] output() {
             return operation.getSlotsList().stream()
-                .filter(s -> s.getDirection() == Operations.Slot.Direction.OUTPUT)
+                .filter(s -> s.getDirection() == LMS.Slot.Direction.OUTPUT)
                 .map(SlotAdapter::new)
                 .toArray(Slot[]::new);
         }
@@ -169,7 +166,7 @@ public abstract class GrpcConverter {
         }
 
         @Override
-        public Operations.Zygote zygote() {
+        public LzyZygote.Zygote zygote() {
             return operation;
         }
 
@@ -186,9 +183,9 @@ public abstract class GrpcConverter {
 
     private static class SlotAdapter implements Slot {
 
-        private final Operations.Slot s;
+        private final LMS.Slot s;
 
-        SlotAdapter(Operations.Slot s) {
+        SlotAdapter(LMS.Slot s) {
             this.s = s;
         }
 
@@ -226,9 +223,9 @@ public abstract class GrpcConverter {
 
     private static class SlotStatusAdapter implements SlotStatus {
 
-        private final Operations.SlotStatus slotStatus;
+        private final LMS.SlotStatus slotStatus;
 
-        SlotStatusAdapter(Operations.SlotStatus slotStatus) {
+        SlotStatusAdapter(LMS.SlotStatus slotStatus) {
             this.slotStatus = slotStatus;
         }
 

@@ -2,8 +2,8 @@ package ai.lzy.backoffice.models.users;
 
 import io.micronaut.core.annotation.Introspected;
 import ai.lzy.backoffice.models.UserCredentials;
-import ai.lzy.v1.BackOffice;
-import ai.lzy.v1.IAM;
+import ai.lzy.v1.deprecated.BackOffice;
+import ai.lzy.v1.deprecated.LzyAuth;
 
 @Introspected
 public class CreateUserRequest {
@@ -27,7 +27,7 @@ public class CreateUserRequest {
         this.user = user;
     }
 
-    public BackOffice.CreateUserRequest toModel(IAM.UserCredentials credentials) {
+    public BackOffice.CreateUserRequest toModel(LzyAuth.UserCredentials credentials) {
         return BackOffice.CreateUserRequest.newBuilder()
             .setBackofficeCredentials(credentials)
             .setCreatorCredentials(creatorCredentials.toModel())

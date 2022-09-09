@@ -8,7 +8,7 @@ import ai.lzy.model.slot.Slot;
 import ai.lzy.model.deprecated.AtomicZygote;
 import ai.lzy.servant.agents.AgentStatus;
 import ai.lzy.servant.commands.ServantCommandHolder;
-import ai.lzy.v1.ChannelManager;
+import ai.lzy.v1.channel.LCMS;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -148,7 +148,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
         }
 
         default String parseChannelIdFromCreateChannelResponse(String response) {
-            var builder = ChannelManager.ChannelCreateResponse.newBuilder();
+            var builder = LCMS.ChannelCreateResponse.newBuilder();
             try {
                 JsonFormat.parser().merge(response, builder);
             } catch (InvalidProtocolBufferException e) {

@@ -1,6 +1,9 @@
 package ai.lzy.server;
 
 import ai.lzy.model.grpc.ProtoConverter;
+import ai.lzy.v1.deprecated.LzyServantGrpc;
+import ai.lzy.v1.deprecated.Servant;
+import ai.lzy.v1.fs.LzyFsGrpc;
 import io.grpc.Context;
 import io.grpc.ManagedChannel;
 import org.apache.logging.log4j.LogManager;
@@ -10,10 +13,7 @@ import ai.lzy.model.EnvironmentInstallationException;
 import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.v1.IAM;
-import ai.lzy.v1.LzyFsGrpc;
-import ai.lzy.v1.LzyServantGrpc;
-import ai.lzy.v1.Servant;
+import ai.lzy.v1.deprecated.LzyAuth;
 
 import java.net.URI;
 import java.time.Instant;
@@ -119,7 +119,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
             .build();
         final LzyFsGrpc.LzyFsBlockingStub servantFsStub = LzyFsGrpc.newBlockingStub(fsChannel);
 
-        final IAM.Empty emptyRequest = IAM.Empty.newBuilder().build();
+        final LzyAuth.Empty emptyRequest = LzyAuth.Empty.newBuilder().build();
         if (!requests.containsKey(servantId)) {
             LOG.error("Astray servant found: " + servantId);
             //noinspection ResultOfMethodCallIgnored
@@ -280,7 +280,7 @@ public abstract class ServantsAllocatorBase extends TimerTask implements Servant
                     );
                     try {
                         //noinspection ResultOfMethodCallIgnored
-                        servantConnection.control().stop(IAM.Empty.newBuilder().build());
+                        servantConnection.control().stop(LzyAuth.Empty.newBuilder().build());
                     } catch (Exception e) {
                         LOG.error("Failed to shutdown servant: ", e);
                         terminate(servantConnection);

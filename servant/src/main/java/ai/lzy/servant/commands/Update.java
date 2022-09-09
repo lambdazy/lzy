@@ -5,8 +5,8 @@ import java.util.Base64;
 import org.apache.commons.cli.CommandLine;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.v1.IAM;
-import ai.lzy.v1.LzyServantGrpc;
+import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.v1.deprecated.LzyServantGrpc;
 
 public class Update implements LzyCommand {
 
@@ -18,7 +18,7 @@ public class Update implements LzyCommand {
             .enableRetry(LzyServantGrpc.SERVICE_NAME)
             .build();
         final LzyServantGrpc.LzyServantBlockingStub terminal = LzyServantGrpc.newBlockingStub(channel);
-        final IAM.Auth auth = IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
+        final LzyAuth.Auth auth = LzyAuth.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
         //noinspection ResultOfMethodCallIgnored
         terminal.update(auth);
         return 0;

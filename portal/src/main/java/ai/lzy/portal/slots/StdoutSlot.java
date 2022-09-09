@@ -6,7 +6,8 @@ import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.fs.slots.LzySlotBase;
 import ai.lzy.model.basic.SlotInstance;
 import ai.lzy.model.slot.TextLinesOutSlot;
-import ai.lzy.v1.Operations;
+import ai.lzy.v1.common.LMS;
+import ai.lzy.v1.deprecated.LzyZygote;
 import com.google.protobuf.ByteString;
 import org.apache.commons.collections4.queue.CircularFifoQueue;
 import org.apache.logging.log4j.LogManager;
@@ -33,9 +34,9 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
 
     public StdoutSlot(String name, String portalTaskId, String channelId, URI slotUri) {
         super(new SlotInstance(new TextLinesOutSlot(name), portalTaskId, channelId, slotUri));
-        state(Operations.SlotStatus.State.OPEN);
+        state(LMS.SlotStatus.State.OPEN);
 
-        onState(Operations.SlotStatus.State.DESTROYED, () -> {
+        onState(LMS.SlotStatus.State.DESTROYED, () -> {
             finished.set(true);
             synchronized (StdoutSlot.this) {
                 StdoutSlot.this.notify();

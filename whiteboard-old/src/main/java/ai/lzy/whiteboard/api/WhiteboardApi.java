@@ -37,9 +37,9 @@ import ai.lzy.model.utils.Permissions;
 import ai.lzy.whiteboard.auth.SimpleAuthenticator;
 import ai.lzy.whiteboard.config.ServiceConfig;
 import ai.lzy.whiteboard.exceptions.WhiteboardRepositoryException;
-import ai.lzy.v1.LzyServerGrpc;
-import ai.lzy.v1.LzyWhiteboard;
-import ai.lzy.v1.WbApiGrpc;
+import ai.lzy.v1.deprecated.LzyServerGrpc;
+import ai.lzy.v1.deprecated.LzyWhiteboard;
+import ai.lzy.v1.deprecated.WbApiGrpc;
 
 @Singleton
 @Requires(property = "service.server-uri")

@@ -7,7 +7,7 @@ import ai.lzy.logs.MetricEventLogger;
 import ai.lzy.logs.UserEvent;
 import ai.lzy.logs.UserEventLogger;
 import ai.lzy.servant.env.Environment;
-import ai.lzy.v1.Servant;
+import ai.lzy.v1.deprecated.Servant;
 
 import java.util.ArrayList;
 import java.util.List;

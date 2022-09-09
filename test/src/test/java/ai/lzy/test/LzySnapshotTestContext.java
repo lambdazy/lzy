@@ -1,7 +1,7 @@
 package ai.lzy.test;
 
-import ai.lzy.v1.SnapshotApiGrpc;
-import ai.lzy.v1.WbApiGrpc;
+import ai.lzy.v1.deprecated.SnapshotApiGrpc;
+import ai.lzy.v1.deprecated.WbApiGrpc;
 
 public interface LzySnapshotTestContext {
     String address();

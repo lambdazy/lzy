@@ -9,11 +9,11 @@ import java.util.Base64;
 import org.apache.commons.cli.CommandLine;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.v1.IAM;
-import ai.lzy.v1.Lzy;
-import ai.lzy.v1.LzyKharonGrpc;
-import ai.lzy.v1.LzyServerGrpc;
-import ai.lzy.v1.Operations;
+import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.v1.deprecated.Lzy;
+import ai.lzy.v1.deprecated.LzyKharonGrpc;
+import ai.lzy.v1.deprecated.LzyServerGrpc;
+import ai.lzy.v1.deprecated.LzyZygote;
 
 public class Publish implements LzyCommand {
 
@@ -29,12 +29,12 @@ public class Publish implements LzyCommand {
             .enableRetry(LzyKharonGrpc.SERVICE_NAME)
             .build();
         final LzyServerGrpc.LzyServerBlockingStub server = LzyServerGrpc.newBlockingStub(channel);
-        final Operations.Zygote.Builder zbuilder = Operations.Zygote.newBuilder();
+        final LzyZygote.Zygote.Builder zbuilder = LzyZygote.Zygote.newBuilder();
         JsonFormat.parser()
             .merge(Files.newBufferedReader(Paths.get(command.getArgs()[1])), zbuilder);
         //noinspection ResultOfMethodCallIgnored
         server.publish(Lzy.PublishRequest.newBuilder()
-            .setAuth(IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')))
+            .setAuth(LzyAuth.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')))
                 .getUser())
             .setOperation(zbuilder.build())
             .build()

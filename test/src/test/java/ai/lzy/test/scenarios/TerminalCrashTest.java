@@ -5,7 +5,7 @@ import ai.lzy.servant.agents.AgentStatus;
 import ai.lzy.test.LzyTerminalTestContext;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.test.impl.Utils;
-import ai.lzy.v1.Tasks;
+import ai.lzy.v1.deprecated.LzyTask;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import org.jetbrains.annotations.Nullable;
@@ -70,11 +70,11 @@ public class TerminalCrashTest extends LocalScenario {
         terminal1.publish(cat);
         ForkJoinPool.commonPool().execute(() -> {
             TimeUtils.waitFlagUp(() -> {
-                    final Tasks.TaskStatus task = getTaskStatusByName(terminal1, cat.name());
+                    final LzyTask.TaskStatus task = getTaskStatusByName(terminal1, cat.name());
                     if (task == null) {
                         return false;
                     }
-                    return task.getStatus().getNumber() >= Tasks.TaskProgress.Status.EXECUTING.getNumber();
+                    return task.getStatus().getNumber() >= LzyTask.TaskProgress.Status.EXECUTING.getNumber();
                 },
                 Config.TIMEOUT_SEC,
                 TimeUnit.SECONDS
@@ -142,15 +142,17 @@ public class TerminalCrashTest extends LocalScenario {
     }
 
     @Nullable
-    private Tasks.TaskStatus getTaskStatusByName(LzyTerminalTestContext.Terminal terminal, String operationNamePrefix) {
+    private LzyTask.TaskStatus getTaskStatusByName(LzyTerminalTestContext.Terminal terminal,
+                                                   String operationNamePrefix)
+    {
         final String tasksStatus = terminal.tasksStatus();
         System.out.println("tasksStatus");
         System.out.println(tasksStatus);
 
         try {
-            final Tasks.TasksList.Builder tasksBuilder = Tasks.TasksList.newBuilder();
+            final LzyTask.TasksList.Builder tasksBuilder = LzyTask.TasksList.newBuilder();
             JsonFormat.parser().merge(tasksStatus, tasksBuilder);
-            final Tasks.TasksList tasksList = tasksBuilder.build();
+            final LzyTask.TasksList tasksList = tasksBuilder.build();
             return tasksList.getTasksList().stream()
                 .filter(task -> task.getZygote().getName().startsWith(operationNamePrefix))
                 .findFirst().orElse(null);
@@ -194,11 +196,11 @@ public class TerminalCrashTest extends LocalScenario {
         ForkJoinPool.commonPool().execute(() -> terminal1.run(sleep.name(), "", Map.of()));
         ForkJoinPool.commonPool().execute(() -> {
             TimeUtils.waitFlagUp(() -> {
-                    final Tasks.TaskStatus task = getTaskStatusByName(terminal1, sleep.name());
+                    final LzyTask.TaskStatus task = getTaskStatusByName(terminal1, sleep.name());
                     if (task == null) {
                         return false;
                     }
-                    return task.getStatus().getNumber() >= Tasks.TaskProgress.Status.EXECUTING.getNumber();
+                    return task.getStatus().getNumber() >= LzyTask.TaskProgress.Status.EXECUTING.getNumber();
                 },
                 Config.TIMEOUT_SEC,
                 TimeUnit.SECONDS
@@ -264,11 +266,11 @@ public class TerminalCrashTest extends LocalScenario {
         ));
 
         TimeUtils.waitFlagUp(() -> {
-                final Tasks.TaskStatus task = getTaskStatusByName(terminal, cat.name());
+                final LzyTask.TaskStatus task = getTaskStatusByName(terminal, cat.name());
                 if (task == null) {
                     return false;
                 }
-                return task.getStatus().getNumber() >= Tasks.TaskProgress.Status.EXECUTING.getNumber();
+                return task.getStatus().getNumber() >= LzyTask.TaskProgress.Status.EXECUTING.getNumber();
             },
             Config.TIMEOUT_SEC,
             TimeUnit.SECONDS
