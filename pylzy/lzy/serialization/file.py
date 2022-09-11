@@ -1,9 +1,10 @@
 import os
 import uuid
-from typing import Any, BinaryIO, Callable, Type, Union
+from typing import Any, BinaryIO, Callable, Dict, Type, Union
 
-from lzy.serialization.api import Serializer
+from lzy.serialization.api import Serializer, StandardDataFormats
 from lzy.serialization.types import File
+from lzy.version import __version__
 
 
 # noinspection PyMethodMayBeStatic
@@ -32,3 +33,9 @@ class FileSerializer(Serializer):
 
     def stable(self) -> bool:
         return True
+
+    def format(self) -> str:
+        return StandardDataFormats.raw_file.name
+
+    def meta(self) -> Dict[str, str]:
+        return {"lzy_version": __version__}
