@@ -69,6 +69,7 @@ public class DbSubjectService {
                         return switch (subjectType) {
                             case USER -> new User(subjectId);
                             case SERVANT -> new Servant(subjectId);
+                            case VM -> new Vm(subjectId);
                         };
                     }
                 },
@@ -116,6 +117,7 @@ public class DbSubjectService {
                     return switch (subjectType) {
                         case USER -> new User(subjectId);
                         case SERVANT -> new Servant(subjectId);
+                        case VM -> new Vm(subjectId);
                     };
                 }
             },
@@ -139,6 +141,7 @@ public class DbSubjectService {
                         return switch (type) {
                             case USER -> new User(id);
                             case SERVANT -> new Servant(id);
+                            case VM -> new Vm(id);
                         };
                     }
 

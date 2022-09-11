@@ -14,6 +14,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+
+import javax.annotation.Nullable;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -23,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.Nullable;
 
 @Singleton
 public class VmDaoImpl implements VmDao {
@@ -129,7 +130,7 @@ public class VmDaoImpl implements VmDao {
                           List<VolumeRequest> volumeRequests, String allocationOpId, Instant now,
                           @Nullable TransactionHandle transaction) throws SQLException
     {
-        final var vmId = UUID.randomUUID().toString();
+        final var vmId = "vm-" + UUID.randomUUID();
         final var vmSpec = new Vm.Spec(vmId, sessionId, now, poolLabel, zone, workload, volumeRequests);
 
         DbOperation.execute(transaction, storage, con -> {
