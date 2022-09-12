@@ -36,9 +36,7 @@ def check_cluster_with_same_name(cluster_service):
         ).clusters
     ))
     if len(clusters) > 0:
-        print("k8s cluster {} in folder {} is already exist\n".format(config.cluster_name, config.folder_id))
-        print("k8s cluster was NOT created!")
-        sys.exit(1)
+        raise Exception("k8s cluster {} in folder {} is already exist\n".format(config.cluster_name, config.folder_id))
 
 
 def create_or_get_security_group(config: CreateSecurityGroupRequest, name: str, req: CreateSecurityGroupRequest) -> str:
@@ -57,8 +55,7 @@ def create_or_get_security_group(config: CreateSecurityGroupRequest, name: str, 
         if e.code() is grpc.StatusCode.ALREADY_EXISTS:
             print("{} is already exist\n".format(config.cluster_name))
         else:
-            print(e)
-            sys.exit()
+            raise e
     security_groups = sg_service.List(ListSecurityGroupsRequest(folder_id=config.folder_id)).security_groups
     return list(filter(lambda sg: sg.name == name, security_groups))[0].id
 
