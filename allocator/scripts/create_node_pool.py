@@ -14,6 +14,9 @@ from yandex.cloud.vpc.v1.subnet_service_pb2 import *
 from yandex.cloud.vpc.v1.subnet_service_pb2_grpc import *
 
 from common import *
+import logging
+
+LOG = logging.getLogger(__name__)
 
 
 @dataclass
@@ -96,6 +99,8 @@ def get_security_group_id(sg_service: SecurityGroupService, name: str):
 
 
 if __name__ == "__main__":
+    format_logs()
+
     filepath = sys.argv[1] if len(sys.argv) > 1 else 'create_node_pool_config.yaml'
     with open(filepath, 'r') as file:
         data = file.read()
@@ -132,7 +137,7 @@ if __name__ == "__main__":
 
     # ------------ NODE POOL ------------ #
     try:
-        print("trying to create {} k8s node group...\n".format(cluster_name))
+        LOG.info("trying to create {} k8s node group...\n".format(cluster_name))
         node_group_service.Create(
             CreateNodeGroupRequest(
                 cluster_id=config.cluster_id,
@@ -186,13 +191,12 @@ if __name__ == "__main__":
                 }
             )
         )
-        print(
+        LOG.info(
             "k8s node group {} in cluster {} ({}) was started creating".format(config.node_pool_name, config.cluster_id,
                                                                                cluster_name))
     except grpc.RpcError as e:
         if e.code() is grpc.StatusCode.ALREADY_EXISTS:
-            print("k8s node group {} in folder {} is already exist\n".format(config.node_pool_name, config.folder_id))
-            print("k8s node group was NOT created!")
-            exit(1)
+            LOG.error("k8s node group {} in folder {} is already exist\n".format(config.node_pool_name, config.folder_id))
+            LOG.error("k8s node group was NOT created!")
         else:
             raise e

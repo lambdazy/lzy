@@ -12,6 +12,9 @@ from yandex.cloud.vpc.v1.subnet_service_pb2 import *
 from yandex.cloud.vpc.v1.subnet_service_pb2_grpc import *
 
 from common import *
+import logging
+
+LOG = logging.getLogger(__name__)
 
 
 @dataclass
@@ -40,18 +43,18 @@ def check_cluster_with_same_name(cluster_service):
 def create_or_get_security_group(config: CreateSecurityGroupRequest, name: str, req: CreateSecurityGroupRequest) -> str:
     try:
         # for basic cluster efficiency
-        print("trying to create {} security group...\n".format(name))
+        LOG.info("trying to create {} security group...\n".format(name))
         operation = sg_service.Create(req)
         operation_result = sdk.wait_operation_and_get_result(
             operation=operation,
             response_type=SecurityGroup,
             meta_type=CreateSecurityGroupMetadata,
         )
-        print("successfully created {} security group...\n".format(name))
+        LOG.info("successfully created {} security group...\n".format(name))
         return operation_result.response.id
     except grpc.RpcError as e:
         if e.code() is grpc.StatusCode.ALREADY_EXISTS:
-            print("{} is already exist\n".format(config.cluster_name))
+            LOG.info("security group {} is already exist\n".format(name))
         else:
             raise e
     security_groups = sg_service.List(ListSecurityGroupsRequest(folder_id=config.folder_id)).security_groups
@@ -59,6 +62,8 @@ def create_or_get_security_group(config: CreateSecurityGroupRequest, name: str, 
 
 
 if __name__ == "__main__":
+    format_logs()
+
     filepath = sys.argv[1] if len(sys.argv) > 1 else 'create_cluster_config.yaml'
     with open(filepath, 'r') as file:
         data = file.read()
@@ -174,7 +179,7 @@ if __name__ == "__main__":
 
     # ------------ K8S CLUSTER ------------ #
     try:
-        print("trying to create {} k8s cluster...\n".format(config.cluster_name))
+        LOG.info("trying to create {} k8s cluster...\n".format(config.cluster_name))
         cluster_service.Create(
             CreateClusterRequest(
                 folder_id=config.folder_id,
@@ -205,11 +210,10 @@ if __name__ == "__main__":
                 cilium=Cilium(routing_mode=Cilium.RoutingMode.TUNNEL)
             )
         )
-        print("k8s cluster {} was started creating".format(config.cluster_name))
+        LOG.info("k8s cluster {} was started creating".format(config.cluster_name))
     except grpc.RpcError as e:
         if e.code() is grpc.StatusCode.ALREADY_EXISTS:
-            print("k8s cluster {} in folder {} is already exist\n".format(config.cluster_name, config.folder_id))
-            print("k8s cluster was NOT created!")
-            exit(1)
+            LOG.error("k8s cluster {} in folder {} is already exist\n".format(config.cluster_name, config.folder_id))
+            LOG.error("k8s cluster was NOT created!")
         else:
             raise e
