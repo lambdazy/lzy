@@ -21,6 +21,7 @@ import org.apache.logging.log4j.Logger;
 import org.junit.*;
 
 import java.time.Duration;
+import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 
@@ -189,7 +190,7 @@ public class DbAuthServiceTest {
         var vm = subjectService.createSubject(AuthProvider.INTERNAL, "vm-01", SubjectType.VM, List.of(
             SubjectCredentials.ott("main", token, Duration.ofDays(1))));
 
-        var ott = "vm-01/" + token;
+        var ott = Base64.getEncoder().encodeToString(("vm-01/" + token).getBytes());
 
         authenticateService.authenticate(new OttCredentials(ott));
 
