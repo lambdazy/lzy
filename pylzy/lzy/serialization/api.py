@@ -32,31 +32,31 @@ class Schema:
 class Serializer(abc.ABC):
     @abc.abstractmethod
     def serialize(self, obj: Any, dest: BinaryIO) -> None:
-        """ abstract method """
+        """abstract method"""
 
     @abc.abstractmethod
     def deserialize(self, source: BinaryIO, typ: Type[T]) -> T:
-        """ abstract method """
+        """abstract method"""
 
     @abc.abstractmethod
     def supported_types(self) -> Union[Type, Callable[[Type], bool]]:
-        """ abstract method """
+        """abstract method"""
 
     @abc.abstractmethod
     def available(self) -> bool:
-        """ abstract method """
+        """abstract method"""
 
     @abc.abstractmethod
     def stable(self) -> bool:
-        """ abstract method """
+        """abstract method"""
 
     @abc.abstractmethod
     def format(self) -> str:
-        """ abstract method """
+        """abstract method"""
 
     @abc.abstractmethod
     def meta(self) -> Dict[str, str]:
-        """ abstract method """
+        """abstract method"""
 
     def schema(self, obj: Any) -> Schema:
         return Schema(
@@ -85,38 +85,38 @@ class Serializer(abc.ABC):
 class SerializerRegistry(abc.ABC):
     @abc.abstractmethod
     def register_serializer(
-            self, name: str, serializer: Serializer, priority: Optional[int] = None
+        self, name: str, serializer: Serializer, priority: Optional[int] = None
     ) -> None:
-        """ abstract method """
+        """abstract method"""
 
     @abc.abstractmethod
     def unregister_serializer(self, name: str) -> None:
-        """ abstract method """
+        """abstract method"""
 
     @abc.abstractmethod
     def find_serializer_by_type(
-            self, typ: Type
+        self, typ: Type
     ) -> Serializer:  # we assume that default serializer always can be found
-        """ abstract method """
+        """abstract method"""
 
     @abc.abstractmethod
     def find_serializer_by_name(self, serializer_name: str) -> Optional[Serializer]:
-        """ abstract method """
+        """abstract method"""
 
     @abc.abstractmethod
     def resolve_name(self, serializer: Serializer) -> Optional[str]:
-        """ abstract method """
+        """abstract method"""
 
     @abc.abstractmethod
     def find_serializer_by_data_format(self, data_format: str) -> Optional[Serializer]:
-        """ abstract method """
+        """abstract method"""
 
 
 class Hasher(abc.ABC):
     @abc.abstractmethod
     def hash(self, data: Any) -> str:
-        """ abstract method """
+        """abstract method"""
 
     @abc.abstractmethod
     def can_hash(self, data: Any) -> bool:
-        """ abstract method """
+        """abstract method"""

@@ -11,16 +11,21 @@ from catboost import Pool
 from pure_protobuf.dataclasses_ import field, message
 from pure_protobuf.types import int32
 
-from lzy.serialization.api import Serializer, StandardDataFormats, StandardSchemaFormats, Schema
+from lzy.serialization.api import (
+    Schema,
+    Serializer,
+    StandardDataFormats,
+    StandardSchemaFormats,
+)
 from lzy.serialization.catboost import CatboostPoolSerializer
 from lzy.serialization.registry import DefaultSerializerRegistry
 from lzy.serialization.types import File
 
 
 def generate_serializer(
-        supported_types: Union[Type, Callable[[Type], bool]] = lambda x: True,
-        available: bool = True,
-        stable: bool = True,
+    supported_types: Union[Type, Callable[[Type], bool]] = lambda x: True,
+    available: bool = True,
+    stable: bool = True,
 ) -> Type[Serializer]:
     class TestSerializer(Serializer):
         def format(self) -> str:
@@ -227,11 +232,26 @@ class SerializationTests(TestCase):
         self.assertEqual(B.__name__, typ.__name__)
 
         with self.assertRaisesRegex(ValueError, "Invalid data format*"):
-            serializer.resolve(Schema(StandardDataFormats.proto.name, StandardSchemaFormats.pickled_type.name))
+            serializer.resolve(
+                Schema(
+                    StandardDataFormats.proto.name,
+                    StandardSchemaFormats.pickled_type.name,
+                )
+            )
         with self.assertRaisesRegex(ValueError, "Invalid schema format*"):
-            serializer.resolve(Schema(StandardDataFormats.pickle.name, StandardSchemaFormats.json_pickled_type.name))
+            serializer.resolve(
+                Schema(
+                    StandardDataFormats.pickle.name,
+                    StandardSchemaFormats.json_pickled_type.name,
+                )
+            )
         with self.assertRaisesRegex(ValueError, "No schema content*"):
-            serializer.resolve(Schema(StandardDataFormats.pickle.name, StandardSchemaFormats.pickled_type.name))
+            serializer.resolve(
+                Schema(
+                    StandardDataFormats.pickle.name,
+                    StandardSchemaFormats.pickled_type.name,
+                )
+            )
 
     def test_file_serializer(self):
         content = "test string"
@@ -298,9 +318,19 @@ class SerializationTests(TestCase):
         )
 
         with self.assertRaisesRegex(ValueError, "Invalid data format*"):
-            serializer.resolve(Schema(StandardDataFormats.proto.name, StandardSchemaFormats.json_pickled_type.name))
+            serializer.resolve(
+                Schema(
+                    StandardDataFormats.proto.name,
+                    StandardSchemaFormats.json_pickled_type.name,
+                )
+            )
         with self.assertRaisesRegex(ValueError, "Invalid schema format*"):
-            serializer.resolve(Schema(StandardDataFormats.primitive_type.name, StandardSchemaFormats.pickled_type.name))
+            serializer.resolve(
+                Schema(
+                    StandardDataFormats.primitive_type.name,
+                    StandardSchemaFormats.pickled_type.name,
+                )
+            )
 
     def test_proto_serialization(self):
         @message
@@ -309,7 +339,9 @@ class SerializationTests(TestCase):
             a: int32 = field(1, default=0)
 
         test_message = TestMessage(42)
-        self.assertEqual(test_message.a, self.serialized_and_deserialized(test_message).a)
+        self.assertEqual(
+            test_message.a, self.serialized_and_deserialized(test_message).a
+        )
 
         serializer = self.registry.find_serializer_by_type(type(test_message))
         self.assertTrue(serializer.stable())
