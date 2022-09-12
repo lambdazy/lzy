@@ -5,6 +5,7 @@ import ai.lzy.kharon.KharonConfig;
 import ai.lzy.kharon.KharonDataSource;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.model.db.Transaction;
+import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.storage.LSS;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import ai.lzy.util.grpc.ChannelBuilder;
@@ -105,7 +106,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
 
                 if (request.hasSnapshotStorage()) {
                     bucket[0] = request.getSnapshotStorage().getBucket();
-                    switch (request.getSnapshotStorage().getKindCase()) {
+                    switch (request.getSnapshotStorage().getEndpointCase()) {
                         case AMAZON ->
                             bucketCredentials[0] = LSS.CreateS3BucketResponse.newBuilder()
                                 .setAmazon(request.getSnapshotStorage().getAmazon())
@@ -114,8 +115,9 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
                             bucketCredentials[0] = LSS.CreateS3BucketResponse.newBuilder()
                                 .setAzure(request.getSnapshotStorage().getAzure())
                                 .build();
-                        case KIND_NOT_SET -> {
-                            replyError.accept(Status.INVALID_ARGUMENT, "Snapshot storage not set");
+                        default -> {
+                            replyError.accept(Status.INVALID_ARGUMENT,
+                                "Unexpected snapshot storage " + request.getSnapshotStorage().getEndpointCase());
                             return false;
                         }
                     }
@@ -178,7 +180,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
                     .setExecutionId(executionId[0]);
 
                 if (!request.hasSnapshotStorage()) {
-                    var storageBuilder = LWF.SnapshotStorage.newBuilder()
+                    var storageBuilder = LMS3.S3Locator.newBuilder()
                         .setBucket(bucket[0]);
 
                     switch (bucketCredentials[0].getCredentialsCase()) {

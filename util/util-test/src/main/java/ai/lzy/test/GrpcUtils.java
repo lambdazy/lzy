@@ -6,6 +6,7 @@ import ai.lzy.v1.channel.LCMS;
 import ai.lzy.v1.channel.LCMS;
 import ai.lzy.v1.common.LMB;
 import ai.lzy.v1.common.LMS;
+import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.portal.LzyPortal;
 import io.grpc.stub.StreamObserver;
 import java.util.function.Consumer;
@@ -82,10 +83,10 @@ public class GrpcUtils {
     public static LzyPortal.PortalSlotDesc.Snapshot makeAmazonSnapshot(String key, String bucket,
                                                                        String endpoint) {
         return LzyPortal.PortalSlotDesc.Snapshot.newBuilder()
-            .setS3(LzyPortal.S3Locator.newBuilder()
+            .setS3(LMS3.S3Locator.newBuilder()
                 .setKey(key)
                 .setBucket(bucket)
-                .setAmazon(LzyPortal.AmazonS3Endpoint.newBuilder()
+                .setAmazon(LMS3.AmazonS3Endpoint.newBuilder()
                     .setAccessToken("")
                     .setSecretToken("")
                     .setEndpoint(endpoint)

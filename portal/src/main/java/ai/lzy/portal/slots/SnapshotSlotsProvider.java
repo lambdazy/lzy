@@ -7,6 +7,7 @@ import ai.lzy.model.basic.SlotInstance;
 import ai.lzy.portal.s3.ByteStringStreamConverter;
 import ai.lzy.portal.s3.S3Repositories;
 import ai.lzy.portal.s3.S3Repository;
+import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.portal.LzyPortal;
 import ai.lzy.v1.portal.LzyPortal.PortalSlotDesc.Snapshot;
 import com.amazonaws.AmazonClientException;
@@ -93,7 +94,7 @@ public class SnapshotSlotsProvider {
         }
     }
 
-    private static String endpointFrom(LzyPortal.S3Locator s3Locator) throws CreateSlotException {
+    private static String endpointFrom(LMS3.S3Locator s3Locator) throws CreateSlotException {
         return switch (s3Locator.getEndpointCase()) {
             case AMAZON -> s3Locator.getAmazon().getEndpoint();
             case AZURE -> StorageConnectionString.create(s3Locator.getAzure().getConnectionString(), null)
@@ -102,7 +103,7 @@ public class SnapshotSlotsProvider {
         };
     }
 
-    private S3Repository<Stream<ByteString>> getS3RepositoryForSnapshots(LzyPortal.S3Locator s3Locator)
+    private S3Repository<Stream<ByteString>> getS3RepositoryForSnapshots(LMS3.S3Locator s3Locator)
         throws CreateSlotException {
         return switch (s3Locator.getEndpointCase()) {
             case AMAZON -> s3Repositories.getOrCreate(s3Locator.getAmazon().getEndpoint(),

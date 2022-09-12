@@ -1,5 +1,6 @@
 package ai.lzy.storage.impl;
 
+import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.storage.LSS.CreateS3BucketRequest;
 import ai.lzy.v1.storage.LSS.CreateS3BucketResponse;
 import ai.lzy.v1.storage.LSS.DeleteS3BucketRequest;
@@ -14,11 +15,11 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class MockS3Storage extends LzyStorageServiceGrpc.LzyStorageServiceImplBase {
-    private final Map<String, LWF.AmazonCredentials> buckets = new ConcurrentHashMap<>();
+    private final Map<String, LMS3.AmazonS3Endpoint> buckets = new ConcurrentHashMap<>();
 
     @Override
     public void createS3Bucket(CreateS3BucketRequest request, StreamObserver<CreateS3BucketResponse> response) {
-        var creds = LWF.AmazonCredentials.newBuilder()
+        var creds = LMS3.AmazonS3Endpoint.newBuilder()
             .setEndpoint("localhost:32000")
             .setAccessToken(UUID.randomUUID().toString())
             .setSecretToken(UUID.randomUUID().toString())

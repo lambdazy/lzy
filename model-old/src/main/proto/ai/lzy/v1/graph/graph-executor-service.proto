@@ -6,8 +6,6 @@ option java_outer_classname = "GraphExecutorApi";
 option java_package = "ai.lzy.v1.graph";
 
 import "ai/lzy/v1/graph/graph-executor.proto";
-import "ai/lzy/v1/scheduler/scheduler.proto";
-import "ai/lzy/v1/common/operation.proto";
 
 service GraphExecutor {
   rpc Execute (GraphExecuteRequest) returns (GraphExecuteResponse);
