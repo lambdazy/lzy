@@ -1,7 +1,7 @@
 import logging
 import sys
-from collections import OrderedDict
-from typing import Dict, Optional, Type, cast
+from collections import OrderedDict, defaultdict
+from typing import Dict, List, Optional, Type, cast
 
 from lzy.serialization.api import Serializer, SerializerRegistry
 from lzy.serialization.catboost import CatboostPoolSerializer
@@ -18,6 +18,7 @@ class DefaultSerializerRegistry(SerializerRegistry):
         self._type_registry: Dict[Type, Serializer] = {}
         self._type_name_registry: Dict[Type, str] = {}
         self._name_registry: Dict[str, Serializer] = OrderedDict()
+        self._data_formats_name_registry: Dict[str, List[str]] = defaultdict(list)
         self._serializer_priorities: Dict[str, int] = {}
 
         self.register_serializer(
@@ -56,6 +57,7 @@ class DefaultSerializerRegistry(SerializerRegistry):
         priority = self._default_priority if priority is None else priority
         self._serializer_priorities[name] = priority
         self._name_registry[name] = serializer
+        self._data_formats_name_registry[serializer.format()].append(name)
         # mypy issue: https://github.com/python/mypy/issues/3060
         if isinstance(serializer.supported_types(), Type):  # type: ignore
             self._type_registry[cast(Type, serializer.supported_types())] = serializer
@@ -68,6 +70,7 @@ class DefaultSerializerRegistry(SerializerRegistry):
             if isinstance(serializer.supported_types(), Type):  # type: ignore
                 del self._type_registry[cast(Type, serializer.supported_types())]
                 del self._type_name_registry[cast(Type, serializer.supported_types())]
+                self._data_formats_name_registry[serializer.format()].remove(name)
             del self._serializer_priorities[name]
             del self._name_registry[name]
 
@@ -111,3 +114,12 @@ class DefaultSerializerRegistry(SerializerRegistry):
             if serializer == s:
                 return name
         return None
+
+    def find_serializer_by_data_format(self, data_format: str) -> Optional[Serializer]:
+        serializer: Optional[Serializer] = None
+        serializer_priority = sys.maxsize
+        for name in self._data_formats_name_registry[data_format]:
+            if self._serializer_priorities[name] < serializer_priority:
+                serializer = self._name_registry[name]
+                serializer_priority = self._serializer_priorities[name]
+        return serializer

@@ -122,6 +122,7 @@ public abstract class LzyBaseTest {
     }
 
     public static void evalAndAssertScenarioResult(Terminal term, String scenarioName, List<String> extraPyLibs) {
+        LOG.info("Starting scenario: " + scenarioName);
         ExecutionResult result = evalScenario(term, Map.of(), scenarioName, extraPyLibs);
         LOG.info(scenarioName + ": STDOUT: {}", result.stdout());
         LOG.info(scenarioName + ": STDERR: {}", result.stderr());

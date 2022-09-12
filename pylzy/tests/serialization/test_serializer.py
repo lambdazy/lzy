@@ -1,7 +1,7 @@
 import tempfile
 import uuid
 from dataclasses import dataclass
-from typing import Any, BinaryIO, Callable, Type, Union
+from typing import Any, BinaryIO, Callable, Type, Union, Dict
 from unittest import TestCase
 
 import cloudpickle
@@ -23,6 +23,12 @@ def generate_serializer(
     stable: bool = True,
 ) -> Type[Serializer]:
     class TestSerializer(Serializer):
+        def format(self) -> str:
+            return "test_format"
+
+        def meta(self) -> Dict[str, str]:
+            return {}
+
         def serialize(self, obj: Any, dest: BinaryIO) -> None:
             pass
 

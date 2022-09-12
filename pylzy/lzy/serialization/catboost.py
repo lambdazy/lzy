@@ -1,7 +1,7 @@
 import logging
 import os
 import tempfile
-from typing import BinaryIO, Callable, Type, TypeVar, Union
+from typing import BinaryIO, Callable, Dict, Type, TypeVar, Union
 
 from lzy.serialization.api import Serializer
 
@@ -54,3 +54,13 @@ class CatboostPoolSerializer(Serializer):
 
     def stable(self) -> bool:
         return True
+
+    def format(self) -> str:
+        import catboost
+
+        return str(catboost.Pool.__module__) + "." + str(catboost.Pool.__name__)
+
+    def meta(self) -> Dict[str, str]:
+        import catboost
+
+        return {"catboost_version": catboost.__version__}
