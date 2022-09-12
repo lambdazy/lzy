@@ -73,6 +73,9 @@ if __name__ == "__main__":
     cluster_service = sdk.client(ClusterServiceStub)
 
     subnet = subnet_service.Get(GetSubnetRequest(subnet_id=config.subnet_id))
+    LOG.info("subnet id {} was resolved to subnet \"{}\" with v4 cidrs {} and v6 cidrs {}\n".format(
+        config.subnet_id, subnet.name, subnet.v4_cidr_blocks, subnet.v6_cidr_blocks
+    ))
     network_id = subnet.network_id
     subnet_v4_cidrs = ",".join(subnet.v4_cidr_blocks)
     zone_id = subnet.zone_id
