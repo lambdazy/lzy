@@ -1,18 +1,21 @@
 env: lzy-dev
 folder_id: b1gagf3k6somdujj2a15
-cluster_id: catc7ru9ifckiqcr9bin
-subnet_id: e9bno1trs3mqauujjtvv
-service_account_id: ajer523lejs72ad941as
+cluster_id: catd09tk6en3mngcn3ni
 node_pool_name: gpupool2
-node_pool_id: asdasd
-node_pool_label: s
-node_pool_kind: CPU
+node_template:
+  subnet_id: e9bno1trs3mqauujjtvv
+  platform_id: gpu-standard-v2
+  disc_size: 64
+  disc_type: network-hdd
+  resources:
+    cpu_count: 8
+    gpu_count: 1
+    memory: 48
+node_labels:
+  node_pool_id: asdasd
+  node_pool_label: s
+  node_pool_kind: CPU
 node_pool_taints: "[sku=gpu:NoSchedule,sku=gpu:NoExecute]"
-min_pool_size: 1
-max_pool_size: 2
-platform_id: gpu-standard-v2
-cpu_count: 8
-gpu_count: 1
-disc_size: 64
-disc_type: network-hdd
-memory: 48
+scale_policy:
+  min_pool_size: 1
+  max_pool_size: 2

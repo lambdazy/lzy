@@ -85,12 +85,13 @@ if __name__ == "__main__":
 
     # ------------ SECURITY GROUPS ------------ #
     # Source docs for security groups: https://cloud.yandex.ru/docs/managed-kubernetes/operations/connect/security-groups
+    main_sg_name = "lzy-{}-main-sg".format(config.cluster_name)
     main_sg_id = create_or_get_security_group(
         config,
-        "lzy-{}-main-sg".format(config.cluster_name),
+        main_sg_name,
         CreateSecurityGroupRequest(
             folder_id=config.folder_id,
-            name="lzy-{}-main-sg".format(config.cluster_name),
+            name=main_sg_name,
             network_id=network_id,
             rule_specs=[
                 SecurityGroupRuleSpec(
@@ -122,12 +123,13 @@ if __name__ == "__main__":
     )
 
     # TODO: RESTRICT V4 AND V6 CIDRS!!!!!!!!!
+    public_svs_sg_name = "lzy-{}-public-services".format(config.cluster_name)
     public_services_sg_id = create_or_get_security_group(
         config,
-        "lzy-{}-public-services".format(config.cluster_name),
+        public_svs_sg_name,
         CreateSecurityGroupRequest(
             folder_id=config.folder_id,
-            name="lzy-{}-public-services".format(config.cluster_name),
+            name=public_svs_sg_name,
             network_id=network_id,
             rule_specs=[
                 SecurityGroupRuleSpec(
@@ -140,12 +142,13 @@ if __name__ == "__main__":
         )
     )
 
+    master_sg_name = "lzy-{}-master-whitelist".format(config.cluster_name)
     master_whitelist_sg_id = create_or_get_security_group(
         config,
-        "lzy-{}-master-whitelist".format(config.cluster_name),
+        master_sg_name,
         CreateSecurityGroupRequest(
             folder_id=config.folder_id,
-            name="lzy-{}-master-whitelist".format(config.cluster_name),
+            name=master_sg_name,
             network_id=network_id,
             rule_specs=[
                 SecurityGroupRuleSpec(
