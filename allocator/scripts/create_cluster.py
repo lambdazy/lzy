@@ -75,7 +75,7 @@ if __name__ == "__main__":
     # ------------ K8S CLUSTER EXISTENCE CHECK ------------ #
     check_cluster_with_same_name(cluster_service)
 
-    ans = input("Are you sure you want to create cluster with this configuration? (print 'YES!'): ")
+    ans = input("Are you sure you want to create cluster with this configuration? (print 'YES!'):\n{}\n".format(config))
     if ans != "YES!":
         sys.exit()
 

@@ -63,7 +63,7 @@ def get_cluster_name(cluster_id: str):
                 cluster_id=cluster_id
             )
         )
-        name = cluster.name
+        return cluster.name
     except grpc.RpcError as e:
         if e.code() is grpc.StatusCode.NOT_FOUND:
             # TODO: check cluster with same name existence before creating SGs
@@ -81,7 +81,7 @@ def get_security_group_id(sg_service: SecurityGroupService, name: str):
     if len(sgs) == 0:
         raise Exception("{} security group does not exist. (It must be created during script "
                         "create_cluster.py --cluster-name {} ...)".format(name, cluster_name))
-    public_services_sg_id = sgs[0].id
+    return sgs[0].id
 
 
 if __name__ == "__main__":
@@ -113,7 +113,7 @@ if __name__ == "__main__":
         "lzy-{}-public-services".format(cluster_name)
     )
 
-    ans = input("Are you sure you want to create node group with this configuration? (print 'YES!'): ")
+    ans = input("Are you sure you want to create node pool with this configuration? (print 'YES!'):\n{}\n".format(config))
     if ans != "YES!":
         sys.exit()
 
