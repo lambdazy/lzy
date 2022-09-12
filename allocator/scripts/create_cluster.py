@@ -41,12 +41,18 @@ def check_cluster_with_same_name(cluster_service):
         sys.exit(1)
 
 
-def ensure_security_group(config: CreateSecurityGroupRequest, name: str, req: CreateSecurityGroupRequest) -> str:
+def create_or_get_security_group(config: CreateSecurityGroupRequest, name: str, req: CreateSecurityGroupRequest) -> str:
     try:
         # for basic cluster efficiency
         print("trying to create {} security group...\n".format(name))
-        sg_service.Create(req)
+        operation = sg_service.Create(req)
+        operation_result = sdk.wait_operation_and_get_result(
+            operation=operation,
+            response_type=SecurityGroup,
+            meta_type=CreateSecurityGroupMetadata,
+        )
         print("successfully created {} security group...\n".format(name))
+        return operation_result.response.id
     except grpc.RpcError as e:
         if e.code() is grpc.StatusCode.ALREADY_EXISTS:
             print("{} is already exist\n".format(config.cluster_name))
@@ -81,7 +87,7 @@ if __name__ == "__main__":
 
     # ------------ SECURITY GROUPS ------------ #
     # Source docs for security groups: https://cloud.yandex.ru/docs/managed-kubernetes/operations/connect/security-groups
-    main_sg_id = ensure_security_group(
+    main_sg_id = create_or_get_security_group(
         config,
         "lzy-{}-main-sg".format(config.cluster_name),
         CreateSecurityGroupRequest(
@@ -118,7 +124,7 @@ if __name__ == "__main__":
     )
 
     # TODO: RESTRICT V4 AND V6 CIDRS!!!!!!!!!
-    public_services_sg_id = ensure_security_group(
+    public_services_sg_id = create_or_get_security_group(
         config,
         "lzy-{}-public-services".format(config.cluster_name),
         CreateSecurityGroupRequest(
@@ -136,7 +142,7 @@ if __name__ == "__main__":
         )
     )
 
-    master_whitelist_sg_id = ensure_security_group(
+    master_whitelist_sg_id = create_or_get_security_group(
         config,
         "lzy-{}-master-whitelist".format(config.cluster_name),
         CreateSecurityGroupRequest(
@@ -195,7 +201,6 @@ if __name__ == "__main__":
         print("k8s cluster {} was started creating".format(config.cluster_name))
     except grpc.RpcError as e:
         if e.code() is grpc.StatusCode.ALREADY_EXISTS:
-            # TODO: check cluster with same name existence before creating SGs
             print("k8s cluster {} in folder {} is already exist\n".format(config.cluster_name, config.folder_id))
             print("k8s cluster was NOT created!")
             exit(1)
