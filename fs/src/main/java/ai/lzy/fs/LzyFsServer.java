@@ -51,17 +51,23 @@ public final class LzyFsServer {
 
     private final String agentId;
     private final Path mountPoint;
-    private final LzyFSManager fs;
+
     private final URI selfUri;
     private final URI lzyServerUri;
+    private final URI lzyWhiteboardUri;
     private final URI channelManagerUri;
+
     private final IAM.Auth auth;
-    private final SlotsManager slotsManager;
-    private final ManagedChannel channelManagerChannel;
-    private final SlotConnectionManager slotConnectionManager;
     private final Server localServer;
+
+    private SlotsManager slotsManager;
+    private ManagedChannel channelManagerChannel;
+    private SlotConnectionManager slotConnectionManager;
+
     private final AtomicBoolean stopped = new AtomicBoolean(false);
     private final AtomicReference<LzyFsGrpc.LzyFsImplBase> slotApiInterceptor = new AtomicReference<>(null);
+
+    private LzyFSManager fsManager;
 
     @Deprecated
     public LzyFsServer(String agentId, String mountPoint, URI selfUri, @Nullable URI lzyServerUri,
@@ -71,18 +77,32 @@ public final class LzyFsServer {
         this.channelManagerUri = channelManagerUri;
         assert LzyFs.scheme().equals(selfUri.getScheme());
         this.mountPoint = Path.of(mountPoint);
-        fs = startFuse();
-
         this.selfUri = selfUri;
         this.lzyServerUri = lzyServerUri;
         this.auth = auth;
+        this.lzyWhiteboardUri = lzyWhiteboardUri;
 
-        LOG.info("Starting LzyFs gRPC server at {}.", selfUri);
         localServer = NettyServerBuilder.forAddress(new InetSocketAddress(selfUri.getHost(), selfUri.getPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(new Impl())
             .build();
+    }
+
+    public LzyFsServer(String agentId, String mountPoint, URI selfUri,
+                       URI channelManagerUri, String iamToken) throws IOException
+    {
+        this(agentId, mountPoint, selfUri, null, null, channelManagerUri, IAM.Auth.newBuilder()
+            .setUser(IAM.UserCredentials.newBuilder()
+                .setToken(iamToken)
+                .build())
+            .build());
+    }
+
+    public void start() throws IOException {
+        fsManager = startFuse();
+
+        LOG.info("Starting LzyFs gRPC server at {}.", selfUri);
         localServer.start();
 
         channelManagerChannel = ChannelBuilder
@@ -138,16 +158,6 @@ public final class LzyFsServer {
         LOG.info("LzyFs started on {}.", selfUri);
     }
 
-    public LzyFsServer(String agentId, String mountPoint, URI selfUri,
-                       URI channelManagerUri, String iamToken) throws IOException
-    {
-        this(agentId, mountPoint, selfUri, null, null, channelManagerUri, IAM.Auth.newBuilder()
-            .setUser(IAM.UserCredentials.newBuilder()
-                .setToken(iamToken)
-                .build())
-            .build());
-    }
-
     private String generateJwtServantToken(String servantId) {
         final Instant now = Instant.now();
         return Jwts.builder()
@@ -182,7 +192,7 @@ public final class LzyFsServer {
                 localServer.shutdown();
             } finally {
                 try {
-                    fs.umount();
+                    fsManager.umount();
                 } finally {
                     mounted.decrementAndGet();
                 }
@@ -205,7 +215,7 @@ public final class LzyFsServer {
 
     public void addSlot(LzyFileSlot slot) {
         LOG.info("Explicitly add slot: {}", slot.name());
-        fs.addSlot(slot);
+        fsManager.addSlot(slot);
     }
 
     @Nullable
@@ -238,7 +248,7 @@ public final class LzyFsServer {
         }
 
         if (lzySlot instanceof LzyFileSlot) {
-            fs.addSlot((LzyFileSlot) lzySlot);
+            fsManager.addSlot((LzyFileSlot) lzySlot);
         }
 
         return LzyFsApi.SlotCommandStatus.newBuilder().build();
@@ -312,7 +322,7 @@ public final class LzyFsServer {
         }
 
         slot.destroy();
-        fs.removeSlot(slot.name());
+        fsManager.removeSlot(slot.name());
         LOG.info("Explicitly closing slot tid: {}", slotName);
 
         return LzyFsApi.SlotCommandStatus.newBuilder().build();
@@ -369,7 +379,7 @@ public final class LzyFsServer {
     public boolean registerCommand(Path cmd, String script, @Nullable Operations.Zygote zygote) {
         LOG.debug("Registering command `{}`...", cmd);
 
-        boolean added = fs.addScript(new LzyScriptImpl(cmd, script, zygote), /* isSystem */ zygote == null);
+        boolean added = fsManager.addScript(new LzyScriptImpl(cmd, script, zygote), /* isSystem */ zygote == null);
 
         if (added) {
             LOG.debug("Command `{}` registered.", cmd);
@@ -430,7 +440,7 @@ public final class LzyFsServer {
         commandParts.add("$@");
 
         final String script = String.join(" ", commandParts) + "\n";
-        if (fs.addScript(new LzyScriptImpl(cmd, script, null), /* isSystem */ true)) {
+        if (fsManager.addScript(new LzyScriptImpl(cmd, script, null), /* isSystem */ true)) {
             LOG.debug("Register command `{}`.", name);
         } else {
             LOG.warn("Command `{}` already exists.", name);

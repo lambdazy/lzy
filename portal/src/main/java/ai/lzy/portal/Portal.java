@@ -15,6 +15,9 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.model.UriScheme.LzyServant;
@@ -50,14 +53,17 @@ public class Portal {
         this.port = config.getPortalApiPort();
         this.host = config.getHost();
 
-        this.fsServer = fs;
-        this.allocatorAgent = agent;
         this.grpcServer = NettyServerBuilder
             .forAddress(new InetSocketAddress(config.getHost(), config.getPortalApiPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(new PortalApiImpl(this))
             .build();
+        this.allocatorAgent = agent;
+        this.fsServer = fs;
+
+        var prev = fsServer.setSlotApiInterceptor(new FsApiImpl(this));
+        assert prev == null;
 
         this.snapshots = new SnapshotSlotsProvider();
         this.portalTaskId = "portal:" + config.getPortalId();
@@ -70,15 +76,12 @@ public class Portal {
         try {
             grpcServer.start();
             allocatorAgent.start();
-            // TODO: zhvkgj -- startup fs server
+            fsServer.start();
         } catch (IOException | AllocatorAgent.RegisterException e) {
             LOG.error(e);
             this.shutdown();
             throw new RuntimeException(e);
         }
-
-        var prev = fsServer.setSlotApiInterceptor(new FsApiImpl(this));
-        assert prev == null;
 
         LOG.info("Registering portal stdout/err slots...");
 
@@ -140,8 +143,11 @@ public class Portal {
         return stderrSlot;
     }
 
-    StdoutSlot[] getOutErrSlots() {
-        return new StdoutSlot[] {stdoutSlot, stderrSlot};
+    List<StdoutSlot> getOutErrSlots() {
+        if (stdoutSlot != null && stderrSlot != null) {
+            return List.of(stdoutSlot, stderrSlot);
+        }
+        return Collections.emptyList();
     }
 
     SnapshotSlotsProvider getSnapshots() {

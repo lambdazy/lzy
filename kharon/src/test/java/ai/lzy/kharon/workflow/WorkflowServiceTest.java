@@ -181,13 +181,13 @@ public class WorkflowServiceTest {
                     CreateWorkflowRequest.newBuilder().setWorkflowName(workflowName).build())));
 
                 add(Assert.assertThrows(StatusRuntimeException.class, () -> client.deleteWorkflow(
-                            LWS.DeleteWorkflowRequest.newBuilder().setWorkflowName(workflowName).build())));
+                    LWS.DeleteWorkflowRequest.newBuilder().setWorkflowName(workflowName).build())));
 
                 add(Assert.assertThrows(StatusRuntimeException.class, () -> client.attachWorkflow(
-                        LWS.AttachWorkflowRequest.newBuilder()
-                            .setWorkflowName(workflowName)
-                            .setExecutionId(executionId)
-                            .build())));
+                    LWS.AttachWorkflowRequest.newBuilder()
+                        .setWorkflowName(workflowName)
+                        .setExecutionId(executionId)
+                        .build())));
 
                 add(Assert.assertThrows(StatusRuntimeException.class, () -> client.finishWorkflow(
                     FinishWorkflowRequest.newBuilder()

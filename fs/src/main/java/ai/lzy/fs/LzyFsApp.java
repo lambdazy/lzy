@@ -123,6 +123,7 @@ public final class LzyFsApp {
             new URI(whiteboardAddress),
             new URI(channelManagerAddress),
             authBuilder.build());
+        server.start();
         server.awaitTermination();
     }
 }
