@@ -1,6 +1,6 @@
 env: lzy-dev
 folder_id: b1gagf3k6somdujj2a15
-cluster_id: catm2n1b8g70rsrqfbr2
+cluster_id: catc7ru9ifckiqcr9bin
 subnet_id: e9bno1trs3mqauujjtvv
 service_account_id: ajer523lejs72ad941as
 node_pool_name: gpupool2
