@@ -33,7 +33,7 @@ class Provisioning:
             cpu_count=2,
             gpu_type=GpuType.NO_GPU,
             gpu_count=0,
-            ram_size_gb=2
+            ram_size_gb=2,
         )
 
     def override(self, other: Optional["Provisioning"] = None) -> "Provisioning":
@@ -45,6 +45,7 @@ class Provisioning:
             cpu_count=self.cpu_count if self.cpu_count is not None else other.cpu_count,
             gpu_type=self.gpu_type if self.gpu_type else other.gpu_type,
             gpu_count=self.gpu_count if self.gpu_count is not None else other.gpu_count,
-
-            ram_size_gb=self.ram_size_gb if self.ram_size_gb is not None else other.ram_size_gb
+            ram_size_gb=self.ram_size_gb
+            if self.ram_size_gb is not None
+            else other.ram_size_gb,
         )

@@ -133,8 +133,9 @@ class GrpcRuntime(Runtime):
         pools = await client.get_pool_specs(self.__execution_id)
 
         _LOG.info("Building graph")
-        graph = await asyncio.get_event_loop()\
-            .run_in_executor(None, self.__build_graph, calls, pools)  # Running long op in threadpool
+        graph = await asyncio.get_event_loop().run_in_executor(
+            None, self.__build_graph, calls, pools
+        )  # Running long op in threadpool
 
         graph_id = await client.execute_graph(self.__execution_id, graph)
         _LOG.info(f"Send graph to Lzy, graph_id={graph_id}")
@@ -206,7 +207,16 @@ class GrpcRuntime(Runtime):
         pass
 
     @staticmethod
-    def __resolve_pool(provisioning: Provisioning, pool_specs: Sequence[VmPoolSpec]) -> Optional[VmPoolSpec]:
+    def __resolve_pool(
+        provisioning: Provisioning, pool_specs: Sequence[VmPoolSpec]
+    ) -> Optional[VmPoolSpec]:
+        assert (
+            provisioning.cpu_type
+            and provisioning.cpu_count is not None
+            and provisioning.gpu_type
+            and provisioning.gpu_count is not None
+            and provisioning.ram_size_gb is not None
+        )
         for spec in pool_specs:
             if (
                 provisioning.cpu_type.name == spec.cpuType
@@ -214,7 +224,6 @@ class GrpcRuntime(Runtime):
                 and provisioning.gpu_type.name == spec.gpuType
                 and provisioning.gpu_count <= spec.gpuCount
                 and provisioning.ram_size_gb <= spec.ramGb
-                and provisioning.zone in spec.zones
             ):
                 return spec
         return None
@@ -281,7 +290,9 @@ class GrpcRuntime(Runtime):
             pool = self.__resolve_pool(call.provisioning, pools)
 
             if pool is None:
-                raise RuntimeError(f"Cannot resolve pool for operation {call.signature.func.name}")
+                raise RuntimeError(
+                    f"Cannot resolve pool for operation {call.signature.func.name}"
+                )
 
             pool_to_call.append((pool, call))
 
@@ -318,9 +329,7 @@ class GrpcRuntime(Runtime):
                     inputSlots=input_slots,
                     outputSlots=output_slots,
                     command=command,
-                    dockerImage=docker_image
-                    if docker_image is not None
-                    else "",
+                    dockerImage=docker_image if docker_image is not None else "",
                     python=Operation.PythonEnvSpec(  # TODO(artolord) add local modules loading
                         yaml=call.env.conda.yaml
                     ),

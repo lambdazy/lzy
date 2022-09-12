@@ -44,7 +44,7 @@ def op(
     docker_image: Optional[str] = None,
     docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
     local_modules_path: Optional[Sequence[str]] = None,
-    provisioning_: Provisioning = Provisioning()
+    provisioning_: Provisioning = Provisioning(),
 ):
     def deco(f):
         """
@@ -153,7 +153,7 @@ class Lzy:
         local_modules_path: Optional[Sequence[str]] = None,
         zone: str = "ru-central1-a",
         provisioning: Provisioning = Provisioning.default(),
-        interactive: bool = True
+        interactive: bool = True,
     ) -> LzyWorkflow:
         namespace = inspect.stack()[1].frame.f_globals
         return LzyWorkflow(
@@ -173,7 +173,7 @@ class Lzy:
             local_modules_path=local_modules_path,
             zone=zone,
             provisioning=provisioning,
-            interactive=interactive
+            interactive=interactive,
         )
 
     # register cloud injections

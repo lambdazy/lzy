@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Tuple, Union, List
+from typing import AsyncIterable, AsyncIterator, List, Optional, Sequence, Tuple, Union
 
 from grpc.aio import Channel
 
@@ -12,11 +12,13 @@ from ai.lzy.v1.workflow.workflow_service_pb2 import (
     ExecuteGraphRequest,
     ExecuteGraphResponse,
     FinishWorkflowRequest,
+    GetAvailablePoolsRequest,
+    GetAvailablePoolsResponse,
     GraphStatusRequest,
     GraphStatusResponse,
     ReadStdSlotsRequest,
     ReadStdSlotsResponse,
-    StopGraphRequest, GetAvailablePoolsRequest, GetAvailablePoolsResponse,
+    StopGraphRequest,
 )
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceStub
 from lzy.api.v2.remote_grpc.model import converter
@@ -199,9 +201,7 @@ class WorkflowServiceClient:
 
     async def get_pool_specs(self, execution_id: str) -> Sequence[VmPoolSpec]:
         pools: GetAvailablePoolsResponse = await self.__stub.GetAvailablePools(
-            GetAvailablePoolsRequest(
-                executionId=execution_id
-            )
+            GetAvailablePoolsRequest(executionId=execution_id)
         )
 
         return pools.poolSpecs

@@ -14,12 +14,12 @@ from typing import (
 )
 
 from lzy.api.v2.env import DockerPullPolicy, Env
+from lzy.api.v2.provisioning import Provisioning
 from lzy.api.v2.snapshot import DefaultSnapshot, Snapshot
 from lzy.api.v2.utils.env import generate_env
 from lzy.api.v2.utils.proxy_adapter import is_lzy_proxy
 from lzy.api.v2.whiteboard_declaration import fetch_whiteboard_meta
 from lzy.py_env.api import PyEnv
-from lzy.api.v2.provisioning import Provisioning
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -52,7 +52,7 @@ class LzyWorkflow:
         local_modules_path: Optional[Sequence[str]] = None,
         provisioning: Optional[Provisioning] = None,
         zone: str = "ru-central1-a",
-        interactive: bool = True
+        interactive: bool = True,
     ):
         self.__snapshot = snapshot
         self.__name = name
