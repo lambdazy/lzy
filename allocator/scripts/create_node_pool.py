@@ -66,8 +66,7 @@ def get_cluster_name(cluster_id: str):
         return cluster.name
     except grpc.RpcError as e:
         if e.code() is grpc.StatusCode.NOT_FOUND:
-            print("k8s cluster with id {} was not found!\n".format(cluster_id))
-            exit(1)
+            raise Exception("k8s cluster {} was not found\n".format(cluster_id))
         else:
             raise e
 

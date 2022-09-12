@@ -30,9 +30,7 @@ def find_node_pool_with_id(node_group_service, node_pool_id):
         )
     except grpc.RpcError as e:
         if e.code() is grpc.StatusCode.NOT_FOUND:
-            print("k8s node pool {} is not exist\n".format(node_pool_id))
-            print("k8s node pool was NOT resized!")
-            exit(1)
+            raise Exception("k8s node pool {} is not exist\n".format(node_pool_id))
 
 
 if __name__ == "__main__":

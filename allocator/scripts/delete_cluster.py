@@ -26,9 +26,7 @@ def check_cluster_with_id(cluster_service, cluster_id):
         )
     except grpc.RpcError as e:
         if e.code() is grpc.StatusCode.NOT_FOUND:
-            print("k8s cluster {} is not exist\n".format(cluster_id))
-            print("k8s cluster was NOT deleted!")
-            exit(1)
+            raise Exception("k8s cluster {} is not exist\n".format(cluster_id))
 
 
 if __name__ == "__main__":
