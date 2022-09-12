@@ -20,24 +20,39 @@ from common import *
 
 @dataclass
 class CreateNodePoolConfig:
+    @dataclass
+    class NodeTemplate:
+        @dataclass
+        class Resources:
+            cpu_count: int
+            gpu_count: int
+            memory: int
+
+        subnet_id: str
+        platform_id: str
+        disc_size: int
+        disc_type: str
+        resources: Resources
+
+    @dataclass
+    class NodeLabels:
+        node_pool_id: str
+        node_pool_label: str
+        node_pool_kind: str
+
+    @dataclass
+    class ScalePolicy:
+        min_pool_size: int
+        max_pool_size: int
+
     env: str
     folder_id: str
     cluster_id: str
-    subnet_id: str
-    service_account_id: str
     node_pool_name: str
-    node_pool_id: str
-    node_pool_label: str
-    node_pool_kind: str
+    node_template: NodeTemplate
+    node_labels: NodeLabels
     node_pool_taints: str
-    min_pool_size: int
-    max_pool_size: int
-    platform_id: str
-    cpu_count: int
-    gpu_count: int
-    disc_size: int
-    disc_type: str
-    memory: int
+    scale_policy: ScalePolicy
 
 
 def parse_taint(taint_str: str):
@@ -89,8 +104,8 @@ if __name__ == "__main__":
     config = strict_load_yaml(data, CreateNodePoolConfig)
 
     node_pool_taints = map(parse_taint, config.node_pool_taints[1:-1].split(","))
-    memory = config.memory * (1024 ** 3)  # GBs to Bytes
-    disc_size = config.disc_size * (1024 ** 3)  # GBs to Bytes
+    memory = config.node_template.resources.memory * (1024 ** 3)  # GBs to Bytes
+    disc_size = config.node_template.disc_size * (1024 ** 3)  # GBs to Bytes
 
     sdk = yandexcloud.SDK(iam_token=os.environ['YC_TOKEN'])
     subnet_service = sdk.client(SubnetServiceStub)
@@ -102,7 +117,7 @@ if __name__ == "__main__":
     cluster_name = get_cluster_name(config.cluster_id)
 
     # ------------ SECURITY GROUPS ------------ #
-    subnet = subnet_service.Get(GetSubnetRequest(subnet_id=config.subnet_id))
+    subnet = subnet_service.Get(GetSubnetRequest(subnet_id=config.node_template.subnet_id))
     main_sg_id = get_security_group_id(
         sg_service,
         "lzy-{}-main-sg".format(cluster_name)
@@ -112,7 +127,8 @@ if __name__ == "__main__":
         "lzy-{}-public-services".format(cluster_name)
     )
 
-    ans = input("Are you sure you want to create node pool with this configuration? (print 'YES!'):\n{}\n".format(config))
+    ans = input(
+        "Are you sure you want to create node pool with this configuration? (print 'YES!'):\n{}\n".format(config))
     if ans != "YES!":
         sys.exit()
 
@@ -131,14 +147,14 @@ if __name__ == "__main__":
                     labels={
                         # TODO: forward compute labels for Seva (https://st.yandex-team.ru/CLOUD-111652)
                     },
-                    platform_id=config.platform_id,
+                    platform_id=config.node_template.platform_id,
                     resources_spec=ResourcesSpec(
                         memory=memory,
-                        cores=config.cpu_count,
-                        gpus=config.gpu_count
+                        cores=config.node_template.resources.cpu_count,
+                        gpus=config.node_template.resources.gpu_count
                     ),
                     boot_disk_spec=DiskSpec(
-                        disk_type_id=config.disc_type,
+                        disk_type_id=config.node_template.disc_type,
                         disk_size=disc_size
                     ),
                     metadata={
@@ -146,7 +162,7 @@ if __name__ == "__main__":
                     },
                     network_interface_specs=[
                         NetworkInterfaceSpec(
-                            subnet_ids=[config.subnet_id],
+                            subnet_ids=[config.node_template.subnet_id],
                             primary_v4_address_spec=NodeAddressSpec(),
                             primary_v6_address_spec=NodeAddressSpec(),
                             security_group_ids=[main_sg_id, public_services_sg_id]
@@ -155,16 +171,16 @@ if __name__ == "__main__":
                 ),
                 scale_policy=ScalePolicy(
                     auto_scale=ScalePolicy.AutoScale(
-                        min_size=config.min_pool_size,
-                        max_size=config.max_pool_size,
-                        initial_size=config.min_pool_size
+                        min_size=config.scale_policy.min_pool_size,
+                        max_size=config.scale_policy.max_pool_size,
+                        initial_size=config.scale_policy.min_pool_size
                     )
                 ),
                 node_taints=node_pool_taints,
                 node_labels={
-                    "lzy.ai/node-pool-id": config.node_pool_id,
-                    "lzy.ai/node-pool-label": config.node_pool_label,
-                    "lzy.ai/node-pool-kind": config.node_pool_kind,
+                    "lzy.ai/node-pool-id": config.node_labels.node_pool_id,
+                    "lzy.ai/node-pool-label": config.node_labels.node_pool_label,
+                    "lzy.ai/node-pool-kind": config.node_labels.node_pool_kind,
                     "lzy.ai/node-pool-az": subnet.zone_id,
                     "lzy.ai/node-pool-state": "ACTIVE"  # or "INACTIVE" ???
                 }
