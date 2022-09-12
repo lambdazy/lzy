@@ -137,7 +137,9 @@ if __name__ == "__main__":
             CreateNodeGroupRequest(
                 cluster_id=config.cluster_id,
                 name=config.node_pool_name,
-                description="",
+                description="K8s node pool for Lzy with lzy.ai/node-pool-label={}, lzy.ai/node-pool-kind={}".format(
+                    config.node_labels.node_pool_label, config.node_labels.node_pool_kind
+                ),
                 labels={
                     # TODO: forward compute labels for Seva (https://st.yandex-team.ru/CLOUD-111652)
                 },
