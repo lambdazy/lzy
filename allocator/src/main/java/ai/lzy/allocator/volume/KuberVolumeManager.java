@@ -143,7 +143,8 @@ public class KuberVolumeManager implements VolumeManager {
             }
 
             final List<String> accessModes = persistentVolume.getSpec().getAccessModes();
-            assert persistentVolume.getSpec().getCapacity().get(VOLUME_CAPACITY_STORAGE_KEY).getFormat().equals(KUBER_GB_NAME);
+            assert persistentVolume.getSpec().getCapacity()
+                .get(VOLUME_CAPACITY_STORAGE_KEY).getFormat().equals(KUBER_GB_NAME);
             assert accessModes.size() == 1;
 
             final Volume volume = new Volume(

@@ -743,7 +743,8 @@ public class AllocatorApiTest extends BaseTestWithIam {
         final DiskApi.Disk disk = createDiskResponse.getDisk();
 
         final var persistentVolumeFuture = awaitResourceCreate(PersistentVolume.class, PERSISTENT_VOLUME_PATH);
-        final var persistentVolumeClaimFuture = awaitResourceCreate(PersistentVolumeClaim.class, PERSISTENT_VOLUME_CLAIM_PATH);
+        final var persistentVolumeClaimFuture =
+            awaitResourceCreate(PersistentVolumeClaim.class, PERSISTENT_VOLUME_CLAIM_PATH);
 
         final Operation allocationStarted = authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
             .setSessionId(createSessionResponse.getSessionId())
