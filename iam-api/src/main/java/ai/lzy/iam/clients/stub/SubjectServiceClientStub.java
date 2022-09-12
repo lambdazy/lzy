@@ -24,6 +24,7 @@ public class SubjectServiceClientStub implements SubjectServiceClient {
         return switch (type) {
             case USER -> new User(id);
             case SERVANT -> new Servant(id);
+            case VM -> new Vm(id);
         };
     }
 

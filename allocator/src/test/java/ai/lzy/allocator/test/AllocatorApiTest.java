@@ -7,6 +7,10 @@ import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.impl.AllocatorDataSource;
 import ai.lzy.allocator.dao.impl.SessionDaoImpl;
+import ai.lzy.iam.clients.SubjectServiceClient;
+import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.test.TimeUtils;
@@ -28,6 +32,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
+import io.micronaut.inject.qualifiers.Qualifiers;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.junit.*;
@@ -60,6 +65,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
     private AllocatorGrpc.AllocatorBlockingStub authorizedAllocatorBlockingStub;
     private AllocatorPrivateGrpc.AllocatorPrivateBlockingStub privateAllocatorBlockingStub;
     private OperationServiceApiGrpc.OperationServiceApiBlockingStub operationServiceApiBlockingStub;
+    private SubjectServiceClient subjectServiceClient;
     private AllocatorMain allocatorApp;
     private KubernetesServer kubernetesServer;
     private ManagedChannel channel;
@@ -113,6 +119,10 @@ public class AllocatorApiTest extends BaseTestWithIam {
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
         authorizedAllocatorBlockingStub = unauthorizedAllocatorBlockingStub.withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
+
+        subjectServiceClient = new SubjectServiceGrpcClient(
+            allocatorCtx.getBean(ManagedChannel.class, Qualifiers.byName("AllocatorIamGrpcChannel")),
+            () -> credentials);
     }
 
     @After
@@ -403,13 +413,20 @@ public class AllocatorApiTest extends BaseTestWithIam {
         final Operation allocate = waitOp(allocationStarted);
         final VmAllocatorApi.AllocateResponse allocateResponse =
             allocate.getResponse().unpack(VmAllocatorApi.AllocateResponse.class);
-        //noinspection ResultOfMethodCallIgnored
-        authorizedAllocatorBlockingStub.free(FreeRequest.newBuilder().setVmId(allocateMetadata.getVmId()).build());
 
         Assert.assertTrue(allocate.getDone());
         Assert.assertEquals(createSessionResponse.getSessionId(), allocateResponse.getSessionId());
         Assert.assertEquals("S", allocateResponse.getPoolId());
+
+        var vmSubj = super.getSubject(AuthProvider.INTERNAL, allocateMetadata.getVmId(), SubjectType.VM);
+        Assert.assertNotNull(vmSubj);
+
+        //noinspection ResultOfMethodCallIgnored
+        authorizedAllocatorBlockingStub.free(FreeRequest.newBuilder().setVmId(allocateMetadata.getVmId()).build());
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
+
+        vmSubj = super.getSubject(AuthProvider.INTERNAL, allocateMetadata.getVmId(), SubjectType.VM);
+        Assert.assertNull(vmSubj);
     }
 
     @Test
@@ -442,13 +459,20 @@ public class AllocatorApiTest extends BaseTestWithIam {
         final Operation allocate = waitOp(allocationStarted);
         final VmAllocatorApi.AllocateResponse allocateResponse =
             allocate.getResponse().unpack(VmAllocatorApi.AllocateResponse.class);
-        //noinspection ResultOfMethodCallIgnored
-        authorizedAllocatorBlockingStub.free(FreeRequest.newBuilder().setVmId(allocateMetadata.getVmId()).build());
 
         Assert.assertTrue(allocate.getDone());
         Assert.assertEquals(createSessionResponse.getSessionId(), allocateResponse.getSessionId());
         Assert.assertEquals("S", allocateResponse.getPoolId());
+
+        var vmSubj = super.getSubject(AuthProvider.INTERNAL, allocateMetadata.getVmId(), SubjectType.VM);
+        Assert.assertNotNull(vmSubj);
+
+        //noinspection ResultOfMethodCallIgnored
+        authorizedAllocatorBlockingStub.free(FreeRequest.newBuilder().setVmId(allocateMetadata.getVmId()).build());
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
+
+        vmSubj = super.getSubject(AuthProvider.INTERNAL, allocateMetadata.getVmId(), SubjectType.VM);
+        Assert.assertNull(vmSubj);
     }
 
     @Test
@@ -475,6 +499,9 @@ public class AllocatorApiTest extends BaseTestWithIam {
         registerVm(allocateMetadataFirst.getVmId());
         waitOp(operationFirst);
 
+        var vmSubj1 = super.getSubject(AuthProvider.INTERNAL, allocateMetadataFirst.getVmId(), SubjectType.VM);
+        Assert.assertNotNull(vmSubj1);
+
         //noinspection ResultOfMethodCallIgnored
         authorizedAllocatorBlockingStub.free(FreeRequest.newBuilder().setVmId(allocateMetadataFirst.getVmId()).build());
 
@@ -489,12 +516,21 @@ public class AllocatorApiTest extends BaseTestWithIam {
         mockDeletePod(firstPodName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
         waitOp(operationSecond);
 
+        var vmSubj2 = super.getSubject(AuthProvider.INTERNAL, allocateMetadataSecond.getVmId(), SubjectType.VM);
+        Assert.assertNotNull(vmSubj2);
+
+        Assert.assertEquals(allocateMetadataFirst.getVmId(), allocateMetadataSecond.getVmId());
+        Assert.assertEquals(vmSubj1, vmSubj2);
+
         //noinspection ResultOfMethodCallIgnored
         authorizedAllocatorBlockingStub.free(
             FreeRequest.newBuilder().setVmId(allocateMetadataSecond.getVmId()).build());
 
         Assert.assertEquals(allocateMetadataFirst.getVmId(), allocateMetadataSecond.getVmId());
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
+
+        var vmSubj = super.getSubject(AuthProvider.INTERNAL, allocateMetadataFirst.getVmId(), SubjectType.VM);
+        Assert.assertNull(vmSubj);
     }
 
     @Test
@@ -526,6 +562,9 @@ public class AllocatorApiTest extends BaseTestWithIam {
             DeleteSessionRequest.newBuilder().setSessionId(createSessionResponse.getSessionId()).build());
 
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
+
+        var vmSubj = super.getSubject(AuthProvider.INTERNAL, allocateMetadata.getVmId(), SubjectType.VM);
+        Assert.assertNull(vmSubj);
     }
 
     @Test

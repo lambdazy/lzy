@@ -52,4 +52,6 @@ public interface VmDao {
         throws SQLException;
 
     List<VolumeClaim> getVolumeClaims(String vmId, @Nullable TransactionHandle transaction) throws SQLException;
+
+    void setVmSubjectId(String vmId, String vmSubjectId, @Nullable TransactionHandle transaction) throws SQLException;
 }

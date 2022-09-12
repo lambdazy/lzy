@@ -9,7 +9,6 @@ import ai.lzy.allocator.disk.DiskMeta;
 import ai.lzy.allocator.disk.DiskSpec;
 import ai.lzy.allocator.disk.DiskStorage;
 import ai.lzy.allocator.disk.DiskType;
-import ai.lzy.allocator.disk.exceptions.NotFoundException;
 import ai.lzy.allocator.model.CachePolicy;
 import ai.lzy.allocator.model.Operation;
 import ai.lzy.allocator.model.Vm;

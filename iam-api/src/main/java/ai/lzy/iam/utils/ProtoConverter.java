@@ -36,6 +36,7 @@ public class ProtoConverter {
         return switch (subjectType) {
             case USER -> new User(subject.getId());
             case SERVANT -> new Servant(subject.getId());
+            case VM -> new Vm(subject.getId());
         };
     }
 
@@ -76,6 +77,8 @@ public class ProtoConverter {
             subjectType = SubjectType.USER;
         } else if (subject instanceof Servant) {
             subjectType = SubjectType.SERVANT;
+        } else if (subject instanceof Vm) {
+            subjectType = SubjectType.VM;
         } else {
             throw new RuntimeException("Unknown subject type " + subject.getClass().getName());
         }

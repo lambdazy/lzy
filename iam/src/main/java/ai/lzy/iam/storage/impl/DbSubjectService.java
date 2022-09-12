@@ -9,20 +9,20 @@ import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthInternalException;
 import ai.lzy.util.auth.exceptions.AuthNotFoundException;
+import com.google.common.annotations.VisibleForTesting;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.Timestamp;
-import java.sql.Types;
+import javax.annotation.Nullable;
+import java.sql.*;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -42,6 +42,9 @@ public class DbSubjectService {
                                  List<SubjectCredentials> credentials)
         throws AuthException
     {
+        LOG.debug("Create subject {}/{}/{} with credentials [{}]", authProvider, providerSubjectId, subjectType,
+            credentials.stream().map(Record::toString).collect(Collectors.joining(", ")));
+
         if (authProvider.isInternal() && subjectType == SubjectType.USER) {
             throw new AuthInternalException("Invalid auth provider");
         }
@@ -69,6 +72,7 @@ public class DbSubjectService {
                         return switch (subjectType) {
                             case USER -> new User(subjectId);
                             case SERVANT -> new Servant(subjectId);
+                            case VM -> new Vm(subjectId);
                         };
                     }
                 },
@@ -116,6 +120,7 @@ public class DbSubjectService {
                     return switch (subjectType) {
                         case USER -> new User(subjectId);
                         case SERVANT -> new Servant(subjectId);
+                        case VM -> new Vm(subjectId);
                     };
                 }
             },
@@ -139,6 +144,7 @@ public class DbSubjectService {
                         return switch (type) {
                             case USER -> new User(id);
                             case SERVANT -> new Servant(id);
+                            case VM -> new Vm(id);
                         };
                     }
 
@@ -269,6 +275,37 @@ public class DbSubjectService {
                 }
             },
             AuthInternalException::new);
+    }
+
+    @VisibleForTesting
+    @Nullable
+    public Subject getSubjectForTests(AuthProvider authProvider, String providerSubjectId, SubjectType subjectType)
+        throws SQLException
+    {
+        LOG.debug("Looking for subject {}/{}/{}...", authProvider, providerSubjectId, subjectType);
+
+        try (var connect = storage.connect();
+             var st = connect.prepareStatement("""
+                SELECT user_id
+                FROM users
+                WHERE auth_provider = ? AND provider_user_id = ? AND user_type = ?"""))
+        {
+            st.setString(1, authProvider.name());
+            st.setString(2, providerSubjectId);
+            st.setString(3, subjectType.name());
+
+            ResultSet rs = st.executeQuery();
+            if (rs.next()) {
+                var id = rs.getString("user_id");
+                return switch (subjectType) {
+                    case USER -> new User(id);
+                    case SERVANT -> new Servant(id);
+                    case VM -> new Vm(id);
+                };
+            }
+
+            return null;
+        }
     }
 
     private UserVerificationType accessTypeForNewUser(Connection connect) {
