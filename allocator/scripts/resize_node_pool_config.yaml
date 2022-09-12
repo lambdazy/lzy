@@ -1,0 +1,4 @@
+env: lzy-dev
+node_pool_id: catafr98vuh9o7ohqho0
+new_min_pool_size: 2
+new_max_pool_size: 3

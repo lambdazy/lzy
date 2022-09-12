@@ -40,7 +40,7 @@ if __name__ == "__main__":
     sdk = yandexcloud.SDK(iam_token=os.environ['YC_TOKEN'])
     node_group_service = sdk.client(NodeGroupServiceStub)
 
-    # ------------ K8S CLUSTER EXISTENCE CHECK ------------ #
+    # ------------ K8S NODE POOL EXISTENCE CHECK ------------ #
     check_node_pool_with_id(node_group_service, config.node_pool_id)
 
     ans = input("Are you sure you want to create node pool with id {}? (print 'YES!'): ".format(config.node_pool_id))
