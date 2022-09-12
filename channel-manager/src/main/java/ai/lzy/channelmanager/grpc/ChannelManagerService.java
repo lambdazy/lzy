@@ -113,13 +113,13 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 }
             };
 
-            final var lock = lockManager.getOrCreate(channelId);
+            final var channelLock = lockManager.getOrCreate(channelId);
             withRetries(defaultRetryPolicy(), LOG, () -> {
-                lock.lock();
+                channelLock.lock();
                 try {
                     channelStorage.insertChannel(channelId, userId, workflowId, channelName, channelType, spec, null);
                 } finally {
-                    lock.unlock();
+                    channelLock.unlock();
                 }
             });
 
@@ -154,26 +154,32 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(errorMessage).asException());
                 return;
             }
-            lockManager.getOrCreate(channelId);
+            final var channelLock = lockManager.getOrCreate(channelId);
 
-            withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.setChannelLifeStatus(
-                channelId, ChannelStorage.ChannelLifeStatus.DESTROYING, null));
+            channelLock.lock();
+            try {
+                withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.setChannelLifeStatus(
+                    channelId, ChannelStorage.ChannelLifeStatus.DESTROYING, null));
 
-            final Channel channel =
-                channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.DESTROYING, null);
-            if (channel == null) {
-                String errorMessage = "Channel with id " + channelId + " not found";
-                LOG.error("Destroy channel {} failed, channel not found", request.getChannelId());
-                responseObserver.onError(Status.NOT_FOUND.withDescription(errorMessage).asException());
-                return;
+                final Channel channel =
+                    channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.DESTROYING, null);
+                if (channel == null) {
+                    String errorMessage = "Channel with id " + channelId + " not found";
+                    LOG.error("Destroy channel {} failed, channel not found", request.getChannelId());
+                    responseObserver.onError(Status.NOT_FOUND.withDescription(errorMessage).asException());
+                    return;
+                }
+
+                channel.destroy();
+                withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.removeChannel(channelId, null));
+
+                responseObserver.onNext(ChannelManager.ChannelDestroyResponse.getDefaultInstance());
+                LOG.info("Destroy channel {} done", channelId);
+                responseObserver.onCompleted();
+            } finally {
+                channelLock.unlock();
+                lockManager.remove(channelId);
             }
-
-            channel.destroy();
-            withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.removeChannel(channelId, null));
-
-            responseObserver.onNext(ChannelManager.ChannelDestroyResponse.getDefaultInstance());
-            LOG.info("Destroy channel {} done", channelId);
-            responseObserver.onCompleted();
         } catch (IllegalArgumentException e) {
             LOG.error("Destroy channel {} failed, invalid argument: {}",
                 request.getChannelId(), e.getMessage(), e);
@@ -182,9 +188,6 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             LOG.error("Destroy channel {} failed, got exception: {}",
                 request.getChannelId(), e.getMessage(), e);
             responseObserver.onError(Status.INTERNAL.withCause(e).asException());
-        } finally {
-            lockManager.getOrCreate(request.getChannelId()).unlock();
-            lockManager.remove(request.getChannelId());
         }
     }
 
@@ -212,13 +215,13 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             List<Channel> channels =
                 channelStorage.listChannels(userId, workflowId, ChannelStorage.ChannelLifeStatus.DESTROYING, null);
             for (final Channel channel : channels) {
-                final var lock = lockManager.getOrCreate(channel.id());
-                lock.lock();
+                final var channelLock = lockManager.getOrCreate(channel.id());
+                channelLock.lock();
                 try {
                     channel.destroy();
                     withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.removeChannel(channel.id(), null));
                 } finally {
-                    lock.unlock();
+                    channelLock.unlock();
                     lockManager.remove(channel.id());
                 }
             }
@@ -333,7 +336,8 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             return;
         }
 
-        lockManager.getOrCreate(attach.getSlotInstance().getChannelId()).lock();
+        final var channelLock = lockManager.getOrCreate(attach.getSlotInstance().getChannelId());
+        channelLock.lock();
         try {
             final SlotInstance slotInstance = from(attach.getSlotInstance());
             final Endpoint endpoint = SlotEndpoint.getInstance(slotInstance);
@@ -382,7 +386,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 e.getMessage(), e);
             responseObserver.onError(Status.INTERNAL.withCause(e).asException());
         } finally {
-            lockManager.getOrCreate(attach.getSlotInstance().getChannelId()).unlock();
+            channelLock.unlock();
         }
     }
 
@@ -404,7 +408,8 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             return;
         }
 
-        lockManager.getOrCreate(detach.getSlotInstance().getChannelId()).lock();
+        final var channelLock = lockManager.getOrCreate(detach.getSlotInstance().getChannelId());
+        channelLock.lock();
         try {
             final SlotInstance slotInstance = from(detach.getSlotInstance());
             final Endpoint endpoint = SlotEndpoint.getInstance(slotInstance);
@@ -438,7 +443,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 e.getMessage(), e);
             responseObserver.onError(Status.INTERNAL.withCause(e).asException());
         } finally {
-            lockManager.getOrCreate(detach.getSlotInstance().getChannelId()).unlock();
+            channelLock.unlock();
         }
     }
 
