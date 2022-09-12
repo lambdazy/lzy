@@ -83,6 +83,12 @@ if __name__ == "__main__":
 
     # ------------ SECURITY GROUPS ------------ #
     # Source docs for security groups: https://cloud.yandex.ru/docs/managed-kubernetes/operations/connect/security-groups
+    k8s_cluster_ipv4_cidr_block = "10.20.0.0/16"
+    k8s_service_ipv4_cidr_block = "10.96.0.0/16"
+    k8s_cluster_ipv6_cidr_block = "fc00::/96"
+    k8s_service_ipv6_cidr_block = "fc01::/112"
+    balancer_addresses_for_main_sg = ["198.18.235.0/24", "198.18.248.0/24"]
+
     main_sg_name = "lzy-{}-main-sg".format(config.cluster_name)
     main_sg_id = create_or_get_security_group(
         config,
@@ -96,7 +102,7 @@ if __name__ == "__main__":
                     direction=SecurityGroupRule.Direction.INGRESS,
                     ports=PortRange(from_port=0, to_port=65535),
                     protocol_name="tcp",
-                    cidr_blocks=CidrBlocks(v4_cidr_blocks=["198.18.235.0/24", "198.18.248.0/24"])
+                    cidr_blocks=CidrBlocks(v4_cidr_blocks=balancer_addresses_for_main_sg)
                 ),
                 SecurityGroupRuleSpec(
                     direction=SecurityGroupRule.Direction.INGRESS,
@@ -108,7 +114,8 @@ if __name__ == "__main__":
                     direction=SecurityGroupRule.Direction.INGRESS,
                     ports=PortRange(from_port=0, to_port=65535),
                     protocol_name="any",
-                    cidr_blocks=CidrBlocks(v4_cidr_blocks=[subnet_v4_cidrs])
+                    cidr_blocks=CidrBlocks(v4_cidr_blocks=[k8s_cluster_ipv4_cidr_block, k8s_service_ipv4_cidr_block],
+                                           v6_cidr_blocks=[k8s_cluster_ipv6_cidr_block, k8s_service_ipv6_cidr_block])
                 ),
                 SecurityGroupRuleSpec(
                     direction=SecurityGroupRule.Direction.EGRESS,
@@ -120,7 +127,7 @@ if __name__ == "__main__":
         )
     )
 
-    # TODO: RESTRICT V4 AND V6 CIDRS!!!!!!!!!
+    # TODO: RESTRICT INGRESS V4 AND V6 CIDRS!!!!!!!!!
     public_svs_sg_name = "lzy-{}-public-services".format(config.cluster_name)
     public_services_sg_id = create_or_get_security_group(
         config,
@@ -134,7 +141,7 @@ if __name__ == "__main__":
                     direction=SecurityGroupRule.Direction.INGRESS,
                     ports=PortRange(from_port=30000, to_port=32767),
                     protocol_name="tcp",
-                    cidr_blocks=CidrBlocks(v4_cidr_blocks=["0.0.0.0/24"], v6_cidr_blocks=["0::/0"])
+                    cidr_blocks=CidrBlocks(v4_cidr_blocks=["0.0.0.0/0"], v6_cidr_blocks=["0::/0"])
                 ),
             ]
         )
@@ -153,13 +160,13 @@ if __name__ == "__main__":
                     direction=SecurityGroupRule.Direction.INGRESS,
                     ports=PortRange(from_port=443, to_port=443),
                     protocol_name="tcp",
-                    cidr_blocks=CidrBlocks(v4_cidr_blocks=["0.0.0.0/24"])
+                    cidr_blocks=CidrBlocks(v4_cidr_blocks=["0.0.0.0/0"])
                 ),
                 SecurityGroupRuleSpec(
                     direction=SecurityGroupRule.Direction.INGRESS,
                     ports=PortRange(from_port=6443, to_port=6443),
                     protocol_name="tcp",
-                    cidr_blocks=CidrBlocks(v4_cidr_blocks=["0.0.0.0/24"])
+                    cidr_blocks=CidrBlocks(v4_cidr_blocks=["0.0.0.0/0"])
                 ),
             ]
         )
@@ -187,9 +194,10 @@ if __name__ == "__main__":
                     security_group_ids=[main_sg_id, master_whitelist_sg_id]
                 ),
                 ip_allocation_policy=IPAllocationPolicy(
-                    cluster_ipv4_cidr_block="10.20.0.0/16",
-                    cluster_ipv6_cidr_block="fc00::/96",
-                    service_ipv6_cidr_block="fc01::/112"
+                    cluster_ipv4_cidr_block=k8s_cluster_ipv4_cidr_block,
+                    service_ipv4_cidr_block=k8s_service_ipv4_cidr_block,
+                    cluster_ipv6_cidr_block=k8s_cluster_ipv6_cidr_block,
+                    service_ipv6_cidr_block=k8s_service_ipv6_cidr_block
                 ),
                 service_account_id=config.service_account_id,
                 node_service_account_id=config.service_account_id,
