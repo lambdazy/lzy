@@ -10,6 +10,7 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 
 import jwt
 
+from ai.lzy.v1.common.basic_pb2 import DataScheme
 from ai.lzy.v1.workflow.workflow_pb2 import Graph, Operation
 from lzy.api.v2 import LzyCall, LzyWorkflow
 from lzy.api.v2.exceptions import LzyExecutionException
@@ -318,7 +319,7 @@ class GrpcRuntime(Runtime):
                         )
                         for data in entry_id_to_output_calls[entry_id]
                     ],
-                    dataScheme=Graph.EdgeDescription.DataScheme(
+                    dataScheme=DataScheme(
                         type=entry.data_scheme.type,
                         schemeType=entry.data_scheme.scheme_type,
                     )
