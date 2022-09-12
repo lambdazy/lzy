@@ -172,7 +172,7 @@ if __name__ == "__main__":
             CreateClusterRequest(
                 folder_id=config.folder_id,
                 name=config.cluster_name,
-                description="bla bla lba",
+                description="K8s cluster for Lzy node pools with lzy-node-pool-type={}".format(config.cluster_label),
                 labels={
                     "lzy-node-pool-type": config.cluster_label
                 },
