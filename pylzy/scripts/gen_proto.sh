@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env nix-shell
+#! nix-shell build.nix -A dev -i bash
 
 set -eux
 
