@@ -3,16 +3,17 @@ package ai.lzy.fs;
 import ai.lzy.model.UriScheme;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.v1.deprecated.LzyAuth;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Options;
+
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Options;
 
 public final class LzyFsApp {
     private static final Options options = new Options();
@@ -95,7 +96,7 @@ public final class LzyFsApp {
                 token = "";
                 if (Files.exists(Path.of(privateKeyPath))) {
                     try (FileReader keyReader = new FileReader(privateKeyPath)) {
-                        token = JwtUtils.buildJWT(userId, keyReader);
+                        token = JwtUtils.legacyBuildJWT(userId, keyReader);
                     } catch (Exception e) {
                         System.err.println(e.getMessage());
                         System.exit(-1);

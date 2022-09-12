@@ -2,6 +2,8 @@ package ai.lzy.iam.storage.impl;
 
 import ai.lzy.iam.BaseSubjectServiceApiTest;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.storage.db.IamDataSource;
@@ -15,6 +17,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 
+import java.util.List;
 import java.util.NoSuchElementException;
 
 public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
@@ -47,8 +50,8 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
     }
 
     @Override
-    protected Subject createSubject(SubjectType subjectType) {
-        return subjectService.createSubject("provider", "providerID", subjectType);
+    protected Subject createSubject(String name, SubjectType subjectType) {
+        return subjectService.createSubject(AuthProvider.GITHUB, name, subjectType, List.of());
     }
 
     @Override
@@ -63,7 +66,7 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
 
     @Override
     protected void addCredentials(Subject subject, String name) {
-        subjectService.addCredentials(subject, name, "Value", "Type");
+        subjectService.addCredentials(subject, new SubjectCredentials(name, "Value", CredentialsType.PUBLIC_KEY));
     }
 
     @Override

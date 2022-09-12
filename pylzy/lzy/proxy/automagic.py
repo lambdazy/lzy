@@ -149,8 +149,8 @@ def is_proxy(obj: Any) -> bool:
 
 # TODO: LazyProxy type?
 def proxy(
-    constructor: Callable[[], T],
-    proto_type: Type[T],
+    constructor: Callable,
+    proto_type: Type,
     cls_attrs: Optional[Dict[str, Any]] = None,
     obj_attrs: Optional[Dict[str, Any]] = None,
 ) -> Any:

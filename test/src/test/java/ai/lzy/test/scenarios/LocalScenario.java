@@ -27,17 +27,19 @@ public abstract class LocalScenario extends LzyBaseTest {
     protected LzyServerTestContext serverContext;
     protected LzySnapshotTestContext whiteboardContext;
     protected LzyKharonTestContext kharonContext;
-    protected LzyChannelManagerContext lzyChannelManagerContext;
+    protected LzyChannelManagerContext channelManagerContext;
     protected S3Mock s3Mock;
     protected LzyTerminalTestContext.Terminal terminal;
     protected RsaUtils.Keys terminalKeys;
 
     @Before
     public void setUp() {
-        this.setUp(LzyServerTestContext.LocalServantAllocatorType.THREAD_ALLOCATOR);
+        this.setUp(LzyServerTestContext.LocalServantAllocatorType.THREAD_ALLOCATOR, true);
     }
 
-    public void setUp(LzyServerTestContext.LocalServantAllocatorType servantAllocatorType) {
+    public void setUp(LzyServerTestContext.LocalServantAllocatorType servantAllocatorType,
+                      boolean stubIamForChannelManager)
+    {
         createResourcesFolder();
         createServantLzyFolder();
 
@@ -59,13 +61,13 @@ public abstract class LocalScenario extends LzyBaseTest {
         whiteboardContext = new SnapshotThreadContext(serverContext.address());
         whiteboardContext.init();
 
-        lzyChannelManagerContext = new ChannelManagerThreadContext(whiteboardContext.address(), iamContext.address());
-        lzyChannelManagerContext.init();
+        channelManagerContext = new ChannelManagerThreadContext(whiteboardContext.address(), iamContext.address());
+        channelManagerContext.init(stubIamForChannelManager);
 
         kharonContext = new KharonThreadContext(
             serverContext.address(),
             whiteboardContext.address(),
-            lzyChannelManagerContext.address(),
+            channelManagerContext.address(),
             iamContext.address());
         kharonContext.init();
 
@@ -85,7 +87,7 @@ public abstract class LocalScenario extends LzyBaseTest {
         kharonContext.close();
         serverContext.close();
         whiteboardContext.close();
-        lzyChannelManagerContext.close();
+        channelManagerContext.close();
         storageContext.close();
         iamContext.close();
         s3Mock.shutdown();

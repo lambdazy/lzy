@@ -11,7 +11,7 @@ import org.apache.logging.log4j.Logger;
 import ai.lzy.iam.resources.AccessBinding;
 import ai.lzy.iam.resources.AccessBindingDelta;
 import ai.lzy.iam.resources.AuthResource;
-import ai.lzy.iam.utils.GrpcConverter;
+import ai.lzy.iam.utils.ProtoConverter;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
@@ -57,9 +57,9 @@ public class AccessBindingServiceGrpcClient implements AccessBindingClient {
     public Stream<AccessBinding> listAccessBindings(AuthResource resource) throws AuthException {
         try {
             var bindings = accessBindingService.listAccessBindings(LABS.ListAccessBindingsRequest.newBuilder()
-                    .setResource(GrpcConverter.from(resource))
+                    .setResource(ProtoConverter.from(resource))
                     .build());
-            return bindings.getBindingsList().stream().map(GrpcConverter::to);
+            return bindings.getBindingsList().stream().map(ProtoConverter::to);
         } catch (StatusRuntimeException e) {
             throw AuthException.fromStatusRuntimeException(e);
         }
@@ -69,8 +69,8 @@ public class AccessBindingServiceGrpcClient implements AccessBindingClient {
     public void setAccessBindings(AuthResource resource, List<AccessBinding> accessBinding) throws AuthException {
         try {
             LABS.SetAccessBindingsRequest.Builder requestBuilder = LABS.SetAccessBindingsRequest.newBuilder()
-                    .setResource(GrpcConverter.from(resource));
-            accessBinding.forEach(b -> requestBuilder.addBindings(GrpcConverter.from(b)));
+                    .setResource(ProtoConverter.from(resource));
+            accessBinding.forEach(b -> requestBuilder.addBindings(ProtoConverter.from(b)));
             // Empty Response, see lzy-access-binding-service.proto
             var response = accessBindingService.setAccessBindings(requestBuilder.build());
         } catch (StatusRuntimeException e) {
@@ -83,8 +83,8 @@ public class AccessBindingServiceGrpcClient implements AccessBindingClient {
             throws AuthException {
         try {
             LABS.UpdateAccessBindingsRequest.Builder requestBuilder = LABS.UpdateAccessBindingsRequest.newBuilder()
-                    .setResource(GrpcConverter.from(resource));
-            accessBindingDeltas.forEach(b -> requestBuilder.addDeltas(GrpcConverter.from(b)));
+                    .setResource(ProtoConverter.from(resource));
+            accessBindingDeltas.forEach(b -> requestBuilder.addDeltas(ProtoConverter.from(b)));
             var response = accessBindingService.updateAccessBindings(requestBuilder.build());
         } catch (StatusRuntimeException e) {
             throw AuthException.fromStatusRuntimeException(e);

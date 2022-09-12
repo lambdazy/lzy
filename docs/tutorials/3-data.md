@@ -25,7 +25,7 @@ def process_file(file: File) -> File:
 
 env = LzyRemoteEnv()
 with env.workflow("file-processing"):
-    input_file = new File('path/to/local/file')
+    input_file = File('path/to/local/file')
     result = process_file(input_file)
     with result.open("r") as f:
         ...

@@ -7,7 +7,7 @@ public interface LzyChannelManagerContext extends AutoCloseable {
 
     LzyChannelManagerGrpc.LzyChannelManagerBlockingStub client();
 
-    void init();
+    void init(boolean stubIam);
 
     void close();
 }

@@ -1,7 +1,8 @@
 package ai.lzy.backoffice.configs;
 
-import static ai.lzy.util.auth.credentials.JwtUtils.buildJWT;
+import static ai.lzy.util.auth.credentials.JwtUtils.legacyBuildJWT;
 
+import ai.lzy.v1.deprecated.LzyAuth;
 import com.azure.identity.DefaultAzureCredential;
 import com.azure.identity.DefaultAzureCredentialBuilder;
 import com.azure.security.keyvault.secrets.SecretClient;
@@ -14,7 +15,6 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
-import ai.lzy.v1.deprecated.LzyAuth;
 
 @Requires(property = "azure-providers", value = "true")
 @Singleton
@@ -40,8 +40,9 @@ public class AzureSecretClient implements CredentialsProvider {
         String token;
 
         try (StringReader reader = new StringReader(
-            secretClient.getSecret("backofficeKey").getValue())) {
-            token = buildJWT(secretClient.getSecret("backofficeUserId").getValue(), reader);
+            secretClient.getSecret("backofficeKey").getValue()))
+        {
+            token = legacyBuildJWT(secretClient.getSecret("backofficeUserId").getValue(), reader);
         } catch (NoSuchAlgorithmException | InvalidKeySpecException | IOException e) {
             e.printStackTrace();
             throw new HttpStatusException(HttpStatus.FORBIDDEN, "Corrupted backoffice token");

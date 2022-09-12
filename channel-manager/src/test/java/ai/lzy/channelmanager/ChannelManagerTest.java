@@ -4,7 +4,6 @@ import ai.lzy.channelmanager.db.ChannelManagerDataSource;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.test.GrpcUtils;
-import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
@@ -28,7 +27,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-
 @SuppressWarnings({"UnstableApiUsage", "ResultOfMethodCallIgnored"})
 public class ChannelManagerTest extends BaseTestWithIam {
 
@@ -47,7 +45,7 @@ public class ChannelManagerTest extends BaseTestWithIam {
     private LzyChannelManagerGrpc.LzyChannelManagerBlockingStub authorizedChannelManagerClient;
 
     @Before
-    public void before() throws IOException {
+    public void before() throws IOException, InterruptedException {
         super.setUp(DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo()));
 
         var props = DatabaseTestUtils.preparePostgresConfig("channel-manager", db.getConnectionInfo());
@@ -62,8 +60,10 @@ public class ChannelManagerTest extends BaseTestWithIam {
             .usePlaintext()
             .build();
         unauthorizedChannelManagerClient = LzyChannelManagerGrpc.newBlockingStub(channel);
+
+        var internalUser = channelManagerConfig.getIam().createCredentials();
         authorizedChannelManagerClient = unauthorizedChannelManagerClient.withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, JwtUtils.invalidCredentials("user")::token));
+            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, internalUser::token));
     }
 
     @After
@@ -340,3 +340,4 @@ public class ChannelManagerTest extends BaseTestWithIam {
         Assert.assertEquals(channel2CreateResponse.getChannelId(), status.getChannelId());
     }
 }
+

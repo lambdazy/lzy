@@ -26,27 +26,27 @@ class WhiteboardInstanceMeta:
 
 class Runtime(ABC):
     @abstractmethod
-    def start(self, workflow: "LzyWorkflow"):
+    async def start(self, workflow: "LzyWorkflow"):
         pass
 
     @abstractmethod
-    def exec(
+    async def exec(
         self,
-        graph: List[LzyCall],
+        calls: List[LzyCall],
         progress: Callable[[ProgressStep], None],
     ) -> None:
         pass
 
     @abstractmethod
-    def destroy(self) -> None:
+    async def destroy(self) -> None:
         pass
 
     @abstractmethod
-    def link(self, wb_id: str, field_name: str, url: str) -> None:
+    async def link(self, wb_id: str, field_name: str, url: str) -> None:
         pass
 
     @abstractmethod
-    def create_whiteboard(
+    async def create_whiteboard(
         self,
         namespace: str,
         name: str,

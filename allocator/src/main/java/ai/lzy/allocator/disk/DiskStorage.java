@@ -1,5 +1,6 @@
 package ai.lzy.allocator.disk;
 
+import ai.lzy.allocator.dao.impl.AllocatorDataSource;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
@@ -30,11 +31,11 @@ public class DiskStorage {
     private final Storage storage;
 
     @Inject
-    private DiskStorage(Storage storage) {
+    DiskStorage(AllocatorDataSource storage) {
         this.storage = storage;
     }
 
-    void insert(Disk disk, TransactionHandle transaction) throws SQLException {
+    public void insert(Disk disk, TransactionHandle transaction) throws SQLException {
         LOG.info("Insert into storage disk=" + disk);
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(QUERY_INSERT_DISK)) {
@@ -44,12 +45,14 @@ public class DiskStorage {
                 s.setString(3, spec.type().name());
                 s.setInt(4, spec.sizeGb());
                 s.setString(5, spec.zone());
+                s.setString(6, disk.meta().user());
+                s.execute();
             }
         });
     }
 
     @Nullable
-    Disk get(String diskId, TransactionHandle transaction) throws SQLException {
+    public Disk get(String diskId, TransactionHandle transaction) throws SQLException {
         LOG.info("Get from storage diskId=" + diskId);
         final Disk[] disk = {null};
         DbOperation.execute(transaction, storage, con -> {
@@ -74,11 +77,12 @@ public class DiskStorage {
         return disk[0];
     }
 
-    void remove(String diskId, TransactionHandle transaction) throws SQLException {
+    public void remove(String diskId, TransactionHandle transaction) throws SQLException {
         LOG.info("Remove from storage diskId=" + diskId);
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(QUERY_REMOVE_DISK)) {
                 s.setString(1, diskId);
+                s.execute();
             }
         });
     }

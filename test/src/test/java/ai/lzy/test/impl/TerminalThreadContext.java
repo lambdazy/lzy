@@ -39,7 +39,8 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
         int debugPort,
         String user,
         String privateKeyPath
-    ) {
+    )
+    {
         if (terminals.get(path) != null) {
             final LzyTerminal term = terminals.remove(path);
             term.close();
@@ -55,7 +56,7 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
             token = "";
         } else {
             try (final FileReader reader = new FileReader(privateKeyPath)) {
-                token = JwtUtils.buildJWT(user, reader);
+                token = JwtUtils.legacyBuildJWT(user, reader);
             } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
                 throw new RuntimeException(e);
             }

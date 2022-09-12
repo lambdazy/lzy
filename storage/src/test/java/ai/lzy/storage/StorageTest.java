@@ -100,7 +100,7 @@ public class StorageTest extends BaseTestWithIam {
 
     @Test
     public void testPermissionDenied() {
-        var credentials = JwtUtils.invalidCredentials(storageConfig.getIam().getInternalUserName());
+        var credentials = JwtUtils.invalidCredentials(storageConfig.getIam().getInternalUserName(), "GITHUB");
 
         var client = storageClient.withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));

@@ -9,7 +9,7 @@ import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.iam.resources.subjects.Subject;
-import ai.lzy.iam.utils.GrpcConverter;
+import ai.lzy.iam.utils.ProtoConverter;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
@@ -24,11 +24,11 @@ public class AuthenticateServiceGrpcClient implements AuthenticateService {
 
     public AuthenticateServiceGrpcClient(GrpcConfig config) {
         this(
-                ChannelBuilder.forAddress(config.host(), config.port())
-                        .usePlaintext()
-                        .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
-                        .build()
-        );
+            ChannelBuilder
+                .forAddress(config.host(), config.port())
+                .usePlaintext()
+                .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
+                .build());
     }
 
     public AuthenticateServiceGrpcClient(Channel channel) {
@@ -45,7 +45,7 @@ public class AuthenticateServiceGrpcClient implements AuthenticateService {
                                     credentials::token));
             final IAM.Subject subject = authenticateService.authenticate(
                     LAS.AuthenticateRequest.newBuilder().build());
-            return GrpcConverter.to(subject);
+            return ProtoConverter.to(subject);
         } catch (StatusRuntimeException e) {
             throw AuthException.fromStatusRuntimeException(e);
         }

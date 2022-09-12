@@ -1,5 +1,8 @@
 package ai.lzy.channelmanager.grpc;
 
+import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
+import static ai.lzy.model.db.DbHelper.withRetries;
+
 import ai.lzy.channelmanager.ChannelManagerConfig;
 import ai.lzy.channelmanager.channel.*;
 import ai.lzy.channelmanager.db.ChannelManagerDataSource;
@@ -8,8 +11,8 @@ import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.model.basic.SlotInstance;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.deprecated.GrpcConverter;
-import ai.lzy.v1.channel.LCMS;
 import ai.lzy.v1.channel.LCM;
+import ai.lzy.v1.channel.LCMS;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
@@ -74,35 +77,38 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             final String channelId = String.join("-", "channel", userId, workflowId).replaceAll("[^a-zA-z0-9-]+", "-")
                                      + "!" + channelName;
 
-            lockManager.getOrCreate(channelId).lock();
-            try {
-                final var channelType = channelSpec.getTypeCase();
-                final ChannelSpec spec = switch (channelSpec.getTypeCase()) {
-                    case DIRECT -> new DirectChannelSpec(
-                        channelSpec.getChannelName(),
-                        GrpcConverter.contentTypeFrom(channelSpec.getContentType())
+            final var channelType = channelSpec.getTypeCase();
+            final ChannelSpec spec = switch (channelSpec.getTypeCase()) {
+                case DIRECT -> new DirectChannelSpec(
+                    channelSpec.getChannelName(),
+                    GrpcConverter.contentTypeFrom(channelSpec.getContentType())
+                );
+                case SNAPSHOT -> new SnapshotChannelSpec(
+                    channelSpec.getChannelName(),
+                    GrpcConverter.contentTypeFrom(channelSpec.getContentType()),
+                    channelSpec.getSnapshot().getSnapshotId(),
+                    channelSpec.getSnapshot().getEntryId(),
+                    whiteboardAddress
+                );
+                default -> {
+                    final String errorMessage = String.format(
+                        "Unexpected chanel type \"%s\", only snapshot and direct channels are supported",
+                        channelSpec.getTypeCase()
                     );
-                    case SNAPSHOT -> new SnapshotChannelSpec(
-                        channelSpec.getChannelName(),
-                        GrpcConverter.contentTypeFrom(channelSpec.getContentType()),
-                        channelSpec.getSnapshot().getSnapshotId(),
-                        channelSpec.getSnapshot().getEntryId(),
-                        whiteboardAddress
-                    );
-                    default -> {
-                        final String errorMessage = String.format(
-                            "Unexpected chanel type \"%s\", only snapshot and direct channels are supported",
-                            channelSpec.getTypeCase()
-                        );
-                        LOG.error(errorMessage);
-                        throw new NotImplementedException(errorMessage);
-                    }
-                };
+                    LOG.error(errorMessage);
+                    throw new NotImplementedException(errorMessage);
+                }
+            };
 
-                channelStorage.insertChannel(channelId, userId, workflowId, channelName, channelType, spec, null);
-            } finally {
-                lockManager.getOrCreate(channelId).unlock();
-            }
+            final var lock = lockManager.getOrCreate(channelId);
+            withRetries(defaultRetryPolicy(), LOG, () -> {
+                lock.lock();
+                try {
+                    channelStorage.insertChannel(channelId, userId, workflowId, channelName, channelType, spec, null);
+                } finally {
+                    lock.unlock();
+                }
+            });
 
             responseObserver.onNext(LCMS.ChannelCreateResponse.newBuilder()
                 .setChannelId(channelId)
@@ -135,11 +141,13 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(errorMessage).asException());
                 return;
             }
+            lockManager.getOrCreate(channelId);
 
-            channelStorage.setChannelLifeStatus(channelId, ChannelStorage.ChannelLifeStatus.DESTROYING, null);
+            withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.setChannelLifeStatus(
+                channelId, ChannelStorage.ChannelLifeStatus.DESTROYING, null));
 
-            final Channel
-                channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.DESTROYING, null);
+            final Channel channel =
+                channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.DESTROYING, null);
             if (channel == null) {
                 String errorMessage = "Channel with id " + channelId + " not found";
                 LOG.error("Destroy channel {} failed, channel not found", request.getChannelId());
@@ -148,7 +156,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             }
 
             channel.destroy();
-            channelStorage.removeChannel(channelId, null);
+            withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.removeChannel(channelId, null));
 
             responseObserver.onNext(LCMS.ChannelDestroyResponse.getDefaultInstance());
             LOG.info("Destroy channel {} done", channelId);
@@ -185,17 +193,17 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 return;
             }
 
-            channelStorage.setChannelLifeStatus(userId, workflowId, ChannelStorage.ChannelLifeStatus.DESTROYING, null);
+            withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.setChannelLifeStatus(
+                userId, workflowId, ChannelStorage.ChannelLifeStatus.DESTROYING, null));
 
-            List<Channel> channels = channelStorage.listChannels(
-                userId, workflowId, ChannelStorage.ChannelLifeStatus.DESTROYING, null
-            );
+            List<Channel> channels =
+                channelStorage.listChannels(userId, workflowId, ChannelStorage.ChannelLifeStatus.DESTROYING, null);
             for (final Channel channel : channels) {
                 final var lock = lockManager.getOrCreate(channel.id());
+                lock.lock();
                 try {
-                    lock.lock();
                     channel.destroy();
-                    channelStorage.removeChannel(channel.id(), null);
+                    withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.removeChannel(channel.id(), null));
                 } finally {
                     lock.unlock();
                     lockManager.remove(channel.id());
@@ -318,35 +326,31 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             final Endpoint endpoint = SlotEndpoint.getInstance(slotInstance);
             final String channelId = endpoint.slotInstance().channelId();
 
-            final Channel channel;
-            try (final var transaction = TransactionHandle.create(dataSource)) {
-                channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.ALIVE, transaction);
-                if (channel == null) {
-                    String errorMessage = "Channel with id " + channelId + " not found";
-                    LOG.error("Bind slot={} to channel={} failed, channel not found",
-                        attach.getSlotInstance().getSlot().getName(), attach.getSlotInstance().getChannelId());
-                    responseObserver.onError(Status.NOT_FOUND.withDescription(errorMessage).asException());
-                    return;
+            final Channel channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
+            if (channel == null) {
+                String errorMessage = "Channel with id " + channelId + " not found";
+                LOG.error("Bind slot={} to channel={} failed, channel not found",
+                    attach.getSlotInstance().getSlot().getName(), attach.getSlotInstance().getChannelId());
+                responseObserver.onError(Status.NOT_FOUND.withDescription(errorMessage).asException());
+                return;
+            }
+
+            final Stream<Endpoint> newBound = channel.bind(endpoint);
+
+            withRetries(defaultRetryPolicy(), LOG, () -> {
+                try (final var transaction = TransactionHandle.create(dataSource)) {
+
+                    channelStorage.insertEndpoint(endpoint, transaction);
+
+                    final Map<Endpoint, Endpoint> addedEdges = switch (endpoint.slotSpec().direction()) {
+                        case OUTPUT -> newBound.collect(Collectors.toMap(e -> endpoint, e -> e));
+                        case INPUT -> newBound.collect(Collectors.toMap(e -> e, e -> endpoint));
+                    };
+                    channelStorage.insertEndpointConnections(channelId, addedEdges, transaction);
+
+                    transaction.commit();
                 }
-
-                channelStorage.insertEndpoint(endpoint, transaction);
-
-                transaction.commit();
-            }
-
-            final Stream<Endpoint> newBound;
-            try {
-                newBound = channel.bind(endpoint);
-            } catch (Exception e) {
-                channelStorage.removeEndpointWithConnections(endpoint, null);
-                throw e;
-            }
-
-            final Map<Endpoint, Endpoint> addedEdges = switch (endpoint.slotSpec().direction()) {
-                case OUTPUT -> newBound.collect(Collectors.toMap(e -> endpoint, e -> e));
-                case INPUT -> newBound.collect(Collectors.toMap(e -> e, e -> endpoint));
-            };
-            channelStorage.insertEndpointConnections(channelId, addedEdges, null);
+            });
 
             responseObserver.onNext(LCMS.SlotAttachStatus.getDefaultInstance());
             LOG.info("Bind slot={} to channel={} done",
@@ -393,22 +397,18 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             final Endpoint endpoint = SlotEndpoint.getInstance(slotInstance);
             final String channelId = endpoint.slotInstance().channelId();
 
-            final Channel channel;
-            try (final var transaction = TransactionHandle.create(dataSource)) {
-                channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.ALIVE, transaction);
-                if (channel == null) {
-                    String errorMessage = "Channel with id " + channelId + " not found";
-                    LOG.error("Unbind slot={} to channel={} failed, channel not found",
-                        detach.getSlotInstance().getSlot().getName(), detach.getSlotInstance().getChannelId());
-                    responseObserver.onError(Status.NOT_FOUND.withDescription(errorMessage).asException());
-                    return;
-                }
-
-                channel.unbind(endpoint);
-                channelStorage.removeEndpointWithConnections(endpoint, transaction);
-
-                transaction.commit();
+            final Channel channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
+            if (channel == null) {
+                String errorMessage = "Channel with id " + channelId + " not found";
+                LOG.error("Unbind slot={} to channel={} failed, channel not found",
+                    detach.getSlotInstance().getSlot().getName(), detach.getSlotInstance().getChannelId());
+                responseObserver.onError(Status.NOT_FOUND.withDescription(errorMessage).asException());
+                return;
             }
+
+            channel.unbind(endpoint);
+
+            withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.removeEndpointWithConnections(endpoint, null));
 
             responseObserver.onNext(LCMS.SlotDetachStatus.getDefaultInstance());
             responseObserver.onCompleted();

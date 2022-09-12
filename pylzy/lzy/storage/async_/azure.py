@@ -33,7 +33,8 @@ class AzureClientAsync(AsyncStorageClient):
         async for chunk in self.blob_iter(url):
             dest.write(chunk)
 
-    async def write(self, container: str, blob: str, data: BinaryIO):
+    async def write(self, url: str, data: BinaryIO):
+        container, blob = bucket_from_url(self.scheme, url)
         blob_client = self._blob_client(container, blob)
         await blob_client.upload_blob(data)
         return url_from_bucket(self.scheme, container, blob)
@@ -41,6 +42,10 @@ class AzureClientAsync(AsyncStorageClient):
     async def blob_exists(self, container: str, blob: str) -> bool:
         blob_client = self._blob_client(container, blob)
         return unwrap(await blob_client.exists())
+
+    async def bucket_exists(self, bucket: str) -> bool:
+        client = self.client.get_container_client(bucket)
+        return unwrap(await client.exists())
 
     async def blob_iter(self, url: str) -> AsyncIterator[bytes]:
         blob_client = self._blob_client_from_url(url)

@@ -1,6 +1,6 @@
 package ai.lzy.backoffice.configs;
 
-import static ai.lzy.util.auth.credentials.JwtUtils.buildJWT;
+import static ai.lzy.util.auth.credentials.JwtUtils.legacyBuildJWT;
 
 import ai.lzy.v1.deprecated.LzyAuth;
 import io.micronaut.context.annotation.ConfigurationProperties;
@@ -38,7 +38,7 @@ public class CredentialsConfig implements CredentialsProvider {
     public LzyAuth.UserCredentials createCreds() {
         String token;
         try (FileReader keyReader = new FileReader(privateKeyPath)) {
-            token = buildJWT(userId, keyReader);
+            token = legacyBuildJWT(userId, keyReader);
         } catch (InvalidKeySpecException | NoSuchAlgorithmException | IOException e) {
             throw new HttpStatusException(HttpStatus.FORBIDDEN, "Corrupted backoffice token");
         }

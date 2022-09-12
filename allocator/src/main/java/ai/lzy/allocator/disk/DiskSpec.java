@@ -1,6 +1,6 @@
 package ai.lzy.allocator.disk;
 
-import ai.lzy.v1.allocator.DiskApi;
+import ai.lzy.v1.DiskApi;
 
 public record DiskSpec(
     String name,
@@ -15,5 +15,14 @@ public record DiskSpec(
             diskSpec.getSizeGb(),
             diskSpec.getZoneId()
         );
+    }
+
+    public DiskApi.DiskSpec toProto() {
+        return DiskApi.DiskSpec.newBuilder()
+            .setName(name())
+            .setType(DiskApi.DiskType.forNumber(type().getValue()))
+            .setSizeGb(sizeGb())
+            .setZoneId(zone())
+            .build();
     }
 }

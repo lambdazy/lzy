@@ -2,15 +2,13 @@ package ai.lzy.iam.storage.impl;
 
 import ai.lzy.iam.configs.ServiceConfig;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
-import ai.lzy.iam.resources.subjects.Servant;
-import ai.lzy.iam.resources.subjects.Subject;
-import ai.lzy.iam.resources.subjects.SubjectType;
-import ai.lzy.iam.resources.subjects.User;
+import ai.lzy.iam.resources.subjects.*;
 import ai.lzy.iam.storage.db.IamDataSource;
 import ai.lzy.iam.utils.UserVerificationType;
-import ai.lzy.util.auth.exceptions.AuthNotFoundException;
+import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthInternalException;
+import ai.lzy.util.auth.exceptions.AuthNotFoundException;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -19,6 +17,9 @@ import org.apache.logging.log4j.Logger;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
+import java.sql.Timestamp;
+import java.sql.Types;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -37,31 +38,84 @@ public class DbSubjectService {
     @Inject
     private ServiceConfig serviceConfig;
 
-    public Subject createSubject(String authProvider, String providerSubjectId, SubjectType subjectType)
+    public Subject createSubject(AuthProvider authProvider, String providerSubjectId, SubjectType subjectType,
+                                 List<SubjectCredentials> credentials)
         throws AuthException
     {
-        final var id = UUID.randomUUID().toString();
+        if (authProvider.isInternal() && subjectType == SubjectType.USER) {
+            throw new AuthInternalException("Invalid auth provider");
+        }
+
+        final var subjectId = UUID.randomUUID().toString();
+
+        if (credentials.isEmpty()) {
+            return withRetries(
+                defaultRetryPolicy(),
+                LOG,
+                () -> {
+                    try (var connect = storage.connect();
+                         var st = connect.prepareStatement("""
+                            INSERT INTO users (user_id, auth_provider, provider_user_id, access_type, user_type)
+                            VALUES (?, ?, ?, ?, ?)"""))
+                    {
+                        int parameterIndex = 0;
+                        st.setString(++parameterIndex, subjectId);
+                        st.setString(++parameterIndex, authProvider.name());
+                        st.setString(++parameterIndex, providerSubjectId);
+                        st.setString(++parameterIndex, accessTypeForNewUser(connect).toString());
+                        st.setString(++parameterIndex, subjectType.name());
+                        st.executeUpdate();
+
+                        return switch (subjectType) {
+                            case USER -> new User(subjectId);
+                            case SERVANT -> new Servant(subjectId);
+                        };
+                    }
+                },
+                AuthInternalException::new);
+        }
+
 
         return withRetries(
             defaultRetryPolicy(),
             LOG,
             () -> {
-                try (var connect = storage.connect();
-                     var st = connect.prepareStatement("""
-                        INSERT INTO users (user_id, auth_provider, provider_user_id, access_type, user_type)
-                        VALUES (?, ?, ?, ?, ?)"""))
+                try (var tx = TransactionHandle.create(storage);
+                     var conn = tx.connect();
+                     var subjSt = conn.prepareStatement("""
+                            INSERT INTO users (user_id, auth_provider, provider_user_id, access_type, user_type)
+                            VALUES (?, ?, ?, ?, ?)""");
+                     var credsSt = conn.prepareStatement("""
+                            INSERT INTO credentials (name, value, user_id, type, expired_at)
+                            VALUES (?, ?, ?, ?, ?)"""))
                 {
-                    int parameterIndex = 0;
-                    st.setString(++parameterIndex, id);
-                    st.setString(++parameterIndex, authProvider);
-                    st.setString(++parameterIndex, providerSubjectId);
-                    st.setString(++parameterIndex, accessTypeForNewUser(connect).toString());
-                    st.setString(++parameterIndex, subjectType.name());
-                    st.executeUpdate();
+                    subjSt.setString(1, subjectId);
+                    subjSt.setString(2, authProvider.name());
+                    subjSt.setString(3, providerSubjectId);
+                    subjSt.setString(4, accessTypeForNewUser(conn).toString());
+                    subjSt.setString(5, subjectType.name());
+                    subjSt.executeUpdate();
+
+                    for (var creds : credentials) {
+                        credsSt.clearParameters();
+                        credsSt.setString(1, creds.name());
+                        credsSt.setString(2, creds.value());
+                        credsSt.setString(3, subjectId);
+                        credsSt.setString(4, creds.type().name());
+                        if (creds.expiredAt() != null) {
+                            credsSt.setTimestamp(5, Timestamp.from(creds.expiredAt().truncatedTo(ChronoUnit.SECONDS)));
+                        } else {
+                            credsSt.setNull(5, Types.TIMESTAMP);
+                        }
+                        credsSt.addBatch();
+                    }
+                    credsSt.executeBatch();
+
+                    tx.commit();
 
                     return switch (subjectType) {
-                        case USER -> new User(id);
-                        case SERVANT -> new Servant(id);
+                        case USER -> new User(subjectId);
+                        case SERVANT -> new Servant(subjectId);
                     };
                 }
             },
@@ -75,17 +129,16 @@ public class DbSubjectService {
             () -> {
                 try (var connect = storage.connect();
                      var st = connect.prepareStatement(
-                         "SELECT user_id, user_type FROM users WHERE user_id = ?"))
+                         "SELECT user_type FROM users WHERE user_id = ?"))
                 {
                     int parameterIndex = 0;
                     st.setString(++parameterIndex, id);
                     ResultSet rs = st.executeQuery();
                     if (rs.next()) {
-                        final String user_id = rs.getString("user_id");
                         final SubjectType type = SubjectType.valueOf(rs.getString("user_type"));
                         return switch (type) {
-                            case USER -> new User(user_id);
-                            case SERVANT -> new Servant(user_id);
+                            case USER -> new User(id);
+                            case SERVANT -> new Servant(id);
                         };
                     }
 
@@ -112,21 +165,28 @@ public class DbSubjectService {
             AuthInternalException::new);
     }
 
-    public void addCredentials(Subject subject, String name, String value, String type) throws AuthException {
+    public void addCredentials(Subject subject, SubjectCredentials credentials) throws AuthException {
         withRetries(
             defaultRetryPolicy(),
             LOG,
             () -> {
                 try (var connect = storage.connect();
                      var st = connect.prepareStatement("""
-                        INSERT INTO credentials (name, "value", user_id, type)
-                        VALUES (?, ?, ?, ?)"""))
+                        INSERT INTO credentials (name, value, user_id, type, expired_at)
+                        VALUES (?, ?, ?, ?, ?)"""))
                 {
                     int parameterIndex = 0;
-                    st.setString(++parameterIndex, name);
-                    st.setString(++parameterIndex, value);
+                    st.setString(++parameterIndex, credentials.name());
+                    st.setString(++parameterIndex, credentials.value());
                     st.setString(++parameterIndex, subject.id());
-                    st.setString(++parameterIndex, type);
+                    st.setString(++parameterIndex, credentials.type().name());
+                    if (credentials.expiredAt() != null) {
+                        st.setTimestamp(++parameterIndex,
+                            Timestamp.from(credentials.expiredAt().truncatedTo(ChronoUnit.SECONDS)));
+                    } else {
+                        st.setNull(++parameterIndex, Types.TIMESTAMP);
+                    }
+
                     st.executeUpdate();
                 }
             },
@@ -140,19 +200,21 @@ public class DbSubjectService {
             () -> {
                 try (var connect = storage.connect();
                      var st = connect.prepareStatement("""
-                        SELECT name, "value", type
+                        SELECT name, value, type, expired_at
                         FROM credentials
-                        WHERE user_id = ? AND name = ?"""))
+                        WHERE user_id = ? AND name = ? AND (expired_at IS NULL OR expired_at > NOW())"""))
                 {
                     int parameterIndex = 0;
                     st.setString(++parameterIndex, subject.id());
                     st.setString(++parameterIndex, name);
                     ResultSet rs = st.executeQuery();
                     if (rs.next()) {
+                        var expiredAt = rs.getTimestamp("expired_at");
                         return new SubjectCredentials(
                             rs.getString("name"),
                             rs.getString("value"),
-                            rs.getString("type"));
+                            CredentialsType.valueOf(rs.getString("type")),
+                            expiredAt != null ? expiredAt.toInstant() : null);
                     }
 
                     throw new AuthNotFoundException("Credentials:: " + name + " NOT_FOND");
@@ -168,20 +230,22 @@ public class DbSubjectService {
             () -> {
                 try (var connect = storage.connect();
                      var st = connect.prepareStatement("""
-                        SELECT *
+                        SELECT name, value, type, expired_at
                         FROM credentials
-                        WHERE user_id = ?"""))
+                        WHERE user_id = ? AND (expired_at IS NULL OR expired_at > NOW())"""))
                 {
                     int parameterIndex = 0;
                     st.setString(++parameterIndex, subject.id());
                     ResultSet rs = st.executeQuery();
                     List<SubjectCredentials> result = new ArrayList<>();
                     while (rs.next()) {
+                        var expiredAt = rs.getTimestamp("expired_at");
                         result.add(
                             new SubjectCredentials(
                                 rs.getString("name"),
                                 rs.getString("value"),
-                                rs.getString("type")));
+                                CredentialsType.valueOf(rs.getString("type")),
+                                expiredAt != null ? expiredAt.toInstant() : null));
                     }
                     return result;
                 }

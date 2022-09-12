@@ -2,9 +2,9 @@ iam:
   userLimit: 60 # 0 - is infinite limit
   serverPort: 8443
   database:
-    url: "jdbc:postgresql://localhost:5432/local"
-    username: "local"
-    password: ""
+    url: "jdbc:postgresql://localhost:5432/lzy_iam_db"
+    username: "lzy_user"
+    password: "q"
     enabled: true
     minPoolSize: 5
     maxPoolSize: 100

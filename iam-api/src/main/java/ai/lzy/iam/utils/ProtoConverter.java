@@ -7,13 +7,10 @@ import ai.lzy.iam.resources.Role;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.impl.Whiteboard;
 import ai.lzy.iam.resources.impl.Workflow;
-import ai.lzy.iam.resources.subjects.Servant;
-import ai.lzy.iam.resources.subjects.Subject;
-import ai.lzy.iam.resources.subjects.SubjectType;
-import ai.lzy.iam.resources.subjects.User;
+import ai.lzy.iam.resources.subjects.*;
 import ai.lzy.v1.iam.IAM;
 
-public class GrpcConverter {
+public class ProtoConverter {
 
     public static AuthResource to(IAM.Resource resource) {
         return switch (resource.getType()) {
@@ -46,7 +43,10 @@ public class GrpcConverter {
         return new SubjectCredentials(
                 credentials.getName(),
                 credentials.getCredentials(),
-                credentials.getType()
+                CredentialsType.fromProto(credentials.getType()),
+                credentials.hasExpiredAt()
+                    ? ai.lzy.util.grpc.ProtoConverter.fromProto(credentials.getExpiredAt())
+                    : null
         );
     }
 
@@ -86,10 +86,15 @@ public class GrpcConverter {
     }
 
     public static IAM.Credentials from(SubjectCredentials credentials) {
-        return IAM.Credentials.newBuilder()
+        var builder = IAM.Credentials.newBuilder()
                 .setName(credentials.name())
                 .setCredentials(credentials.value())
-                .setType(credentials.type())
-                .build();
+                .setType(credentials.type().toProto());
+
+        if (credentials.expiredAt() != null) {
+            builder.setExpiredAt(ai.lzy.util.grpc.ProtoConverter.toProto(credentials.expiredAt()));
+        }
+
+        return builder.build();
     }
 }

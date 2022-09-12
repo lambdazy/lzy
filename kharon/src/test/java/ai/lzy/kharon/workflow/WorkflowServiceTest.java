@@ -2,11 +2,11 @@ package ai.lzy.kharon.workflow;
 
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.resources.subjects.User;
-import ai.lzy.iam.utils.CredentialsHelper;
 import ai.lzy.kharon.KharonConfig;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.storage.impl.MockS3Storage;
+import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
@@ -20,6 +20,7 @@ import io.grpc.ServerInterceptors;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.netty.NettyServerBuilder;
+import io.jsonwebtoken.Claims;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
@@ -55,9 +56,9 @@ public class WorkflowServiceTest {
         var internalUser = iam.createCredentials();
 
         var authInterceptor = new AuthServerInterceptor(credentials -> {
-            var issuer = CredentialsHelper.issuerFromJWT(credentials.token());
-            if (iam.getInternalUserName().equals(issuer)) {
-                return new User(issuer);
+            var user = JwtUtils.parseJwt(credentials.token()).get(Claims.ISSUER);
+            if (iam.getInternalUserName().equals(user)) {
+                return new User(iam.getInternalUserName());
             }
             throw new AuthUnauthenticatedException("heck");
         });
@@ -127,7 +128,8 @@ public class WorkflowServiceTest {
             Assert.fail();
         } catch (StatusRuntimeException e) {
             if (Status.INVALID_ARGUMENT.getCode().equals(e.getStatus().getCode())
-                && "Already finished.".equals(e.getStatus().getDescription())) {
+                && "Already finished.".equals(e.getStatus().getDescription()))
+            {
                 Assert.assertTrue(true);
             } else {
                 e.printStackTrace(System.err);

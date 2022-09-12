@@ -7,12 +7,14 @@ import static ai.lzy.v1.whiteboard.LWB.WhiteboardFieldInfo.StateCase.NONESTATE;
 import ai.lzy.iam.clients.SubjectServiceClient;
 import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
+import ai.lzy.iam.resources.credentials.SubjectCredentials;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.data.DataSchema;
 import ai.lzy.model.data.SchemeType;
 import ai.lzy.model.db.test.DatabaseTestUtils;
-import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
@@ -88,6 +90,7 @@ public class ApiTest extends BaseTestWithIam {
         }
         externalUserWhiteboardClient = LzyWhiteboardServiceGrpc.newBlockingStub(channel).withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, externalUser.credentials::token));
+
         externalUser2WhiteboardClient = LzyWhiteboardServiceGrpc.newBlockingStub(channel).withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, externalUser2.credentials::token));
 
@@ -127,7 +130,7 @@ public class ApiTest extends BaseTestWithIam {
     public void testPermissionDenied() {
         final var invalidCredsPrivateClient = LzyWhiteboardPrivateServiceGrpc.newBlockingStub(channel)
             .withInterceptors(ClientHeaderInterceptor.header(
-                GrpcHeaders.AUTHORIZATION, JwtUtils.invalidCredentials("user")::token
+                GrpcHeaders.AUTHORIZATION, JwtUtils.invalidCredentials("user", "GITHUB")::token
             ));
         apiAccessTest(invalidCredsPrivateClient, Status.PERMISSION_DENIED);
 
@@ -139,7 +142,7 @@ public class ApiTest extends BaseTestWithIam {
 
         final var invalidCredsClient = LzyWhiteboardServiceGrpc.newBlockingStub(channel)
             .withInterceptors(ClientHeaderInterceptor.header(
-                GrpcHeaders.AUTHORIZATION, JwtUtils.invalidCredentials("user")::token
+                GrpcHeaders.AUTHORIZATION, JwtUtils.invalidCredentials("user", "GITHUB")::token
             ));
         apiAccessTest(invalidCredsClient, Status.PERMISSION_DENIED);
     }
@@ -371,11 +374,13 @@ public class ApiTest extends BaseTestWithIam {
             this.subjectClient = new SubjectServiceGrpcClient(channel, config::createCredentials);
         }
 
-        public User createUser(String name) throws Exception
-        {
-            var subj = subjectClient.createSubject("github", "github-" + name, SubjectType.USER);
-            var creds = JwtUtils.generateCredentials(subj.id());
-            subjectClient.addCredentials(subj, "main", creds.publicKey(), creds.credentials().type());
+        public User createUser(String name) throws Exception {
+            var login = "github-" + name;
+            var creds = JwtUtils.generateCredentials(login, "GITHUB");
+
+            var subj = subjectClient.createSubject(AuthProvider.GITHUB, login, SubjectType.USER,
+                new SubjectCredentials("main", creds.publicKey(), CredentialsType.PUBLIC_KEY));
+
             return new User(subj.id(), creds.credentials());
         }
 

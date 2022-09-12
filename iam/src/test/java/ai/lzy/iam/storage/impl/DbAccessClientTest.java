@@ -3,6 +3,7 @@ package ai.lzy.iam.storage.impl;
 import ai.lzy.iam.resources.*;
 import ai.lzy.iam.resources.impl.Whiteboard;
 import ai.lzy.iam.resources.impl.Workflow;
+import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.storage.db.IamDataSource;
@@ -63,7 +64,7 @@ public class DbAccessClientTest {
     }
 
     public void validAccess(SubjectType subjectType) {
-        var userId = subjectService.createSubject("", "", subjectType).id();
+        var userId = subjectService.createSubject(AuthProvider.GITHUB, "user1", subjectType, List.of()).id();
         final Subject user = subjectService.subject(userId);
 
         AuthResource whiteboardResource = new Whiteboard("whiteboard");
@@ -133,7 +134,7 @@ public class DbAccessClientTest {
     }
 
     public void invalidAccess(SubjectType subjectType) {
-        var userId = subjectService.createSubject("", "", subjectType).id();
+        var userId = subjectService.createSubject(AuthProvider.GITHUB, "user1", subjectType, List.of()).id();
         final Subject user = subjectService.subject(userId);
 
         AuthResource whiteboardResource = new Whiteboard("whiteboard");

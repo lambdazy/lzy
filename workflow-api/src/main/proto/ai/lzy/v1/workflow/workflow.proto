@@ -24,7 +24,7 @@ message Operation {
 
   string poolSpecName = 8;  // Label to execute operation in
 
-  message PythonEnvSpec {
+  message PythonEnvSpec {  // TODO(artolord) remove this and move to upper level
     string yaml = 2;  // Conda yaml to install before execution
     repeated LocalModule localModules = 3;
 

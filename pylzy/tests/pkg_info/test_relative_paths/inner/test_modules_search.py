@@ -1,7 +1,7 @@
 import os
 from unittest import TestCase
 
-from lzy.pkg_info import select_modules
+from lzy.api.v1.pkg_info import select_modules
 
 from ..local_file import bar
 
