@@ -25,7 +25,11 @@ class ProtoMessageSerializer(Serializer):
         try:
             import pure_protobuf  # type: ignore
 
-            self._pure_proto_version = cached_installed_packages["pure-protobuf"]
+            # hidden-pure-protobuf is used until `oneof` functionality will be published in the main package
+            if "hidden-pure-protobuf" in cached_installed_packages:
+                self._pure_proto_version = cached_installed_packages["hidden-pure-protobuf"]
+            elif "pure-protobuf" in cached_installed_packages:
+                self._pure_proto_version = cached_installed_packages["pure-protobuf"]
             return True
         except:
             logging.warning("Cannot import pure-protobuf")
