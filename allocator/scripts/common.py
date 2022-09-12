@@ -1,5 +1,7 @@
 from typing import Type, Any
 
+import sys
+import logging
 from yaml import load, SafeLoader
 from marshmallow_dataclass import class_schema
 import os
@@ -19,3 +21,12 @@ def create_sdk():
     else:
         return yandexcloud.SDK(iam_token=token)
 
+
+def format_logs():
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s  - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    root.addHandler(handler)
