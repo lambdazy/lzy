@@ -2,14 +2,14 @@ package ai.lzy.fs;
 
 import ai.lzy.fs.commands.BuiltinCommandHolder;
 import ai.lzy.fs.fs.*;
+import ai.lzy.logs.MetricEvent;
+import ai.lzy.logs.MetricEventLogger;
 import ai.lzy.model.Slot;
 import ai.lzy.model.SlotInstance;
 import ai.lzy.model.Zygote;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.logs.MetricEvent;
-import ai.lzy.logs.MetricEventLogger;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.*;
 import io.grpc.ManagedChannel;
@@ -65,7 +65,8 @@ public final class LzyFsServer {
 
     @Deprecated
     public LzyFsServer(String agentId, String mountPoint, URI selfUri, @Nullable URI lzyServerUri,
-                       @Nullable URI lzyWhiteboardUri, URI channelManagerUri, IAM.Auth auth) throws IOException {
+                       @Nullable URI lzyWhiteboardUri, URI channelManagerUri, IAM.Auth auth) throws IOException
+    {
         this.agentId = agentId;
         this.channelManagerUri = channelManagerUri;
         assert LzyFs.scheme().equals(selfUri.getScheme());
@@ -138,10 +139,11 @@ public final class LzyFsServer {
     }
 
     public LzyFsServer(String agentId, String mountPoint, URI selfUri,
-                       URI channelManagerUri, String iamToken) throws IOException {
+                       URI channelManagerUri, String token) throws IOException
+    {
         this(agentId, mountPoint, selfUri, null, null, channelManagerUri, IAM.Auth.newBuilder()
             .setUser(IAM.UserCredentials.newBuilder()
-                .setToken(iamToken)
+                .setToken(token)
                 .build())
             .build());
     }

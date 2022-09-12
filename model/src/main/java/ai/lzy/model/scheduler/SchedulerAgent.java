@@ -1,5 +1,6 @@
 package ai.lzy.model.scheduler;
 
+import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
@@ -14,6 +15,7 @@ import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.StringReader;
 import java.time.Duration;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -39,7 +41,7 @@ public class SchedulerAgent extends Thread {
     private final AtomicReference<TimerTask> task = new AtomicReference<>();
 
     public SchedulerAgent(String schedulerAddress, String servantId, String workflowName,
-                          Duration heartbeatPeriod, int apiPort, String iamToken)
+                          Duration heartbeatPeriod, int apiPort, String iamPrivateKey)
     {
         super("scheduler-agent-" + servantId);
         this.servantId = servantId;
@@ -47,12 +49,19 @@ public class SchedulerAgent extends Thread {
         this.heartbeatPeriod = heartbeatPeriod;
         this.apiPort = apiPort;
 
+        String jwt;
+        try {
+            jwt = JwtUtils.buildJWT(servantId, "INTERNAL", new StringReader(iamPrivateKey));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
         channel = ChannelBuilder.forAddress(schedulerAddress)
             .usePlaintext()
             .enableRetry(SchedulerPrivateGrpc.SERVICE_NAME)
             .build();
         stub = SchedulerPrivateGrpc.newBlockingStub(channel)
-            .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> iamToken));
+            .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> jwt));
     }
 
     public void start() {

@@ -36,7 +36,7 @@ public final class TokenParser {
                 var decodedToken = new String(Base64.getDecoder().decode(token.getBytes()));
                 var ottMatcher = OTT_TOKEN_PATTERN.matcher(decodedToken);
                 if (ottMatcher.find()) {
-                    return new Token(Token.Kind.OTT, decodedToken);
+                    return new Token(Token.Kind.OTT, token);
                 }
             } catch (IllegalArgumentException e) {
                 // ignored

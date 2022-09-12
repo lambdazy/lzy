@@ -24,6 +24,7 @@ import java.io.StringReader;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.util.Base64;
 
 @Singleton
 @Requires(beans = IamDataSource.class)
@@ -48,10 +49,11 @@ public class DbAuthService implements AuthenticateService {
 
     @NotNull
     private Subject authenticateOtt(OttCredentials ott) {
-        int separatorIdx = ott.token().indexOf('/');
+        var decoded = new String(Base64.getDecoder().decode(ott.token()));
+        int separatorIdx = decoded.indexOf('/');
 
-        var providerSubjectId = ott.token().substring(0, separatorIdx);
-        var token = ott.token().substring(separatorIdx + 1);
+        var providerSubjectId = decoded.substring(0, separatorIdx);
+        var token = decoded.substring(separatorIdx + 1);
 
         LOG.debug("Authenticate by OTT: id={}, token={}...", providerSubjectId, token.substring(4));
 
