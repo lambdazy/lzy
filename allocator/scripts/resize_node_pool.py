@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
-import os
 import sys
 from dataclasses import dataclass
 
 from google.protobuf.field_mask_pb2 import FieldMask
-import yandexcloud
-from yandex.cloud.k8s.v1.node_group_service_pb2_grpc import *
-from yandex.cloud.k8s.v1.node_group_service_pb2 import *
 from yandex.cloud.k8s.v1.node_group_pb2 import *
+from yandex.cloud.k8s.v1.node_group_service_pb2 import *
+from yandex.cloud.k8s.v1.node_group_service_pb2_grpc import *
 from yandex.cloud.vpc.v1.subnet_service_pb2_grpc import *
 
 from common import *
@@ -39,7 +37,7 @@ if __name__ == "__main__":
         data = file.read()
     config = strict_load_yaml(data, ResizeNodePoolConfig)
 
-    sdk = yandexcloud.SDK(iam_token=os.environ['YC_TOKEN'])
+    sdk = create_sdk()
     node_group_service = sdk.client(NodeGroupServiceStub)
 
     # ------------ K8S NODE POOL EXISTENCE CHECK ------------ #

@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
-import os
 import sys
 from dataclasses import dataclass
 
-import yandexcloud
 from yandex.cloud.k8s.v1.cluster_service_pb2 import *
 from yandex.cloud.k8s.v1.cluster_service_pb2_grpc import *
 from yandex.cloud.k8s.v1.node_group_pb2 import *
@@ -107,7 +105,7 @@ if __name__ == "__main__":
     memory = config.node_template.resources.memory * (1024 ** 3)  # GBs to Bytes
     disc_size = config.node_template.disc_size * (1024 ** 3)  # GBs to Bytes
 
-    sdk = yandexcloud.SDK(iam_token=os.environ['YC_TOKEN'])
+    sdk = create_sdk()
     subnet_service = sdk.client(SubnetServiceStub)
     sg_service = sdk.client(SecurityGroupServiceStub)
     cluster_service = sdk.client(ClusterServiceStub)
