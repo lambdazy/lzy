@@ -134,6 +134,8 @@ if __name__ == "__main__":
 
     # TODO: RESTRICT INGRESS V4 AND V6 CIDRS!!!!!!!!!
     public_svs_sg_name = "lzy-{}-public-services".format(config.cluster_name)
+    yc_vpc_min_port = 30000
+    yc_vpc_max_port = 32767
     public_services_sg_id = create_or_get_security_group(
         config,
         public_svs_sg_name,
@@ -144,7 +146,7 @@ if __name__ == "__main__":
             rule_specs=[
                 SecurityGroupRuleSpec(
                     direction=SecurityGroupRule.Direction.INGRESS,
-                    ports=PortRange(from_port=30000, to_port=32767),
+                    ports=PortRange(from_port=yc_vpc_min_port, to_port=yc_vpc_max_port),
                     protocol_name="tcp",
                     cidr_blocks=CidrBlocks(v4_cidr_blocks=["0.0.0.0/0"], v6_cidr_blocks=["0::/0"])
                 ),
@@ -153,6 +155,7 @@ if __name__ == "__main__":
     )
 
     master_sg_name = "lzy-{}-master-whitelist".format(config.cluster_name)
+    k8s_master_ports = [443, 6443]
     master_whitelist_sg_id = create_or_get_security_group(
         config,
         master_sg_name,
@@ -163,13 +166,13 @@ if __name__ == "__main__":
             rule_specs=[
                 SecurityGroupRuleSpec(
                     direction=SecurityGroupRule.Direction.INGRESS,
-                    ports=PortRange(from_port=443, to_port=443),
+                    ports=PortRange(from_port=k8s_master_ports[0], to_port=k8s_master_ports[0]),
                     protocol_name="tcp",
                     cidr_blocks=CidrBlocks(v4_cidr_blocks=["0.0.0.0/0"])
                 ),
                 SecurityGroupRuleSpec(
                     direction=SecurityGroupRule.Direction.INGRESS,
-                    ports=PortRange(from_port=6443, to_port=6443),
+                    ports=PortRange(from_port=k8s_master_ports[1], to_port=k8s_master_ports[1]),
                     protocol_name="tcp",
                     cidr_blocks=CidrBlocks(v4_cidr_blocks=["0.0.0.0/0"])
                 ),
