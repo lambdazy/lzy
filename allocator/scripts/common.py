@@ -30,3 +30,7 @@ def format_logs():
     formatter = logging.Formatter('%(asctime)s  - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
     root.addHandler(handler)
+
+
+def gigabytes_to_bytes(gbs: int):
+    return gbs * (1024 ** 3)

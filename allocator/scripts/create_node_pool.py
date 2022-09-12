@@ -107,8 +107,8 @@ if __name__ == "__main__":
     config = strict_load_yaml(data, CreateNodePoolConfig)
 
     node_pool_taints = map(parse_taint, config.node_pool_taints[1:-1].split(","))
-    memory = config.node_template.resources.memory * (1024 ** 3)  # GBs to Bytes
-    disc_size = config.node_template.disc_size * (1024 ** 3)  # GBs to Bytes
+    memory = gigabytes_to_bytes(config.node_template.resources.memory)
+    disc_size = gigabytes_to_bytes(config.node_template.disc_size)
 
     sdk = create_sdk()
     subnet_service = sdk.client(SubnetServiceStub)
