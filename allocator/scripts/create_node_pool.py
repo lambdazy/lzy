@@ -66,7 +66,6 @@ def get_cluster_name(cluster_id: str):
         return cluster.name
     except grpc.RpcError as e:
         if e.code() is grpc.StatusCode.NOT_FOUND:
-            # TODO: check cluster with same name existence before creating SGs
             print("k8s cluster with id {} was not found!\n".format(cluster_id))
             exit(1)
         else:
@@ -176,7 +175,6 @@ if __name__ == "__main__":
                                                                                cluster_name))
     except grpc.RpcError as e:
         if e.code() is grpc.StatusCode.ALREADY_EXISTS:
-            # TODO: check cluster with same name existence before creating SGs
             print("k8s node group {} in folder {} is already exist\n".format(config.node_pool_name, config.folder_id))
             print("k8s node group was NOT created!")
             exit(1)
