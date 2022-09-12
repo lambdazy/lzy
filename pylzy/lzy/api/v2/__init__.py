@@ -6,7 +6,7 @@ from typing import Any, Callable, Dict, Iterator, Optional, Sequence, TypeVar
 from lzy.api.v2.call import LzyCall, wrap_call
 from lzy.api.v2.env import CondaEnv, DockerEnv, DockerPullPolicy, Env
 from lzy.api.v2.local.runtime import LocalRuntime
-from lzy.api.v2.provisioning import Gpu, Provisioning
+from lzy.api.v2.provisioning import Provisioning
 from lzy.api.v2.query import Query
 from lzy.api.v2.runtime import Runtime
 from lzy.api.v2.snapshot import DefaultSnapshot
@@ -44,6 +44,7 @@ def op(
     docker_image: Optional[str] = None,
     docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
     local_modules_path: Optional[Sequence[str]] = None,
+    provisioning_: Provisioning = Provisioning()
 ):
     def deco(f):
         """
@@ -76,11 +77,12 @@ def op(
             local_modules_path,
         )
         merged_env = merge_envs(generated_env, active_workflow.default_env)
+
+        prov = provisioning_.override(active_workflow.provisioning)
+
         # yep, create lazy constructor and return it
         # instead of function
-        return wrap_call(f, output_types, provisioning_, merged_env, active_workflow)
-
-    provisioning_ = Provisioning()  # TODO (tomato): update provisioning
+        return wrap_call(f, output_types, prov, merged_env, active_workflow)
 
     if func is None:
         return deco
@@ -149,6 +151,9 @@ class Lzy:
         docker_image: Optional[str] = None,
         docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
         local_modules_path: Optional[Sequence[str]] = None,
+        zone: str = "ru-central1-a",
+        provisioning: Provisioning = Provisioning.default(),
+        interactive: bool = True
     ) -> LzyWorkflow:
         namespace = inspect.stack()[1].frame.f_globals
         return LzyWorkflow(
@@ -166,6 +171,9 @@ class Lzy:
             docker_image=docker_image,
             docker_pull_policy=docker_pull_policy,
             local_modules_path=local_modules_path,
+            zone=zone,
+            provisioning=provisioning,
+            interactive=interactive
         )
 
     # register cloud injections

@@ -19,7 +19,7 @@ from lzy.api.v2.utils.env import generate_env
 from lzy.api.v2.utils.proxy_adapter import is_lzy_proxy
 from lzy.api.v2.whiteboard_declaration import fetch_whiteboard_meta
 from lzy.py_env.api import PyEnv
-from lzy.storage.api import StorageRegistry
+from lzy.api.v2.provisioning import Provisioning
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -50,6 +50,9 @@ class LzyWorkflow:
         docker_image: Optional[str] = None,
         docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
         local_modules_path: Optional[Sequence[str]] = None,
+        provisioning: Optional[Provisioning] = None,
+        zone: str = "ru-central1-a",
+        interactive: bool = True
     ):
         self.__snapshot = snapshot
         self.__name = name
@@ -77,6 +80,10 @@ class LzyWorkflow:
             local_modules_path,
         )
 
+        self.__provisioning = provisioning
+        self.__zone = zone
+        self.__interactive = interactive
+
     @property
     def owner(self) -> "Lzy":
         return self.__owner
@@ -96,6 +103,18 @@ class LzyWorkflow:
     @property
     def default_env(self) -> Env:
         return self.__default_env
+
+    @property
+    def provisioning(self) -> Optional[Provisioning]:
+        return self.__provisioning
+
+    @property
+    def zone(self) -> str:
+        return self.__zone
+
+    @property
+    def is_interactive(self) -> bool:
+        return self.__interactive
 
     def register_call(self, call: "LzyCall") -> Any:
         self.__call_queue.append(call)

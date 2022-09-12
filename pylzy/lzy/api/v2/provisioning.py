@@ -1,21 +1,50 @@
 from dataclasses import dataclass
+from enum import Enum
 from typing import Optional
 
 
-class Gpu:
-    def __init__(self, is_any: bool = False):
-        super().__init__()
-        self._any = is_any
+class CpuType(Enum):
+    ICE_LAKE = "Intel Ice Lake"
+    CASCADE_LAKE = "Intel Cascade Lake"
+    BROADWELL = "Intel Broadwell"
+    AMD_EPYC = "AMD EPYC™"
 
-    @property
-    def is_any(self):
-        return self._any
+
+class GpuType(Enum):
+    NO_GPU = "<none>"
+    V100 = "NVIDIA® Tesla® V100"
+    A100 = "NVIDIA® Ampere® V100"
+
+
+@dataclass(frozen=True)
+class Provisioning:
+    cpu_type: Optional[CpuType] = None
+    cpu_count: Optional[int] = None
+
+    gpu_type: Optional[GpuType] = None
+    gpu_count: Optional[int] = None
+
+    ram_size_gb: Optional[int] = None
 
     @staticmethod
-    def any():
-        return Gpu(True)
+    def default() -> "Provisioning":
+        return Provisioning(
+            cpu_type=CpuType.ICE_LAKE,
+            cpu_count=2,
+            gpu_type=GpuType.NO_GPU,
+            gpu_count=0,
+            ram_size_gb=2
+        )
 
+    def override(self, other: Optional["Provisioning"] = None) -> "Provisioning":
+        if other is None:
+            other = self.default()
 
-@dataclass
-class Provisioning:
-    gpu: Optional[Gpu] = None
+        return Provisioning(
+            cpu_type=self.cpu_type if self.cpu_type else other.cpu_type,
+            cpu_count=self.cpu_count if self.cpu_count is not None else other.cpu_count,
+            gpu_type=self.gpu_type if self.gpu_type else other.gpu_type,
+            gpu_count=self.gpu_count if self.gpu_count is not None else other.gpu_count,
+
+            ram_size_gb=self.ram_size_gb if self.ram_size_gb is not None else other.ram_size_gb
+        )
