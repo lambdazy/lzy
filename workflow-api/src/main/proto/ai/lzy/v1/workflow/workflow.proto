@@ -59,7 +59,8 @@ message Graph {
   repeated EdgeDescription edges = 2;
   repeated VertexDescription vertices = 3;
 
-  string zone = 4;  // Availability zone to execute graph in
+  /* optional */ string zone = 4;  // Availability zone to execute graph in.
+                                   // If not set, selected some zone, matching all pools
 
   message EdgeDescription {
     /* optional */ DataScheme dataScheme = 1;  // If not set, using plain scheme

@@ -208,20 +208,20 @@ class GrpcRuntime(Runtime):
 
     @staticmethod
     def __resolve_pool(
-        provisioning: Provisioning, pool_specs: Sequence[VmPoolSpec]
+        provisioning: Provisioning, pool_specs: Sequence[VmPoolSpec], zone: str
     ) -> Optional[VmPoolSpec]:
         assert (
-            provisioning.cpu_type
+            provisioning.cpu_type is not None
             and provisioning.cpu_count is not None
-            and provisioning.gpu_type
+            and provisioning.gpu_type is not None
             and provisioning.gpu_count is not None
             and provisioning.ram_size_gb is not None
         )
         for spec in pool_specs:
             if (
-                provisioning.cpu_type.name == spec.cpuType
+                provisioning.cpu_type == spec.cpuType
                 and provisioning.cpu_count <= spec.cpuCount
-                and provisioning.gpu_type.name == spec.gpuType
+                and provisioning.gpu_type == spec.gpuType
                 and provisioning.gpu_count <= spec.gpuCount
                 and provisioning.ram_size_gb <= spec.ramGb
             ):
@@ -287,7 +287,7 @@ class GrpcRuntime(Runtime):
                 output_slots.append(slot_path)
                 ret_descriptions.append(slot_path)
 
-            pool = self.__resolve_pool(call.provisioning, pools)
+            pool = self.__resolve_pool(call.provisioning, pools, self.__workflow.zone)
 
             if pool is None:
                 raise RuntimeError(

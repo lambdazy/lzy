@@ -45,6 +45,11 @@ def op(
     docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
     local_modules_path: Optional[Sequence[str]] = None,
     provisioning_: Provisioning = Provisioning(),
+    cpu_type: Optional[str] = None,
+    cpu_count: Optional[int] = None,
+    gpu_type: Optional[str] = None,
+    gpu_count: Optional[int] = None,
+    ram_size_gb: Optional[int] = None,
 ):
     def deco(f):
         """
@@ -78,7 +83,9 @@ def op(
         )
         merged_env = merge_envs(generated_env, active_workflow.default_env)
 
-        prov = provisioning_.override(active_workflow.provisioning)
+        prov = provisioning_.override(
+            Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb)
+        ).override(active_workflow.provisioning)
 
         # yep, create lazy constructor and return it
         # instead of function
@@ -151,9 +158,14 @@ class Lzy:
         docker_image: Optional[str] = None,
         docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
         local_modules_path: Optional[Sequence[str]] = None,
-        zone: str = "ru-central1-a",
+        zone: str = "",
         provisioning: Provisioning = Provisioning.default(),
         interactive: bool = True,
+        cpu_type: Optional[str] = None,
+        cpu_count: Optional[int] = None,
+        gpu_type: Optional[str] = None,
+        gpu_count: Optional[int] = None,
+        ram_size_gb: Optional[int] = None,
     ) -> LzyWorkflow:
         namespace = inspect.stack()[1].frame.f_globals
         return LzyWorkflow(
@@ -172,7 +184,9 @@ class Lzy:
             docker_pull_policy=docker_pull_policy,
             local_modules_path=local_modules_path,
             zone=zone,
-            provisioning=provisioning,
+            provisioning=provisioning.override(
+                Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb)
+            ),
             interactive=interactive,
         )
 

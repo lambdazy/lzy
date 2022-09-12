@@ -18,10 +18,10 @@ class GpuType(Enum):
 
 @dataclass(frozen=True)
 class Provisioning:
-    cpu_type: Optional[CpuType] = None
+    cpu_type: Optional[str] = None
     cpu_count: Optional[int] = None
 
-    gpu_type: Optional[GpuType] = None
+    gpu_type: Optional[str] = None
     gpu_count: Optional[int] = None
 
     ram_size_gb: Optional[int] = None
@@ -29,9 +29,9 @@ class Provisioning:
     @staticmethod
     def default() -> "Provisioning":
         return Provisioning(
-            cpu_type=CpuType.ICE_LAKE,
+            cpu_type="Intel Ice Lake",
             cpu_count=2,
-            gpu_type=GpuType.NO_GPU,
+            gpu_type="<none>",
             gpu_count=0,
             ram_size_gb=2,
         )

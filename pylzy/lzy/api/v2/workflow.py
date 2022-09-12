@@ -50,7 +50,7 @@ class LzyWorkflow:
         docker_image: Optional[str] = None,
         docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
         local_modules_path: Optional[Sequence[str]] = None,
-        provisioning: Optional[Provisioning] = None,
+        provisioning: Provisioning = Provisioning.default(),
         zone: str = "ru-central1-a",
         interactive: bool = True,
     ):
@@ -105,7 +105,7 @@ class LzyWorkflow:
         return self.__default_env
 
     @property
-    def provisioning(self) -> Optional[Provisioning]:
+    def provisioning(self) -> Provisioning:
         return self.__provisioning
 
     @property
