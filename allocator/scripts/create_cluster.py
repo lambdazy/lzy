@@ -64,7 +64,8 @@ def create_or_get_security_group(config: CreateSecurityGroupRequest, name: str, 
 
 
 if __name__ == "__main__":
-    with open('create_cluster_config.yaml', 'r') as file:
+    filepath = sys.argv[1] if len(sys.argv) > 1 else 'create_cluster_config.yaml'
+    with open(filepath, 'r') as file:
         data = file.read()
     config = strict_load_yaml(data, CreateClusterConfig)
 
