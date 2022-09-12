@@ -84,7 +84,8 @@ def get_security_group_id(sg_service: SecurityGroupService, name: str):
 
 
 if __name__ == "__main__":
-    with open('create_node_pool_config.yaml', 'r') as file:
+    filepath = sys.argv[1] if len(sys.argv) > 1 else 'create_node_pool_config.yaml'
+    with open(filepath, 'r') as file:
         data = file.read()
     config = strict_load_yaml(data, CreateNodePoolConfig)
 

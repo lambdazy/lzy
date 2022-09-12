@@ -32,7 +32,8 @@ def check_node_pool_with_id(node_group_service, node_pool_id):
 
 
 if __name__ == "__main__":
-    with open('delete_node_pool_config.yaml', 'r') as file:
+    filepath = sys.argv[1] if len(sys.argv) > 1 else 'delete_node_pool_config.yaml'
+    with open(filepath, 'r') as file:
         data = file.read()
     config = strict_load_yaml(data, DeleteNodePoolConfig)
 

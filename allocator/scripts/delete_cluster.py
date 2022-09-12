@@ -32,7 +32,8 @@ def check_cluster_with_id(cluster_service, cluster_id):
 
 
 if __name__ == "__main__":
-    with open('delete_cluster_config.yaml', 'r') as file:
+    filepath = sys.argv[1] if len(sys.argv) > 1 else 'delete_cluster_config.yaml'
+    with open(filepath, 'r') as file:
         data = file.read()
     config = strict_load_yaml(data, DeleteClusterConfig)
 
