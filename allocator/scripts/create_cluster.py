@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
-import os
 import sys
 from dataclasses import dataclass
 
-import yandexcloud
 from yandex.cloud.k8s.v1.cluster_pb2 import *
 from yandex.cloud.k8s.v1.cluster_service_pb2 import *
 from yandex.cloud.k8s.v1.cluster_service_pb2_grpc import *
@@ -66,7 +64,7 @@ if __name__ == "__main__":
         data = file.read()
     config = strict_load_yaml(data, CreateClusterConfig)
 
-    sdk = yandexcloud.SDK(iam_token=os.environ['YC_TOKEN'])
+    sdk = create_sdk()
     subnet_service = sdk.client(SubnetServiceStub)
     sg_service = sdk.client(SecurityGroupServiceStub)
     cluster_service = sdk.client(ClusterServiceStub)
