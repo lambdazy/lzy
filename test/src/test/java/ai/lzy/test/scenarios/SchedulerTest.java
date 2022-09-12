@@ -214,7 +214,7 @@ public class SchedulerTest extends LocalScenario {
                 .setChannelName(value)
                 .setDirect(DirectChannelType.newBuilder().build())
                     .setContentType(DataScheme.newBuilder()
-                        .setSchemeType(LMB.SchemeType.plain)
+                        .setSchemeType(LMB.SchemeType.plain.name())
                         .setType("text")
                         .build())
                 .build())

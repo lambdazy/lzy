@@ -45,7 +45,7 @@ public class GrpcConverter {
     }
 
     public static DataSchema contentTypeFrom(LMB.DataScheme dataScheme) {
-        return DataSchema.buildDataSchema(dataScheme.getSchemeType().name(), dataScheme.getType());
+        return DataSchema.buildDataSchema(dataScheme.getSchemeType(), dataScheme.getType());
     }
 
     public static LzyWhiteboard.Snapshot to(Snapshot snapshot) {

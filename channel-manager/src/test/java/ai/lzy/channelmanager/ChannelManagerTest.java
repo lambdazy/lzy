@@ -27,6 +27,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+
 @SuppressWarnings({"UnstableApiUsage", "ResultOfMethodCallIgnored"})
 public class ChannelManagerTest extends BaseTestWithIam {
 
@@ -156,7 +157,7 @@ public class ChannelManagerTest extends BaseTestWithIam {
                     .setChannelSpec(ChannelSpec.newBuilder().setChannelName("channel1").setDirect(
                             DirectChannelType.newBuilder().build())
                         .setContentType(LMB.DataScheme.newBuilder().setType("text").setSchemeType(
-                            LMB.SchemeType.plain).build())
+                            LMB.SchemeType.plain.name()).build())
                         .build())
                     .build());
             Assert.fail();
@@ -188,7 +189,7 @@ public class ChannelManagerTest extends BaseTestWithIam {
                             DirectChannelType.newBuilder().build())
                         .setContentType(LMB.DataScheme.newBuilder()
                             .setType("text")
-                            .setSchemeType(LMB.SchemeType.plain)
+                            .setSchemeType(LMB.SchemeType.plain.name())
                             .build())
                         .build())
                     .build());
@@ -207,7 +208,7 @@ public class ChannelManagerTest extends BaseTestWithIam {
                     .setChannelSpec(ChannelSpec.newBuilder().setChannelName("channel1")
                         .setContentType(LMB.DataScheme.newBuilder()
                             .setType("text")
-                            .setSchemeType(LMB.SchemeType.plain)
+                            .setSchemeType(LMB.SchemeType.plain.name())
                             .build())
                         .build())
                     .build());
@@ -242,7 +243,7 @@ public class ChannelManagerTest extends BaseTestWithIam {
                     .setChannelSpec(ChannelSpec.newBuilder().setChannelName("channel1").setDirect(
                             DirectChannelType.newBuilder().build())
                         .setContentType(LMB.DataScheme.newBuilder().setSchemeType(
-                            LMB.SchemeType.plain).build())
+                            LMB.SchemeType.plain.name()).build())
                         .build())
                     .build());
             Assert.fail();

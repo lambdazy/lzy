@@ -64,7 +64,7 @@ public class ProtoConverter {
     }
 
     public static DataSchema fromProto(LMB.DataScheme dataScheme) {
-        return DataSchema.buildDataSchema(dataScheme.getSchemeType().name(), dataScheme.getType());
+        return DataSchema.buildDataSchema(dataScheme.getSchemeType(), dataScheme.getType());
     }
 
     public static LME.EnvSpec toProto(Env env) {
@@ -126,8 +126,8 @@ public class ProtoConverter {
             .build();
     }
 
-    public static LMB.SchemeType toProto(SchemeType dataSchema) {
-        return LMB.SchemeType.valueOf(dataSchema.name());
+    public static String toProto(SchemeType dataSchema) {
+        return dataSchema.name();
     }
 
     public static LME.Provisioning toProto(Provisioning provisioning) {

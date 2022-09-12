@@ -14,5 +14,5 @@ enum SchemeType {
 
 message DataScheme {
   string type = 1;
-  SchemeType schemeType = 2;
+  string schemeType = 2;
 }

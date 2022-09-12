@@ -2,7 +2,6 @@ package ai.lzy.channelmanager.channel;
 
 import static ai.lzy.model.deprecated.GrpcConverter.to;
 
-import ai.lzy.iam.utils.GrpcConverter;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.SlotConnectionManager;

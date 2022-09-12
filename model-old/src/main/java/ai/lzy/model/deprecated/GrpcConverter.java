@@ -48,7 +48,7 @@ public abstract class GrpcConverter {
     }
 
     public static DataSchema contentTypeFrom(LMB.DataScheme dataScheme) {
-        return DataSchema.buildDataSchema(dataScheme.getSchemeType().name(), dataScheme.getType());
+        return DataSchema.buildDataSchema(dataScheme.getSchemeType(), dataScheme.getType());
     }
 
     public static LzyZygote.Zygote to(Zygote zygote) {

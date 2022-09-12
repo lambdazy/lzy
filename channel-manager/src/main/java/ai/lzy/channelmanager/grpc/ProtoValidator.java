@@ -12,7 +12,7 @@ public class ProtoValidator {
             isValid = isValid && !channelSpec.getChannelName().isBlank();
             isValid = isValid && channelSpec.getTypeCase().getNumber() != 0;
             isValid = isValid && !channelSpec.getContentType().getType().isBlank();
-            isValid = isValid && channelSpec.getContentType().getSchemeType().getNumber() != 0;
+            isValid = isValid && !channelSpec.getContentType().getSchemeType().isBlank();
             return isValid;
         } catch (NullPointerException e) {
             return false;
@@ -27,7 +27,7 @@ public class ProtoValidator {
             isValid = isValid && !slotInstance.getChannelId().isBlank();
             isValid = isValid && !slotInstance.getSlot().getName().isBlank();
             isValid = isValid && !slotInstance.getSlot().getContentType().getType().isBlank();
-            isValid = isValid && slotInstance.getSlot().getContentType().getSchemeType().getNumber() != 0;
+            isValid = isValid && !slotInstance.getSlot().getContentType().getSchemeType().isBlank();
             return isValid;
         } catch (NullPointerException e) {
             return false;

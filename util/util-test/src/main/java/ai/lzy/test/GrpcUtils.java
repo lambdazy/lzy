@@ -40,7 +40,7 @@ public class GrpcUtils {
     public static LMB.DataScheme makePlainTextDataScheme() {
         return LMB.DataScheme.newBuilder()
             .setType("text")
-            .setSchemeType(LMB.SchemeType.plain)
+            .setSchemeType(LMB.SchemeType.plain.name())
             .build();
     }
 
