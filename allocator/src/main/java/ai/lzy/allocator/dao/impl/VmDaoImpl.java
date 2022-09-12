@@ -28,11 +28,12 @@ import java.util.concurrent.atomic.AtomicReference;
 
 @Singleton
 public class VmDaoImpl implements VmDao {
-    private static final String SPEC_FIELDS =  " id, session_id, pool_label, \"zone\", " +
+    private static final String SPEC_FIELDS =  " id, session_id, pool_label, zone, " +
                                                " allocation_op_id, allocation_started_at," +
                                                " workloads_json, volume_requests_json ";
     private static final String STATE_FIELDS = " status, last_activity_time, deadline," +
-                                               " allocation_deadline, vm_meta_json, volumes_json ";
+                                               " allocation_deadline, vm_meta_json," +
+                                               " volumes_json, vm_subject_id ";
     private static final String FIELDS = SPEC_FIELDS + ", " + STATE_FIELDS;
 
     private static final String QUERY_CREATE_VM = """
@@ -41,7 +42,7 @@ public class VmDaoImpl implements VmDao {
 
     private static final String QUERY_UPDATE_VM = """
         UPDATE vm
-        SET (%s) = (?, ?, ?, ?, ?, ?)
+        SET (%s) = (?, ?, ?, ?, ?, ?, ?)
         WHERE id = ?""".formatted(STATE_FIELDS);
 
     private static final String QUERY_UPDATE_VM_ACTIVITY = """
@@ -116,6 +117,11 @@ public class VmDaoImpl implements VmDao {
         FROM vm
         WHERE id = ?""";
 
+    private static final String QUERY_SET_VM_SUBJECT_ID = """
+        UPDATE vm
+        SET vm_subject_id = ?
+        WHERE id = ?""";
+
     private final Storage storage;
     private final ObjectMapper objectMapper;
 
@@ -163,7 +169,8 @@ public class VmDaoImpl implements VmDao {
                     Timestamp.from(state.allocationDeadline()));
                 s.setString(5, objectMapper.writeValueAsString(state.vmMeta()));
                 s.setString(6, objectMapper.writeValueAsString(state.volumeClaims()));
-                s.setString(7, vmId);
+                s.setString(7, state.vmSubjectId());
+                s.setString(8, vmId);
                 s.executeUpdate();
             } catch (JsonProcessingException e) {
                 throw new RuntimeException("Cannot dump values", e);
@@ -422,6 +429,19 @@ public class VmDaoImpl implements VmDao {
         return volumeClaims.get();
     }
 
+    @Override
+    public void setVmSubjectId(String vmId, String vmSubjectId, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
+        DbOperation.execute(transaction, storage, con -> {
+            try (final var s = con.prepareStatement(QUERY_SET_VM_SUBJECT_ID)) {
+                s.setString(1, vmSubjectId);
+                s.setString(2, vmId);
+                s.executeUpdate();
+            }
+        });
+    }
+
     private Vm readVm(ResultSet res) throws SQLException, JsonProcessingException {
         final var id = res.getString(1);
         final var sessionIdRes = res.getString(2);
@@ -452,9 +472,12 @@ public class VmDaoImpl implements VmDao {
         final String volumeClaimString = res.getString(14);
         final var volumeClaims = volumeClaimString == null ? null : objectMapper.readValue(volumeClaimString,
             new TypeReference<List<VolumeClaim>>() {});
+
+        final String vmSubjectId = res.getString(15);
+
         return new Vm(
             new Vm.Spec(id, sessionIdRes, allocationStartedAt, poolLabel, zone, workloads, volumeRequests),
-            new Vm.State(vmStatus, lastActivityTime, deadline, allocationDeadline, vmMeta, volumeClaims),
+            new Vm.State(vmStatus, lastActivityTime, deadline, allocationDeadline, vmSubjectId, vmMeta, volumeClaims),
             allocationOpId
         );
     }

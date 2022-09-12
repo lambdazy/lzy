@@ -275,10 +275,16 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         responseObserver.onNext(op.toProto());
         responseObserver.onCompleted();
 
+        // TODO: do in another thread, don't occupy grpc-pool
         try {
-            var vmSubj = subjectClient.createSubject(AuthProvider.INTERNAL, spec.vmId(), SubjectType.SERVANT,
-                SubjectCredentials.ott("main", vmOtt, Duration.ofMinutes(10)));
+            var vmSubj = subjectClient.createSubject(AuthProvider.INTERNAL, spec.vmId(), SubjectType.VM,
+                SubjectCredentials.ott("main", vmOtt, Duration.ofMinutes(15)));
             LOG.info("Create IAM VM subject {} with OTT credentials for vmId {}", vmSubj.id(), spec.vmId());
+
+            withRetries(
+                defaultRetryPolicy(),
+                LOG,
+                () -> dao.setVmSubjectId(spec.vmId(), vmSubj.id(), null));
 
             try {
                 var timer = metrics.allocateDuration.startTimer();

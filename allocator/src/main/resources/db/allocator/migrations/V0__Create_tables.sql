@@ -15,6 +15,7 @@ CREATE TABLE vm (
     workloads_json varchar(10485760) NOT NULL,
     volume_requests_json varchar(10485760) NOT NULL,
 
+    vm_subject_id text,
     last_activity_time timestamp NULL,
     deadline timestamp NULL,
     allocation_deadline timestamp NULL,

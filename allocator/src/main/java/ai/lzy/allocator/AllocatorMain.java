@@ -96,7 +96,10 @@ public class AllocatorMain {
     public void destroyAll() throws SQLException {
         LOG.info("Deallocating all vms");
         final var vms = vmDao.listAlive();
-        vms.forEach(vm -> alloc.deallocate(vm.vmId()));
+        vms.forEach(vm -> {
+            // TODO: remove vm subject
+            alloc.deallocate(vm.vmId());
+        });
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {

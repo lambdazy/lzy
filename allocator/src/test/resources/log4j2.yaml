@@ -32,3 +32,9 @@ Configuration:
         level: debug
         AppenderRef:
           ref: Console
+
+      - name: "ai.lzy.iam"
+        additivity: false
+        level: debug
+        AppenderRef:
+          ref: Console

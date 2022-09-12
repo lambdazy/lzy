@@ -24,7 +24,7 @@ public class OperationDaoImpl implements OperationDao {
 
     private static final String FIELDS = " id, meta, created_by," +
                                          " created_at, modified_at, description," +
-                                         " done, response, \"error\" ";
+                                         " done, response, error ";
 
     private static final String QUERY_CREATE_OPERATION = """
         INSERT INTO operation (%s)

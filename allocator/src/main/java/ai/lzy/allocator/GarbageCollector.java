@@ -6,14 +6,17 @@ import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.dao.impl.AllocatorDataSource;
 import ai.lzy.allocator.model.Vm;
+import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
+import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.inject.Named;
 import java.sql.SQLException;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -26,18 +29,21 @@ public class GarbageCollector extends TimerTask {
     private final VmDao dao;
     private final OperationDao operations;
     private final VmAllocator allocator;
+    private final SubjectServiceGrpcClient subjectClient;
     private final Timer timer = new Timer("gc-timer", true);
     private final Storage storage;
 
 
     @Inject
     public GarbageCollector(VmDao dao, OperationDao operations, VmAllocator allocator, ServiceConfig config,
-                            AllocatorDataSource storage)
+                            AllocatorDataSource storage, @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel)
     {
         this.dao = dao;
         this.operations = operations;
         this.allocator = allocator;
         this.storage = storage;
+        this.subjectClient = new SubjectServiceGrpcClient(iamChannel, config.getIam()::createCredentials);
+
         timer.scheduleAtFixedRate(this, config.getGcPeriod().toMillis(), config.getGcPeriod().toMillis());
     }
 
@@ -59,6 +65,12 @@ public class GarbageCollector extends TimerTask {
                         }
                         tr.commit();
                     }
+
+                    var vmSubjectId = vm.state().vmSubjectId();
+                    if (vmSubjectId != null && !vmSubjectId.isEmpty()) {
+                        subjectClient.removeSubject(new ai.lzy.iam.resources.subjects.Vm(vmSubjectId));
+                    }
+
                     allocator.deallocate(vm.vmId());
                     //will retry deallocate if it fails
                     dao.updateStatus(vm.vmId(), Vm.VmStatus.DEAD, null);
