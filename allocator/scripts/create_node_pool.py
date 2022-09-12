@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import sys
 from dataclasses import dataclass
 
 from yandex.cloud.k8s.v1.cluster_service_pb2 import *
@@ -14,7 +13,6 @@ from yandex.cloud.vpc.v1.subnet_service_pb2 import *
 from yandex.cloud.vpc.v1.subnet_service_pb2_grpc import *
 
 from common import *
-import logging
 
 LOG = logging.getLogger(__name__)
 
@@ -52,7 +50,7 @@ class CreateNodePoolConfig:
     node_pool_name: str
     node_template: NodeTemplate
     node_labels: NodeLabels
-    node_pool_taints: str
+    node_pool_taints: list[str]
     scale_policy: ScalePolicy
 
 
@@ -106,7 +104,7 @@ if __name__ == "__main__":
         data = file.read()
     config = strict_load_yaml(data, CreateNodePoolConfig)
 
-    node_pool_taints = map(parse_taint, config.node_pool_taints[1:-1].split(","))
+    node_pool_taints = list(map(parse_taint, config.node_pool_taints))
     memory = gigabytes_to_bytes(config.node_template.resources.memory)
     disc_size = gigabytes_to_bytes(config.node_template.disc_size)
 

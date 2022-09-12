@@ -1,6 +1,6 @@
 env: lzy-dev
 folder_id: b1gagf3k6somdujj2a15
-cluster_id: catd09tk6en3mngcn3ni
+cluster_id: catmiek2o0o0us0capu2
 node_pool_name: gpupool2
 node_template:
   subnet_id: e9bno1trs3mqauujjtvv
@@ -15,7 +15,7 @@ node_labels:
   node_pool_id: asdasd
   node_pool_label: s
   node_pool_kind: CPU
-node_pool_taints: "[sku=gpu:NoSchedule,sku=gpu:NoExecute]"
+node_pool_taints: ["sku=gpu:NoSchedule", "sku=gpu:NoExecute"]
 scale_policy:
   min_pool_size: 1
   max_pool_size: 2
