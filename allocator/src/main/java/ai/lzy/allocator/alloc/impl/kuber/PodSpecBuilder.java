@@ -93,6 +93,10 @@ public class PodSpecBuilder {
             .get();
     }
 
+    public String getPodName() {
+        return pod.getMetadata().getName();
+    }
+
     public PodSpecBuilder withWorkloads(List<Workload> workloads) {
         for (var workload : workloads) {
             final var container = new Container();
