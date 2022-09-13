@@ -15,16 +15,15 @@ import org.junit.*;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class DiskServiceTest {
 
-    private static final String DISK_LABEL_PREFIX  ="test";
+    private static final String DISK_LABEL_PREFIX = "test";
 
     @Rule
-    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {
+    });
 
     private ApplicationContext ctx;
     private Context grpcCtx;
@@ -130,9 +129,7 @@ public class DiskServiceTest {
     }
 
     private boolean isFileExist(String diskId) {
-        var dir = FileUtils.listFilesAndDirs(new File("/tmp/lzy-disk/"), TrueFileFilter.TRUE, null)
-            .stream().findFirst().orElseThrow();
-        return Arrays.stream(Objects.requireNonNull(dir.listFiles())).anyMatch(f -> f.getName().contains(diskId));
+        return FileUtils.listFilesAndDirs(new File("/tmp/lzy-disk/"), TrueFileFilter.TRUE, null)
+            .stream().anyMatch(file -> file.getName().contains(diskId));
     }
-
 }

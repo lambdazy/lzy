@@ -74,7 +74,7 @@
         <opentracing-jaeger.version>1.4.0</opentracing-jaeger.version>
         <opentracing-web-servlet.version>0.4.1</opentracing-web-servlet.version>
         <postgresql.version>42.5.0</postgresql.version>
-        <flyway-core.version>8.5.11</flyway-core.version>
+        <flyway-core.version>9.3.0</flyway-core.version>
         <envoy.version>0.1.28</envoy.version>
         <unified-agent-client.version>8232432</unified-agent-client.version>
         <jnr-fuse.version>0.5.7</jnr-fuse.version>
@@ -93,7 +93,7 @@
         <maven-surefire-plugin.version>3.0.0-M7</maven-surefire-plugin.version>
         <maven-resources-plugin.version>3.1.0</maven-resources-plugin.version>
         <maven-shade-plugin.version>3.2.4</maven-shade-plugin.version>
-        <flyway-maven-plugin.version>8.0.2</flyway-maven-plugin.version>
+        <flyway-maven-plugin.version>9.3.0</flyway-maven-plugin.version>
         <io.kubernetes.version>15.0.1</io.kubernetes.version>
         <logback.version>1.4.0</logback.version>
         <slf4j.version>1.7.30</slf4j.version>
