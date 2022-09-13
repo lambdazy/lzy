@@ -2,13 +2,13 @@ package ai.lzy.test;
 
 import ai.lzy.fs.commands.BuiltinCommandHolder;
 import ai.lzy.fs.commands.CommandHolder;
-import ai.lzy.model.GrpcConverter;
-import ai.lzy.model.Slot;
-import ai.lzy.model.graph.AtomicZygote;
+import ai.lzy.model.deprecated.GrpcConverter;
+import ai.lzy.model.grpc.ProtoConverter;
+import ai.lzy.model.slot.Slot;
+import ai.lzy.model.deprecated.AtomicZygote;
 import ai.lzy.servant.agents.AgentStatus;
 import ai.lzy.servant.commands.ServantCommandHolder;
-import ai.lzy.test.impl.Utils;
-import ai.lzy.v1.ChannelManager;
+import ai.lzy.v1.channel.LCMS;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -148,7 +148,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
         }
 
         default String parseChannelIdFromCreateChannelResponse(String response) {
-            var builder = ChannelManager.ChannelCreateResponse.newBuilder();
+            var builder = LCMS.ChannelCreateResponse.newBuilder();
             try {
                 JsonFormat.parser().merge(response, builder);
             } catch (InvalidProtocolBufferException e) {
@@ -290,7 +290,7 @@ public interface LzyTerminalTestContext extends AutoCloseable {
 
         default void createSlot(String path, String channelId, Slot slot) {
             try {
-                execute("echo '" + JsonFormat.printer().print(GrpcConverter.to(slot)) + "' > slot.json");
+                execute("echo '" + JsonFormat.printer().print(ProtoConverter.toProto(slot)) + "' > slot.json");
             } catch (InvalidProtocolBufferException e) {
                 throw new RuntimeException(e);
             }

@@ -5,22 +5,18 @@ import ai.lzy.fs.SlotConnectionManager;
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
-import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.model.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.UriScheme;
 import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.v1.IAM;
-import ai.lzy.v1.Kharon.Attach;
-import ai.lzy.v1.Kharon.TerminalCommand;
-import ai.lzy.v1.Kharon.TerminalProgress;
-import ai.lzy.v1.Kharon.TerminalResponse;
-import ai.lzy.v1.LzyFsApi;
-import ai.lzy.v1.LzyFsApi.SlotCommandStatus.RC;
-import ai.lzy.v1.LzyKharonGrpc;
-import ai.lzy.v1.LzyServantGrpc;
-import ai.lzy.v1.LzyServerGrpc;
-import ai.lzy.v1.Servant;
+import ai.lzy.v1.deprecated.*;
+import ai.lzy.v1.deprecated.Kharon.Attach;
+import ai.lzy.v1.deprecated.Kharon.TerminalCommand;
+import ai.lzy.v1.deprecated.Kharon.TerminalProgress;
+import ai.lzy.v1.deprecated.Kharon.TerminalResponse;
+import ai.lzy.v1.fs.LzyFsApi;
+import ai.lzy.v1.fs.LzyFsApi.SlotCommandStatus.RC;
 import io.grpc.Context;
 import io.grpc.ManagedChannel;
 import io.grpc.stub.StreamObserver;
@@ -257,7 +253,7 @@ public class LzyTerminal implements Closeable {
             }
         }
 
-        public synchronized void onNext(TerminalProgress serverCommand) {
+        public synchronized void onNext(Kharon.TerminalProgress serverCommand) {
             if (invalidated) {
                 throw new IllegalStateException("Command handler was invalidated, but got onNext command");
             }
@@ -282,12 +278,12 @@ public class LzyTerminal implements Closeable {
     private class Impl extends LzyServantGrpc.LzyServantImplBase {
 
         @Override
-        public void update(IAM.Auth request, StreamObserver<IAM.Empty> responseObserver) {
+        public void update(LzyAuth.Auth request, StreamObserver<LzyAuth.Empty> responseObserver) {
             agent.update(server.zygotes(request), responseObserver);
         }
 
         @Override
-        public void status(IAM.Empty request, StreamObserver<Servant.ServantStatus> responseObserver) {
+        public void status(LzyAuth.Empty request, StreamObserver<Servant.ServantStatus> responseObserver) {
             agent.status(request, responseObserver);
         }
     }

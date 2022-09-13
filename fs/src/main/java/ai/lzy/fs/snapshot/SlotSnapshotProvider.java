@@ -1,10 +1,9 @@
 package ai.lzy.fs.snapshot;
 
-import ai.lzy.model.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
-import ai.lzy.model.Slot;
 
 public interface SlotSnapshotProvider {
     SlotSnapshot slotSnapshot(SlotInstance slot);

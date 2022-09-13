@@ -5,13 +5,14 @@ import static java.util.Objects.requireNonNull;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.test.GrpcUtils;
-import ai.lzy.v1.IAM;
-import ai.lzy.v1.Lzy;
-import ai.lzy.v1.LzyServantGrpc;
-import ai.lzy.v1.LzyServerGrpc;
-import ai.lzy.v1.Operations;
-import ai.lzy.v1.Servant;
-import ai.lzy.v1.Tasks;
+import ai.lzy.v1.common.LME;
+import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.v1.deprecated.Lzy;
+import ai.lzy.v1.deprecated.LzyServantGrpc;
+import ai.lzy.v1.deprecated.LzyServerGrpc;
+import ai.lzy.v1.deprecated.LzyZygote;
+import ai.lzy.v1.deprecated.Servant;
+import ai.lzy.v1.deprecated.LzyTask;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
@@ -105,14 +106,14 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
     }
 
     @Override
-    public void zygotes(IAM.Auth request, StreamObserver<Operations.ZygoteList> responseObserver) {
-        responseObserver.onNext(Operations.ZygoteList.getDefaultInstance());
+    public void zygotes(LzyAuth.Auth request, StreamObserver<LzyZygote.ZygoteList> responseObserver) {
+        responseObserver.onNext(LzyZygote.ZygoteList.getDefaultInstance());
         responseObserver.onCompleted();
     }
 
     // --- SERVER GRPC API  ---
 
-    void start(String servantId, Tasks.TaskSpec request, StreamObserver<Tasks.TaskProgress> response) {
+    void start(String servantId, LzyTask.TaskSpec request, StreamObserver<LzyTask.TaskProgress> response) {
         servant(servantId).startTask(request, response);
     }
 
@@ -154,7 +155,7 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
         }
 
         public void shutdown() {
-            servantStub.stop(IAM.Empty.getDefaultInstance());
+            servantStub.stop(LzyAuth.Empty.getDefaultInstance());
             ((ManagedChannel) servantStub.getChannel()).shutdown();
         }
 
@@ -166,9 +167,9 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
             started.get();
         }
 
-        public void startTask(Tasks.TaskSpec request, StreamObserver<Tasks.TaskProgress> response) {
+        public void startTask(LzyTask.TaskSpec request, StreamObserver<LzyTask.TaskProgress> response) {
             try {
-                servantStub.env(Operations.EnvSpec.getDefaultInstance());
+                servantStub.env(LME.EnvSpec.getDefaultInstance());
 
                 taskId = request.getTid();
                 tasks.put(taskId, new CompletableFuture<>());
@@ -176,9 +177,9 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
 
                 servantStub.execute(request);
 
-                response.onNext(Tasks.TaskProgress.newBuilder()
+                response.onNext(LzyTask.TaskProgress.newBuilder()
                     .setTid(request.getTid())
-                    .setStatus(Tasks.TaskProgress.Status.EXECUTING)
+                    .setStatus(LzyTask.TaskProgress.Status.EXECUTING)
                     .setRc(0)
                     .setZygoteName(request.getZygote().getName())
                     .build());
@@ -191,7 +192,7 @@ class ServerMock extends LzyServerGrpc.LzyServerImplBase {
         @Override
         public void run() {
             System.out.println("Starting servant '" + servantId + "' worker...");
-            var servantProgress = servantStub.start(IAM.Empty.getDefaultInstance());
+            var servantProgress = servantStub.start(LzyAuth.Empty.getDefaultInstance());
             try {
                 servantProgress.forEachRemaining(action -> {
                     System.out.println("--> Servant '" + servantId + "': " + JsonUtils.printSingleLine(action));

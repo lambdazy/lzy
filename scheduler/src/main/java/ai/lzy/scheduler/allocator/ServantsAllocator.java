@@ -1,6 +1,6 @@
 package ai.lzy.scheduler.allocator;
 
-import ai.lzy.model.Operation;
+import ai.lzy.model.operation.Operation;
 
 public interface ServantsAllocator {
 

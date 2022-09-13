@@ -1,7 +1,7 @@
 package ai.lzy.model.data;
 
 import java.net.URI;
-import ai.lzy.model.Slot;
+import ai.lzy.model.slot.Slot;
 
 public interface DataEntity extends DataPage {
     Component[] components();

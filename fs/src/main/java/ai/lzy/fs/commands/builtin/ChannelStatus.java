@@ -4,9 +4,9 @@ import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.v1.ChannelManager;
-import ai.lzy.v1.IAM;
-import ai.lzy.v1.LzyChannelManagerGrpc;
+import ai.lzy.v1.channel.LCMS;
+import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import java.net.URI;
@@ -18,7 +18,7 @@ public final class ChannelStatus implements LzyCommand {
     @Override
     public int execute(CommandLine command) throws Exception {
         final URI channelManagerAddress = URI.create("grpc://" + command.getOptionValue("channel-manager"));
-        final IAM.Auth auth = IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
+        final LzyAuth.Auth auth = LzyAuth.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
         final String workflowId = command.getOptionValue('i');
 
         final ManagedChannel channelManagerChannel = ChannelBuilder
@@ -34,8 +34,8 @@ public final class ChannelStatus implements LzyCommand {
                     auth.getUser()::getToken
                 ));
 
-        final ChannelManager.ChannelStatusList channelStatusList = channelManager.statusAll(
-            ChannelManager.ChannelStatusAllRequest.newBuilder().setWorkflowId(workflowId).build());
+        final LCMS.ChannelStatusList channelStatusList = channelManager.statusAll(
+            LCMS.ChannelStatusAllRequest.newBuilder().setWorkflowId(workflowId).build());
 
         for (var status : channelStatusList.getStatusesList()) {
             System.out.println(JsonFormat.printer().print(status));

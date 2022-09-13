@@ -2,8 +2,8 @@ package ai.lzy.backoffice.models.keys;
 
 import io.micronaut.core.annotation.Introspected;
 import ai.lzy.backoffice.models.UserCredentials;
-import ai.lzy.v1.BackOffice;
-import ai.lzy.v1.IAM;
+import ai.lzy.v1.deprecated.BackOffice;
+import ai.lzy.v1.deprecated.LzyAuth;
 
 @Introspected
 public class AddPublicKeyRequest {
@@ -36,7 +36,7 @@ public class AddPublicKeyRequest {
         this.userCredentials = userCredentials;
     }
 
-    public BackOffice.AddKeyRequest toModel(IAM.UserCredentials credentials) {
+    public BackOffice.AddKeyRequest toModel(LzyAuth.UserCredentials credentials) {
         return BackOffice.AddKeyRequest.newBuilder()
             .setPublicKey(publicKey)
             .setUserCredentials(userCredentials.toModel())

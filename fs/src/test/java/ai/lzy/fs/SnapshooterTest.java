@@ -2,6 +2,10 @@ package ai.lzy.fs;
 
 import ai.lzy.fs.snapshot.SlotSnapshotProvider;
 import ai.lzy.fs.snapshot.SnapshooterImpl;
+import ai.lzy.v1.common.LMS;
+import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.v1.deprecated.LzyWhiteboard;
+import ai.lzy.v1.deprecated.SnapshotApiGrpc;
 import com.google.protobuf.ByteString;
 import io.grpc.stub.StreamObserver;
 import org.junit.Assert;
@@ -10,7 +14,6 @@ import ai.lzy.fs.mock.OutputSlotMock;
 import ai.lzy.fs.mock.ServiceMock;
 import ai.lzy.fs.snapshot.SlotSnapshot;
 import ai.lzy.fs.snapshot.Snapshooter;
-import ai.lzy.v1.*;
 
 import java.io.IOException;
 import java.net.URI;
@@ -83,14 +86,14 @@ public class SnapshooterTest {
             }
         };
 
-        Snapshooter snapshooter = new SnapshooterImpl(IAM.Auth.newBuilder().build(), stub, provider);
+        Snapshooter snapshooter = new SnapshooterImpl(LzyAuth.Auth.newBuilder().build(), stub, provider);
 
         // Action
         snapshooter.registerSlot(mock, "a", "b");
         mock.chunk(ByteString.copyFromUtf8("aaa"));
         mock.chunk(ByteString.copyFromUtf8("bbb"));
-        Assert.assertThrows(RuntimeException.class, () -> mock.state(Operations.SlotStatus.State.OPEN));
-        mock.state(Operations.SlotStatus.State.DESTROYED);
+        Assert.assertThrows(RuntimeException.class, () -> mock.state(LMS.SlotStatus.State.OPEN));
+        mock.state(LMS.SlotStatus.State.DESTROYED);
 
         // Assert
         Assert.assertTrue(suspended.get());

@@ -6,16 +6,18 @@ import ai.lzy.channelmanager.channel.Endpoint;
 import ai.lzy.channelmanager.channel.SlotEndpoint;
 import ai.lzy.channelmanager.control.DirectChannelController;
 import ai.lzy.channelmanager.control.SnapshotChannelController;
-import ai.lzy.model.GrpcConverter;
-import ai.lzy.model.SlotInstance;
-import ai.lzy.model.channel.ChannelSpec;
-import ai.lzy.model.channel.DirectChannelSpec;
-import ai.lzy.model.channel.SnapshotChannelSpec;
+import ai.lzy.model.deprecated.GrpcConverter;
+import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.channelmanager.channel.ChannelSpec;
+import ai.lzy.channelmanager.channel.DirectChannelSpec;
+import ai.lzy.channelmanager.channel.SnapshotChannelSpec;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.ProtoObjectMapper;
 import ai.lzy.model.db.TransactionHandle;
-import ai.lzy.v1.Channels;
-import ai.lzy.v1.Operations;
+import ai.lzy.model.grpc.ProtoConverter;
+import ai.lzy.v1.channel.LCM;
+import ai.lzy.v1.common.LMS;
+import ai.lzy.v1.deprecated.LzyZygote;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
@@ -49,7 +51,7 @@ public class ChannelStorageImpl implements ChannelStorage {
 
     @Override
     public void insertChannel(String channelId, String userId, String workflowId, String channelName,
-                              Channels.ChannelSpec.TypeCase channelType, ChannelSpec channelSpec,
+                              LCM.ChannelSpec.TypeCase channelType, ChannelSpec channelSpec,
                               @Nullable TransactionHandle transaction) throws SQLException
     {
         DbOperation.execute(transaction, dataSource, sqlConnection -> {
@@ -99,7 +101,7 @@ public class ChannelStorageImpl implements ChannelStorage {
                 ) VALUES (?, ?, ?, ?, ?, ?)
                 """)
             ) {
-                String slotSpecJson = objectMapper.writeValueAsString(GrpcConverter.to(endpoint.slotSpec()));
+                String slotSpecJson = objectMapper.writeValueAsString(ProtoConverter.toProto(endpoint.slotSpec()));
                 int index = 0;
                 st.setString(++index, endpoint.slotInstance().channelId());
                 st.setString(++index, endpoint.slotSpec().name());
@@ -277,7 +279,7 @@ public class ChannelStorageImpl implements ChannelStorage {
                     .setId(channelId)
                     .setWorkflowId(rs.getString("workflow_id")));
                 slotsUriByChannelId.put(channelId, new HashSet<>());
-                var channelType = Channels.ChannelSpec.TypeCase.valueOf(rs.getString("channel_type"));
+                var channelType = LCM.ChannelSpec.TypeCase.valueOf(rs.getString("channel_type"));
                 switch (channelType) {
                     case DIRECT -> {
                         chanelBuildersById.get(channelId).setSpec(objectMapper.readValue(
@@ -308,9 +310,9 @@ public class ChannelStorageImpl implements ChannelStorage {
             final String connectedSlotUri = rs.getString("connected_slot_uri");
             if (slotUri != null && !slotsUriByChannelId.get(channelId).contains(slotUri)) {
                 slotsUriByChannelId.get(channelId).add(slotUri);
-                var slot = objectMapper.readValue(rs.getString("slot_spec"), Operations.Slot.class);
+                var slot = objectMapper.readValue(rs.getString("slot_spec"), LMS.Slot.class);
                 var endpoint = SlotEndpoint.getInstance(new SlotInstance(
-                    GrpcConverter.from(slot),
+                    ProtoConverter.fromProto(slot),
                     rs.getString("task_id"),
                     channelId,
                     URI.create(slotUri)

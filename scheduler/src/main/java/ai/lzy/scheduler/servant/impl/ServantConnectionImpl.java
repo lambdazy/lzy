@@ -1,12 +1,12 @@
 package ai.lzy.scheduler.servant.impl;
 
-import ai.lzy.model.GrpcConverter;
-import ai.lzy.model.graph.Env;
-import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.model.TaskDesc;
+import ai.lzy.model.graph.Env;
+import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.scheduler.servant.ServantApi;
 import ai.lzy.scheduler.servant.ServantConnection;
-import ai.lzy.v1.worker.Worker;
+import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.v1.worker.LWS;
 import ai.lzy.v1.worker.WorkerApiGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
@@ -30,8 +30,8 @@ public class ServantConnectionImpl implements ServantConnection {
             @Override
             public void configure(Env env) throws StatusRuntimeException {
                 //noinspection ResultOfMethodCallIgnored
-                servantBlockingStub.configure(Worker.ConfigureRequest.newBuilder()
-                    .setEnv(GrpcConverter.to(env))
+                servantBlockingStub.configure(LWS.ConfigureRequest.newBuilder()
+                    .setEnv(ProtoConverter.toProto(env))
                     .build());
             }
 
@@ -39,7 +39,7 @@ public class ServantConnectionImpl implements ServantConnection {
             public void startExecution(String taskId, TaskDesc task) throws StatusRuntimeException {
 
                 //noinspection ResultOfMethodCallIgnored
-                servantBlockingStub.execute(Worker.ExecuteRequest.newBuilder()
+                servantBlockingStub.execute(LWS.ExecuteRequest.newBuilder()
                     .setTaskDesc(task.toProto())
                     .setTaskId(taskId)
                     .build());
@@ -48,7 +48,7 @@ public class ServantConnectionImpl implements ServantConnection {
             @Override
             public void stop() throws StatusRuntimeException {
                 //noinspection ResultOfMethodCallIgnored
-                servantBlockingStub.stop(Worker.StopRequest.newBuilder().build());
+                servantBlockingStub.stop(LWS.StopRequest.newBuilder().build());
             }
         };
     }

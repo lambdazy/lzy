@@ -1,16 +1,17 @@
 package ai.lzy.fs.slots;
 
-import ai.lzy.model.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.model.grpc.ProtoConverter;
+import ai.lzy.v1.common.LMS;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.net.URI;
 import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ai.lzy.model.GrpcConverter;
-import ai.lzy.model.Slot;
+import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.fs.fs.LzyInputSlot;
-import ai.lzy.v1.Operations;
+import ai.lzy.v1.deprecated.LzyZygote;
 
 import javax.annotation.Nullable;
 
@@ -40,7 +41,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
         }
         connected = null;
         LOG.info("LzyInputSlotBase:: disconnected {}", toString());
-        state(Operations.SlotStatus.State.SUSPENDED);
+        state(LMS.SlotStatus.State.SUSPENDED);
     }
 
     protected void readAll() {
@@ -65,7 +66,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
         }
         onFinish();
         LOG.info("Opening slot {}", name());
-        state(Operations.SlotStatus.State.OPEN);
+        state(LMS.SlotStatus.State.OPEN);
     }
 
     protected void onFinish() {
@@ -73,11 +74,11 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
     }
 
     @Override
-    public Operations.SlotStatus status() {
-        final Operations.SlotStatus.Builder builder = Operations.SlotStatus.newBuilder()
+    public LMS.SlotStatus status() {
+        final LMS.SlotStatus.Builder builder = LMS.SlotStatus.newBuilder()
             .setState(state())
             .setPointer(offset)
-            .setDeclaration(GrpcConverter.to(definition()))
+            .setDeclaration(ProtoConverter.toProto(definition()))
             .setTaskId(taskId());
 
         if (connected != null) {

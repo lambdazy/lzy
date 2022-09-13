@@ -1,10 +1,11 @@
 package ai.lzy.server.mocks;
 
 import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.v1.IAM;
-import ai.lzy.v1.LzyServantGrpc;
-import ai.lzy.v1.Operations;
-import ai.lzy.v1.Servant;
+import ai.lzy.v1.common.LME;
+import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.v1.deprecated.LzyServantGrpc;
+import ai.lzy.v1.deprecated.LzyZygote;
+import ai.lzy.v1.deprecated.Servant;
 import io.grpc.Server;
 import io.grpc.StatusRuntimeException;
 import io.grpc.netty.NettyServerBuilder;
@@ -55,7 +56,7 @@ public class AllocatedServantMock {
         private StreamObserver<Servant.ServantProgress> responseObserver;
 
         @Override
-        public void start(IAM.Empty request, StreamObserver<Servant.ServantProgress> responseObserver) {
+        public void start(LzyAuth.Empty request, StreamObserver<Servant.ServantProgress> responseObserver) {
             this.responseObserver = responseObserver;
             Servant.ServantProgress start = Servant.ServantProgress.newBuilder()
                 .setStart(Servant.Started.newBuilder().build())
@@ -64,7 +65,7 @@ public class AllocatedServantMock {
         }
 
         @Override
-        public void env(Operations.EnvSpec request, StreamObserver<Servant.EnvResult> responseObserver) {
+        public void env(LME.EnvSpec request, StreamObserver<Servant.EnvResult> responseObserver) {
             if (!failEnv) {
                 responseObserver.onNext(Servant.EnvResult.newBuilder().setRc(0).setDescription("OK").build());
             } else {
@@ -74,10 +75,10 @@ public class AllocatedServantMock {
         }
 
         @Override
-        public void stop(IAM.Empty request, StreamObserver<IAM.Empty> responseObserver) {
+        public void stop(LzyAuth.Empty request, StreamObserver<LzyAuth.Empty> responseObserver) {
             try {
                 onStop.accept(AllocatedServantMock.this);
-                responseObserver.onNext(IAM.Empty.newBuilder().build());
+                responseObserver.onNext(LzyAuth.Empty.newBuilder().build());
                 responseObserver.onCompleted();
             } catch (StatusRuntimeException e) {
                 responseObserver.onError(e);

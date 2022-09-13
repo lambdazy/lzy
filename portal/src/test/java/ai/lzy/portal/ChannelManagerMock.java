@@ -1,14 +1,14 @@
 package ai.lzy.portal;
 
-import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.model.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.test.GrpcUtils;
-import ai.lzy.v1.ChannelManager;
-import ai.lzy.v1.LzyChannelManagerGrpc;
-import ai.lzy.v1.LzyFsApi;
-import ai.lzy.v1.LzyFsGrpc;
+import ai.lzy.v1.channel.LCMS;
+import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.fs.LzyFsApi;
+import ai.lzy.v1.fs.LzyFsGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
@@ -100,8 +100,8 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
     static class DirectChannelInfo implements Closeable {
         final AtomicReference<Endpoint> inputEndpoint = new AtomicReference<>(null);
         final AtomicReference<Endpoint> outputEndpoint = new AtomicReference<>(null);
-        final AtomicReference<ChannelManager.SlotAttach> inputSlot = new AtomicReference<>(null);
-        final AtomicReference<ChannelManager.SlotAttach> outputSlot = new AtomicReference<>(null);
+        final AtomicReference<LCMS.SlotAttach> inputSlot = new AtomicReference<>(null);
+        final AtomicReference<LCMS.SlotAttach> outputSlot = new AtomicReference<>(null);
 
         boolean isCompleted() {
             return inputSlot.get() != null && outputSlot.get() != null;
@@ -128,8 +128,8 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
     }
 
     @Override
-    public void create(ChannelManager.ChannelCreateRequest request,
-                       StreamObserver<ChannelManager.ChannelCreateResponse> response) {
+    public void create(LCMS.ChannelCreateRequest request,
+                       StreamObserver<LCMS.ChannelCreateResponse> response) {
         LOG.info("create {}", JsonUtils.printRequest(request));
         if (!request.getChannelSpec().hasDirect()) {
             response.onError(INVALID_ARGUMENT.withDescription("Not direct channel").asException());
@@ -143,7 +143,7 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
         }
 
         response.onNext(
-            ChannelManager.ChannelCreateResponse.newBuilder()
+            LCMS.ChannelCreateResponse.newBuilder()
                 .setChannelId(channelName)
                 .build()
         );
@@ -151,8 +151,8 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
     }
 
     @Override
-    public void destroy(ChannelManager.ChannelDestroyRequest request,
-                        StreamObserver<ChannelManager.ChannelDestroyResponse> response) {
+    public void destroy(LCMS.ChannelDestroyRequest request,
+                        StreamObserver<LCMS.ChannelDestroyResponse> response) {
         LOG.info("destroy {}", JsonUtils.printRequest(request));
         var channel = directChannels.get(request.getChannelId());
         if (channel == null) {
@@ -170,25 +170,25 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
             outputEndpoint.destroy();
         }
 
-        response.onNext(ChannelManager.ChannelDestroyResponse.getDefaultInstance());
+        response.onNext(LCMS.ChannelDestroyResponse.getDefaultInstance());
         response.onCompleted();
     }
 
     @Override
-    public void status(ChannelManager.ChannelStatusRequest request,
-                       StreamObserver<ChannelManager.ChannelStatus> response) {
+    public void status(LCMS.ChannelStatusRequest request,
+                       StreamObserver<LCMS.ChannelStatus> response) {
         response.onError(INVALID_ARGUMENT.withDescription("Unknown command").asException());
     }
 
     @Override
-    public void statusAll(ChannelManager.ChannelStatusAllRequest request,
-                               StreamObserver<ChannelManager.ChannelStatusList> responseObserver) {
+    public void statusAll(LCMS.ChannelStatusAllRequest request,
+                               StreamObserver<LCMS.ChannelStatusList> responseObserver) {
         super.statusAll(request, responseObserver);
     }
 
     @Override
-    public void bind(ChannelManager.SlotAttach request,
-                     StreamObserver<ChannelManager.SlotAttachStatus> responseObserver) {
+    public void bind(LCMS.SlotAttach request,
+                     StreamObserver<LCMS.SlotAttachStatus> responseObserver) {
         LOG.info("bind {}", JsonUtils.printRequest(request));
         final String channelName = request.getSlotInstance().getChannelId();
         final SlotInstance slotInstance = GrpcConverter.from(request.getSlotInstance());
@@ -214,7 +214,7 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
             default -> throw new RuntimeException("zzz");
         }
 
-        responseObserver.onNext(ChannelManager.SlotAttachStatus.getDefaultInstance());
+        responseObserver.onNext(LCMS.SlotAttachStatus.getDefaultInstance());
         responseObserver.onCompleted();
 
         if (channel.isCompleted()) {
@@ -237,7 +237,7 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
     }
 
     @Override
-    public void unbind(ChannelManager.SlotDetach request, StreamObserver<ChannelManager.SlotDetachStatus> response) {
+    public void unbind(LCMS.SlotDetach request, StreamObserver<LCMS.SlotDetachStatus> response) {
         var slotInstance = request.getSlotInstance();
         var channel = directChannels.get(slotInstance.getChannelId());
 
@@ -254,14 +254,14 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
                 if (inputEndpoint != null) {
                     inputEndpoint.destroy();
                 }
-                response.onNext(ChannelManager.SlotDetachStatus.getDefaultInstance());
+                response.onNext(LCMS.SlotDetachStatus.getDefaultInstance());
             }
             case OUTPUT -> {
                 var outputEndpoint = channel.outputEndpoint.get();
                 if (outputEndpoint != null) {
                     outputEndpoint.destroy();
                 }
-                response.onNext(ChannelManager.SlotDetachStatus.getDefaultInstance());
+                response.onNext(LCMS.SlotDetachStatus.getDefaultInstance());
             }
             default -> {
                 LOG.error("Invalid direction of the slot {}: {}", slotInstance.getSlot().getName(),

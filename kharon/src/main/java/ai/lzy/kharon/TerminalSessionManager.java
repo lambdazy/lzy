@@ -1,7 +1,7 @@
 package ai.lzy.kharon;
 
-import ai.lzy.v1.LzyChannelManagerGrpc;
-import ai.lzy.v1.LzyServerGrpc;
+import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.deprecated.LzyServerGrpc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 

@@ -3,7 +3,7 @@ package ai.lzy.servant.env;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ai.lzy.model.exceptions.EnvironmentInstallationException;
+import ai.lzy.model.EnvironmentInstallationException;
 import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.PythonEnv;
 import ai.lzy.fs.storage.StorageClient;

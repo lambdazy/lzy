@@ -1,10 +1,12 @@
 package ai.lzy.fs.slots;
 
-import static ai.lzy.v1.Operations.SlotStatus.State.OPEN;
-import static ai.lzy.v1.Operations.SlotStatus.State.PREPARING;
-import static ai.lzy.v1.Operations.SlotStatus.State.UNBOUND;
+import static ai.lzy.v1.common.LMS.SlotStatus.State.OPEN;
+import static ai.lzy.v1.common.LMS.SlotStatus.State.PREPARING;
+import static ai.lzy.v1.common.LMS.SlotStatus.State.UNBOUND;
 
-import ai.lzy.model.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.model.grpc.ProtoConverter;
+import ai.lzy.v1.common.LMS;
 import com.google.protobuf.ByteString;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -30,11 +32,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.serce.jnrfuse.struct.FileStat;
 import ru.serce.jnrfuse.struct.FuseFileInfo;
-import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.fs.fs.FileContents;
 import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
-import ai.lzy.v1.Operations;
+import ai.lzy.v1.deprecated.LzyZygote;
 
 public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSlot {
     private static final Logger LOG = LogManager.getLogger(OutFileSlot.class);
@@ -151,10 +153,10 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     }
 
     @Override
-    public Operations.SlotStatus status() {
-        return Operations.SlotStatus.newBuilder()
+    public LMS.SlotStatus status() {
+        return LMS.SlotStatus.newBuilder()
             .setState(state())
-            .setDeclaration(GrpcConverter.to(definition()))
+            .setDeclaration(ProtoConverter.toProto(definition()))
             .setTaskId(taskId())
             .build();
     }

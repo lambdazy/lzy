@@ -12,6 +12,7 @@
 
     <modules>
         <module>util</module>
+        <module>model-old</module>
         <module>model</module>
         <module>backoffice</module>
         <module>server</module>
@@ -22,6 +23,8 @@
         <module>pylzy</module>
         <module>parent</module>
         <module>whiteboard-old</module>
+        <module>whiteboard-api</module>
+        <module>whiteboard</module>
         <module>fs</module>
         <module>iam</module>
         <module>iam-api</module>
@@ -35,7 +38,5 @@
         <module>allocator-api</module>
         <module>coverage</module>
         <module>workflow-api</module>
-        <module>whiteboard-api</module>
-        <module>whiteboard</module>
     </modules>
 </project>

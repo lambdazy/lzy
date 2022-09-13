@@ -9,7 +9,7 @@ import java.util.stream.Stream;
 import javax.validation.constraints.NotNull;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ai.lzy.model.Slot;
+import ai.lzy.model.slot.Slot;
 
 public class LocalChannelGraph implements ChannelGraph {
     private static final Logger LOG = LogManager.getLogger(LocalChannelGraph.class);

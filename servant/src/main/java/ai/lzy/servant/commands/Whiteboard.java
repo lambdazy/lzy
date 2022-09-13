@@ -13,9 +13,9 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.v1.IAM;
-import ai.lzy.v1.LzyWhiteboard;
-import ai.lzy.v1.WbApiGrpc;
+import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.v1.deprecated.LzyWhiteboard;
+import ai.lzy.v1.deprecated.WbApiGrpc;
 
 public class Whiteboard implements LzyCommand {
 
@@ -48,7 +48,7 @@ public class Whiteboard implements LzyCommand {
         if (command.getArgs().length < 2) {
             throw new IllegalArgumentException("Please specify whiteboard command");
         }
-        final IAM.Auth auth = IAM.Auth
+        final LzyAuth.Auth auth = LzyAuth.Auth
             .parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
         if (!auth.hasUser()) {
             throw new IllegalArgumentException("Please provide user credentials");

@@ -1,8 +1,8 @@
 package ai.lzy.fs;
 
-import ai.lzy.model.SlotInstance;
-import ai.lzy.v1.ChannelManager;
-import ai.lzy.v1.LzyChannelManagerGrpc;
+import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.v1.channel.LCMS;
+import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -12,9 +12,9 @@ import ai.lzy.fs.slots.InFileSlot;
 import ai.lzy.fs.slots.LineReaderSlot;
 import ai.lzy.fs.slots.OutFileSlot;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.model.Slot;
-import ai.lzy.model.slots.TextLinesOutSlot;
-import ai.lzy.v1.Servant;
+import ai.lzy.model.slot.Slot;
+import ai.lzy.model.slot.TextLinesOutSlot;
+import ai.lzy.v1.deprecated.Servant;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -26,9 +26,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-import static ai.lzy.model.GrpcConverter.to;
-import static ai.lzy.v1.Operations.SlotStatus.State.DESTROYED;
-import static ai.lzy.v1.Operations.SlotStatus.State.SUSPENDED;
+import static ai.lzy.model.deprecated.GrpcConverter.to;
+import static ai.lzy.v1.common.LMS.SlotStatus.State.DESTROYED;
+import static ai.lzy.v1.common.LMS.SlotStatus.State.SUSPENDED;
 
 // TODO(artolord) remove progress from here in v2 servant
 public class SlotsManager implements AutoCloseable {
@@ -135,8 +135,8 @@ public class SlotsManager implements AutoCloseable {
             synchronized (SlotsManager.this) {
                 LOG.info("UnBind slot {} from channel {}", spec, channelId);
                 try {
-                    final ChannelManager.SlotDetachStatus unbindResult = channelManager.unbind(
-                        ChannelManager.SlotDetach.newBuilder()
+                    final LCMS.SlotDetachStatus unbindResult = channelManager.unbind(
+                        LCMS.SlotDetach.newBuilder()
                             .setSlotInstance(to(slot.instance()))
                             .build()
                     );
@@ -163,8 +163,8 @@ public class SlotsManager implements AutoCloseable {
             }
         });
 
-        final ChannelManager.SlotAttachStatus slotAttachStatus = channelManager.bind(
-            ChannelManager.SlotAttach.newBuilder()
+        final LCMS.SlotAttachStatus slotAttachStatus = channelManager.bind(
+            LCMS.SlotAttach.newBuilder()
                 .setSlotInstance(to(slot.instance()))
                 .build());
         LOG.info(JsonUtils.printRequest(slotAttachStatus));

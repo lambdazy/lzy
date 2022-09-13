@@ -1,8 +1,8 @@
 package ai.lzy.disk.providers;
 
-import ai.lzy.model.disk.DiskSpec;
-import ai.lzy.model.disk.DiskType;
-import ai.lzy.model.disk.LocalDirSpec;
+import ai.lzy.disk.model.DiskSpec;
+import ai.lzy.disk.model.DiskType;
+import ai.lzy.disk.model.LocalDirSpec;
 import ai.lzy.disk.configs.LocalStorageProviderConfig;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;

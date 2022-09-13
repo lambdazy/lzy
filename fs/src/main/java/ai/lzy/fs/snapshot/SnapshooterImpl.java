@@ -1,28 +1,27 @@
 package ai.lzy.fs.snapshot;
 
+import static ai.lzy.v1.common.LMS.SlotStatus.State.DESTROYED;
+import static ai.lzy.v1.common.LMS.SlotStatus.State.OPEN;
+import static ai.lzy.v1.deprecated.LzyWhiteboard.OperationStatus.Status.FAILED;
+
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzySlot;
-import ai.lzy.model.GrpcConverter;
-import ai.lzy.v1.IAM;
-import ai.lzy.v1.LzyWhiteboard;
-import ai.lzy.v1.SnapshotApiGrpc;
-
+import ai.lzy.model.grpc.ProtoConverter;
+import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.v1.deprecated.LzyWhiteboard;
+import ai.lzy.v1.deprecated.SnapshotApiGrpc;
 import java.net.URI;
 import java.util.HashSet;
 import java.util.Set;
 
-import static ai.lzy.v1.LzyWhiteboard.OperationStatus.Status.FAILED;
-import static ai.lzy.v1.Operations.SlotStatus.State.*;
-import static ai.lzy.v1.Operations.SlotStatus.State.OPEN;
-
 public class SnapshooterImpl implements Snapshooter {
     private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi;
-    private final IAM.Auth auth;
+    private final LzyAuth.Auth auth;
     private final Set<String> trackedSlots = new HashSet<>();
     private final SlotSnapshotProvider snapshotProvider;
     private boolean closed = false;
 
-    public SnapshooterImpl(IAM.Auth auth, SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi,
+    public SnapshooterImpl(LzyAuth.Auth auth, SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi,
                            SlotSnapshotProvider snapshotProvider) {
         this.snapshotApi = snapshotApi;
         this.auth = auth;
@@ -45,7 +44,7 @@ public class SnapshooterImpl implements Snapshooter {
         final LzyWhiteboard.SnapshotEntry.Builder entryBuilder = LzyWhiteboard.SnapshotEntry.newBuilder()
             .setEntryId(entryId)
             .setStorageUri(uri.toString())
-            .setType(GrpcConverter.to(slot.definition().contentType()));
+            .setType(ProtoConverter.toProto(slot.definition().contentType()));
 
         final LzyWhiteboard.PrepareCommand command = LzyWhiteboard.PrepareCommand
             .newBuilder()

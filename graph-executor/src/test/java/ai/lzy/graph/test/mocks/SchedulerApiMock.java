@@ -2,15 +2,12 @@ package ai.lzy.graph.test.mocks;
 
 import ai.lzy.graph.api.SchedulerApi;
 import ai.lzy.graph.model.TaskDescription;
-import ai.lzy.v1.SchedulerApi.TaskStatus;
-import ai.lzy.v1.Tasks;
+import ai.lzy.v1.scheduler.Scheduler.TaskStatus;
 import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
-
-import javax.annotation.Nullable;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.annotation.Nullable;
 
 public class SchedulerApiMock implements SchedulerApi {
     private final Map<String, TaskStatus> statusByTaskId = new ConcurrentHashMap<>();

@@ -11,7 +11,7 @@ from Crypto.PublicKey import RSA
 from grpc import StatusCode
 from moto.server import ThreadedMotoServer
 
-from ai.lzy.v1.workflow.workflow_pb2 import AmazonCredentials, SnapshotStorage
+from ai.lzy.v1.common.s3_pb2 import AmazonS3Endpoint, S3Locator
 from ai.lzy.v1.workflow.workflow_service_pb2 import (
     CreateWorkflowRequest,
     CreateWorkflowResponse,
@@ -55,9 +55,9 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
 
         return CreateWorkflowResponse(
             executionId="exec_id",
-            internalSnapshotStorage=SnapshotStorage(
+            internalSnapshotStorage=S3Locator(
                 bucket="",
-                amazon=AmazonCredentials(endpoint="", accessToken="", secretToken=""),
+                amazon=AmazonS3Endpoint(endpoint="", accessToken="", secretToken=""),
             ),
         )
 

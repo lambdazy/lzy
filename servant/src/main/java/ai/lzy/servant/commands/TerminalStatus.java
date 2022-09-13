@@ -1,14 +1,15 @@
 package ai.lzy.servant.commands;
 
+import ai.lzy.v1.common.LMS;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import org.apache.commons.cli.CommandLine;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.v1.IAM;
-import ai.lzy.v1.LzyServantGrpc;
-import ai.lzy.v1.Operations;
-import ai.lzy.v1.Servant;
+import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.v1.deprecated.LzyServantGrpc;
+import ai.lzy.v1.deprecated.LzyZygote;
+import ai.lzy.v1.deprecated.Servant;
 
 public class TerminalStatus implements LzyCommand {
 
@@ -20,9 +21,9 @@ public class TerminalStatus implements LzyCommand {
             .enableRetry(LzyServantGrpc.SERVICE_NAME)
             .build();
         final LzyServantGrpc.LzyServantBlockingStub terminal = LzyServantGrpc.newBlockingStub(servantCh);
-        final Servant.ServantStatus status = terminal.status(IAM.Empty.newBuilder().build());
+        final Servant.ServantStatus status = terminal.status(LzyAuth.Empty.newBuilder().build());
         System.out.println(status.getStatus());
-        for (Operations.SlotStatus slotStatus : status.getConnectionsList()) {
+        for (LMS.SlotStatus slotStatus : status.getConnectionsList()) {
             System.out.println(JsonFormat.printer().print(slotStatus));
         }
         return 0;

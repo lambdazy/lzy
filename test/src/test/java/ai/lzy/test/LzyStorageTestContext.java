@@ -1,6 +1,6 @@
 package ai.lzy.test;
 
-import ai.lzy.v1.LzyStorageServiceGrpc;
+import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import com.amazonaws.services.s3.AmazonS3;
 import com.google.common.net.HostAndPort;
 

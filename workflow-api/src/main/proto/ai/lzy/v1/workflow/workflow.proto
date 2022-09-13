@@ -2,28 +2,10 @@ syntax = "proto3";
 
 package ai.lzy.v1.workflow;
 
-option java_outer_classname = "LWSD";
+import "ai/lzy/v1/common/data-scheme.proto";
+
+option java_outer_classname = "LWF";
 option java_package = "ai.lzy.v1.workflow";
-
-message AzureCredentials {
-  string connectionString = 1;
-}
-
-message AmazonCredentials {
-  string endpoint = 1;
-  string accessToken = 2;
-  string secretToken = 3;
-}
-
-message SnapshotStorage {
-  string bucket = 1;
-
-  oneof kind {
-    AmazonCredentials amazon = 2;
-    AzureCredentials azure = 3;
-  }
-}
-
 
 message Operation {
   string name = 1;  // Some human-readable name to show in UI
@@ -74,11 +56,6 @@ message Graph {
     /* optional */ repeated VertexRef outputs = 4;
 
     /* optional */ WhiteboardRef whiteboardRef = 5;  // Whiteboard field to link data to
-
-    message DataScheme {
-      string type = 1;
-      string schemeType = 2;  // plain, proto, cloudpickle, etc
-    }
 
     message VertexRef {
       string vertexId = 1;

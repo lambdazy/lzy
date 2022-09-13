@@ -2,9 +2,10 @@ package ai.lzy.portal.slots;
 
 import ai.lzy.fs.slots.LzyInputSlotBase;
 import ai.lzy.fs.slots.OutFileSlot;
-import ai.lzy.model.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.s3.S3Repository;
-import ai.lzy.v1.Operations;
+import ai.lzy.v1.common.LMS;
+import ai.lzy.v1.deprecated.LzyZygote;
 import com.google.protobuf.ByteString;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -48,7 +49,7 @@ public class SnapshotInputSlot extends LzyInputSlotBase {
         super.connect(slotUri, dataProvider);
         LOG.info("Attempt to connect to " + slotUri + " slot " + this);
 
-        onState(Operations.SlotStatus.State.OPEN, () -> {
+        onState(LMS.SlotStatus.State.OPEN, () -> {
             try {
                 outputStream.close();
             } catch (IOException e) {
@@ -73,7 +74,7 @@ public class SnapshotInputSlot extends LzyInputSlotBase {
         }, "reader-from-" + slotUri + "-to-" + definition().name());
         t.start();
 
-        onState(Operations.SlotStatus.State.DESTROYED, t::interrupt);
+        onState(LMS.SlotStatus.State.DESTROYED, t::interrupt);
     }
 
     @Override

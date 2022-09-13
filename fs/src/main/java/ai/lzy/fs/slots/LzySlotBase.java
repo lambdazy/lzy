@@ -1,23 +1,22 @@
 package ai.lzy.fs.slots;
 
-import ai.lzy.model.SlotInstance;
-import com.google.protobuf.ByteString;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ai.lzy.model.Slot;
-import ai.lzy.fs.fs.LzySlot;
-import ai.lzy.v1.Operations;
+import static ai.lzy.v1.common.LMS.SlotStatus.State.*;
+import static java.util.Collections.synchronizedMap;
 
+import ai.lzy.fs.fs.LzySlot;
+import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.model.slot.Slot;
+import ai.lzy.v1.common.LMS;
+import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
-
-import static java.util.Collections.*;
-import static ai.lzy.v1.Operations.SlotStatus.State.*;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class LzySlotBase implements LzySlot {
     private static final Logger LOG = LogManager.getLogger(LzySlotBase.class);
@@ -26,10 +25,10 @@ public class LzySlotBase implements LzySlot {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final SlotInstance slotInstance;
     private final List<Consumer<ByteString>> trafficTrackers = new CopyOnWriteArrayList<>();
-    private final AtomicReference<Operations.SlotStatus.State> state = new AtomicReference<>(UNBOUND);
+    private final AtomicReference<LMS.SlotStatus.State> state = new AtomicReference<>(UNBOUND);
 
-    private final Map<Operations.SlotStatus.State, List<StateChangeAction>> actions = synchronizedMap(new HashMap<>());
-    private final Queue<Operations.SlotStatus.State> changeStateQueue = new LinkedList<>();
+    private final Map<LMS.SlotStatus.State, List<StateChangeAction>> actions = synchronizedMap(new HashMap<>());
+    private final Queue<LMS.SlotStatus.State> changeStateQueue = new LinkedList<>();
 
     protected LzySlotBase(SlotInstance slotInstance) {
         this.slotInstance = slotInstance;
@@ -37,7 +36,7 @@ public class LzySlotBase implements LzySlot {
     }
 
     private void stateWatchingThread() {
-        Operations.SlotStatus.State newState;
+        LMS.SlotStatus.State newState;
         do {
             synchronized (changeStateQueue) {
                 while (changeStateQueue.isEmpty() && state.get() != DESTROYED) {
@@ -51,7 +50,7 @@ public class LzySlotBase implements LzySlot {
                 LOG.info("stateWatchingThread poll state {}", newState);
             }
 
-            final Operations.SlotStatus.State finalNewState = newState;
+            final LMS.SlotStatus.State finalNewState = newState;
             for (var action: actions.getOrDefault(newState, List.of())) {
                 LOG.info("Running action for slot {} with state {}", name(), finalNewState);
                 try {
@@ -79,11 +78,11 @@ public class LzySlotBase implements LzySlot {
         return slotInstance.spec();
     }
 
-    public Operations.SlotStatus.State state() {
+    public LMS.SlotStatus.State state() {
         return state.get();
     }
 
-    public synchronized void state(Operations.SlotStatus.State newState) {
+    public synchronized void state(LMS.SlotStatus.State newState) {
         if (state.get() == newState || state.get() == DESTROYED) {
             return;
         }
@@ -100,12 +99,12 @@ public class LzySlotBase implements LzySlot {
     }
 
     @Override
-    public void onState(Operations.SlotStatus.State state, StateChangeAction action) {
+    public void onState(LMS.SlotStatus.State state, StateChangeAction action) {
         actions.computeIfAbsent(state, s -> new CopyOnWriteArrayList<>()).add(action);
     }
 
     @Override
-    public void onState(Operations.SlotStatus.State state, Runnable action) {
+    public void onState(LMS.SlotStatus.State state, Runnable action) {
         actions.computeIfAbsent(state, s -> new CopyOnWriteArrayList<>()).add(new StateChangeAction() {
             @Override
             public void onError(Throwable th) {
@@ -126,7 +125,7 @@ public class LzySlotBase implements LzySlot {
     }
 
     @Override
-    public void onState(Set<Operations.SlotStatus.State> state, StateChangeAction action) {
+    public void onState(Set<LMS.SlotStatus.State> state, StateChangeAction action) {
         state.forEach(s -> onState(s, action));
     }
 
@@ -169,13 +168,13 @@ public class LzySlotBase implements LzySlot {
     }
 
     @Override
-    public Operations.SlotStatus status() {
-        return Operations.SlotStatus.newBuilder().build();
+    public LMS.SlotStatus status() {
+        return LMS.SlotStatus.newBuilder().build();
     }
 
     /* Waits for specific state or slot close **/
     @SuppressWarnings({"WeakerAccess", "SameParameterValue"})
-    protected synchronized void waitForState(Operations.SlotStatus.State state) {
+    protected synchronized void waitForState(LMS.SlotStatus.State state) {
         while (!Set.of(state, DESTROYED).contains(this.state.get())) {
             try {
                 wait();

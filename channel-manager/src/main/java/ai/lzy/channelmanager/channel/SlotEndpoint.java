@@ -1,12 +1,14 @@
 package ai.lzy.channelmanager.channel;
 
-import ai.lzy.model.GrpcConverter;
-import ai.lzy.model.Slot;
+import static ai.lzy.model.deprecated.GrpcConverter.to;
+
+import ai.lzy.model.grpc.ProtoConverter;
+import ai.lzy.model.slot.Slot;
 import ai.lzy.model.SlotConnectionManager;
-import ai.lzy.model.SlotInstance;
-import ai.lzy.model.SlotStatus;
-import ai.lzy.v1.LzyFsApi;
-import ai.lzy.v1.LzyFsGrpc;
+import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.model.slot.SlotStatus;
+import ai.lzy.v1.fs.LzyFsApi;
+import ai.lzy.v1.fs.LzyFsGrpc;
 import io.grpc.StatusRuntimeException;
 import java.net.URI;
 import java.util.Map;
@@ -89,8 +91,8 @@ public class SlotEndpoint implements Endpoint {
         try {
             final LzyFsApi.SlotCommandStatus rc = fs.connectSlot(
                 LzyFsApi.ConnectSlotRequest.newBuilder()
-                    .setFrom(GrpcConverter.to(slotInstance()))
-                    .setTo(GrpcConverter.to(slotInstance))
+                    .setFrom(to(slotInstance()))
+                    .setTo(to(slotInstance))
                 .build()
             );
             if (rc.hasRc() && rc.getRc().getCodeValue() != 0) {
@@ -113,9 +115,9 @@ public class SlotEndpoint implements Endpoint {
         try {
             final LzyFsApi.SlotCommandStatus slotCommandStatus = fs.statusSlot(
                 LzyFsApi.StatusSlotRequest.newBuilder()
-                    .setSlotInstance(GrpcConverter.to(slotInstance()))
+                    .setSlotInstance(to(slotInstance()))
                     .build());
-            return GrpcConverter.from(slotCommandStatus.getStatus());
+            return ProtoConverter.fromProto(slotCommandStatus.getStatus());
         } catch (StatusRuntimeException e) {
             LOG.warn("Exception during slotStatus " + e);
             return null;
@@ -130,7 +132,7 @@ public class SlotEndpoint implements Endpoint {
         try {
             final LzyFsApi.SlotCommandStatus rc = fs.disconnectSlot(
                 LzyFsApi.DisconnectSlotRequest.newBuilder()
-                    .setSlotInstance(GrpcConverter.to(slotInstance()))
+                    .setSlotInstance(to(slotInstance()))
                     .build());
             return rc.hasRc() ? rc.getRc().getCodeValue() : 0;
         } catch (StatusRuntimeException sre) {
@@ -148,7 +150,7 @@ public class SlotEndpoint implements Endpoint {
         try {
             final LzyFsApi.SlotCommandStatus rc = fs.destroySlot(
                 LzyFsApi.DestroySlotRequest.newBuilder()
-                    .setSlotInstance(GrpcConverter.to(slotInstance()))
+                    .setSlotInstance(to(slotInstance()))
                     .build());
             return rc.hasRc() ? rc.getRc().getCodeValue() : 0;
         } catch (StatusRuntimeException sre) {

@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package ai.lzy.v1;
+
+import "ai/lzy/v1/common/data-scheme.proto";
+
+option java_outer_classname = "LMS";
+option java_package = "ai.lzy.v1.common";
+
+message Slot {
+  string name = 1;
+
+  Media media = 2;
+  Direction direction = 4;
+
+  DataScheme contentType = 3;
+
+  enum Media {
+    UNSPECIFIED = 0;
+    FILE = 1;
+    PIPE = 2;
+    ARG = 3;
+  }
+
+  enum Direction {
+    UNKNOWN = 0;
+    INPUT = 1;
+    OUTPUT = 2;
+  }
+}
+
+message SlotStatus {
+  string taskId = 1;
+  Slot declaration = 2;
+
+  string connectedTo = 3;
+
+  uint64 pointer = 4;
+
+  State state = 5;
+
+  /* For input slot SUSPENDED command could happen while reading to change a source of data
+  * For output slot CLOSED means that process has finished generating data.
+  * CLOSED and SUSPENDED are independent events: one could happen before or after the other. If CLOSED come while
+  * slot is in SUSPENDED state, slot must remember this event and after reconnection feed CLOSED back to the server
+  */
+  enum State {
+    UNSPECIFIED = 0;
+    UNBOUND = 1;
+    PREPARING = 2;
+    OPEN = 3;
+    SUSPENDED = 4;
+    CLOSED = 5;
+    DESTROYED = 6;
+  }
+}
+
+message SlotInstance {
+  string taskId = 1;
+  Slot slot = 2;
+  string slotUri = 3;
+  string channelId = 4;
+}

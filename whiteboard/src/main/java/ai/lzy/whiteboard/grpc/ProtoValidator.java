@@ -1,8 +1,8 @@
 package ai.lzy.whiteboard.grpc;
 
-import ai.lzy.v1.LWB;
-import ai.lzy.v1.LWBPS;
-import ai.lzy.v1.Operations;
+import ai.lzy.v1.common.LMD;
+import ai.lzy.v1.whiteboard.LWB;
+import ai.lzy.v1.whiteboard.LWBPS;
 
 public class ProtoValidator {
 
@@ -25,11 +25,11 @@ public class ProtoValidator {
         }
     }
 
-    public static boolean isValid(Operations.DataScheme dataScheme) {
+    public static boolean isValid(LMD.DataScheme dataScheme) {
         boolean isValid = true;
         try {
             isValid = isValid && !dataScheme.getType().isBlank();
-            isValid = isValid && dataScheme.getSchemeType().getNumber() != 0;
+            isValid = isValid && !dataScheme.getSchemeType().isBlank();
             return isValid;
         } catch (NullPointerException e) {
             return false;
