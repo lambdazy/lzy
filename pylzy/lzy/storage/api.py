@@ -77,6 +77,10 @@ class AsyncStorageClient(ABC):
     def generate_uri(self, container: str, blob: str) -> str:
         pass
 
+    @abstractmethod
+    async def sign_storage_url(self, url: str) -> str:
+        pass
+
 
 class StorageRegistry:
     @abstractmethod

@@ -1,5 +1,5 @@
 import logging
-from typing import AsyncIterator, BinaryIO
+from typing import AsyncIterator, BinaryIO, cast
 
 from aioboto3 import Session
 from botocore.exceptions import ClientError
@@ -58,3 +58,13 @@ class AmazonClient(AsyncStorageClient):
 
     def generate_uri(self, container: str, blob: str) -> str:
         return url_from_bucket(self.scheme, container, blob)
+
+    async def sign_storage_url(self, url: str) -> str:
+        container, blob = bucket_from_url(self.scheme, url)
+        async with self._get_client_context() as client:
+            url = await client.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": container, "Key": blob},
+                ExpiresIn=3600,  # 1 h
+            )
+            return cast(str, url)
