@@ -10,8 +10,8 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 
 import jwt
 
-from ai.lzy.v1.workflow.workflow_pb2 import Graph, Operation
-from lzy.api.v2 import LzyCall, LzyWorkflow
+from ai.lzy.v1.workflow.workflow_pb2 import Graph, Operation, VmPoolSpec
+from lzy.api.v2 import LzyCall, LzyWorkflow, Provisioning
 from lzy.api.v2.exceptions import LzyExecutionException
 from lzy.api.v2.remote_grpc.workflow_service_client import (
     Completed,
@@ -64,11 +64,12 @@ def _build_token(username: str, key_path: Optional[str] = None) -> str:
         private_key = f.read()
         return str(
             jwt.encode(
-                {  # TODO(artolrod) add renewing of token
+                {  # TODO(artolord) add renewing of token
                     "iat": time.time(),
                     "nbf": time.time(),
                     "exp": time.time() + 7 * 24 * 60 * 60,  # 7 days
                     "iss": username,
+                    "pvd": "GITHUB"
                 },
                 private_key,
                 algorithm="PS256",
@@ -130,11 +131,12 @@ class GrpcRuntime(Runtime):
         assert self.__execution_id is not None
 
         client = await self.__get_client()
+        pools = await client.get_pool_specs(self.__execution_id)
 
         _LOG.info("Building graph")
-        graph = self.__build_graph(calls)
-
-        # TODO(artolord) add args loading
+        graph = await asyncio.get_event_loop().run_in_executor(
+            None, self.__build_graph, calls, pools
+        )  # Running long op in threadpool
 
         graph_id = await client.execute_graph(self.__execution_id, graph)
         _LOG.info(f"Send graph to Lzy, graph_id={graph_id}")
@@ -205,6 +207,28 @@ class GrpcRuntime(Runtime):
     async def link(self, wb_id: str, field_name: str, url: str) -> None:
         pass
 
+    @staticmethod
+    def __resolve_pool(
+        provisioning: Provisioning, pool_specs: Sequence[VmPoolSpec]
+    ) -> Optional[VmPoolSpec]:
+        assert (
+            provisioning.cpu_type is not None
+            and provisioning.cpu_count is not None
+            and provisioning.gpu_type is not None
+            and provisioning.gpu_count is not None
+            and provisioning.ram_size_gb is not None
+        )
+        for spec in pool_specs:
+            if (
+                provisioning.cpu_type == spec.cpuType
+                and provisioning.cpu_count <= spec.cpuCount
+                and provisioning.gpu_type == spec.gpuType
+                and provisioning.gpu_count <= spec.gpuCount
+                and provisioning.ram_size_gb <= spec.ramGb
+            ):
+                return spec
+        return None
+
     async def __get_client(self):
         if self.__workflow_client is None:
             self.__workflow_client = await WorkflowServiceClient.create(
@@ -220,7 +244,7 @@ class GrpcRuntime(Runtime):
             else:
                 print(data.data, file=sys.stderr)
 
-    def __build_graph(self, calls: List[LzyCall]) -> Graph:
+    def __build_graph(self, calls: List[LzyCall], pools: Sequence[VmPoolSpec]) -> Graph:
         assert self.__workflow is not None
 
         entry_id_to_call: Dict[str, Tuple[LzyCall, int]] = {}
@@ -238,6 +262,7 @@ class GrpcRuntime(Runtime):
                 entry_id_to_output_calls[eid].append((call, name))
 
         vertices: Dict[str, Graph.VertexDescription] = {}
+        pool_to_call: List[Tuple[VmPoolSpec, LzyCall]] = []
 
         for call in calls:
             input_slots: List[str] = []
@@ -263,9 +288,22 @@ class GrpcRuntime(Runtime):
                 output_slots.append(slot_path)
                 ret_descriptions.append(slot_path)
 
-            docker_image = (
-                call.env.docker.image  # type: ignore
-            )  # TODO(tomato): call.env.docker can be none
+            pool = self.__resolve_pool(call.provisioning, pools)
+
+            if pool is None:
+                raise RuntimeError(
+                    f"Cannot resolve pool for operation {call.signature.func.name}"
+                )
+
+            pool_to_call.append((pool, call))
+
+            docker_image: Optional[str]
+
+            if call.env.docker:
+                docker_image = call.env.docker.image
+            else:
+                docker_image = None
+
             request = ProcessingRequest(
                 serializers=self.__workflow.owner.serializer,
                 op=call.signature.func.callable,
@@ -292,13 +330,11 @@ class GrpcRuntime(Runtime):
                     inputSlots=input_slots,
                     outputSlots=output_slots,
                     command=command,
-                    dockerImage=docker_image
-                    if docker_image is not None
-                    else "",  # TODO(artolord) change env api
+                    dockerImage=docker_image if docker_image is not None else "",
                     python=Operation.PythonEnvSpec(  # TODO(artolord) add local modules loading
                         yaml=call.env.conda.yaml
                     ),
-                    poolSpecName="S",  # TODO(artolord) add label resolving
+                    poolSpecName=pool.poolSpecName,
                 ),
             )
 
@@ -328,9 +364,21 @@ class GrpcRuntime(Runtime):
                 )
             )
 
+        if self.__workflow.is_interactive:  # TODO(artolord) add costs
+            s = ""
+            for pool, call in pool_to_call:
+                s += f"Call to op {call.signature.func.name} mapped to pool {pool.poolSpecName}\n"
+
+            s += "Are you sure you want to run the graph with this configuration?"
+
+            print(s)
+            s = input("(Yes/[No]): ")
+            if s != "Yes":
+                raise RuntimeError("Graph execution cancelled")
+
         return Graph(
             name="",
             edges=edges,
             vertices=vertices.values(),
-            zone="",  # TODO(artolord) Add zone resolving
+            zone="",
         )
