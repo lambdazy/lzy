@@ -1,6 +1,7 @@
 package ai.lzy.iam.grpc.interceptors;
 
 import ai.lzy.iam.grpc.context.AuthenticationContext;
+import ai.lzy.util.auth.credentials.OttCredentials;
 import com.google.common.collect.ImmutableSet;
 import io.grpc.*;
 import org.apache.logging.log4j.LogManager;
@@ -67,7 +68,8 @@ public class AuthServerInterceptor implements ServerInterceptor {
 
     @Override
     public <T, R> ServerCall.Listener<T> interceptCall(ServerCall<T, R> call, Metadata headers,
-                                                       ServerCallHandler<T, R> next) {
+                                                       ServerCallHandler<T, R> next)
+    {
         try {
             if (unauthenticatedMethods.contains(call.getMethodDescriptor())) {
                 return next.startCall(call, headers);
@@ -95,12 +97,10 @@ public class AuthServerInterceptor implements ServerInterceptor {
             return null;
         } else {
             TokenParser.Token token = TokenParser.parse(authorizationHeader);
-            Credentials credentials;
-            if (token.kind() == TokenParser.Token.Kind.JWT_TOKEN) {
-                credentials = new JwtCredentials(token.token());
-            } else {
-                throw new IllegalStateException("Unknown kind of credentials");
-            }
+            Credentials credentials = switch (token.kind()) {
+                case JWT -> new JwtCredentials(token.token());
+                case OTT -> new OttCredentials(token.token());
+            };
             Subject subject = authenticateService.authenticate(credentials);
             return new AuthenticationContext(token, credentials, subject);
         }

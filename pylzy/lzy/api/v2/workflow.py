@@ -13,13 +13,12 @@ from typing import (
     TypeVar,
 )
 
-from lzy.api.v2.env import DockerPullPolicy, Env
-from lzy.api.v2.snapshot import DefaultSnapshot, Snapshot
-from lzy.api.v2.utils.env import generate_env
+from lzy.api.v2.env import Env
+from lzy.api.v2.provisioning import Provisioning
+from lzy.api.v2.snapshot import Snapshot
 from lzy.api.v2.utils.proxy_adapter import is_lzy_proxy
 from lzy.api.v2.whiteboard_declaration import fetch_whiteboard_meta
 from lzy.py_env.api import PyEnv
-from lzy.storage.api import StorageRegistry
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -42,14 +41,11 @@ class LzyWorkflow:
         owner: "Lzy",
         namespace: Dict[str, Any],
         snapshot: Snapshot,
+        env: Env,
         *,
         eager: bool = False,
-        python_version: Optional[str] = None,
-        libraries: Optional[Dict[str, str]] = None,
-        conda_yaml_path: Optional[str] = None,
-        docker_image: Optional[str] = None,
-        docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
-        local_modules_path: Optional[Sequence[str]] = None,
+        provisioning: Provisioning = Provisioning.default(),
+        interactive: bool = True,
     ):
         self.__snapshot = snapshot
         self.__name = name
@@ -67,15 +63,10 @@ class LzyWorkflow:
         self.__started = False
 
         self.__auto_py_env: PyEnv = owner.env_provider.provide(namespace)
-        self.__default_env: Env = generate_env(
-            self.__auto_py_env,
-            python_version,
-            libraries,
-            conda_yaml_path,
-            docker_image,
-            docker_pull_policy,
-            local_modules_path,
-        )
+        self.__default_env: Env = env
+
+        self.__provisioning = provisioning
+        self.__interactive = interactive
 
     @property
     def owner(self) -> "Lzy":
@@ -96,6 +87,14 @@ class LzyWorkflow:
     @property
     def default_env(self) -> Env:
         return self.__default_env
+
+    @property
+    def provisioning(self) -> Provisioning:
+        return self.__provisioning
+
+    @property
+    def is_interactive(self) -> bool:
+        return self.__interactive
 
     def register_call(self, call: "LzyCall") -> Any:
         self.__call_queue.append(call)

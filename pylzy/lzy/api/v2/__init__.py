@@ -6,7 +6,7 @@ from typing import Any, Callable, Dict, Iterator, Optional, Sequence, TypeVar
 from lzy.api.v2.call import LzyCall, wrap_call
 from lzy.api.v2.env import CondaEnv, DockerEnv, DockerPullPolicy, Env
 from lzy.api.v2.local.runtime import LocalRuntime
-from lzy.api.v2.provisioning import Gpu, Provisioning
+from lzy.api.v2.provisioning import Provisioning
 from lzy.api.v2.query import Query
 from lzy.api.v2.runtime import Runtime
 from lzy.api.v2.snapshot import DefaultSnapshot
@@ -44,6 +44,13 @@ def op(
     docker_image: Optional[str] = None,
     docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
     local_modules_path: Optional[Sequence[str]] = None,
+    provisioning_: Provisioning = Provisioning(),
+    cpu_type: Optional[str] = None,
+    cpu_count: Optional[int] = None,
+    gpu_type: Optional[str] = None,
+    gpu_count: Optional[int] = None,
+    ram_size_gb: Optional[int] = None,
+    env: Optional[Env] = None,
 ):
     def deco(f):
         """
@@ -66,21 +73,28 @@ def op(
         if active_workflow is None:
             return f
 
-        generated_env = generate_env(
-            active_workflow.auto_py_env,
-            python_version,
-            libraries,
-            conda_yaml_path,
-            docker_image,
-            docker_pull_policy,
-            local_modules_path,
-        )
+        if env is None:
+            generated_env = generate_env(
+                active_workflow.auto_py_env,
+                python_version,
+                libraries,
+                conda_yaml_path,
+                docker_image,
+                docker_pull_policy,
+                local_modules_path,
+            )
+        else:
+            generated_env = env
+
         merged_env = merge_envs(generated_env, active_workflow.default_env)
+
+        prov = provisioning_.override(
+            Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb)
+        ).override(active_workflow.provisioning)
+
         # yep, create lazy constructor and return it
         # instead of function
-        return wrap_call(f, output_types, provisioning_, merged_env, active_workflow)
-
-    provisioning_ = Provisioning()  # TODO (tomato): update provisioning
+        return wrap_call(f, output_types, prov, merged_env, active_workflow)
 
     if func is None:
         return deco
@@ -149,8 +163,26 @@ class Lzy:
         docker_image: Optional[str] = None,
         docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
         local_modules_path: Optional[Sequence[str]] = None,
+        provisioning: Provisioning = Provisioning.default(),
+        interactive: bool = True,
+        cpu_type: Optional[str] = None,
+        cpu_count: Optional[int] = None,
+        gpu_type: Optional[str] = None,
+        gpu_count: Optional[int] = None,
+        ram_size_gb: Optional[int] = None,
+        env: Optional[Env] = None,
     ) -> LzyWorkflow:
         namespace = inspect.stack()[1].frame.f_globals
+        if env is None:
+            env = generate_env(
+                self.env_provider.provide(namespace),
+                python_version,
+                libraries,
+                conda_yaml_path,
+                docker_image,
+                docker_pull_policy,
+                local_modules_path,
+            )
         return LzyWorkflow(
             name,
             self,
@@ -159,13 +191,12 @@ class Lzy:
                 storage_registry=self.storage_registry,
                 serializer_registry=self.serializer,
             ),
+            env=env,
             eager=eager,
-            python_version=python_version,
-            libraries=libraries,
-            conda_yaml_path=conda_yaml_path,
-            docker_image=docker_image,
-            docker_pull_policy=docker_pull_policy,
-            local_modules_path=local_modules_path,
+            provisioning=provisioning.override(
+                Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb)
+            ),
+            interactive=interactive,
         )
 
     # register cloud injections

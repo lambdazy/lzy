@@ -1,10 +1,10 @@
 from dataclasses import dataclass
-from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Tuple, Union
+from typing import AsyncIterable, AsyncIterator, List, Optional, Sequence, Tuple, Union
 
 from grpc.aio import Channel
 
 from ai.lzy.v1.common.s3_pb2 import S3Locator
-from ai.lzy.v1.workflow.workflow_pb2 import Graph
+from ai.lzy.v1.workflow.workflow_pb2 import Graph, VmPoolSpec
 from ai.lzy.v1.workflow.workflow_service_pb2 import (
     AttachWorkflowRequest,
     CreateWorkflowRequest,
@@ -13,6 +13,8 @@ from ai.lzy.v1.workflow.workflow_service_pb2 import (
     ExecuteGraphRequest,
     ExecuteGraphResponse,
     FinishWorkflowRequest,
+    GetAvailablePoolsRequest,
+    GetAvailablePoolsResponse,
     GraphStatusRequest,
     GraphStatusResponse,
     ReadStdSlotsRequest,
@@ -197,6 +199,13 @@ class WorkflowServiceClient:
         await self.__stub.StopGraph(
             StopGraphRequest(executionId=execution_id, graphId=graph_id)
         )
+
+    async def get_pool_specs(self, execution_id: str) -> Sequence[VmPoolSpec]:
+        pools: GetAvailablePoolsResponse = await self.__stub.GetAvailablePools(
+            GetAvailablePoolsRequest(executionId=execution_id)
+        )
+
+        return pools.poolSpecs
 
     async def stop(self):
         await self.__channel.close()

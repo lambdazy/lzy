@@ -1,16 +1,22 @@
 package ai.lzy.fs;
 
+import static ai.lzy.model.Constants.LOGS_DIR;
+import static ai.lzy.model.UriScheme.LzyFs;
+import static ai.lzy.model.UriScheme.SlotAzure;
+import static ai.lzy.model.UriScheme.SlotS3;
+import static ai.lzy.model.deprecated.GrpcConverter.from;
+
 import ai.lzy.fs.commands.BuiltinCommandHolder;
 import ai.lzy.fs.fs.*;
+import ai.lzy.logs.MetricEvent;
+import ai.lzy.logs.MetricEventLogger;
+import ai.lzy.model.deprecated.Zygote;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
-import ai.lzy.model.deprecated.Zygote;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.logs.MetricEvent;
-import ai.lzy.logs.MetricEventLogger;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.common.LMS;
@@ -19,19 +25,14 @@ import ai.lzy.v1.deprecated.LzyAuth;
 import ai.lzy.v1.deprecated.LzyKharonGrpc;
 import ai.lzy.v1.deprecated.LzyServerGrpc;
 import ai.lzy.v1.deprecated.LzyZygote;
-import ai.lzy.v1.fs.*;
+import ai.lzy.v1.fs.LzyFsApi;
+import ai.lzy.v1.fs.LzyFsGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.jsonwebtoken.Jwts;
-import org.apache.commons.lang3.SystemUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ru.serce.jnrfuse.FuseException;
-
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -43,10 +44,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-
-import static ai.lzy.model.Constants.LOGS_DIR;
-import static ai.lzy.model.deprecated.GrpcConverter.from;
-import static ai.lzy.model.UriScheme.*;
+import javax.annotation.Nullable;
+import org.apache.commons.lang3.SystemUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import ru.serce.jnrfuse.FuseException;
 
 public final class LzyFsServer {
 
@@ -73,7 +75,8 @@ public final class LzyFsServer {
 
     @Deprecated
     public LzyFsServer(String agentId, String mountPoint, URI selfUri, @Nullable URI lzyServerUri,
-                       @Nullable URI lzyWhiteboardUri, URI channelManagerUri, LzyAuth.Auth auth) throws IOException {
+                       @Nullable URI lzyWhiteboardUri, URI channelManagerUri, LzyAuth.Auth auth) throws IOException
+    {
         this.agentId = agentId;
         this.channelManagerUri = channelManagerUri;
         assert LzyFs.scheme().equals(selfUri.getScheme());
@@ -146,10 +149,11 @@ public final class LzyFsServer {
     }
 
     public LzyFsServer(String agentId, String mountPoint, URI selfUri,
-                       URI channelManagerUri, String iamToken) throws IOException {
+                       URI channelManagerUri, String token) throws IOException
+    {
         this(agentId, mountPoint, selfUri, null, null, channelManagerUri, LzyAuth.Auth.newBuilder()
             .setUser(LzyAuth.UserCredentials.newBuilder()
-                .setToken(iamToken)
+                .setToken(token)
                 .build())
             .build());
     }

@@ -1,17 +1,20 @@
 package ai.lzy.servant.agents;
 
+import static ai.lzy.model.UriScheme.LzyFs;
+
 import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.fs.LzyFsServer;
 import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.fs.slots.LineReaderSlot;
-import ai.lzy.model.*;
-import ai.lzy.model.TaskDesc;
 import ai.lzy.model.EnvironmentInstallationException;
+import ai.lzy.model.Signal;
+import ai.lzy.model.TaskDesc;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.scheduler.SchedulerAgent;
 import ai.lzy.model.slot.TextLinesOutSlot;
 import ai.lzy.servant.env.Environment;
 import ai.lzy.servant.env.EnvironmentFactory;
+import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress;
@@ -21,31 +24,39 @@ import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress.Configured.Ok;
 import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress.Finished;
 import ai.lzy.v1.worker.LWS.*;
 import ai.lzy.v1.worker.WorkerApiGrpc;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.net.HostAndPort;
 import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
-import org.apache.commons.cli.*;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;
+import java.io.StringReader;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.time.Duration;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
-import static ai.lzy.model.UriScheme.LzyFs;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class Worker {
     private static final Logger LOG = LogManager.getLogger(Worker.class);
+
+    public static final String ENV_WORKER_PKEY = "LZY_WORKER_PKEY";
 
     private static final Options options = new Options();
 
@@ -58,11 +69,14 @@ public class Worker {
         options.addOption("ch", "channel-manager", true, "Channel manager address [host:port]");
         options.addOption("m", "lzy-mount", true, "Lzy FS mount point");
         options.addOption("h", "host", true, "Servant and FS host name");
-        options.addOption("k", "token", true, "auth token for servant");
         options.addOption(null, "vm-id", true, "Vm id from allocator");
         options.addOption(null, "servant-id", true, "Servant id from scheduler");
         options.addOption(null, "allocator-heartbeat-period", true, "Allocator heartbeat period in duration format");
         options.addOption(null, "scheduler-heartbeat-period", true, "Scheduler heartbeat period in duration format");
+
+        // for tests only
+        options.addOption(null, "allocator-token", true, "OTT token for allocator");
+        options.addOption(null, "iam-token", true, "IAM private key for servant");
     }
 
     private final LzyFsServer lzyFs;
@@ -74,9 +88,15 @@ public class Worker {
 
     public Worker(String workflowName, String servantId, String vmId, String allocatorAddress, String schedulerAddress,
                   Duration allocatorHeartbeatPeriod, Duration schedulerHeartbeatPeriod, int apiPort, int fsPort,
-                  String fsRoot, String channelManagerAddress, String host, String token) {
-
+                  String fsRoot, String channelManagerAddress, String host, String iamPrivateKey, String allocatorToken)
+    {
         final var realHost = host != null ? host : System.getenv(AllocatorAgent.VM_IP_ADDRESS);
+
+        allocatorToken = allocatorToken != null ? allocatorToken : System.getenv(AllocatorAgent.VM_ALLOCATOR_OTT);
+        iamPrivateKey = iamPrivateKey != null ? iamPrivateKey : System.getenv(ENV_WORKER_PKEY);
+
+        Objects.requireNonNull(allocatorToken);
+        Objects.requireNonNull(iamPrivateKey);
 
         server = NettyServerBuilder.forAddress(new InetSocketAddress(realHost, apiPort))
                 .permitKeepAliveWithoutCalls(true)
@@ -97,21 +117,24 @@ public class Worker {
             final var cm = HostAndPort.fromString(channelManagerAddress);
             final var channelManagerUri = new URI("http", null, cm.getHost(), cm.getPort(), null, null, null);
 
-            lzyFs = new LzyFsServer(servantId, fsRoot, fsUri, channelManagerUri, token);
+            lzyFs = new LzyFsServer(servantId, fsRoot, fsUri, channelManagerUri,
+                JwtUtils.buildJWT(servantId, "INTERNAL", new StringReader(iamPrivateKey)));
         } catch (IOException | URISyntaxException e) {
             LOG.error("Error while building uri", e);
             stop();
             throw new RuntimeException(e);
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+            throw new RuntimeException(e);
         }
 
         try {
-            allocatorAgent = new AllocatorAgent(token, vmId, allocatorAddress, allocatorHeartbeatPeriod);
+            allocatorAgent = new AllocatorAgent(allocatorToken, vmId, allocatorAddress, allocatorHeartbeatPeriod);
         } catch (AllocatorAgent.RegisterException e) {
             throw new RuntimeException(e);
         }
 
         schedulerAgent = new SchedulerAgent(schedulerAddress, servantId, workflowName, schedulerHeartbeatPeriod,
-                apiPort, token);
+                apiPort, iamPrivateKey);
 
         schedulerAgent.start();
     }
@@ -136,6 +159,7 @@ public class Worker {
         server.awaitTermination();
     }
 
+    @VisibleForTesting
     public static int execute(String[] args) {
         final CommandLineParser cliParser = new DefaultParser();
         try {
@@ -148,7 +172,7 @@ public class Worker {
                 Duration.parse(parse.getOptionValue("scheduler-heartbeat-period")),
                 Integer.parseInt(parse.getOptionValue('p')), Integer.parseInt(parse.getOptionValue('q')),
                 parse.getOptionValue('m'), parse.getOptionValue("channel-manager"), parse.getOptionValue('h'),
-                parse.getOptionValue('k'));
+                parse.getOptionValue("iam-token"), parse.getOptionValue("allocator-token"));
 
             worker.awaitTermination();
             return 0;

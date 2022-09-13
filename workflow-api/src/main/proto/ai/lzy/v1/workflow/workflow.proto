@@ -41,7 +41,8 @@ message Graph {
   repeated EdgeDescription edges = 2;
   repeated VertexDescription vertices = 3;
 
-  string zone = 4;  // Availability zone to execute graph in
+  /* optional */ string zone = 4;  // Availability zone to execute graph in.
+                                   // If not set, selected some zone, matching all pools
 
   message EdgeDescription {
     /* optional */ DataScheme dataScheme = 1;  // If not set, using plain scheme
@@ -75,10 +76,10 @@ message Graph {
 
 message VmPoolSpec {
   string poolSpecName = 1;       // 's', 'm', 'l', ...
-  string cpu_type = 2;          // IceLake, CascadeLake, Broadwell, ...
-  uint32 cpu_count = 3;         // # of CPU cores
-  string gpu_type = 4;          // V100, A100, ...
-  uint32 gpu_count = 5;         // # of GPU cores
-  uint32 ram_gb = 6;            // RAM in GB
+  string cpuType = 2;          // IceLake, CascadeLake, Broadwell, ...
+  uint32 cpuCount = 3;         // # of CPU cores
+  string gpuType = 4;          // V100, A100, ...
+  uint32 gpuCount = 5;         // # of GPU cores
+  uint32 ramGb = 6;            // RAM in GB
   repeated string zones = 7;    // availability zones
 }

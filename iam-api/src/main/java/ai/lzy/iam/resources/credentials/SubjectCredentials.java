@@ -3,6 +3,7 @@ package ai.lzy.iam.resources.credentials;
 import ai.lzy.iam.resources.subjects.CredentialsType;
 
 import javax.annotation.Nullable;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
@@ -24,5 +25,17 @@ public record SubjectCredentials(
         this.value = value;
         this.type = type;
         this.expiredAt = expiredAt != null ? expiredAt.truncatedTo(ChronoUnit.SECONDS) : null;
+    }
+
+    public static SubjectCredentials publicKey(String name, String value) {
+        return new SubjectCredentials(name, value, CredentialsType.PUBLIC_KEY, null);
+    }
+
+    public static SubjectCredentials publicKey(String name, String value, Duration ttl) {
+        return new SubjectCredentials(name, value, CredentialsType.PUBLIC_KEY, Instant.now().plus(ttl));
+    }
+
+    public static SubjectCredentials ott(String name, String value, Duration ttl) {
+        return new SubjectCredentials(name, value, CredentialsType.OTT, Instant.now().plus(ttl));
     }
 }

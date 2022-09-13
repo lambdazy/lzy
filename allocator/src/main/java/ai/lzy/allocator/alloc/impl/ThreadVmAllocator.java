@@ -1,5 +1,6 @@
 package ai.lzy.allocator.alloc.impl;
 
+import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.model.Vm;
@@ -79,8 +80,23 @@ public class ThreadVmAllocator implements VmAllocator {
 
     @Override
     public void allocate(Vm.Spec vm) {
-        // TODO(artolord) add token
-        requestAllocation(vm.vmId(), vm.workloads().get(0).args());  // Supports only one workload
+        // Supports only one workload
+        var env = vm.workloads().get(0).env();
+
+        if (!env.containsKey(AllocatorAgent.VM_ALLOCATOR_OTT)) {
+            throw new AssertionError("Missing env " + AllocatorAgent.VM_ALLOCATOR_OTT);
+        }
+
+        var args = new ArrayList<>(vm.workloads().get(0).args());
+        args.add("--allocator-token");
+        args.add('"' + env.get(AllocatorAgent.VM_ALLOCATOR_OTT) + '"');
+
+        if (env.containsKey("LZY_WORKER_PKEY")) {
+            args.add("--iam-token");
+            args.add('"' + env.get("LZY_WORKER_PKEY") + '"');
+        }
+
+        requestAllocation(vm.vmId(), args);
     }
 
     @Override
