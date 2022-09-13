@@ -49,6 +49,10 @@
         </dependency>
 
         <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+        </dependency>
+        <dependency>
             <artifactId>log4j-api</artifactId>
             <groupId>org.apache.logging.log4j</groupId>
         </dependency>
@@ -102,7 +106,7 @@
             <groupId>org.flywaydb</groupId>
         </dependency>
         <dependency>
-            <artifactId>bcprov-jdk15on</artifactId>
+            <artifactId>bcprov-jdk18on</artifactId>
             <groupId>org.bouncycastle</groupId>
         </dependency>
         <dependency>

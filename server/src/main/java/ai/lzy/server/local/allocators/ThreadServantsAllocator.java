@@ -6,7 +6,7 @@ import ai.lzy.server.configs.ServerConfig;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.SystemUtils;
+import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ai.lzy.model.graph.Provisioning;
