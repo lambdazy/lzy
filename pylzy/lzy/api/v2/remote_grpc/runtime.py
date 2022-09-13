@@ -208,7 +208,7 @@ class GrpcRuntime(Runtime):
 
     @staticmethod
     def __resolve_pool(
-        provisioning: Provisioning, pool_specs: Sequence[VmPoolSpec], zone: str
+        provisioning: Provisioning, pool_specs: Sequence[VmPoolSpec]
     ) -> Optional[VmPoolSpec]:
         assert (
             provisioning.cpu_type is not None
@@ -287,7 +287,7 @@ class GrpcRuntime(Runtime):
                 output_slots.append(slot_path)
                 ret_descriptions.append(slot_path)
 
-            pool = self.__resolve_pool(call.provisioning, pools, self.__workflow.zone)
+            pool = self.__resolve_pool(call.provisioning, pools)
 
             if pool is None:
                 raise RuntimeError(
@@ -379,5 +379,5 @@ class GrpcRuntime(Runtime):
             name="",
             edges=edges,
             vertices=vertices.values(),
-            zone=self.__workflow.zone,
+            zone="",
         )

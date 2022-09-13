@@ -29,9 +29,9 @@ class Provisioning:
     @staticmethod
     def default() -> "Provisioning":
         return Provisioning(
-            cpu_type="Intel Ice Lake",
+            cpu_type=CpuType.ICE_LAKE.name,
             cpu_count=2,
-            gpu_type="<none>",
+            gpu_type=GpuType.NO_GPU.name,
             gpu_count=0,
             ram_size_gb=2,
         )
