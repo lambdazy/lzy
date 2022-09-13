@@ -32,33 +32,55 @@ class Schema:
 class Serializer(abc.ABC):
     @abc.abstractmethod
     def serialize(self, obj: Any, dest: BinaryIO) -> None:
-        """abstract method"""
+        """
+        :param obj: object to serialize into bytes
+        :param dest: serialized obj is written into dest
+        :return: None
+        """
 
     @abc.abstractmethod
     def deserialize(self, source: BinaryIO, typ: Type[T]) -> T:
-        """abstract method"""
+        """
+        :param source: buffer of file with serialized data
+        :param typ: type of the resulting object
+        :return: deserialized object
+        """
 
     @abc.abstractmethod
     def supported_types(self) -> Union[Type, Callable[[Type], bool]]:
-        """abstract method"""
+        """
+        :return: type suitable for the serializer or types filter
+        """
 
     @abc.abstractmethod
     def available(self) -> bool:
-        """abstract method"""
+        """
+        :return: True if the serializer can be used in the current environment, otherwise False
+        """
 
     @abc.abstractmethod
     def stable(self) -> bool:
-        """abstract method"""
+        """
+        :return: True if the serializer does not depend on python version/dependency versions/etc., otherwise False
+        """
 
     @abc.abstractmethod
     def format(self) -> str:
-        """abstract method"""
+        """
+        :return: data format that this serializer is working with
+        """
 
     @abc.abstractmethod
     def meta(self) -> Dict[str, str]:
-        """abstract method"""
+        """
+        :return: meta of this serializer, e.g., versions of dependencies
+        """
 
     def schema(self, obj: Any) -> Schema:
+        """
+        :param obj: object for serialization
+        :return: schema for the object
+        """
         return Schema(
             self.format(),
             StandardSchemaFormats.pickled_type.name,
@@ -68,6 +90,10 @@ class Serializer(abc.ABC):
 
     # noinspection PyMethodMayBeStatic
     def resolve(self, schema: Schema) -> Type:
+        """
+        :param schema: schema that contains information about serialized data
+        :return: Type used for python representation of the schema
+        """
         if schema.data_format != self.format():
             raise ValueError(
                 f"Invalid data format {schema.data_format}, expected {self.format()}"
@@ -87,36 +113,62 @@ class SerializerRegistry(abc.ABC):
     def register_serializer(
         self, name: str, serializer: Serializer, priority: Optional[int] = None
     ) -> None:
-        """abstract method"""
+        """
+        :param name: unique serializer's name
+        :param serializer: serializer to register
+        :param priority: number that indicates serializer's priority: 0 - max priority
+        :return: None
+        """
 
     @abc.abstractmethod
     def unregister_serializer(self, name: str) -> None:
-        """abstract method"""
+        """
+        :param name: name of the serializer to unregister
+        :return:
+        """
 
     @abc.abstractmethod
     def find_serializer_by_type(
         self, typ: Type
     ) -> Serializer:  # we assume that default serializer always can be found
-        """abstract method"""
+        """
+        :param typ: python Type needed to serialize
+        :return: corresponding serializer
+        """
 
     @abc.abstractmethod
     def find_serializer_by_name(self, serializer_name: str) -> Optional[Serializer]:
-        """abstract method"""
+        """
+        :param serializer_name: target name
+        :return: Serializer registered with serializer_name or None
+        """
 
     @abc.abstractmethod
     def resolve_name(self, serializer: Serializer) -> Optional[str]:
-        """abstract method"""
+        """
+        :param serializer: serializer to resolve name
+        :return: name if the serializer is registered, None otherwise
+        """
 
     @abc.abstractmethod
     def find_serializer_by_data_format(self, data_format: str) -> Optional[Serializer]:
-        """abstract method"""
+        """
+        :param data_format: data format to resolve serializer
+        :return: Serializer if there is a serializer for that data format, None otherwise
+        """
 
 
 class Hasher(abc.ABC):
     @abc.abstractmethod
     def hash(self, data: Any) -> str:
-        """abstract method"""
+        """
+        :param data: object to hash
+        :return: hash result
+        """
 
     @abc.abstractmethod
     def can_hash(self, data: Any) -> bool:
-        """abstract method"""
+        """
+        :param data: object to hash
+        :return: True if object can be hashed, False otherwise
+        """
