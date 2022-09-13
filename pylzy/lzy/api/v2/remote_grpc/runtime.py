@@ -69,6 +69,7 @@ def _build_token(username: str, key_path: Optional[str] = None) -> str:
                     "nbf": time.time(),
                     "exp": time.time() + 7 * 24 * 60 * 60,  # 7 days
                     "iss": username,
+                    "pvd": "GITHUB"
                 },
                 private_key,
                 algorithm="PS256",
