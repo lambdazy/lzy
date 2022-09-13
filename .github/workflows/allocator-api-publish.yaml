@@ -37,6 +37,11 @@ jobs:
         run: |
           cd util/util-grpc/ && mvn clean deploy --also-make-dependents && cd ../..
 
+      - name: "Publish util-auth"
+        timeout-minutes: 10
+        run: |
+          cd util/util-auth/ && mvn clean deploy --also-make-dependents && cd ../..
+
       - name: "Publish allocator api"
         timeout-minutes: 10
         run: |
