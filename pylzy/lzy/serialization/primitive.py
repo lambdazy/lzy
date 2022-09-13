@@ -1,3 +1,4 @@
+import tempfile
 from typing import Any, BinaryIO, Callable, Dict, Type, Union, cast
 
 import jsonpickle  # type: ignore
@@ -17,7 +18,16 @@ class PrimitiveSerializer(Serializer):
         dest.write(dumps)
 
     def deserialize(self, source: BinaryIO, typ: Type[T]) -> T:
-        read = source.read().decode("utf-8")
+        # write data to mem buffer firstly to ensure that we read all data in case of dynamic source (e.g. FUSE)
+        with tempfile.TemporaryFile() as handle:
+            while True:
+                data = source.read(8096)
+                if not data:
+                    break
+                handle.write(data)
+            handle.flush()
+            handle.seek(0)
+            read = handle.read().decode("utf-8")
         return cast(T, jsonpickle.loads(read))
 
     def supported_types(self) -> Union[Type, Callable[[Type], bool]]:
