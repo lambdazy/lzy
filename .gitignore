@@ -182,6 +182,9 @@ coverage.svg
 *.tfstate
 *.tfstate.*
 
+# allocator scripts
+allocator/scripts/*config.yaml
+
 # terraform vars files with sensetive information
 *.tvars.json
 tvars.json
