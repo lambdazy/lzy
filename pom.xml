@@ -14,7 +14,7 @@
         <module>util</module>
         <module>model-old</module>
         <module>model</module>
-        <module>backoffice</module>
+        <module>site</module>
         <module>server</module>
         <module>servant</module>
         <module>portal</module>
