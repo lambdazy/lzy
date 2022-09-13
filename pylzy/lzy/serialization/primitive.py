@@ -17,7 +17,7 @@ class PrimitiveSerializer(Serializer):
         dest.write(dumps)
 
     def deserialize(self, source: BinaryIO, typ: Type[T]) -> T:
-        read = source.read()
+        read = source.read().decode("utf-8")
         return cast(T, jsonpickle.loads(read))
 
     def supported_types(self) -> Union[Type, Callable[[Type], bool]]:
