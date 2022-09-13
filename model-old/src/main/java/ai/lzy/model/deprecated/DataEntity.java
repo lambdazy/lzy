@@ -1,8 +1,9 @@
-package ai.lzy.model.data;
+package ai.lzy.model.deprecated;
 
 import java.net.URI;
 import ai.lzy.model.slot.Slot;
 
+@Deprecated
 public interface DataEntity extends DataPage {
     Component[] components();
 
