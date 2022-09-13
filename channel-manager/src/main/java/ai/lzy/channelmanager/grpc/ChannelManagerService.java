@@ -1,16 +1,13 @@
 package ai.lzy.channelmanager.grpc;
 
-import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
-import static ai.lzy.model.db.DbHelper.withRetries;
-
 import ai.lzy.channelmanager.ChannelManagerConfig;
 import ai.lzy.channelmanager.channel.*;
 import ai.lzy.channelmanager.db.ChannelManagerDataSource;
 import ai.lzy.channelmanager.db.ChannelStorage;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
-import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.deprecated.GrpcConverter;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.v1.channel.LCM;
 import ai.lzy.v1.channel.LCMS;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
@@ -18,17 +15,19 @@ import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.apache.commons.lang3.NotImplementedException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.apache.commons.lang3.NotImplementedException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
-import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
+
+import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
+import static ai.lzy.model.db.DbHelper.withRetries;
 
 @Singleton
 public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManagerImplBase {
@@ -38,7 +37,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
     private final ChannelManagerDataSource dataSource;
     private final ChannelStorage channelStorage;
     private final URI whiteboardAddress;
-    private final LockManager lockManager;
+    private final BucketLock locks = new BucketLock(256);
 
     @Inject
     public ChannelManagerService(
@@ -48,7 +47,6 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         this.dataSource = dataSource;
         this.channelStorage = channelStorage;
         this.whiteboardAddress = URI.create(config.getWhiteboardAddress());
-        this.lockManager = new LocalLockManager().withPrefix("channel-manager");
     }
 
     @Override
@@ -100,13 +98,12 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 }
             };
 
-            final var lock = lockManager.getOrCreate(channelId);
             withRetries(defaultRetryPolicy(), LOG, () -> {
-                lock.lock();
+                locks.lock(channelId);
                 try {
                     channelStorage.insertChannel(channelId, userId, workflowId, channelName, channelType, spec, null);
                 } finally {
-                    lock.unlock();
+                    locks.unlock(channelId);
                 }
             });
 
@@ -133,15 +130,16 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
     {
         LOG.info("Destroy channel {}", request.getChannelId());
 
+        final String channelId = request.getChannelId();
+        if (channelId.isBlank()) {
+            String errorMessage = "Empty channel id, request shouldn't contain empty fields";
+            LOG.error("Destroy channel {} failed, invalid argument: {}", request.getChannelId(), errorMessage);
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(errorMessage).asException());
+            return;
+        }
+
         try {
-            final String channelId = request.getChannelId();
-            if (channelId.isBlank()) {
-                String errorMessage = "Empty channel id, request shouldn't contain empty fields";
-                LOG.error("Destroy channel {} failed, invalid argument: {}", request.getChannelId(), errorMessage);
-                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(errorMessage).asException());
-                return;
-            }
-            lockManager.getOrCreate(channelId);
+            locks.lock(channelId);
 
             withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.setChannelLifeStatus(
                 channelId, ChannelStorage.ChannelLifeStatus.DESTROYING, null));
@@ -170,8 +168,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 request.getChannelId(), e.getMessage(), e);
             responseObserver.onError(Status.INTERNAL.withCause(e).asException());
         } finally {
-            lockManager.getOrCreate(request.getChannelId()).unlock();
-            lockManager.remove(request.getChannelId());
+            locks.unlock(channelId);
         }
     }
 
@@ -199,14 +196,12 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             List<Channel> channels =
                 channelStorage.listChannels(userId, workflowId, ChannelStorage.ChannelLifeStatus.DESTROYING, null);
             for (final Channel channel : channels) {
-                final var lock = lockManager.getOrCreate(channel.id());
-                lock.lock();
+                locks.lock(channel.id());
                 try {
                     channel.destroy();
                     withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.removeChannel(channel.id(), null));
                 } finally {
-                    lock.unlock();
-                    lockManager.remove(channel.id());
+                    locks.unlock(channel.id());
                 }
             }
 
@@ -320,7 +315,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             return;
         }
 
-        lockManager.getOrCreate(attach.getSlotInstance().getChannelId()).lock();
+        locks.lock(attach.getSlotInstance().getChannelId());
         try {
             final SlotInstance slotInstance = GrpcConverter.from(attach.getSlotInstance());
             final Endpoint endpoint = SlotEndpoint.getInstance(slotInstance);
@@ -369,7 +364,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 e.getMessage(), e);
             responseObserver.onError(Status.INTERNAL.withCause(e).asException());
         } finally {
-            lockManager.getOrCreate(attach.getSlotInstance().getChannelId()).unlock();
+            locks.unlock(attach.getSlotInstance().getChannelId());
         }
     }
 
@@ -391,7 +386,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             return;
         }
 
-        lockManager.getOrCreate(detach.getSlotInstance().getChannelId()).lock();
+        locks.lock(detach.getSlotInstance().getChannelId());
         try {
             final SlotInstance slotInstance = GrpcConverter.from(detach.getSlotInstance());
             final Endpoint endpoint = SlotEndpoint.getInstance(slotInstance);
@@ -425,7 +420,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 e.getMessage(), e);
             responseObserver.onError(Status.INTERNAL.withCause(e).asException());
         } finally {
-            lockManager.getOrCreate(detach.getSlotInstance().getChannelId()).unlock();
+            locks.unlock(detach.getSlotInstance().getChannelId());
         }
     }
 

@@ -58,6 +58,6 @@ Configuration:
 
       - name: "ai.lzy.fs"
         additivity: false
-        level: debug
+        level: error
         AppenderRef:
           ref: Console
