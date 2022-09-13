@@ -27,7 +27,7 @@ public class AllocatorAgent extends TimerTask {
 
     private final String vmId;
     private final AllocatorPrivateGrpc.AllocatorPrivateBlockingStub stub;
-    private final Duration period;
+    private final Duration heartbeatPeriod;
     private final Timer timer;
     private final ManagedChannel channel;
     private final String vmIpAddress;
@@ -38,7 +38,8 @@ public class AllocatorAgent extends TimerTask {
         this.vmId = vmId == null ? System.getenv(VM_ID_KEY) : vmId;
         final var allocAddress = allocatorAddress == null
             ? System.getenv(VM_ALLOCATOR_ADDRESS) : allocatorAddress;
-        period = heartbeatPeriod == null ? Duration.parse(System.getenv(VM_HEARTBEAT_PERIOD)) : heartbeatPeriod;
+        this.heartbeatPeriod = heartbeatPeriod == null ? Duration.parse(System.getenv(VM_HEARTBEAT_PERIOD))
+            : heartbeatPeriod;
         this.vmIpAddress = vmIpAddress;
 
         channel = ChannelBuilder.forAddress(allocAddress)
@@ -65,7 +66,7 @@ public class AllocatorAgent extends TimerTask {
             throw new RegisterException(e);
         }
 
-        timer.scheduleAtFixedRate(this, period.toMillis(), period.toMillis());
+        timer.scheduleAtFixedRate(this, heartbeatPeriod.toMillis(), heartbeatPeriod.toMillis());
     }
 
     @Override

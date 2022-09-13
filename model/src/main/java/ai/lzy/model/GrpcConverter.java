@@ -18,17 +18,13 @@ import ai.lzy.model.snapshot.SnapshotEntry;
 import ai.lzy.model.snapshot.SnapshotEntryStatus;
 import ai.lzy.model.snapshot.WhiteboardField;
 import ai.lzy.model.snapshot.WhiteboardStatus;
-import ai.lzy.v1.Channels;
-import ai.lzy.v1.Lzy;
+import ai.lzy.v1.*;
 import ai.lzy.v1.Lzy.AmazonCredentials;
 import ai.lzy.v1.Lzy.AzureCredentials;
 import ai.lzy.v1.Lzy.AzureSASCredentials;
 import ai.lzy.v1.Lzy.GetS3CredentialsResponse;
-import ai.lzy.v1.LzyFsApi;
-import ai.lzy.v1.LzyWhiteboard;
 import ai.lzy.v1.LzyWhiteboard.WhiteboardField.Builder;
 import ai.lzy.v1.LzyWhiteboard.WhiteboardField.Status;
-import ai.lzy.v1.Operations;
 import ai.lzy.v1.Operations.Provisioning.Tag;
 import ai.lzy.v1.Tasks.ContextSpec;
 import ai.lzy.v1.Tasks.SlotAssignment;
@@ -38,7 +34,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Locale;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -145,6 +140,13 @@ public abstract class GrpcConverter {
         return DataSchema.buildDataSchema(dataScheme.getSchemeType().name(), dataScheme.getType());
     }
 
+    public static ChannelManager.ChannelCreateRequest createRequest(String executionId, Channels.ChannelSpec spec) {
+        return ChannelManager.ChannelCreateRequest.newBuilder()
+            .setWorkflowId(executionId)
+            .setChannelSpec(spec)
+            .build();
+    }
+
     public static Operations.Zygote to(Zygote zygote) {
         final Operations.Zygote.Builder builder = Operations.Zygote.newBuilder();
         if (zygote instanceof AtomicZygote) {
@@ -225,7 +227,6 @@ public abstract class GrpcConverter {
                 .collect(Collectors.toList()))
             .build();
     }
-
 
     public static Channels.ChannelSpec to(ChannelSpec channel) {
         final Channels.ChannelSpec.Builder builder = Channels.ChannelSpec.newBuilder();

@@ -4,8 +4,9 @@ import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.kharon.KharonConfig;
 import ai.lzy.kharon.KharonDataSource;
-import ai.lzy.model.db.DaoException;
-import ai.lzy.model.db.Transaction;
+import ai.lzy.kharon.workflow.dao.ExecutionDao;
+import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
@@ -24,7 +25,6 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.core.util.StringUtils;
-import io.micronaut.core.util.functional.ThrowingFunction;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Inject;
@@ -32,14 +32,10 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.sql.*;
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -61,7 +57,8 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
 
     private final Duration waitAllocateTimeout;
 
-    private final KharonDataSource db;
+    private final ExecutionDao dao;
+    private final KharonDataSource storage;
 
     private final ManagedChannel allocatorServiceChannel;
     private final AllocatorGrpc.AllocatorBlockingStub allocatorServiceClient;
@@ -76,8 +73,9 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
     private final LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManagerClient;
 
     @Inject
-    public WorkflowService(KharonConfig config, KharonDataSource db) {
-        this.db = db;
+    public WorkflowService(KharonConfig config, KharonDataSource storage, ExecutionDao dao) {
+        this.storage = storage;
+        this.dao = dao;
         portalConfig = config.getPortal();
         waitAllocateTimeout = config.getWorkflow().getWaitAllocationTimeout();
         channelManagerAddress = config.getChannelManagerAddress();
@@ -164,22 +162,15 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
             storageData = request.getSnapshotStorage();
         }
 
-        boolean doesExecutionCreated;
-        try {
-            doesExecutionCreated = Transaction.execute(db, connection ->
-                createExecution(connection, executionId, userId, workflowName, storageType, storageData, response)
-            );
-        } catch (DaoException e) {
-            var desc = "Cannot create execution: " + e.getMessage();
-            LOG.error(desc, e);
-            response.onError(Status.INTERNAL.withDescription(desc).asRuntimeException());
-            return;
-        }
-
-        if (!doesExecutionCreated) {
+        try (var transaction = TransactionHandle.create(storage)) {
+            dao.create(executionId, userId, workflowName, storageType, storageData, transaction);
+            transaction.commit();
+        } catch (Exception e) {
             if (internalSnapshotStorage) {
                 safeDeleteTempStorageBucket(storageData.getBucket());
             }
+            LOG.error(e.getMessage(), e);
+            response.onError(Status.INTERNAL.withDescription(e.getMessage()).asRuntimeException());
             return;
         }
 
@@ -211,17 +202,11 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
             return;
         }
 
-        try (var conn = db.connect()) {
-            var st = conn.prepareStatement("""
-                SELECT count(*)
-                FROM workflows
-                WHERE user_id = ? AND workflow_name = ? AND active_execution_id = ?""");
-            st.setString(1, userId);
-            st.setString(2, request.getWorkflowName());
-            st.setString(2, request.getExecutionId());
+        try {
+            boolean result = withRetries(defaultRetryPolicy(), LOG, () ->
+                dao.doesActiveExecutionExists(userId, request.getWorkflowName(), request.getExecutionId()));
 
-            var rs = st.executeQuery();
-            if (rs.next()) {
+            if (result) {
                 LOG.info("[attachWorkflow] workflow '{}/{}' successfully attached.",
                     request.getWorkflowName(), request.getExecutionId());
 
@@ -230,9 +215,10 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
             } else {
                 replyError.accept(Status.NOT_FOUND, "");
             }
-        } catch (SQLException e) {
-            LOG.error("[attachWorkflow] Got SQLException: " + e.getMessage(), e);
-            response.onError(e);
+        } catch (Exception e) {
+            LOG.error("[attachWorkflow] Got Exception: " + e.getMessage(), e);
+            response.onError(Status.INTERNAL.withDescription("Cannot retrieve data about workflow")
+                .asRuntimeException());
         }
     }
 
@@ -252,118 +238,45 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
             return;
         }
 
-        try {
-            final String[] bucket = {null};
+        // final String[] bucket = {null};
+        // bucket[0] = retrieve from db
 
-            var success = Transaction.execute(db, conn -> {
-                var st = conn.prepareStatement("""
-                        SELECT execution_id, finished_at, finished_with_error, storage_bucket
-                        FROM workflow_executions
-                        WHERE execution_id = ?
-                        FOR UPDATE""",
-                    ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
-                st.setString(1, request.getExecutionId());
+        try (var transaction = TransactionHandle.create(storage)) {
+            withRetries(defaultRetryPolicy(), LOG, () ->
+                dao.updateFinishData(request.getWorkflowName(), request.getExecutionId(),
+                    Timestamp.from(Instant.now()), request.getReason(), transaction));
 
-                var rs = st.executeQuery();
-                if (rs.next()) {
-                    if (rs.getTimestamp("finished_at") != null) {
-                        LOG.warn("Attempt to finish already finished workflow '{}' ('{}'). "
-                                + "Finished at '{}' with reason '{}'",
-                            request.getExecutionId(), request.getWorkflowName(),
-                            rs.getTimestamp("finished_at"), rs.getString("finished_with_error"));
+            withRetries(defaultRetryPolicy(), LOG, () ->
+                dao.updateActiveExecution(userId, request.getWorkflowName(), request.getExecutionId(), null));
 
-                        response.onError(Status.INVALID_ARGUMENT.withDescription("Already finished.").asException());
-                        return false;
-                    }
-
-                    bucket[0] = rs.getString("storage_bucket");
-
-                    rs.updateTimestamp("finished_at", Timestamp.from(Instant.now()));
-                    rs.updateString("finished_with_error", request.getReason());
-                    rs.updateRow();
-                } else {
-                    LOG.warn("Attempt to finish unknown workflow '{}' ('{}') by user '{}'",
-                        request.getExecutionId(), request.getWorkflowName(), userId);
-
-                    response.onError(Status.NOT_FOUND.asException());
-                    return false;
-                }
-
-                var st2 = conn.prepareStatement("""
-                    UPDATE workflows
-                    SET active_execution_id = NULL
-                    WHERE user_id = ? AND workflow_name=? AND active_execution_id = ?""");
-                st2.setString(1, userId);
-                st2.setString(2, request.getWorkflowName());
-                st2.setString(3, request.getExecutionId());
-                st2.executeUpdate();
-
-                return true;
-            });
-
-            if (success) {
-                response.onNext(FinishWorkflowResponse.getDefaultInstance());
-                response.onCompleted();
-
-                // TODO: add TTL instead of implicit delete
-                // safeDeleteTempStorageBucket(bucket[0]);
-            }
+            transaction.commit();
         } catch (Exception e) {
             LOG.error("[finishWorkflow], fail: {}.", e.getMessage(), e);
-            response.onError(Status.INTERNAL.withCause(e).asException());
+            response.onError(Status.INTERNAL.withDescription(e.getMessage()).asRuntimeException());
         }
+
+        response.onNext(FinishWorkflowResponse.getDefaultInstance());
+        response.onCompleted();
+
+        // TODO: add TTL instead of implicit delete
+        // safeDeleteTempStorageBucket(bucket[0]);
     }
 
     private boolean startPortal(String executionId, String userId, StreamObserver<CreateWorkflowResponse> response) {
         try {
-            withRetries(
-                defaultRetryPolicy(),
-                LOG,
-                () -> updateDatabase(connection -> {
-                    var st = connection.prepareStatement("""
-                        UPDATE workflow_executions
-                        SET portal = cast(? as portal_status)
-                        WHERE execution_id = ?""");
-                    st.setString(1, PortalStatus.CREATING_STD_CHANNELS.name());
-                    st.setString(2, executionId);
-                    return st;
-                }));
+            withRetries(defaultRetryPolicy(), LOG, () ->
+                dao.updateStatus(executionId, PortalStatus.CREATING_STD_CHANNELS));
 
             String[] portalChannelIds = createPortalStdChannels(executionId);
             var stdoutChannelId = portalChannelIds[0];
             var stderrChannelId = portalChannelIds[1];
 
-            withRetries(
-                defaultRetryPolicy(),
-                LOG,
-                () -> updateDatabase(connection -> {
-                    var st = connection.prepareStatement("""
-                        UPDATE workflow_executions
-                        SET portal_stdout_channel_id = ?, portal_stderr_channel_id = ?, 
-                            portal = cast(? as portal_status)
-                        WHERE execution_id = ?""");
-                    st.setString(1, stdoutChannelId);
-                    st.setString(2, stderrChannelId);
-                    st.setString(3, PortalStatus.CREATING_SESSION.name());
-                    st.setString(4, executionId);
-                    return st;
-                }));
+            withRetries(defaultRetryPolicy(), LOG, () ->
+                dao.updateStdChannelIds(executionId, stdoutChannelId, stderrChannelId));
 
             var sessionId = createSession(userId);
 
-            withRetries(
-                defaultRetryPolicy(),
-                LOG,
-                () -> updateDatabase(connection -> {
-                    var st = connection.prepareStatement("""
-                        UPDATE workflow_executions
-                        SET portal = cast(? as portal_status), allocator_session_id = ?
-                        WHERE execution_id = ?""");
-                    st.setString(1, PortalStatus.REQUEST_VM.name());
-                    st.setString(2, sessionId);
-                    st.setString(3, executionId);
-                    return st;
-                }));
+            withRetries(defaultRetryPolicy(), LOG, () -> dao.updateAllocatorSession(executionId, sessionId));
 
             var startAllocationTime = Instant.now();
             var operation = startAllocation(sessionId, executionId, stdoutChannelId, stderrChannelId);
@@ -380,20 +293,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
             }
             var vmId = allocateMetadata.getVmId();
 
-            withRetries(
-                defaultRetryPolicy(),
-                LOG,
-                () -> updateDatabase(connection -> {
-                    var st = connection.prepareStatement("""
-                        UPDATE workflow_executions
-                        SET portal = cast(? as portal_status), allocate_op_id = ?, portal_vm_id = ?
-                        WHERE execution_id = ?""");
-                    st.setString(1, PortalStatus.ALLOCATING_VM.name());
-                    st.setString(2, opId);
-                    st.setString(3, vmId);
-                    st.setString(4, executionId);
-                    return st;
-                }));
+            withRetries(defaultRetryPolicy(), LOG, () -> dao.updateAllocateOperationData(executionId, opId, vmId));
 
             AllocateResponse allocateResponse = waitAllocation(startAllocationTime.plus(waitAllocateTimeout), opId);
             if (allocateResponse == null) {
@@ -402,19 +302,8 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
                 return false;
             }
 
-            withRetries(
-                defaultRetryPolicy(),
-                LOG,
-                () -> updateDatabase(connection -> {
-                    var st = connection.prepareStatement("""
-                        UPDATE workflow_executions
-                        SET portal = cast(? as portal_status), portal_vm_address = ?
-                        WHERE execution_id = ?""");
-                    st.setString(1, PortalStatus.VM_READY.name());
-                    st.setString(2, allocateResponse.getMetadataOrDefault(AllocatorAgent.VM_IP_ADDRESS, null));
-                    st.setString(3, executionId);
-                    return st;
-                }));
+            withRetries(defaultRetryPolicy(), LOG, () -> dao.updateAllocatedVmAddress(executionId,
+                allocateResponse.getMetadataOrDefault(AllocatorAgent.VM_IP_ADDRESS, null)));
 
         } catch (Exception e) {
             response.onError(Status.INTERNAL.withDescription("Cannot save execution data about portal")
@@ -427,97 +316,26 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
     private String[] createPortalStdChannels(String executionId) {
         LOG.info("Creating portal stdout channel with name '{}'", portalConfig.getStdoutChannelName());
         // create portal stdout channel that receives portal output
-        String stdoutChannelId = channelManagerClient.create(ChannelManager.ChannelCreateRequest.newBuilder()
-            .setWorkflowId(executionId)
-            .setChannelSpec(
-                Channels.ChannelSpec.newBuilder()
-                    .setChannelName(portalConfig.getStdoutChannelName())
-                    .setContentType(Operations.DataScheme.newBuilder()
-                        .setType("text")
-                        .setSchemeType(Operations.SchemeType.plain)
-                        .build())
-                    .setDirect(Channels.DirectChannelType.getDefaultInstance())
-                    .build()
-            ).build()).getChannelId();
+        String stdoutChannelId = channelManagerClient.create(GrpcConverter.createRequest(executionId,
+            createPortalChannelSpec(portalConfig.getStdoutChannelName()))).getChannelId();
 
         LOG.info("Creating portal stderr channel with name '{}'", portalConfig.getStderrChannelName());
         // create portal stderr channel that receives portal error output
-        String stderrChannelId = channelManagerClient.create(ChannelManager.ChannelCreateRequest.newBuilder()
-            .setWorkflowId(executionId)
-            .setChannelSpec(
-                Channels.ChannelSpec.newBuilder()
-                    .setChannelName(portalConfig.getStderrChannelName())
-                    .setContentType(Operations.DataScheme.newBuilder()
-                        .setType("text")
-                        .setSchemeType(Operations.SchemeType.plain)
-                        .build())
-                    .setDirect(Channels.DirectChannelType.getDefaultInstance())
-                    .build()
-            ).build()).getChannelId();
+        String stderrChannelId = channelManagerClient.create(GrpcConverter.createRequest(executionId,
+            createPortalChannelSpec(portalConfig.getStderrChannelName()))).getChannelId();
 
         return new String[] {stdoutChannelId, stderrChannelId};
     }
 
-    private boolean createExecution(Connection conn, String executionId, String userId,
-                                    String workflowName, String storageType, SnapshotStorage storageData,
-                                    StreamObserver<CreateWorkflowResponse> response) throws SQLException, IOException
-    {
-        var st = conn.prepareStatement("""
-                SELECT active_execution_id
-                FROM workflows
-                WHERE user_id = ? AND workflow_name = ?
-                FOR UPDATE""",        // TODO: add `nowait` and handle it's warning or error
-            ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
-        st.setString(1, userId);
-        st.setString(2, workflowName);
-
-        var rs = st.executeQuery();
-        boolean update = false;
-        if (rs.next()) {
-            var existingExecutionId = rs.getString("active_execution_id");
-            if (StringUtils.isNotEmpty(existingExecutionId)) {
-                var rc = Status.ALREADY_EXISTS;
-                var desc = String.format("Attempt to start one more instance of workflow: active is '%s'",
-                    existingExecutionId);
-                LOG.error("[createWorkflow], fail: rc={}, msg={}.", rc, desc);
-                response.onError(rc.withDescription(desc).asException());
-                return false;
-            }
-            update = true;
-        }
-
-        var st2 = conn.prepareStatement("""
-            INSERT INTO workflow_executions
-            (execution_id, created_at, storage, storage_bucket, storage_credentials)
-            VALUES (?, ?, cast(? as storage_type), ?, ?)""");
-        st2.setString(1, executionId);
-        st2.setTimestamp(2, Timestamp.from(Instant.now()));
-        st2.setString(3, storageType.toUpperCase(Locale.ROOT));
-        st2.setString(4, storageData.getBucket());
-        var out = new ByteArrayOutputStream(4096);
-        storageData.writeTo(out);
-        st2.setString(5, out.toString(StandardCharsets.UTF_8));
-        st2.executeUpdate();
-
-        if (update) {
-            rs.updateString("active_execution_id", executionId);
-            rs.updateRow();
-        } else {
-            st = conn.prepareStatement("""
-                INSERT INTO workflows (user_id, workflow_name, created_at, active_execution_id)
-                VALUES (?, ?, ?, ?)""");
-
-            st.setString(1, userId);
-            st.setString(2, workflowName);
-            st.setTimestamp(3, Timestamp.from(Instant.now()));
-            st.setString(4, executionId);
-            st.executeUpdate();
-        }
-
-        LOG.info("[createWorkflow], new execution '{}' for workflow '{}' created.",
-            workflowName, executionId);
-
-        return true;
+    private static Channels.ChannelSpec createPortalChannelSpec(String channelName) {
+        return Channels.ChannelSpec.newBuilder()
+            .setChannelName(channelName)
+            .setContentType(Operations.DataScheme.newBuilder()
+                .setType("text")
+                .setSchemeType(Operations.SchemeType.plain)
+                .build())
+            .setDirect(Channels.DirectChannelType.getDefaultInstance())
+            .build();
     }
 
     public String createSession(String userId) {
@@ -581,18 +399,6 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
             LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(100));
         }
         return null;
-    }
-
-    public int updateDatabase(ThrowingFunction<Connection, PreparedStatement, SQLException> function)
-        throws SQLException
-    {
-        try (var connection = db.connect()) {
-            var rs = function.apply(connection).executeUpdate();
-            if (rs < 1) {
-                throw new SQLException("Database UPDATE query changed no one row");
-            }
-            return rs;
-        }
     }
 
     public SnapshotStorage createTempStorageBucket(String userId) {

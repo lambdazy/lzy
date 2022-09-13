@@ -262,37 +262,24 @@ public class WorkflowServiceTest {
                 .setExecutionId(executionId)
                 .build());
 
-        try {
-            authorizedWorkflowClient.finishWorkflow(
-                FinishWorkflowRequest.newBuilder()
-                    .setWorkflowName("workflow_2")
-                    .setExecutionId(executionId)
-                    .build());
-            Assert.fail();
-        } catch (StatusRuntimeException e) {
-            if (Status.INVALID_ARGUMENT.getCode().equals(e.getStatus().getCode())
-                && "Already finished.".equals(e.getStatus().getDescription()))
-            {
-                Assert.assertTrue(true);
-            } else {
-                e.printStackTrace(System.err);
-                Assert.fail(e.getMessage());
-            }
-        }
+        var thrownAlreadyFinished = Assert.assertThrows(StatusRuntimeException.class, () ->
+            authorizedWorkflowClient.finishWorkflow(FinishWorkflowRequest.newBuilder()
+                .setWorkflowName("workflow_2")
+                .setExecutionId(executionId)
+                .build()));
 
-        try {
+        var thrownUnknownWorkflow = Assert.assertThrows(StatusRuntimeException.class, () ->
             authorizedWorkflowClient.finishWorkflow(
                 FinishWorkflowRequest.newBuilder()
                     .setWorkflowName("workflow_3")
-                    .setExecutionId("execution-id")
-                    .build());
-            Assert.fail();
-        } catch (StatusRuntimeException e) {
-            if (!Status.NOT_FOUND.getCode().equals(e.getStatus().getCode())) {
-                e.printStackTrace(System.err);
-                Assert.fail(e.getMessage());
-            }
-        }
+                    .setExecutionId("execution_id")
+                    .build()));
+
+        Assert.assertEquals(Status.INTERNAL.getCode(), thrownAlreadyFinished.getStatus().getCode());
+        Assert.assertEquals(Status.INTERNAL.getCode(), thrownUnknownWorkflow.getStatus().getCode());
+
+        Assert.assertEquals("Already finished", thrownAlreadyFinished.getStatus().getDescription());
+        Assert.assertEquals("Unknown workflow execution", thrownUnknownWorkflow.getStatus().getDescription());
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")

@@ -27,6 +27,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ThreadVmAllocator implements VmAllocator {
     private static final Logger LOG = LogManager.getLogger(ThreadVmAllocator.class);
 
+    public static final String PORTAL_POOL_LABEL = "portals";
+
     private final Method vmMain;
     private final ConcurrentHashMap<String, Thread> vmThreads = new ConcurrentHashMap<>();
     private final ServiceConfig cfg;
@@ -67,7 +69,7 @@ public class ThreadVmAllocator implements VmAllocator {
         var startupArgs = new ArrayList<String>(workload.args());
 
         List<String> additionalArgs;
-        if (poolLabel.contentEquals(Vm.Spec.PORTAL_POOL_LABEL)) {
+        if (poolLabel.contentEquals(PORTAL_POOL_LABEL)) {
             additionalArgs = List.of(
                 "-portal.vm-id=" + vmId,
                 "-portal.allocator-address=" + cfg.getAddress(),
