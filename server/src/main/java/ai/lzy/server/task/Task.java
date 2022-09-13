@@ -1,14 +1,13 @@
 package ai.lzy.server.task;
 
 import ai.lzy.model.Signal;
-import ai.lzy.model.Slot;
-import ai.lzy.model.SlotStatus;
-import ai.lzy.model.Zygote;
+import ai.lzy.model.slot.Slot;
+import ai.lzy.model.slot.SlotStatus;
+import ai.lzy.model.deprecated.Zygote;
 import ai.lzy.server.ServantsAllocator;
-import ai.lzy.v1.Tasks;
+import ai.lzy.v1.deprecated.LzyTask;
 import java.net.URI;
 import java.util.function.Consumer;
-import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
 public interface Task {
@@ -24,7 +23,7 @@ public interface Task {
     void state(State state, int rc, String... description);
     void signal(Signal signal) throws TaskException;
 
-    void onProgress(Consumer<Tasks.TaskProgress> listener);
+    void onProgress(Consumer<LzyTask.TaskProgress> listener);
 
     void attachServant(ServantsAllocator.ServantConnection connection);
     @Nullable

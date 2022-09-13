@@ -3,7 +3,7 @@ package ai.lzy.backoffice.models.tasks;
 import io.micronaut.core.annotation.Introspected;
 import java.util.List;
 import java.util.stream.Collectors;
-import ai.lzy.v1.BackOffice;
+import ai.lzy.v1.deprecated.BackOffice;
 
 @Introspected
 public class GetTasksResponse {

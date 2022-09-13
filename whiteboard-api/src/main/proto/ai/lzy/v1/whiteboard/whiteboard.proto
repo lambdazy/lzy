@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+import "ai/lzy/v1/common/data-scheme.proto";
+import "google/protobuf/timestamp.proto";
+
+package ai.lzy.v1;
+
+option java_outer_classname = "LWB";
+option java_package = "ai.lzy.v1.whiteboard";
+
+message Whiteboard {
+  string id = 1;
+  string name = 2;
+  repeated string tags = 3;
+  repeated WhiteboardField fields = 4;
+  Storage storage = 5;
+  string namespace = 6;
+  Status status = 7;
+  google.protobuf.Timestamp createdAt = 8;
+
+  enum Status {
+    WHITEBOARD_STATUS_UNSPECIFIED = 0;
+    CREATED = 1;
+    FINALIZED = 2;
+  }
+}
+
+message WhiteboardFieldInfo {
+  string name = 1;
+  oneof state {
+    NoneField noneState = 2;
+    LinkedField linkedState = 3;
+  }
+
+  message NoneField {
+  }
+
+  message LinkedField {
+    DataScheme scheme = 1;
+    string storageUri = 2;
+  }
+}
+
+message WhiteboardField {
+  WhiteboardFieldInfo info = 1;
+  Status status = 4;
+
+  enum Status {
+    WHITEBOARD_FIELD_STATUS_UNSPECIFIED = 0;
+    CREATED = 1;
+    FINALIZED = 2;
+  }
+}
+
+message Storage {
+  string name = 1;
+  string description = 2;
+}
+
+message TimeBounds {
+  google.protobuf.Timestamp from = 1;
+  google.protobuf.Timestamp to = 2;
+}

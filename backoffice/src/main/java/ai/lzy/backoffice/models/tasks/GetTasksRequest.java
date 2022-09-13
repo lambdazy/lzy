@@ -2,8 +2,8 @@ package ai.lzy.backoffice.models.tasks;
 
 import io.micronaut.core.annotation.Introspected;
 import ai.lzy.backoffice.models.UserCredentials;
-import ai.lzy.v1.BackOffice;
-import ai.lzy.v1.IAM;
+import ai.lzy.v1.deprecated.BackOffice;
+import ai.lzy.v1.deprecated.LzyAuth;
 
 @Introspected
 public class GetTasksRequest {
@@ -18,7 +18,7 @@ public class GetTasksRequest {
         this.credentials = credentials;
     }
 
-    public BackOffice.GetTasksRequest toModel(IAM.UserCredentials credentials) {
+    public BackOffice.GetTasksRequest toModel(LzyAuth.UserCredentials credentials) {
         return BackOffice.GetTasksRequest.newBuilder()
             .setCredentials(this.credentials.toModel())
             .setBackofficeCredentials(credentials)

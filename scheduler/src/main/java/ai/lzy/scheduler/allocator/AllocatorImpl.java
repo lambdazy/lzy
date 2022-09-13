@@ -11,7 +11,7 @@ import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.Servant;
 import ai.lzy.iam.resources.subjects.SubjectType;
-import ai.lzy.model.Operation;
+import ai.lzy.model.operation.Operation;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.scheduler.configs.ServantEventProcessorConfig;
 import ai.lzy.scheduler.configs.ServiceConfig;

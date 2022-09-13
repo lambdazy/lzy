@@ -1,11 +1,12 @@
 package ai.lzy.fs.mock;
 
-import ai.lzy.model.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.v1.common.LMS;
 import com.google.protobuf.ByteString;
 import ai.lzy.fs.fs.LzyOutputSlot;
-import ai.lzy.model.Slot;
+import ai.lzy.model.slot.Slot;
 import ai.lzy.model.data.DataSchema;
-import ai.lzy.v1.Operations;
+import ai.lzy.v1.deprecated.LzyZygote;
 
 import java.io.IOException;
 import java.net.URI;
@@ -23,8 +24,8 @@ public class OutputSlotMock implements LzyOutputSlot {
     private final Runnable onDestroy;
     private final Runnable onClose;
     private final ArrayList<Consumer<ByteString>> consumers = new ArrayList<>();
-    private final HashMap<Operations.SlotStatus.State, List<Runnable>> stateTrackers = new HashMap<>();
-    private Operations.SlotStatus.State state = Operations.SlotStatus.State.UNBOUND;
+    private final HashMap<LMS.SlotStatus.State, List<Runnable>> stateTrackers = new HashMap<>();
+    private LMS.SlotStatus.State state = LMS.SlotStatus.State.UNBOUND;
 
     OutputSlotMock(String name, Runnable onSuspend, Runnable onDestroy, Runnable onClose) {
         this.name = name;
@@ -93,17 +94,17 @@ public class OutputSlotMock implements LzyOutputSlot {
     }
 
     @Override
-    public Operations.SlotStatus.State state() {
+    public LMS.SlotStatus.State state() {
         return state;
     }
 
-    public void state(Operations.SlotStatus.State state) {
+    public void state(LMS.SlotStatus.State state) {
         this.state = state;
         stateTrackers.getOrDefault(state, List.of()).forEach(Runnable::run);
     }
 
     @Override
-    public void onState(Operations.SlotStatus.State state, Runnable action) {
+    public void onState(LMS.SlotStatus.State state, Runnable action) {
         stateTrackers.compute(state, (k, v) -> {
             if (v == null) {
                 return List.of(action);
@@ -114,12 +115,12 @@ public class OutputSlotMock implements LzyOutputSlot {
     }
 
     @Override
-    public void onState(Set<Operations.SlotStatus.State> state, StateChangeAction action) {
+    public void onState(Set<LMS.SlotStatus.State> state, StateChangeAction action) {
         state.forEach(state1 -> onState(state1, action));
     }
 
     @Override
-    public Operations.SlotStatus status() {
+    public LMS.SlotStatus status() {
         return null;
     }
 

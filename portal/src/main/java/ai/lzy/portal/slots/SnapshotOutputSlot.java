@@ -3,7 +3,7 @@ package ai.lzy.portal.slots;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.slots.LzySlotBase;
 import ai.lzy.fs.slots.OutFileSlot;
-import ai.lzy.model.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.s3.S3Repository;
 import com.google.protobuf.ByteString;
 import org.apache.logging.log4j.LogManager;
@@ -18,7 +18,7 @@ import java.nio.file.Path;
 import java.util.Objects;
 import java.util.stream.Stream;
 
-import static ai.lzy.v1.Operations.SlotStatus.State.OPEN;
+import static ai.lzy.v1.common.LMS.SlotStatus.State.OPEN;
 
 public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot {
     private static final Logger LOG = LogManager.getLogger(SnapshotOutputSlot.class);

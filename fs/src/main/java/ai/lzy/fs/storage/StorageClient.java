@@ -2,10 +2,10 @@ package ai.lzy.fs.storage;
 
 import java.net.URI;
 
-import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.model.StorageCredentials;
 import ru.yandex.qe.s3.transfer.Transmitter;
-import ai.lzy.v1.Lzy;
+import ai.lzy.v1.deprecated.Lzy;
 
 public interface StorageClient {
     String DEFAULT_TRANSMITTER_NAME = "transmitter";

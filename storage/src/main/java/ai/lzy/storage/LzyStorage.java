@@ -3,7 +3,7 @@ package ai.lzy.storage;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
-import ai.lzy.v1.LzyStorageServiceGrpc;
+import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import com.google.common.net.HostAndPort;

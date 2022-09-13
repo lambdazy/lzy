@@ -1,8 +1,7 @@
 package ai.lzy.whiteboard.grpc;
 
-import static ai.lzy.model.GrpcConverter.contentTypeFrom;
-
-import ai.lzy.v1.LWB;
+import ai.lzy.model.deprecated.GrpcConverter;
+import ai.lzy.v1.whiteboard.LWB;
 import ai.lzy.whiteboard.model.Field;
 import ai.lzy.whiteboard.model.LinkedField;
 import ai.lzy.whiteboard.model.Whiteboard;
@@ -49,7 +48,7 @@ public class ProtoConverter {
                 .setName(field.name())
                 .setLinkedState(LWB.WhiteboardFieldInfo.LinkedField.newBuilder()
                     .setStorageUri(field.storageUri())
-                    .setScheme(ai.lzy.model.GrpcConverter.to(field.schema()))
+                    .setScheme(ai.lzy.model.grpc.ProtoConverter.toProto(field.schema()))
                     .build())
                 .build())
             .build();
@@ -59,7 +58,8 @@ public class ProtoConverter {
         return switch (fieldInfo.getStateCase()) {
             case NONESTATE -> new Field(fieldInfo.getName(), status);
             case LINKEDSTATE -> new LinkedField(fieldInfo.getName(), status,
-                fieldInfo.getLinkedState().getStorageUri(), contentTypeFrom(fieldInfo.getLinkedState().getScheme()));
+                fieldInfo.getLinkedState().getStorageUri(),
+                ai.lzy.model.grpc.ProtoConverter.fromProto(fieldInfo.getLinkedState().getScheme()));
             default -> throw new IllegalArgumentException("Unexpected whiteboard field state "
                                                           + fieldInfo.getStateCase());
         };

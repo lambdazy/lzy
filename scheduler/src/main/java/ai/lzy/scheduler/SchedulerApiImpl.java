@@ -1,17 +1,16 @@
 package ai.lzy.scheduler;
 
-import ai.lzy.v1.SchedulerApi;
-import ai.lzy.v1.SchedulerApi.*;
-import ai.lzy.v1.SchedulerGrpc;
 import ai.lzy.model.TaskDesc;
 import ai.lzy.scheduler.servant.Scheduler;
 import ai.lzy.scheduler.task.Task;
+import ai.lzy.v1.scheduler.Scheduler.TaskStatus;
+import ai.lzy.v1.scheduler.SchedulerApi.*;
+import ai.lzy.v1.scheduler.SchedulerGrpc;
 import io.grpc.StatusException;
 import io.grpc.stub.StreamObserver;
-
+import java.util.List;
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.util.List;
 
 @Singleton
 public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
@@ -63,7 +62,7 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
             responseObserver.onError(e);
             return;
         }
-        List<SchedulerApi.TaskStatus> statuses = tasks.stream()
+        List<TaskStatus> statuses = tasks.stream()
                 .map(SchedulerApiImpl::buildTaskStatus)
                 .toList();
         responseObserver.onNext(TaskListResponse.newBuilder().addAllStatus(statuses).build());
@@ -95,8 +94,8 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
         responseObserver.onCompleted();
     }
 
-    private static SchedulerApi.TaskStatus buildTaskStatus(Task task) {
-        var builder = SchedulerApi.TaskStatus.newBuilder()
+    private static TaskStatus buildTaskStatus(Task task) {
+        var builder = TaskStatus.newBuilder()
                 .setTaskId(task.taskId())
                 .setWorkflowId(task.workflowId())
                 .setZygoteName(task.description().operation().name());
@@ -104,15 +103,13 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
         Integer rc = task.rc();
         int rcInt = rc == null ? 0 : rc;
         var b = switch (task.status()) {
-            case QUEUE -> builder.setQueue(SchedulerApi.TaskStatus.Queue.newBuilder().build());
-            case SCHEDULED, EXECUTING -> builder.setExecuting(SchedulerApi.TaskStatus.Executing.newBuilder().build());
-            case ERROR -> builder.setError(SchedulerApi.TaskStatus.Error.newBuilder()
+            case QUEUE -> builder.setQueue(TaskStatus.Queue.newBuilder().build());
+            case SCHEDULED, EXECUTING -> builder.setExecuting(TaskStatus.Executing.newBuilder().build());
+            case ERROR -> builder.setError(TaskStatus.Error.newBuilder()
                     .setDescription(task.errorDescription())
                     .setRc(rcInt)
                     .build());
-            case SUCCESS -> builder.setSuccess(SchedulerApi.TaskStatus.Success.newBuilder()
-                    .setRc(rcInt)
-                    .build());
+            case SUCCESS -> builder.setSuccess(TaskStatus.Success.newBuilder().setRc(rcInt).build());
         };
         return b.build();
     }

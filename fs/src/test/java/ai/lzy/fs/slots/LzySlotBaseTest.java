@@ -1,14 +1,14 @@
 package ai.lzy.fs.slots;
 
-import ai.lzy.model.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import java.net.URI;
 import java.net.URISyntaxException;
 import org.junit.Ignore;
 import org.junit.Test;
 import ai.lzy.fs.fs.LzySlot;
-import ai.lzy.model.Slot;
+import ai.lzy.model.slot.Slot;
 import ai.lzy.model.data.DataSchema;
-import ai.lzy.v1.Operations.SlotStatus.State;
+import ai.lzy.v1.common.LMS.SlotStatus.State;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;

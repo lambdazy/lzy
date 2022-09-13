@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package ai.lzy.v1.deprecated;
+
+import "ai/lzy/v1/common/env.proto";
+import "ai/lzy/v1/common/slot.proto";
+
+option java_outer_classname = "LzyZygote";
+option java_package = "ai.lzy.v1.deprecated";
+
+message Zygote {
+  // TODO: return uri back
+  EnvSpec env = 1;
+  Provisioning provisioning = 2;
+  string fuze = 3;
+  repeated Slot slots = 4;
+  string description = 5;
+  string name = 6;
+}
+
+message ZygoteList {
+  repeated Zygote zygote = 1;
+}

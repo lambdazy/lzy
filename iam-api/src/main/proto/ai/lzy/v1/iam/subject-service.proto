@@ -8,11 +8,11 @@ option java_outer_classname = "LSS";
 option java_package = "ai.lzy.v1.iam";
 
 service LzySubjectService {
-  rpc CreateSubject (CreateSubjectRequest) returns (ai.lzy.v1.iam.Subject);
+  rpc CreateSubject (CreateSubjectRequest) returns (Subject);
 
   rpc RemoveSubject (RemoveSubjectRequest) returns (RemoveSubjectResponse);
 
-  rpc GetSubject (GetSubjectRequest) returns (ai.lzy.v1.iam.Subject);
+  rpc GetSubject (GetSubjectRequest) returns (Subject);
 
   rpc AddCredentials (AddCredentialsRequest) returns (AddCredentialsResponse);
 
@@ -29,7 +29,7 @@ message CreateSubjectRequest {
 }
 
 message RemoveSubjectRequest {
-  ai.lzy.v1.iam.Subject subject = 1;
+  Subject subject = 1;
 }
 
 message RemoveSubjectResponse {
@@ -40,15 +40,15 @@ message GetSubjectRequest {
 }
 
 message AddCredentialsRequest {
-  ai.lzy.v1.iam.Subject subject = 1;
-  ai.lzy.v1.iam.Credentials credentials = 2;
+  Subject subject = 1;
+  Credentials credentials = 2;
 }
 
 message AddCredentialsResponse {
 }
 
 message RemoveCredentialsRequest {
-  ai.lzy.v1.iam.Subject subject = 1;
+  Subject subject = 1;
   string credentials_name = 2;
 }
 
@@ -56,9 +56,9 @@ message RemoveCredentialsResponse {
 }
 
 message ListCredentialsRequest {
-  ai.lzy.v1.iam.Subject subject = 1;
+  Subject subject = 1;
 }
 
 message ListCredentialsResponse {
-  repeated ai.lzy.v1.iam.Credentials credentialsList = 1;
+  repeated Credentials credentialsList = 1;
 }

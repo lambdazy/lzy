@@ -1,90 +1,92 @@
 package ai.lzy.test;
 
 import ai.lzy.model.utils.FreePortFinder;
-import ai.lzy.v1.ChannelManager;
-import ai.lzy.v1.Channels;
-import ai.lzy.v1.LzyPortalApi;
-import ai.lzy.v1.Operations;
+import ai.lzy.v1.channel.LCM;
+import ai.lzy.v1.channel.LCMS;
+import ai.lzy.v1.channel.LCMS;
+import ai.lzy.v1.common.LMD;
+import ai.lzy.v1.common.LMS;
+import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.portal.LzyPortal;
 import io.grpc.stub.StreamObserver;
-import org.junit.Assert;
-
 import java.util.function.Consumer;
+import org.junit.Assert;
 
 public class GrpcUtils {
 
-    public static ChannelManager.ChannelCreateRequest makeCreateDirectChannelCommand(String workflowId,
-        String channelName) {
-        return ChannelManager.ChannelCreateRequest.newBuilder()
+    public static LCMS.ChannelCreateRequest makeCreateDirectChannelCommand(String workflowId,
+                                                                           String channelName) {
+        return LCMS.ChannelCreateRequest.newBuilder()
             .setWorkflowId(workflowId)
             .setChannelSpec(
-                Channels.ChannelSpec.newBuilder()
+                LCM.ChannelSpec.newBuilder()
                     .setChannelName(channelName)
                     .setContentType(makePlainTextDataScheme())
-                    .setDirect(Channels.DirectChannelType.getDefaultInstance())
+                    .setDirect(LCM.DirectChannelType.getDefaultInstance())
                     .build()
             ).build();
     }
 
-    public static ChannelManager.ChannelDestroyRequest makeDestroyChannelCommand(String channelId) {
-        return ChannelManager.ChannelDestroyRequest.newBuilder()
+    public static LCMS.ChannelDestroyRequest makeDestroyChannelCommand(String channelId) {
+        return LCMS.ChannelDestroyRequest.newBuilder()
             .setChannelId(channelId)
             .build();
     }
 
-    public static ChannelManager.ChannelDestroyAllRequest makeDestroyAllCommand(String workflowId) {
-        return ChannelManager.ChannelDestroyAllRequest.newBuilder().setWorkflowId(workflowId).build();
+    public static LCMS.ChannelDestroyAllRequest makeDestroyAllCommand(String workflowId) {
+        return LCMS.ChannelDestroyAllRequest.newBuilder().setWorkflowId(workflowId).build();
     }
 
-    public static Operations.DataScheme makePlainTextDataScheme() {
-        return Operations.DataScheme.newBuilder()
+    public static LMD.DataScheme makePlainTextDataScheme() {
+        return LMD.DataScheme.newBuilder()
             .setType("text")
-            .setSchemeType(Operations.SchemeType.plain)
+            .setSchemeType(LMD.SchemeType.plain.name())
             .build();
     }
 
-    public static Operations.Slot makeInputFileSlot(String slotName) {
-        return Operations.Slot.newBuilder()
+    public static LMS.Slot makeInputFileSlot(String slotName) {
+        return LMS.Slot.newBuilder()
             .setName(slotName)
-            .setMedia(Operations.Slot.Media.FILE)
-            .setDirection(Operations.Slot.Direction.INPUT)
+            .setMedia(LMS.Slot.Media.FILE)
+            .setDirection(LMS.Slot.Direction.INPUT)
             .setContentType(makePlainTextDataScheme())
             .build();
     }
 
-    public static Operations.Slot makeOutputFileSlot(String slotName) {
-        return Operations.Slot.newBuilder()
+    public static LMS.Slot makeOutputFileSlot(String slotName) {
+        return LMS.Slot.newBuilder()
             .setName(slotName)
-            .setMedia(Operations.Slot.Media.FILE)
-            .setDirection(Operations.Slot.Direction.OUTPUT)
+            .setMedia(LMS.Slot.Media.FILE)
+            .setDirection(LMS.Slot.Direction.OUTPUT)
             .setContentType(makePlainTextDataScheme())
             .build();
     }
 
-    public static Operations.Slot makeInputPipeSlot(String slotName) {
-        return Operations.Slot.newBuilder()
+    public static LMS.Slot makeInputPipeSlot(String slotName) {
+        return LMS.Slot.newBuilder()
             .setName(slotName)
-            .setMedia(Operations.Slot.Media.PIPE)
-            .setDirection(Operations.Slot.Direction.INPUT)
+            .setMedia(LMS.Slot.Media.PIPE)
+            .setDirection(LMS.Slot.Direction.INPUT)
             .setContentType(makePlainTextDataScheme())
             .build();
     }
 
-    public static Operations.Slot makeOutputPipeSlot(String slotName) {
-        return Operations.Slot.newBuilder()
+    public static LMS.Slot makeOutputPipeSlot(String slotName) {
+        return LMS.Slot.newBuilder()
             .setName(slotName)
-            .setMedia(Operations.Slot.Media.PIPE)
-            .setDirection(Operations.Slot.Direction.OUTPUT)
+            .setMedia(LMS.Slot.Media.PIPE)
+            .setDirection(LMS.Slot.Direction.OUTPUT)
             .setContentType(makePlainTextDataScheme())
             .build();
     }
 
-    public static LzyPortalApi.PortalSlotDesc.Snapshot makeAmazonSnapshot(String key, String bucket,
-                                                                          String endpoint) {
-        return LzyPortalApi.PortalSlotDesc.Snapshot.newBuilder()
-            .setS3(LzyPortalApi.S3Locator.newBuilder()
+    public static LzyPortal.PortalSlotDesc.Snapshot makeAmazonSnapshot(String key, String bucket,
+                                                                       String endpoint) {
+        return LzyPortal.PortalSlotDesc.Snapshot.newBuilder()
+            .setS3(LMS3.S3Locator.newBuilder()
                 .setKey(key)
                 .setBucket(bucket)
-                .setAmazon(LzyPortalApi.AmazonS3Endpoint.newBuilder()
+                .setAmazon(LMS3.AmazonS3Endpoint.newBuilder()
                     .setAccessToken("")
                     .setSecretToken("")
                     .setEndpoint(endpoint)
@@ -92,14 +94,14 @@ public class GrpcUtils {
             .build();
     }
 
-    public static LzyPortalApi.PortalSlotDesc.StdOut makeStdoutStorage(String taskId) {
-        return LzyPortalApi.PortalSlotDesc.StdOut.newBuilder()
+    public static LzyPortal.PortalSlotDesc.StdOut makeStdoutStorage(String taskId) {
+        return LzyPortal.PortalSlotDesc.StdOut.newBuilder()
             .setTaskId(taskId)
             .build();
     }
 
-    public static LzyPortalApi.PortalSlotDesc.StdErr makeStderrStorage(String taskId) {
-        return LzyPortalApi.PortalSlotDesc.StdErr.newBuilder()
+    public static LzyPortal.PortalSlotDesc.StdErr makeStderrStorage(String taskId) {
+        return LzyPortal.PortalSlotDesc.StdErr.newBuilder()
             .setTaskId(taskId)
             .build();
     }

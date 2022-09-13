@@ -1,8 +1,8 @@
 package ai.lzy.backoffice.configs;
 
-import ai.lzy.v1.IAM;
+import ai.lzy.v1.deprecated.LzyAuth;
 
 public interface CredentialsProvider {
 
-    IAM.UserCredentials createCreds();
+    LzyAuth.UserCredentials createCreds();
 }

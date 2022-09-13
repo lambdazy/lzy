@@ -11,7 +11,6 @@ import com.github.dockerjava.api.model.BindOptions;
 import com.github.dockerjava.api.model.BindPropagation;
 import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.HostConfig;
-import com.github.dockerjava.api.model.Image;
 import com.github.dockerjava.api.model.Mount;
 import com.github.dockerjava.api.model.MountType;
 import com.github.dockerjava.core.DockerClientBuilder;
@@ -22,18 +21,15 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.NullOutputStream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ai.lzy.model.exceptions.EnvironmentInstallationException;
 
 public class DockerEnvironment implements BaseEnvironment {
 

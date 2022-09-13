@@ -1,6 +1,6 @@
 package ai.lzy.fs.fs;
 
-import ai.lzy.model.Zygote;
+import ai.lzy.model.deprecated.Zygote;
 
 import java.nio.file.Path;
 

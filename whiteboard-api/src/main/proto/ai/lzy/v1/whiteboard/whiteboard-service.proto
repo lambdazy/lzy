@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+import "ai/lzy/v1/whiteboard/whiteboard.proto";
+
+package ai.lzy.v1;
+
+option java_outer_classname = "LWBS";
+option java_package = "ai.lzy.v1.whiteboard";
+
+service LzyWhiteboardService {
+  rpc Get (GetRequest) returns (GetResponse);
+  rpc List (ListRequest) returns (ListResponse);
+}
+
+message GetRequest {
+  string whiteboardId = 1;
+}
+
+message GetResponse {
+  Whiteboard whiteboard = 1;
+}
+
+message ListRequest {
+  /* optional */ string name = 1;
+  repeated string tags = 2;
+  /* optional */ TimeBounds createdTimeBounds = 3;
+}
+
+message ListResponse {
+  repeated Whiteboard whiteboards = 1;
+}

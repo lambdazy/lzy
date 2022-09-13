@@ -7,12 +7,11 @@ import ai.lzy.test.GrpcUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.v1.ChannelManager.*;
-import ai.lzy.v1.Channels.ChannelSpec;
-import ai.lzy.v1.Channels.DirectChannelType;
-import ai.lzy.v1.LzyChannelManagerGrpc;
-import ai.lzy.v1.Operations.DataScheme;
-import ai.lzy.v1.Operations.SchemeType;
+import ai.lzy.v1.channel.LCM.ChannelSpec;
+import ai.lzy.v1.channel.LCM.DirectChannelType;
+import ai.lzy.v1.channel.LCMS.*;
+import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.common.LMD;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
@@ -20,11 +19,14 @@ import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.*;
-
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 
 @SuppressWarnings({"UnstableApiUsage", "ResultOfMethodCallIgnored"})
 public class ChannelManagerTest extends BaseTestWithIam {
@@ -154,8 +156,8 @@ public class ChannelManagerTest extends BaseTestWithIam {
                 ChannelCreateRequest.newBuilder()
                     .setChannelSpec(ChannelSpec.newBuilder().setChannelName("channel1").setDirect(
                             DirectChannelType.newBuilder().build())
-                        .setContentType(DataScheme.newBuilder().setType("text").setSchemeType(
-                            SchemeType.plain).build())
+                        .setContentType(LMD.DataScheme.newBuilder().setType("text").setSchemeType(
+                            LMD.SchemeType.plain.name()).build())
                         .build())
                     .build());
             Assert.fail();
@@ -185,8 +187,10 @@ public class ChannelManagerTest extends BaseTestWithIam {
                     .setWorkflowId(UUID.randomUUID().toString())
                     .setChannelSpec(ChannelSpec.newBuilder().setDirect(
                             DirectChannelType.newBuilder().build())
-                        .setContentType(DataScheme.newBuilder().setType("text").setSchemeType(
-                            SchemeType.plain).build())
+                        .setContentType(LMD.DataScheme.newBuilder()
+                            .setType("text")
+                            .setSchemeType(LMD.SchemeType.plain.name())
+                            .build())
                         .build())
                     .build());
             Assert.fail();
@@ -202,7 +206,10 @@ public class ChannelManagerTest extends BaseTestWithIam {
                 ChannelCreateRequest.newBuilder()
                     .setWorkflowId(UUID.randomUUID().toString())
                     .setChannelSpec(ChannelSpec.newBuilder().setChannelName("channel1")
-                        .setContentType(DataScheme.newBuilder().setType("text").setSchemeType(SchemeType.plain).build())
+                        .setContentType(LMD.DataScheme.newBuilder()
+                            .setType("text")
+                            .setSchemeType(LMD.SchemeType.plain.name())
+                            .build())
                         .build())
                     .build());
             Assert.fail();
@@ -235,8 +242,8 @@ public class ChannelManagerTest extends BaseTestWithIam {
                     .setWorkflowId(UUID.randomUUID().toString())
                     .setChannelSpec(ChannelSpec.newBuilder().setChannelName("channel1").setDirect(
                             DirectChannelType.newBuilder().build())
-                        .setContentType(DataScheme.newBuilder().setSchemeType(
-                            SchemeType.plain).build())
+                        .setContentType(LMD.DataScheme.newBuilder().setSchemeType(
+                            LMD.SchemeType.plain.name()).build())
                         .build())
                     .build());
             Assert.fail();
@@ -253,7 +260,7 @@ public class ChannelManagerTest extends BaseTestWithIam {
                     .setWorkflowId(UUID.randomUUID().toString())
                     .setChannelSpec(ChannelSpec.newBuilder().setChannelName("channel1").setDirect(
                             DirectChannelType.newBuilder().build())
-                        .setContentType(DataScheme.newBuilder().setType("text"))
+                        .setContentType(LMD.DataScheme.newBuilder().setType("text"))
                         .build())
                     .build());
             Assert.fail();
@@ -334,3 +341,4 @@ public class ChannelManagerTest extends BaseTestWithIam {
         Assert.assertEquals(channel2CreateResponse.getChannelId(), status.getChannelId());
     }
 }
+

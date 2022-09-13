@@ -1,7 +1,22 @@
 package ai.lzy.whiteboard.api;
 
+import ai.lzy.model.utils.Permissions;
+import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.v1.deprecated.Lzy;
+import ai.lzy.v1.deprecated.LzyAuth.Auth;
+import ai.lzy.v1.deprecated.LzyServerGrpc;
+import ai.lzy.v1.deprecated.LzyWhiteboard;
+import ai.lzy.v1.deprecated.LzyWhiteboard.*;
+import ai.lzy.v1.deprecated.SnapshotApiGrpc;
 import ai.lzy.whiteboard.SnapshotRepository;
 import ai.lzy.whiteboard.auth.Authenticator;
+import ai.lzy.whiteboard.auth.SimpleAuthenticator;
+import ai.lzy.whiteboard.config.ServiceConfig;
+import ai.lzy.whiteboard.exceptions.SnapshotRepositoryException;
+import ai.lzy.whiteboard.model.Snapshot;
+import ai.lzy.whiteboard.model.SnapshotEntry;
+import ai.lzy.whiteboard.model.*;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
@@ -18,41 +33,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ai.lzy.model.GrpcConverter;
-import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.model.snapshot.ExecutionSnapshot;
-import ai.lzy.model.snapshot.InputExecutionValue;
-import ai.lzy.model.snapshot.Snapshot;
-import ai.lzy.model.snapshot.SnapshotEntry;
-import ai.lzy.model.snapshot.SnapshotEntryStatus;
-import ai.lzy.model.snapshot.SnapshotStatus;
-import ai.lzy.model.utils.Permissions;
-import ai.lzy.whiteboard.auth.SimpleAuthenticator;
-import ai.lzy.whiteboard.config.ServiceConfig;
-import ai.lzy.whiteboard.exceptions.SnapshotRepositoryException;
-import ai.lzy.v1.IAM.Auth;
-
-import ai.lzy.v1.Lzy;
-import ai.lzy.v1.LzyServerGrpc;
-
-import ai.lzy.v1.LzyWhiteboard;
-import ai.lzy.v1.LzyWhiteboard.AbortCommand;
-import ai.lzy.v1.LzyWhiteboard.CommitCommand;
-import ai.lzy.v1.LzyWhiteboard.CreateEntryCommand;
-import ai.lzy.v1.LzyWhiteboard.CreateSnapshotCommand;
-import ai.lzy.v1.LzyWhiteboard.EntryStatusCommand;
-import ai.lzy.v1.LzyWhiteboard.EntryStatusResponse;
-import ai.lzy.v1.LzyWhiteboard.ExecutionDescription;
-import ai.lzy.v1.LzyWhiteboard.FinalizeSnapshotCommand;
-import ai.lzy.v1.LzyWhiteboard.LastSnapshotCommand;
-import ai.lzy.v1.LzyWhiteboard.OperationStatus;
-import ai.lzy.v1.LzyWhiteboard.PrepareCommand;
-import ai.lzy.v1.LzyWhiteboard.ResolveExecutionCommand;
-import ai.lzy.v1.LzyWhiteboard.ResolveExecutionResponse;
-import ai.lzy.v1.LzyWhiteboard.SaveExecutionCommand;
-import ai.lzy.v1.LzyWhiteboard.SaveExecutionResponse;
-import ai.lzy.v1.SnapshotApiGrpc;
 
 @Singleton
 @Requires(property = "service.server-uri")

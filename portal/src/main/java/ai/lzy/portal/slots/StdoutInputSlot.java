@@ -1,8 +1,8 @@
 package ai.lzy.portal.slots;
 
 import ai.lzy.fs.slots.LzyInputSlotBase;
-import ai.lzy.model.SlotInstance;
-import ai.lzy.v1.Operations;
+import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.v1.common.LMS;
 import com.google.protobuf.ByteString;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -30,7 +30,7 @@ public class StdoutInputSlot extends LzyInputSlotBase {
         var t = new Thread(READER_TG, this::readAll, "reader-from-" + slotUri + "-to-" + definition().name());
         t.start();
 
-        onState(Operations.SlotStatus.State.DESTROYED, t::interrupt);
+        onState(LMS.SlotStatus.State.DESTROYED, t::interrupt);
     }
 
     @Override

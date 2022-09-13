@@ -14,11 +14,11 @@ import ai.lzy.graph.model.TaskDescription;
 import ai.lzy.graph.queue.QueueManager;
 import ai.lzy.graph.test.mocks.GraphDaoMock;
 import ai.lzy.graph.test.mocks.SchedulerApiMock;
-import ai.lzy.model.Operation;
-import ai.lzy.model.Slot;
+import ai.lzy.model.operation.Operation;
+import ai.lzy.model.slot.Slot;
 import ai.lzy.model.data.DataSchema;
 import ai.lzy.model.db.DaoException;
-import ai.lzy.v1.SchedulerApi.TaskStatus;
+import ai.lzy.v1.scheduler.Scheduler.TaskStatus;
 import io.grpc.StatusException;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
@@ -31,8 +31,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
-import static ai.lzy.v1.SchedulerApi.TaskStatus.StatusCase.ERROR;
-import static ai.lzy.v1.SchedulerApi.TaskStatus.StatusCase.QUEUE;
+import static ai.lzy.v1.scheduler.Scheduler.TaskStatus.StatusCase.ERROR;
+import static ai.lzy.v1.scheduler.Scheduler.TaskStatus.StatusCase.QUEUE;
 
 public class GraphExecutorTest {
 

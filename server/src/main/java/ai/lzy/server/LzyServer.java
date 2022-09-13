@@ -1,42 +1,35 @@
 package ai.lzy.server;
 
-import static ai.lzy.model.GrpcConverter.from;
-import static ai.lzy.model.GrpcConverter.to;
-import static ai.lzy.v1.Tasks.TaskProgress.Status.ERROR;
-import static ai.lzy.v1.Tasks.TaskProgress.Status.QUEUE;
-import static ai.lzy.v1.Tasks.TaskProgress.Status.SUCCESS;
+import static ai.lzy.v1.deprecated.LzyTask.TaskProgress.Status.ERROR;
+import static ai.lzy.v1.deprecated.LzyTask.TaskProgress.Status.QUEUE;
+import static ai.lzy.v1.deprecated.LzyTask.TaskProgress.Status.SUCCESS;
 
-import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.model.ReturnCodes;
-import ai.lzy.model.Signal;
-import ai.lzy.model.Slot;
-import ai.lzy.model.StorageCredentials;
-import ai.lzy.model.Zygote;
-import ai.lzy.model.exceptions.EnvironmentInstallationException;
-import ai.lzy.model.graph.AtomicZygote;
-import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.logs.UserEvent;
 import ai.lzy.logs.UserEventLogger;
-import ai.lzy.v1.IAM;
-import ai.lzy.v1.IAM.Auth;
-import ai.lzy.v1.Lzy;
-import ai.lzy.v1.Lzy.GetSessionsRequest;
-import ai.lzy.v1.Lzy.GetSessionsResponse;
-import ai.lzy.v1.Lzy.GetSessionsResponse.Builder;
-import ai.lzy.v1.Lzy.RegisterSessionRequest;
-import ai.lzy.v1.Lzy.RegisterSessionResponse;
-import ai.lzy.v1.Lzy.SessionDescription;
-import ai.lzy.v1.Lzy.UnregisterSessionRequest;
-import ai.lzy.v1.Lzy.UnregisterSessionResponse;
-import ai.lzy.v1.LzyServerGrpc;
-import ai.lzy.v1.Operations;
-import ai.lzy.v1.Tasks;
-import ai.lzy.v1.Tasks.TaskSignal;
+import ai.lzy.model.EnvironmentInstallationException;
+import ai.lzy.model.ReturnCodes;
+import ai.lzy.model.Signal;
+import ai.lzy.model.StorageCredentials;
+import ai.lzy.model.deprecated.AtomicZygote;
+import ai.lzy.model.deprecated.GrpcConverter;
+import ai.lzy.model.deprecated.Zygote;
+import ai.lzy.model.grpc.ProtoConverter;
+import ai.lzy.model.slot.Slot;
 import ai.lzy.server.configs.StorageConfigs;
 import ai.lzy.server.mem.ZygoteRepositoryImpl;
 import ai.lzy.server.storage.StorageCredentialsProvider;
 import ai.lzy.server.task.Task;
 import ai.lzy.server.task.TaskException;
+import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.v1.common.LMS;
+import ai.lzy.v1.deprecated.Lzy;
+import ai.lzy.v1.deprecated.Lzy.*;
+import ai.lzy.v1.deprecated.Lzy.GetSessionsResponse.Builder;
+import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.v1.deprecated.LzyServerGrpc;
+import ai.lzy.v1.deprecated.LzyTask;
+import ai.lzy.v1.deprecated.LzyZygote;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.Status;
@@ -55,13 +48,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
+import org.apache.commons.cli.*;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -155,8 +142,8 @@ public class LzyServer {
         @Inject
         private StorageConfigs storageConfigs;
 
-        public static Tasks.TaskStatus taskStatus(Task task, TasksManager tasks) {
-            final Tasks.TaskStatus.Builder builder = Tasks.TaskStatus.newBuilder();
+        public static LzyTask.TaskStatus taskStatus(Task task, TasksManager tasks) {
+            final LzyTask.TaskStatus.Builder builder = LzyTask.TaskStatus.newBuilder();
             try {
                 builder.setTaskId(task.tid());
 
@@ -164,7 +151,7 @@ public class LzyServer {
                     ((AtomicZygote) task.workload()).zygote()
                 );
 
-                builder.setStatus(Tasks.TaskProgress.Status.valueOf(task.state().toString()));
+                builder.setStatus(LzyTask.TaskProgress.Status.valueOf(task.state().toString()));
                 final URI uri = task.servantUri();
                 if (uri != null) {
                     builder.setServant(uri.toString());
@@ -173,16 +160,16 @@ public class LzyServer {
                 Stream.concat(Stream.of(task.workload().input()), Stream.of(task.workload().output()))
                     .map(task::slotStatus)
                     .forEach(slotStatus -> {
-                        final Operations.SlotStatus.Builder slotStateBuilder = builder.addConnectionsBuilder();
+                        final LMS.SlotStatus.Builder slotStateBuilder = builder.addConnectionsBuilder();
                         slotStateBuilder.setTaskId(task.tid());
-                        slotStateBuilder.setDeclaration(to(slotStatus.slot()));
+                        slotStateBuilder.setDeclaration(ProtoConverter.toProto(slotStatus.slot()));
                         URI connected = slotStatus.connected();
                         if (connected != null) {
                             slotStateBuilder.setConnectedTo(connected.toString());
                         }
                         slotStateBuilder.setPointer(slotStatus.pointer());
                         LOG.info("Getting status of slot with state: " + slotStatus.state().name());
-                        slotStateBuilder.setState(Operations.SlotStatus.State.valueOf(slotStatus.state().name()));
+                        slotStateBuilder.setState(LMS.SlotStatus.State.valueOf(slotStatus.state().name()));
                         builder.addConnections(slotStateBuilder.build());
                     });
             } catch (TaskException te) {
@@ -195,7 +182,7 @@ public class LzyServer {
         @Override
         public void publish(Lzy.PublishRequest request, StreamObserver<Lzy.PublishResponse> responseObserver) {
             LOG.info("Server::Publish " + JsonUtils.printRequest(request));
-            final IAM.UserCredentials auth = request.getAuth();
+            final LzyAuth.UserCredentials auth = request.getAuth();
             if (!this.auth.checkUser(auth.getUserId(), auth.getToken())) {
                 responseObserver.onError(Status.ABORTED.asException());
                 return;
@@ -204,8 +191,8 @@ public class LzyServer {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
             }
-            final Operations.Zygote operation = request.getOperation();
-            if (!operations.publish(operation.getName(), from(operation))) {
+            final LzyZygote.Zygote operation = request.getOperation();
+            if (!operations.publish(operation.getName(), GrpcConverter.from(operation))) {
                 responseObserver.onError(Status.ALREADY_EXISTS.asException());
                 return;
             }
@@ -216,17 +203,17 @@ public class LzyServer {
         }
 
         @Override
-        public void zygotes(IAM.Auth auth, StreamObserver<Operations.ZygoteList> responseObserver) {
+        public void zygotes(LzyAuth.Auth auth, StreamObserver<LzyZygote.ZygoteList> responseObserver) {
             if (!checkAuth(auth, responseObserver)) {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
             }
 
             final String user = resolveUser(auth);
-            final Operations.ZygoteList.Builder builder = Operations.ZygoteList.newBuilder();
+            final LzyZygote.ZygoteList.Builder builder = LzyZygote.ZygoteList.newBuilder();
             operations.list().filter(op -> this.auth.canAccess(op, user)).forEach(zyName ->
                 builder.addZygoteBuilder()
-                    .mergeFrom(to(operations.get(zyName)))
+                    .mergeFrom(GrpcConverter.to(operations.get(zyName)))
                     .build()
             );
             responseObserver.onNext(builder.build());
@@ -234,7 +221,7 @@ public class LzyServer {
         }
 
         @Override
-        public void task(Tasks.TaskCommand request, StreamObserver<Tasks.TaskStatus> responseObserver) {
+        public void task(LzyTask.TaskCommand request, StreamObserver<LzyTask.TaskStatus> responseObserver) {
             if (!checkAuth(request.getAuth(), responseObserver)) {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
@@ -245,7 +232,7 @@ public class LzyServer {
                 case STATE:
                 case SIGNAL: {
                     task = tasksManager.task(request.getTid());
-                    final TaskSignal signal = request.getSignal();
+                    final LzyTask.TaskSignal signal = request.getSignal();
                     if (task == null) {
                         responseObserver.onError(Status.NOT_FOUND.asException());
                         return;
@@ -273,7 +260,7 @@ public class LzyServer {
         }
 
         @Override
-        public void start(Tasks.TaskSpec request, StreamObserver<Tasks.TaskProgress> responseObserver) {
+        public void start(LzyTask.TaskSpec request, StreamObserver<LzyTask.TaskProgress> responseObserver) {
             if (!checkAuth(request.getAuth(), responseObserver)) {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
@@ -283,11 +270,11 @@ public class LzyServer {
             } else {
                 LOG.info("Server::start request (tid={})", request.getTid());
             }
-            final Operations.Zygote zygote = request.getZygote();
-            final Zygote workload = from(zygote);
+            final LzyZygote.Zygote zygote = request.getZygote();
+            final Zygote workload = GrpcConverter.from(zygote);
             final Map<Slot, String> assignments = new HashMap<>();
             request.getAssignmentsList()
-                .forEach(ass -> assignments.put(from(ass.getSlot()), ass.getBinding()));
+                .forEach(ass -> assignments.put(ProtoConverter.fromProto(ass.getSlot()), ass.getBinding()));
 
             final String uid = resolveUser(request.getAuth());
             final Task parent = resolveTask(request.getAuth());
@@ -302,7 +289,9 @@ public class LzyServer {
                 responseObserver.onNext(progress);
                 if (progress.getStatus() == QUEUE) {
                     final String sessionId = session.id();
-                    servantsAllocator.allocate(sessionId, from(zygote.getProvisioning()), from(zygote.getEnv()))
+                    servantsAllocator.allocate(sessionId,
+                            ProtoConverter.fromProto(zygote.getProvisioning()),
+                            ProtoConverter.fromProto(zygote.getEnv()))
                         .whenComplete((connection, th) -> {
                             if (th != null) {
                                 if (th instanceof EnvironmentInstallationException) {
@@ -341,14 +330,14 @@ public class LzyServer {
         }
 
         @Override
-        public void tasksStatus(IAM.Auth auth, StreamObserver<Tasks.TasksList> responseObserver) {
+        public void tasksStatus(LzyAuth.Auth auth, StreamObserver<LzyTask.TasksList> responseObserver) {
             if (!checkAuth(auth, responseObserver)) {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
             }
 
             final String user = resolveUser(auth);
-            final Tasks.TasksList.Builder builder = Tasks.TasksList.newBuilder();
+            final LzyTask.TasksList.Builder builder = LzyTask.TasksList.newBuilder();
             tasksManager.tasks()
                 .filter(t -> this.auth.canAccess(t, user))
                 .map(t -> taskStatus(t, tasksManager)).forEach(builder::addTasks);
@@ -360,7 +349,7 @@ public class LzyServer {
         public void checkUserPermissions(Lzy.CheckUserPermissionsRequest request,
             StreamObserver<Lzy.CheckUserPermissionsResponse> responseObserver) {
             LOG.info("Server::checkPermissions " + JsonUtils.printRequest(request));
-            IAM.Auth requestAuth = request.getAuth();
+            LzyAuth.Auth requestAuth = request.getAuth();
             if (!checkAuth(requestAuth, responseObserver)) {
                 responseObserver.onNext(Lzy.CheckUserPermissionsResponse.newBuilder().setIsOk(false).build());
                 responseObserver.onCompleted();
@@ -381,7 +370,7 @@ public class LzyServer {
         @Override
         public void registerServant(Lzy.AttachServant request, StreamObserver<Lzy.AttachStatus> responseObserver) {
             LOG.info("Server::registerServant " + JsonUtils.printRequest(request));
-            final IAM.Auth auth = request.getAuth();
+            final LzyAuth.Auth auth = request.getAuth();
             if (!checkAuth(auth, responseObserver)) {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
@@ -408,7 +397,7 @@ public class LzyServer {
         public void getS3Credentials(Lzy.GetS3CredentialsRequest request,
             StreamObserver<Lzy.GetS3CredentialsResponse> responseObserver) {
             LOG.info("Server::getS3Credentials " + JsonUtils.printRequest(request));
-            final IAM.Auth auth = request.getAuth();
+            final LzyAuth.Auth auth = request.getAuth();
             if (!checkAuth(auth, responseObserver)) {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
@@ -437,7 +426,7 @@ public class LzyServer {
                 storageConfigs.isSeparated()
                     ? credentialsProvider.credentialsForBucket(owner, bucket) :
                     credentialsProvider.storageCredentials();
-            responseObserver.onNext(to(credentials));
+            responseObserver.onNext(GrpcConverter.to(credentials));
             responseObserver.onCompleted();
         }
 
@@ -484,7 +473,7 @@ public class LzyServer {
         @Override
         public void getBucket(Lzy.GetBucketRequest request, StreamObserver<Lzy.GetBucketResponse> responseObserver) {
             LOG.info("Server::getBucket " + JsonUtils.printRequest(request));
-            final IAM.Auth auth = request.getAuth();
+            final LzyAuth.Auth auth = request.getAuth();
             if (!checkAuth(auth, responseObserver)) {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
@@ -500,7 +489,7 @@ public class LzyServer {
         @Override
         public void getUser(Lzy.GetUserRequest request,
             StreamObserver<Lzy.GetUserResponse> responseObserver) {
-            final Auth auth = request.getAuth();
+            final LzyAuth.Auth auth = request.getAuth();
             if (!checkAuth(auth, responseObserver)) {
                 responseObserver.onError(Status.PERMISSION_DENIED.asException());
                 return;
@@ -516,14 +505,14 @@ public class LzyServer {
         }
 
         @SuppressWarnings("BooleanMethodIsAlwaysInverted")
-        private boolean checkAuth(IAM.Auth auth, StreamObserver<?> responseObserver) {
+        private boolean checkAuth(LzyAuth.Auth auth, StreamObserver<?> responseObserver) {
             if (auth == null) {
                 responseObserver.onError(Status.INVALID_ARGUMENT.asException());
                 return false;
             } else if (auth.hasUser()) {
                 return this.auth.checkUser(auth.getUser().getUserId(), auth.getUser().getToken());
             } else if (auth.hasTask()) {
-                final IAM.TaskCredentials task = auth.getTask();
+                final LzyAuth.TaskCredentials task = auth.getTask();
                 return this.auth.checkTask(
                     task.getTaskId().isEmpty() ? null : task.getTaskId(),
                     task.getServantId(),
@@ -535,15 +524,15 @@ public class LzyServer {
             return false;
         }
 
-        private String resolveUser(IAM.Auth auth) {
+        private String resolveUser(LzyAuth.Auth auth) {
             return resolveSession(auth).owner();
         }
 
-        private Task resolveTask(IAM.Auth auth) {
+        private Task resolveTask(LzyAuth.Auth auth) {
             return auth.hasTask() ? tasksManager.task(auth.getTask().getTaskId()) : null;
         }
 
-        private SessionManager.Session resolveSession(IAM.Auth auth) {
+        private SessionManager.Session resolveSession(LzyAuth.Auth auth) {
             if (auth.hasTask()) {
                 return servantsAllocator.byServant(auth.getTask().getServantId());
             } else {

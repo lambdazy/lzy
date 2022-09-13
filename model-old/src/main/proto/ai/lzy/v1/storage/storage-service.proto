@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package ai.lzy.v1.storage;
+
+import "ai/lzy/v1/common/s3.proto";
+
+option java_outer_classname = "LSS";
+option java_package = "ai.lzy.v1.storage";
+
+service LzyStorageService {
+  rpc CreateS3Bucket (CreateS3BucketRequest) returns (CreateS3BucketResponse);
+  rpc DeleteS3Bucket (DeleteS3BucketRequest) returns (DeleteS3BucketResponse);
+
+  rpc GetS3BucketCredentials (GetS3BucketCredentialsRequest) returns (GetS3BucketCredentialsResponse);
+}
+
+message CreateS3BucketRequest {
+  string userId = 1;
+  string bucket = 2;
+  // TODO: size limit, ttl and other settings
+}
+
+message CreateS3BucketResponse {
+  oneof credentials {
+    AmazonS3Endpoint amazon = 1;
+    AzureS3Endpoint azure = 2;
+  }
+}
+
+message DeleteS3BucketRequest {
+  string bucket = 1;
+}
+
+message DeleteS3BucketResponse {
+}
+
+message GetS3BucketCredentialsRequest {
+  string userId = 1;
+  string bucket = 2;
+}
+
+message GetS3BucketCredentialsResponse {
+  oneof credentials {
+    AmazonS3Endpoint amazon = 1;
+    AzureS3Endpoint azure = 2;
+  }
+}

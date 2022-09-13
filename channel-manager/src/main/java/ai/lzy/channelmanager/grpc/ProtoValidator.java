@@ -1,24 +1,25 @@
 package ai.lzy.channelmanager.grpc;
 
-import ai.lzy.v1.Channels;
-import ai.lzy.v1.LzyFsApi;
+import ai.lzy.v1.channel.LCM;
+import ai.lzy.v1.common.LMS;
+import ai.lzy.v1.fs.LzyFsApi;
 
 public class ProtoValidator {
 
-    public static boolean isValid(Channels.ChannelSpec channelSpec) {
+    public static boolean isValid(LCM.ChannelSpec channelSpec) {
         try {
             boolean isValid = true;
             isValid = isValid && !channelSpec.getChannelName().isBlank();
             isValid = isValid && channelSpec.getTypeCase().getNumber() != 0;
             isValid = isValid && !channelSpec.getContentType().getType().isBlank();
-            isValid = isValid && channelSpec.getContentType().getSchemeType().getNumber() != 0;
+            isValid = isValid && !channelSpec.getContentType().getSchemeType().isBlank();
             return isValid;
         } catch (NullPointerException e) {
             return false;
         }
     }
 
-    public static boolean isValid(LzyFsApi.SlotInstance slotInstance) {
+    public static boolean isValid(LMS.SlotInstance slotInstance) {
         try {
             boolean isValid = true;
             isValid = isValid && !slotInstance.getTaskId().isBlank();
@@ -26,7 +27,7 @@ public class ProtoValidator {
             isValid = isValid && !slotInstance.getChannelId().isBlank();
             isValid = isValid && !slotInstance.getSlot().getName().isBlank();
             isValid = isValid && !slotInstance.getSlot().getContentType().getType().isBlank();
-            isValid = isValid && slotInstance.getSlot().getContentType().getSchemeType().getNumber() != 0;
+            isValid = isValid && !slotInstance.getSlot().getContentType().getSchemeType().isBlank();
             return isValid;
         } catch (NullPointerException e) {
             return false;

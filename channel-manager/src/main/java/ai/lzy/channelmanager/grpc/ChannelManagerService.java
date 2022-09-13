@@ -1,28 +1,19 @@
 package ai.lzy.channelmanager.grpc;
 
-import static ai.lzy.model.GrpcConverter.from;
-import static ai.lzy.model.GrpcConverter.to;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
 import ai.lzy.channelmanager.ChannelManagerConfig;
-import ai.lzy.channelmanager.channel.Channel;
-import ai.lzy.channelmanager.channel.ChannelException;
-import ai.lzy.channelmanager.channel.Endpoint;
-import ai.lzy.channelmanager.channel.SlotEndpoint;
+import ai.lzy.channelmanager.channel.*;
 import ai.lzy.channelmanager.db.ChannelManagerDataSource;
 import ai.lzy.channelmanager.db.ChannelStorage;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
-import ai.lzy.model.GrpcConverter;
-import ai.lzy.model.SlotInstance;
-import ai.lzy.model.channel.ChannelSpec;
-import ai.lzy.model.channel.DirectChannelSpec;
-import ai.lzy.model.channel.SnapshotChannelSpec;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.db.TransactionHandle;
-import ai.lzy.v1.ChannelManager;
-import ai.lzy.v1.Channels;
-import ai.lzy.v1.LzyChannelManagerGrpc;
-import ai.lzy.v1.Operations;
+import ai.lzy.model.deprecated.GrpcConverter;
+import ai.lzy.v1.channel.LCM;
+import ai.lzy.v1.channel.LCMS;
+import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Inject;
@@ -61,18 +52,14 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
     }
 
     @Override
-    public void create(
-        ChannelManager.ChannelCreateRequest request,
-        StreamObserver<ChannelManager.ChannelCreateResponse> responseObserver
-    )
-    {
+    public void create(LCMS.ChannelCreateRequest request, StreamObserver<LCMS.ChannelCreateResponse> responseObserver) {
         LOG.info("Create channel {}", request.getChannelSpec().getChannelName());
 
         try {
             final var authenticationContext = AuthenticationContext.current();
             final String userId = Objects.requireNonNull(authenticationContext).getSubject().id();
             final String workflowId = request.getWorkflowId();
-            final Channels.ChannelSpec channelSpec = request.getChannelSpec();
+            final LCM.ChannelSpec channelSpec = request.getChannelSpec();
             if (workflowId.isBlank() || !ProtoValidator.isValid(channelSpec)) {
                 String errorMessage = "Request shouldn't contain empty fields";
                 LOG.error("Create channel {} failed, invalid argument: {}",
@@ -123,7 +110,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 }
             });
 
-            responseObserver.onNext(ChannelManager.ChannelCreateResponse.newBuilder()
+            responseObserver.onNext(LCMS.ChannelCreateResponse.newBuilder()
                 .setChannelId(channelId)
                 .build()
             );
@@ -141,8 +128,8 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
     }
 
     @Override
-    public void destroy(ChannelManager.ChannelDestroyRequest request,
-                        StreamObserver<ChannelManager.ChannelDestroyResponse> responseObserver)
+    public void destroy(LCMS.ChannelDestroyRequest request,
+                        StreamObserver<LCMS.ChannelDestroyResponse> responseObserver)
     {
         LOG.info("Destroy channel {}", request.getChannelId());
 
@@ -171,7 +158,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             channel.destroy();
             withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.removeChannel(channelId, null));
 
-            responseObserver.onNext(ChannelManager.ChannelDestroyResponse.getDefaultInstance());
+            responseObserver.onNext(LCMS.ChannelDestroyResponse.getDefaultInstance());
             LOG.info("Destroy channel {} done", channelId);
             responseObserver.onCompleted();
         } catch (IllegalArgumentException e) {
@@ -189,8 +176,8 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
     }
 
     @Override
-    public void destroyAll(ChannelManager.ChannelDestroyAllRequest request,
-                           StreamObserver<ChannelManager.ChannelDestroyAllResponse> responseObserver)
+    public void destroyAll(LCMS.ChannelDestroyAllRequest request,
+                           StreamObserver<LCMS.ChannelDestroyAllResponse> responseObserver)
     {
         LOG.info("Destroying all channels for workflow {}", request.getWorkflowId());
 
@@ -223,7 +210,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 }
             }
 
-            responseObserver.onNext(ChannelManager.ChannelDestroyAllResponse.getDefaultInstance());
+            responseObserver.onNext(LCMS.ChannelDestroyAllResponse.getDefaultInstance());
             LOG.info("Destroying all channels for workflow {} done, {} removed channels: {}",
                 workflowId, channels.size(),
                 channels.stream().map(Channel::id).collect(Collectors.joining(",")));
@@ -240,8 +227,8 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
     }
 
     @Override
-    public void status(ChannelManager.ChannelStatusRequest request,
-                       StreamObserver<ChannelManager.ChannelStatus> responseObserver)
+    public void status(LCMS.ChannelStatusRequest request,
+                       StreamObserver<LCMS.ChannelStatus> responseObserver)
     {
         LOG.info("Get status for channel {}", request.getChannelId());
 
@@ -262,7 +249,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 return;
             }
 
-            responseObserver.onNext(toChannelStatus(channel));
+            responseObserver.onNext(ProtoConverter.toChannelStatusProto(channel));
             LOG.info("Get status for channel {} done", request.getChannelId());
             responseObserver.onCompleted();
         } catch (IllegalArgumentException e) {
@@ -277,8 +264,8 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
     }
 
     @Override
-    public void statusAll(ChannelManager.ChannelStatusAllRequest request,
-                          StreamObserver<ChannelManager.ChannelStatusList> responseObserver)
+    public void statusAll(LCMS.ChannelStatusAllRequest request,
+                          StreamObserver<LCMS.ChannelStatusList> responseObserver)
     {
         LOG.info("Get status for channels of workflow {}", request.getWorkflowId());
 
@@ -297,8 +284,8 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             List<Channel> channels =
                 channelStorage.listChannels(userId, workflowId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
 
-            final ChannelManager.ChannelStatusList.Builder builder = ChannelManager.ChannelStatusList.newBuilder();
-            channels.forEach(channel -> builder.addStatuses(toChannelStatus(channel)));
+            final LCMS.ChannelStatusList.Builder builder = LCMS.ChannelStatusList.newBuilder();
+            channels.forEach(channel -> builder.addStatuses(ProtoConverter.toChannelStatusProto(channel)));
             var channelStatusList = builder.build();
 
             responseObserver.onNext(channelStatusList);
@@ -316,8 +303,8 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
     }
 
     @Override
-    public void bind(ChannelManager.SlotAttach attach,
-                     StreamObserver<ChannelManager.SlotAttachStatus> responseObserver)
+    public void bind(LCMS.SlotAttach attach,
+                     StreamObserver<LCMS.SlotAttachStatus> responseObserver)
     {
         LOG.info("Bind slot={} to channel={}",
             attach.getSlotInstance().getSlot().getName(),
@@ -335,7 +322,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
 
         lockManager.getOrCreate(attach.getSlotInstance().getChannelId()).lock();
         try {
-            final SlotInstance slotInstance = from(attach.getSlotInstance());
+            final SlotInstance slotInstance = GrpcConverter.from(attach.getSlotInstance());
             final Endpoint endpoint = SlotEndpoint.getInstance(slotInstance);
             final String channelId = endpoint.slotInstance().channelId();
 
@@ -365,7 +352,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 }
             });
 
-            responseObserver.onNext(ChannelManager.SlotAttachStatus.getDefaultInstance());
+            responseObserver.onNext(LCMS.SlotAttachStatus.getDefaultInstance());
             LOG.info("Bind slot={} to channel={} done",
                 attach.getSlotInstance().getSlot().getName(), attach.getSlotInstance().getChannelId());
             responseObserver.onCompleted();
@@ -387,8 +374,8 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
     }
 
     @Override
-    public void unbind(ChannelManager.SlotDetach detach,
-                       StreamObserver<ChannelManager.SlotDetachStatus> responseObserver)
+    public void unbind(LCMS.SlotDetach detach,
+                       StreamObserver<LCMS.SlotDetachStatus> responseObserver)
     {
         LOG.info("Unbind slot={} to channel={}",
             detach.getSlotInstance().getSlot(),
@@ -406,7 +393,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
 
         lockManager.getOrCreate(detach.getSlotInstance().getChannelId()).lock();
         try {
-            final SlotInstance slotInstance = from(detach.getSlotInstance());
+            final SlotInstance slotInstance = GrpcConverter.from(detach.getSlotInstance());
             final Endpoint endpoint = SlotEndpoint.getInstance(slotInstance);
             final String channelId = endpoint.slotInstance().channelId();
 
@@ -423,7 +410,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
 
             withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.removeEndpointWithConnections(endpoint, null));
 
-            responseObserver.onNext(ChannelManager.SlotDetachStatus.getDefaultInstance());
+            responseObserver.onNext(LCMS.SlotDetachStatus.getDefaultInstance());
             responseObserver.onCompleted();
         } catch (ChannelException | IllegalArgumentException e) {
             LOG.error("Unbind slot={} to channel={} failed, invalid argument: {}",
@@ -440,24 +427,6 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         } finally {
             lockManager.getOrCreate(detach.getSlotInstance().getChannelId()).unlock();
         }
-    }
-
-    private ChannelManager.ChannelStatus toChannelStatus(Channel channel) {
-        final ChannelManager.ChannelStatus.Builder statusBuilder = ChannelManager.ChannelStatus.newBuilder();
-        statusBuilder
-            .setChannelId(channel.id())
-            .setChannelSpec(to(channel.spec()));
-        channel.slotsStatus()
-            .map(slotStatus ->
-                Operations.SlotStatus.newBuilder()
-                    .setTaskId(slotStatus.tid())
-                    .setConnectedTo(channel.id())
-                    .setDeclaration(to(slotStatus.slot()))
-                    .setPointer(slotStatus.pointer())
-                    .setState(Operations.SlotStatus.State.valueOf(slotStatus.state().toString()))
-                    .build())
-            .forEach(statusBuilder::addConnected);
-        return statusBuilder.build();
     }
 
 }

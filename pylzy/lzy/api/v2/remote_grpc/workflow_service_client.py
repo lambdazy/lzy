@@ -3,7 +3,8 @@ from typing import AsyncIterable, AsyncIterator, List, Optional, Sequence, Tuple
 
 from grpc.aio import Channel
 
-from ai.lzy.v1.workflow.workflow_pb2 import Graph, SnapshotStorage, VmPoolSpec
+from ai.lzy.v1.common.s3_pb2 import S3Locator
+from ai.lzy.v1.workflow.workflow_pb2 import Graph, VmPoolSpec
 from ai.lzy.v1.workflow.workflow_service_pb2 import (
     AttachWorkflowRequest,
     CreateWorkflowRequest,
@@ -59,7 +60,7 @@ def _create_storage_endpoint(
     error_msg = "no storage credentials provided"
 
     assert response.HasField("internalSnapshotStorage"), error_msg
-    store: SnapshotStorage = response.internalSnapshotStorage
+    store: S3Locator = response.internalSnapshotStorage
 
     grpc_creds: converter.storage_creds.grpc_STORAGE_CREDS
     if store.HasField("azure"):
@@ -103,15 +104,15 @@ class WorkflowServiceClient:
     async def create_workflow(
         self, name: str, storage: Optional[StorageConfig] = None
     ) -> Tuple[str, Optional[StorageConfig]]:
-        s: Optional[SnapshotStorage] = None
+        s: Optional[S3Locator] = None
 
         if storage is not None:
             if isinstance(storage.credentials, AmazonCredentials):
-                s = SnapshotStorage(
+                s = S3Locator(
                     bucket=storage.bucket, amazon=to(storage.credentials)
                 )
             else:
-                s = SnapshotStorage(
+                s = S3Locator(
                     bucket=storage.bucket, azure=to(storage.credentials)
                 )
 

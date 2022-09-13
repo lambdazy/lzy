@@ -1,7 +1,6 @@
 package ai.lzy.scheduler.servant.impl;
 
-import ai.lzy.model.Operation;
-import ai.lzy.model.graph.Provisioning;
+import ai.lzy.model.operation.Operation;
 import ai.lzy.scheduler.models.ServantEvent;
 import ai.lzy.scheduler.models.ServantState;
 import ai.lzy.scheduler.servant.Servant;

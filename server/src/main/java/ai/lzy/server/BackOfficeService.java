@@ -23,10 +23,10 @@ import ai.lzy.server.hibernate.models.BackofficeSessionModel;
 import ai.lzy.server.hibernate.models.PublicKeyModel;
 import ai.lzy.server.hibernate.models.UserModel;
 import ai.lzy.server.hibernate.models.UserRoleModel;
-import ai.lzy.v1.BackOffice;
-import ai.lzy.v1.IAM;
-import ai.lzy.v1.LzyBackofficeGrpc;
-import ai.lzy.v1.Tasks;
+import ai.lzy.v1.deprecated.BackOffice;
+import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.v1.deprecated.LzyBackofficeGrpc;
+import ai.lzy.v1.deprecated.LzyTask;
 
 @Requires(beans = DbStorage.class)
 public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
@@ -318,7 +318,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
             return;
         }
         responseObserver.onNext(
-            BackOffice.GetTasksResponse.newBuilder().setTasks(Tasks.TasksList.newBuilder().addAllTasks(tasks.tasks()
+            BackOffice.GetTasksResponse.newBuilder().setTasks(LzyTask.TasksList.newBuilder().addAllTasks(tasks.tasks()
                 .filter(t -> this.auth.canAccess(t, request.getCredentials().getUserId()))
                 .map(t -> LzyServer.Impl.taskStatus(t, tasks))
                 .collect(Collectors.toList())
@@ -379,7 +379,7 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
         }
     }
 
-    private void authBackofficeCredentials(IAM.UserCredentials credentials) throws StatusException {
+    private void authBackofficeCredentials(LzyAuth.UserCredentials credentials) throws StatusException {
         if (!auth.checkUser(credentials.getUserId(), credentials.getToken())) {
             throw Status.PERMISSION_DENIED
                 .withDescription("Wrong backoffice credentials")

@@ -1,6 +1,7 @@
 package ai.lzy.fs.slots;
 
-import ai.lzy.model.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.v1.common.LMS;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -17,12 +18,11 @@ import org.apache.logging.log4j.Logger;
 import ru.serce.jnrfuse.ErrorCodes;
 import ru.serce.jnrfuse.struct.FileStat;
 import ru.serce.jnrfuse.struct.FuseFileInfo;
-import ai.lzy.model.Slot;
 import ai.lzy.fs.fs.FileContents;
 import ai.lzy.fs.fs.FileContentsBase;
 import ai.lzy.fs.fs.LzyFileSlot;
-import ai.lzy.v1.Operations;
-import ai.lzy.v1.Operations.SlotStatus.State;
+import ai.lzy.v1.deprecated.LzyZygote;
+import ai.lzy.v1.common.LMS.SlotStatus.State;
 
 public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
     private static final Logger LOG = LogManager.getLogger(InFileSlot.class);
@@ -64,7 +64,7 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
     @Override
     public long size() {
         LOG.info("InFileSlot::size() for slot " + name());
-        waitForState(Operations.SlotStatus.State.OPEN);
+        waitForState(LMS.SlotStatus.State.OPEN);
         try {
             return Files.size(storage);
         } catch (IOException e) {
