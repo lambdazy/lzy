@@ -38,8 +38,13 @@ def check_cluster_with_same_name(cluster_service):
         raise Exception("k8s cluster {} in folder {} is already exist\n".format(config.cluster_name, config.folder_id))
 
 
-def create_or_get_security_group(config: CreateSecurityGroupRequest, name: str, req: CreateSecurityGroupRequest) -> str:
-    try:
+def get_create_or_security_group(config: CreateSecurityGroupRequest, name: str, req: CreateSecurityGroupRequest) -> str:
+    security_groups = sg_service.List(ListSecurityGroupsRequest(folder_id=config.folder_id)).security_groups
+    security_groups_with_same_name = list(filter(lambda sg: sg.name == name, security_groups))
+    if len(security_groups_with_same_name) > 0:
+        LOG.info("security group {} is already exist\n".format(name))
+        return security_groups_with_same_name[0].id
+    else:
         # for basic cluster efficiency
         LOG.info("trying to create {} security group...\n".format(name))
         operation = sg_service.Create(req)
@@ -50,13 +55,6 @@ def create_or_get_security_group(config: CreateSecurityGroupRequest, name: str, 
         )
         LOG.info("successfully created {} security group...\n".format(name))
         return operation_result.response.id
-    except grpc.RpcError as e:
-        if e.code() is grpc.StatusCode.ALREADY_EXISTS:
-            LOG.info("security group {} is already exist\n".format(name))
-        else:
-            raise e
-    security_groups = sg_service.List(ListSecurityGroupsRequest(folder_id=config.folder_id)).security_groups
-    return list(filter(lambda sg: sg.name == name, security_groups))[0].id
 
 
 if __name__ == "__main__":
@@ -96,7 +94,7 @@ if __name__ == "__main__":
     balancer_addresses_for_main_sg = ["198.18.235.0/24", "198.18.248.0/24"]
 
     main_sg_name = "lzy-{}-main-sg".format(config.cluster_name)
-    main_sg_id = create_or_get_security_group(
+    main_sg_id = get_create_or_security_group(
         config,
         main_sg_name,
         CreateSecurityGroupRequest(
@@ -137,7 +135,7 @@ if __name__ == "__main__":
     public_svs_sg_name = "lzy-{}-public-services".format(config.cluster_name)
     yc_vpc_min_port = 30000
     yc_vpc_max_port = 32767
-    public_services_sg_id = create_or_get_security_group(
+    public_services_sg_id = get_create_or_security_group(
         config,
         public_svs_sg_name,
         CreateSecurityGroupRequest(
@@ -157,7 +155,7 @@ if __name__ == "__main__":
 
     master_sg_name = "lzy-{}-master-whitelist".format(config.cluster_name)
     k8s_master_ports = [443, 6443]
-    master_whitelist_sg_id = create_or_get_security_group(
+    master_whitelist_sg_id = get_create_or_security_group(
         config,
         master_sg_name,
         CreateSecurityGroupRequest(

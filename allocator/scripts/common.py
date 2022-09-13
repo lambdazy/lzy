@@ -14,7 +14,7 @@ def strict_load_yaml(yaml: str, loaded_type: Type[Any]):
 
 
 def create_sdk():
-    token = os.environ['YC_TOKEN']
+    token = os.getenv("YC_TOKEN", default="")
     if token is None or token == "":
         raise Exception("Expected authorization token in YC_TOKEN env variable!\nExecute this in terminal:\n\nexport "
                         "YC_TOKEN=$(yc iam create-token)\n")
