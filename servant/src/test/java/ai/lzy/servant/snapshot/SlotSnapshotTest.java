@@ -1,6 +1,6 @@
 package ai.lzy.servant.snapshot;
 
-import ai.lzy.model.basic.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;

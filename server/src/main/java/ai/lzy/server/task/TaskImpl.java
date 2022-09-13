@@ -6,7 +6,7 @@ import static ai.lzy.server.task.Task.State.SUCCESS;
 
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.Signal;
-import ai.lzy.model.basic.SlotStatus;
+import ai.lzy.model.slot.SlotStatus;
 import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.model.deprecated.Zygote;
 import ai.lzy.model.grpc.ProtoConverter;

@@ -3,14 +3,14 @@ package ai.lzy.model.deprecated;
 import static ai.lzy.model.grpc.ProtoConverter.fromProto;
 
 import ai.lzy.model.StorageCredentials;
-import ai.lzy.model.basic.SlotInstance;
-import ai.lzy.model.basic.SlotStatus;
 import ai.lzy.model.data.DataSchema;
 import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
-import ai.lzy.v1.common.LMB;
+import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.model.slot.SlotStatus;
+import ai.lzy.v1.common.LMD;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.deprecated.Lzy;
 import ai.lzy.v1.deprecated.LzyTask;
@@ -47,7 +47,7 @@ public abstract class GrpcConverter {
             .map(ass -> new Context.SlotAssignment(ass.getTaskId(), fromProto(ass.getSlot()), ass.getBinding()));
     }
 
-    public static DataSchema contentTypeFrom(LMB.DataScheme dataScheme) {
+    public static DataSchema contentTypeFrom(LMD.DataScheme dataScheme) {
         return DataSchema.buildDataSchema(dataScheme.getSchemeType(), dataScheme.getType());
     }
 

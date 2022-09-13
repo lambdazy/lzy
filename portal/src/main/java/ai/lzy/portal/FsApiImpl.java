@@ -5,7 +5,7 @@ import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.model.deprecated.GrpcConverter;
-import ai.lzy.model.basic.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.slots.SnapshotSlotsProvider;
 import ai.lzy.portal.slots.StdoutSlot;
 import ai.lzy.v1.fs.LzyFsApi;

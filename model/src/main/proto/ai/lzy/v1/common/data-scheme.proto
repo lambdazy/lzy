@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package ai.lzy.v1;
 
-option java_outer_classname = "LMB";
+option java_outer_classname = "LMD";
 option java_package = "ai.lzy.v1.common";
 
 enum SchemeType {

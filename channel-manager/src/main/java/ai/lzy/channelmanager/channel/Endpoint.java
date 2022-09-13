@@ -1,8 +1,8 @@
 package ai.lzy.channelmanager.channel;
 
 import ai.lzy.model.slot.Slot;
-import ai.lzy.model.basic.SlotInstance;
-import ai.lzy.model.basic.SlotStatus;
+import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.model.slot.SlotStatus;
 import java.net.URI;
 import javax.annotation.Nullable;
 

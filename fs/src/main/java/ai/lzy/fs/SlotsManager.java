@@ -1,6 +1,6 @@
 package ai.lzy.fs;
 
-import ai.lzy.model.basic.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.v1.channel.LCMS;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import io.grpc.StatusRuntimeException;

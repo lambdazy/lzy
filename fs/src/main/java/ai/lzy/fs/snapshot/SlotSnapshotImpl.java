@@ -1,6 +1,6 @@
 package ai.lzy.fs.snapshot;
 
-import ai.lzy.model.basic.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
 import java.io.IOException;

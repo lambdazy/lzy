@@ -1,6 +1,6 @@
 package ai.lzy.fs.fs;
 
-import ai.lzy.model.basic.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.v1.common.LMS;
 import com.google.protobuf.ByteString;

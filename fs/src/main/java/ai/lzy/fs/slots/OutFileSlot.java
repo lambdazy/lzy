@@ -4,7 +4,7 @@ import static ai.lzy.v1.common.LMS.SlotStatus.State.OPEN;
 import static ai.lzy.v1.common.LMS.SlotStatus.State.PREPARING;
 import static ai.lzy.v1.common.LMS.SlotStatus.State.UNBOUND;
 
-import ai.lzy.model.basic.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.v1.common.LMS;
 import com.google.protobuf.ByteString;

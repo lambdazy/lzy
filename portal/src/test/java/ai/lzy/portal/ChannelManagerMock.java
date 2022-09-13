@@ -2,7 +2,7 @@ package ai.lzy.portal;
 
 import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.model.basic.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.test.GrpcUtils;
 import ai.lzy.v1.channel.LCMS;

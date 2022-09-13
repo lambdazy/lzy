@@ -6,7 +6,7 @@ import ai.lzy.model.db.DaoException;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.scheduler.db.TaskDao;
-import ai.lzy.model.basic.TaskDesc;
+import ai.lzy.model.TaskDesc;
 import ai.lzy.scheduler.models.TaskState;
 import ai.lzy.scheduler.servant.Scheduler;
 import ai.lzy.scheduler.servant.Servant;

@@ -4,7 +4,7 @@ import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.v1.channel.LCM;
 import ai.lzy.v1.channel.LCMS;
 import ai.lzy.v1.channel.LCMS;
-import ai.lzy.v1.common.LMB;
+import ai.lzy.v1.common.LMD;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.portal.LzyPortal;
@@ -37,10 +37,10 @@ public class GrpcUtils {
         return LCMS.ChannelDestroyAllRequest.newBuilder().setWorkflowId(workflowId).build();
     }
 
-    public static LMB.DataScheme makePlainTextDataScheme() {
-        return LMB.DataScheme.newBuilder()
+    public static LMD.DataScheme makePlainTextDataScheme() {
+        return LMD.DataScheme.newBuilder()
             .setType("text")
-            .setSchemeType(LMB.SchemeType.plain.name())
+            .setSchemeType(LMD.SchemeType.plain.name())
             .build();
     }
 

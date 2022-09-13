@@ -1,13 +1,12 @@
 package ai.lzy.model.grpc;
 
 import ai.lzy.model.StorageCredentials;
-import ai.lzy.model.basic.SlotInstance;
-import ai.lzy.model.basic.SlotStatus;
+import ai.lzy.model.slot.SlotStatus;
 import ai.lzy.model.data.DataSchema;
 import ai.lzy.model.data.SchemeType;
 import ai.lzy.model.graph.*;
 import ai.lzy.model.slot.Slot;
-import ai.lzy.v1.common.LMB;
+import ai.lzy.v1.common.LMD;
 import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LMS;
 import java.net.URI;
@@ -63,7 +62,7 @@ public class ProtoConverter {
         return new PythonEnvAdapter(env);
     }
 
-    public static DataSchema fromProto(LMB.DataScheme dataScheme) {
+    public static DataSchema fromProto(LMD.DataScheme dataScheme) {
         return DataSchema.buildDataSchema(dataScheme.getSchemeType(), dataScheme.getType());
     }
 
@@ -119,8 +118,8 @@ public class ProtoConverter {
             .build();
     }
 
-    public static LMB.DataScheme toProto(DataSchema dataSchema) {
-        return LMB.DataScheme.newBuilder()
+    public static LMD.DataScheme toProto(DataSchema dataSchema) {
+        return LMD.DataScheme.newBuilder()
             .setType(dataSchema.typeContent())
             .setSchemeType(toProto(dataSchema.schemeType()))
             .build();

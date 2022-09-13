@@ -24,8 +24,8 @@ import ai.lzy.v1.channel.LCM.ChannelSpec;
 import ai.lzy.v1.channel.LCM.DirectChannelType;
 import ai.lzy.v1.channel.LCMS.ChannelCreateRequest;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
-import ai.lzy.v1.common.LMB;
-import ai.lzy.v1.common.LMB.DataScheme;
+import ai.lzy.v1.common.LMD;
+import ai.lzy.v1.common.LMD.DataScheme;
 import ai.lzy.v1.graph.GraphExecutor;
 import ai.lzy.v1.graph.GraphExecutor.ChannelDesc;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphExecuteRequest;
@@ -214,7 +214,7 @@ public class SchedulerTest extends LocalScenario {
                 .setChannelName(value)
                 .setDirect(DirectChannelType.newBuilder().build())
                     .setContentType(DataScheme.newBuilder()
-                        .setSchemeType(LMB.SchemeType.plain.name())
+                        .setSchemeType(LMD.SchemeType.plain.name())
                         .setType("text")
                         .build())
                 .build())

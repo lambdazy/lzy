@@ -1,6 +1,6 @@
 package ai.lzy.fs;
 
-import ai.lzy.model.basic.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import com.google.protobuf.ByteString;
 
 import java.io.File;

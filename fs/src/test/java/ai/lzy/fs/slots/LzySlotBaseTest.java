@@ -1,6 +1,6 @@
 package ai.lzy.fs.slots;
 
-import ai.lzy.model.basic.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import java.net.URI;
 import java.net.URISyntaxException;
 import org.junit.Ignore;

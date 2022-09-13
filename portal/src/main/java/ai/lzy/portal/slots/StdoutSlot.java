@@ -4,7 +4,7 @@ import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.fs.slots.LzySlotBase;
-import ai.lzy.model.basic.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.slot.TextLinesOutSlot;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.deprecated.LzyZygote;

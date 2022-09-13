@@ -2,7 +2,7 @@ package ai.lzy.fs;
 
 import static ai.lzy.model.deprecated.GrpcConverter.to;
 
-import ai.lzy.model.basic.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.v1.deprecated.Lzy;
 import ai.lzy.v1.deprecated.LzyAuth;
 import ai.lzy.v1.deprecated.LzyKharonGrpc;

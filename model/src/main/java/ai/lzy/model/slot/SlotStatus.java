@@ -1,4 +1,4 @@
-package ai.lzy.model.basic;
+package ai.lzy.model.slot;
 
 import ai.lzy.model.slot.Slot;
 import javax.annotation.Nullable;

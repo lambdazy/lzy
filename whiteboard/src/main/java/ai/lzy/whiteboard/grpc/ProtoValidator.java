@@ -1,6 +1,6 @@
 package ai.lzy.whiteboard.grpc;
 
-import ai.lzy.v1.common.LMB;
+import ai.lzy.v1.common.LMD;
 import ai.lzy.v1.whiteboard.LWB;
 import ai.lzy.v1.whiteboard.LWBPS;
 
@@ -25,7 +25,7 @@ public class ProtoValidator {
         }
     }
 
-    public static boolean isValid(LMB.DataScheme dataScheme) {
+    public static boolean isValid(LMD.DataScheme dataScheme) {
         boolean isValid = true;
         try {
             isValid = isValid && !dataScheme.getType().isBlank();

@@ -1,7 +1,7 @@
 package ai.lzy.portal;
 
 import ai.lzy.model.deprecated.GrpcConverter;
-import ai.lzy.model.basic.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.config.PortalConfig;
 import ai.lzy.servant.agents.LzyAgentConfig;
 import ai.lzy.servant.agents.LzyServant;

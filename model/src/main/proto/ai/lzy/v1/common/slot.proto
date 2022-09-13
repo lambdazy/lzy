@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package ai.lzy.v1;
 
-import "ai/lzy/v1/common/basic.proto";
+import "ai/lzy/v1/common/data-scheme.proto";
 
 option java_outer_classname = "LMS";
 option java_package = "ai.lzy.v1.common";

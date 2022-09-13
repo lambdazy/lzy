@@ -4,7 +4,7 @@ import ai.lzy.fs.commands.BuiltinCommandHolder;
 import ai.lzy.fs.fs.*;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
-import ai.lzy.model.basic.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.deprecated.Zygote;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;

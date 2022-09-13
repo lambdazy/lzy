@@ -7,7 +7,7 @@ import ai.lzy.channelmanager.channel.SlotEndpoint;
 import ai.lzy.channelmanager.control.DirectChannelController;
 import ai.lzy.channelmanager.control.SnapshotChannelController;
 import ai.lzy.model.deprecated.GrpcConverter;
-import ai.lzy.model.basic.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.channelmanager.channel.ChannelSpec;
 import ai.lzy.channelmanager.channel.DirectChannelSpec;
 import ai.lzy.channelmanager.channel.SnapshotChannelSpec;

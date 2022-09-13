@@ -1,7 +1,7 @@
 package ai.lzy.channelmanager.channel;
 
 import ai.lzy.channelmanager.control.ChannelController;
-import ai.lzy.model.basic.SlotStatus;
+import ai.lzy.model.slot.SlotStatus;
 import java.util.stream.Stream;
 
 public interface Channel {

@@ -2,7 +2,7 @@ package ai.lzy.portal.slots;
 
 import ai.lzy.fs.slots.LzyInputSlotBase;
 import ai.lzy.fs.slots.OutFileSlot;
-import ai.lzy.model.basic.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.s3.S3Repository;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.deprecated.LzyZygote;

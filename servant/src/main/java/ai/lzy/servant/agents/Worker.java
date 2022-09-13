@@ -5,7 +5,7 @@ import ai.lzy.fs.LzyFsServer;
 import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.fs.slots.LineReaderSlot;
 import ai.lzy.model.*;
-import ai.lzy.model.basic.TaskDesc;
+import ai.lzy.model.TaskDesc;
 import ai.lzy.model.EnvironmentInstallationException;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.scheduler.SchedulerAgent;

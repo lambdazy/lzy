@@ -2,7 +2,7 @@ package ai.lzy.server.task;
 
 import ai.lzy.model.Signal;
 import ai.lzy.model.slot.Slot;
-import ai.lzy.model.basic.SlotStatus;
+import ai.lzy.model.slot.SlotStatus;
 import ai.lzy.model.deprecated.Zygote;
 import ai.lzy.server.ServantsAllocator;
 import ai.lzy.v1.deprecated.LzyTask;

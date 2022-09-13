@@ -1,6 +1,6 @@
 package ai.lzy.scheduler;
 
-import ai.lzy.model.basic.TaskDesc;
+import ai.lzy.model.TaskDesc;
 import ai.lzy.scheduler.servant.Scheduler;
 import ai.lzy.scheduler.task.Task;
 import ai.lzy.v1.scheduler.Scheduler.TaskStatus;

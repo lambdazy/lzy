@@ -3,7 +3,7 @@ package ai.lzy.channelmanager.channel;
 import ai.lzy.channelmanager.control.ChannelController;
 import ai.lzy.channelmanager.graph.ChannelGraph;
 import ai.lzy.channelmanager.graph.LocalChannelGraph;
-import ai.lzy.model.basic.SlotStatus;
+import ai.lzy.model.slot.SlotStatus;
 import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.HashSet;

@@ -11,7 +11,7 @@ import ai.lzy.v1.channel.LCM.ChannelSpec;
 import ai.lzy.v1.channel.LCM.DirectChannelType;
 import ai.lzy.v1.channel.LCMS.*;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
-import ai.lzy.v1.common.LMB;
+import ai.lzy.v1.common.LMD;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
@@ -156,8 +156,8 @@ public class ChannelManagerTest extends BaseTestWithIam {
                 ChannelCreateRequest.newBuilder()
                     .setChannelSpec(ChannelSpec.newBuilder().setChannelName("channel1").setDirect(
                             DirectChannelType.newBuilder().build())
-                        .setContentType(LMB.DataScheme.newBuilder().setType("text").setSchemeType(
-                            LMB.SchemeType.plain.name()).build())
+                        .setContentType(LMD.DataScheme.newBuilder().setType("text").setSchemeType(
+                            LMD.SchemeType.plain.name()).build())
                         .build())
                     .build());
             Assert.fail();
@@ -187,9 +187,9 @@ public class ChannelManagerTest extends BaseTestWithIam {
                     .setWorkflowId(UUID.randomUUID().toString())
                     .setChannelSpec(ChannelSpec.newBuilder().setDirect(
                             DirectChannelType.newBuilder().build())
-                        .setContentType(LMB.DataScheme.newBuilder()
+                        .setContentType(LMD.DataScheme.newBuilder()
                             .setType("text")
-                            .setSchemeType(LMB.SchemeType.plain.name())
+                            .setSchemeType(LMD.SchemeType.plain.name())
                             .build())
                         .build())
                     .build());
@@ -206,9 +206,9 @@ public class ChannelManagerTest extends BaseTestWithIam {
                 ChannelCreateRequest.newBuilder()
                     .setWorkflowId(UUID.randomUUID().toString())
                     .setChannelSpec(ChannelSpec.newBuilder().setChannelName("channel1")
-                        .setContentType(LMB.DataScheme.newBuilder()
+                        .setContentType(LMD.DataScheme.newBuilder()
                             .setType("text")
-                            .setSchemeType(LMB.SchemeType.plain.name())
+                            .setSchemeType(LMD.SchemeType.plain.name())
                             .build())
                         .build())
                     .build());
@@ -242,8 +242,8 @@ public class ChannelManagerTest extends BaseTestWithIam {
                     .setWorkflowId(UUID.randomUUID().toString())
                     .setChannelSpec(ChannelSpec.newBuilder().setChannelName("channel1").setDirect(
                             DirectChannelType.newBuilder().build())
-                        .setContentType(LMB.DataScheme.newBuilder().setSchemeType(
-                            LMB.SchemeType.plain.name()).build())
+                        .setContentType(LMD.DataScheme.newBuilder().setSchemeType(
+                            LMD.SchemeType.plain.name()).build())
                         .build())
                     .build());
             Assert.fail();
@@ -260,7 +260,7 @@ public class ChannelManagerTest extends BaseTestWithIam {
                     .setWorkflowId(UUID.randomUUID().toString())
                     .setChannelSpec(ChannelSpec.newBuilder().setChannelName("channel1").setDirect(
                             DirectChannelType.newBuilder().build())
-                        .setContentType(LMB.DataScheme.newBuilder().setType("text"))
+                        .setContentType(LMD.DataScheme.newBuilder().setType("text"))
                         .build())
                     .build());
             Assert.fail();

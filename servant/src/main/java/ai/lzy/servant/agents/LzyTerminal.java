@@ -7,7 +7,7 @@ import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.model.basic.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.UriScheme;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.deprecated.*;

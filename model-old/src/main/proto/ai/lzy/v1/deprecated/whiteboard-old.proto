@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-import "ai/lzy/v1/common/basic.proto";
+import "ai/lzy/v1/common/data-scheme.proto";
 import "ai/lzy/v1/deprecated/auth.proto";
 import "ai/lzy/v1/deprecated/backoffice.proto";
 import "google/protobuf/timestamp.proto";

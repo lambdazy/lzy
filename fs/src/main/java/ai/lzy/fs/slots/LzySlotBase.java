@@ -4,7 +4,7 @@ import static ai.lzy.v1.common.LMS.SlotStatus.State.*;
 import static java.util.Collections.synchronizedMap;
 
 import ai.lzy.fs.fs.LzySlot;
-import ai.lzy.model.basic.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.v1.common.LMS;
 import com.google.protobuf.ByteString;

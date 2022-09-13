@@ -4,7 +4,7 @@ import static ai.lzy.model.deprecated.GrpcConverter.to;
 
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.model.basic.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.v1.deprecated.Kharon.ReceivedDataStatus;
 import ai.lzy.v1.deprecated.Kharon.SendSlotDataMessage;
 import ai.lzy.v1.fs.LzyFsApi;

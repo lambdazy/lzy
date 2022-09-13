@@ -1,4 +1,4 @@
-package ai.lzy.model.basic;
+package ai.lzy.model;
 
 import ai.lzy.model.operation.Operation;
 import ai.lzy.model.operation.OperationDeserializer;

@@ -1,6 +1,6 @@
 package ai.lzy.scheduler.servant.impl;
 
-import ai.lzy.model.basic.TaskDesc;
+import ai.lzy.model.TaskDesc;
 import ai.lzy.model.graph.Env;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.scheduler.servant.ServantApi;

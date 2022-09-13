@@ -4,7 +4,7 @@ import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
-import ai.lzy.model.basic.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.utils.PortalUtils;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.portal.LzyPortal;

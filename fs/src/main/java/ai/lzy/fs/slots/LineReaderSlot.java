@@ -2,7 +2,7 @@ package ai.lzy.fs.slots;
 
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.model.deprecated.GrpcConverter;
-import ai.lzy.model.basic.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.deprecated.LzyZygote;
