@@ -1,7 +1,6 @@
 package ai.lzy.model.deprecated;
 
 import ai.lzy.model.slot.Slot;
-import ai.lzy.model.data.DataEntity;
 import java.util.stream.Stream;
 
 @Deprecated
