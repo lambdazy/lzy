@@ -5,14 +5,10 @@ package ai.lzy.v1;
 option java_outer_classname = "LMD";
 option java_package = "ai.lzy.v1.common";
 
-enum SchemeType {
-  UNSPECIFIED = 0;
-  plain = 1;
-  proto = 2;
-  cloudpickle = 3;
-}
-
 message DataScheme {
-  string type = 1;
-  string schemeType = 2;
+  string dataFormat = 1;
+  string schemaFormat = 2;
+  string schemaContent = 3;
+
+  map<string, string> metadata = 10;
 }
