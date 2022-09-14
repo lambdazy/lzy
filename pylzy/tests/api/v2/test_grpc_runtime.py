@@ -2,11 +2,13 @@ import asyncio
 import logging
 import tempfile
 from concurrent import futures
+from io import BytesIO
 from typing import Iterator
 from unittest import TestCase
 
 import aioboto3
 import grpc.aio
+import requests
 from Crypto.PublicKey import RSA
 from grpc import StatusCode
 from moto.server import ThreadedMotoServer
@@ -237,3 +239,25 @@ class SnapshotTests(TestCase):
 
             self.assertEqual(l2, "42")
             self.assertEqual(l3, "42")
+
+    def test_presigned_url(self):
+        storage_config = storage.StorageConfig(
+            bucket="bucket",
+            credentials=storage.AmazonCredentials(
+                self.endpoint_url, access_token="", secret_token=""
+            ),
+        )
+
+        storages = DefaultStorageRegistry()
+        storages.register_storage("storage", storage_config, True)
+
+        client = storages.default_client()
+        url = client.generate_uri("bucket", "12345")
+        with BytesIO(b"42") as f:
+            asyncio.run(client.write(url, f))
+
+        presigned_url = asyncio.run(client.sign_storage_uri(url))
+
+        response = requests.get(presigned_url, stream=True)
+        data = next(iter(response.iter_content(16)))
+        self.assertEqual(data, b"42")
