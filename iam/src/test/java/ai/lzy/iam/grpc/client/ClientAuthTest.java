@@ -20,6 +20,8 @@ import org.junit.*;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.sql.Date;
+import java.time.Instant;
 
 public class ClientAuthTest {
 
@@ -40,7 +42,7 @@ public class ClientAuthTest {
 
         var internalUserConfig = ctx.getBean(InternalUserConfig.class);
         var internalUserCredentials = JwtUtils.credentials(internalUserConfig.userName(), AuthProvider.INTERNAL.name(),
-            JwtUtils.afterDays(1), internalUserConfig.credentialPrivateKey());
+            Date.from(Instant.now()), JwtUtils.afterDays(1), internalUserConfig.credentialPrivateKey());
 
         subjectClient = new SubjectServiceGrpcClient(getIamAddress(), () -> internalUserCredentials);
         authClient = new AuthenticateServiceGrpcClient(getIamAddress());
@@ -64,14 +66,14 @@ public class ClientAuthTest {
         Assert.assertEquals(SubjectType.USER, subject.type());
 
         var subject2 = authClient.authenticate(
-            JwtUtils.credentials(login, AuthProvider.GITHUB.name(), JwtUtils.afterDays(1),
+            JwtUtils.credentials(login, AuthProvider.GITHUB.name(), Date.from(Instant.now()), JwtUtils.afterDays(1),
                 Files.readString(keys.privateKeyPath())));
         Assert.assertEquals(subject, subject2);
 
         subjectClient.removeCredentials(subject, "main");
         try {
             authClient.authenticate(
-                JwtUtils.credentials(login, AuthProvider.GITHUB.name(), JwtUtils.afterDays(1),
+                JwtUtils.credentials(login, AuthProvider.GITHUB.name(), Date.from(Instant.now()), JwtUtils.afterDays(1),
                     Files.readString(keys.privateKeyPath())));
             Assert.fail();
         } catch (AuthPermissionDeniedException e) {

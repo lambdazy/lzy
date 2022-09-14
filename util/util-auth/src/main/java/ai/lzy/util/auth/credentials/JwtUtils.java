@@ -10,17 +10,16 @@ import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemReader;
 
 import javax.annotation.Nullable;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
-import java.nio.file.Files;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
@@ -34,8 +33,12 @@ public enum JwtUtils {
 
     public static final String CLAIM_PROVIDER = "pvd";
 
+    public static Date afterDays(int days, Clock clock) {
+        return Date.from(clock.instant().plus(Duration.ofDays(days)));
+    }
+
     public static Date afterDays(int days) {
-        return Date.from(Instant.now().plus(Duration.ofDays(days)));
+        return afterDays(days, Clock.systemUTC());
     }
 
     public static JwtCredentials invalidCredentials(String user, String provider) {
@@ -69,34 +72,34 @@ public enum JwtUtils {
             -----END RSA PRIVATE KEY-----""";
 
         try (final Reader reader = new StringReader(privateKey)) {
-            var expiresAt = afterDays(7);
-            return new JwtCredentials(buildJWT(user, provider, expiresAt, reader));
+            var from = Date.from(Instant.now());
+            var till = afterDays(7);
+            return new JwtCredentials(buildJWT(user, provider, from, till, reader));
         } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
             throw new RuntimeException("Cannot build credentials: " + e.getMessage(), e);
         }
     }
 
-    public static JwtCredentials credentials(String user, String provider, Date expiresAt, String privateKey) {
+    public static JwtCredentials credentials(String user, String provider, Date from, Date till, String privateKey) {
         try (final Reader reader = new StringReader(privateKey)) {
-            return new JwtCredentials(buildJWT(user, provider, expiresAt, reader));
+            return new JwtCredentials(buildJWT(user, provider, from, till, reader));
         } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
             throw new RuntimeException("Cannot build credentials: " + e.getMessage(), e);
         }
     }
 
-    public static String buildJWT(String issuer, String provider, Date expiresAt, PrivateKey key) {
-        Instant now = Instant.now();
+    public static String buildJWT(String issuer, String provider, Date from, Date till, PrivateKey key) {
         return Jwts.builder()
-            .setIssuedAt(Date.from(now))
-            .setNotBefore(Date.from(now))
-            .setExpiration(expiresAt)
+            .setIssuedAt(from)
+            .setNotBefore(from)
+            .setExpiration(till)
             .setIssuer(issuer)
             .addClaims(Map.of(CLAIM_PROVIDER, provider))
             .signWith(key, SignatureAlgorithm.PS256)
             .compact();
     }
 
-    public static String buildJWT(String issuer, String provider, Date expiresAt, Reader privateKeyReader)
+    public static String buildJWT(String issuer, String provider, Date from, Date till, Reader privateKeyReader)
         throws IOException, NoSuchAlgorithmException, InvalidKeySpecException
     {
         addProvider(new BouncyCastleProvider());
@@ -107,7 +110,7 @@ public enum JwtUtils {
             PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(content);
             PrivateKey privateKey = factory.generatePrivate(privateKeySpec);
 
-            return buildJWT(issuer, provider, expiresAt, privateKey);
+            return buildJWT(issuer, provider, from, till, privateKey);
         }
     }
 
@@ -139,25 +142,37 @@ public enum JwtUtils {
         }
     }
 
-    public static boolean checkJWT(PublicKey key, String jwt, String issuer, String provider) {
+    public static boolean checkJWT(PublicKey key, String jwt, String issuer, String provider, Clock clock) {
         try {
             Jwts.parserBuilder()
                 .requireIssuer(issuer)
                 .require(CLAIM_PROVIDER, provider)
                 .setSigningKey(key)
+                .setClock(() -> Date.from(clock.instant()))
                 .build()
                 .parseClaimsJws(jwt);
             return true;
         } catch (JwtException ex) {
+            System.err.println(ex.getMessage());
             return false;
         }
+    }
+
+    public static boolean checkJWT(PublicKey key, String jwt, String issuer, String provider) {
+        return checkJWT(key, jwt, issuer, provider, Clock.systemUTC());
+    }
+
+    public static boolean checkJWT(Reader keyReader, String jwt, String issuer, String provider, Clock clock)
+        throws IOException, NoSuchAlgorithmException, InvalidKeySpecException
+    {
+        var publicKey = CredentialsUtils.readPublicKey(keyReader);
+        return checkJWT(publicKey, jwt, issuer, provider, clock);
     }
 
     public static boolean checkJWT(Reader keyReader, String jwt, String issuer, String provider)
         throws IOException, NoSuchAlgorithmException, InvalidKeySpecException
     {
-        var publicKey = CredentialsUtils.readPublicKey(keyReader);
-        return checkJWT(publicKey, jwt, issuer, provider);
+        return checkJWT(keyReader, jwt, issuer, provider, Clock.systemUTC());
     }
 
     @Deprecated
@@ -192,26 +207,6 @@ public enum JwtUtils {
         } catch (JsonProcessingException ignored) {
             return null;
         }
-    }
-
-    public record GeneratedCredentials(
-        String publicKey,
-        JwtCredentials credentials
-    ) {}
-
-    public static GeneratedCredentials generateCredentials(String login, String provider)
-            throws IOException, InterruptedException, NoSuchAlgorithmException, InvalidKeySpecException
-    {
-        final var keys = RsaUtils.generateRsaKeys();
-        final JwtCredentials credentials;
-        try (final var reader = new FileReader(keys.privateKeyPath().toFile())) {
-            var expiresAt = afterDays(7);
-            credentials = new JwtCredentials(buildJWT(login, provider, expiresAt, reader));
-        }
-
-        final var publicKey = Files.readString(keys.publicKeyPath());
-
-        return new GeneratedCredentials(publicKey, credentials);
     }
 
     private static final ObjectMapper objectMapper = new ObjectMapper();

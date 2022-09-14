@@ -21,6 +21,7 @@ import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.junit.*;
 
 import java.io.IOException;
+import java.sql.Date;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
@@ -43,6 +44,7 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
         Credentials credentials = JwtUtils.credentials(
             internalUserConfig.userName(),
             AuthProvider.INTERNAL.name(),
+            Date.from(Instant.now()),
             JwtUtils.afterDays(1),
             internalUserConfig.credentialPrivateKey()
         );
