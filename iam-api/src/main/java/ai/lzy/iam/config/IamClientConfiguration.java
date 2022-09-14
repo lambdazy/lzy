@@ -10,7 +10,8 @@ public final class IamClientConfiguration {
     private String internalUserPrivateKey;
 
     public JwtCredentials createCredentials() {
-        return JwtUtils.credentials(internalUserName, AuthProvider.INTERNAL.name(), internalUserPrivateKey);
+        return JwtUtils.credentials(internalUserName, AuthProvider.INTERNAL.name(), JwtUtils.afterDays(7),
+            internalUserPrivateKey);
     }
 
     public String getAddress() {
