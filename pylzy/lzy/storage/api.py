@@ -58,19 +58,15 @@ class StorageConfig:
 
 class AsyncStorageClient(ABC):
     @abstractmethod
-    async def read(self, url: str, dest: BinaryIO) -> None:
+    async def read(self, uri: str, dest: BinaryIO) -> None:
         pass
 
     @abstractmethod
-    async def write(self, url: str, data: BinaryIO):
+    async def write(self, uri: str, data: BinaryIO):
         pass
 
     @abstractmethod
-    async def blob_exists(self, container: str, blob: str) -> bool:
-        pass
-
-    @abstractmethod
-    async def bucket_exists(self, bucket: str) -> bool:
+    async def blob_exists(self, uri: str) -> bool:
         pass
 
     @abstractmethod
@@ -78,7 +74,7 @@ class AsyncStorageClient(ABC):
         pass
 
     @abstractmethod
-    async def sign_storage_url(self, url: str) -> str:
+    async def sign_storage_uri(self, uri: str) -> str:
         pass
 
 

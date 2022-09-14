@@ -256,7 +256,7 @@ class SnapshotTests(TestCase):
         with BytesIO(b"42") as f:
             asyncio.run(client.write(url, f))
 
-        presigned_url = asyncio.run(client.sign_storage_url(url))
+        presigned_url = asyncio.run(client.sign_storage_uri(url))
 
         response = requests.get(presigned_url, stream=True)
         data = next(iter(response.iter_content(16)))

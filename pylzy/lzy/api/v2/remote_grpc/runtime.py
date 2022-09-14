@@ -265,10 +265,10 @@ class GrpcRuntime(Runtime):
 
                 url = client.generate_uri(conf.bucket, key)
 
-                if not await client.blob_exists(conf.bucket, key):
+                if not await client.blob_exists(url):
                     await client.write(url, file)
 
-                presigned_uri = await client.sign_storage_url(url)
+                presigned_uri = await client.sign_storage_uri(url)
                 modules_uploaded.append(presigned_uri)
 
             self.__loaded_modules.add(os.path.basename(local_module))

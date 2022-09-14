@@ -7,7 +7,7 @@ from azure.storage.blob.aio import BlobServiceClient, ContainerClient
 # TODO[ottergottaott]: drop this dependency
 from lzy.api.v2.utils.types import unwrap
 from lzy.storage.api import AsyncStorageClient, AzureCredentials, AzureSasCredentials
-from lzy.storage.url import Scheme, bucket_from_url, url_from_bucket
+from lzy.storage.url import Scheme, bucket_from_uri, uri_from_bucket
 
 
 class AzureClientAsync(AsyncStorageClient):
@@ -24,33 +24,30 @@ class AzureClientAsync(AsyncStorageClient):
         container_client: ContainerClient = self.client.get_container_client(container)
         return container_client.get_blob_client(blob)
 
-    def _blob_client_from_url(self, url: str) -> Any:
-        container, blob = bucket_from_url(self.scheme, url)
+    def _blob_client_from_uri(self, uri: str) -> Any:
+        container, blob = bucket_from_uri(self.scheme, uri)
         return self._blob_client(
             container,
             str(blob),
         )
 
-    async def read(self, url: str, dest: BinaryIO):
-        async for chunk in self.blob_iter(url):
+    async def read(self, uri: str, dest: BinaryIO):
+        async for chunk in self.blob_iter(uri):
             dest.write(chunk)
 
-    async def write(self, url: str, data: BinaryIO):
-        container, blob = bucket_from_url(self.scheme, url)
+    async def write(self, uri: str, data: BinaryIO):
+        container, blob = bucket_from_uri(self.scheme, uri)
         blob_client = self._blob_client(container, blob)
         await blob_client.upload_blob(data)
-        return url_from_bucket(self.scheme, container, blob)
+        return uri_from_bucket(self.scheme, container, blob)
 
-    async def blob_exists(self, container: str, blob: str) -> bool:
+    async def blob_exists(self, uri: str) -> bool:
+        container, blob = bucket_from_uri(self.scheme, uri)
         blob_client = self._blob_client(container, blob)
         return unwrap(await blob_client.exists())
 
-    async def bucket_exists(self, bucket: str) -> bool:
-        client = self.client.get_container_client(bucket)
-        return unwrap(await client.exists())
-
-    async def blob_iter(self, url: str) -> AsyncIterator[bytes]:
-        blob_client = self._blob_client_from_url(url)
+    async def blob_iter(self, uri: str) -> AsyncIterator[bytes]:
+        blob_client = self._blob_client_from_uri(uri)
         stream = await blob_client.download_blob()
         async for chunk in stream:
             yield chunk
@@ -71,10 +68,10 @@ class AzureClientAsync(AsyncStorageClient):
         )
 
     def generate_uri(self, container: str, blob: str) -> str:
-        return url_from_bucket(self.scheme, container, blob)
+        return uri_from_bucket(self.scheme, container, blob)
 
-    async def sign_storage_url(self, url: str) -> str:
-        container, blob = bucket_from_url(self.scheme, url)
+    async def sign_storage_uri(self, uri: str) -> str:
+        container, blob = bucket_from_uri(self.scheme, uri)
         sas = generate_blob_sas(
             account_name=self.client.credential.account_name,
             container_name=container,
