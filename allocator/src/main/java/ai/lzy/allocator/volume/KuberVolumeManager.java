@@ -1,7 +1,5 @@
 package ai.lzy.allocator.volume;
 
-import ai.lzy.allocator.disk.Disk;
-import ai.lzy.allocator.disk.DiskManager;
 import ai.lzy.allocator.disk.exceptions.NotFoundException;
 import io.fabric8.kubernetes.api.model.CSIPersistentVolumeSourceBuilder;
 import io.fabric8.kubernetes.api.model.PersistentVolume;
@@ -18,14 +16,16 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class KuberVolumeManager implements VolumeManager {
     public static final String REQUESTED_VOLUME_NAME_LABEL = "lzy-requested-volume-name";
+    public static final String YCLOUD_DISK_DRIVER = "disk-csi-driver.mks.ycloud.io";
+    public static final String KUBER_GB_NAME = "Gi";
+    public static final String VOLUME_CAPACITY_STORAGE_KEY = "storage";
+
     private static final Logger LOG = LogManager.getLogger(KuberVolumeManager.class);
-    private static final String CAPACITY_STORAGE_KEY = "storage";
-    private static final String KUBER_GB_NAME = "Gi";
     private static final String DEFAULT_NAMESPACE = "default";
     private static final String EMPTY_STORAGE_CLASS_NAME = "";
 
@@ -81,7 +81,7 @@ public class KuberVolumeManager implements VolumeManager {
                 .withStorageClassName(EMPTY_STORAGE_CLASS_NAME)
                 .withPersistentVolumeReclaimPolicy("Retain")
                 .withCsi(new CSIPersistentVolumeSourceBuilder()
-                    .withDriver("disk-csi-driver.mks.ycloud.io")
+                    .withDriver(YCLOUD_DISK_DRIVER)
                     .withFsType("ext4")
                     .withVolumeHandle(diskId)
                     .build())
@@ -117,7 +117,7 @@ public class KuberVolumeManager implements VolumeManager {
                 .withResources(
                     new ResourceRequirementsBuilder()
                         .withRequests(Collections.singletonMap(
-                            CAPACITY_STORAGE_KEY, Quantity.parse(volume.sizeGb() + KUBER_GB_NAME)))
+                            VOLUME_CAPACITY_STORAGE_KEY, Quantity.parse(volume.sizeGb() + KUBER_GB_NAME)))
                         .build())
                 .endSpec()
                 .build();
@@ -143,14 +143,15 @@ public class KuberVolumeManager implements VolumeManager {
             }
 
             final List<String> accessModes = persistentVolume.getSpec().getAccessModes();
-            assert persistentVolume.getSpec().getCapacity().get(CAPACITY_STORAGE_KEY).getFormat().equals(KUBER_GB_NAME);
+            assert persistentVolume.getSpec().getCapacity()
+                .get(VOLUME_CAPACITY_STORAGE_KEY).getFormat().equals(KUBER_GB_NAME);
             assert accessModes.size() == 1;
 
             final Volume volume = new Volume(
                 volumeName,
                 persistentVolume.getMetadata().getLabels().get(REQUESTED_VOLUME_NAME_LABEL),
                 persistentVolume.getSpec().getCsi().getVolumeHandle(),
-                Integer.parseInt(persistentVolume.getSpec().getCapacity().get(CAPACITY_STORAGE_KEY).getAmount()),
+                Integer.parseInt(persistentVolume.getSpec().getCapacity().get(VOLUME_CAPACITY_STORAGE_KEY).getAmount()),
                 Volume.AccessMode.fromString(accessModes.get(0))
             );
             LOG.info("Found volume={}", volume);
