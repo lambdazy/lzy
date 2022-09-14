@@ -118,7 +118,7 @@ public class Worker {
             final var channelManagerUri = new URI("http", null, cm.getHost(), cm.getPort(), null, null, null);
 
             lzyFs = new LzyFsServer(servantId, fsRoot, fsUri, channelManagerUri,
-                JwtUtils.buildJWT(servantId, "INTERNAL", new StringReader(iamPrivateKey)));
+                JwtUtils.buildJWT(servantId, "INTERNAL", JwtUtils.afterDays(7), new StringReader(iamPrivateKey)));
             lzyFs.start();
         } catch (IOException | URISyntaxException e) {
             LOG.error("Error while building uri", e);

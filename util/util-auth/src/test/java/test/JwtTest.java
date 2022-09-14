@@ -13,7 +13,7 @@ public class JwtTest {
         var publicKey = CredentialsUtils.readPublicKey(keys.publicKeyPath());
         var privateKey = CredentialsUtils.readPrivateKey(keys.privateKeyPath());
 
-        var jwt = JwtUtils.buildJWT("some_user", "provider", privateKey);
+        var jwt = JwtUtils.buildJWT("some_user", "provider", JwtUtils.afterDays(1), privateKey);
 
         Assert.assertTrue(JwtUtils.checkJWT(publicKey, jwt, "some_user", "provider"));
         Assert.assertFalse(JwtUtils.checkJWT(publicKey, jwt, "Superman", "provider"));

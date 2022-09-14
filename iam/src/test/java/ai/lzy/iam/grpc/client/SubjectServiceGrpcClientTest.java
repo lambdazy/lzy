@@ -43,6 +43,7 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
         Credentials credentials = JwtUtils.credentials(
             internalUserConfig.userName(),
             AuthProvider.INTERNAL.name(),
+            JwtUtils.afterDays(1),
             internalUserConfig.credentialPrivateKey()
         );
         lzyIAM = new LzyIAM(ctx);

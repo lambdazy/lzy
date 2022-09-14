@@ -52,7 +52,7 @@ public class SchedulerAgent extends Thread {
 
         String jwt;
         try {
-            jwt = JwtUtils.buildJWT(servantId, "INTERNAL", new StringReader(iamPrivateKey));
+            jwt = JwtUtils.buildJWT(servantId, "INTERNAL", JwtUtils.afterDays(7), new StringReader(iamPrivateKey));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
