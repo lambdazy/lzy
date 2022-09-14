@@ -4,10 +4,10 @@ import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.JwtUtils;
 
-import java.sql.Date;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Date;
 
 public final class IamClientConfiguration {
     private String address;

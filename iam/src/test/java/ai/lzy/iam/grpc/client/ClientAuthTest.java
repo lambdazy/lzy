@@ -20,8 +20,8 @@ import org.junit.*;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.sql.Date;
 import java.time.Instant;
+import java.util.Date;
 
 public class ClientAuthTest {
 

@@ -1,10 +1,10 @@
 package ai.lzy.util.auth.credentials;
 
 import java.security.PrivateKey;
-import java.sql.Date;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Date;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 

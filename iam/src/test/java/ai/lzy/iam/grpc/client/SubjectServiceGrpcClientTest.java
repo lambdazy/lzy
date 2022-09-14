@@ -21,10 +21,10 @@ import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.junit.*;
 
 import java.io.IOException;
-import java.sql.Date;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.NoSuchElementException;
 
 public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
