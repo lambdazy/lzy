@@ -1,7 +1,5 @@
 name: Test on pull request
 on:
-  push:
-    branches: [ master ]
   pull_request:
   workflow_dispatch:
 
