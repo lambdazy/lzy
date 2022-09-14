@@ -7,8 +7,8 @@ option java_package = "ai.lzy.v1.common";
 
 message DataScheme {
   string dataFormat = 1;
-  string schemaFormat = 2;
-  string schemaContent = 3;
+  string schemeFormat = 2;
+  string schemeContent = 3;
 
   map<string, string> metadata = 10;
 }

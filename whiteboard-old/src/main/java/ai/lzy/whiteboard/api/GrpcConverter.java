@@ -52,7 +52,7 @@ public class GrpcConverter {
 
     public static LzyWhiteboard.DataScheme to(DataScheme dataScheme) {
         return LzyWhiteboard.DataScheme.newBuilder()
-            .setType(dataScheme.schemaContent())
+            .setType(dataScheme.schemeContent())
             .setSchemeType(dataScheme.dataFormat())
             .build();
     }

@@ -293,7 +293,7 @@ public class DbSnapshotRepository implements SnapshotRepository {
                 snapshotEntryModel.setEntryState(SnapshotEntryStatus.State.IN_PROGRESS);
                 snapshotEntryModel.setEmpty(true);
                 snapshotEntryModel.setTypeOfScheme(schema.dataFormat());
-                snapshotEntryModel.setTypeDescription(schema.schemaContent());
+                snapshotEntryModel.setTypeDescription(schema.schemeContent());
             }
 
             List<EntryDependenciesModel> depModelList = new ArrayList<>();

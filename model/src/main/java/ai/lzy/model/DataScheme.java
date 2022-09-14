@@ -4,8 +4,8 @@ import java.util.Map;
 
 public record DataScheme(
     String dataFormat,
-    String schemaFormat,
-    String schemaContent,
+    String schemeFormat,
+    String schemeContent,
     Map<String, String> metadata
 ) {
     public static final DataScheme PLAIN = new DataScheme("plain", "", "text", Map.of());

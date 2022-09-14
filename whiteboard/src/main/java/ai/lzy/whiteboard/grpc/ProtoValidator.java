@@ -29,7 +29,7 @@ public class ProtoValidator {
         boolean isValid = true;
         try {
             isValid = isValid && !dataScheme.getDataFormat().isBlank();
-            isValid = isValid && !dataScheme.getSchemaContent().isBlank();
+            isValid = isValid && !dataScheme.getSchemeContent().isBlank();
             return isValid;
         } catch (NullPointerException e) {
             return false;

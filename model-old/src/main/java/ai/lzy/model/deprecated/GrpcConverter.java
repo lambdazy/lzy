@@ -8,9 +8,7 @@ import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
-import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.slot.SlotStatus;
-import ai.lzy.v1.common.LMD;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.deprecated.Lzy;
 import ai.lzy.v1.deprecated.LzyTask;
@@ -108,7 +106,7 @@ public abstract class GrpcConverter {
 
     public static LzyWhiteboard.DataScheme to(DataScheme dataScheme) {
         return LzyWhiteboard.DataScheme.newBuilder()
-            .setType(dataScheme.schemaContent())
+            .setType(dataScheme.schemeContent())
             .setSchemeType(dataScheme.dataFormat())
             .build();
     }

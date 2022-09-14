@@ -72,8 +72,8 @@ public class ProtoConverter {
     }
 
     public static DataScheme fromProto(LMD.DataScheme dataScheme) {
-        return new DataScheme(dataScheme.getDataFormat(), dataScheme.getSchemaFormat(),
-            dataScheme.getSchemaContent(), dataScheme.getMetadataMap());
+        return new DataScheme(dataScheme.getDataFormat(), dataScheme.getSchemeFormat(),
+            dataScheme.getSchemeContent(), dataScheme.getMetadataMap());
     }
 
     public static LME.EnvSpec toProto(Env env) {
@@ -131,8 +131,8 @@ public class ProtoConverter {
     public static LMD.DataScheme toProto(DataScheme dataScheme) {
         return LMD.DataScheme.newBuilder()
             .setDataFormat(dataScheme.dataFormat())
-            .setSchemaFormat(dataScheme.schemaFormat())
-            .setSchemaContent(dataScheme.schemaContent())
+            .setSchemeFormat(dataScheme.schemeFormat())
+            .setSchemeContent(dataScheme.schemeContent())
             .putAllMetadata(dataScheme.metadata())
             .build();
     }
