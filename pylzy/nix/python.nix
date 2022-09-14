@@ -4,6 +4,15 @@ let
     azure-storage-blob = super.azure-storage-blob.overridePythonAttrs(old: {
       doCheck = false;
     });
+
+    sphinx = super.sphinx.overridePythonAttrs(old: {
+      doCheck = false;
+    });
+
+    curio = super.curio.overridePythonAttrs(old: {
+      doCheck = false;
+    });
+
     boto3 = super.boto3.overridePythonAttrs(old: rec {
       version = "1.21.21";
       src = super.fetchPypi {
@@ -11,6 +20,30 @@ let
         inherit version;
         sha256 = "b6BiLzCM/R2nWJZvyYtS+9dLgGBtFFhsitgsemxPMtA=";
       };
+    });
+
+    markupsafe = super.markupsafe.overridePythonAttrs(old: rec {
+      version = "2.1.1";
+      src = super.fetchPypi {
+        pname = "MarkupSafe";
+        inherit version;
+        sha256 = "7f91197cc9e48f989d12e4e6fbc46495c446636dfc81b9ccf50bb0ec74b91d4b";
+      };
+      doCheck = false;
+    });
+
+    jinja2 = super.jinja2.overridePythonAttrs(old: rec {
+      version = "3.1.2";
+      src = super.fetchPypi {
+        pname = "Jinja2";
+        inherit version;
+        sha256 = "31351a702a408a9e7595a8fc6150fc3f43bb6bf7e319770cbc0db9df9437e852";
+      };
+
+      propagatedBuildInputs = [
+        markupsafe
+      ];
+      doCheck = false;
     });
 
     botocore = super.botocore.overridePythonAttrs(old: rec {
@@ -115,6 +148,8 @@ let
     grpclib = self.callPackage ./grpclib.nix { };
 
     grpcio = self.callPackage ./grpcio.nix { };
+
+    moto = self.callPackage ./moto.nix { };
 
     pycryptodome = self.callPackage ./pycryptodome.nix { };
 

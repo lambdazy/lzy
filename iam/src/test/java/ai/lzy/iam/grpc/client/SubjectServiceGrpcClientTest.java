@@ -21,6 +21,8 @@ import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.junit.*;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.NoSuchElementException;
 
@@ -75,7 +77,8 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
     @Test
     public void createSubjectWithCredentials() {
         var creds1 = new SubjectCredentials("first", "first value", CredentialsType.PUBLIC_KEY);
-        var creds2 = new SubjectCredentials("second", "second value", CredentialsType.OTT);
+        var creds2 = new SubjectCredentials("second", "second value", CredentialsType.OTT,
+            Instant.now().plus(1, ChronoUnit.DAYS));
 
         var subject = subjectClient.createSubject(AuthProvider.INTERNAL, "Superman", SubjectType.SERVANT,
             creds1, creds2);
@@ -115,7 +118,7 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
 
     @Override
     protected void addCredentials(Subject subject, String name) {
-        subjectClient.addCredentials(subject, name, "Value", CredentialsType.PUBLIC_KEY);
+        subjectClient.addCredentials(subject, new SubjectCredentials(name, "Value", CredentialsType.PUBLIC_KEY));
     }
 
     @Override

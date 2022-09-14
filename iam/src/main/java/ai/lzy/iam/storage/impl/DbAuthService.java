@@ -6,6 +6,7 @@ import ai.lzy.iam.storage.db.IamDataSource;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.JwtUtils;
+import ai.lzy.util.auth.credentials.OttCredentials;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthInternalException;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
@@ -17,9 +18,13 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.Strings;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.StringReader;
+import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.Instant;
+import java.util.Base64;
 
 @Singleton
 @Requires(beans = IamDataSource.class)
@@ -31,69 +36,155 @@ public class DbAuthService implements AuthenticateService {
 
     @Override
     public Subject authenticate(Credentials credentials) throws AuthException {
+        if (credentials instanceof OttCredentials ott) {
+            return authenticateOtt(ott);
+        }
+
         if (credentials instanceof JwtCredentials) {
-            var jwtPayload = JwtUtils.parseJwt(credentials.token());
-            if (jwtPayload == null) {
-                LOG.error("Cannot parse JWT token '{}' of type {}", credentials.token(), credentials.type());
-                throw new AuthUnauthenticatedException("Failed to authenticate. Invalid JWT.");
-            }
+            return authenticateJwt(credentials);
+        }
 
-            var providerLogin = (String) jwtPayload.get(Claims.ISSUER);
-            var providerName = (String) jwtPayload.get("pvd");
+        throw new AuthUnauthenticatedException("Failed to authenticate. Unknown credentials type.");
+    }
 
-            if (Strings.isEmpty(providerLogin) || Strings.isEmpty(providerName)) {
-                LOG.error("Either providerLogin ({}) or providerName ({}) is empty. Token '{}' of type {}",
-                    providerLogin, providerName, credentials.token(), credentials.type());
-                throw new AuthUnauthenticatedException("Failed to authenticate. Invalid JWT.");
-            }
+    @NotNull
+    private Subject authenticateOtt(OttCredentials ott) {
+        var decoded = new String(Base64.getDecoder().decode(ott.token()));
+        int separatorIdx = decoded.indexOf('/');
 
-            try (var conn = storage.connect()) {
-                var st = conn.prepareStatement("""
-                    SELECT
-                        c.user_id AS user_id,
-                        c.name AS cred_name,
-                        c.value AS cred_value,
-                        u.user_type AS user_type
-                    FROM credentials AS c
-                    JOIN users AS u
-                      ON c.user_id = u.user_id
-                    WHERE u.provider_user_id = ? AND u.auth_provider = ? AND c.type = ?
-                    """);
+        var providerSubjectId = decoded.substring(0, separatorIdx);
+        var token = decoded.substring(separatorIdx + 1);
 
-                int parameterIndex = 0;
-                st.setString(++parameterIndex, providerLogin);
-                st.setString(++parameterIndex, providerName);
-                st.setString(++parameterIndex, credentials.type());
+        LOG.debug("Authenticate by OTT: id={}, token={}...", providerSubjectId, token.substring(4));
 
-                var rs = st.executeQuery();
-                while (rs.next()) {
-                    // validate auth provider
-                    AuthProvider.valueOf(providerName);
+        try (var conn = storage.connect();
+             var st = conn.prepareStatement("""
+                SELECT
+                    c.user_id AS user_id,
+                    c.name AS cred_name,
+                    c.expired_at AS expired_at,
+                    u.user_type AS user_type
+                FROM credentials AS c
+                JOIN users AS u
+                  ON c.user_id = u.user_id
+                WHERE u.provider_user_id = ? AND u.auth_provider = 'INTERNAL'
+                  AND c.type = 'OTT' AND c.value = ?
+                """))
+        {
+            st.setString(1, providerSubjectId);
+            st.setString(2, token);
 
-                    try (StringReader keyReader = new StringReader(rs.getString("cred_value"))) {
-                        if (JwtUtils.checkJWT(keyReader, credentials.token(), providerLogin, providerName)) {
-                            var subjectId = rs.getString("user_id");
-                            var subjectType = SubjectType.valueOf(rs.getString("user_type"));
+            var rs = st.executeQuery();
+            if (rs.next()) {
+                var subjectId = rs.getString("user_id");
+                var subjectType = SubjectType.valueOf(rs.getString("user_type"));
+                var expiredAt = rs.getTimestamp("expired_at").toInstant();
+                var credName = rs.getString("cred_name");
 
-                            var subject = switch (subjectType) {
-                                case USER -> new User(subjectId);
-                                case SERVANT -> new Servant(subjectId);
-                            };
-
-                            LOG.info("Successfully checked user::{} token with key name {}",
-                                subjectId, rs.getString("cred_name"));
-                            return subject;
-                        }
-                    } catch (Exception e) {
-                        throw new AuthInternalException(e);
-                    }
+                Subject result = null;
+                if (expiredAt.isAfter(Instant.now())) {
+                    result = switch (subjectType) {
+                        case USER -> new User(subjectId);
+                        case SERVANT -> new Servant(subjectId);
+                        case VM -> new Vm(subjectId);
+                    };
+                } else {
+                    LOG.debug("Credentials '{}' ({}) for {} is expired", credName, subjectType, subjectId);
                 }
-                throw new AuthPermissionDeniedException("Permission denied. Not found valid key.");
-            } catch (SQLException e) {
-                throw new AuthInternalException(e);
+
+                deleteOttCredentials(conn, subjectId, credName);
+
+                if (result != null) {
+                    LOG.info("Successfully checked {}::{} token with key name {}", subjectType, subjectId, credName);
+                    return result;
+                }
             }
-        } else {
-            throw new AuthUnauthenticatedException("Failed to authenticate. Unknown credentials type.");
+            throw new AuthPermissionDeniedException("Permission denied. Not found valid key.");
+        } catch (SQLException e) {
+            throw new AuthInternalException(e);
+        }
+    }
+
+    @NotNull
+    private Subject authenticateJwt(Credentials credentials) {
+        var jwtPayload = JwtUtils.parseJwt(credentials.token());
+        if (jwtPayload == null) {
+            LOG.error("Cannot parse JWT token '{}' of type {}", credentials.token(), credentials.type());
+            throw new AuthUnauthenticatedException("Failed to authenticate. Invalid JWT.");
+        }
+
+        var providerLogin = (String) jwtPayload.get(Claims.ISSUER);
+        var providerName = (String) jwtPayload.get("pvd");
+
+        LOG.debug("Authenticate by JWT: id={}, provider={}", providerLogin, providerName);
+
+        if (Strings.isEmpty(providerLogin) || Strings.isEmpty(providerName)) {
+            LOG.error("Either providerLogin ({}) or providerName ({}) is empty. Token '{}' of type {}",
+                providerLogin, providerName, credentials.token(), credentials.type());
+            throw new AuthUnauthenticatedException("Failed to authenticate. Invalid JWT.");
+        }
+
+        try (var conn = storage.connect();
+             var st = conn.prepareStatement("""
+                SELECT
+                    c.user_id AS user_id,
+                    c.name AS cred_name,
+                    c.value AS cred_value,
+                    u.user_type AS user_type
+                FROM credentials AS c
+                JOIN users AS u
+                  ON c.user_id = u.user_id
+                WHERE u.provider_user_id = ? AND u.auth_provider = ? AND c.type = ?
+                  AND (c.expired_at IS NULL OR c.expired_at > NOW())
+                """))
+        {
+
+            int parameterIndex = 0;
+            st.setString(++parameterIndex, providerLogin);
+            st.setString(++parameterIndex, providerName);
+            st.setString(++parameterIndex, credentials.type());
+
+            var rs = st.executeQuery();
+            while (rs.next()) {
+                // validate auth provider
+                AuthProvider.valueOf(providerName);
+
+                try (StringReader keyReader = new StringReader(rs.getString("cred_value"))) {
+                    if (JwtUtils.checkJWT(keyReader, credentials.token(), providerLogin, providerName)) {
+                        var subjectId = rs.getString("user_id");
+                        var subjectType = SubjectType.valueOf(rs.getString("user_type"));
+
+                        var subject = switch (subjectType) {
+                            case USER -> new User(subjectId);
+                            case SERVANT -> new Servant(subjectId);
+                            case VM -> new Vm(subjectId); // TODO: fail?
+                        };
+
+                        LOG.info("Successfully checked {}::{} token with key name {}",
+                            subjectType, subjectId, rs.getString("cred_name"));
+                        return subject;
+                    }
+                } catch (Exception e) {
+                    throw new AuthInternalException(e);
+                }
+            }
+            throw new AuthPermissionDeniedException("Permission denied. Not found valid key.");
+        } catch (SQLException e) {
+            throw new AuthInternalException(e);
+        }
+    }
+
+    private void deleteOttCredentials(Connection conn, String subjectId, String credentialsName) {
+        LOG.debug("Delete used OTT {} for {}", credentialsName, subjectId);
+
+        try (var st = conn.prepareStatement("""
+            DELETE FROM credentials WHERE name = ? AND user_id = ?"""))
+        {
+            st.setString(1, credentialsName);
+            st.setString(2, subjectId);
+            st.execute();
+        } catch (SQLException e) {
+            LOG.error("Cannot delete used OTT {} for {}: {}", credentialsName, subjectId, e.getMessage(), e);
         }
     }
 }

@@ -1,19 +1,30 @@
 package ai.lzy.kharon.workflow;
 
 import ai.lzy.allocator.AllocatorAgent;
+import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
+import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
+import ai.lzy.iam.resources.AccessBinding;
+import ai.lzy.iam.resources.Role;
+import ai.lzy.iam.resources.credentials.SubjectCredentials;
+import ai.lzy.iam.resources.impl.Workflow;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.CredentialsType;
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.kharon.KharonConfig;
 import ai.lzy.kharon.KharonDataSource;
 import ai.lzy.kharon.workflow.dao.ExecutionDao;
 import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.auth.credentials.JwtCredentials;
+import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.*;
 import ai.lzy.v1.VmAllocatorApi.*;
+import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.workflow.LWS.*;
 import ai.lzy.v1.workflow.LWSD.SnapshotStorage;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
@@ -32,6 +43,7 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.nio.file.Files;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
@@ -50,6 +62,9 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 @Singleton
 public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBase {
     private static final Logger LOG = LogManager.getLogger(WorkflowService.class);
+
+    // same as at ai.lzy.scheduler.allocator.AllocatorImpl
+    public static final String ENV_WORKER_PKEY = "LZY_WORKER_PKEY";
 
     private final PortalConfig portalConfig;
     private final String channelManagerAddress;
@@ -71,6 +86,10 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
 
     private final ManagedChannel channelManagerChannel;
     private final LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManagerClient;
+
+    private final ManagedChannel iamChannel;
+    private final SubjectServiceGrpcClient subjectClient;
+    private final AccessBindingServiceGrpcClient abClient;
 
     @Inject
     public WorkflowService(KharonConfig config, KharonDataSource storage, ExecutionDao dao) {
@@ -116,6 +135,15 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
         channelManagerClient = LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel)
             .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION,
                 internalUserCredentials::token));
+
+        iamChannel = ChannelBuilder
+            .forAddress(config.getIam().getAddress())
+            .usePlaintext()
+            .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
+            .build();
+
+        subjectClient = new SubjectServiceGrpcClient(iamChannel, config.getIam()::createCredentials);
+        abClient = new AccessBindingServiceGrpcClient(iamChannel, config.getIam()::createCredentials);
     }
 
     @PreDestroy
@@ -125,6 +153,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
         allocatorServiceChannel.shutdown();
         operationServiceChannel.shutdown();
         channelManagerChannel.shutdown();
+        iamChannel.shutdown();
     }
 
     @Override
@@ -162,9 +191,10 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
             storageData = request.getSnapshotStorage();
         }
 
-        try (var transaction = TransactionHandle.create(storage)) {
-            dao.create(executionId, userId, workflowName, storageType, storageData, transaction);
-            transaction.commit();
+
+        try {
+            withRetries(defaultRetryPolicy(), LOG, () ->
+                dao.create(executionId, userId, workflowName, storageType, storageData, null));
         } catch (Exception e) {
             if (internalSnapshotStorage) {
                 safeDeleteTempStorageBucket(storageData.getBucket());
@@ -174,7 +204,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
             return;
         }
 
-        if (startPortal(executionId, userId, response)) {
+        if (startPortal(workflowName, executionId, userId, response)) {
             LOG.info("Workflow successfully started...");
 
             var result = CreateWorkflowResponse.newBuilder().setExecutionId(executionId);
@@ -262,7 +292,9 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
         // safeDeleteTempStorageBucket(bucket[0]);
     }
 
-    private boolean startPortal(String executionId, String userId, StreamObserver<CreateWorkflowResponse> response) {
+    private boolean startPortal(String workflowName, String executionId, String userId,
+                                StreamObserver<CreateWorkflowResponse> response)
+    {
         try {
             withRetries(defaultRetryPolicy(), LOG, () ->
                 dao.updateStatus(executionId, PortalStatus.CREATING_STD_CHANNELS));
@@ -279,7 +311,8 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
             withRetries(defaultRetryPolicy(), LOG, () -> dao.updateAllocatorSession(executionId, sessionId));
 
             var startAllocationTime = Instant.now();
-            var operation = startAllocation(sessionId, executionId, stdoutChannelId, stderrChannelId);
+            var operation = startAllocation(workflowName, sessionId, executionId,
+                stdoutChannelId, stderrChannelId);
             var opId = operation.getId();
 
             AllocateMetadata allocateMetadata;
@@ -349,10 +382,26 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
         return session.getSessionId();
     }
 
-    public OperationService.Operation startAllocation(String sessionId, String executionId,
+    public OperationService.Operation startAllocation(String workflowName, String sessionId, String executionId,
                                                       String stdoutChannelId, String stderrChannelId)
     {
         var portalId = "portal_" + executionId + UUID.randomUUID();
+
+        String privateKey;
+        try {
+            var workerKeys = RsaUtils.generateRsaKeys();
+            var publicKey = Files.readString(workerKeys.publicKeyPath());
+            privateKey = Files.readString(workerKeys.privateKeyPath());
+
+            final var subj = subjectClient.createSubject(AuthProvider.INTERNAL, portalId, SubjectType.SERVANT,
+                new SubjectCredentials("main", publicKey, CredentialsType.PUBLIC_KEY));
+
+            abClient.setAccessBindings(new Workflow(workflowName),
+                List.of(new AccessBinding(Role.LZY_WORKFLOW_OWNER, subj)));
+        } catch (Exception e) {
+            LOG.error("Cannot build credentials for portal", e);
+            throw new RuntimeException(e);
+        }
 
         var args = List.of(
             "-portal.portal-id=" + portalId,
@@ -376,6 +425,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
                     // TODO: ssokolvyak -- fill the image in production
                     //.setImage(portalConfig.getPortalImage())
                     .addAllArgs(args)
+                    .putEnv(ENV_WORKER_PKEY, privateKey)
                     .putAllPortBindings(ports)
                     .build())
                 .build());

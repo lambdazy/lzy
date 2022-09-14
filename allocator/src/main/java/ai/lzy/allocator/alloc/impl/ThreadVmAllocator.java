@@ -1,5 +1,6 @@
 package ai.lzy.allocator.alloc.impl;
 
+import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.model.Vm;
@@ -63,28 +64,37 @@ public class ThreadVmAllocator implements VmAllocator {
     private void allocateWithSingleWorkload(String vmId, String poolLabel, Workload workload) {
         LOG.info("Allocating vm with id: " + vmId);
 
-        // TODO(artolord) add token
-        //  ssokolvyak -- if allocate request for portal received then token already passed as workload arg
-        //noinspection Convert2Diamond
-        var startupArgs = new ArrayList<String>(workload.args());
+        var env = workload.env();
+        if (!env.containsKey(AllocatorAgent.VM_ALLOCATOR_OTT)) {
+            throw new AssertionError("Missing env " + AllocatorAgent.VM_ALLOCATOR_OTT);
+        }
 
-        List<String> additionalArgs;
+        var startupArgs = new ArrayList<>(workload.args());
         if (poolLabel.contentEquals(PORTAL_POOL_LABEL)) {
-            additionalArgs = List.of(
+            startupArgs.addAll(List.of(
                 "-portal.vm-id=" + vmId,
                 "-portal.allocator-address=" + cfg.getAddress(),
                 "-portal.allocator-heartbeat-period=" + cfg.getHeartbeatTimeout().dividedBy(2).toString(),
-                "-portal.host=localhost"
-            );
+                "-portal.host=localhost",
+                "-portal.allocator-token=" + env.get(AllocatorAgent.VM_ALLOCATOR_OTT)
+            ));
+            if (env.containsKey("LZY_WORKER_PKEY")) {
+                startupArgs.add("-portal.iam-token=" + env.get("LZY_WORKER_PKEY"));
+            }
         } else {
-            additionalArgs = List.of(
+            startupArgs.addAll(List.of(
                 "--vm-id", vmId,
                 "--allocator-address", cfg.getAddress(),
                 "--allocator-heartbeat-period", cfg.getHeartbeatTimeout().dividedBy(2).toString(),
                 "--host", "localhost"
-            );
+            ));
+            startupArgs.add("--allocator-token");
+            startupArgs.add('"' + env.get(AllocatorAgent.VM_ALLOCATOR_OTT) + '"');
+            if (env.containsKey("LZY_WORKER_PKEY")) {
+                startupArgs.add("--iam-token");
+                startupArgs.add('"' + env.get("LZY_WORKER_PKEY") + '"');
+            }
         }
-        startupArgs.addAll(additionalArgs);
 
         Thread vm = startThreadVm("vm-" + vmId, startupArgs);
         vmThreads.put(vmId, vm);

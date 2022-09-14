@@ -69,6 +69,7 @@ setuptools.setup(
             "**/*.pyi",
             "*.pyi",
         ],
+        "version": ["version"],
     },
     install_requires=read_requirements(),
     packages=[
@@ -95,6 +96,7 @@ setuptools.setup(
         "ai/",
         "ai/lzy",
         "ai/lzy/v1",
+        "version",
     ],
     python_requires=">=3.7",
     cmdclass={

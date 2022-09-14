@@ -90,51 +90,56 @@ public class ExecutionDaoImpl implements ExecutionDao {
 
     @Override
     public void create(String executionId, String userId, String workflowName, String storageType,
-                       LWSD.SnapshotStorage storageData, @Nullable TransactionHandle transaction) throws SQLException
+                       LWSD.SnapshotStorage storageData, @Nullable TransactionHandle outerTransaction)
+        throws SQLException
     {
-        DbOperation.execute(transaction, storage, con -> {
-            // TODO: add `nowait` and handle it's warning or error
-            var activeExecStmt = con.prepareStatement(QUERY_ACTIVE_ID + " FOR UPDATE",
-                ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
-            activeExecStmt.setString(1, userId);
-            activeExecStmt.setString(2, workflowName);
+        try (var transaction = TransactionHandle.getOrCreate(storage, outerTransaction)) {
+            DbOperation.execute(transaction, storage, con -> {
+                // TODO: add `nowait` and handle it's warning or error
+                var activeExecStmt = con.prepareStatement(QUERY_ACTIVE_ID + " FOR UPDATE",
+                    ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
+                activeExecStmt.setString(1, userId);
+                activeExecStmt.setString(2, workflowName);
 
-            boolean update = false;
-            ResultSet rs = activeExecStmt.executeQuery();
-            if (rs.next()) {
-                var existingExecutionId = rs.getString("active_execution_id");
-                if (StringUtils.isNotEmpty(existingExecutionId)) {
-                    throw new RuntimeException(String.format("Attempt to start one more instance of workflow: " +
-                        "active is '%s'", existingExecutionId));
+                boolean update = false;
+                ResultSet rs = activeExecStmt.executeQuery();
+                if (rs.next()) {
+                    var existingExecutionId = rs.getString("active_execution_id");
+                    if (StringUtils.isNotEmpty(existingExecutionId)) {
+                        throw new RuntimeException(String.format("Attempt to start one more instance of workflow: " +
+                            "active is '%s'", existingExecutionId));
+                    }
+                    update = true;
                 }
-                update = true;
-            }
 
-            try (var statement = con.prepareStatement(QUERY_INSERT)) {
-                statement.setString(1, executionId);
-                statement.setTimestamp(2, Timestamp.from(Instant.now()));
-                statement.setString(3, storageType.toUpperCase(Locale.ROOT));
-                statement.setString(4, storageData.getBucket());
-                statement.setString(5, objectMapper.writeValueAsString(storageData));
-                statement.executeUpdate();
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException("Cannot dump values", e);
-            }
+                try (var statement = con.prepareStatement(QUERY_INSERT)) {
+                    statement.setString(1, executionId);
+                    statement.setTimestamp(2, Timestamp.from(Instant.now()));
+                    statement.setString(3, storageType.toUpperCase(Locale.ROOT));
+                    statement.setString(4, storageData.getBucket());
+                    statement.setString(5, objectMapper.writeValueAsString(storageData));
+                    statement.executeUpdate();
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException("Cannot dump values", e);
+                }
 
-            if (update) {
-                rs.updateString("active_execution_id", executionId);
-                rs.updateRow();
-                return;
-            }
+                if (update) {
+                    rs.updateString("active_execution_id", executionId);
+                    rs.updateRow();
+                    return;
+                }
 
-            try (var statement = con.prepareStatement(QUERY_INSERT_WORKFLOW)) {
-                statement.setString(1, userId);
-                statement.setString(2, workflowName);
-                statement.setTimestamp(3, Timestamp.from(Instant.now()));
-                statement.setString(4, executionId);
-                statement.executeUpdate();
-            }
-        });
+                try (var statement = con.prepareStatement(QUERY_INSERT_WORKFLOW)) {
+                    statement.setString(1, userId);
+                    statement.setString(2, workflowName);
+                    statement.setTimestamp(3, Timestamp.from(Instant.now()));
+                    statement.setString(4, executionId);
+                    statement.executeUpdate();
+                }
+            });
+
+            transaction.commit();
+        }
     }
 
     @Override

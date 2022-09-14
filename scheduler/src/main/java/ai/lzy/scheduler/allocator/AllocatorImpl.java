@@ -12,12 +12,11 @@ import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.Servant;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.model.Operation;
-import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.scheduler.configs.ServantEventProcessorConfig;
 import ai.lzy.scheduler.configs.ServiceConfig;
-import ai.lzy.util.auth.credentials.Credentials;
-import ai.lzy.util.auth.credentials.JwtUtils;
+import ai.lzy.util.auth.credentials.RsaUtils;
+import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.AllocatorGrpc;
@@ -40,6 +39,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nullable;
+import java.nio.file.Files;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -49,6 +49,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Singleton
 public class AllocatorImpl implements ServantsAllocator {
     private static final Logger LOG = LogManager.getLogger(AllocatorImpl.class);
+
+    public static final String ENV_WORKER_PKEY = "LZY_WORKER_PKEY"; // same as at ai.lzy.servant.agents.Worker
+
     public static final AtomicBoolean randomServantPorts = new AtomicBoolean(false);
 
     private final ServiceConfig config;
@@ -97,13 +100,14 @@ public class AllocatorImpl implements ServantsAllocator {
 
     @Override
     public void allocate(String workflowName, String servantId, Operation.Requirements requirements) {
-        final Credentials credentials;
+        String privateKey;
         try {
-            final var cred = JwtUtils.generateCredentials(servantId, AuthProvider.INTERNAL.name());
-            credentials = cred.credentials();
+            var workerKeys = RsaUtils.generateRsaKeys();
+            var publicKey = Files.readString(workerKeys.publicKeyPath());
+            privateKey = Files.readString(workerKeys.privateKeyPath());
 
             final var subj = subjectClient.createSubject(AuthProvider.INTERNAL, servantId, SubjectType.SERVANT,
-                new SubjectCredentials("main", cred.publicKey(), CredentialsType.PUBLIC_KEY));
+                new SubjectCredentials("main", publicKey, CredentialsType.PUBLIC_KEY));
 
             abClient.setAccessBindings(new Workflow(workflowName),
                 List.of(new AccessBinding(Role.LZY_WORKFLOW_OWNER, subj)));
@@ -149,13 +153,13 @@ public class AllocatorImpl implements ServantsAllocator {
             "--scheduler-address", config.getSchedulerAddress(),
             "--channel-manager", config.getChannelManagerAddress(),
             "--lzy-mount", mountPoint,
-            "--token", '"' + credentials.token() + '"',
             "--servant-id", servantId,
             "--scheduler-heartbeat-period", processorConfig.executingHeartbeatPeriod().toString()
         );
         final var workload = Workload.newBuilder()
             .setName(servantId)
             .setImage(config.getServantImage())
+            .putEnv(ENV_WORKER_PKEY, privateKey)
             .addAllArgs(args)
             .putAllPortBindings(ports)
             .build();
@@ -173,7 +177,6 @@ public class AllocatorImpl implements ServantsAllocator {
 
     @Override
     public void free(String workflowName, String servantId) throws Exception {
-
         subjectClient.removeSubject(new Servant(servantId));
         final var s = metaStorage.getMeta(workflowName, servantId);
         if (s == null) {

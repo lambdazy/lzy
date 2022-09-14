@@ -66,7 +66,7 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
 
     @Override
     protected void addCredentials(Subject subject, String name) {
-        subjectService.addCredentials(subject, name, "Value", CredentialsType.PUBLIC_KEY);
+        subjectService.addCredentials(subject, new SubjectCredentials(name, "Value", CredentialsType.PUBLIC_KEY));
     }
 
     @Override

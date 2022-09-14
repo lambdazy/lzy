@@ -14,7 +14,7 @@ CREATE TABLE users (
     auth_provider    TEXT,                        -- github, ...
     provider_user_id TEXT,                        -- github login, ...
     access_type      TEXT,                        -- ACCESS_PENDING, ACCESS_ALLOWED, ACCESS_DENIED, ...
-    user_type        TEXT NOT NULL DEFAULT 'USER' -- USER, SERVANT, ...
+    user_type        TEXT NOT NULL DEFAULT 'USER' -- USER, SERVANT, VM, ...
 );
 
 CREATE UNIQUE INDEX idx_users_provider ON users (provider_user_id, auth_provider);
@@ -29,10 +29,12 @@ CREATE TABLE IF NOT EXISTS user_resource_roles (
 );
 
 CREATE TABLE credentials (
-    name    TEXT,
-    value   TEXT,
-    user_id TEXT,
-    type    TEXT,
+    name       TEXT NOT NULL,
+    value      TEXT NOT NULL,
+    user_id    TEXT NOT NULL,
+    type       TEXT NOT NULL,
+    expired_at TIMESTAMP DEFAULT NULL,
     PRIMARY KEY (name, user_id),
-    FOREIGN KEY (user_id) REFERENCES users (user_id) ON UPDATE CASCADE ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users (user_id) ON UPDATE CASCADE ON DELETE CASCADE,
+    CHECK (type != 'OTT' OR expired_at IS NOT NULL)
 );

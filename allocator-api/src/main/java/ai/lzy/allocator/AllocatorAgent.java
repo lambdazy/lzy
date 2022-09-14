@@ -12,10 +12,10 @@ import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nullable;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
-
 
 public class AllocatorAgent extends TimerTask {
     private static final Logger LOG = LogManager.getLogger(AllocatorAgent.class);
@@ -23,6 +23,7 @@ public class AllocatorAgent extends TimerTask {
     public static final String VM_ID_KEY = "LZY_ALLOCATOR_VM_ID";
     public static final String VM_ALLOCATOR_ADDRESS = "LZY_ALLOCATOR_ADDRESS";
     public static final String VM_HEARTBEAT_PERIOD = "LZY_ALLOCATOR_HEARTBEAT_PERIOD";
+    public static final String VM_ALLOCATOR_OTT = "LZY_ALLOCATOR_OTT";
     public static final String VM_IP_ADDRESS = "LZY_VM_IP_ADDRESS";
 
     private final String vmId;
@@ -32,7 +33,9 @@ public class AllocatorAgent extends TimerTask {
     private final ManagedChannel channel;
     private final String vmIpAddress;
 
-    public AllocatorAgent(String iamToken, @Nullable String vmId, @Nullable String allocatorAddress,
+    private final ClientHeaderInterceptor<String> authInterceptor;
+
+    public AllocatorAgent(@Nullable String ott, @Nullable String vmId, @Nullable String allocatorAddress,
                           @Nullable Duration heartbeatPeriod, String vmIpAddress)
     {
         this.vmId = vmId == null ? System.getenv(VM_ID_KEY) : vmId;
@@ -46,8 +49,11 @@ public class AllocatorAgent extends TimerTask {
             .usePlaintext()
             .enableRetry(AllocatorPrivateGrpc.SERVICE_NAME)
             .build();
-        stub = AllocatorPrivateGrpc.newBlockingStub(channel)
-            .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> iamToken));
+        stub = AllocatorPrivateGrpc.newBlockingStub(channel);
+
+        ott = ott != null ? ott : System.getenv(VM_ALLOCATOR_OTT);
+        var auth = Base64.getEncoder().encodeToString((vmId + '/' + ott).getBytes());
+        authInterceptor = ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> auth);
 
         timer = new Timer("allocator-agent-timer-" + vmId);
     }
@@ -57,10 +63,11 @@ public class AllocatorAgent extends TimerTask {
 
         try {
             //noinspection ResultOfMethodCallIgnored
-            stub.register(VmAllocatorPrivateApi.RegisterRequest.newBuilder()
-                .setVmId(vmId)
-                .putMetadata(VM_IP_ADDRESS, vmIpAddress)
-                .build());
+            stub.withInterceptors(authInterceptor).register(
+                VmAllocatorPrivateApi.RegisterRequest.newBuilder()
+                    .setVmId(vmId)
+                    .putMetadata(VM_IP_ADDRESS, vmIpAddress)
+                    .build());
         } catch (StatusRuntimeException e) {
             LOG.error("Cannot register allocator", e);
             throw new RegisterException(e);

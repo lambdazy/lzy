@@ -15,12 +15,10 @@ import ai.lzy.metrics.MetricReporter;
 import ai.lzy.metrics.MetricsGrpcInterceptor;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
+import ai.lzy.v1.AllocatorPrivateGrpc;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.net.HostAndPort;
-import io.grpc.ManagedChannel;
-import io.grpc.Server;
-import io.grpc.ServerBuilder;
-import io.grpc.ServerInterceptors;
+import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Singleton;
@@ -64,7 +62,8 @@ public class AllocatorMain {
         // TODO: X-REQUEST-ID header (and others) interceptor(s)
         builder.intercept(MetricsGrpcInterceptor.server("Allocator"));
         builder.intercept(new GrpcLogsInterceptor());
-        builder.intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(iamChannel)));
+        builder.intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(iamChannel))
+                            .withUnauthenticated(AllocatorPrivateGrpc.getHeartbeatMethod()));
 
         var internalOnly = new AllowInternalUserOnlyInterceptor(iamChannel);
 
@@ -98,7 +97,10 @@ public class AllocatorMain {
     public void destroyAll() throws SQLException {
         LOG.info("Deallocating all vms");
         final var vms = vmDao.listAlive();
-        vms.forEach(vm -> alloc.deallocate(vm.vmId()));
+        vms.forEach(vm -> {
+            // TODO: remove vm subject
+            alloc.deallocate(vm.vmId());
+        });
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {

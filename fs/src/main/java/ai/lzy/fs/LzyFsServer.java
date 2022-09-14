@@ -90,11 +90,11 @@ public final class LzyFsServer {
     }
 
     public LzyFsServer(String agentId, String mountPoint, URI selfUri,
-                       URI channelManagerUri, String iamToken) throws IOException
+                       URI channelManagerUri, String token) throws IOException
     {
         this(agentId, mountPoint, selfUri, null, null, channelManagerUri, IAM.Auth.newBuilder()
             .setUser(IAM.UserCredentials.newBuilder()
-                .setToken(iamToken)
+                .setToken(token)
                 .build())
             .build());
     }

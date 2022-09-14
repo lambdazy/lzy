@@ -1,8 +1,8 @@
-from typing import Any, BinaryIO, Callable, Type, Union
+from typing import Any, BinaryIO, Callable, Dict, Type, Union
 
 import cloudpickle
 
-from lzy.serialization.api import Serializer
+from lzy.serialization.api import Serializer, StandardDataFormats
 
 
 # noinspection PyMethodMayBeStatic
@@ -21,3 +21,9 @@ class CloudpickleSerializer(Serializer):
 
     def supported_types(self) -> Union[Type, Callable[[Type], bool]]:
         return lambda x: True
+
+    def format(self) -> str:
+        return StandardDataFormats.pickle.name
+
+    def meta(self) -> Dict[str, str]:
+        return {"cloudpickle_version": cloudpickle.__version__}

@@ -22,7 +22,8 @@ public class PortalConfig {
     private String stderrChannelId;
     private String channelManagerAddress;
 
-    private String token;
+    private String iamToken;
+    private String allocatorToken;
 
     private String vmId;
     private String allocatorAddress;

@@ -119,7 +119,7 @@ public class PortalTest {
             var agent = new AllocatorAgent("portal_token", "portal_vm",
                 "localhost:" + server.port, Duration.ofSeconds(5), "localhost");
             var fs = new LzyFsServer(config.getPortalId(), config.getFsRoot(), fsUri, channelManagerUri,
-                config.getToken());
+                "portal_token");
 
             portal = new Portal(config, agent, fs);
             portal.start();

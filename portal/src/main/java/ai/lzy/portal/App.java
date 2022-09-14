@@ -3,20 +3,26 @@ package ai.lzy.portal;
 import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.fs.LzyFsServer;
 import ai.lzy.portal.config.PortalConfig;
+import ai.lzy.util.auth.credentials.JwtUtils;
 import com.google.common.net.HostAndPort;
 import io.micronaut.runtime.Micronaut;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.io.StringReader;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Arrays;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.util.Objects;
 
 import static ai.lzy.model.UriScheme.LzyFs;
 
 public class App {
     private static final Logger LOG = LogManager.getLogger(App.class);
+
+    public static final String ENV_WORKER_PKEY = "LZY_WORKER_PKEY";
 
     private final Portal portal;
 
@@ -41,7 +47,7 @@ public class App {
 
     @SuppressWarnings("UnstableApiUsage")
     public static void execute(String[] args)
-        throws URISyntaxException, IOException
+        throws URISyntaxException, IOException, NoSuchAlgorithmException, InvalidKeySpecException
     {
         LOG.info("Executing portal application...");
 
@@ -54,15 +60,25 @@ public class App {
             config.setHost(System.getenv(AllocatorAgent.VM_IP_ADDRESS));
         }
 
+        var allocatorToken = config.getAllocatorToken();
+        var iamPrivateKey = config.getIamToken();
+
+        allocatorToken = allocatorToken != null ? allocatorToken : System.getenv(AllocatorAgent.VM_ALLOCATOR_OTT);
+        iamPrivateKey = iamPrivateKey != null ? iamPrivateKey : System.getenv(ENV_WORKER_PKEY);
+
+        Objects.requireNonNull(allocatorToken);
+        Objects.requireNonNull(iamPrivateKey);
+
         var fsUri = new URI(LzyFs.scheme(), null, config.getHost(), config.getFsApiPort(), null, null, null);
         var cm = HostAndPort.fromString(config.getChannelManagerAddress());
         var channelManagerUri = new URI("http", null, cm.getHost(), cm.getPort(), null, null, null);
 
-        var allocatorAgent = new AllocatorAgent(config.getToken(), config.getVmId(), config.getAllocatorAddress(),
+        var allocatorAgent = new AllocatorAgent(allocatorToken, config.getVmId(), config.getAllocatorAddress(),
             config.getAllocatorHeartbeatPeriod(), config.getHost());
 
         var fsServer = new LzyFsServer(config.getPortalId(), config.getFsRoot(), fsUri, channelManagerUri,
-            config.getToken());
+            JwtUtils.buildJWT(config.getPortalId(), "INTERNAL", new StringReader(iamPrivateKey)));
+
         var main = new App(new Portal(config, allocatorAgent, fsServer));
         main.start();
 
@@ -80,7 +96,7 @@ public class App {
     }
 
     public static void main(String[] args)
-        throws URISyntaxException, IOException
+        throws URISyntaxException, IOException, NoSuchAlgorithmException, InvalidKeySpecException
     {
         execute(args);
     }

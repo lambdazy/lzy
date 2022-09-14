@@ -1,17 +1,17 @@
 import asyncio
+import functools
 import logging
 import os
 import sys
 import time
 from asyncio import Task
 from collections import defaultdict
-from threading import Thread
 from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 
 import jwt
 
-from ai.lzy.v1.workflow.workflow_pb2 import Graph, Operation
-from lzy.api.v2 import LzyCall, LzyWorkflow
+from ai.lzy.v1.workflow.workflow_pb2 import Graph, Operation, VmPoolSpec
+from lzy.api.v2 import LzyCall, LzyWorkflow, Provisioning
 from lzy.api.v2.exceptions import LzyExecutionException
 from lzy.api.v2.remote_grpc.workflow_service_client import (
     Completed,
@@ -36,6 +36,22 @@ FETCH_STATUS_PERIOD_SEC = 10
 _LOG = logging.getLogger(__name__)
 
 
+def wrap_error(message: str = "Something went wrong"):
+    def decorator(f):
+        @functools.wraps(f)
+        async def wrap(*args, **kwargs):
+            try:
+                return await f(*args, **kwargs)
+            except LzyExecutionException as e:
+                raise e
+            except Exception as e:
+                raise RuntimeError(message) from e
+
+        return wrap
+
+    return decorator
+
+
 def _build_token(username: str, key_path: Optional[str] = None) -> str:
     if key_path is None:
         key_path = os.getenv(KEY_PATH_ENV)
@@ -48,11 +64,12 @@ def _build_token(username: str, key_path: Optional[str] = None) -> str:
         private_key = f.read()
         return str(
             jwt.encode(
-                {  # TODO(artolrod) add renewing of token
+                {  # TODO(artolord) add renewing of token
                     "iat": time.time(),
                     "nbf": time.time(),
                     "exp": time.time() + 7 * 24 * 60 * 60,  # 7 days
                     "iss": username,
+                    "pvd": "GITHUB"
                 },
                 private_key,
                 algorithm="PS256",
@@ -75,71 +92,23 @@ class GrpcRuntime(Runtime):
         )
         self.__key_path = key_path
 
-        self.__loop = asyncio.get_event_loop()
-        self.__loop_thread = Thread(
-            name="runtime-thread",
-            target=self._run_loop_thread,
-            args=(self.__loop,),
-            daemon=True,
-        )
-        self.__loop_thread.start()
-        asyncio.set_event_loop(self.__loop)
-
-        self.__workflow_client = WorkflowServiceClient(
-            self.__workflow_address, _build_token(username, key_path)
-        )
+        self.__workflow_client: Optional[WorkflowServiceClient] = None
         self.__workflow: Optional[LzyWorkflow] = None
         self.__execution_id: Optional[str] = None
 
         self.__std_slots_listener: Optional[Task] = None
+        self.__running = False
 
-    def start(self, workflow: LzyWorkflow):
+    @wrap_error("Cannot start workflow")
+    async def start(self, workflow: LzyWorkflow):
+        self.__running = True
         self.__workflow = workflow
-        task = asyncio.run_coroutine_threadsafe(self._start_workflow(), self.__loop)
-        try:
-            task.result()
-        except Exception as e:
-            raise RuntimeError(f"Cannot start workflow {workflow.name}") from e
+        client = await self.__get_client()
 
-    def exec(
-        self,
-        graph: List[LzyCall],
-        progress: Callable[[ProgressStep], None],
-    ) -> None:
-        task = asyncio.run_coroutine_threadsafe(self._execute_graph(graph), self.__loop)
-        try:
-            task.result()
-        except LzyExecutionException as e:
-            raise e
-        except Exception as e:
-            raise RuntimeError("Cannot execute graph") from e
-
-    def destroy(self):
-        task = asyncio.run_coroutine_threadsafe(self._finish_workflow(), self.__loop)
-        try:
-            task.result()
-        except Exception as e:
-            raise RuntimeError("Cannot destroy workflow") from e
-
-    def create_whiteboard(
-        self,
-        namespace: str,
-        name: str,
-        fields: Sequence[WhiteboardField],
-        storage_name: str,
-        tags: Sequence[str],
-    ) -> WhiteboardInstanceMeta:
-        pass
-
-    def link(self, wb_id: str, field_name: str, url: str) -> None:
-        pass
-
-    async def _start_workflow(self):
-        assert self.__workflow is not None
         _LOG.info(f"Starting workflow {self.__workflow.name}")
         default_creds = self.__workflow.owner.storage_registry.default_config()
 
-        exec_id, creds = await self.__workflow_client.create_workflow(
+        exec_id, creds = await client.create_workflow(
             self.__workflow.name, default_creds
         )
 
@@ -150,36 +119,132 @@ class GrpcRuntime(Runtime):
             )
 
         self.__std_slots_listener = asyncio.create_task(
-            self._listen_to_std_slots(exec_id)
+            self.__listen_to_std_slots(exec_id)
         )
 
-    async def _listen_to_std_slots(self, execution_id: str):
-        async for data in self.__workflow_client.read_std_slots(execution_id):
+    @wrap_error("Cannot execute graph")
+    async def exec(
+        self,
+        calls: List[LzyCall],
+        progress: Callable[[ProgressStep], None],
+    ) -> None:
+        assert self.__execution_id is not None
+
+        client = await self.__get_client()
+        pools = await client.get_pool_specs(self.__execution_id)
+
+        _LOG.info("Building graph")
+        graph = await asyncio.get_event_loop().run_in_executor(
+            None, self.__build_graph, calls, pools
+        )  # Running long op in threadpool
+
+        graph_id = await client.execute_graph(self.__execution_id, graph)
+        _LOG.info(f"Send graph to Lzy, graph_id={graph_id}")
+
+        is_executing = False
+        while True:
+            await asyncio.sleep(FETCH_STATUS_PERIOD_SEC)
+            status = await client.graph_status(self.__execution_id, graph_id)
+
+            if isinstance(status, Executing) and not is_executing:
+                is_executing = True
+                continue
+
+            if isinstance(status, Completed):
+                _LOG.info(f"Graph {graph_id} execution completed")
+                return
+
+            if isinstance(status, Failed):
+                _LOG.info(f"Graph {graph_id} execution failed: {status.description}")
+                raise LzyExecutionException(
+                    f"Failed executing graph {graph_id}: {status.description}"
+                )
+
+    @wrap_error("Cannot destroy workflow")
+    async def destroy(self):
+        client = await self.__get_client()
+        _LOG.info(f"Finishing workflow {self.__workflow.name}")
+
+        try:
+            if not self.__running:
+                return
+
+            assert self.__execution_id is not None
+            assert self.__workflow is not None
+            assert self.__std_slots_listener is not None
+
+            await client.finish_workflow(
+                self.__workflow.name, self.__execution_id, "Workflow completed"
+            )
+
+            self.__workflow.owner.storage_registry.unregister_storage(
+                self.__execution_id
+            )
+
+            await self.__std_slots_listener  # read all stdout and stderr
+
+            self.__execution_id = None
+            self.__workflow = None
+            self.__std_slots_listener = None
+
+        finally:
+            await client.stop()
+            self.__workflow_client = None
+            self.__running = False
+
+    @wrap_error("Cannot create whiteboard")
+    async def create_whiteboard(
+        self,
+        namespace: str,
+        name: str,
+        fields: Sequence[WhiteboardField],
+        storage_name: str,
+        tags: Sequence[str],
+    ) -> WhiteboardInstanceMeta:
+        pass
+
+    @wrap_error("Cannot link whiteboard")
+    async def link(self, wb_id: str, field_name: str, url: str) -> None:
+        pass
+
+    @staticmethod
+    def __resolve_pool(
+        provisioning: Provisioning, pool_specs: Sequence[VmPoolSpec]
+    ) -> Optional[VmPoolSpec]:
+        assert (
+            provisioning.cpu_type is not None
+            and provisioning.cpu_count is not None
+            and provisioning.gpu_type is not None
+            and provisioning.gpu_count is not None
+            and provisioning.ram_size_gb is not None
+        )
+        for spec in pool_specs:
+            if (
+                provisioning.cpu_type == spec.cpuType
+                and provisioning.cpu_count <= spec.cpuCount
+                and provisioning.gpu_type == spec.gpuType
+                and provisioning.gpu_count <= spec.gpuCount
+                and provisioning.ram_size_gb <= spec.ramGb
+            ):
+                return spec
+        return None
+
+    async def __get_client(self):
+        if self.__workflow_client is None:
+            self.__workflow_client = await WorkflowServiceClient.create(
+                self.__workflow_address, _build_token(self.__username, self.__key_path)
+            )
+        return self.__workflow_client
+
+    async def __listen_to_std_slots(self, execution_id: str):
+        client = await self.__get_client()
+        async for data in client.read_std_slots(execution_id):
             if isinstance(data, StdoutMessage):
                 print(data.data, file=sys.stdout)
             else:
                 print(data.data, file=sys.stderr)
 
-    async def _finish_workflow(self):
-        assert self.__execution_id is not None
-        assert self.__workflow is not None
-        assert self.__std_slots_listener is not None
-
-        _LOG.info(f"Finishing workflow {self.__workflow.name}")
-
-        await self.__workflow_client.finish_workflow(
-            self.__workflow.name, self.__execution_id, "Workflow completed"
-        )
-
-        self.__workflow.owner.storage_registry.unregister_storage(self.__execution_id)
-
-        await self.__std_slots_listener  # read all stdout and stderr
-
-        self.__execution_id = None
-        self.__workflow = None
-        self.__std_slots_listener = None
-
-    def _build_graph(self, calls: List[LzyCall]) -> Graph:
+    def __build_graph(self, calls: List[LzyCall], pools: Sequence[VmPoolSpec]) -> Graph:
         assert self.__workflow is not None
 
         entry_id_to_call: Dict[str, Tuple[LzyCall, int]] = {}
@@ -197,6 +262,7 @@ class GrpcRuntime(Runtime):
                 entry_id_to_output_calls[eid].append((call, name))
 
         vertices: Dict[str, Graph.VertexDescription] = {}
+        pool_to_call: List[Tuple[VmPoolSpec, LzyCall]] = []
 
         for call in calls:
             input_slots: List[str] = []
@@ -222,9 +288,22 @@ class GrpcRuntime(Runtime):
                 output_slots.append(slot_path)
                 ret_descriptions.append(slot_path)
 
-            docker_image = (
-                call.env.docker.image  # type: ignore
-            )  # TODO(tomato): call.env.docker can be none
+            pool = self.__resolve_pool(call.provisioning, pools)
+
+            if pool is None:
+                raise RuntimeError(
+                    f"Cannot resolve pool for operation {call.signature.func.name}"
+                )
+
+            pool_to_call.append((pool, call))
+
+            docker_image: Optional[str]
+
+            if call.env.docker:
+                docker_image = call.env.docker.image
+            else:
+                docker_image = None
+
             request = ProcessingRequest(
                 serializers=self.__workflow.owner.serializer,
                 op=call.signature.func.callable,
@@ -251,13 +330,11 @@ class GrpcRuntime(Runtime):
                     inputSlots=input_slots,
                     outputSlots=output_slots,
                     command=command,
-                    dockerImage=docker_image
-                    if docker_image is not None
-                    else "",  # TODO(artolord) change env api
+                    dockerImage=docker_image if docker_image is not None else "",
                     python=Operation.PythonEnvSpec(  # TODO(artolord) add local modules loading
                         yaml=call.env.conda.yaml
                     ),
-                    poolSpecName="S",  # TODO(artolord) add label resolving
+                    poolSpecName=pool.poolSpecName,
                 ),
             )
 
@@ -287,48 +364,21 @@ class GrpcRuntime(Runtime):
                 )
             )
 
+        if self.__workflow.is_interactive:  # TODO(artolord) add costs
+            s = ""
+            for pool, call in pool_to_call:
+                s += f"Call to op {call.signature.func.name} mapped to pool {pool.poolSpecName}\n"
+
+            s += "Are you sure you want to run the graph with this configuration?"
+
+            print(s)
+            s = input("(Yes/[No]): ")
+            if s != "Yes":
+                raise RuntimeError("Graph execution cancelled")
+
         return Graph(
             name="",
             edges=edges,
             vertices=vertices.values(),
-            zone="",  # TODO(artolord) Add zone resolving
+            zone="",
         )
-
-    async def _execute_graph(self, calls: List[LzyCall]):
-        assert self.__execution_id is not None
-
-        _LOG.info("Building graph")
-        graph = self._build_graph(calls)
-
-        # TODO(artolord) add args loading
-
-        graph_id = await self.__workflow_client.execute_graph(
-            self.__execution_id, graph
-        )
-        _LOG.info(f"Send graph to Lzy, graph_id={graph_id}")
-
-        is_executing = False
-        while True:
-            await asyncio.sleep(FETCH_STATUS_PERIOD_SEC)
-            status = await self.__workflow_client.graph_status(
-                self.__execution_id, graph_id
-            )
-
-            if isinstance(status, Executing) and not is_executing:
-                is_executing = True
-                continue
-
-            if isinstance(status, Completed):
-                _LOG.info(f"Graph {graph_id} execution completed")
-                return
-
-            if isinstance(status, Failed):
-                _LOG.info(f"Graph {graph_id} execution failed: {status.description}")
-                raise LzyExecutionException(
-                    f"Failed executing graph {graph_id}: {status.description}"
-                )
-
-    @staticmethod
-    def _run_loop_thread(loop: asyncio.AbstractEventLoop):
-        asyncio.set_event_loop(loop)
-        loop.run_forever()

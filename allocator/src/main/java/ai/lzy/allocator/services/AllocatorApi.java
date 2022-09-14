@@ -1,5 +1,6 @@
 package ai.lzy.allocator.services;
 
+import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.configs.ServiceConfig;
@@ -16,6 +17,10 @@ import ai.lzy.allocator.model.Workload;
 import ai.lzy.allocator.volume.DiskVolumeDescription;
 import ai.lzy.allocator.volume.HostPathVolumeDescription;
 import ai.lzy.allocator.volume.VolumeRequest;
+import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
+import ai.lzy.iam.resources.credentials.SubjectCredentials;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.JsonUtils;
@@ -24,6 +29,7 @@ import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.OperationService.Operation;
 import ai.lzy.v1.VmAllocatorApi.*;
 import com.google.protobuf.Any;
+import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
@@ -35,10 +41,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nullable;
+import javax.inject.Named;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.function.BiConsumer;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
@@ -57,10 +67,12 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
     private final ServiceConfig config;
     private final AllocatorDataSource storage;
     private final Metrics metrics = new Metrics();
+    private final SubjectServiceGrpcClient subjectClient;
 
     @Inject
     public AllocatorApi(VmDao dao, OperationDao operations, SessionDao sessions, DiskStorage diskStorage,
-                        VmAllocator allocator, ServiceConfig config, AllocatorDataSource storage)
+                        VmAllocator allocator, ServiceConfig config, AllocatorDataSource storage,
+                        @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel)
     {
         this.dao = dao;
         this.operations = operations;
@@ -69,6 +81,8 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         this.allocator = allocator;
         this.config = config;
         this.storage = storage;
+
+        this.subjectClient = new SubjectServiceGrpcClient(iamChannel, config.getIam()::createCredentials);
     }
 
     @Override
@@ -186,6 +200,8 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             }
         };
 
+        var vmOtt = UUID.randomUUID().toString();
+
         Vm.Spec spec;
         try {
             spec = withRetries(
@@ -217,7 +233,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                         }
 
                         var workloads = request.getWorkloadList().stream()
-                            .map(Workload::fromProto)
+                            .map(wl -> Workload.fromProto(wl, Map.of(AllocatorAgent.VM_ALLOCATOR_OTT, vmOtt)))
                             .toList();
                         final List<VolumeRequest> volumes = getVolumeRequests(request, op, transaction);
                         if (volumes == null) {
@@ -259,7 +275,17 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         responseObserver.onNext(op.toProto());
         responseObserver.onCompleted();
 
+        // TODO: do in another thread, don't occupy grpc-pool
         try {
+            var vmSubj = subjectClient.createSubject(AuthProvider.INTERNAL, spec.vmId(), SubjectType.VM,
+                SubjectCredentials.ott("main", vmOtt, Duration.ofMinutes(15)));
+            LOG.info("Create IAM VM subject {} with OTT credentials for vmId {}", vmSubj.id(), spec.vmId());
+
+            withRetries(
+                defaultRetryPolicy(),
+                LOG,
+                () -> dao.setVmSubjectId(spec.vmId(), vmSubj.id(), null));
+
             try {
                 var timer = metrics.allocateDuration.startTimer();
                 allocator.allocate(spec);
@@ -278,9 +304,8 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
     }
 
     @Nullable
-    private List<VolumeRequest> getVolumeRequests(
-        AllocateRequest request, ai.lzy.allocator.model.Operation op, TransactionHandle transaction
-    ) throws SQLException
+    private List<VolumeRequest> getVolumeRequests(AllocateRequest request, ai.lzy.allocator.model.Operation op,
+                                                  TransactionHandle transaction) throws SQLException
     {
         final List<VolumeRequest> volumes = new ArrayList<>();
         for (var volume: request.getVolumesList()) {

@@ -14,3 +14,9 @@ class Just(Generic[T]):
 
 
 Result = Union[Just[T], Nothing]
+
+
+def unwrap(res: Union[Just[T], Nothing]) -> T:
+    if isinstance(res, Nothing):
+        raise AttributeError("Cannot unwrap result, it is None")
+    return res.value

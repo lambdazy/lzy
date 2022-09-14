@@ -8,6 +8,8 @@ import ai.lzy.allocator.dao.SessionDao;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.dao.impl.AllocatorDataSource;
 import ai.lzy.allocator.model.Vm;
+import ai.lzy.iam.clients.SubjectServiceClient;
+import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
@@ -18,8 +20,8 @@ import ai.lzy.v1.VmAllocatorPrivateApi.HeartbeatResponse;
 import ai.lzy.v1.VmAllocatorPrivateApi.RegisterRequest;
 import ai.lzy.v1.VmAllocatorPrivateApi.RegisterResponse;
 import com.google.protobuf.Any;
+import io.grpc.ManagedChannel;
 import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
 import io.prometheus.client.Counter;
@@ -29,6 +31,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -49,10 +52,12 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
     private final Storage storage;
     private final ServiceConfig config;
     private final Metrics metrics = new Metrics();
+    private final SubjectServiceClient subjectClient;
 
     @Inject
     public AllocatorPrivateApi(VmDao dao, OperationDao operations, VmAllocator allocator, SessionDao sessions,
-                               AllocatorDataSource storage, ServiceConfig config)
+                               AllocatorDataSource storage, ServiceConfig config,
+                               @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel)
     {
         this.dao = dao;
         this.operations = operations;
@@ -60,13 +65,14 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
         this.sessions = sessions;
         this.storage = storage;
         this.config = config;
+        this.subjectClient = new SubjectServiceGrpcClient(iamChannel, config.getIam()::createCredentials);
     }
 
     @Override
     public void register(RegisterRequest request, StreamObserver<RegisterResponse> responseObserver) {
         final Vm[] vmRef = {null};
         try {
-            withRetries(
+            var status = withRetries(
                 defaultRetryPolicy(),
                 LOG,
                 () -> {
@@ -76,13 +82,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
                         if (vm == null) {
                             LOG.error("VM {} does not exist", request.getVmId());
                             metrics.unknownVm.inc();
-                            try {
-                                responseObserver.onError(
-                                    Status.NOT_FOUND.withDescription("Vm with this id not found").asException());
-                            } catch (StatusRuntimeException e) {
-                                LOG.error(e);
-                            }
-                            return;
+                            return Status.NOT_FOUND.withDescription("Vm with this id not found");
                         }
 
                         vmRef[0] = vm;
@@ -90,58 +90,31 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
                         if (vm.status() == Vm.VmStatus.RUNNING) {
                             LOG.error("Vm {} has been already registered", vm);
                             metrics.alreadyRegistered.inc();
-                            try {
-                                responseObserver.onError(Status.ALREADY_EXISTS.asException());
-                            } catch (StatusRuntimeException e) {
-                                LOG.error(e);
-                            }
-                            return;
+                            return Status.ALREADY_EXISTS;
                         }
 
                         if (vm.status() == Vm.VmStatus.DEAD) {
                             LOG.error("Vm {} is DEAD", vm);
-                            try {
-                                responseObserver.onError(
-                                    Status.INVALID_ARGUMENT.withDescription("VM is dead").asException());
-                            } catch (StatusRuntimeException e) {
-                                LOG.error(e);
-                            }
-                            return;
+                            return Status.INVALID_ARGUMENT.withDescription("VM is dead");
                         }
 
                         if (vm.status() != Vm.VmStatus.CONNECTING) {
                             LOG.error("Wrong status of vm while register, expected CONNECTING: {}", vm);
-                            try {
-                                responseObserver.onError(Status.FAILED_PRECONDITION.asException());
-                            } catch (StatusRuntimeException e) {
-                                LOG.error(e);
-                            }
-                            return;
+                            return Status.FAILED_PRECONDITION;
                         }
 
                         final var op = operations.get(vm.allocationOperationId(), transaction);
                         if (op == null) {
-                            LOG.error("Operation {} does not exist", vm.allocationOperationId());
-                            try {
-                                responseObserver.onError(
-                                    Status.NOT_FOUND.withDescription("Op not found").asException());
-                            } catch (StatusRuntimeException e) {
-                                LOG.error(e);
-                            }
-                            return;
+                            var opId = vm.allocationOperationId();
+                            LOG.error("Operation {} does not exist", opId);
+                            return Status.NOT_FOUND.withDescription("Op %s not found".formatted(opId));
                         }
 
                         final var session = sessions.get(vm.sessionId(), transaction);
                         if (session == null) {
                             LOG.error("Session {} does not exist", vm.sessionId());
                             metrics.unknownSession.inc();
-                            try {
-                                responseObserver.onError(
-                                    Status.NOT_FOUND.withDescription("Session not found").asException());
-                            } catch (StatusRuntimeException e) {
-                                LOG.error(e);
-                            }
-                            return;
+                            return Status.NOT_FOUND.withDescription("Session not found");
                         }
 
                         if (op.error() != null && op.error().getCode() == Status.Code.CANCELLED) {
@@ -152,13 +125,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
                             transaction.commit();
 
                             metrics.registerCancelledVm.inc();
-                            try {
-                                responseObserver.onError(
-                                    Status.NOT_FOUND.withDescription("Op not found").asException());
-                            } catch (StatusRuntimeException e) {
-                                LOG.error(e);
-                            }
-                            return;
+                            return Status.NOT_FOUND.withDescription("Op not found");
                         }
 
                         dao.update(
@@ -177,9 +144,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
                                 .toList();
                         } catch (Exception e) {
                             LOG.error("Cannot get endpoints of vm {}", vm.vmId());
-                            responseObserver.onError(Status.INTERNAL
-                                .withDescription("Cannot get endpoints of vm").asException());
-                            return;
+                            return Status.INTERNAL.withDescription("Cannot get endpoints of vm");
                         }
 
                         op.setResponse(Any.pack(AllocateResponse.newBuilder()
@@ -196,8 +161,17 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
                         metrics.registered.inc();
                         metrics.allocationTime.observe(
                             Duration.between(vm.allocationStartedAt(), Instant.now()).toSeconds());
+
+                        return Status.OK;
                     }
                 });
+
+            if (status.isOk()) {
+                responseObserver.onNext(RegisterResponse.getDefaultInstance());
+                responseObserver.onCompleted();
+            } else {
+                responseObserver.onError(status.asException());
+            }
         } catch (Exception ex) {
             var vm = vmRef[0];
 
@@ -210,15 +184,21 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
                 Status.INTERNAL.withDescription("Error while registering vm %s: %s".formatted(vm, ex.getMessage()))
                     .asException());
 
+            // TODO: do it another thread, don't occupy grpc thread
             if (vm != null) {
                 LOG.info("Deallocating failed vm {}", vm);
+
+                if (vm.state().vmSubjectId() != null) {
+                    try {
+                        subjectClient.removeSubject(new ai.lzy.iam.resources.subjects.Vm(vm.state().vmSubjectId()));
+                    } catch (Exception e) {
+                        LOG.error("Cannot remove VM subject {}: {}", vm.state().vmSubjectId(), e.getMessage(), e);
+                    }
+                }
+
                 allocator.deallocate(vm.vmId());
             }
-            return;
         }
-
-        responseObserver.onNext(RegisterResponse.getDefaultInstance());
-        responseObserver.onCompleted();
     }
 
     @Override

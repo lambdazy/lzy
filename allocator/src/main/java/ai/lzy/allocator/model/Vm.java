@@ -2,15 +2,11 @@ package ai.lzy.allocator.model;
 
 import ai.lzy.allocator.volume.VolumeClaim;
 import ai.lzy.allocator.volume.VolumeRequest;
+
+import javax.annotation.Nullable;
 import java.time.Instant;
 import java.time.temporal.Temporal;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import javax.annotation.Nullable;
+import java.util.*;
 
 public record Vm(
     Spec spec,
@@ -53,6 +49,7 @@ public record Vm(
         @Nullable Instant lastActivityTime,
         @Nullable Instant deadline,
         @Nullable Instant allocationDeadline,
+        @Nullable String vmSubjectId,
         Map<String, String> vmMeta,
 
         List<VolumeClaim> volumeClaims
@@ -109,6 +106,7 @@ public record Vm(
         private Instant lastActivityTime;
         private Instant deadline;
         private Instant allocationDeadline;
+        private String vmSubjectId;
         private Map<String, String> vmMeta;
         private List<VolumeClaim> volumeClaims;
 
@@ -123,6 +121,7 @@ public record Vm(
             this.lastActivityTime = existingState.lastActivityTime;
             this.deadline = existingState.deadline;
             this.allocationDeadline = existingState.allocationDeadline;
+            this.vmSubjectId = existingState.vmSubjectId;
             if (existingState.volumeClaims != null) {
                 this.volumeClaims = new ArrayList<>();
                 this.volumeClaims.addAll(existingState.volumeClaims);
@@ -161,8 +160,14 @@ public record Vm(
             return this;
         }
 
+        public VmStateBuilder setVmSubjectId(String vmSubjectId) {
+            this.vmSubjectId = vmSubjectId;
+            return this;
+        }
+
         public State build() {
-            return new State(vmStatus, lastActivityTime, deadline, allocationDeadline, vmMeta, volumeClaims);
+            return new State(vmStatus, lastActivityTime, deadline, allocationDeadline, vmSubjectId, vmMeta,
+                volumeClaims);
         }
     }
 }

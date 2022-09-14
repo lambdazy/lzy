@@ -1,6 +1,9 @@
+import asyncio
 import uuid
-from typing import TYPE_CHECKING, Callable, List, Optional, Sequence
+from collections import defaultdict
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence
 
+from lzy.proxy.result import unwrap
 from lzy.storage.api import StorageConfig
 
 if TYPE_CHECKING:
@@ -13,50 +16,97 @@ from lzy.api.v2.runtime import (
     WhiteboardField,
     WhiteboardInstanceMeta,
 )
-from lzy.api.v2.utils.proxy_adapter import is_lzy_proxy
 
 
 class LocalRuntime(Runtime):
     def __init__(self):
         self.__workflow: Optional["LzyWorkflow"] = None
 
-    def start(self, workflow: "LzyWorkflow"):
+    async def start(self, workflow: "LzyWorkflow"):
         self.__workflow = workflow
         self.__workflow.owner.storage_registry.register_storage(
             "default", StorageConfig.yc_object_storage("bucket", "", "")
         )
 
-    def exec(
+    async def exec(
         self,
-        graph: List[LzyCall],
+        calls: List[LzyCall],
         progress: Callable[[ProgressStep], None],
     ):
         assert self.__workflow is not None
-        for call in graph:
-            args = tuple(
-                # TODO[ottergottaott]: hide this __lzy_origin__ attr access
-                arg if not is_lzy_proxy(arg) else arg.__lzy_origin__
-                for arg in call.args
-            )
-            kwargs = {
-                name: arg if not is_lzy_proxy(arg) else arg.__lzy_origin__
-                for name, arg in call.kwargs.items()
-            }
+        graph: Dict[str, List[LzyCall]] = defaultdict(list)
+        eid_to_call: Dict[str, LzyCall] = {}
+        used: Dict[str, bool] = defaultdict(lambda: False)
 
-            value = call.signature.func.callable(*args, **kwargs)
-            if len(call.entry_ids) == 0:
-                self.__workflow.snapshot.put_data(call.entry_ids[0], value)
+        for call in calls:
+            for eid in call.arg_entry_ids:
+                graph[eid].append(call)
+
+            for eid in call.kwarg_entry_ids.values():
+                graph[eid].append(call)
+
+            for eid in call.entry_ids:
+                eid_to_call[eid] = call
+
+        ans: List[str] = []
+
+        def dfs(eid: str):
+            for c in graph[eid]:
+                for edge in c.entry_ids:
+                    if not used[edge]:
+                        used[edge] = True
+                        dfs(edge)
+            ans.append(eid)
+
+        for eid in eid_to_call.keys():
+            if not used[eid]:
+                dfs(eid)
+
+        ans.reverse()
+        mat: Dict[str, bool] = defaultdict(lambda: False)
+
+        for eid in ans:
+            c = eid_to_call[eid]
+            if mat[c.id]:
                 continue
-            for i, data in enumerate(value):
+            await self.__exec_call(c)
+            mat[c.id] = True
+
+    async def __exec_call(self, call: LzyCall):
+        assert self.__workflow is not None
+
+        args: List[Any] = [
+            unwrap(data)
+            for data in await asyncio.gather(
+                *[self.__workflow.snapshot.get_data(eid) for eid in call.arg_entry_ids]
+            )
+        ]
+        kwargs: Dict[str, Any] = {
+            name: unwrap(await self.__workflow.snapshot.get_data(eid))
+            for (name, eid) in call.kwarg_entry_ids.items()
+        }
+
+        value = call.signature.func.callable(*args, **kwargs)
+        if len(call.entry_ids) == 1:
+            await self.__workflow.snapshot.put_data(call.entry_ids[0], value)
+            return
+
+        data_to_put = []
+
+        for i, data in enumerate(value):
+            data_to_put.append(
                 self.__workflow.snapshot.put_data(call.entry_ids[i], data)
+            )
 
-    def destroy(self) -> None:
+        await asyncio.gather(*data_to_put)
+
+    async def destroy(self) -> None:
         pass
 
-    def link(self, wb_id: str, field_name: str, url: str) -> None:
+    async def link(self, wb_id: str, field_name: str, url: str) -> None:
         pass
 
-    def create_whiteboard(
+    async def create_whiteboard(
         self,
         namespace: str,
         name: str,

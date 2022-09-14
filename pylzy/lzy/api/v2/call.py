@@ -89,7 +89,7 @@ class LzyCall:
 
     @property
     def kwarg_entry_ids(self) -> Mapping[str, str]:
-        return self.kwarg_entry_ids
+        return self.__kwargs_entry_ids
 
     @property
     def kwargs(self) -> Dict[str, Any]:

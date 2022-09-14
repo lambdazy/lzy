@@ -1,12 +1,18 @@
 package ai.lzy.iam.test;
 
 import ai.lzy.iam.LzyIAM;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.Subject;
+import ai.lzy.iam.resources.subjects.SubjectType;
+import ai.lzy.iam.storage.impl.DbSubjectService;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
 
+import javax.annotation.Nullable;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.Map;
 
 public class BaseTestWithIam {
@@ -30,5 +36,15 @@ public class BaseTestWithIam {
     public void after() {
         iamApp.close();
         iamCtx.close();
+    }
+
+    @Nullable
+    public Subject getSubject(AuthProvider provider, String providerSubjectId, SubjectType type) {
+        try {
+            var subjectService = iamCtx.getBean(DbSubjectService.class);
+            return subjectService.getSubjectForTests(provider, providerSubjectId, type);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
