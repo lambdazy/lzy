@@ -14,6 +14,7 @@ public final class ChannelManagerConfig {
     private String address;
     private String whiteboardAddress;
     private boolean stubIam = false;
+    private int lockBucketsCount = 256;
 
     @ConfigurationBuilder("iam")
     private final IamClientConfiguration iam = new IamClientConfiguration();
