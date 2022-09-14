@@ -34,6 +34,10 @@ public enum JwtUtils {
 
     public static final String CLAIM_PROVIDER = "pvd";
 
+    public static Date afterDays(int days) {
+        return Date.from(Instant.now().plus(Duration.ofDays(days)));
+    }
+
     public static JwtCredentials invalidCredentials(String user, String provider) {
         var privateKey = """
             -----BEGIN RSA PRIVATE KEY-----
@@ -65,33 +69,34 @@ public enum JwtUtils {
             -----END RSA PRIVATE KEY-----""";
 
         try (final Reader reader = new StringReader(privateKey)) {
-            return new JwtCredentials(buildJWT(user, provider, reader));
+            var expiresAt = afterDays(7);
+            return new JwtCredentials(buildJWT(user, provider, expiresAt, reader));
         } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
             throw new RuntimeException("Cannot build credentials: " + e.getMessage(), e);
         }
     }
 
-    public static JwtCredentials credentials(String user, String provider, String privateKey) {
+    public static JwtCredentials credentials(String user, String provider, Date expiresAt, String privateKey) {
         try (final Reader reader = new StringReader(privateKey)) {
-            return new JwtCredentials(buildJWT(user, provider, reader));
+            return new JwtCredentials(buildJWT(user, provider, expiresAt, reader));
         } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
             throw new RuntimeException("Cannot build credentials: " + e.getMessage(), e);
         }
     }
 
-    public static String buildJWT(String issuer, String provider, PrivateKey key) {
+    public static String buildJWT(String issuer, String provider, Date expiresAt, PrivateKey key) {
         Instant now = Instant.now();
         return Jwts.builder()
             .setIssuedAt(Date.from(now))
             .setNotBefore(Date.from(now))
-            .setExpiration(Date.from(now.plus(Duration.ofDays(7))))
+            .setExpiration(expiresAt)
             .setIssuer(issuer)
             .addClaims(Map.of(CLAIM_PROVIDER, provider))
             .signWith(key, SignatureAlgorithm.PS256)
             .compact();
     }
 
-    public static String buildJWT(String issuer, String provider, Reader privateKeyReader)
+    public static String buildJWT(String issuer, String provider, Date expiresAt, Reader privateKeyReader)
         throws IOException, NoSuchAlgorithmException, InvalidKeySpecException
     {
         addProvider(new BouncyCastleProvider());
@@ -102,7 +107,7 @@ public enum JwtUtils {
             PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(content);
             PrivateKey privateKey = factory.generatePrivate(privateKeySpec);
 
-            return buildJWT(issuer, provider, privateKey);
+            return buildJWT(issuer, provider, expiresAt, privateKey);
         }
     }
 
@@ -112,7 +117,7 @@ public enum JwtUtils {
         return Jwts.builder()
             .setIssuedAt(Date.from(now))
             .setNotBefore(Date.from(now))
-            .setExpiration(Date.from(now.plus(Duration.ofDays(7))))
+            .setExpiration(afterDays(7))
             .setIssuer(issuer)
             .signWith(key, SignatureAlgorithm.PS256)
             .compact();
@@ -200,7 +205,8 @@ public enum JwtUtils {
         final var keys = RsaUtils.generateRsaKeys();
         final JwtCredentials credentials;
         try (final var reader = new FileReader(keys.privateKeyPath().toFile())) {
-            credentials = new JwtCredentials(buildJWT(login, provider, reader));
+            var expiresAt = afterDays(7);
+            credentials = new JwtCredentials(buildJWT(login, provider, expiresAt, reader));
         }
 
         final var publicKey = Files.readString(keys.publicKeyPath());

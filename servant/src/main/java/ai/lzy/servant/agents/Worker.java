@@ -1,7 +1,5 @@
 package ai.lzy.servant.agents;
 
-import static ai.lzy.model.UriScheme.LzyFs;
-
 import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.fs.LzyFsServer;
 import ai.lzy.fs.fs.LzyFileSlot;
@@ -30,6 +28,11 @@ import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
+import org.apache.commons.cli.*;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;
@@ -44,14 +47,8 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+
+import static ai.lzy.model.UriScheme.LzyFs;
 
 public class Worker {
     private static final Logger LOG = LogManager.getLogger(Worker.class);
@@ -118,7 +115,7 @@ public class Worker {
             final var channelManagerUri = new URI("http", null, cm.getHost(), cm.getPort(), null, null, null);
 
             lzyFs = new LzyFsServer(servantId, fsRoot, fsUri, channelManagerUri,
-                JwtUtils.buildJWT(servantId, "INTERNAL", new StringReader(iamPrivateKey)));
+                JwtUtils.buildJWT(servantId, "INTERNAL", JwtUtils.afterDays(7), new StringReader(iamPrivateKey)));
         } catch (IOException | URISyntaxException e) {
             LOG.error("Error while building uri", e);
             stop();
