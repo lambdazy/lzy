@@ -44,6 +44,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.Date;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -115,7 +117,8 @@ public class Worker {
             final var channelManagerUri = new URI("http", null, cm.getHost(), cm.getPort(), null, null, null);
 
             lzyFs = new LzyFsServer(servantId, fsRoot, fsUri, channelManagerUri,
-                JwtUtils.buildJWT(servantId, "INTERNAL", JwtUtils.afterDays(7), new StringReader(iamPrivateKey)));
+                JwtUtils.buildJWT(servantId, "INTERNAL", Date.from(Instant.now()), JwtUtils.afterDays(7),
+                    new StringReader(iamPrivateKey)));
         } catch (IOException | URISyntaxException e) {
             LOG.error("Error while building uri", e);
             stop();
