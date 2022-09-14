@@ -26,7 +26,7 @@ import java.util.Locale;
 public class ExecutionDaoImpl implements ExecutionDao {
     private static final Logger LOG = LogManager.getLogger(ExecutionDaoImpl.class);
 
-    private static final String QUERY_ACTIVE_ID = """
+    private static final String QUERY_GET_ACTIVE_EXECUTION_ID = """
         SELECT active_execution_id
         FROM workflows
         WHERE user_id = ? AND workflow_name = ?""";
@@ -35,36 +35,35 @@ public class ExecutionDaoImpl implements ExecutionDao {
         INSERT INTO workflows (user_id, workflow_name, created_at, active_execution_id)
         VALUES (?, ?, ?, ?)""";
 
-    private static final String QUERY_COUNT_ACTIVE_FOR_WORKFLOW = """
-        SELECT count(*)
-        FROM workflows
+    private static final String QUERY_EXISTS_ACTIVE_EXECUTION_FOR_WORKFLOW = """
+        SELECT 1 FROM workflows
         WHERE user_id = ? AND workflow_name = ? AND active_execution_id = ?""";
 
-    private static final String QUERY_UPDATE_ACTIVE = """
+    private static final String QUERY_UPDATE_ACTIVE_EXECUTION = """
         UPDATE workflows
         SET active_execution_id = ?
         WHERE user_id = ? AND workflow_name=? AND active_execution_id = ?""";
 
-    private static final String QUERY_INSERT = """
+    private static final String QUERY_INSERT_EXECUTION = """
         INSERT INTO workflow_executions (execution_id, created_at, storage, storage_bucket, storage_credentials)
         VALUES (?, ?, cast(? as storage_type), ?, ?)""";
 
-    private static final String QUERY_UPDATE_STATUS = """
+    private static final String QUERY_UPDATE_PORTAL_STATUS = """
         UPDATE workflow_executions
         SET portal = cast(? as portal_status)
         WHERE execution_id = ?""";
 
-    private static final String QUERY_UPDATE_CHANNEL_IDS = """
+    private static final String QUERY_UPDATE_PORTAL_CHANNEL_IDS = """
         UPDATE workflow_executions
         SET portal = cast(? as portal_status), portal_stdout_channel_id = ?, portal_stderr_channel_id = ?
         WHERE execution_id = ?""";
 
-    public static final String QUERY_UPDATE_SESSION = """
+    public static final String QUERY_UPDATE_ALLOCATOR_SESSION = """
         UPDATE workflow_executions
         SET portal = cast(? as portal_status), allocator_session_id = ?
         WHERE execution_id = ?""";
 
-    public static final String QUERY_UPDATE_OPERATION_DATA = """
+    public static final String QUERY_UPDATE_ALLOCATE_OPERATION_DATA = """
         UPDATE workflow_executions
         SET portal = cast(? as portal_status), allocate_op_id = ?, portal_vm_id = ?
         WHERE execution_id = ?""";
@@ -74,7 +73,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
         SET portal = cast(? as portal_status), portal_vm_address = ?
         WHERE execution_id = ?""";
 
-    public static final String QUERY_UPDATE_FINISH_DATA = """
+    public static final String QUERY_UPDATE_EXECUTION_FINISH_DATA = """
         SELECT execution_id, finished_at, finished_with_error
         FROM workflow_executions
         WHERE execution_id = ?""";
@@ -96,7 +95,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
         try (var transaction = TransactionHandle.getOrCreate(storage, outerTransaction)) {
             DbOperation.execute(transaction, storage, con -> {
                 // TODO: add `nowait` and handle it's warning or error
-                var activeExecStmt = con.prepareStatement(QUERY_ACTIVE_ID + " FOR UPDATE",
+                var activeExecStmt = con.prepareStatement(QUERY_GET_ACTIVE_EXECUTION_ID + " FOR UPDATE",
                     ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
                 activeExecStmt.setString(1, userId);
                 activeExecStmt.setString(2, workflowName);
@@ -106,13 +105,13 @@ public class ExecutionDaoImpl implements ExecutionDao {
                 if (rs.next()) {
                     var existingExecutionId = rs.getString("active_execution_id");
                     if (StringUtils.isNotEmpty(existingExecutionId)) {
-                        throw new RuntimeException(String.format("Attempt to start one more instance of workflow: " +
+                        throw new SQLException(String.format("Attempt to start one more instance of workflow: " +
                             "active is '%s'", existingExecutionId));
                     }
                     update = true;
                 }
 
-                try (var statement = con.prepareStatement(QUERY_INSERT)) {
+                try (var statement = con.prepareStatement(QUERY_INSERT_EXECUTION)) {
                     statement.setString(1, executionId);
                     statement.setTimestamp(2, Timestamp.from(Instant.now()));
                     statement.setString(3, storageType.toUpperCase(Locale.ROOT));
@@ -148,7 +147,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
     {
         boolean[] result = {false};
         DbOperation.execute(transaction, storage, con -> {
-            try (var statement = con.prepareStatement(QUERY_COUNT_ACTIVE_FOR_WORKFLOW)) {
+            try (var statement = con.prepareStatement(QUERY_EXISTS_ACTIVE_EXECUTION_FOR_WORKFLOW)) {
                 statement.setString(1, userId);
                 statement.setString(2, workflowName);
                 statement.setString(2, executionId);
@@ -163,7 +162,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
                              @Nullable TransactionHandle transaction) throws SQLException
     {
         DbOperation.execute(transaction, storage, con -> {
-            try (var statement = con.prepareStatement(QUERY_UPDATE_STATUS)) {
+            try (var statement = con.prepareStatement(QUERY_UPDATE_PORTAL_STATUS)) {
                 statement.setString(1, WorkflowService.PortalStatus.CREATING_STD_CHANNELS.name());
                 statement.setString(2, executionId);
                 statement.executeUpdate();
@@ -176,7 +175,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
                                     @Nullable TransactionHandle transaction) throws SQLException
     {
         DbOperation.execute(transaction, storage, con -> {
-            try (var statement = con.prepareStatement(QUERY_UPDATE_CHANNEL_IDS)) {
+            try (var statement = con.prepareStatement(QUERY_UPDATE_PORTAL_CHANNEL_IDS)) {
                 statement.setString(1, WorkflowService.PortalStatus.CREATING_SESSION.name());
                 statement.setString(2, stdoutChannelId);
                 statement.setString(3, stderrChannelId);
@@ -191,7 +190,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
         throws SQLException
     {
         DbOperation.execute(transaction, storage, con -> {
-            try (var statement = con.prepareStatement(QUERY_UPDATE_SESSION)) {
+            try (var statement = con.prepareStatement(QUERY_UPDATE_ALLOCATOR_SESSION)) {
                 statement.setString(1, WorkflowService.PortalStatus.REQUEST_VM.name());
                 statement.setString(2, sessionId);
                 statement.setString(3, executionId);
@@ -205,7 +204,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
                                             @Nullable TransactionHandle transaction) throws SQLException
     {
         DbOperation.execute(transaction, storage, con -> {
-            try (var statement = con.prepareStatement(QUERY_UPDATE_OPERATION_DATA)) {
+            try (var statement = con.prepareStatement(QUERY_UPDATE_ALLOCATE_OPERATION_DATA)) {
                 statement.setString(1, WorkflowService.PortalStatus.ALLOCATING_VM.name());
                 statement.setString(2, opId);
                 statement.setString(3, vmId);
@@ -235,7 +234,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
         throws SQLException
     {
         DbOperation.execute(transaction, storage, con -> {
-            var finishDataStmt = con.prepareStatement(QUERY_UPDATE_FINISH_DATA + " FOR UPDATE",
+            var finishDataStmt = con.prepareStatement(QUERY_UPDATE_EXECUTION_FINISH_DATA + " FOR UPDATE",
                 ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
             finishDataStmt.setString(1, executionId);
 
@@ -264,7 +263,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
         throws SQLException
     {
         DbOperation.execute(transaction, storage, con -> {
-            try (var statement = con.prepareStatement(QUERY_UPDATE_ACTIVE)) {
+            try (var statement = con.prepareStatement(QUERY_UPDATE_ACTIVE_EXECUTION)) {
                 statement.setString(1, newExecutionId);
                 statement.setString(2, userId);
                 statement.setString(3, workflowName);

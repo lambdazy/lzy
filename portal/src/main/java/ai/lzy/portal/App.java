@@ -22,7 +22,7 @@ import static ai.lzy.model.UriScheme.LzyFs;
 public class App {
     private static final Logger LOG = LogManager.getLogger(App.class);
 
-    public static final String ENV_WORKER_PKEY = "LZY_WORKER_PKEY";
+    public static final String ENV_PORTAL_PKEY = "LZY_PORTAL_PKEY";
 
     private final Portal portal;
 
@@ -45,7 +45,6 @@ public class App {
         portal.awaitTermination();
     }
 
-    @SuppressWarnings("UnstableApiUsage")
     public static void execute(String[] args)
         throws URISyntaxException, IOException, NoSuchAlgorithmException, InvalidKeySpecException
     {
@@ -63,7 +62,7 @@ public class App {
             config.setAllocatorToken(System.getenv(AllocatorAgent.VM_ALLOCATOR_OTT));
         }
         if (config.getIamToken() == null) {
-            config.setIamToken(System.getenv(ENV_WORKER_PKEY));
+            config.setIamToken(System.getenv(ENV_PORTAL_PKEY));
         }
 
         Objects.requireNonNull(config.getAllocatorToken());

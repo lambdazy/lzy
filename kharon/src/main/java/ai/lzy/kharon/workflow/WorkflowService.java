@@ -71,8 +71,7 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBase {
     private static final Logger LOG = LogManager.getLogger(WorkflowService.class);
 
-    // same as at ai.lzy.scheduler.allocator.AllocatorImpl
-    public static final String ENV_WORKER_PKEY = "LZY_WORKER_PKEY";
+    public static final String ENV_PORTAL_PKEY = "LZY_PORTAL_PKEY";
 
     private final PortalConfig portalConfig;
     private final String channelManagerAddress;
@@ -207,7 +206,8 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
             if (internalSnapshotStorage) {
                 safeDeleteTempStorageBucket(storageData.getBucket());
             }
-            LOG.error(e.getMessage(), e);
+            LOG.error("Cannot create new execution with { workflowName: '{}', userId: '{}' }: " + e.getMessage(),
+                workflowName, userId, e);
             response.onError(Status.INTERNAL.withDescription(e.getMessage()).asRuntimeException());
             return;
         }
@@ -232,7 +232,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
 
         BiConsumer<io.grpc.Status, String> replyError = (status, descr) -> {
             LOG.error("[attachWorkflow], fail: status={}, msg={}.", status, descr);
-            response.onError(status.withDescription(descr).asException());
+            response.onError(status.withDescription(descr).asRuntimeException());
         };
 
         if (StringUtils.isEmpty(request.getWorkflowName()) || StringUtils.isEmpty(request.getExecutionId())) {
@@ -255,8 +255,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
             }
         } catch (Exception e) {
             LOG.error("[attachWorkflow] Got Exception: " + e.getMessage(), e);
-            response.onError(Status.INTERNAL.withDescription("Cannot retrieve data about workflow")
-                .asRuntimeException());
+            replyError.accept(Status.INTERNAL, "Cannot retrieve data about workflow");
         }
     }
 
@@ -278,19 +277,21 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
 
         // final String[] bucket = {null};
         // bucket[0] = retrieve from db
+        try {
+            withRetries(defaultRetryPolicy(), LOG, () -> {
+                try (var transaction = TransactionHandle.create(storage)) {
+                    dao.updateFinishData(request.getWorkflowName(), request.getExecutionId(),
+                        Timestamp.from(Instant.now()), request.getReason(), transaction);
+                    dao.updateActiveExecution(userId, request.getWorkflowName(), request.getExecutionId(), null);
 
-        try (var transaction = TransactionHandle.create(storage)) {
-            withRetries(defaultRetryPolicy(), LOG, () ->
-                dao.updateFinishData(request.getWorkflowName(), request.getExecutionId(),
-                    Timestamp.from(Instant.now()), request.getReason(), transaction));
-
-            withRetries(defaultRetryPolicy(), LOG, () ->
-                dao.updateActiveExecution(userId, request.getWorkflowName(), request.getExecutionId(), null));
-
-            transaction.commit();
+                    transaction.commit();
+                }
+            });
         } catch (Exception e) {
             LOG.error("[finishWorkflow], fail: {}.", e.getMessage(), e);
-            response.onError(Status.INTERNAL.withDescription(e.getMessage()).asRuntimeException());
+            replyError.accept(Status.INTERNAL, "Cannot finish workflow with name '" +
+                request.getWorkflowName() + "': " + e.getMessage());
+            return;
         }
 
         response.onNext(FinishWorkflowResponse.getDefaultInstance());
@@ -319,8 +320,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
             withRetries(defaultRetryPolicy(), LOG, () -> dao.updateAllocatorSession(executionId, sessionId));
 
             var startAllocationTime = Instant.now();
-            var operation = startAllocation(workflowName, sessionId, executionId,
-                stdoutChannelId, stderrChannelId);
+            var operation = startAllocation(workflowName, sessionId, executionId, stdoutChannelId, stderrChannelId);
             var opId = operation.getId();
 
             AllocateMetadata allocateMetadata;
@@ -416,7 +416,6 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
             "-portal.portal-api-port=" + portalConfig.getPortalApiPort(),
             "-portal.fs-api-port=" + portalConfig.getFsApiPort(),
             "-portal.fs-root=" + portalConfig.getFsRoot(),
-            "-portal.token=" + internalUserCredentials.token(),
             "-portal.stdout-channel-id=" + stdoutChannelId,
             "-portal.stderr-channel-id=" + stderrChannelId,
             "-portal.channel-manager-address=" + channelManagerAddress);
@@ -433,7 +432,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
                     // TODO: ssokolvyak -- fill the image in production
                     //.setImage(portalConfig.getPortalImage())
                     .addAllArgs(args)
-                    .putEnv(ENV_WORKER_PKEY, privateKey)
+                    .putEnv(ENV_PORTAL_PKEY, privateKey)
                     .putAllPortBindings(ports)
                     .build())
                 .build());
@@ -454,7 +453,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
                     LOG.warn("Cannot deserialize allocate response from operation with id: " + operationId);
                 }
             }
-            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(100));
+            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(500));
         }
         return null;
     }

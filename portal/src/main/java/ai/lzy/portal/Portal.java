@@ -15,6 +15,8 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -69,8 +71,9 @@ public class Portal {
     }
 
     public void start() {
-        LOG.info("Starting portal with ID: '{}' at {}://{}:{}/{}",
-            portalId, LzyServant.scheme(), host, port, fsServer.getMountPoint());
+        LOG.info("Starting portal with config: { portalId: '{}', url: '{}:/{}:{}', fsRoot: '{}', " +
+            "stdoutChannelId: '{}', stderrChannelId: '{}'}", portalId, LzyServant.scheme(), host, port,
+            fsServer.getMountPoint(), stdoutChannelId, stderrChannelId);
 
         try {
             grpcServer.start();

@@ -380,11 +380,6 @@
             </dependency>
             <dependency>
                 <groupId>io.micronaut</groupId>
-                <artifactId>micronaut-aop</artifactId>
-                <version>${micronaut.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.micronaut</groupId>
                 <artifactId>micronaut-inject-java</artifactId>
                 <version>${micronaut.version}</version>
             </dependency>

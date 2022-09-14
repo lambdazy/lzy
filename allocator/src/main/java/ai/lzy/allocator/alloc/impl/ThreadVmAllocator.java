@@ -78,8 +78,8 @@ public class ThreadVmAllocator implements VmAllocator {
                 "-portal.host=localhost",
                 "-portal.allocator-token=" + env.get(AllocatorAgent.VM_ALLOCATOR_OTT)
             ));
-            if (env.containsKey("LZY_WORKER_PKEY")) {
-                startupArgs.add("-portal.iam-token=" + env.get("LZY_WORKER_PKEY"));
+            if (env.containsKey("LZY_PORTAL_PKEY")) {
+                startupArgs.add("-portal.iam-token=" + env.get("LZY_PORTAL_PKEY"));
             }
         } else {
             startupArgs.addAll(List.of(
