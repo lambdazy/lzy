@@ -1,6 +1,6 @@
 package ai.lzy.whiteboard.hibernate.models;
 
-import ai.lzy.model.snapshot.SnapshotEntryStatus;
+import ai.lzy.whiteboard.model.SnapshotEntryStatus;
 
 import javax.annotation.Nullable;
 import javax.persistence.*;

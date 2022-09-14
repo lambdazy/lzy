@@ -32,6 +32,10 @@
             <groupId>org.apache.commons</groupId>
         </dependency>
         <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+        </dependency>
+        <dependency>
             <artifactId>easystream</artifactId>
             <groupId>net.sf.jsignature.io-tools</groupId>
         </dependency>
@@ -73,10 +77,6 @@
         <dependency>
             <artifactId>jackson-databind</artifactId>
             <groupId>com.fasterxml.jackson.core</groupId>
-        </dependency>
-        <dependency>
-            <artifactId>httpclient</artifactId>
-            <groupId>org.apache.httpcomponents</groupId>
         </dependency>
         <dependency>
             <artifactId>jackson-annotations</artifactId>

@@ -1,6 +1,6 @@
 package ai.lzy.test.impl;
 
-import ai.lzy.model.Slot;
+import ai.lzy.model.slot.Slot;
 import ai.lzy.model.data.DataSchema;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader;

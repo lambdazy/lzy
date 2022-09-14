@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package ai.lzy.v1.channel;
+
+import "ai/lzy/v1/common/data-scheme.proto";
+
+option java_outer_classname = "LCM";
+option java_package = "ai.lzy.v1.channel";
+
+message ChannelSpec {
+  string channelName = 1;
+  DataScheme contentType = 2;
+  oneof type {
+    DirectChannelType direct = 3;
+    SnapshotChannelType snapshot = 4;
+  }
+}
+
+message DirectChannelType {}
+
+message SnapshotChannelType {
+  string snapshotId = 1;
+  string entryId = 2;
+}

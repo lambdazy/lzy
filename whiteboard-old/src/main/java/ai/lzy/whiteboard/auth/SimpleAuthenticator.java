@@ -1,9 +1,9 @@
 package ai.lzy.whiteboard.auth;
 
 import ai.lzy.model.utils.Permissions;
-import ai.lzy.v1.IAM;
-import ai.lzy.v1.Lzy;
-import ai.lzy.v1.LzyServerGrpc;
+import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.v1.deprecated.Lzy;
+import ai.lzy.v1.deprecated.LzyServerGrpc;
 
 public class SimpleAuthenticator implements Authenticator {
 
@@ -14,7 +14,7 @@ public class SimpleAuthenticator implements Authenticator {
     }
 
     @Override
-    public boolean checkPermissions(IAM.Auth auth, Permissions permissions) {
+    public boolean checkPermissions(LzyAuth.Auth auth, Permissions permissions) {
         return true;
     }
 }

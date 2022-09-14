@@ -1,6 +1,6 @@
 package ai.lzy.servant.snapshot;
 
-import ai.lzy.model.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.io.IOUtils;
 import org.junit.*;
-import ai.lzy.model.Slot;
+import ai.lzy.model.slot.Slot;
 import ai.lzy.model.data.DataSchema;
 import ai.lzy.fs.snapshot.SlotSnapshot;
 import ai.lzy.fs.snapshot.SlotSnapshotImpl;

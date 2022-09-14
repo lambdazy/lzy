@@ -2,11 +2,13 @@ package ai.lzy.whiteboard.grpc;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
+import static ai.lzy.model.grpc.ProtoConverter.fromProto;
 
 import ai.lzy.model.db.NotFoundException;
 import ai.lzy.model.db.TransactionHandle;
-import ai.lzy.v1.LWBPS;
-import ai.lzy.v1.LzyWhiteboardPrivateServiceGrpc;
+import ai.lzy.model.deprecated.GrpcConverter;
+import ai.lzy.v1.whiteboard.LWBPS;
+import ai.lzy.v1.whiteboard.LzyWhiteboardPrivateServiceGrpc;
 import ai.lzy.whiteboard.access.AccessManager;
 import ai.lzy.whiteboard.model.Field;
 import ai.lzy.whiteboard.model.LinkedField;
@@ -131,7 +133,7 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
 
             final Instant finalizedAt = Instant.now().truncatedTo(ChronoUnit.MILLIS);
             final var linkedField = new LinkedField(fieldName, Field.Status.FINALIZED, request.getStorageUri(),
-                ai.lzy.model.GrpcConverter.contentTypeFrom(request.getScheme()));
+                fromProto(request.getScheme()));
 
             withRetries(defaultRetryPolicy(), LOG, () -> {
                 final var lock = lockManager.getOrCreate(whiteboardId);

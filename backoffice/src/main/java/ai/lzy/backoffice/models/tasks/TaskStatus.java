@@ -1,10 +1,10 @@
 package ai.lzy.backoffice.models.tasks;
 
+import ai.lzy.v1.common.LME;
+import ai.lzy.v1.deprecated.LzyTask;
 import io.micronaut.core.annotation.Introspected;
 import java.util.List;
 import java.util.stream.Collectors;
-import ai.lzy.v1.Operations;
-import ai.lzy.v1.Tasks;
 
 @Introspected
 public class TaskStatus {
@@ -18,7 +18,7 @@ public class TaskStatus {
     private String description;
     private List<String> tags;
 
-    public static TaskStatus fromModel(Tasks.TaskStatus task) {
+    public static TaskStatus fromModel(LzyTask.TaskStatus task) {
         TaskStatus status = new TaskStatus();
         status.status = task.getStatus().name();
         status.explanation = task.getExplanation();
@@ -27,7 +27,7 @@ public class TaskStatus {
         status.owner = task.getOwner();
         status.fuze = task.getZygote().getFuze();
         status.tags = task.getZygote().getProvisioning().getTagsList().stream()
-            .map(Operations.Provisioning.Tag::getTag).collect(Collectors.toList());
+            .map(LME.Provisioning.Tag::getTag).collect(Collectors.toList());
         status.description = task.getZygote().getDescription();
         return status;
     }

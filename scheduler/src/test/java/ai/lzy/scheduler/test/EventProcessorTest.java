@@ -1,6 +1,6 @@
 package ai.lzy.scheduler.test;
 
-import ai.lzy.model.Operation;
+import ai.lzy.model.operation.Operation;
 import ai.lzy.model.TaskDesc;
 import ai.lzy.model.db.DaoException;
 import ai.lzy.model.db.test.DatabaseTestUtils;

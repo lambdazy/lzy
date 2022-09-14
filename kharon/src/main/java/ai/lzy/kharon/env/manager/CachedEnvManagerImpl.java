@@ -1,13 +1,13 @@
 package ai.lzy.kharon.env.manager;
 
-import ai.lzy.model.disk.Disk;
-import ai.lzy.model.disk.DiskType;
+import ai.lzy.disk.model.Disk;
+import ai.lzy.disk.model.DiskType;
+import ai.lzy.disk.model.EntityNotFoundException;
+import ai.lzy.disk.model.grpc.DiskClient;
+import ai.lzy.disk.model.grpc.GrpcConverter;
 import ai.lzy.kharon.env.CachedEnv;
 import ai.lzy.kharon.env.CachedEnvStatus;
 import ai.lzy.kharon.env.dao.CachedEnvDao;
-import ai.lzy.model.disk.grpc.DiskClient;
-import ai.lzy.model.disk.grpc.GrpcConverter;
-import ai.lzy.model.exceptions.EntityNotFoundException;
 import ai.lzy.v1.disk.LD;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
@@ -76,7 +76,7 @@ public class CachedEnvManagerImpl implements CachedEnvManager {
         DiskType diskType
     ) {
         final Map<String, Disk> userDisks = diskClient.listUserDisks(userId).stream()
-            .collect(Collectors.toMap(LD.Disk::getId, disk -> GrpcConverter.from(disk)));
+            .collect(Collectors.toMap(LD.Disk::getId, GrpcConverter::from));
 
         final List<CachedEnvDao.CachedEnvInfo> configRelatedEnvs = cachedEnvDao.listEnvs(userId, workflowName)
             .filter(env -> env.dockerImage().equals(dockerImage))

@@ -1,6 +1,6 @@
 package ai.lzy.servant.agents;
 
-import ai.lzy.v1.Servant;
+import ai.lzy.v1.deprecated.Servant;
 
 public enum AgentStatus {
     STARTED(0),

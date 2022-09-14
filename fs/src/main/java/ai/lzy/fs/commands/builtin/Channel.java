@@ -1,18 +1,16 @@
 package ai.lzy.fs.commands.builtin;
 
-import static ai.lzy.model.GrpcConverter.to;
-
 import ai.lzy.fs.commands.LzyCommand;
+import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.model.data.DataSchema;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.v1.ChannelManager;
-import ai.lzy.v1.Channels;
-import ai.lzy.v1.IAM;
-import ai.lzy.v1.LzyChannelManagerGrpc;
-import ai.lzy.v1.LzyKharonGrpc;
+import ai.lzy.v1.channel.LCMS;
+import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.deprecated.LzyKharonGrpc;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
@@ -22,7 +20,6 @@ import java.net.URI;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 import org.apache.logging.log4j.LogManager;
@@ -76,7 +73,7 @@ public final class Channel implements LzyCommand {
         }
 
         final URI channelManagerAddress = URI.create("grpc://" + command.getOptionValue("channel-manager"));
-        final IAM.Auth auth = IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
+        final LzyAuth.Auth auth = LzyAuth.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
         LOG.info("Auth {}", JsonUtils.printRequest(auth));
 
         final ManagedChannel channelManagerChannel = ChannelBuilder
@@ -116,23 +113,23 @@ public final class Channel implements LzyCommand {
                     data = DataSchema.plain;
                 }
 
-                final Channels.ChannelSpec.Builder channelSpecBuilder = Channels.ChannelSpec.newBuilder();
-                channelSpecBuilder.setContentType(to(data));
+                final var channelSpecBuilder = ai.lzy.v1.channel.LCM.ChannelSpec.newBuilder();
+                channelSpecBuilder.setContentType(ProtoConverter.toProto(data));
                 channelSpecBuilder.setChannelName(channelName);
 
                 if ("snapshot".equals(localCmd.getOptionValue('t'))) {
                     channelSpecBuilder.setSnapshot(
-                        Channels.SnapshotChannelType.newBuilder()
+                        ai.lzy.v1.channel.LCM.SnapshotChannelType.newBuilder()
                             .setSnapshotId(localCmd.getOptionValue('s'))
                             .setEntryId(localCmd.getOptionValue('e'))
                             .build());
                 } else {
-                    channelSpecBuilder.setDirect(Channels.DirectChannelType.newBuilder().build());
+                    channelSpecBuilder.setDirect(ai.lzy.v1.channel.LCM.DirectChannelType.newBuilder().build());
                 }
 
                 String workflowId = command.getOptionValue('i');
-                final ChannelManager.ChannelCreateResponse channelCreateResponse = channelManager.create(
-                    ChannelManager.ChannelCreateRequest.newBuilder()
+                final LCMS.ChannelCreateResponse channelCreateResponse = channelManager.create(
+                    LCMS.ChannelCreateRequest.newBuilder()
                         .setWorkflowId(workflowId)
                         .setChannelSpec(channelSpecBuilder.build())
                         .build());
@@ -145,8 +142,8 @@ public final class Channel implements LzyCommand {
                 }
 
                 try {
-                    final ChannelManager.ChannelStatus channelStatus = channelManager.status(
-                        ChannelManager.ChannelStatusRequest.newBuilder()
+                    final LCMS.ChannelStatus channelStatus = channelManager.status(
+                        LCMS.ChannelStatusRequest.newBuilder()
                             .setChannelId(channelId)
                             .build()
                     );
@@ -163,8 +160,8 @@ public final class Channel implements LzyCommand {
                 }
 
                 try {
-                    final ChannelManager.ChannelDestroyResponse destroyResponse = channelManager.destroy(
-                        ChannelManager.ChannelDestroyRequest.newBuilder()
+                    final LCMS.ChannelDestroyResponse destroyResponse = channelManager.destroy(
+                        LCMS.ChannelDestroyRequest.newBuilder()
                             .setChannelId(channelId)
                             .build());
                     System.out.println(JsonFormat.printer().print(destroyResponse));

@@ -2,16 +2,21 @@ package ai.lzy.fs;
 
 import ai.lzy.fs.commands.BuiltinCommandHolder;
 import ai.lzy.fs.fs.*;
-import ai.lzy.model.Slot;
-import ai.lzy.model.SlotInstance;
-import ai.lzy.model.Zygote;
+import ai.lzy.logs.MetricEvent;
+import ai.lzy.logs.MetricEventLogger;
+import ai.lzy.model.deprecated.Zygote;
+import ai.lzy.model.grpc.ProtoConverter;
+import ai.lzy.model.slot.Slot;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.logs.MetricEvent;
-import ai.lzy.logs.MetricEventLogger;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.v1.*;
+import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.common.LMS;
+import ai.lzy.v1.deprecated.*;
+import ai.lzy.v1.fs.LzyFsApi;
+import ai.lzy.v1.fs.LzyFsGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.Status;
@@ -37,8 +42,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static ai.lzy.model.Constants.LOGS_DIR;
-import static ai.lzy.model.GrpcConverter.from;
 import static ai.lzy.model.UriScheme.*;
+import static ai.lzy.model.deprecated.GrpcConverter.from;
 
 public final class LzyFsServer {
 
@@ -51,13 +56,13 @@ public final class LzyFsServer {
 
     private final String agentId;
     private final Path mountPoint;
-
     private final URI selfUri;
     private final URI lzyServerUri;
     private final URI lzyWhiteboardUri;
     private final URI channelManagerUri;
 
-    private final IAM.Auth auth;
+    private final LzyAuth.Auth auth;
+
     private final Server localServer;
 
     private SlotsManager slotsManager;
@@ -71,7 +76,7 @@ public final class LzyFsServer {
 
     @Deprecated
     public LzyFsServer(String agentId, String mountPoint, URI selfUri, @Nullable URI lzyServerUri,
-                       @Nullable URI lzyWhiteboardUri, URI channelManagerUri, IAM.Auth auth) throws IOException
+                       @Nullable URI lzyWhiteboardUri, URI channelManagerUri, LzyAuth.Auth auth) throws IOException
     {
         this.agentId = agentId;
         this.channelManagerUri = channelManagerUri;
@@ -92,8 +97,8 @@ public final class LzyFsServer {
     public LzyFsServer(String agentId, String mountPoint, URI selfUri,
                        URI channelManagerUri, String token) throws IOException
     {
-        this(agentId, mountPoint, selfUri, null, null, channelManagerUri, IAM.Auth.newBuilder()
-            .setUser(IAM.UserCredentials.newBuilder()
+        this(agentId, mountPoint, selfUri, null, null, channelManagerUri, LzyAuth.Auth.newBuilder()
+            .setUser(LzyAuth.UserCredentials.newBuilder()
                 .setToken(token)
                 .build())
             .build());
@@ -232,7 +237,7 @@ public final class LzyFsServer {
             return onSlotError("Slot `" + request.getSlot().getName() + "` already exists.");
         }
 
-        final Slot slotSpec = from(request.getSlot());
+        final Slot slotSpec = ProtoConverter.fromProto(request.getSlot());
         final LzySlot lzySlot = slotsManager.getOrCreateSlot(request.getTaskId(), slotSpec, request.getChannelId());
 
         // TODO: It will be removed after creating Portal
@@ -264,7 +269,7 @@ public final class LzyFsServer {
             return onSlotError("Slot `" + slotName + "` not found.");
         }
 
-        final LzyFsApi.SlotInstance to = request.getTo();
+        final LMS.SlotInstance to = request.getTo();
         final URI slotUri = URI.create(to.getSlotUri());
         if (slot instanceof LzyInputSlot) {
             if (SlotS3.match(slotUri) || SlotAzure.match(slotUri)) {
@@ -303,7 +308,7 @@ public final class LzyFsServer {
             return onSlotError("Slot `" + slotName + "` not found.");
         }
 
-        final Operations.SlotStatus.Builder status = Operations.SlotStatus.newBuilder(slot.status());
+        final LMS.SlotStatus.Builder status = LMS.SlotStatus.newBuilder(slot.status());
         status.setTaskId(slotInstance.taskId());
 
         return LzyFsApi.SlotCommandStatus.newBuilder()
@@ -376,7 +381,7 @@ public final class LzyFsServer {
         );
     }
 
-    public boolean registerCommand(Path cmd, String script, @Nullable Operations.Zygote zygote) {
+    public boolean registerCommand(Path cmd, String script, @Nullable LzyZygote.Zygote zygote) {
         LOG.debug("Registering command `{}`...", cmd);
 
         boolean added = fsManager.addScript(new LzyScriptImpl(cmd, script, zygote), /* isSystem */ zygote == null);
@@ -450,7 +455,7 @@ public final class LzyFsServer {
     private record LzyScriptImpl(
         Path location,
         CharSequence scriptText,
-        Operations.Zygote zygote
+        LzyZygote.Zygote zygote
     ) implements LzyScript {
 
         @Override

@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package ai.lzy.v1;
+
+option java_outer_classname = "LMS3";
+option java_package = "ai.lzy.v1.common";
+
+message AmazonS3Endpoint {
+  string endpoint = 1;
+  string accessToken = 2;
+  string secretToken = 3;
+}
+
+message AzureS3Endpoint {
+  string connectionString = 1;
+}
+
+message S3Locator {
+  string key = 1;
+  string bucket = 2;
+
+  oneof endpoint {
+    AmazonS3Endpoint amazon = 3;
+    AzureS3Endpoint azure = 4;
+  }
+}

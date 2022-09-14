@@ -7,16 +7,16 @@ import java.util.Base64;
 import org.apache.commons.cli.CommandLine;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.v1.IAM;
-import ai.lzy.v1.Lzy;
-import ai.lzy.v1.LzyKharonGrpc;
-import ai.lzy.v1.LzyServerGrpc;
+import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.v1.deprecated.Lzy;
+import ai.lzy.v1.deprecated.LzyKharonGrpc;
+import ai.lzy.v1.deprecated.LzyServerGrpc;
 
 public class Sessions implements LzyCommand {
 
     @Override
     public int execute(CommandLine command) throws Exception {
-        final IAM.Auth auth = IAM.Auth
+        final LzyAuth.Auth auth = LzyAuth.Auth
             .parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
         if (!auth.hasUser()) {
             throw new IllegalArgumentException("Please provide user credentials");

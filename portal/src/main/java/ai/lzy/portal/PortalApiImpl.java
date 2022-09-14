@@ -1,16 +1,18 @@
 package ai.lzy.portal;
 
 import ai.lzy.fs.fs.LzySlot;
-import ai.lzy.model.GrpcConverter;
-import ai.lzy.model.Slot;
-import ai.lzy.model.SlotInstance;
+import ai.lzy.model.deprecated.GrpcConverter;
+import ai.lzy.model.grpc.ProtoConverter;
+import ai.lzy.model.slot.Slot;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.utils.PortalUtils;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.v1.LzyPortalApi;
-import ai.lzy.v1.LzyPortalApi.OpenSlotsRequest;
-import ai.lzy.v1.LzyPortalApi.OpenSlotsResponse;
-import ai.lzy.v1.LzyPortalApi.PortalStatus;
-import ai.lzy.v1.LzyPortalGrpc.LzyPortalImplBase;
+import ai.lzy.v1.portal.LzyPortal;
+import ai.lzy.v1.portal.LzyPortalApi;
+import ai.lzy.v1.portal.LzyPortalApi.OpenSlotsRequest;
+import ai.lzy.v1.portal.LzyPortalApi.OpenSlotsResponse;
+import ai.lzy.v1.portal.LzyPortalApi.PortalStatus;
+import ai.lzy.v1.portal.LzyPortalGrpc.LzyPortalImplBase;
 import com.google.protobuf.Empty;
 import io.grpc.stub.StreamObserver;
 import org.apache.commons.lang3.NotImplementedException;
@@ -88,10 +90,10 @@ class PortalApiImpl extends LzyPortalImplBase {
             return response.build();
         };
 
-        for (LzyPortalApi.PortalSlotDesc slotDesc : request.getSlotsList()) {
+        for (LzyPortal.PortalSlotDesc slotDesc : request.getSlotsList()) {
             LOG.info("Open slot {}", portalSlotToSafeString(slotDesc));
 
-            final Slot slot = GrpcConverter.from(slotDesc.getSlot());
+            final Slot slot = ProtoConverter.fromProto(slotDesc.getSlot());
             if (Slot.STDIN.equals(slot) || Slot.ARGS.equals(slot)
                 || Slot.STDOUT.equals(slot) || Slot.STDERR.equals(slot))
             {
@@ -123,7 +125,7 @@ class PortalApiImpl extends LzyPortalImplBase {
         return response.build();
     }
 
-    private static String portalSlotToSafeString(LzyPortalApi.PortalSlotDesc slotDesc) {
+    private static String portalSlotToSafeString(LzyPortal.PortalSlotDesc slotDesc) {
         var sb = new StringBuilder()
             .append("PortalSlotDesc{")
             .append("\"slot\": ").append(JsonUtils.printSingleLine(slotDesc))

@@ -1,26 +1,28 @@
 package ai.lzy.servant.agents;
 
+import static ai.lzy.model.UriScheme.LzyFs;
+
 import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.fs.LzyFsServer;
 import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.fs.slots.LineReaderSlot;
-import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.EnvironmentInstallationException;
 import ai.lzy.model.Signal;
 import ai.lzy.model.TaskDesc;
-import ai.lzy.model.exceptions.EnvironmentInstallationException;
+import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.scheduler.SchedulerAgent;
-import ai.lzy.model.slots.TextLinesOutSlot;
+import ai.lzy.model.slot.TextLinesOutSlot;
 import ai.lzy.servant.env.Environment;
 import ai.lzy.servant.env.EnvironmentFactory;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.v1.lzy.SchedulerPrivateApi.ServantProgress;
-import ai.lzy.v1.lzy.SchedulerPrivateApi.ServantProgress.Configured;
-import ai.lzy.v1.lzy.SchedulerPrivateApi.ServantProgress.Configured.Err;
-import ai.lzy.v1.lzy.SchedulerPrivateApi.ServantProgress.Configured.Ok;
-import ai.lzy.v1.lzy.SchedulerPrivateApi.ServantProgress.Finished;
-import ai.lzy.v1.worker.Worker.*;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress.Configured;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress.Configured.Err;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress.Configured.Ok;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress.Finished;
+import ai.lzy.v1.worker.LWS.*;
 import ai.lzy.v1.worker.WorkerApiGrpc;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.net.HostAndPort;
@@ -28,11 +30,6 @@ import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
-import org.apache.commons.cli.*;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;
@@ -47,8 +44,14 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
-import static ai.lzy.model.UriScheme.LzyFs;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class Worker {
     private static final Logger LOG = LogManager.getLogger(Worker.class);
@@ -199,7 +202,7 @@ public class Worker {
             response.onCompleted();
 
             try {
-                final var e = EnvironmentFactory.create(GrpcConverter.from(request.getEnv()));
+                final var e = EnvironmentFactory.create(ProtoConverter.fromProto(request.getEnv()));
                 schedulerAgent.reportProgress(ServantProgress.newBuilder()
                     .setConfigured(Configured.newBuilder()
                         .setOk(Ok.newBuilder().build())

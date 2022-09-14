@@ -1,7 +1,7 @@
 package ai.lzy.disk.service;
 
-import ai.lzy.model.disk.grpc.GrpcConverter;
-import ai.lzy.model.disk.Disk;
+import ai.lzy.disk.model.grpc.GrpcConverter;
+import ai.lzy.disk.model.Disk;
 import ai.lzy.v1.disk.LDS;
 import ai.lzy.v1.disk.LzyDiskServiceGrpc;
 import io.grpc.stub.StreamObserver;

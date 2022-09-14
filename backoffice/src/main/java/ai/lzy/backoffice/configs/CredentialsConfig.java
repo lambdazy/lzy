@@ -1,17 +1,16 @@
 package ai.lzy.backoffice.configs;
 
-import ai.lzy.v1.IAM;
+import static ai.lzy.util.auth.credentials.JwtUtils.legacyBuildJWT;
+
+import ai.lzy.v1.deprecated.LzyAuth;
 import io.micronaut.context.annotation.ConfigurationProperties;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
-
 import java.io.FileReader;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
-
-import static ai.lzy.util.auth.credentials.JwtUtils.legacyBuildJWT;
 
 @Requires(property = "azure-providers", value = "false", defaultValue = "false")
 @ConfigurationProperties("credentials")
@@ -36,7 +35,7 @@ public class CredentialsConfig implements CredentialsProvider {
         this.privateKeyPath = privateKeyPath;
     }
 
-    public IAM.UserCredentials createCreds() {
+    public LzyAuth.UserCredentials createCreds() {
         String token;
         try (FileReader keyReader = new FileReader(privateKeyPath)) {
             token = legacyBuildJWT(userId, keyReader);
@@ -44,7 +43,7 @@ public class CredentialsConfig implements CredentialsProvider {
             throw new HttpStatusException(HttpStatus.FORBIDDEN, "Corrupted backoffice token");
         }
 
-        return IAM.UserCredentials.newBuilder()
+        return LzyAuth.UserCredentials.newBuilder()
             .setToken(token)
             .setUserId(userId)
             .build();

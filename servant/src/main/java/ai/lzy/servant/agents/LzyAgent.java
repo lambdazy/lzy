@@ -7,9 +7,10 @@ import ai.lzy.fs.LzyFsServer;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.logs.MetricEvent;
 import ai.lzy.logs.MetricEventLogger;
-import ai.lzy.v1.IAM;
-import ai.lzy.v1.Operations;
-import ai.lzy.v1.Servant;
+import ai.lzy.v1.common.LMS;
+import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.v1.deprecated.LzyZygote;
+import ai.lzy.v1.deprecated.Servant;
 import ai.lzy.servant.BashApi;
 import ai.lzy.servant.commands.ServantCommandHolder;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -41,7 +42,7 @@ public class LzyAgent implements Closeable {
     private static final ThreadGroup SHUTDOWN_HOOK_TG = new ThreadGroup("shutdown-hooks");
 
     private final LzyAgentConfig config;
-    private final IAM.Auth auth;
+    private final LzyAuth.Auth auth;
     private final AtomicReference<AgentStatus> status = new AtomicReference<>(AgentStatus.STARTED);
     private final URI serverUri;
     private final Server server;
@@ -117,8 +118,8 @@ public class LzyAgent implements Closeable {
         );
     }
 
-    public void publishTools(Operations.ZygoteList zygotes) {
-        for (Operations.Zygote zygote : zygotes.getZygoteList()) {
+    public void publishTools(LzyZygote.ZygoteList zygotes) {
+        for (LzyZygote.Zygote zygote : zygotes.getZygoteList()) {
             publishTool(
                 zygote,
                 Paths.get(zygote.getName()),
@@ -127,16 +128,16 @@ public class LzyAgent implements Closeable {
         }
     }
 
-    private static IAM.Auth getAuth(LzyAgentConfig config) {
-        final IAM.Auth.Builder authBuilder = IAM.Auth.newBuilder();
+    private static LzyAuth.Auth getAuth(LzyAgentConfig config) {
+        final LzyAuth.Auth.Builder authBuilder = LzyAuth.Auth.newBuilder();
         if (config.getUser() != null) {
             final String signedToken = config.getToken();
-            final IAM.UserCredentials.Builder credBuilder = IAM.UserCredentials.newBuilder()
+            final LzyAuth.UserCredentials.Builder credBuilder = LzyAuth.UserCredentials.newBuilder()
                 .setUserId(config.getUser())
                 .setToken(signedToken);
             authBuilder.setUser(credBuilder.build());
         } else {
-            authBuilder.setTask(IAM.TaskCredentials.newBuilder()
+            authBuilder.setTask(LzyAuth.TaskCredentials.newBuilder()
                 .setServantId(config.getAgentId())
                 .setServantToken(config.getToken())
                 .build()
@@ -159,7 +160,7 @@ public class LzyAgent implements Closeable {
         }
     }
 
-    public void publishTool(Operations.Zygote z, Path to, String... servantArgs) {
+    public void publishTool(LzyZygote.Zygote z, Path to, String... servantArgs) {
         if (z != null)
             LOG.info("published zygote " + to);
         try {
@@ -210,20 +211,20 @@ public class LzyAgent implements Closeable {
         }
     }
 
-    public void update(Operations.ZygoteList zygotes, StreamObserver<IAM.Empty> responseObserver) {
-        for (Operations.Zygote zygote : zygotes.getZygoteList()) {
+    public void update(LzyZygote.ZygoteList zygotes, StreamObserver<LzyAuth.Empty> responseObserver) {
+        for (LzyZygote.Zygote zygote : zygotes.getZygoteList()) {
             publishTool(zygote, Paths.get(zygote.getName()), "run", zygote.getName());
         }
-        responseObserver.onNext(IAM.Empty.newBuilder().build());
+        responseObserver.onNext(LzyAuth.Empty.newBuilder().build());
         responseObserver.onCompleted();
     }
 
-    public void status(@SuppressWarnings("unused") IAM.Empty request,
+    public void status(@SuppressWarnings("unused") LzyAuth.Empty request,
                        StreamObserver<Servant.ServantStatus> responseObserver) {
         final Servant.ServantStatus.Builder builder = Servant.ServantStatus.newBuilder();
         builder.setStatus(status.get().toGrpcServantStatus());
         builder.addAllConnections(context.slots().map(slot -> {
-            final Operations.SlotStatus.Builder status = Operations.SlotStatus
+            final LMS.SlotStatus.Builder status = LMS.SlotStatus
                 .newBuilder(slot.status());
             return status.build();
         }).collect(Collectors.toList()));
@@ -239,7 +240,7 @@ public class LzyAgent implements Closeable {
         return lzyFs.getUri();
     }
 
-    public IAM.Auth auth() {
+    public LzyAuth.Auth auth() {
         return auth;
     }
 

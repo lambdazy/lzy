@@ -1,11 +1,11 @@
 package ai.lzy.storage.impl;
 
-import ai.lzy.v1.LSS.CreateS3BucketRequest;
-import ai.lzy.v1.LSS.CreateS3BucketResponse;
-import ai.lzy.v1.LSS.DeleteS3BucketRequest;
-import ai.lzy.v1.LSS.DeleteS3BucketResponse;
-import ai.lzy.v1.LzyStorageServiceGrpc;
-import ai.lzy.v1.workflow.LWSD;
+import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.storage.LSS.CreateS3BucketRequest;
+import ai.lzy.v1.storage.LSS.CreateS3BucketResponse;
+import ai.lzy.v1.storage.LSS.DeleteS3BucketRequest;
+import ai.lzy.v1.storage.LSS.DeleteS3BucketResponse;
+import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 
@@ -13,15 +13,15 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class MockS3Storage extends LzyStorageServiceGrpc.LzyStorageServiceImplBase {
-    private final Map<String, LWSD.AmazonCredentials> buckets = new ConcurrentHashMap<>();
+    private final Map<String, LMS3.AmazonS3Endpoint> buckets = new ConcurrentHashMap<>();
 
-    public Map<String, LWSD.AmazonCredentials> getBuckets() {
+    public Map<String, LMS3.AmazonS3Endpoint> getBuckets() {
         return buckets;
     }
 
     @Override
     public void createS3Bucket(CreateS3BucketRequest request, StreamObserver<CreateS3BucketResponse> response) {
-        var creds = LWSD.AmazonCredentials.newBuilder()
+        var creds = LMS3.AmazonS3Endpoint.newBuilder()
             .setEndpoint("localhost:32000")
             .setAccessToken(UUID.randomUUID().toString())
             .setSecretToken(UUID.randomUUID().toString())

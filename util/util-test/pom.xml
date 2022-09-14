@@ -21,7 +21,7 @@
     <dependencies>
         <dependency>
             <groupId>ai.lzy</groupId>
-            <artifactId>model</artifactId>
+            <artifactId>model-old</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
 

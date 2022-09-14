@@ -10,7 +10,7 @@ import org.apache.logging.log4j.LogManager;
 import ai.lzy.kharon.LzyKharon;
 import ai.lzy.model.UriScheme;
 import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.v1.LzyKharonGrpc;
+import ai.lzy.v1.deprecated.LzyKharonGrpc;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;

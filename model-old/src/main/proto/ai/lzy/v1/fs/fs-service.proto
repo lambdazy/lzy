@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package ai.lzy.v1.fs;
+
+import "ai/lzy/v1/common/slot.proto";
+
+option java_outer_classname = "LzyFsApi";
+option java_package = "ai.lzy.v1.fs";
+
+service LzyFs {
+  rpc CreateSlot (CreateSlotRequest) returns (SlotCommandStatus);
+  rpc ConnectSlot (ConnectSlotRequest) returns (SlotCommandStatus);
+  rpc DisconnectSlot (DisconnectSlotRequest) returns (SlotCommandStatus);
+  rpc StatusSlot (StatusSlotRequest) returns (SlotCommandStatus);
+  rpc DestroySlot (DestroySlotRequest) returns (SlotCommandStatus);
+
+  rpc OpenOutputSlot (SlotRequest) returns (stream Message);
+}
+
+message CreateSlotRequest {
+  string taskId = 1;
+  Slot slot = 2;
+  string channelId = 3;
+}
+
+message ConnectSlotRequest {
+  SlotInstance from = 1;
+  SlotInstance to = 2;
+}
+
+message DisconnectSlotRequest {
+  SlotInstance slotInstance = 1;
+}
+
+message StatusSlotRequest {
+  SlotInstance slotInstance = 1;
+}
+
+message DestroySlotRequest {
+  SlotInstance slotInstance = 1;
+}
+
+message SlotCommandStatus {
+  oneof payload {
+    RC rc = 1;
+    SlotStatus status = 2;
+  }
+
+  message RC {
+    Code code = 1;
+    string description = 2;
+
+    enum Code {
+      SUCCESS = 0;
+      ERROR = 1;
+    }
+  }
+}
+
+message SlotRequest {
+  SlotInstance slotInstance = 1;
+  int64 offset = 2;
+}
+
+message Message {
+  enum Controls {
+    EOS = 0;
+  }
+
+  oneof message {
+    Controls control = 1;
+    bytes chunk = 2;
+  }
+}

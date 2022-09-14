@@ -8,11 +8,11 @@ option java_outer_classname = "LACS";
 option java_package = "ai.lzy.v1.iam";
 
 service LzyAccessService {
-  rpc Authorize (AuthorizeRequest) returns (ai.lzy.v1.iam.Subject);
+  rpc Authorize (AuthorizeRequest) returns (iam.Subject);
 }
 
 message AuthorizeRequest {
-  ai.lzy.v1.iam.Subject subject = 1;
+  iam.Subject subject = 1;
   string permission = 2;
-  ai.lzy.v1.iam.Resource resource = 3;
+  iam.Resource resource = 3;
 }

@@ -15,10 +15,10 @@ import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.v1.LzyPortalGrpc;
-import ai.lzy.v1.workflow.LWS;
-import ai.lzy.v1.workflow.LWS.CreateWorkflowRequest;
-import ai.lzy.v1.workflow.LWS.FinishWorkflowRequest;
+import ai.lzy.v1.portal.LzyPortalGrpc;
+import ai.lzy.v1.workflow.LWFS;
+import ai.lzy.v1.workflow.LWFS.CreateWorkflowRequest;
+import ai.lzy.v1.workflow.LWFS.FinishWorkflowRequest;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub;
 import com.google.common.net.HostAndPort;
@@ -43,7 +43,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 
-@SuppressWarnings({"ResultOfMethodCallIgnored", "UnstableApiUsage"})
+@SuppressWarnings({"ResultOfMethodCallIgnored"})
 public class WorkflowServiceTest {
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
     private static final BaseTestWithAllocator allocatorTestContext = new BaseTestWithAllocator();
@@ -149,10 +149,10 @@ public class WorkflowServiceTest {
                     CreateWorkflowRequest.newBuilder().setWorkflowName(workflowName).build())));
 
                 add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedWorkflowClient.deleteWorkflow(
-                    LWS.DeleteWorkflowRequest.newBuilder().setWorkflowName(workflowName).build())));
+                    LWFS.DeleteWorkflowRequest.newBuilder().setWorkflowName(workflowName).build())));
 
                 add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedWorkflowClient.attachWorkflow(
-                    LWS.AttachWorkflowRequest.newBuilder()
+                    LWFS.AttachWorkflowRequest.newBuilder()
                         .setWorkflowName(workflowName)
                         .setExecutionId(executionId)
                         .build())));
@@ -181,10 +181,10 @@ public class WorkflowServiceTest {
                     CreateWorkflowRequest.newBuilder().setWorkflowName(workflowName).build())));
 
                 add(Assert.assertThrows(StatusRuntimeException.class, () -> client.deleteWorkflow(
-                    LWS.DeleteWorkflowRequest.newBuilder().setWorkflowName(workflowName).build())));
+                    LWFS.DeleteWorkflowRequest.newBuilder().setWorkflowName(workflowName).build())));
 
                 add(Assert.assertThrows(StatusRuntimeException.class, () -> client.attachWorkflow(
-                    LWS.AttachWorkflowRequest.newBuilder()
+                    LWFS.AttachWorkflowRequest.newBuilder()
                         .setWorkflowName(workflowName)
                         .setExecutionId(executionId)
                         .build())));
@@ -286,7 +286,7 @@ public class WorkflowServiceTest {
     @Test
     public void testPortalStartedWhileCreatingWorkflow() {
         authorizedWorkflowClient.createWorkflow(
-            LWS.CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build());
+            CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build());
         var portalChannel = ChannelBuilder.forAddress(portalAddress).usePlaintext().build();
         var portalClient = LzyPortalGrpc.newBlockingStub(portalChannel);
         portalClient.status(Empty.getDefaultInstance());

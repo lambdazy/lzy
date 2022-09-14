@@ -1,33 +1,26 @@
 package ai.lzy.servant.env;
 
+import ai.lzy.fs.storage.StorageClient;
+import ai.lzy.logs.MetricEvent;
+import ai.lzy.logs.MetricEventLogger;
+import ai.lzy.model.EnvironmentInstallationException;
+import ai.lzy.model.graph.PythonEnv;
 import com.google.common.util.concurrent.ListenableFuture;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.LineNumberReader;
+import net.lingala.zip4j.ZipFile;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import ru.yandex.qe.s3.transfer.TransferStatus;
+import ru.yandex.qe.s3.transfer.Transmitter;
+import ru.yandex.qe.s3.transfer.download.DownloadRequestBuilder;
+import ru.yandex.qe.s3.transfer.download.DownloadResult;
+
+import java.io.*;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-
-import net.lingala.zip4j.core.ZipFile;
-import net.lingala.zip4j.exception.ZipException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ai.lzy.model.exceptions.EnvironmentInstallationException;
-import ai.lzy.model.graph.PythonEnv;
-import ai.lzy.logs.MetricEvent;
-import ai.lzy.logs.MetricEventLogger;
-import ai.lzy.fs.storage.StorageClient;
-import ru.yandex.qe.s3.transfer.TransferStatus;
-import ru.yandex.qe.s3.transfer.Transmitter;
-import ru.yandex.qe.s3.transfer.download.DownloadRequestBuilder;
-import ru.yandex.qe.s3.transfer.download.DownloadResult;
 
 public class CondaEnvironment implements AuxEnvironment {
 
@@ -80,11 +73,12 @@ public class CondaEnvironment implements AuxEnvironment {
         }
     }
 
-    private void extractFiles(File file, String destinationDirectory) throws ZipException {
+    private void extractFiles(File file, String destinationDirectory) throws IOException {
         LOG.info("CondaEnvironment::extractFiles trying to unzip module archive "
             + file.getAbsolutePath());
-        ZipFile zipFile = new ZipFile(file.getAbsolutePath());
-        zipFile.extractAll(destinationDirectory);
+        try (ZipFile zipFile = new ZipFile(file.getAbsolutePath())) {
+            zipFile.extractAll(destinationDirectory);
+        }
     }
 
     private String localModulesDirectoryAbsolutePath() {

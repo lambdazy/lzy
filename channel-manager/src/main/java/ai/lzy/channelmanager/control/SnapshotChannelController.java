@@ -3,11 +3,11 @@ package ai.lzy.channelmanager.control;
 import ai.lzy.channelmanager.graph.ChannelGraph;
 import ai.lzy.channelmanager.channel.ChannelException;
 import ai.lzy.channelmanager.channel.Endpoint;
-import ai.lzy.model.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.v1.IAM;
-import ai.lzy.v1.LzyWhiteboard;
-import ai.lzy.v1.SnapshotApiGrpc;
+import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.v1.deprecated.LzyWhiteboard;
+import ai.lzy.v1.deprecated.SnapshotApiGrpc;
 import io.grpc.Channel;
 import io.grpc.StatusRuntimeException;
 import java.net.URI;
@@ -23,7 +23,7 @@ public class SnapshotChannelController implements ChannelController {
 
     private final String entryId;
     private final String snapshotId;
-    private final IAM.Auth userCredentials;
+    private final LzyAuth.Auth userCredentials;
     private Status status = Status.UNBOUND;
     private URI storageURI;
 
@@ -45,8 +45,8 @@ public class SnapshotChannelController implements ChannelController {
         }
         this.entryId = entryId;
         this.snapshotId = snapshotId;
-        this.userCredentials = IAM.Auth.newBuilder().setUser(
-                IAM.UserCredentials.newBuilder()
+        this.userCredentials = LzyAuth.Auth.newBuilder().setUser(
+                LzyAuth.UserCredentials.newBuilder()
                     .setUserId(userId)
                     .build())
             .build();

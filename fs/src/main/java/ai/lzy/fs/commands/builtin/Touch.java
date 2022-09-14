@@ -3,10 +3,11 @@ package ai.lzy.fs.commands.builtin;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.fs.fs.LzyFSManager;
 import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.v1.IAM;
-import ai.lzy.v1.LzyFsApi;
-import ai.lzy.v1.LzyFsGrpc;
-import ai.lzy.v1.Operations;
+import ai.lzy.v1.common.LMS;
+import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.v1.fs.LzyFsApi;
+import ai.lzy.v1.fs.LzyFsGrpc;
+import ai.lzy.v1.deprecated.LzyZygote;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import java.nio.file.Files;
@@ -51,7 +52,7 @@ public final class Touch implements LzyCommand {
 
         final LzyFsGrpc.LzyFsBlockingStub lzyFs = LzyFsGrpc.newBlockingStub(lzyFsChannel);
 
-        final Operations.Slot.Builder slotBuilder = Operations.Slot.newBuilder();
+        final LMS.Slot.Builder slotBuilder = LMS.Slot.newBuilder();
         slotBuilder.setName("/" + getSlotRelPath(slotPath, lzyFsRoot));
 
         if (slotDescr.endsWith(".json")) {
@@ -64,26 +65,26 @@ public final class Touch implements LzyCommand {
             // direct command
             switch (slotDescr) {
                 case "input", "inpipe" -> {
-                    slotBuilder.setMedia(Operations.Slot.Media.PIPE);
-                    slotBuilder.setDirection(Operations.Slot.Direction.INPUT);
+                    slotBuilder.setMedia(LMS.Slot.Media.PIPE);
+                    slotBuilder.setDirection(LMS.Slot.Direction.INPUT);
                 }
                 case "infile" -> {
-                    slotBuilder.setMedia(Operations.Slot.Media.FILE);
-                    slotBuilder.setDirection(Operations.Slot.Direction.INPUT);
+                    slotBuilder.setMedia(LMS.Slot.Media.FILE);
+                    slotBuilder.setDirection(LMS.Slot.Direction.INPUT);
                 }
                 case "output", "outpipe" -> {
-                    slotBuilder.setMedia(Operations.Slot.Media.PIPE);
-                    slotBuilder.setDirection(Operations.Slot.Direction.OUTPUT);
+                    slotBuilder.setMedia(LMS.Slot.Media.PIPE);
+                    slotBuilder.setDirection(LMS.Slot.Direction.OUTPUT);
                 }
                 case "outfile" -> {
-                    slotBuilder.setMedia(Operations.Slot.Media.FILE);
-                    slotBuilder.setDirection(Operations.Slot.Direction.OUTPUT);
+                    slotBuilder.setMedia(LMS.Slot.Media.FILE);
+                    slotBuilder.setDirection(LMS.Slot.Direction.OUTPUT);
                 }
                 default -> throw new IllegalStateException("Unexpected slot description value: " + slotDescr);
             }
         }
 
-        final IAM.Auth auth = IAM.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
+        final LzyAuth.Auth auth = LzyAuth.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
         final String agentId = command.getOptionValue("agent-id");
 
         var request = LzyFsApi.CreateSlotRequest.newBuilder()

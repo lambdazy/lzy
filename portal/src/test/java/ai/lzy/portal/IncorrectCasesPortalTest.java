@@ -1,7 +1,8 @@
 package ai.lzy.portal;
 
 import ai.lzy.test.GrpcUtils;
-import ai.lzy.v1.LzyPortalApi;
+import ai.lzy.v1.portal.LzyPortal;
+import ai.lzy.v1.portal.LzyPortalApi;
 import io.grpc.StatusRuntimeException;
 import org.junit.Assert;
 import org.junit.Test;
@@ -26,7 +27,7 @@ public class IncorrectCasesPortalTest extends PortalTest {
 
         // configure portal to snapshot `channel-1` data on non-active S3
         String errorMessage = openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest.newBuilder()
-            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+            .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSnapshot(GrpcUtils.makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_slot_1"))
                 .setChannelId("channel_1")
@@ -56,7 +57,7 @@ public class IncorrectCasesPortalTest extends PortalTest {
 
         // open portal output slot before input one was opened, there must be an error here
         String errorMessage = openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest.newBuilder()
-            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+            .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSnapshot(GrpcUtils.makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
                 .setSlot(GrpcUtils.makeOutputFileSlot("/slot_2"))
                 .setChannelId("channel_1"))
@@ -84,7 +85,7 @@ public class IncorrectCasesPortalTest extends PortalTest {
 
         // configure portal to snapshot `channel-1` data on S3
         openPortalSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
-            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+            .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSnapshot(GrpcUtils.makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_slot_1"))
                 .setChannelId("channel_1")
@@ -97,7 +98,7 @@ public class IncorrectCasesPortalTest extends PortalTest {
 
         // snapshot portal_slot_1 one more time, there must be an error here
         String errorMessage = openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest.newBuilder()
-            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+            .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSnapshot(GrpcUtils.makeAmazonSnapshot("snapshot_2", BUCKET_NAME, S3_ADDRESS))
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_slot_1"))
                 .setChannelId("channel_2")
@@ -130,7 +131,7 @@ public class IncorrectCasesPortalTest extends PortalTest {
 
         // configure portal to snapshot `channel-1` data
         openPortalSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
-            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+            .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSnapshot(GrpcUtils.makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_slot_1"))
                 .setChannelId("channel_1")
@@ -139,7 +140,7 @@ public class IncorrectCasesPortalTest extends PortalTest {
 
         // configure portal to snapshot `channel-2` data with same snapshot id, there must be an error here
         String errorMessage = openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest.newBuilder()
-            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+            .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSnapshot(GrpcUtils.makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_slot_2"))
                 .setChannelId("channel_2")
@@ -168,17 +169,17 @@ public class IncorrectCasesPortalTest extends PortalTest {
 
         // configure portal to snapshot `channel-1` data
         openPortalSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
-            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+            .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSnapshot(GrpcUtils.makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_slot_1"))
                 .setChannelId("channel_1")
                 .build())
-            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+            .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_task_1:stdout"))
                 .setChannelId("task_1:stdout")
                 .setStdout(GrpcUtils.makeStdoutStorage("task_1"))
                 .build())
-            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+            .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_task_1:stderr"))
                 .setChannelId("task_1:stderr")
                 .setStderr(GrpcUtils.makeStderrStorage("task_1"))
@@ -192,17 +193,17 @@ public class IncorrectCasesPortalTest extends PortalTest {
 
         // configure portal to read snapshot `channel-2` data
         openPortalSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
-            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+            .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSnapshot(GrpcUtils.makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
                 .setSlot(GrpcUtils.makeOutputFileSlot("/portal_slot_2"))
                 .setChannelId("channel_2")
                 .build())
-            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+            .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_task_2:stdout"))
                 .setChannelId("task_2:stdout")
                 .setStdout(GrpcUtils.makeStdoutStorage("task_2"))
                 .build())
-            .addSlots(LzyPortalApi.PortalSlotDesc.newBuilder()
+            .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_task_2:stderr"))
                 .setChannelId("task_2:stderr")
                 .setStderr(GrpcUtils.makeStderrStorage("task_2"))

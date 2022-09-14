@@ -1,5 +1,7 @@
 package ai.lzy.scheduler.test;
 
+import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
+
 import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.utils.FreePortFinder;
@@ -14,32 +16,33 @@ import ai.lzy.scheduler.test.mocks.AllocatorMock;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.v1.Operations;
-import ai.lzy.v1.SchedulerApi.TaskScheduleRequest;
-import ai.lzy.v1.SchedulerGrpc;
-import ai.lzy.v1.common.LzyCommon;
-import ai.lzy.v1.lzy.SchedulerPrivateApi.RegisterServantRequest;
-import ai.lzy.v1.lzy.SchedulerPrivateApi.ServantProgress;
-import ai.lzy.v1.lzy.SchedulerPrivateApi.ServantProgress.Configured;
-import ai.lzy.v1.lzy.SchedulerPrivateApi.ServantProgress.ExecutionCompleted;
-import ai.lzy.v1.lzy.SchedulerPrivateApi.ServantProgress.Finished;
-import ai.lzy.v1.lzy.SchedulerPrivateApi.ServantProgressRequest;
-import ai.lzy.v1.lzy.SchedulerPrivateGrpc;
+import ai.lzy.v1.common.LME;
+import ai.lzy.v1.common.LMO;
+import ai.lzy.v1.scheduler.SchedulerApi.TaskScheduleRequest;
+import ai.lzy.v1.scheduler.SchedulerGrpc;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.RegisterServantRequest;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress.Configured;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress.ExecutionCompleted;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress.Finished;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgressRequest;
+import ai.lzy.v1.scheduler.SchedulerPrivateGrpc;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
+import java.io.IOException;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-
-import java.io.IOException;
-import java.util.concurrent.*;
-
-import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
 
 public class IntegrationTest extends BaseTestWithIam {
 
@@ -107,15 +110,15 @@ public class IntegrationTest extends BaseTestWithIam {
         stub.schedule(TaskScheduleRequest.newBuilder()
             .setWorkflowId("wfid")
             .setWorkflowName("wf")
-            .setTask(LzyCommon.TaskDesc.newBuilder()
-                .setOperation(LzyCommon.Operation.newBuilder()
+            .setTask(LMO.TaskDesc.newBuilder()
+                .setOperation(LMO.Operation.newBuilder()
                     .setName("name")
-                    .setRequirements(LzyCommon.Requirements.newBuilder()
+                    .setRequirements(LMO.Requirements.newBuilder()
                         .setPoolLabel("s")
                         .setZone("a").build())
                     .setCommand("")
                     .setDescription("")
-                    .setEnv(Operations.EnvSpec.newBuilder().build())
+                    .setEnv(LME.EnvSpec.newBuilder().build())
                     .build())
                 .build())
             .build());

@@ -1,11 +1,12 @@
 syntax = "proto3";
 
-package ai.lzy.v1.common;
+package ai.lzy.v1;
 
-option java_outer_classname = "LzyCommon";
+import "ai/lzy/v1/common/env.proto";
+import "ai/lzy/v1/common/slot.proto";
+
+option java_outer_classname = "LMO";
 option java_package = "ai.lzy.v1.common";
-
-import "ai/lzy/v1/zygote.proto";
 
 message Operation {
   message StdSlotDesc {

@@ -1,8 +1,14 @@
 package ai.lzy.fs;
 
-import static ai.lzy.model.GrpcConverter.to;
+import static ai.lzy.model.deprecated.GrpcConverter.to;
 
-import ai.lzy.model.SlotInstance;
+import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.v1.deprecated.Lzy;
+import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.v1.deprecated.LzyKharonGrpc;
+import ai.lzy.v1.deprecated.SnapshotApiGrpc;
+import ai.lzy.v1.fs.LzyFsApi;
+import ai.lzy.v1.fs.LzyFsGrpc;
 import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import ai.lzy.model.UriScheme;
@@ -14,7 +20,6 @@ import ai.lzy.fs.snapshot.SnapshooterImpl;
 import ai.lzy.fs.storage.StorageClient;
 import ru.yandex.qe.s3.transfer.Transmitter;
 import ru.yandex.qe.s3.transfer.download.DownloadRequestBuilder;
-import ai.lzy.v1.*;
 
 import javax.annotation.Nullable;
 import java.io.InputStream;
@@ -33,8 +38,9 @@ public class SlotConnectionManager {
     private final Snapshooter snapshooter;
 
     @Deprecated
-    public SlotConnectionManager(@Nullable Lzy.GetS3CredentialsResponse credentials, IAM.Auth auth, @Nullable URI wb,
-                                 String bucket) {
+    public SlotConnectionManager(@Nullable Lzy.GetS3CredentialsResponse credentials,
+                                 LzyAuth.Auth auth, @Nullable URI wb, String bucket)
+    {
         final StorageClient client = StorageClient.create(credentials);
         final String endpoint;
         if (credentials.hasAmazon()) {

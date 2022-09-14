@@ -1,9 +1,8 @@
 package ai.lzy.scheduler.servant.impl;
 
-import ai.lzy.model.Operation;
+import ai.lzy.model.operation.Operation;
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.db.DaoException;
-import ai.lzy.model.graph.Provisioning;
 import ai.lzy.scheduler.allocator.ServantsAllocator;
 import ai.lzy.scheduler.configs.ServantEventProcessorConfig;
 import ai.lzy.scheduler.configs.ServiceConfig;

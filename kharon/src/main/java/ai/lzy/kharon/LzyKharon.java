@@ -9,13 +9,18 @@ import ai.lzy.model.SlotConnectionManager;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ProxyClientHeaderInterceptor;
 import ai.lzy.util.grpc.ProxyServerHeaderInterceptor;
-import ai.lzy.v1.*;
-import ai.lzy.v1.Kharon.ReceivedDataStatus;
-import ai.lzy.v1.Kharon.SendSlotDataMessage;
-import ai.lzy.v1.Kharon.TerminalCommand;
-import ai.lzy.v1.Lzy.GetSessionsRequest;
-import ai.lzy.v1.Lzy.GetSessionsResponse;
-import ai.lzy.v1.LzyFsApi.SlotCommandStatus;
+import ai.lzy.v1.channel.LCMS;
+import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.common.LMS;
+import ai.lzy.v1.deprecated.*;
+import ai.lzy.v1.deprecated.Kharon.ReceivedDataStatus;
+import ai.lzy.v1.deprecated.Kharon.SendSlotDataMessage;
+import ai.lzy.v1.deprecated.Kharon.TerminalCommand;
+import ai.lzy.v1.deprecated.Lzy.GetSessionsRequest;
+import ai.lzy.v1.deprecated.Lzy.GetSessionsResponse;
+import ai.lzy.v1.fs.LzyFsApi;
+import ai.lzy.v1.fs.LzyFsApi.SlotCommandStatus;
+import ai.lzy.v1.fs.LzyFsGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
@@ -377,7 +382,7 @@ public class LzyKharon {
             LzyFsApi.SlotRequest newRequest = LzyFsApi.SlotRequest.newBuilder()
                 .mergeFrom(request)
                 .setSlotInstance(
-                    LzyFsApi.SlotInstance.newBuilder()
+                    LMS.SlotInstance.newBuilder()
                         .mergeFrom(request.getSlotInstance())
                         .setSlotUri(slotUri.toString())
                         .build())
@@ -414,26 +419,26 @@ public class LzyKharon {
         }
 
         @Override
-        public void zygotes(IAM.Auth request,
-                            StreamObserver<Operations.ZygoteList> responseObserver) {
+        public void zygotes(LzyAuth.Auth request,
+                            StreamObserver<LzyZygote.ZygoteList> responseObserver) {
             ProxyCall.exec(server::zygotes, request, responseObserver);
         }
 
         @Override
-        public void task(Tasks.TaskCommand request,
-                         StreamObserver<Tasks.TaskStatus> responseObserver) {
+        public void task(LzyTask.TaskCommand request,
+                         StreamObserver<LzyTask.TaskStatus> responseObserver) {
             ProxyCall.exec(server::task, request, responseObserver);
         }
 
         @Override
-        public void start(Tasks.TaskSpec request, StreamObserver<Tasks.TaskProgress> responseObserver) {
+        public void start(LzyTask.TaskSpec request, StreamObserver<LzyTask.TaskProgress> responseObserver) {
             if (LOG.getLevel().isLessSpecificThan(Level.DEBUG)) {
                 LOG.debug("Kharon::start " + JsonUtils.printRequest(request));
             } else {
                 LOG.info("Kharon::start request (tid={})", request.getTid());
             }
             try {
-                final Iterator<Tasks.TaskProgress> start = server.start(request);
+                final Iterator<LzyTask.TaskProgress> start = server.start(request);
                 while (start.hasNext()) {
                     responseObserver.onNext(start.next());
                 }
@@ -445,8 +450,8 @@ public class LzyKharon {
         }
 
         @Override
-        public void tasksStatus(IAM.Auth request,
-                                StreamObserver<Tasks.TasksList> responseObserver) {
+        public void tasksStatus(LzyAuth.Auth request,
+                                StreamObserver<LzyTask.TasksList> responseObserver) {
             ProxyCall.exec(server::tasksStatus, request, responseObserver);
         }
 
@@ -470,35 +475,35 @@ public class LzyKharon {
 
     private class ChannelManagerProxyService extends LzyChannelManagerGrpc.LzyChannelManagerImplBase {
         @Override
-        public void create(ChannelManager.ChannelCreateRequest request,
-                           StreamObserver<ChannelManager.ChannelCreateResponse> responseObserver) {
+        public void create(LCMS.ChannelCreateRequest request,
+                           StreamObserver<LCMS.ChannelCreateResponse> responseObserver) {
             ProxyCall.exec(channelManager::create, request, responseObserver);
         }
 
         @Override
-        public void destroy(ChannelManager.ChannelDestroyRequest request,
-                            StreamObserver<ChannelManager.ChannelDestroyResponse> responseObserver) {
+        public void destroy(LCMS.ChannelDestroyRequest request,
+                            StreamObserver<LCMS.ChannelDestroyResponse> responseObserver) {
             ProxyCall.exec(channelManager::destroy, request, responseObserver);
         }
 
         @Override
-        public void status(ChannelManager.ChannelStatusRequest request,
-                           StreamObserver<ChannelManager.ChannelStatus> responseObserver) {
+        public void status(LCMS.ChannelStatusRequest request,
+                           StreamObserver<LCMS.ChannelStatus> responseObserver) {
             ProxyCall.exec(channelManager::status, request, responseObserver);
         }
 
         @Override
-        public void statusAll(ChannelManager.ChannelStatusAllRequest request,
-                                   StreamObserver<ChannelManager.ChannelStatusList> responseObserver) {
+        public void statusAll(LCMS.ChannelStatusAllRequest request,
+                                   StreamObserver<LCMS.ChannelStatusList> responseObserver) {
             ProxyCall.exec(channelManager::statusAll, request, responseObserver);
         }
 
         @Override
-        public void bind(ChannelManager.SlotAttach request,
-                         StreamObserver<ChannelManager.SlotAttachStatus> responseObserver) {
+        public void bind(LCMS.SlotAttach request,
+                         StreamObserver<LCMS.SlotAttachStatus> responseObserver) {
             try {
-                final ChannelManager.SlotAttach updatedRequest = ChannelManager.SlotAttach.newBuilder()
-                    .setSlotInstance(LzyFsApi.SlotInstance.newBuilder(request.getSlotInstance())
+                final LCMS.SlotAttach updatedRequest = LCMS.SlotAttach.newBuilder()
+                    .setSlotInstance(LMS.SlotInstance.newBuilder(request.getSlotInstance())
                         .setSlotUri(
                             uriResolver.convertToServantFsProxyUri(
                                 URI.create(request.getSlotInstance().getSlotUri())
@@ -512,13 +517,13 @@ public class LzyKharon {
         }
 
         @Override
-        public void unbind(ChannelManager.SlotDetach request,
-                           StreamObserver<ChannelManager.SlotDetachStatus> responseObserver) {
+        public void unbind(LCMS.SlotDetach request,
+                           StreamObserver<LCMS.SlotDetachStatus> responseObserver) {
             try {
-                final ChannelManager.SlotDetach updatedRequest =
-                    ChannelManager.SlotDetach.newBuilder()
+                final LCMS.SlotDetach updatedRequest =
+                    LCMS.SlotDetach.newBuilder()
                         .setSlotInstance(
-                            LzyFsApi.SlotInstance.newBuilder(request.getSlotInstance())
+                            LMS.SlotInstance.newBuilder(request.getSlotInstance())
                                 .setSlotUri(
                                     uriResolver.convertToServantFsProxyUri(
                                         URI.create(request.getSlotInstance().getSlotUri())
@@ -539,7 +544,7 @@ public class LzyKharon {
         public void openOutputSlot(LzyFsApi.SlotRequest request,
                                    StreamObserver<LzyFsApi.Message> responseObserver) {
             try {
-                final LzyFsApi.SlotInstance slotInstance = request.getSlotInstance();
+                final LMS.SlotInstance slotInstance = request.getSlotInstance();
                 final URI slotUri = URI.create(slotInstance.getSlotUri());
                 final TerminalSession session = sessionManager.get(slotInstance.getTaskId());
                 LOG.info("KharonServantFsProxyService sessionId = " + session.sessionId()
@@ -569,7 +574,7 @@ public class LzyKharon {
                     final URI convertedToKharonUri = uriResolver.convertToKharonWithSlotUri(connectToUri);
                     request = LzyFsApi.ConnectSlotRequest.newBuilder()
                         .mergeFrom(request)
-                        .setTo(LzyFsApi.SlotInstance.newBuilder()
+                        .setTo(LMS.SlotInstance.newBuilder()
                             .mergeFrom(request.getTo())
                             .setSlotUri(convertedToKharonUri.toString())
                             .build())

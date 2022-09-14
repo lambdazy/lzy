@@ -1,9 +1,7 @@
 package ai.lzy.graph.api;
 
 import ai.lzy.graph.model.TaskDescription;
-import ai.lzy.v1.SchedulerApi.TaskStatus;
-import ai.lzy.v1.Tasks;
-
+import ai.lzy.v1.scheduler.Scheduler.TaskStatus;
 import javax.annotation.Nullable;
 
 public interface SchedulerApi {

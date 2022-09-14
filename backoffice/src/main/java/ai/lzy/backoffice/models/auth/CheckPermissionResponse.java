@@ -1,7 +1,7 @@
 package ai.lzy.backoffice.models.auth;
 
 import io.micronaut.core.annotation.Introspected;
-import ai.lzy.v1.BackOffice;
+import ai.lzy.v1.deprecated.BackOffice;
 
 @Introspected
 public class CheckPermissionResponse {

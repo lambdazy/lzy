@@ -1,8 +1,8 @@
 package ai.lzy.whiteboard.auth;
 
 import ai.lzy.model.utils.Permissions;
-import ai.lzy.v1.IAM;
+import ai.lzy.v1.deprecated.LzyAuth;
 
 public interface Authenticator {
-    boolean checkPermissions(IAM.Auth auth, Permissions permissions);
+    boolean checkPermissions(LzyAuth.Auth auth, Permissions permissions);
 }

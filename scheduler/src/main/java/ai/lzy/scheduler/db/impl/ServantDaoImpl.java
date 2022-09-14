@@ -1,6 +1,6 @@
 package ai.lzy.scheduler.db.impl;
 
-import ai.lzy.model.Operation;
+import ai.lzy.model.operation.Operation;
 import ai.lzy.model.db.DaoException;
 import ai.lzy.model.db.Transaction;
 import ai.lzy.scheduler.allocator.ServantMetaStorage;
@@ -22,7 +22,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;

@@ -9,15 +9,15 @@ import java.util.Base64;
 import org.apache.commons.cli.CommandLine;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.v1.IAM;
-import ai.lzy.v1.LzyWhiteboard;
-import ai.lzy.v1.SnapshotApiGrpc;
+import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.v1.deprecated.LzyWhiteboard;
+import ai.lzy.v1.deprecated.SnapshotApiGrpc;
 
 public class Cache implements LzyCommand {
 
     @Override
     public int execute(CommandLine command) throws Exception {
-        IAM.Auth auth = IAM.Auth
+        LzyAuth.Auth auth = LzyAuth.Auth
             .parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
 
         if (command.getArgs().length < 2) {

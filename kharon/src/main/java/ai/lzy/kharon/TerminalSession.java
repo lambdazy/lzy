@@ -1,37 +1,34 @@
 package ai.lzy.kharon;
 
-import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.v1.ChannelManager.ChannelDestroyAllRequest;
-import ai.lzy.v1.IAM.UserCredentials;
-import ai.lzy.v1.Kharon;
-import ai.lzy.v1.Kharon.TerminalProgress.ProgressCase;
-import ai.lzy.v1.Lzy.RegisterSessionRequest;
-import ai.lzy.v1.Lzy.UnregisterSessionRequest;
-import ai.lzy.v1.LzyChannelManagerGrpc;
-import ai.lzy.v1.LzyChannelManagerGrpc.LzyChannelManagerBlockingStub;
-import ai.lzy.v1.LzyServerGrpc;
-import ai.lzy.v1.LzyServerGrpc.LzyServerBlockingStub;
+import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.v1.channel.LCMS;
+import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.deprecated.Kharon;
+import ai.lzy.v1.deprecated.Kharon.TerminalProgress.ProgressCase;
+import ai.lzy.v1.deprecated.Lzy.RegisterSessionRequest;
+import ai.lzy.v1.deprecated.Lzy.UnregisterSessionRequest;
+import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.v1.deprecated.LzyServerGrpc;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import javax.annotation.Nullable;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class TerminalSession {
 
     private static final Logger LOG = LogManager.getLogger(TerminalSession.class);
 
     private TerminalSessionState state = TerminalSessionState.UNBOUND;
-    private LzyChannelManagerBlockingStub channelManager;
+    private LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManager;
 
     private final TerminalController terminalController;
-    private final LzyServerBlockingStub server;
+    private final LzyServerGrpc.LzyServerBlockingStub server;
     private final TerminalProgressHandler terminalProgressHandler;
-    private final AtomicReference<UserCredentials> creds = new AtomicReference<>();
+    private final AtomicReference<LzyAuth.UserCredentials> creds = new AtomicReference<>();
 
     private final String sessionId;
 
@@ -133,8 +130,9 @@ public class TerminalSession {
             }
         } finally {
             //noinspection ResultOfMethodCallIgnored
-            channelManager.destroyAll(ChannelDestroyAllRequest.newBuilder().setWorkflowId(sessionId).build());
-            final UserCredentials userCredentials = creds.get();
+            channelManager.destroyAll(LCMS.ChannelDestroyAllRequest.newBuilder()
+                .setWorkflowId(sessionId).build());
+            final LzyAuth.UserCredentials userCredentials = creds.get();
             if (userCredentials != null) {
                 //noinspection ResultOfMethodCallIgnored
                 server.unregisterSession(

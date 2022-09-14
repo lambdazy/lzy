@@ -2,15 +2,15 @@ package ai.lzy.test.scenarios;
 
 import java.util.ArrayList;
 import java.util.List;
-import ai.lzy.model.Slot;
-import ai.lzy.model.graph.AtomicZygote;
+import ai.lzy.model.slot.Slot;
+import ai.lzy.model.deprecated.AtomicZygote;
 import ai.lzy.model.graph.AuxEnv;
 import ai.lzy.model.graph.BaseEnv;
 import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
-import ai.lzy.model.slots.TextLinesInSlot;
-import ai.lzy.model.slots.TextLinesOutSlot;
-import ai.lzy.v1.Operations;
+import ai.lzy.model.slot.TextLinesInSlot;
+import ai.lzy.model.slot.TextLinesOutSlot;
+import ai.lzy.v1.deprecated.LzyZygote;
 
 class FileIOOperation implements AtomicZygote {
 
@@ -88,7 +88,7 @@ class FileIOOperation implements AtomicZygote {
     }
 
     @Override
-    public Operations.Zygote zygote() {
+    public LzyZygote.Zygote zygote() {
         return null;
     }
 

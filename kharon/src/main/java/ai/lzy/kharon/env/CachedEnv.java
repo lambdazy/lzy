@@ -1,6 +1,6 @@
 package ai.lzy.kharon.env;
 
-import ai.lzy.model.disk.Disk;
+import ai.lzy.disk.model.Disk;
 import ai.lzy.kharon.env.dao.CachedEnvDao;
 
 public record CachedEnv(

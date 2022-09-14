@@ -6,7 +6,7 @@ import ai.lzy.servant.agents.LzyAgentConfig;
 import ai.lzy.servant.agents.LzyTerminal;
 import ai.lzy.test.LzyTerminalTestContext;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.SystemUtils;
+import org.apache.commons.lang3.SystemUtils;
 
 import javax.annotation.Nullable;
 import java.io.FileReader;

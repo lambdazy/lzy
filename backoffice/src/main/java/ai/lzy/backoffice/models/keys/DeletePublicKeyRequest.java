@@ -2,8 +2,8 @@ package ai.lzy.backoffice.models.keys;
 
 import io.micronaut.core.annotation.Introspected;
 import ai.lzy.backoffice.models.UserCredentials;
-import ai.lzy.v1.BackOffice;
-import ai.lzy.v1.IAM;
+import ai.lzy.v1.deprecated.BackOffice;
+import ai.lzy.v1.deprecated.LzyAuth;
 
 @Introspected
 public class DeletePublicKeyRequest {
@@ -27,7 +27,7 @@ public class DeletePublicKeyRequest {
         this.keyName = keyName;
     }
 
-    public BackOffice.DeleteKeyRequest toModel(IAM.UserCredentials credentials) {
+    public BackOffice.DeleteKeyRequest toModel(LzyAuth.UserCredentials credentials) {
         return BackOffice.DeleteKeyRequest.newBuilder()
             .setBackofficeCredentials(credentials)
             .setCredentials(this.credentials.toModel())

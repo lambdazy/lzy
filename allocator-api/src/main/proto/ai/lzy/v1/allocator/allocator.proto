@@ -26,7 +26,7 @@ service Allocator {
   // metadata: AllocateMetadata
   // response: AllocateResponse
   //
-  rpc Allocate (AllocateRequest) returns (ai.lzy.v1.Operation);
+  rpc Allocate (AllocateRequest) returns (Operation);
 
   // Return control of vm to allocator
   rpc Free (FreeRequest) returns (FreeResponse);

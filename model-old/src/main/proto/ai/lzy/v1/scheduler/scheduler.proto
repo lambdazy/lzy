@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package ai.lzy.v1.scheduler;
+
+option java_outer_classname = "Scheduler";
+option java_package = "ai.lzy.v1.scheduler";
+
+message TaskStatus {
+  string workflowId = 1;
+  string taskId = 2;
+
+  string zygoteName = 3;
+
+  oneof status {
+    Queue queue = 4;
+    Executing executing = 5;
+    Success success = 6;
+    Error error = 7;
+  }
+
+  message Queue {}
+
+  message Executing {}
+
+  message Success {
+    int32 rc = 1;
+  }
+
+  message Error {
+    int32 rc = 1;
+    string description = 2;
+  }
+
+}

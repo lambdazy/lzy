@@ -2,8 +2,8 @@ package ai.lzy.backoffice.models.auth;
 
 import io.micronaut.core.annotation.Introspected;
 import io.micronaut.core.annotation.Nullable;
-import ai.lzy.v1.BackOffice;
-import ai.lzy.v1.IAM;
+import ai.lzy.v1.deprecated.BackOffice;
+import ai.lzy.v1.deprecated.LzyAuth;
 
 @Introspected
 public class CheckSessionRequest {
@@ -29,7 +29,7 @@ public class CheckSessionRequest {
         this.sessionId = sessionId;
     }
 
-    public BackOffice.CheckSessionRequest toModel(IAM.UserCredentials credentials) {
+    public BackOffice.CheckSessionRequest toModel(LzyAuth.UserCredentials credentials) {
         BackOffice.CheckSessionRequest.Builder builder = BackOffice.CheckSessionRequest.newBuilder()
             .setBackofficeCredentials(credentials)
             .setSessionId(sessionId);

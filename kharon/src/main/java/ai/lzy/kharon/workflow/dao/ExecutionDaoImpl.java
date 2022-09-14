@@ -6,7 +6,7 @@ import ai.lzy.kharon.workflow.WorkflowService;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
-import ai.lzy.v1.workflow.LWSD;
+import ai.lzy.v1.common.LMS3;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micronaut.core.util.StringUtils;
@@ -90,7 +90,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
 
     @Override
     public void create(String executionId, String userId, String workflowName, String storageType,
-                       LWSD.SnapshotStorage storageData, @Nullable TransactionHandle outerTransaction)
+                       LMS3.S3Locator storageData, @Nullable TransactionHandle outerTransaction)
         throws SQLException
     {
         try (var transaction = TransactionHandle.getOrCreate(storage, outerTransaction)) {

@@ -14,19 +14,28 @@ import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.kharon.KharonConfig;
 import ai.lzy.kharon.KharonDataSource;
 import ai.lzy.kharon.workflow.dao.ExecutionDao;
-import ai.lzy.model.GrpcConverter;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.v1.*;
+import ai.lzy.v1.AllocatorGrpc;
+import ai.lzy.v1.OperationService;
+import ai.lzy.v1.OperationServiceApiGrpc;
+import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmAllocatorApi.*;
+import ai.lzy.v1.channel.LCM;
+import ai.lzy.v1.channel.LCMS;
+import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.common.LMD;
+import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
-import ai.lzy.v1.workflow.LWS.*;
-import ai.lzy.v1.workflow.LWSD.SnapshotStorage;
+import ai.lzy.v1.storage.LSS;
+import ai.lzy.v1.storage.LzyStorageServiceGrpc;
+import ai.lzy.v1.workflow.LWFS.*;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.net.HostAndPort;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -58,7 +67,6 @@ import static ai.lzy.kharon.KharonConfig.PortalConfig;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
-@SuppressWarnings("UnstableApiUsage")
 @Singleton
 public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBase {
     private static final Logger LOG = LogManager.getLogger(WorkflowService.class);
@@ -164,7 +172,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
 
         boolean internalSnapshotStorage = !request.hasSnapshotStorage();
         String storageType;
-        SnapshotStorage storageData;
+        LMS3.S3Locator storageData;
 
         if (internalSnapshotStorage) {
             storageType = "internal";
@@ -183,7 +191,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
         } else {
             storageType = "user";
             // TODO: ssokolvyak -- move to validator
-            if (request.getSnapshotStorage().getKindCase() == SnapshotStorage.KindCase.KIND_NOT_SET) {
+            if (request.getSnapshotStorage().getEndpointCase() == LMS3.S3Locator.EndpointCase.ENDPOINT_NOT_SET) {
                 response.onError(Status.INVALID_ARGUMENT.withDescription("Snapshot storage not set")
                     .asRuntimeException());
                 return;
@@ -349,25 +357,25 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
     private String[] createPortalStdChannels(String executionId) {
         LOG.info("Creating portal stdout channel with name '{}'", portalConfig.getStdoutChannelName());
         // create portal stdout channel that receives portal output
-        String stdoutChannelId = channelManagerClient.create(GrpcConverter.createRequest(executionId,
+        String stdoutChannelId = channelManagerClient.create(GrpcConverter.createChannelRequest(executionId,
             createPortalChannelSpec(portalConfig.getStdoutChannelName()))).getChannelId();
 
         LOG.info("Creating portal stderr channel with name '{}'", portalConfig.getStderrChannelName());
         // create portal stderr channel that receives portal error output
-        String stderrChannelId = channelManagerClient.create(GrpcConverter.createRequest(executionId,
+        String stderrChannelId = channelManagerClient.create(GrpcConverter.createChannelRequest(executionId,
             createPortalChannelSpec(portalConfig.getStderrChannelName()))).getChannelId();
 
         return new String[] {stdoutChannelId, stderrChannelId};
     }
 
-    private static Channels.ChannelSpec createPortalChannelSpec(String channelName) {
-        return Channels.ChannelSpec.newBuilder()
+    private static LCM.ChannelSpec createPortalChannelSpec(String channelName) {
+        return LCM.ChannelSpec.newBuilder()
             .setChannelName(channelName)
-            .setContentType(Operations.DataScheme.newBuilder()
+            .setContentType(LMD.DataScheme.newBuilder()
                 .setType("text")
-                .setSchemeType(Operations.SchemeType.plain)
+                .setSchemeType(LMD.SchemeType.plain.name())
                 .build())
-            .setDirect(Channels.DirectChannelType.getDefaultInstance())
+            .setDirect(LCM.DirectChannelType.getDefaultInstance())
             .build();
     }
 
@@ -451,7 +459,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
         return null;
     }
 
-    public SnapshotStorage createTempStorageBucket(String userId) {
+    public LMS3.S3Locator createTempStorageBucket(String userId) {
         var bucket = "tmp-bucket-" + userId;
         LOG.info("Creating new temp storage bucket '{}' for user '{}'", bucket, userId);
 
@@ -463,8 +471,8 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
 
         // there something else except AMAZON or AZURE may be returned here?
         return switch (response.getCredentialsCase()) {
-            case AMAZON -> SnapshotStorage.newBuilder().setAmazon(response.getAmazon()).setBucket(bucket).build();
-            case AZURE -> SnapshotStorage.newBuilder().setAzure(response.getAzure()).setBucket(bucket).build();
+            case AMAZON -> LMS3.S3Locator.newBuilder().setAmazon(response.getAmazon()).setBucket(bucket).build();
+            case AZURE -> LMS3.S3Locator.newBuilder().setAzure(response.getAzure()).setBucket(bucket).build();
             default -> {
                 LOG.error("Unsupported bucket storage type {}", response.getCredentialsCase());
                 safeDeleteTempStorageBucket(bucket);
