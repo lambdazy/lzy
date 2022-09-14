@@ -1,5 +1,6 @@
 package ai.lzy.channelmanager.grpc;
 
+import static ai.lzy.channelmanager.grpc.ProtoConverter.toChannelStatusProto;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
@@ -10,7 +11,7 @@ import ai.lzy.channelmanager.db.ChannelStorage;
 import ai.lzy.channelmanager.lock.GrainedLock;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.model.db.TransactionHandle;
-import ai.lzy.model.deprecated.GrpcConverter;
+import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.v1.channel.LCM;
 import ai.lzy.v1.channel.LCMS;
@@ -79,11 +80,11 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             final ChannelSpec spec = switch (channelSpec.getTypeCase()) {
                 case DIRECT -> new DirectChannelSpec(
                     channelSpec.getChannelName(),
-                    GrpcConverter.contentTypeFrom(channelSpec.getContentType())
+                    ProtoConverter.fromProto(channelSpec.getContentType())
                 );
                 case SNAPSHOT -> new SnapshotChannelSpec(
                     channelSpec.getChannelName(),
-                    GrpcConverter.contentTypeFrom(channelSpec.getContentType()),
+                    ProtoConverter.fromProto(channelSpec.getContentType()),
                     channelSpec.getSnapshot().getSnapshotId(),
                     channelSpec.getSnapshot().getEntryId(),
                     whiteboardAddress
@@ -245,7 +246,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 return;
             }
 
-            responseObserver.onNext(ProtoConverter.toChannelStatusProto(channel));
+            responseObserver.onNext(toChannelStatusProto(channel));
             LOG.info("Get status for channel {} done", request.getChannelId());
             responseObserver.onCompleted();
         } catch (IllegalArgumentException e) {
@@ -281,7 +282,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 channelStorage.listChannels(userId, workflowId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
 
             final LCMS.ChannelStatusList.Builder builder = LCMS.ChannelStatusList.newBuilder();
-            channels.forEach(channel -> builder.addStatuses(ProtoConverter.toChannelStatusProto(channel)));
+            channels.forEach(channel -> builder.addStatuses(toChannelStatusProto(channel)));
             var channelStatusList = builder.build();
 
             responseObserver.onNext(channelStatusList);
@@ -318,7 +319,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
 
         lockManager.lock(attach.getSlotInstance().getChannelId());
         try {
-            final SlotInstance slotInstance = GrpcConverter.from(attach.getSlotInstance());
+            final SlotInstance slotInstance = ProtoConverter.fromProto(attach.getSlotInstance());
             final Endpoint endpoint = SlotEndpoint.getInstance(slotInstance);
             final String channelId = endpoint.slotInstance().channelId();
 
@@ -389,7 +390,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
 
         lockManager.lock(detach.getSlotInstance().getChannelId());
         try {
-            final SlotInstance slotInstance = GrpcConverter.from(detach.getSlotInstance());
+            final SlotInstance slotInstance = ProtoConverter.fromProto(detach.getSlotInstance());
             final Endpoint endpoint = SlotEndpoint.getInstance(slotInstance);
             final String channelId = endpoint.slotInstance().channelId();
 

@@ -4,7 +4,7 @@ import static ai.lzy.test.impl.ChannelManagerThreadContext.Config.CHANNEL_MANAGE
 
 import ai.lzy.allocator.AllocatorMain;
 import ai.lzy.graph.GraphExecutorApi;
-import ai.lzy.model.data.DataSchema;
+import ai.lzy.model.DataScheme;
 import ai.lzy.model.graph.AuxEnv;
 import ai.lzy.model.graph.BaseEnv;
 import ai.lzy.model.graph.Env;
@@ -25,7 +25,6 @@ import ai.lzy.v1.channel.LCM.DirectChannelType;
 import ai.lzy.v1.channel.LCMS.ChannelCreateRequest;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.common.LMD;
-import ai.lzy.v1.common.LMD.DataScheme;
 import ai.lzy.v1.graph.GraphExecutor;
 import ai.lzy.v1.graph.GraphExecutor.ChannelDesc;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphExecuteRequest;
@@ -213,9 +212,9 @@ public class SchedulerTest extends LocalScenario {
             .setChannelSpec(ChannelSpec.newBuilder()
                 .setChannelName(value)
                 .setDirect(DirectChannelType.newBuilder().build())
-                    .setContentType(DataScheme.newBuilder()
-                        .setSchemeType(LMD.SchemeType.plain.name())
-                        .setType("text")
+                    .setContentType(LMD.DataScheme.newBuilder()
+                        .setDataFormat("plain")
+                        .setSchemaContent("text")
                         .build())
                 .build())
             .build()).getChannelId();
@@ -283,8 +282,8 @@ public class SchedulerTest extends LocalScenario {
             }
 
             @Override
-            public DataSchema contentType() {
-                return DataSchema.plain;
+            public DataScheme contentType() {
+                return DataScheme.PLAIN;
             }
         };
     }

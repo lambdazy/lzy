@@ -2,8 +2,8 @@ package ai.lzy.model.deprecated;
 
 import static ai.lzy.model.grpc.ProtoConverter.fromProto;
 
+import ai.lzy.model.DataScheme;
 import ai.lzy.model.StorageCredentials;
-import ai.lzy.model.data.DataSchema;
 import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.model.grpc.ProtoConverter;
@@ -14,6 +14,7 @@ import ai.lzy.v1.common.LMD;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.deprecated.Lzy;
 import ai.lzy.v1.deprecated.LzyTask;
+import ai.lzy.v1.deprecated.LzyWhiteboard;
 import ai.lzy.v1.deprecated.LzyZygote;
 import java.net.URI;
 import java.util.stream.Stream;
@@ -26,14 +27,6 @@ public abstract class GrpcConverter {
         return new AtomicZygoteAdapter(grpcOperation);
     }
 
-    public static SlotInstance from(LMS.SlotInstance slotInstance) {
-        return new SlotInstance(
-            fromProto(slotInstance.getSlot()),
-            slotInstance.getTaskId(),
-            slotInstance.getChannelId(),
-            URI.create(slotInstance.getSlotUri())
-        );
-    }
     public static Context from(LzyTask.ContextSpec spec) {
         return new ContextImpl(
             fromProto(spec.getEnv()),
@@ -47,8 +40,8 @@ public abstract class GrpcConverter {
             .map(ass -> new Context.SlotAssignment(ass.getTaskId(), fromProto(ass.getSlot()), ass.getBinding()));
     }
 
-    public static DataSchema contentTypeFrom(LMD.DataScheme dataScheme) {
-        return DataSchema.buildDataSchema(dataScheme.getSchemeType(), dataScheme.getType());
+    public static String to(SchemeType dataSchema) {
+        return dataSchema.name();
     }
 
     public static LzyZygote.Zygote to(Zygote zygote) {
@@ -113,12 +106,10 @@ public abstract class GrpcConverter {
             .build();
     }
 
-    public static LMS.SlotInstance to(SlotInstance slotInstance) {
-        return LMS.SlotInstance.newBuilder()
-            .setSlot(ProtoConverter.toProto(slotInstance.spec()))
-            .setTaskId(slotInstance.taskId())
-            .setChannelId(slotInstance.channelId())
-            .setSlotUri(slotInstance.uri().toString())
+    public static LzyWhiteboard.DataScheme to(DataScheme dataScheme) {
+        return LzyWhiteboard.DataScheme.newBuilder()
+            .setType(dataScheme.schemaContent())
+            .setSchemeType(dataScheme.dataFormat())
             .build();
     }
 
@@ -206,8 +197,8 @@ public abstract class GrpcConverter {
 
         @Override
         public @Nullable
-        DataSchema contentType() {
-            return contentTypeFrom(s.getContentType());
+        DataScheme contentType() {
+            return ProtoConverter.fromProto(s.getContentType());
         }
 
         @Override

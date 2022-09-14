@@ -3,7 +3,7 @@ package ai.lzy.fs.commands.builtin;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.model.data.DataSchema;
+import ai.lzy.model.DataScheme;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
@@ -97,7 +97,7 @@ public final class Channel implements LzyCommand {
                 }
                 final String channelName = localCmd.getOptionValue('n');
 
-                DataSchema data;
+                DataScheme data;
                 if (localCmd.hasOption('c')) {
                     final String mappingFile = localCmd.getOptionValue('c');
                     // TODO(aleksZubakov): drop this ugly stuff when already fully switched to grpc api
@@ -108,9 +108,9 @@ public final class Channel implements LzyCommand {
                     String dataSchemeType = bindings.get("schemeType");
                     String contentType = bindings.getOrDefault("type", "default");
                     LOG.info("building dataschema from args {} and {}", dataSchemeType, contentType);
-                    data = DataSchema.buildDataSchema(dataSchemeType, contentType);
+                    data = new DataScheme(dataSchemeType, "", contentType, Map.of());
                 } else {
-                    data = DataSchema.plain;
+                    data = DataScheme.PLAIN;
                 }
 
                 final var channelSpecBuilder = ai.lzy.v1.channel.LCM.ChannelSpec.newBuilder();

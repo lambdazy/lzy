@@ -1,11 +1,7 @@
 package ai.lzy.whiteboard.hibernate;
 
 import java.net.URI;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import javax.persistence.NoResultException;
@@ -15,7 +11,7 @@ import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Root;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
-import ai.lzy.model.data.DataSchema;
+import ai.lzy.model.DataScheme;
 import ai.lzy.whiteboard.model.Snapshot;
 import ai.lzy.whiteboard.model.SnapshotEntry;
 import ai.lzy.whiteboard.model.SnapshotEntryStatus;
@@ -248,10 +244,10 @@ public class SessionHelper {
 
         List<String> dependentEntryIds = SessionHelper.getEntryDependenciesName(snapshotEntryModel, session);
         SnapshotEntry entry = new SnapshotEntry.Impl(id, snapshot);
-        DataSchema schema = null;
+        DataScheme schema = null;
         if (snapshotEntryModel.getTypeOfScheme() != null) {
-            schema = DataSchema.buildDataSchema(snapshotEntryModel.getTypeOfScheme(),
-                snapshotEntryModel.getTypeDescription());
+            schema = new DataScheme(snapshotEntryModel.getTypeOfScheme(), "",
+                snapshotEntryModel.getTypeDescription(), Map.of());
         }
         return Optional.of(
             new SnapshotEntryStatus.Impl(snapshotEntryModel.isEmpty(), snapshotEntryModel.getEntryState(), entry,

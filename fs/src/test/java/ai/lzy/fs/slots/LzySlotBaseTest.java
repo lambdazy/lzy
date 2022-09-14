@@ -7,7 +7,7 @@ import org.junit.Ignore;
 import org.junit.Test;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.model.slot.Slot;
-import ai.lzy.model.data.DataSchema;
+import ai.lzy.model.DataScheme;
 import ai.lzy.v1.common.LMS.SlotStatus.State;
 
 import java.util.concurrent.CountDownLatch;
@@ -151,8 +151,8 @@ public class LzySlotBaseTest {
                         }
 
                         @Override
-                        public DataSchema contentType() {
-                            return DataSchema.plain;
+                        public DataScheme contentType() {
+                            return DataScheme.PLAIN;
                         }
                     },
                     "taskId", "channelId", new URI("slot", "host", null, null)

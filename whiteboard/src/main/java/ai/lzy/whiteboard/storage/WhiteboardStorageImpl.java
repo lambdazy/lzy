@@ -1,14 +1,17 @@
 package ai.lzy.whiteboard.storage;
 
-import ai.lzy.model.data.DataSchema;
-import ai.lzy.model.data.SchemeType;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.NotFoundException;
+import ai.lzy.model.db.ProtoObjectMapper;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.model.grpc.ProtoConverter;
+import ai.lzy.v1.common.LMD;
 import ai.lzy.whiteboard.model.Field;
 import ai.lzy.whiteboard.model.LinkedField;
 import ai.lzy.whiteboard.model.Whiteboard;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -29,10 +32,12 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
     private static final Logger LOG = LogManager.getLogger(WhiteboardStorageImpl.class);
 
     private final Storage dataSource;
+    private final ObjectMapper objectMapper;
 
     @Inject
     public WhiteboardStorageImpl(WhiteboardDataSource storage) {
         this.dataSource = storage;
+        this.objectMapper = new ProtoObjectMapper();
     }
 
     @Override
@@ -59,17 +64,16 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 UPDATE whiteboard_fields SET
                     field_status = ?,
-                    field_type = ?,
-                    field_type_scheme = ?,
+                    data_scheme = ?,
                     storage_uri = ?,
                     finalized_at = ?
                 WHERE whiteboard_id = ? AND field_name = ? AND finalized_at IS NULL
                 """)
             ) {
+                String dataSchemeJson = objectMapper.writeValueAsString(ProtoConverter.toProto(field.schema()));
                 int index = 0;
                 st.setString(++index, field.status().name());
-                st.setString(++index, field.schema().typeContent());
-                st.setString(++index, field.schema().schemeType().name());
+                st.setString(++index, dataSchemeJson);
                 st.setString(++index, field.storageUri());
                 st.setTimestamp(++index, finalizedAt == null ? null : Timestamp.from(finalizedAt));
 
@@ -83,6 +87,8 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                 if (affectedRows > 1) {
                     throw new IllegalStateException(affectedRows + " fields linked, expected exactly 1");
                 }
+            } catch (JsonProcessingException e) {
+                throw new SQLException(e);
             }
         });
         LOG.debug("Linking field (whiteboardId={},fieldName={}) done", whiteboardId, field.name());
@@ -142,8 +148,7 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                     wb.finalized_at,
                     f.field_name as field_name,
                     f.field_status as field_status,
-                    f.field_type as field_type,
-                    f.field_type_scheme as field_type_scheme,
+                    f.data_scheme as field_data_scheme,
                     f.storage_uri as field_storage_uri,
                     f.finalized_at as field_finalized_at,
                     t.tags as tags
@@ -161,6 +166,8 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                 st.setString(++index, whiteboardId);
                 Stream<Whiteboard> whiteboards = parseWhiteboards(st.executeQuery());
                 whiteboard.set(whiteboards.findFirst().orElse(null));
+            } catch (JsonProcessingException e) {
+                throw new SQLException(e);
             }
         });
         LOG.debug("Finding whiteboard (whiteboardId={}) done, {}",
@@ -229,8 +236,7 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                     wb.finalized_at,
                     f.field_name as field_name,
                     f.field_status as field_status,
-                    f.field_type as field_type,
-                    f.field_type_scheme as field_type_scheme,
+                    f.data_scheme as field_data_scheme,
                     f.storage_uri as field_storage_uri,
                     f.finalized_at as field_finalized_at,
                     t.tags as tags
@@ -245,6 +251,8 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
             ) {
                 statementSuffixFiller.apply(sqlConnection, st);
                 whiteboards.addAll(parseWhiteboards(st.executeQuery()).toList());
+            } catch (JsonProcessingException e) {
+                throw new SQLException(e);
             }
         });
         LOG.debug("Listing whiteboards (userId={}) done, {} found",
@@ -284,8 +292,8 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 INSERT INTO whiteboard_fields(
                     whiteboard_id, field_name, field_status, finalized_at,
-                    field_type, field_type_scheme, storage_uri
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    data_scheme, storage_uri
+                ) VALUES (?, ?, ?, ?, ?, ?)
                 """)
             ) {
                 for (final Field field : fields) {
@@ -295,17 +303,18 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                     st.setString(++index, field.status().name());
                     st.setTimestamp(++index, null);
                     if (field instanceof LinkedField linked) {
-                        st.setString(++index, linked.schema().typeContent());
-                        st.setString(++index, linked.schema().schemeType().name());
+                        String dataSchemeJson = objectMapper.writeValueAsString(ProtoConverter.toProto(linked.schema()));
+                        st.setString(++index, dataSchemeJson);
                         st.setString(++index, linked.storageUri());
                     } else {
-                        st.setString(++index, null);
                         st.setString(++index, null);
                         st.setString(++index, null);
                     }
                     st.addBatch();
                 }
                 st.executeBatch();
+            } catch (JsonProcessingException e) {
+                throw new SQLException(e);
             }
         });
     }
@@ -371,7 +380,7 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
         });
     }
 
-    private Stream<Whiteboard> parseWhiteboards(ResultSet rs) throws SQLException {
+    private Stream<Whiteboard> parseWhiteboards(ResultSet rs) throws SQLException, JsonProcessingException {
         Map<String, Whiteboard> whiteboardsById = new HashMap<>();
         while (rs.next()) {
             final String whiteboardId = rs.getString("whiteboard_id");
@@ -397,14 +406,14 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
             final String fieldName = rs.getString("field_name");
             final var fieldStatus = Field.Status.valueOf(rs.getString("field_status"));
 
-            final String type = rs.getString("field_type");
-            final String typeScheme = rs.getString("field_type_scheme");
+            final var dataSchemeJson = rs.getString("field_data_scheme");
             final String storageUri = rs.getString("field_storage_uri");
-            if (storageUri == null || type == null || typeScheme == null) {
+            if (storageUri == null || dataSchemeJson == null) {
                 whiteboardsById.get(whiteboardId).fields().put(fieldName, new Field(fieldName, fieldStatus));
             } else {
-                whiteboardsById.get(whiteboardId).fields().put(fieldName, new LinkedField(
-                    fieldName, fieldStatus, storageUri, new DataSchema(SchemeType.valueOf(typeScheme), type)));
+                final var dataScheme = ProtoConverter.fromProto(objectMapper.readValue(dataSchemeJson, LMD.DataScheme.class));
+                whiteboardsById.get(whiteboardId).fields().put(fieldName,
+                    new LinkedField(fieldName, fieldStatus, storageUri, dataScheme));
             }
         }
         return whiteboardsById.values().stream();

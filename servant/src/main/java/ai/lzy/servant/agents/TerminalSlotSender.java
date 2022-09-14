@@ -3,6 +3,7 @@ package ai.lzy.servant.agents;
 import static ai.lzy.model.deprecated.GrpcConverter.to;
 
 import ai.lzy.fs.fs.LzyOutputSlot;
+import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.v1.deprecated.Kharon.ReceivedDataStatus;
@@ -76,7 +77,7 @@ public class TerminalSlotSender {
                 LOG.info("Starting sending bytes slot:: " + lzySlot);
                 responseObserver.onNext(SendSlotDataMessage.newBuilder()
                     .setRequest(LzyFsApi.SlotRequest.newBuilder()
-                        .setSlotInstance(to(toSlot))
+                        .setSlotInstance(ProtoConverter.toProto(toSlot))
                         .setOffset(offset)
                         .build())
                     .build());

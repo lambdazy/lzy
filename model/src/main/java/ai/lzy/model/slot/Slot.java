@@ -1,6 +1,6 @@
 package ai.lzy.model.slot;
 
-import ai.lzy.model.data.DataSchema;
+import ai.lzy.model.DataScheme;
 
 public interface Slot {
     Slot ARGS = new TextLinesInSlot("/dev/args");
@@ -14,7 +14,7 @@ public interface Slot {
 
     Direction direction();
 
-    DataSchema contentType();
+    DataScheme contentType();
 
     enum Direction {
         INPUT,

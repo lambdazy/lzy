@@ -23,7 +23,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
-import ai.lzy.model.data.DataSchema;
+import ai.lzy.model.DataScheme;
 import ai.lzy.whiteboard.model.ExecutionSnapshot;
 import ai.lzy.whiteboard.model.Snapshot;
 import ai.lzy.whiteboard.model.SnapshotEntry;
@@ -264,7 +264,7 @@ public class DbSnapshotRepository implements SnapshotRepository {
 
     @Override
     public void prepare(@NotNull SnapshotEntry entry, @NotNull String storageUri,
-        @NotNull List<String> dependentEntryIds, @NotNull DataSchema schema)
+        @NotNull List<String> dependentEntryIds, @NotNull DataScheme schema)
         throws SnapshotRepositoryException {
         try (Session session = storage.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
@@ -292,8 +292,8 @@ public class DbSnapshotRepository implements SnapshotRepository {
                 snapshotEntryModel.setStorageUri(storageUri);
                 snapshotEntryModel.setEntryState(SnapshotEntryStatus.State.IN_PROGRESS);
                 snapshotEntryModel.setEmpty(true);
-                snapshotEntryModel.setTypeOfScheme(schema.schemeType().name());
-                snapshotEntryModel.setTypeDescription(schema.typeContent());
+                snapshotEntryModel.setTypeOfScheme(schema.dataFormat());
+                snapshotEntryModel.setTypeDescription(schema.schemaContent());
             }
 
             List<EntryDependenciesModel> depModelList = new ArrayList<>();

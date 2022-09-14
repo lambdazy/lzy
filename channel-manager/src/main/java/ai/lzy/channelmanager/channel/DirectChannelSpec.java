@@ -1,9 +1,9 @@
 package ai.lzy.channelmanager.channel;
 
-import ai.lzy.model.data.DataSchema;
+import ai.lzy.model.DataScheme;
 
 public record DirectChannelSpec(
     String name,
-    DataSchema contentType
+    DataScheme contentType
 ) implements ChannelSpec { }
 

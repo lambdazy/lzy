@@ -2,6 +2,7 @@ package ai.lzy.fs;
 
 import static ai.lzy.model.deprecated.GrpcConverter.to;
 
+import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.v1.deprecated.Lzy;
 import ai.lzy.v1.deprecated.LzyAuth;
@@ -80,7 +81,7 @@ public class SlotConnectionManager {
         final URI slotUri = slotInstance.uri();
         final LzyFsApi.SlotRequest request = LzyFsApi.SlotRequest.newBuilder()
             .setOffset(offset)
-            .setSlotInstance(to(slotInstance))
+            .setSlotInstance(ProtoConverter.toProto(slotInstance))
             .build();
 
         if (UriScheme.LzyKharon.match(slotUri)) {

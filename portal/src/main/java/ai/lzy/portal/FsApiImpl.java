@@ -5,6 +5,7 @@ import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.model.deprecated.GrpcConverter;
+import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.slots.SnapshotSlotsProvider;
 import ai.lzy.portal.slots.StdoutSlot;
@@ -37,8 +38,8 @@ class FsApiImpl extends LzyFsImplBase {
 
     @Override
     public synchronized void connectSlot(ConnectSlotRequest request, StreamObserver<SlotCommandStatus> response) {
-        final SlotInstance from = GrpcConverter.from(request.getFrom());
-        final SlotInstance to = GrpcConverter.from(request.getTo());
+        final SlotInstance from = ProtoConverter.fromProto(request.getFrom());
+        final SlotInstance to = ProtoConverter.fromProto(request.getTo());
         LOG.info("Connect portal slot, taskId: {}, slotName: {}, remoteSlotUri: {}",
             from.taskId(), from.name(), to.uri());
 
@@ -93,7 +94,7 @@ class FsApiImpl extends LzyFsImplBase {
     @Override
     public synchronized void disconnectSlot(LzyFsApi.DisconnectSlotRequest request,
                                             StreamObserver<SlotCommandStatus> response) {
-        final SlotInstance slotInstance = GrpcConverter.from(request.getSlotInstance());
+        final SlotInstance slotInstance = ProtoConverter.fromProto(request.getSlotInstance());
         LOG.info("Disconnect portal slot, taskId: {}, slotName: {}", slotInstance.taskId(), slotInstance.name());
 
         assert slotInstance.taskId().isEmpty() : slotInstance.taskId();
@@ -159,7 +160,7 @@ class FsApiImpl extends LzyFsImplBase {
     @Override
     public synchronized void statusSlot(LzyFsApi.StatusSlotRequest request,
                                         StreamObserver<SlotCommandStatus> response) {
-        final SlotInstance slotInstance = GrpcConverter.from(request.getSlotInstance());
+        final SlotInstance slotInstance = ProtoConverter.fromProto(request.getSlotInstance());
         LOG.info("Status portal slot, taskId: {}, slotName: {}", slotInstance.taskId(), slotInstance.name());
 
         if (!portal.getPortalTaskId().equals(slotInstance.taskId())) {
@@ -208,7 +209,7 @@ class FsApiImpl extends LzyFsImplBase {
     @Override
     public synchronized void destroySlot(LzyFsApi.DestroySlotRequest request,
                                          StreamObserver<SlotCommandStatus> response) {
-        final SlotInstance slotInstance = GrpcConverter.from(request.getSlotInstance());
+        final SlotInstance slotInstance = ProtoConverter.fromProto(request.getSlotInstance());
         LOG.info("Destroy portal slot, taskId: {}, slotName: {}", slotInstance.taskId(), slotInstance.name());
         var slotName = slotInstance.name();
 
@@ -273,7 +274,7 @@ class FsApiImpl extends LzyFsImplBase {
 
     @Override
     public void openOutputSlot(LzyFsApi.SlotRequest request, StreamObserver<LzyFsApi.Message> response) {
-        final SlotInstance slotInstance = GrpcConverter.from(request.getSlotInstance());
+        final SlotInstance slotInstance = ProtoConverter.fromProto(request.getSlotInstance());
         LOG.info("Open portal output slot, uri: {}, offset: {}", slotInstance.uri(), request.getOffset());
         final var slotUri = slotInstance.uri();
         final var slotName = slotUri.getPath().substring(portal.getPortalTaskId().length() + 1);

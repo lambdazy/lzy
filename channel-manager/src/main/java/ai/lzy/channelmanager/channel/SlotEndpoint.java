@@ -91,8 +91,8 @@ public class SlotEndpoint implements Endpoint {
         try {
             final LzyFsApi.SlotCommandStatus rc = fs.connectSlot(
                 LzyFsApi.ConnectSlotRequest.newBuilder()
-                    .setFrom(to(slotInstance()))
-                    .setTo(to(slotInstance))
+                    .setFrom(ProtoConverter.toProto(slotInstance()))
+                    .setTo(ProtoConverter.toProto(slotInstance))
                 .build()
             );
             if (rc.hasRc() && rc.getRc().getCodeValue() != 0) {
@@ -115,7 +115,7 @@ public class SlotEndpoint implements Endpoint {
         try {
             final LzyFsApi.SlotCommandStatus slotCommandStatus = fs.statusSlot(
                 LzyFsApi.StatusSlotRequest.newBuilder()
-                    .setSlotInstance(to(slotInstance()))
+                    .setSlotInstance(ProtoConverter.toProto(slotInstance()))
                     .build());
             return ProtoConverter.fromProto(slotCommandStatus.getStatus());
         } catch (StatusRuntimeException e) {
@@ -132,7 +132,7 @@ public class SlotEndpoint implements Endpoint {
         try {
             final LzyFsApi.SlotCommandStatus rc = fs.disconnectSlot(
                 LzyFsApi.DisconnectSlotRequest.newBuilder()
-                    .setSlotInstance(to(slotInstance()))
+                    .setSlotInstance(ProtoConverter.toProto(slotInstance()))
                     .build());
             return rc.hasRc() ? rc.getRc().getCodeValue() : 0;
         } catch (StatusRuntimeException sre) {
@@ -150,7 +150,7 @@ public class SlotEndpoint implements Endpoint {
         try {
             final LzyFsApi.SlotCommandStatus rc = fs.destroySlot(
                 LzyFsApi.DestroySlotRequest.newBuilder()
-                    .setSlotInstance(to(slotInstance()))
+                    .setSlotInstance(ProtoConverter.toProto(slotInstance()))
                     .build());
             return rc.hasRc() ? rc.getRc().getCodeValue() : 0;
         } catch (StatusRuntimeException sre) {
