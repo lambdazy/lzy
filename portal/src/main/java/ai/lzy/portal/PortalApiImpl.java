@@ -99,7 +99,7 @@ class PortalApiImpl extends LzyPortalImplBase {
             }
 
             final String taskId = switch (slotDesc.getKindCase()) {
-                case SNAPSHOT -> portal.getPortalTaskId();
+                case SNAPSHOT -> portal.getPortalId();
                 case STDERR -> slotDesc.getStderr().getTaskId();
                 case STDOUT -> slotDesc.getStdout().getTaskId();
                 default -> throw new NotImplementedException(slotDesc.getKindCase().name());

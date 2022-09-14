@@ -15,7 +15,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -44,7 +43,7 @@ public class Portal {
     private StdoutSlot stderrSlot;
     private final SnapshotSlotsProvider snapshots;
 
-    private final String portalTaskId;
+    private final String portalId;
 
     public Portal(PortalConfig config, AllocatorAgent agent, LzyFsServer fs) {
         this.stdoutChannelId = config.getStdoutChannelId();
@@ -66,12 +65,12 @@ public class Portal {
         assert prev == null;
 
         this.snapshots = new SnapshotSlotsProvider();
-        this.portalTaskId = "portal:" + config.getPortalId();
+        this.portalId = config.getPortalId();
     }
 
     public void start() {
-        LOG.info("Starting portal with portal task ID: '{}' at {}://{}:{}/{}",
-            portalTaskId, LzyServant.scheme(), host, port, fsServer.getMountPoint());
+        LOG.info("Starting portal with ID: '{}' at {}://{}:{}/{}",
+            portalId, LzyServant.scheme(), host, port, fsServer.getMountPoint());
 
         try {
             grpcServer.start();
@@ -86,12 +85,12 @@ public class Portal {
         LOG.info("Registering portal stdout/err slots...");
 
         final SlotsManager slotsManager = fsServer.getSlotsManager();
-        stdoutSlot = new StdoutSlot(stdoutSlotName, portalTaskId, stdoutChannelId,
-            slotsManager.resolveSlotUri(portalTaskId, stdoutSlotName));
+        stdoutSlot = new StdoutSlot(stdoutSlotName, portalId, stdoutChannelId,
+            slotsManager.resolveSlotUri(portalId, stdoutSlotName));
         slotsManager.registerSlot(stdoutSlot);
 
-        stderrSlot = new StdoutSlot(stderrSlotName, portalTaskId, stderrChannelId,
-            slotsManager.resolveSlotUri(portalTaskId, stderrSlotName));
+        stderrSlot = new StdoutSlot(stderrSlotName, portalId, stderrChannelId,
+            slotsManager.resolveSlotUri(portalId, stderrSlotName));
         slotsManager.registerSlot(stderrSlot);
 
         LOG.info("Portal successfully started at '{}:{}'", host, port);
@@ -123,8 +122,8 @@ public class Portal {
         return fsServer.getSlotsManager();
     }
 
-    public String getPortalTaskId() {
-        return portalTaskId;
+    public String getPortalId() {
+        return portalId;
     }
 
     public LzyInputSlot findOutSlot(String name) {

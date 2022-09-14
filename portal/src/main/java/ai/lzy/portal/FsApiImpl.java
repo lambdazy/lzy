@@ -92,7 +92,8 @@ class FsApiImpl extends LzyFsImplBase {
 
     @Override
     public synchronized void disconnectSlot(LzyFsApi.DisconnectSlotRequest request,
-                                            StreamObserver<SlotCommandStatus> response) {
+                                            StreamObserver<SlotCommandStatus> response)
+    {
         final SlotInstance slotInstance = GrpcConverter.from(request.getSlotInstance());
         LOG.info("Disconnect portal slot, taskId: {}, slotName: {}", slotInstance.taskId(), slotInstance.name());
 
@@ -158,11 +159,12 @@ class FsApiImpl extends LzyFsImplBase {
 
     @Override
     public synchronized void statusSlot(LzyFsApi.StatusSlotRequest request,
-                                        StreamObserver<SlotCommandStatus> response) {
+                                        StreamObserver<SlotCommandStatus> response)
+    {
         final SlotInstance slotInstance = GrpcConverter.from(request.getSlotInstance());
         LOG.info("Status portal slot, taskId: {}, slotName: {}", slotInstance.taskId(), slotInstance.name());
 
-        if (!portal.getPortalTaskId().equals(slotInstance.taskId())) {
+        if (!portal.getPortalId().equals(slotInstance.taskId())) {
             response.onError(Status.INVALID_ARGUMENT
                 .withDescription("Unknown task " + slotInstance.taskId()).asException());
             return;
@@ -207,7 +209,8 @@ class FsApiImpl extends LzyFsImplBase {
 
     @Override
     public synchronized void destroySlot(LzyFsApi.DestroySlotRequest request,
-                                         StreamObserver<SlotCommandStatus> response) {
+                                         StreamObserver<SlotCommandStatus> response)
+    {
         final SlotInstance slotInstance = GrpcConverter.from(request.getSlotInstance());
         LOG.info("Destroy portal slot, taskId: {}, slotName: {}", slotInstance.taskId(), slotInstance.name());
         var slotName = slotInstance.name();
@@ -276,7 +279,7 @@ class FsApiImpl extends LzyFsImplBase {
         final SlotInstance slotInstance = GrpcConverter.from(request.getSlotInstance());
         LOG.info("Open portal output slot, uri: {}, offset: {}", slotInstance.uri(), request.getOffset());
         final var slotUri = slotInstance.uri();
-        final var slotName = slotUri.getPath().substring(portal.getPortalTaskId().length() + 1);
+        final var slotName = slotUri.getPath().substring(portal.getPortalId().length() + 1);
 
         Consumer<LzyOutputSlot> reader = outputSlot -> {
             try {

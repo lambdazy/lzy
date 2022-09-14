@@ -59,25 +59,25 @@ public class App {
         if (config.getHost() == null) {
             config.setHost(System.getenv(AllocatorAgent.VM_IP_ADDRESS));
         }
+        if (config.getAllocatorToken() == null) {
+            config.setAllocatorToken(System.getenv(AllocatorAgent.VM_ALLOCATOR_OTT));
+        }
+        if (config.getIamToken() == null) {
+            config.setIamToken(System.getenv(ENV_WORKER_PKEY));
+        }
 
-        var allocatorToken = config.getAllocatorToken();
-        var iamPrivateKey = config.getIamToken();
-
-        allocatorToken = allocatorToken != null ? allocatorToken : System.getenv(AllocatorAgent.VM_ALLOCATOR_OTT);
-        iamPrivateKey = iamPrivateKey != null ? iamPrivateKey : System.getenv(ENV_WORKER_PKEY);
-
-        Objects.requireNonNull(allocatorToken);
-        Objects.requireNonNull(iamPrivateKey);
+        Objects.requireNonNull(config.getAllocatorToken());
+        Objects.requireNonNull(config.getIamToken());
 
         var fsUri = new URI(LzyFs.scheme(), null, config.getHost(), config.getFsApiPort(), null, null, null);
         var cm = HostAndPort.fromString(config.getChannelManagerAddress());
         var channelManagerUri = new URI("http", null, cm.getHost(), cm.getPort(), null, null, null);
 
-        var allocatorAgent = new AllocatorAgent(allocatorToken, config.getVmId(), config.getAllocatorAddress(),
-            config.getAllocatorHeartbeatPeriod(), config.getHost());
+        var allocatorAgent = new AllocatorAgent(config.getAllocatorToken(),
+            config.getVmId(), config.getAllocatorAddress(), config.getAllocatorHeartbeatPeriod(), config.getHost());
 
-        var fsServer = new LzyFsServer(config.getPortalId(), config.getFsRoot(), fsUri, channelManagerUri,
-            JwtUtils.buildJWT(config.getPortalId(), "INTERNAL", new StringReader(iamPrivateKey)));
+        var fsServerJwt = JwtUtils.buildJWT(config.getPortalId(), "INTERNAL", new StringReader(config.getIamToken()));
+        var fsServer = new LzyFsServer(config.getPortalId(), config.getFsRoot(), fsUri, channelManagerUri, fsServerJwt);
 
         var main = new App(new Portal(config, allocatorAgent, fsServer));
         main.start();
