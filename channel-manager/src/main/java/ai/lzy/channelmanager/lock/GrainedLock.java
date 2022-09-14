@@ -43,29 +43,35 @@ public class GrainedLock {
 
     private Subject acquireSubject(String subjectId) {
         counterLock.lock(subjectId);
-        var subject = subjectLocks.computeIfAbsent(subjectId, id -> new Subject(id, new ReentrantLock()));
-        subject.refCount.incrementAndGet();
-        counterLock.unlock(subjectId);
-        return subject;
+        try {
+            var subject = subjectLocks.computeIfAbsent(subjectId, id -> new Subject(id, new ReentrantLock()));
+            subject.refCount++;
+            return subject;
+        } finally {
+            counterLock.unlock(subjectId);
+        }
     }
 
     private void releaseSubject(Subject subject) {
         counterLock.lock(subject.id);
-        if (subject.refCount.decrementAndGet() == 0) {
-            subjectLocks.remove(subject.id);
+        try {
+            if (--subject.refCount == 0) {
+                subjectLocks.remove(subject.id);
+            }
+        } finally {
+            counterLock.unlock(subject.id);
         }
-        counterLock.unlock(subject.id);
     }
 
     protected static class Subject {
         private final String id;
         private final Lock lock;
-        private final AtomicInteger refCount;
+        private int refCount;
 
         protected Subject(String id, Lock lock) {
             this.id = id;
             this.lock = lock;
-            refCount = new AtomicInteger(0);
+            refCount = 0;
         }
     }
 
