@@ -76,7 +76,8 @@ public class App {
         var allocatorAgent = new AllocatorAgent(config.getAllocatorToken(),
             config.getVmId(), config.getAllocatorAddress(), config.getAllocatorHeartbeatPeriod(), config.getHost());
 
-        var fsServerJwt = JwtUtils.buildJWT(config.getPortalId(), "INTERNAL", new StringReader(config.getIamToken()));
+        var fsServerJwt = JwtUtils.buildJWT(config.getPortalId(), "INTERNAL", JwtUtils.afterDays(7),
+            new StringReader(config.getIamToken()));
         var fsServer = new LzyFsServer(config.getPortalId(), config.getFsRoot(), fsUri, channelManagerUri, fsServerJwt);
 
         var main = new App(new Portal(config, allocatorAgent, fsServer));
