@@ -1,10 +1,7 @@
 package ai.lzy.whiteboard.api;
 
-import ai.lzy.model.data.DataSchema;
-import ai.lzy.model.grpc.ProtoConverter;
-import ai.lzy.v1.common.LMD;
+import ai.lzy.model.DataScheme;
 import ai.lzy.v1.deprecated.LzyWhiteboard;
-import ai.lzy.v1.deprecated.LzyZygote;
 import ai.lzy.whiteboard.model.*;
 import com.google.protobuf.Timestamp;
 import java.net.URI;
@@ -12,6 +9,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -44,12 +42,19 @@ public class GrpcConverter {
         return Date.from(Instant.ofEpochSecond(date.getSeconds(), date.getNanos()));
     }
 
-    public static DataSchema contentTypeFrom(LMD.DataScheme dataScheme) {
-        return DataSchema.buildDataSchema(dataScheme.getSchemeType(), dataScheme.getType());
+    public static DataScheme contentTypeFrom(LzyWhiteboard.DataScheme dataScheme) {
+        return new DataScheme(dataScheme.getSchemeType(), "", dataScheme.getType(), Map.of());
     }
 
     public static LzyWhiteboard.Snapshot to(Snapshot snapshot) {
         return LzyWhiteboard.Snapshot.newBuilder().setSnapshotId(snapshot.id().toString()).build();
+    }
+
+    public static LzyWhiteboard.DataScheme to(DataScheme dataScheme) {
+        return LzyWhiteboard.DataScheme.newBuilder()
+            .setType(dataScheme.schemeContent())
+            .setSchemeType(dataScheme.dataFormat())
+            .build();
     }
 
     public static LzyWhiteboard.WhiteboardField to(
@@ -87,9 +92,9 @@ public class GrpcConverter {
                     break;
             }
 
-            DataSchema schema = entryStatus.schema();
+            DataScheme schema = entryStatus.schema();
             if (schema != null) {
-                builder.setScheme(ProtoConverter.toProto(schema));
+                builder.setScheme(GrpcConverter.to(schema));
             }
         }
         return builder.build();

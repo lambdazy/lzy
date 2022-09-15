@@ -3,6 +3,7 @@ package ai.lzy.portal;
 import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.fs.LzyFsServer;
 import ai.lzy.model.deprecated.GrpcConverter;
+import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.config.PortalConfig;
 import ai.lzy.servant.agents.LzyAgentConfig;
@@ -308,7 +309,7 @@ public abstract class PortalTest {
     protected Iterator<LzyFsApi.Message> openOutputSlot(SlotInstance slot) {
         return portalFsStub.openOutputSlot(
             LzyFsApi.SlotRequest.newBuilder()
-                .setSlotInstance(GrpcConverter.to(slot))
+                .setSlotInstance(ProtoConverter.toProto(slot))
                 .setOffset(0)
                 .build());
     }
@@ -324,7 +325,7 @@ public abstract class PortalTest {
 
         Assert.assertNotNull(portalSlot);
 
-        var iter = openOutputSlot(GrpcConverter.from(portalSlot.getSlotInstance()));
+        var iter = openOutputSlot(ProtoConverter.fromProto(portalSlot.getSlotInstance()));
 
         var values = new ArrayBlockingQueue<>(100);
 

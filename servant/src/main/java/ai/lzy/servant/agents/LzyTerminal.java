@@ -6,6 +6,7 @@ import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.model.deprecated.GrpcConverter;
+import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.UriScheme;
@@ -120,7 +121,7 @@ public class LzyTerminal implements Closeable {
                             var connectSlotRequest = terminalCommand.getConnectSlot();
                             LOG.info("ConnectSlot command received: {}", connectSlotRequest);
 
-                            final SlotInstance fromSlot = GrpcConverter.from(connectSlotRequest.getFrom());
+                            final SlotInstance fromSlot = ProtoConverter.fromProto(connectSlotRequest.getFrom());
                             final LzySlot slot = context.slot(fromSlot.taskId(), fromSlot.name());
                             if (slot == null) {
                                 reply(commandId, RC.Code.ERROR,
@@ -128,7 +129,7 @@ public class LzyTerminal implements Closeable {
                                 return;
                             }
 
-                            final SlotInstance toSlot = GrpcConverter.from(connectSlotRequest.getTo());
+                            final SlotInstance toSlot = ProtoConverter.fromProto(connectSlotRequest.getTo());
                             final URI slotUri = toSlot.uri();
 
                             ForkJoinPool.commonPool().execute(() -> {
@@ -157,7 +158,7 @@ public class LzyTerminal implements Closeable {
                             var cmd = terminalCommand.getDisconnectSlot();
                             LOG.info("DisconnectSlot command received: {}", cmd);
 
-                            final SlotInstance slotInstance = GrpcConverter.from(cmd.getSlotInstance());
+                            final SlotInstance slotInstance = ProtoConverter.fromProto(cmd.getSlotInstance());
 
                             final LzySlot slot = context.slot(slotInstance.taskId(), slotInstance.name());
                             if (slot == null) {
@@ -171,7 +172,7 @@ public class LzyTerminal implements Closeable {
                         case STATUSSLOT -> {
                             var cmd = terminalCommand.getStatusSlot();
                             LOG.info("StatusSlot command received: {}", cmd);
-                            final SlotInstance slotInstance = GrpcConverter.from(cmd.getSlotInstance());
+                            final SlotInstance slotInstance = ProtoConverter.fromProto(cmd.getSlotInstance());
 
                             final LzySlot slot = context.slot(slotInstance.taskId(), slotInstance.name());
                             if (slot == null) {
@@ -186,7 +187,7 @@ public class LzyTerminal implements Closeable {
                         case DESTROYSLOT -> {
                             var cmd = terminalCommand.getDestroySlot();
                             LOG.info("DestroySlot command received: {}", cmd);
-                            final SlotInstance slotInstance = GrpcConverter.from(cmd.getSlotInstance());
+                            final SlotInstance slotInstance = ProtoConverter.fromProto(cmd.getSlotInstance());
 
                             final LzySlot slot = context.slot(slotInstance.taskId(), slotInstance.name());
                             if (slot == null) {

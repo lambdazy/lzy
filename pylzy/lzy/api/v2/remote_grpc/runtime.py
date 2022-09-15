@@ -433,8 +433,8 @@ class GrpcRuntime(Runtime):
                         for data in entry_id_to_output_calls[entry_id]
                     ],
                     dataScheme=DataScheme(
-                        type=entry.data_scheme.type,
-                        schemeType=entry.data_scheme.scheme_type,
+                        dataFormat=entry.data_scheme.scheme_type,
+                        schemeContent=entry.data_scheme.type,
                     )
                     if entry.data_scheme is not None
                     else None,

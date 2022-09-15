@@ -1,7 +1,7 @@
 package ai.lzy.test.impl;
 
 import ai.lzy.model.slot.Slot;
-import ai.lzy.model.data.DataSchema;
+import ai.lzy.model.DataScheme;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
 import io.zonky.test.db.postgres.embedded.PreparedDbProvider;
@@ -57,8 +57,8 @@ public class Utils {
             }
 
             @Override
-            public DataSchema contentType() {
-                return DataSchema.plain;
+            public DataScheme contentType() {
+                return DataScheme.PLAIN;
             }
         };
     }
@@ -80,8 +80,8 @@ public class Utils {
             }
 
             @Override
-            public DataSchema contentType() {
-                return DataSchema.plain;
+            public DataScheme contentType() {
+                return DataScheme.PLAIN;
             }
         };
     }

@@ -1,7 +1,6 @@
 package ai.lzy.whiteboard;
 
-import ai.lzy.model.data.DataSchema;
-import ai.lzy.model.data.SchemeType;
+import ai.lzy.model.DataScheme;
 import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.test.DatabaseTestUtils;
@@ -190,7 +189,6 @@ public class StorageTest {
     }
 
     private LinkedField genLinkedField(String name, Field.Status status) {
-        return new LinkedField(name, status,
-            "s-uri-" + name, new DataSchema(SchemeType.plain, "default"));
+        return new LinkedField(name, status, "s-uri-" + name, DataScheme.PLAIN);
     }
 }

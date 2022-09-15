@@ -28,8 +28,8 @@ public class ProtoValidator {
     public static boolean isValid(LMD.DataScheme dataScheme) {
         boolean isValid = true;
         try {
-            isValid = isValid && !dataScheme.getType().isBlank();
-            isValid = isValid && !dataScheme.getSchemeType().isBlank();
+            isValid = isValid && !dataScheme.getDataFormat().isBlank();
+            isValid = isValid && !dataScheme.getSchemeContent().isBlank();
             return isValid;
         } catch (NullPointerException e) {
             return false;

@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 import javax.validation.constraints.NotNull;
-import ai.lzy.model.data.DataSchema;
+import ai.lzy.model.DataScheme;
 import ai.lzy.whiteboard.model.ExecutionSnapshot;
 import ai.lzy.whiteboard.model.Snapshot;
 import ai.lzy.whiteboard.model.SnapshotEntry;
@@ -32,7 +32,7 @@ public interface SnapshotRepository {
     SnapshotEntry createEntry(@NotNull Snapshot snapshot, @NotNull String id) throws SnapshotRepositoryException;
 
     void prepare(@NotNull SnapshotEntry entry, @NotNull String storage, @NotNull List<String> dependentEntryIds,
-        @NotNull DataSchema schema) throws SnapshotRepositoryException;
+        @NotNull DataScheme schema) throws SnapshotRepositoryException;
 
     void commit(@NotNull SnapshotEntry entry, boolean empty) throws SnapshotRepositoryException;
 

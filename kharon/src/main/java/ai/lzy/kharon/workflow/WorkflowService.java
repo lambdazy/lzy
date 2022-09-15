@@ -379,8 +379,8 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
         return LCM.ChannelSpec.newBuilder()
             .setChannelName(channelName)
             .setContentType(LMD.DataScheme.newBuilder()
-                .setType("text")
-                .setSchemeType(LMD.SchemeType.plain.name())
+                .setSchemeContent("text")
+                .setDataFormat("plain")
                 .build())
             .setDirect(LCM.DirectChannelType.getDefaultInstance())
             .build();
