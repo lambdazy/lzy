@@ -1,5 +1,6 @@
 import abc
 import base64
+import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, BinaryIO, Callable, Dict, Optional, Type, TypeVar, Union, cast
@@ -7,6 +8,8 @@ from typing import Any, BinaryIO, Callable, Dict, Optional, Type, TypeVar, Union
 import cloudpickle
 
 T = TypeVar("T")
+
+_LOG = logging.getLogger(__name__)
 
 
 class StandardDataFormats(Enum):
@@ -76,6 +79,12 @@ class Serializer(abc.ABC):
         :return: meta of this serializer, e.g., versions of dependencies
         """
 
+    def schema_format(self) -> str:
+        """
+        :return: schema format for this serializer
+        """
+        return StandardSchemaFormats.pickled_type.name
+
     def schema(self, obj: Any) -> Schema:
         """
         :param obj: object for serialization
@@ -83,29 +92,44 @@ class Serializer(abc.ABC):
         """
         return Schema(
             self.format(),
-            StandardSchemaFormats.pickled_type.name,
+            self.schema_format(),
             base64.b64encode(cloudpickle.dumps(type(obj))).decode("ascii"),
             self.meta(),
         )
 
-    # noinspection PyMethodMayBeStatic
     def resolve(self, schema: Schema) -> Type:
         """
         :param schema: schema that contains information about serialized data
         :return: Type used for python representation of the schema
         """
+        self._fail_if_formats_are_invalid(schema)
+        self._fail_if_schema_content_none(schema)
+        self._warn_if_metas_are_not_equal(schema)
+        return cast(
+            Type,
+            cloudpickle.loads(
+                base64.b64decode(cast(str, schema.schema_content).encode("ascii"))
+            ),
+        )
+
+    def _fail_if_formats_are_invalid(self, schema: Schema) -> None:
         if schema.data_format != self.format():
             raise ValueError(
                 f"Invalid data format {schema.data_format}, expected {self.format()}"
             )
-        if schema.schema_format != StandardSchemaFormats.pickled_type.name:
+        if schema.schema_format != self.schema_format():
             raise ValueError(f"Invalid schema format {schema.schema_format}")
+
+    def _warn_if_metas_are_not_equal(self, schema: Schema) -> None:
+        if schema.meta != self.meta():
+            _LOG.warning(
+                f"Meta from schema {schema.meta} differs from the current meta {self.meta()}"
+            )
+
+    @staticmethod
+    def _fail_if_schema_content_none(schema: Schema) -> None:
         if schema.schema_content is None:
             raise ValueError(f"No schema content")
-        return cast(
-            Type,
-            cloudpickle.loads(base64.b64decode(schema.schema_content.encode("ascii"))),
-        )
 
 
 class SerializerRegistry(abc.ABC):

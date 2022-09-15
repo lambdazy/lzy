@@ -1,4 +1,3 @@
-import tempfile
 from typing import Any, BinaryIO, Callable, Dict, Type, Union, cast
 
 import jsonpickle  # type: ignore
@@ -18,16 +17,7 @@ class PrimitiveSerializer(Serializer):
         dest.write(dumps)
 
     def deserialize(self, source: BinaryIO, typ: Type[T]) -> T:
-        # write data to mem buffer firstly to ensure that we read all data in case of dynamic source (e.g. FUSE)
-        with tempfile.TemporaryFile() as handle:
-            while True:
-                data = source.read(8096)
-                if not data:
-                    break
-                handle.write(data)
-            handle.flush()
-            handle.seek(0)
-            read = handle.read().decode("utf-8")
+        read = source.read().decode("utf-8")
         return cast(T, jsonpickle.loads(read))
 
     def supported_types(self) -> Union[Type, Callable[[Type], bool]]:
@@ -43,23 +33,21 @@ class PrimitiveSerializer(Serializer):
         return StandardDataFormats.primitive_type.name
 
     def meta(self) -> Dict[str, str]:
-        return {"jsonpickle_version": jsonpickle.__version__}
+        return {"jsonpickle": jsonpickle.__version__}
+
+    def schema_format(self) -> str:
+        return StandardSchemaFormats.json_pickled_type.name
 
     def schema(self, obj: Any) -> Schema:
         return Schema(
             self.format(),
-            StandardSchemaFormats.json_pickled_type.name,
+            self.schema_format(),
             jsonpickle.dumps(type(obj)),
             self.meta(),
         )
 
     def resolve(self, schema: Schema) -> Type:
-        if schema.data_format != StandardDataFormats.primitive_type.name:
-            raise ValueError(
-                f"Invalid data format {schema.data_format}, expected {self.format()}"
-            )
-        if schema.schema_format != StandardSchemaFormats.json_pickled_type.name:
-            raise ValueError(
-                f"Invalid schema format {schema.schema_format}, expected {StandardSchemaFormats.json_pickled_type.name}"
-            )
+        self._fail_if_formats_are_invalid(schema)
+        self._fail_if_schema_content_none(schema)
+        self._warn_if_metas_are_not_equal(schema)
         return cast(Type, jsonpickle.loads(schema.schema_content))

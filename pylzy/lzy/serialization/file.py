@@ -7,7 +7,6 @@ from lzy.serialization.types import File
 from lzy.version import __version__
 
 
-# noinspection PyMethodMayBeStatic
 class FileSerializer(Serializer):
     def serialize(self, obj: File, dest: BinaryIO) -> None:
         with obj.path.open("rb") as f:
@@ -38,4 +37,4 @@ class FileSerializer(Serializer):
         return StandardDataFormats.raw_file.name
 
     def meta(self) -> Dict[str, str]:
-        return {"lzy_version": __version__}
+        return {"pylzy": __version__}
