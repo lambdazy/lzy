@@ -1,7 +1,7 @@
 package ai.lzy.whiteboard.grpc;
 
 import ai.lzy.iam.grpc.context.AuthenticationContext;
-import ai.lzy.model.db.NotFoundException;
+import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.v1.whiteboard.LWBS;
 import ai.lzy.v1.whiteboard.LzyWhiteboardServiceGrpc;
 import ai.lzy.whiteboard.access.AccessManager;

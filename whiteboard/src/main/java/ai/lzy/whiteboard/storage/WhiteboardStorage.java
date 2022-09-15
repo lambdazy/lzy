@@ -1,6 +1,6 @@
 package ai.lzy.whiteboard.storage;
 
-import ai.lzy.model.db.NotFoundException;
+import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.whiteboard.model.LinkedField;
 import ai.lzy.whiteboard.model.Whiteboard;

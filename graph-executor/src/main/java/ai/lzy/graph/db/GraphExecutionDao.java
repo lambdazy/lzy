@@ -2,7 +2,7 @@ package ai.lzy.graph.db;
 
 import ai.lzy.graph.model.GraphDescription;
 import ai.lzy.graph.model.GraphExecutionState;
-import ai.lzy.model.db.DaoException;
+import ai.lzy.model.db.exceptions.DaoException;
 
 import javax.annotation.Nullable;
 import java.util.List;

@@ -25,7 +25,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import ai.lzy.graph.db.GraphExecutionDao;
-import ai.lzy.model.db.DaoException;
+import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.graph.db.QueueEventDao;
 import ai.lzy.graph.model.GraphExecutionState;
 import ai.lzy.graph.model.GraphExecutionState.Status;

@@ -6,6 +6,8 @@ import ai.lzy.kharon.workflow.WorkflowService;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.model.db.exceptions.AlreadyExistsException;
+import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.v1.common.LMS3;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -105,8 +107,8 @@ public class ExecutionDaoImpl implements ExecutionDao {
                 if (rs.next()) {
                     var existingExecutionId = rs.getString("active_execution_id");
                     if (StringUtils.isNotEmpty(existingExecutionId)) {
-                        throw new SQLException(String.format("Attempt to start one more instance of workflow: " +
-                            "active is '%s'", existingExecutionId));
+                        throw new AlreadyExistsException(String.format(
+                            "Attempt to start one more instance of workflow: active is '%s'", existingExecutionId));
                     }
                     update = true;
                 }

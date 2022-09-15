@@ -15,6 +15,7 @@ import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
+import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.portal.LzyPortalGrpc;
 import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LWFS.CreateWorkflowRequest;
@@ -205,17 +206,12 @@ public class WorkflowServiceTest {
     public void createWorkflow() {
         authorizedWorkflowClient.createWorkflow(
             CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build());
+        var thrown = Assert.assertThrows(StatusRuntimeException.class, () -> authorizedWorkflowClient
+            .createWorkflow(CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build()));
 
-        try {
-            authorizedWorkflowClient.createWorkflow(
-                CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build());
-            Assert.fail();
-        } catch (StatusRuntimeException e) {
-            if (!Status.ALREADY_EXISTS.getCode().equals(e.getStatus().getCode())) {
-                e.printStackTrace(System.err);
-                Assert.fail(e.getMessage());
-            }
-        }
+        var expectedStatusCode = Status.ALREADY_EXISTS.getCode();
+
+        Assert.assertEquals(expectedStatusCode, thrown.getStatus().getCode());
     }
 
     @Test
@@ -227,10 +223,24 @@ public class WorkflowServiceTest {
                 CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build()));
 
         var expectedErrorCode = Status.UNAVAILABLE.getCode();
-        var expectedErrorMessage = "Cannot create internal storage";
 
         Assert.assertEquals(expectedErrorCode, thrown.getStatus().getCode());
-        Assert.assertEquals(expectedErrorMessage, thrown.getStatus().getDescription());
+    }
+
+    @Test
+    public void createWorkflowFailedWithUserStorageMissedEndpoint() {
+        var thrown = Assert.assertThrows(StatusRuntimeException.class, () ->
+            authorizedWorkflowClient.createWorkflow(CreateWorkflowRequest.newBuilder()
+                .setWorkflowName("workflow_1")
+                .setSnapshotStorage(LMS3.S3Locator.newBuilder()
+                    .setKey("some-valid-key")
+                    .setBucket("some-valid-bucket")
+                    .build())
+                .build()));
+
+        var expectedErrorCode = Status.INVALID_ARGUMENT.getCode();
+
+        Assert.assertEquals(expectedErrorCode, thrown.getStatus().getCode());
     }
 
     @Test
@@ -277,9 +287,6 @@ public class WorkflowServiceTest {
 
         Assert.assertEquals(Status.INTERNAL.getCode(), thrownAlreadyFinished.getStatus().getCode());
         Assert.assertEquals(Status.INTERNAL.getCode(), thrownUnknownWorkflow.getStatus().getCode());
-
-        Assert.assertEquals("Already finished", thrownAlreadyFinished.getStatus().getDescription());
-        Assert.assertEquals("Unknown workflow execution", thrownUnknownWorkflow.getStatus().getDescription());
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")

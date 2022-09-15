@@ -3,7 +3,7 @@ package ai.lzy.scheduler;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
-import ai.lzy.model.db.DaoException;
+import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.scheduler.grpc.RemoteAddressInterceptor;

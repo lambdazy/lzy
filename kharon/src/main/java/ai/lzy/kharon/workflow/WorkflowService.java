@@ -15,6 +15,7 @@ import ai.lzy.kharon.KharonConfig;
 import ai.lzy.kharon.KharonDataSource;
 import ai.lzy.kharon.workflow.dao.ExecutionDao;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.model.db.exceptions.AlreadyExistsException;
 import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.RsaUtils;
@@ -28,7 +29,6 @@ import ai.lzy.v1.OperationServiceApiGrpc;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmAllocatorApi.*;
 import ai.lzy.v1.channel.LCM;
-import ai.lzy.v1.channel.LCMS;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.common.LMD;
 import ai.lzy.v1.common.LMS3;
@@ -173,42 +173,49 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
         String storageType;
         LMS3.S3Locator storageData;
 
+        BiConsumer<io.grpc.Status, String> replyError = (status, descr) -> {
+            LOG.error("[createWorkflow], fail: status={}, msg={}.", status, descr);
+            response.onError(status.withDescription(descr).asRuntimeException());
+        };
+
         if (internalSnapshotStorage) {
             storageType = "internal";
             try {
                 storageData = createTempStorageBucket(userId);
             } catch (StatusRuntimeException e) {
-                response.onError(e.getStatus().withDescription("Cannot create internal storage")
-                    .asRuntimeException());
+                replyError.accept(e.getStatus(), "Cannot create internal storage");
                 return;
             }
             if (storageData == null) {
-                response.onError(Status.INTERNAL.withDescription("Cannot create internal storage")
-                    .asRuntimeException());
+                replyError.accept(Status.INTERNAL, "Cannot create internal storage");
                 return;
             }
         } else {
             storageType = "user";
             // TODO: ssokolvyak -- move to validator
             if (request.getSnapshotStorage().getEndpointCase() == LMS3.S3Locator.EndpointCase.ENDPOINT_NOT_SET) {
-                response.onError(Status.INVALID_ARGUMENT.withDescription("Snapshot storage not set")
-                    .asRuntimeException());
+                replyError.accept(Status.INVALID_ARGUMENT, "Snapshot storage not set");
                 return;
             }
             storageData = request.getSnapshotStorage();
         }
 
-
         try {
             withRetries(defaultRetryPolicy(), LOG, () ->
                 dao.create(executionId, userId, workflowName, storageType, storageData, null));
+        } catch (AlreadyExistsException e) {
+            if (internalSnapshotStorage) {
+                safeDeleteTempStorageBucket(storageData.getBucket());
+            }
+            replyError.accept(Status.ALREADY_EXISTS, "Cannot create new execution with " +
+                "{ workflowName: '%s', userId: '%s' }: %s".formatted(workflowName, userId, e.getMessage()));
+            return;
         } catch (Exception e) {
             if (internalSnapshotStorage) {
                 safeDeleteTempStorageBucket(storageData.getBucket());
             }
-            LOG.error("Cannot create new execution with { workflowName: '{}', userId: '{}' }: " + e.getMessage(),
-                workflowName, userId, e);
-            response.onError(Status.INTERNAL.withDescription(e.getMessage()).asRuntimeException());
+            replyError.accept(Status.INTERNAL, "Cannot create new execution with " +
+                "{ workflowName: '%s', userId: '%s' }: %s".formatted(workflowName, userId, e.getMessage()));
             return;
         }
 

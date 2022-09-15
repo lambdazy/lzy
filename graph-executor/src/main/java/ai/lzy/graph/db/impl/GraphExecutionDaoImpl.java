@@ -4,7 +4,7 @@ import ai.lzy.graph.db.GraphExecutionDao;
 import ai.lzy.graph.model.GraphDescription;
 import ai.lzy.graph.model.GraphExecutionState;
 import ai.lzy.graph.model.TaskExecution;
-import ai.lzy.model.db.DaoException;
+import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.model.db.Transaction;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;

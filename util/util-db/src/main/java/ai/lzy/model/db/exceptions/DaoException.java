@@ -1,4 +1,4 @@
-package ai.lzy.model.db;
+package ai.lzy.model.db.exceptions;
 
 public class DaoException extends Exception {
     public DaoException(Throwable cause) {

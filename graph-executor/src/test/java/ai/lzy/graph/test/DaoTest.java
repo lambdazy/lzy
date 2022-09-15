@@ -4,7 +4,7 @@ import ai.lzy.graph.db.GraphExecutionDao;
 import ai.lzy.graph.db.impl.GraphExecutionDaoImpl;
 import ai.lzy.graph.model.GraphDescription;
 import ai.lzy.graph.model.GraphExecutionState;
-import ai.lzy.model.db.DaoException;
+import ai.lzy.model.db.exceptions.DaoException;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
