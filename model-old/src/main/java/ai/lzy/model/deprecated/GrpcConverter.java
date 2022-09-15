@@ -9,6 +9,9 @@ import ai.lzy.model.graph.Provisioning;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotStatus;
+import ai.lzy.v1.channel.LCM;
+import ai.lzy.v1.channel.LCMS;
+import ai.lzy.v1.common.LMD;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.deprecated.Lzy;
 import ai.lzy.v1.deprecated.LzyTask;
@@ -36,6 +39,13 @@ public abstract class GrpcConverter {
     public static Stream<Context.SlotAssignment> from(Stream<LzyTask.SlotAssignment> assignmentsList) {
         return assignmentsList
             .map(ass -> new Context.SlotAssignment(ass.getTaskId(), fromProto(ass.getSlot()), ass.getBinding()));
+    }
+
+    public static LCMS.ChannelCreateRequest createChannelRequest(String workflowId, LCM.ChannelSpec spec) {
+        return LCMS.ChannelCreateRequest.newBuilder()
+            .setWorkflowId(workflowId)
+            .setChannelSpec(spec)
+            .build();
     }
 
     public static String to(SchemeType dataSchema) {

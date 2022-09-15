@@ -4,9 +4,8 @@ import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.model.grpc.ProtoConverter.fromProto;
 
-import ai.lzy.model.db.NotFoundException;
+import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.model.db.TransactionHandle;
-import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.v1.whiteboard.LWBPS;
 import ai.lzy.v1.whiteboard.LzyWhiteboardPrivateServiceGrpc;
 import ai.lzy.whiteboard.access.AccessManager;

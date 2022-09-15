@@ -21,7 +21,9 @@ import org.apache.logging.log4j.Logger;
 import org.junit.*;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Base64;
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
@@ -155,8 +157,8 @@ public class DbAuthServiceTest {
 
         final Subject user = subjectService.subject(userId);
 
-        var jwt = JwtUtils.buildJWT("user1", AuthProvider.GITHUB.name(), JwtUtils.afterDays(1),
-            CredentialsUtils.readPrivateKey(PRIVATE_PEM2));
+        var jwt = JwtUtils.buildJWT("user1", AuthProvider.GITHUB.name(), Date.from(Instant.now()),
+            JwtUtils.afterDays(1), CredentialsUtils.readPrivateKey(PRIVATE_PEM2));
         authenticateService.authenticate(new JwtCredentials(jwt));
     }
 
@@ -176,8 +178,8 @@ public class DbAuthServiceTest {
 
         final Subject user = subjectService.subject(userId);
 
-        var jwt = JwtUtils.buildJWT("user1", AuthProvider.GITHUB.name(), JwtUtils.afterDays(1),
-            CredentialsUtils.readPrivateKey(PRIVATE_PEM2));
+        var jwt = JwtUtils.buildJWT("user1", AuthProvider.GITHUB.name(), Date.from(Instant.now()),
+            JwtUtils.afterDays(1), CredentialsUtils.readPrivateKey(PRIVATE_PEM2));
         try {
             authenticateService.authenticate(new JwtCredentials(jwt));
         } catch (AuthPermissionDeniedException e) {

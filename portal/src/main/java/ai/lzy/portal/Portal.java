@@ -4,12 +4,10 @@ import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.fs.LzyFsServer;
 import ai.lzy.fs.SlotsManager;
 import ai.lzy.fs.fs.LzyInputSlot;
-import ai.lzy.model.UriScheme;
 import ai.lzy.portal.config.PortalConfig;
 import ai.lzy.portal.slots.SnapshotSlotsProvider;
 import ai.lzy.portal.slots.StdoutSlot;
 import ai.lzy.util.grpc.ChannelBuilder;
-import com.google.common.net.HostAndPort;
 import io.grpc.Server;
 import io.grpc.netty.NettyServerBuilder;
 import org.apache.logging.log4j.LogManager;
@@ -18,11 +16,12 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.UUID;
+import java.net.URL;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import static ai.lzy.model.UriScheme.LzyFs;
+import static ai.lzy.model.UriScheme.LzyServant;
 
 public class Portal {
     private static final Logger LOG = LogManager.getLogger(Portal.class);
@@ -30,75 +29,74 @@ public class Portal {
     private static final String stdoutSlotName = "/portal:stdout";
     private static final String stderrSlotName = "/portal:stderr";
 
-    private final String portalTaskId;
+    private final String stdoutChannelId;
+    private final String stderrChannelId;
 
-    private final PortalConfig config;
+    private final int port;
+    private final String host;
 
+    // services
     private final Server grpcServer;
-    private LzyFsServer fsServer;
-    private AllocatorAgent allocatorAgent;
+    private final LzyFsServer fsServer;
+    private final AllocatorAgent allocatorAgent;
 
-    // stdout/stderr (guarded by this)
+    // slots
     private StdoutSlot stdoutSlot;
     private StdoutSlot stderrSlot;
     private final SnapshotSlotsProvider snapshots;
 
-    public Portal(PortalConfig config) {
-        this.config = config;
-        this.portalTaskId = "portal:" + UUID.randomUUID() + "@" + config.getPortalId();
+    private final String portalId;
 
-        this.grpcServer = NettyServerBuilder.forAddress(new InetSocketAddress(config.getHost(), config.getApiPort()))
+    public Portal(PortalConfig config, AllocatorAgent agent, LzyFsServer fs) {
+        this.stdoutChannelId = config.getStdoutChannelId();
+        this.stderrChannelId = config.getStderrChannelId();
+
+        this.port = config.getPortalApiPort();
+        this.host = config.getHost();
+
+        this.grpcServer = NettyServerBuilder
+            .forAddress(new InetSocketAddress(config.getHost(), config.getPortalApiPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(new PortalApiImpl(this))
             .build();
+        this.allocatorAgent = agent;
+        this.fsServer = fs;
+
+        var prev = fsServer.setSlotApiInterceptor(new FsApiImpl(this));
+        assert prev == null;
 
         this.snapshots = new SnapshotSlotsProvider();
+        this.portalId = config.getPortalId();
     }
 
-    @SuppressWarnings("UnstableApiUsage")
     public void start() {
-        LOG.info("Starting portal with ID: '{}' at {}://{}:{}/{} with fs at {}:{}", config.getPortalId(),
-            UriScheme.LzyServant.scheme(), config.getHost(), config.getApiPort(), config.getFsPort(),
-            config.getHost(), config.getFsPort());
+        LOG.info("Starting portal with config: { portalId: '{}', url: '{}:/{}:{}', fsRoot: '{}', " +
+            "stdoutChannelId: '{}', stderrChannelId: '{}'}", portalId, LzyServant.scheme(), host, port,
+            fsServer.getMountPoint(), stdoutChannelId, stderrChannelId);
 
         try {
             grpcServer.start();
-
-            allocatorAgent = new AllocatorAgent(config.getToken(), config.getVmId(),
-                config.getAllocatorAddress(), config.getAllocatorHeartbeatPeriod());
-
-            var fsUri = new URI(LzyFs.scheme(), null, config.getHost(), config.getFsPort(), null, null, null);
-            var cm = HostAndPort.fromString(config.getChannelManagerAddress());
-            var channelManagerUri = new URI("http", null, cm.getHost(), cm.getPort(), null, null, null);
-
-            fsServer = new LzyFsServer(config.getPortalId(), config.getFsRoot(), fsUri, channelManagerUri,
-                config.getToken());
-
-        } catch (IOException | URISyntaxException | AllocatorAgent.RegisterException e) {
+            allocatorAgent.start();
+            fsServer.start();
+        } catch (IOException | AllocatorAgent.RegisterException e) {
             LOG.error(e);
             this.shutdown();
             throw new RuntimeException(e);
         }
 
-        var prev = fsServer.setSlotApiInterceptor(new FsApiImpl(this));
-        assert prev == null;
+        LOG.info("Registering portal stdout/err slots...");
 
         final SlotsManager slotsManager = fsServer.getSlotsManager();
-        stdoutSlot = new StdoutSlot(
-            stdoutSlotName,
-            portalTaskId,
-            config.getStdoutChannelId(),
-            slotsManager.resolveSlotUri(portalTaskId, stdoutSlotName)
-        );
+        stdoutSlot = new StdoutSlot(stdoutSlotName, portalId, stdoutChannelId,
+            slotsManager.resolveSlotUri(portalId, stdoutSlotName));
         slotsManager.registerSlot(stdoutSlot);
 
-        stderrSlot = new StdoutSlot(
-            stderrSlotName,
-            portalTaskId, config.getStderrChannelId(),
-            slotsManager.resolveSlotUri(portalTaskId, stderrSlotName)
-        );
+        stderrSlot = new StdoutSlot(stderrSlotName, portalId, stderrChannelId,
+            slotsManager.resolveSlotUri(portalId, stderrSlotName));
         slotsManager.registerSlot(stderrSlot);
+
+        LOG.info("Portal successfully started at '{}:{}'", host, port);
     }
 
     public void shutdown() {
@@ -127,8 +125,8 @@ public class Portal {
         return fsServer.getSlotsManager();
     }
 
-    public String getPortalTaskId() {
-        return portalTaskId;
+    public String getPortalId() {
+        return portalId;
     }
 
     public LzyInputSlot findOutSlot(String name) {
@@ -147,8 +145,11 @@ public class Portal {
         return stderrSlot;
     }
 
-    StdoutSlot[] getOutErrSlots() {
-        return new StdoutSlot[] {stdoutSlot, stderrSlot};
+    List<StdoutSlot> getOutErrSlots() {
+        if (stdoutSlot != null && stderrSlot != null) {
+            return List.of(stdoutSlot, stderrSlot);
+        }
+        return Collections.emptyList();
     }
 
     SnapshotSlotsProvider getSnapshots() {

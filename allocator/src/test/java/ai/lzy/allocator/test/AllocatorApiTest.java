@@ -385,7 +385,6 @@ public class AllocatorApiTest extends BaseTestWithIam {
         } catch (StatusRuntimeException e) {
             Assert.assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
         }
-
     }
 
     @Test

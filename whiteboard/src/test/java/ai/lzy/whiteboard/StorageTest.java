@@ -1,7 +1,7 @@
 package ai.lzy.whiteboard;
 
 import ai.lzy.model.DataScheme;
-import ai.lzy.model.db.NotFoundException;
+import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.whiteboard.model.Field;

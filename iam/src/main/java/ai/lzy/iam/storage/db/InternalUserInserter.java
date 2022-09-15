@@ -5,7 +5,7 @@ import ai.lzy.iam.resources.Role;
 import ai.lzy.iam.resources.impl.Root;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.utils.UserVerificationType;
-import ai.lzy.model.db.DaoException;
+import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.model.db.Transaction;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;

@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Type, cast
 from lzy.serialization.api import Serializer, SerializerRegistry
 from lzy.serialization.catboost import CatboostPoolSerializer
 from lzy.serialization.file import FileSerializer
+from lzy.serialization.primitive import PrimitiveSerializer
 from lzy.serialization.proto import ProtoMessageSerializer
 from lzy.serialization.universal import CloudpickleSerializer
 
@@ -29,11 +30,13 @@ class DefaultSerializerRegistry(SerializerRegistry):
         self.register_serializer(
             "LZY_FILE_SERIALIZER", FileSerializer(), self._default_priority
         )
-
         self.register_serializer(
             "LZY_PROTO_MESSAGE_SERIALIZER",
             ProtoMessageSerializer(),
             self._default_priority,
+        )
+        self.register_serializer(
+            "LZY_PRIMITIVE_SERIALIZER", PrimitiveSerializer(), self._default_priority
         )
         self.register_serializer(
             "LZY_CLOUDPICKLE_SERIALIZER", CloudpickleSerializer(), sys.maxsize - 1

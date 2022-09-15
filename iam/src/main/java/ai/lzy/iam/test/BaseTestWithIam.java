@@ -8,7 +8,6 @@ import ai.lzy.iam.storage.impl.DbSubjectService;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
-import org.junit.After;
 
 import javax.annotation.Nullable;
 import java.io.FileInputStream;
@@ -34,7 +33,6 @@ public class BaseTestWithIam {
         iamApp.start();
     }
 
-    @After
     public void after() {
         iamApp.close();
         iamCtx.close();

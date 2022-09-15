@@ -1,7 +1,7 @@
 package ai.lzy.whiteboard.storage;
 
 import ai.lzy.model.db.DbOperation;
-import ai.lzy.model.db.NotFoundException;
+import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.model.db.ProtoObjectMapper;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;

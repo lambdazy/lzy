@@ -9,6 +9,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import javax.annotation.Nullable;
+import java.time.Duration;
 
 @Getter
 @Setter
@@ -20,6 +21,7 @@ public class KharonConfig {
     private String serverAddress;
     private String whiteboardAddress;
     private String snapshotAddress;
+    private String allocatorAddress;
     private String channelManagerAddress;
     private int servantProxyPort;
     private int servantFsProxyPort;
@@ -41,5 +43,20 @@ public class KharonConfig {
     @ConfigurationProperties("workflow")
     public static class WorkflowConfig {
         private boolean enabled;
+        private Duration waitAllocationTimeout;
+    }
+
+    private PortalConfig portal;
+
+    @Getter
+    @Setter
+    @ConfigurationProperties("portal")
+    public static final class PortalConfig {
+        private int portalApiPort;
+        private int fsApiPort;
+        private String fsRoot;
+        private String portalImage;
+        private String stdoutChannelName;
+        private String stderrChannelName;
     }
 }

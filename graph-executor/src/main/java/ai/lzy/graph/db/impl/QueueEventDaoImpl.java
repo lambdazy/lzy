@@ -2,7 +2,7 @@ package ai.lzy.graph.db.impl;
 
 import ai.lzy.graph.db.QueueEventDao;
 import ai.lzy.graph.model.QueueEvent;
-import ai.lzy.model.db.DaoException;
+import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.model.db.Transaction;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;

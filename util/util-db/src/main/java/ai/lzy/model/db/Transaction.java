@@ -1,5 +1,7 @@
 package ai.lzy.model.db;
 
+import ai.lzy.model.db.exceptions.DaoException;
+
 import java.sql.Connection;
 import java.sql.SQLException;
 

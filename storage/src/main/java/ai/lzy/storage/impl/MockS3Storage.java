@@ -6,16 +6,18 @@ import ai.lzy.v1.storage.LSS.CreateS3BucketResponse;
 import ai.lzy.v1.storage.LSS.DeleteS3BucketRequest;
 import ai.lzy.v1.storage.LSS.DeleteS3BucketResponse;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
-import ai.lzy.v1.workflow.LWF;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class MockS3Storage extends LzyStorageServiceGrpc.LzyStorageServiceImplBase {
     private final Map<String, LMS3.AmazonS3Endpoint> buckets = new ConcurrentHashMap<>();
+
+    public Map<String, LMS3.AmazonS3Endpoint> getBuckets() {
+        return buckets;
+    }
 
     @Override
     public void createS3Bucket(CreateS3BucketRequest request, StreamObserver<CreateS3BucketResponse> response) {

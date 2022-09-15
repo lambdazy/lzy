@@ -1,4 +1,4 @@
-package ai.lzy.model.db;
+package ai.lzy.model.db.exceptions;
 
 import java.sql.SQLException;
 

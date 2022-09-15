@@ -1,9 +1,5 @@
 package ai.lzy.whiteboard;
 
-import static ai.lzy.model.grpc.ProtoConverter.toProto;
-import static ai.lzy.v1.whiteboard.LWB.WhiteboardFieldInfo.StateCase.LINKEDSTATE;
-import static ai.lzy.v1.whiteboard.LWB.WhiteboardFieldInfo.StateCase.NONESTATE;
-
 import ai.lzy.iam.clients.SubjectServiceClient;
 import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
@@ -16,15 +12,12 @@ import ai.lzy.model.DataScheme;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.JwtUtils;
+import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
-import ai.lzy.v1.whiteboard.LWB;
-import ai.lzy.v1.whiteboard.LWBPS;
-import ai.lzy.v1.whiteboard.LWBS;
-import ai.lzy.v1.whiteboard.LzyWhiteboardPrivateServiceGrpc;
-import ai.lzy.v1.whiteboard.LzyWhiteboardServiceGrpc;
+import ai.lzy.v1.whiteboard.*;
 import ai.lzy.whiteboard.grpc.ProtoConverter;
 import ai.lzy.whiteboard.model.Whiteboard;
 import ai.lzy.whiteboard.storage.WhiteboardDataSource;
@@ -35,14 +28,22 @@ import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
+import org.junit.*;
+
+import java.io.FileReader;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.time.Instant;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+
+import static ai.lzy.model.grpc.ProtoConverter.toProto;
+import static ai.lzy.v1.whiteboard.LWB.WhiteboardFieldInfo.StateCase.LINKEDSTATE;
+import static ai.lzy.v1.whiteboard.LWB.WhiteboardFieldInfo.StateCase.NONESTATE;
 
 @SuppressWarnings("ResultOfMethodCallIgnored")
 public class ApiTest extends BaseTestWithIam {
@@ -378,7 +379,7 @@ public class ApiTest extends BaseTestWithIam {
 
         public User createUser(String name) throws Exception {
             var login = "github-" + name;
-            var creds = JwtUtils.generateCredentials(login, "GITHUB");
+            var creds = generateCredentials(login, "GITHUB");
 
             var subj = subjectClient.createSubject(AuthProvider.GITHUB, login, SubjectType.USER,
                 new SubjectCredentials("main", creds.publicKey(), CredentialsType.PUBLIC_KEY));
@@ -392,4 +393,24 @@ public class ApiTest extends BaseTestWithIam {
         }
     }
 
+    public record GeneratedCredentials(
+        String publicKey,
+        JwtCredentials credentials
+    ) {}
+
+    public static GeneratedCredentials generateCredentials(String login, String provider)
+        throws IOException, InterruptedException, NoSuchAlgorithmException, InvalidKeySpecException
+    {
+        final var keys = RsaUtils.generateRsaKeys();
+        final JwtCredentials credentials;
+        try (final var reader = new FileReader(keys.privateKeyPath().toFile())) {
+            var from = Date.from(Instant.now());
+            var till = JwtUtils.afterDays(7);
+            credentials = new JwtCredentials(JwtUtils.buildJWT(login, provider, from, till, reader));
+        }
+
+        final var publicKey = Files.readString(keys.publicKeyPath());
+
+        return new GeneratedCredentials(publicKey, credentials);
+    }
 }

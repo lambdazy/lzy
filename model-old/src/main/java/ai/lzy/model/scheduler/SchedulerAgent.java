@@ -16,6 +16,8 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.StringReader;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.Date;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
@@ -23,6 +25,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+
 
 public class SchedulerAgent extends Thread {
     private static final Logger LOG = LogManager.getLogger(SchedulerAgent.class);
@@ -50,7 +53,8 @@ public class SchedulerAgent extends Thread {
 
         String jwt;
         try {
-            jwt = JwtUtils.buildJWT(servantId, "INTERNAL", JwtUtils.afterDays(7), new StringReader(iamPrivateKey));
+            jwt = JwtUtils.buildJWT(servantId, "INTERNAL", Date.from(Instant.now()), JwtUtils.afterDays(7),
+                new StringReader(iamPrivateKey));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

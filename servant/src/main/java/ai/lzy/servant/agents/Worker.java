@@ -1,5 +1,7 @@
 package ai.lzy.servant.agents;
 
+import static ai.lzy.model.UriScheme.LzyFs;
+
 import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.fs.LzyFsServer;
 import ai.lzy.fs.fs.LzyFileSlot;
@@ -28,11 +30,6 @@ import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
-import org.apache.commons.cli.*;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;
@@ -44,11 +41,21 @@ import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.Date;
+import java.time.Instant;
+import java.util.Date;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
-import static ai.lzy.model.UriScheme.LzyFs;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class Worker {
     private static final Logger LOG = LogManager.getLogger(Worker.class);
@@ -114,8 +121,9 @@ public class Worker {
             final var cm = HostAndPort.fromString(channelManagerAddress);
             final var channelManagerUri = new URI("http", null, cm.getHost(), cm.getPort(), null, null, null);
 
-            lzyFs = new LzyFsServer(servantId, fsRoot, fsUri, channelManagerUri,
-                JwtUtils.buildJWT(servantId, "INTERNAL", JwtUtils.afterDays(7), new StringReader(iamPrivateKey)));
+            lzyFs = new LzyFsServer(servantId, fsRoot, fsUri, channelManagerUri, JwtUtils.buildJWT(servantId,
+                "INTERNAL", Date.from(Instant.now()), JwtUtils.afterDays(7), new StringReader(iamPrivateKey)));
+            lzyFs.start();
         } catch (IOException | URISyntaxException e) {
             LOG.error("Error while building uri", e);
             stop();
@@ -125,7 +133,9 @@ public class Worker {
         }
 
         try {
-            allocatorAgent = new AllocatorAgent(allocatorToken, vmId, allocatorAddress, allocatorHeartbeatPeriod);
+            allocatorAgent = new AllocatorAgent(allocatorToken, vmId, allocatorAddress, allocatorHeartbeatPeriod,
+                realHost);
+            allocatorAgent.start();
         } catch (AllocatorAgent.RegisterException e) {
             throw new RuntimeException(e);
         }

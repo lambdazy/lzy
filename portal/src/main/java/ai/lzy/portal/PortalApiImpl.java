@@ -19,6 +19,7 @@ import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 class PortalApiImpl extends LzyPortalImplBase {
@@ -33,13 +34,20 @@ class PortalApiImpl extends LzyPortalImplBase {
     @Override
     public void stop(Empty request, StreamObserver<Empty> responseObserver) {
         portal.shutdown();
+        try {
+            portal.awaitTermination(1, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            LOG.debug("Was interrupted while waiting for portal termination");
+            portal.shutdownNow();
+        }
         responseObserver.onNext(Empty.getDefaultInstance());
         responseObserver.onCompleted();
-
     }
 
     @Override
     public synchronized void status(Empty request, StreamObserver<PortalStatus> responseObserver) {
+        LOG.info("Portal status request received");
+
         var response = LzyPortalApi.PortalStatus.newBuilder();
 
         var snapshots = portal.getSnapshots();
@@ -68,7 +76,6 @@ class PortalApiImpl extends LzyPortalImplBase {
             LOG.error(e.getMessage(), e);
             responseObserver.onError(e);
         }
-
     }
 
     private OpenSlotsResponse openInternal(OpenSlotsRequest request) {
@@ -88,12 +95,13 @@ class PortalApiImpl extends LzyPortalImplBase {
 
             final Slot slot = ProtoConverter.fromProto(slotDesc.getSlot());
             if (Slot.STDIN.equals(slot) || Slot.ARGS.equals(slot)
-                || Slot.STDOUT.equals(slot) || Slot.STDERR.equals(slot)) {
+                || Slot.STDOUT.equals(slot) || Slot.STDERR.equals(slot))
+            {
                 return replyError.apply("Invalid slot " + slot);
             }
 
             final String taskId = switch (slotDesc.getKindCase()) {
-                case SNAPSHOT -> portal.getPortalTaskId();
+                case SNAPSHOT -> portal.getPortalId();
                 case STDERR -> slotDesc.getStderr().getTaskId();
                 case STDOUT -> slotDesc.getStdout().getTaskId();
                 default -> throw new NotImplementedException(slotDesc.getKindCase().name());

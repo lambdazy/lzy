@@ -1,24 +1,42 @@
+create type storage_type as enum ('USER', 'INTERNAL');
+
+create type portal_status as enum (
+    'CREATING_STD_CHANNELS', 'CREATING_SESSION',
+    'REQUEST_VM', 'ALLOCATING_VM', 'VM_READY'
+);
+
 create table workflow_executions (
-    execution_id varchar(255) not null,
+    execution_id text not null,
+
+    allocator_session_id text,
 
     created_at timestamp not null,
     finished_at timestamp,
-    finished_with_error varchar(255),  -- error message or null
+    finished_with_error text,  -- error message or null
 
-    storage_bucket varchar(255) not null,
-    storage_credentials varchar(1048576) not null,
+    storage storage_type not null,
+    storage_bucket text not null,
+    storage_credentials text not null,
 
-    primary key (execution_id)
+    portal portal_status,
+    allocate_op_id text,
+    portal_vm_id text,
+    portal_vm_address text,
+
+    portal_stdout_channel_id text,
+    portal_stderr_channel_id text,
+
+    primary key (execution_id),
+    check (finished_at >= created_at)
 );
 
 create table workflows (
-    user_id varchar(255) not null,
-    workflow_name varchar(255) not null,
+    user_id text not null,
+    workflow_name text not null,
     created_at timestamp not null,
 
-    active_execution_id varchar(255),
+    active_execution_id text,
 
     primary key (user_id, workflow_name),
     foreign key (active_execution_id) references workflow_executions (execution_id)
 );
-

@@ -12,6 +12,7 @@ let
     dev = ps: with ps; [
       boto3
       cloudpickle
+      jsonpickle
       pyyaml
       importlib-metadata
       wheel
@@ -80,6 +81,7 @@ let
 
       # some libs to have types
       cloudpickle
+      jsonpickle
     ];
   };
 

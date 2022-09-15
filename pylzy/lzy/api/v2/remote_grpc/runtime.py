@@ -3,10 +3,25 @@ import functools
 import logging
 import os
 import sys
+import tempfile
 import time
+import zipfile
 from asyncio import Task
 from collections import defaultdict
-from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
+from io import BytesIO
+from typing import (
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 
 import jwt
 
@@ -29,6 +44,7 @@ from lzy.api.v2.runtime import (
 )
 from lzy.api.v2.startup import ProcessingRequest
 from lzy.api.v2.utils._pickle import pickle
+from lzy.api.v2.utils.files import fileobj_hash, zipdir
 
 KEY_PATH_ENV = "LZY_KEY_PATH"
 LZY_ADDRESS_ENV = "LZY_ADDRESS_ENV"
@@ -70,7 +86,7 @@ def _build_token(username: str, key_path: Optional[str] = None) -> str:
                     "nbf": time.time(),
                     "exp": time.time() + 7 * 24 * 60 * 60,  # 7 days
                     "iss": username,
-                    "pvd": "GITHUB"
+                    "pvd": "GITHUB",
                 },
                 private_key,
                 algorithm="PS256",
@@ -99,6 +115,7 @@ class GrpcRuntime(Runtime):
 
         self.__std_slots_listener: Optional[Task] = None
         self.__running = False
+        self.__loaded_modules: Set[str] = set()
 
     @wrap_error("Cannot start workflow")
     async def start(self, workflow: LzyWorkflow):
@@ -134,9 +151,15 @@ class GrpcRuntime(Runtime):
         client = await self.__get_client()
         pools = await client.get_pool_specs(self.__execution_id)
 
+        modules: Set[str] = set()
+        for call in calls:
+            modules.update(call.env.local_modules)
+
+        urls = await self.__load_local_modules(modules)
+
         _LOG.info("Building graph")
         graph = await asyncio.get_event_loop().run_in_executor(
-            None, self.__build_graph, calls, pools
+            None, self.__build_graph, calls, pools, zip(modules, urls)
         )  # Running long op in threadpool
 
         graph_id = await client.execute_graph(self.__execution_id, graph)
@@ -208,6 +231,51 @@ class GrpcRuntime(Runtime):
     async def link(self, wb_id: str, field_name: str, url: str) -> None:
         pass
 
+    async def __load_local_modules(self, module_paths: Iterable[str]) -> Sequence[str]:
+        """Returns sequence of urls"""
+        assert self.__workflow is not None
+
+        modules_uploaded = []
+        for local_module in module_paths:
+
+            if os.path.basename(local_module) in self.__loaded_modules:
+                continue
+
+            with tempfile.NamedTemporaryFile("rb") as archive:
+                if not os.path.isdir(local_module):
+                    with zipfile.ZipFile(archive.name, "w") as z:
+                        z.write(local_module, os.path.basename(local_module))
+                else:
+                    with zipfile.ZipFile(archive.name, "w") as z:
+                        zipdir(local_module, z)
+                archive.seek(0)
+                file = cast(BytesIO, archive.file)
+                key = os.path.join(
+                    "local_modules",
+                    os.path.basename(local_module),
+                    fileobj_hash(file),
+                )
+                file.seek(0)
+                client = self.__workflow.owner.storage_registry.default_client()
+                if client is None:
+                    raise RuntimeError("No default storage config")
+
+                conf = self.__workflow.owner.storage_registry.default_config()
+                if conf is None:
+                    raise RuntimeError("No default storage config")
+
+                url = client.generate_uri(conf.bucket, key)
+
+                if not await client.blob_exists(url):
+                    await client.write(url, file)
+
+                presigned_uri = await client.sign_storage_uri(url)
+                modules_uploaded.append(presigned_uri)
+
+            self.__loaded_modules.add(os.path.basename(local_module))
+
+        return modules_uploaded
+
     @staticmethod
     def __resolve_pool(
         provisioning: Provisioning, pool_specs: Sequence[VmPoolSpec]
@@ -245,7 +313,12 @@ class GrpcRuntime(Runtime):
             else:
                 print(data.data, file=sys.stderr)
 
-    def __build_graph(self, calls: List[LzyCall], pools: Sequence[VmPoolSpec]) -> Graph:
+    def __build_graph(
+        self,
+        calls: List[LzyCall],
+        pools: Sequence[VmPoolSpec],
+        modules: Iterable[Tuple[str, str]],
+    ) -> Graph:
         assert self.__workflow is not None
 
         entry_id_to_call: Dict[str, Tuple[LzyCall, int]] = {}
@@ -332,8 +405,12 @@ class GrpcRuntime(Runtime):
                     outputSlots=output_slots,
                     command=command,
                     dockerImage=docker_image if docker_image is not None else "",
-                    python=Operation.PythonEnvSpec(  # TODO(artolord) add local modules loading
-                        yaml=call.env.conda.yaml
+                    python=Operation.PythonEnvSpec(
+                        yaml=call.env.conda.yaml,
+                        localModules=[
+                            Operation.PythonEnvSpec.LocalModule(name=name, url=url)
+                            for (name, url) in modules
+                        ],
                     ),
                     poolSpecName=pool.poolSpecName,
                 ),
