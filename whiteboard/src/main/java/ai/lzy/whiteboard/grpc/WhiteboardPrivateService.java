@@ -35,7 +35,6 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
     private final AccessManager accessManager;
     private final WhiteboardStorage whiteboardStorage;
     private final WhiteboardDataSource dataSource;
-    private final LockManager lockManager;
 
     @Inject
     public WhiteboardPrivateService(AccessManager accessManager,
@@ -45,7 +44,6 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
         this.accessManager = accessManager;
         this.whiteboardStorage = whiteboardStorage;
         this.dataSource = dataSource;
-        this.lockManager = new LocalLockManager().withPrefix("whiteboard");
     }
 
     @Override
@@ -71,15 +69,8 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
                 new HashSet<>(request.getTagsList()), ProtoConverter.fromProto(request.getStorage()),
                 request.getNamespace(), Whiteboard.Status.CREATED, createdAt);
 
-            final var lock = lockManager.getOrCreate(whiteboardId);
-            withRetries(defaultRetryPolicy(), LOG, () -> {
-                lock.lock();
-                try {
-                    whiteboardStorage.insertWhiteboard(request.getUserId(), whiteboard, null);
-                } finally {
-                    lock.unlock();
-                }
-            });
+            withRetries(defaultRetryPolicy(), LOG, () ->
+                whiteboardStorage.insertWhiteboard(request.getUserId(), whiteboard, null));
 
             try {
                 accessManager.addAccess(request.getUserId(), whiteboardId);
@@ -87,14 +78,8 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
                 String errorMessage = "Failed to get access to whiteboard for user " + request.getUserId();
                 LOG.error("Create whiteboard {} failed, got exception: {}", request.getWhiteboardName(), errorMessage, e);
                 LOG.info("Undo creating whiteboard {}, id = {}", request.getWhiteboardName(), whiteboardId);
-                withRetries(defaultRetryPolicy(), LOG, () -> {
-                    lock.lock();
-                    try {
-                        whiteboardStorage.deleteWhiteboard(whiteboardId, null);
-                    } finally {
-                        lock.unlock();
-                    }
-                });
+                withRetries(defaultRetryPolicy(), LOG, () ->
+                    whiteboardStorage.deleteWhiteboard(whiteboardId, null));
                 LOG.info("Undo creating whiteboard {} done", request.getWhiteboardName());
                 responseObserver.onError(Status.INTERNAL.withCause(e).asException());
             }
@@ -135,8 +120,6 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
                 fromProto(request.getScheme()));
 
             withRetries(defaultRetryPolicy(), LOG, () -> {
-                final var lock = lockManager.getOrCreate(whiteboardId);
-                lock.lock();
                 try (final var transaction = TransactionHandle.create(dataSource)) {
                     final Whiteboard whiteboard = whiteboardStorage.getWhiteboard(whiteboardId, transaction);
 
@@ -155,8 +138,6 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
                     whiteboardStorage.updateField(whiteboardId, linkedField, finalizedAt, transaction);
 
                     transaction.commit();
-                } finally {
-                    lock.unlock();
                 }
             });
 

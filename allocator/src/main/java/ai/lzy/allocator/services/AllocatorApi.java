@@ -27,10 +27,13 @@ import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.OperationService.Operation;
+import ai.lzy.v1.OperationServiceApiGrpc;
 import ai.lzy.v1.VmAllocatorApi.*;
 import com.google.protobuf.Any;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
+import io.grpc.StatusException;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
 import io.prometheus.client.Counter;
@@ -184,22 +187,6 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             return;
         }
 
-        BiConsumer<ai.lzy.allocator.model.Operation, String> failOperation = (op1, msg) -> {
-            op1.setError(Status.INTERNAL.withDescription(msg));
-
-            try {
-                withRetries(
-                    defaultRetryPolicy(),
-                    LOG,
-                    () -> {
-                        operations.update(op1, null);
-                        return null;
-                    });
-            } catch (Exception ex) {
-                LOG.error("Cannot fail operation {} with reason {}: {}", op1, msg, ex.getMessage(), ex);
-            }
-        };
-
         var vmOtt = UUID.randomUUID().toString();
 
         Vm.Spec spec;
@@ -227,6 +214,8 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                             operations.update(op, transaction);
 
                             transaction.commit();
+                            responseObserver.onNext(op.toProto());
+                            responseObserver.onCompleted();
 
                             metrics.allocateVmExisting.inc();
                             return null;
@@ -235,8 +224,14 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                         var workloads = request.getWorkloadList().stream()
                             .map(wl -> Workload.fromProto(wl, Map.of(AllocatorAgent.VM_ALLOCATOR_OTT, vmOtt)))
                             .toList();
-                        final List<VolumeRequest> volumes = getVolumeRequests(request, op, transaction);
-                        if (volumes == null) {
+                        final List<VolumeRequest> volumes;
+                        try {
+                            volumes = getVolumeRequests(request, transaction);
+                        } catch (StatusException e) {
+                            op.setError(e.getStatus());
+                            operations.update(op, transaction);
+                            transaction.commit();
+                            responseObserver.onError(e);
                             return null;
                         }
 
@@ -258,22 +253,30 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                         transaction.commit();
                         metrics.allocateVmNew.inc();
 
+                        responseObserver.onNext(op.toProto());
+                        responseObserver.onCompleted();
+
                         return vmSpec;
                     }
                 });
+        } catch (StatusRuntimeException e) {
+            failOperation(operations, op, e.getStatus());
+            responseObserver.onError(e);
+            return;
         } catch (Exception ex) {
             LOG.error("Error while executing transaction: {}", ex.getMessage(), ex);
-            failOperation.accept(op, ex.getMessage());
+            final var status = Status.INTERNAL.withDescription("Error while executing request").withCause(ex);
+            failOperation(operations, op, status);
 
             metrics.allocationError.inc();
 
-            responseObserver.onNext(op.toProto());
-            responseObserver.onCompleted();
+            responseObserver.onError(status.asException());
             return;
         }
 
-        responseObserver.onNext(op.toProto());
-        responseObserver.onCompleted();
+        if (spec == null) {
+            return;
+        }
 
         // TODO: do in another thread, don't occupy grpc-pool
         try {
@@ -299,13 +302,33 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         } catch (Exception e) {
             LOG.error("Error during allocation: {}", e.getMessage(), e);
             metrics.allocationError.inc();
-            failOperation.accept(op, "Error while executing request");
+            failOperation(operations, op, Status.INTERNAL.withDescription("Error while executing request"));
         }
     }
 
-    @Nullable
-    private List<VolumeRequest> getVolumeRequests(AllocateRequest request, ai.lzy.allocator.model.Operation op,
-                                                  TransactionHandle transaction) throws SQLException
+    private static void failOperation(
+        OperationDao operations,
+        ai.lzy.allocator.model.Operation operation,
+        Status error)
+    {
+        operation.setError(error);
+
+        try {
+            withRetries(
+                defaultRetryPolicy(),
+                LOG,
+                () -> {
+                    operations.update(operation, null);
+                    return null;
+                });
+        } catch (Exception ex) {
+            LOG.error("Cannot fail operation {} with reason {}: {}",
+                operation, error.getDescription(), ex.getMessage(), ex);
+        }
+    }
+
+    private List<VolumeRequest> getVolumeRequests(AllocateRequest request, TransactionHandle transaction)
+        throws SQLException, StatusException
     {
         final List<VolumeRequest> volumes = new ArrayList<>();
         for (var volume: request.getVolumesList()) {
@@ -324,10 +347,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                     final String message =
                         "Disk with id %s not found in diskStorage".formatted(diskVolume.getDiskId());
                     LOG.error(message);
-                    op.setError(Status.NOT_FOUND.withDescription(message));
-                    operations.update(op, transaction);
-                    transaction.commit();
-                    return null;
+                    throw Status.NOT_FOUND.withDescription(message).asException();
                 }
 
                 volumes.add(new VolumeRequest(new DiskVolumeDescription(
@@ -337,10 +357,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                 final String message = "Unknown volumeType %s for volume=%s"
                     .formatted(volume.getVolumeTypeCase(), volume.getName());
                 LOG.error(message);
-                op.setError(Status.INVALID_ARGUMENT.withDescription(message));
-                operations.update(op, transaction);
-                transaction.commit();
-                return null;
+                throw Status.INVALID_ARGUMENT.withDescription(message).asException();
             }
         }
         return volumes;

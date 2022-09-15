@@ -12,7 +12,7 @@ from azure.storage.blob import (  # type: ignore
 from lzy.api.v2.utils.types import unwrap
 from lzy.storage.api import AzureCredentials, AzureSasCredentials
 from lzy.storage.deprecated.storage_client import StorageClient
-from lzy.storage.url import Scheme, bucket_from_url
+from lzy.storage.url import Scheme, bucket_from_uri
 
 logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(
     logging.WARNING
@@ -25,7 +25,7 @@ class AzureClient(StorageClient):
     def read_to_file(self, url: str, path: str):
         uri = parse.urlparse(url)
         assert uri.scheme == "azure"
-        bucket, other = bucket_from_url(self.scheme, url)
+        bucket, other = bucket_from_uri(self.scheme, url)
 
         downloader: StorageStreamDownloader = (
             self.client.get_container_client(bucket)
@@ -42,7 +42,7 @@ class AzureClient(StorageClient):
     def read(self, url: str, dest: BinaryIO) -> None:
         uri = parse.urlparse(url)
         assert uri.scheme == "azure"
-        bucket, other = bucket_from_url(self.scheme, url)
+        bucket, other = bucket_from_uri(self.scheme, url)
 
         downloader: StorageStreamDownloader = (
             self.client.get_container_client(bucket)

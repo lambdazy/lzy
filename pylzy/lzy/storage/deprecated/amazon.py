@@ -8,7 +8,7 @@ from botocore.exceptions import ClientError
 
 from lzy.storage.api import AmazonCredentials
 from lzy.storage.deprecated.storage_client import StorageClient
-from lzy.storage.url import Scheme, bucket_from_url
+from lzy.storage.url import Scheme, bucket_from_uri
 
 
 class AmazonClient(StorageClient):
@@ -27,7 +27,7 @@ class AmazonClient(StorageClient):
     def read(self, url: str, dest: BinaryIO) -> None:
         uri = parse.urlparse(url)
         assert uri.scheme == "s3"
-        bucket, key = bucket_from_url(self.scheme, url)
+        bucket, key = bucket_from_uri(self.scheme, url)
         self._client.download_fileobj(bucket, key, dest)
 
     def write(self, bucket: str, key: str, data: BinaryIO) -> str:

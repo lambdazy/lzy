@@ -63,13 +63,27 @@ public class KuberVmAllocator implements VmAllocator {
         }
 
         try (final var client = factory.build(cluster)) {
+            var podSpecBuilder = new PodSpecBuilder(vmSpec, client, config);
+            withRetries(
+                defaultRetryPolicy(),
+                LOG,
+                () -> dao.saveAllocatorMeta(
+                    vmSpec.vmId(),
+                    Map.of(
+                        NAMESPACE_KEY, NAMESPACE,
+                        POD_NAME_KEY, podSpecBuilder.getPodName(),
+                        CLUSTER_ID_KEY, cluster.clusterId()),
+                    null),
+                RuntimeException::new);
+
             final List<DiskVolumeDescription> diskVolumeDescriptions = vmSpec.volumeRequests().stream()
                 .filter(volumeRequest -> volumeRequest.volumeDescription() instanceof DiskVolumeDescription)
                 .map(volumeRequest -> (DiskVolumeDescription) volumeRequest.volumeDescription())
                 .toList();
             final List<VolumeClaim> volumeClaims = KuberVolumeManager.allocateVolumes(client, diskVolumeDescriptions);
             dao.setVolumeClaims(vmSpec.vmId(), volumeClaims, null);
-            final Pod vmPodSpec = new PodSpecBuilder(vmSpec, client, config)
+
+            final Pod vmPodSpec = podSpecBuilder
                 .withWorkloads(vmSpec.workloads())
                 .withVolumes(volumeClaims)
                 .withHostVolumes(vmSpec.volumeRequests().stream()
@@ -78,18 +92,6 @@ public class KuberVmAllocator implements VmAllocator {
                     .toList())
                 .build();
             LOG.debug("Creating pod with podspec: {}", vmPodSpec);
-
-            withRetries(
-                defaultRetryPolicy(),
-                LOG,
-                () -> dao.saveAllocatorMeta(
-                    vmSpec.vmId(),
-                    Map.of(
-                        NAMESPACE_KEY, NAMESPACE,
-                        POD_NAME_KEY, vmPodSpec.getMetadata().getName(),
-                        CLUSTER_ID_KEY, cluster.clusterId()),
-                    null),
-                RuntimeException::new);
 
             final Pod pod;
             try {

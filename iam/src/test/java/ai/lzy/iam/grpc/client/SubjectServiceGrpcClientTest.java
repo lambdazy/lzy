@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.NoSuchElementException;
 
 public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
@@ -43,6 +44,7 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
         Credentials credentials = JwtUtils.credentials(
             internalUserConfig.userName(),
             AuthProvider.INTERNAL.name(),
+            Date.from(Instant.now()),
             JwtUtils.afterDays(1),
             internalUserConfig.credentialPrivateKey()
         );

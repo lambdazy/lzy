@@ -1,5 +1,11 @@
 package ai.lzy.allocator.test;
 
+import static ai.lzy.allocator.test.Utils.waitOperation;
+import static ai.lzy.allocator.volume.KuberVolumeManager.KUBER_GB_NAME;
+import static ai.lzy.allocator.volume.KuberVolumeManager.VOLUME_CAPACITY_STORAGE_KEY;
+import static ai.lzy.allocator.volume.KuberVolumeManager.YCLOUD_DISK_DRIVER;
+import static ai.lzy.allocator.volume.Volume.AccessMode.READ_WRITE_ONCE;
+
 import ai.lzy.allocator.AllocatorMain;
 import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactory;
 import ai.lzy.allocator.alloc.impl.kuber.KuberLabels;
@@ -7,8 +13,6 @@ import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.impl.AllocatorDataSource;
 import ai.lzy.allocator.dao.impl.SessionDaoImpl;
-import ai.lzy.iam.clients.SubjectServiceClient;
-import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.test.BaseTestWithIam;
@@ -32,7 +36,6 @@ import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
-import io.micronaut.inject.qualifiers.Qualifiers;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.junit.*;
@@ -49,11 +52,13 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.*;
 
-import static ai.lzy.allocator.test.Utils.waitOperation;
-
 public class AllocatorApiTest extends BaseTestWithIam {
 
     private static final int TIMEOUT_SEC = 300;
+
+    private static final String POD_PATH = "/api/v1/namespaces/default/pods";
+    private static final String PERSISTENT_VOLUME_PATH = "/api/v1/persistentvolumes";
+    private static final String PERSISTENT_VOLUME_CLAIM_PATH = "/api/v1/namespaces/default/persistentvolumeclaims";
 
     @Rule
     public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
@@ -65,7 +70,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
     private AllocatorGrpc.AllocatorBlockingStub authorizedAllocatorBlockingStub;
     private AllocatorPrivateGrpc.AllocatorPrivateBlockingStub privateAllocatorBlockingStub;
     private OperationServiceApiGrpc.OperationServiceApiBlockingStub operationServiceApiBlockingStub;
-    private SubjectServiceClient subjectServiceClient;
+    private DiskServiceGrpc.DiskServiceBlockingStub diskService;
     private AllocatorMain allocatorApp;
     private KubernetesServer kubernetesServer;
     private ManagedChannel channel;
@@ -119,10 +124,8 @@ public class AllocatorApiTest extends BaseTestWithIam {
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
         authorizedAllocatorBlockingStub = unauthorizedAllocatorBlockingStub.withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
-
-        subjectServiceClient = new SubjectServiceGrpcClient(
-            allocatorCtx.getBean(ManagedChannel.class, Qualifiers.byName("AllocatorIamGrpcChannel")),
-            () -> credentials);
+        diskService = DiskServiceGrpc.newBlockingStub(channel).withInterceptors(
+            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
     }
 
     @After
@@ -305,7 +308,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
     public void allocateKuberErrorWhileCreateTest() throws InvalidProtocolBufferException, InterruptedException {
         //simulate kuber api error on pod creation
         kubernetesServer.getKubernetesMockServer().clearExpectations();
-        kubernetesServer.expect().post().withPath("/api/v1/namespaces/default/pods")
+        kubernetesServer.expect().post().withPath(POD_PATH)
             .andReturn(HttpURLConnection.HTTP_INTERNAL_ERROR, new PodListBuilder().build())
             .once();
 
@@ -325,15 +328,12 @@ public class AllocatorApiTest extends BaseTestWithIam {
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
         mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
 
-        final Operation allocate = waitOp(operation);
-        Assert.assertEquals(Status.INTERNAL.getCode().value(), allocate.getError().getCode());
+        waitOpError(operation, Status.INTERNAL);
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
     }
 
     @Test
-    public void allocateServantTimeoutTest() throws InvalidProtocolBufferException,
-            InterruptedException, ExecutionException
-    {
+    public void allocateServantTimeoutTest() throws InterruptedException, ExecutionException {
         final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(100).build()).build())
@@ -345,8 +345,6 @@ public class AllocatorApiTest extends BaseTestWithIam {
             .setSessionId(createSessionResponse.getSessionId())
             .setPoolLabel("S")
             .build());
-        final VmAllocatorApi.AllocateMetadata allocateMetadata =
-            operation.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
 
         final String podName = future.get();
         mockGetPod(podName);
@@ -354,8 +352,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
         mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
 
-        final Operation allocate = waitOp(operation);
-        Assert.assertEquals(Status.DEADLINE_EXCEEDED.getCode().value(), allocate.getError().getCode());
+        waitOpError(operation, Status.DEADLINE_EXCEEDED);
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
     }
 
@@ -365,20 +362,25 @@ public class AllocatorApiTest extends BaseTestWithIam {
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(100).build()).build())
                 .build());
-        final Operation allocate = waitOp(authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
+        waitOpError(authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
             .setSessionId(createSessionResponse.getSessionId())
             .setPoolLabel("LABEL")
-            .build()));
-        Assert.assertEquals(Status.INVALID_ARGUMENT.getCode().value(), allocate.getError().getCode());
+            .build()),
+            Status.INVALID_ARGUMENT
+        );
     }
 
     @Test
     public void allocateInvalidSessionTest() {
         try {
-            waitOp(authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
-                .setSessionId(UUID.randomUUID().toString())
-                .setPoolLabel("S")
-                .build()));
+            waitOperation(
+                operationServiceApiBlockingStub,
+                authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
+                    .setSessionId(UUID.randomUUID().toString())
+                    .setPoolLabel("S")
+                    .build()),
+                TIMEOUT_SEC
+            );
             Assert.fail();
         } catch (StatusRuntimeException e) {
             Assert.assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
@@ -409,11 +411,10 @@ public class AllocatorApiTest extends BaseTestWithIam {
         mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
 
         registerVm(allocateMetadata.getVmId());
-        final Operation allocate = waitOp(allocationStarted);
+        final Operation allocate = waitOpSuccess(allocationStarted);
         final VmAllocatorApi.AllocateResponse allocateResponse =
             allocate.getResponse().unpack(VmAllocatorApi.AllocateResponse.class);
 
-        Assert.assertTrue(allocate.getDone());
         Assert.assertEquals(createSessionResponse.getSessionId(), allocateResponse.getSessionId());
         Assert.assertEquals("S", allocateResponse.getPoolId());
 
@@ -455,11 +456,10 @@ public class AllocatorApiTest extends BaseTestWithIam {
         }, HttpURLConnection.HTTP_INTERNAL_ERROR);
 
         registerVm(allocateMetadata.getVmId());
-        final Operation allocate = waitOp(allocationStarted);
+        final Operation allocate = waitOpSuccess(allocationStarted);
         final VmAllocatorApi.AllocateResponse allocateResponse =
             allocate.getResponse().unpack(VmAllocatorApi.AllocateResponse.class);
 
-        Assert.assertTrue(allocate.getDone());
         Assert.assertEquals(createSessionResponse.getSessionId(), allocateResponse.getSessionId());
         Assert.assertEquals("S", allocateResponse.getPoolId());
 
@@ -485,7 +485,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
 
         final var future = awaitAllocationRequest();
 
-        final Operation operationFirst = authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
+        Operation operationFirst = authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
             .setSessionId(createSessionResponse.getSessionId())
             .setPoolLabel("S")
             .build());
@@ -496,7 +496,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
         mockGetPod(firstPodName);
 
         registerVm(allocateMetadataFirst.getVmId());
-        waitOp(operationFirst);
+        operationFirst = waitOpSuccess(operationFirst);
 
         var vmSubj1 = super.getSubject(AuthProvider.INTERNAL, allocateMetadataFirst.getVmId(), SubjectType.VM);
         Assert.assertNotNull(vmSubj1);
@@ -504,7 +504,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
         //noinspection ResultOfMethodCallIgnored
         authorizedAllocatorBlockingStub.free(FreeRequest.newBuilder().setVmId(allocateMetadataFirst.getVmId()).build());
 
-        final Operation operationSecond = authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
+        Operation operationSecond = authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
             .setSessionId(createSessionResponse.getSessionId())
             .setPoolLabel("S")
             .build());
@@ -513,7 +513,11 @@ public class AllocatorApiTest extends BaseTestWithIam {
 
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
         mockDeletePod(firstPodName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
-        waitOp(operationSecond);
+        operationSecond = waitOpSuccess(operationSecond);
+
+        final var allocateResponseFirst = operationFirst.getResponse().unpack(AllocateResponse.class);
+        final var allocateResponseSecond = operationSecond.getResponse().unpack(AllocateResponse.class);
+        Assert.assertEquals(allocateResponseFirst.getVmId(), allocateResponseSecond.getVmId());
 
         var vmSubj2 = super.getSubject(AuthProvider.INTERNAL, allocateMetadataSecond.getVmId(), SubjectType.VM);
         Assert.assertNotNull(vmSubj2);
@@ -641,7 +645,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
         mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
 
         registerVm(allocateMetadata.getVmId());
-        waitOp(allocationStarted);
+        waitOpSuccess(allocationStarted);
         //noinspection ResultOfMethodCallIgnored
         authorizedAllocatorBlockingStub.free(FreeRequest.newBuilder().setVmId(allocateMetadata.getVmId()).build());
 
@@ -693,23 +697,172 @@ public class AllocatorApiTest extends BaseTestWithIam {
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
     }
 
+    @Test
+    public void runWithVolumes() throws InvalidProtocolBufferException, ExecutionException, InterruptedException {
+        final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
+            CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
+                    CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(0).build()).build())
+                .build());
+        final var future = awaitAllocationRequest();
+
+        final String volumeName = "volumeName";
+        final String mountPath = "/mnt/volume";
+        final VolumeApi.Mount volumeMount = VolumeApi.Mount.newBuilder()
+            .setVolumeName(volumeName)
+            .setMountPath(mountPath)
+            .setReadOnly(false)
+            .setMountPropagation(VolumeApi.Mount.MountPropagation.NONE)
+            .build();
+
+        final DiskApi.DiskSpec diskSpec = DiskApi.DiskSpec.newBuilder()
+            .setName("disk-name")
+            .setSizeGb(4)
+            .setZoneId("ru-central1-a")
+            .setType(DiskApi.DiskType.HDD)
+            .build();
+        Operation createDiskOperation = diskService.createDisk(DiskServiceApi.CreateDiskRequest.newBuilder()
+            .setUserId("user-id")
+            .setDiskSpec(diskSpec)
+            .build());
+        createDiskOperation = waitOpSuccess(createDiskOperation);
+        Assert.assertTrue(createDiskOperation.hasResponse());
+        final DiskServiceApi.CreateDiskResponse createDiskResponse = createDiskOperation.getResponse().unpack(
+            DiskServiceApi.CreateDiskResponse.class);
+        final DiskApi.Disk disk = createDiskResponse.getDisk();
+
+        final var persistentVolumeFuture = awaitResourceCreate(PersistentVolume.class, PERSISTENT_VOLUME_PATH);
+        final var persistentVolumeClaimFuture =
+            awaitResourceCreate(PersistentVolumeClaim.class, PERSISTENT_VOLUME_CLAIM_PATH);
+
+        final Operation allocationStarted = authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
+            .setSessionId(createSessionResponse.getSessionId())
+            .setPoolLabel("S")
+            .addWorkload(AllocateRequest.Workload.newBuilder()
+                .setName("workload")
+                .addVolumeMounts(volumeMount)
+                .build())
+            .addVolumes(VolumeApi.Volume.newBuilder()
+                .setName(volumeName)
+                .setDiskVolume(VolumeApi.DiskVolumeType.newBuilder()
+                    .setDiskId(disk.getDiskId()).build())
+                .build())
+            .build());
+        final VmAllocatorApi.AllocateMetadata allocateMetadata =
+            allocationStarted.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
+
+        final String podName = future.get();
+        mockGetPod(podName);
+
+        final PersistentVolume persistentVolume = persistentVolumeFuture.get();
+        final PersistentVolumeClaim persistentVolumeClaim = persistentVolumeClaimFuture.get();
+        final PersistentVolumeSpec volumeSpec = persistentVolume.getSpec();
+        Assert.assertEquals(disk.getDiskId(), volumeSpec.getCsi().getVolumeHandle());
+        Assert.assertEquals(YCLOUD_DISK_DRIVER, volumeSpec.getCsi().getDriver());
+        final Quantity expectedDiskSize = new Quantity(disk.getSpec().getSizeGb() + KUBER_GB_NAME);
+        Assert.assertEquals(
+            expectedDiskSize,
+            volumeSpec.getCapacity().get("storage")
+        );
+
+        Assert.assertEquals(persistentVolume.getMetadata().getName(), persistentVolumeClaim.getSpec().getVolumeName());
+        Assert.assertEquals("", persistentVolumeClaim.getSpec().getStorageClassName());
+        Assert.assertEquals(READ_WRITE_ONCE.asString(), persistentVolumeClaim.getSpec().getAccessModes().get(0));
+        Assert.assertEquals(expectedDiskSize,
+            persistentVolumeClaim.getSpec().getResources().getRequests().get(VOLUME_CAPACITY_STORAGE_KEY));
+
+        final CountDownLatch kuberRemoveResourceLatch = new CountDownLatch(3);
+        mockDeletePod(podName, kuberRemoveResourceLatch::countDown, HttpURLConnection.HTTP_OK);
+        mockDeleteResource(
+            PERSISTENT_VOLUME_PATH,
+            persistentVolume.getMetadata().getName(),
+            kuberRemoveResourceLatch::countDown,
+            HttpURLConnection.HTTP_OK
+        );
+        mockDeleteResource(
+            PERSISTENT_VOLUME_CLAIM_PATH,
+            persistentVolumeClaim.getMetadata().getName(),
+            kuberRemoveResourceLatch::countDown,
+            HttpURLConnection.HTTP_OK
+        );
+
+        registerVm(allocateMetadata.getVmId());
+        waitOpSuccess(allocationStarted);
+        //noinspection ResultOfMethodCallIgnored
+        authorizedAllocatorBlockingStub.free(FreeRequest.newBuilder().setVmId(allocateMetadata.getVmId()).build());
+        Assert.assertTrue(kuberRemoveResourceLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
+
+        //noinspection ResultOfMethodCallIgnored
+        diskService.deleteDisk(DiskServiceApi.DeleteDiskRequest.newBuilder().setDiskId(disk.getDiskId()).build());
+    }
+
+    @Test
+    public void runWithVolumeButNonExistingDisk() {
+        final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
+            CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
+                    CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(0).build()).build())
+                .build());
+
+        final String volumeName = "volumeName";
+        final String mountPath = "/mnt/volume";
+        final VolumeApi.Mount volumeMount = VolumeApi.Mount.newBuilder()
+            .setVolumeName(volumeName)
+            .setMountPath(mountPath)
+            .setReadOnly(false)
+            .setMountPropagation(VolumeApi.Mount.MountPropagation.NONE)
+            .build();
+
+        try {
+            Operation allocationStarted = authorizedAllocatorBlockingStub.allocate(AllocateRequest.newBuilder()
+                .setSessionId(createSessionResponse.getSessionId())
+                .setPoolLabel("S")
+                .addWorkload(AllocateRequest.Workload.newBuilder()
+                    .setName("workload")
+                    .addVolumeMounts(volumeMount)
+                    .build())
+                .addVolumes(VolumeApi.Volume.newBuilder()
+                    .setName(volumeName)
+                    .setDiskVolume(VolumeApi.DiskVolumeType.newBuilder()
+                        .setDiskId("unknown-disk-id").build())
+                    .build())
+                .build());
+            waitOpError(allocationStarted, Status.NOT_FOUND);
+            Assert.fail();
+        } catch (StatusRuntimeException e) {
+            Assert.assertEquals(Status.NOT_FOUND.getCode(), e.getStatus().getCode());
+        }
+    }
+
     private void mockGetPod(String podName) {
         final Pod pod = new Pod();
         pod.setMetadata(new ObjectMetaBuilder().withName(podName).build());
         pod.setSpec(new PodSpecBuilder()
             .withNodeName("node")
             .build());
-        final var mock = kubernetesServer.expect().get()
-            .withPath("/api/v1/namespaces/default/pods?labelSelector=" +
+        kubernetesServer.expect().get()
+            .withPath(POD_PATH + "?labelSelector=" +
                 URLEncoder.encode(KuberLabels.LZY_POD_NAME_LABEL + "=" + podName, StandardCharsets.UTF_8))
             .andReturn(HttpURLConnection.HTTP_OK, new PodListBuilder().withItems(pod).build())
             .always();
     }
 
+    private <T> Future<T> awaitResourceCreate(Class<T> resourceType, String resourcePath) {
+        final var future = new CompletableFuture<T>();
+        kubernetesServer.expect().post()
+            .withPath(resourcePath)
+            .andReply(HttpURLConnection.HTTP_CREATED, (req) -> {
+                final var resource = Serialization.unmarshal(
+                    new ByteArrayInputStream(req.getBody().readByteArray()), resourceType, Map.of());
+                future.complete(resource);
+                return resource;
+            })
+            .once();
+        return future;
+    }
+
     private Future<String> awaitAllocationRequest() {
         final var future = new CompletableFuture<String>();
         kubernetesServer.expect().post()
-            .withPath("/api/v1/namespaces/default/pods")
+            .withPath(POD_PATH)
             .andReply(HttpURLConnection.HTTP_CREATED, (req) -> {
                 final var pod = Serialization.unmarshal(
                     new ByteArrayInputStream(req.getBody().readByteArray()), Pod.class, Map.of());
@@ -720,13 +873,17 @@ public class AllocatorApiTest extends BaseTestWithIam {
         return future;
     }
 
-    private void mockDeletePod(String podName, Runnable onDelete, int responseCode) {
+    private void mockDeleteResource(String resourcePath, String resourceName, Runnable onDelete, int responseCode) {
         kubernetesServer.expect().delete()
-            .withPath("/api/v1/namespaces/default/pods/" + podName)
+            .withPath(resourcePath + "/" + resourceName)
             .andReply(responseCode, (req) -> {
                 onDelete.run();
                 return new StatusDetails();
             }).once();
+    }
+
+    private void mockDeletePod(String podName, Runnable onDelete, int responseCode) {
+        mockDeleteResource(POD_PATH, podName, onDelete, responseCode);
     }
 
     private void registerVm(String vmId) {
@@ -745,7 +902,18 @@ public class AllocatorApiTest extends BaseTestWithIam {
         }, TIMEOUT_SEC, TimeUnit.SECONDS);
     }
 
-    private Operation waitOp(Operation operation) {
-        return waitOperation(operationServiceApiBlockingStub, operation, TIMEOUT_SEC);
+    private Operation waitOpSuccess(Operation operation) {
+        var updatedOperation = waitOperation(operationServiceApiBlockingStub, operation, TIMEOUT_SEC);
+        Assert.assertTrue(updatedOperation.hasResponse());
+        Assert.assertFalse(updatedOperation.hasError());
+        Assert.assertTrue(updatedOperation.getDone());
+        return updatedOperation;
+    }
+
+    private void waitOpError(Operation operation, Status expectedErrorStatus) {
+        var updatedOperation = waitOperation(operationServiceApiBlockingStub, operation, TIMEOUT_SEC);
+        Assert.assertFalse(updatedOperation.hasResponse());
+        Assert.assertTrue(updatedOperation.hasError());
+        Assert.assertEquals(expectedErrorStatus.getCode().value(), updatedOperation.getError().getCode());
     }
 }

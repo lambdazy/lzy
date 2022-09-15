@@ -1,7 +1,7 @@
 import tempfile
 import uuid
 from dataclasses import dataclass
-from typing import Any, BinaryIO, Callable, Type, Union, Dict
+from typing import Any, BinaryIO, Callable, Dict, Type, Union
 from unittest import TestCase
 
 import cloudpickle
