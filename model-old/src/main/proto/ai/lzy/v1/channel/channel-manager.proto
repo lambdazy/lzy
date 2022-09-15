@@ -9,13 +9,13 @@ option java_outer_classname = "LCMS";
 option java_package = "ai.lzy.v1.channel";
 
 service LzyChannelManager {
-  rpc Create (ChannelCreateRequest) returns (ChannelCreateResponse);
-  rpc Destroy (ChannelDestroyRequest) returns (ChannelDestroyResponse);
-  rpc DestroyAll (ChannelDestroyAllRequest) returns (ChannelDestroyAllResponse);
-  rpc Status (ChannelStatusRequest) returns (ChannelStatus);
-  rpc StatusAll (ChannelStatusAllRequest) returns (ChannelStatusList);
-  rpc Bind (SlotAttach) returns (SlotAttachStatus);
-  rpc Unbind (SlotDetach) returns (SlotDetachStatus);
+  rpc Create (ChannelCreateRequest) returns (ChannelCreateResponse); // wf-service
+  rpc Destroy (ChannelDestroyRequest) returns (ChannelDestroyResponse); // wf-service
+  rpc DestroyAll (ChannelDestroyAllRequest) returns (ChannelDestroyAllResponse); // wf-service
+  rpc Status (ChannelStatusRequest) returns (ChannelStatus); // wf-service
+  rpc StatusAll (ChannelStatusAllRequest) returns (ChannelStatusList); // wf-service
+  rpc Bind (SlotAttach) returns (SlotAttachStatus); // worker with user permissions
+  rpc Unbind (SlotDetach) returns (SlotDetachStatus); // worker with user permissions
 }
 
 message ChannelCreateRequest {
