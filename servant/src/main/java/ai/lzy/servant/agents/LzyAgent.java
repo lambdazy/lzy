@@ -85,6 +85,7 @@ public class LzyAgent implements Closeable {
             config.getWhiteboardAddress(),
             config.getChannelManagerAddress(),
             auth);
+        lzyFs.start();
         context = new LzyContext(config.getAgentId(),
             lzyFs.getSlotsManager(),
             lzyFs.getMountPoint().toString());

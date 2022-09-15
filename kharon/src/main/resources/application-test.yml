@@ -1,15 +1,16 @@
 kharon:
   address: 'localhost:8899'
   # external-host: ''
-  servant-proxy-port: 8900
-  servant-fs-proxy-port: 8901
 
   server-address: 'localhost:7777'
   whiteboard-address: 'localhost:8999'
   snapshot-address: 'localhost:8999'
+  allocator-address: 'localhost:8799'
+  channel-manager-address: 'localhost:8122'
 
-  workflow:
-    enabled: true
+  servant-proxy-port: 8900
+  servant-fs-proxy-port: 8901
+  channel-manager-proxy-port: 8123
 
   database:
     url: 'embedded-postgres'
@@ -52,3 +53,15 @@ kharon:
       /R0NeRjKxaOebS9NKgaWI9YB+9kxCa3R//sGkRvAOHa7H986mQ1Vx1y14GGtuSTr
       l7I2m1fDWAE7ibup2fO9VSexAlqwoDnv4dWQ03f/ifRpFE/Tg7NV5OM=
       -----END RSA PRIVATE KEY-----
+
+  workflow:
+    enabled: true
+    wait-allocation-timeout: 10s
+
+  portal:
+    host: 'localhost'
+    portal-api-port: '${random.port}'
+    fs-api-port: '${random.port}'
+    fs-root: '/tmp/lzy-fs'
+    stdout-channel-name: 'portal:stdout'
+    stderr-channel-name: 'portal:stderr'

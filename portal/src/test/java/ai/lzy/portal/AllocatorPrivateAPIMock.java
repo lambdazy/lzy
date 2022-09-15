@@ -7,14 +7,16 @@ import io.grpc.stub.StreamObserver;
 class AllocatorPrivateAPIMock extends AllocatorPrivateGrpc.AllocatorPrivateImplBase {
     @Override
     public void register(VmAllocatorPrivateApi.RegisterRequest request,
-                         StreamObserver<VmAllocatorPrivateApi.RegisterResponse> responseObserver) {
+                         StreamObserver<VmAllocatorPrivateApi.RegisterResponse> responseObserver)
+    {
         responseObserver.onNext(VmAllocatorPrivateApi.RegisterResponse.getDefaultInstance());
         responseObserver.onCompleted();
     }
 
     @Override
     public void heartbeat(VmAllocatorPrivateApi.HeartbeatRequest request,
-                          StreamObserver<VmAllocatorPrivateApi.HeartbeatResponse> responseObserver) {
+                          StreamObserver<VmAllocatorPrivateApi.HeartbeatResponse> responseObserver)
+    {
         responseObserver.onNext(VmAllocatorPrivateApi.HeartbeatResponse.getDefaultInstance());
         responseObserver.onCompleted();
     }

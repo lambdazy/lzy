@@ -1,27 +1,27 @@
-package ai.lzy.portal;
+package ai.lzy.test.mocks;
 
 import ai.lzy.model.deprecated.GrpcConverter;
-import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.test.GrpcUtils;
+import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.channel.LCMS;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.fs.LzyFsApi;
 import ai.lzy.v1.fs.LzyFsGrpc;
+import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
 import io.grpc.Status;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
-import io.micronaut.context.ApplicationContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -36,14 +36,12 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
     private static final Logger LOG = LogManager.getLogger(ChannelManagerMock.class);
 
     final int port;
-    final ApplicationContext ctx;
     final Server server;
 
-    public ChannelManagerMock() {
-        port = GrpcUtils.rollPort();
-        Map<String, Object> properties = Map.of("channel-manager.port", port);
-        ctx = ApplicationContext.run(properties);
-        server = NettyServerBuilder.forPort(port)
+    public ChannelManagerMock(HostAndPort address) {
+        this.port = address.getPort();
+        server = NettyServerBuilder
+            .forAddress(new InetSocketAddress(address.getHost(), address.getPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(ServerInterceptors.intercept(this))
@@ -97,11 +95,11 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
         }
     }
 
-    static class DirectChannelInfo implements Closeable {
+    public static class DirectChannelInfo implements Closeable {
         final AtomicReference<Endpoint> inputEndpoint = new AtomicReference<>(null);
         final AtomicReference<Endpoint> outputEndpoint = new AtomicReference<>(null);
         final AtomicReference<LCMS.SlotAttach> inputSlot = new AtomicReference<>(null);
-        final AtomicReference<LCMS.SlotAttach> outputSlot = new AtomicReference<>(null);
+        public final AtomicReference<LCMS.SlotAttach> outputSlot = new AtomicReference<>(null);
 
         boolean isCompleted() {
             return inputSlot.get() != null && outputSlot.get() != null;
@@ -129,7 +127,8 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
 
     @Override
     public void create(LCMS.ChannelCreateRequest request,
-                       StreamObserver<LCMS.ChannelCreateResponse> response) {
+                       StreamObserver<LCMS.ChannelCreateResponse> response)
+    {
         LOG.info("create {}", JsonUtils.printRequest(request));
         if (!request.getChannelSpec().hasDirect()) {
             response.onError(INVALID_ARGUMENT.withDescription("Not direct channel").asException());
@@ -152,7 +151,8 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
 
     @Override
     public void destroy(LCMS.ChannelDestroyRequest request,
-                        StreamObserver<LCMS.ChannelDestroyResponse> response) {
+                        StreamObserver<LCMS.ChannelDestroyResponse> response)
+    {
         LOG.info("destroy {}", JsonUtils.printRequest(request));
         var channel = directChannels.get(request.getChannelId());
         if (channel == null) {
@@ -176,19 +176,22 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
 
     @Override
     public void status(LCMS.ChannelStatusRequest request,
-                       StreamObserver<LCMS.ChannelStatus> response) {
+                       StreamObserver<LCMS.ChannelStatus> response)
+    {
         response.onError(INVALID_ARGUMENT.withDescription("Unknown command").asException());
     }
 
     @Override
     public void statusAll(LCMS.ChannelStatusAllRequest request,
-                               StreamObserver<LCMS.ChannelStatusList> responseObserver) {
+                          StreamObserver<LCMS.ChannelStatusList> responseObserver)
+    {
         super.statusAll(request, responseObserver);
     }
 
     @Override
     public void bind(LCMS.SlotAttach request,
-                     StreamObserver<LCMS.SlotAttachStatus> responseObserver) {
+                     StreamObserver<LCMS.SlotAttachStatus> responseObserver)
+    {
         LOG.info("bind {}", JsonUtils.printRequest(request));
         final String channelName = request.getSlotInstance().getChannelId();
         final SlotInstance slotInstance = GrpcConverter.from(request.getSlotInstance());

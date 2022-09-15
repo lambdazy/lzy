@@ -44,7 +44,6 @@ public record Vm(
         List<VolumeRequest> volumeRequests
     ) {}
 
-
     public record State(
         VmStatus status,
         @Nullable Instant lastActivityTime,

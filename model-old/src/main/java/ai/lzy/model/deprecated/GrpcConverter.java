@@ -10,6 +10,8 @@ import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.slot.SlotStatus;
+import ai.lzy.v1.channel.LCM;
+import ai.lzy.v1.channel.LCMS;
 import ai.lzy.v1.common.LMD;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.deprecated.Lzy;
@@ -49,6 +51,13 @@ public abstract class GrpcConverter {
 
     public static DataSchema contentTypeFrom(LMD.DataScheme dataScheme) {
         return DataSchema.buildDataSchema(dataScheme.getSchemeType(), dataScheme.getType());
+    }
+
+    public static LCMS.ChannelCreateRequest createChannelRequest(String workflowId, LCM.ChannelSpec spec) {
+        return LCMS.ChannelCreateRequest.newBuilder()
+            .setWorkflowId(workflowId)
+            .setChannelSpec(spec)
+            .build();
     }
 
     public static LzyZygote.Zygote to(Zygote zygote) {

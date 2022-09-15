@@ -196,8 +196,8 @@ public class VmDaoImpl implements VmDao {
         try (var conn = storage.connect();
              var st = conn.prepareStatement(QUERY_UPDATE_VM_ACTIVITY))
         {
-            st.setString(1, vmId);
-            st.setTimestamp(2, Timestamp.from(time));
+            st.setTimestamp(1, Timestamp.from(time));
+            st.setString(2, vmId);
             st.executeUpdate();
         }
     }

@@ -86,7 +86,6 @@ public enum DbHelper {
             error);
     }
 
-
     interface RetryPolicy {
         int getNextDelayMs();
     }
