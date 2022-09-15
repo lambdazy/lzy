@@ -72,8 +72,8 @@ class DataSchema:
 
     def to_dict(self) -> Dict[str, str]:
         return {
-            "type": self.type_,
-            "schemeType": self.schemeType,
+            "schemeContent": self.type_,
+            "dataFormat": self.schemeType,
         }
 
     def to_json(self) -> str:

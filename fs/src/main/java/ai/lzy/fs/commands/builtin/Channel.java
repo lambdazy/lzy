@@ -105,10 +105,10 @@ public final class Channel implements LzyCommand {
                     final Map<String, String> bindings = new HashMap<String, String>(
                         objectMapper.readValue(new File(mappingFile), Map.class));
 
-                    String dataSchemeType = bindings.get("schemeType");
-                    String contentType = bindings.getOrDefault("type", "default");
-                    LOG.info("building dataschema from args {} and {}", dataSchemeType, contentType);
-                    data = new DataScheme(dataSchemeType, "", contentType, Map.of());
+                    String dataFormat = bindings.get("dataFormat");
+                    String schemeContent = bindings.getOrDefault("schemeContent", "default");
+                    LOG.info("building dataschema from args {} and {}", dataFormat, schemeContent);
+                    data = new DataScheme(dataFormat, "", schemeContent, Map.of());
                 } else {
                     data = DataScheme.PLAIN;
                 }
