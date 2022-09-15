@@ -9,6 +9,7 @@ from lzy.serialization.utils import cached_installed_packages
 class ProtoMessageSerializer(Serializer):
     def __init__(self):
         self._log = logging.getLogger(str(self.__class__))
+        self._lib_name = "pure-protobuf"
         self._pure_proto_version = "unknown"
 
     def serialize(self, obj: Any, dest: BinaryIO) -> None:
@@ -30,6 +31,7 @@ class ProtoMessageSerializer(Serializer):
                 self._pure_proto_version = cached_installed_packages[
                     "hidden-pure-protobuf"
                 ]
+                self._lib_name = "hidden-pure-protobuf"
             elif "pure-protobuf" in cached_installed_packages:
                 self._pure_proto_version = cached_installed_packages["pure-protobuf"]
             return True
@@ -49,4 +51,4 @@ class ProtoMessageSerializer(Serializer):
         return StandardDataFormats.proto.name
 
     def meta(self) -> Dict[str, str]:
-        return {"pure_protobuf_version": self._pure_proto_version}
+        return {self._lib_name: self._pure_proto_version}

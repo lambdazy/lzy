@@ -26,4 +26,4 @@ class CloudpickleSerializer(Serializer):
         return StandardDataFormats.pickle.name
 
     def meta(self) -> Dict[str, str]:
-        return {"cloudpickle_version": cloudpickle.__version__}
+        return {"cloudpickle": cloudpickle.__version__}

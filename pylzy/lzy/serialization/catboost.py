@@ -8,7 +8,7 @@ from lzy.serialization.api import Serializer
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
-# noinspection PyPackageRequirements,PyMethodMayBeStatic
+# noinspection PyPackageRequirements
 class CatboostPoolSerializer(Serializer):
     def __init__(self):
         self._log = logging.getLogger(str(self.__class__))
@@ -63,4 +63,4 @@ class CatboostPoolSerializer(Serializer):
     def meta(self) -> Dict[str, str]:
         import catboost
 
-        return {"catboost_version": catboost.__version__}
+        return {"catboost": catboost.__version__}
