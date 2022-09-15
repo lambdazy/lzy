@@ -15,6 +15,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
+import java.time.Instant;
+import java.util.Date;
 import java.util.Objects;
 
 import static ai.lzy.model.UriScheme.LzyFs;
@@ -75,8 +77,8 @@ public class App {
         var allocatorAgent = new AllocatorAgent(config.getAllocatorToken(),
             config.getVmId(), config.getAllocatorAddress(), config.getAllocatorHeartbeatPeriod(), config.getHost());
 
-        var fsServerJwt = JwtUtils.buildJWT(config.getPortalId(), "INTERNAL", JwtUtils.afterDays(7),
-            new StringReader(config.getIamToken()));
+        var fsServerJwt = JwtUtils.buildJWT(config.getPortalId(), "INTERNAL", Date.from(Instant.now()),
+            JwtUtils.afterDays(7), new StringReader(config.getIamToken()));
         var fsServer = new LzyFsServer(config.getPortalId(), config.getFsRoot(), fsUri, channelManagerUri, fsServerJwt);
 
         var main = new App(new Portal(config, allocatorAgent, fsServer));
