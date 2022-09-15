@@ -4,6 +4,7 @@
   botocore,
   boto3,
   cloudpickle,
+  jsonpickle,
   importlib-metadata,
   grpclib,
   pyyaml,
@@ -24,6 +25,7 @@ buildPythonPackage rec {
       botocore
       boto3
       cloudpickle
+      jsonpickle
       importlib-metadata
       grpclib
       pyyaml

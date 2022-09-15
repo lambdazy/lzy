@@ -11,7 +11,12 @@ from catboost import Pool
 from pure_protobuf.dataclasses_ import field, message
 from pure_protobuf.types import int32
 
-from lzy.serialization.api import Serializer
+from lzy.serialization.api import (
+    Schema,
+    Serializer,
+    StandardDataFormats,
+    StandardSchemaFormats,
+)
 from lzy.serialization.catboost import CatboostPoolSerializer
 from lzy.serialization.registry import DefaultSerializerRegistry
 from lzy.serialization.types import File
@@ -91,6 +96,7 @@ class SerializationTests(TestCase):
         self.assertTrue(isinstance(serializer, CatboostPoolSerializer))
         self.assertEqual(pool.get_weight(), deserialized_pool.get_weight())
         self.assertTrue(serializer.stable())
+        self.assertIn("catboost_version", serializer.meta())
 
     def test_register_unregister_serializer_for_type(self):
         serializer = generate_serializer(available=True, supported_types=A)()
@@ -199,6 +205,53 @@ class SerializationTests(TestCase):
 
         self.assertEqual(b.x, deserialized.x)
         self.assertFalse(serializer.stable())
+        self.assertIn("cloudpickle_version", serializer.meta())
+
+    def test_default_schema(self):
+        class B:
+            def __init__(self, x: int):
+                self.x = x
+
+        serializer = self.registry.find_serializer_by_type(B)
+        b = B(42)
+        schema = serializer.schema(b)
+
+        self.assertEqual(StandardDataFormats.pickle.name, schema.data_format)
+        self.assertEqual(StandardSchemaFormats.pickled_type.name, schema.schema_format)
+
+        deserializer = self.registry.find_serializer_by_data_format(schema.data_format)
+        with tempfile.TemporaryFile() as file:
+            serializer.serialize(b, file)
+            file.flush()
+            file.seek(0)
+            deserialized = deserializer.deserialize(file, B)
+        self.assertEqual(b.x, deserialized.x)
+
+        typ = deserializer.resolve(schema)
+        self.assertEqual(B.__module__, typ.__module__)
+        self.assertEqual(B.__name__, typ.__name__)
+
+        with self.assertRaisesRegex(ValueError, "Invalid data format*"):
+            serializer.resolve(
+                Schema(
+                    StandardDataFormats.proto.name,
+                    StandardSchemaFormats.pickled_type.name,
+                )
+            )
+        with self.assertRaisesRegex(ValueError, "Invalid schema format*"):
+            serializer.resolve(
+                Schema(
+                    StandardDataFormats.pickle.name,
+                    StandardSchemaFormats.json_pickled_type.name,
+                )
+            )
+        with self.assertRaisesRegex(ValueError, "No schema content*"):
+            serializer.resolve(
+                Schema(
+                    StandardDataFormats.pickle.name,
+                    StandardSchemaFormats.pickled_type.name,
+                )
+            )
 
     def test_file_serializer(self):
         content = "test string"
@@ -217,6 +270,7 @@ class SerializationTests(TestCase):
         with deserialized_file.open() as file:
             self.assertEqual(content, file.read())
         self.assertTrue(serializer.stable())
+        self.assertIn("lzy_version", serializer.meta())
 
     def test_resolve_serializer_name(self):
         serializer = self.registry.find_serializer_by_type(A)
@@ -225,3 +279,79 @@ class SerializationTests(TestCase):
 
         unused = generate_serializer()()
         self.assertIsNone(self.registry.resolve_name(unused))
+
+    def test_primitive_serialization(self):
+        var = 10
+        self.assertEqual(var, self.serialized_and_deserialized(var))
+
+        var = 0.0001
+        self.assertEqual(var, self.serialized_and_deserialized(var))
+
+        var = "str"
+        self.assertEqual(var, self.serialized_and_deserialized(var))
+
+        var = True
+        self.assertEqual(var, self.serialized_and_deserialized(var))
+
+    def test_primitive_schema(self):
+        var = 10
+        serializer = self.registry.find_serializer_by_type(type(var))
+        with tempfile.TemporaryFile() as file:
+            serializer.serialize(var, file)
+            file.flush()
+            file.seek(0)
+
+            schema = serializer.schema(var)
+            deserializer = self.registry.find_serializer_by_data_format(
+                schema.data_format
+            )
+            typ: Type = deserializer.resolve(schema)
+            # noinspection PyTypeChecker
+            deserialized = deserializer.deserialize(file, typ)
+
+        self.assertEqual(var, deserialized)
+        self.assertTrue(serializer.stable())
+        self.assertTrue(serializer.available())
+        self.assertEqual(StandardDataFormats.primitive_type.name, schema.data_format)
+        self.assertEqual(
+            StandardSchemaFormats.json_pickled_type.name, schema.schema_format
+        )
+
+        with self.assertRaisesRegex(ValueError, "Invalid data format*"):
+            serializer.resolve(
+                Schema(
+                    StandardDataFormats.proto.name,
+                    StandardSchemaFormats.json_pickled_type.name,
+                )
+            )
+        with self.assertRaisesRegex(ValueError, "Invalid schema format*"):
+            serializer.resolve(
+                Schema(
+                    StandardDataFormats.primitive_type.name,
+                    StandardSchemaFormats.pickled_type.name,
+                )
+            )
+
+    def test_proto_serialization(self):
+        @message
+        @dataclass
+        class TestMessage:
+            a: int32 = field(1, default=0)
+
+        test_message = TestMessage(42)
+        self.assertEqual(
+            test_message.a, self.serialized_and_deserialized(test_message).a
+        )
+
+        serializer = self.registry.find_serializer_by_type(type(test_message))
+        self.assertTrue(serializer.stable())
+        self.assertIn("pure_protobuf_version", serializer.meta())
+
+    def serialized_and_deserialized(self, var: Any) -> Any:
+        serializer = self.registry.find_serializer_by_type(type(var))
+        with tempfile.TemporaryFile() as file:
+            serializer.serialize(var, file)
+            file.flush()
+            file.seek(0)
+            deserialized = serializer.deserialize(file, type(var))
+        return deserialized

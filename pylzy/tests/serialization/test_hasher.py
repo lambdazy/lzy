@@ -20,7 +20,7 @@ class HasherTests(TestCase):
         value = self.hasher.hash(obj)
 
         self.assertTrue(can_hash)
-        self.assertEqual(value, "eddf6e1147a82679c4fbbf85d0ff2d48")
+        self.assertEqual(value, "767e2d7912ebefdfe18495ed53635fc8")
 
     def test_complex_object(self):
         obj = A()
