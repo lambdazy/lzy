@@ -61,8 +61,8 @@ public class AllocatorMain {
                 io.grpc.netty.shaded.io.netty.eventLoopThreads={}
                 availableProcessors={}
                 """,
-            System.getenv("io.netty.eventLoopThreads"),
-            System.getenv("io.grpc.netty.shaded.io.netty.eventLoopThreads"),
+            System.getProperty("io.netty.eventLoopThreads"),
+            System.getProperty("io.grpc.netty.shaded.io.netty.eventLoopThreads"),
             Runtime.getRuntime().availableProcessors());
 
         final HostAndPort address = HostAndPort.fromString(config.getAddress());
