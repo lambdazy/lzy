@@ -18,9 +18,12 @@ import ai.lzy.util.grpc.GrpcLogsInterceptor;
 import ai.lzy.v1.AllocatorPrivateGrpc;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.net.HostAndPort;
-import io.grpc.*;
+import io.grpc.ManagedChannel;
+import io.grpc.Server;
+import io.grpc.ServerBuilder;
+import io.grpc.ServerInterceptors;
 import io.grpc.netty.NettyServerBuilder;
-import io.micronaut.context.ApplicationContext;
+import io.micronaut.runtime.Micronaut;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -52,6 +55,15 @@ public class AllocatorMain {
         this.vmDao = vmDao;
         this.alloc = alloc;
         this.metricReporter = metricReporter;
+
+        LOG.info("""
+                io.netty.eventLoopThreads={}
+                io.grpc.netty.shaded.io.netty.eventLoopThreads={}
+                availableProcessors={}
+                """,
+            System.getenv("io.netty.eventLoopThreads"),
+            System.getenv("io.grpc.netty.shaded.io.netty.eventLoopThreads"),
+            Runtime.getRuntime().availableProcessors());
 
         final HostAndPort address = HostAndPort.fromString(config.getAddress());
         ServerBuilder<?> builder = NettyServerBuilder
@@ -104,8 +116,14 @@ public class AllocatorMain {
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        final var context = ApplicationContext.run();
-        var config = context.getBean(ServiceConfig.class);
+        final var context = Micronaut.build(args)
+            .banner(true)
+            .deduceEnvironment(true)
+            .eagerInitSingletons(true)
+            .mainClass(AllocatorMain.class)
+            .defaultEnvironments("local")
+            .start();
+
         final var main = context.getBean(AllocatorMain.class);
         main.start();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {

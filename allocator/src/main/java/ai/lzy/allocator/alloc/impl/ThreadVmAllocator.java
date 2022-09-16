@@ -14,6 +14,7 @@ import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nullable;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
@@ -43,6 +44,9 @@ public class ThreadVmAllocator implements VmAllocator {
 
             if (allocatorConfig.getVmJarFile() != null) {
                 final File vmJar = new File(allocatorConfig.getVmJarFile());
+                if (!vmJar.exists()) {
+                    throw new FileNotFoundException(allocatorConfig.getVmJarFile());
+                }
                 final URLClassLoader classLoader = new URLClassLoader(new URL[] {vmJar.toURI().toURL()},
                     ClassLoader.getSystemClassLoader());
                 vmClass = Class.forName(allocatorConfig.getVmClassName(), true, classLoader);
@@ -51,7 +55,7 @@ public class ThreadVmAllocator implements VmAllocator {
             }
 
             vmMain = vmClass.getDeclaredMethod("execute", String[].class);
-        } catch (MalformedURLException | ClassNotFoundException | NoSuchMethodException e) {
+        } catch (MalformedURLException | ClassNotFoundException | NoSuchMethodException | FileNotFoundException e) {
             throw new RuntimeException(e);
         }
     }
