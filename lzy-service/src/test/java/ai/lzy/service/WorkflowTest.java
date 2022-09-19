@@ -21,10 +21,7 @@ import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import ai.lzy.service.config.LzyServiceConfig;
 import com.google.common.net.HostAndPort;
 import com.google.protobuf.Empty;
-import io.grpc.Server;
-import io.grpc.ServerInterceptors;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
+import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
 import io.jsonwebtoken.Claims;
 import io.micronaut.context.ApplicationContext;
@@ -59,6 +56,7 @@ public class WorkflowTest {
     private Server lzyServer;
     private Server storageServer;
 
+    private ManagedChannel lzyServiceChannel;
     private LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub unauthorizedWorkflowClient;
     private LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub authorizedWorkflowClient;
 
@@ -114,9 +112,9 @@ public class WorkflowTest {
             .build();
         lzyServer.start();
 
-        var channel = ChannelBuilder.forAddress(workflowAddress).usePlaintext().build();
         var internalUser = iam.createCredentials();
-        unauthorizedWorkflowClient = LzyWorkflowServiceGrpc.newBlockingStub(channel);
+        lzyServiceChannel = ChannelBuilder.forAddress(workflowAddress).usePlaintext().build();
+        unauthorizedWorkflowClient = LzyWorkflowServiceGrpc.newBlockingStub(lzyServiceChannel);
         authorizedWorkflowClient = unauthorizedWorkflowClient.withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, internalUser::token));
     }
@@ -128,6 +126,7 @@ public class WorkflowTest {
         storageServer.shutdown();
         storageServer.awaitTermination();
         channelManagerMock.stop();
+        lzyServiceChannel.shutdown();
         lzyServer.shutdown();
         lzyServer.awaitTermination();
         context.stop();
