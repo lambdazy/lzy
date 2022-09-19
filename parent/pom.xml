@@ -591,19 +591,16 @@
                 <groupId>io.fabric8</groupId>
                 <artifactId>kubernetes-server-mock</artifactId>
                 <version>${kubernetes-server-mock.version}</version>
-                <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>com.squareup.okhttp3</groupId>
                 <artifactId>mockwebserver</artifactId>
                 <version>${mockwebserver.version}</version>
-                <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-stdlib</artifactId>
                 <version>${kotlin-stdlib.version}</version>
-                <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>org.projectlombok</groupId>
@@ -615,7 +612,6 @@
                 <groupId>pl.pragmatists</groupId>
                 <artifactId>JUnitParams</artifactId>
                 <version>${JUnitParams.version}</version>
-                <scope>test</scope>
             </dependency>
         </dependencies>
 
