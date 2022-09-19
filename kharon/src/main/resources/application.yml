@@ -10,9 +10,6 @@ kharon:
   servant-proxy-port: 8900
   servant-fs-proxy-port: 8901
 
-  workflow:
-    enabled: false
-
   database:
     url: 'jdbc:postgresql://localhost:5432/lzy_kharon_db'
     username: 'lzy_user'

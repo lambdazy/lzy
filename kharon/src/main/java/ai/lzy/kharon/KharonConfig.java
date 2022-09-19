@@ -9,7 +9,6 @@ import lombok.Getter;
 import lombok.Setter;
 
 import javax.annotation.Nullable;
-import java.time.Duration;
 
 @Getter
 @Setter
@@ -35,28 +34,4 @@ public class KharonConfig {
 
     @ConfigurationBuilder("iam")
     private final IamClientConfiguration iam = new IamClientConfiguration();
-
-    private WorkflowConfig workflow;
-
-    @Getter
-    @Setter
-    @ConfigurationProperties("workflow")
-    public static class WorkflowConfig {
-        private boolean enabled;
-        private Duration waitAllocationTimeout;
-    }
-
-    private PortalConfig portal;
-
-    @Getter
-    @Setter
-    @ConfigurationProperties("portal")
-    public static final class PortalConfig {
-        private int portalApiPort;
-        private int fsApiPort;
-        private String fsRoot;
-        private String portalImage;
-        private String stdoutChannelName;
-        private String stderrChannelName;
-    }
 }
