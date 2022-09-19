@@ -8,7 +8,6 @@ import ai.lzy.channelmanager.channel.SnapshotChannelSpec;
 import ai.lzy.channelmanager.db.ChannelManagerDataSource;
 import ai.lzy.channelmanager.db.ChannelStorage;
 import ai.lzy.channelmanager.lock.GrainedLock;
-import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.v1.channel.LCM;
 import ai.lzy.v1.channel.LCMPS;
@@ -23,7 +22,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.net.URI;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static ai.lzy.channelmanager.grpc.ProtoConverter.toChannelStatusProto;
@@ -55,11 +53,9 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         LOG.info("Create channel {}", request.getChannelSpec().getChannelName());
 
         try {
-            final var authenticationContext = AuthenticationContext.current();
-            final String userId = Objects.requireNonNull(authenticationContext).getSubject().id();
-            final String workflowId = request.getExecutionId();
+            final String executionId = request.getExecutionId();
             final LCM.ChannelSpec channelSpec = request.getChannelSpec();
-            if (workflowId.isBlank() || !ProtoValidator.isValid(channelSpec)) {
+            if (executionId.isBlank() || !ProtoValidator.isValid(channelSpec)) {
                 String errorMessage = "Request shouldn't contain empty fields";
                 LOG.error("Create channel {} failed, invalid argument: {}",
                     request.getChannelSpec().getChannelName(), errorMessage);
@@ -70,10 +66,10 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
             final String channelName = channelSpec.getChannelName();
             // Channel id is not random uuid for better logs.
             /* TODO: change channel id generation after creating Portal
-                 final String channelId = String.join("-", "channel", userId, workflowId, channelName)
+                 final String channelId = String.join("-", "channel", executionId, channelName)
                     .replaceAll("[^a-zA-z0-9-]+", "-");
              */
-            final String channelId = String.join("-", "channel", userId, workflowId).replaceAll("[^a-zA-z0-9-]+", "-")
+            final String channelId = String.join("-", "channel", executionId).replaceAll("[^a-zA-z0-9-]+", "-")
                                      + "!" + channelName;
 
             final var channelType = channelSpec.getTypeCase();
@@ -83,6 +79,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
                     ProtoConverter.fromProto(channelSpec.getContentType())
                 );
                 case SNAPSHOT -> new SnapshotChannelSpec(
+                    channelSpec.getSnapshot().getUserId(),
                     channelSpec.getChannelName(),
                     ProtoConverter.fromProto(channelSpec.getContentType()),
                     channelSpec.getSnapshot().getSnapshotId(),
@@ -102,7 +99,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
             withRetries(defaultRetryPolicy(), LOG, () -> {
                 lockManager.lock(channelId);
                 try {
-                    channelStorage.insertChannel(channelId, userId, workflowId, channelName, channelType, spec, null);
+                    channelStorage.insertChannel(channelId, executionId, channelName, channelType, spec, null);
                 } finally {
                     lockManager.unlock(channelId);
                 }
@@ -178,25 +175,23 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
     public void destroyAll(LCMPS.ChannelDestroyAllRequest request,
                            StreamObserver<LCMPS.ChannelDestroyAllResponse> responseObserver)
     {
-        LOG.info("Destroying all channels for workflow {}", request.getExecutionId());
+        LOG.info("Destroying all channels for execution {}", request.getExecutionId());
 
         try {
-            final var authenticationContext = AuthenticationContext.current();
-            final String userId = Objects.requireNonNull(authenticationContext).getSubject().id();
-            final String workflowId = request.getExecutionId();
-            if (workflowId.isBlank()) {
-                String errorMessage = "Empty workflow id, request shouldn't contain empty fields";
-                LOG.error("Destroying all channels for workflow {} failed, invalid argument: {}",
+            final String executionId = request.getExecutionId();
+            if (executionId.isBlank()) {
+                String errorMessage = "Empty execution id, request shouldn't contain empty fields";
+                LOG.error("Destroying all channels for execution {} failed, invalid argument: {}",
                     request.getExecutionId(), errorMessage);
                 responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(errorMessage).asException());
                 return;
             }
 
-            withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.setChannelLifeStatus(
-                userId, workflowId, ChannelStorage.ChannelLifeStatus.DESTROYING, null));
+            withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.setChannelLifeStatusByExecution(
+                executionId, ChannelStorage.ChannelLifeStatus.DESTROYING, null));
 
             List<Channel> channels =
-                channelStorage.listChannels(userId, workflowId, ChannelStorage.ChannelLifeStatus.DESTROYING, null);
+                channelStorage.listChannels(executionId, ChannelStorage.ChannelLifeStatus.DESTROYING, null);
             for (final Channel channel : channels) {
                 lockManager.lock(channel.id());
                 try {
@@ -208,16 +203,16 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
             }
 
             responseObserver.onNext(LCMPS.ChannelDestroyAllResponse.getDefaultInstance());
-            LOG.info("Destroying all channels for workflow {} done, {} removed channels: {}",
-                workflowId, channels.size(),
+            LOG.info("Destroying all channels for execution {} done, {} removed channels: {}",
+                executionId, channels.size(),
                 channels.stream().map(Channel::id).collect(Collectors.joining(",")));
             responseObserver.onCompleted();
         } catch (IllegalArgumentException e) {
-            LOG.error("Destroying all channels for workflow {} failed, invalid argument: {}",
+            LOG.error("Destroying all channels for execution {} failed, invalid argument: {}",
                 request.getExecutionId(), e.getMessage(), e);
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
         } catch (Exception e) {
-            LOG.error("Destroying all channels for workflow {} failed, got exception: {}",
+            LOG.error("Destroying all channels for execution {} failed, got exception: {}",
                 request.getExecutionId(), e.getMessage(), e);
             responseObserver.onError(Status.INTERNAL.withCause(e).asException());
         }
@@ -264,36 +259,34 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
     public void statusAll(LCMPS.ChannelStatusAllRequest request,
                           StreamObserver<LCMPS.ChannelStatusList> responseObserver)
     {
-        LOG.info("Get status for channels of workflow {}", request.getExecutionId());
+        LOG.info("Get status for channels of execution {}", request.getExecutionId());
 
         try {
-            final var authenticationContext = AuthenticationContext.current();
-            final String userId = Objects.requireNonNull(authenticationContext).getSubject().id();
-            final String workflowId = request.getExecutionId();
-            if (workflowId.isBlank()) {
-                String errorMessage = "Empty workflow id, request shouldn't contain empty fields";
-                LOG.error("Destroying all channels for workflow {} failed, invalid argument: {}",
+            final String executionId = request.getExecutionId();
+            if (executionId.isBlank()) {
+                String errorMessage = "Empty execution id, request shouldn't contain empty fields";
+                LOG.error("Destroying all channels for execution {} failed, invalid argument: {}",
                     request.getExecutionId(), errorMessage);
                 responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(errorMessage).asException());
                 return;
             }
 
             List<Channel> channels =
-                channelStorage.listChannels(userId, workflowId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
+                channelStorage.listChannels(executionId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
 
             final LCMPS.ChannelStatusList.Builder builder = LCMPS.ChannelStatusList.newBuilder();
             channels.forEach(channel -> builder.addStatuses(toChannelStatusProto(channel)));
             var channelStatusList = builder.build();
 
             responseObserver.onNext(channelStatusList);
-            LOG.info("Get status for channels of workflow {} done", request.getExecutionId());
+            LOG.info("Get status for channels of execution {} done", request.getExecutionId());
             responseObserver.onCompleted();
         } catch (IllegalArgumentException e) {
-            LOG.error("Destroying all channels for workflow {} failed, invalid argument: {}",
+            LOG.error("Destroying all channels for execution {} failed, invalid argument: {}",
                 request.getExecutionId(), e.getMessage(), e);
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
         } catch (Exception e) {
-            LOG.error("Get status for channels of workflow {} failed, got exception: {}",
+            LOG.error("Get status for channels of execution {} failed, got exception: {}",
                 request.getExecutionId(), e.getMessage(), e);
             responseObserver.onError(Status.INTERNAL.withCause(e).asException());
         }
