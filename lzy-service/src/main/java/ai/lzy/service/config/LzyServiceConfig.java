@@ -1,4 +1,4 @@
-package ai.lzy.kharon;
+package ai.lzy.service.config;
 
 import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.model.db.DatabaseConfiguration;
@@ -8,30 +8,38 @@ import io.micronaut.context.annotation.ConfigurationProperties;
 import lombok.Getter;
 import lombok.Setter;
 
-import javax.annotation.Nullable;
+import java.time.Duration;
 
 @Getter
 @Setter
-@ConfigurationProperties("kharon")
-public class KharonConfig {
+@ConfigurationProperties("lzy-service")
+public class LzyServiceConfig {
     private String address;
-    @Nullable
-    private String externalHost;
-    private String serverAddress;
-    private String whiteboardAddress;
-    private String snapshotAddress;
     private String allocatorAddress;
     private String channelManagerAddress;
-    private int servantProxyPort;
-    private int servantFsProxyPort;
-    private int channelManagerProxyPort;
+
+    private Duration waitAllocationTimeout;
+
+    private StartupPortalConfig portal;
+
+    @Getter
+    @Setter
+    @ConfigurationProperties("portal")
+    public static final class StartupPortalConfig {
+        private int portalApiPort;
+        private int fsApiPort;
+        private String fsRoot;
+        private String dockerImage;
+        private String stdoutChannelName;
+        private String stderrChannelName;
+    }
+
+    @ConfigurationBuilder("iam")
+    private final IamClientConfiguration iam = new IamClientConfiguration();
 
     @ConfigurationBuilder("database")
     private final DatabaseConfiguration database = new DatabaseConfiguration();
 
     @ConfigurationBuilder("storage")
     private final StorageClientConfiguration storage = new StorageClientConfiguration();
-
-    @ConfigurationBuilder("iam")
-    private final IamClientConfiguration iam = new IamClientConfiguration();
 }

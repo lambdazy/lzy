@@ -1,4 +1,4 @@
-kharon:
+lzy-service:
   address: 'localhost:8899'
   external-host: 'api.lzy.ai'
   server-address: 'localhost:7777'
@@ -11,7 +11,7 @@ kharon:
   servant-fs-proxy-port: 8901
 
   database:
-    url: 'jdbc:postgresql://localhost:5432/lzy_kharon_db'
+    url: 'jdbc:postgresql://localhost:5432/lzy_workflows_db'
     username: 'lzy_user'
     password: 'q'
     min-pool-size: 1

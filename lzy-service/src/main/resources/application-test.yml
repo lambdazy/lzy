@@ -1,4 +1,4 @@
-kharon:
+lzy-service:
   address: 'localhost:8899'
   # external-host: ''
 
@@ -11,6 +11,7 @@ kharon:
   servant-proxy-port: 8900
   servant-fs-proxy-port: 8901
   channel-manager-proxy-port: 8123
+  wait-allocation-timeout: 10s
 
   database:
     url: 'embedded-postgres'
@@ -53,3 +54,11 @@ kharon:
       /R0NeRjKxaOebS9NKgaWI9YB+9kxCa3R//sGkRvAOHa7H986mQ1Vx1y14GGtuSTr
       l7I2m1fDWAE7ibup2fO9VSexAlqwoDnv4dWQ03f/ifRpFE/Tg7NV5OM=
       -----END RSA PRIVATE KEY-----
+
+  portal:
+    host: 'localhost'
+    portal-api-port: '${random.port}'
+    fs-api-port: '${random.port}'
+    fs-root: '/tmp/lzy-fs'
+    stdout-channel-name: 'portal:stdout'
+    stderr-channel-name: 'portal:stderr'

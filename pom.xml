@@ -19,6 +19,7 @@
         <module>servant</module>
         <module>portal</module>
         <module>kharon</module>
+        <module>lzy-service</module>
         <module>test</module>
         <module>pylzy</module>
         <module>parent</module>

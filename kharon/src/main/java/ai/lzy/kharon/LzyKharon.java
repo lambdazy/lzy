@@ -1,12 +1,8 @@
 package ai.lzy.kharon;
 
-import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
-import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
-import ai.lzy.iam.utils.GrpcConfig;
-import ai.lzy.kharon.workflow.WorkflowService;
-import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.model.SlotConnectionManager;
 import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.util.grpc.ProxyClientHeaderInterceptor;
 import ai.lzy.util.grpc.ProxyServerHeaderInterceptor;
 import ai.lzy.v1.channel.LCMS;
@@ -44,7 +40,6 @@ import java.util.function.Function;
 import static ai.lzy.model.UriScheme.LzyKharon;
 import static ai.lzy.model.UriScheme.*;
 
-@SuppressWarnings("UnstableApiUsage")
 public class LzyKharon {
 
     private static final Logger LOG = LogManager.getLogger(LzyKharon.class);
@@ -118,15 +113,6 @@ public class LzyKharon {
             .addService(ServerInterceptors.intercept(new WhiteboardService()))
             .addService(ServerInterceptors.intercept(new ServerService()));
 
-        if (config.getWorkflow().isEnabled()) {
-            var authInterceptor = new AuthServerInterceptor(
-                new AuthenticateServiceGrpcClient(GrpcConfig.from(config.getIam().getAddress())));
-
-            kharonServerBuilder.addService(ServerInterceptors.intercept(
-                ctx.getBean(WorkflowService.class),
-                authInterceptor));
-        }
-
         kharonServer = kharonServerBuilder.build();
 
         kharonServantFsProxy = NettyServerBuilder.forPort(config.getServantFsProxyPort())
@@ -173,12 +159,13 @@ public class LzyKharon {
             final int port = Integer.parseInt(parse.getOptionValue('p', "8899"));
             final int servantPort = Integer.parseInt(parse.getOptionValue('s', "8900"));
             final int servantFsPort = parse.hasOption("fs") ? Integer.parseInt(parse.getOptionValue("fs"))
-                    : servantPort + 1;
+                : servantPort + 1;
             final int channelManagerProxyPort = Integer.parseInt(
                 parse.getOptionValue("channel-manager-proxy-port", "8123"));
             final URI serverAddress = URI.create(parse.getOptionValue('z', "http://localhost:8888"));
             final URI whiteboardAddress = URI.create(parse.getOptionValue('w', "http://localhost:8999"));
-            final URI snapshotAddress = URI.create(parse.getOptionValue("lzy-snapshot-address", "http://localhost:8999"));
+            final URI snapshotAddress =
+                URI.create(parse.getOptionValue("lzy-snapshot-address", "http://localhost:8999"));
             final URI channelManagerAddress =
                 URI.create(parse.getOptionValue("lzy-channel-manager-address", "http://localhost:8122"));
             final URI iamAddress = URI.create(parse.getOptionValue("lzy-iam-address", "http://localhost:8443"));
@@ -195,7 +182,6 @@ public class LzyKharon {
             p.put("kharon.channel-manager-proxy-port", channelManagerProxyPort);
 
             p.put("kharon.iam.address", iamAddress.getHost() + ":" + iamAddress.getPort());
-            p.put("kharon.workflow.enabled", "false");
         }
 
         try (ApplicationContext context = ApplicationContext.run(PropertySource.of("cli", p))) {
@@ -237,7 +223,8 @@ public class LzyKharon {
     private static class ProxyCall {
 
         public static <ReqT, RespT> void exec(Function<ReqT, RespT> impl, ReqT request,
-                                              StreamObserver<RespT> responseObserver) {
+                                              StreamObserver<RespT> responseObserver)
+        {
             try {
                 final RespT response = impl.apply(request);
                 responseObserver.onNext(response);
@@ -251,61 +238,71 @@ public class LzyKharon {
     private class SnapshotService extends SnapshotApiGrpc.SnapshotApiImplBase {
         @Override
         public void createSnapshot(LzyWhiteboard.CreateSnapshotCommand request,
-                                   StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
+                                   StreamObserver<LzyWhiteboard.Snapshot> responseObserver)
+        {
             ProxyCall.exec(snapshot::createSnapshot, request, responseObserver);
         }
 
         @Override
         public void finalizeSnapshot(LzyWhiteboard.FinalizeSnapshotCommand request,
-                                     StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+                                     StreamObserver<LzyWhiteboard.OperationStatus> responseObserver)
+        {
             ProxyCall.exec(snapshot::finalizeSnapshot, request, responseObserver);
         }
 
         @Override
         public void lastSnapshot(LzyWhiteboard.LastSnapshotCommand request,
-                                 StreamObserver<LzyWhiteboard.Snapshot> responseObserver) {
+                                 StreamObserver<LzyWhiteboard.Snapshot> responseObserver)
+        {
             ProxyCall.exec(snapshot::lastSnapshot, request, responseObserver);
         }
 
         @Override
         public void entryStatus(LzyWhiteboard.EntryStatusCommand request,
-                                StreamObserver<LzyWhiteboard.EntryStatusResponse> responseObserver) {
+                                StreamObserver<LzyWhiteboard.EntryStatusResponse> responseObserver)
+        {
             ProxyCall.exec(snapshot::entryStatus, request, responseObserver);
         }
 
         @Override
         public void commit(LzyWhiteboard.CommitCommand request,
-                           StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+                           StreamObserver<LzyWhiteboard.OperationStatus> responseObserver)
+        {
             ProxyCall.exec(snapshot::commit, request, responseObserver);
         }
 
         @Override
         public void abort(LzyWhiteboard.AbortCommand request,
-                          StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+                          StreamObserver<LzyWhiteboard.OperationStatus> responseObserver)
+        {
             ProxyCall.exec(snapshot::abort, request, responseObserver);
         }
 
         @Override
         public void prepareToSave(LzyWhiteboard.PrepareCommand request,
-                                  StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+                                  StreamObserver<LzyWhiteboard.OperationStatus> responseObserver)
+        {
             ProxyCall.exec(snapshot::prepareToSave, request, responseObserver);
         }
 
         @Override
         public void createEntry(LzyWhiteboard.CreateEntryCommand request,
-                                StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+                                StreamObserver<LzyWhiteboard.OperationStatus> responseObserver)
+        {
             ProxyCall.exec(snapshot::createEntry, request, responseObserver);
         }
 
         @Override
         public void saveExecution(LzyWhiteboard.SaveExecutionCommand request,
-                                  StreamObserver<LzyWhiteboard.SaveExecutionResponse> responseObserver) {
+                                  StreamObserver<LzyWhiteboard.SaveExecutionResponse> responseObserver)
+        {
             ProxyCall.exec(snapshot::saveExecution, request, responseObserver);
         }
 
         @Override
         public void resolveExecution(LzyWhiteboard.ResolveExecutionCommand request,
-                                     StreamObserver<LzyWhiteboard.ResolveExecutionResponse> responseObserver) {
+                                     StreamObserver<LzyWhiteboard.ResolveExecutionResponse> responseObserver)
+        {
             ProxyCall.exec(snapshot::resolveExecution, request, responseObserver);
         }
     }
@@ -313,25 +310,29 @@ public class LzyKharon {
     private class WhiteboardService extends WbApiGrpc.WbApiImplBase {
         @Override
         public void createWhiteboard(LzyWhiteboard.CreateWhiteboardCommand request,
-                                     StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
+                                     StreamObserver<LzyWhiteboard.Whiteboard> responseObserver)
+        {
             ProxyCall.exec(whiteboard::createWhiteboard, request, responseObserver);
         }
 
         @Override
         public void whiteboardsList(LzyWhiteboard.WhiteboardsListCommand request,
-                                    StreamObserver<LzyWhiteboard.WhiteboardsResponse> responseObserver) {
+                                    StreamObserver<LzyWhiteboard.WhiteboardsResponse> responseObserver)
+        {
             ProxyCall.exec(whiteboard::whiteboardsList, request, responseObserver);
         }
 
         @Override
         public void link(LzyWhiteboard.LinkCommand request,
-                         StreamObserver<LzyWhiteboard.OperationStatus> responseObserver) {
+                         StreamObserver<LzyWhiteboard.OperationStatus> responseObserver)
+        {
             ProxyCall.exec(whiteboard::link, request, responseObserver);
         }
 
         @Override
         public void getWhiteboard(LzyWhiteboard.GetWhiteboardCommand request,
-                                  StreamObserver<LzyWhiteboard.Whiteboard> responseObserver) {
+                                  StreamObserver<LzyWhiteboard.Whiteboard> responseObserver)
+        {
             ProxyCall.exec(whiteboard::getWhiteboard, request, responseObserver);
         }
     }
@@ -341,7 +342,8 @@ public class LzyKharon {
         @Override
         public StreamObserver<Kharon.TerminalProgress> attachTerminal(
             StreamObserver<TerminalCommand> responseObserver
-        ) {
+        )
+        {
             LOG.info("Kharon::attachTerminal");
             final String sessionId = "terminal_" + UUID.randomUUID();
             final TerminalSession session = sessionManager.createSession(
@@ -414,19 +416,22 @@ public class LzyKharon {
 
         @Override
         public void publish(Lzy.PublishRequest request,
-                            StreamObserver<Lzy.PublishResponse> responseObserver) {
+                            StreamObserver<Lzy.PublishResponse> responseObserver)
+        {
             ProxyCall.exec(server::publish, request, responseObserver);
         }
 
         @Override
         public void zygotes(LzyAuth.Auth request,
-                            StreamObserver<LzyZygote.ZygoteList> responseObserver) {
+                            StreamObserver<LzyZygote.ZygoteList> responseObserver)
+        {
             ProxyCall.exec(server::zygotes, request, responseObserver);
         }
 
         @Override
         public void task(LzyTask.TaskCommand request,
-                         StreamObserver<LzyTask.TaskStatus> responseObserver) {
+                         StreamObserver<LzyTask.TaskStatus> responseObserver)
+        {
             ProxyCall.exec(server::task, request, responseObserver);
         }
 
@@ -451,13 +456,15 @@ public class LzyKharon {
 
         @Override
         public void tasksStatus(LzyAuth.Auth request,
-                                StreamObserver<LzyTask.TasksList> responseObserver) {
+                                StreamObserver<LzyTask.TasksList> responseObserver)
+        {
             ProxyCall.exec(server::tasksStatus, request, responseObserver);
         }
 
         @Override
         public void getS3Credentials(Lzy.GetS3CredentialsRequest request,
-                                     StreamObserver<Lzy.GetS3CredentialsResponse> responseObserver) {
+                                     StreamObserver<Lzy.GetS3CredentialsResponse> responseObserver)
+        {
             ProxyCall.exec(server::getS3Credentials, request, responseObserver);
         }
 
@@ -468,7 +475,8 @@ public class LzyKharon {
 
         @Override
         public void getSessions(GetSessionsRequest request,
-                                StreamObserver<GetSessionsResponse> responseObserver) {
+                                StreamObserver<GetSessionsResponse> responseObserver)
+        {
             ProxyCall.exec(server::getSessions, request, responseObserver);
         }
     }
@@ -476,31 +484,36 @@ public class LzyKharon {
     private class ChannelManagerProxyService extends LzyChannelManagerGrpc.LzyChannelManagerImplBase {
         @Override
         public void create(LCMS.ChannelCreateRequest request,
-                           StreamObserver<LCMS.ChannelCreateResponse> responseObserver) {
+                           StreamObserver<LCMS.ChannelCreateResponse> responseObserver)
+        {
             ProxyCall.exec(channelManager::create, request, responseObserver);
         }
 
         @Override
         public void destroy(LCMS.ChannelDestroyRequest request,
-                            StreamObserver<LCMS.ChannelDestroyResponse> responseObserver) {
+                            StreamObserver<LCMS.ChannelDestroyResponse> responseObserver)
+        {
             ProxyCall.exec(channelManager::destroy, request, responseObserver);
         }
 
         @Override
         public void status(LCMS.ChannelStatusRequest request,
-                           StreamObserver<LCMS.ChannelStatus> responseObserver) {
+                           StreamObserver<LCMS.ChannelStatus> responseObserver)
+        {
             ProxyCall.exec(channelManager::status, request, responseObserver);
         }
 
         @Override
         public void statusAll(LCMS.ChannelStatusAllRequest request,
-                                   StreamObserver<LCMS.ChannelStatusList> responseObserver) {
+                              StreamObserver<LCMS.ChannelStatusList> responseObserver)
+        {
             ProxyCall.exec(channelManager::statusAll, request, responseObserver);
         }
 
         @Override
         public void bind(LCMS.SlotAttach request,
-                         StreamObserver<LCMS.SlotAttachStatus> responseObserver) {
+                         StreamObserver<LCMS.SlotAttachStatus> responseObserver)
+        {
             try {
                 final LCMS.SlotAttach updatedRequest = LCMS.SlotAttach.newBuilder()
                     .setSlotInstance(LMS.SlotInstance.newBuilder(request.getSlotInstance())
@@ -518,7 +531,8 @@ public class LzyKharon {
 
         @Override
         public void unbind(LCMS.SlotDetach request,
-                           StreamObserver<LCMS.SlotDetachStatus> responseObserver) {
+                           StreamObserver<LCMS.SlotDetachStatus> responseObserver)
+        {
             try {
                 final LCMS.SlotDetach updatedRequest =
                     LCMS.SlotDetach.newBuilder()
@@ -530,7 +544,7 @@ public class LzyKharon {
                                     ).toString()
                                 ).build()
                         )
-                    .build();
+                        .build();
                 ProxyCall.exec(channelManager::unbind, updatedRequest, responseObserver);
             } catch (URISyntaxException e) {
                 responseObserver.onError(Status.INVALID_ARGUMENT.withCause(e).asRuntimeException());
@@ -542,7 +556,8 @@ public class LzyKharon {
 
         @Override
         public void openOutputSlot(LzyFsApi.SlotRequest request,
-                                   StreamObserver<LzyFsApi.Message> responseObserver) {
+                                   StreamObserver<LzyFsApi.Message> responseObserver)
+        {
             try {
                 final LMS.SlotInstance slotInstance = request.getSlotInstance();
                 final URI slotUri = URI.create(slotInstance.getSlotUri());
@@ -585,7 +600,7 @@ public class LzyKharon {
                     (req, controller) -> controller.connectSlot(req));
             } catch (URISyntaxException e) {
                 response.onError(Status.INVALID_ARGUMENT.withDescription("Invalid servant uri")
-                        .asRuntimeException());
+                    .asRuntimeException());
             }
         }
 
@@ -609,7 +624,7 @@ public class LzyKharon {
 
         interface SlotFn<R> {
             SlotCommandStatus call(R request, TerminalController controller)
-                    throws TerminalController.TerminalControllerResetException;
+                throws TerminalController.TerminalControllerResetException;
         }
 
         private <R> void call(
@@ -617,7 +632,8 @@ public class LzyKharon {
             String sessionId,
             StreamObserver<SlotCommandStatus> responseObserver,
             SlotFn<R> fn
-        ) {
+        )
+        {
             try {
                 final TerminalSession session = sessionManager.get(sessionId);
                 final SlotCommandStatus slotCommandStatus = fn.call(request, session.terminalController());

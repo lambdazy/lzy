@@ -95,7 +95,6 @@ public class KharonThreadContext implements LzyKharonTestContext {
 
         props.put("kharon.iam.address", iamAddress);
         props.put("kharon.storage.address", "localhost:" + StorageThreadContext.STORAGE_PORT);
-        props.put("kharon.workflow.enabled", "false");
 
         LOG.info("Starting LzyKharon on port {}...", LZY_KHARON_PORT);
 
