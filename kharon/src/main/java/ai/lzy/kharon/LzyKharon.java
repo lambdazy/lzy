@@ -44,7 +44,6 @@ import java.util.function.Function;
 import static ai.lzy.model.UriScheme.LzyKharon;
 import static ai.lzy.model.UriScheme.*;
 
-@SuppressWarnings("UnstableApiUsage")
 public class LzyKharon {
 
     private static final Logger LOG = LogManager.getLogger(LzyKharon.class);
