@@ -2,15 +2,14 @@ package ai.lzy.channelmanager.grpc;
 
 import ai.lzy.channelmanager.channel.Channel;
 import ai.lzy.channelmanager.channel.ChannelSpec;
-import ai.lzy.v1.channel.LCMS;
 import ai.lzy.v1.channel.LCM;
+import ai.lzy.v1.channel.LCMPS;
 import ai.lzy.v1.common.LMS;
-import ai.lzy.v1.deprecated.LzyZygote;
 
 public class ProtoConverter {
 
-    public static LCMS.ChannelStatus toChannelStatusProto(Channel channel) {
-        final LCMS.ChannelStatus.Builder statusBuilder = LCMS.ChannelStatus.newBuilder();
+    public static LCMPS.ChannelStatus toChannelStatusProto(Channel channel) {
+        final LCMPS.ChannelStatus.Builder statusBuilder = LCMPS.ChannelStatus.newBuilder();
         statusBuilder
             .setChannelId(channel.id())
             .setChannelSpec(toProto(channel.spec()));

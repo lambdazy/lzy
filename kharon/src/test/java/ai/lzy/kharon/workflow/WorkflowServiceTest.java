@@ -1,6 +1,7 @@
 package ai.lzy.kharon.workflow;
 
 import ai.lzy.allocator.test.BaseTestWithAllocator;
+import ai.lzy.channelmanager.grpc.ChannelManagerMock;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.test.BaseTestWithIam;
@@ -8,7 +9,6 @@ import ai.lzy.kharon.KharonConfig;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.storage.impl.MockS3Storage;
 import ai.lzy.test.TimeUtils;
-import ai.lzy.test.mocks.ChannelManagerMock;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
 import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
@@ -34,7 +34,11 @@ import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;

@@ -16,7 +16,6 @@ import ai.lzy.kharon.KharonDataSource;
 import ai.lzy.kharon.workflow.dao.ExecutionDao;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.AlreadyExistsException;
-import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
@@ -27,9 +26,13 @@ import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.OperationService;
 import ai.lzy.v1.OperationServiceApiGrpc;
 import ai.lzy.v1.VmAllocatorApi;
-import ai.lzy.v1.VmAllocatorApi.*;
+import ai.lzy.v1.VmAllocatorApi.AllocateMetadata;
+import ai.lzy.v1.VmAllocatorApi.AllocateRequest;
+import ai.lzy.v1.VmAllocatorApi.AllocateResponse;
+import ai.lzy.v1.VmAllocatorApi.CreateSessionRequest;
+import ai.lzy.v1.VmAllocatorApi.CreateSessionResponse;
 import ai.lzy.v1.channel.LCM;
-import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LMD;
 import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
@@ -63,6 +66,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.BiConsumer;
 
+import static ai.lzy.channelmanager.grpc.ProtoConverter.createChannelRequest;
 import static ai.lzy.kharon.KharonConfig.PortalConfig;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -92,7 +96,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
     private final LzyStorageServiceGrpc.LzyStorageServiceBlockingStub storageServiceClient;
 
     private final ManagedChannel channelManagerChannel;
-    private final LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManagerClient;
+    private final LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerClient;
 
     private final ManagedChannel iamChannel;
     private final SubjectServiceGrpcClient subjectClient;
@@ -137,9 +141,9 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
 
         channelManagerChannel = ChannelBuilder.forAddress(HostAndPort.fromString(config.getChannelManagerAddress()))
             .usePlaintext()
-            .enableRetry(LzyChannelManagerGrpc.SERVICE_NAME)
+            .enableRetry(LzyChannelManagerPrivateGrpc.SERVICE_NAME)
             .build();
-        channelManagerClient = LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel)
+        channelManagerClient = LzyChannelManagerPrivateGrpc.newBlockingStub(channelManagerChannel)
             .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION,
                 internalUserCredentials::token));
 
@@ -364,12 +368,12 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
     private String[] createPortalStdChannels(String executionId) {
         LOG.info("Creating portal stdout channel with name '{}'", portalConfig.getStdoutChannelName());
         // create portal stdout channel that receives portal output
-        String stdoutChannelId = channelManagerClient.create(GrpcConverter.createChannelRequest(executionId,
+        String stdoutChannelId = channelManagerClient.create(createChannelRequest(executionId,
             createPortalChannelSpec(portalConfig.getStdoutChannelName()))).getChannelId();
 
         LOG.info("Creating portal stderr channel with name '{}'", portalConfig.getStderrChannelName());
         // create portal stderr channel that receives portal error output
-        String stderrChannelId = channelManagerClient.create(GrpcConverter.createChannelRequest(executionId,
+        String stderrChannelId = channelManagerClient.create(createChannelRequest(executionId,
             createPortalChannelSpec(portalConfig.getStderrChannelName()))).getChannelId();
 
         return new String[] {stdoutChannelId, stderrChannelId};
