@@ -189,13 +189,13 @@
             <artifactId>okhttp</artifactId>
             <groupId>com.squareup.okhttp3</groupId>
             <version>3.12.12</version>
-            <scope>test</scope>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <artifactId>kotlin-stdlib-common</artifactId>
             <groupId>org.jetbrains.kotlin</groupId>
             <version>1.5.21</version>
-            <scope>test</scope>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
@@ -207,7 +207,7 @@
                     <groupId>org.jetbrains.kotlin</groupId>
                 </exclusion>
             </exclusions>
-            <scope>test</scope>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>io.zonky.test</groupId>
