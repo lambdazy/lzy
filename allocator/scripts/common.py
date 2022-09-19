@@ -33,4 +33,4 @@ def format_logs():
 
 
 def gigabytes_to_bytes(gbs: int):
-    return gbs * (1024 ** 3)
+    return gbs << 30
