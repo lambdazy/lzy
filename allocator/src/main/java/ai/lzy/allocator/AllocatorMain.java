@@ -33,6 +33,7 @@ import java.net.InetSocketAddress;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import javax.inject.Named;
 
