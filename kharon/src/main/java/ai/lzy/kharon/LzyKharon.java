@@ -18,7 +18,11 @@ import ai.lzy.v1.fs.LzyFsApi;
 import ai.lzy.v1.fs.LzyFsApi.SlotCommandStatus;
 import ai.lzy.v1.fs.LzyFsGrpc;
 import com.google.common.net.HostAndPort;
-import io.grpc.*;
+import io.grpc.Context;
+import io.grpc.ManagedChannel;
+import io.grpc.Server;
+import io.grpc.ServerInterceptors;
+import io.grpc.Status;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
@@ -37,7 +41,6 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
-import static ai.lzy.model.UriScheme.LzyKharon;
 import static ai.lzy.model.UriScheme.*;
 
 public class LzyKharon {
