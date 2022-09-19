@@ -14,12 +14,13 @@ import ai.lzy.scheduler.models.ServantState.Status;
 import ai.lzy.scheduler.servant.Servant;
 import ai.lzy.scheduler.servant.ServantConnection;
 import ai.lzy.scheduler.task.Task;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import javax.annotation.Nullable;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class ServantEventProcessor extends Thread {
 

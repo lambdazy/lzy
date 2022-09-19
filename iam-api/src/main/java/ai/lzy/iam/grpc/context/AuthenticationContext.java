@@ -1,13 +1,13 @@
 package ai.lzy.iam.grpc.context;
 
-import io.grpc.Context;
-import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.utils.TokenParser;
+import ai.lzy.util.auth.credentials.Credentials;
+import io.grpc.Context;
 
+import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.Objects;
 
 public class AuthenticationContext {
     public static Context.Key<AuthenticationContext> KEY = Context.key("authentication-context");

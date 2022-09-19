@@ -3,15 +3,12 @@ package ai.lzy.backoffice.controllers;
 import ai.lzy.backoffice.configs.OAuthSecretsProvider;
 import ai.lzy.backoffice.grpc.Client;
 import ai.lzy.backoffice.models.UserCredentials;
-import ai.lzy.backoffice.models.auth.CheckPermissionRequest;
-import ai.lzy.backoffice.models.auth.CheckPermissionResponse;
-import ai.lzy.backoffice.models.auth.CheckSessionRequest;
-import ai.lzy.backoffice.models.auth.GenerateSessionIdResponse;
-import ai.lzy.backoffice.models.auth.LoginRequest;
-import ai.lzy.backoffice.models.auth.LoginResponse;
+import ai.lzy.backoffice.models.auth.*;
 import ai.lzy.backoffice.oauth.models.GitHubGetUserResponse;
 import ai.lzy.backoffice.oauth.models.GithubAccessTokenRequest;
 import ai.lzy.backoffice.oauth.models.GithubAccessTokenResponse;
+import ai.lzy.model.utils.AuthProviders;
+import ai.lzy.v1.deprecated.BackOffice;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
@@ -30,13 +27,12 @@ import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.web.router.RouteBuilder;
 import jakarta.inject.Inject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 import javax.validation.Valid;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import ai.lzy.model.utils.AuthProviders;
-import ai.lzy.v1.deprecated.BackOffice;
 
 @ExecuteOn(TaskExecutors.IO)
 @Controller("auth")

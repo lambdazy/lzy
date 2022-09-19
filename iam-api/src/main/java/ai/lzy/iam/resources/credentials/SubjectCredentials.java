@@ -2,10 +2,10 @@ package ai.lzy.iam.resources.credentials;
 
 import ai.lzy.iam.resources.subjects.CredentialsType;
 
-import javax.annotation.Nullable;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import javax.annotation.Nullable;
 
 public record SubjectCredentials(
     String name,

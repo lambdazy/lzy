@@ -1,9 +1,9 @@
 package ai.lzy.whiteboard.hibernate.models;
 
-import javax.annotation.Nullable;
-import javax.persistence.*;
 import java.io.Serializable;
 import java.util.Objects;
+import javax.annotation.Nullable;
+import javax.persistence.*;
 
 @Entity
 @Table(name = "whiteboard_field")

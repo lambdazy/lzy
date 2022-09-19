@@ -1,15 +1,14 @@
 package ai.lzy.scheduler.models;
 
+import org.apache.curator.shaded.com.google.common.net.HostAndPort;
+import org.jetbrains.annotations.NotNull;
+
 import java.time.Duration;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
-
-import org.apache.curator.shaded.com.google.common.net.HostAndPort;
-import org.jetbrains.annotations.NotNull;
 
 public record ServantEvent(
     String id,

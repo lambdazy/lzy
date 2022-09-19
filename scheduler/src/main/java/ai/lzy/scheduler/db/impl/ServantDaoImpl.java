@@ -1,8 +1,8 @@
 package ai.lzy.scheduler.db.impl;
 
-import ai.lzy.model.operation.Operation;
-import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.model.db.Transaction;
+import ai.lzy.model.db.exceptions.DaoException;
+import ai.lzy.model.operation.Operation;
 import ai.lzy.scheduler.allocator.ServantMetaStorage;
 import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.scheduler.models.ServantState;

@@ -13,10 +13,11 @@ import ai.lzy.v1.deprecated.LzyAuth;
 import ai.lzy.v1.deprecated.LzyServerGrpc;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
-import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.Nullable;
 
 public class TerminalSession {
 

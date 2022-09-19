@@ -1,6 +1,10 @@
 package ai.lzy.iam.storage.impl;
 
-import ai.lzy.iam.resources.*;
+import ai.lzy.iam.resources.AccessBinding;
+import ai.lzy.iam.resources.AccessBindingDelta;
+import ai.lzy.iam.resources.AuthPermission;
+import ai.lzy.iam.resources.AuthResource;
+import ai.lzy.iam.resources.Role;
 import ai.lzy.iam.resources.impl.Whiteboard;
 import ai.lzy.iam.resources.impl.Workflow;
 import ai.lzy.iam.resources.subjects.AuthProvider;
@@ -22,7 +26,9 @@ import org.junit.Test;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class DbAccessClientTest {
     public static final Logger LOG = LogManager.getLogger(DbAccessClientTest.class);

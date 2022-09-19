@@ -1,11 +1,21 @@
 package ai.lzy.whiteboard.hibernate;
 
+import ai.lzy.model.DataScheme;
 import ai.lzy.whiteboard.SnapshotRepository;
 import ai.lzy.whiteboard.exceptions.SnapshotRepositoryException;
+import ai.lzy.whiteboard.hibernate.models.*;
+import ai.lzy.whiteboard.model.*;
+import ai.lzy.whiteboard.model.SnapshotEntry.Impl;
+import ai.lzy.whiteboard.model.SnapshotEntryStatus.State;
 import io.grpc.Status;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.hibernate.Session;
+import org.hibernate.Transaction;
+
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,26 +29,6 @@ import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Root;
 import javax.validation.constraints.NotNull;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.hibernate.Session;
-import org.hibernate.Transaction;
-import ai.lzy.model.DataScheme;
-import ai.lzy.whiteboard.model.ExecutionSnapshot;
-import ai.lzy.whiteboard.model.Snapshot;
-import ai.lzy.whiteboard.model.SnapshotEntry;
-import ai.lzy.whiteboard.model.SnapshotEntry.Impl;
-import ai.lzy.whiteboard.model.SnapshotEntryStatus;
-import ai.lzy.whiteboard.model.SnapshotEntryStatus.State;
-import ai.lzy.whiteboard.model.SnapshotStatus;
-import ai.lzy.whiteboard.model.WhiteboardStatus;
-import ai.lzy.whiteboard.hibernate.models.EntryDependenciesModel;
-import ai.lzy.whiteboard.hibernate.models.ExecutionModel;
-import ai.lzy.whiteboard.hibernate.models.InputArgModel;
-import ai.lzy.whiteboard.hibernate.models.OutputArgModel;
-import ai.lzy.whiteboard.hibernate.models.SnapshotEntryModel;
-import ai.lzy.whiteboard.hibernate.models.SnapshotModel;
-import ai.lzy.whiteboard.hibernate.models.WhiteboardModel;
 
 @Singleton
 @Requires(beans = DbStorage.class)

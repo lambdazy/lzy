@@ -8,7 +8,6 @@ import ai.lzy.portal.s3.ByteStringStreamConverter;
 import ai.lzy.portal.s3.S3Repositories;
 import ai.lzy.portal.s3.S3Repository;
 import ai.lzy.v1.common.LMS3;
-import ai.lzy.v1.portal.LzyPortal;
 import ai.lzy.v1.portal.LzyPortal.PortalSlotDesc.Snapshot;
 import com.amazonaws.AmazonClientException;
 import com.azure.storage.common.implementation.connectionstring.StorageConnectionString;
@@ -24,7 +23,6 @@ import java.util.Objects;
 import java.util.stream.Stream;
 
 import static ai.lzy.portal.Portal.CreateSlotException;
-import static ai.lzy.v1.portal.LzyPortalApi.*;
 
 public class SnapshotSlotsProvider {
     private static final Logger LOG = LogManager.getLogger(SnapshotSlotsProvider.class);

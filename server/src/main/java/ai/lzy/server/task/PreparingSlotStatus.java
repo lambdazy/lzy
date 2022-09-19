@@ -1,9 +1,10 @@
 package ai.lzy.server.task;
 
-import java.net.URI;
-import javax.annotation.Nullable;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotStatus;
+
+import java.net.URI;
+import javax.annotation.Nullable;
 
 public class PreparingSlotStatus implements SlotStatus {
     private final String channelName;

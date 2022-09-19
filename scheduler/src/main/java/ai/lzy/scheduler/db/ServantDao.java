@@ -1,12 +1,12 @@
 package ai.lzy.scheduler.db;
 
-import ai.lzy.model.operation.Operation;
 import ai.lzy.model.db.exceptions.DaoException;
+import ai.lzy.model.operation.Operation;
 import ai.lzy.scheduler.models.ServantState;
 import ai.lzy.scheduler.servant.Servant;
 
-import javax.annotation.Nullable;
 import java.util.List;
+import javax.annotation.Nullable;
 
 public interface ServantDao {
 

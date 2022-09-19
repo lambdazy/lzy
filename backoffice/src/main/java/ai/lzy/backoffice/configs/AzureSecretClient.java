@@ -1,7 +1,5 @@
 package ai.lzy.backoffice.configs;
 
-import static ai.lzy.util.auth.credentials.JwtUtils.legacyBuildJWT;
-
 import ai.lzy.v1.deprecated.LzyAuth;
 import com.azure.identity.DefaultAzureCredential;
 import com.azure.identity.DefaultAzureCredentialBuilder;
@@ -11,10 +9,13 @@ import io.micronaut.context.annotation.Requires;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
 import jakarta.inject.Singleton;
+
 import java.io.IOException;
 import java.io.StringReader;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
+
+import static ai.lzy.util.auth.credentials.JwtUtils.legacyBuildJWT;
 
 @Requires(property = "azure-providers", value = "true")
 @Singleton

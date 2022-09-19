@@ -1,18 +1,19 @@
 package ai.lzy.fs.storage;
 
+import ai.lzy.v1.deprecated.Lzy;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.file.Path;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.qe.s3.amazon.transfer.AmazonTransmitterFactory;
 import ru.yandex.qe.s3.transfer.Transmitter;
-import ai.lzy.v1.deprecated.Lzy;
+
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
 
 public class AmazonStorageClient implements StorageClient {
 

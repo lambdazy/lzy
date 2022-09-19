@@ -1,6 +1,5 @@
 package ru.yandex.cloud.ml.platform.model.util.election;
 
-import java.util.Arrays;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
@@ -10,6 +9,8 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.util.Arrays;
 
 public class DistributedLeaderElectionTest {
 

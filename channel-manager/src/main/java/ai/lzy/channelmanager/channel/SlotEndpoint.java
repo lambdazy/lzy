@@ -1,22 +1,21 @@
 package ai.lzy.channelmanager.channel;
 
-import static ai.lzy.model.deprecated.GrpcConverter.to;
-
+import ai.lzy.model.SlotConnectionManager;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
-import ai.lzy.model.SlotConnectionManager;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.slot.SlotStatus;
 import ai.lzy.v1.fs.LzyFsApi;
 import ai.lzy.v1.fs.LzyFsGrpc;
 import io.grpc.StatusRuntimeException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.net.URI;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class SlotEndpoint implements Endpoint {
     private static final Logger LOG = LogManager.getLogger(SlotEndpoint.class);

@@ -1,22 +1,8 @@
 package ai.lzy.server;
 
-import ai.lzy.server.configs.ServerConfig;
-import io.grpc.Status;
-import io.grpc.StatusException;
-import io.grpc.stub.StreamObserver;
-import io.micronaut.context.annotation.Requires;
-import jakarta.inject.Inject;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import javax.persistence.Query;
-import javax.persistence.criteria.CriteriaQuery;
-import org.hibernate.Session;
-import org.hibernate.Transaction;
 import ai.lzy.model.utils.AuthProviders;
 import ai.lzy.model.utils.Permissions;
+import ai.lzy.server.configs.ServerConfig;
 import ai.lzy.server.hibernate.DbStorage;
 import ai.lzy.server.hibernate.UserVerificationType;
 import ai.lzy.server.hibernate.models.BackofficeSessionModel;
@@ -27,6 +13,21 @@ import ai.lzy.v1.deprecated.BackOffice;
 import ai.lzy.v1.deprecated.LzyAuth;
 import ai.lzy.v1.deprecated.LzyBackofficeGrpc;
 import ai.lzy.v1.deprecated.LzyTask;
+import io.grpc.Status;
+import io.grpc.StatusException;
+import io.grpc.stub.StreamObserver;
+import io.micronaut.context.annotation.Requires;
+import jakarta.inject.Inject;
+import org.hibernate.Session;
+import org.hibernate.Transaction;
+
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import javax.persistence.Query;
+import javax.persistence.criteria.CriteriaQuery;
 
 @Requires(beans = DbStorage.class)
 public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {

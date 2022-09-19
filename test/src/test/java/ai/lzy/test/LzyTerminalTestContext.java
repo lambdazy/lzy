@@ -2,10 +2,10 @@ package ai.lzy.test;
 
 import ai.lzy.fs.commands.BuiltinCommandHolder;
 import ai.lzy.fs.commands.CommandHolder;
+import ai.lzy.model.deprecated.AtomicZygote;
 import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
-import ai.lzy.model.deprecated.AtomicZygote;
 import ai.lzy.servant.agents.AgentStatus;
 import ai.lzy.servant.commands.ServantCommandHolder;
 import ai.lzy.v1.channel.LCMS;
@@ -16,13 +16,13 @@ import com.google.protobuf.util.JsonFormat;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.annotation.Nullable;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 
 public interface LzyTerminalTestContext extends AutoCloseable {
 

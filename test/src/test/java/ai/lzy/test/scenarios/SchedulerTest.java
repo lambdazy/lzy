@@ -1,7 +1,5 @@
 package ai.lzy.test.scenarios;
 
-import static ai.lzy.test.impl.ChannelManagerThreadContext.Config.CHANNEL_MANAGER_PORT;
-
 import ai.lzy.allocator.AllocatorMain;
 import ai.lzy.graph.GraphExecutorApi;
 import ai.lzy.model.DataScheme;
@@ -33,12 +31,6 @@ import ai.lzy.v1.graph.GraphExecutorGrpc;
 import ai.lzy.v1.scheduler.SchedulerApi.KillAllRequest;
 import ai.lzy.v1.scheduler.SchedulerGrpc;
 import io.micronaut.context.ApplicationContext;
-import java.io.IOException;
-import java.sql.SQLException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
@@ -46,6 +38,15 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.io.IOException;
+import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Stream;
+
+import static ai.lzy.test.impl.ChannelManagerThreadContext.Config.CHANNEL_MANAGER_PORT;
 
 public class SchedulerTest extends LocalScenario {
     static final Logger LOG = LogManager.getLogger(SchedulerTest.class);

@@ -1,10 +1,10 @@
 package ai.lzy.whiteboard.storage;
 
 import ai.lzy.model.db.DbOperation;
-import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.model.db.ProtoObjectMapper;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.v1.common.LMD;
 import ai.lzy.whiteboard.model.Field;
@@ -13,6 +13,9 @@ import ai.lzy.whiteboard.model.Whiteboard;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -24,8 +27,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class WhiteboardStorageImpl implements WhiteboardStorage {
 

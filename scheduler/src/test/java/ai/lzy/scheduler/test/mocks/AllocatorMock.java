@@ -4,10 +4,10 @@ import ai.lzy.model.operation.Operation;
 import ai.lzy.scheduler.allocator.ServantsAllocator;
 import io.micronaut.context.annotation.Primary;
 
-import javax.inject.Singleton;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
+import javax.inject.Singleton;
 
 @Singleton
 @Primary // for tests only

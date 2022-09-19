@@ -1,16 +1,16 @@
 package ai.lzy.server.task;
 
-import static ai.lzy.v1.deprecated.LzyTask.TaskProgress.Status.ERROR;
-import static ai.lzy.v1.deprecated.LzyTask.TaskProgress.Status.SUCCESS;
-
-import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.model.slot.Slot;
+import ai.lzy.model.Signal;
 import ai.lzy.model.deprecated.Zygote;
+import ai.lzy.model.slot.Slot;
 import ai.lzy.server.Authenticator;
 import ai.lzy.server.TasksManager;
-import ai.lzy.model.Signal;
 import ai.lzy.server.configs.ServerConfig;
+import ai.lzy.util.grpc.JsonUtils;
 import jakarta.inject.Singleton;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -19,8 +19,9 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+
+import static ai.lzy.v1.deprecated.LzyTask.TaskProgress.Status.ERROR;
+import static ai.lzy.v1.deprecated.LzyTask.TaskProgress.Status.SUCCESS;
 
 @Singleton
 public class InMemTasksManager implements TasksManager {

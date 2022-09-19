@@ -1,9 +1,10 @@
 package ai.lzy.whiteboard.model;
 
+import ai.lzy.v1.deprecated.LzyTask;
+
 import java.util.HashSet;
 import java.util.Set;
 import javax.annotation.Nullable;
-import ai.lzy.v1.deprecated.LzyTask;
 
 public class SnapshotMeta {
     private final Set<SlotMapping> slotMappings;

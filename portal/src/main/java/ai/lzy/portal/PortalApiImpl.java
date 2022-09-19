@@ -1,7 +1,6 @@
 package ai.lzy.portal;
 
 import ai.lzy.fs.fs.LzySlot;
-import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;

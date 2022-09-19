@@ -1,13 +1,18 @@
 package ai.lzy.fs.slots;
 
-import static ai.lzy.v1.common.LMS.SlotStatus.State.OPEN;
-import static ai.lzy.v1.common.LMS.SlotStatus.State.PREPARING;
-import static ai.lzy.v1.common.LMS.SlotStatus.State.UNBOUND;
-
-import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.fs.fs.FileContents;
+import ai.lzy.fs.fs.LzyFileSlot;
+import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.model.grpc.ProtoConverter;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.v1.common.LMS;
 import com.google.protobuf.ByteString;
+import jnr.constants.platform.OpenFlags;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import ru.serce.jnrfuse.struct.FileStat;
+import ru.serce.jnrfuse.struct.FuseFileInfo;
+
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,16 +32,10 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-import jnr.constants.platform.OpenFlags;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ru.serce.jnrfuse.struct.FileStat;
-import ru.serce.jnrfuse.struct.FuseFileInfo;
-import ai.lzy.model.deprecated.GrpcConverter;
-import ai.lzy.fs.fs.FileContents;
-import ai.lzy.fs.fs.LzyFileSlot;
-import ai.lzy.fs.fs.LzyOutputSlot;
-import ai.lzy.v1.deprecated.LzyZygote;
+
+import static ai.lzy.v1.common.LMS.SlotStatus.State.OPEN;
+import static ai.lzy.v1.common.LMS.SlotStatus.State.PREPARING;
+import static ai.lzy.v1.common.LMS.SlotStatus.State.UNBOUND;
 
 public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSlot {
     private static final Logger LOG = LogManager.getLogger(OutFileSlot.class);

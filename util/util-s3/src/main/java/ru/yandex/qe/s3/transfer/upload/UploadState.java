@@ -1,11 +1,12 @@
 package ru.yandex.qe.s3.transfer.upload;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import javax.annotation.concurrent.Immutable;
 import ru.yandex.qe.s3.transfer.TransferState;
 import ru.yandex.qe.s3.transfer.TransferStatistic;
 import ru.yandex.qe.s3.transfer.TransferStatus;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.Immutable;
 
 /**
  * Established by terry on 18.01.16.

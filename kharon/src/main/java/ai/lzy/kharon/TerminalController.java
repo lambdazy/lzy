@@ -1,7 +1,12 @@
 package ai.lzy.kharon;
 
+import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.v1.deprecated.Kharon;
+import ai.lzy.v1.fs.LzyFsApi;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.Map;
 import java.util.UUID;
@@ -12,12 +17,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.v1.deprecated.Kharon;
-import ai.lzy.v1.fs.LzyFsApi;
 
 public class TerminalController {
     private static final Logger LOG = LogManager.getLogger(TerminalController.class);

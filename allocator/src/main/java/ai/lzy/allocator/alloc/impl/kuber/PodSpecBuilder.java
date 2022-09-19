@@ -1,7 +1,5 @@
 package ai.lzy.allocator.alloc.impl.kuber;
 
-import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.POD_NAME_PREFIX;
-
 import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.model.Vm;
@@ -9,30 +7,15 @@ import ai.lzy.allocator.model.Workload;
 import ai.lzy.allocator.volume.HostPathVolumeDescription;
 import ai.lzy.allocator.volume.Volume.AccessMode;
 import ai.lzy.allocator.volume.VolumeClaim;
-import io.fabric8.kubernetes.api.model.Container;
-import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
-import io.fabric8.kubernetes.api.model.EnvVarBuilder;
-import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
-import io.fabric8.kubernetes.api.model.HostPathVolumeSource;
-import io.fabric8.kubernetes.api.model.HostPathVolumeSourceBuilder;
-import io.fabric8.kubernetes.api.model.PersistentVolumeClaimVolumeSource;
-import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.SecurityContext;
-import io.fabric8.kubernetes.api.model.Toleration;
-import io.fabric8.kubernetes.api.model.TolerationBuilder;
-import io.fabric8.kubernetes.api.model.Volume;
-import io.fabric8.kubernetes.api.model.VolumeBuilder;
-import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
+import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.KubernetesClient;
+
 import java.io.File;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
+
+import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.POD_NAME_PREFIX;
 
 public class PodSpecBuilder {
     private static final String POD_TEMPLATE_PATH = "kubernetes/lzy-vm-pod-template.yaml";

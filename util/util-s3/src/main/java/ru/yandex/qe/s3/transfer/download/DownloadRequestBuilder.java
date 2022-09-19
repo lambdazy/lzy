@@ -1,12 +1,13 @@
 package ru.yandex.qe.s3.transfer.download;
 
+import ru.yandex.qe.s3.transfer.TransferAbortPolicy;
+
+import javax.annotation.concurrent.NotThreadSafe;
+
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 import static ru.yandex.qe.s3.transfer.download.DownloadRequest.UNDEFF_BOUND_VALUE;
-
-import javax.annotation.concurrent.NotThreadSafe;
-import ru.yandex.qe.s3.transfer.TransferAbortPolicy;
 
 /**
  * Established by terry on 16.07.15.

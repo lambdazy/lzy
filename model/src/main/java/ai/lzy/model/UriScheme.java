@@ -1,7 +1,7 @@
 package ai.lzy.model;
 
-import javax.annotation.Nonnull;
 import java.net.URI;
+import javax.annotation.Nonnull;
 
 public enum UriScheme {
     // services

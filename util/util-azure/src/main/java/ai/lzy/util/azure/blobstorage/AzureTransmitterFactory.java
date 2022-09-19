@@ -7,10 +7,6 @@ import com.azure.storage.blob.BlobServiceClient;
 import com.azure.storage.blob.models.DownloadRetryOptions;
 import com.azure.storage.blob.models.ParallelTransferOptions;
 import com.google.common.util.concurrent.ListeningExecutorService;
-import java.util.concurrent.Executor;
-import java.util.function.Consumer;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import ru.yandex.qe.s3.transfer.DownloadTransmitter;
 import ru.yandex.qe.s3.transfer.Transmitter;
 import ru.yandex.qe.s3.transfer.buffers.ByteBufferPool;
@@ -25,6 +21,11 @@ import ru.yandex.qe.s3.transfer.loop.UploadProcessingLoop;
 import ru.yandex.qe.s3.transfer.upload.UploadRequest;
 import ru.yandex.qe.s3.transfer.upload.UploadState;
 import ru.yandex.qe.s3.util.function.ThrowingFunction;
+
+import java.util.concurrent.Executor;
+import java.util.function.Consumer;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class AzureTransmitterFactory extends BaseTransmitterFactory {
 

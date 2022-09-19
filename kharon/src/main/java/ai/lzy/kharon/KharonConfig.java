@@ -8,8 +8,8 @@ import io.micronaut.context.annotation.ConfigurationProperties;
 import lombok.Getter;
 import lombok.Setter;
 
-import javax.annotation.Nullable;
 import java.time.Duration;
+import javax.annotation.Nullable;
 
 @Getter
 @Setter

@@ -1,11 +1,12 @@
 package ru.yandex.cloud.ml.platform.model.util.lock;
 
+import org.junit.Assert;
+import org.junit.Test;
+
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.locks.Lock;
-import org.junit.Assert;
-import org.junit.Test;
 
 public abstract class LockManagerBaseTest {
 

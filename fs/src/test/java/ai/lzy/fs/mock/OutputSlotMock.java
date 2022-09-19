@@ -1,11 +1,11 @@
 package ai.lzy.fs.mock;
 
+import ai.lzy.fs.fs.LzyOutputSlot;
+import ai.lzy.model.DataScheme;
+import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.v1.common.LMS;
 import com.google.protobuf.ByteString;
-import ai.lzy.fs.fs.LzyOutputSlot;
-import ai.lzy.model.slot.Slot;
-import ai.lzy.model.DataScheme;
 
 import java.io.IOException;
 import java.net.URI;

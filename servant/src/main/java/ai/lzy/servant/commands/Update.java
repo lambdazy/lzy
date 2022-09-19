@@ -1,12 +1,13 @@
 package ai.lzy.servant.commands;
 
-import io.grpc.ManagedChannel;
-import java.util.Base64;
-import org.apache.commons.cli.CommandLine;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.deprecated.LzyAuth;
 import ai.lzy.v1.deprecated.LzyServantGrpc;
+import io.grpc.ManagedChannel;
+import org.apache.commons.cli.CommandLine;
+
+import java.util.Base64;
 
 public class Update implements LzyCommand {
 

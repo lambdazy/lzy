@@ -1,6 +1,5 @@
 package ai.lzy.metrics;
 
-import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.exporter.HTTPServer;
 
 import java.io.IOException;

@@ -1,43 +1,31 @@
 package ai.lzy.whiteboard;
 
-import static ai.lzy.whiteboard.model.SnapshotEntryStatus.State.FINISHED;
-import static ai.lzy.whiteboard.model.SnapshotStatus.State;
-import static ai.lzy.whiteboard.model.SnapshotStatus.State.FINALIZED;
-import static ai.lzy.whiteboard.model.WhiteboardStatus.State.ERRORED;
-
-import ai.lzy.whiteboard.api.SnapshotApi;
-import io.micronaut.context.ApplicationContext;
-import java.net.URI;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
 import ai.lzy.model.DataScheme;
-import ai.lzy.whiteboard.model.ExecutionSnapshot;
-import ai.lzy.whiteboard.model.ExecutionValue;
-import ai.lzy.whiteboard.model.InputExecutionValue;
-import ai.lzy.whiteboard.model.Snapshot;
-import ai.lzy.whiteboard.model.SnapshotEntry;
-import ai.lzy.whiteboard.model.SnapshotEntryStatus;
-import ai.lzy.whiteboard.model.SnapshotStatus;
-import ai.lzy.whiteboard.model.Whiteboard.Impl;
-import ai.lzy.whiteboard.model.WhiteboardStatus;
+import ai.lzy.v1.deprecated.LzyWhiteboard;
+import ai.lzy.whiteboard.api.SnapshotApi;
 import ai.lzy.whiteboard.exceptions.SnapshotRepositoryException;
 import ai.lzy.whiteboard.exceptions.WhiteboardRepositoryException;
 import ai.lzy.whiteboard.hibernate.DbSnapshotRepository;
 import ai.lzy.whiteboard.hibernate.DbWhiteboardRepository;
-import ai.lzy.v1.deprecated.LzyWhiteboard;
+import ai.lzy.whiteboard.model.*;
+import ai.lzy.whiteboard.model.Whiteboard.Impl;
+import io.micronaut.context.ApplicationContext;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+
+import java.net.URI;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.*;
+import java.util.stream.Collectors;
+
+import static ai.lzy.whiteboard.model.SnapshotEntryStatus.State.FINISHED;
+import static ai.lzy.whiteboard.model.SnapshotStatus.State;
+import static ai.lzy.whiteboard.model.SnapshotStatus.State.FINALIZED;
+import static ai.lzy.whiteboard.model.WhiteboardStatus.State.ERRORED;
 
 public class DbSnapshotRepositoryTest {
 

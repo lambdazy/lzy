@@ -1,7 +1,21 @@
 package ai.lzy.fs;
 
+import ai.lzy.fs.fs.LzyFSManager;
+import ai.lzy.fs.fs.LzyLinuxFsManagerImpl;
+import ai.lzy.fs.fs.LzyMacosFsManagerImpl;
+import ai.lzy.fs.slots.InFileSlot;
+import ai.lzy.model.DataScheme;
+import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.v1.common.LMS.SlotStatus.State;
 import com.google.protobuf.ByteString;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.SystemUtils;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Ignore;
+import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -16,21 +30,6 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
-
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.SystemUtils;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
-import ai.lzy.fs.fs.LzyFSManager;
-import ai.lzy.fs.fs.LzyLinuxFsManagerImpl;
-import ai.lzy.fs.fs.LzyMacosFsManagerImpl;
-import ai.lzy.model.slot.Slot;
-import ai.lzy.model.DataScheme;
-import ai.lzy.fs.slots.InFileSlot;
-import ai.lzy.v1.common.LMS.SlotStatus.State;
 
 public class LzyFSTest {
     private static final String LZY_MOUNT = "/tmp/lzy-" + UUID.randomUUID();

@@ -2,9 +2,6 @@ package ru.yandex.qe.s3.transfer.factories;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
-import java.util.concurrent.Executor;
-import java.util.function.Consumer;
-import javax.annotation.Nonnull;
 import org.joda.time.Duration;
 import ru.yandex.qe.s3.transfer.TTLTransmitter;
 import ru.yandex.qe.s3.transfer.buffers.ByteBufferPool;
@@ -13,6 +10,10 @@ import ru.yandex.qe.s3.transfer.upload.UploadRequest;
 import ru.yandex.qe.s3.transfer.upload.UploadState;
 import ru.yandex.qe.s3.ttl.S3Type;
 import ru.yandex.qe.s3.ttl.TTLRegister;
+
+import java.util.concurrent.Executor;
+import java.util.function.Consumer;
+import javax.annotation.Nonnull;
 
 /**
  * Established by terry on 30.01.16.

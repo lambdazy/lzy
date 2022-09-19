@@ -1,9 +1,9 @@
 package ai.lzy.backoffice.models.keys;
 
-import io.micronaut.core.annotation.Introspected;
 import ai.lzy.backoffice.models.UserCredentials;
 import ai.lzy.v1.deprecated.BackOffice;
 import ai.lzy.v1.deprecated.LzyAuth;
+import io.micronaut.core.annotation.Introspected;
 
 @Introspected
 public class AddPublicKeyRequest {

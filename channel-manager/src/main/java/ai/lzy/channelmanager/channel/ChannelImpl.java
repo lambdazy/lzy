@@ -4,14 +4,15 @@ import ai.lzy.channelmanager.control.ChannelController;
 import ai.lzy.channelmanager.graph.ChannelGraph;
 import ai.lzy.channelmanager.graph.LocalChannelGraph;
 import ai.lzy.model.slot.SlotStatus;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class ChannelImpl implements Channel {
 

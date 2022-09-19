@@ -1,17 +1,18 @@
 package ai.lzy.whiteboard;
 
-import java.net.URI;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Stream;
-import javax.validation.constraints.NotNull;
 import ai.lzy.model.DataScheme;
+import ai.lzy.whiteboard.exceptions.SnapshotRepositoryException;
 import ai.lzy.whiteboard.model.ExecutionSnapshot;
 import ai.lzy.whiteboard.model.Snapshot;
 import ai.lzy.whiteboard.model.SnapshotEntry;
 import ai.lzy.whiteboard.model.SnapshotEntryStatus;
 import ai.lzy.whiteboard.model.SnapshotStatus;
-import ai.lzy.whiteboard.exceptions.SnapshotRepositoryException;
+
+import java.net.URI;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
+import javax.validation.constraints.NotNull;
 
 public interface SnapshotRepository {
 

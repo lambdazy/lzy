@@ -1,10 +1,5 @@
 package ai.lzy.graph.exec;
 
-import ai.lzy.v1.scheduler.Scheduler;
-import jakarta.inject.Inject;
-import jakarta.inject.Singleton;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import ai.lzy.graph.algo.Algorithms;
 import ai.lzy.graph.algo.Algorithms.CondensedComponent;
 import ai.lzy.graph.algo.Algorithms.CondensedGraph;
@@ -17,8 +12,17 @@ import ai.lzy.graph.model.GraphExecutionState;
 import ai.lzy.graph.model.GraphExecutionState.Status;
 import ai.lzy.graph.model.TaskDescription;
 import ai.lzy.graph.model.TaskExecution;
+import ai.lzy.v1.scheduler.Scheduler;
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Singleton

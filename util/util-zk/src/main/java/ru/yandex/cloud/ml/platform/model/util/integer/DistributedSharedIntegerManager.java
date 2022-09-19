@@ -1,7 +1,8 @@
 package ru.yandex.cloud.ml.platform.model.util.integer;
 
-import java.util.concurrent.ConcurrentHashMap;
 import org.apache.curator.framework.CuratorFramework;
+
+import java.util.concurrent.ConcurrentHashMap;
 
 public class DistributedSharedIntegerManager implements SharedIntegerManager {
 

@@ -1,6 +1,5 @@
 package ai.lzy.whiteboard.grpc;
 
-import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.v1.whiteboard.LWB;
 import ai.lzy.whiteboard.model.Field;
 import ai.lzy.whiteboard.model.LinkedField;

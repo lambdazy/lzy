@@ -1,10 +1,13 @@
 package ai.lzy.graph.model;
 
 import ai.lzy.model.operation.Operation;
-import ai.lzy.v1.graph.GraphExecutor.*;
+import ai.lzy.v1.graph.GraphExecutor.ChannelDesc;
+import ai.lzy.v1.graph.GraphExecutor.SlotToChannelAssignment;
+import ai.lzy.v1.graph.GraphExecutor.TaskDesc;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;

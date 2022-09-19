@@ -2,6 +2,7 @@ package ai.lzy.backoffice.configs;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
 import io.micronaut.context.annotation.Requires;
+
 import javax.validation.constraints.NotBlank;
 
 @Requires(property = "azure-providers", value = "false", defaultValue = "false")

@@ -1,17 +1,18 @@
 package ai.lzy.servant.commands;
 
-import ai.lzy.servant.agents.LzyAgent;
+import ai.lzy.fs.commands.LzyCommand;
+import ai.lzy.fs.fs.LzyFS;
+import ai.lzy.model.UriScheme;
 import ai.lzy.servant.agents.LzyAgentConfig;
 import ai.lzy.servant.agents.LzyServant;
-import java.net.URI;
-import java.nio.file.Path;
-
-import org.apache.commons.cli.*;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ai.lzy.fs.commands.LzyCommand;
-import ai.lzy.model.UriScheme;
-import ai.lzy.fs.fs.LzyFS;
+
+import java.net.URI;
+import java.nio.file.Path;
 
 public class Start implements LzyCommand {
     private static final Logger LOG = LogManager.getLogger(Start.class);

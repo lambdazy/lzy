@@ -3,16 +3,19 @@ package ai.lzy.server.hibernate;
 import ai.lzy.server.configs.AgentsConfig;
 import ai.lzy.server.configs.ClickhouseConfig;
 import ai.lzy.server.configs.DbConfig;
-import ai.lzy.server.hibernate.models.BackofficeSessionModel;
-import ai.lzy.server.hibernate.models.PermissionModel;
-import ai.lzy.server.hibernate.models.PublicKeyModel;
-import ai.lzy.server.hibernate.models.ServantModel;
-import ai.lzy.server.hibernate.models.TaskModel;
-import ai.lzy.server.hibernate.models.UserModel;
-import ai.lzy.server.hibernate.models.UserRoleModel;
+import ai.lzy.server.hibernate.models.*;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.flywaydb.core.Flyway;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.Transaction;
+import org.hibernate.cfg.Configuration;
+import ru.yandex.clickhouse.ClickHouseDataSource;
+
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
@@ -22,14 +25,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Locale;
 import java.util.Set;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.flywaydb.core.Flyway;
-import org.hibernate.Session;
-import org.hibernate.SessionFactory;
-import org.hibernate.Transaction;
-import org.hibernate.cfg.Configuration;
-import ru.yandex.clickhouse.ClickHouseDataSource;
 
 @Singleton
 @Requires(property = "database.url")

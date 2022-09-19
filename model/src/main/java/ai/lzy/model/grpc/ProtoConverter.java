@@ -1,14 +1,15 @@
 package ai.lzy.model.grpc;
 
-import ai.lzy.model.StorageCredentials;
-import ai.lzy.model.slot.SlotInstance;
-import ai.lzy.model.slot.SlotStatus;
 import ai.lzy.model.DataScheme;
+import ai.lzy.model.StorageCredentials;
 import ai.lzy.model.graph.*;
 import ai.lzy.model.slot.Slot;
+import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.model.slot.SlotStatus;
 import ai.lzy.v1.common.LMD;
 import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LMS;
+
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;

@@ -7,9 +7,9 @@ import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.flywaydb.core.Flyway;
 
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
+import javax.sql.DataSource;
 
 @Singleton
 public class SchedulerDataSource implements Storage {

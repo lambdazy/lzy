@@ -1,6 +1,10 @@
 package ai.lzy.fs;
 
+import ai.lzy.fs.mock.OutputSlotMock;
+import ai.lzy.fs.mock.ServiceMock;
+import ai.lzy.fs.snapshot.SlotSnapshot;
 import ai.lzy.fs.snapshot.SlotSnapshotProvider;
+import ai.lzy.fs.snapshot.Snapshooter;
 import ai.lzy.fs.snapshot.SnapshooterImpl;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.deprecated.LzyAuth;
@@ -10,10 +14,6 @@ import com.google.protobuf.ByteString;
 import io.grpc.stub.StreamObserver;
 import org.junit.Assert;
 import org.junit.Test;
-import ai.lzy.fs.mock.OutputSlotMock;
-import ai.lzy.fs.mock.ServiceMock;
-import ai.lzy.fs.snapshot.SlotSnapshot;
-import ai.lzy.fs.snapshot.Snapshooter;
 
 import java.io.IOException;
 import java.net.URI;

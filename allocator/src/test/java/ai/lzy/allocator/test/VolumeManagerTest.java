@@ -1,7 +1,5 @@
 package ai.lzy.allocator.test;
 
-import static ai.lzy.allocator.test.Utils.createTestDiskSpec;
-
 import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactoryImpl;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.Disk;
@@ -20,6 +18,10 @@ import io.jsonwebtoken.lang.Assert;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
+import org.junit.Before;
+import org.junit.Ignore;
+import org.junit.Test;
+
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.math.RoundingMode;
@@ -29,9 +31,8 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Random;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
+
+import static ai.lzy.allocator.test.Utils.createTestDiskSpec;
 
 @Ignore
 public class VolumeManagerTest {

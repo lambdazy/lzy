@@ -5,13 +5,14 @@ import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.channel.LCMS;
-import ai.lzy.v1.deprecated.LzyAuth;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.deprecated.LzyAuth;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
+import org.apache.commons.cli.CommandLine;
+
 import java.net.URI;
 import java.util.Base64;
-import org.apache.commons.cli.CommandLine;
 
 public final class ChannelStatus implements LzyCommand {
 
