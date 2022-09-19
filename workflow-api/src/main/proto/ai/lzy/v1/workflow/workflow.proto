@@ -13,8 +13,8 @@ message Operation {
   string command = 3;  // command to execute
 
   // Paths of slots to open. Must be uniq per workflow
-  repeated string inputSlots = 4;
-  repeated string outputSlots = 5;
+  repeated SlotDescription inputSlots = 4;
+  repeated SlotDescription outputSlots = 5;
 
   /* optional */ string dockerImage = 6;  // If not set, running on default Lzy image
 
@@ -23,6 +23,11 @@ message Operation {
   }
 
   string poolSpecName = 8;  // Label to execute operation in
+
+  message SlotDescription {
+    string path = 1;
+    string storageUri = 2;
+  }
 
   message PythonEnvSpec {  // TODO(artolord) remove this and move to upper level
     string yaml = 2;  // Conda yaml to install before execution
@@ -35,43 +40,27 @@ message Operation {
   }
 }
 
+message DataDescription {
+  string storageUri = 1;
+  /* optional */ DataScheme dataScheme = 2;  // If not set, using plain scheme
+  /* optional */ WhiteboardRef whiteboardRef = 3;  // Whiteboard field to link data to
+
+  message WhiteboardRef {
+    string whiteboardId = 1;
+    string fieldName = 2;
+  }
+}
+
 message Graph {
   string name = 1;  // Human-readable name to show in UI
 
-  repeated EdgeDescription edges = 2;
-  repeated VertexDescription vertices = 3;
+  string parentGraphId = 2;
 
-  /* optional */ string zone = 4;  // Availability zone to execute graph in.
-                                   // If not set, selected some zone, matching all pools
+  repeated Operation operations = 3;
+  repeated DataDescription dataDescriptions = 4;
 
-  message EdgeDescription {
-    /* optional */ DataScheme dataScheme = 1;  // If not set, using plain scheme
-
-    /* optional */ string storageUri = 2;  // If storageUri set, saving all data to storage
-                                           // If input not set, getting it from storage
-
-    // If input or outputs not set, storageUri must be set to get data from it
-    // Edge without input and outputs is not valid
-    /* optional */ VertexRef input = 3;
-    /* optional */ repeated VertexRef outputs = 4;
-
-    /* optional */ WhiteboardRef whiteboardRef = 5;  // Whiteboard field to link data to
-
-    message VertexRef {
-      string vertexId = 1;
-      string slotName = 2;
-    }
-
-    message WhiteboardRef {
-      string whiteboardId = 1;
-      string fieldName = 2;
-    }
-  }
-
-  message VertexDescription {
-    string id = 1;
-    Operation operation = 2;
-  }
+  /* optional */ string zone = 5;  // Availability zone to execute graph in.
+  // If not set, selected some zone, matching all pools
 }
 
 message VmPoolSpec {
