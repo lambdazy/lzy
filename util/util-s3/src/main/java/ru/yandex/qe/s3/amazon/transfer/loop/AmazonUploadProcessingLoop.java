@@ -1,15 +1,16 @@
 package ru.yandex.qe.s3.amazon.transfer.loop;
 
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.AbortMultipartUploadRequest;
-import com.amazonaws.services.s3.model.AccessControlList;
-import com.amazonaws.services.s3.model.CannedAccessControlList;
-import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
-import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
-import com.amazonaws.services.s3.model.PartETag;
-import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.amazonaws.services.s3.model.UploadPartRequest;
+import com.amazonaws.services.s3.model.*;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import org.joda.time.DateTime;
+import ru.yandex.qe.s3.transfer.buffers.ByteBufferPool;
+import ru.yandex.qe.s3.transfer.loop.UploadProcessingLoop;
+import ru.yandex.qe.s3.transfer.meta.Metadata;
+import ru.yandex.qe.s3.transfer.upload.ConcurrencyConflictResolve;
+import ru.yandex.qe.s3.transfer.upload.UploadRequest;
+import ru.yandex.qe.s3.transfer.upload.UploadState;
+
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.Queue;
@@ -18,13 +19,6 @@ import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import org.joda.time.DateTime;
-import ru.yandex.qe.s3.transfer.buffers.ByteBufferPool;
-import ru.yandex.qe.s3.transfer.loop.UploadProcessingLoop;
-import ru.yandex.qe.s3.transfer.meta.Metadata;
-import ru.yandex.qe.s3.transfer.upload.ConcurrencyConflictResolve;
-import ru.yandex.qe.s3.transfer.upload.UploadRequest;
-import ru.yandex.qe.s3.transfer.upload.UploadState;
 
 /**
  * Established by terry on 18.01.16.

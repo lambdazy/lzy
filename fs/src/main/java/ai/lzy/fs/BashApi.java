@@ -1,10 +1,9 @@
 package ai.lzy.fs;
 
-import java.util.Arrays;
+import ai.lzy.fs.commands.BuiltinCommandHolder;
 import org.apache.commons.cli.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ai.lzy.fs.commands.BuiltinCommandHolder;
 
 public class BashApi {
     private static final Options options = new Options();

@@ -1,10 +1,11 @@
 package ru.yandex.qe.s3.transfer;
 
-import java.util.Collections;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 import ru.yandex.qe.s3.transfer.meta.Metadata;
 import ru.yandex.qe.s3.transfer.meta.MetadataBuilder;
+
+import java.util.Collections;
 
 /**
  * Established by terry on 19.01.16.

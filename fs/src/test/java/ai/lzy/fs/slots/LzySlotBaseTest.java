@@ -1,21 +1,23 @@
 package ai.lzy.fs.slots;
 
+import ai.lzy.fs.fs.LzySlot;
+import ai.lzy.model.DataScheme;
+import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
-import java.net.URI;
-import java.net.URISyntaxException;
+import ai.lzy.v1.common.LMS.SlotStatus.State;
 import org.junit.Ignore;
 import org.junit.Test;
-import ai.lzy.fs.fs.LzySlot;
-import ai.lzy.model.slot.Slot;
-import ai.lzy.model.DataScheme;
-import ai.lzy.v1.common.LMS.SlotStatus.State;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class LzySlotBaseTest {
 

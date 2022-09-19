@@ -1,6 +1,7 @@
 package ru.yandex.qe.s3.util.function;
 
 import com.google.common.base.Throwables;
+
 import java.util.function.Function;
 
 /**

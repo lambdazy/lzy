@@ -1,7 +1,9 @@
 package ai.lzy.server.storage;
 
+import ai.lzy.model.StorageCredentials;
 import ai.lzy.server.configs.ServerConfig;
 import ai.lzy.server.configs.StorageConfigs;
+import ai.lzy.server.hibernate.DbStorage;
 import ai.lzy.server.hibernate.models.UserModel;
 import ai.lzy.server.utils.azure.StorageUtils;
 import ai.lzy.storage.impl.RenewableToken;
@@ -23,8 +25,6 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
-import ai.lzy.model.StorageCredentials;
-import ai.lzy.server.hibernate.DbStorage;
 
 @Singleton
 @Requires(property = "database.enabled", value = "true")

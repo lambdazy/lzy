@@ -1,7 +1,6 @@
 package ai.lzy.portal.config;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 

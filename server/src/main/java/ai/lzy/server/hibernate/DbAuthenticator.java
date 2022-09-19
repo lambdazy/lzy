@@ -1,13 +1,9 @@
 package ai.lzy.server.hibernate;
 
+import ai.lzy.model.utils.Permissions;
 import ai.lzy.server.Authenticator;
 import ai.lzy.server.configs.StorageConfigs;
-import ai.lzy.server.hibernate.models.BackofficeSessionModel;
-import ai.lzy.server.hibernate.models.PermissionModel;
-import ai.lzy.server.hibernate.models.PublicKeyModel;
-import ai.lzy.server.hibernate.models.ServantModel;
-import ai.lzy.server.hibernate.models.TaskModel;
-import ai.lzy.server.hibernate.models.UserModel;
+import ai.lzy.server.hibernate.models.*;
 import ai.lzy.server.task.Task;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.v1.deprecated.Lzy;
@@ -19,7 +15,6 @@ import org.apache.logging.log4j.Logger;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
-import ai.lzy.model.utils.Permissions;
 
 import java.io.StringReader;
 import java.security.Security;

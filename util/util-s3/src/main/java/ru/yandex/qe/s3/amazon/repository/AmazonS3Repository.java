@@ -1,13 +1,14 @@
 package ru.yandex.qe.s3.amazon.repository;
 
-import static java.util.concurrent.Executors.newFixedThreadPool;
-
 import com.amazonaws.services.s3.AmazonS3;
-import java.util.concurrent.ExecutorService;
-import java.util.function.Function;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import ru.yandex.qe.s3.repository.S3Repository;
 import ru.yandex.qe.s3.transfer.Transmitter;
+
+import java.util.concurrent.ExecutorService;
+import java.util.function.Function;
+
+import static java.util.concurrent.Executors.newFixedThreadPool;
 
 /**
  * Established by terry on 02.07.15.

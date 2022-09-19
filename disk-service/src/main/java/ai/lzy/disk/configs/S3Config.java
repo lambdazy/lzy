@@ -1,6 +1,7 @@
 package ai.lzy.disk.configs;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
+
 import javax.annotation.Nullable;
 
 @ConfigurationProperties("disk-service.amazonS3")

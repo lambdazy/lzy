@@ -1,26 +1,18 @@
 package ai.lzy.portal;
 
-import static java.util.Objects.requireNonNull;
-
-import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.test.GrpcUtils;
+import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.common.LME;
-import ai.lzy.v1.deprecated.LzyAuth;
-import ai.lzy.v1.deprecated.Lzy;
-import ai.lzy.v1.deprecated.LzyServantGrpc;
-import ai.lzy.v1.deprecated.LzyServerGrpc;
-import ai.lzy.v1.deprecated.LzyZygote;
-import ai.lzy.v1.deprecated.Servant;
-import ai.lzy.v1.deprecated.LzyTask;
+import ai.lzy.v1.deprecated.*;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
-import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
+import org.junit.Assert;
 
 import java.io.IOException;
 import java.util.Map;
@@ -28,7 +20,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.Assert;
+import static java.util.Objects.requireNonNull;
 
 @SuppressWarnings({"ResultOfMethodCallIgnored", "SameParameterValue"})
 class ServerMock extends LzyServerGrpc.LzyServerImplBase {

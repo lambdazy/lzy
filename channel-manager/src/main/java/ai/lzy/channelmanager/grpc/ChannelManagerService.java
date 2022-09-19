@@ -1,9 +1,5 @@
 package ai.lzy.channelmanager.grpc;
 
-import static ai.lzy.channelmanager.grpc.ProtoConverter.toChannelStatusProto;
-import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
-import static ai.lzy.model.db.DbHelper.withRetries;
-
 import ai.lzy.channelmanager.ChannelManagerConfig;
 import ai.lzy.channelmanager.channel.*;
 import ai.lzy.channelmanager.db.ChannelManagerDataSource;
@@ -20,15 +16,20 @@ import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.apache.commons.lang3.NotImplementedException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.apache.commons.lang3.NotImplementedException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+
+import static ai.lzy.channelmanager.grpc.ProtoConverter.toChannelStatusProto;
+import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
+import static ai.lzy.model.db.DbHelper.withRetries;
 
 @Singleton
 public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManagerImplBase {

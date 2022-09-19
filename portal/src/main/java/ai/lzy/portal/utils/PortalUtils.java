@@ -3,7 +3,6 @@ package ai.lzy.portal.utils;
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
-import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.v1.portal.LzyPortalApi;
 import ai.lzy.v1.portal.LzyPortalApi.PortalSlotStatus;

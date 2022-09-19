@@ -1,13 +1,13 @@
 package ai.lzy.fs.slots;
 
-import static ai.lzy.v1.common.LMS.SlotStatus.State.*;
-import static java.util.Collections.synchronizedMap;
-
 import ai.lzy.fs.fs.LzySlot;
-import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.slot.Slot;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.v1.common.LMS;
 import com.google.protobuf.ByteString;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -15,8 +15,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+
+import static ai.lzy.v1.common.LMS.SlotStatus.State.*;
+import static java.util.Collections.synchronizedMap;
 
 public class LzySlotBase implements LzySlot {
     private static final Logger LOG = LogManager.getLogger(LzySlotBase.class);

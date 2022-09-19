@@ -1,7 +1,7 @@
 package ai.lzy.server.kuber;
 
-import io.kubernetes.client.openapi.models.V1Pod;
 import ai.lzy.model.graph.Provisioning;
+import io.kubernetes.client.openapi.models.V1Pod;
 
 public interface ServantPodProvider {
     V1Pod createServantLockPod(Provisioning provisioning, String servantId, String sessionId)

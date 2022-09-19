@@ -1,14 +1,15 @@
 package ru.yandex.qe.s3.repository;
 
 import com.google.common.base.Throwables;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.function.Function;
-import javax.annotation.Nonnull;
 import org.joda.time.Duration;
 import ru.yandex.qe.s3.transfer.StreamSuppliers;
 import ru.yandex.qe.s3.transfer.TTLTransmitter;
 import ru.yandex.qe.s3.transfer.ttl.TTLUploadRequestBuilder;
+
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.function.Function;
+import javax.annotation.Nonnull;
 
 /**
  * Established by terry on 21.07.15.

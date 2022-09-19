@@ -1,45 +1,35 @@
 package ai.lzy.whiteboard.api;
 
+import ai.lzy.model.utils.Permissions;
+import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.v1.deprecated.LzyServerGrpc;
+import ai.lzy.v1.deprecated.LzyWhiteboard;
+import ai.lzy.v1.deprecated.WbApiGrpc;
 import ai.lzy.whiteboard.SnapshotRepository;
 import ai.lzy.whiteboard.WhiteboardRepository;
 import ai.lzy.whiteboard.auth.Authenticator;
+import ai.lzy.whiteboard.auth.SimpleAuthenticator;
+import ai.lzy.whiteboard.config.ServiceConfig;
+import ai.lzy.whiteboard.exceptions.WhiteboardRepositoryException;
+import ai.lzy.whiteboard.model.*;
+import ai.lzy.whiteboard.model.Whiteboard.Impl;
+import ai.lzy.whiteboard.model.WhiteboardStatus.State;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.net.URI;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.whiteboard.model.SnapshotEntry;
-import ai.lzy.whiteboard.model.SnapshotEntryStatus;
-import ai.lzy.whiteboard.model.SnapshotStatus;
-import ai.lzy.whiteboard.model.Whiteboard;
-import ai.lzy.whiteboard.model.Whiteboard.Impl;
-import ai.lzy.whiteboard.model.WhiteboardField;
-import ai.lzy.whiteboard.model.WhiteboardStatus;
-import ai.lzy.whiteboard.model.WhiteboardStatus.State;
-import ai.lzy.model.utils.Permissions;
-import ai.lzy.whiteboard.auth.SimpleAuthenticator;
-import ai.lzy.whiteboard.config.ServiceConfig;
-import ai.lzy.whiteboard.exceptions.WhiteboardRepositoryException;
-import ai.lzy.v1.deprecated.LzyServerGrpc;
-import ai.lzy.v1.deprecated.LzyWhiteboard;
-import ai.lzy.v1.deprecated.WbApiGrpc;
 
 @Singleton
 @Requires(property = "service.server-uri")

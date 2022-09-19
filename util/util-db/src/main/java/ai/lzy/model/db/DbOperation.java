@@ -1,8 +1,8 @@
 package ai.lzy.model.db;
 
-import javax.annotation.Nullable;
 import java.sql.Connection;
 import java.sql.SQLException;
+import javax.annotation.Nullable;
 
 public interface DbOperation {
     void execute(Connection connection) throws SQLException;

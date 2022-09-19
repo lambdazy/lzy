@@ -1,9 +1,10 @@
 package ai.lzy.servant.logs;
 
+import ru.yandex.clickhouse.ClickHouseDataSource;
+
 import java.sql.Connection;
 import java.sql.SQLException;
 import javax.sql.DataSource;
-import ru.yandex.clickhouse.ClickHouseDataSource;
 
 public class ConnectionFactory {
 

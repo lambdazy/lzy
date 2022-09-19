@@ -6,6 +6,7 @@ import io.micronaut.context.annotation.Factory;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
+
 import javax.sql.DataSource;
 
 @Factory

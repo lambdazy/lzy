@@ -5,9 +5,9 @@ import ai.lzy.v1.OperationService;
 import com.google.protobuf.Any;
 import io.grpc.Status;
 
+import java.time.Instant;
 import java.util.UUID;
 import javax.annotation.Nullable;
-import java.time.Instant;
 
 public class Operation {
     private final String id;

@@ -1,5 +1,10 @@
 package ai.lzy.backoffice.controllers;
 
+import ai.lzy.backoffice.grpc.Client;
+import ai.lzy.backoffice.models.keys.AddPublicKeyRequest;
+import ai.lzy.backoffice.models.keys.DeletePublicKeyRequest;
+import ai.lzy.backoffice.models.keys.ListKeysRequest;
+import ai.lzy.backoffice.models.keys.ListKeysResponse;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
@@ -7,12 +12,8 @@ import io.micronaut.http.annotation.Post;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import jakarta.inject.Inject;
+
 import javax.validation.Valid;
-import ai.lzy.backoffice.grpc.Client;
-import ai.lzy.backoffice.models.keys.AddPublicKeyRequest;
-import ai.lzy.backoffice.models.keys.DeletePublicKeyRequest;
-import ai.lzy.backoffice.models.keys.ListKeysRequest;
-import ai.lzy.backoffice.models.keys.ListKeysResponse;
 
 @ExecuteOn(TaskExecutors.IO)
 @Controller("public_key")

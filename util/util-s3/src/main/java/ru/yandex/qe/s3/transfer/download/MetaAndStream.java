@@ -1,9 +1,10 @@
 package ru.yandex.qe.s3.transfer.download;
 
+import ru.yandex.qe.s3.transfer.meta.Metadata;
+
 import java.io.InputStream;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.Immutable;
-import ru.yandex.qe.s3.transfer.meta.Metadata;
 
 /**
  * Established by terry on 17.07.15.

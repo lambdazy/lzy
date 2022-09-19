@@ -1,6 +1,7 @@
 package ai.lzy.model.deprecated;
 
 import ai.lzy.model.slot.Slot;
+
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 

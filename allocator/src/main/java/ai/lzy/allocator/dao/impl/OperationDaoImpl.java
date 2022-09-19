@@ -13,10 +13,10 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.annotation.Nullable;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import javax.annotation.Nullable;
 
 @Singleton
 public class OperationDaoImpl implements OperationDao {

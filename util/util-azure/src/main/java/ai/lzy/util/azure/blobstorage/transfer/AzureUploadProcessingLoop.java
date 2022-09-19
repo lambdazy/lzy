@@ -7,6 +7,17 @@ import com.azure.storage.blob.models.BlockListType;
 import com.azure.storage.blob.models.ParallelTransferOptions;
 import com.azure.storage.blob.specialized.BlockBlobClient;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import org.joda.time.DateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import ru.yandex.qe.s3.amazon.transfer.loop.AmazonDownloadProcessingLoop;
+import ru.yandex.qe.s3.transfer.buffers.ByteBufferPool;
+import ru.yandex.qe.s3.transfer.loop.UploadProcessingLoop;
+import ru.yandex.qe.s3.transfer.meta.Metadata;
+import ru.yandex.qe.s3.transfer.upload.ConcurrencyConflictResolve;
+import ru.yandex.qe.s3.transfer.upload.UploadRequest;
+import ru.yandex.qe.s3.transfer.upload.UploadState;
+
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -20,16 +31,6 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.joda.time.DateTime;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import ru.yandex.qe.s3.amazon.transfer.loop.AmazonDownloadProcessingLoop;
-import ru.yandex.qe.s3.transfer.buffers.ByteBufferPool;
-import ru.yandex.qe.s3.transfer.loop.UploadProcessingLoop;
-import ru.yandex.qe.s3.transfer.meta.Metadata;
-import ru.yandex.qe.s3.transfer.upload.ConcurrencyConflictResolve;
-import ru.yandex.qe.s3.transfer.upload.UploadRequest;
-import ru.yandex.qe.s3.transfer.upload.UploadState;
 
 public class AzureUploadProcessingLoop extends UploadProcessingLoop {
 

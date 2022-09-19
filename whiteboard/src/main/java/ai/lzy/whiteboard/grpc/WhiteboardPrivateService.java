@@ -1,11 +1,7 @@
 package ai.lzy.whiteboard.grpc;
 
-import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
-import static ai.lzy.model.db.DbHelper.withRetries;
-import static ai.lzy.model.grpc.ProtoConverter.fromProto;
-
-import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.v1.whiteboard.LWBPS;
 import ai.lzy.v1.whiteboard.LzyWhiteboardPrivateServiceGrpc;
 import ai.lzy.whiteboard.access.AccessManager;
@@ -17,16 +13,19 @@ import ai.lzy.whiteboard.storage.WhiteboardStorage;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Inject;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ru.yandex.cloud.ml.platform.model.util.lock.LocalLockManager;
-import ru.yandex.cloud.ml.platform.model.util.lock.LockManager;
+
+import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
+import static ai.lzy.model.db.DbHelper.withRetries;
+import static ai.lzy.model.grpc.ProtoConverter.fromProto;
 
 public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.LzyWhiteboardPrivateServiceImplBase {
 

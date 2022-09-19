@@ -28,11 +28,11 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.inject.Named;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.sql.SQLException;
 import java.util.concurrent.TimeUnit;
+import javax.inject.Named;
 
 @Singleton
 public class AllocatorMain {

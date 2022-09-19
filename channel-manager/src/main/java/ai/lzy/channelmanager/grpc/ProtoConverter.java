@@ -2,10 +2,9 @@ package ai.lzy.channelmanager.grpc;
 
 import ai.lzy.channelmanager.channel.Channel;
 import ai.lzy.channelmanager.channel.ChannelSpec;
-import ai.lzy.v1.channel.LCMS;
 import ai.lzy.v1.channel.LCM;
+import ai.lzy.v1.channel.LCMS;
 import ai.lzy.v1.common.LMS;
-import ai.lzy.v1.deprecated.LzyZygote;
 
 public class ProtoConverter {
 

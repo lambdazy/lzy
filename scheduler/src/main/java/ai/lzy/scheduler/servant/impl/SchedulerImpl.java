@@ -1,12 +1,12 @@
 package ai.lzy.scheduler.servant.impl;
 
 import ai.lzy.model.ReturnCodes;
-import ai.lzy.model.slot.Slot;
+import ai.lzy.model.TaskDesc;
 import ai.lzy.model.db.exceptions.DaoException;
+import ai.lzy.model.slot.Slot;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.scheduler.db.TaskDao;
-import ai.lzy.model.TaskDesc;
 import ai.lzy.scheduler.models.TaskState;
 import ai.lzy.scheduler.servant.Scheduler;
 import ai.lzy.scheduler.servant.Servant;
@@ -16,15 +16,16 @@ import io.grpc.Status;
 import io.grpc.StatusException;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 @Singleton
 public class SchedulerImpl extends Thread implements Scheduler {

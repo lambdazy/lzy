@@ -1,6 +1,7 @@
 package ai.lzy.whiteboard.model;
 
 import ai.lzy.model.DataScheme;
+
 import java.util.Objects;
 
 public class LinkedField extends Field {

@@ -1,8 +1,8 @@
 package ai.lzy.channelmanager.control;
 
-import ai.lzy.channelmanager.graph.ChannelGraph;
 import ai.lzy.channelmanager.channel.ChannelException;
 import ai.lzy.channelmanager.channel.Endpoint;
+import ai.lzy.channelmanager.graph.ChannelGraph;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.deprecated.LzyAuth;
@@ -10,11 +10,12 @@ import ai.lzy.v1.deprecated.LzyWhiteboard;
 import ai.lzy.v1.deprecated.SnapshotApiGrpc;
 import io.grpc.Channel;
 import io.grpc.StatusRuntimeException;
-import java.net.URI;
-import java.util.stream.Stream;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.net.URI;
+import java.util.stream.Stream;
 
 public class SnapshotChannelController implements ChannelController {
 

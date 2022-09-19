@@ -1,13 +1,14 @@
 package ru.yandex.qe.s3.transfer.ttl;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
-import java.io.InputStream;
 import org.joda.time.Duration;
 import ru.yandex.qe.s3.transfer.ThrowingSupplier;
 import ru.yandex.qe.s3.transfer.meta.Metadata;
 import ru.yandex.qe.s3.transfer.upload.UploadRequest;
 import ru.yandex.qe.s3.transfer.upload.UploadRequestBuilder;
+
+import java.io.InputStream;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Established by terry on 14.07.15.

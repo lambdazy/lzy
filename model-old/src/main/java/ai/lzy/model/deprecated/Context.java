@@ -3,6 +3,7 @@ package ai.lzy.model.deprecated;
 import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.Provisioning;
 import ai.lzy.model.slot.Slot;
+
 import java.util.stream.Stream;
 
 @Deprecated

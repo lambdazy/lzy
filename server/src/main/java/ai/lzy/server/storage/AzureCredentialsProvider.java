@@ -1,11 +1,11 @@
 package ai.lzy.server.storage;
 
+import ai.lzy.model.StorageCredentials;
 import ai.lzy.server.configs.StorageConfigs;
 import ai.lzy.server.utils.azure.StorageUtils;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import ai.lzy.model.StorageCredentials;
 
 @Singleton
 @Requires(property = "storage.azure.enabled", value = "true")

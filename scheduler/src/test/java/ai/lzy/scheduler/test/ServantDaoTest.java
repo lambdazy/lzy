@@ -1,8 +1,8 @@
 package ai.lzy.scheduler.test;
 
-import ai.lzy.model.operation.Operation;
 import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.model.db.test.DatabaseTestUtils;
+import ai.lzy.model.operation.Operation;
 import ai.lzy.scheduler.allocator.ServantMetaStorage;
 import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.scheduler.db.ServantDao.AcquireException;
@@ -11,7 +11,11 @@ import ai.lzy.scheduler.servant.Servant;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 
 import java.util.Set;
 import java.util.stream.Collectors;

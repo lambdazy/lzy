@@ -1,7 +1,7 @@
 package ai.lzy.scheduler.db.impl;
 
-import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.model.db.Transaction;
+import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.scheduler.db.ServantEventDao;
 import ai.lzy.scheduler.models.ServantEvent;
 import jakarta.inject.Singleton;

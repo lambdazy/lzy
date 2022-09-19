@@ -1,8 +1,8 @@
 package ai.lzy.test.impl;
 
-import ai.lzy.model.slot.Slot;
 import ai.lzy.model.DataScheme;
 import ai.lzy.model.db.test.DatabaseTestUtils;
+import ai.lzy.model.slot.Slot;
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
 import io.zonky.test.db.postgres.embedded.PreparedDbProvider;
 

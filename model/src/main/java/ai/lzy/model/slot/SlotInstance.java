@@ -1,6 +1,5 @@
 package ai.lzy.model.slot;
 
-import ai.lzy.model.slot.Slot;
 import java.net.URI;
 
 public record SlotInstance(

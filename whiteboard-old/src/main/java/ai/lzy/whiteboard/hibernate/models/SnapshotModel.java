@@ -2,9 +2,9 @@ package ai.lzy.whiteboard.hibernate.models;
 
 import ai.lzy.whiteboard.model.SnapshotStatus;
 
+import java.util.Date;
 import javax.annotation.Nullable;
 import javax.persistence.*;
-import java.util.Date;
 
 @Entity
 @Table(name = "snapshot")

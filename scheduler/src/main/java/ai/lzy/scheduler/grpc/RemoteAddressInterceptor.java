@@ -1,10 +1,8 @@
 package ai.lzy.scheduler.grpc;
 
 import io.grpc.*;
-import org.apache.curator.shaded.com.google.common.net.HostAndPort;
 
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 
 public class RemoteAddressInterceptor implements ServerInterceptor {
     @Override

@@ -2,7 +2,6 @@ package ai.lzy.whiteboard.auth;
 
 import ai.lzy.model.utils.Permissions;
 import ai.lzy.v1.deprecated.LzyAuth;
-import ai.lzy.v1.deprecated.Lzy;
 import ai.lzy.v1.deprecated.LzyServerGrpc;
 
 public class SimpleAuthenticator implements Authenticator {

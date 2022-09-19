@@ -1,6 +1,8 @@
 package ru.yandex.qe.s3.transfer;
 
 import com.gc.iotools.stream.is.InputStreamFromOutputStream;
+import ru.yandex.qe.s3.util.function.ThrowingConsumer;
+
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -8,7 +10,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
-import ru.yandex.qe.s3.util.function.ThrowingConsumer;
 
 /**
  * Established by terry on 13.07.15. !!Upload implementation will invoke supplier only once and close it in finally

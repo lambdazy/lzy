@@ -1,17 +1,11 @@
 package ai.lzy.server.hibernate.models;
 
-import java.util.HashSet;
-import java.util.Set;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.EnumType;
-import javax.persistence.Enumerated;
-import javax.persistence.Id;
-import javax.persistence.ManyToMany;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
 import ai.lzy.model.utils.AuthProviders;
 import ai.lzy.server.hibernate.UserVerificationType;
+
+import java.util.HashSet;
+import java.util.Set;
+import javax.persistence.*;
 
 @Entity
 @Table(name = "users")

@@ -14,7 +14,11 @@ import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.common.LMS;
-import ai.lzy.v1.deprecated.*;
+import ai.lzy.v1.deprecated.Lzy;
+import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.v1.deprecated.LzyKharonGrpc;
+import ai.lzy.v1.deprecated.LzyServerGrpc;
+import ai.lzy.v1.deprecated.LzyZygote;
 import ai.lzy.v1.fs.LzyFsApi;
 import ai.lzy.v1.fs.LzyFsGrpc;
 import io.grpc.ManagedChannel;
@@ -28,7 +32,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.serce.jnrfuse.FuseException;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -40,9 +43,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.Nullable;
 
 import static ai.lzy.model.Constants.LOGS_DIR;
-import static ai.lzy.model.UriScheme.*;
+import static ai.lzy.model.UriScheme.LzyFs;
+import static ai.lzy.model.UriScheme.SlotAzure;
+import static ai.lzy.model.UriScheme.SlotS3;
 import static ai.lzy.model.deprecated.GrpcConverter.from;
 
 public final class LzyFsServer {

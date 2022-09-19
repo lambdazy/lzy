@@ -1,21 +1,11 @@
 package ru.yandex.qe.s3.amazon.transfer.loop;
 
-import static java.lang.String.format;
-
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.retry.RetryPolicy;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.Uninterruptibles;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import javax.annotation.Nonnull;
-import javax.annotation.concurrent.NotThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.yandex.qe.s3.exceptions.S3TransferException;
@@ -26,6 +16,17 @@ import ru.yandex.qe.s3.transfer.download.MetaAndStream;
 import ru.yandex.qe.s3.transfer.loop.DownloadProcessingLoop;
 import ru.yandex.qe.s3.transfer.meta.Metadata;
 import ru.yandex.qe.s3.util.function.ThrowingConsumer;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import javax.annotation.Nonnull;
+import javax.annotation.concurrent.NotThreadSafe;
+
+import static java.lang.String.format;
 
 /**
  * Established by terry on 18.01.16.

@@ -3,13 +3,13 @@ package ai.lzy.channelmanager.control;
 import ai.lzy.channelmanager.channel.ChannelException;
 import ai.lzy.channelmanager.channel.Endpoint;
 import ai.lzy.channelmanager.graph.ChannelGraph;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-
 import java.util.stream.Stream;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class DirectChannelController implements ChannelController {
     private static final Logger LOG = LogManager.getLogger(DirectChannelController.class);
