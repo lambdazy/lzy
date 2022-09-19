@@ -1,11 +1,11 @@
 package ai.lzy.channelmanager.channel;
 
-import ai.lzy.model.data.DataSchema;
+import ai.lzy.model.DataScheme;
 import java.net.URI;
 
 public record SnapshotChannelSpec(
     String name,
-    DataSchema contentType,
+    DataScheme contentType,
     String snapshotId,
     String entryId,
     URI whiteboardAddress

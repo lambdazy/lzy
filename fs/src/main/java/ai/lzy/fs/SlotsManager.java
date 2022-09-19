@@ -1,5 +1,6 @@
 package ai.lzy.fs;
 
+import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.v1.channel.LCMS;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
@@ -137,7 +138,7 @@ public class SlotsManager implements AutoCloseable {
                 try {
                     final LCMS.SlotDetachStatus unbindResult = channelManager.unbind(
                         LCMS.SlotDetach.newBuilder()
-                            .setSlotInstance(to(slot.instance()))
+                            .setSlotInstance(ProtoConverter.toProto(slot.instance()))
                             .build()
                     );
                     LOG.info(JsonUtils.printRequest(unbindResult));
@@ -165,7 +166,7 @@ public class SlotsManager implements AutoCloseable {
 
         final LCMS.SlotAttachStatus slotAttachStatus = channelManager.bind(
             LCMS.SlotAttach.newBuilder()
-                .setSlotInstance(to(slot.instance()))
+                .setSlotInstance(ProtoConverter.toProto(slot.instance()))
                 .build());
         LOG.info(JsonUtils.printRequest(slotAttachStatus));
         LOG.info("Slot `{}` configured.", slotUri);

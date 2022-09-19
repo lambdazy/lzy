@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.commons.io.IOUtils;
 import org.junit.*;
 import ai.lzy.model.slot.Slot;
-import ai.lzy.model.data.DataSchema;
+import ai.lzy.model.DataScheme;
 import ai.lzy.fs.snapshot.SlotSnapshot;
 import ai.lzy.fs.snapshot.SlotSnapshotImpl;
 import ai.lzy.fs.storage.AmazonStorageClient;
@@ -70,7 +70,7 @@ public class SlotSnapshotTest {
                 }
 
                 @Override
-                public DataSchema contentType() {
+                public DataScheme contentType() {
                     return null;
                 }
             }, taskId, "channelId", new URI("scheme", "host", "/path", null));

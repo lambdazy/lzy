@@ -32,8 +32,7 @@ CREATE TABLE IF NOT EXISTS whiteboard_fields
     whiteboard_id     varchar(255)  NOT NULL,
     field_name        varchar(255)  NOT NULL,
     field_status      varchar(255)  NOT NULL,
-    field_type        text,
-    field_type_scheme varchar(255),
+    data_scheme       text,
     storage_uri       varchar(255),
     finalized_at      timestamp,
 

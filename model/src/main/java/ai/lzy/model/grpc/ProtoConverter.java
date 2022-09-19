@@ -1,9 +1,9 @@
 package ai.lzy.model.grpc;
 
 import ai.lzy.model.StorageCredentials;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.slot.SlotStatus;
-import ai.lzy.model.data.DataSchema;
-import ai.lzy.model.data.SchemeType;
+import ai.lzy.model.DataScheme;
 import ai.lzy.model.graph.*;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.v1.common.LMD;
@@ -24,7 +24,16 @@ public class ProtoConverter {
     public static SlotStatus fromProto(LMS.SlotStatus slotStatus) {
         return new SlotStatusAdapter(slotStatus);
     }
-    
+
+    public static SlotInstance fromProto(LMS.SlotInstance slotInstance) {
+        return new SlotInstance(
+            fromProto(slotInstance.getSlot()),
+            slotInstance.getTaskId(),
+            slotInstance.getChannelId(),
+            URI.create(slotInstance.getSlotUri())
+        );
+    }
+
     public static Provisioning fromProto(LME.Provisioning provisioning) {
         return () -> provisioning.getTagsList().stream()
             .map(LME.Provisioning.Tag::getTag)
@@ -62,8 +71,9 @@ public class ProtoConverter {
         return new PythonEnvAdapter(env);
     }
 
-    public static DataSchema fromProto(LMD.DataScheme dataScheme) {
-        return DataSchema.buildDataSchema(dataScheme.getSchemeType(), dataScheme.getType());
+    public static DataScheme fromProto(LMD.DataScheme dataScheme) {
+        return new DataScheme(dataScheme.getDataFormat(), dataScheme.getSchemeFormat(),
+            dataScheme.getSchemeContent(), dataScheme.getMetadataMap());
     }
 
     public static LME.EnvSpec toProto(Env env) {
@@ -118,15 +128,13 @@ public class ProtoConverter {
             .build();
     }
 
-    public static LMD.DataScheme toProto(DataSchema dataSchema) {
+    public static LMD.DataScheme toProto(DataScheme dataScheme) {
         return LMD.DataScheme.newBuilder()
-            .setType(dataSchema.typeContent())
-            .setSchemeType(toProto(dataSchema.schemeType()))
+            .setDataFormat(dataScheme.dataFormat())
+            .setSchemeFormat(dataScheme.schemeFormat())
+            .setSchemeContent(dataScheme.schemeContent())
+            .putAllMetadata(dataScheme.metadata())
             .build();
-    }
-
-    public static String toProto(SchemeType dataSchema) {
-        return dataSchema.name();
     }
 
     public static LME.Provisioning toProto(Provisioning provisioning) {
@@ -134,6 +142,15 @@ public class ProtoConverter {
             .addAllTags(provisioning.tags().stream()
                 .map(tag -> LME.Provisioning.Tag.newBuilder().setTag(tag).build())
                 .collect(Collectors.toList()))
+            .build();
+    }
+
+    public static LMS.SlotInstance toProto(SlotInstance slotInstance) {
+        return LMS.SlotInstance.newBuilder()
+            .setSlot(ProtoConverter.toProto(slotInstance.spec()))
+            .setTaskId(slotInstance.taskId())
+            .setChannelId(slotInstance.channelId())
+            .setSlotUri(slotInstance.uri().toString())
             .build();
     }
 
@@ -259,7 +276,7 @@ public class ProtoConverter {
 
         @Override
         public @Nullable
-        DataSchema contentType() {
+        DataScheme contentType() {
             return fromProto(s.getContentType());
         }
 

@@ -5,7 +5,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import javax.annotation.Nullable;
-import ai.lzy.model.data.DataSchema;
+import ai.lzy.model.DataScheme;
 
 public interface SnapshotEntryStatus {
 
@@ -21,7 +21,7 @@ public interface SnapshotEntryStatus {
     Set<String> dependentEntryIds();
 
     @Nullable
-    DataSchema schema();
+    DataScheme schema();
 
     // CREATED --> created but not assigned to storage and slots
     // IN_PROGRESS --> started saving data
@@ -40,10 +40,10 @@ public interface SnapshotEntryStatus {
         private final SnapshotEntry entry;
         private final Set<String> deps;
         private final URI storage;
-        private final DataSchema schema;
+        private final DataScheme schema;
 
         public Impl(boolean empty, State status, SnapshotEntry entry, Set<String> deps, URI storage,
-            DataSchema schema) {
+            DataScheme schema) {
             this.empty = empty;
             this.status = status;
             this.entry = entry;
@@ -76,7 +76,7 @@ public interface SnapshotEntryStatus {
 
         @Nullable
         @Override
-        public DataSchema schema() {
+        public DataScheme schema() {
             return schema;
         }
 

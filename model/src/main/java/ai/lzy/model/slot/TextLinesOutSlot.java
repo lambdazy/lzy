@@ -1,6 +1,6 @@
 package ai.lzy.model.slot;
 
-import ai.lzy.model.data.DataSchema;
+import ai.lzy.model.DataScheme;
 
 public record TextLinesOutSlot(String name) implements Slot {
 
@@ -15,7 +15,7 @@ public record TextLinesOutSlot(String name) implements Slot {
     }
 
     @Override
-    public DataSchema contentType() {
-        return DataSchema.plain;
+    public DataScheme contentType() {
+        return DataScheme.PLAIN;
     }
 }

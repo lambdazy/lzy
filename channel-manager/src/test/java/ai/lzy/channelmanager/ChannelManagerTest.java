@@ -152,12 +152,14 @@ public class ChannelManagerTest extends BaseTestWithIam {
     @Test
     public void testCreateEmptyWorkflow() {
         try {
-            authorizedChannelManagerClient.create(
-                ChannelCreateRequest.newBuilder()
-                    .setChannelSpec(ChannelSpec.newBuilder().setChannelName("channel1").setDirect(
-                            DirectChannelType.newBuilder().build())
-                        .setContentType(LMD.DataScheme.newBuilder().setType("text").setSchemeType(
-                            LMD.SchemeType.plain.name()).build())
+            authorizedChannelManagerClient.create(ChannelCreateRequest.newBuilder()
+                    .setChannelSpec(ChannelSpec.newBuilder()
+                        .setChannelName("channel1")
+                        .setDirect(DirectChannelType.newBuilder().build())
+                        .setContentType(LMD.DataScheme.newBuilder()
+                            .setSchemeContent("text")
+                            .setDataFormat("plain")
+                            .build())
                         .build())
                     .build());
             Assert.fail();
@@ -185,11 +187,11 @@ public class ChannelManagerTest extends BaseTestWithIam {
             authorizedChannelManagerClient.create(
                 ChannelCreateRequest.newBuilder()
                     .setWorkflowId(UUID.randomUUID().toString())
-                    .setChannelSpec(ChannelSpec.newBuilder().setDirect(
-                            DirectChannelType.newBuilder().build())
+                    .setChannelSpec(ChannelSpec.newBuilder()
+                        .setDirect(DirectChannelType.newBuilder().build())
                         .setContentType(LMD.DataScheme.newBuilder()
-                            .setType("text")
-                            .setSchemeType(LMD.SchemeType.plain.name())
+                            .setSchemeContent("text")
+                            .setDataFormat("plain")
                             .build())
                         .build())
                     .build());
@@ -205,10 +207,11 @@ public class ChannelManagerTest extends BaseTestWithIam {
             authorizedChannelManagerClient.create(
                 ChannelCreateRequest.newBuilder()
                     .setWorkflowId(UUID.randomUUID().toString())
-                    .setChannelSpec(ChannelSpec.newBuilder().setChannelName("channel1")
+                    .setChannelSpec(ChannelSpec.newBuilder()
+                        .setChannelName("channel1")
                         .setContentType(LMD.DataScheme.newBuilder()
-                            .setType("text")
-                            .setSchemeType(LMD.SchemeType.plain.name())
+                            .setSchemeContent("text")
+                            .setDataFormat("plain")
                             .build())
                         .build())
                     .build());
@@ -240,10 +243,10 @@ public class ChannelManagerTest extends BaseTestWithIam {
             authorizedChannelManagerClient.create(
                 ChannelCreateRequest.newBuilder()
                     .setWorkflowId(UUID.randomUUID().toString())
-                    .setChannelSpec(ChannelSpec.newBuilder().setChannelName("channel1").setDirect(
-                            DirectChannelType.newBuilder().build())
-                        .setContentType(LMD.DataScheme.newBuilder().setSchemeType(
-                            LMD.SchemeType.plain.name()).build())
+                    .setChannelSpec(ChannelSpec.newBuilder()
+                        .setChannelName("channel1")
+                        .setDirect(DirectChannelType.newBuilder().build())
+                        .setContentType(LMD.DataScheme.newBuilder().setDataFormat("plain").build())
                         .build())
                     .build());
             Assert.fail();
@@ -258,9 +261,10 @@ public class ChannelManagerTest extends BaseTestWithIam {
             authorizedChannelManagerClient.create(
                 ChannelCreateRequest.newBuilder()
                     .setWorkflowId(UUID.randomUUID().toString())
-                    .setChannelSpec(ChannelSpec.newBuilder().setChannelName("channel1").setDirect(
-                            DirectChannelType.newBuilder().build())
-                        .setContentType(LMD.DataScheme.newBuilder().setType("text"))
+                    .setChannelSpec(ChannelSpec.newBuilder()
+                        .setChannelName("channel1")
+                        .setDirect(DirectChannelType.newBuilder().build())
+                        .setContentType(LMD.DataScheme.newBuilder().setSchemeContent("text"))
                         .build())
                     .build());
             Assert.fail();

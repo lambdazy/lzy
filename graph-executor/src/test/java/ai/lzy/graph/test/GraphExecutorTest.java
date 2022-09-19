@@ -16,8 +16,8 @@ import ai.lzy.graph.test.mocks.GraphDaoMock;
 import ai.lzy.graph.test.mocks.SchedulerApiMock;
 import ai.lzy.model.operation.Operation;
 import ai.lzy.model.slot.Slot;
-import ai.lzy.model.data.DataSchema;
 import ai.lzy.model.db.exceptions.DaoException;
+import ai.lzy.model.DataScheme;
 import ai.lzy.v1.scheduler.Scheduler.TaskStatus;
 import io.grpc.StatusException;
 import io.micronaut.context.ApplicationContext;
@@ -416,8 +416,8 @@ public class GraphExecutorTest {
             }
 
             @Override
-            public DataSchema contentType() {
-                return DataSchema.plain;
+            public DataScheme contentType() {
+                return DataScheme.PLAIN;
             }
         };
     }

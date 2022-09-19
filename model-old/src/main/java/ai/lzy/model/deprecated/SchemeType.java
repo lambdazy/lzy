@@ -1,5 +1,6 @@
-package ai.lzy.model.data;
+package ai.lzy.model.deprecated;
 
+@Deprecated
 public enum SchemeType {
     plain,
     proto,

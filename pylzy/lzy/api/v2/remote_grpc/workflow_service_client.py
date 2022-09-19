@@ -108,13 +108,9 @@ class WorkflowServiceClient:
 
         if storage is not None:
             if isinstance(storage.credentials, AmazonCredentials):
-                s = S3Locator(
-                    bucket=storage.bucket, amazon=to(storage.credentials)
-                )
+                s = S3Locator(bucket=storage.bucket, amazon=to(storage.credentials))
             else:
-                s = S3Locator(
-                    bucket=storage.bucket, azure=to(storage.credentials)
-                )
+                s = S3Locator(bucket=storage.bucket, azure=to(storage.credentials))
 
         res = await self.__stub.CreateWorkflow(
             CreateWorkflowRequest(workflowName=name, snapshotStorage=s)

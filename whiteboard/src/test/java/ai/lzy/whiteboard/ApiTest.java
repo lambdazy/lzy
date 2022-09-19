@@ -8,8 +8,7 @@ import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.test.BaseTestWithIam;
-import ai.lzy.model.data.DataSchema;
-import ai.lzy.model.data.SchemeType;
+import ai.lzy.model.DataScheme;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.JwtUtils;
@@ -50,9 +49,11 @@ import static ai.lzy.v1.whiteboard.LWB.WhiteboardFieldInfo.StateCase.NONESTATE;
 public class ApiTest extends BaseTestWithIam {
 
     @Rule
-    public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+    public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {
+    });
     @Rule
-    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {
+    });
 
     private ApplicationContext context;
     private User externalUser;
@@ -197,14 +198,14 @@ public class ApiTest extends BaseTestWithIam {
             .setWhiteboardId(createdWhiteboard.getId())
             .setFieldName("f1")
             .setStorageUri("s-uri-1")
-            .setScheme(toProto(new DataSchema(SchemeType.plain, "default")))
+            .setScheme(toProto(DataScheme.PLAIN))
             .build());
 
         privateWhiteboardClient.finalizeField(LWBPS.FinalizeFieldRequest.newBuilder()
             .setWhiteboardId(createdWhiteboard.getId())
             .setFieldName("f4")
             .setStorageUri("s-uri-4")
-            .setScheme(toProto(new DataSchema(SchemeType.plain, "default")))
+            .setScheme(toProto(DataScheme.PLAIN))
             .build());
 
         var whiteboard = whiteboardClient.get(getRequest).getWhiteboard();
@@ -325,14 +326,14 @@ public class ApiTest extends BaseTestWithIam {
                     .setName("f3")
                     .setLinkedState(LWB.WhiteboardFieldInfo.LinkedField.newBuilder()
                         .setStorageUri("s-uri-3")
-                        .setScheme(toProto(new DataSchema(SchemeType.plain, "default")))
+                        .setScheme(toProto(DataScheme.PLAIN))
                         .build())
                     .build(),
                 LWB.WhiteboardFieldInfo.newBuilder()
                     .setName("f4")
                     .setLinkedState(LWB.WhiteboardFieldInfo.LinkedField.newBuilder()
                         .setStorageUri("s-uri-4-init")
-                        .setScheme(toProto(new DataSchema(SchemeType.plain, "default")))
+                        .setScheme(toProto(DataScheme.PLAIN))
                         .build())
                     .build()))
             .setStorage(ProtoConverter.toProto(new Whiteboard.Storage("storage", "")))
@@ -350,7 +351,7 @@ public class ApiTest extends BaseTestWithIam {
                     .setName("f")
                     .setLinkedState(LWB.WhiteboardFieldInfo.LinkedField.newBuilder()
                         .setStorageUri("s-uri")
-                        .setScheme(toProto(new DataSchema(SchemeType.plain, "default")))
+                        .setScheme(toProto(DataScheme.PLAIN))
                         .build())
                     .build()))
             .setStorage(ProtoConverter.toProto(new Whiteboard.Storage("storage", "")))
@@ -359,7 +360,8 @@ public class ApiTest extends BaseTestWithIam {
             .build();
     }
 
-    private record User(String id, JwtCredentials credentials) { }
+    private record User(String id, JwtCredentials credentials) {
+    }
 
     public static class IamClient implements AutoCloseable {
 

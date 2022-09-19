@@ -28,7 +28,7 @@ import ai.lzy.fs.fs.LzyFSManager;
 import ai.lzy.fs.fs.LzyLinuxFsManagerImpl;
 import ai.lzy.fs.fs.LzyMacosFsManagerImpl;
 import ai.lzy.model.slot.Slot;
-import ai.lzy.model.data.DataSchema;
+import ai.lzy.model.DataScheme;
 import ai.lzy.fs.slots.InFileSlot;
 import ai.lzy.v1.common.LMS.SlotStatus.State;
 
@@ -81,7 +81,7 @@ public class LzyFSTest {
                     }
 
                     @Override
-                    public DataSchema contentType() {
+                    public DataScheme contentType() {
                         return null;
                     }
                 },

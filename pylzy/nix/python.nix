@@ -83,6 +83,20 @@ let
       doCheck = false;
     });
 
+    jsonpickle = super.jsonpickle.overridePythonAttrs(old: rec {
+      pname = "jsonpickle";
+      version = "2.2.0";
+      src = super.fetchPypi {
+        inherit pname version;
+        sha256 = "7b272918b0554182e53dc340ddd62d9b7f902fec7e7b05620c04f3ccef479a0e";
+      };
+      propagatedBuildInputs = [
+        super.pytest
+        super.psutil
+      ];
+      doCheck = false;
+    });
+
     importlib-metadata = super.importlib-metadata.overridePythonAttrs(old: rec {
       version = "4.8.1";
       src = super.fetchPypi {

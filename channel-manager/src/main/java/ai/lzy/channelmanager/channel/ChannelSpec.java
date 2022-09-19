@@ -1,8 +1,8 @@
 package ai.lzy.channelmanager.channel;
 
-import ai.lzy.model.data.DataSchema;
+import ai.lzy.model.DataScheme;
 
 public interface ChannelSpec {
     String name();
-    DataSchema contentType();
+    DataScheme contentType();
 }

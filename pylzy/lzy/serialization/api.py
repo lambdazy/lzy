@@ -1,5 +1,6 @@
 import abc
 import base64
+import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, BinaryIO, Callable, Dict, Optional, Type, TypeVar, Union, cast
@@ -8,15 +9,19 @@ import cloudpickle
 
 T = TypeVar("T")
 
+_LOG = logging.getLogger(__name__)
+
 
 class StandardDataFormats(Enum):
     pickle = "pickle"
     proto = "proto"
     raw_file = "raw_file"
+    primitive_type = "primitive_type"
 
 
 class StandardSchemaFormats(Enum):
     pickled_type = "pickled_type"
+    json_pickled_type = "json_pickled_type"
 
 
 @dataclass
@@ -30,50 +35,101 @@ class Schema:
 class Serializer(abc.ABC):
     @abc.abstractmethod
     def serialize(self, obj: Any, dest: BinaryIO) -> None:
-        pass
+        """
+        :param obj: object to serialize into bytes
+        :param dest: serialized obj is written into dest
+        :return: None
+        """
 
     @abc.abstractmethod
     def deserialize(self, source: BinaryIO, typ: Type[T]) -> T:
-        pass
+        """
+        :param source: buffer of file with serialized data
+        :param typ: type of the resulting object
+        :return: deserialized object
+        """
 
     @abc.abstractmethod
     def supported_types(self) -> Union[Type, Callable[[Type], bool]]:
-        pass
+        """
+        :return: type suitable for the serializer or types filter
+        """
 
     @abc.abstractmethod
     def available(self) -> bool:
-        pass
+        """
+        :return: True if the serializer can be used in the current environment, otherwise False
+        """
 
     @abc.abstractmethod
     def stable(self) -> bool:
-        pass
+        """
+        :return: True if the serializer does not depend on python version/dependency versions/etc., otherwise False
+        """
 
     @abc.abstractmethod
     def format(self) -> str:
-        pass
+        """
+        :return: data format that this serializer is working with
+        """
 
     @abc.abstractmethod
     def meta(self) -> Dict[str, str]:
-        pass
+        """
+        :return: meta of this serializer, e.g., versions of dependencies
+        """
+
+    def schema_format(self) -> str:
+        """
+        :return: schema format for this serializer
+        """
+        return StandardSchemaFormats.pickled_type.name
 
     def schema(self, obj: Any) -> Schema:
+        """
+        :param obj: object for serialization
+        :return: schema for the object
+        """
         return Schema(
             self.format(),
-            StandardSchemaFormats.pickled_type.name,
+            self.schema_format(),
             base64.b64encode(cloudpickle.dumps(type(obj))).decode("ascii"),
             self.meta(),
         )
 
-    # noinspection PyMethodMayBeStatic
     def resolve(self, schema: Schema) -> Type:
-        if schema.schema_format != StandardSchemaFormats.pickled_type.name:
-            raise ValueError(f"Invalid schema format {schema.schema_format}")
-        if schema.schema_content is None:
-            raise ValueError(f"No schema content")
+        """
+        :param schema: schema that contains information about serialized data
+        :return: Type used for python representation of the schema
+        """
+        self._fail_if_formats_are_invalid(schema)
+        self._fail_if_schema_content_none(schema)
+        self._warn_if_metas_are_not_equal(schema)
         return cast(
             Type,
-            cloudpickle.loads(base64.b64decode(schema.schema_content.encode("ascii"))),
+            cloudpickle.loads(
+                base64.b64decode(cast(str, schema.schema_content).encode("ascii"))
+            ),
         )
+
+    def _fail_if_formats_are_invalid(self, schema: Schema) -> None:
+        if schema.data_format != self.format():
+            raise ValueError(
+                f"Invalid data format {schema.data_format}, expected {self.format()}"
+            )
+        if schema.schema_format != self.schema_format():
+            raise ValueError(f"Invalid schema format {schema.schema_format}")
+
+    def _warn_if_metas_are_not_equal(self, schema: Schema) -> None:
+        if schema.meta != self.meta():
+            _LOG.warning(
+                f"Meta from schema {schema.meta} differs from the current meta {self.meta()}"
+            )
+
+    @staticmethod
+    def _fail_if_schema_content_none(schema: Schema) -> None:
+        if schema.schema_content is None:
+            raise ValueError(f"No schema content")
 
 
 class SerializerRegistry(abc.ABC):
@@ -81,36 +137,62 @@ class SerializerRegistry(abc.ABC):
     def register_serializer(
         self, name: str, serializer: Serializer, priority: Optional[int] = None
     ) -> None:
-        pass
+        """
+        :param name: unique serializer's name
+        :param serializer: serializer to register
+        :param priority: number that indicates serializer's priority: 0 - max priority
+        :return: None
+        """
 
     @abc.abstractmethod
     def unregister_serializer(self, name: str) -> None:
-        pass
+        """
+        :param name: name of the serializer to unregister
+        :return:
+        """
 
     @abc.abstractmethod
     def find_serializer_by_type(
         self, typ: Type
     ) -> Serializer:  # we assume that default serializer always can be found
-        pass
+        """
+        :param typ: python Type needed to serialize
+        :return: corresponding serializer
+        """
 
     @abc.abstractmethod
     def find_serializer_by_name(self, serializer_name: str) -> Optional[Serializer]:
-        pass
+        """
+        :param serializer_name: target name
+        :return: Serializer registered with serializer_name or None
+        """
 
     @abc.abstractmethod
     def resolve_name(self, serializer: Serializer) -> Optional[str]:
-        pass
+        """
+        :param serializer: serializer to resolve name
+        :return: name if the serializer is registered, None otherwise
+        """
 
     @abc.abstractmethod
     def find_serializer_by_data_format(self, data_format: str) -> Optional[Serializer]:
-        pass
+        """
+        :param data_format: data format to resolve serializer
+        :return: Serializer if there is a serializer for that data format, None otherwise
+        """
 
 
 class Hasher(abc.ABC):
     @abc.abstractmethod
     def hash(self, data: Any) -> str:
-        pass
+        """
+        :param data: object to hash
+        :return: hash result
+        """
 
     @abc.abstractmethod
     def can_hash(self, data: Any) -> bool:
-        pass
+        """
+        :param data: object to hash
+        :return: True if object can be hashed, False otherwise
+        """

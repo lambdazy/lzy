@@ -260,7 +260,7 @@ public final class LzyFsServer {
     }
 
     public LzyFsApi.SlotCommandStatus connectSlot(LzyFsApi.ConnectSlotRequest request) {
-        final SlotInstance fromSlot = from(request.getFrom());
+        final SlotInstance fromSlot = ProtoConverter.fromProto(request.getFrom());
         final String slotName = fromSlot.taskId() + fromSlot.name();
         LOG.info("LzyFsServer::connectSlot `{}`: {}.", slotName, JsonUtils.printRequest(request));
 
@@ -271,11 +271,11 @@ public final class LzyFsServer {
 
         final LMS.SlotInstance to = request.getTo();
         final URI slotUri = URI.create(to.getSlotUri());
-        if (slot instanceof LzyInputSlot) {
+        if (slot instanceof LzyInputSlot inputSlot) {
             if (SlotS3.match(slotUri) || SlotAzure.match(slotUri)) {
-                ((LzyInputSlot) slot).connect(slotUri, slotConnectionManager.connectToS3(slotUri, 0));
+                inputSlot.connect(slotUri, slotConnectionManager.connectToS3(slotUri, 0));
             } else {
-                ((LzyInputSlot) slot).connect(slotUri, SlotConnectionManager.connectToSlot(from(to), 0));
+                inputSlot.connect(slotUri, SlotConnectionManager.connectToSlot(ProtoConverter.fromProto(to), 0));
             }
             return LzyFsApi.SlotCommandStatus.newBuilder().build();
         }
@@ -284,7 +284,7 @@ public final class LzyFsServer {
     }
 
     public LzyFsApi.SlotCommandStatus disconnectSlot(LzyFsApi.DisconnectSlotRequest request) {
-        final SlotInstance slotInstance = from(request.getSlotInstance());
+        final SlotInstance slotInstance = ProtoConverter.fromProto(request.getSlotInstance());
         final String slotName = slotInstance.taskId() + slotInstance.name();
         LOG.info("LzyFsServer::disconnectSlot `{}`: {}.", slotName, JsonUtils.printRequest(request));
 
@@ -299,7 +299,7 @@ public final class LzyFsServer {
     }
 
     public LzyFsApi.SlotCommandStatus statusSlot(LzyFsApi.StatusSlotRequest request) {
-        final SlotInstance slotInstance = from(request.getSlotInstance());
+        final SlotInstance slotInstance = ProtoConverter.fromProto(request.getSlotInstance());
         final String slotName = slotInstance.taskId() + slotInstance.name();
         LOG.info("LzyFsServer::statusSlot `{}`: {}.", slotName, JsonUtils.printRequest(request));
 
@@ -317,7 +317,7 @@ public final class LzyFsServer {
     }
 
     public LzyFsApi.SlotCommandStatus destroySlot(LzyFsApi.DestroySlotRequest request) {
-        final SlotInstance slotInstance = from(request.getSlotInstance());
+        final SlotInstance slotInstance = ProtoConverter.fromProto(request.getSlotInstance());
         final String slotName = slotInstance.taskId() + slotInstance.name();
         LOG.info("LzyFsServer::destroySlot `{}`: {}.", slotName, JsonUtils.printRequest(request));
 
@@ -346,7 +346,7 @@ public final class LzyFsServer {
         LOG.info("LzyFsServer::openOutputSlot {}.", JsonUtils.printRequest(request));
 
         final long start = System.currentTimeMillis();
-        final SlotInstance slotInstance = from(request.getSlotInstance());
+        final SlotInstance slotInstance = ProtoConverter.fromProto(request.getSlotInstance());
         final String taskId = slotInstance.taskId();
         LOG.debug("taskId: {}, slot: {}.", taskId, slotInstance.name());
 

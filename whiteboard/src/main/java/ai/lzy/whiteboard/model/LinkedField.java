@@ -1,13 +1,13 @@
 package ai.lzy.whiteboard.model;
 
-import ai.lzy.model.data.DataSchema;
+import ai.lzy.model.DataScheme;
 import java.util.Objects;
 
 public class LinkedField extends Field {
     private final String storageUri;
-    private final DataSchema schema;
+    private final DataScheme schema;
 
-    public LinkedField(String name, Status status, String storageUri, DataSchema schema) {
+    public LinkedField(String name, Status status, String storageUri, DataScheme schema) {
         super(name, status);
         this.storageUri = storageUri;
         this.schema = schema;
@@ -17,7 +17,7 @@ public class LinkedField extends Field {
         return storageUri;
     }
 
-    public DataSchema schema() {
+    public DataScheme schema() {
         return schema;
     }
 

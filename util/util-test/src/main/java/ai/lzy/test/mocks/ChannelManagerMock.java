@@ -1,6 +1,8 @@
 package ai.lzy.test.mocks;
 
 import ai.lzy.model.deprecated.GrpcConverter;
+import ai.lzy.model.grpc.ProtoConverter;
+import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.JsonUtils;
@@ -76,8 +78,8 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
 
         LzyFsApi.SlotCommandStatus connect(SlotInstance to) {
             return fs.connectSlot(LzyFsApi.ConnectSlotRequest.newBuilder()
-                .setFrom(GrpcConverter.to(slotInstance))
-                .setTo(GrpcConverter.to(to))
+                .setFrom(ProtoConverter.toProto(slotInstance))
+                .setTo(ProtoConverter.toProto(to))
                 .build()
             );
         }
@@ -85,7 +87,7 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
         @SuppressWarnings("ResultOfMethodCallIgnored")
         void destroy() {
             fs.destroySlot(LzyFsApi.DestroySlotRequest.newBuilder()
-                .setSlotInstance(GrpcConverter.to(slotInstance))
+                .setSlotInstance(ProtoConverter.toProto(slotInstance))
                 .build());
         }
 
@@ -194,7 +196,7 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
     {
         LOG.info("bind {}", JsonUtils.printRequest(request));
         final String channelName = request.getSlotInstance().getChannelId();
-        final SlotInstance slotInstance = GrpcConverter.from(request.getSlotInstance());
+        final SlotInstance slotInstance = ProtoConverter.fromProto(request.getSlotInstance());
 
         var channel = requireNonNull(directChannels.get(channelName));
         switch (slotInstance.spec().direction()) {

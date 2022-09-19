@@ -38,8 +38,8 @@ public class GrpcUtils {
 
     public static LMD.DataScheme makePlainTextDataScheme() {
         return LMD.DataScheme.newBuilder()
-            .setType("text")
-            .setSchemeType(LMD.SchemeType.plain.name())
+            .setSchemeContent("text")
+            .setDataFormat("plain")
             .build();
     }
 

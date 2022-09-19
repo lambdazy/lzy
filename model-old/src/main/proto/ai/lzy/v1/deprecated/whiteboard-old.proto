@@ -1,6 +1,5 @@
 syntax = "proto3";
 
-import "ai/lzy/v1/common/data-scheme.proto";
 import "ai/lzy/v1/deprecated/auth.proto";
 import "ai/lzy/v1/deprecated/backoffice.proto";
 import "google/protobuf/timestamp.proto";
@@ -61,6 +60,18 @@ message SnapshotEntry {
   string storageUri = 2;
   repeated string dependentEntryIds = 3;
   DataScheme type = 4;
+}
+
+message DataScheme {
+  string type = 1;
+  string schemeType = 2;
+}
+
+enum SchemeType {
+  UNSPECIFIED = 0;
+  plain = 1;
+  proto = 2;
+  cloudpickle = 3;
 }
 
 message PrepareCommand {

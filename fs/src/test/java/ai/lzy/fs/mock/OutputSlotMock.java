@@ -5,8 +5,7 @@ import ai.lzy.v1.common.LMS;
 import com.google.protobuf.ByteString;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.model.slot.Slot;
-import ai.lzy.model.data.DataSchema;
-import ai.lzy.v1.deprecated.LzyZygote;
+import ai.lzy.model.DataScheme;
 
 import java.io.IOException;
 import java.net.URI;
@@ -72,8 +71,8 @@ public class OutputSlotMock implements LzyOutputSlot {
             }
 
             @Override
-            public DataSchema contentType() {
-                return DataSchema.plain;
+            public DataScheme contentType() {
+                return DataScheme.PLAIN;
             }
         };
     }
