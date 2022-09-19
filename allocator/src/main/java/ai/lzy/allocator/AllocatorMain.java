@@ -31,6 +31,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.sql.SQLException;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import javax.inject.Named;
 
@@ -122,6 +123,9 @@ public class AllocatorMain {
             .eagerInitSingletons(true)
             .mainClass(AllocatorMain.class)
             .defaultEnvironments("local")
+            .properties(Map.of(
+                "kubernetes.disable.autoConfig", "true"  // To disable autoconfig for k8s
+            ))
             .start();
 
         final var main = context.getBean(AllocatorMain.class);
