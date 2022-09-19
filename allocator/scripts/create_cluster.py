@@ -196,7 +196,8 @@ if __name__ == "__main__":
                         zone_id=zone_id,
                         internal_v4_address_spec=InternalAddressSpec(
                             subnet_id=config.subnet_id
-                        )
+                        ),
+                        external_v4_address_spec=ExternalAddressSpec()
                     ),
                     security_group_ids=[main_sg_id, master_whitelist_sg_id]
                 ),
