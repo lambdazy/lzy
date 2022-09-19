@@ -5,7 +5,6 @@ import com.mchange.v2.c3p0.ComboPooledDataSource;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import org.flywaydb.core.Flyway;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -31,12 +30,6 @@ public class KharonDataSource implements Storage {
 
         dataSource.setTestConnectionOnCheckout(true);
         dataSource.setPreferredTestQuery(VALIDATION_QUERY_SQL);
-
-        var flyway = Flyway.configure()
-                .dataSource(dataSource)
-                .locations("classpath:db/kharon/migrations")
-                .load();
-        flyway.migrate();
     }
 
     @Override

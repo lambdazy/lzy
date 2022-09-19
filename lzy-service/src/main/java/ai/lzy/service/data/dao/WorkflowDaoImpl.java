@@ -1,13 +1,13 @@
-package ai.lzy.kharon.workflow.dao;
+package ai.lzy.service.data.dao;
 
 
-import ai.lzy.kharon.KharonDataSource;
-import ai.lzy.kharon.workflow.WorkflowService;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.AlreadyExistsException;
 import ai.lzy.v1.common.LMS3;
+import ai.lzy.service.LzyService;
+import ai.lzy.service.data.storage.LzyServiceStorage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micronaut.core.util.StringUtils;
@@ -24,8 +24,8 @@ import java.util.Locale;
 import javax.annotation.Nullable;
 
 @Singleton
-public class ExecutionDaoImpl implements ExecutionDao {
-    private static final Logger LOG = LogManager.getLogger(ExecutionDaoImpl.class);
+public class WorkflowDaoImpl implements WorkflowDao {
+    private static final Logger LOG = LogManager.getLogger(WorkflowDaoImpl.class);
 
     private static final String QUERY_GET_ACTIVE_EXECUTION_ID = """
         SELECT active_execution_id
@@ -83,7 +83,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
     private final ObjectMapper objectMapper;
 
     @Inject
-    public ExecutionDaoImpl(KharonDataSource storage, ObjectMapper objectMapper) {
+    public WorkflowDaoImpl(LzyServiceStorage storage, ObjectMapper objectMapper) {
         this.storage = storage;
         this.objectMapper = objectMapper;
     }
@@ -159,12 +159,12 @@ public class ExecutionDaoImpl implements ExecutionDao {
     }
 
     @Override
-    public void updateStatus(String executionId, WorkflowService.PortalStatus portalStatus,
+    public void updateStatus(String executionId, LzyService.PortalStatus portalStatus,
                              @Nullable TransactionHandle transaction) throws SQLException
     {
         DbOperation.execute(transaction, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_UPDATE_PORTAL_STATUS)) {
-                statement.setString(1, WorkflowService.PortalStatus.CREATING_STD_CHANNELS.name());
+                statement.setString(1, LzyService.PortalStatus.CREATING_STD_CHANNELS.name());
                 statement.setString(2, executionId);
                 statement.executeUpdate();
             }
@@ -177,7 +177,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
     {
         DbOperation.execute(transaction, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_UPDATE_PORTAL_CHANNEL_IDS)) {
-                statement.setString(1, WorkflowService.PortalStatus.CREATING_SESSION.name());
+                statement.setString(1, LzyService.PortalStatus.CREATING_SESSION.name());
                 statement.setString(2, stdoutChannelId);
                 statement.setString(3, stderrChannelId);
                 statement.setString(4, executionId);
@@ -192,7 +192,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
     {
         DbOperation.execute(transaction, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_UPDATE_ALLOCATOR_SESSION)) {
-                statement.setString(1, WorkflowService.PortalStatus.REQUEST_VM.name());
+                statement.setString(1, LzyService.PortalStatus.REQUEST_VM.name());
                 statement.setString(2, sessionId);
                 statement.setString(3, executionId);
                 statement.executeUpdate();
@@ -206,7 +206,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
     {
         DbOperation.execute(transaction, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_UPDATE_ALLOCATE_OPERATION_DATA)) {
-                statement.setString(1, WorkflowService.PortalStatus.ALLOCATING_VM.name());
+                statement.setString(1, LzyService.PortalStatus.ALLOCATING_VM.name());
                 statement.setString(2, opId);
                 statement.setString(3, vmId);
                 statement.setString(4, executionId);
@@ -221,7 +221,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
     {
         DbOperation.execute(transaction, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_UPDATE_ALLOCATE_VM_ADDRESS)) {
-                statement.setString(1, WorkflowService.PortalStatus.VM_READY.name());
+                statement.setString(1, LzyService.PortalStatus.VM_READY.name());
                 statement.setString(2, vmAddress);
                 statement.setString(3, executionId);
                 statement.executeUpdate();

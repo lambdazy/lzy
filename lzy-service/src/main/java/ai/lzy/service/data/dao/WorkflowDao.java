@@ -1,16 +1,16 @@
-package ai.lzy.kharon.workflow.dao;
+package ai.lzy.service.data.dao;
 
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.AlreadyExistsException;
 import ai.lzy.v1.common.LMS3;
+import ai.lzy.service.LzyService;
 
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import javax.annotation.Nullable;
 
-import static ai.lzy.kharon.workflow.WorkflowService.PortalStatus;
 
-public interface ExecutionDao {
+public interface WorkflowDao {
     void create(String executionId, String userId, String workflowName, String storageType, LMS3.S3Locator storageData,
                 @Nullable TransactionHandle transaction) throws AlreadyExistsException, SQLException;
 
@@ -23,11 +23,11 @@ public interface ExecutionDao {
         return doesActiveExecutionExists(userId, workflowName, executionId, null);
     }
 
-    default void updateStatus(String executionId, PortalStatus portalStatus) throws SQLException {
+    default void updateStatus(String executionId, LzyService.PortalStatus portalStatus) throws SQLException {
         updateStatus(executionId, portalStatus, null);
     }
 
-    void updateStatus(String executionId, PortalStatus portalStatus, @Nullable TransactionHandle transaction)
+    void updateStatus(String executionId, LzyService.PortalStatus portalStatus, @Nullable TransactionHandle transaction)
         throws SQLException;
 
     default void updateStdChannelIds(String executionId, String stdoutChannelId, String stderrChannelId)

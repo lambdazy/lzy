@@ -39,8 +39,9 @@ public class App {
     public void stop(boolean force) {
         if (force) {
             portal.shutdownNow();
+        } else {
+            portal.shutdown();
         }
-        portal.shutdown();
     }
 
     public void awaitTermination() throws InterruptedException {
