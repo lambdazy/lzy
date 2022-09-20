@@ -11,6 +11,7 @@ import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.KubernetesClient;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -62,18 +63,16 @@ public class PodSpecBuilder {
     }
 
     private Pod loadPodTemplate(KubernetesClient client) {
-        final File file;
-        try {
-            file = new File(Objects.requireNonNull(getClass()
-                    .getClassLoader()
-                    .getResource(POD_TEMPLATE_PATH))
-                .toURI());
-        } catch (URISyntaxException e) {
+        try (final var stream = Objects.requireNonNull(getClass()
+            .getClassLoader()
+            .getResourceAsStream(POD_TEMPLATE_PATH)))
+        {
+            return client.pods()
+                .load(stream)
+                .get();
+        } catch (IOException e) {
             throw new RuntimeException("Error while reading pod template", e);
         }
-        return client.pods()
-            .load(file)
-            .get();
     }
 
     public String getPodName() {
@@ -87,7 +86,7 @@ public class PodSpecBuilder {
                 .stream()
                 .map(e -> new EnvVarBuilder()
                     .withName(e.getKey())
-                    .withName(e.getValue())
+                    .withValue(e.getValue())
                     .build()
                 )
                 .collect(Collectors.toList());

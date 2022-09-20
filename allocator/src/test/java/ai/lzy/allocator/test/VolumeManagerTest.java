@@ -33,6 +33,7 @@ import java.util.Comparator;
 import java.util.Random;
 
 import static ai.lzy.allocator.test.Utils.createTestDiskSpec;
+import yandex.cloud.sdk.auth.IamToken;
 
 @Ignore
 public class VolumeManagerTest {
@@ -51,7 +52,8 @@ public class VolumeManagerTest {
         if (clusterId == null) {
             throw new RuntimeException("No user cluster was specified for manual test");
         }
-        final KubernetesClient client = new KuberClientFactoryImpl().build(clusterRegistry.getCluster(clusterId));
+        final KubernetesClient client = new KuberClientFactoryImpl(() -> new IamToken("", Instant.MAX))
+            .build(clusterRegistry.getCluster(clusterId));
         volumeManager = new KuberVolumeManager(client);
     }
 

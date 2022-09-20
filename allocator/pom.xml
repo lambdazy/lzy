@@ -188,19 +188,16 @@
         <dependency>
             <artifactId>okhttp</artifactId>
             <groupId>com.squareup.okhttp3</groupId>
-            <version>3.12.12</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <artifactId>kotlin-stdlib-common</artifactId>
             <groupId>org.jetbrains.kotlin</groupId>
-            <version>1.5.21</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-stdlib</artifactId>
-            <version>1.5.21</version>
             <exclusions>
                 <exclusion>
                     <artifactId>kotlin-stdlib-common</artifactId>
