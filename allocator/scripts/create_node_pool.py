@@ -185,7 +185,7 @@ if __name__ == "__main__":
                     "lzy.ai/node-pool-label": config.node_labels.node_pool_label,
                     "lzy.ai/node-pool-kind": config.node_labels.node_pool_kind,
                     "lzy.ai/node-pool-az": subnet.zone_id,
-                    "lzy.ai/node-pool-state": "ACTIVE"  # or "INACTIVE" ???
+                    "lzy.ai/node-pool-state": "INACTIVE"
                 }
             )
         )
