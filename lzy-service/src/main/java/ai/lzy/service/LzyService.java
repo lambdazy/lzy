@@ -1,4 +1,4 @@
-package ai.lzy.kharon.workflow;
+package ai.lzy.service;
 
 import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
@@ -11,11 +11,11 @@ import ai.lzy.iam.resources.impl.Workflow;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.SubjectType;
-import ai.lzy.kharon.KharonConfig;
-import ai.lzy.kharon.KharonDataSource;
-import ai.lzy.kharon.workflow.dao.ExecutionDao;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.AlreadyExistsException;
+import ai.lzy.service.config.LzyServiceConfig;
+import ai.lzy.service.data.dao.WorkflowDao;
+import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
@@ -26,11 +26,6 @@ import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.OperationService;
 import ai.lzy.v1.OperationServiceApiGrpc;
 import ai.lzy.v1.VmAllocatorApi;
-import ai.lzy.v1.VmAllocatorApi.AllocateMetadata;
-import ai.lzy.v1.VmAllocatorApi.AllocateRequest;
-import ai.lzy.v1.VmAllocatorApi.AllocateResponse;
-import ai.lzy.v1.VmAllocatorApi.CreateSessionRequest;
-import ai.lzy.v1.VmAllocatorApi.CreateSessionResponse;
 import ai.lzy.v1.channel.LCM;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LMD;
@@ -38,7 +33,7 @@ import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.storage.LSS;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
-import ai.lzy.v1.workflow.LWFS.*;
+import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.net.HostAndPort;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -50,7 +45,6 @@ import io.grpc.stub.StreamObserver;
 import io.micronaut.core.util.StringUtils;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.PreDestroy;
-import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -67,24 +61,23 @@ import java.util.concurrent.locks.LockSupport;
 import java.util.function.BiConsumer;
 
 import static ai.lzy.channelmanager.grpc.ProtoConverter.createChannelRequest;
-import static ai.lzy.kharon.KharonConfig.PortalConfig;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
 @Singleton
-public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBase {
-    private static final Logger LOG = LogManager.getLogger(WorkflowService.class);
+public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBase {
+    private static final Logger LOG = LogManager.getLogger(LzyService.class);
 
     public static final String ENV_PORTAL_PKEY = "LZY_PORTAL_PKEY";
 
-    private final PortalConfig portalConfig;
+    private final Duration allocationTimeout;
+
+    private final LzyServiceConfig.StartupPortalConfig startupPortalConfig;
     private final String channelManagerAddress;
     private final JwtCredentials internalUserCredentials;
 
-    private final Duration waitAllocateTimeout;
-
-    private final ExecutionDao dao;
-    private final KharonDataSource storage;
+    private final WorkflowDao dao;
+    private final LzyServiceStorage storage;
 
     private final ManagedChannel allocatorServiceChannel;
     private final AllocatorGrpc.AllocatorBlockingStub allocatorServiceClient;
@@ -102,12 +95,11 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
     private final SubjectServiceGrpcClient subjectClient;
     private final AccessBindingServiceGrpcClient abClient;
 
-    @Inject
-    public WorkflowService(KharonConfig config, KharonDataSource storage, ExecutionDao dao) {
+    public LzyService(LzyServiceConfig config, LzyServiceStorage storage, WorkflowDao dao) {
         this.storage = storage;
         this.dao = dao;
-        portalConfig = config.getPortal();
-        waitAllocateTimeout = config.getWorkflow().getWaitAllocationTimeout();
+        startupPortalConfig = config.getPortal();
+        allocationTimeout = config.getWaitAllocationTimeout();
         channelManagerAddress = config.getChannelManagerAddress();
         internalUserCredentials = config.getIam().createCredentials();
 
@@ -168,7 +160,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
     }
 
     @Override
-    public void createWorkflow(CreateWorkflowRequest request, StreamObserver<CreateWorkflowResponse> response) {
+    public void createWorkflow(LWFS.CreateWorkflowRequest request, StreamObserver<LWFS.CreateWorkflowResponse> response) {
         var userId = AuthenticationContext.currentSubject().id();
         var workflowName = request.getWorkflowName();
         var executionId = workflowName + "_" + UUID.randomUUID();
@@ -177,7 +169,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
         String storageType;
         LMS3.S3Locator storageData;
 
-        BiConsumer<io.grpc.Status, String> replyError = (status, descr) -> {
+        BiConsumer<Status, String> replyError = (status, descr) -> {
             LOG.error("[createWorkflow], fail: status={}, msg={}.", status, descr);
             response.onError(status.withDescription(descr).asRuntimeException());
         };
@@ -226,7 +218,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
         if (startPortal(workflowName, executionId, userId, response)) {
             LOG.info("Workflow successfully started...");
 
-            var result = CreateWorkflowResponse.newBuilder().setExecutionId(executionId);
+            var result = LWFS.CreateWorkflowResponse.newBuilder().setExecutionId(executionId);
             if (internalSnapshotStorage) {
                 result.setInternalSnapshotStorage(storageData);
             }
@@ -236,7 +228,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
     }
 
     @Override
-    public void attachWorkflow(AttachWorkflowRequest request, StreamObserver<AttachWorkflowResponse> response) {
+    public void attachWorkflow(LWFS.AttachWorkflowRequest request, StreamObserver<LWFS.AttachWorkflowResponse> response) {
         var userId = AuthenticationContext.currentSubject().id();
 
         LOG.info("[attachWorkflow], userId={}, request={}.", userId, JsonUtils.printSingleLine(request));
@@ -259,7 +251,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
                 LOG.info("[attachWorkflow] workflow '{}/{}' successfully attached.",
                     request.getWorkflowName(), request.getExecutionId());
 
-                response.onNext(AttachWorkflowResponse.getDefaultInstance());
+                response.onNext(LWFS.AttachWorkflowResponse.getDefaultInstance());
                 response.onCompleted();
             } else {
                 replyError.accept(Status.NOT_FOUND, "");
@@ -271,7 +263,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
     }
 
     @Override
-    public void finishWorkflow(FinishWorkflowRequest request, StreamObserver<FinishWorkflowResponse> response) {
+    public void finishWorkflow(LWFS.FinishWorkflowRequest request, StreamObserver<LWFS.FinishWorkflowResponse> response) {
         var userId = AuthenticationContext.currentSubject().id();
 
         LOG.info("[finishWorkflow], uid={}, request={}.", userId, JsonUtils.printSingleLine(request));
@@ -305,7 +297,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
             return;
         }
 
-        response.onNext(FinishWorkflowResponse.getDefaultInstance());
+        response.onNext(LWFS.FinishWorkflowResponse.getDefaultInstance());
         response.onCompleted();
 
         // TODO: add TTL instead of implicit delete
@@ -313,7 +305,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
     }
 
     private boolean startPortal(String workflowName, String executionId, String userId,
-                                StreamObserver<CreateWorkflowResponse> response)
+                                StreamObserver<LWFS.CreateWorkflowResponse> response)
     {
         try {
             withRetries(defaultRetryPolicy(), LOG, () ->
@@ -334,9 +326,9 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
             var operation = startAllocation(workflowName, sessionId, executionId, stdoutChannelId, stderrChannelId);
             var opId = operation.getId();
 
-            AllocateMetadata allocateMetadata;
+            VmAllocatorApi.AllocateMetadata allocateMetadata;
             try {
-                allocateMetadata = operation.getMetadata().unpack(AllocateMetadata.class);
+                allocateMetadata = operation.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
             } catch (InvalidProtocolBufferException e) {
                 response.onError(Status.INTERNAL
                     .withDescription("Invalid allocate operation metadata: VM id missed. Operation id: " + opId)
@@ -347,7 +339,8 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
 
             withRetries(defaultRetryPolicy(), LOG, () -> dao.updateAllocateOperationData(executionId, opId, vmId));
 
-            AllocateResponse allocateResponse = waitAllocation(startAllocationTime.plus(waitAllocateTimeout), opId);
+            VmAllocatorApi.AllocateResponse
+                allocateResponse = waitAllocation(startAllocationTime.plus(allocationTimeout), opId);
             if (allocateResponse == null) {
                 LOG.error("Cannot wait allocate operation response. Operation id: " + opId);
                 response.onError(Status.DEADLINE_EXCEEDED.withDescription("Allocation timeout").asRuntimeException());
@@ -366,15 +359,15 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
     }
 
     private String[] createPortalStdChannels(String executionId) {
-        LOG.info("Creating portal stdout channel with name '{}'", portalConfig.getStdoutChannelName());
+        LOG.info("Creating portal stdout channel with name '{}'", startupPortalConfig.getStdoutChannelName());
         // create portal stdout channel that receives portal output
         String stdoutChannelId = channelManagerClient.create(createChannelRequest(executionId,
-            createPortalChannelSpec(portalConfig.getStdoutChannelName()))).getChannelId();
+            createPortalChannelSpec(startupPortalConfig.getStdoutChannelName()))).getChannelId();
 
-        LOG.info("Creating portal stderr channel with name '{}'", portalConfig.getStderrChannelName());
+        LOG.info("Creating portal stderr channel with name '{}'", startupPortalConfig.getStderrChannelName());
         // create portal stderr channel that receives portal error output
         String stderrChannelId = channelManagerClient.create(createChannelRequest(executionId,
-            createPortalChannelSpec(portalConfig.getStderrChannelName()))).getChannelId();
+            createPortalChannelSpec(startupPortalConfig.getStderrChannelName()))).getChannelId();
 
         return new String[] {stdoutChannelId, stderrChannelId};
     }
@@ -393,8 +386,8 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
     public String createSession(String userId) {
         LOG.info("Creating session for user with id '{}'", userId);
 
-        CreateSessionResponse session = allocatorServiceClient.createSession(
-            CreateSessionRequest.newBuilder()
+        VmAllocatorApi.CreateSessionResponse session = allocatorServiceClient.createSession(
+            VmAllocatorApi.CreateSessionRequest.newBuilder()
                 .setOwner(userId)
                 .setCachePolicy(VmAllocatorApi.CachePolicy.newBuilder().setIdleTimeout(Durations.ZERO))
                 .build());
@@ -424,21 +417,21 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
 
         var args = List.of(
             "-portal.portal-id=" + portalId,
-            "-portal.portal-api-port=" + portalConfig.getPortalApiPort(),
-            "-portal.fs-api-port=" + portalConfig.getFsApiPort(),
-            "-portal.fs-root=" + portalConfig.getFsRoot(),
+            "-portal.portal-api-port=" + startupPortalConfig.getPortalApiPort(),
+            "-portal.fs-api-port=" + startupPortalConfig.getFsApiPort(),
+            "-portal.fs-root=" + startupPortalConfig.getFsRoot(),
             "-portal.stdout-channel-id=" + stdoutChannelId,
             "-portal.stderr-channel-id=" + stderrChannelId,
             "-portal.channel-manager-address=" + channelManagerAddress);
 
         var ports = Map.of(
-            portalConfig.getFsApiPort(), portalConfig.getFsApiPort(),
-            portalConfig.getPortalApiPort(), portalConfig.getPortalApiPort()
+            startupPortalConfig.getFsApiPort(), startupPortalConfig.getFsApiPort(),
+            startupPortalConfig.getPortalApiPort(), startupPortalConfig.getPortalApiPort()
         );
 
         return allocatorServiceClient.allocate(
-            AllocateRequest.newBuilder().setSessionId(sessionId).setPoolLabel("portals")
-                .addWorkload(AllocateRequest.Workload.newBuilder()
+            VmAllocatorApi.AllocateRequest.newBuilder().setSessionId(sessionId).setPoolLabel("portals")
+                .addWorkload(VmAllocatorApi.AllocateRequest.Workload.newBuilder()
                     .setName("portal")
                     // TODO: ssokolvyak -- fill the image in production
                     //.setImage(portalConfig.getPortalImage())
@@ -450,7 +443,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
     }
 
     @Nullable
-    public AllocateResponse waitAllocation(Instant deadline, String operationId) {
+    public VmAllocatorApi.AllocateResponse waitAllocation(Instant deadline, String operationId) {
         // TODO: ssokolvyak -- replace on streaming request
         OperationService.Operation allocateOperation;
 
@@ -459,7 +452,7 @@ public class WorkflowService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceIm
                 .setOperationId(operationId).build());
             if (allocateOperation.getDone()) {
                 try {
-                    return allocateOperation.getResponse().unpack(AllocateResponse.class);
+                    return allocateOperation.getResponse().unpack(VmAllocatorApi.AllocateResponse.class);
                 } catch (InvalidProtocolBufferException e) {
                     LOG.warn("Cannot deserialize allocate response from operation with id: " + operationId);
                 }

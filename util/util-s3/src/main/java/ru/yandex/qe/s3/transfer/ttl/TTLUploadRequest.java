@@ -1,12 +1,13 @@
 package ru.yandex.qe.s3.transfer.ttl;
 
-import java.io.InputStream;
-import javax.annotation.Nonnull;
 import org.joda.time.Duration;
 import ru.yandex.qe.s3.transfer.ThrowingSupplier;
 import ru.yandex.qe.s3.transfer.meta.Metadata;
 import ru.yandex.qe.s3.transfer.upload.ConcurrencyConflictResolve;
 import ru.yandex.qe.s3.transfer.upload.UploadRequest;
+
+import java.io.InputStream;
+import javax.annotation.Nonnull;
 
 /**
  * Established by terry on 14.07.15.

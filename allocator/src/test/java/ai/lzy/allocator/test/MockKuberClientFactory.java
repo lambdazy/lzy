@@ -3,7 +3,6 @@ package ai.lzy.allocator.test;
 import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactory;
 import ai.lzy.allocator.vmpool.ClusterRegistry.ClusterDescription;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.micronaut.context.annotation.Primary;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 

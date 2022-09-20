@@ -1,8 +1,9 @@
 package ai.lzy.graph.algo;
 
-import static ai.lzy.graph.algo.DirectedGraph.*;
-
 import java.util.*;
+
+import static ai.lzy.graph.algo.DirectedGraph.Edge;
+import static ai.lzy.graph.algo.DirectedGraph.Vertex;
 
 public class DirectedGraph<T extends Vertex, E extends Edge<T>> {
     private final Map<String, Set<E>> graph = new HashMap<>();  // Map from vertexId to set of edges

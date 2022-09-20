@@ -4,10 +4,10 @@ import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.model.slot.SlotInstance;
 
-import javax.annotation.Nullable;
 import java.util.Collection;
+import javax.annotation.Nullable;
 
-import static ai.lzy.portal.Portal.*;
+import static ai.lzy.portal.Portal.CreateSlotException;
 
 public interface SnapshotSlot {
     LzyInputSlot setInputSlot(SlotInstance slot) throws CreateSlotException;

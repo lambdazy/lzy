@@ -5,13 +5,13 @@ import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.fs.slots.ArgumentsSlot;
 import ai.lzy.fs.slots.LineReaderSlot;
 import ai.lzy.fs.storage.StorageClient;
-import ai.lzy.model.slot.Slot;
 import ai.lzy.model.EnvironmentInstallationException;
 import ai.lzy.model.graph.Env;
-import ai.lzy.v1.deprecated.Servant;
-import ai.lzy.v1.deprecated.Servant.ServantProgress;
+import ai.lzy.model.slot.Slot;
 import ai.lzy.servant.env.Environment;
 import ai.lzy.servant.env.EnvironmentFactory;
+import ai.lzy.v1.deprecated.Servant;
+import ai.lzy.v1.deprecated.Servant.ServantProgress;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 

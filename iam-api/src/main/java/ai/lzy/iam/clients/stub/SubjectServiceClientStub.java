@@ -1,10 +1,10 @@
 package ai.lzy.iam.clients.stub;
 
+import ai.lzy.iam.clients.SubjectServiceClient;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.*;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.exceptions.AuthException;
-import ai.lzy.iam.clients.SubjectServiceClient;
 
 import java.util.List;
 import java.util.UUID;

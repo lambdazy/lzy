@@ -1,7 +1,6 @@
 package ai.lzy.graph.algo;
 
 import java.util.*;
-import java.util.function.Function;
 
 public class Algorithms {
 

@@ -15,8 +15,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.URI;
-import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;

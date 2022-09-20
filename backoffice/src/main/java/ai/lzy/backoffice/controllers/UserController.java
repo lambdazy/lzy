@@ -1,5 +1,6 @@
 package ai.lzy.backoffice.controllers;
 
+import ai.lzy.backoffice.grpc.Client;
 import ai.lzy.backoffice.models.users.CreateUserRequest;
 import ai.lzy.backoffice.models.users.DeleteUserRequest;
 import ai.lzy.backoffice.models.users.ListUsersRequest;
@@ -11,8 +12,8 @@ import io.micronaut.http.annotation.Post;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import jakarta.inject.Inject;
+
 import javax.validation.Valid;
-import ai.lzy.backoffice.grpc.Client;
 
 @ExecuteOn(TaskExecutors.IO)
 @Controller("users")

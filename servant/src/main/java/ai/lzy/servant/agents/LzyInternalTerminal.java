@@ -1,24 +1,25 @@
 package ai.lzy.servant.agents;
 
-import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.model.UriScheme;
 import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.deprecated.Lzy;
+import ai.lzy.v1.deprecated.LzyAuth;
 import ai.lzy.v1.deprecated.LzyServantGrpc;
 import ai.lzy.v1.deprecated.LzyServerGrpc;
 import ai.lzy.v1.deprecated.Servant;
 import io.grpc.Context;
 import io.grpc.ManagedChannel;
 import io.grpc.stub.StreamObserver;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class LzyInternalTerminal implements Closeable {
     private static final Logger LOG = LogManager.getLogger(LzyInternalTerminal.class);

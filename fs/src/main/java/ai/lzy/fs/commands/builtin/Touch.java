@@ -7,15 +7,15 @@ import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.deprecated.LzyAuth;
 import ai.lzy.v1.fs.LzyFsApi;
 import ai.lzy.v1.fs.LzyFsGrpc;
-import ai.lzy.v1.deprecated.LzyZygote;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.Options;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Base64;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.Options;
 
 public final class Touch implements LzyCommand {
 

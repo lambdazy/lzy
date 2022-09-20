@@ -1,6 +1,5 @@
 package ru.yandex.qe.s3.transfer;
 
-import java.io.ByteArrayInputStream;
 import org.hamcrest.core.Is;
 import org.junit.Assert;
 import org.testng.annotations.Test;
@@ -8,6 +7,8 @@ import ru.yandex.qe.s3.transfer.meta.Metadata;
 import ru.yandex.qe.s3.transfer.meta.MetadataBuilder;
 import ru.yandex.qe.s3.transfer.upload.UploadRequest;
 import ru.yandex.qe.s3.transfer.upload.UploadRequestBuilder;
+
+import java.io.ByteArrayInputStream;
 
 /**
  * Established by terry on 30.07.15.

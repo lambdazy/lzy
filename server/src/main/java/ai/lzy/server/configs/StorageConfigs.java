@@ -1,10 +1,10 @@
 package ai.lzy.server.configs;
 
-import io.micronaut.context.annotation.ConfigurationProperties;
 import ai.lzy.model.StorageCredentials;
 import ai.lzy.model.StorageCredentials.EmptyCredentials;
 import ai.lzy.server.storage.AmazonCredentialsImpl;
 import ai.lzy.server.storage.AzureCredentialsImpl;
+import io.micronaut.context.annotation.ConfigurationProperties;
 
 @ConfigurationProperties("storage")
 public class StorageConfigs {

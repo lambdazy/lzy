@@ -2,8 +2,8 @@ package ai.lzy.scheduler.servant;
 
 import ai.lzy.model.operation.Operation;
 
-import javax.annotation.Nullable;
 import java.util.concurrent.CompletableFuture;
+import javax.annotation.Nullable;
 
 public interface ServantsPool {
 

@@ -1,22 +1,22 @@
 package ai.lzy.server.task;
 
-import static ai.lzy.server.task.Task.State.ERROR;
-import static ai.lzy.server.task.Task.State.EXECUTING;
-import static ai.lzy.server.task.Task.State.SUCCESS;
-
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.Signal;
-import ai.lzy.model.slot.SlotStatus;
 import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.model.deprecated.Zygote;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
+import ai.lzy.model.slot.SlotStatus;
 import ai.lzy.server.ServantsAllocator;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.deprecated.LzyTask;
 import ai.lzy.v1.deprecated.Servant;
 import ai.lzy.v1.fs.LzyFsApi;
 import ai.lzy.v1.fs.LzyFsGrpc;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.Nullable;
+
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -24,9 +24,10 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.Nullable;
+
+import static ai.lzy.server.task.Task.State.ERROR;
+import static ai.lzy.server.task.Task.State.EXECUTING;
+import static ai.lzy.server.task.Task.State.SUCCESS;
 
 public class TaskImpl implements Task {
 

@@ -3,12 +3,7 @@ package ru.yandex.qe.s3.amazon.policy;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.retry.RetryPolicy;
-import com.amazonaws.services.s3.model.AbortMultipartUploadRequest;
-import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
-import com.amazonaws.services.s3.model.GetObjectMetadataRequest;
-import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
-import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.amazonaws.services.s3.model.UploadPartRequest;
+import com.amazonaws.services.s3.model.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

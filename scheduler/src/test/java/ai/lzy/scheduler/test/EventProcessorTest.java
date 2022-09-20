@@ -1,9 +1,9 @@
 package ai.lzy.scheduler.test;
 
-import ai.lzy.model.operation.Operation;
 import ai.lzy.model.TaskDesc;
 import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.model.db.test.DatabaseTestUtils;
+import ai.lzy.model.operation.Operation;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.scheduler.configs.ProcessorConfigBuilder;
 import ai.lzy.scheduler.configs.ServantEventProcessorConfig;
@@ -24,7 +24,11 @@ import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.apache.curator.shaded.com.google.common.net.HostAndPort;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 import org.junit.rules.Timeout;
 
 import java.io.IOException;

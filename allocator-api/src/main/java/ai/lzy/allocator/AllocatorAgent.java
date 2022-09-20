@@ -10,12 +10,12 @@ import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 
 public class AllocatorAgent extends TimerTask {
     private static final Logger LOG = LogManager.getLogger(AllocatorAgent.class);

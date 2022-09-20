@@ -1,8 +1,8 @@
 package ai.lzy.servant.commands;
 
+import ai.lzy.fs.commands.LzyCommand;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.lang3.NotImplementedException;
-import ai.lzy.fs.commands.LzyCommand;
 
 public class Kill implements LzyCommand {
 

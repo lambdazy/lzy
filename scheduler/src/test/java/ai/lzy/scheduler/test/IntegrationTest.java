@@ -1,7 +1,5 @@
 package ai.lzy.scheduler.test;
 
-import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
-
 import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.utils.FreePortFinder;
@@ -31,18 +29,21 @@ import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import java.io.IOException;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+
+import java.io.IOException;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+
+import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
 
 public class IntegrationTest extends BaseTestWithIam {
 

@@ -16,10 +16,10 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.inject.Named;
 import java.sql.SQLException;
 import java.util.Timer;
 import java.util.TimerTask;
+import javax.inject.Named;
 
 @Singleton
 public class GarbageCollector extends TimerTask {

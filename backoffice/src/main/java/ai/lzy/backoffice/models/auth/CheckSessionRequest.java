@@ -1,9 +1,9 @@
 package ai.lzy.backoffice.models.auth;
 
-import io.micronaut.core.annotation.Introspected;
-import io.micronaut.core.annotation.Nullable;
 import ai.lzy.v1.deprecated.BackOffice;
 import ai.lzy.v1.deprecated.LzyAuth;
+import io.micronaut.core.annotation.Introspected;
+import io.micronaut.core.annotation.Nullable;
 
 @Introspected
 public class CheckSessionRequest {

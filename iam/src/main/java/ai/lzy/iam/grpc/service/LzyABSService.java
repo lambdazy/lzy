@@ -1,17 +1,11 @@
 package ai.lzy.iam.grpc.service;
 
 import ai.lzy.iam.grpc.context.AuthenticationContext;
-import ai.lzy.iam.storage.impl.DbAccessBindingClient;
-import io.grpc.Status;
-import io.grpc.stub.StreamObserver;
-import jakarta.inject.Inject;
-import jakarta.inject.Singleton;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.AuthResource;
 import ai.lzy.iam.resources.impl.Whiteboard;
 import ai.lzy.iam.resources.impl.Workflow;
+import ai.lzy.iam.storage.impl.DbAccessBindingClient;
 import ai.lzy.iam.storage.impl.DbAccessClient;
 import ai.lzy.iam.utils.ProtoConverter;
 import ai.lzy.v1.iam.IAM;
@@ -21,6 +15,12 @@ import ai.lzy.v1.iam.LABS.ListAccessBindingsResponse;
 import ai.lzy.v1.iam.LABS.SetAccessBindingsRequest;
 import ai.lzy.v1.iam.LABS.UpdateAccessBindingsRequest;
 import ai.lzy.v1.iam.LzyAccessBindingServiceGrpc;
+import io.grpc.Status;
+import io.grpc.stub.StreamObserver;
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.Objects;
 import java.util.stream.Collectors;

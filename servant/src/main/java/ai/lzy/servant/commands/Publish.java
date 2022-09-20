@@ -1,19 +1,20 @@
 package ai.lzy.servant.commands;
 
+import ai.lzy.fs.commands.LzyCommand;
+import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.v1.deprecated.Lzy;
+import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.v1.deprecated.LzyKharonGrpc;
+import ai.lzy.v1.deprecated.LzyServerGrpc;
+import ai.lzy.v1.deprecated.LzyZygote;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
+import org.apache.commons.cli.CommandLine;
+
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Base64;
-import org.apache.commons.cli.CommandLine;
-import ai.lzy.fs.commands.LzyCommand;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.v1.deprecated.LzyAuth;
-import ai.lzy.v1.deprecated.Lzy;
-import ai.lzy.v1.deprecated.LzyKharonGrpc;
-import ai.lzy.v1.deprecated.LzyServerGrpc;
-import ai.lzy.v1.deprecated.LzyZygote;
 
 public class Publish implements LzyCommand {
 

@@ -14,9 +14,9 @@ import lombok.Lombok;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.annotation.Nullable;
 import java.sql.SQLException;
 import java.util.UUID;
+import javax.annotation.Nullable;
 
 @Singleton
 public class SessionDaoImpl implements SessionDao {

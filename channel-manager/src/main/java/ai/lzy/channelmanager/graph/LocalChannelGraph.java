@@ -2,14 +2,18 @@ package ai.lzy.channelmanager.graph;
 
 import ai.lzy.channelmanager.channel.ChannelException;
 import ai.lzy.channelmanager.channel.Endpoint;
+import ai.lzy.model.slot.Slot;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.text.MessageFormat;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.validation.constraints.NotNull;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ai.lzy.model.slot.Slot;
 
 public class LocalChannelGraph implements ChannelGraph {
     private static final Logger LOG = LogManager.getLogger(LocalChannelGraph.class);

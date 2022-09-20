@@ -1,19 +1,19 @@
 package ai.lzy.fs.snapshot;
 
-import static ai.lzy.v1.common.LMS.SlotStatus.State.DESTROYED;
-import static ai.lzy.v1.common.LMS.SlotStatus.State.OPEN;
-import static ai.lzy.v1.deprecated.LzyWhiteboard.OperationStatus.Status.FAILED;
-
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.model.deprecated.GrpcConverter;
-import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.v1.deprecated.LzyAuth;
 import ai.lzy.v1.deprecated.LzyWhiteboard;
 import ai.lzy.v1.deprecated.SnapshotApiGrpc;
+
 import java.net.URI;
 import java.util.HashSet;
 import java.util.Set;
+
+import static ai.lzy.v1.common.LMS.SlotStatus.State.DESTROYED;
+import static ai.lzy.v1.common.LMS.SlotStatus.State.OPEN;
+import static ai.lzy.v1.deprecated.LzyWhiteboard.OperationStatus.Status.FAILED;
 
 public class SnapshooterImpl implements Snapshooter {
     private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshotApi;

@@ -1,18 +1,19 @@
 package ru.yandex.qe.s3.repository;
 
-import static java.util.concurrent.Executors.newFixedThreadPool;
-
 import com.google.common.base.Throwables;
-import java.io.InputStream;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.function.Function;
-import javax.annotation.Nonnull;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import ru.yandex.qe.s3.transfer.StreamSuppliers;
 import ru.yandex.qe.s3.transfer.Transmitter;
 import ru.yandex.qe.s3.transfer.download.DownloadRequestBuilder;
 import ru.yandex.qe.s3.transfer.upload.UploadRequestBuilder;
+
+import java.io.InputStream;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.function.Function;
+import javax.annotation.Nonnull;
+
+import static java.util.concurrent.Executors.newFixedThreadPool;
 
 /**
  * Established by terry on 02.07.15.

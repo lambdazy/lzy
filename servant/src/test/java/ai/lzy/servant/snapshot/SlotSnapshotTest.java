@@ -1,5 +1,11 @@
 package ai.lzy.servant.snapshot;
 
+import ai.lzy.fs.snapshot.SlotSnapshot;
+import ai.lzy.fs.snapshot.SlotSnapshotImpl;
+import ai.lzy.fs.storage.AmazonStorageClient;
+import ai.lzy.fs.storage.StorageClient;
+import ai.lzy.model.DataScheme;
+import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
@@ -9,21 +15,18 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.google.protobuf.ByteString;
 import io.findify.s3mock.S3Mock;
+import org.apache.commons.io.IOUtils;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
-
-import org.apache.commons.io.IOUtils;
-import org.junit.*;
-import ai.lzy.model.slot.Slot;
-import ai.lzy.model.DataScheme;
-import ai.lzy.fs.snapshot.SlotSnapshot;
-import ai.lzy.fs.snapshot.SlotSnapshotImpl;
-import ai.lzy.fs.storage.AmazonStorageClient;
-import ai.lzy.fs.storage.StorageClient;
 
 public class SlotSnapshotTest {
     private static final int S3_PORT = 8001;

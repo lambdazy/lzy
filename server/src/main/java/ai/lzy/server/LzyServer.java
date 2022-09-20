@@ -1,9 +1,5 @@
 package ai.lzy.server;
 
-import static ai.lzy.v1.deprecated.LzyTask.TaskProgress.Status.ERROR;
-import static ai.lzy.v1.deprecated.LzyTask.TaskProgress.Status.QUEUE;
-import static ai.lzy.v1.deprecated.LzyTask.TaskProgress.Status.SUCCESS;
-
 import ai.lzy.logs.UserEvent;
 import ai.lzy.logs.UserEventLogger;
 import ai.lzy.model.EnvironmentInstallationException;
@@ -39,6 +35,13 @@ import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.exceptions.NoSuchBeanException;
 import jakarta.inject.Inject;
+import org.apache.commons.cli.*;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.LoggerContext;
+
 import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
@@ -48,12 +51,10 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
-import org.apache.commons.cli.*;
-import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.LoggerContext;
+
+import static ai.lzy.v1.deprecated.LzyTask.TaskProgress.Status.ERROR;
+import static ai.lzy.v1.deprecated.LzyTask.TaskProgress.Status.QUEUE;
+import static ai.lzy.v1.deprecated.LzyTask.TaskProgress.Status.SUCCESS;
 
 public class LzyServer {
 

@@ -1,8 +1,8 @@
 package ru.yandex.qe.s3.amazon.transfer.loop;
 
-import static java.lang.String.format;
-
 import com.amazonaws.services.s3.model.AmazonS3Exception;
+
+import static java.lang.String.format;
 
 /**
  * Established by terry on 19.01.16.

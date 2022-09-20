@@ -16,10 +16,11 @@ package org.apache.curator.framework.recipes.locks;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import org.apache.curator.framework.CuratorFramework;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import org.apache.curator.framework.CuratorFramework;
 
 /**
  * <p>

@@ -1,18 +1,10 @@
 package ai.lzy.whiteboard.hibernate;
 
+import ai.lzy.whiteboard.hibernate.models.*;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
-import ai.lzy.whiteboard.hibernate.models.EntryDependenciesModel;
-import ai.lzy.whiteboard.hibernate.models.ExecutionModel;
-import ai.lzy.whiteboard.hibernate.models.InputArgModel;
-import ai.lzy.whiteboard.hibernate.models.OutputArgModel;
-import ai.lzy.whiteboard.hibernate.models.SnapshotEntryModel;
-import ai.lzy.whiteboard.hibernate.models.SnapshotModel;
-import ai.lzy.whiteboard.hibernate.models.WhiteboardFieldModel;
-import ai.lzy.whiteboard.hibernate.models.WhiteboardModel;
-import ai.lzy.whiteboard.hibernate.models.WhiteboardTagModel;
 
 @Singleton
 @Requires(missingProperty = "database.url")

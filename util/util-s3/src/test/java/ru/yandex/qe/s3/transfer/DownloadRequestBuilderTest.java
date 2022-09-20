@@ -1,13 +1,13 @@
 package ru.yandex.qe.s3.transfer;
 
-import static org.junit.Assert.assertEquals;
-import static ru.yandex.qe.s3.transfer.download.DownloadRequest.UNDEFF_BOUND_VALUE;
-
 import org.hamcrest.core.Is;
 import org.junit.Assert;
 import org.testng.annotations.Test;
 import ru.yandex.qe.s3.transfer.download.DownloadRequest;
 import ru.yandex.qe.s3.transfer.download.DownloadRequestBuilder;
+
+import static org.junit.Assert.assertEquals;
+import static ru.yandex.qe.s3.transfer.download.DownloadRequest.UNDEFF_BOUND_VALUE;
 
 /**
  * Established by terry on 30.07.15.

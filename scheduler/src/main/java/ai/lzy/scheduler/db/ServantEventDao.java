@@ -2,8 +2,8 @@ package ai.lzy.scheduler.db;
 
 import ai.lzy.scheduler.models.ServantEvent;
 
-import javax.annotation.Nullable;
 import java.util.List;
+import javax.annotation.Nullable;
 
 public interface ServantEventDao {
     void save(ServantEvent event);

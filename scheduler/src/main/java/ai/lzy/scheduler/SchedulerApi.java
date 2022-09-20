@@ -19,11 +19,11 @@ import io.micronaut.context.ApplicationContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
-import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 @Singleton
 public class SchedulerApi {

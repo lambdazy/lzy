@@ -1,13 +1,14 @@
 package ai.lzy.servant.logs;
 
-import java.util.Objects;
+import ai.lzy.model.utils.KafkaLogsConfiguration;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.ConfigurationFactory;
 import org.apache.logging.log4j.core.config.ConfigurationSource;
 import org.apache.logging.log4j.core.config.Order;
 import org.apache.logging.log4j.core.config.plugins.Plugin;
-import ai.lzy.model.utils.KafkaLogsConfiguration;
+
+import java.util.Objects;
 
 @Plugin(name = "CustomConfigurationFactory", category = "ConfigurationFactory")
 @Order(10)

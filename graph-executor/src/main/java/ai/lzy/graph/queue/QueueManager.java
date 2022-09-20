@@ -1,34 +1,30 @@
 package ai.lzy.graph.queue;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
-
 import ai.lzy.graph.config.ServiceConfig;
+import ai.lzy.graph.db.GraphExecutionDao;
+import ai.lzy.graph.db.QueueEventDao;
 import ai.lzy.graph.exec.GraphProcessor;
 import ai.lzy.graph.model.GraphDescription;
+import ai.lzy.graph.model.GraphExecutionState;
+import ai.lzy.graph.model.GraphExecutionState.Status;
 import ai.lzy.graph.model.QueueEvent;
+import ai.lzy.model.db.exceptions.DaoException;
 import io.grpc.StatusException;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
+
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.NotNull;
-import ai.lzy.graph.db.GraphExecutionDao;
-import ai.lzy.model.db.exceptions.DaoException;
-import ai.lzy.graph.db.QueueEventDao;
-import ai.lzy.graph.model.GraphExecutionState;
-import ai.lzy.graph.model.GraphExecutionState.Status;
+
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 @Singleton
 public class QueueManager extends Thread {

@@ -1,10 +1,10 @@
 package ai.lzy.test.scenarios;
 
+import ai.lzy.servant.agents.AgentStatus;
 import ai.lzy.test.LzyTerminalTestContext;
 import ai.lzy.test.impl.Utils;
 import org.junit.Before;
 import org.junit.Test;
-import ai.lzy.servant.agents.AgentStatus;
 
 import java.util.concurrent.TimeUnit;
 

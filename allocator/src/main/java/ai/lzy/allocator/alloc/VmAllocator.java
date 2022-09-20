@@ -5,8 +5,8 @@ import ai.lzy.allocator.model.Vm;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.v1.VmAllocatorApi.AllocateResponse;
 
-import javax.annotation.Nullable;
 import java.util.List;
+import javax.annotation.Nullable;
 
 public interface VmAllocator {
     /**

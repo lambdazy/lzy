@@ -5,12 +5,11 @@ import ai.lzy.fs.SlotConnectionManager;
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
-import ai.lzy.model.deprecated.GrpcConverter;
-import ai.lzy.model.grpc.ProtoConverter;
-import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.UriScheme;
+import ai.lzy.model.grpc.ProtoConverter;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.deprecated.*;
 import ai.lzy.v1.deprecated.Kharon.Attach;
 import ai.lzy.v1.deprecated.Kharon.TerminalCommand;
@@ -21,6 +20,9 @@ import ai.lzy.v1.fs.LzyFsApi.SlotCommandStatus.RC;
 import io.grpc.Context;
 import io.grpc.ManagedChannel;
 import io.grpc.stub.StreamObserver;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -29,8 +31,6 @@ import java.net.URISyntaxException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class LzyTerminal implements Closeable {
 

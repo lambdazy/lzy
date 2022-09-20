@@ -1,7 +1,7 @@
 package ai.lzy.server;
 
-import javax.annotation.Nullable;
 import java.util.stream.Stream;
+import javax.annotation.Nullable;
 
 public interface SessionManager {
     Session registerSession(String userId, String sessionId, String bucket);

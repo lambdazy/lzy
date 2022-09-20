@@ -1,12 +1,13 @@
 package ru.yandex.cloud.ml.platform.model.util.latch;
 
-import java.nio.ByteBuffer;
-import java.time.Instant;
-import java.util.concurrent.TimeUnit;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.shared.SharedCount;
 import org.apache.curator.framework.recipes.shared.SharedValue;
 import org.apache.curator.framework.recipes.shared.VersionedValue;
+
+import java.nio.ByteBuffer;
+import java.time.Instant;
+import java.util.concurrent.TimeUnit;
 
 public class DistributedLatch implements Latch {
 

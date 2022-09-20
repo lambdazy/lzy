@@ -5,7 +5,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.yandex.qe.s3.repository.BiDirectS3Converter;
 
-import javax.annotation.WillClose;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -18,6 +17,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import javax.annotation.WillClose;
 
 public class ByteStringStreamConverter implements BiDirectS3Converter<Stream<ByteString>> {
     private static final Logger LOG = LogManager.getLogger(ByteStringStreamConverter.class);

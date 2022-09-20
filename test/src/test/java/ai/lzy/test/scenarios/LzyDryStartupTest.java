@@ -1,12 +1,12 @@
 package ai.lzy.test.scenarios;
 
-import java.nio.file.Paths;
-
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
+
+import java.nio.file.Paths;
 
 public class LzyDryStartupTest extends LocalScenario {
 

@@ -1,8 +1,8 @@
 package ai.lzy.whiteboard;
 
 import ai.lzy.model.DataScheme;
-import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.model.db.Storage;
+import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.whiteboard.model.Field;
 import ai.lzy.whiteboard.model.LinkedField;
@@ -12,6 +12,12 @@ import ai.lzy.whiteboard.storage.WhiteboardStorage;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -19,11 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
 
 public class StorageTest {
 

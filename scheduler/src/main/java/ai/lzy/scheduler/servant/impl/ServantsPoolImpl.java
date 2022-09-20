@@ -1,8 +1,8 @@
 package ai.lzy.scheduler.servant.impl;
 
-import ai.lzy.model.operation.Operation;
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.db.exceptions.DaoException;
+import ai.lzy.model.operation.Operation;
 import ai.lzy.scheduler.allocator.ServantsAllocator;
 import ai.lzy.scheduler.configs.ServantEventProcessorConfig;
 import ai.lzy.scheduler.configs.ServiceConfig;
@@ -13,15 +13,19 @@ import ai.lzy.scheduler.servant.Servant;
 import ai.lzy.scheduler.servant.ServantsPool;
 import ai.lzy.scheduler.task.Task;
 import jakarta.inject.Singleton;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 @Singleton
 public class ServantsPoolImpl implements ServantsPool {

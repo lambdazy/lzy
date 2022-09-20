@@ -1,12 +1,12 @@
 package ai.lzy.fs.mock;
 
+import ai.lzy.model.utils.FreePortFinder;
+import ai.lzy.util.grpc.ChannelBuilder;
 import io.grpc.BindableService;
 import io.grpc.Channel;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.netty.NettyServerBuilder;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.model.utils.FreePortFinder;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;

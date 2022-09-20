@@ -1,18 +1,11 @@
 package ai.lzy.whiteboard.hibernate.models;
 
+import ai.lzy.whiteboard.model.Snapshot;
+
 import java.net.URI;
 import java.util.Set;
 import java.util.stream.Stream;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
-import ai.lzy.whiteboard.model.Snapshot;
+import javax.persistence.*;
 
 @Entity
 @Table(name = "execution")

@@ -1,33 +1,29 @@
 package ai.lzy.whiteboard;
 
-import io.micronaut.context.ApplicationContext;
-import java.net.URI;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
 import ai.lzy.model.DataScheme;
+import ai.lzy.whiteboard.exceptions.SnapshotRepositoryException;
+import ai.lzy.whiteboard.exceptions.WhiteboardRepositoryException;
+import ai.lzy.whiteboard.hibernate.DbSnapshotRepository;
+import ai.lzy.whiteboard.hibernate.DbStorage;
+import ai.lzy.whiteboard.hibernate.DbWhiteboardRepository;
 import ai.lzy.whiteboard.model.Snapshot;
 import ai.lzy.whiteboard.model.SnapshotEntry;
 import ai.lzy.whiteboard.model.Whiteboard;
 import ai.lzy.whiteboard.model.Whiteboard.Impl;
 import ai.lzy.whiteboard.model.WhiteboardField;
 import ai.lzy.whiteboard.model.WhiteboardStatus;
-import ai.lzy.whiteboard.exceptions.SnapshotRepositoryException;
-import ai.lzy.whiteboard.exceptions.WhiteboardRepositoryException;
-import ai.lzy.whiteboard.hibernate.DbSnapshotRepository;
-import ai.lzy.whiteboard.hibernate.DbStorage;
-import ai.lzy.whiteboard.hibernate.DbWhiteboardRepository;
+import io.micronaut.context.ApplicationContext;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+
+import java.net.URI;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class DbWhiteboardRepositoryTest {
 

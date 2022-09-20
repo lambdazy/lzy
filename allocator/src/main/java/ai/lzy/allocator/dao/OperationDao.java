@@ -1,12 +1,11 @@
 package ai.lzy.allocator.dao;
 
-import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.allocator.model.Operation;
-import ai.lzy.v1.VmAllocatorApi;
+import ai.lzy.model.db.TransactionHandle;
 import com.google.protobuf.Any;
 
-import javax.annotation.Nullable;
 import java.sql.SQLException;
+import javax.annotation.Nullable;
 
 public interface OperationDao {
     Operation create(String description, String createdBy, Any meta, @Nullable TransactionHandle th)

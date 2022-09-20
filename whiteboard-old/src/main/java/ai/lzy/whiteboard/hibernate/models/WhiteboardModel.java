@@ -2,8 +2,8 @@ package ai.lzy.whiteboard.hibernate.models;
 
 import ai.lzy.whiteboard.model.WhiteboardStatus;
 
-import javax.persistence.*;
 import java.util.Date;
+import javax.persistence.*;
 
 @Entity
 @Table(name = "whiteboard")

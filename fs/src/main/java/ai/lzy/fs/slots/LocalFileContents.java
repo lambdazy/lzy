@@ -1,6 +1,8 @@
 package ai.lzy.fs.slots;
 
-import static java.nio.file.StandardOpenOption.WRITE;
+import ai.lzy.fs.fs.FileContentsBase;
+import jnr.ffi.Pointer;
+import ru.serce.jnrfuse.ErrorCodes;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -10,9 +12,8 @@ import java.nio.channels.FileChannel;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.util.Arrays;
-import jnr.ffi.Pointer;
-import ru.serce.jnrfuse.ErrorCodes;
-import ai.lzy.fs.fs.FileContentsBase;
+
+import static java.nio.file.StandardOpenOption.WRITE;
 
 public class LocalFileContents extends FileContentsBase {
     private final byte[] buffer = new byte[4096];

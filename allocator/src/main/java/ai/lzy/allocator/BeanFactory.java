@@ -19,9 +19,9 @@ import org.apache.logging.log4j.Level;
 import yandex.cloud.sdk.ServiceFactory;
 import yandex.cloud.sdk.auth.Auth;
 
-import javax.inject.Named;
 import java.nio.file.Path;
 import java.time.Duration;
+import javax.inject.Named;
 
 @Factory
 public class BeanFactory {

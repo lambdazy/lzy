@@ -1,16 +1,22 @@
 package ru.yandex.qe.s3.transfer.loop;
 
-import static com.google.common.base.Stopwatch.createStarted;
-import static java.lang.String.format;
-import static ru.yandex.qe.s3.transfer.download.DownloadRequest.UNDEFF_BOUND_VALUE;
-import static ru.yandex.qe.s3.util.io.Streams.autoLogStatStream;
-
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.Uninterruptibles;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import ru.yandex.qe.s3.transfer.TransferStatus;
+import ru.yandex.qe.s3.transfer.buffers.ByteBufferPool;
+import ru.yandex.qe.s3.transfer.download.DownloadRequest;
+import ru.yandex.qe.s3.transfer.download.DownloadResult;
+import ru.yandex.qe.s3.transfer.download.DownloadState;
+import ru.yandex.qe.s3.transfer.download.MetaAndStream;
+import ru.yandex.qe.s3.transfer.meta.Metadata;
+import ru.yandex.qe.s3.util.function.ThrowingConsumer;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -26,16 +32,11 @@ import java.util.function.Function;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import ru.yandex.qe.s3.transfer.TransferStatus;
-import ru.yandex.qe.s3.transfer.buffers.ByteBufferPool;
-import ru.yandex.qe.s3.transfer.download.DownloadRequest;
-import ru.yandex.qe.s3.transfer.download.DownloadResult;
-import ru.yandex.qe.s3.transfer.download.DownloadState;
-import ru.yandex.qe.s3.transfer.download.MetaAndStream;
-import ru.yandex.qe.s3.transfer.meta.Metadata;
-import ru.yandex.qe.s3.util.function.ThrowingConsumer;
+
+import static com.google.common.base.Stopwatch.createStarted;
+import static java.lang.String.format;
+import static ru.yandex.qe.s3.transfer.download.DownloadRequest.UNDEFF_BOUND_VALUE;
+import static ru.yandex.qe.s3.util.io.Streams.autoLogStatStream;
 
 /**
  * Established by terry on 22.07.15.

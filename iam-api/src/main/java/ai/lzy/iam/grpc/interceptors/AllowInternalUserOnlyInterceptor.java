@@ -1,12 +1,12 @@
 package ai.lzy.iam.grpc.interceptors;
 
-import ai.lzy.util.auth.credentials.JwtCredentials;
-import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.impl.Root;
 import ai.lzy.iam.resources.subjects.Subject;
+import ai.lzy.util.auth.credentials.JwtCredentials;
+import ai.lzy.util.auth.exceptions.AuthException;
 import io.grpc.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

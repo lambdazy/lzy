@@ -1,11 +1,12 @@
 package ai.lzy.whiteboard.model;
 
+import ai.lzy.model.DataScheme;
+
 import java.net.URI;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import javax.annotation.Nullable;
-import ai.lzy.model.DataScheme;
 
 public interface SnapshotEntryStatus {
 
