@@ -21,6 +21,7 @@ import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
+import yandex.cloud.sdk.auth.IamToken;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -51,7 +52,8 @@ public class VolumeManagerTest {
         if (clusterId == null) {
             throw new RuntimeException("No user cluster was specified for manual test");
         }
-        final KubernetesClient client = new KuberClientFactoryImpl().build(clusterRegistry.getCluster(clusterId));
+        final KubernetesClient client = new KuberClientFactoryImpl(() -> new IamToken("", Instant.MAX))
+            .build(clusterRegistry.getCluster(clusterId));
         volumeManager = new KuberVolumeManager(client);
     }
 

@@ -31,6 +31,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.sql.SQLException;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import javax.inject.Named;
 
@@ -123,6 +124,10 @@ public class AllocatorMain {
             .mainClass(AllocatorMain.class)
             .defaultEnvironments("local")
             .start();
+
+        Properties props = System.getProperties();
+        props.setProperty("kubernetes.disable.autoConfig", "true");
+        props.setProperty("kubeconfig", "");
 
         final var main = context.getBean(AllocatorMain.class);
         main.start();

@@ -35,11 +35,13 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 import yandex.cloud.sdk.Zone;
+import yandex.cloud.sdk.auth.IamToken;
 
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -78,7 +80,8 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
         if (clusterId == null) {
             throw new RuntimeException("No user cluster was specified for manual test");
         }
-        kuber = new KuberClientFactoryImpl().build(clusterRegistry.getCluster(clusterId));
+        kuber = new KuberClientFactoryImpl(() -> new IamToken("", Instant.MAX))
+            .build(clusterRegistry.getCluster(clusterId));
 
         allocatorApp = context.getBean(AllocatorMain.class);
         allocatorApp.start();
