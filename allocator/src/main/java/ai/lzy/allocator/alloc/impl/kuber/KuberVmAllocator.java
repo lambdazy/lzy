@@ -22,6 +22,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import javax.annotation.Nullable;
 
@@ -199,10 +200,10 @@ public class KuberVmAllocator implements VmAllocator {
                         .get();
 
                 for (final var address: node.getStatus().getAddresses()) {
-                    final var type = switch (address.getType()) {
-                        case "HostName" -> VmEndpointType.HOST_NAME;
-                        case "InternalIp" -> VmEndpointType.INTERNAL_IP;
-                        case "ExternalIp" -> VmEndpointType.EXTERNAL_IP;
+                    final var type = switch (address.getType().toLowerCase(Locale.ROOT)) {
+                        case "hostname" -> VmEndpointType.HOST_NAME;
+                        case "internalip" -> VmEndpointType.INTERNAL_IP;
+                        case "externalip" -> VmEndpointType.EXTERNAL_IP;
                         default -> throw new RuntimeException("Undefined type of node address: " + address.getType());
                     };
                     hosts.add(new VmEndpoint(type, address.getAddress()));
