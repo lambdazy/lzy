@@ -24,7 +24,6 @@ import io.grpc.ServerBuilder;
 import io.grpc.ServerInterceptors;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.protobuf.services.ProtoReflectionService;
-import io.micronaut.context.env.Environment;
 import io.micronaut.runtime.Micronaut;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
