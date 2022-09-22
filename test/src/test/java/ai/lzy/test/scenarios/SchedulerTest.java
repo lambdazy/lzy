@@ -20,8 +20,8 @@ import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.channel.LCM.ChannelSpec;
 import ai.lzy.v1.channel.LCM.DirectChannelType;
-import ai.lzy.v1.channel.LCMS.ChannelCreateRequest;
-import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.channel.LCMPS.ChannelCreateRequest;
+import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LMD;
 import ai.lzy.v1.graph.GraphExecutor;
 import ai.lzy.v1.graph.GraphExecutor.ChannelDesc;
@@ -99,7 +99,7 @@ public class SchedulerTest extends LocalScenario {
 
     private static final SchedulerGrpc.SchedulerBlockingStub stub;
     private static final GraphExecutorGrpc.GraphExecutorBlockingStub geStub;
-    private static final LzyChannelManagerGrpc.LzyChannelManagerBlockingStub cmStub;
+    private static final LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub cmStub;
 
     static {
         final var channel = ChannelBuilder.forAddress("localhost:" + schedulerPort)
@@ -120,9 +120,9 @@ public class SchedulerTest extends LocalScenario {
 
         final var ch = ChannelBuilder.forAddress("localhost:" + CHANNEL_MANAGER_PORT)
             .usePlaintext()
-            .enableRetry(LzyChannelManagerGrpc.SERVICE_NAME)
+            .enableRetry(LzyChannelManagerPrivateGrpc.SERVICE_NAME)
             .build();
-        cmStub = LzyChannelManagerGrpc.newBlockingStub(ch).withInterceptors(
+        cmStub = LzyChannelManagerPrivateGrpc.newBlockingStub(ch).withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
     }
 
@@ -209,7 +209,7 @@ public class SchedulerTest extends LocalScenario {
     @NotNull
     private String buildChannel(String value) {
         return cmStub.create(ChannelCreateRequest.newBuilder()
-            .setWorkflowId("wf_id")
+            .setExecutionId("ex_id")
             .setChannelSpec(ChannelSpec.newBuilder()
                 .setChannelName(value)
                 .setDirect(DirectChannelType.newBuilder().build())

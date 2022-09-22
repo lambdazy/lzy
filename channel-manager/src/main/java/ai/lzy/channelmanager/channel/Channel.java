@@ -7,7 +7,7 @@ import java.util.stream.Stream;
 
 public interface Channel {
     String id();
-    String workflowId();
+    String executionId();
     String name();
     ChannelSpec spec();
     Stream<SlotStatus> slotsStatus();

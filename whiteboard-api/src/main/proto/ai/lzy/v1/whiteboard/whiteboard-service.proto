@@ -2,7 +2,7 @@ syntax = "proto3";
 
 import "ai/lzy/v1/whiteboard/whiteboard.proto";
 
-package ai.lzy.v1;
+package ai.lzy.v1.whiteboard;
 
 option java_outer_classname = "LWBS";
 option java_package = "ai.lzy.v1.whiteboard";

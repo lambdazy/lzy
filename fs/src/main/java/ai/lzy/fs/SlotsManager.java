@@ -135,8 +135,8 @@ public class SlotsManager implements AutoCloseable {
             synchronized (SlotsManager.this) {
                 LOG.info("UnBind slot {} from channel {}", spec, channelId);
                 try {
-                    final LCMS.SlotDetachStatus unbindResult = channelManager.unbind(
-                        LCMS.SlotDetach.newBuilder()
+                    final LCMS.UnbindResponse unbindResult = channelManager.unbind(
+                        LCMS.UnbindRequest.newBuilder()
                             .setSlotInstance(ProtoConverter.toProto(slot.instance()))
                             .build()
                     );
@@ -163,8 +163,8 @@ public class SlotsManager implements AutoCloseable {
             }
         });
 
-        final LCMS.SlotAttachStatus slotAttachStatus = channelManager.bind(
-            LCMS.SlotAttach.newBuilder()
+        final LCMS.BindResponse slotAttachStatus = channelManager.bind(
+            LCMS.BindRequest.newBuilder()
                 .setSlotInstance(ProtoConverter.toProto(slot.instance()))
                 .build());
         LOG.info(JsonUtils.printRequest(slotAttachStatus));

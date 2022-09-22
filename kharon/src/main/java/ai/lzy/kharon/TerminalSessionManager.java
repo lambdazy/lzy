@@ -1,6 +1,6 @@
 package ai.lzy.kharon;
 
-import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.deprecated.LzyServerGrpc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -18,7 +18,7 @@ public class TerminalSessionManager {
         String sessionId,
         TerminalController terminalController,
         LzyServerGrpc.LzyServerBlockingStub server,
-        LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManager
+        LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManager
     ) {
         final TerminalSession terminalSession = new TerminalSession(sessionId, terminalController, server,
             channelManager);

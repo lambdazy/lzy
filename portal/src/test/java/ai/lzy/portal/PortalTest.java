@@ -1,6 +1,7 @@
 package ai.lzy.portal;
 
 import ai.lzy.allocator.AllocatorAgent;
+import ai.lzy.channelmanager.grpc.ChannelManagerMock;
 import ai.lzy.fs.LzyFsServer;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.SlotInstance;
@@ -8,7 +9,6 @@ import ai.lzy.portal.config.PortalConfig;
 import ai.lzy.servant.agents.LzyAgentConfig;
 import ai.lzy.servant.agents.LzyServant;
 import ai.lzy.test.GrpcUtils;
-import ai.lzy.test.mocks.ChannelManagerMock;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.common.LMS;
@@ -46,6 +46,8 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
+import static ai.lzy.channelmanager.grpc.ProtoConverter.makeCreateDirectChannelCommand;
+import static ai.lzy.channelmanager.grpc.ProtoConverter.makeDestroyChannelCommand;
 import static ai.lzy.model.UriScheme.LzyFs;
 
 public abstract class PortalTest {
@@ -284,13 +286,13 @@ public abstract class PortalTest {
     }
 
     protected void createChannel(String name) {
-        channelManager.create(GrpcUtils.makeCreateDirectChannelCommand(UUID.randomUUID().toString(), name),
+        channelManager.create(makeCreateDirectChannelCommand(UUID.randomUUID().toString(), name),
             GrpcUtils.SuccessStreamObserver.wrap(
                 status -> System.out.println("Channel '" + name + "' created: " + JsonUtils.printSingleLine(status))));
     }
 
     protected void destroyChannel(String name) {
-        channelManager.destroy(GrpcUtils.makeDestroyChannelCommand(name), GrpcUtils.SuccessStreamObserver.wrap(
+        channelManager.destroy(makeDestroyChannelCommand(name), GrpcUtils.SuccessStreamObserver.wrap(
             status -> System.out.println("Channel '" + name + "' removed: " + JsonUtils.printSingleLine(status))));
     }
 

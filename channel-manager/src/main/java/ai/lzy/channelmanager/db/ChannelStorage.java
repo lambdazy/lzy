@@ -13,7 +13,7 @@ import javax.annotation.Nullable;
 
 public interface ChannelStorage {
 
-    void insertChannel(String channelId, String userId, String workflowId,
+    void insertChannel(String channelId, String executionId,
                        String channelName, LCM.ChannelSpec.TypeCase channelType, ChannelSpec channelSpec,
                        @Nullable TransactionHandle transaction) throws SQLException;
 
@@ -28,14 +28,14 @@ public interface ChannelStorage {
 
     void setChannelLifeStatus(String channelId, ChannelLifeStatus lifeStatus,
                               @Nullable TransactionHandle transaction) throws SQLException;
-    void setChannelLifeStatus(String userId, String workflowId, ChannelLifeStatus lifeStatus,
-                              @Nullable TransactionHandle transaction) throws SQLException;
+    void setChannelLifeStatusByExecution(String executionId, ChannelLifeStatus lifeStatus,
+                                         @Nullable TransactionHandle transaction) throws SQLException;
 
     @Nullable
     Channel findChannel(String channelId, ChannelLifeStatus lifeStatus,
                         @Nullable TransactionHandle transaction) throws SQLException;
 
-    List<Channel> listChannels(String userId, String workflowId, ChannelLifeStatus lifeStatus,
+    List<Channel> listChannels(String executionId, ChannelLifeStatus lifeStatus,
                                @Nullable TransactionHandle transaction) throws SQLException;
 
     enum ChannelLifeStatus {

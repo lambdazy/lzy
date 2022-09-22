@@ -7,8 +7,8 @@ import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.v1.channel.LCMS;
-import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.channel.LCMPS;
+import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.deprecated.LzyAuth;
 import ai.lzy.v1.deprecated.LzyKharonGrpc;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -83,8 +83,8 @@ public final class Channel implements LzyCommand {
             .enableRetry(LzyKharonGrpc.SERVICE_NAME)
             .build();
 
-        final LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManager =
-            LzyChannelManagerGrpc
+        final LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManager =
+            LzyChannelManagerPrivateGrpc
                 .newBlockingStub(channelManagerChannel)
                 .withInterceptors(ClientHeaderInterceptor.header(
                     GrpcHeaders.AUTHORIZATION,
@@ -123,15 +123,16 @@ public final class Channel implements LzyCommand {
                         ai.lzy.v1.channel.LCM.SnapshotChannelType.newBuilder()
                             .setSnapshotId(localCmd.getOptionValue('s'))
                             .setEntryId(localCmd.getOptionValue('e'))
+                            .setUserId(auth.getUser().getUserId())
                             .build());
                 } else {
                     channelSpecBuilder.setDirect(ai.lzy.v1.channel.LCM.DirectChannelType.newBuilder().build());
                 }
 
                 String workflowId = command.getOptionValue('i');
-                final LCMS.ChannelCreateResponse channelCreateResponse = channelManager.create(
-                    LCMS.ChannelCreateRequest.newBuilder()
-                        .setWorkflowId(workflowId)
+                final LCMPS.ChannelCreateResponse channelCreateResponse = channelManager.create(
+                    LCMPS.ChannelCreateRequest.newBuilder()
+                        .setExecutionId(workflowId)
                         .setChannelSpec(channelSpecBuilder.build())
                         .build());
 
@@ -143,8 +144,8 @@ public final class Channel implements LzyCommand {
                 }
 
                 try {
-                    final LCMS.ChannelStatus channelStatus = channelManager.status(
-                        LCMS.ChannelStatusRequest.newBuilder()
+                    final LCMPS.ChannelStatus channelStatus = channelManager.status(
+                        LCMPS.ChannelStatusRequest.newBuilder()
                             .setChannelId(channelId)
                             .build()
                     );
@@ -161,8 +162,8 @@ public final class Channel implements LzyCommand {
                 }
 
                 try {
-                    final LCMS.ChannelDestroyResponse destroyResponse = channelManager.destroy(
-                        LCMS.ChannelDestroyRequest.newBuilder()
+                    final LCMPS.ChannelDestroyResponse destroyResponse = channelManager.destroy(
+                        LCMPS.ChannelDestroyRequest.newBuilder()
                             .setChannelId(channelId)
                             .build());
                     System.out.println(JsonFormat.printer().print(destroyResponse));
