@@ -52,7 +52,7 @@ public class AllocatorAgent extends TimerTask {
         stub = AllocatorPrivateGrpc.newBlockingStub(channel);
 
         ott = ott != null ? ott : System.getenv(VM_ALLOCATOR_OTT);
-        var auth = Base64.getEncoder().encodeToString((vmId + '/' + ott).getBytes());
+        var auth = Base64.getEncoder().encodeToString((this.vmId + '/' + ott).getBytes());
         authInterceptor = ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> auth);
 
         timer = new Timer("allocator-agent-timer-" + vmId);
