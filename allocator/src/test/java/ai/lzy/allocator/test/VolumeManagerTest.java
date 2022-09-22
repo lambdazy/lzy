@@ -21,6 +21,7 @@ import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
+import yandex.cloud.sdk.auth.IamToken;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -33,7 +34,6 @@ import java.util.Comparator;
 import java.util.Random;
 
 import static ai.lzy.allocator.test.Utils.createTestDiskSpec;
-import yandex.cloud.sdk.auth.IamToken;
 
 @Ignore
 public class VolumeManagerTest {

@@ -15,7 +15,6 @@ import ai.lzy.v1.fs.LzyFsApi;
 import ai.lzy.v1.fs.LzyFsGrpc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.Nullable;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -177,7 +176,6 @@ public class TaskImpl implements Task {
         return servant != null ? servant.uri() : null;
     }
 
-    @Nullable
     @Override
     public synchronized URI servantFsUri() {
         return servant != null ? servant.fsUri() : null;

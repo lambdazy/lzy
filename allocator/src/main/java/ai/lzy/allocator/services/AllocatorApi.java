@@ -43,7 +43,6 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.inject.Named;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
@@ -51,6 +50,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import javax.inject.Named;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -73,7 +73,8 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
     @Inject
     public AllocatorApi(VmDao dao, OperationDao operations, SessionDao sessions, DiskStorage diskStorage,
-                        VmAllocator allocator, NetworkPolicyManager networkPolicyManager, ServiceConfig config, AllocatorDataSource storage,
+                        VmAllocator allocator, NetworkPolicyManager networkPolicyManager,
+                        ServiceConfig config, AllocatorDataSource storage,
                         @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel)
     {
         this.dao = dao;
@@ -335,7 +336,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         throws SQLException, StatusException
     {
         final List<VolumeRequest> volumes = new ArrayList<>();
-        for (var volume: request.getVolumesList()) {
+        for (var volume : request.getVolumesList()) {
             if (volume.hasHostPathVolume()) {
                 final var hostPathVolume = volume.getHostPathVolume();
                 volumes.add(new VolumeRequest(new HostPathVolumeDescription(
