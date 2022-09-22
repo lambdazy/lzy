@@ -1,10 +1,18 @@
 package ai.lzy.channelmanager.grpc;
 
+import ai.lzy.channelmanager.channel.ChannelSpec;
 import ai.lzy.model.DataScheme;
 import ai.lzy.v1.channel.LCM;
 import ai.lzy.v1.channel.LCMPS;
 
 public class ProtoConverter {
+
+    public static LCM.ChannelSpec toProto(ChannelSpec channel) {
+        final LCM.ChannelSpec.Builder builder = LCM.ChannelSpec.newBuilder();
+        builder.setChannelName(channel.name());
+        builder.setContentType(ai.lzy.model.grpc.ProtoConverter.toProto(channel.contentType()));
+        return builder.build();
+    }
 
     public static LCMPS.ChannelCreateRequest createChannelRequest(String workflowId, LCM.ChannelSpec spec) {
         return LCMPS.ChannelCreateRequest.newBuilder()

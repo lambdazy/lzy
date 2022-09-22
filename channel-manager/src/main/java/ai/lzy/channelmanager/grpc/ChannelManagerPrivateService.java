@@ -12,6 +12,7 @@ import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.v1.channel.LCM;
 import ai.lzy.v1.channel.LCMPS;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
+import ai.lzy.v1.common.LMS;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Inject;
@@ -24,7 +25,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static ai.lzy.channelmanager.grpc.ProtoConverter.toChannelStatusProto;
+import static ai.lzy.channelmanager.grpc.ProtoConverter.toProto;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
@@ -290,6 +291,24 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
                 request.getExecutionId(), e.getMessage(), e);
             responseObserver.onError(Status.INTERNAL.withCause(e).asException());
         }
+    }
+
+    private LCMPS.ChannelStatus toChannelStatusProto(Channel channel) {
+        final LCMPS.ChannelStatus.Builder statusBuilder = LCMPS.ChannelStatus.newBuilder();
+        statusBuilder
+            .setChannelId(channel.id())
+            .setChannelSpec(toProto(channel.spec()));
+        channel.slotsStatus()
+            .map(slotStatus ->
+                LMS.SlotStatus.newBuilder()
+                    .setTaskId(slotStatus.tid())
+                    .setConnectedTo(channel.id())
+                    .setDeclaration(ai.lzy.model.grpc.ProtoConverter.toProto(slotStatus.slot()))
+                    .setPointer(slotStatus.pointer())
+                    .setState(LMS.SlotStatus.State.valueOf(slotStatus.state().toString()))
+                    .build())
+            .forEach(statusBuilder::addConnected);
+        return statusBuilder.build();
     }
 
 }

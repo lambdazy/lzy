@@ -1,31 +1,47 @@
 package ai.lzy.channelmanager;
 
 import ai.lzy.channelmanager.db.ChannelManagerDataSource;
+import ai.lzy.channelmanager.grpc.ProtoConverter;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.channel.LCMPS.ChannelCreateResponse;
+import ai.lzy.v1.channel.LCMPS.ChannelDestroyResponse;
+import ai.lzy.v1.channel.LCMPS.ChannelStatus;
+import ai.lzy.v1.channel.LCMPS.ChannelStatusRequest;
+import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
+import org.junit.Test;
 
 import java.io.IOException;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+
+import static ai.lzy.channelmanager.grpc.ProtoConverter.makeCreateDirectChannelCommand;
+import static ai.lzy.channelmanager.grpc.ProtoConverter.makeDestroyAllCommand;
+import static ai.lzy.channelmanager.grpc.ProtoConverter.makeDestroyChannelCommand;
 
 @SuppressWarnings({"UnstableApiUsage", "ResultOfMethodCallIgnored"})
 public class ChannelManagerTest extends BaseTestWithIam {
 
     @Rule
-    public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+    public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {
+    });
     @Rule
-    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {
+    });
 
     private ApplicationContext channelManagerCtx;
     @SuppressWarnings("FieldCanBeLocal")
@@ -33,8 +49,8 @@ public class ChannelManagerTest extends BaseTestWithIam {
     private ChannelManager channelManagerApp;
     private ManagedChannel channel;
 
-    private LzyChannelManagerGrpc.LzyChannelManagerBlockingStub unauthorizedChannelManagerClient;
-    private LzyChannelManagerGrpc.LzyChannelManagerBlockingStub authorizedChannelManagerClient;
+    private LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub unauthorizedChannelManagerPrivateClient;
+    private LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub authorizedChannelManagerPrivateClient;
 
     @Before
     public void before() throws IOException, InterruptedException {
@@ -51,10 +67,10 @@ public class ChannelManagerTest extends BaseTestWithIam {
             .forAddress(HostAndPort.fromString(channelManagerConfig.getAddress()))
             .usePlaintext()
             .build();
-        unauthorizedChannelManagerClient = LzyChannelManagerGrpc.newBlockingStub(channel);
+        unauthorizedChannelManagerPrivateClient = LzyChannelManagerPrivateGrpc.newBlockingStub(channel);
 
         var internalUser = channelManagerConfig.getIam().createCredentials();
-        authorizedChannelManagerClient = unauthorizedChannelManagerClient.withInterceptors(
+        authorizedChannelManagerPrivateClient = unauthorizedChannelManagerPrivateClient.withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, internalUser::token));
     }
 
@@ -84,49 +100,49 @@ public class ChannelManagerTest extends BaseTestWithIam {
     @Test
     public void testUnauthenticated() {
         try {
-            unauthorizedChannelManagerClient.create(ChannelCreateRequest.newBuilder().build());
+            unauthorizedChannelManagerPrivateClient.create(ChannelCreateRequest.newBuilder().build());
             Assert.fail();
         } catch (StatusRuntimeException e) {
             Assert.assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
         }
 
         try {
-            unauthorizedChannelManagerClient.destroy(ChannelDestroyRequest.newBuilder().build());
+            unauthorizedChannelManagerPrivateClient.destroy(ChannelDestroyRequest.newBuilder().build());
             Assert.fail();
         } catch (StatusRuntimeException e) {
             Assert.assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
         }
 
         try {
-            unauthorizedChannelManagerClient.destroyAll(ChannelDestroyAllRequest.newBuilder().build());
+            unauthorizedChannelManagerPrivateClient.destroyAll(ChannelDestroyAllRequest.newBuilder().build());
             Assert.fail();
         } catch (StatusRuntimeException e) {
             Assert.assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
         }
 
         try {
-            unauthorizedChannelManagerClient.status(ChannelStatusRequest.newBuilder().build());
+            unauthorizedChannelManagerPrivateClient.status(ChannelStatusRequest.newBuilder().build());
             Assert.fail();
         } catch (StatusRuntimeException e) {
             Assert.assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
         }
 
         try {
-            unauthorizedChannelManagerClient.statusAll(ChannelStatusAllRequest.newBuilder().build());
+            unauthorizedChannelManagerPrivateClient.statusAll(ChannelStatusAllRequest.newBuilder().build());
             Assert.fail();
         } catch (StatusRuntimeException e) {
             Assert.assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
         }
 
         try {
-            unauthorizedChannelManagerClient.bind(BindRequest.newBuilder().build());
+            unauthorizedChannelManagerPrivateClient.bind(BindRequest.newBuilder().build());
             Assert.fail();
         } catch (StatusRuntimeException e) {
             Assert.assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
         }
 
         try {
-            unauthorizedChannelManagerClient.unbind(SlotDetach.newBuilder().build());
+            unauthorizedChannelManagerPrivateClient.unbind(SlotDetach.newBuilder().build());
             Assert.fail();
         } catch (StatusRuntimeException e) {
             Assert.assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
@@ -135,7 +151,7 @@ public class ChannelManagerTest extends BaseTestWithIam {
 
     @Test
     public void testCreateSuccess() {
-        final ChannelCreateResponse channelCreateResponse = authorizedChannelManagerClient.create(
+        final ChannelCreateResponse channelCreateResponse = authorizedChannelManagerPrivateClient.create(
             GrpcUtils.makeCreateDirectChannelCommand(UUID.randomUUID().toString(), "channel1"));
         Assert.assertNotNull(channelCreateResponse.getChannelId());
         Assert.assertTrue(channelCreateResponse.getChannelId().length() > 1);
@@ -144,7 +160,7 @@ public class ChannelManagerTest extends BaseTestWithIam {
     @Test
     public void testCreateEmptyWorkflow() {
         try {
-            authorizedChannelManagerClient.create(ChannelCreateRequest.newBuilder()
+            authorizedChannelManagerPrivateClient.create(ChannelCreateRequest.newBuilder()
                     .setChannelSpec(ChannelSpec.newBuilder()
                         .setChannelName("channel1")
                         .setDirect(DirectChannelType.newBuilder().build())
@@ -163,7 +179,7 @@ public class ChannelManagerTest extends BaseTestWithIam {
     @Test
     public void testCreateEmptyChannelSpec() {
         try {
-            authorizedChannelManagerClient.create(
+            authorizedChannelManagerPrivateClient.create(
                 ChannelCreateRequest.newBuilder()
                     .setWorkflowId(UUID.randomUUID().toString())
                     .build());
@@ -176,7 +192,7 @@ public class ChannelManagerTest extends BaseTestWithIam {
     @Test
     public void testCreateEmptySpecName() {
         try {
-            authorizedChannelManagerClient.create(
+            authorizedChannelManagerPrivateClient.create(
                 ChannelCreateRequest.newBuilder()
                     .setWorkflowId(UUID.randomUUID().toString())
                     .setChannelSpec(ChannelSpec.newBuilder()
@@ -196,7 +212,7 @@ public class ChannelManagerTest extends BaseTestWithIam {
     @Test
     public void testCreateEmptySpecType() {
         try {
-            authorizedChannelManagerClient.create(
+            authorizedChannelManagerPrivateClient.create(
                 ChannelCreateRequest.newBuilder()
                     .setWorkflowId(UUID.randomUUID().toString())
                     .setChannelSpec(ChannelSpec.newBuilder()
@@ -216,7 +232,7 @@ public class ChannelManagerTest extends BaseTestWithIam {
     @Test
     public void testCreateEmptySpecContentType() {
         try {
-            authorizedChannelManagerClient.create(
+            authorizedChannelManagerPrivateClient.create(
                 ChannelCreateRequest.newBuilder()
                     .setWorkflowId(UUID.randomUUID().toString())
                     .setChannelSpec(ChannelSpec.newBuilder().setChannelName("channel1").setDirect(
@@ -232,7 +248,7 @@ public class ChannelManagerTest extends BaseTestWithIam {
     @Test
     public void testCreateEmptySpecContentTypeType() {
         try {
-            authorizedChannelManagerClient.create(
+            authorizedChannelManagerPrivateClient.create(
                 ChannelCreateRequest.newBuilder()
                     .setWorkflowId(UUID.randomUUID().toString())
                     .setChannelSpec(ChannelSpec.newBuilder()
@@ -250,7 +266,7 @@ public class ChannelManagerTest extends BaseTestWithIam {
     @Test
     public void testCreateEmptySpecContentTypeSchemeType() {
         try {
-            authorizedChannelManagerClient.create(
+            authorizedChannelManagerPrivateClient.create(
                 ChannelCreateRequest.newBuilder()
                     .setWorkflowId(UUID.randomUUID().toString())
                     .setChannelSpec(ChannelSpec.newBuilder()
@@ -264,15 +280,16 @@ public class ChannelManagerTest extends BaseTestWithIam {
             Assert.assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
         }
     }
+    */
 
     @Test
     public void testCreateAndDestroy() {
-        final ChannelCreateResponse channelCreateResponse = authorizedChannelManagerClient.create(
-            GrpcUtils.makeCreateDirectChannelCommand(UUID.randomUUID().toString(), "channel1"));
-        final ChannelDestroyResponse channelDestroyResponse = authorizedChannelManagerClient.destroy(
-            GrpcUtils.makeDestroyChannelCommand(channelCreateResponse.getChannelId()));
+        final ChannelCreateResponse channelCreateResponse = authorizedChannelManagerPrivateClient.create(
+            makeCreateDirectChannelCommand(UUID.randomUUID().toString(), "channel1"));
+        final ChannelDestroyResponse channelDestroyResponse = authorizedChannelManagerPrivateClient.destroy(
+            makeDestroyChannelCommand(channelCreateResponse.getChannelId()));
         try {
-            authorizedChannelManagerClient.status(
+            authorizedChannelManagerPrivateClient.status(
                 ChannelStatusRequest.newBuilder().setChannelId(channelCreateResponse.getChannelId()).build());
             Assert.fail();
         } catch (StatusRuntimeException e) {
@@ -287,7 +304,7 @@ public class ChannelManagerTest extends BaseTestWithIam {
     @Test
     public void testDestroyNonexistentChannel() {
         try {
-            authorizedChannelManagerClient.status(
+            authorizedChannelManagerPrivateClient.status(
                 ChannelStatusRequest.newBuilder().setChannelId(UUID.randomUUID().toString()).build());
             Assert.fail();
         } catch (StatusRuntimeException e) {
@@ -298,20 +315,20 @@ public class ChannelManagerTest extends BaseTestWithIam {
     @Test
     public void testDestroyAll() {
         final String workflowId = UUID.randomUUID().toString();
-        final ChannelCreateResponse channel1CreateResponse = authorizedChannelManagerClient.create(
-            GrpcUtils.makeCreateDirectChannelCommand(workflowId, "channel1"));
-        final ChannelCreateResponse channel2CreateResponse = authorizedChannelManagerClient.create(
-            GrpcUtils.makeCreateDirectChannelCommand(UUID.randomUUID().toString(), "channel2"));
-        authorizedChannelManagerClient.destroyAll(GrpcUtils.makeDestroyAllCommand(workflowId));
+        final ChannelCreateResponse channel1CreateResponse = authorizedChannelManagerPrivateClient.create(
+            makeCreateDirectChannelCommand(workflowId, "channel1"));
+        final ChannelCreateResponse channel2CreateResponse = authorizedChannelManagerPrivateClient.create(
+            makeCreateDirectChannelCommand(UUID.randomUUID().toString(), "channel2"));
+        authorizedChannelManagerPrivateClient.destroyAll(makeDestroyAllCommand(workflowId));
 
         try {
-            authorizedChannelManagerClient.status(
+            authorizedChannelManagerPrivateClient.status(
                 ChannelStatusRequest.newBuilder().setChannelId(channel1CreateResponse.getChannelId()).build());
             Assert.fail();
         } catch (StatusRuntimeException e) {
             Assert.assertEquals(e.getStatus().toString(), Status.NOT_FOUND.getCode(), e.getStatus().getCode());
         }
-        final ChannelStatus status = authorizedChannelManagerClient.status(
+        final ChannelStatus status = authorizedChannelManagerPrivateClient.status(
             ChannelStatusRequest.newBuilder().setChannelId(channel2CreateResponse.getChannelId()).build());
         Assert.assertEquals(channel2CreateResponse.getChannelId(), status.getChannelId());
     }
@@ -319,23 +336,22 @@ public class ChannelManagerTest extends BaseTestWithIam {
     @Test
     public void testDestroyAllSameChannelName() {
         final String workflowId = UUID.randomUUID().toString();
-        final ChannelCreateResponse channel1CreateResponse = authorizedChannelManagerClient.create(
-            GrpcUtils.makeCreateDirectChannelCommand(workflowId, "channel1"));
-        final ChannelCreateResponse channel2CreateResponse = authorizedChannelManagerClient.create(
-            GrpcUtils.makeCreateDirectChannelCommand(UUID.randomUUID().toString(), "channel1"));
-        authorizedChannelManagerClient.destroyAll(GrpcUtils.makeDestroyAllCommand(workflowId));
+        final ChannelCreateResponse channel1CreateResponse = authorizedChannelManagerPrivateClient.create(
+            makeCreateDirectChannelCommand(workflowId, "channel1"));
+        final ChannelCreateResponse channel2CreateResponse = authorizedChannelManagerPrivateClient.create(
+            ProtoConverter.makeCreateDirectChannelCommand(UUID.randomUUID().toString(), "channel1"));
+        authorizedChannelManagerPrivateClient.destroyAll(makeDestroyAllCommand(workflowId));
 
         try {
-            authorizedChannelManagerClient.status(
+            authorizedChannelManagerPrivateClient.status(
                 ChannelStatusRequest.newBuilder().setChannelId(channel1CreateResponse.getChannelId()).build());
             Assert.fail();
         } catch (StatusRuntimeException e) {
             Assert.assertEquals(e.getStatus().toString(), Status.NOT_FOUND.getCode(), e.getStatus().getCode());
         }
-        final ChannelStatus status = authorizedChannelManagerClient.status(
+        final ChannelStatus status = authorizedChannelManagerPrivateClient.status(
             ChannelStatusRequest.newBuilder().setChannelId(channel2CreateResponse.getChannelId()).build());
         Assert.assertEquals(channel2CreateResponse.getChannelId(), status.getChannelId());
     }
-    */
 }
 
