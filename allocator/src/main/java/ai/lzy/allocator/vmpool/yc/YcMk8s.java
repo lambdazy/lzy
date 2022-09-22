@@ -23,13 +23,13 @@ import yandex.cloud.sdk.grpc.interceptors.RequestIdInterceptor;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.util.*;
-import java.util.stream.Collectors;
 
 import static yandex.cloud.api.k8s.v1.ClusterOuterClass.Cluster;
 
@@ -199,6 +199,8 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         clusters.put(clusterId, clusterDesc);
 
         // process node groups
+        // TODO: change logic of resolving node pools (now all node pools in the cluster folder are resolving,
+        // not node pools in the cluster
 
         NodeGroupServiceOuterClass.ListNodeGroupsResponse nodeGroups;
         try {
