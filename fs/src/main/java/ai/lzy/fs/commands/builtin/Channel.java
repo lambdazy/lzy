@@ -123,6 +123,7 @@ public final class Channel implements LzyCommand {
                         ai.lzy.v1.channel.LCM.SnapshotChannelType.newBuilder()
                             .setSnapshotId(localCmd.getOptionValue('s'))
                             .setEntryId(localCmd.getOptionValue('e'))
+                            .setUserId(auth.getUser().getUserId())
                             .build());
                 } else {
                     channelSpecBuilder.setDirect(ai.lzy.v1.channel.LCM.DirectChannelType.newBuilder().build());
