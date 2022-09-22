@@ -10,7 +10,7 @@ locals {
   iam-k8s-name = "iam"
   iam-internal-user-name = "lzy-internal-agent"
   iam-internal-cred-name = "Internal agent key"
-  iam-internal-cred-type = "public_key"
+  iam-internal-cred-type = "PUBLIC_KEY"
 }
 
 resource "kubernetes_secret" "iam_db_data" {
