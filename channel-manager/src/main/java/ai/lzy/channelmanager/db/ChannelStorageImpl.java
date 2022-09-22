@@ -268,7 +268,7 @@ public class ChannelStorageImpl implements ChannelStorage {
             if (!chanelBuildersById.containsKey(channelId)) {
                 chanelBuildersById.put(channelId, ChannelImpl.newBuilder()
                     .setId(channelId)
-                    .setExecutionId(rs.getString("workflow_id")));
+                    .setExecutionId(rs.getString("execution_id")));
                 slotsUriByChannelId.put(channelId, new HashSet<>());
                 var channelType = LCM.ChannelSpec.TypeCase.valueOf(rs.getString("channel_type"));
                 switch (channelType) {

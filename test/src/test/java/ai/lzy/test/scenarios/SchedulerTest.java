@@ -21,7 +21,6 @@ import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.channel.LCM.ChannelSpec;
 import ai.lzy.v1.channel.LCM.DirectChannelType;
 import ai.lzy.v1.channel.LCMPS.ChannelCreateRequest;
-import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LMD;
 import ai.lzy.v1.graph.GraphExecutor;
@@ -121,7 +120,7 @@ public class SchedulerTest extends LocalScenario {
 
         final var ch = ChannelBuilder.forAddress("localhost:" + CHANNEL_MANAGER_PORT)
             .usePlaintext()
-            .enableRetry(LzyChannelManagerGrpc.SERVICE_NAME)
+            .enableRetry(LzyChannelManagerPrivateGrpc.SERVICE_NAME)
             .build();
         cmStub = LzyChannelManagerPrivateGrpc.newBlockingStub(ch).withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
