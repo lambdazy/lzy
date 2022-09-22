@@ -1,7 +1,10 @@
 package ai.lzy.allocator.networkpolicy;
 
 import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactory;
+import ai.lzy.allocator.alloc.impl.kuber.KuberLabels;
+import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
+import com.google.common.net.HostAndPort;
 import io.fabric8.kubernetes.api.model.LabelSelector;
 import io.fabric8.kubernetes.api.model.LabelSelectorBuilder;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
@@ -24,9 +27,13 @@ public class KuberNetworkPolicyManager implements NetworkPolicyManager {
 
     private final KuberClientFactory factory;
     private final ClusterRegistry clusterRegistry;
+    private final String allocatorV4Cidr;
 
     @Inject
-    public KuberNetworkPolicyManager(KuberClientFactory factory, ClusterRegistry poolRegistry) {
+    public KuberNetworkPolicyManager(ServiceConfig config, KuberClientFactory factory,
+                                     ClusterRegistry poolRegistry)
+    {
+        allocatorV4Cidr = HostAndPort.fromString(config.getAddress()).getHost() + "/32";
         this.factory = factory;
         this.clusterRegistry = poolRegistry;
     }
@@ -36,11 +43,11 @@ public class KuberNetworkPolicyManager implements NetworkPolicyManager {
         clusterDescriptions.forEach(cluster -> {
             try (final var client = factory.build(cluster)) {
                 LabelSelector sameSessionIdPodSelector = new LabelSelectorBuilder().withMatchLabels(
-                        Map.of("servant-session-id", sessionId)
+                        Map.of(KuberLabels.LZY_POD_SESSION_ID_LABEL, sessionId)
                     )
                     .build();
                 NetworkPolicy networkPolicySpec = new NetworkPolicyBuilder()
-                    .withMetadata(new ObjectMetaBuilder().withName("servants-network-policy-" + sessionId).build())
+                    .withMetadata(new ObjectMetaBuilder().withName("pods-network-policy-" + sessionId).build())
                     .withSpec(
                         new NetworkPolicySpecBuilder()
                             .withPodSelector(sameSessionIdPodSelector)
@@ -52,6 +59,13 @@ public class KuberNetworkPolicyManager implements NetworkPolicyManager {
                                             .withPodSelector(sameSessionIdPodSelector)
                                             .build()
                                     )
+                                    .build(),
+                                new NetworkPolicyIngressRuleBuilder()
+                                    .withFrom(
+                                        new NetworkPolicyPeerBuilder()
+                                            .withIpBlock(new IPBlockBuilder().withCidr(allocatorV4Cidr).build())
+                                            .build()
+                                    )
                                     .build()
                             )
                             .withEgress(
@@ -59,6 +73,13 @@ public class KuberNetworkPolicyManager implements NetworkPolicyManager {
                                     .withTo(
                                         new NetworkPolicyPeerBuilder()
                                             .withPodSelector(sameSessionIdPodSelector)
+                                            .build()
+                                    )
+                                    .build(),
+                                new NetworkPolicyEgressRuleBuilder()
+                                    .withTo(
+                                        new NetworkPolicyPeerBuilder()
+                                            .withIpBlock(new IPBlockBuilder().withCidr(allocatorV4Cidr).build())
                                             .build()
                                     )
                                     .build()
@@ -89,7 +110,7 @@ public class KuberNetworkPolicyManager implements NetworkPolicyManager {
         clusterDescriptions.forEach(cluster -> {
             try (final var client = factory.build(cluster)) {
                 NetworkPolicy networkPolicySpec = new NetworkPolicyBuilder()
-                    .withMetadata(new ObjectMetaBuilder().withName("servants-network-policy-" + sessionId).build())
+                    .withMetadata(new ObjectMetaBuilder().withName("pods-network-policy-" + sessionId).build())
                     .build();
                 final List<StatusDetails> deleteStatusDetails;
                 try {
