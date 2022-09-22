@@ -10,9 +10,7 @@ import ai.lzy.allocator.volume.VolumeClaim;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.KubernetesClient;
 
-import java.io.File;
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -53,6 +51,7 @@ public class PodSpecBuilder {
         pod.getMetadata().setLabels(labels);
 
         pod.getSpec().setTolerations(GPU_VM_POD_TOLERATION);
+        pod.getSpec().setAutomountServiceAccountToken(false);
 
         final Map<String, String> nodeSelector = Map.of(
             KuberLabels.NODE_POOL_LABEL, vmSpec.poolLabel(),
