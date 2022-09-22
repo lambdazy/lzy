@@ -26,7 +26,12 @@ from typing import (
 import jwt
 
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
-from ai.lzy.v1.workflow.workflow_pb2 import Graph, Operation, VmPoolSpec
+from ai.lzy.v1.workflow.workflow_pb2 import (
+    DataDescription,
+    Graph,
+    Operation,
+    VmPoolSpec,
+)
 from lzy.api.v2 import LzyCall, LzyWorkflow, Provisioning
 from lzy.api.v2.exceptions import LzyExecutionException
 from lzy.api.v2.remote_grpc.workflow_service_client import (
@@ -321,26 +326,13 @@ class GrpcRuntime(Runtime):
     ) -> Graph:
         assert self.__workflow is not None
 
-        entry_id_to_call: Dict[str, Tuple[LzyCall, int]] = {}
-        entry_id_to_output_calls: Dict[
-            str, List[Tuple[LzyCall, Union[int, str]]]
-        ] = defaultdict(list)
-        for call in calls:
-            for i, entry_id in enumerate(call.entry_ids):
-                entry_id_to_call[entry_id] = (call, i)
-
-            for i, eid in enumerate(call.arg_entry_ids):
-                entry_id_to_output_calls[eid].append((call, i))
-
-            for name, eid in call.kwarg_entry_ids.items():
-                entry_id_to_output_calls[eid].append((call, name))
-
-        vertices: Dict[str, Graph.VertexDescription] = {}
+        operations: List[Operation] = []
+        data_descriptions: List[DataDescription] = []
         pool_to_call: List[Tuple[VmPoolSpec, LzyCall]] = []
 
         for call in calls:
-            input_slots: List[str] = []
-            output_slots: List[str] = []
+            input_slots: List[Operation.SlotDescription] = []
+            output_slots: List[Operation.SlotDescription] = []
             arg_descriptions: List[Tuple[Type, str]] = []
             kwarg_descriptions: Dict[str, Tuple[Type, str]] = {}
             ret_descriptions: List[str] = []
@@ -348,18 +340,42 @@ class GrpcRuntime(Runtime):
             for i, eid in enumerate(call.arg_entry_ids):
                 entry = self.__workflow.snapshot.get(eid)
                 slot_path = f"/{call.id}/arg_{i}"
-                input_slots.append(slot_path)
+                input_slots.append(
+                    Operation.SlotDescription(
+                        path=slot_path, storageUri=entry.storage_url
+                    )
+                )
                 arg_descriptions.append((entry.typ, slot_path))
 
             for name, eid in call.kwarg_entry_ids.items():
                 entry = self.__workflow.snapshot.get(eid)
                 slot_path = f"/{call.id}/arg_{name}"
-                input_slots.append(slot_path)
+                input_slots.append(
+                    Operation.SlotDescription(
+                        path=slot_path, storageUri=entry.storage_url
+                    )
+                )
                 kwarg_descriptions[name] = (entry.typ, slot_path)
 
             for i, eid in enumerate(call.entry_ids):
                 slot_path = f"/{call.id}/ret_{i}"
-                output_slots.append(slot_path)
+                entry = self.__workflow.snapshot.get(eid)
+                output_slots.append(
+                    Operation.SlotDescription(
+                        path=slot_path, storageUri=entry.storage_url
+                    )
+                )
+                data_descriptions.append(
+                    DataDescription(
+                        storageUri=entry.storage_url,
+                        dataScheme=DataScheme(
+                            dataFormat=entry.data_scheme.scheme_type,
+                            schemeContent=entry.data_scheme.type,
+                        )
+                        if entry.data_scheme is not None
+                        else None,
+                    )
+                )
                 ret_descriptions.append(slot_path)
 
             pool = self.__resolve_pool(call.provisioning, pools)
@@ -396,9 +412,8 @@ class GrpcRuntime(Runtime):
 
             command = _com + " " + pickle(request)
 
-            vertices[call.id] = Graph.VertexDescription(
-                id=call.id,
-                operation=Operation(
+            operations.append(
+                Operation(
                     name=call.signature.func.name,
                     description=call.description,
                     inputSlots=input_slots,
@@ -413,32 +428,6 @@ class GrpcRuntime(Runtime):
                         ],
                     ),
                     poolSpecName=pool.poolSpecName,
-                ),
-            )
-
-        edges: List[Graph.EdgeDescription] = []
-        for entry_id in entry_id_to_call.keys():
-            entry = self.__workflow.snapshot.get(entry_id)
-            edges.append(
-                Graph.EdgeDescription(
-                    storageUri=entry.storage_url,
-                    input=Graph.EdgeDescription.VertexRef(
-                        vertexId=entry_id_to_call[entry_id][0].id,
-                        slotName=f"/{entry_id_to_call[entry_id][0].id}/ret_{entry_id_to_call[entry_id][1]}",
-                    ),
-                    outputs=[
-                        Graph.EdgeDescription.VertexRef(
-                            vertexId=data[0].id, slotName=f"/{data[0].id}/arg_{data[1]}"
-                        )
-                        for data in entry_id_to_output_calls[entry_id]
-                    ],
-                    dataScheme=DataScheme(
-                        dataFormat=entry.data_scheme.scheme_type,
-                        schemeContent=entry.data_scheme.type,
-                    )
-                    if entry.data_scheme is not None
-                    else None,
-                    whiteboardRef=None,  # TODO(artolord) add whiteboards linking
                 )
             )
 
@@ -456,7 +445,7 @@ class GrpcRuntime(Runtime):
 
         return Graph(
             name="",
-            edges=edges,
-            vertices=vertices.values(),
+            dataDescriptions=data_descriptions,
+            operations=operations,
             zone="",
         )

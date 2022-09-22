@@ -19,6 +19,7 @@ def _from(credentials: StorageCredentials) -> AsyncStorageClient:
 def _(credentials: AmazonCredentials) -> AsyncStorageClient:
     # use local imports to import unnecessary libs as late as possible to avoid version conflicts
     from lzy.storage.async_.amazon import AmazonClient
+
     return AmazonClient(credentials)
 
 
@@ -26,6 +27,7 @@ def _(credentials: AmazonCredentials) -> AsyncStorageClient:
 def _(credentials: AzureCredentials) -> AsyncStorageClient:
     # use local imports to import unnecessary libs as late as possible to avoid version conflicts
     from lzy.storage.async_.azure import AzureClientAsync
+
     return AzureClientAsync.from_cred(credentials)
 
 
@@ -33,6 +35,7 @@ def _(credentials: AzureCredentials) -> AsyncStorageClient:
 def _(credentials: AzureSasCredentials) -> AsyncStorageClient:
     # use local imports to import unnecessary libs as late as possible to avoid version conflicts
     from lzy.storage.async_.azure import AzureClientAsync
+
     return AzureClientAsync.from_sas_cred(credentials)
 
 

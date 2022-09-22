@@ -12,6 +12,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.time.Duration;
 import java.util.Base64;
+import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
@@ -52,10 +53,16 @@ public class AllocatorAgent extends TimerTask {
         stub = AllocatorPrivateGrpc.newBlockingStub(channel);
 
         ott = ott != null ? ott : System.getenv(VM_ALLOCATOR_OTT);
+
+        Objects.requireNonNull(this.vmId);
+        Objects.requireNonNull(this.vmIpAddress);
+        Objects.requireNonNull(this.heartbeatPeriod);
+        Objects.requireNonNull(ott);
+
         var auth = Base64.getEncoder().encodeToString((this.vmId + '/' + ott).getBytes());
         authInterceptor = ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> auth);
 
-        timer = new Timer("allocator-agent-timer-" + vmId);
+        timer = new Timer("allocator-agent-timer-" + this.vmId);
     }
 
     public void start() throws RegisterException {
