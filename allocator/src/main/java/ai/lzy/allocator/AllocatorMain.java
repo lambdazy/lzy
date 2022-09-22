@@ -23,17 +23,16 @@ import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.ServerInterceptors;
 import io.grpc.netty.NettyServerBuilder;
+import io.grpc.protobuf.services.ProtoReflectionService;
+import io.micronaut.context.env.Environment;
 import io.micronaut.runtime.Micronaut;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.sql.SQLException;
-import java.util.Map;
 import java.util.Properties;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import javax.inject.Named;
 
@@ -70,7 +69,7 @@ public class AllocatorMain {
 
         final HostAndPort address = HostAndPort.fromString(config.getAddress());
         ServerBuilder<?> builder = NettyServerBuilder
-            .forAddress(new InetSocketAddress(address.getHost(), address.getPort()))
+            .forPort(address.getPort())
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES);
 
@@ -87,6 +86,7 @@ public class AllocatorMain {
         builder.addService(ServerInterceptors.intercept(opApi, internalOnly));
         builder.addService(ServerInterceptors.intercept(vmPool, internalOnly));
         builder.addService(ServerInterceptors.intercept(diskService, internalOnly));
+        builder.addService(ProtoReflectionService.newInstance());
 
         this.server = builder.build();
     }
