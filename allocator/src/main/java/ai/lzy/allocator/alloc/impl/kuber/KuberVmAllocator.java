@@ -45,9 +45,7 @@ public class KuberVmAllocator implements VmAllocator {
     private final ServiceConfig config;
 
     @Inject
-    public KuberVmAllocator(VmDao dao, ClusterRegistry poolRegistry,
-                            KuberClientFactory factory, ServiceConfig config)
-    {
+    public KuberVmAllocator(VmDao dao, ClusterRegistry poolRegistry, KuberClientFactory factory, ServiceConfig config) {
         this.dao = dao;
         this.poolRegistry = poolRegistry;
         this.factory = factory;
@@ -199,10 +197,10 @@ public class KuberVmAllocator implements VmAllocator {
                         .get();
 
                 for (final var address: node.getStatus().getAddresses()) {
-                    final var type = switch (address.getType()) {
-                        case "HostName" -> VmEndpointType.HOST_NAME;
-                        case "InternalIp" -> VmEndpointType.INTERNAL_IP;
-                        case "ExternalIp" -> VmEndpointType.EXTERNAL_IP;
+                    final var type = switch (address.getType().toLowerCase()) {
+                        case "hostname" -> VmEndpointType.HOST_NAME;
+                        case "internalip" -> VmEndpointType.INTERNAL_IP;
+                        case "externalip" -> VmEndpointType.EXTERNAL_IP;
                         default -> throw new RuntimeException("Undefined type of node address: " + address.getType());
                     };
                     hosts.add(new VmEndpoint(type, address.getAddress()));
