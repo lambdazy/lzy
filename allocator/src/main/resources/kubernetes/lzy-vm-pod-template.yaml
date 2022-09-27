@@ -12,10 +12,17 @@ spec:
       requiredDuringSchedulingIgnoredDuringExecution:
         - labelSelector:
             matchExpressions:
-              - key: app.kubernetes.io/part-of
+              - key: lzy.ai/app
                 operator: In
                 values:
-                  - lzy
+                  - vm
+    podAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: lzy.ai/app
+                operator: In
+                values:
+                  - tunnel
           topologyKey: "kubernetes.io/hostname"
-  hostNetwork: true
   dnsPolicy: ClusterFirstWithHostNet
