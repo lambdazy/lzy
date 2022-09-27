@@ -17,7 +17,8 @@ import java.util.stream.Collectors;
 import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.POD_NAME_PREFIX;
 
 public class PodSpecBuilder {
-    private static final String POD_TEMPLATE_PATH = "kubernetes/lzy-vm-pod-template.yaml";
+    public static final String VM_POD_TEMPLATE_PATH = "kubernetes/lzy-vm-pod-template.yaml";
+    public static final String TUNNEL_POD_TEMPLATE_PATH = "kubernetes/lzy-vm-pod-template.yaml";
     private static final List<Toleration> GPU_VM_POD_TOLERATION = List.of(
         new TolerationBuilder()
             .withKey("sku")
@@ -32,9 +33,9 @@ public class PodSpecBuilder {
     private final List<Container> containers = new ArrayList<>();
     private final Map<String, Volume> volumes = new HashMap<>();
 
-    public PodSpecBuilder(Vm.Spec vmSpec, KubernetesClient client, ServiceConfig config) {
+    public PodSpecBuilder(Vm.Spec vmSpec, KubernetesClient client, ServiceConfig config, String templatePath) {
         this.vmSpec = vmSpec;
-        pod = loadPodTemplate(client);
+        pod = loadPodTemplate(client, templatePath);
         this.config = config;
 
         final String podName = POD_NAME_PREFIX + vmSpec.vmId().toLowerCase(Locale.ROOT);
@@ -61,10 +62,10 @@ public class PodSpecBuilder {
         pod.getSpec().setNodeSelector(nodeSelector);
     }
 
-    private Pod loadPodTemplate(KubernetesClient client) {
+    private Pod loadPodTemplate(KubernetesClient client, String templatePath) {
         try (final var stream = Objects.requireNonNull(getClass()
             .getClassLoader()
-            .getResourceAsStream(POD_TEMPLATE_PATH)))
+            .getResourceAsStream(templatePath)))
         {
             return client.pods()
                 .load(stream)

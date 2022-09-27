@@ -62,7 +62,7 @@ public class KuberVmAllocator implements VmAllocator {
         }
 
         try (final var client = factory.build(cluster)) {
-            var podSpecBuilder = new PodSpecBuilder(vmSpec, client, config);
+            var podSpecBuilder = new PodSpecBuilder(vmSpec, client, config, PodSpecBuilder.VM_POD_TEMPLATE_PATH);
             withRetries(
                 defaultRetryPolicy(),
                 LOG,
