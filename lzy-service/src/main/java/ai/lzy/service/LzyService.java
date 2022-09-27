@@ -720,7 +720,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
         Set<String> foundOnPortal;
         try {
-            foundOnPortal = withRetries(LOG, () -> executionDao.getSlotsUriStoredOnPortalBy(executionId));
+            foundOnPortal = withRetries(LOG, () -> executionDao.getSlotsUriBy(executionId));
         } catch (Exception e) {
             LOG.error(e.getMessage());
             throw new RuntimeException(e.getMessage());
@@ -835,7 +835,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
         try {
             withRetries(defaultRetryPolicy(), LOG, () ->
-                executionDao.indicateSlotsUriStoredOnPortal(executionId, slotsUriAsOutput));
+                executionDao.putSlotsUriFor(executionId, slotsUriAsOutput));
         } catch (Exception e) {
             LOG.error(e.getMessage());
             throw new RuntimeException(e.getMessage());

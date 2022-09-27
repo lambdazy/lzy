@@ -5,10 +5,12 @@ import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.AlreadyExistsException;
+import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.common.LMS3;
 import ai.lzy.service.LzyService;
 import ai.lzy.service.data.storage.LzyServiceStorage;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micronaut.core.util.StringUtils;
 import jakarta.inject.Singleton;
@@ -81,6 +83,11 @@ public class WorkflowDaoImpl implements WorkflowDao {
     public static final String QUERY_GET_PORTAL_ADDRESS = """
         SELECT portal_vm_address 
         FROM workflow_executions 
+        WHERE execution_id = ?""";
+
+    public static final String QUERY_GET_STORAGE_CREDENTIALS = """
+        SELECT storage_credentials
+        FROM workflow_executions
         WHERE execution_id = ?""";
 
     private final Storage storage;
@@ -310,6 +317,29 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
     @Override
     public LMS3.S3Locator getS3CredentialsFor(String executionId) throws SQLException {
-        throw new UnsupportedOperationException("not implemented yet");
+        LMS3.S3Locator[] credentials = {null};
+
+        DbOperation.execute(null, storage, con -> {
+            try (var statement = con.prepareStatement(QUERY_GET_STORAGE_CREDENTIALS)) {
+                statement.setString(1, executionId);
+                ResultSet rs = statement.executeQuery();
+
+                if (rs.next()) {
+                    var dump = rs.getString("storage_credentials");
+                    if (dump == null) {
+                        LOG.warn("Cannot obtain storage credentials for execution: { executionId : {} }", executionId);
+                        throw new RuntimeException("Cannot obtain storage credentials");
+                    }
+                    credentials[0] = objectMapper.readValue(dump, LMS3.S3Locator.class);
+                } else {
+                    LOG.warn("Cannot obtain storage credentials for execution: { executionId : {} }", executionId);
+                    throw new RuntimeException("Cannot obtain storage credentials");
+                }
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Cannot parse values", e);
+            }
+        });
+
+        return credentials[0];
     }
 }
