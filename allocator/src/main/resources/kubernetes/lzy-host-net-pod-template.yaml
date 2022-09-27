@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app.kubernetes.io/name: lzy-tunnel
+    app.kubernetes.io/part-of: lzy
+    lzy.ai/app: tunnel
+spec:
+  restartPolicy: Never
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/part-of
+                operator: In
+                values:
+                  - tunnel
+          topologyKey: "kubernetes.io/hostname"
+  hostNetwork: true
+  dnsPolicy: ClusterFirstWithHostNet
