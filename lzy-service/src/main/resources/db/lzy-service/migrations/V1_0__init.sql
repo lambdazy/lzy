@@ -40,3 +40,11 @@ create table workflows (
     primary key (user_id, workflow_name),
     foreign key (active_execution_id) references workflow_executions (execution_id)
 );
+
+create table slot_snapshots (
+    slot_uri text not null,
+    execution_id text not null,
+
+    primary key (slot_uri),
+    foreign key (execution_id) references workflow_executions (execution_id)
+);

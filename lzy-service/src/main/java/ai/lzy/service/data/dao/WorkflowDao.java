@@ -79,4 +79,18 @@ public interface WorkflowDao {
     void updateActiveExecution(String userId, String workflowName, String oldExecutionId,
                                @Nullable String newExecutionId, @Nullable TransactionHandle transaction)
         throws SQLException;
+
+    default String getWorkflowNameBy(String executionId) throws SQLException {
+        return getWorkflowNameBy(executionId, null);
+    }
+
+    String getWorkflowNameBy(String executionId, @Nullable TransactionHandle transaction) throws SQLException;
+
+    default String getPortalAddressFor(String executionId) throws SQLException {
+        return getPortalAddressFor(executionId, null);
+    }
+
+    String getPortalAddressFor(String executionId, @Nullable TransactionHandle transaction) throws SQLException;
+
+    LMS3.S3Locator getS3CredentialsFor(String executionId) throws SQLException;
 }

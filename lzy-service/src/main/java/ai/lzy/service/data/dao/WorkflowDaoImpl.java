@@ -11,7 +11,6 @@ import ai.lzy.service.data.storage.LzyServiceStorage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micronaut.core.util.StringUtils;
-import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -79,10 +78,14 @@ public class WorkflowDaoImpl implements WorkflowDao {
         FROM workflow_executions
         WHERE execution_id = ?""";
 
+    public static final String QUERY_GET_PORTAL_ADDRESS = """
+        SELECT portal_vm_address 
+        FROM workflow_executions 
+        WHERE execution_id = ?""";
+
     private final Storage storage;
     private final ObjectMapper objectMapper;
 
-    @Inject
     public WorkflowDaoImpl(LzyServiceStorage storage, ObjectMapper objectMapper) {
         this.storage = storage;
         this.objectMapper = objectMapper;
@@ -272,5 +275,41 @@ public class WorkflowDaoImpl implements WorkflowDao {
                 statement.executeUpdate();
             }
         });
+    }
+
+    @Override
+    public String getWorkflowNameBy(String executionId, @Nullable TransactionHandle transaction) {
+        throw new UnsupportedOperationException("not implemented yet");
+    }
+
+    @Override
+    public String getPortalAddressFor(String executionId, @Nullable TransactionHandle transaction) throws SQLException {
+        String[] portalAddress = {null};
+
+        DbOperation.execute(transaction, storage, con -> {
+            try (var statement = con.prepareStatement(QUERY_GET_PORTAL_ADDRESS)) {
+                statement.setString(1, executionId);
+                ResultSet rs = statement.executeQuery();
+
+                if (rs.next()) {
+                    portalAddress[0] = rs.getString("portal_vm_address");
+                    if (portalAddress[0] == null) {
+                        LOG.warn("Cannot obtain portal vm address for execution: { executionId : {} }", executionId);
+                        throw new RuntimeException("Cannot obtain portal address");
+                    }
+                } else {
+                    LOG.warn("Attempt to obtain portal vm address for unknown execution: { executionId : {} }",
+                        executionId);
+                    throw new RuntimeException("Unknown workflow execution");
+                }
+            }
+        });
+
+        return portalAddress[0];
+    }
+
+    @Override
+    public LMS3.S3Locator getS3CredentialsFor(String executionId) throws SQLException {
+        throw new UnsupportedOperationException("not implemented yet");
     }
 }
