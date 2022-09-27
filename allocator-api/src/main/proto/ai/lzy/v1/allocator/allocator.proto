@@ -73,6 +73,9 @@ message AllocateRequest {
   string zone = 3;
   repeated Workload workload = 4;
   repeated Volume volumes = 5;
+  // Setting this field will result in creating ipip6 tunnel to this address on the vm side.
+  // Only works for k8s allocated machines and expected to be the address of other side of the tunnel.
+  optional string proxy_v6_address = 6;  // v6 address on the same network where vm will be launched.
 }
 
 message AllocateResponse {
