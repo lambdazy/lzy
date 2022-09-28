@@ -6,6 +6,7 @@ lzy-service:
   whiteboard-address: 'localhost:8999'
   snapshot-address: 'localhost:8999'
   allocator-address: 'localhost:8799'
+  graph-executor-address: 'localhost:8699'
   channel-manager-address: 'localhost:8122'
 
   servant-proxy-port: 8900

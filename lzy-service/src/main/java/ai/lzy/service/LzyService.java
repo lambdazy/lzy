@@ -112,10 +112,9 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     private final SubjectServiceGrpcClient subjectClient;
     private final AccessBindingServiceGrpcClient abClient;
 
-    private final ManagedChannel graphExecutorChannel = null;
-    private final GraphExecutorGrpc.GraphExecutorBlockingStub graphExecutorClient = null;
+    private final ManagedChannel graphExecutorChannel;
+    private final GraphExecutorGrpc.GraphExecutorBlockingStub graphExecutorClient;
 
-    @SuppressWarnings("checkstyle:CommentsIndentation")
     public LzyService(LzyServiceConfig config, LzyServiceStorage storage,
                       WorkflowDao workflowDao, ExecutionDao executionDao)
     {
@@ -176,13 +175,12 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         subjectClient = new SubjectServiceGrpcClient(iamChannel, config.getIam()::createCredentials);
         abClient = new AccessBindingServiceGrpcClient(iamChannel, config.getIam()::createCredentials);
 
-//        graphExecutorChannel = ChannelBuilder.forAddress("").build();
-//        graphExecutorClient = GraphExecutorGrpc.newBlockingStub(graphExecutorChannel)
-//            .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION,
-//                internalUserCredentials::token));
+        graphExecutorChannel = ChannelBuilder.forAddress(config.getGraphExecutorAddress()).build();
+        graphExecutorClient = GraphExecutorGrpc.newBlockingStub(graphExecutorChannel)
+            .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION,
+                internalUserCredentials::token));
     }
 
-    @SuppressWarnings("checkstyle:CommentsIndentation")
     @PreDestroy
     public void shutdown() {
         LOG.info("Shutdown WorkflowService.");
@@ -190,7 +188,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         allocatorServiceChannel.shutdown();
         operationServiceChannel.shutdown();
         channelManagerChannel.shutdown();
-//        graphExecutorChannel.shutdown();
+        graphExecutorChannel.shutdown();
         iamChannel.shutdown();
     }
 
@@ -395,7 +393,6 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         return true;
     }
 
-    @SuppressWarnings("checkstyle:CommentsIndentation")
     @Override
     public void executeGraph(ExecuteGraphRequest request, StreamObserver<ExecuteGraphResponse> response) {
         // this method is insensitive to order of operations in Graph::getOperationList()
@@ -431,17 +428,14 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             slots2channels, slot2description);
         List<GraphExecutor.ChannelDesc> channels = buildChannelDescriptions(slots2channels.values());
 
-        GraphExecutorApi.GraphExecuteResponse executeResponse = GraphExecutorApi.GraphExecuteResponse.newBuilder()
-            .setStatus(GraphExecutor.GraphExecutionStatus.newBuilder().setGraphId("1").build())
-            .build();
-
-//        graphExecutorClient.execute(GraphExecutorApi.GraphExecuteRequest.newBuilder()
-//                .setWorkflowId(executionId)
-//                .setWorkflowName(workflowName)
-//                .setParentGraphId(graph.getParentGraphId())
-//                .addAllTasks(tasks)
-//                .addAllChannels(channels)
-//                .build());
+        GraphExecutorApi.GraphExecuteResponse executeResponse =
+            graphExecutorClient.execute(GraphExecutorApi.GraphExecuteRequest.newBuilder()
+                .setWorkflowId(executionId)
+                .setWorkflowName(workflowName)
+                .setParentGraphId(graph.getParentGraphId())
+                .addAllTasks(tasks)
+                .addAllChannels(channels)
+                .build());
 
         response.onNext(ExecuteGraphResponse.newBuilder().setGraphId(executeResponse.getStatus().getGraphId()).build());
         response.onCompleted();

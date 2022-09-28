@@ -28,8 +28,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
     private static final String QUERY_FIND_PRESENTED_SLOTS_URI = """
         SELECT slot_uri
         FROM slot_snapshots
-        WHERE slot_uri
-        IN %s""";
+        WHERE slot_uri IN %s""";
 
     private final Storage storage;
 
