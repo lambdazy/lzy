@@ -60,7 +60,8 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         HostAndPort masterInternalAddress,
         HostAndPort masterExternalAddress,
         String masterCert,
-        Map<String, NodeGroupDesc> nodeGroups
+        Map<String, NodeGroupDesc> nodeGroups,
+        String clusterIpv4CidrBlock
     ) {}
 
     private final Map<String, ClusterDesc> clusters = new HashMap<>();
@@ -183,7 +184,8 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
             HostAndPort.fromString(masterInternalAddress),
             HostAndPort.fromString(masterExternalAddress),
             masterCert,
-            new HashMap<>());
+            new HashMap<>(),
+            cluster.getIpAllocationPolicy().getClusterIpv4CidrBlock());
         clusters.put(clusterId, clusterDesc);
 
         // process node groups

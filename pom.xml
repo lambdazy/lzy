@@ -40,5 +40,6 @@
         <module>coverage</module>
         <module>workflow-api</module>
         <module>channel-manager-api</module>
+        <module>tunnel-agent</module>
     </modules>
 </project>
