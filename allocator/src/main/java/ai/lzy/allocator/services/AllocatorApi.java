@@ -3,6 +3,7 @@ package ai.lzy.allocator.services;
 import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
+import ai.lzy.allocator.alloc.impl.kuber.TunnelAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.SessionDao;
@@ -45,10 +46,7 @@ import org.apache.logging.log4j.Logger;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import javax.inject.Named;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
@@ -64,6 +62,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
     private final DiskStorage diskStorage;
     private final SessionDao sessions;
     private final VmAllocator allocator;
+    private final TunnelAllocator tunnelAllocator;
     private final ServiceConfig config;
     private final AllocatorDataSource storage;
     private final Metrics metrics = new Metrics();
@@ -71,14 +70,15 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
     @Inject
     public AllocatorApi(VmDao dao, OperationDao operations, SessionDao sessions, DiskStorage diskStorage,
-                        VmAllocator allocator, ServiceConfig config, AllocatorDataSource storage,
-                        @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel)
+                        VmAllocator allocator, TunnelAllocator tunnelAllocator, ServiceConfig config,
+                        AllocatorDataSource storage, @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel)
     {
         this.dao = dao;
         this.operations = operations;
         this.sessions = sessions;
         this.diskStorage = diskStorage;
         this.allocator = allocator;
+        this.tunnelAllocator = tunnelAllocator;
         this.config = config;
         this.storage = storage;
 
@@ -288,6 +288,10 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
             try {
                 var timer = metrics.allocateDuration.startTimer();
+                tunnelAllocator.allocateTunnel(spec);
+                spec.workloads().add(
+                    tunnelAllocator.createRequestTunnelInitContainer(spec, request.getProxyV6Address())
+                );
                 allocator.allocate(spec);
                 timer.close();
             } catch (InvalidConfigurationException e) {

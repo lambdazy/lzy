@@ -22,6 +22,7 @@ public class ServiceConfig {
     private Duration heartbeatTimeout;
     private List<String> serviceClusters = new ArrayList<>();
     private List<String> userClusters = new ArrayList<>();
+    private String tunnelPodImage;
 
     @ConfigurationBuilder("database")
     private final DatabaseConfiguration database = new DatabaseConfiguration();
@@ -51,6 +52,7 @@ public class ServiceConfig {
     @ConfigurationProperties("kuber-allocator")
     public static final class KuberAllocator {
         private boolean enabled = false;
+        private String tunnelPodImage;
     }
 
     @Getter

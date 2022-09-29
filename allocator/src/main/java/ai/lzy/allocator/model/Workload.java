@@ -19,7 +19,8 @@ public record Workload(
     Map<String, String> env,
     List<String> args,
     Map<Integer, Integer> portBindings,
-    List<VolumeMount> mounts
+    List<VolumeMount> mounts,
+    boolean isInit
 ) {
     public static Workload fromProto(AllocateRequest.Workload workload) {
         return new Workload(
@@ -34,7 +35,8 @@ public record Workload(
                     m.getMountPath(),
                     m.getReadOnly(),
                     VolumeMount.MountPropagation.valueOf(m.getMountPropagation().name())))
-                .toList()
+                .toList(),
+            workload.getIsInit()
         );
     }
 
@@ -54,7 +56,8 @@ public record Workload(
                     m.getMountPath(),
                     m.getReadOnly(),
                     VolumeMount.MountPropagation.valueOf(m.getMountPropagation().name())))
-                .toList()
+                .toList(),
+            workload.getIsInit()
         );
     }
 }

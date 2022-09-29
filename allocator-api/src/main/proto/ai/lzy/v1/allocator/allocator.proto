@@ -66,6 +66,8 @@ message AllocateRequest {
     map<uint32, uint32> port_bindings = 18;  // host port: container port
 
     repeated Mount volumeMounts = 20;
+
+    bool is_init = 30;
   }
 
   string session_id = 1;

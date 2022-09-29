@@ -331,7 +331,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
         final VmAllocatorApi.AllocateMetadata allocateMetadata =
             operation.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
 
-        final String podName = KuberVmAllocator.POD_NAME_PREFIX + allocateMetadata.getVmId();
+        final String podName = KuberVmAllocator.VM_POD_NAME_PREFIX + allocateMetadata.getVmId();
         mockGetPod(podName);
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
         mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);

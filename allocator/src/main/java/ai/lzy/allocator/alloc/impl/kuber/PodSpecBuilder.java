@@ -14,8 +14,6 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.POD_NAME_PREFIX;
-
 public class PodSpecBuilder {
     public static final String VM_POD_TEMPLATE_PATH = "kubernetes/lzy-vm-pod-template.yaml";
     public static final String TUNNEL_POD_TEMPLATE_PATH = "kubernetes/lzy-vm-pod-template.yaml";
@@ -31,14 +29,17 @@ public class PodSpecBuilder {
     private final Pod pod;
     private final ServiceConfig config;
     private final List<Container> containers = new ArrayList<>();
+    private final List<Container> initContainers = new ArrayList<>();
     private final Map<String, Volume> volumes = new HashMap<>();
 
-    public PodSpecBuilder(Vm.Spec vmSpec, KubernetesClient client, ServiceConfig config, String templatePath) {
+    public PodSpecBuilder(
+        Vm.Spec vmSpec, KubernetesClient client, ServiceConfig config, String templatePath, String podNamePrefix)
+    {
         this.vmSpec = vmSpec;
         pod = loadPodTemplate(client, templatePath);
         this.config = config;
 
-        final String podName = POD_NAME_PREFIX + vmSpec.vmId().toLowerCase(Locale.ROOT);
+        final String podName = podNamePrefix + vmSpec.vmId().toLowerCase(Locale.ROOT);
 
         // k8s pod name can only contain symbols [-a-z0-9]
         pod.getMetadata().setName(podName.replaceAll("[^-a-z0-9]", "-"));
@@ -145,7 +146,11 @@ public class PodSpecBuilder {
             context.setRunAsUser(0L);
             container.setSecurityContext(context);
 
-            containers.add(container);
+            if (workload.isInit()) {
+                initContainers.add(container);
+            } else {
+                containers.add(container);
+            }
         }
         return this;
     }
@@ -169,7 +174,7 @@ public class PodSpecBuilder {
     }
 
     public PodSpecBuilder withHostVolumes(List<HostPathVolumeDescription> volumeRequests) {
-        for (var request: volumeRequests) {
+        for (var request : volumeRequests) {
             final var volume = new VolumeBuilder()
                 .withName(request.volumeId())
                 .withHostPath(new HostPathVolumeSourceBuilder()
@@ -183,7 +188,7 @@ public class PodSpecBuilder {
     }
 
     public Pod build() {
-        for (var container: containers) {
+        for (var container : containers) {
             container.setVolumeMounts(
                 container.getVolumeMounts().stream()
                     .map(volumeMount -> new VolumeMountBuilder()
@@ -197,6 +202,7 @@ public class PodSpecBuilder {
         }
 
         pod.getSpec().setContainers(containers);
+        pod.getSpec().setInitContainers(initContainers);
         pod.getSpec().setVolumes(volumes.values().stream().toList());
         return pod;
     }

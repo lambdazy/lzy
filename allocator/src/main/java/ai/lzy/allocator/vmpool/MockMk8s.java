@@ -46,6 +46,11 @@ public class MockMk8s implements VmPoolRegistry, ClusterRegistry {
     }
 
     @Override
+    public String getClusterPodsCidr(String clusterId) {
+        return "10.20.0.0/16";
+    }
+
+    @Override
     public Map<String, VmPoolSpec> getSystemVmPools() {
         return null;
     }

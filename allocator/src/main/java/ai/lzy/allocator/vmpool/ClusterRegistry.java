@@ -16,6 +16,8 @@ public interface ClusterRegistry {
 
     ClusterDescription getCluster(String clusterId);
 
+    String getClusterPodsCidr(String clusterId);
+
     record ClusterDescription(
         String clusterId,
         HostAndPort masterAddress,

@@ -125,6 +125,11 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         return new ClusterDescription(desc.clusterId, desc.masterExternalAddress, desc.masterCert);
     }
 
+    @Override
+    public String getClusterPodsCidr(String clusterId) {
+        return clusters.get(clusterId).clusterIpv4CidrBlock();
+    }
+
     // TODO: getters for YC-specific data
 
     private void resolveCluster(String clusterId, boolean system) {

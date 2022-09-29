@@ -11,8 +11,7 @@ import ai.lzy.allocator.volume.HostPathVolumeDescription;
 import ai.lzy.allocator.volume.KuberVolumeManager;
 import ai.lzy.allocator.volume.VolumeClaim;
 import ai.lzy.model.db.TransactionHandle;
-import io.fabric8.kubernetes.api.model.ListOptionsBuilder;
-import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
@@ -37,7 +36,7 @@ public class KuberVmAllocator implements VmAllocator {
     private static final String NAMESPACE_KEY = "namespace";
     private static final String POD_NAME_KEY = "pod-name";
     private static final String CLUSTER_ID_KEY = "cluster-id";
-    public static final String POD_NAME_PREFIX = "lzy-vm-";
+    public static final String VM_POD_NAME_PREFIX = "lzy-vm-";
 
     private final VmDao dao;
     private final ClusterRegistry poolRegistry;
@@ -62,7 +61,9 @@ public class KuberVmAllocator implements VmAllocator {
         }
 
         try (final var client = factory.build(cluster)) {
-            var podSpecBuilder = new PodSpecBuilder(vmSpec, client, config, PodSpecBuilder.VM_POD_TEMPLATE_PATH);
+            var podSpecBuilder = new PodSpecBuilder(
+                vmSpec, client, config, PodSpecBuilder.VM_POD_TEMPLATE_PATH, VM_POD_NAME_PREFIX
+            );
             withRetries(
                 defaultRetryPolicy(),
                 LOG,
@@ -90,6 +91,44 @@ public class KuberVmAllocator implements VmAllocator {
                     .map(v -> (HostPathVolumeDescription) v.volumeDescription())
                     .toList())
                 .build();
+
+            vmPodSpec.getSpec()
+                .getAffinity()
+                .getPodAntiAffinity()
+                .getRequiredDuringSchedulingIgnoredDuringExecution()
+                .add(
+                    new PodAffinityTermBuilder()
+                        .withLabelSelector(
+                            new LabelSelectorBuilder()
+                                .withMatchExpressions(
+                                    new LabelSelectorRequirementBuilder()
+                                        .withKey(KuberLabels.LZY_POD_SESSION_ID_LABEL)
+                                        .withOperator("NotIn")
+                                        .withValues(vmSpec.sessionId())
+                                        .build()
+                                ).build()
+                        ).build()
+                );
+            boolean needTunnel = true;
+            if (needTunnel) {
+                vmPodSpec.getSpec()
+                    .getAffinity()
+                    .getPodAffinity()
+                    .getRequiredDuringSchedulingIgnoredDuringExecution()
+                    .add(
+                        new PodAffinityTermBuilder()
+                            .withLabelSelector(
+                                new LabelSelectorBuilder()
+                                    .withMatchExpressions(
+                                        new LabelSelectorRequirementBuilder()
+                                            .withKey("lzy.ai/app")
+                                            .withOperator("In")
+                                            .withValues("tunnel")
+                                            .build()
+                                    ).build()
+                            ).build()
+                    );
+            }
             LOG.debug("Creating pod with podspec: {}", vmPodSpec);
 
             final Pod pod;
@@ -99,12 +138,12 @@ public class KuberVmAllocator implements VmAllocator {
                     .resource(vmPodSpec)
                     .create();
             } catch (Exception e) {
-                LOG.error("Failed to allocate pod: {}", e.getMessage(), e);
+                LOG.error("Failed to allocate vm pod: {}", e.getMessage(), e);
                 deallocate(vmSpec.vmId());
                 //TODO (tomato): add retries here if the error is caused due to temporal problems with kuber
-                throw new RuntimeException("Failed to allocate pod: " + e.getMessage(), e);
+                throw new RuntimeException("Failed to allocate vm pod: " + e.getMessage(), e);
             }
-            LOG.debug("Created pod in Kuber: {}", pod);
+            LOG.debug("Created vm pod in Kuber: {}", pod);
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
