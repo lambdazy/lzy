@@ -41,7 +41,7 @@ echo "ip route add default table 120 || true"
 echo "ip rule add priority 115 from $POD_ADDRESS to $PODS_CIDR table main"
 ip rule add priority 115 from $POD_ADDRESS to $PODS_CIDR table main
 
-echo "ip rule add priority 116 from $POD_ADDRESS to $LZY_ALLOCATOR_ADDRESS table main"
+echo "ip rule add priority 116 from $POD_ADDRESS to $(echo $LZY_ALLOCATOR_ADDRESS | awk -F: '{printf $1}') table main"
 ip rule add priority 116 from $POD_ADDRESS to $(echo $LZY_ALLOCATOR_ADDRESS | awk -F: '{printf $1}') table main
 
 echo "ip rule add priority 120 from $POD_ADDRESS table 120"
