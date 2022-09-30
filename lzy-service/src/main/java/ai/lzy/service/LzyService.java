@@ -18,6 +18,7 @@ import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.service.data.storage.LzyServiceStorage;
+import ai.lzy.service.graph.DataFlowGraph;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
@@ -71,7 +72,6 @@ import java.util.concurrent.locks.LockSupport;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -395,24 +395,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
     @Override
     public void executeGraph(ExecuteGraphRequest request, StreamObserver<ExecuteGraphResponse> response) {
-        // this method is insensitive to order of operations in Graph::getOperationList()
-
         var executionId = request.getExecutionId();
-        var graph = request.getGraph();
-        var slot2description = graph.getDataDescriptionsList().parallelStream()
-            .collect(Collectors.toConcurrentMap(DataDescription::getStorageUri, Function.identity()));
-        var zoneName = determineZone(graph.getOperationsList()
-            .parallelStream()
-            .map(LWF.Operation::getPoolSpecName)
-            .toList());
-
-        var inputSlots = new ArrayList<SlotDescription>();
-        var outputSlots = new ArrayList<SlotDescription>();
-        for (var operation : graph.getOperationsList()) {
-            inputSlots.addAll(operation.getInputSlotsList());
-            outputSlots.addAll(operation.getOutputSlotsList());
-        }
-
         String workflowName;
         try {
             workflowName = withRetries(LOG, () -> workflowDao.getWorkflowNameBy(executionId));
@@ -421,8 +404,65 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
 
+        LWF.Graph graph = request.getGraph();
+        Collection<LWF.Operation> operations = graph.getOperationsList();
+        var slotsUriAsOutput = operations.parallelStream()
+            .flatMap(op -> op.getOutputSlotsList().stream().map(SlotDescription::getStorageUri))
+            .toList();
+        var duplicate = findFirstDuplicate(slotsUriAsOutput);
+
+        if (duplicate != null) {
+            LOG.error("Duplicate output slot URI { executionId: {}, slotUri: {}, workflowName: {}} ",
+                executionId, duplicate, workflowName);
+            throw new RuntimeException("Duplicate output slot uri: " + duplicate);
+        }
+
+        List<String> listOfAlreadyPresented;
+        try {
+            listOfAlreadyPresented = withRetries(LOG, () -> executionDao.whichSlotsUriPresented(slotsUriAsOutput));
+        } catch (Exception e) {
+            LOG.error(e.getMessage());
+            throw new RuntimeException(e.getMessage());
+        }
+
+        if (!listOfAlreadyPresented.isEmpty()) {
+            var alreadyUsedSlotUri = listOfAlreadyPresented.get(0);
+            LOG.error("Output slot URI already used in execution { slotUri: {}, executionId: {}, workflowName: {} }",
+                alreadyUsedSlotUri, executionId, workflowName);
+            throw new RuntimeException("Already used slot uri: " + alreadyUsedSlotUri);
+        }
+
+        var dataflowGraph = new DataFlowGraph(operations);
+
+        if (dataflowGraph.findCycle()) {
+            throw new RuntimeException("Operations graph has cycle: " + dataflowGraph.printCycle());
+        }
+
+        List<String> notFound;
+        Set<String> fromPortal = dataflowGraph.getDanglingInputSlots().keySet();
+        try {
+            notFound = withRetries(LOG, () -> executionDao.findAbsent(executionId, fromPortal));
+        } catch (Exception e) {
+            LOG.error(e.getMessage());
+            throw new RuntimeException(e.getMessage());
+        }
+
+        if (!notFound.isEmpty()) {
+            LOG.error("Slot URI { slotUri: {} } is presented neither in output slot URIs " +
+                "nor stored as already associated with portal", notFound.get(0));
+            throw new RuntimeException("Unknown slot uri");
+        }
+
         // slot name to channel id
-        Map<String, String> slots2channels = assignSlotsToChannels(executionId, workflowName, inputSlots, outputSlots);
+        Map<String, String> slots2channels = assignSlotsToChannels(executionId, workflowName,
+            dataflowGraph.getDataFlow());
+
+        var slot2description = graph.getDataDescriptionsList().parallelStream()
+            .collect(Collectors.toConcurrentMap(DataDescription::getStorageUri, Function.identity()));
+        var zoneName = determineZone(graph.getOperationsList()
+            .parallelStream()
+            .map(LWF.Operation::getPoolSpecName)
+            .toList());
 
         List<TaskDesc> tasks = buildTasksWithZone(zoneName, executionId, graph.getOperationsList(),
             slots2channels, slot2description);
@@ -674,67 +714,12 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
     // slot name to channel id
     private Map<String, String> assignSlotsToChannels(String executionId, String workflowName,
-                                                      Collection<SlotDescription> inputSlotDescriptions,
-                                                      Collection<SlotDescription> outputSlotDescriptions)
+                                                      Collection<DataFlowGraph.Data> dataFlow)
     {
-        var slotsUriAsOutput = outputSlotDescriptions.parallelStream().map(SlotDescription::getStorageUri).toList();
-        var duplicate = findFirstDuplicate(slotsUriAsOutput);
-
-        if (duplicate != null) {
-            LOG.error("Duplicate output slot URI { executionId: {}, slotUri: {}, workflowName: {}} ",
-                executionId, duplicate, workflowName);
-            throw new RuntimeException("Duplicate output slot uri: " + duplicate);
-        }
-
-        List<String> listOfAlreadyPresented;
-        try {
-            listOfAlreadyPresented = withRetries(LOG, () -> executionDao.whichSlotsUriPresented(slotsUriAsOutput));
-        } catch (Exception e) {
-            LOG.error(e.getMessage());
-            throw new RuntimeException(e.getMessage());
-        }
-
-        if (!listOfAlreadyPresented.isEmpty()) {
-            var alreadyUsedSlotUri = listOfAlreadyPresented.get(0);
-            LOG.error("Output slot URI already used in execution { slotUri: {}, executionId: {}, workflowName: {} }",
-                alreadyUsedSlotUri, executionId, workflowName);
-            throw new RuntimeException("Already used slot uri: " + alreadyUsedSlotUri);
-        }
-
-        var channelsFromOutputSlots = slotsUriAsOutput.parallelStream()
-            .collect(Collectors.toConcurrentMap(Function.identity(), slotUri ->
-                channelManagerClient
-                    .create(GrpcConverter.createChannelRequest(executionId, createChannelSpec("channel_" + slotUri)))
-                    .getChannelId()));
-
-        var inputSlotsNotAssignToOutput = inputSlotDescriptions.parallelStream()
-            .map(SlotDescription::getStorageUri)
-            .filter(slotUri -> !channelsFromOutputSlots.containsKey(slotUri))
-            .toList();
-
-        Set<String> foundOnPortal;
-        try {
-            foundOnPortal = withRetries(LOG, () -> executionDao.getSlotsUriBy(executionId));
-        } catch (Exception e) {
-            LOG.error(e.getMessage());
-            throw new RuntimeException(e.getMessage());
-        }
-
-        var notFound = inputSlotsNotAssignToOutput.parallelStream()
-            .filter(slotUri -> !foundOnPortal.contains(slotUri)).toList();
-
-        if (!notFound.isEmpty()) {
-            LOG.error("Input slot URI { slotUri: {} } is presented neither in output slot URIs " +
-                "nor stored as already associated with portal", notFound.get(0));
-            throw new RuntimeException("Unknown slot uri");
-        }
-
-        var channelsFromPortalSlots = foundOnPortal.parallelStream()
-            .collect(Collectors.toConcurrentMap(Function.identity(), slotUri ->
-                channelManagerClient
-                    .create(GrpcConverter.createChannelRequest(executionId,
-                        createChannelSpec("portal_channel_" + slotUri)))
-                    .getChannelId()));
+        var slotName2channelId = new HashMap<String, String>();
+        var partition = dataFlow.stream().collect(Collectors.partitioningBy(data -> data.supplier() != null));
+        var fromOutput = partition.get(true);
+        var fromPortal = partition.get(false);
 
         LMS3.S3Locator storageData;
         String portalAddress;
@@ -754,13 +739,19 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         String accessToken = storageData.getAmazon().getAccessToken();
         String secretToken = storageData.getAmazon().getSecretToken();
 
-        var inputPortalSlotsDesc = new ArrayList<PortalSlotDesc>();
-        for (var slotUriAndChannel : channelsFromOutputSlots.entrySet()) {
-            var slotUri = slotUriAndChannel.getKey();
-            var portalSlotName = "/portal_slot_" + slotUri;
+        var portalSlotToOpen = new ArrayList<PortalSlotDesc>();
+
+        for (var data : fromOutput) {
+            // from output slot
+            var channelName = "channel_" + data.slotUri();
+            var channelId = channelManagerClient
+                .create(GrpcConverter.createChannelRequest(executionId, createChannelSpec(channelName)))
+                .getChannelId();
+
+            var portalInputSlotName = "/portal_slot_" + data.slotUri();
             var snapshot = PortalSlotDesc.Snapshot.newBuilder()
                 .setS3(LMS3.S3Locator.newBuilder()
-                    .setKey(slotUri)
+                    .setKey(data.slotUri())
                     .setBucket(bucket)
                     .setAmazon(LMS3.AmazonS3Endpoint.newBuilder()
                         .setAccessToken(accessToken)
@@ -769,10 +760,10 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                         .build()))
                 .build();
 
-            inputPortalSlotsDesc.add(PortalSlotDesc.newBuilder()
+            portalSlotToOpen.add(PortalSlotDesc.newBuilder()
                 .setSnapshot(snapshot)
                 .setSlot(LMS.Slot.newBuilder()
-                    .setName(portalSlotName)
+                    .setName(portalInputSlotName)
                     .setMedia(LMS.Slot.Media.FILE)
                     .setDirection(LMS.Slot.Direction.INPUT)
                     .setContentType(LMD.DataScheme.newBuilder()
@@ -780,17 +771,29 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                         .setDataFormat("plain")
                         .build())
                     .build())
-                .setChannelId(slotUriAndChannel.getValue())
+                .setChannelId(channelId)
                 .build());
+
+            slotName2channelId.put(data.supplier(), channelId);
+            // slotName2channelId.put(portalInputSlotName, channelId); // info about portal slots should not be passed
+            if (data.consumers() != null) {
+                for (var consumer : data.consumers()) {
+                    slotName2channelId.put(consumer, channelId);
+                }
+            }
         }
 
-        var outputPortalSlotsDesc = new ArrayList<PortalSlotDesc>();
-        for (var slotUriAndChannel : channelsFromPortalSlots.entrySet()) {
-            var slotUri = slotUriAndChannel.getKey();
-            var portalSlotName = "/portal_slot_" + slotUri;
+        for (var data : fromPortal) {
+            // from portal slot
+            var channelName = "portal_channel_" + data.slotUri();
+            var channelId = channelManagerClient
+                .create(GrpcConverter.createChannelRequest(executionId, createChannelSpec(channelName)))
+                .getChannelId();
+
+            var portalOutputSlotName = "/portal_slot_" + data.slotUri();
             var snapshot = PortalSlotDesc.Snapshot.newBuilder()
                 .setS3(LMS3.S3Locator.newBuilder()
-                    .setKey(slotUri)
+                    .setKey(data.slotUri())
                     .setBucket(bucket)
                     .setAmazon(LMS3.AmazonS3Endpoint.newBuilder()
                         .setAccessToken(accessToken)
@@ -799,10 +802,10 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                         .build()))
                 .build();
 
-            outputPortalSlotsDesc.add(PortalSlotDesc.newBuilder()
+            portalSlotToOpen.add(PortalSlotDesc.newBuilder()
                 .setSnapshot(snapshot)
                 .setSlot(LMS.Slot.newBuilder()
-                    .setName(portalSlotName)
+                    .setName(portalOutputSlotName)
                     .setMedia(LMS.Slot.Media.FILE)
                     .setDirection(LMS.Slot.Direction.OUTPUT)
                     .setContentType(LMD.DataScheme.newBuilder()
@@ -810,13 +813,19 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                         .setDataFormat("plain")
                         .build())
                     .build())
-                .setChannelId(slotUriAndChannel.getValue())
+                .setChannelId(channelId)
                 .build());
+
+            // slotName2channelId.put(portalOutputSlotName, channelId); // info about portal slots should not be passed
+            if (data.consumers() != null) {
+                for (var consumer : data.consumers()) {
+                    slotName2channelId.put(consumer, channelId);
+                }
+            }
         }
 
         var response = portalClient.openSlots(OpenSlotsRequest.newBuilder()
-            .addAllSlots(inputPortalSlotsDesc)
-            .addAllSlots(outputPortalSlotsDesc)
+            .addAllSlots(portalSlotToOpen)
             .build());
 
         portalChannel.shutdown();
@@ -827,6 +836,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             throw new RuntimeException(response.getDescription());
         }
 
+        var slotsUriAsOutput = fromOutput.parallelStream().map(DataFlowGraph.Data::slotUri).toList();
         try {
             withRetries(defaultRetryPolicy(), LOG, () ->
                 executionDao.putSlotsUriFor(executionId, slotsUriAsOutput));
@@ -835,17 +845,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             throw new RuntimeException(e.getMessage());
         }
 
-        var slotsUri2channels = new HashMap<String, String>() {
-            {
-                putAll(channelsFromOutputSlots);
-                putAll(channelsFromPortalSlots);
-            }
-        };
-
-        return Stream.concat(inputSlotDescriptions.parallelStream(), outputSlotDescriptions.parallelStream())
-            .parallel()
-            .collect(Collectors.toConcurrentMap(SlotDescription::getPath,
-                slot -> slotsUri2channels.get(slot.getStorageUri())));
+        return slotName2channelId;
     }
 
     private String[] createPortalStdChannels(String executionId) {
@@ -923,7 +923,6 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             VmAllocatorApi.AllocateRequest.newBuilder().setSessionId(sessionId).setPoolLabel("portals")
                 .addWorkload(VmAllocatorApi.AllocateRequest.Workload.newBuilder()
                     .setName("portal")
-                    // TODO: ssokolvyak -- fill the image in production
                     //.setImage(portalConfig.getPortalImage())
                     .addAllArgs(args)
                     .putEnv(ENV_PORTAL_PKEY, privateKey)

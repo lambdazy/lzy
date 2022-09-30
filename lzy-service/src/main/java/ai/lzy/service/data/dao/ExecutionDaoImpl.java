@@ -85,4 +85,9 @@ public class ExecutionDaoImpl implements ExecutionDao {
 
         return presentedSlotsUri;
     }
+
+    @Override
+    public List<String> findAbsent(String executionId, Collection<String> slotsUri) throws SQLException {
+        throw new UnsupportedOperationException("not implemented yet");
+    }
 }

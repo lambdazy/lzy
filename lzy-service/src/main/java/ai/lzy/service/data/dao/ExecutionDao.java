@@ -11,4 +11,6 @@ public interface ExecutionDao {
     void putSlotsUriFor(String executionId, Collection<String> slotsUri) throws SQLException;
 
     List<String> whichSlotsUriPresented(Collection<String> slotsUri) throws SQLException;
+
+    List<String> findAbsent(String executionId, Collection<String> slotsUri) throws SQLException;
 }
