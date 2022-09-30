@@ -408,7 +408,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         Collection<LWF.Operation> operations = graph.getOperationsList();
         var slotsUriAsOutput = operations.parallelStream()
             .flatMap(op -> op.getOutputSlotsList().stream().map(SlotDescription::getStorageUri))
-            .toList();
+            .collect(Collectors.toSet());
         var duplicate = findFirstDuplicate(slotsUriAsOutput);
 
         if (duplicate != null) {
@@ -417,19 +417,18 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             throw new RuntimeException("Duplicate output slot uri: " + duplicate);
         }
 
-        List<String> listOfAlreadyPresented;
+        Set<String> alreadyPresented;
         try {
-            listOfAlreadyPresented = withRetries(LOG, () -> executionDao.whichSlotsUriPresented(slotsUriAsOutput));
+            alreadyPresented = withRetries(LOG, () -> executionDao.retainExistingSlots(slotsUriAsOutput));
         } catch (Exception e) {
             LOG.error(e.getMessage());
             throw new RuntimeException(e.getMessage());
         }
 
-        if (!listOfAlreadyPresented.isEmpty()) {
-            var alreadyUsedSlotUri = listOfAlreadyPresented.get(0);
-            LOG.error("Output slot URI already used in execution { slotUri: {}, executionId: {}, workflowName: {} }",
-                alreadyUsedSlotUri, executionId, workflowName);
-            throw new RuntimeException("Already used slot uri: " + alreadyUsedSlotUri);
+        if (!alreadyPresented.isEmpty()) {
+            LOG.error("Output slot URIs { slotUris: {} } already used in other execution",
+                JsonUtils.printAsArray(alreadyPresented));
+            throw new RuntimeException("Already used slot uri");
         }
 
         var dataflowGraph = new DataFlowGraph(operations);
@@ -438,18 +437,18 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             throw new RuntimeException("Operations graph has cycle: " + dataflowGraph.printCycle());
         }
 
-        List<String> notFound;
+        Set<String> notFound;
         Set<String> fromPortal = dataflowGraph.getDanglingInputSlots().keySet();
         try {
-            notFound = withRetries(LOG, () -> executionDao.findAbsent(executionId, fromPortal));
+            notFound = withRetries(LOG, () -> executionDao.retainNonExistingSlots(executionId, fromPortal));
         } catch (Exception e) {
             LOG.error(e.getMessage());
             throw new RuntimeException(e.getMessage());
         }
 
         if (!notFound.isEmpty()) {
-            LOG.error("Slot URI { slotUri: {} } is presented neither in output slot URIs " +
-                "nor stored as already associated with portal", notFound.get(0));
+            LOG.error("Slot URIs { slotUris: {} } is presented neither in output slot URIs " +
+                "nor stored as already associated with portal", JsonUtils.printAsArray(notFound));
             throw new RuntimeException("Unknown slot uri");
         }
 
@@ -836,10 +835,10 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             throw new RuntimeException(response.getDescription());
         }
 
-        var slotsUriAsOutput = fromOutput.parallelStream().map(DataFlowGraph.Data::slotUri).toList();
+        var slotsUriAsOutput = fromOutput.parallelStream().map(DataFlowGraph.Data::slotUri).collect(Collectors.toSet());
         try {
             withRetries(defaultRetryPolicy(), LOG, () ->
-                executionDao.putSlotsUriFor(executionId, slotsUriAsOutput));
+                executionDao.saveSlots(executionId, slotsUriAsOutput));
         } catch (Exception e) {
             LOG.error(e.getMessage());
             throw new RuntimeException(e.getMessage());

@@ -3,29 +3,31 @@ package ai.lzy.service.data.dao;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.service.data.storage.LzyServiceStorage;
+import ai.lzy.util.grpc.JsonUtils;
 import jakarta.inject.Singleton;
+import org.apache.commons.collections4.SetUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.HashSet;
+import java.util.Set;
 
 @Singleton
 public class ExecutionDaoImpl implements ExecutionDao {
     private static final Logger LOG = LogManager.getLogger(ExecutionDaoImpl.class);
 
-    private static final String QUERY_GET_SLOTS_URI = """
+    private static final String QUERY_EXISTING_SLOTS_IN_EXECUTION = """
         SELECT slot_uri
         FROM slot_snapshots
-        WHERE execution_id = ?""";
+        WHERE execution_id = ? AND slot_uri IN %s""";
 
     private static final String QUERY_PUT_SLOTS_URI = """
         INSERT INTO slot_snapshots (slot_uri, execution_id) 
         VALUES (?, ?)""";
 
-    private static final String QUERY_FIND_PRESENTED_SLOTS_URI = """
+    private static final String QUERY_FIND_EXISTING_SLOTS = """
         SELECT slot_uri
         FROM slot_snapshots
         WHERE slot_uri IN %s""";
@@ -37,24 +39,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
     }
 
     @Override
-    public Set<String> getSlotsUriBy(String executionId) throws SQLException {
-        var slotsUri = new HashSet<String>();
-
-        DbOperation.execute(null, storage, con -> {
-            try (var statement = con.prepareStatement(QUERY_GET_SLOTS_URI)) {
-                statement.setString(1, executionId);
-                ResultSet rs = statement.executeQuery();
-                while (rs.next()) {
-                    slotsUri.add(rs.getString("slot_uri"));
-                }
-            }
-        });
-
-        return slotsUri;
-    }
-
-    @Override
-    public void putSlotsUriFor(String executionId, Collection<String> slotsUri) throws SQLException {
+    public void saveSlots(String executionId, Set<String> slotsUri) throws SQLException {
         DbOperation.execute(null, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_PUT_SLOTS_URI)) {
                 for (var slotUri : slotsUri) {
@@ -69,25 +54,39 @@ public class ExecutionDaoImpl implements ExecutionDao {
     }
 
     @Override
-    public List<String> whichSlotsUriPresented(Collection<String> slotsUri) throws SQLException {
-        var presentedSlotsUri = new ArrayList<String>();
+    public Set<String> retainExistingSlots(Set<String> slotsUri) throws SQLException {
+        var existingSlots = new HashSet<String>();
 
         DbOperation.execute(null, storage, con -> {
-            String slotsAsString = slotsUri.parallelStream().collect(Collectors.joining(", ", "(", ")"));
+            String slotsAsString = JsonUtils.printAsTuple(slotsUri);
 
-            try (var statement = con.prepareStatement(QUERY_FIND_PRESENTED_SLOTS_URI.formatted(slotsAsString))) {
+            try (var statement = con.prepareStatement(QUERY_FIND_EXISTING_SLOTS.formatted(slotsAsString))) {
                 ResultSet rs = statement.executeQuery();
                 while (rs.next()) {
-                    presentedSlotsUri.add(rs.getString("slot_uri"));
+                    existingSlots.add(rs.getString("slot_uri"));
                 }
             }
         });
 
-        return presentedSlotsUri;
+        return existingSlots;
     }
 
     @Override
-    public List<String> findAbsent(String executionId, Collection<String> slotsUri) throws SQLException {
-        throw new UnsupportedOperationException("not implemented yet");
+    public Set<String> retainNonExistingSlots(String executionId, Set<String> slotsUri) throws SQLException {
+        var existingSlots = new HashSet<String>();
+
+        DbOperation.execute(null, storage, con -> {
+            String slotsAsString = JsonUtils.printAsTuple(slotsUri);
+
+            try (var statement = con.prepareStatement(QUERY_EXISTING_SLOTS_IN_EXECUTION.formatted(slotsAsString))) {
+                statement.setString(1, executionId);
+                ResultSet rs = statement.executeQuery();
+                while (rs.next()) {
+                    existingSlots.add(rs.getString("slot_uri"));
+                }
+            }
+        });
+
+        return SetUtils.difference(slotsUri, existingSlots);
     }
 }
