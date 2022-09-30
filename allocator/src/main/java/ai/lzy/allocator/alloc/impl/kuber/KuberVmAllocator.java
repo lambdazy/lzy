@@ -20,6 +20,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -107,26 +108,31 @@ public class KuberVmAllocator implements VmAllocator {
                                         .withValues(vmSpec.sessionId())
                                         .build()
                                 ).build()
-                        ).build()
+                        ).withTopologyKey("kubernetes.io/hostname")
+                        .build()
                 );
             boolean needTunnel = true;
             if (needTunnel) {
                 vmPodSpec.getSpec()
                     .getAffinity()
-                    .getPodAffinity()
-                    .getRequiredDuringSchedulingIgnoredDuringExecution()
-                    .add(
-                        new PodAffinityTermBuilder()
-                            .withLabelSelector(
-                                new LabelSelectorBuilder()
-                                    .withMatchExpressions(
-                                        new LabelSelectorRequirementBuilder()
-                                            .withKey("lzy.ai/app")
-                                            .withOperator("In")
-                                            .withValues("tunnel")
-                                            .build()
-                                    ).build()
-                            ).build()
+                    .setPodAffinity(
+                        new PodAffinity(
+                            Collections.emptyList(),
+                            Collections.singletonList(
+                                new PodAffinityTermBuilder()
+                                    .withLabelSelector(
+                                        new LabelSelectorBuilder()
+                                            .withMatchExpressions(
+                                                new LabelSelectorRequirementBuilder()
+                                                    .withKey("lzy.ai/app")
+                                                    .withOperator("In")
+                                                    .withValues("tunnel")
+                                                    .build()
+                                            ).build()
+                                    ).withTopologyKey("kubernetes.io/hostname")
+                                    .build()
+                            )
+                        )
                     );
             }
             LOG.debug("Creating pod with podspec: {}", vmPodSpec);

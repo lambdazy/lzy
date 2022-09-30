@@ -221,6 +221,23 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                         var workloads = request.getWorkloadList().stream()
                             .map(wl -> Workload.fromProto(wl, Map.of(AllocatorAgent.VM_ALLOCATOR_OTT, vmOtt)))
                             .toList();
+                        if (request.hasProxyV6Address()) {
+                            workloads = new ArrayList<>(workloads);
+                            try {
+                                workloads.add(
+                                    tunnelAllocator.createRequestTunnelInitContainer(
+                                        request.getProxyV6Address(), request.getPoolLabel(), request.getZone()
+                                    )
+                                );
+                            } catch (InvalidConfigurationException e) {
+                                LOG.error("Error while allocating: {}", e.getMessage(), e);
+                                op.setError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()));
+                                operations.update(op, transaction);
+                                transaction.commit();
+                                responseObserver.onError(e);
+                                return null;
+                            }
+                        }
                         final List<VolumeRequest> volumes;
                         try {
                             volumes = getVolumeRequests(request, transaction);
@@ -289,9 +306,6 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             try {
                 var timer = metrics.allocateDuration.startTimer();
                 tunnelAllocator.allocateTunnel(spec);
-                spec.workloads().add(
-                    tunnelAllocator.createRequestTunnelInitContainer(spec, request.getProxyV6Address())
-                );
                 allocator.allocate(spec);
                 timer.close();
             } catch (InvalidConfigurationException e) {

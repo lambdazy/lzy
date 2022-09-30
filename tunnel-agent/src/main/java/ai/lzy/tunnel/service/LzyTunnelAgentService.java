@@ -14,13 +14,19 @@ public class LzyTunnelAgentService extends LzyTunnelAgentGrpc.LzyTunnelAgentImpl
 
     @Override
     public void createTunnel(TA.CreateTunnelRequest request, StreamObserver<TA.CreateTunnelResponse> responseObserver) {
+        System.out.println("Create Tunnel");
+        System.out.println(request.toString());
+        System.out.println();
+        System.out.println();
+        System.out.println();
         try {
             Process process = Runtime.getRuntime().exec(
                 new String[]{
                     "/app/resources/scripts/tunnel.sh",
                     request.getRemoteV6Address(),
                     request.getWorkerPodV4Address(),
-                    request.getK8SV4PodCidr()
+                    request.getK8SV4PodCidr(),
+                    "2>&1"
                 }
             );
             BufferedReader reader = new BufferedReader(
@@ -34,5 +40,8 @@ public class LzyTunnelAgentService extends LzyTunnelAgentGrpc.LzyTunnelAgentImpl
             System.err.println(e.getMessage());
             responseObserver.onError(e);
         }
+        responseObserver.onNext(TA.CreateTunnelResponse.getDefaultInstance());
+        responseObserver.onCompleted();
+        System.out.println("ended");
     }
 }

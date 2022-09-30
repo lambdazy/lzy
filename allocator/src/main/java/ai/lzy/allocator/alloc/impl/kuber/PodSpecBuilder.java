@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 
 public class PodSpecBuilder {
     public static final String VM_POD_TEMPLATE_PATH = "kubernetes/lzy-vm-pod-template.yaml";
-    public static final String TUNNEL_POD_TEMPLATE_PATH = "kubernetes/lzy-vm-pod-template.yaml";
+    public static final String TUNNEL_POD_TEMPLATE_PATH = "kubernetes/lzy-tunnel-pod-template.yaml";
     private static final List<Toleration> GPU_VM_POD_TOLERATION = List.of(
         new TolerationBuilder()
             .withKey("sku")
@@ -110,6 +110,14 @@ public class PodSpecBuilder {
                     .withValueFrom(
                         new EnvVarSourceBuilder()
                             .withNewFieldRef("v1", "status.podIP")
+                            .build()
+                    )
+                    .build(),
+                new EnvVarBuilder()
+                    .withName("NODE_IP")
+                    .withValueFrom(
+                        new EnvVarSourceBuilder()
+                            .withNewFieldRef("v1", "status.hostIP")
                             .build()
                     )
                     .build()

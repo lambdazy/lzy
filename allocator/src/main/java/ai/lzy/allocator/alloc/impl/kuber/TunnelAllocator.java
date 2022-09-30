@@ -68,7 +68,8 @@ public class TunnelAllocator {
                                         .withValues(vmSpec.sessionId())
                                         .build()
                                 ).build()
-                        ).build()
+                        ).withTopologyKey("kubernetes.io/hostname")
+                        .build()
                 );
 
             try {
@@ -89,30 +90,30 @@ public class TunnelAllocator {
         }
     }
 
-    public Workload createRequestTunnelInitContainer(Vm.Spec vmSpec, String remoteV6)
+    public Workload createRequestTunnelInitContainer(String remoteV6, String poolLabel, String zone)
         throws InvalidConfigurationException
     {
         final var cluster = clusterRegistry.findCluster(
-            vmSpec.poolLabel(), vmSpec.zone(), ClusterRegistry.ClusterType.User);
+            poolLabel, zone, ClusterRegistry.ClusterType.User);
         if (cluster == null) {
             throw new InvalidConfigurationException(
-                "Cannot find pool for label " + vmSpec.poolLabel() + " and zone " + vmSpec.zone());
+                "Cannot find pool for label " + poolLabel + " and zone " + zone);
         }
         return new Workload(
             "init-request-tunnel",
             "networld/grpcurl:latest",
             Collections.emptyMap(),
             List.of(
-                "grpcurl",
+                "./grpcurl",
                 "--plaintext",
                 "-d",
                 String.format(
-                    "{\"remote_v6_address\": \"%s\", \"worker_pod_v4_address\": \"%s\", \"k8s_v4_pod_cidr\": \"%s\", }",
+                    "{\"remote_v6_address\": \"%s\", \"worker_pod_v4_address\": \"%s\", \"k8s_v4_pod_cidr\": \"%s\"}",
                     remoteV6,
-                    "$LZY_VM_IP_ADDRESS",
+                    "$(LZY_VM_IP_ADDRESS)",
                     clusterRegistry.getClusterPodsCidr(cluster.clusterId())
                 ),
-                "178.154.200.115:8444",
+                "$(NODE_IP):1234",
                 "ai.lzy.v1.tunnel.LzyTunnelAgent/CreateTunnel"
             ),
             Collections.emptyMap(),

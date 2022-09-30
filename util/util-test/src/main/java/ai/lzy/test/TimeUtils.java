@@ -14,7 +14,7 @@ public class TimeUtils {
             if (flag) {
                 break;
             }
-            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(100));
+            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(1000));
         }
         return flag;
     }
