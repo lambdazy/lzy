@@ -7,6 +7,7 @@ import ai.lzy.allocator.volume.VolumeRequest;
 import ai.lzy.model.db.TransactionHandle;
 import com.google.common.annotations.VisibleForTesting;
 
+import java.net.Inet6Address;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
@@ -15,8 +16,8 @@ import javax.annotation.Nullable;
 
 public interface VmDao {
     Vm.Spec create(String sessionId, String poolId, String zone, List<Workload> workload,
-                  List<VolumeRequest> volumeRequests, String allocationOpId, Instant startedAt,
-                  @Nullable TransactionHandle transaction) throws SQLException;
+                   List<VolumeRequest> volumeRequests, String allocationOpId, Instant startedAt,
+                   @Nullable Inet6Address v6ProxyAddress, @Nullable TransactionHandle transaction) throws SQLException;
     void update(String vmId, Vm.State state, @Nullable TransactionHandle transaction) throws SQLException;
     void updateStatus(String vmId, Vm.VmStatus status, @Nullable TransactionHandle transaction) throws SQLException;
     void updateLastActivityTime(String vmId, Instant time) throws SQLException;

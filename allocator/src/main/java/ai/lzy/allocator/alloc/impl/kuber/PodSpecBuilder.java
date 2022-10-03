@@ -39,7 +39,8 @@ public class PodSpecBuilder {
         pod = loadPodTemplate(client, templatePath);
         this.config = config;
 
-        final String podName = podNamePrefix + vmSpec.vmId().toLowerCase(Locale.ROOT);
+        String vmId = vmSpec.vmId().toLowerCase(Locale.ROOT);
+        final String podName = podNamePrefix + vmId;
 
         // k8s pod name can only contain symbols [-a-z0-9]
         pod.getMetadata().setName(podName.replaceAll("[^-a-z0-9]", "-"));
@@ -48,7 +49,9 @@ public class PodSpecBuilder {
         Objects.requireNonNull(labels);
         labels.putAll(Map.of(
             KuberLabels.LZY_POD_NAME_LABEL, podName,
-            KuberLabels.LZY_POD_SESSION_ID_LABEL, vmSpec.sessionId()
+            KuberLabels.LZY_POD_SESSION_ID_LABEL, vmSpec.sessionId(),
+            KuberLabels.LZY_VM_ID_LABEL, vmId
+
         ));
         pod.getMetadata().setLabels(labels);
 

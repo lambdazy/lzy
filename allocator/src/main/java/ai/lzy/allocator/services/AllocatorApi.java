@@ -43,6 +43,8 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.net.Inet6Address;
+import java.net.UnknownHostException;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
@@ -147,6 +149,21 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
     public void allocate(AllocateRequest request, StreamObserver<Operation> responseObserver) {
         LOG.info("Allocation request {}", JsonUtils.printSingleLine(request));
 
+        final Optional<Inet6Address> proxyV6Address;
+        if (request.hasProxyV6Address()) {
+            try {
+                proxyV6Address = Optional.of((Inet6Address) Inet6Address.getByName(request.getProxyV6Address()));
+            } catch (UnknownHostException e) {
+                LOG.error("Invalid provy v6 address {} in allocate reqeust", request.getProxyV6Address());
+                responseObserver.onError(
+                    Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException()
+                );
+                return;
+            }
+        } else {
+            proxyV6Address = Optional.empty();
+        }
+
         final var startedAt = Instant.now();
 
         Session session;
@@ -249,8 +266,11 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                             return null;
                         }
 
-                        var vmSpec = dao.create(request.getSessionId(), request.getPoolLabel(), request.getZone(),
-                            workloads, volumes, op.id(), startedAt, transaction);
+                        var vmSpec = dao.create(
+                            request.getSessionId(), request.getPoolLabel(), request.getZone(), workloads, volumes,
+                            op.id(), startedAt, proxyV6Address.orElse(null),
+                            transaction
+                        );
 
                         op.modifyMeta(Any.pack(AllocateMetadata.newBuilder()
                             .setVmId(vmSpec.vmId())

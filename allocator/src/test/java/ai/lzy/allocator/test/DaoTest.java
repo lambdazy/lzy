@@ -131,7 +131,7 @@ public class DaoTest {
             List.of(volume), false);
         final var volumeRequest = new VolumeRequest(new DiskVolumeDescription("diskVolume", "diskId", 3));
         final var vm = vmDao.create("session", "pool", "zone", List.of(wl1),
-            List.of(volumeRequest), "op1", Instant.now(), null);
+            List.of(volumeRequest), "op1", Instant.now(), null, null);
 
         final var vm1 = vmDao.get(vm.vmId(), null);
         Assert.assertNotNull(vm1);

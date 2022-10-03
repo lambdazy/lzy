@@ -112,8 +112,7 @@ public class KuberVmAllocator implements VmAllocator {
                         .build()
                 );
             // TODO: move information about tunnel here
-            boolean needTunnel = true;
-            if (needTunnel) {
+            if (vmSpec.proxyV6Address() != null) {
                 vmPodSpec.getSpec()
                     .getAffinity()
                     .setPodAffinity(
@@ -159,7 +158,7 @@ public class KuberVmAllocator implements VmAllocator {
     }
 
     @Nullable
-    private Pod getPod(String namespace, String name, KubernetesClient client) {
+    private Pod getVmPod(String namespace, String name, KubernetesClient client) {
         final var podsList = client.pods()
             .inNamespace(namespace)
             .list(new ListOptionsBuilder()
@@ -179,6 +178,33 @@ public class KuberVmAllocator implements VmAllocator {
         return null;
     }
 
+    /**
+     * Find all pods with label "lzy.ai/vm-id"=<code>vmId</code>. It is expected to be the corresponding <code>vm</code>
+     * pod and optionally the <code>tunnel</code> pod on the same k8s node, if it exists. In the future, we may add
+     * other system pods necessary for this vm (for example, pod with mounted disc).
+     *
+     * @param namespace - k8s namespace with pods
+     * @param vmId      - id of vm
+     * @param client    - k8s client
+     * @return k8s pods in <code>namespace</code> with label "lzy.ai/vm-id"=<code>vmId</code> got by <code>client</code>
+     */
+    @Nullable
+    private List<Pod> getAllPodsWithVmId(String namespace, String vmId, KubernetesClient client) {
+        return client.pods()
+            .inNamespace(namespace)
+            .list(new ListOptionsBuilder()
+                .withLabelSelector(KuberLabels.LZY_VM_ID_LABEL + "=" + vmId)
+                .build()
+            ).getItems();
+    }
+
+    /**
+     * Deallocates all pods with label "lzy.ai/vm-id"=<code>vmId</code>. It is expected to be the corresponding
+     * <code>vm</code> pod and optionally the <code>tunnel</code> pod on the same k8s node, if it exists. In the future,
+     * we may add other system pods necessary for this vm (for example, pod with mounted disc).
+     *
+     * @param vmId - id of vm to deallocate
+     */
     @Override
     public void deallocate(String vmId) {
         var meta = withRetries(
@@ -194,17 +220,17 @@ public class KuberVmAllocator implements VmAllocator {
         final var clusterId = meta.get(CLUSTER_ID_KEY);
         final var credentials = poolRegistry.getCluster(clusterId);
         final var ns = meta.get(NAMESPACE_KEY);
-        final var podName = meta.get(POD_NAME_KEY);
 
         try (final var client = factory.build(credentials)) {
-            final var pod = getPod(ns, podName, client);
-            if (pod != null) {
-                client.pods()
-                    .inNamespace(ns)
-                    .resource(pod)
-                    .delete();
-            } else {
-                LOG.warn("Pod with name {} not found", podName);
+            List<StatusDetails> statusDetails = client.pods()
+                .inNamespace(ns)
+                .withLabelSelector(KuberLabels.LZY_VM_ID_LABEL + "=" + vmId)
+                .delete();
+            if (statusDetails.isEmpty()) {
+                LOG.warn(
+                    "No delete status details were provided by k8s client after deleting pods with vm id {}",
+                    vmId
+                );
             }
 
             withRetries(
@@ -235,7 +261,7 @@ public class KuberVmAllocator implements VmAllocator {
         final var podName = meta.get(POD_NAME_KEY);
 
         try (final var client = factory.build(credentials)) {
-            final var pod = getPod(ns, podName, client);
+            final var pod = getVmPod(ns, podName, client);
             if (pod != null) {
                 final var nodeName = pod.getSpec().getNodeName();
                 final var node = client.nodes()

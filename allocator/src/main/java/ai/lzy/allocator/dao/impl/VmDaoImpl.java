@@ -15,6 +15,7 @@ import com.google.common.annotations.VisibleForTesting;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
+import java.net.Inet6Address;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -30,15 +31,17 @@ import javax.annotation.Nullable;
 public class VmDaoImpl implements VmDao {
     private static final String SPEC_FIELDS =  " id, session_id, pool_label, zone, " +
                                                " allocation_op_id, allocation_started_at," +
-                                               " workloads_json, volume_requests_json ";
+                                               " workloads_json, volume_requests_json, v6_proxy_address ";
+
     private static final String STATE_FIELDS = " status, last_activity_time, deadline," +
                                                " allocation_deadline, vm_meta_json," +
                                                " volumes_json, vm_subject_id ";
+
     private static final String FIELDS = SPEC_FIELDS + ", " + STATE_FIELDS;
 
     private static final String QUERY_CREATE_VM = """
         INSERT INTO vm (%s)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""".formatted(SPEC_FIELDS + ", status");
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""".formatted(SPEC_FIELDS + ", status");
 
     private static final String QUERY_UPDATE_VM = """
         UPDATE vm
@@ -134,10 +137,11 @@ public class VmDaoImpl implements VmDao {
     @Override
     public Vm.Spec create(String sessionId, String poolLabel, String zone, List<Workload> workload,
                           List<VolumeRequest> volumeRequests, String allocationOpId, Instant now,
-                          @Nullable TransactionHandle transaction) throws SQLException
+                          @Nullable Inet6Address v6ProxyAddress, @Nullable TransactionHandle transaction)
+        throws SQLException
     {
         final var vmId = "vm-" + UUID.randomUUID();
-        final var vmSpec = new Vm.Spec(vmId, sessionId, now, poolLabel, zone, workload, volumeRequests);
+        final var vmSpec = new Vm.Spec(vmId, sessionId, now, poolLabel, zone, workload, volumeRequests, v6ProxyAddress);
 
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(QUERY_CREATE_VM)) {
@@ -150,6 +154,7 @@ public class VmDaoImpl implements VmDao {
                 s.setString(7, objectMapper.writeValueAsString(vmSpec.workloads()));
                 s.setString(8, objectMapper.writeValueAsString(vmSpec.volumeRequests()));
                 s.setString(9, Vm.VmStatus.CREATED.name());
+                s.setString(10, v6ProxyAddress == null ? null : v6ProxyAddress.getHostAddress());
                 s.execute();
             } catch (JsonProcessingException e) {
                 throw new RuntimeException("Cannot dump values", e);
@@ -476,7 +481,7 @@ public class VmDaoImpl implements VmDao {
         final String vmSubjectId = res.getString(15);
 
         return new Vm(
-            new Vm.Spec(id, sessionIdRes, allocationStartedAt, poolLabel, zone, workloads, volumeRequests),
+            new Vm.Spec(id, sessionIdRes, allocationStartedAt, poolLabel, zone, workloads, volumeRequests, null),
             new Vm.State(vmStatus, lastActivityTime, deadline, allocationDeadline, vmSubjectId, vmMeta, volumeClaims),
             allocationOpId
         );
