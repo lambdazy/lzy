@@ -13,6 +13,7 @@ import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.AlreadyExistsException;
+import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.model.deprecated.GrpcConverter;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.dao.ExecutionDao;
@@ -40,6 +41,7 @@ import ai.lzy.v1.graph.GraphExecutorApi;
 import ai.lzy.v1.graph.GraphExecutorGrpc;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.portal.LzyPortal.PortalSlotDesc;
+import ai.lzy.v1.portal.LzyPortalApi;
 import ai.lzy.v1.portal.LzyPortalApi.OpenSlotsRequest;
 import ai.lzy.v1.portal.LzyPortalGrpc;
 import ai.lzy.v1.storage.LSS;
@@ -396,75 +398,128 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     @Override
     public void executeGraph(ExecuteGraphRequest request, StreamObserver<ExecuteGraphResponse> response) {
         var executionId = request.getExecutionId();
+
         String workflowName;
         try {
             workflowName = withRetries(LOG, () -> workflowDao.getWorkflowNameBy(executionId));
+        } catch (NotFoundException e) {
+            LOG.error("Cannot obtain workflow name for execution { executionId: {} }: " + e.getMessage(), executionId);
+            response.onError(Status.NOT_FOUND.withDescription("Cannot obtain workflow name: " + e.getMessage())
+                .asRuntimeException());
+            return;
         } catch (Exception e) {
-            response.onError(e);
+            LOG.error("Cannot obtain workflow name for execution { executionId: {} }: " + e.getMessage(), executionId);
+            response.onError(Status.INTERNAL.withDescription("Cannot obtain workflow name: " + e.getMessage())
+                .asRuntimeException());
             return;
         }
 
         LWF.Graph graph = request.getGraph();
         Collection<LWF.Operation> operations = graph.getOperationsList();
-        var slotsUriAsOutput = operations.parallelStream()
+        var slotsUriAsOutput = operations.stream()
             .flatMap(op -> op.getOutputSlotsList().stream().map(SlotDescription::getStorageUri))
             .collect(Collectors.toSet());
         var duplicate = findFirstDuplicate(slotsUriAsOutput);
 
         if (duplicate != null) {
-            LOG.error("Duplicate output slot URI { executionId: {}, slotUri: {}, workflowName: {}} ",
+            LOG.error("Duplicated output slot URI { executionId: {}, slotUri: {}, workflowName: {}} ",
                 executionId, duplicate, workflowName);
-            throw new RuntimeException("Duplicate output slot uri: " + duplicate);
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Duplicated slot uri: " + duplicate)
+                .asRuntimeException());
+            return;
         }
 
         Set<String> alreadyPresented;
         try {
             alreadyPresented = withRetries(LOG, () -> executionDao.retainExistingSlots(slotsUriAsOutput));
         } catch (Exception e) {
-            LOG.error(e.getMessage());
-            throw new RuntimeException(e.getMessage());
+            LOG.error("Cannot obtain existing slots URIs while starting graph for execution " +
+                "{ executionId: {}, workflowName: {} }", executionId, workflowName);
+            response.onError(Status.INTERNAL
+                .withDescription("Cannot check that slots URIs are not already used as output. " +
+                    "Cannot obtain existing slots uri: " + e.getMessage()).asRuntimeException());
+            return;
         }
 
         if (!alreadyPresented.isEmpty()) {
-            LOG.error("Output slot URIs { slotUris: {} } already used in other execution",
+            LOG.error("Output slots URIs { slotsUri: {} } already used in other execution",
                 JsonUtils.printAsArray(alreadyPresented));
-            throw new RuntimeException("Already used slot uri");
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Output slots URIs already used " +
+                "on other execution: " + JsonUtils.printAsArray(alreadyPresented)).asRuntimeException());
+            return;
         }
 
         var dataflowGraph = new DataFlowGraph(operations);
 
         if (dataflowGraph.findCycle()) {
-            throw new RuntimeException("Operations graph has cycle: " + dataflowGraph.printCycle());
+            LOG.error("Try to execute cyclic graph { executionId: {}, workflowName: {}, cycle: {} }",
+                executionId, workflowName, dataflowGraph.printCycle());
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Operations graph has cycle: " +
+                dataflowGraph.printCycle()).asRuntimeException());
+            return;
         }
 
-        Set<String> notFound;
+        Set<String> nonExistingSlots;
         Set<String> fromPortal = dataflowGraph.getDanglingInputSlots().keySet();
         try {
-            notFound = withRetries(LOG, () -> executionDao.retainNonExistingSlots(executionId, fromPortal));
+            nonExistingSlots = withRetries(LOG, () -> executionDao.retainNonExistingSlots(executionId, fromPortal));
         } catch (Exception e) {
-            LOG.error(e.getMessage());
-            throw new RuntimeException(e.getMessage());
+            LOG.error("Cannot obtain non-existing slots URIs associated with execution " +
+                "{ executionId: {}, workflowName: {} }", executionId, workflowName);
+            response.onError(Status.INTERNAL
+                .withDescription("Cannot check that slots URIs are stored on portal. " +
+                    "Cannot obtain non-existing slots URIs: " + e.getMessage()).asRuntimeException());
+            return;
         }
 
-        if (!notFound.isEmpty()) {
-            LOG.error("Slot URIs { slotUris: {} } is presented neither in output slot URIs " +
-                "nor stored as already associated with portal", JsonUtils.printAsArray(notFound));
-            throw new RuntimeException("Unknown slot uri");
+        if (!nonExistingSlots.isEmpty()) {
+            LOG.error("Slots URIs { slotUris: {} } are presented neither in output slots URIs " +
+                "nor stored as already associated with portal", JsonUtils.printAsArray(nonExistingSlots));
+            response.onError(Status.NOT_FOUND.withDescription("Slots URIs not found: " +
+                JsonUtils.printAsArray(nonExistingSlots)).asRuntimeException());
+            return;
+        }
+
+        String zoneName;
+        try {
+            zoneName = determineZone(graph.getOperationsList()
+                .stream()
+                .map(LWF.Operation::getPoolSpecName)
+                .toList());
+        } catch (IllegalArgumentException e) {
+            LOG.error("Cannot determine zone with pool labels: " + e.getMessage());
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Cannot determine zone with pool labels: " +
+                e.getMessage()).asRuntimeException());
+            return;
         }
 
         // slot name to channel id
-        Map<String, String> slots2channels = assignSlotsToChannels(executionId, workflowName,
-            dataflowGraph.getDataFlow());
+        Map<String, String> slots2channels;
+        try {
+            slots2channels = assignSlotsToChannels(executionId, workflowName,
+                dataflowGraph.getDataFlow());
+        } catch (Exception e) {
+            LOG.error("Cannot assign slots to channels for execution: { executionId: {}, workflowName: {} } " +
+                e.getMessage(), executionId, workflowName);
+            response.onError(Status.INTERNAL.withDescription("Cannot assign slots to channels").asRuntimeException());
+            return;
+        }
 
-        var slot2description = graph.getDataDescriptionsList().parallelStream()
-            .collect(Collectors.toConcurrentMap(DataDescription::getStorageUri, Function.identity()));
-        var zoneName = determineZone(graph.getOperationsList()
-            .parallelStream()
-            .map(LWF.Operation::getPoolSpecName)
-            .toList());
+        var slot2description = graph.getDataDescriptionsList().stream()
+            .collect(Collectors.toMap(DataDescription::getStorageUri, Function.identity()));
 
-        List<TaskDesc> tasks = buildTasksWithZone(zoneName, executionId, graph.getOperationsList(),
-            slots2channels, slot2description);
+        List<TaskDesc> tasks;
+        try {
+            tasks = buildTasksWithZone(zoneName, executionId, graph.getOperationsList(),
+                slots2channels, slot2description);
+        } catch (IllegalArgumentException e) {
+            LOG.error("Cannot build tasks for execution: { executionId: {}, workflowName: {} } " + e.getMessage(),
+                executionId, workflowName);
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Error while building tasks: " + e.getMessage())
+                .asRuntimeException());
+            return;
+        }
+
         List<GraphExecutor.ChannelDesc> channels = buildChannelDescriptions(slots2channels.values());
 
         GraphExecutorApi.GraphExecuteResponse executeResponse =
@@ -505,7 +560,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     }
 
     private List<GraphExecutor.ChannelDesc> buildChannelDescriptions(Collection<String> channelIds) {
-        return channelIds.parallelStream()
+        return channelIds.stream()
             .map(id -> GraphExecutor.ChannelDesc
                 .newBuilder()
                 .setId(id)
@@ -546,7 +601,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             var description = slot2description.get(uri);
 
             if (description == null) {
-                throw new RuntimeException("Cannot find data description for input slot: " +
+                throw new IllegalArgumentException("Cannot find data description for input slot: " +
                     slotDescription.getPath());
             }
 
@@ -570,7 +625,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             var description = slot2description.get(uri);
 
             if (description == null) {
-                throw new RuntimeException("Cannot find data description for output slot: " +
+                throw new IllegalArgumentException("Cannot find data description for output slot: " +
                     slotDescription.getPath());
             }
 
@@ -601,15 +656,14 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         try {
             portalAddress = withRetries(LOG, () -> workflowDao.getPortalAddressFor(executionId));
         } catch (Exception e) {
-            LOG.error(e.getMessage());
+            LOG.error("Cannot obtain information from internal storage: " + e.getMessage());
             throw new RuntimeException(e.getMessage());
         }
 
         var portalChannel = ChannelBuilder.forAddress(portalAddress).usePlaintext().build();
         LzyPortalGrpc.LzyPortalBlockingStub portalClient = LzyPortalGrpc.newBlockingStub(portalChannel);
 
-
-        portalClient.openSlots(OpenSlotsRequest.newBuilder()
+        LzyPortalApi.OpenSlotsResponse response = portalClient.openSlots(OpenSlotsRequest.newBuilder()
             .addSlots(PortalSlotDesc.newBuilder()
                 .setSlot(LMS.Slot.newBuilder()
                     .setName(stdoutPortalSlotName)
@@ -641,6 +695,11 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                     .build())
                 .build())
             .build());
+
+        if (!response.getSuccess()) {
+            LOG.error("Cannot open portal slots for { executionId: {} }: " + response.getDescription(), executionId);
+            throw new RuntimeException("Cannot open portal slots: " + response.getDescription());
+        }
 
         var taskOperation = LMO.Operation.newBuilder()
             .setEnv(env.build())
@@ -726,7 +785,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             storageData = withRetries(LOG, () -> workflowDao.getS3CredentialsFor(executionId));
             portalAddress = withRetries(LOG, () -> workflowDao.getPortalAddressFor(executionId));
         } catch (Exception e) {
-            LOG.error(e.getMessage());
+            LOG.error("Cannot obtain information from internal storage: " + e.getMessage());
             throw new RuntimeException(e.getMessage());
         }
 
@@ -823,9 +882,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             }
         }
 
-        var response = portalClient.openSlots(OpenSlotsRequest.newBuilder()
-            .addAllSlots(portalSlotToOpen)
-            .build());
+        var response = portalClient.openSlots(OpenSlotsRequest.newBuilder().addAllSlots(portalSlotToOpen).build());
 
         portalChannel.shutdown();
 
@@ -835,12 +892,11 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             throw new RuntimeException(response.getDescription());
         }
 
-        var slotsUriAsOutput = fromOutput.parallelStream().map(DataFlowGraph.Data::slotUri).collect(Collectors.toSet());
+        var slotsUriAsOutput = fromOutput.stream().map(DataFlowGraph.Data::slotUri).collect(Collectors.toSet());
         try {
-            withRetries(defaultRetryPolicy(), LOG, () ->
-                executionDao.saveSlots(executionId, slotsUriAsOutput));
+            withRetries(defaultRetryPolicy(), LOG, () -> executionDao.saveSlots(executionId, slotsUriAsOutput));
         } catch (Exception e) {
-            LOG.error(e.getMessage());
+            LOG.error("Cannot save information to internal storage: " + e.getMessage());
             throw new RuntimeException(e.getMessage());
         }
 

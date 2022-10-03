@@ -58,7 +58,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
         var existingSlots = new HashSet<String>();
 
         DbOperation.execute(null, storage, con -> {
-            String slotsAsString = JsonUtils.printAsTuple(slotsUri);
+            var slotsAsString = JsonUtils.printAsTuple(slotsUri);
 
             try (var statement = con.prepareStatement(QUERY_FIND_EXISTING_SLOTS.formatted(slotsAsString))) {
                 ResultSet rs = statement.executeQuery();
@@ -76,7 +76,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
         var existingSlots = new HashSet<String>();
 
         DbOperation.execute(null, storage, con -> {
-            String slotsAsString = JsonUtils.printAsTuple(slotsUri);
+            var slotsAsString = JsonUtils.printAsTuple(slotsUri);
 
             try (var statement = con.prepareStatement(QUERY_EXISTING_SLOTS_IN_EXECUTION.formatted(slotsAsString))) {
                 statement.setString(1, executionId);

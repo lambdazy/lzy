@@ -5,12 +5,11 @@ import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.AlreadyExistsException;
-import ai.lzy.v1.common.LMS;
-import ai.lzy.v1.common.LMS3;
+import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.service.LzyService;
 import ai.lzy.service.data.storage.LzyServiceStorage;
+import ai.lzy.v1.common.LMS3;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micronaut.core.util.StringUtils;
 import jakarta.inject.Singleton;
@@ -36,6 +35,11 @@ public class WorkflowDaoImpl implements WorkflowDao {
     private static final String QUERY_INSERT_WORKFLOW = """
         INSERT INTO workflows (user_id, workflow_name, created_at, active_execution_id)
         VALUES (?, ?, ?, ?)""";
+
+    private static final String QUERY_GET_WORKFLOW_NAME = """
+        SELECT workflow_name
+        FROM workflows
+        WHERE active_execution_id = ?""";
 
     private static final String QUERY_EXISTS_ACTIVE_EXECUTION_FOR_WORKFLOW = """
         SELECT 1 FROM workflows
@@ -285,8 +289,26 @@ public class WorkflowDaoImpl implements WorkflowDao {
     }
 
     @Override
-    public String getWorkflowNameBy(String executionId, @Nullable TransactionHandle transaction) {
-        throw new UnsupportedOperationException("not implemented yet");
+    public String getWorkflowNameBy(String executionId, @Nullable TransactionHandle transaction) throws SQLException {
+        String[] workflowName = {null};
+
+        DbOperation.execute(transaction, storage, con -> {
+            try (var statement = con.prepareStatement(QUERY_GET_WORKFLOW_NAME)) {
+                statement.setString(1, executionId);
+                ResultSet rs = statement.executeQuery();
+
+                if (rs.next()) {
+                    workflowName[0] = rs.getString("workflow_name");
+
+                }
+                if (workflowName[0] == null) {
+                    LOG.error("Cannot find workflow name for execution: { executionId: {} }", executionId);
+                    throw new NotFoundException("Cannot find workflow name");
+                }
+            }
+        });
+
+        return workflowName[0];
     }
 
     @Override
@@ -300,14 +322,10 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
                 if (rs.next()) {
                     portalAddress[0] = rs.getString("portal_vm_address");
-                    if (portalAddress[0] == null) {
-                        LOG.warn("Cannot obtain portal vm address for execution: { executionId : {} }", executionId);
-                        throw new RuntimeException("Cannot obtain portal address");
-                    }
-                } else {
-                    LOG.warn("Attempt to obtain portal vm address for unknown execution: { executionId : {} }",
-                        executionId);
-                    throw new RuntimeException("Unknown workflow execution");
+                }
+                if (portalAddress[0] == null) {
+                    LOG.warn("Cannot obtain portal vm address for execution: { executionId : {} }", executionId);
+                    throw new NotFoundException("Cannot obtain portal address");
                 }
             }
         });
