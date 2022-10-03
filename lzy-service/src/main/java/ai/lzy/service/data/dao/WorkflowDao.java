@@ -11,17 +11,16 @@ import java.sql.Timestamp;
 
 
 public interface WorkflowDao {
+    default void create(String executionId, String userId, String workflowName, String storageType,
+                        LMS3.S3Locator storageData) throws AlreadyExistsException, SQLException
+    {
+        create(executionId, userId, workflowName, storageType, storageData, null);
+    }
+
     void create(String executionId, String userId, String workflowName, String storageType, LMS3.S3Locator storageData,
                 @Nullable TransactionHandle transaction) throws AlreadyExistsException, SQLException;
 
-    boolean doesActiveExecutionExists(String userId, String workflowName, String executionId,
-                                      @Nullable TransactionHandle transaction) throws SQLException;
-
-    default boolean doesActiveExecutionExists(String userId, String workflowName, String executionId)
-        throws SQLException
-    {
-        return doesActiveExecutionExists(userId, workflowName, executionId, null);
-    }
+    boolean doesActiveExecutionExists(String userId, String workflowName, String executionId) throws SQLException;
 
     default void updateStatus(String executionId, LzyService.PortalStatus portalStatus) throws SQLException {
         updateStatus(executionId, portalStatus, null);
@@ -60,12 +59,6 @@ public interface WorkflowDao {
     void updateAllocatedVmAddress(String executionId, String vmAddress, @Nullable TransactionHandle transaction)
         throws SQLException;
 
-    default void updateFinishData(String workflowName, String executionId, Timestamp finishedAt,
-                                  @Nullable String finishedWithError) throws SQLException
-    {
-        updateFinishData(workflowName, executionId, finishedAt, finishedWithError, null);
-    }
-
     void updateFinishData(String workflowName, String executionId, Timestamp finishedAt,
                           @Nullable String finishedWithError, @Nullable TransactionHandle transaction)
         throws SQLException;
@@ -80,17 +73,9 @@ public interface WorkflowDao {
                                @Nullable String newExecutionId, @Nullable TransactionHandle transaction)
         throws SQLException;
 
-    default String getWorkflowNameBy(String executionId) throws SQLException {
-        return getWorkflowNameBy(executionId, null);
-    }
+    String getWorkflowNameBy(String executionId) throws SQLException;
 
-    String getWorkflowNameBy(String executionId, @Nullable TransactionHandle transaction) throws SQLException;
-
-    default String getPortalAddressFor(String executionId) throws SQLException {
-        return getPortalAddressFor(executionId, null);
-    }
-
-    String getPortalAddressFor(String executionId, @Nullable TransactionHandle transaction) throws SQLException;
+    String getPortalAddressFor(String executionId) throws SQLException;
 
     LMS3.S3Locator getS3CredentialsFor(String executionId) throws SQLException;
 }

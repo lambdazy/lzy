@@ -157,11 +157,11 @@ public class WorkflowDaoImpl implements WorkflowDao {
     }
 
     @Override
-    public boolean doesActiveExecutionExists(String userId, String workflowName, String executionId,
-                                             @Nullable TransactionHandle transaction) throws SQLException
+    public boolean doesActiveExecutionExists(String userId, String workflowName, String executionId)
+        throws SQLException
     {
         boolean[] result = {false};
-        DbOperation.execute(transaction, storage, con -> {
+        DbOperation.execute(null, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_EXISTS_ACTIVE_EXECUTION_FOR_WORKFLOW)) {
                 statement.setString(1, userId);
                 statement.setString(2, workflowName);
@@ -289,10 +289,10 @@ public class WorkflowDaoImpl implements WorkflowDao {
     }
 
     @Override
-    public String getWorkflowNameBy(String executionId, @Nullable TransactionHandle transaction) throws SQLException {
+    public String getWorkflowNameBy(String executionId) throws SQLException {
         String[] workflowName = {null};
 
-        DbOperation.execute(transaction, storage, con -> {
+        DbOperation.execute(null, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_GET_WORKFLOW_NAME)) {
                 statement.setString(1, executionId);
                 ResultSet rs = statement.executeQuery();
@@ -312,10 +312,10 @@ public class WorkflowDaoImpl implements WorkflowDao {
     }
 
     @Override
-    public String getPortalAddressFor(String executionId, @Nullable TransactionHandle transaction) throws SQLException {
+    public String getPortalAddressFor(String executionId) throws SQLException {
         String[] portalAddress = {null};
 
-        DbOperation.execute(transaction, storage, con -> {
+        DbOperation.execute(null, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_GET_PORTAL_ADDRESS)) {
                 statement.setString(1, executionId);
                 ResultSet rs = statement.executeQuery();

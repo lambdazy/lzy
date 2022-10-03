@@ -41,10 +41,19 @@ create table workflows (
     foreign key (active_execution_id) references workflow_executions (execution_id)
 );
 
-create table slot_snapshots (
+create table snapshots (
     slot_uri text not null,
     execution_id text not null,
 
     primary key (slot_uri),
     foreign key (execution_id) references workflow_executions (execution_id)
+);
+
+create table channels (
+    channel_id text not null,
+    output_slot_uri text not null,
+
+    primary key (channel_id),
+    foreign key (output_slot_uri) references snapshots (slot_uri),
+    unique (output_slot_uri, channel_id)
 );

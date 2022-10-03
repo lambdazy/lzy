@@ -69,6 +69,7 @@ import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.BiConsumer;
@@ -116,6 +117,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
     private final ManagedChannel graphExecutorChannel;
     private final GraphExecutorGrpc.GraphExecutorBlockingStub graphExecutorClient;
+
+    private final Map<String, ManagedChannel> portalChannelForExecution = new ConcurrentHashMap<>();
 
     public LzyService(LzyServiceConfig config, LzyServiceStorage storage,
                       WorkflowDao workflowDao, ExecutionDao executionDao)
@@ -233,7 +236,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
         try {
             withRetries(defaultRetryPolicy(), LOG, () ->
-                workflowDao.create(executionId, userId, workflowName, storageType, storageData, null));
+                workflowDao.create(executionId, userId, workflowName, storageType, storageData));
         } catch (AlreadyExistsException e) {
             if (internalSnapshotStorage) {
                 safeDeleteTempStorageBucket(storageData.getBucket());
@@ -493,15 +496,30 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
 
+        var portalChannel = portalChannelForExecution.computeIfAbsent(executionId, exId -> {
+            String portalAddress;
+            try {
+                portalAddress = withRetries(LOG, () -> workflowDao.getPortalAddressFor(exId));
+            } catch (Exception e) {
+                LOG.error("Cannot obtain information about portal for execution: { executionId: {} } " +
+                    e.getMessage(), exId);
+                throw new RuntimeException("Cannot obtain information about portal: " + e.getMessage());
+            }
+            return ChannelBuilder.forAddress(portalAddress).usePlaintext().build();
+        });
+
+        LzyPortalGrpc.LzyPortalBlockingStub portalClient = LzyPortalGrpc.newBlockingStub(portalChannel);
+
         // slot name to channel id
         Map<String, String> slots2channels;
         try {
             slots2channels = assignSlotsToChannels(executionId, workflowName,
-                dataflowGraph.getDataFlow());
+                dataflowGraph.getDataFlow(), portalClient);
         } catch (Exception e) {
             LOG.error("Cannot assign slots to channels for execution: { executionId: {}, workflowName: {} } " +
                 e.getMessage(), executionId, workflowName);
-            response.onError(Status.INTERNAL.withDescription("Cannot assign slots to channels").asRuntimeException());
+            response.onError(Status.INTERNAL.withDescription("Cannot assign slots to channels: " + e.getMessage())
+                .asRuntimeException());
             return;
         }
 
@@ -511,7 +529,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         List<TaskDesc> tasks;
         try {
             tasks = buildTasksWithZone(zoneName, executionId, graph.getOperationsList(),
-                slots2channels, slot2description);
+                slots2channels, slot2description, portalClient);
         } catch (IllegalArgumentException e) {
             LOG.error("Cannot build tasks for execution: { executionId: {}, workflowName: {} } " + e.getMessage(),
                 executionId, workflowName);
@@ -571,7 +589,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
     private TaskDesc buildTaskWithZone(String executionId, String taskId, LWF.Operation operation,
                                        String zoneName, String stdoutChannelId, String stderrChannelId,
-                                       Map<String, String> slot2Channel, Map<String, DataDescription> slot2description)
+                                       Map<String, String> slot2Channel, Map<String, DataDescription> slot2description,
+                                       LzyPortalGrpc.LzyPortalBlockingStub portalClient)
     {
         var env = LME.EnvSpec.newBuilder();
         if (!operation.getDockerImage().isBlank()) {
@@ -652,17 +671,6 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var stdoutPortalSlotName = "/portal_%s:stdout".formatted(taskId);
         var stderrPortalSlotName = "/portal_%s:stderr".formatted(taskId);
 
-        String portalAddress;
-        try {
-            portalAddress = withRetries(LOG, () -> workflowDao.getPortalAddressFor(executionId));
-        } catch (Exception e) {
-            LOG.error("Cannot obtain information from internal storage: " + e.getMessage());
-            throw new RuntimeException(e.getMessage());
-        }
-
-        var portalChannel = ChannelBuilder.forAddress(portalAddress).usePlaintext().build();
-        LzyPortalGrpc.LzyPortalBlockingStub portalClient = LzyPortalGrpc.newBlockingStub(portalChannel);
-
         LzyPortalApi.OpenSlotsResponse response = portalClient.openSlots(OpenSlotsRequest.newBuilder()
             .addSlots(PortalSlotDesc.newBuilder()
                 .setSlot(LMS.Slot.newBuilder()
@@ -724,7 +732,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     private List<TaskDesc> buildTasksWithZone(String executionId, String zoneName,
                                               Collection<LWF.Operation> operations,
                                               Map<String, String> slot2Channel,
-                                              Map<String, DataDescription> slot2description)
+                                              Map<String, DataDescription> slot2description,
+                                              LzyPortalGrpc.LzyPortalBlockingStub portalClient)
     {
         var tasks = new ArrayList<TaskDesc>(operations.size());
 
@@ -738,7 +747,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             var stderrChannelId = createChannel(stderrChannelName, executionId);
 
             tasks.add(buildTaskWithZone(executionId, taskId, operation, zoneName,
-                stdoutChannelId, stderrChannelId, slot2Channel, slot2description));
+                stdoutChannelId, stderrChannelId, slot2Channel, slot2description, portalClient));
         }
 
         return tasks;
@@ -772,25 +781,22 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
     // slot name to channel id
     private Map<String, String> assignSlotsToChannels(String executionId, String workflowName,
-                                                      Collection<DataFlowGraph.Data> dataFlow)
+                                                      Collection<DataFlowGraph.Data> dataFlow,
+                                                      LzyPortalGrpc.LzyPortalBlockingStub portalClient)
     {
         var slotName2channelId = new HashMap<String, String>();
-        var partition = dataFlow.stream().collect(Collectors.partitioningBy(data -> data.supplier() != null));
-        var fromOutput = partition.get(true);
-        var fromPortal = partition.get(false);
+        var partitionBySupplier = dataFlow.stream().collect(Collectors.partitioningBy(data -> data.supplier() != null));
+        var fromOutput = partitionBySupplier.get(true);
+        var fromPortal = partitionBySupplier.get(false);
 
         LMS3.S3Locator storageData;
-        String portalAddress;
         try {
             storageData = withRetries(LOG, () -> workflowDao.getS3CredentialsFor(executionId));
-            portalAddress = withRetries(LOG, () -> workflowDao.getPortalAddressFor(executionId));
         } catch (Exception e) {
-            LOG.error("Cannot obtain information from internal storage: " + e.getMessage());
-            throw new RuntimeException(e.getMessage());
+            LOG.error("Cannot obtain information about snapshots storage for execution: { executionId: {} } " +
+                e.getMessage(), executionId);
+            throw new RuntimeException("Cannot obtain information about snapshots storage: " + e.getMessage());
         }
-
-        var portalChannel = ChannelBuilder.forAddress(portalAddress).usePlaintext().build();
-        LzyPortalGrpc.LzyPortalBlockingStub portalClient = LzyPortalGrpc.newBlockingStub(portalChannel);
 
         String bucket = storageData.getBucket();
         String endpoint = storageData.getAmazon().getEndpoint();
@@ -801,15 +807,10 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
         for (var data : fromOutput) {
             // from output slot
-            var channelName = "channel_" + data.slotUri();
-            var channelId = channelManagerClient
-                .create(GrpcConverter.createChannelRequest(executionId, createChannelSpec(channelName)))
-                .getChannelId();
-
-            var portalInputSlotName = "/portal_slot_" + data.slotUri();
+            var slotUri = data.slotUri();
             var snapshot = PortalSlotDesc.Snapshot.newBuilder()
                 .setS3(LMS3.S3Locator.newBuilder()
-                    .setKey(data.slotUri())
+                    .setKey(slotUri)
                     .setBucket(bucket)
                     .setAmazon(LMS3.AmazonS3Endpoint.newBuilder()
                         .setAccessToken(accessToken)
@@ -817,6 +818,12 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                         .setEndpoint(endpoint)
                         .build()))
                 .build();
+            var portalInputSlotName = "/portal_slot_" + slotUri;
+
+            var channelName = "channel_" + slotUri;
+            var channelId = channelManagerClient
+                .create(GrpcConverter.createChannelRequest(executionId, createChannelSpec(channelName)))
+                .getChannelId();
 
             portalSlotToOpen.add(PortalSlotDesc.newBuilder()
                 .setSnapshot(snapshot)
@@ -832,6 +839,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                 .setChannelId(channelId)
                 .build());
 
+
             slotName2channelId.put(data.supplier(), channelId);
             // slotName2channelId.put(portalInputSlotName, channelId); // info about portal slots should not be passed
             if (data.consumers() != null) {
@@ -841,38 +849,75 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             }
         }
 
+        Map<String, String> outputSlot2channel;
+
+        synchronized (this) {
+            var slotsUri = dataFlow.stream().map(DataFlowGraph.Data::slotUri).collect(Collectors.toSet());
+
+            try {
+                outputSlot2channel = withRetries(LOG, () -> executionDao.findChannelsForOutputSlots(slotsUri));
+            } catch (Exception e) {
+                LOG.error("Cannot obtain information about channels for slots. Execution: { executionId: {} } " +
+                    e.getMessage(), executionId);
+                throw new RuntimeException("Cannot obtain information about channels for slots: " + e.getMessage());
+            }
+
+            var withoutChannels = fromPortal.stream()
+                .filter(data -> !outputSlot2channel.containsKey(data.slotUri())).toList();
+
+            var newChannels = new HashMap<String, String>();
+
+            for (var data : withoutChannels) {
+                var slotUri = data.slotUri();
+                var channelId = channelManagerClient
+                    .create(GrpcConverter.createChannelRequest(executionId,
+                        createChannelSpec("portal_channel_" + slotUri)))
+                    .getChannelId();
+
+                newChannels.put(slotUri, channelId);
+
+                var portalOutputSlotName = "/portal_slot_" + slotUri;
+                var snapshot = PortalSlotDesc.Snapshot.newBuilder()
+                    .setS3(LMS3.S3Locator.newBuilder()
+                        .setKey(slotUri)
+                        .setBucket(bucket)
+                        .setAmazon(LMS3.AmazonS3Endpoint.newBuilder()
+                            .setAccessToken(accessToken)
+                            .setSecretToken(secretToken)
+                            .setEndpoint(endpoint)
+                            .build()))
+                    .build();
+
+                portalSlotToOpen.add(PortalSlotDesc.newBuilder()
+                    .setSnapshot(snapshot)
+                    .setSlot(LMS.Slot.newBuilder()
+                        .setName(portalOutputSlotName)
+                        .setMedia(LMS.Slot.Media.FILE)
+                        .setDirection(LMS.Slot.Direction.OUTPUT)
+                        .setContentType(LMD.DataScheme.newBuilder()
+                            .setSchemeContent("text")
+                            .setDataFormat("plain")
+                            .build())
+                        .build())
+                    .setChannelId(channelId)
+                    .build());
+            }
+
+            try {
+                withRetries(defaultRetryPolicy(), LOG, () -> executionDao.saveChannels(newChannels));
+            } catch (Exception e) {
+                LOG.error("Cannot save information about channels for execution: { executionId: {} } " +
+                    e.getMessage(), executionId);
+                throw new RuntimeException("Cannot save information about channels: " + e.getMessage());
+            }
+
+            outputSlot2channel.putAll(newChannels);
+        }
+
         for (var data : fromPortal) {
             // from portal slot
-            var channelName = "portal_channel_" + data.slotUri();
-            var channelId = channelManagerClient
-                .create(GrpcConverter.createChannelRequest(executionId, createChannelSpec(channelName)))
-                .getChannelId();
-
-            var portalOutputSlotName = "/portal_slot_" + data.slotUri();
-            var snapshot = PortalSlotDesc.Snapshot.newBuilder()
-                .setS3(LMS3.S3Locator.newBuilder()
-                    .setKey(data.slotUri())
-                    .setBucket(bucket)
-                    .setAmazon(LMS3.AmazonS3Endpoint.newBuilder()
-                        .setAccessToken(accessToken)
-                        .setSecretToken(secretToken)
-                        .setEndpoint(endpoint)
-                        .build()))
-                .build();
-
-            portalSlotToOpen.add(PortalSlotDesc.newBuilder()
-                .setSnapshot(snapshot)
-                .setSlot(LMS.Slot.newBuilder()
-                    .setName(portalOutputSlotName)
-                    .setMedia(LMS.Slot.Media.FILE)
-                    .setDirection(LMS.Slot.Direction.OUTPUT)
-                    .setContentType(LMD.DataScheme.newBuilder()
-                        .setSchemeContent("text")
-                        .setDataFormat("plain")
-                        .build())
-                    .build())
-                .setChannelId(channelId)
-                .build());
+            var slotUri = data.slotUri();
+            var channelId = outputSlot2channel.get(slotUri);
 
             // slotName2channelId.put(portalOutputSlotName, channelId); // info about portal slots should not be passed
             if (data.consumers() != null) {
@@ -883,8 +928,6 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         }
 
         var response = portalClient.openSlots(OpenSlotsRequest.newBuilder().addAllSlots(portalSlotToOpen).build());
-
-        portalChannel.shutdown();
 
         if (!response.getSuccess()) {
             LOG.error("Cannot open portal slots for tasks slots { executionId: {}, workflowName: {} }",
