@@ -111,6 +111,7 @@ public class KuberVmAllocator implements VmAllocator {
                         ).withTopologyKey("kubernetes.io/hostname")
                         .build()
                 );
+            // TODO: move information about tunnel here
             boolean needTunnel = true;
             if (needTunnel) {
                 vmPodSpec.getSpec()
