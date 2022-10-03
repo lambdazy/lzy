@@ -68,7 +68,7 @@ public class AllocatorMain {
 
         final HostAndPort address = HostAndPort.fromString(config.getAddress());
         ServerBuilder<?> builder = NettyServerBuilder
-            .forAddress(new InetSocketAddress(address.getHost(), address.getPort()))
+            .forAddress(new InetSocketAddress("0.0.0.0", address.getPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES);
 
