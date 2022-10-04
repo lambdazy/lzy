@@ -325,7 +325,9 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
             try {
                 var timer = metrics.allocateDuration.startTimer();
-                tunnelAllocator.allocateTunnel(spec);
+                if (proxyV6Address.isPresent()) {
+                    tunnelAllocator.allocateTunnel(spec);
+                }
                 allocator.allocate(spec);
                 timer.close();
             } catch (InvalidConfigurationException e) {
