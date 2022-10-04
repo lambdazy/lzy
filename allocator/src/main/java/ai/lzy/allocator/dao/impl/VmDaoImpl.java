@@ -31,7 +31,7 @@ import javax.annotation.Nullable;
 public class VmDaoImpl implements VmDao {
     private static final String SPEC_FIELDS =  " id, session_id, pool_label, zone, " +
                                                " allocation_op_id, allocation_started_at," +
-                                               " workloads_json, volume_requests_json, v6_proxy_address ";
+                                               " workloads_json, volume_requests_json ";
 
     private static final String STATE_FIELDS = " status, last_activity_time, deadline," +
                                                " allocation_deadline, vm_meta_json," +
@@ -41,7 +41,7 @@ public class VmDaoImpl implements VmDao {
 
     private static final String QUERY_CREATE_VM = """
         INSERT INTO vm (%s)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""".formatted(SPEC_FIELDS + ", status");
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""".formatted(SPEC_FIELDS + ", status, v6_proxy_address");
 
     private static final String QUERY_UPDATE_VM = """
         UPDATE vm
