@@ -8,23 +8,19 @@ import ai.lzy.graph.model.GraphDescription;
 import ai.lzy.graph.model.GraphExecutionState;
 import ai.lzy.graph.queue.QueueManager;
 import ai.lzy.iam.clients.AccessClient;
-import ai.lzy.iam.clients.AuthenticateService;
 import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
-import ai.lzy.iam.grpc.context.AuthenticationContext;
+import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
-import ai.lzy.iam.resources.AuthPermission;
-import ai.lzy.iam.resources.impl.Workflow;
 import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.model.db.exceptions.DaoException;
-import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
 import ai.lzy.v1.graph.GraphExecutor;
 import ai.lzy.v1.graph.GraphExecutorApi.*;
 import ai.lzy.v1.graph.GraphExecutorGrpc;
+import io.grpc.ManagedChannel;
 import io.grpc.Server;
-import io.grpc.ServerBuilder;
 import io.grpc.ServerInterceptors;
 import io.grpc.Status;
 import io.grpc.StatusException;
@@ -32,6 +28,7 @@ import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -44,6 +41,8 @@ import java.util.stream.Collectors;
 @Singleton
 public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
     private static final Logger LOG = LogManager.getLogger(GraphExecutorApi.class);
+
+    private final ManagedChannel iamChannel;
     private final GraphExecutionDao dao;
     private final GraphBuilder graphBuilder;
     private final ServiceConfig config;
@@ -54,8 +53,10 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
     private Server server;
 
     @Inject
-    public GraphExecutorApi(GraphExecutionDao dao, ServiceConfig config, GraphBuilder graphBuilder,
-                            QueueManager queueManager, SchedulerApi schedulerApi) {
+    public GraphExecutorApi(GraphExecutionDao dao, ServiceConfig config,
+                            @Named("GraphExecutorIamGrpcChannel") ManagedChannel iamChannel,
+                            GraphBuilder graphBuilder, QueueManager queueManager, SchedulerApi schedulerApi) {
+        this.iamChannel = iamChannel;
         this.dao = dao;
         this.config = config;
         this.graphBuilder = graphBuilder;
@@ -68,8 +69,6 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
 
     @Override
     public void execute(GraphExecuteRequest request, StreamObserver<GraphExecuteResponse> responseObserver) {
-        assertAuthorized(request.getWorkflowId(), AuthPermission.WORKFLOW_RUN);
-
         final GraphDescription graph = GraphDescription.fromGrpc(request.getTasksList(), request.getChannelsList());
         try {
             graphBuilder.validate(graph);
@@ -93,8 +92,6 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
 
     @Override
     public void status(GraphStatusRequest request, StreamObserver<GraphStatusResponse> responseObserver) {
-        assertAuthorized(request.getWorkflowId(), AuthPermission.WORKFLOW_GET);
-
         final GraphExecutionState state;
 
         try {
@@ -122,8 +119,6 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
 
     @Override
     public void list(GraphListRequest request, StreamObserver<GraphListResponse> responseObserver) {
-        assertAuthorized(request.getWorkflowId(), AuthPermission.WORKFLOW_GET);
-
         final List<GraphExecutor.GraphExecutionStatus> graphs;
 
         try {
@@ -145,8 +140,6 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
 
     @Override
     public void stop(GraphStopRequest request, StreamObserver<GraphStopResponse> responseObserver) {
-        assertAuthorized(request.getWorkflowId(), AuthPermission.WORKFLOW_STOP);
-
         final GraphExecutionState state;
         try {
             state = queueManager.stopGraph(request.getWorkflowId(),
@@ -179,17 +172,19 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
 
         queueManager.start();
 
-        final AuthenticateService service = new AuthenticateServiceGrpcClient(
-            GrpcConfig.from(config.getAuth().getAddress()));
+        final var internalUserOnly = new AllowInternalUserOnlyInterceptor(iamChannel);
 
-        ServerBuilder<?> builder = NettyServerBuilder.forPort(config.getPort())
-            .intercept(new AuthServerInterceptor(service))
+        server = NettyServerBuilder.forPort(config.getPort())
+            .intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(iamChannel)))
+            .intercept(new GrpcLogsInterceptor())
             .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES);
+            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
+            .addService(ServerInterceptors.intercept(this, internalUserOnly))
+            .build();
 
-        builder.addService(ServerInterceptors.intercept(this, new GrpcLogsInterceptor()));
-        server = builder.build();
         server.start();
+
+        LOG.info("Starting GraphExecutor service done");
     }
 
     public void awaitTermination() throws InterruptedException {
@@ -203,13 +198,14 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
             final Thread mainThread = Thread.currentThread();
 
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                LOG.info("Stopping GraphExecutor service");
+                LOG.info("Stopping GraphExecutor service...");
                 api.close();
                 try {
                     mainThread.join();
                 } catch (InterruptedException e) {
                     LOG.error(e);
                 }
+                LOG.info("Stopping GraphExecutor service done");
             }));
             try {
                 api.start();
@@ -220,25 +216,4 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
         }
     }
 
-    private void assertAuthorized(String workflowId, AuthPermission permission) {
-        AuthenticationContext context = AuthenticationContext.current();
-
-        if (context == null) {
-            throw Status.UNAUTHENTICATED.asRuntimeException();
-        }
-
-        try {
-            accessClient
-                .withToken(context::getCredentials)
-                .hasResourcePermission(context.getSubject(), new Workflow(workflowId), permission);
-
-        } catch (AuthException e) {
-            LOG.error("""
-                <{}> trying to access workflow <{}> with permission <{}>, but unauthorized.
-                Details: {}""",
-                context.getSubject().id(), workflowId, permission, e.getInternalDetails()
-            );
-            throw e.toStatusRuntimeException();
-        }
-    }
 }
