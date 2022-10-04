@@ -143,7 +143,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
                                 .map(VmAllocator.VmEndpoint::toProto)
                                 .toList();
                         } catch (Exception e) {
-                            LOG.error("Cannot get endpoints of vm {}", vm.vmId());
+                            LOG.error("Cannot get endpoints of vm {}", vm.vmId(), e);
                             return Status.INTERNAL.withDescription("Cannot get endpoints of vm");
                         }
 

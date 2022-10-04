@@ -51,6 +51,7 @@ public class PodSpecBuilder {
         pod.getMetadata().setLabels(labels);
 
         pod.getSpec().setTolerations(GPU_VM_POD_TOLERATION);
+        pod.getSpec().setAutomountServiceAccountToken(false);
 
         final Map<String, String> nodeSelector = Map.of(
             KuberLabels.NODE_POOL_LABEL, vmSpec.poolLabel(),
