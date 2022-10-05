@@ -1,12 +1,12 @@
 package ai.lzy.iam.grpc.interceptors;
 
-import ai.lzy.util.auth.credentials.JwtCredentials;
-import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.impl.Root;
 import ai.lzy.iam.resources.subjects.Subject;
+import ai.lzy.util.auth.credentials.JwtCredentials;
+import ai.lzy.util.auth.exceptions.AuthException;
 import io.grpc.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -24,7 +24,12 @@ public class AllowInternalUserOnlyInterceptor implements ServerInterceptor {
 
     @Override
     public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call, Metadata headers,
-                                                                 ServerCallHandler<ReqT, RespT> next) {
+                                                                 ServerCallHandler<ReqT, RespT> next)
+    {
+        if (!AuthenticationContext.isAuthenticated()) {
+            return unauthenticated(call);
+        }
+
         var auth = Objects.requireNonNull(AuthenticationContext.current());
         var subject = auth.getSubject();
         var credentials = auth.getCredentials();
@@ -34,7 +39,7 @@ public class AllowInternalUserOnlyInterceptor implements ServerInterceptor {
         boolean ok;
         try {
             ok = accessServiceClient.withToken(() -> credentials)
-                                    .hasResourcePermission(subject, Root.INSTANCE, AuthPermission.INTERNAL_AUTHORIZE);
+                .hasResourcePermission(subject, Root.INSTANCE, AuthPermission.INTERNAL_AUTHORIZE);
         } catch (AuthException e) {
             return permissionDenied(call, subject);
         }
@@ -50,6 +55,13 @@ public class AllowInternalUserOnlyInterceptor implements ServerInterceptor {
         LOG.warn("Subject '{}' is not the internal user, sorryan.", subject.id());
 
         call.close(Status.PERMISSION_DENIED, new Metadata());
+        return new ServerCall.Listener<>() {};
+    }
+
+    private <ReqT, RespT> ServerCall.Listener<ReqT> unauthenticated(ServerCall<ReqT, RespT> call) {
+        LOG.warn("Missing authentication context!");
+
+        call.close(Status.UNAUTHENTICATED, new Metadata());
         return new ServerCall.Listener<>() {};
     }
 }

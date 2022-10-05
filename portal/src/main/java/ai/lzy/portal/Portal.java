@@ -4,11 +4,18 @@ import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.fs.LzyFsServer;
 import ai.lzy.fs.SlotsManager;
 import ai.lzy.fs.fs.LzyInputSlot;
+import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
+import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
+import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.portal.config.PortalConfig;
 import ai.lzy.portal.slots.SnapshotSlotsProvider;
 import ai.lzy.portal.slots.StdoutSlot;
 import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.v1.AllocatorPrivateGrpc;
+import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
+import io.grpc.ManagedChannel;
 import io.grpc.Server;
+import io.grpc.ServerInterceptors;
 import io.grpc.netty.NettyServerBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -35,6 +42,8 @@ public class Portal {
     private final int port;
     private final String host;
 
+    private final ManagedChannel iamChannel;
+
     // services
     private final Server grpcServer;
     private final LzyFsServer fsServer;
@@ -54,12 +63,19 @@ public class Portal {
         this.port = config.getPortalApiPort();
         this.host = config.getHost();
 
+        this.iamChannel = ChannelBuilder.forAddress(config.getIamAddress()).usePlaintext().enableRetry(
+            LzyAuthenticateServiceGrpc.SERVICE_NAME).build();
+
+        var internalOnly = new AllowInternalUserOnlyInterceptor(iamChannel);
+
         this.grpcServer = NettyServerBuilder
             .forAddress(new InetSocketAddress(config.getHost(), config.getPortalApiPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .addService(new PortalApiImpl(this))
+            .intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(iamChannel)))
+            .addService(ServerInterceptors.intercept(new PortalApiImpl(this), internalOnly))
             .build();
+
         this.allocatorAgent = agent;
         this.fsServer = fs;
 
@@ -101,12 +117,14 @@ public class Portal {
 
     public void shutdown() {
         LOG.info("Stopping portal");
+        iamChannel.shutdown();
         grpcServer.shutdown();
         allocatorAgent.shutdown();
         fsServer.stop();
     }
 
     public void shutdownNow() {
+        iamChannel.shutdownNow();
         grpcServer.shutdownNow();
         allocatorAgent.shutdown();
         fsServer.stop();

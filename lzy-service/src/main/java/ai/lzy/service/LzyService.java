@@ -92,6 +92,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
     private final LzyServiceConfig.StartupPortalConfig startupPortalConfig;
     private final String channelManagerAddress;
+    private final String iamAddress;
     private final JwtCredentials internalUserCredentials;
 
     private final WorkflowDao workflowDao;
@@ -129,6 +130,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         startupPortalConfig = config.getPortal();
         allocationTimeout = config.getWaitAllocationTimeout();
         channelManagerAddress = config.getChannelManagerAddress();
+
+        iamAddress = config.getIam().getAddress();
         internalUserCredentials = config.getIam().createCredentials();
 
         LOG.info("Init Internal User '{}' credentials", config.getIam().getInternalUserName());
@@ -172,7 +175,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                 internalUserCredentials::token));
 
         iamChannel = ChannelBuilder
-            .forAddress(config.getIam().getAddress())
+            .forAddress(iamAddress)
             .usePlaintext()
             .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
             .build();
@@ -1010,7 +1013,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             "-portal.fs-root=" + startupPortalConfig.getFsRoot(),
             "-portal.stdout-channel-id=" + stdoutChannelId,
             "-portal.stderr-channel-id=" + stderrChannelId,
-            "-portal.channel-manager-address=" + channelManagerAddress);
+            "-portal.channel-manager-address=" + channelManagerAddress,
+            "-portal.iam-address=" + iamAddress);
 
         var ports = Map.of(
             startupPortalConfig.getFsApiPort(), startupPortalConfig.getFsApiPort(),

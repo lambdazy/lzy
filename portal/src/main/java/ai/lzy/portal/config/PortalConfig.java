@@ -1,7 +1,8 @@
 package ai.lzy.portal.config;
 
+import ai.lzy.iam.config.IamClientConfiguration;
+import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -22,8 +23,13 @@ public class PortalConfig {
     private String stderrChannelId;
     private String channelManagerAddress;
 
-    private String iamToken;
+    private String iamAddress;
+    private String iamPrivateKey;
     private String allocatorToken;
+
+    // for tests
+    @ConfigurationBuilder("iam")
+    private final IamClientConfiguration iam = new IamClientConfiguration();
 
     private String vmId;
     private String allocatorAddress;
