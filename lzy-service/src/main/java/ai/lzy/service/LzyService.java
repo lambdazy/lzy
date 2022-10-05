@@ -20,25 +20,23 @@ import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.service.graph.DataFlowGraph;
+import ai.lzy.service.config.LzyServiceConfig;
+import ai.lzy.service.data.dao.WorkflowDao;
+import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.v1.*;
+import ai.lzy.v1.AllocatorGrpc;
+import ai.lzy.v1.OperationService;
+import ai.lzy.v1.OperationServiceApiGrpc;
+import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.channel.LCM;
-import ai.lzy.v1.channel.LCMS;
-import ai.lzy.v1.channel.LzyChannelManagerGrpc;
-import ai.lzy.v1.common.*;
-import ai.lzy.v1.common.LME.AuxEnv;
-import ai.lzy.v1.common.LME.BaseEnv;
-import ai.lzy.v1.common.LME.LocalModule;
-import ai.lzy.v1.common.LME.PythonEnv;
-import ai.lzy.v1.graph.GraphExecutor;
-import ai.lzy.v1.graph.GraphExecutor.TaskDesc;
-import ai.lzy.v1.graph.GraphExecutorApi;
-import ai.lzy.v1.graph.GraphExecutorGrpc;
+import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
+import ai.lzy.v1.common.LMD;
+import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.portal.LzyPortal.PortalSlotDesc;
 import ai.lzy.v1.portal.LzyPortalApi;
@@ -46,10 +44,11 @@ import ai.lzy.v1.portal.LzyPortalApi.OpenSlotsRequest;
 import ai.lzy.v1.portal.LzyPortalGrpc;
 import ai.lzy.v1.storage.LSS;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
-import ai.lzy.v1.workflow.LWF;
-import ai.lzy.v1.workflow.LWF.DataDescription;
-import ai.lzy.v1.workflow.LWF.Operation.SlotDescription;
+import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
+import ai.lzy.service.config.LzyServiceConfig;
+import ai.lzy.service.data.dao.WorkflowDao;
+import ai.lzy.service.data.storage.LzyServiceStorage;
 import com.google.common.net.HostAndPort;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.Durations;
@@ -76,6 +75,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static ai.lzy.channelmanager.grpc.ProtoConverter.createChannelRequest;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.v1.VmPoolServiceApi.GetVmPoolsRequest;
@@ -110,7 +110,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     private final LzyStorageServiceGrpc.LzyStorageServiceBlockingStub storageServiceClient;
 
     private final ManagedChannel channelManagerChannel;
-    private final LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManagerClient;
+    private final LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerClient;
 
     private final ManagedChannel iamChannel;
     private final SubjectServiceGrpcClient subjectClient;
@@ -168,9 +168,9 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
         channelManagerChannel = ChannelBuilder.forAddress(HostAndPort.fromString(config.getChannelManagerAddress()))
             .usePlaintext()
-            .enableRetry(LzyChannelManagerGrpc.SERVICE_NAME)
+            .enableRetry(LzyChannelManagerPrivateGrpc.SERVICE_NAME)
             .build();
-        channelManagerClient = LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel)
+        channelManagerClient = LzyChannelManagerPrivateGrpc.newBlockingStub(channelManagerChannel)
             .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION,
                 internalUserCredentials::token));
 
@@ -201,7 +201,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     }
 
     @Override
-    public void createWorkflow(CreateWorkflowRequest request, StreamObserver<CreateWorkflowResponse> response) {
+    public void createWorkflow(LWFS.CreateWorkflowRequest request, StreamObserver<LWFS.CreateWorkflowResponse> response) {
         var userId = AuthenticationContext.currentSubject().id();
         var workflowName = request.getWorkflowName();
         var executionId = workflowName + "_" + UUID.randomUUID();
@@ -259,7 +259,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         if (startPortal(workflowName, executionId, userId, response)) {
             LOG.info("Workflow successfully started...");
 
-            var result = CreateWorkflowResponse.newBuilder().setExecutionId(executionId);
+            var result = LWFS.CreateWorkflowResponse.newBuilder().setExecutionId(executionId);
             if (internalSnapshotStorage) {
                 result.setInternalSnapshotStorage(storageData);
             }
@@ -269,7 +269,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     }
 
     @Override
-    public void attachWorkflow(AttachWorkflowRequest request, StreamObserver<AttachWorkflowResponse> response) {
+    public void attachWorkflow(LWFS.AttachWorkflowRequest request, StreamObserver<LWFS.AttachWorkflowResponse> response) {
         var userId = AuthenticationContext.currentSubject().id();
 
         LOG.info("[attachWorkflow], userId={}, request={}.", userId, JsonUtils.printSingleLine(request));
@@ -292,7 +292,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                 LOG.info("[attachWorkflow] workflow '{}/{}' successfully attached.",
                     request.getWorkflowName(), request.getExecutionId());
 
-                response.onNext(AttachWorkflowResponse.getDefaultInstance());
+                response.onNext(LWFS.AttachWorkflowResponse.getDefaultInstance());
                 response.onCompleted();
             } else {
                 replyError.accept(Status.NOT_FOUND, "");
@@ -304,7 +304,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     }
 
     @Override
-    public void finishWorkflow(FinishWorkflowRequest request, StreamObserver<FinishWorkflowResponse> response) {
+    public void finishWorkflow(LWFS.FinishWorkflowRequest request, StreamObserver<LWFS.FinishWorkflowResponse> response) {
         var userId = AuthenticationContext.currentSubject().id();
 
         LOG.info("[finishWorkflow], uid={}, request={}.", userId, JsonUtils.printSingleLine(request));
@@ -339,7 +339,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
 
-        response.onNext(FinishWorkflowResponse.getDefaultInstance());
+        response.onNext(LWFS.FinishWorkflowResponse.getDefaultInstance());
         response.onCompleted();
 
         // TODO: add TTL instead of implicit delete
@@ -347,7 +347,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     }
 
     private boolean startPortal(String workflowName, String executionId, String userId,
-                                StreamObserver<CreateWorkflowResponse> response)
+                                StreamObserver<LWFS.CreateWorkflowResponse> response)
     {
         try {
             withRetries(defaultRetryPolicy(), LOG, () ->
@@ -952,12 +952,12 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     private String[] createPortalStdChannels(String executionId) {
         LOG.info("Creating portal stdout channel with name '{}'", startupPortalConfig.getStdoutChannelName());
         // create portal stdout channel that receives portal output
-        var stdoutChannelId = channelManagerClient.create(GrpcConverter.createChannelRequest(executionId,
+        var stdoutChannelId = channelManagerClient.create(createChannelRequest(executionId,
             createChannelSpec(startupPortalConfig.getStdoutChannelName()))).getChannelId();
 
         LOG.info("Creating portal stderr channel with name '{}'", startupPortalConfig.getStderrChannelName());
         // create portal stderr channel that receives portal error output
-        var stderrChannelId = channelManagerClient.create(GrpcConverter.createChannelRequest(executionId,
+        var stderrChannelId = channelManagerClient.create(createChannelRequest(executionId,
             createChannelSpec(startupPortalConfig.getStderrChannelName()))).getChannelId();
 
         return new String[] {stdoutChannelId, stderrChannelId};
