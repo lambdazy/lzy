@@ -98,7 +98,7 @@ public class TunnelAllocator {
     }
 
     /**
-     * Constructs the {@link Workload} with the init container, which will reqeust tunnel creation to the tunnel pod,
+     * Constructs the {@link Workload} with the init container, which will request tunnel creation to the tunnel pod,
      * who must be created by the {@link TunnelAllocator#allocateTunnel(Vm.Spec)} method.
      *
      * @param remoteV6  - v6 address of the another end of the tunnel.
