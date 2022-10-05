@@ -32,7 +32,7 @@ public class ServantDaoImpl implements ServantDao, ServantMetaStorage {
     private final SchedulerDataSource storage;
     private final EventQueueManager queue;
 
-    private static final String FIELDS = "id, workflow_name, status, requirements_json,"
+    private static final String FIELDS = "id, userId, workflow_name, status, requirements_json,"
             + " error_description, task_id, servant_url";
 
     @Inject
@@ -67,7 +67,7 @@ public class ServantDaoImpl implements ServantDao, ServantMetaStorage {
     @Override
     public void updateAndFree(ServantState resource) throws DaoException {
         try (var con = storage.connect(); var ps = con.prepareStatement(
-            " UPDATE servant SET (" + FIELDS + ", acquired) = (?, ?, CAST(? AS servant_status), ?, ?, ?, ?, false) "
+            " UPDATE servant SET (" + FIELDS + ", acquired) = (?, ?, ?, CAST(? AS servant_status), ?, ?, ?, ?, false) "
                 + " WHERE workflow_name = ? AND  id = ?")) {
             writeState(resource, con, ps);
             ps.setString(8, resource.workflowName());
@@ -105,13 +105,13 @@ public class ServantDaoImpl implements ServantDao, ServantMetaStorage {
     }
 
     @Override
-    public Servant create(String workflowName, Operation.Requirements requirements) throws DaoException {
+    public Servant create(String userId, String workflowName, Operation.Requirements requirements) throws DaoException {
         final var id = UUID.randomUUID().toString();
         final var status = ServantState.Status.CREATED;
-        final var state = new ServantStateBuilder(id, workflowName, requirements, status).build();
+        final var state = new ServantStateBuilder(id, userId, workflowName, requirements, status).build();
         try (var con = storage.connect(); var ps = con.prepareStatement(
             " INSERT INTO servant(" + FIELDS + ")"
-                + " VALUES (?, ?, CAST(? AS servant_status), ?, ?, ?, ?)")) {
+                + " VALUES (?, ?, ?, CAST(? AS servant_status), ?, ?, ?, ?)")) {
             writeState(state, con, ps);
             ps.execute();
         } catch (SQLException | JsonProcessingException e) {
@@ -221,6 +221,7 @@ public class ServantDaoImpl implements ServantDao, ServantMetaStorage {
         int paramCount = 0;
         var url = state.servantUrl();
         ps.setString(++paramCount, state.id());
+        ps.setString(++paramCount, state.userId());
         ps.setString(++paramCount, state.workflowName());
         ps.setString(++paramCount, state.status().name());
         ps.setString(++paramCount, mapper.writeValueAsString(state.requirements()));
@@ -234,13 +235,14 @@ public class ServantDaoImpl implements ServantDao, ServantMetaStorage {
 
         int resCount = 0;
         final var id = rs.getString(++resCount);
-        final var workflow = rs.getString(++resCount);
+        final var userId = rs.getString(++resCount);
+        final var workflowName = rs.getString(++resCount);
         final var status = ServantState.Status.valueOf(rs.getString(++resCount));
         final var requirements = mapper.readValue(rs.getString(++resCount), Operation.Requirements.class);
         final var errorDescription = rs.getString(++resCount);
         final var taskId = rs.getString(++resCount);
         final var servantUrl = rs.getString(++resCount);
-        return new ServantState(id, workflow, requirements,
+        return new ServantState(id, userId, workflowName, requirements,
             status, errorDescription, taskId, servantUrl == null ? null : HostAndPort.fromString(servantUrl));
     }
 

@@ -21,7 +21,8 @@ service Scheduler {
 message TaskScheduleRequest {
   string workflowId = 1;
   string workflowName = 2;
-  TaskDesc task = 3;
+  string userId = 3;
+  TaskDesc task = 4;
 }
 message TaskScheduleResponse {
   TaskStatus status = 1;

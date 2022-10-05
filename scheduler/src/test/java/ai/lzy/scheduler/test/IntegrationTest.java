@@ -111,6 +111,7 @@ public class IntegrationTest extends BaseTestWithIam {
         stub.schedule(TaskScheduleRequest.newBuilder()
             .setWorkflowId("wfid")
             .setWorkflowName("wf")
+            .setUserId("uid")
             .setTask(LMO.TaskDesc.newBuilder()
                 .setOperation(LMO.Operation.newBuilder()
                     .setName("name")

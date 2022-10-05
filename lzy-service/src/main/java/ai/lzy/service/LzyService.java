@@ -323,7 +323,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             withRetries(defaultRetryPolicy(), LOG, () -> dao.updateAllocatorSession(executionId, sessionId));
 
             var startAllocationTime = Instant.now();
-            var operation = startAllocation(workflowName, sessionId, executionId, stdoutChannelId, stderrChannelId);
+            var operation = startAllocation(userId, workflowName,
+                sessionId, executionId, stdoutChannelId, stderrChannelId);
             var opId = operation.getId();
 
             VmAllocatorApi.AllocateMetadata allocateMetadata;
@@ -394,8 +395,9 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         return session.getSessionId();
     }
 
-    public OperationService.Operation startAllocation(String workflowName, String sessionId, String executionId,
-                                                      String stdoutChannelId, String stderrChannelId)
+    public OperationService.Operation startAllocation(
+        String userId, String workflowName, String sessionId,
+        String executionId, String stdoutChannelId, String stderrChannelId)
     {
         var portalId = "portal_" + executionId + UUID.randomUUID();
 
@@ -408,7 +410,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             final var subj = subjectClient.createSubject(AuthProvider.INTERNAL, portalId, SubjectType.SERVANT,
                 new SubjectCredentials("main", publicKey, CredentialsType.PUBLIC_KEY));
 
-            abClient.setAccessBindings(new Workflow(workflowName),
+            abClient.setAccessBindings(new Workflow(userId + "/" + workflowName),
                 List.of(new AccessBinding(Role.LZY_WORKFLOW_OWNER, subj)));
         } catch (Exception e) {
             LOG.error("Cannot build credentials for portal", e);

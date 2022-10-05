@@ -39,6 +39,7 @@ public class SchedulerApiImpl implements SchedulerApi {
     @Override
     public TaskStatus execute(String workflowName, String workflowId, TaskDescription task) {
         var res = stub.schedule(TaskScheduleRequest.newBuilder()
+            .setUserId("kek"/*TODO*/)
             .setWorkflowName(workflowName)
             .setWorkflowId(workflowId)
             .setTask(new TaskDesc(task.operation(), task.slotsToChannelsAssignments()).toProto())

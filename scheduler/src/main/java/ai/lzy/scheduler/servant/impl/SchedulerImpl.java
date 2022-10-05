@@ -48,13 +48,15 @@ public class SchedulerImpl extends Thread implements Scheduler {
     }
 
     @Override
-    public Task execute(String workflowId, String workflowName, TaskDesc taskDesc) throws StatusException {
+    public Task execute(String workflowId, String workflowName, String userId, TaskDesc taskDesc)
+        throws StatusException
+    {
         validateTask(taskDesc);
         if (stopping.get()) {
             throw io.grpc.Status.UNAVAILABLE.withDescription("Service is stopping. Please try again").asException();
         }
         try {
-            final Task task = taskDao.create(workflowId, workflowName, taskDesc);
+            final Task task = taskDao.create(workflowId, workflowName, userId, taskDesc);
             tasks.add(task);
             return task;
         } catch (DaoException e) {
@@ -147,7 +149,7 @@ public class SchedulerImpl extends Thread implements Scheduler {
                 continue;
             }
 
-            var future = pool.waitForFree(task.workflowName(),
+            var future = pool.waitForFree(task.userId(), task.workflowName(),
                 task.description().operation().requirements());
             if (future == null) {
                 LOG.info("Pool is stopping.");

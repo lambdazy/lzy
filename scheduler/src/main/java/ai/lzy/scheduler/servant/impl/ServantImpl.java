@@ -91,6 +91,11 @@ public class ServantImpl implements Servant {
     }
 
     @Override
+    public String userId() {
+        return state.userId();
+    }
+
+    @Override
     public String workflowName() {
         return state.workflowName();
     }

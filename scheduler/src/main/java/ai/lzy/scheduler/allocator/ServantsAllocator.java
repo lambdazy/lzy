@@ -4,7 +4,7 @@ import ai.lzy.model.operation.Operation;
 
 public interface ServantsAllocator {
 
-    void allocate(String workflowName, String servantId, Operation.Requirements requirements);
+    void allocate(String userId, String workflowName, String servantId, Operation.Requirements requirements);
 
     void free(String workflowId, String servantId) throws Exception;
 }
