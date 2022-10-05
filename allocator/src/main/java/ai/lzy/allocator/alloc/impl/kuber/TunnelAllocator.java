@@ -32,6 +32,13 @@ public class TunnelAllocator {
         this.config = config;
     }
 
+    /**
+     * Creates tunnel k8s pod with host network, which must be on the same node with corresponding vm k8s pod.
+     * The tunnel pod must contain {@link ai.lzy.tunnel.TunnelAgentMain}.
+     *
+     * @param vmSpec - Spec of the VM to create tunnel from.
+     * @throws InvalidConfigurationException - if allocator cannot find suit cluster for the vm spec.
+     */
     public void allocateTunnel(Vm.Spec vmSpec) throws InvalidConfigurationException {
         final var cluster = clusterRegistry.findCluster(
             vmSpec.poolLabel(), vmSpec.zone(), ClusterRegistry.ClusterType.User);
@@ -90,15 +97,25 @@ public class TunnelAllocator {
         }
     }
 
+    /**
+     * Constructs the {@link Workload} with the init container, which will reqeust tunnel creation to the tunnel pod,
+     * who must be created by the {@link TunnelAllocator#allocateTunnel(Vm.Spec)} method.
+     *
+     * @param remoteV6  - v6 address of the another end of the tunnel.
+     * @param poolLabel - lzy vm pool label for the pod.
+     * @param zone      - zone label for the pod.
+     * @return {@link Workload} with the init container.
+     * @throws InvalidConfigurationException if allocator cannot find suit cluster for the vm spec.
+     */
     public Workload createRequestTunnelInitContainer(String remoteV6, String poolLabel, String zone)
-        throws InvalidConfigurationException
-    {
+        throws InvalidConfigurationException {
         final var cluster = clusterRegistry.findCluster(
             poolLabel, zone, ClusterRegistry.ClusterType.User);
         if (cluster == null) {
             throw new InvalidConfigurationException(
                 "Cannot find pool for label " + poolLabel + " and zone " + zone);
         }
+        // TODO: extract magic words and parameters to config or static fields.
         return new Workload(
             "init-request-tunnel",
             "networld/grpcurl:latest",
