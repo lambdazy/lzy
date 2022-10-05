@@ -67,6 +67,7 @@ public class KuberVmAllocator implements VmAllocator {
             var podSpecBuilder = new PodSpecBuilder(
                 vmSpec, client, config, PodSpecBuilder.VM_POD_TEMPLATE_PATH, VM_POD_NAME_PREFIX
             );
+
             final String podName = podSpecBuilder.getPodName();
             withRetries(
                 defaultRetryPolicy(),
@@ -102,7 +103,9 @@ public class KuberVmAllocator implements VmAllocator {
                     .filter(v -> v.volumeDescription() instanceof HostPathVolumeDescription)
                     .map(v -> (HostPathVolumeDescription) v.volumeDescription())
                     .toList())
+                // not to be allocated with another vm
                 .withPodAntiAffinity(KuberLabels.LZY_APP_LABEL, "In", VM_POD_APP_LABEL_VALUE)
+                // not to be allocated with pods from other session
                 .withPodAntiAffinity(KuberLabels.LZY_POD_SESSION_ID_LABEL, "NotIn", vmSpec.sessionId())
                 .build();
 

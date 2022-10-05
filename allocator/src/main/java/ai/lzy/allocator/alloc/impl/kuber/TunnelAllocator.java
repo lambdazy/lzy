@@ -47,21 +47,21 @@ public class TunnelAllocator {
         }
 
         try (final var client = factory.build(cluster)) {
-            Pod tunnelPod = new PodSpecBuilder(
-                vmSpec, client, config, PodSpecBuilder.TUNNEL_POD_TEMPLATE_PATH, TUNNEL_POD_NAME_PREFIX
-            ).withWorkloads(
-                Collections.singletonList(
-                    new Workload(
-                        "tunnel", config.getTunnelPodImage(), Collections.emptyMap(),
-                        Collections.emptyList(), Collections.emptyMap(), Collections.emptyList(),
-                        false
-                    )
-                )
-            ).withPodAntiAffinity(
-                KuberLabels.LZY_POD_SESSION_ID_LABEL, "NotIn", vmSpec.sessionId()
-            ).withPodAntiAffinity(
-                KuberLabels.LZY_APP_LABEL, "In", vmSpec.sessionId(), TUNNEL_POD_APP_LABEL_VALUE
-            ).build();
+            Pod tunnelPod = new PodSpecBuilder(vmSpec, client, config, PodSpecBuilder.TUNNEL_POD_TEMPLATE_PATH,
+                TUNNEL_POD_NAME_PREFIX)
+                .withWorkloads(
+                    Collections.singletonList(new Workload(
+                            "tunnel", config.getTunnelPodImage(), Collections.emptyMap(),
+                            Collections.emptyList(), Collections.emptyMap(), Collections.emptyList(),
+                            false
+                        )
+                    ))
+                // not to be allocated with another tunnel
+                .withPodAntiAffinity(KuberLabels.LZY_APP_LABEL, "In", vmSpec.sessionId(),
+                    TUNNEL_POD_APP_LABEL_VALUE)
+                // not to be allocated with pod form another session
+                .withPodAntiAffinity(KuberLabels.LZY_POD_SESSION_ID_LABEL, "NotIn", vmSpec.sessionId())
+                .build();
 
             try {
                 tunnelPod = client.pods()
