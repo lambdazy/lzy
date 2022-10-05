@@ -117,7 +117,7 @@ public class PodSpecBuilder {
                     )
                     .build(),
                 new EnvVarBuilder()
-                    .withName("NODE_IP")
+                    .withName(AllocatorAgent.VM_NODE_IP_ADDRESS)
                     .withValueFrom(
                         new EnvVarSourceBuilder()
                             .withNewFieldRef("v1", "status.hostIP")
