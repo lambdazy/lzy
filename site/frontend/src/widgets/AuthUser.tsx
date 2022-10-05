@@ -8,7 +8,6 @@ export function AuthUser() {
     let history = useHistory()
     let params = qs.parse(window.location.search, {ignoreQueryPrefix: true})
     if (params.userId != null && params.sessionId != null) {
-        console.log(params)
         auth.signIn(
         {userId: params.userId.toString(), sessionId: params.sessionId?.toString()},
         () => {history.push("/")}

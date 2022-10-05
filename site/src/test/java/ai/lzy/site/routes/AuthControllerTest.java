@@ -1,6 +1,5 @@
 package ai.lzy.site.routes;
 
-import ai.lzy.site.routes.Auth;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
@@ -8,13 +7,13 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
-import java.io.FileInputStream;
-import java.io.IOException;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.io.FileInputStream;
+import java.io.IOException;
 
 public class AuthControllerTest {
     Auth auth;

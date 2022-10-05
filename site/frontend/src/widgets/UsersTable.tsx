@@ -1,4 +1,4 @@
-import React, {useContext} from "react";
+import {FC, useContext} from "react";
 import {Container} from "react-bootstrap";
 import axios from "axios";
 import {AuthContext} from "../logic/Auth";
@@ -8,7 +8,7 @@ import CRUDTable, {CreateForm, DeleteForm, Field, Fields,} from "react-crud-tabl
 import {useAlert} from "./ErrorAlert";
 import {Permissions, PermittedComponent} from "../logic/Permissions";
 
-export const UserTableFC: React.FC<{ host: string }> = ({host}) => {
+export const UserTableFC: FC<{ host: string }> = ({host}) => {
     let {userCreds} = useContext(AuthContext);
     if (userCreds != null) {
         return <UsersTable host={host} userCredentials={userCreds}/>;
@@ -45,7 +45,6 @@ export function UsersTable(props: UsersTablePropsInterface) {
                 user: {userId},
             })
             .catch((res) => {
-                console.log(res);
                 alert.showDanger("An error occurred while creating user", res.message);
             });
     };
@@ -57,7 +56,6 @@ export function UsersTable(props: UsersTablePropsInterface) {
                 userId,
             })
             .catch((res) => {
-                console.log(res);
                 alert.showDanger("An error occurred while deleting user", res.message);
             });
     };

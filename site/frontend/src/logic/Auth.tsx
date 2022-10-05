@@ -19,7 +19,7 @@ export async function getProviderLoginUrl(authType: AuthType): Promise<string> {
         "siteSignInUrl=" + window.location.protocol + "//" + window.location.host + "/login_user",
         {headers: {"Access-Control-Allow-Origin": "*"}}
     );
-    return res.data.redirectUrl;
+    return res.data.url;
 }
 
 export interface AuthContextInterface {
@@ -46,7 +46,6 @@ export function AuthProvider(props: { children: any }) {
         userId === undefined ? null : {userId, sessionId});
 
     const signIn = (userCreds: UserCredentials, cb: () => void) => {
-        console.log("signIn");
         cookies.set("userId", userCreds.userId);
         cookies.set("sessionId", userCreds.sessionId);
         setUserCreds(userCreds);
@@ -54,7 +53,6 @@ export function AuthProvider(props: { children: any }) {
     };
 
     const signOut = (cb: () => void) => {
-        console.log("signOut");
         cookies.remove("userId");
         cookies.remove("sessionId");
         setUserCreds(null);
@@ -72,14 +70,6 @@ type PrivateRouteProps = RouteProps;
 
 export function PrivateRoute(props: PrivateRouteProps) {
     let {userCreds} = useContext(AuthContext);
-    // let alert = useAlert();
-
-    // useEffect(() => {
-    //     let {error} = useAsync({promiseFn: getCredentials})
-    //     if (error) {
-    //         alert.showDanger(error.name, error.message);
-    //     }
-    // });
 
     return (
         <Route

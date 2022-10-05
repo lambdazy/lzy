@@ -1,74 +1,94 @@
 import axios from "axios";
-import {useContext, useState} from "react";
+import {useContext, useEffect, useState} from "react";
 import {BACKEND_HOST} from "../config";
 import {AuthContext, UserCredentials} from "../logic/Auth";
 import {useAlert} from "./ErrorAlert";
 import {DataGrid, GridColDef, GridRowsProp} from '@mui/x-data-grid';
+import {Redirect} from "react-router-dom";
+import {TextField} from "@mui/material";
 
 export interface Task {
     taskId: string;
-    owner: string;
-    servant: string;
-    explanation: string;
+    operationName: string;
     status: string;
-    fuse: string;
-    tags: string[];
+    description: string;
 }
 
-async function fetchTasks(credentials: UserCredentials): Promise<Task[]> {
+async function fetchTasks(credentials: UserCredentials, workflowId: string): Promise<Task[]> {
     const res = await axios.post(BACKEND_HOST() + "/tasks/get", {
-        credentials
+        credentials, workflowId
     })
-    return res.data.tasks;
+    return res.data.taskStatusList;
 }
 
-export function TasksInternal() {
+interface ToolbarProps {
+    taskUpdater: (tasks: Task[]) => void;
+}
+
+function Toolbar(props: ToolbarProps) {
     let {userCreds} = useContext(AuthContext);
     let alert = useAlert();
+    let [workflowId, setWorkflowId] = useState<string>();
 
-    let [tasks, setTasks] = useState<Task[]>();
+    useEffect(() => {
+        if (userCreds && workflowId) {
+            fetchTasks(userCreds, workflowId)
+                .then((tasks) => {
+                    if (tasks === undefined) {
+                        tasks = [];
+                    }
+                    props.taskUpdater(tasks);
+                })
+                .catch((error) => {
+                    alert.showDanger("Error while fetching tasks", error.message);
+                })
+        }
+    }, [workflowId])
 
     if (userCreds == null) {
         alert.showDanger("Error", "You are not logged in");
-    } else if (tasks === undefined) {
-        fetchTasks(userCreds)
-            .then((tasks) => {
-                if (tasks === undefined) {
-                    tasks = [];
-                }
-                setTasks(tasks);
-            })
-            .catch((error) => {
-                alert.showDanger("Error while fetching tasks", error.message);
-            })
+        return <Redirect to="/login" />;
     }
+
+    return <div>
+        <TextField
+            autoFocus
+            margin="dense"
+            id="name"
+            label="WorkflowId"
+            fullWidth
+            variant="standard"
+            onChange={e => setWorkflowId(e.target.value)}
+        />
+    </div>
+}
+
+export function Tasks() {
+    let [tasks, setTasks] = useState<Task[]>();
 
     const columns: GridColDef[] = [
         {field: 'id', headerName: 'Task id', width: 250},
-        {field: 'description', headerName: 'Task description', width: 350},
+        {field: 'operationName', headerName: 'Operation name', width: 250},
         {field: 'status', headerName: 'Status', width: 150},
-        {field: 'tags', headerName: 'Servant tags', width: 150},
+        {field: 'description', headerName: 'Task description', width: 350}
     ];
 
     let rows: GridRowsProp = tasks ? tasks.map((task) => {
         return {
             id: task.taskId,
+            operationName: task.operationName,
             status: task.status,
-            fuse: task.fuse,
-            tags: task.tags === undefined ? "No tags" : task.tags.join("\n")
+            description: task.description
         }
     }) : [];
-    console.log(rows);
 
-    return (
-        <>
-            <DataGrid autoHeight columns={columns} rows={rows}/>
-        </>
-    )
-}
-
-export function Tasks() {
-    return (<>
-        <TasksInternal/>
-    </>)
+    return <DataGrid
+        autoHeight
+        columns={columns}
+        rows={rows}
+        components={{Toolbar}}
+        componentsProps={{
+            toolbar: {taskUpdater: (tasks: Task[]) => setTasks(tasks)}
+        }}
+    />
 }

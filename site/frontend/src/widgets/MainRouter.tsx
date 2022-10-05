@@ -1,21 +1,16 @@
 import {Redirect, Route, Switch} from "react-router-dom";
 import {LoginFormFC} from "./LoginForm";
-import {UserTableFC} from "./UsersTable";
-import {BACKEND_HOST} from "../config";
 import {PrivateRoute} from "../logic/Auth";
 import {AuthUser} from "./AuthUser";
 import {Basics, Environment, Setup, Data, Whiteboards, Views, Integrations, Overview} from "./Docs";
 import {Tasks} from "./Tasks";
-import {Keys} from "./Tokens";
+import {PublicKeys} from "./PublicKeys";
 import {Header} from "./Header";
 
 export const MainRouter = () => (
     <main>
         <Header/>
         <Switch>
-            <PrivateRoute path="/users" exact>
-                <UserTableFC host={BACKEND_HOST()}/>
-            </PrivateRoute>
             <PrivateRoute path="/tasks" exact>
                 <Tasks/>
             </PrivateRoute>
@@ -30,7 +25,7 @@ export const MainRouter = () => (
             <Route exact path="/login" component={LoginFormFC}/>
             <Route exact path="/login_user" component={AuthUser}/>
             <PrivateRoute path="/keys" exact>
-                <Keys/>
+                <PublicKeys/>
             </PrivateRoute>
             <Redirect to="/docs/0-overview.md"/>
         </Switch>

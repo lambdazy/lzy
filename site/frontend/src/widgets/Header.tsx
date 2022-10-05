@@ -15,11 +15,10 @@ export const Header = () => {
                         <LzyLogo width="100" height="50"/>
                     </Navbar.Brand>
                     <Nav className="me-auto">
-                        <Nav.Link href="/users">Users</Nav.Link>
                         <Nav.Link href="/keys">My keys</Nav.Link>
                         <Nav.Link href="/tasks">Tasks</Nav.Link>
                     </Nav>
-                    <Navbar.Collapse className="justify-content-end">
+                    <Navbar.Collapse role={"row"} className="justify-content-end">
                         <Navbar.Text>
                             Signed in as:{" "}
                             <Button
