@@ -3,6 +3,8 @@ package ai.lzy.service;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.ClientHeaderInterceptor;
+import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.portal.LzyPortalGrpc;
 import ai.lzy.v1.workflow.LWFS;
@@ -111,9 +113,11 @@ public class WorkflowTest extends BaseTest {
             LWFS.CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build());
 
         var config = context.getBean(LzyServiceConfig.class);
+        var internalUserCredentials = config.getIam().createCredentials();
         var portalAddress = HostAndPort.fromParts("localhost", config.getPortal().getPortalApiPort());
         var portalChannel = ChannelBuilder.forAddress(portalAddress).usePlaintext().build();
-        var portalClient = LzyPortalGrpc.newBlockingStub(portalChannel);
+        var portalClient = LzyPortalGrpc.newBlockingStub(portalChannel).withInterceptors(
+            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, internalUserCredentials::token));
 
         portalClient.status(Empty.getDefaultInstance());
     }
