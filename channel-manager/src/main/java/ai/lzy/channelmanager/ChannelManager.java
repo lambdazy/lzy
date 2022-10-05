@@ -1,5 +1,6 @@
 package ai.lzy.channelmanager;
 
+import ai.lzy.channelmanager.grpc.ChannelManagerPrivateService;
 import ai.lzy.channelmanager.grpc.ChannelManagerService;
 import ai.lzy.iam.clients.stub.AuthenticateServiceStub;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
@@ -96,6 +97,7 @@ public class ChannelManager {
                 config.isStubIam() ? new AuthenticateServiceStub() : new AuthenticateServiceGrpcClient(iamChannel)))
             .intercept(new GrpcLogsInterceptor())
             .addService(ctx.getBean(ChannelManagerService.class))
+            .addService(ctx.getBean(ChannelManagerPrivateService.class))
             .build();
     }
 

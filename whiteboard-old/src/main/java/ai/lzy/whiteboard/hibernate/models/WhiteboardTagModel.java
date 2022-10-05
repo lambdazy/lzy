@@ -1,8 +1,8 @@
 package ai.lzy.whiteboard.hibernate.models;
 
-import javax.persistence.*;
 import java.io.Serializable;
 import java.util.Objects;
+import javax.persistence.*;
 
 @Entity
 @Table(name = "whiteboard_tag")

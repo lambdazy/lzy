@@ -1,7 +1,10 @@
 package ai.lzy.test.impl;
 
 import ai.lzy.servant.env.EnvironmentFactory;
+import ai.lzy.server.LzyServer;
 import ai.lzy.test.LzyServerTestContext;
+import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.v1.deprecated.LzyServerGrpc;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
@@ -9,15 +12,13 @@ import io.grpc.ServerBuilder;
 import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
+import org.apache.logging.log4j.LogManager;
+
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
-import org.apache.logging.log4j.LogManager;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.server.LzyServer;
-import ai.lzy.v1.deprecated.LzyServerGrpc;
 
 public class ServerThreadContext implements LzyServerTestContext {
 

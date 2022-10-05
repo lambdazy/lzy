@@ -1,23 +1,15 @@
 package ai.lzy.channelmanager.db;
 
-import ai.lzy.channelmanager.channel.Channel;
-import ai.lzy.channelmanager.channel.ChannelImpl;
-import ai.lzy.channelmanager.channel.Endpoint;
-import ai.lzy.channelmanager.channel.SlotEndpoint;
+import ai.lzy.channelmanager.channel.*;
 import ai.lzy.channelmanager.control.DirectChannelController;
 import ai.lzy.channelmanager.control.SnapshotChannelController;
-import ai.lzy.model.deprecated.GrpcConverter;
-import ai.lzy.model.slot.SlotInstance;
-import ai.lzy.channelmanager.channel.ChannelSpec;
-import ai.lzy.channelmanager.channel.DirectChannelSpec;
-import ai.lzy.channelmanager.channel.SnapshotChannelSpec;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.ProtoObjectMapper;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.grpc.ProtoConverter;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.v1.channel.LCM;
 import ai.lzy.v1.common.LMS;
-import ai.lzy.v1.deprecated.LzyZygote;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
@@ -25,16 +17,20 @@ import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.annotation.Nullable;
 import java.net.URI;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
+import javax.annotation.Nullable;
 
 public class ChannelStorageImpl implements ChannelStorage {
 
@@ -50,23 +46,22 @@ public class ChannelStorageImpl implements ChannelStorage {
     }
 
     @Override
-    public void insertChannel(String channelId, String userId, String workflowId, String channelName,
+    public void insertChannel(String channelId, String executionId, String channelName,
                               LCM.ChannelSpec.TypeCase channelType, ChannelSpec channelSpec,
                               @Nullable TransactionHandle transaction) throws SQLException
     {
         DbOperation.execute(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 INSERT INTO channels(
-                    channel_id, user_id, workflow_id, channel_name,
+                    channel_id, execution_id, channel_name,
                     channel_type, channel_spec, created_at, channel_life_status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """)
             ) {
                 String channelSpecJson = objectMapper.writeValueAsString(channelSpec);
                 int index = 0;
                 st.setString(++index, channelId);
-                st.setString(++index, userId);
-                st.setString(++index, workflowId);
+                st.setString(++index, executionId);
                 st.setString(++index, channelName);
                 st.setString(++index, channelType.name());
                 st.setString(++index, channelSpecJson);
@@ -174,17 +169,16 @@ public class ChannelStorageImpl implements ChannelStorage {
     }
 
     @Override
-    public void setChannelLifeStatus(String userId, String workflowId, ChannelLifeStatus lifeStatus,
-                                     @Nullable TransactionHandle transaction) throws SQLException
+    public void setChannelLifeStatusByExecution(String executionId, ChannelLifeStatus lifeStatus,
+                                                @Nullable TransactionHandle transaction) throws SQLException
     {
         DbOperation.execute(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement(
-                "UPDATE channels SET channel_life_status = ? WHERE user_id = ? AND workflow_id = ?"
+                "UPDATE channels SET channel_life_status = ? WHERE execution_id = ?"
             )) {
                 int index = 0;
                 st.setString(++index, lifeStatus.name());
-                st.setString(++index, userId);
-                st.setString(++index, workflowId);
+                st.setString(++index, executionId);
                 st.executeUpdate();
             }
         });
@@ -200,8 +194,7 @@ public class ChannelStorageImpl implements ChannelStorage {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 SELECT
                     ch.channel_id as channel_id,
-                    ch.user_id as user_id,
-                    ch.workflow_id as workflow_id,
+                    ch.execution_id as execution_id,
                     ch.channel_name as channel_name,
                     ch.channel_type as channel_type,
                     ch.channel_spec as channel_spec,
@@ -231,7 +224,7 @@ public class ChannelStorageImpl implements ChannelStorage {
     }
 
     @Override
-    public List<Channel> listChannels(String userId, String workflowId, ChannelLifeStatus lifeStatus,
+    public List<Channel> listChannels(String executionId, ChannelLifeStatus lifeStatus,
                                       @Nullable TransactionHandle transaction) throws SQLException
     {
         final List<Channel> channels = new ArrayList<>();
@@ -239,8 +232,7 @@ public class ChannelStorageImpl implements ChannelStorage {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 SELECT
                     ch.channel_id as channel_id,
-                    ch.user_id as user_id,
-                    ch.workflow_id as workflow_id,
+                    ch.execution_id as execution_id,
                     ch.channel_name as channel_name,
                     ch.channel_type as channel_type,
                     ch.channel_spec as channel_spec,
@@ -254,12 +246,11 @@ public class ChannelStorageImpl implements ChannelStorage {
                 FROM channels ch
                 LEFT JOIN channel_endpoints e ON ch.channel_id = e.channel_id
                 LEFT JOIN endpoint_connections c ON e.channel_id = c.channel_id AND e.slot_uri = c.sender_uri
-                WHERE ch.user_id = ? AND ch.workflow_id = ? AND ch.channel_life_status = ?
+                WHERE ch.execution_id = ? AND ch.channel_life_status = ?
                 """)
             ) {
                 int index = 0;
-                st.setString(++index, userId);
-                st.setString(++index, workflowId);
+                st.setString(++index, executionId);
                 st.setString(++index, lifeStatus.name());
                 channels.addAll(parseChannels(st.executeQuery()).toList());
             } catch (JsonProcessingException e) {
@@ -277,7 +268,7 @@ public class ChannelStorageImpl implements ChannelStorage {
             if (!chanelBuildersById.containsKey(channelId)) {
                 chanelBuildersById.put(channelId, ChannelImpl.newBuilder()
                     .setId(channelId)
-                    .setWorkflowId(rs.getString("workflow_id")));
+                    .setExecutionId(rs.getString("execution_id")));
                 slotsUriByChannelId.put(channelId, new HashSet<>());
                 var channelType = LCM.ChannelSpec.TypeCase.valueOf(rs.getString("channel_type"));
                 switch (channelType) {
@@ -293,7 +284,7 @@ public class ChannelStorageImpl implements ChannelStorage {
                         );
                         chanelBuildersById.get(channelId).setSpec(spec);
                         chanelBuildersById.get(channelId).setController(new SnapshotChannelController(
-                            spec.entryId(), spec.snapshotId(), rs.getString("user_id"), spec.whiteboardAddress()
+                            spec.entryId(), spec.snapshotId(), spec.userId(), spec.whiteboardAddress()
                         ));
                     }
                     default -> {

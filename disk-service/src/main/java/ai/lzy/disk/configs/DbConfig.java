@@ -2,6 +2,7 @@ package ai.lzy.disk.configs;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
 import io.micronaut.core.bind.annotation.Bindable;
+
 import javax.annotation.Nullable;
 
 @ConfigurationProperties("disk-service.database")

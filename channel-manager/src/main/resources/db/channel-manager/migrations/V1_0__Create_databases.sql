@@ -1,7 +1,6 @@
 CREATE TABLE IF NOT EXISTS channels (
     channel_id     varchar(255)      NOT NULL,
-    user_id        varchar(255)      NOT NULL,
-    workflow_id    varchar(255)      NOT NULL,
+    execution_id   varchar(255)      NOT NULL,
     channel_name   varchar(255)      NOT NULL,
     channel_type   varchar(255)      NOT NULL,
     channel_spec   varchar(10485760) NOT NULL,
@@ -11,8 +10,8 @@ CREATE TABLE IF NOT EXISTS channels (
     CONSTRAINT channels_pkey PRIMARY KEY (channel_id)
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS user_id_workflow_id_channel_name_idx
-    ON channels(workflow_id, channel_name);
+CREATE UNIQUE INDEX IF NOT EXISTS execution_id_channel_name_idx
+    ON channels(execution_id, channel_name);
 
 CREATE TABLE IF NOT EXISTS channel_endpoints (
     slot_uri    varchar(255)      NOT NULL,

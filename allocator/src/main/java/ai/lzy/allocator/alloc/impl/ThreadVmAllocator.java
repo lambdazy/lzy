@@ -4,15 +4,14 @@ import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.model.Vm;
-import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.allocator.model.Workload;
+import ai.lzy.model.db.TransactionHandle;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.annotation.Nullable;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.lang.reflect.InvocationTargetException;
@@ -23,6 +22,7 @@ import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.annotation.Nullable;
 
 @Singleton
 @Requires(property = "allocator.thread-allocator.enabled", value = "true")

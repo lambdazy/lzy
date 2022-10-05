@@ -1,14 +1,13 @@
 package ai.lzy.test.impl;
 
-import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.servant.agents.AgentStatus;
 import ai.lzy.servant.agents.LzyAgentConfig;
 import ai.lzy.servant.agents.LzyTerminal;
 import ai.lzy.test.LzyTerminalTestContext;
+import ai.lzy.util.auth.credentials.JwtUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SystemUtils;
 
-import javax.annotation.Nullable;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -24,6 +23,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
+import javax.annotation.Nullable;
 
 public class TerminalThreadContext implements LzyTerminalTestContext {
 

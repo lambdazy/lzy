@@ -1,12 +1,13 @@
 package ai.lzy.fs.slots;
 
 import ai.lzy.fs.fs.LzyOutputSlot;
-import ai.lzy.model.deprecated.GrpcConverter;
-import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.grpc.ProtoConverter;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.v1.common.LMS;
-import ai.lzy.v1.deprecated.LzyZygote;
 import com.google.protobuf.ByteString;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.LineNumberReader;
@@ -18,8 +19,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
     private static final Logger LOG = LogManager.getLogger(LineReaderSlot.class);

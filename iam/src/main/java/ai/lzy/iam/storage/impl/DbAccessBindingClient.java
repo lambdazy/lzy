@@ -1,18 +1,18 @@
 package ai.lzy.iam.storage.impl;
 
-import ai.lzy.iam.resources.Role;
-import ai.lzy.iam.storage.db.IamDataSource;
-import io.micronaut.context.annotation.Requires;
-import jakarta.inject.Inject;
-import jakarta.inject.Singleton;
-import ai.lzy.util.auth.exceptions.AuthException;
-import ai.lzy.util.auth.exceptions.AuthInternalException;
 import ai.lzy.iam.resources.AccessBinding;
 import ai.lzy.iam.resources.AccessBindingDelta;
 import ai.lzy.iam.resources.AccessBindingDelta.AccessBindingAction;
 import ai.lzy.iam.resources.AuthResource;
+import ai.lzy.iam.resources.Role;
 import ai.lzy.iam.resources.subjects.User;
+import ai.lzy.iam.storage.db.IamDataSource;
 import ai.lzy.iam.storage.db.ResourceBinding;
+import ai.lzy.util.auth.exceptions.AuthException;
+import ai.lzy.util.auth.exceptions.AuthInternalException;
+import io.micronaut.context.annotation.Requires;
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;

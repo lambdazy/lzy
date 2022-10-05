@@ -39,5 +39,6 @@
         <module>allocator-api</module>
         <module>coverage</module>
         <module>workflow-api</module>
+        <module>channel-manager-api</module>
     </modules>
 </project>

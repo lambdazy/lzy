@@ -1,15 +1,14 @@
 package ai.lzy.servant.commands;
 
+import ai.lzy.fs.commands.LzyCommand;
+import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.common.LMS;
+import ai.lzy.v1.deprecated.LzyAuth;
+import ai.lzy.v1.deprecated.LzyServantGrpc;
+import ai.lzy.v1.deprecated.Servant;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import org.apache.commons.cli.CommandLine;
-import ai.lzy.fs.commands.LzyCommand;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.v1.deprecated.LzyAuth;
-import ai.lzy.v1.deprecated.LzyServantGrpc;
-import ai.lzy.v1.deprecated.LzyZygote;
-import ai.lzy.v1.deprecated.Servant;
 
 public class TerminalStatus implements LzyCommand {
 

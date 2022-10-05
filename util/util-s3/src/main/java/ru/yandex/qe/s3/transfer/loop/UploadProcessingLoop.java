@@ -1,24 +1,10 @@
 package ru.yandex.qe.s3.transfer.loop;
 
-import static com.google.common.base.Stopwatch.createStarted;
-import static java.lang.String.format;
-import static ru.yandex.qe.s3.util.io.Streams.autoLogStatStream;
-
 import com.amazonaws.util.LengthCheckInputStream;
 import com.gc.iotools.stream.is.inspection.StatsInputStream;
 import com.google.common.base.Stopwatch;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.ListeningExecutorService;
-import java.io.InputStream;
-import java.nio.ByteBuffer;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.commons.io.input.BoundedInputStream;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
@@ -31,6 +17,21 @@ import ru.yandex.qe.s3.transfer.ttl.TTLUploadRequest;
 import ru.yandex.qe.s3.transfer.upload.ConcurrencyConflictResolve;
 import ru.yandex.qe.s3.transfer.upload.UploadRequest;
 import ru.yandex.qe.s3.transfer.upload.UploadState;
+
+import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
+
+import static com.google.common.base.Stopwatch.createStarted;
+import static java.lang.String.format;
+import static ru.yandex.qe.s3.util.io.Streams.autoLogStatStream;
 
 /**
  * Established by terry on 22.07.15.

@@ -1,8 +1,9 @@
 package ru.yandex.qe.s3.transfer.download;
 
+import ru.yandex.qe.s3.transfer.TransferAbortPolicy;
+
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.Immutable;
-import ru.yandex.qe.s3.transfer.TransferAbortPolicy;
 
 /**
  * Established by terry on 16.07.15.

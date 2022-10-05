@@ -29,14 +29,19 @@ import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Ignore;
+import org.junit.Test;
 import yandex.cloud.sdk.Zone;
+import yandex.cloud.sdk.auth.IamToken;
 
-import javax.annotation.Nullable;
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -44,6 +49,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.Nullable;
 
 import static ai.lzy.allocator.test.Utils.createTestDiskSpec;
 
@@ -74,7 +80,8 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
         if (clusterId == null) {
             throw new RuntimeException("No user cluster was specified for manual test");
         }
-        kuber = new KuberClientFactoryImpl().build(clusterRegistry.getCluster(clusterId));
+        kuber = new KuberClientFactoryImpl(() -> new IamToken("", Instant.MAX))
+            .build(clusterRegistry.getCluster(clusterId));
 
         allocatorApp = context.getBean(AllocatorMain.class);
         allocatorApp.start();

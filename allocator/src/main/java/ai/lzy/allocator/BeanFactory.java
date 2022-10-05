@@ -18,10 +18,11 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.Level;
 import yandex.cloud.sdk.ServiceFactory;
 import yandex.cloud.sdk.auth.Auth;
+import yandex.cloud.sdk.auth.provider.CredentialProvider;
 
-import javax.inject.Named;
 import java.nio.file.Path;
 import java.time.Duration;
+import javax.inject.Named;
 
 @Factory
 public class BeanFactory {
@@ -30,13 +31,22 @@ public class BeanFactory {
 
     @Singleton
     @Requires(property = "allocator.yc-credentials.enabled", value = "true")
-    public ServiceFactory serviceFactory(ServiceConfig.YcCredentialsConfig config) {
+    public ServiceFactory serviceFactory(
+            CredentialProvider credentialProvider, ServiceConfig.YcCredentialsConfig config)
+    {
         return ServiceFactory.builder()
-            .credentialProvider(
-                Auth.apiKeyBuilder()
-                    .fromFile(Path.of(config.getServiceAccountFile()))
-                    .build())
+            .credentialProvider(credentialProvider)
+            .endpoint(config.getEndpoint())
             .requestTimeout(YC_CALL_TIMEOUT)
+            .build();
+    }
+
+    @Singleton
+    @Requires(property = "allocator.yc-credentials.enabled", value = "true")
+    public CredentialProvider credentialProvider(ServiceConfig.YcCredentialsConfig config) {
+        return Auth.apiKeyBuilder()
+            .fromFile(Path.of(config.getServiceAccountFile()))
+            .cloudIAMEndpoint(config.getIamEndpoint())
             .build();
     }
 

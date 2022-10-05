@@ -3,7 +3,7 @@ syntax = "proto3";
 import "ai/lzy/v1/common/data-scheme.proto";
 import "google/protobuf/timestamp.proto";
 
-package ai.lzy.v1;
+package ai.lzy.v1.whiteboard;
 
 option java_outer_classname = "LWB";
 option java_package = "ai.lzy.v1.whiteboard";

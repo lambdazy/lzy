@@ -2,7 +2,6 @@ package ai.lzy.channelmanager.grpc;
 
 import ai.lzy.v1.channel.LCM;
 import ai.lzy.v1.common.LMS;
-import ai.lzy.v1.fs.LzyFsApi;
 
 public class ProtoValidator {
 

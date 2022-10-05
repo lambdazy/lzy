@@ -3,6 +3,7 @@ package ru.yandex.qe.s3.amazon.policy;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.retry.RetryPolicy;
+
 import java.util.Collection;
 
 /**

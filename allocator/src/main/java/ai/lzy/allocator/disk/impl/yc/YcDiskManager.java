@@ -26,11 +26,13 @@ import yandex.cloud.api.operation.OperationServiceGrpc.OperationServiceBlockingS
 import yandex.cloud.sdk.ServiceFactory;
 import yandex.cloud.sdk.utils.OperationUtils;
 
+import java.time.Duration;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
-import java.time.Duration;
 
-import static yandex.cloud.api.compute.v1.DiskServiceOuterClass.*;
+import static yandex.cloud.api.compute.v1.DiskServiceOuterClass.CreateDiskRequest;
+import static yandex.cloud.api.compute.v1.DiskServiceOuterClass.DeleteDiskRequest;
+import static yandex.cloud.api.compute.v1.DiskServiceOuterClass.GetDiskRequest;
 import static yandex.cloud.api.compute.v1.SnapshotOuterClass.Snapshot;
 import static yandex.cloud.api.compute.v1.SnapshotServiceGrpc.SnapshotServiceBlockingStub;
 import static yandex.cloud.api.operation.OperationOuterClass.Operation;

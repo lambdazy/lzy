@@ -3,6 +3,9 @@ package ai.lzy.storage.impl;
 import ai.lzy.storage.StorageConfig;
 import io.micronaut.context.annotation.Context;
 import io.micronaut.context.annotation.Requires;
+import org.bouncycastle.util.io.pem.PemObject;
+import org.bouncycastle.util.io.pem.PemReader;
+
 import java.io.IOException;
 import java.io.StringReader;
 import java.security.KeyFactory;
@@ -12,9 +15,6 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
-
-import org.bouncycastle.util.io.pem.PemObject;
-import org.bouncycastle.util.io.pem.PemReader;
 
 @Context  //To make static initialization
 @Requires(property = "storage.yc.enabled", value = "true")

@@ -1,21 +1,22 @@
 package ai.lzy.servant.commands;
 
-import com.google.protobuf.Timestamp;
-import com.google.protobuf.util.JsonFormat;
-import io.grpc.ManagedChannel;
-import java.net.URI;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.deprecated.LzyAuth;
 import ai.lzy.v1.deprecated.LzyWhiteboard;
 import ai.lzy.v1.deprecated.WbApiGrpc;
+import com.google.protobuf.Timestamp;
+import com.google.protobuf.util.JsonFormat;
+import io.grpc.ManagedChannel;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+
+import java.net.URI;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
 
 public class Whiteboard implements LzyCommand {
 

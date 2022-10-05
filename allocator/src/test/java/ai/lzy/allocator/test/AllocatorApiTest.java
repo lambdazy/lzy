@@ -1,11 +1,5 @@
 package ai.lzy.allocator.test;
 
-import static ai.lzy.allocator.test.Utils.waitOperation;
-import static ai.lzy.allocator.volume.KuberVolumeManager.KUBER_GB_NAME;
-import static ai.lzy.allocator.volume.KuberVolumeManager.VOLUME_CAPACITY_STORAGE_KEY;
-import static ai.lzy.allocator.volume.KuberVolumeManager.YCLOUD_DISK_DRIVER;
-import static ai.lzy.allocator.volume.Volume.AccessMode.READ_WRITE_ONCE;
-
 import ai.lzy.allocator.AllocatorMain;
 import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactory;
 import ai.lzy.allocator.alloc.impl.kuber.KuberLabels;
@@ -38,7 +32,11 @@ import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 import org.postgresql.util.PSQLException;
 import org.postgresql.util.PSQLState;
 
@@ -50,7 +48,17 @@ import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+
+import static ai.lzy.allocator.test.Utils.waitOperation;
+import static ai.lzy.allocator.volume.KuberVolumeManager.KUBER_GB_NAME;
+import static ai.lzy.allocator.volume.KuberVolumeManager.VOLUME_CAPACITY_STORAGE_KEY;
+import static ai.lzy.allocator.volume.KuberVolumeManager.YCLOUD_DISK_DRIVER;
+import static ai.lzy.allocator.volume.Volume.AccessMode.READ_WRITE_ONCE;
 
 public class AllocatorApiTest extends BaseTestWithIam {
 

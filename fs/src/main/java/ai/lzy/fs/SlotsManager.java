@@ -1,23 +1,22 @@
 package ai.lzy.fs;
 
-import ai.lzy.model.grpc.ProtoConverter;
-import ai.lzy.model.slot.SlotInstance;
-import ai.lzy.v1.channel.LCMS;
-import ai.lzy.v1.channel.LzyChannelManagerGrpc;
-import io.grpc.StatusRuntimeException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.fs.slots.ArgumentsSlot;
 import ai.lzy.fs.slots.InFileSlot;
 import ai.lzy.fs.slots.LineReaderSlot;
 import ai.lzy.fs.slots.OutFileSlot;
-import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.slot.TextLinesOutSlot;
+import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.v1.channel.LCMS;
+import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.deprecated.Servant;
+import io.grpc.StatusRuntimeException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
@@ -26,8 +25,8 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
+import javax.annotation.Nullable;
 
-import static ai.lzy.model.deprecated.GrpcConverter.to;
 import static ai.lzy.v1.common.LMS.SlotStatus.State.DESTROYED;
 import static ai.lzy.v1.common.LMS.SlotStatus.State.SUSPENDED;
 
@@ -136,8 +135,8 @@ public class SlotsManager implements AutoCloseable {
             synchronized (SlotsManager.this) {
                 LOG.info("UnBind slot {} from channel {}", spec, channelId);
                 try {
-                    final LCMS.SlotDetachStatus unbindResult = channelManager.unbind(
-                        LCMS.SlotDetach.newBuilder()
+                    final LCMS.UnbindResponse unbindResult = channelManager.unbind(
+                        LCMS.UnbindRequest.newBuilder()
                             .setSlotInstance(ProtoConverter.toProto(slot.instance()))
                             .build()
                     );
@@ -164,8 +163,8 @@ public class SlotsManager implements AutoCloseable {
             }
         });
 
-        final LCMS.SlotAttachStatus slotAttachStatus = channelManager.bind(
-            LCMS.SlotAttach.newBuilder()
+        final LCMS.BindResponse slotAttachStatus = channelManager.bind(
+            LCMS.BindRequest.newBuilder()
                 .setSlotInstance(ProtoConverter.toProto(slot.instance()))
                 .build());
         LOG.info(JsonUtils.printRequest(slotAttachStatus));

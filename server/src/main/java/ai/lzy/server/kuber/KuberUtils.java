@@ -11,7 +11,6 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.jetbrains.annotations.NotNull;
 
 public class KuberUtils {
     private KuberUtils() {

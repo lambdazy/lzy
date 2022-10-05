@@ -2,6 +2,7 @@ package ai.lzy.test.scenarios;
 
 import ai.lzy.test.LzyTerminalTestContext;
 import ai.lzy.test.impl.Utils;
+import ai.lzy.v1.deprecated.LzyWhiteboard;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
@@ -19,7 +20,6 @@ import org.jose4j.json.internal.json_simple.parser.ParseException;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import ai.lzy.v1.deprecated.LzyWhiteboard;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

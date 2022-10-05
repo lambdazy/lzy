@@ -1,7 +1,5 @@
 package ai.lzy.allocator.test;
 
-import static ai.lzy.allocator.test.Utils.createTestDiskSpec;
-
 import ai.lzy.allocator.disk.Disk;
 import ai.lzy.allocator.disk.DiskManager;
 import ai.lzy.allocator.disk.DiskMeta;
@@ -9,13 +7,16 @@ import ai.lzy.allocator.disk.exceptions.NotFoundException;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
-import java.io.FileInputStream;
-import java.io.IOException;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 import yandex.cloud.sdk.Zone;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+
+import static ai.lzy.allocator.test.Utils.createTestDiskSpec;
 
 @Ignore
 public class ManualYcDiskTest {

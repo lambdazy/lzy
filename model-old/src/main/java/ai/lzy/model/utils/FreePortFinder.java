@@ -1,11 +1,12 @@
 package ai.lzy.model.utils;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.HashSet;
 import java.util.Set;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class FreePortFinder {
     private static final Logger LOG = LogManager.getLogger(FreePortFinder.class);

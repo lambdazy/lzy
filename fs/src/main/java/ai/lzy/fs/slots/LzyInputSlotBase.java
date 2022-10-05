@@ -1,18 +1,16 @@
 package ai.lzy.fs.slots;
 
-import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.model.grpc.ProtoConverter;
+import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.v1.common.LMS;
 import com.google.protobuf.ByteString;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.IOException;
 import java.net.URI;
 import java.util.stream.Stream;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ai.lzy.model.deprecated.GrpcConverter;
-import ai.lzy.fs.fs.LzyInputSlot;
-import ai.lzy.v1.deprecated.LzyZygote;
-
 import javax.annotation.Nullable;
 
 public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSlot {

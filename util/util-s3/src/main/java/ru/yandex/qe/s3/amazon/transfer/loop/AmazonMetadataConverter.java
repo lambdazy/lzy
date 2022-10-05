@@ -2,9 +2,10 @@ package ru.yandex.qe.s3.amazon.transfer.loop;
 
 import com.amazonaws.services.s3.Headers;
 import com.amazonaws.services.s3.model.ObjectMetadata;
-import java.util.Map;
 import ru.yandex.qe.s3.transfer.meta.Metadata;
 import ru.yandex.qe.s3.transfer.meta.MetadataBuilder;
+
+import java.util.Map;
 
 /**
  * Established by terry on 18.01.16.

@@ -5,7 +5,6 @@ import ai.lzy.fs.slots.OutFileSlot;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.s3.S3Repository;
 import ai.lzy.v1.common.LMS;
-import ai.lzy.v1.deprecated.LzyZygote;
 import com.google.protobuf.ByteString;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

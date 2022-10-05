@@ -1,24 +1,23 @@
 package ai.lzy.fs.snapshot;
 
+import ai.lzy.fs.storage.StorageClient;
 import ai.lzy.model.slot.SlotInstance;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
-import java.io.IOException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import ru.yandex.qe.s3.transfer.meta.Metadata;
+import ru.yandex.qe.s3.transfer.upload.UploadRequestBuilder;
+import ru.yandex.qe.s3.transfer.upload.UploadState;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URI;
 import java.nio.channels.Channels;
 import java.nio.channels.Pipe;
 import java.nio.file.Path;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ai.lzy.fs.storage.StorageClient;
-import ru.yandex.qe.s3.transfer.meta.Metadata;
-import ru.yandex.qe.s3.transfer.upload.UploadRequestBuilder;
-import ru.yandex.qe.s3.transfer.upload.UploadState;
 
 public class SlotSnapshotImpl implements SlotSnapshot {
     private static final Logger LOG = LogManager.getLogger(SlotSnapshot.class);

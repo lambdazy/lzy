@@ -1,8 +1,9 @@
 package ai.lzy.scheduler.task;
 
-import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.model.TaskDesc;
+import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.scheduler.models.TaskState;
+
 import javax.annotation.Nullable;
 
 public interface Task {

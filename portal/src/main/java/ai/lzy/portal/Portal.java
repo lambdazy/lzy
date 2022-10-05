@@ -11,7 +11,6 @@ import ai.lzy.portal.config.PortalConfig;
 import ai.lzy.portal.slots.SnapshotSlotsProvider;
 import ai.lzy.portal.slots.StdoutSlot;
 import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.v1.AllocatorPrivateGrpc;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
@@ -22,8 +21,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.URI;
-import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;

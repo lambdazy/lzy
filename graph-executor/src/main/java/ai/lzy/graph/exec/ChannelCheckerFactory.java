@@ -1,12 +1,13 @@
 package ai.lzy.graph.exec;
 
-import ai.lzy.graph.exec.impl.DirectChannelChecker;
-import jakarta.inject.Inject;
-import jakarta.inject.Singleton;
-import java.util.Map;
 import ai.lzy.graph.api.SchedulerApi;
+import ai.lzy.graph.exec.impl.DirectChannelChecker;
 import ai.lzy.graph.model.ChannelDescription;
 import ai.lzy.graph.model.TaskExecution;
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
+
+import java.util.Map;
 
 @Singleton
 public class ChannelCheckerFactory {

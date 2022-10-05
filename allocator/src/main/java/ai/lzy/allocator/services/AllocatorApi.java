@@ -27,7 +27,6 @@ import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.OperationService.Operation;
-import ai.lzy.v1.OperationServiceApiGrpc;
 import ai.lzy.v1.VmAllocatorApi.*;
 import com.google.protobuf.Any;
 import io.grpc.ManagedChannel;
@@ -43,8 +42,6 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.annotation.Nullable;
-import javax.inject.Named;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
@@ -52,7 +49,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.function.BiConsumer;
+import javax.inject.Named;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;

@@ -8,14 +8,11 @@ import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
-import com.mchange.v2.c3p0.ComboPooledDataSource;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
-import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-import javax.sql.DataSource;
 
 @Factory
 public class BeanFactory {

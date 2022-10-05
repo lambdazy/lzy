@@ -1,13 +1,13 @@
 package ai.lzy.servant.agents;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import ai.lzy.logs.MetricEvent;
 import ai.lzy.logs.MetricEventLogger;
 import ai.lzy.logs.UserEvent;
 import ai.lzy.logs.UserEventLogger;
 import ai.lzy.servant.env.Environment;
 import ai.lzy.v1.deprecated.Servant;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -28,11 +28,12 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.inject.Named;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.sql.SQLException;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+import javax.inject.Named;
 
 @Singleton
 public class AllocatorMain {
@@ -67,7 +68,7 @@ public class AllocatorMain {
 
         final HostAndPort address = HostAndPort.fromString(config.getAddress());
         ServerBuilder<?> builder = NettyServerBuilder
-            .forAddress(new InetSocketAddress(address.getHost(), address.getPort()))
+            .forAddress(new InetSocketAddress("0.0.0.0", address.getPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES);
 
@@ -123,6 +124,10 @@ public class AllocatorMain {
             .mainClass(AllocatorMain.class)
             .defaultEnvironments("local")
             .start();
+
+        Properties props = System.getProperties();
+        props.setProperty("kubernetes.disable.autoConfig", "true");
+        props.setProperty("kubeconfig", "");
 
         final var main = context.getBean(AllocatorMain.class);
         main.start();

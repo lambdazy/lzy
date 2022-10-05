@@ -2,10 +2,10 @@ package ai.lzy.whiteboard.hibernate.models;
 
 import ai.lzy.whiteboard.model.SnapshotEntryStatus;
 
-import javax.annotation.Nullable;
-import javax.persistence.*;
 import java.io.Serializable;
 import java.util.Objects;
+import javax.annotation.Nullable;
+import javax.persistence.*;
 
 @Entity
 @Table(name = "snapshot_entry")

@@ -1,9 +1,14 @@
 package ai.lzy.fs;
 
-import static ai.lzy.model.deprecated.GrpcConverter.to;
-
+import ai.lzy.fs.snapshot.SlotSnapshotImpl;
+import ai.lzy.fs.snapshot.SlotSnapshotProvider;
+import ai.lzy.fs.snapshot.Snapshooter;
+import ai.lzy.fs.snapshot.SnapshooterImpl;
+import ai.lzy.fs.storage.StorageClient;
+import ai.lzy.model.UriScheme;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.deprecated.Lzy;
 import ai.lzy.v1.deprecated.LzyAuth;
 import ai.lzy.v1.deprecated.LzyKharonGrpc;
@@ -12,17 +17,9 @@ import ai.lzy.v1.fs.LzyFsApi;
 import ai.lzy.v1.fs.LzyFsGrpc;
 import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
-import ai.lzy.model.UriScheme;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.fs.snapshot.SlotSnapshotImpl;
-import ai.lzy.fs.snapshot.SlotSnapshotProvider;
-import ai.lzy.fs.snapshot.Snapshooter;
-import ai.lzy.fs.snapshot.SnapshooterImpl;
-import ai.lzy.fs.storage.StorageClient;
 import ru.yandex.qe.s3.transfer.Transmitter;
 import ru.yandex.qe.s3.transfer.download.DownloadRequestBuilder;
 
-import javax.annotation.Nullable;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.*;
@@ -33,6 +30,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import javax.annotation.Nullable;
 
 public class SlotConnectionManager {
     private final Map<String, Transmitter> transmitters = new HashMap<>();

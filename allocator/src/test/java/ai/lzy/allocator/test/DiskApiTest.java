@@ -1,7 +1,5 @@
 package ai.lzy.allocator.test;
 
-import static ai.lzy.allocator.test.Utils.waitOperation;
-
 import ai.lzy.allocator.AllocatorMain;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.impl.AllocatorDataSource;
@@ -17,10 +15,10 @@ import ai.lzy.test.TimeUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.v1.OperationServiceApiGrpc;
 import ai.lzy.v1.DiskApi;
 import ai.lzy.v1.DiskServiceApi;
 import ai.lzy.v1.DiskServiceGrpc;
+import ai.lzy.v1.OperationServiceApiGrpc;
 import com.google.common.net.HostAndPort;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.ManagedChannel;
@@ -29,14 +27,17 @@ import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 import org.jetbrains.annotations.NotNull;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+
+import static ai.lzy.allocator.test.Utils.waitOperation;
 
 public class DiskApiTest extends BaseTestWithIam {
     private static final int DEFAULT_TIMEOUT_SEC = 300;

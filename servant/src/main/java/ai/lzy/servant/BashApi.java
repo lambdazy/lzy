@@ -1,10 +1,10 @@
 package ai.lzy.servant;
 
+import ai.lzy.servant.commands.ServantCommandHolder;
+import ai.lzy.servant.commands.Start;
 import org.apache.commons.cli.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ai.lzy.servant.commands.ServantCommandHolder;
-import ai.lzy.servant.commands.Start;
 
 public class BashApi {
     private static final Options options = new Options();

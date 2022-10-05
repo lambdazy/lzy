@@ -1,6 +1,7 @@
 package ai.lzy.service;
 
 import ai.lzy.allocator.test.BaseTestWithAllocator;
+import ai.lzy.channelmanager.grpc.ChannelManagerMock;
 import ai.lzy.graph.test.GraphExecutorMock;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.resources.subjects.User;
@@ -8,7 +9,6 @@ import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.storage.impl.MockS3Storage;
-import ai.lzy.test.mocks.ChannelManagerMock;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
 import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;

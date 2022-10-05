@@ -1,10 +1,8 @@
 package ai.lzy.service.data.storage;
 
-import ai.lzy.model.db.DatabaseConfiguration;
 import ai.lzy.model.db.Storage;
 import ai.lzy.service.config.LzyServiceConfig;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
-import io.micronaut.context.annotation.Property;
 import io.micronaut.context.annotation.Requires;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Singleton;

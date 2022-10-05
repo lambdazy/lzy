@@ -29,6 +29,6 @@ Configuration:
 
       - name: "ai.lzy.allocator"
         additivity: false
-        level: info
+        level: debug
         AppenderRef:
           ref: Console

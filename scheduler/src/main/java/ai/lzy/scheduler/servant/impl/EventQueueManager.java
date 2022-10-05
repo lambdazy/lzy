@@ -2,10 +2,10 @@ package ai.lzy.scheduler.servant.impl;
 
 import ai.lzy.scheduler.db.ServantEventDao;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 
 @Singleton
 public class EventQueueManager {

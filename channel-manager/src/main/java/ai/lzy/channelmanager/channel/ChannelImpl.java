@@ -4,21 +4,22 @@ import ai.lzy.channelmanager.control.ChannelController;
 import ai.lzy.channelmanager.graph.ChannelGraph;
 import ai.lzy.channelmanager.graph.LocalChannelGraph;
 import ai.lzy.model.slot.SlotStatus;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class ChannelImpl implements Channel {
 
     private static final Logger LOG = LogManager.getLogger(ChannelImpl.class);
 
     private final String id;
-    private final String workflowId;
+    private final String executionId;
     private final ChannelGraph channelGraph;
     private final ChannelSpec spec;
     private final ChannelController controller; // pluggable channel logic
@@ -28,10 +29,10 @@ public class ChannelImpl implements Channel {
     }
 
     private ChannelImpl(
-        String id, String workflowId, ChannelSpec spec, ChannelController controller, ChannelGraph channelGraph
+        String id, String executionId, ChannelSpec spec, ChannelController controller, ChannelGraph channelGraph
     ) {
         this.id = id;
-        this.workflowId = workflowId;
+        this.executionId = executionId;
         this.spec = spec;
         this.controller = controller;
         this.channelGraph = channelGraph;
@@ -57,8 +58,8 @@ public class ChannelImpl implements Channel {
     }
 
     @Override
-    public String workflowId() {
-        return workflowId;
+    public String executionId() {
+        return executionId;
     }
 
     @Override
@@ -128,7 +129,7 @@ public class ChannelImpl implements Channel {
         private static final Logger LOG = LogManager.getLogger(ChannelImpl.Builder.class);
 
         private String id;
-        private String workflowId;
+        private String executionId;
         private ChannelSpec spec;
         private ChannelController controller;
         private final Map<String, Endpoint> sendersByUri = new HashMap<>();
@@ -140,8 +141,8 @@ public class ChannelImpl implements Channel {
             return this;
         }
 
-        public Builder setWorkflowId(String workflowId) {
-            this.workflowId = workflowId;
+        public Builder setExecutionId(String executionId) {
+            this.executionId = executionId;
             return this;
         }
 
@@ -192,7 +193,7 @@ public class ChannelImpl implements Channel {
             );
 
             return new ChannelImpl(
-                id, workflowId, spec, controller, new LocalChannelGraph(
+                id, executionId, spec, controller, new LocalChannelGraph(
                     id, sendersByUri.values().stream(), receiversByUri.values().stream(), edges
                 )
             );

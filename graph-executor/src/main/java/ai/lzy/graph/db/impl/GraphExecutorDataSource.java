@@ -1,15 +1,15 @@
 package ai.lzy.graph.db.impl;
 
 import ai.lzy.graph.config.DbConfig;
+import ai.lzy.model.db.Storage;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-import javax.sql.DataSource;
 import org.flywaydb.core.Flyway;
-import ai.lzy.model.db.Storage;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import javax.sql.DataSource;
 
 @Singleton
 public class GraphExecutorDataSource implements Storage {

@@ -1,16 +1,6 @@
 package ru.yandex.qe.s3.transfer.factories;
 
-import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
-import static com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
-
 import com.google.common.util.concurrent.ListeningExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
-import javax.annotation.Nonnull;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import ru.yandex.qe.s3.transfer.DownloadTransmitter;
 import ru.yandex.qe.s3.transfer.Transmitter;
@@ -18,6 +8,17 @@ import ru.yandex.qe.s3.transfer.UploadTransmitter;
 import ru.yandex.qe.s3.transfer.buffers.ByteBufferPool;
 import ru.yandex.qe.s3.transfer.buffers.ByteBufferSizeType;
 import ru.yandex.qe.s3.transfer.buffers.DynamicByteBufferPool;
+
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import javax.annotation.Nonnull;
+
+import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
+import static com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
 
 /**
  * Established by terry on 30.01.16.

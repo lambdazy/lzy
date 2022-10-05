@@ -2,12 +2,7 @@ package ai.lzy.server.mocks;
 
 import ai.lzy.server.hibernate.DbStorage;
 import ai.lzy.server.hibernate.Storage;
-import ai.lzy.server.hibernate.models.BackofficeSessionModel;
-import ai.lzy.server.hibernate.models.PermissionModel;
-import ai.lzy.server.hibernate.models.PublicKeyModel;
-import ai.lzy.server.hibernate.models.TaskModel;
-import ai.lzy.server.hibernate.models.UserModel;
-import ai.lzy.server.hibernate.models.UserRoleModel;
+import ai.lzy.server.hibernate.models.*;
 import io.micronaut.context.annotation.Replaces;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;

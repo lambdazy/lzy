@@ -1,8 +1,9 @@
 package ai.lzy.backoffice.models.keys;
 
-import io.micronaut.core.annotation.Introspected;
-import java.util.List;
 import ai.lzy.v1.deprecated.BackOffice;
+import io.micronaut.core.annotation.Introspected;
+
+import java.util.List;
 
 @Introspected
 public class ListKeysResponse {

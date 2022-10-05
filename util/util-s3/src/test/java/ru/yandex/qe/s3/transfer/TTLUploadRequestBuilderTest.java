@@ -1,6 +1,5 @@
 package ru.yandex.qe.s3.transfer;
 
-import java.io.ByteArrayInputStream;
 import org.hamcrest.core.Is;
 import org.joda.time.Duration;
 import org.junit.Assert;
@@ -9,6 +8,8 @@ import ru.yandex.qe.s3.transfer.meta.Metadata;
 import ru.yandex.qe.s3.transfer.meta.MetadataBuilder;
 import ru.yandex.qe.s3.transfer.ttl.TTLUploadRequest;
 import ru.yandex.qe.s3.transfer.ttl.TTLUploadRequestBuilder;
+
+import java.io.ByteArrayInputStream;
 
 /**
  * Established by terry on 30.07.15.

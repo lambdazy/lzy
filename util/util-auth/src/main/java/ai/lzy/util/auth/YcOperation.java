@@ -1,11 +1,12 @@
 package ai.lzy.util.auth;
 
-import java.io.IOException;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.util.EntityUtils;
 import org.json.JSONObject;
+
+import java.io.IOException;
 
 public class YcOperation {
     public static JSONObject getResult(long retryInterval, int retryNum, String operationId, CloseableHttpClient client,

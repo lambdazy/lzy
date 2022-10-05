@@ -6,7 +6,6 @@ import ai.lzy.portal.Portal.CreateSlotException;
 import ai.lzy.portal.s3.S3Repository;
 import com.google.protobuf.ByteString;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -16,6 +15,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
+import javax.annotation.Nullable;
 
 public class S3SnapshotSlot implements SnapshotSlot {
     private final String snapshotId;

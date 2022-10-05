@@ -1,7 +1,5 @@
 package ai.lzy.allocator.test;
 
-import static ai.lzy.allocator.test.Utils.createTestDiskSpec;
-
 import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactoryImpl;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.Disk;
@@ -20,6 +18,11 @@ import io.jsonwebtoken.lang.Assert;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
+import org.junit.Before;
+import org.junit.Ignore;
+import org.junit.Test;
+import yandex.cloud.sdk.auth.IamToken;
+
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.math.RoundingMode;
@@ -29,9 +32,8 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Random;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
+
+import static ai.lzy.allocator.test.Utils.createTestDiskSpec;
 
 @Ignore
 public class VolumeManagerTest {
@@ -50,7 +52,8 @@ public class VolumeManagerTest {
         if (clusterId == null) {
             throw new RuntimeException("No user cluster was specified for manual test");
         }
-        final KubernetesClient client = new KuberClientFactoryImpl().build(clusterRegistry.getCluster(clusterId));
+        final KubernetesClient client = new KuberClientFactoryImpl(() -> new IamToken("", Instant.MAX))
+            .build(clusterRegistry.getCluster(clusterId));
         volumeManager = new KuberVolumeManager(client);
     }
 
