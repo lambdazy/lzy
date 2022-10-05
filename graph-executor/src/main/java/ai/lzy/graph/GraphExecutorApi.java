@@ -7,12 +7,9 @@ import ai.lzy.graph.db.GraphExecutionDao;
 import ai.lzy.graph.model.GraphDescription;
 import ai.lzy.graph.model.GraphExecutionState;
 import ai.lzy.graph.queue.QueueManager;
-import ai.lzy.iam.clients.AccessClient;
-import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
-import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
@@ -47,7 +44,6 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
     private final GraphBuilder graphBuilder;
     private final ServiceConfig config;
     private final QueueManager queueManager;
-    private final AccessClient accessClient;
     private final SchedulerApi schedulerApi;
 
     private Server server;
@@ -61,9 +57,6 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
         this.config = config;
         this.graphBuilder = graphBuilder;
         this.queueManager = queueManager;
-        accessClient = new AccessServiceGrpcClient(
-            GrpcConfig.from(config.getAuth().getAddress()),
-            config.getAuth()::createCredentials);
         this.schedulerApi = schedulerApi;
     }
 
@@ -78,7 +71,8 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
         }
         final GraphExecutionState graphExecution;
         try {
-            graphExecution = queueManager.startGraph(request.getWorkflowId(), request.getWorkflowName(), graph);
+            graphExecution = queueManager.startGraph(request.getWorkflowId(), request.getWorkflowName(),
+                request.getUserId(), graph);
         } catch (StatusException e) {
             LOG.error("Cannot create graph for workflow <" + request.getWorkflowId() + ">", e);
             responseObserver.onError(e);

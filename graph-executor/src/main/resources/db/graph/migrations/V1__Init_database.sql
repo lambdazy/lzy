@@ -4,6 +4,7 @@ CREATE TABLE graph_execution_state
 (
     workflow_id varchar(255) NOT NULL,
     workflow_name varchar(255) NOT NULL,
+    user_id varchar(255) NOT NULL,
     id varchar(255) NOT NULL,
     error_description varchar(1023) NULL,
     status graph_execution_status default 'WAITING' NOT NULL,

@@ -73,7 +73,7 @@ public class GraphExecutorTest {
         var graphs = dao.filter(GraphExecutionState.Status.EXECUTING);
         graphs.addAll(dao.filter(GraphExecutionState.Status.WAITING));
         for (var graph: graphs) {
-            dao.free(graph.copyFromThis()
+            dao.updateAndFree(graph.copyFromThis()
                 .withStatus(GraphExecutionState.Status.FAILED)
                 .build());
         }
@@ -357,7 +357,7 @@ public class GraphExecutorTest {
             this.graph = graph;
             this.queue = initQueue();
             this.queue.start();
-            state = this.queue.startGraph("", "changeMe", graph);
+            state = this.queue.startGraph("", "changeMe", "uid", graph);
         }
 
         public void awaitExecutingNow(String... taskIds) throws InterruptedException, DaoException {
