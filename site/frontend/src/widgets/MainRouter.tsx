@@ -7,9 +7,11 @@ import {AuthUser} from "./AuthUser";
 import {Basics, Environment, Setup, Data, Whiteboards, Views, Integrations, Overview} from "./Docs";
 import {Tasks} from "./Tasks";
 import {Keys} from "./Tokens";
+import {Header} from "./Header";
 
 export const MainRouter = () => (
     <main>
+        <Header/>
         <Switch>
             <PrivateRoute path="/users" exact>
                 <UserTableFC host={BACKEND_HOST()}/>

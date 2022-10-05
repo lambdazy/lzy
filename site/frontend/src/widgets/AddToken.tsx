@@ -1,10 +1,8 @@
-import React, {useState} from "react";
+import React, {useContext, useState} from "react";
 import {Button, Container, Form} from "react-bootstrap";
 import axios from "axios";
-import {useAuth} from "../logic/Auth";
+import {AuthContext} from "../logic/Auth";
 import {useAlert} from "./ErrorAlert";
-import {Header} from "./Header";
-import {useAsync} from "react-async";
 
 export interface AddTokenFormStateInterface {
     tokenName: string | null;
@@ -22,29 +20,22 @@ export function AddToken(props: AddTokenFormPropsInterface) {
         tokenName: null,
         stateLabel: null
     });
-
-    let auth = useAuth();
-    let {data, error} = useAsync({promiseFn: auth.getCredentials})
     let alert = useAlert();
-    if (error) {
-        alert.show(error.message, error.name, () => {
-        }, "danger");
-    }
+    let {userCreds} = useContext(AuthContext);
 
-    const handleSubmit = (event: any): void => {
+    const handleSubmit = (): void => {
         if (state.token != null && state.tokenName != null) {
             axios
                 .post(props.host + "/users/add_token", {
-                    userCredentials: data,
+                    userCredentials: userCreds,
                     token: state.token,
                     tokenName: state.tokenName,
                 })
                 .catch((error) => {
-                    alert.show(error.message, "Some error while adding token", undefined, "danger");
+                    alert.showDanger("Error while adding token", error.message);
                 })
                 .then(() => {
-                    alert.show("Token " + state.tokenName + " added!", "Success", () => {
-                    }, "success")
+                    alert.showSuccess("Success", "Token " + state.tokenName + " added!")
                 })
         }
     };
@@ -59,7 +50,6 @@ export function AddToken(props: AddTokenFormPropsInterface) {
 
     return (
         <div>
-            <Header/>
             <Container className="p-3">
                 <Form>
                     <Form.Group className="mb-3" controlId="loginFormUserId">

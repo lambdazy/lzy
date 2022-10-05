@@ -1,10 +1,9 @@
 import axios from "axios";
-import {useEffect, useState} from "react";
-import {useAsync} from "react-async";
+import {useContext, useEffect, useState} from "react";
 import {ReactElement} from "react-markdown/lib/react-markdown";
 import {BACKEND_HOST} from "../config";
 import {useAlert} from "../widgets/ErrorAlert";
-import {useAuth, UserCredentials} from "./Auth";
+import {AuthContext, UserCredentials} from "./Auth";
 
 export enum Permissions {
     BACKOFFICE_INTERNAL = "backoffice.internal.privateApi",
@@ -24,22 +23,17 @@ export async function checkPermission(credentials: UserCredentials, permission: 
 
 export function PermittedComponent(props: { children: ReactElement, permission: Permissions }) {
     let [component, setComponent] = useState<ReactElement>((<></>));
-    let auth = useAuth();
-    let {data, error} = useAsync({promiseFn: auth.getCredentials})
+    let {userCreds} = useContext(AuthContext);
+
     let alert = useAlert();
     useEffect(() => {
-        if (error) {
-            alert.show(error.message, error.name, () => {
-            }, "danger");
-        }
-        if (data != null && component == null)
-            checkPermission(data, props.permission).then((res: boolean) => {
+        if (userCreds != null && component == null)
+            checkPermission(userCreds, props.permission).then((res: boolean) => {
                 if (res) {
                     setComponent(props.children);
                 } else {
-                    alert.show("You do not have permission: " + props.permission.valueOf(), "Permission denied", () => {
-                    }, "danger");
-                    setComponent(<div></div>)
+                    alert.showDanger("Permission denied", "You do not have permission: " + props.permission.valueOf());
+                    setComponent(<div/>)
                 }
             })
     })

@@ -1,10 +1,8 @@
 import axios from "axios";
-import {useState} from "react";
-import {useAsync} from "react-async";
+import {useContext, useState} from "react";
 import {BACKEND_HOST} from "../config";
-import {useAuth, UserCredentials} from "../logic/Auth";
+import {AuthContext, UserCredentials} from "../logic/Auth";
 import {useAlert} from "./ErrorAlert";
-import {Header} from "./Header";
 import {DataGrid, GridColDef, GridRowsProp} from '@mui/x-data-grid';
 
 export interface Task {
@@ -24,35 +22,27 @@ async function fetchTasks(credentials: UserCredentials): Promise<Task[]> {
     return res.data.tasks;
 }
 
-export function TasksInternal(props: {}) {
-    let auth = useAuth();
+export function TasksInternal() {
+    let {userCreds} = useContext(AuthContext);
     let alert = useAlert();
-    let {data, error} = useAsync({promiseFn: auth.getCredentials});
+
     let [tasks, setTasks] = useState<Task[]>();
-    let [openPopper, setOpenPopper] = useState<{ show: boolean, text: string }>({show: false, text: ""});
-    if (error) {
-        alert.show(error.message, error.name, () => {
-        }, "danger");
+
+    if (userCreds == null) {
+        alert.showDanger("Error", "You are not logged in");
+    } else if (tasks === undefined) {
+        fetchTasks(userCreds)
+            .then((tasks) => {
+                if (tasks === undefined) {
+                    tasks = [];
+                }
+                setTasks(tasks);
+            })
+            .catch((error) => {
+                alert.showDanger("Error while fetching tasks", error.message);
+            })
     }
-    ;
-    if (data !== undefined) {
-        if (data == null) {
-            alert.show("Not logged in", "Error", () => {
-            }, "danger");
-        } else if (tasks === undefined) {
-            fetchTasks(data)
-                .then((tasks) => {
-                    if (tasks === undefined) {
-                        tasks = [];
-                    }
-                    setTasks(tasks);
-                })
-                .catch((error) => {
-                    alert.show(error.message, "Error while fetching tasks", () => {
-                    }, "danger");
-                })
-        }
-    }
+
     const columns: GridColDef[] = [
         {field: 'id', headerName: 'Task id', width: 250},
         {field: 'description', headerName: 'Task description', width: 350},
@@ -75,13 +65,10 @@ export function TasksInternal(props: {}) {
             <DataGrid autoHeight columns={columns} rows={rows}/>
         </>
     )
-
-
 }
 
-export function Tasks(props: {}) {
+export function Tasks() {
     return (<>
-        <Header/>
         <TasksInternal/>
     </>)
 }

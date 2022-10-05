@@ -1,7 +1,7 @@
 import React from "react";
 import {Button, Container, Form} from "react-bootstrap";
 import {Redirect} from "react-router-dom";
-import {getSession, login, Providers, useAuth} from "../logic/Auth";
+import {getProviderLoginUrl, AuthType} from "../logic/Auth";
 import {useAlert} from "./ErrorAlert";
 import {LzyLogo} from "./LzyLogo";
 
@@ -11,19 +11,18 @@ export interface LoginFormStateInterface {
 }
 
 export interface LoginFormPropsInterface {
-    onUserIdSet: (provider: Providers) => void;
+    onUserIdSet: (authType: AuthType) => void;
 }
 
-export class LoginForm extends React.Component<LoginFormPropsInterface,
-    LoginFormStateInterface> {
+export class LoginForm extends React.Component<LoginFormPropsInterface, LoginFormStateInterface> {
     constructor(props: LoginFormPropsInterface) {
         super(props);
         this.state = {userId: null, userIdSet: false};
     }
 
-    handleSubmit = (provider: Providers): void => {
+    handleSubmit = (authType: AuthType): void => {
         this.setState({userIdSet: true});
-        this.props.onUserIdSet(provider);
+        this.props.onUserIdSet(authType);
     };
 
     render() {
@@ -41,7 +40,7 @@ export class LoginForm extends React.Component<LoginFormPropsInterface,
                                 variant="primary"
                                 type="submit"
                                 onClick={() => {
-                                    this.handleSubmit(Providers.GITHUB)
+                                    this.handleSubmit(AuthType.GITHUB)
                                 }}
                             >
                                 Login with github
@@ -55,23 +54,17 @@ export class LoginForm extends React.Component<LoginFormPropsInterface,
     }
 }
 
-export const LoginFormFC: React.FC<{}> = () => {
-    let auth = useAuth();
+export const LoginFormFC: React.FC = () => {
     let alert = useAlert();
     return (
         <LoginForm
-            onUserIdSet={(provider: Providers) => {
-                auth.signout(() => {
-                    getSession().then((res) => {
-                        login(provider, res).then(
-                            (res) => {
-                                window.location.assign(res);
-                            }
-                        )
-                            .catch((err) => {
-                                alert.show(err.message, "Some error while logging in", undefined, "danger");
-                            })
-                    })
+            onUserIdSet={(authType: AuthType) => {
+                getProviderLoginUrl(authType).then(
+                    (res) => {
+                        window.location.assign(res);
+                    }
+                ).catch((err) => {
+                    alert.showDanger("Error while logging in", err.message);
                 });
             }}
         />

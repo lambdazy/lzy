@@ -1,33 +1,31 @@
-import {createContext, useContext, useEffect, useState} from "react";
+import {createContext, useContext, useState} from "react";
 import {cookies} from "../App";
-import {Redirect, Route} from "react-router-dom";
+import {Redirect, Route, RouteProps} from "react-router-dom";
 import axios from "axios";
 import {BACKEND_HOST} from "../config";
-import AsyncLock from "async-lock";
-import Async, {useAsync} from "react-async"
-import {useAlert} from "../widgets/ErrorAlert";
 
-export enum Providers {
+export enum AuthType {
     GITHUB = "github"
 }
 
-export async function login(provider: Providers, sessionId: string): Promise<string> {
-    console.log(provider)
-    const res = await axios.post(
-        BACKEND_HOST() + "/auth/login",
-        {
-            sessionId,
-            provider: provider.toString(),
-            redirectUrl: window.location.protocol + "//" + window.location.host + "/login_user"
-        }
+export async function getProviderLoginUrl(authType: AuthType): Promise<string> {
+    if (authType !== AuthType.GITHUB) {
+        throw new Error("Unknown auth type " + authType);
+    }
+    const res = await axios.get(
+        BACKEND_HOST() +
+        "/auth/login_url?" +
+        "authType=" + authType + "&" +
+        "siteSignInUrl=" + window.location.protocol + "//" + window.location.host + "/login_user",
+        {headers: {"Access-Control-Allow-Origin": "*"}}
     );
     return res.data.redirectUrl;
 }
 
-export interface AuthContext {
-    getCredentials: () => Promise<UserCredentials | null>;
-    signin: (user: UserCredentials, cb: () => void) => void;
-    signout: (cb: () => void) => void;
+export interface AuthContextInterface {
+    userCreds: UserCredentials | null;
+    signIn: (user: UserCredentials, cb: () => void) => void;
+    signOut: (cb: () => void) => void;
 }
 
 export interface UserCredentials {
@@ -35,110 +33,69 @@ export interface UserCredentials {
     sessionId: string
 }
 
-const authContext = createContext<AuthContext>({
-    getCredentials: async () => {
-        return null
-    },
-    signin: () => {
-    },
-    signout: () => {
-    },
+export const AuthContext = createContext<AuthContextInterface>({
+    userCreds: null,
+    signIn: () => {},
+    signOut: () => {},
 });
 
-export function useAuth(): AuthContext {
-    return useContext(authContext);
-}
+export function AuthProvider(props: { children: any }) {
+    const userId = cookies.get("userId");
+    const sessionId = cookies.get("sessionId");
+    const [userCreds, setUserCreds] = useState<UserCredentials | null>(
+        userId === undefined ? null : {userId, sessionId});
 
-const lock = new AsyncLock();
-
-export async function getSession(): Promise<string> {
-    return await lock.acquire("sessionId", async () => {
-        if (cookies.get("sessionId") == null) {
-            const res = await axios.post(BACKEND_HOST() + "/auth/generate_session");
-            cookies.set("sessionId", res.data.sessionId);
-        }
-        return cookies.get("sessionId");
-    });
-}
-
-export function useProvideAuth(): AuthContext {
-    const [user, setUser] = useState<UserCredentials | null>(null);
-
-    const getCredentials = async () => {
-        if (user != null) {
-            return user;
-        }
-        const sessionId = await getSession();
-        if (cookies.get("userId") != null) {
-            setUser({sessionId, userId: cookies.get("userId")});
-            return {sessionId, userId: cookies.get("userId")};
-        }
-        return null;
-    }
-
-    const signin = (user: UserCredentials, cb: () => void) => {
-        cookies.set("userId", user.userId);
-        setUser(user);
+    const signIn = (userCreds: UserCredentials, cb: () => void) => {
+        console.log("signIn");
+        cookies.set("userId", userCreds.userId);
+        cookies.set("sessionId", userCreds.sessionId);
+        setUserCreds(userCreds);
         cb();
     };
 
-    const signout = (cb: () => void) => {
-        setUser(null);
+    const signOut = (cb: () => void) => {
+        console.log("signOut");
         cookies.remove("userId");
         cookies.remove("sessionId");
+        setUserCreds(null);
         cb();
     };
 
-    return {
-        getCredentials,
-        signin,
-        signout,
-    };
-}
-
-export function ProvideAuth(props: { children: any }) {
-    const auth = useProvideAuth();
     return (
-        <authContext.Provider value={auth}>{props.children}</authContext.Provider>
+        <AuthContext.Provider value={{userCreds, signIn, signOut}}>
+            {props.children}
+        </AuthContext.Provider>
     );
 }
 
-export function PrivateRoute(props: { children: any; [x: string]: any }) {
-    let auth = useAuth();
-    let {data, error} = useAsync({promiseFn: auth.getCredentials})
-    let alert = useAlert();
+type PrivateRouteProps = RouteProps;
 
-    useEffect(() => {
-        if (error) {
-            alert.show(error.message, error.name, () => {
-            }, "danger");
-        } else {
-            alert.close();
-        }
-    })
+export function PrivateRoute(props: PrivateRouteProps) {
+    let {userCreds} = useContext(AuthContext);
+    // let alert = useAlert();
 
-    if (data === undefined) {
-        return (<p>Loading...</p>)
-    }
+    // useEffect(() => {
+    //     let {error} = useAsync({promiseFn: getCredentials})
+    //     if (error) {
+    //         alert.showDanger(error.name, error.message);
+    //     }
+    // });
+
     return (
-        <Async promiseFn={auth.getCredentials}>
-            <Async.Fulfilled>
-                {data => (<Route
-                    {...props.rest}
-                    render={({location}) =>
-                        data ? (
-                            props.children
-                        ) : (
-                            <Redirect
-                                to={{
-                                    pathname: "/login",
-                                    state: {from: location},
-                                }}
-                            />
-                        )
-                    }
-                />)}
-            </Async.Fulfilled>
-        </Async>
+        <Route
+            {...props}
+            render={({location}) =>
+                userCreds ? (
+                    props.children
+                ) : (
+                    <Redirect
+                        to={{
+                            pathname: "/login",
+                            state: {from: location},
+                        }}
+                    />
+                )
+            }
+        />
     );
 }

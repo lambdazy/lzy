@@ -1,11 +1,9 @@
 package ai.lzy.server.hibernate.models;
 
-import ai.lzy.model.utils.AuthProviders;
-import ai.lzy.server.hibernate.UserVerificationType;
-
 import java.util.HashSet;
 import java.util.Set;
 import javax.persistence.*;
+import ai.lzy.server.hibernate.UserVerificationType;
 
 @Entity
 @Table(name = "users")
@@ -83,11 +81,11 @@ public class UserModel {
         this.bucket = bucket;
     }
 
-    public AuthProviders getAuthProviderEnum() {
-        return AuthProviders.fromString(authProvider);
+    public AuthType getAuthProviderEnum() {
+        return AuthType.fromString(authProvider);
     }
 
-    public void setAuthProviderEnum(AuthProviders authProvider) {
+    public void setAuthProviderEnum(AuthType authProvider) {
         this.authProvider = authProvider.toString();
     }
 

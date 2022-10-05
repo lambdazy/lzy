@@ -1,3 +1,5 @@
+import React from "react";
+
 export const LzyLogo: React.FC<{ width: string; height: string }> = (props: {
     width: string;
     height: string;
@@ -34,32 +36,32 @@ export const LzyLogo: React.FC<{ width: string; height: string }> = (props: {
                     gradientTransform="translate(283.029 -12.5714) rotate(139.419) scale(411.32 456.207)"
                 >
                     <stop
-                        stop-color="#FFEAB5"
+                        stopColor="#FFEAB5"
                         className="svg__gradient svg__gradient_1"
                     />
                     <stop
                         offset="0.197917"
-                        stop-color="#F3CAC3"
+                        stopColor="#F3CAC3"
                         className="svg__gradient svg__gradient_2"
                     />
                     <stop
                         offset="0.401042"
-                        stop-color="#AD91E7"
+                        stopColor="#AD91E7"
                         className="svg__gradient svg__gradient_3"
                     />
                     <stop
                         offset="0.588542"
-                        stop-color="#5282FF"
+                        stopColor="#5282FF"
                         className="svg__gradient svg__gradient_4"
                     />
                     <stop
                         offset="0.854167"
-                        stop-color="#7B9FFF"
+                        stopColor="#7B9FFF"
                         className="svg__gradient svg__gradient_5"
                     />
                     <stop
                         offset="1"
-                        stop-color="#86A7FF"
+                        stopColor="#86A7FF"
                         className="svg__gradient svg__gradient_6"
                     />
                 </radialGradient>
@@ -72,32 +74,32 @@ export const LzyLogo: React.FC<{ width: string; height: string }> = (props: {
                     gradientTransform="translate(283.029 -12.5714) rotate(139.419) scale(411.32 456.207)"
                 >
                     <stop
-                        stop-color="#FFEAB5"
+                        stopColor="#FFEAB5"
                         className="svg__gradient svg__gradient_1"
                     />
                     <stop
                         offset="0.197917"
-                        stop-color="#F3CAC3"
+                        stopColor="#F3CAC3"
                         className="svg__gradient svg__gradient_2"
                     />
                     <stop
                         offset="0.401042"
-                        stop-color="#AD91E7"
+                        stopColor="#AD91E7"
                         className="svg__gradient svg__gradient_3"
                     />
                     <stop
                         offset="0.588542"
-                        stop-color="#5282FF"
+                        stopColor="#5282FF"
                         className="svg__gradient svg__gradient_4"
                     />
                     <stop
                         offset="0.854167"
-                        stop-color="#7B9FFF"
+                        stopColor="#7B9FFF"
                         className="svg__gradient svg__gradient_5"
                     />
                     <stop
                         offset="1"
-                        stop-color="#86A7FF"
+                        stopColor="#86A7FF"
                         className="svg__gradient svg__gradient_6"
                     />
                 </radialGradient>
@@ -110,32 +112,32 @@ export const LzyLogo: React.FC<{ width: string; height: string }> = (props: {
                     gradientTransform="translate(283.029 -12.5714) rotate(139.419) scale(411.32 456.207)"
                 >
                     <stop
-                        stop-color="#FFEAB5"
+                        stopColor="#FFEAB5"
                         className="svg__gradient svg__gradient_1"
                     />
                     <stop
                         offset="0.197917"
-                        stop-color="#F3CAC3"
+                        stopColor="#F3CAC3"
                         className="svg__gradient svg__gradient_2"
                     />
                     <stop
                         offset="0.401042"
-                        stop-color="#AD91E7"
+                        stopColor="#AD91E7"
                         className="svg__gradient svg__gradient_3"
                     />
                     <stop
                         offset="0.588542"
-                        stop-color="#5282FF"
+                        stopColor="#5282FF"
                         className="svg__gradient svg__gradient_4"
                     />
                     <stop
                         offset="0.854167"
-                        stop-color="#7B9FFF"
+                        stopColor="#7B9FFF"
                         className="svg__gradient svg__gradient_5"
                     />
                     <stop
                         offset="1"
-                        stop-color="#86A7FF"
+                        stopColor="#86A7FF"
                         className="svg__gradient svg__gradient_6"
                     />
                 </radialGradient>

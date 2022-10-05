@@ -7,10 +7,9 @@ import whiteboard from '../docs/5-whiteboards.md';
 import views from '../docs/6-views.md';
 import integrations from '../docs/7-integrations.md'
 import ReactMarkdown from 'react-markdown'
-import {Header} from './Header';
 import {useState} from 'react';
 
-export function Overview(props: {}) {
+export function Overview() {
     let [state, setState] = useState<any>(null);
     if (state == null) {
         fetch(overview)
@@ -20,15 +19,10 @@ export function Overview(props: {}) {
                 }
             )
     }
-    return (
-        <>
-            <Header/>
-            {state}
-        </>
-    )
+    return (<>{state}</>)
 }
 
-export function Setup(props: {}) {
+export function Setup() {
     let [state, setState] = useState<any>(null);
     if (state == null) {
         fetch(setup)
@@ -40,13 +34,12 @@ export function Setup(props: {}) {
     }
     return (
         <>
-            <Header/>
             {state}
         </>
     )
 }
 
-export function Basics(props: {}) {
+export function Basics() {
     let [state, setState] = useState<any>(null);
     if (state == null) {
         fetch(basics)
@@ -58,13 +51,12 @@ export function Basics(props: {}) {
     }
     return (
         <>
-            <Header/>
             {state}
         </>
     )
 }
 
-export function Environment(props: {}) {
+export function Environment() {
     let [state, setState] = useState<any>(null);
     if (state == null) {
         fetch(environment)
@@ -76,13 +68,12 @@ export function Environment(props: {}) {
     }
     return (
         <>
-            <Header/>
             {state}
         </>
     )
 }
 
-export function Data(props: {}) {
+export function Data() {
     let [state, setState] = useState<any>(null);
     if (state == null) {
         fetch(data)
@@ -94,13 +85,12 @@ export function Data(props: {}) {
     }
     return (
         <>
-            <Header/>
             {state}
         </>
     )
 }
 
-export function Whiteboards(props: {}) {
+export function Whiteboards() {
     let [state, setState] = useState<any>(null);
     if (state == null) {
         fetch(whiteboard)
@@ -112,13 +102,12 @@ export function Whiteboards(props: {}) {
     }
     return (
         <>
-            <Header/>
             {state}
         </>
     )
 }
 
-export function Views(props: {}) {
+export function Views() {
     let [state, setState] = useState<any>(null);
     if (state == null) {
         fetch(views)
@@ -130,13 +119,12 @@ export function Views(props: {}) {
     }
     return (
         <>
-            <Header/>
             {state}
         </>
     )
 }
 
-export function Integrations(props: {}) {
+export function Integrations() {
     let [state, setState] = useState<any>(null);
     if (state == null) {
         fetch(integrations)
@@ -148,7 +136,6 @@ export function Integrations(props: {}) {
     }
     return (
         <>
-            <Header/>
             {state}
         </>
     )

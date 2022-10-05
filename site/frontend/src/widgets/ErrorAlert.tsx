@@ -1,21 +1,28 @@
 import {createContext, FC, useContext, useState} from "react";
 import {Alert} from "react-bootstrap";
 
-export interface AlertPatrams {
+
+export enum AlertVariant {
+    DANGER = "danger",
+    SUCCESS = "success"
+}
+
+export interface AlertParams {
     show: boolean;
     text: string | undefined;
     header: string | undefined;
-    variant: "danger" | "success";
-    onClose: (() => void) | undefined;
+    variant: AlertVariant | undefined;
 }
 
 export interface AlertContext {
-    params: AlertPatrams;
-    show: (
-        text: string,
+    params: AlertParams;
+    showDanger: (
         header: string,
-        onClose: (() => void) | undefined,
-        variant: "danger" | "success"
+        text: string
+    ) => void;
+    showSuccess: (
+        header: string,
+        text: string
     ) => void;
     close: () => void;
 }
@@ -25,13 +32,11 @@ const alertContext = createContext<AlertContext>({
         show: false,
         text: undefined,
         header: undefined,
-        onClose: undefined,
-        variant: "danger"
+        variant: undefined
     },
-    show: () => {
-    },
-    close: () => {
-    },
+    showDanger: () => {},
+    showSuccess: () => {},
+    close: () => {}
 });
 
 export function useAlert(): AlertContext {
@@ -39,39 +44,48 @@ export function useAlert(): AlertContext {
 }
 
 export function useProvideAlert(): AlertContext {
-    const [showState, setShowState] = useState<AlertPatrams>({
+    const [showState, setShowState] = useState<AlertParams>({
         show: false,
         text: undefined,
         header: undefined,
-        onClose: undefined,
-        variant: "danger"
+        variant: undefined
     });
     const show = (
         text: string,
         header: string,
-        onClose: (() => void) | undefined,
-        variant: "danger" | "success"
+        variant: AlertVariant
     ) => {
-        if (!showState.show)
+        if (!showState.show) {
             setShowState({
                 show: true,
                 text,
                 header,
-                onClose,
                 variant
             });
+        }
+    }
+    const showDanger = (
+        text: string,
+        header: string
+    ) => {
+        show(text, header, AlertVariant.DANGER);
     };
+    const showSuccess = (
+        text: string,
+        header: string
+    ) => {
+        show(text, header, AlertVariant.SUCCESS)
+    }
     const close = () => {
         if (showState.show)
             setShowState({
                 show: false,
                 text: undefined,
                 header: undefined,
-                onClose: undefined,
-                variant: "danger"
+                variant: undefined
             });
     };
-    return {params: showState, show, close};
+    return {params: showState, showSuccess, showDanger, close};
 }
 
 export function ProvideAlert(props: { children: any }) {
@@ -81,14 +95,13 @@ export function ProvideAlert(props: { children: any }) {
     );
 }
 
-export const ErrorAlert: FC<{}> = () => {
+export const ErrorAlert: FC = () => {
     let alert = useAlert();
     return (
         <Alert
             show={alert.params.show}
             onClose={() => {
                 alert.close();
-                if (alert.params.onClose !== undefined) alert.params.onClose();
             }}
             variant={alert.params.variant}
             dismissible
