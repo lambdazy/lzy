@@ -31,12 +31,15 @@ public class PodSpecBuilder {
     private final List<Container> containers = new ArrayList<>();
     private final List<Container> initContainers = new ArrayList<>();
     private final Map<String, Volume> volumes = new HashMap<>();
+    private final List<PodAffinityTerm> podAffinityTerms = new ArrayList<>();
+    private final List<PodAffinityTerm> podAntiAffinityTerms = new ArrayList<>();
 
     public PodSpecBuilder(
         Vm.Spec vmSpec, KubernetesClient client, ServiceConfig config, String templatePath, String podNamePrefix)
     {
         this.vmSpec = vmSpec;
         pod = loadPodTemplate(client, templatePath);
+
         this.config = config;
 
         String vmId = vmSpec.vmId().toLowerCase(Locale.ROOT);
@@ -198,6 +201,42 @@ public class PodSpecBuilder {
         return this;
     }
 
+    public PodSpecBuilder withPodAffinity(String key, String operator, String... values) {
+        podAffinityTerms.add(
+            new PodAffinityTermBuilder()
+                .withLabelSelector(
+                    new LabelSelectorBuilder()
+                        .withMatchExpressions(
+                            new LabelSelectorRequirementBuilder()
+                                .withKey(key)
+                                .withOperator(operator)
+                                .withValues(values)
+                                .build()
+                        ).build()
+                ).withTopologyKey("kubernetes.io/hostname")
+                .build()
+        );
+        return this;
+    }
+
+    public PodSpecBuilder withPodAntiAffinity(String key, String operator, String... values) {
+        podAntiAffinityTerms.add(
+            new PodAffinityTermBuilder()
+                .withLabelSelector(
+                    new LabelSelectorBuilder()
+                        .withMatchExpressions(
+                            new LabelSelectorRequirementBuilder()
+                                .withKey(key)
+                                .withOperator(operator)
+                                .withValues(values)
+                                .build()
+                        ).build()
+                ).withTopologyKey("kubernetes.io/hostname")
+                .build()
+        );
+        return this;
+    }
+
     public Pod build() {
         for (var container : containers) {
             container.setVolumeMounts(
@@ -215,6 +254,18 @@ public class PodSpecBuilder {
         pod.getSpec().setContainers(containers);
         pod.getSpec().setInitContainers(initContainers);
         pod.getSpec().setVolumes(volumes.values().stream().toList());
+        pod.getSpec().setAffinity(
+            new AffinityBuilder().withPodAffinity(
+                new PodAffinityBuilder().addAllToRequiredDuringSchedulingIgnoredDuringExecution(
+                    podAffinityTerms
+                ).build()
+            ).withPodAntiAffinity(
+                new PodAntiAffinityBuilder().addAllToRequiredDuringSchedulingIgnoredDuringExecution(
+                    podAntiAffinityTerms
+                ).build()
+            ).build()
+        );
+
         return pod;
     }
 }

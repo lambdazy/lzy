@@ -7,4 +7,5 @@ public class KuberLabels {
     public static final String LZY_POD_NAME_LABEL = "lzy.ai/pod-name";
     public static final String LZY_POD_SESSION_ID_LABEL = "lzy.ai/pod-session-id";
     public static final String LZY_VM_ID_LABEL = "lzy.ai/vm-id";
+    public static final String LZY_APP_LABEL = "lzy.ai/app";
 }

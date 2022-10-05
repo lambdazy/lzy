@@ -11,7 +11,9 @@ import ai.lzy.allocator.volume.HostPathVolumeDescription;
 import ai.lzy.allocator.volume.KuberVolumeManager;
 import ai.lzy.allocator.volume.VolumeClaim;
 import ai.lzy.model.db.TransactionHandle;
-import io.fabric8.kubernetes.api.model.*;
+import io.fabric8.kubernetes.api.model.ListOptionsBuilder;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.StatusDetails;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
@@ -19,11 +21,10 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -38,6 +39,7 @@ public class KuberVmAllocator implements VmAllocator {
     private static final String POD_NAME_KEY = "pod-name";
     private static final String CLUSTER_ID_KEY = "cluster-id";
     public static final String VM_POD_NAME_PREFIX = "lzy-vm-";
+    public static final String VM_POD_APP_LABEL_VALUE = "vm";
 
     private final VmDao dao;
     private final ClusterRegistry poolRegistry;
@@ -65,6 +67,7 @@ public class KuberVmAllocator implements VmAllocator {
             var podSpecBuilder = new PodSpecBuilder(
                 vmSpec, client, config, PodSpecBuilder.VM_POD_TEMPLATE_PATH, VM_POD_NAME_PREFIX
             );
+            final String podName = podSpecBuilder.getPodName();
             withRetries(
                 defaultRetryPolicy(),
                 LOG,
@@ -72,7 +75,7 @@ public class KuberVmAllocator implements VmAllocator {
                     vmSpec.vmId(),
                     Map.of(
                         NAMESPACE_KEY, NAMESPACE,
-                        POD_NAME_KEY, podSpecBuilder.getPodName(),
+                        POD_NAME_KEY, podName,
                         CLUSTER_ID_KEY, cluster.clusterId()),
                     null),
                 RuntimeException::new);
@@ -84,6 +87,14 @@ public class KuberVmAllocator implements VmAllocator {
             final List<VolumeClaim> volumeClaims = KuberVolumeManager.allocateVolumes(client, diskVolumeDescriptions);
             dao.setVolumeClaims(vmSpec.vmId(), volumeClaims, null);
 
+            // add k8s pod affinity to allocate vm pod on the node with the tunnel pod,
+            // which must be allocated by TunnelAllocator#allocateTunnel method
+            if (vmSpec.proxyV6Address() != null) {
+                podSpecBuilder = podSpecBuilder.withPodAffinity(
+                    KuberLabels.LZY_APP_LABEL, "In", TunnelAllocator.TUNNEL_POD_APP_LABEL_VALUE
+                );
+            }
+
             final Pod vmPodSpec = podSpecBuilder
                 .withWorkloads(vmSpec.workloads())
                 .withVolumes(volumeClaims)
@@ -91,50 +102,10 @@ public class KuberVmAllocator implements VmAllocator {
                     .filter(v -> v.volumeDescription() instanceof HostPathVolumeDescription)
                     .map(v -> (HostPathVolumeDescription) v.volumeDescription())
                     .toList())
+                .withPodAntiAffinity(KuberLabels.LZY_APP_LABEL, "In", VM_POD_APP_LABEL_VALUE)
+                .withPodAntiAffinity(KuberLabels.LZY_POD_SESSION_ID_LABEL, "NotIn", vmSpec.sessionId())
                 .build();
 
-            vmPodSpec.getSpec()
-                .getAffinity()
-                .getPodAntiAffinity()
-                .getRequiredDuringSchedulingIgnoredDuringExecution()
-                .add(
-                    new PodAffinityTermBuilder()
-                        .withLabelSelector(
-                            new LabelSelectorBuilder()
-                                .withMatchExpressions(
-                                    new LabelSelectorRequirementBuilder()
-                                        .withKey(KuberLabels.LZY_POD_SESSION_ID_LABEL)
-                                        .withOperator("NotIn")
-                                        .withValues(vmSpec.sessionId())
-                                        .build()
-                                ).build()
-                        ).withTopologyKey("kubernetes.io/hostname")
-                        .build()
-                );
-            // TODO: move information about tunnel here
-            if (vmSpec.proxyV6Address() != null) {
-                vmPodSpec.getSpec()
-                    .getAffinity()
-                    .setPodAffinity(
-                        new PodAffinity(
-                            Collections.emptyList(),
-                            Collections.singletonList(
-                                new PodAffinityTermBuilder()
-                                    .withLabelSelector(
-                                        new LabelSelectorBuilder()
-                                            .withMatchExpressions(
-                                                new LabelSelectorRequirementBuilder()
-                                                    .withKey("lzy.ai/app")
-                                                    .withOperator("In")
-                                                    .withValues("tunnel")
-                                                    .build()
-                                            ).build()
-                                    ).withTopologyKey("kubernetes.io/hostname")
-                                    .build()
-                            )
-                        )
-                    );
-            }
             LOG.debug("Creating pod with podspec: {}", vmPodSpec);
 
             final Pod pod;

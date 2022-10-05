@@ -16,13 +16,5 @@ spec:
                 operator: In
                 values:
                   - vm
-#    podAffinity:
-#      requiredDuringSchedulingIgnoredDuringExecution:
-#        - labelSelector:
-#            matchExpressions:
-#              - key: lzy.ai/app
-#                operator: In
-#                values:
-#                  - tunnel
           topologyKey: "kubernetes.io/hostname"
   dnsPolicy: ClusterFirstWithHostNet

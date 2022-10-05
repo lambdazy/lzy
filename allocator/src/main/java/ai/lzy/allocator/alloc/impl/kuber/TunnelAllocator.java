@@ -22,6 +22,7 @@ public class TunnelAllocator {
     private static final Logger LOG = LogManager.getLogger(TunnelAllocator.class);
     private static final String NAMESPACE = "default";
     public static final String TUNNEL_POD_NAME_PREFIX = "lzy-tunnel-";
+    public static final String TUNNEL_POD_APP_LABEL_VALUE = "tunnel";
 
     private final ClusterRegistry clusterRegistry;
     private final KuberClientFactory factory;
@@ -59,26 +60,11 @@ public class TunnelAllocator {
                         false
                     )
                 )
+            ).withPodAntiAffinity(
+                KuberLabels.LZY_POD_SESSION_ID_LABEL, "NotIn", vmSpec.sessionId()
+            ).withPodAntiAffinity(
+                KuberLabels.LZY_APP_LABEL, "In", vmSpec.sessionId(), TUNNEL_POD_APP_LABEL_VALUE
             ).build();
-
-            tunnelPod.getSpec()
-                .getAffinity()
-                .getPodAntiAffinity()
-                .getRequiredDuringSchedulingIgnoredDuringExecution()
-                .add(
-                    new PodAffinityTermBuilder()
-                        .withLabelSelector(
-                            new LabelSelectorBuilder()
-                                .withMatchExpressions(
-                                    new LabelSelectorRequirementBuilder()
-                                        .withKey(KuberLabels.LZY_POD_SESSION_ID_LABEL)
-                                        .withOperator("NotIn")
-                                        .withValues(vmSpec.sessionId())
-                                        .build()
-                                ).build()
-                        ).withTopologyKey("kubernetes.io/hostname")
-                        .build()
-                );
 
             try {
                 tunnelPod = client.pods()
