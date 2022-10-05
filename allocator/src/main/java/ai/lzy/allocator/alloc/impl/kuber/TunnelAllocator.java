@@ -1,5 +1,6 @@
 package ai.lzy.allocator.alloc.impl.kuber;
 
+import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.model.Vm;
@@ -115,10 +116,9 @@ public class TunnelAllocator {
             throw new InvalidConfigurationException(
                 "Cannot find pool for label " + poolLabel + " and zone " + zone);
         }
-        // TODO: extract magic words and parameters to config or static fields.
         return new Workload(
             "init-request-tunnel",
-            "networld/grpcurl:latest",
+            config.getTunnelRequestContainerImage(),
             Collections.emptyMap(),
             List.of(
                 "./grpcurl",
@@ -127,10 +127,10 @@ public class TunnelAllocator {
                 String.format(
                     "{\"remote_v6_address\": \"%s\", \"worker_pod_v4_address\": \"%s\", \"k8s_v4_pod_cidr\": \"%s\"}",
                     remoteV6,
-                    "$(LZY_VM_IP_ADDRESS)",
+                    String.format("$(%s)", AllocatorAgent.VM_IP_ADDRESS),
                     clusterRegistry.getClusterPodsCidr(cluster.clusterId())
                 ),
-                "$(NODE_IP):1234",
+                String.format("$(%s):1234", AllocatorAgent.VM_NODE_IP_ADDRESS),
                 "ai.lzy.v1.tunnel.LzyTunnelAgent/CreateTunnel"
             ),
             Collections.emptyMap(),
