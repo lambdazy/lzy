@@ -37,10 +37,10 @@ public class ProtoPrinter {
 
         private final TypeRegistry typeRegistry;
 
-        private final Extension<DescriptorProtos.FieldOptions, Object> sensitiveExtension;
+        private final Extension<DescriptorProtos.FieldOptions, Boolean> sensitiveExtension;
 
         private Printer(boolean escapeNonAscii, TypeRegistry typeRegistry,
-                        Extension<DescriptorProtos.FieldOptions, Object> sensitiveExtension)
+                        Extension<DescriptorProtos.FieldOptions, Boolean> sensitiveExtension)
         {
             this.escapeNonAscii = escapeNonAscii;
             this.typeRegistry = typeRegistry;
@@ -73,11 +73,8 @@ public class ProtoPrinter {
             return new Printer(escapeNonAscii, typeRegistry, sensitiveExtension);
         }
 
-        public Printer usingSensitiveExtension(
-            Extension<DescriptorProtos.FieldOptions, ? extends Object> sensitiveExtension)
-        {
-            return new Printer(escapeNonAscii, typeRegistry,
-                (Extension<DescriptorProtos.FieldOptions, Object>) sensitiveExtension);
+        public Printer usingSensitiveExtension(Extension<DescriptorProtos.FieldOptions, Boolean> sensitiveExtension) {
+            return new Printer(escapeNonAscii, typeRegistry, sensitiveExtension);
         }
 
         /**
@@ -256,7 +253,7 @@ public class ProtoPrinter {
         }
 
         private boolean isSensitive(Descriptors.FieldDescriptor field) {
-            return sensitiveExtension != null && field.getOptions().hasExtension(sensitiveExtension);
+            return sensitiveExtension != null && field.getOptions().getExtension(sensitiveExtension);
         }
 
         private void printFieldValue(Descriptors.FieldDescriptor field, Object value, TextGenerator generator)

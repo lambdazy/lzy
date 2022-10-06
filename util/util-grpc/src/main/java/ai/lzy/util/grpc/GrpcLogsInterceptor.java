@@ -1,6 +1,6 @@
 package ai.lzy.util.grpc;
 
-import ai.lzy.v1.util.LV;
+import ai.lzy.v1.validation.LV;
 import com.google.protobuf.MessageOrBuilder;
 import io.grpc.ForwardingServerCallListener.SimpleForwardingServerCallListener;
 import io.grpc.*;

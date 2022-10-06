@@ -1,7 +1,7 @@
 package ai.lzy.util.grpc;
 
 import ai.lzy.test.ValidationTest;
-import ai.lzy.v1.util.LV;
+import ai.lzy.v1.validation.LV;
 import org.junit.Assert;
 import org.junit.Test;
 
