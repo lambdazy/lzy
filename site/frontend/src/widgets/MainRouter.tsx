@@ -6,10 +6,12 @@ import {Basics, Environment, Setup, Data, Whiteboards, Views, Integrations, Over
 import {Tasks} from "./Tasks";
 import {PublicKeys} from "./PublicKeys";
 import {Header} from "./Header";
+import {ErrorAlert} from "./ErrorAlert";
 
 export const MainRouter = () => (
     <main>
         <Header/>
+        <ErrorAlert/>
         <Switch>
             <PrivateRoute path="/tasks" exact>
                 <Tasks/>

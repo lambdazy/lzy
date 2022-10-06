@@ -13,11 +13,12 @@ import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Post;
 import jakarta.inject.Inject;
+
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.validation.Valid;
 
-@Controller("key1234")
+@Controller("key")
 public class Keys {
     @Inject
     AuthUtils authUtils;
@@ -34,25 +35,12 @@ public class Keys {
         return HttpResponse.ok();
     }
 
-    @Introspected
-    public record AddPublicKeyRequest(
-        Cookie cookie,
-        String keyName,
-        String publicKey
-    ) {}
-
     @Post("delete")
     public HttpResponse<?> delete(@Valid @Body DeletePublicKeyRequest request) {
         final Subject subject = authUtils.checkCookieAndGetSubject(request.cookie);
         subjectService.removeCredentials(subject, request.keyName);
         return HttpResponse.ok();
     }
-
-    @Introspected
-    public record DeletePublicKeyRequest(
-        Cookie cookie,
-        String keyName
-    ) {}
 
     @Post("list")
     public HttpResponse<ListKeysResponse> list(@Valid @Body ListKeysRequest request) {
@@ -68,8 +56,27 @@ public class Keys {
     }
 
     @Introspected
-    public record ListKeysRequest(Cookie cookie) {}
+    public record AddPublicKeyRequest(
+        Cookie cookie,
+        String keyName,
+        String publicKey
+    )
+    {
+    }
 
     @Introspected
-    public record ListKeysResponse(List<String> keyNames) {}
+    public record DeletePublicKeyRequest(
+        Cookie cookie,
+        String keyName
+    )
+    {
+    }
+
+    @Introspected
+    public record ListKeysRequest(Cookie cookie) {
+    }
+
+    @Introspected
+    public record ListKeysResponse(List<String> keyNames) {
+    }
 }

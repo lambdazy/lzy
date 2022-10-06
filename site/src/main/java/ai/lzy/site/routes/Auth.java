@@ -1,7 +1,5 @@
 package ai.lzy.site.routes;
 
-import static ai.lzy.site.ServiceConfig.*;
-
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.AuthProvider;
@@ -15,7 +13,6 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.MediaType;
-import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.QueryValue;
@@ -27,12 +24,15 @@ import io.micronaut.http.server.util.HttpHostResolver;
 import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.web.router.RouteBuilder;
 import jakarta.inject.Inject;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
 import java.util.UUID;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+
+import static ai.lzy.site.ServiceConfig.GithubCredentials;
 
 @Controller("auth")
 public class Auth {
@@ -76,25 +76,6 @@ public class Auth {
             return HttpResponse.ok(new LoginUrlResponse(loginUrl));
         }
         throw new HttpStatusException(HttpStatus.BAD_REQUEST, "Unknown auth type " + "loginUrlRequest");
-    }
-
-    @Introspected
-    public record LoginUrlResponse(
-        String url
-    ) {}
-
-    public enum AuthType {
-        GITHUB("github");
-
-        public final String name;
-
-        AuthType(String name) {
-            this.name = name;
-        }
-
-        public String toString() {
-            return name;
-        }
     }
 
     @Get("/code/github{?code,state}")
@@ -161,6 +142,27 @@ public class Auth {
         );
     }
 
+    public enum AuthType {
+        GITHUB("github");
+
+        public final String name;
+
+        AuthType(String name) {
+            this.name = name;
+        }
+
+        public String toString() {
+            return name;
+        }
+    }
+
+    @Introspected
+    public record LoginUrlResponse(
+        String url
+    )
+    {
+    }
+
     @Introspected
     public record GithubAccessTokenRequest(
         String code,
@@ -168,7 +170,9 @@ public class Auth {
         String clientId,
         @JsonProperty(value = "client_secret")
         String clientSecret
-    ) {}
+    )
+    {
+    }
 
 
     @Introspected
@@ -178,11 +182,15 @@ public class Auth {
         String scope,
         @JsonProperty(value = "token_type")
         String tokenType
-    ) {}
+    )
+    {
+    }
 
     @Introspected
     public record GitHubGetUserResponse(
         String login,
         String id
-    ) {}
+    )
+    {
+    }
 }

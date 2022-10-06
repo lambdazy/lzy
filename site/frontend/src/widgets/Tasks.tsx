@@ -2,7 +2,7 @@ import axios from "axios";
 import {useContext, useEffect, useState} from "react";
 import {BACKEND_HOST} from "../config";
 import {AuthContext, UserCredentials} from "../logic/Auth";
-import {useAlert} from "./ErrorAlert";
+import {ErrorAlert, useAlert} from "./ErrorAlert";
 import {DataGrid, GridColDef, GridRowsProp} from '@mui/x-data-grid';
 import {Redirect} from "react-router-dom";
 import {TextField} from "@mui/material";
@@ -82,13 +82,15 @@ export function Tasks() {
         }
     }) : [];
 
-    return <DataGrid
-        autoHeight
-        columns={columns}
-        rows={rows}
-        components={{Toolbar}}
-        componentsProps={{
-            toolbar: {taskUpdater: (tasks: Task[]) => setTasks(tasks)}
-        }}
-    />
+    return <div>
+        <DataGrid
+            autoHeight
+            columns={columns}
+            rows={rows}
+            components={{Toolbar}}
+            componentsProps={{
+                toolbar: {taskUpdater: (tasks: Task[]) => setTasks(tasks)}
+            }}
+        />
+    </div>
 }

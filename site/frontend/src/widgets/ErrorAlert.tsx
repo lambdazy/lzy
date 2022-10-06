@@ -8,7 +8,7 @@ export enum AlertVariant {
 }
 
 export interface AlertParams {
-    show: boolean;
+    isOpen: boolean;
     text: string | undefined;
     header: string | undefined;
     variant: AlertVariant | undefined;
@@ -29,7 +29,7 @@ export interface AlertContext {
 
 const alertContext = createContext<AlertContext>({
     params: {
-        show: false,
+        isOpen: false,
         text: undefined,
         header: undefined,
         variant: undefined
@@ -45,7 +45,7 @@ export function useAlert(): AlertContext {
 
 export function useProvideAlert(): AlertContext {
     const [showState, setShowState] = useState<AlertParams>({
-        show: false,
+        isOpen: false,
         text: undefined,
         header: undefined,
         variant: undefined
@@ -55,9 +55,9 @@ export function useProvideAlert(): AlertContext {
         header: string,
         variant: AlertVariant
     ) => {
-        if (!showState.show) {
+        if (!showState.isOpen) {
             setShowState({
-                show: true,
+                isOpen: true,
                 text,
                 header,
                 variant
@@ -77,9 +77,9 @@ export function useProvideAlert(): AlertContext {
         show(text, header, AlertVariant.SUCCESS)
     }
     const close = () => {
-        if (showState.show)
+        if (showState.isOpen)
             setShowState({
-                show: false,
+                isOpen: false,
                 text: undefined,
                 header: undefined,
                 variant: undefined
@@ -99,15 +99,15 @@ export const ErrorAlert: FC = () => {
     let alert = useAlert();
     return (
         <Alert
-            show={alert.params.show}
+            show={alert.params.isOpen}
             onClose={() => {
                 alert.close();
             }}
             variant={alert.params.variant}
             dismissible
         >
-            <Alert.Heading>{alert.params.header}</Alert.Heading>
-            <p>{alert.params.text}</p>
+            <Alert.Heading>{alert.params.text}</Alert.Heading>
+            <p>{alert.params.header}</p>
         </Alert>
     );
 };

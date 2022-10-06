@@ -136,7 +136,7 @@ export function PublicKeys() {
             setKeys({entries: res.data.keys});
         })
             .catch(error => {
-                alert.showDanger(error.name, error.message);
+                alert.showDanger("Failed to fetch keys from server", error.name + ": " + error.message);
             })
     }, [alert, userCreds]);
 

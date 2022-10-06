@@ -17,7 +17,7 @@ import java.util.List;
 import javax.validation.Valid;
 
 @Validated
-@Controller("/tasks123")
+@Controller("/tasks")
 public class Tasks {
     @Inject
     AuthUtils authUtils;
