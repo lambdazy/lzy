@@ -8,6 +8,7 @@ source "$src_dir/util.sh"
 
 # this has to be declared as env variable in mk-python-env.nix
 proto_out="lzy/proto"
+proto_validation_path="../util/util-grpc/src/main/proto/"
 proto_model_path="../model/src/main/proto/"
 proto_workflow_path="../workflow-api/src/main/proto/"
 
@@ -20,6 +21,16 @@ python -m mypy_protobuf 1>/dev/null 2>&1\
 
 print_green "Generating protobuf, grpclib and mypy proto stubs"
 
+cd "$proto_validation_path"
+find . -iname "*.proto" -type f \
+       -exec python -m grpc_tools.protoc -I . \
+                    --python_out="$OLDPWD" \
+                    --mypy_out="$OLDPWD" \
+                    --grpclib_python_out="$OLDPWD" \
+                    --proto_path="$proto_validation_path" \
+                    '{}' +
+cd "$OLDPWD"
+
 cd "$proto_model_path"
 find . -iname "*.proto" -type f \
        -exec python -m grpc_tools.protoc -I . \
@@ -28,12 +39,11 @@ find . -iname "*.proto" -type f \
                     --grpclib_python_out="$OLDPWD" \
                     --proto_path="$proto_model_path" \
                     '{}' +
-
 cd "$OLDPWD"
 
 cd "$proto_workflow_path"
 find . -iname "*.proto" -type f \
-       -exec python -m grpc_tools.protoc -I . -I "$OLDPWD/$proto_model_path" \
+       -exec python -m grpc_tools.protoc -I . -I "$OLDPWD/$proto_model_path" -I "$OLDPWD/$proto_proto_validation_path" \
                     --python_out="$OLDPWD" \
                     --mypy_out="$OLDPWD" \
                     --grpc_python_out="$OLDPWD" \
