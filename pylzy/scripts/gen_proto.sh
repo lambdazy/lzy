@@ -43,7 +43,7 @@ cd "$OLDPWD"
 
 cd "$proto_workflow_path"
 find . -iname "*.proto" -type f \
-       -exec python -m grpc_tools.protoc -I . -I "$OLDPWD/$proto_model_path" -I "$OLDPWD/$proto_proto_validation_path" \
+       -exec python -m grpc_tools.protoc -I . -I "$OLDPWD/$proto_model_path" -I "$OLDPWD/$proto_validation_path" \
                     --python_out="$OLDPWD" \
                     --mypy_out="$OLDPWD" \
                     --grpc_python_out="$OLDPWD" \
