@@ -13,6 +13,7 @@ import com.google.common.collect.ImmutableSet;
 import io.grpc.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.ThreadContext;
 
 import java.util.Arrays;
 import java.util.Set;
@@ -32,13 +33,15 @@ public class AuthServerInterceptor implements ServerInterceptor {
     }
 
     public AuthServerInterceptor(Function<AuthException, StatusException> exceptionMapper,
-                                 AuthenticateService authenticateService) {
+                                 AuthenticateService authenticateService)
+    {
         this(exceptionMapper, ImmutableSet.of(), authenticateService);
     }
 
     AuthServerInterceptor(Function<AuthException, StatusException> exceptionMapper,
                           Set<MethodDescriptor<?, ?>> unauthenticatedMethods,
-                          AuthenticateService authenticateService) {
+                          AuthenticateService authenticateService)
+    {
         this.exceptionMapper = exceptionMapper;
         this.unauthenticatedMethods = unauthenticatedMethods;
         this.authenticateService = authenticateService;
@@ -79,7 +82,8 @@ public class AuthServerInterceptor implements ServerInterceptor {
                     throw new IllegalArgumentException("Authorization header is missing");
                 } else {
                     Context context = Context.current().withValue(AuthenticationContext.KEY, authContext);
-                    return Contexts.interceptCall(context, call, headers, next);
+                    var serverCall = new GrpcServerCall<>(call, authContext.getSubject().str());
+                    return Contexts.interceptCall(context, serverCall, headers, next);
                 }
             }
         } catch (IllegalArgumentException iaException) {
@@ -112,4 +116,16 @@ public class AuthServerInterceptor implements ServerInterceptor {
         };
     }
 
+    private static class GrpcServerCall<M, R> extends ForwardingServerCall.SimpleForwardingServerCall<M, R> {
+        private GrpcServerCall(ServerCall<M, R> serverCall, String subject) {
+            super(serverCall);
+            ThreadContext.put("subj", subject);
+        }
+
+        @Override
+        public void close(Status status, Metadata trailers) {
+            super.close(status, trailers);
+            ThreadContext.remove("subj");
+        }
+    }
 }

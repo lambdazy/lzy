@@ -8,9 +8,7 @@ import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.iam.utils.ProtoConverter;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.exceptions.AuthException;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.util.grpc.ClientHeaderInterceptor;
-import ai.lzy.util.grpc.GrpcHeaders;
+import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.iam.LABS;
 import ai.lzy.v1.iam.LzyAccessBindingServiceGrpc;
 import io.grpc.Channel;
@@ -31,32 +29,28 @@ public class AccessBindingServiceGrpcClient implements AccessBindingClient {
 
     public AccessBindingServiceGrpcClient(GrpcConfig config, Supplier<Credentials> tokenSupplier) {
         this(
-                ChannelBuilder.forAddress(config.host(), config.port())
-                        .usePlaintext()
-                        .enableRetry(LzyAccessBindingServiceGrpc.SERVICE_NAME)
-                        .build(),
-                tokenSupplier
+            GrpcUtils.newGrpcChannel(config.host(), config.port(), LzyAccessBindingServiceGrpc.SERVICE_NAME),
+            tokenSupplier
         );
     }
 
     public AccessBindingServiceGrpcClient(Channel channel, Supplier<Credentials> tokenSupplier) {
         this.channel = channel;
         this.tokenSupplier = tokenSupplier;
-        this.accessBindingService = LzyAccessBindingServiceGrpc.newBlockingStub(this.channel)
-                .withInterceptors(ClientHeaderInterceptor.header(
-                        GrpcHeaders.AUTHORIZATION,
-                        () -> this.tokenSupplier.get().token()));
+        this.accessBindingService = GrpcUtils.newBlockingClient(
+            LzyAccessBindingServiceGrpc.newBlockingStub(this.channel), () -> this.tokenSupplier.get().token());
     }
 
     @Override
     public AccessBindingClient withToken(Supplier<Credentials> tokenSupplier) {
-        return new AccessBindingServiceGrpcClient(this.channel, tokenSupplier);
+        return new AccessBindingServiceGrpcClient(channel, tokenSupplier);
     }
 
     @Override
     public Stream<AccessBinding> listAccessBindings(AuthResource resource) throws AuthException {
         try {
-            var bindings = accessBindingService.listAccessBindings(LABS.ListAccessBindingsRequest.newBuilder()
+            var bindings = accessBindingService.listAccessBindings(
+                LABS.ListAccessBindingsRequest.newBuilder()
                     .setResource(ProtoConverter.from(resource))
                     .build());
             return bindings.getBindingsList().stream().map(ProtoConverter::to);
@@ -69,7 +63,7 @@ public class AccessBindingServiceGrpcClient implements AccessBindingClient {
     public void setAccessBindings(AuthResource resource, List<AccessBinding> accessBinding) throws AuthException {
         try {
             LABS.SetAccessBindingsRequest.Builder requestBuilder = LABS.SetAccessBindingsRequest.newBuilder()
-                    .setResource(ProtoConverter.from(resource));
+                .setResource(ProtoConverter.from(resource));
             accessBinding.forEach(b -> requestBuilder.addBindings(ProtoConverter.from(b)));
             // Empty Response, see lzy-access-binding-service.proto
             var response = accessBindingService.setAccessBindings(requestBuilder.build());
@@ -80,10 +74,11 @@ public class AccessBindingServiceGrpcClient implements AccessBindingClient {
 
     @Override
     public void updateAccessBindings(AuthResource resource, List<AccessBindingDelta> accessBindingDeltas)
-            throws AuthException {
+        throws AuthException
+    {
         try {
             LABS.UpdateAccessBindingsRequest.Builder requestBuilder = LABS.UpdateAccessBindingsRequest.newBuilder()
-                    .setResource(ProtoConverter.from(resource));
+                .setResource(ProtoConverter.from(resource));
             accessBindingDeltas.forEach(b -> requestBuilder.addDeltas(ProtoConverter.from(b)));
             var response = accessBindingService.updateAccessBindings(requestBuilder.build());
         } catch (StatusRuntimeException e) {

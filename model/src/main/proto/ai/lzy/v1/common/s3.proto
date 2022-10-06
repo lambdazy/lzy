@@ -2,13 +2,15 @@ syntax = "proto3";
 
 package ai.lzy.v1;
 
+import "ai/lzy/v1/validation/validation.proto";
+
 option java_outer_classname = "LMS3";
 option java_package = "ai.lzy.v1.common";
 
 message AmazonS3Endpoint {
   string endpoint = 1;
   string accessToken = 2;
-  string secretToken = 3;
+  string secretToken = 3 [(validation.sensitive) = true];
 }
 
 message AzureS3Endpoint {

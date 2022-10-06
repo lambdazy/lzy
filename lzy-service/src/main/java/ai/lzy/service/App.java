@@ -5,9 +5,10 @@ import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.GrpcHeadersServerInterceptor;
+import ai.lzy.util.grpc.GrpcLogsInterceptor;
 import com.google.common.net.HostAndPort;
 import io.grpc.Server;
-import io.grpc.ServerInterceptors;
 import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.runtime.Micronaut;
 import org.apache.logging.log4j.LogManager;
@@ -53,8 +54,12 @@ public class App {
                 .forAddress(new InetSocketAddress(address.getHost(), address.getPort()))
                 .permitKeepAliveWithoutCalls(true)
                 .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-                .addService(ServerInterceptors.intercept(context.getBean(LzyService.class), authInterceptor))
+                .intercept(new GrpcLogsInterceptor())
+                .intercept(new GrpcHeadersServerInterceptor())
+                .intercept(authInterceptor)
+                .addService(context.getBean(LzyService.class))
                 .build();
+
             var main = new App(server);
             main.start();
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {

@@ -12,9 +12,7 @@ import ai.lzy.test.TimeUtils;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
 import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.util.grpc.ClientHeaderInterceptor;
-import ai.lzy.util.grpc.GrpcHeaders;
+import ai.lzy.util.grpc.*;
 import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.portal.LzyPortalGrpc;
 import ai.lzy.v1.workflow.LWFS;
@@ -116,15 +114,18 @@ public class WorkflowTest {
             .forAddress(new InetSocketAddress(workflowAddress.getHost(), workflowAddress.getPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
+            .intercept(new GrpcLogsInterceptor())
+            .intercept(new GrpcHeadersServerInterceptor())
             .addService(ServerInterceptors.intercept(context.getBean(LzyService.class), authInterceptor))
             .build();
         lzyServer.start();
 
         var internalUser = iam.createCredentials();
-        lzyServiceChannel = ChannelBuilder.forAddress(workflowAddress).usePlaintext().build();
+        lzyServiceChannel = GrpcUtils.newGrpcChannel(workflowAddress, LzyWorkflowServiceGrpc.SERVICE_NAME);
         unauthorizedWorkflowClient = LzyWorkflowServiceGrpc.newBlockingStub(lzyServiceChannel);
         authorizedWorkflowClient = unauthorizedWorkflowClient.withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, internalUser::token));
+            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, internalUser::token)
+            /*ClientHeaderInterceptor.header(GrpcHeaders.X_REQUEST_ID, () -> "request-1")*/);
     }
 
     @After

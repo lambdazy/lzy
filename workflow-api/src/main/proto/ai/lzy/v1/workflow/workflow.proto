@@ -3,6 +3,7 @@ syntax = "proto3";
 package ai.lzy.v1.workflow;
 
 import "ai/lzy/v1/common/data-scheme.proto";
+import "ai/lzy/v1/validation/validation.proto";
 
 option java_outer_classname = "LWF";
 option java_package = "ai.lzy.v1.workflow";
@@ -10,7 +11,7 @@ option java_package = "ai.lzy.v1.workflow";
 message Operation {
   string name = 1;  // Some human-readable name to show in UI
   /* optional */ string description = 2;  // Some human-readable description
-  string command = 3;  // command to execute
+  string command = 3 [(validation.sensitive) = true];  // command to execute
 
   // Paths of slots to open. Must be uniq per workflow
   repeated SlotDescription inputSlots = 4;
