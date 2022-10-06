@@ -92,7 +92,7 @@ public class KuberVmAllocator implements VmAllocator {
             // which must be allocated by TunnelAllocator#allocateTunnel method
             if (vmSpec.proxyV6Address() != null) {
                 podSpecBuilder = podSpecBuilder.withPodAffinity(
-                    KuberLabels.LZY_APP_LABEL, "In", TunnelAllocator.TUNNEL_POD_APP_LABEL_VALUE
+                    KuberLabels.LZY_APP_LABEL, "In", KuberTunnelAllocator.TUNNEL_POD_APP_LABEL_VALUE
                 );
             }
 
