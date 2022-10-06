@@ -45,6 +45,7 @@ public record Vm(
         String poolLabel,
         String zone,
 
+        List<Workload> initWorkloads,
         List<Workload> workloads,
         List<VolumeRequest> volumeRequests,
 

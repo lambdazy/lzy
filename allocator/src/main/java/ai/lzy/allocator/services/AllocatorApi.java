@@ -239,11 +239,15 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                             .map(wl -> Workload.fromProto(wl, Map.of(AllocatorAgent.VM_ALLOCATOR_OTT, vmOtt)))
                             .toList();
 
+                        var initWorkloads = request.getInitWorkloadList().stream()
+                            .map(Workload::fromProto)
+                            .toList();
+
                         if (proxyV6Address.isPresent()) {
-                            workloads = new ArrayList<>(workloads);
+                            initWorkloads = new ArrayList<>(initWorkloads);
                             try {
-                                workloads.add(
-                                    tunnelAllocator.createRequestTunnelInitContainer(
+                                initWorkloads.add(
+                                    tunnelAllocator.createRequestTunnelWorkload(
                                         request.getProxyV6Address(), request.getPoolLabel(), request.getZone()
                                     )
                                 );
@@ -268,9 +272,8 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                         }
 
                         var vmSpec = dao.create(
-                            request.getSessionId(), request.getPoolLabel(), request.getZone(), workloads, volumes,
-                            op.id(), startedAt, proxyV6Address.orElse(null),
-                            transaction
+                            request.getSessionId(), request.getPoolLabel(), request.getZone(), initWorkloads, workloads,
+                            volumes, op.id(), startedAt, proxyV6Address.orElse(null), transaction
                         );
 
                         op.modifyMeta(Any.pack(AllocateMetadata.newBuilder()

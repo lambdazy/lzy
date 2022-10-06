@@ -31,7 +31,7 @@ import javax.annotation.Nullable;
 public class VmDaoImpl implements VmDao {
     private static final String SPEC_FIELDS =  " id, session_id, pool_label, zone, " +
                                                " allocation_op_id, allocation_started_at," +
-                                               " workloads_json, volume_requests_json ";
+                                               " init_workloads_json, workloads_json, volume_requests_json ";
 
     private static final String STATE_FIELDS = " status, last_activity_time, deadline," +
                                                " allocation_deadline, vm_meta_json," +
@@ -41,7 +41,7 @@ public class VmDaoImpl implements VmDao {
 
     private static final String QUERY_CREATE_VM = """
         INSERT INTO vm (%s)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""".formatted(SPEC_FIELDS + ", status, v6_proxy_address");
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""".formatted(SPEC_FIELDS + ", status, v6_proxy_address");
 
     private static final String QUERY_UPDATE_VM = """
         UPDATE vm
@@ -135,13 +135,15 @@ public class VmDaoImpl implements VmDao {
     }
 
     @Override
-    public Vm.Spec create(String sessionId, String poolLabel, String zone, List<Workload> workload,
-                          List<VolumeRequest> volumeRequests, String allocationOpId, Instant now,
-                          @Nullable Inet6Address v6ProxyAddress, @Nullable TransactionHandle transaction)
+    public Vm.Spec create(String sessionId, String poolLabel, String zone, List<Workload> initWorkload,
+                          List<Workload> workload, List<VolumeRequest> volumeRequests, String allocationOpId,
+                          Instant now, @Nullable Inet6Address v6ProxyAddress, @Nullable TransactionHandle transaction)
         throws SQLException
     {
         final var vmId = "vm-" + UUID.randomUUID();
-        final var vmSpec = new Vm.Spec(vmId, sessionId, now, poolLabel, zone, workload, volumeRequests, v6ProxyAddress);
+        final var vmSpec = new Vm.Spec(
+            vmId, sessionId, now, poolLabel, zone, initWorkload, workload, volumeRequests, v6ProxyAddress
+        );
 
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(QUERY_CREATE_VM)) {
@@ -151,10 +153,11 @@ public class VmDaoImpl implements VmDao {
                 s.setString(4, vmSpec.zone());
                 s.setString(5, allocationOpId);
                 s.setTimestamp(6, Timestamp.from(now));
-                s.setString(7, objectMapper.writeValueAsString(vmSpec.workloads()));
-                s.setString(8, objectMapper.writeValueAsString(vmSpec.volumeRequests()));
-                s.setString(9, Vm.VmStatus.CREATED.name());
-                s.setString(10, v6ProxyAddress == null ? null : v6ProxyAddress.getHostAddress());
+                s.setString(7, objectMapper.writeValueAsString(vmSpec.initWorkloads()));
+                s.setString(8, objectMapper.writeValueAsString(vmSpec.workloads()));
+                s.setString(9, objectMapper.writeValueAsString(vmSpec.volumeRequests()));
+                s.setString(10, Vm.VmStatus.CREATED.name());
+                s.setString(11, v6ProxyAddress == null ? null : v6ProxyAddress.getHostAddress());
                 s.execute();
             } catch (JsonProcessingException e) {
                 throw new RuntimeException("Cannot dump values", e);
@@ -455,33 +458,37 @@ public class VmDaoImpl implements VmDao {
         final var allocationOpId = res.getString(5);
         final var allocationStartedAt = res.getTimestamp(6).toInstant();
 
-        final var workloads = objectMapper.readValue(res.getString(7),
+        final var initWorkloads = objectMapper.readValue(res.getString(7),
+            new TypeReference<List<Workload>>() {});
+        final var workloads = objectMapper.readValue(res.getString(8),
             new TypeReference<List<Workload>>() {});
         final var volumeRequests = objectMapper.readValue(
-            res.getString(8), new TypeReference<List<VolumeRequest>>() {});
+            res.getString(9), new TypeReference<List<VolumeRequest>>() {});
 
-        final var vmStatus = Vm.VmStatus.valueOf(res.getString(9));
-        final var lastActivityTimeTs = res.getTimestamp(10);
+        final var vmStatus = Vm.VmStatus.valueOf(res.getString(10));
+        final var lastActivityTimeTs = res.getTimestamp(11);
         final var lastActivityTime = lastActivityTimeTs == null ? null : lastActivityTimeTs.toInstant();
 
-        final var deadlineTs = res.getTimestamp(11);
+        final var deadlineTs = res.getTimestamp(12);
         final var deadline = deadlineTs == null ? null : deadlineTs.toInstant();
 
-        final var allocationDeadlineTs = res.getTimestamp(12);
+        final var allocationDeadlineTs = res.getTimestamp(13);
         final var allocationDeadline = allocationDeadlineTs == null ? null : allocationDeadlineTs.toInstant();
 
-        final String vmMetaString = res.getString(13);
+        final String vmMetaString = res.getString(14);
         final var vmMeta = vmMetaString == null ? null : objectMapper.readValue(vmMetaString,
             new TypeReference<Map<String, String>>() {});
 
-        final String volumeClaimString = res.getString(14);
+        final String volumeClaimString = res.getString(15);
         final var volumeClaims = volumeClaimString == null ? null : objectMapper.readValue(volumeClaimString,
             new TypeReference<List<VolumeClaim>>() {});
 
-        final String vmSubjectId = res.getString(15);
+        final String vmSubjectId = res.getString(16);
 
         return new Vm(
-            new Vm.Spec(id, sessionIdRes, allocationStartedAt, poolLabel, zone, workloads, volumeRequests, null),
+            new Vm.Spec(
+                id, sessionIdRes, allocationStartedAt, poolLabel, zone, initWorkloads, workloads, volumeRequests, null
+            ),
             new Vm.State(vmStatus, lastActivityTime, deadline, allocationDeadline, vmSubjectId, vmMeta, volumeClaims),
             allocationOpId
         );

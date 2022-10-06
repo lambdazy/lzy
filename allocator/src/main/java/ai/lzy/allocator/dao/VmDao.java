@@ -15,7 +15,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 public interface VmDao {
-    Vm.Spec create(String sessionId, String poolId, String zone, List<Workload> workload,
+    Vm.Spec create(String sessionId, String poolId, String zone, List<Workload> initWorkload, List<Workload> workload,
                    List<VolumeRequest> volumeRequests, String allocationOpId, Instant startedAt,
                    @Nullable Inet6Address v6ProxyAddress, @Nullable TransactionHandle transaction) throws SQLException;
     void update(String vmId, Vm.State state, @Nullable TransactionHandle transaction) throws SQLException;

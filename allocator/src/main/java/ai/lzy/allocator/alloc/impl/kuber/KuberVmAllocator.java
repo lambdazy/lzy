@@ -97,7 +97,8 @@ public class KuberVmAllocator implements VmAllocator {
             }
 
             final Pod vmPodSpec = podSpecBuilder
-                .withWorkloads(vmSpec.workloads())
+                .withWorkloads(vmSpec.initWorkloads(), true)
+                .withWorkloads(vmSpec.workloads(), false)
                 .withVolumes(volumeClaims)
                 .withHostVolumes(vmSpec.volumeRequests().stream()
                     .filter(v -> v.volumeDescription() instanceof HostPathVolumeDescription)

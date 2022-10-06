@@ -85,7 +85,7 @@ public class PodSpecBuilder {
         return pod.getMetadata().getName();
     }
 
-    public PodSpecBuilder withWorkloads(List<Workload> workloads) {
+    public PodSpecBuilder withWorkloads(List<Workload> workloads, boolean init) {
         for (var workload : workloads) {
             final var container = new Container();
             final var envList = workload.env().entrySet()
@@ -159,7 +159,7 @@ public class PodSpecBuilder {
             context.setRunAsUser(0L);
             container.setSecurityContext(context);
 
-            if (workload.isInit()) {
+            if (init) {
                 initContainers.add(container);
             } else {
                 containers.add(container);

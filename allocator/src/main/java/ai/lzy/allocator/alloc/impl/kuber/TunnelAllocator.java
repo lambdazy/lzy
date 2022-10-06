@@ -52,10 +52,9 @@ public class TunnelAllocator {
                 .withWorkloads(
                     Collections.singletonList(new Workload(
                             "tunnel", config.getTunnelPodImage(), Collections.emptyMap(),
-                            Collections.emptyList(), Collections.emptyMap(), Collections.emptyList(),
-                            false
+                            Collections.emptyList(), Collections.emptyMap(), Collections.emptyList()
                         )
-                    ))
+                    ), false)
                 // not to be allocated with another tunnel
                 .withPodAntiAffinity(KuberLabels.LZY_APP_LABEL, "In", vmSpec.sessionId(),
                     TUNNEL_POD_APP_LABEL_VALUE)
@@ -82,7 +81,7 @@ public class TunnelAllocator {
     }
 
     /**
-     * Constructs the {@link Workload} with the init container, which will request tunnel creation to the tunnel pod,
+     * Constructs the {@link Workload}, which will request tunnel creation to the tunnel pod,
      * who must be created by the {@link TunnelAllocator#allocateTunnel(Vm.Spec)} method.
      *
      * @param remoteV6  - v6 address of the another end of the tunnel.
@@ -91,7 +90,7 @@ public class TunnelAllocator {
      * @return {@link Workload} with the init container.
      * @throws InvalidConfigurationException if allocator cannot find suit cluster for the vm spec.
      */
-    public Workload createRequestTunnelInitContainer(String remoteV6, String poolLabel, String zone)
+    public Workload createRequestTunnelWorkload(String remoteV6, String poolLabel, String zone)
         throws InvalidConfigurationException {
         final var cluster = clusterRegistry.findCluster(
             poolLabel, zone, ClusterRegistry.ClusterType.User);
@@ -100,7 +99,7 @@ public class TunnelAllocator {
                 "Cannot find pool for label " + poolLabel + " and zone " + zone);
         }
         return new Workload(
-            "init-request-tunnel",
+            "request-tunnel",
             config.getTunnelRequestContainerImage(),
             Collections.emptyMap(),
             List.of(
@@ -117,8 +116,7 @@ public class TunnelAllocator {
                 "ai.lzy.v1.tunnel.LzyTunnelAgent/CreateTunnel"
             ),
             Collections.emptyMap(),
-            Collections.emptyList(),
-            true
+            Collections.emptyList()
         );
     }
 }
