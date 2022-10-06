@@ -33,11 +33,11 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 @Requires(property = "allocator.kuber-allocator.enabled", value = "true")
 public class KuberVmAllocator implements VmAllocator {
     private static final Logger LOG = LogManager.getLogger(KuberVmAllocator.class);
-    private static final String NAMESPACE = "default";
+    public static final String NAMESPACE = "default";
 
-    private static final String NAMESPACE_KEY = "namespace";
-    private static final String POD_NAME_KEY = "pod-name";
-    private static final String CLUSTER_ID_KEY = "cluster-id";
+    public static final String NAMESPACE_KEY = "namespace";
+    public static final String POD_NAME_KEY = "pod-name";
+    public static final String CLUSTER_ID_KEY = "cluster-id";
     public static final String VM_POD_NAME_PREFIX = "lzy-vm-";
     public static final String VM_POD_APP_LABEL_VALUE = "vm";
 
