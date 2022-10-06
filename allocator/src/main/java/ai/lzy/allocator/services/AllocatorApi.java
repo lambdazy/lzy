@@ -238,7 +238,8 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                         var workloads = request.getWorkloadList().stream()
                             .map(wl -> Workload.fromProto(wl, Map.of(AllocatorAgent.VM_ALLOCATOR_OTT, vmOtt)))
                             .toList();
-                        if (request.hasProxyV6Address()) {
+
+                        if (proxyV6Address.isPresent()) {
                             workloads = new ArrayList<>(workloads);
                             try {
                                 workloads.add(

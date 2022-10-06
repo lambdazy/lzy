@@ -54,7 +54,6 @@ public class PodSpecBuilder {
             KuberLabels.LZY_POD_NAME_LABEL, podName,
             KuberLabels.LZY_POD_SESSION_ID_LABEL, vmSpec.sessionId(),
             KuberLabels.LZY_VM_ID_LABEL, vmId
-
         ));
         pod.getMetadata().setLabels(labels);
 
