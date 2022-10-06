@@ -15,6 +15,7 @@ import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
+import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
@@ -124,7 +125,7 @@ public class BaseTest {
         lzyServer.start();
 
         var internalUser = iam.createCredentials();
-        lzyServiceChannel = ChannelBuilder.forAddress(workflowAddress).usePlaintext().build();
+        lzyServiceChannel = GrpcUtils.newGrpcChannel(workflowAddress, LzyWorkflowServiceGrpc.SERVICE_NAME);
         unauthorizedWorkflowClient = LzyWorkflowServiceGrpc.newBlockingStub(lzyServiceChannel);
         authorizedWorkflowClient = unauthorizedWorkflowClient.withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, internalUser::token));
