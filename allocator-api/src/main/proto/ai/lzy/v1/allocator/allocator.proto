@@ -65,7 +65,7 @@ message AllocateRequest {
     repeated string args = 17;
     map<uint32, uint32> port_bindings = 18;  // host port: container port
 
-    repeated Mount volumeMounts = 20;
+    repeated Mount volume_mounts = 20;
   }
 
   string session_id = 1;
@@ -74,7 +74,7 @@ message AllocateRequest {
 
   // workloads which are run _before_ the main workloads are started (== K8s Init Containers)
   // init containers are run until succeeded before running common containers
-  repeated Workload initWorkload = 4;
+  repeated Workload init_workload = 4;
   // main workloads
   repeated Workload workload = 5;
 
