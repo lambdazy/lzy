@@ -54,10 +54,12 @@ message DataDescription {
 message Graph {
   string name = 1;  // Human-readable name to show in UI
 
-  repeated Operation operations = 2;
-  repeated DataDescription dataDescriptions = 3;
+  string parentGraphId = 2;
 
-  /* optional */ string zone = 4;  // Availability zone to execute graph in.
+  repeated Operation operations = 3;
+  repeated DataDescription dataDescriptions = 4;
+
+  /* optional */ string zone = 5;  // Availability zone to execute graph in.
   // If not set, selected some zone, matching all pools
 }
 

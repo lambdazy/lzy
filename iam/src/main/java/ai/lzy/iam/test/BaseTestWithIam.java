@@ -1,6 +1,9 @@
 package ai.lzy.iam.test;
 
 import ai.lzy.iam.LzyIAM;
+import ai.lzy.iam.config.IamClientConfiguration;
+import ai.lzy.iam.configs.InternalUserConfig;
+import ai.lzy.iam.configs.ServiceConfig;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
@@ -46,5 +49,17 @@ public class BaseTestWithIam {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public IamClientConfiguration getClientConfig() {
+        var serviceConfig = iamCtx.getBean(ServiceConfig.class);
+        var internalUserConfig = iamCtx.getBean(InternalUserConfig.class);
+        var iamClientConfiguration = new IamClientConfiguration();
+
+        iamClientConfiguration.setAddress("localhost:" + serviceConfig.getServerPort());
+        iamClientConfiguration.setInternalUserName(internalUserConfig.userName());
+        iamClientConfiguration.setInternalUserPrivateKey(internalUserConfig.credentialPrivateKey());
+
+        return iamClientConfiguration;
     }
 }
