@@ -205,8 +205,8 @@ public class ProtoPrinter {
             }
 
             private static Descriptors.FieldDescriptor.JavaType extractFieldType(
-                Descriptors.FieldDescriptor fieldDescriptor
-            ) {
+                Descriptors.FieldDescriptor fieldDescriptor)
+            {
                 return fieldDescriptor.getMessageType().getFields().get(0).getJavaType();
             }
 

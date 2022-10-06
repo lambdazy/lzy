@@ -20,6 +20,7 @@ python -m mypy_protobuf 1>/dev/null 2>&1\
     || pip install mypy-protobuf
 
 print_green "Generating protobuf, grpclib and mypy proto stubs"
+print_green "$PWD"
 
 cd "$proto_validation_path"
 find . -iname "*.proto" -type f \
@@ -27,17 +28,17 @@ find . -iname "*.proto" -type f \
                     --python_out="$OLDPWD" \
                     --mypy_out="$OLDPWD" \
                     --grpclib_python_out="$OLDPWD" \
-                    --proto_path="$proto_validation_path" \
+                    --proto_path="." \
                     '{}' +
 cd "$OLDPWD"
 
 cd "$proto_model_path"
 find . -iname "*.proto" -type f \
-       -exec python -m grpc_tools.protoc -I . \
+       -exec python -m grpc_tools.protoc -I . -I "$OLDPWD/$proto_validation_path" \
                     --python_out="$OLDPWD" \
                     --mypy_out="$OLDPWD" \
                     --grpclib_python_out="$OLDPWD" \
-                    --proto_path="$proto_model_path" \
+                    --proto_path="." \
                     '{}' +
 cd "$OLDPWD"
 
@@ -47,7 +48,7 @@ find . -iname "*.proto" -type f \
                     --python_out="$OLDPWD" \
                     --mypy_out="$OLDPWD" \
                     --grpc_python_out="$OLDPWD" \
-                    --proto_path="$proto_workflow_path" \
+                    --proto_path="." \
                     '{}' +
 cd "$OLDPWD"
 

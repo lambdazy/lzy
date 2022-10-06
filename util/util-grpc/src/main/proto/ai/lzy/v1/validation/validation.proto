@@ -5,7 +5,7 @@ package ai.lzy.v1.validation;
 import "google/protobuf/descriptor.proto";
 
 option java_outer_classname = "LV";
-option java_package = "ai.lzy.v1.util";
+option java_package = "ai.lzy.v1.validation";
 
 extend google.protobuf.FieldOptions {
   // When set to true, `sensitive` indicates that this field contains sensitive data, such as
