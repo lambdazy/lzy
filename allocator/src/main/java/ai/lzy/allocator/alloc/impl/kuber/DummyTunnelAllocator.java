@@ -2,9 +2,11 @@ package ai.lzy.allocator.alloc.impl.kuber;
 
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
+import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 
 @Singleton
+@Requires(property = "allocator.kuber-tunnel-allocator.enabled", value = "false")
 public class DummyTunnelAllocator implements TunnelAllocator {
     @Override
     public void allocateTunnel(Vm.Spec vmSpec) {
