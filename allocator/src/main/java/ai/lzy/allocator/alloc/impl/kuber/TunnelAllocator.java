@@ -18,6 +18,7 @@ import java.util.List;
 public class TunnelAllocator {
     private static final Logger LOG = LogManager.getLogger(TunnelAllocator.class);
     private static final String NAMESPACE = "default";
+    private static final int TUNNEL_AGENT_PORT = 1234;
     public static final String TUNNEL_POD_NAME_PREFIX = "lzy-tunnel-";
     public static final String TUNNEL_POD_APP_LABEL_VALUE = "tunnel";
 
@@ -112,7 +113,7 @@ public class TunnelAllocator {
                     String.format("$(%s)", AllocatorAgent.VM_IP_ADDRESS),
                     clusterRegistry.getClusterPodsCidr(cluster.clusterId())
                 ),
-                String.format("$(%s):1234", AllocatorAgent.VM_NODE_IP_ADDRESS),
+                String.format("$(%s):%d", AllocatorAgent.VM_NODE_IP_ADDRESS, TUNNEL_AGENT_PORT),
                 "ai.lzy.v1.tunnel.LzyTunnelAgent/CreateTunnel"
             ),
             Collections.emptyMap(),
