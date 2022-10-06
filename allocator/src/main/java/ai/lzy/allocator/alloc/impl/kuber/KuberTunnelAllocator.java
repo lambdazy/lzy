@@ -106,7 +106,7 @@ public class KuberTunnelAllocator implements TunnelAllocator {
             config.getTunnelRequestContainerImage(),
             Collections.emptyMap(),
             List.of(
-                "./grpcurl",
+                config.getTunnelRequestContainerGrpCurlPath(),
                 "--plaintext",
                 "-d",
                 String.format(

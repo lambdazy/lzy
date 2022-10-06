@@ -24,6 +24,7 @@ public class ServiceConfig {
     private List<String> userClusters = new ArrayList<>();
     private String tunnelPodImage;
     private String tunnelRequestContainerImage;
+    private String tunnelRequestContainerGrpCurlPath;
 
     @ConfigurationBuilder("database")
     private final DatabaseConfiguration database = new DatabaseConfiguration();
