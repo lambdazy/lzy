@@ -1,26 +1,7 @@
 package ai.lzy.service;
 
-import java.nio.file.Files;
-import java.sql.Timestamp;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.LockSupport;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
-import static ai.lzy.channelmanager.grpc.ProtoConverter.createChannelRequest;
-import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
-import static ai.lzy.model.db.DbHelper.withRetries;
-import static ai.lzy.v1.VmPoolServiceApi.GetVmPoolsRequest;
-import static ai.lzy.v1.VmPoolServiceApi.VmPoolSpec;
-import static ai.lzy.v1.workflow.LWFS.ExecuteGraphRequest;
-import static ai.lzy.v1.workflow.LWFS.ExecuteGraphResponse;
-
 import ai.lzy.allocator.AllocatorAgent;
+import ai.lzy.allocator.vmpool.VmPoolClient;
 import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
@@ -74,8 +55,28 @@ import io.micronaut.core.util.StringUtils;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Singleton;
+import org.apache.commons.collections4.ListUtils;
+import org.apache.commons.collections4.PredicateUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.nio.file.Files;
+import java.sql.Timestamp;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import static ai.lzy.channelmanager.grpc.ProtoConverter.createChannelRequest;
+import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
+import static ai.lzy.model.db.DbHelper.withRetries;
+import static ai.lzy.v1.workflow.LWFS.ExecuteGraphRequest;
+import static ai.lzy.v1.workflow.LWFS.ExecuteGraphResponse;
 
 @Singleton
 public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBase {
@@ -394,8 +395,15 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             withRetries(defaultRetryPolicy(), LOG, () -> workflowDao.updateAllocatedVmAddress(executionId,
                 allocateResponse.getMetadataOrDefault(AllocatorAgent.VM_IP_ADDRESS, null)));
 
+        } catch (StatusRuntimeException e) {
+            var causeStatus = e.getStatus();
+            LOG.error("Cannot start portal for: { userId: {}, workflowName: {}, executionId: {} } , error: {}",
+                userId, workflowName, executionId, causeStatus.getDescription());
+            response.onError(causeStatus.withDescription("Cannot start portal: " + causeStatus.getDescription())
+                .asRuntimeException());
+            return false;
         } catch (Exception e) {
-            response.onError(Status.INTERNAL.withDescription("Cannot save execution data about portal")
+            response.onError(Status.INTERNAL.withDescription("Cannot start portal: " + e.getMessage())
                 .asRuntimeException());
             return false;
         }
@@ -489,28 +497,48 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
         String zoneName;
         try {
-            zoneName = determineZone(graph.getOperationsList()
+            zoneName = VmPoolClient.findZone(vmPoolClient, graph.getOperationsList()
                 .stream()
                 .map(LWF.Operation::getPoolSpecName)
                 .toList());
-        } catch (IllegalArgumentException e) {
-            LOG.error("Cannot determine zone with pool labels: " + e.getMessage());
-            response.onError(Status.INVALID_ARGUMENT.withDescription("Cannot determine zone with pool labels: " +
-                e.getMessage()).asRuntimeException());
+        } catch (StatusRuntimeException e) {
+            var causeStatus = e.getStatus();
+            LOG.error("Cannot obtain vm pools for graph with: { workflowName: {}, executionId: {} } , error: {}",
+                workflowName, executionId, causeStatus.getDescription());
+            response.onError(causeStatus.withDescription("Cannot obtain vm pools: " + causeStatus.getDescription())
+                .asRuntimeException());
             return;
         }
 
-        var portalChannel = portalChannelForExecution.computeIfAbsent(executionId, exId -> {
-            String portalAddress;
-            try {
-                portalAddress = withRetries(LOG, () -> workflowDao.getPortalAddressFor(exId));
-            } catch (Exception e) {
-                LOG.error("Cannot obtain information about portal for execution: { executionId: {} } " +
-                    e.getMessage(), exId);
-                throw new RuntimeException("Cannot obtain information about portal: " + e.getMessage());
-            }
-            return ChannelBuilder.forAddress(portalAddress).usePlaintext().build();
-        });
+        if (zoneName == null) {
+            LOG.error("Cannot find zone which has all required pools");
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Cannot find zone " +
+                "which has all required pools").asRuntimeException());
+            return;
+        }
+
+        ManagedChannel portalChannel;
+        try {
+            portalChannel = portalChannelForExecution.computeIfAbsent(executionId, exId -> {
+                String portalAddress;
+                try {
+                    portalAddress = withRetries(LOG, () -> workflowDao.getPortalAddressFor(exId));
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+                return ChannelBuilder.forAddress(portalAddress)
+                    .enableRetry(LzyPortalGrpc.SERVICE_NAME)
+                    .usePlaintext()
+                    .build();
+            });
+        } catch (RuntimeException e) {
+            var cause = Objects.nonNull(e.getCause()) ? e.getCause() : e;
+            LOG.error("Cannot obtain information about portal for execution: { executionId: {} } " +
+                cause.getMessage(), executionId);
+            response.onError(Status.INTERNAL.withDescription("Cannot obtain information about portal: " +
+                cause.getMessage()).asRuntimeException());
+            return;
+        }
 
         LzyPortalGrpc.LzyPortalBlockingStub portalClient = LzyPortalGrpc.newBlockingStub(portalChannel);
 
@@ -534,9 +562,16 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         try {
             tasks = buildTasksWithZone(zoneName, executionId, graph.getOperationsList(),
                 slots2channels, slot2description, portalClient);
-        } catch (IllegalArgumentException e) {
-            LOG.error("Cannot build tasks for execution: { executionId: {}, workflowName: {} } " + e.getMessage(),
-                executionId, workflowName);
+        } catch (StatusRuntimeException e) {
+            var causeStatus = e.getStatus();
+            LOG.error("Cannot build tasks for execution: { executionId: {}, workflowName: {} }, error: {} ",
+                executionId, workflowName, e.getMessage());
+            response.onError(causeStatus.withDescription("Cannot build tasks: " + causeStatus.getDescription())
+                .asRuntimeException());
+            return;
+        } catch (Exception e) {
+            LOG.error("Cannot build tasks for execution: { executionId: {}, workflowName: {} }, error: {} " +
+                e.getMessage(), executionId, workflowName);
             response.onError(Status.INVALID_ARGUMENT.withDescription("Error while building tasks: " + e.getMessage())
                 .asRuntimeException());
             return;
@@ -544,44 +579,120 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
         List<GraphExecutor.ChannelDesc> channels = buildChannelDescriptions(slots2channels.values());
 
-        GraphExecutorApi.GraphExecuteResponse executeResponse =
-            graphExecutorClient.execute(GraphExecutorApi.GraphExecuteRequest.newBuilder()
+        GraphExecutorApi.GraphExecuteResponse executeResponse;
+        try {
+            executeResponse = graphExecutorClient.execute(GraphExecutorApi.GraphExecuteRequest.newBuilder()
                 .setWorkflowId(executionId)
                 .setWorkflowName(workflowName)
                 .setParentGraphId(graph.getParentGraphId())
                 .addAllTasks(tasks)
                 .addAllChannels(channels)
                 .build());
+        } catch (StatusRuntimeException e) {
+            var causeStatus = e.getStatus();
+            LOG.error("Cannot execute graph in: { workflowName: {}, executionId: {} }, error: {}", workflowName,
+                executionId, causeStatus.getDescription());
+            response.onError(causeStatus.withDescription("Cannot execute graph: " + causeStatus.getDescription())
+                .asRuntimeException());
+            return;
+        }
 
         response.onNext(ExecuteGraphResponse.newBuilder().setGraphId(executeResponse.getStatus().getGraphId()).build());
         response.onCompleted();
     }
 
-    private String determineZone(Collection<String> requiredPoolLabels) {
-        List<VmPoolSpec> availablePools = vmPoolClient.getVmPools(GetVmPoolsRequest.newBuilder()
-            .setWithSystemPools(false)
-            .setWithUserPools(true)
-            .build()).getUserPoolsList();
+    @Override
+    public void graphStatus(LWFS.GraphStatusRequest request, StreamObserver<LWFS.GraphStatusResponse> response) {
+        var executionId = request.getExecutionId();
+        var graphId = request.getGraphId();
 
-        var requiredPools = new ArrayList<VmPoolSpec>(requiredPoolLabels.size());
-        for (var targetLabel : requiredPoolLabels) {
-            var found = availablePools.parallelStream()
-                .filter(pool -> targetLabel.contentEquals(pool.getLabel())).findAny();
-            if (found.isEmpty()) {
-                LOG.error("Cannot find pool with label: " + targetLabel);
-                return null;
-            }
-            requiredPools.add(found.get());
+        GraphExecutorApi.GraphStatusResponse graphStatus;
+        try {
+            graphStatus = graphExecutorClient.status(GraphExecutorApi.GraphStatusRequest.newBuilder()
+                .setWorkflowId(executionId)
+                .setGraphId(graphId)
+                .build());
+        } catch (StatusRuntimeException e) {
+            var causeStatus = e.getStatus();
+            LOG.error("Cannot obtain graph status: { executionId: {}, graphId: {} }, error: {}",
+                executionId, graphId, causeStatus.getDescription());
+            response.onError(causeStatus.withDescription("Cannot obtain graph status: " + causeStatus.getDescription())
+                .asRuntimeException());
+            return;
         }
 
-        Set<String> commonZones = requiredPools.stream().collect(
-            () -> new HashSet<>(requiredPools.get(0).getZonesList()),
-            (common, spec) -> common.retainAll(spec.getZonesList()), Collection::addAll);
+        if (!graphStatus.hasStatus()) {
+            LOG.error("Empty graph status for graph: { executionId: {}, graphId: {} }", executionId, graphId);
+            response.onError(Status.INTERNAL.withDescription("Empty graph status for graph").asRuntimeException());
+            return;
+        }
 
-        return commonZones.stream().findAny().orElseGet(() -> {
-            LOG.error("Cannot find zone which has all required pools");
-            return null;
-        });
+        var graphStatusResponse = LWFS.GraphStatusResponse.newBuilder();
+
+        switch (graphStatus.getStatus().getStatusCase()) {
+            case WAITING -> graphStatusResponse.setWaiting(LWFS.GraphStatusResponse.Waiting.getDefaultInstance());
+            case EXECUTING -> {
+                var allTaskStatuses = graphStatus.getStatus().getExecuting().getExecutingTasksList();
+
+                var executingTaskIds = new ArrayList<String>();
+                var completedTaskIds = new ArrayList<String>();
+                var waitingTaskIds = new ArrayList<String>();
+
+                allTaskStatuses.forEach(status -> {
+                    var taskId = status.getTaskDescriptionId();
+
+                    if (!status.hasProgress()) {
+                        LOG.error("Empty task status: { executionId: {}, graphId: {}, taskId: {} }", executionId,
+                            graphId, taskId);
+                        response.onError(Status.INTERNAL.withDescription("Empty status of task with ID: " + taskId)
+                            .asRuntimeException());
+                        return;
+                    }
+
+                    switch (status.getProgress().getStatusCase()) {
+                        case QUEUE -> waitingTaskIds.add(taskId);
+                        case EXECUTING -> executingTaskIds.add(taskId);
+                        case SUCCESS, ERROR -> completedTaskIds.add(taskId);
+                    }
+                });
+
+                graphStatusResponse.setExecuting(LWFS.GraphStatusResponse.Executing.newBuilder()
+                    .setMessage("Graph status")
+                    .addAllOperationsExecuting(executingTaskIds)
+                    .addAllOperationsCompleted(completedTaskIds)
+                    .addAllOperationsWaiting(waitingTaskIds));
+            }
+            case COMPLETED -> graphStatusResponse.setCompleted(LWFS.GraphStatusResponse.Completed.getDefaultInstance());
+            case FAILED -> graphStatusResponse.setFailed(LWFS.GraphStatusResponse.Failed.newBuilder()
+                .setDescription(graphStatus.getStatus().getFailed().getDescription()));
+        }
+
+        response.onNext(graphStatusResponse.build());
+        response.onCompleted();
+    }
+
+    @Override
+    public void stopGraph(LWFS.StopGraphRequest request, StreamObserver<LWFS.StopGraphResponse> response) {
+        var executionId = request.getExecutionId();
+        var graphId = request.getGraphId();
+
+        try {
+            //noinspection ResultOfMethodCallIgnored
+            graphExecutorClient.stop(GraphExecutorApi.GraphStopRequest.newBuilder()
+                .setWorkflowId(executionId)
+                .setGraphId(graphId)
+                .build());
+        } catch (StatusRuntimeException e) {
+            var causeStatus = e.getStatus();
+            LOG.error("Cannot stop graph: { executionId: {}, graphId: {} }, error: {}",
+                executionId, graphId, causeStatus.getDescription());
+            response.onError(causeStatus.withDescription("Cannot stop graph: " + causeStatus.getDescription())
+                .asRuntimeException());
+            return;
+        }
+
+        response.onNext(LWFS.StopGraphResponse.getDefaultInstance());
+        response.onCompleted();
     }
 
     private List<GraphExecutor.ChannelDesc> buildChannelDescriptions(Collection<String> channelIds) {
@@ -652,8 +763,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             var description = slot2description.get(uri);
 
             if (description == null) {
-                throw new IllegalArgumentException("Cannot find data description for output slot: " +
-                    slotDescription.getPath());
+                LOG.error("Cannot find data description for output slot: " + slotDescription.getPath());
+                return null;
             }
 
             LMS.Slot.Builder slot = LMS.Slot.newBuilder()
@@ -743,7 +854,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                                                             Map<String, LWF.DataDescription> slot2description,
                                                             LzyPortalGrpc.LzyPortalBlockingStub portalClient)
     {
-        var tasks = new ArrayList<GraphExecutor.TaskDesc>(operations.size());
+        var tasks = ListUtils.predicatedList(new ArrayList<GraphExecutor.TaskDesc>(operations.size()),
+            PredicateUtils.notNullPredicate());
 
         for (var operation : operations) {
             // TODO: ssokolvyak -- must not be generated here but passed in executeGraph request
@@ -751,8 +863,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
             var stdoutChannelName = taskId + ":stdout";
             var stderrChannelName = taskId + ":stderr";
-            var stdoutChannelId = createChannel(stdoutChannelName, executionId);
-            var stderrChannelId = createChannel(stderrChannelName, executionId);
+            var stdoutChannelId = createChannel(stdoutChannelName);
+            var stderrChannelId = createChannel(stderrChannelName);
 
             tasks.add(buildTaskWithZone(executionId, taskId, operation, zoneName,
                 stdoutChannelId, stderrChannelId, slot2Channel, slot2description, portalClient));
@@ -761,7 +873,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         return tasks;
     }
 
-    private String createChannel(String name, String executionId) {
+    private String createChannel(String name) {
         return channelManagerClient.create(LCMPS.ChannelCreateRequest.newBuilder()
             .setChannelSpec(LCM.ChannelSpec.newBuilder()
                 .setChannelName(name)

@@ -1,10 +1,10 @@
 package ai.lzy.portal.config;
 
-import java.time.Duration;
-
 import io.micronaut.context.annotation.ConfigurationProperties;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.time.Duration;
 
 @Getter
 @Setter

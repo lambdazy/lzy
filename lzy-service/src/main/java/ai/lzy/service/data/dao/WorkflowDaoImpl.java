@@ -16,12 +16,12 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.annotation.Nullable;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Locale;
+import javax.annotation.Nullable;
 
 @Singleton
 public class WorkflowDaoImpl implements WorkflowDao {

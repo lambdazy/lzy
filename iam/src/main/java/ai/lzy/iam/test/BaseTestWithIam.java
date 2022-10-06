@@ -1,11 +1,5 @@
 package ai.lzy.iam.test;
 
-import javax.annotation.Nullable;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.sql.SQLException;
-import java.util.Map;
-
 import ai.lzy.iam.LzyIAM;
 import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.iam.configs.InternalUserConfig;
@@ -17,6 +11,12 @@ import ai.lzy.iam.storage.impl.DbSubjectService;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.sql.SQLException;
+import java.util.Map;
+import javax.annotation.Nullable;
 
 public class BaseTestWithIam {
 

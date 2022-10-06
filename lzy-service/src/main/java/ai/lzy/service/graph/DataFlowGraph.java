@@ -1,10 +1,10 @@
 package ai.lzy.service.graph;
 
-import javax.annotation.Nullable;
+import ai.lzy.v1.workflow.LWF;
+
 import java.util.*;
 import java.util.stream.Collectors;
-
-import ai.lzy.v1.workflow.LWF;
+import javax.annotation.Nullable;
 
 public class DataFlowGraph {
     private final List<List<Integer>> graph;

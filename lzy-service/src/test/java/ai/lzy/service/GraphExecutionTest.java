@@ -1,12 +1,8 @@
 package ai.lzy.service;
 
-import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.graph.GraphExecutorGrpc;
 import io.grpc.ManagedChannel;
-import org.junit.Before;
 import org.junit.Test;
-
-import java.io.IOException;
 
 public class GraphExecutionTest extends BaseTest {
 
