@@ -154,7 +154,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             try {
                 proxyV6Address = Optional.of((Inet6Address) Inet6Address.getByName(request.getProxyV6Address()));
             } catch (UnknownHostException e) {
-                LOG.error("Invalid provy v6 address {} in allocate reqeust", request.getProxyV6Address());
+                LOG.error("Invalid proxy v6 address {} in allocate reqeust", request.getProxyV6Address());
                 responseObserver.onError(
                     Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException()
                 );
