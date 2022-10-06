@@ -3,13 +3,18 @@ package ai.lzy.portal;
 import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.channelmanager.grpc.ChannelManagerMock;
 import ai.lzy.fs.LzyFsServer;
+import ai.lzy.iam.test.BaseTestWithIam;
+import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.config.PortalConfig;
 import ai.lzy.servant.agents.LzyAgentConfig;
 import ai.lzy.servant.agents.LzyServant;
 import ai.lzy.test.GrpcUtils;
+import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.ClientHeaderInterceptor;
+import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.deprecated.LzyTask;
@@ -28,12 +33,14 @@ import com.google.common.net.HostAndPort;
 import com.google.protobuf.Empty;
 import io.findify.s3mock.S3Mock;
 import io.grpc.ManagedChannel;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
+import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
+import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
+import org.junit.*;
 
 import java.io.IOException;
 import java.net.URI;
@@ -50,7 +57,12 @@ import static ai.lzy.channelmanager.grpc.ProtoConverter.makeCreateDirectChannelC
 import static ai.lzy.channelmanager.grpc.ProtoConverter.makeDestroyChannelCommand;
 import static ai.lzy.model.UriScheme.LzyFs;
 
-public abstract class PortalTest {
+public class PortalTest {
+    private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
+
+    @Rule
+    public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+
     private static final Logger LOG = LogManager.getLogger(PortalTest.class);
 
     private final ApplicationContext context = ApplicationContext.run("test");
@@ -66,18 +78,20 @@ public abstract class PortalTest {
 
     private S3Mock s3;
 
-    private LzyPortalGrpc.LzyPortalBlockingStub portalStub;
+    private LzyPortalGrpc.LzyPortalBlockingStub unauthorizedPortalClient;
+    private LzyPortalGrpc.LzyPortalBlockingStub authorizedPortalClient;
     private LzyFsGrpc.LzyFsBlockingStub portalFsStub;
 
     @Before
     public void before() throws IOException {
         System.err.println("---> " + ForkJoinPool.commonPool().getParallelism());
+        var iamDbConfig = DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo());
+        iamTestContext.setUp(iamDbConfig);
         startS3();
         server = new ServerMock();
         server.startup();
         servants = new HashMap<>();
         var config = context.getBean(PortalConfig.class);
-        //noinspection UnstableApiUsage
         channelManager = new ChannelManagerMock(HostAndPort.fromString(config.getChannelManagerAddress()));
         channelManager.start();
         startPortal(config);
@@ -85,6 +99,7 @@ public abstract class PortalTest {
 
     @After
     public void after() throws InterruptedException, IOException {
+        iamTestContext.after();
         stopS3();
         shutdownAndAwaitTerminationPortal();
         channelManager.stop();
@@ -135,11 +150,17 @@ public abstract class PortalTest {
             throw new RuntimeException(e);
         }
 
-        portalStub = LzyPortalGrpc.newBlockingStub(
+        var internalUserCredentials = iamTestContext.getClientConfig().createCredentials();
+
+        unauthorizedPortalClient = LzyPortalGrpc.newBlockingStub(
             ChannelBuilder.forAddress("localhost", config.getPortalApiPort())
                 .usePlaintext()
                 .enableRetry(LzyPortalGrpc.SERVICE_NAME)
                 .build());
+
+        authorizedPortalClient = unauthorizedPortalClient.withInterceptors(ClientHeaderInterceptor.header(
+            GrpcHeaders.AUTHORIZATION, internalUserCredentials::token));
+
         portalFsStub = LzyFsGrpc.newBlockingStub(
             ChannelBuilder.forAddress("localhost", config.getFsApiPort())
                 .usePlaintext()
@@ -147,11 +168,48 @@ public abstract class PortalTest {
                 .build());
     }
 
+    @SuppressWarnings("ResultOfMethodCallIgnored")
+    @Test
+    public void testUnauthenticated() {
+        var thrown = new ArrayList<StatusRuntimeException>() {
+            {
+                add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedPortalClient.openSlots(
+                    LzyPortalApi.OpenSlotsRequest.newBuilder().build()
+                )));
+
+                add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedPortalClient.status(
+                    Empty.getDefaultInstance()
+                )));
+            }
+        };
+
+        thrown.forEach(e -> Assert.assertEquals(Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode()));
+    }
+
+    @SuppressWarnings("ResultOfMethodCallIgnored")
+    @Test
+    public void testPermissionDenied() {
+        var client = unauthorizedPortalClient.withInterceptors(ClientHeaderInterceptor.header(
+            GrpcHeaders.AUTHORIZATION, JwtUtils.invalidCredentials("user", "GITHUB")::token));
+
+        var thrown = new ArrayList<StatusRuntimeException>() {
+            {
+                add(Assert.assertThrows(StatusRuntimeException.class, () -> client.openSlots(
+                    LzyPortalApi.OpenSlotsRequest.newBuilder().build()
+                )));
+
+                add(Assert.assertThrows(StatusRuntimeException.class, () -> client.status(Empty.getDefaultInstance())));
+            }
+        };
+
+        thrown.forEach(e -> Assert.assertEquals(Status.PERMISSION_DENIED.getCode(), e.getStatus().getCode()));
+    }
+
     private void shutdownAndAwaitTerminationPortal() {
         destroyChannel("portal:stdout");
         destroyChannel("portal:stderr");
 
-        var portalStubChannel = (ManagedChannel) portalStub.getChannel();
+        var portalStubChannel = (ManagedChannel) unauthorizedPortalClient.getChannel();
         var portalFsStubChannel = (ManagedChannel) portalFsStub.getChannel();
 
         portal.shutdown();
@@ -268,7 +326,7 @@ public abstract class PortalTest {
     protected void waitPortalCompleted() {
         boolean done = false;
         while (!done) {
-            var status = portalStub.status(Empty.getDefaultInstance());
+            var status = authorizedPortalClient.status(Empty.getDefaultInstance());
             done = status.getSlotsList().stream().allMatch(
                 slot -> {
                     System.out.println("[portal slot] " + JsonUtils.printSingleLine(slot));
@@ -297,12 +355,12 @@ public abstract class PortalTest {
     }
 
     protected void openPortalSlots(LzyPortalApi.OpenSlotsRequest request) {
-        var response = portalStub.openSlots(request);
+        var response = authorizedPortalClient.openSlots(request);
         Assert.assertTrue(response.getDescription(), response.getSuccess());
     }
 
     protected String openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest request) {
-        var response = portalStub.openSlots(request);
+        var response = authorizedPortalClient.openSlots(request);
         Assert.assertFalse(response.getSuccess());
         return response.getDescription();
     }
