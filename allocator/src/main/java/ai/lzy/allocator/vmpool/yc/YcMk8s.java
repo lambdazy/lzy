@@ -21,10 +21,7 @@ import yandex.cloud.api.k8s.v1.NodeGroupServiceOuterClass.ListNodeGroupsRequest;
 import yandex.cloud.sdk.ServiceFactory;
 import yandex.cloud.sdk.grpc.interceptors.RequestIdInterceptor;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -122,12 +119,19 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
     @Override
     public ClusterDescription getCluster(String clusterId) {
         final var desc = clusters.get(clusterId);
+        if (desc == null) {
+            throw new NoSuchElementException("cluster with id " + clusterId + " not found");
+        }
         return new ClusterDescription(desc.clusterId, desc.masterExternalAddress, desc.masterCert);
     }
 
     @Override
     public String getClusterPodsCidr(String clusterId) {
-        return clusters.get(clusterId).clusterIpv4CidrBlock();
+        ClusterDesc desc = clusters.get(clusterId);
+        if (desc == null) {
+            throw new NoSuchElementException("cluster with id " + clusterId + " not found");
+        }
+        return desc.clusterIpv4CidrBlock();
     }
 
     // TODO: getters for YC-specific data
