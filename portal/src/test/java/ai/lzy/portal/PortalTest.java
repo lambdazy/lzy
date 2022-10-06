@@ -1,5 +1,20 @@
 package ai.lzy.portal;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
+
+import static ai.lzy.channelmanager.grpc.ProtoConverter.makeCreateDirectChannelCommand;
+import static ai.lzy.channelmanager.grpc.ProtoConverter.makeDestroyChannelCommand;
+import static ai.lzy.model.UriScheme.LzyFs;
+
 import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.channelmanager.grpc.ChannelManagerMock;
 import ai.lzy.fs.LzyFsServer;
@@ -41,21 +56,6 @@ import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.*;
-
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.file.Path;
-import java.time.Duration;
-import java.util.*;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.LockSupport;
-
-import static ai.lzy.channelmanager.grpc.ProtoConverter.makeCreateDirectChannelCommand;
-import static ai.lzy.channelmanager.grpc.ProtoConverter.makeDestroyChannelCommand;
-import static ai.lzy.model.UriScheme.LzyFs;
 
 public class PortalTest {
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
@@ -150,7 +150,7 @@ public class PortalTest {
             throw new RuntimeException(e);
         }
 
-        var internalUserCredentials = config.getIam().createCredentials();
+        var internalUserCredentials = iamTestContext.getClientConfig().createCredentials();
 
         unauthorizedPortalClient = LzyPortalGrpc.newBlockingStub(
             ChannelBuilder.forAddress("localhost", config.getPortalApiPort())

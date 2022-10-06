@@ -1,5 +1,25 @@
 package ai.lzy.service;
 
+import java.nio.file.Files;
+import java.sql.Timestamp;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import static ai.lzy.channelmanager.grpc.ProtoConverter.createChannelRequest;
+import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
+import static ai.lzy.model.db.DbHelper.withRetries;
+import static ai.lzy.v1.VmPoolServiceApi.GetVmPoolsRequest;
+import static ai.lzy.v1.VmPoolServiceApi.VmPoolSpec;
+import static ai.lzy.v1.workflow.LWFS.ExecuteGraphRequest;
+import static ai.lzy.v1.workflow.LWFS.ExecuteGraphResponse;
+
 import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
@@ -56,26 +76,6 @@ import jakarta.annotation.PreDestroy;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import java.nio.file.Files;
-import java.sql.Timestamp;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.LockSupport;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
-import static ai.lzy.channelmanager.grpc.ProtoConverter.createChannelRequest;
-import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
-import static ai.lzy.model.db.DbHelper.withRetries;
-import static ai.lzy.v1.VmPoolServiceApi.GetVmPoolsRequest;
-import static ai.lzy.v1.VmPoolServiceApi.VmPoolSpec;
-import static ai.lzy.v1.workflow.LWFS.ExecuteGraphRequest;
-import static ai.lzy.v1.workflow.LWFS.ExecuteGraphResponse;
 
 @Singleton
 public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBase {
@@ -436,9 +436,9 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
 
-        Set<String> alreadyPresented;
+        Set<String> knownSlots;
         try {
-            alreadyPresented = withRetries(LOG, () -> executionDao.retainExistingSlots(slotsUriAsOutput));
+            knownSlots = withRetries(LOG, () -> executionDao.retainExistingSlots(slotsUriAsOutput));
         } catch (Exception e) {
             LOG.error("Cannot obtain existing slots URIs while starting graph for execution " +
                 "{ executionId: {}, workflowName: {} }", executionId, workflowName);
@@ -448,17 +448,17 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
 
-        if (!alreadyPresented.isEmpty()) {
+        if (!knownSlots.isEmpty()) {
             LOG.error("Output slots URIs { slotsUri: {} } already used in other execution",
-                JsonUtils.printAsArray(alreadyPresented));
+                JsonUtils.printAsArray(knownSlots));
             response.onError(Status.INVALID_ARGUMENT.withDescription("Output slots URIs already used " +
-                "on other execution: " + JsonUtils.printAsArray(alreadyPresented)).asRuntimeException());
+                "on other execution: " + JsonUtils.printAsArray(knownSlots)).asRuntimeException());
             return;
         }
 
         var dataflowGraph = new DataFlowGraph(operations);
 
-        if (dataflowGraph.findCycle()) {
+        if (dataflowGraph.hasCycle()) {
             LOG.error("Try to execute cyclic graph { executionId: {}, workflowName: {}, cycle: {} }",
                 executionId, workflowName, dataflowGraph.printCycle());
             response.onError(Status.INVALID_ARGUMENT.withDescription("Operations graph has cycle: " +
@@ -466,10 +466,10 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
 
-        Set<String> nonExistingSlots;
+        Set<String> unknownSlots;
         Set<String> fromPortal = dataflowGraph.getDanglingInputSlots().keySet();
         try {
-            nonExistingSlots = withRetries(LOG, () -> executionDao.retainNonExistingSlots(executionId, fromPortal));
+            unknownSlots = withRetries(LOG, () -> executionDao.retainNonExistingSlots(executionId, fromPortal));
         } catch (Exception e) {
             LOG.error("Cannot obtain non-existing slots URIs associated with execution " +
                 "{ executionId: {}, workflowName: {} }", executionId, workflowName);
@@ -479,11 +479,11 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
 
-        if (!nonExistingSlots.isEmpty()) {
+        if (!unknownSlots.isEmpty()) {
             LOG.error("Slots URIs { slotUris: {} } are presented neither in output slots URIs " +
-                "nor stored as already associated with portal", JsonUtils.printAsArray(nonExistingSlots));
+                "nor stored as already associated with portal", JsonUtils.printAsArray(unknownSlots));
             response.onError(Status.NOT_FOUND.withDescription("Slots URIs not found: " +
-                JsonUtils.printAsArray(nonExistingSlots)).asRuntimeException());
+                JsonUtils.printAsArray(unknownSlots)).asRuntimeException());
             return;
         }
 
@@ -568,7 +568,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             var found = availablePools.parallelStream()
                 .filter(pool -> targetLabel.contentEquals(pool.getLabel())).findAny();
             if (found.isEmpty()) {
-                throw new IllegalArgumentException("Cannot find pool with label: " + targetLabel);
+                LOG.error("Cannot find pool with label: " + targetLabel);
+                return null;
             }
             requiredPools.add(found.get());
         }
@@ -577,8 +578,10 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             () -> new HashSet<>(requiredPools.get(0).getZonesList()),
             (common, spec) -> common.retainAll(spec.getZonesList()), Collection::addAll);
 
-        return commonZones.stream().findAny().orElseThrow(() ->
-            new IllegalArgumentException("Cannot find zone which has all required pools"));
+        return commonZones.stream().findAny().orElseGet(() -> {
+            LOG.error("Cannot find zone which has all required pools");
+            return null;
+        });
     }
 
     private List<GraphExecutor.ChannelDesc> buildChannelDescriptions(Collection<String> channelIds) {
@@ -625,8 +628,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             var description = slot2description.get(uri);
 
             if (description == null) {
-                throw new IllegalArgumentException("Cannot find data description for input slot: " +
-                    slotDescription.getPath());
+                LOG.error("Cannot find data description for input slot: " + slotDescription.getPath());
+                return null;
             }
 
             LMS.Slot.Builder slot = LMS.Slot.newBuilder()

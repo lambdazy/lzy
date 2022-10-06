@@ -1,10 +1,10 @@
 package ai.lzy.service.graph;
 
-import ai.lzy.v1.workflow.LWF;
-
 import javax.annotation.Nullable;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import ai.lzy.v1.workflow.LWF;
 
 public class DataFlowGraph {
     private final List<List<Integer>> graph;
@@ -99,7 +99,7 @@ public class DataFlowGraph {
         return null;
     }
 
-    public boolean findCycle() {
+    public boolean hasCycle() {
         var n = operations.size();
         var colors = new int[n];
         var prev = new int[n];

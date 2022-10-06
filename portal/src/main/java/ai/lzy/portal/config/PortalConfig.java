@@ -1,12 +1,10 @@
 package ai.lzy.portal.config;
 
-import ai.lzy.iam.config.IamClientConfiguration;
-import io.micronaut.context.annotation.ConfigurationBuilder;
+import java.time.Duration;
+
 import io.micronaut.context.annotation.ConfigurationProperties;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.time.Duration;
 
 @Getter
 @Setter
@@ -26,10 +24,6 @@ public class PortalConfig {
     private String iamAddress;
     private String iamPrivateKey;
     private String allocatorToken;
-
-    // for tests
-    @ConfigurationBuilder("iam")
-    private final IamClientConfiguration iam = new IamClientConfiguration();
 
     private String vmId;
     private String allocatorAddress;
