@@ -11,6 +11,7 @@ ENTRYPOINT ["java", \
             "-Dfile.encoding=UTF-8", \
             "-XX:+HeapDumpOnOutOfMemoryError", \
             "-Djava.util.concurrent.ForkJoinPool.common.parallelism=32", \
+            "-Dio.grpc.netty.shaded.io.netty.eventLoopThreads=10", \
             "-Dmicronaut.env.deduction=true", \
             "-jar", \
             "app/app.jar"]
