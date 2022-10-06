@@ -227,6 +227,11 @@
                 <version>${grpc.version}</version>
             </dependency>
             <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-services</artifactId>
+                <version>${grpc.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>io.prometheus</groupId>
                 <artifactId>simpleclient</artifactId>
                 <version>${prometheus.version}</version>
