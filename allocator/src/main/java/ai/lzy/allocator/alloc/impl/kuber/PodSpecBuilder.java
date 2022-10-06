@@ -24,6 +24,7 @@ public class PodSpecBuilder {
             .withValue("gpu")
             .withEffect("NoSchedule")
             .build());
+    public static final String AFFINITY_TOPOLOGY_KEY = "kubernetes.io/hostname";
 
     private final Vm.Spec vmSpec;
     private final Pod pod;
@@ -212,7 +213,7 @@ public class PodSpecBuilder {
                                 .withValues(values)
                                 .build()
                         ).build()
-                ).withTopologyKey("kubernetes.io/hostname")
+                ).withTopologyKey(AFFINITY_TOPOLOGY_KEY)
                 .build()
         );
         return this;
@@ -230,7 +231,7 @@ public class PodSpecBuilder {
                                 .withValues(values)
                                 .build()
                         ).build()
-                ).withTopologyKey("kubernetes.io/hostname")
+                ).withTopologyKey(AFFINITY_TOPOLOGY_KEY)
                 .build()
         );
         return this;
