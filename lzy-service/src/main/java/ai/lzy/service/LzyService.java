@@ -748,17 +748,18 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             var uri = slotDescription.getStorageUri();
             var description = slot2description.get(uri);
 
-            if (description == null) {
-                LOG.error("Cannot find data description for input slot: " + slotDescription.getPath());
-                return null;
-            }
-
-            LMS.Slot.Builder slot = LMS.Slot.newBuilder()
+            var slot = LMS.Slot.newBuilder()
                 .setName(slotDescription.getPath())
                 .setDirection(LMS.Slot.Direction.INPUT)
                 .setMedia(LMS.Slot.Media.FILE);
-            if (description.hasDataScheme()) {
+
+            if (description != null && description.hasDataScheme()) {
                 slot.setContentType(description.getDataScheme());
+            } else {
+                slot.setContentType(LMD.DataScheme.newBuilder()
+                    .setSchemeContent("text")
+                    .setDataFormat("plain")
+                    .build());
             }
 
             inputSlots.add(slot.build());
@@ -772,17 +773,18 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             var uri = slotDescription.getStorageUri();
             var description = slot2description.get(uri);
 
-            if (description == null) {
-                LOG.error("Cannot find data description for output slot: " + slotDescription.getPath());
-                return null;
-            }
-
-            LMS.Slot.Builder slot = LMS.Slot.newBuilder()
+            var slot = LMS.Slot.newBuilder()
                 .setName(slotDescription.getPath())
                 .setDirection(LMS.Slot.Direction.OUTPUT)
                 .setMedia(LMS.Slot.Media.FILE);
-            if (description.hasDataScheme()) {
+
+            if (description != null && description.hasDataScheme()) {
                 slot.setContentType(description.getDataScheme());
+            } else {
+                slot.setContentType(LMD.DataScheme.newBuilder()
+                    .setSchemeContent("text")
+                    .setDataFormat("plain")
+                    .build());
             }
 
             outputSlots.add(slot.build());
