@@ -54,7 +54,13 @@ public class ServiceConfig {
     @ConfigurationProperties("kuber-allocator")
     public static final class KuberAllocator {
         private boolean enabled = false;
-        private String tunnelPodImage;
+    }
+
+    @Getter
+    @Setter
+    @ConfigurationProperties("kuber-tunnel-allocator")
+    public static final class KuberTunnelAllocator {
+        private boolean enabled = false;
     }
 
     @Getter
