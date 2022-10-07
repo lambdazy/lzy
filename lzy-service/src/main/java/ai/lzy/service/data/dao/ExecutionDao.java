@@ -25,5 +25,5 @@ public interface ExecutionDao {
 
     Set<String> retainNonExistingSlots(String executionId, Set<String> slotsUri) throws SQLException;
 
-    Map<String, String> findChannelsForOutputSlots(Set<String> slotsUri) throws SQLException;
+    Map<String, String> findChannels(Set<String> slotsUri) throws SQLException;
 }

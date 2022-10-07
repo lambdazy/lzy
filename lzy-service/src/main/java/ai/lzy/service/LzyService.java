@@ -986,7 +986,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             var slotsUri = dataFlow.stream().map(DataFlowGraph.Data::slotUri).collect(Collectors.toSet());
 
             try {
-                outputSlot2channel = withRetries(LOG, () -> executionDao.findChannelsForOutputSlots(slotsUri));
+                outputSlot2channel = withRetries(LOG, () -> executionDao.findChannels(slotsUri));
             } catch (Exception e) {
                 LOG.error("Cannot obtain information about channels for slots. Execution: { executionId: {} } " +
                     e.getMessage(), executionId);
