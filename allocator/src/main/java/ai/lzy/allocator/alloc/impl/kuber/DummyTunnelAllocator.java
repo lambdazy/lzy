@@ -6,7 +6,7 @@ import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 
 @Singleton
-@Requires(property = "allocator.kuber-tunnel-allocator.enabled", value = "false")
+@Requires(property = "allocator.kuber-tunnel-allocator.enabled", value = "false", defaultValue = "false")
 public class DummyTunnelAllocator implements TunnelAllocator {
     @Override
     public void allocateTunnel(Vm.Spec vmSpec) {
