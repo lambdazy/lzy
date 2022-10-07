@@ -495,25 +495,35 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
 
-        String zoneName;
+        var requiredPoolLabels = graph.getOperationsList().stream().map(LWF.Operation::getPoolSpecName).toList();
+        Set<String> suitableZones;
+
         try {
-            zoneName = VmPoolClient.findZone(vmPoolClient, graph.getOperationsList()
-                .stream()
-                .map(LWF.Operation::getPoolSpecName)
-                .toList());
+            suitableZones = VmPoolClient.findZonesContainAllRequiredPools(vmPoolClient, requiredPoolLabels);
         } catch (StatusRuntimeException e) {
             var causeStatus = e.getStatus();
-            LOG.error("Cannot obtain vm pools for graph with: { workflowName: {}, executionId: {} } , error: {}",
-                workflowName, executionId, causeStatus.getDescription());
+            LOG.error("Cannot obtain vm pools for { poolLabels: {} } , error: {}",
+                JsonUtils.printAsArray(requiredPoolLabels), causeStatus.getDescription());
             response.onError(causeStatus.withDescription("Cannot obtain vm pools: " + causeStatus.getDescription())
                 .asRuntimeException());
             return;
         }
 
+        var zoneName = graph.getZone().isBlank() ? suitableZones.stream().findAny().orElse(null) : graph.getZone();
+
         if (zoneName == null) {
-            LOG.error("Cannot find zone which has all required pools");
-            response.onError(Status.INVALID_ARGUMENT.withDescription("Cannot find zone " +
-                "which has all required pools").asRuntimeException());
+            LOG.error("Cannot find zone which has all required pools: { poolLabels: {} }",
+                JsonUtils.printAsArray(requiredPoolLabels));
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Cannot find zone which has all required pools")
+                .asRuntimeException());
+            return;
+        }
+
+        if (!suitableZones.contains(zoneName)) {
+            LOG.error("Passed zone does not contain all required pools: { zoneName: {}, poolLabels: {} }",
+                zoneName, JsonUtils.printAsArray(requiredPoolLabels));
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Passed zone does not contains all required pools")
+                .asRuntimeException());
             return;
         }
 
