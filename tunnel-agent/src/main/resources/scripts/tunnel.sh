@@ -16,7 +16,7 @@ echo "POD_ADDRESS = $POD_ADDRESS"
 echo "PODS_CIDR = $PODS_CIDR"
 
 # TUNNEL
-echo "ip -6 tun add tunl$TUN_NO mode ipip6 local $LOCAL_V6 remote $REMOTE_V6ip link set dev tunl$TUN_NO up || true"
+echo "ip -6 tun add tunl$TUN_NO mode ipip6 local $LOCAL_V6 remote $REMOTE_V6 || true"
 ip -6 tun add tunl$TUN_NO mode ipip6 local $LOCAL_V6 remote $REMOTE_V6 || true
 
 echo "ip link set dev tunl$TUN_NO up || true"
@@ -26,17 +26,17 @@ echo "ip a add dev tunl$TUN_NO 100.64.$TUN_NO.2/24 || true"
 ip a add dev tunl$TUN_NO 100.64.$TUN_NO.2/24 || true
 
 # ROUTING FROM POD
+echo "ip ru del pr 115 || true"
 ip ru del pr 115 || true
-echo "ip ru del pt 115 || true"
 
+echo "ip ru del pr 116 || true"
 ip ru del pr 116 || true
-echo "ip ru del pt 116 || true"
 
+echo "ip ru del pr 120 || true"
 ip ru del pr 120 || true
-echo "ip ru del pt 120 || true"
 
-ip route add default table 120 || true
 echo "ip route add default table 120 || true"
+ip route add default table 120 || true
 
 echo "ip rule add priority 115 from $POD_ADDRESS to $PODS_CIDR table main"
 ip rule add priority 115 from $POD_ADDRESS to $PODS_CIDR table main
@@ -60,4 +60,5 @@ cp /etc/resolv.conf resolv-conf-old
   cat resolv-conf-old
 } > /etc/resolv.conf
 
-
+echo "new /etc/resolv.conf:"
+cat /etc/resolv.conf
