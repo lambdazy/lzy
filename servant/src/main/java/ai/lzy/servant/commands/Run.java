@@ -12,8 +12,8 @@ import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.channel.LCM;
-import ai.lzy.v1.channel.LCMS;
-import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.channel.LCMPS;
+import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.deprecated.LzyAuth;
 import ai.lzy.v1.deprecated.LzyKharonGrpc;
@@ -64,7 +64,7 @@ public class Run implements LzyCommand {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final CountDownLatch communicationLatch = new CountDownLatch(2);
     private final List<ChannelDescription> channels = new ArrayList<>();
-    private LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManager;
+    private LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManager;
     private LzyAuth.Auth auth;
     private Map<String, Map<String, String>> pipesConfig;
     private LzyFsGrpc.LzyFsBlockingStub servantFs;
@@ -114,7 +114,7 @@ public class Run implements LzyCommand {
             .usePlaintext()
             .enableRetry(LzyKharonGrpc.SERVICE_NAME)
             .build();
-        channelManager = LzyChannelManagerGrpc
+        channelManager = LzyChannelManagerPrivateGrpc
             .newBlockingStub(channelManagerChannel)
             .withInterceptors(ClientHeaderInterceptor.header(
                 GrpcHeaders.AUTHORIZATION,
@@ -331,8 +331,8 @@ public class Run implements LzyCommand {
 
     private void destroyChannel(ChannelDescription channelDescription) {
         try {
-            final LCMS.ChannelDestroyResponse destroyResponse =
-                channelManager.destroy(LCMS.ChannelDestroyRequest.newBuilder()
+            final LCMPS.ChannelDestroyResponse destroyResponse =
+                channelManager.destroy(LCMPS.ChannelDestroyRequest.newBuilder()
                     .setChannelId(channelDescription.channelId())
                     .build()
                 );
@@ -347,14 +347,14 @@ public class Run implements LzyCommand {
 
     private String createChannel(Slot slot, String channelName) {
         LOG.info("Create channel `{}` for slot `{}`.", channelName, slot.name());
-        final LCMS.ChannelCreateResponse channelCreateResponse = channelManager.create(
-            LCMS.ChannelCreateRequest.newBuilder()
+        final LCMPS.ChannelCreateResponse channelCreateResponse = channelManager.create(
+            LCMPS.ChannelCreateRequest.newBuilder()
                 .setChannelSpec(LCM.ChannelSpec.newBuilder()
                     .setChannelName(channelName)
                     .setContentType(ProtoConverter.toProto(slot.contentType()))
                     .setDirect(LCM.DirectChannelType.newBuilder().build())
                     .build())
-                .setWorkflowId(agentId)
+                .setExecutionId(agentId)
                 .build()
         );
         return channelCreateResponse.getChannelId();

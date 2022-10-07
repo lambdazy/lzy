@@ -31,9 +31,12 @@ public class BeanFactory {
 
     @Singleton
     @Requires(property = "allocator.yc-credentials.enabled", value = "true")
-    public ServiceFactory serviceFactory(CredentialProvider credentialProvider) {
+    public ServiceFactory serviceFactory(
+            CredentialProvider credentialProvider, ServiceConfig.YcCredentialsConfig config)
+    {
         return ServiceFactory.builder()
             .credentialProvider(credentialProvider)
+            .endpoint(config.getEndpoint())
             .requestTimeout(YC_CALL_TIMEOUT)
             .build();
     }
@@ -43,6 +46,7 @@ public class BeanFactory {
     public CredentialProvider credentialProvider(ServiceConfig.YcCredentialsConfig config) {
         return Auth.apiKeyBuilder()
             .fromFile(Path.of(config.getServiceAccountFile()))
+            .cloudIAMEndpoint(config.getIamEndpoint())
             .build();
     }
 

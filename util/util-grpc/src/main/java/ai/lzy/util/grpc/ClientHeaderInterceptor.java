@@ -8,6 +8,7 @@ import java.util.function.Supplier;
 
 public class ClientHeaderInterceptor<T> implements ClientInterceptor {
     private static final Logger LOG = LogManager.getLogger(ClientHeaderInterceptor.class);
+
     private final Metadata.Key<T> key;
     private final Supplier<T> value;
 
@@ -15,6 +16,7 @@ public class ClientHeaderInterceptor<T> implements ClientInterceptor {
         if (GrpcHeaders.AUTHORIZATION.equals(key)) {
             return new ClientHeaderInterceptor<>(GrpcHeaders.AUTHORIZATION, () -> "Bearer " + value.get());
         }
+
         return new ClientHeaderInterceptor<>(key, value);
     }
 
@@ -28,11 +30,16 @@ public class ClientHeaderInterceptor<T> implements ClientInterceptor {
                                                                CallOptions callOptions,
                                                                Channel channel)
     {
-        return new ForwardingClientCall.SimpleForwardingClientCall<>(channel.newCall(methodDescriptor, callOptions)) {
+        final var call = channel.newCall(methodDescriptor, callOptions);
+
+        return new ForwardingClientCall.SimpleForwardingClientCall<>(call) {
             public void start(Listener<RespT> responseListener, Metadata headers) {
-                T v = ClientHeaderInterceptor.this.value.get();
+                T v = value.get();
                 if (v != null) {
-                    headers.put(ClientHeaderInterceptor.this.key, v);
+                    LOG.trace("Attach header {}: {}", key, v);
+                    headers.put(key, v);
+                } else {
+                    LOG.trace("Attach header {}: skip", key);
                 }
 
                 super.start(responseListener, headers);

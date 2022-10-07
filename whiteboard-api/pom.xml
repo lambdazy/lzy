@@ -18,11 +18,23 @@
     </properties>
 
     <dependencies>
-
         <dependency>
             <groupId>ai.lzy</groupId>
-            <artifactId>model-old</artifactId>
+            <artifactId>model</artifactId>
             <version>1.0-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-protobuf</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-stub</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>javax.annotation</groupId>
+            <artifactId>javax.annotation-api</artifactId>
         </dependency>
     </dependencies>
 
@@ -34,6 +46,5 @@
             </plugin>
         </plugins>
     </build>
-
 
 </project>

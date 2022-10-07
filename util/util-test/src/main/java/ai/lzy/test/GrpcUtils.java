@@ -1,8 +1,6 @@
 package ai.lzy.test;
 
 import ai.lzy.model.utils.FreePortFinder;
-import ai.lzy.v1.channel.LCM;
-import ai.lzy.v1.channel.LCMS;
 import ai.lzy.v1.common.LMD;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.common.LMS3;
@@ -13,28 +11,6 @@ import org.junit.Assert;
 import java.util.function.Consumer;
 
 public class GrpcUtils {
-
-    public static LCMS.ChannelCreateRequest makeCreateDirectChannelCommand(String workflowId, String channelName) {
-        return LCMS.ChannelCreateRequest.newBuilder()
-            .setWorkflowId(workflowId)
-            .setChannelSpec(
-                LCM.ChannelSpec.newBuilder()
-                    .setChannelName(channelName)
-                    .setContentType(makePlainTextDataScheme())
-                    .setDirect(LCM.DirectChannelType.getDefaultInstance())
-                    .build()
-            ).build();
-    }
-
-    public static LCMS.ChannelDestroyRequest makeDestroyChannelCommand(String channelId) {
-        return LCMS.ChannelDestroyRequest.newBuilder()
-            .setChannelId(channelId)
-            .build();
-    }
-
-    public static LCMS.ChannelDestroyAllRequest makeDestroyAllCommand(String workflowId) {
-        return LCMS.ChannelDestroyAllRequest.newBuilder().setWorkflowId(workflowId).build();
-    }
 
     public static LMD.DataScheme makePlainTextDataScheme() {
         return LMD.DataScheme.newBuilder()
@@ -79,9 +55,7 @@ public class GrpcUtils {
             .build();
     }
 
-    public static LzyPortal.PortalSlotDesc.Snapshot makeAmazonSnapshot(String key, String bucket,
-                                                                       String endpoint)
-    {
+    public static LzyPortal.PortalSlotDesc.Snapshot makeAmazonSnapshot(String key, String bucket, String endpoint) {
         return LzyPortal.PortalSlotDesc.Snapshot.newBuilder()
             .setS3(LMS3.S3Locator.newBuilder()
                 .setKey(key)

@@ -30,6 +30,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
@@ -68,7 +69,7 @@ public class AllocatorMain {
 
         final HostAndPort address = HostAndPort.fromString(config.getAddress());
         ServerBuilder<?> builder = NettyServerBuilder
-            .forPort(address.getPort())
+            .forAddress(new InetSocketAddress("0.0.0.0", address.getPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES);
 

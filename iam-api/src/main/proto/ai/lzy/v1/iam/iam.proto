@@ -3,6 +3,7 @@ syntax = "proto3";
 package ai.lzy.v1.iam;
 
 import "google/protobuf/timestamp.proto";
+import "ai/lzy/v1/validation/validation.proto";
 
 option java_outer_classname = "IAM";
 option java_package = "ai.lzy.v1.iam";
@@ -19,7 +20,7 @@ message Subject {
 
 message Credentials {
   string name = 1;
-  string credentials = 2;
+  string credentials = 2 [(validation.sensitive) = true];
   Type type = 3;
   /* optional */ google.protobuf.Timestamp expired_at = 4;
 

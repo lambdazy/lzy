@@ -58,6 +58,8 @@ public class ServiceConfig {
     @ConfigurationProperties("yc-credentials")
     public static final class YcCredentialsConfig {
         private boolean enabled = false;
+        private String iamEndpoint = "iam.api.cloud.yandex.net:443";
+        private String endpoint = "api.cloud.yandex.net:443";
         private String serviceAccountFile;
     }
 

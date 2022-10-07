@@ -64,12 +64,12 @@ public class App {
         if (config.getAllocatorToken() == null) {
             config.setAllocatorToken(System.getenv(AllocatorAgent.VM_ALLOCATOR_OTT));
         }
-        if (config.getIamToken() == null) {
-            config.setIamToken(System.getenv(ENV_PORTAL_PKEY));
+        if (config.getIamPrivateKey() == null) {
+            config.setIamPrivateKey(System.getenv(ENV_PORTAL_PKEY));
         }
 
         Objects.requireNonNull(config.getAllocatorToken());
-        Objects.requireNonNull(config.getIamToken());
+        Objects.requireNonNull(config.getIamPrivateKey());
 
         var fsUri = new URI(LzyFs.scheme(), null, config.getHost(), config.getFsApiPort(), null, null, null);
         var cm = HostAndPort.fromString(config.getChannelManagerAddress());
@@ -79,7 +79,7 @@ public class App {
             config.getVmId(), config.getAllocatorAddress(), config.getAllocatorHeartbeatPeriod(), config.getHost());
 
         var fsServerJwt = JwtUtils.buildJWT(config.getPortalId(), "INTERNAL", Date.from(Instant.now()),
-            JwtUtils.afterDays(7), new StringReader(config.getIamToken()));
+            JwtUtils.afterDays(7), new StringReader(config.getIamPrivateKey()));
         var fsServer = new LzyFsServer(config.getPortalId(), config.getFsRoot(), fsUri, channelManagerUri, fsServerJwt);
 
         var main = new App(new Portal(config, allocatorAgent, fsServer));

@@ -27,7 +27,7 @@ for ARG in "$@"; do
   esac
 done
 
-IMAGES="lzy-servant default-env test-env lzy-server lzy-kharon lzy-whiteboard lzy-iam"
+IMAGES="lzy-servant default-env test-env lzy-server lzy-kharon lzy-whiteboard lzy-iam lzy-allocator"
 if [[ $BASE = true ]]; then
   IMAGES="lzy-servant-base default-env-base test-env-base $IMAGES"
 fi
@@ -66,6 +66,7 @@ if [[ $REBUILD = true ]]; then
   docker build -t lzy-whiteboard -f whiteboard/Dockerfile whiteboard
   docker build -t lzy-kharon -f kharon/Dockerfile kharon
   docker build -t lzy-iam -f iam/Dockerfile iam
+  docker build -t lzy-allocator -f allocator/Dockerfile allocator
 #  docker build -t "lzydock/$BRANCH/lzy-backoffice-backend:$CUSTOM_TAG" lzy-backoffice/Dockerfile
 #  docker build -t "lzydock/$BRANCH/lzy-backoffice-frontend:$CUSTOM_TAG" lzy-backoffice/frontend/Dockerfile
 fi

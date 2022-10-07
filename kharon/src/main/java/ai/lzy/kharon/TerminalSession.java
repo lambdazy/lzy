@@ -3,8 +3,8 @@ package ai.lzy.kharon;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.v1.channel.LCMS;
-import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.channel.LCMPS;
+import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.deprecated.Kharon;
 import ai.lzy.v1.deprecated.Kharon.TerminalProgress.ProgressCase;
 import ai.lzy.v1.deprecated.Lzy.RegisterSessionRequest;
@@ -24,7 +24,7 @@ public class TerminalSession {
     private static final Logger LOG = LogManager.getLogger(TerminalSession.class);
 
     private TerminalSessionState state = TerminalSessionState.UNBOUND;
-    private LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManager;
+    private LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManager;
 
     private final TerminalController terminalController;
     private final LzyServerGrpc.LzyServerBlockingStub server;
@@ -37,7 +37,7 @@ public class TerminalSession {
         String sessionId,
         TerminalController terminalController,
         LzyServerGrpc.LzyServerBlockingStub server,
-        LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManager
+        LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManager
     ) {
         this.sessionId = sessionId;
         this.terminalController = terminalController;
@@ -53,7 +53,7 @@ public class TerminalSession {
             LOG.info("Kharon::TerminalSession session_id:" + sessionId + " request:"
                 + JsonUtils.printRequest(terminalState));
             if (terminalState.getProgressCase() == ProgressCase.ATTACH) {
-                channelManager = LzyChannelManagerGrpc
+                channelManager = LzyChannelManagerPrivateGrpc
                     .newBlockingStub(channelManager.getChannel())
                     .withInterceptors(ClientHeaderInterceptor.header(
                         GrpcHeaders.AUTHORIZATION,
@@ -131,8 +131,8 @@ public class TerminalSession {
             }
         } finally {
             //noinspection ResultOfMethodCallIgnored
-            channelManager.destroyAll(LCMS.ChannelDestroyAllRequest.newBuilder()
-                .setWorkflowId(sessionId).build());
+            channelManager.destroyAll(LCMPS.ChannelDestroyAllRequest.newBuilder()
+                .setExecutionId(sessionId).build());
             final LzyAuth.UserCredentials userCredentials = creds.get();
             if (userCredentials != null) {
                 //noinspection ResultOfMethodCallIgnored

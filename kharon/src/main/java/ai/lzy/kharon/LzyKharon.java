@@ -5,8 +5,10 @@ import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.util.grpc.ProxyClientHeaderInterceptor;
 import ai.lzy.util.grpc.ProxyServerHeaderInterceptor;
+import ai.lzy.v1.channel.LCMPS;
 import ai.lzy.v1.channel.LCMS;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.deprecated.*;
 import ai.lzy.v1.deprecated.Kharon.ReceivedDataStatus;
@@ -64,6 +66,7 @@ public class LzyKharon {
     private final LzyServerGrpc.LzyServerBlockingStub server;
     private final WbApiGrpc.WbApiBlockingStub whiteboard;
     private final SnapshotApiGrpc.SnapshotApiBlockingStub snapshot;
+    private final LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerPrivate;
     private final LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManager;
     private final TerminalSessionManager sessionManager;
     private final DataCarrier dataCarrier = new DataCarrier();
@@ -129,6 +132,9 @@ public class LzyKharon {
             .forAddress(channelManagerAddress.getHost(), channelManagerAddress.getPort())
             .usePlaintext()
             .build();
+        channelManagerPrivate = LzyChannelManagerPrivateGrpc
+            .newBlockingStub(channelManagerChannel)
+            .withInterceptors(new ProxyClientHeaderInterceptor());
         channelManager = LzyChannelManagerGrpc
             .newBlockingStub(channelManagerChannel)
             .withInterceptors(new ProxyClientHeaderInterceptor());
@@ -137,7 +143,10 @@ public class LzyKharon {
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(ServerInterceptors.intercept(
-                new ChannelManagerProxyService(),
+                new ChannelManagerPrivateProxy(),
+                new ProxyServerHeaderInterceptor()))
+            .addService(ServerInterceptors.intercept(
+                new ChannelManagerProxy(),
                 new ProxyServerHeaderInterceptor()))
             .build();
     }
@@ -353,7 +362,7 @@ public class LzyKharon {
                 sessionId,
                 new TerminalController(responseObserver),
                 server,
-                channelManager
+                channelManagerPrivate
             );
             responseObserver.onNext(
                 Kharon.TerminalCommand.newBuilder()
@@ -484,41 +493,44 @@ public class LzyKharon {
         }
     }
 
-    private class ChannelManagerProxyService extends LzyChannelManagerGrpc.LzyChannelManagerImplBase {
+    private class ChannelManagerPrivateProxy extends LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateImplBase {
         @Override
-        public void create(LCMS.ChannelCreateRequest request,
-                           StreamObserver<LCMS.ChannelCreateResponse> responseObserver)
+        public void create(LCMPS.ChannelCreateRequest request,
+                           StreamObserver<LCMPS.ChannelCreateResponse> responseObserver)
         {
-            ProxyCall.exec(channelManager::create, request, responseObserver);
+            ProxyCall.exec(channelManagerPrivate::create, request, responseObserver);
         }
 
         @Override
-        public void destroy(LCMS.ChannelDestroyRequest request,
-                            StreamObserver<LCMS.ChannelDestroyResponse> responseObserver)
+        public void destroy(LCMPS.ChannelDestroyRequest request,
+                            StreamObserver<LCMPS.ChannelDestroyResponse> responseObserver)
         {
-            ProxyCall.exec(channelManager::destroy, request, responseObserver);
+            ProxyCall.exec(channelManagerPrivate::destroy, request, responseObserver);
         }
 
         @Override
-        public void status(LCMS.ChannelStatusRequest request,
-                           StreamObserver<LCMS.ChannelStatus> responseObserver)
+        public void status(LCMPS.ChannelStatusRequest request,
+                           StreamObserver<LCMPS.ChannelStatus> responseObserver)
         {
-            ProxyCall.exec(channelManager::status, request, responseObserver);
+            ProxyCall.exec(channelManagerPrivate::status, request, responseObserver);
         }
 
         @Override
-        public void statusAll(LCMS.ChannelStatusAllRequest request,
-                              StreamObserver<LCMS.ChannelStatusList> responseObserver)
+        public void statusAll(LCMPS.ChannelStatusAllRequest request,
+                              StreamObserver<LCMPS.ChannelStatusList> responseObserver)
         {
-            ProxyCall.exec(channelManager::statusAll, request, responseObserver);
+            ProxyCall.exec(channelManagerPrivate::statusAll, request, responseObserver);
         }
+    }
+
+    private class ChannelManagerProxy extends LzyChannelManagerGrpc.LzyChannelManagerImplBase {
 
         @Override
-        public void bind(LCMS.SlotAttach request,
-                         StreamObserver<LCMS.SlotAttachStatus> responseObserver)
+        public void bind(LCMS.BindRequest request,
+                         StreamObserver<LCMS.BindResponse> responseObserver)
         {
             try {
-                final LCMS.SlotAttach updatedRequest = LCMS.SlotAttach.newBuilder()
+                final LCMS.BindRequest updatedRequest = LCMS.BindRequest.newBuilder()
                     .setSlotInstance(LMS.SlotInstance.newBuilder(request.getSlotInstance())
                         .setSlotUri(
                             uriResolver.convertToServantFsProxyUri(
@@ -533,12 +545,12 @@ public class LzyKharon {
         }
 
         @Override
-        public void unbind(LCMS.SlotDetach request,
-                           StreamObserver<LCMS.SlotDetachStatus> responseObserver)
+        public void unbind(LCMS.UnbindRequest request,
+                           StreamObserver<LCMS.UnbindResponse> responseObserver)
         {
             try {
-                final LCMS.SlotDetach updatedRequest =
-                    LCMS.SlotDetach.newBuilder()
+                final LCMS.UnbindRequest updatedRequest =
+                    LCMS.UnbindRequest.newBuilder()
                         .setSlotInstance(
                             LMS.SlotInstance.newBuilder(request.getSlotInstance())
                                 .setSlotUri(
