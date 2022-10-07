@@ -526,11 +526,11 @@ public class LzyKharon {
     private class ChannelManagerProxy extends LzyChannelManagerGrpc.LzyChannelManagerImplBase {
 
         @Override
-        public void bind(LCMS.BindRequest request,
-                         StreamObserver<LCMS.BindResponse> responseObserver)
+        public void bind(LCMS.SlotAttach request,
+                         StreamObserver<LCMS.SlotAttachStatus> responseObserver)
         {
             try {
-                final LCMS.BindRequest updatedRequest = LCMS.BindRequest.newBuilder()
+                final LCMS.SlotAttach updatedRequest = LCMS.SlotAttach.newBuilder()
                     .setSlotInstance(LMS.SlotInstance.newBuilder(request.getSlotInstance())
                         .setSlotUri(
                             uriResolver.convertToServantFsProxyUri(
@@ -545,12 +545,12 @@ public class LzyKharon {
         }
 
         @Override
-        public void unbind(LCMS.UnbindRequest request,
-                           StreamObserver<LCMS.UnbindResponse> responseObserver)
+        public void unbind(LCMS.SlotDetach request,
+                           StreamObserver<LCMS.SlotDetachStatus> responseObserver)
         {
             try {
-                final LCMS.UnbindRequest updatedRequest =
-                    LCMS.UnbindRequest.newBuilder()
+                final LCMS.SlotDetach updatedRequest =
+                    LCMS.SlotDetach.newBuilder()
                         .setSlotInstance(
                             LMS.SlotInstance.newBuilder(request.getSlotInstance())
                                 .setSlotUri(
