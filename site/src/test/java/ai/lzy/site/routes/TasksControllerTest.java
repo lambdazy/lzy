@@ -60,7 +60,9 @@ public class TasksControllerTest extends BaseTestWithIam {
     public void after() {
         super.after();
         server.stop();
-        schedulerServer.shutdownNow();
+        if (schedulerServer != null) {
+            schedulerServer.shutdownNow();
+        }
         context.stop();
     }
 
