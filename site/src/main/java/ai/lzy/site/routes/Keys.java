@@ -26,35 +26,34 @@ public class Keys {
     SubjectServiceGrpcClient subjectService;
 
     @Post("add")
-    public HttpResponse<?> add(@CookieValue String userId, @CookieValue String sessionId,
+    public HttpResponse<?> add(@CookieValue String userSubjectId, @CookieValue String sessionId,
                                @Valid @Body AddPublicKeyRequest request)
     {
-//        final Subject subject = authUtils.checkCookieAndGetSubject(userId, sessionId);
-//        subjectService.addCredentials(subject, SubjectCredentials.publicKey(request.keyName, request.publicKey));
+        final Subject subject = authUtils.checkCookieAndGetSubject(userSubjectId, sessionId);
+        subjectService.addCredentials(subject, SubjectCredentials.publicKey(request.keyName, request.publicKey));
         return HttpResponse.ok();
     }
 
     @Post("delete")
-    public HttpResponse<?> delete(@CookieValue String userId, @CookieValue String sessionId,
+    public HttpResponse<?> delete(@CookieValue String userSubjectId, @CookieValue String sessionId,
                                   @Valid @Body DeletePublicKeyRequest request)
     {
-//        final Subject subject = authUtils.checkCookieAndGetSubject(userId, sessionId);
-//        subjectService.removeCredentials(subject, request.keyName);
+        final Subject subject = authUtils.checkCookieAndGetSubject(userSubjectId, sessionId);
+        subjectService.removeCredentials(subject, request.keyName);
         return HttpResponse.ok();
     }
 
     @Post("list")
-    public HttpResponse<ListKeysResponse> list(@CookieValue String userId, @CookieValue String sessionId) {
-        return HttpResponse.ok();
-//        final Subject subject = authUtils.checkCookieAndGetSubject(userId, sessionId);
-//        return HttpResponse.ok(
-//            new ListKeysResponse(
-//                subjectService.listCredentials(subject).stream()
-//                    .filter(creds -> creds.type().equals(CredentialsType.PUBLIC_KEY))
-//                    .map(SubjectCredentials::name)
-//                    .collect(Collectors.toList())
-//            )
-//        );
+    public HttpResponse<ListKeysResponse> list(@CookieValue String userSubjectId, @CookieValue String sessionId) {
+        final Subject subject = authUtils.checkCookieAndGetSubject(userSubjectId, sessionId);
+        return HttpResponse.ok(
+            new ListKeysResponse(
+                subjectService.listCredentials(subject).stream()
+                    .filter(creds -> creds.type().equals(CredentialsType.PUBLIC_KEY))
+                    .map(creds -> new Key(creds.name(), creds.value()))
+                    .collect(Collectors.toList())
+            )
+        );
     }
 
     @Introspected
@@ -68,6 +67,8 @@ public class Keys {
         String keyName
     ) {}
 
+    public record Key(String name, String value) {}
+
     @Introspected
-    public record ListKeysResponse(List<String> keyNames) {}
+    public record ListKeysResponse(List<Key> keys) {}
 }

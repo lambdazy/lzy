@@ -3,6 +3,7 @@ package ai.lzy.site.routes;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -122,11 +123,13 @@ public class Auth {
         final Duration maxAge = Duration.ofDays(300);
         final SubjectCredentials cookieToken =
             SubjectCredentials.cookie("main", UUID.randomUUID().toString(), maxAge);
-        subjectServiceClient.createSubject(AuthProvider.GITHUB, userName, SubjectType.USER, cookieToken);
+        final Subject subject =
+            subjectServiceClient.createSubject(AuthProvider.GITHUB, userName, SubjectType.USER, cookieToken);
 
         final URI siteSignInUrl = URI.create(state);
         return HttpResponse.redirect(siteSignInUrl)
             .cookie(Cookie.of("userId", userName))
+            .cookie(Cookie.of("userSubjectId", subject.id()))
             .cookie(Cookie.of("sessionId", cookieToken.value()).maxAge(maxAge.getSeconds()).secure(true));
     }
 

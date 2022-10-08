@@ -127,11 +127,6 @@
             <artifactId>embedded-postgres</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>io.micronaut.test</groupId>
-            <artifactId>micronaut-test-spock</artifactId>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
     <build>
@@ -193,6 +188,30 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>ai/lzy/site/routes/AuthControllerTest.java</exclude>
+                        <exclude>ai/lzy/site/routes/KeysControllerTest.java</exclude>
+                    </excludes>
+                    <parallel>classes</parallel>
+                </configuration>
+
+                <executions>
+                    <execution>
+                        <id>single-thread-test</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <includes>
+                                <include>ai/lzy/site/routes/AuthControllerTest.java</include>
+                                <include>ai/lzy/site/routes/KeysControllerTest.java</include>
+                            </includes>
+                            <threadCount>1</threadCount>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

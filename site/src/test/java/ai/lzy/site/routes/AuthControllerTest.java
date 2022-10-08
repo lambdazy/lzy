@@ -1,6 +1,8 @@
 package ai.lzy.site.routes;
 
+import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.test.BaseTestWithIam;
@@ -14,27 +16,22 @@ import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.junit.*;
-import org.junit.jupiter.api.parallel.Execution;
-import org.junit.jupiter.api.parallel.ExecutionMode;
-import spock.lang.AutoCleanup;
-import spock.lang.Shared;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-@Execution(ExecutionMode.SAME_THREAD)
 @MicronautTest
 public class AuthControllerTest extends BaseTestWithIam {
-    @Shared
-    @AutoCleanup
     public EmbeddedServer server = ApplicationContext.run(EmbeddedServer.class);
     @Rule
     public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {
     });
+
     private Auth auth;
     private ServiceConfig.GithubCredentials githubCredentials;
 
@@ -80,8 +77,19 @@ public class AuthControllerTest extends BaseTestWithIam {
         Assert.assertEquals(HttpStatus.MOVED_PERMANENTLY.getCode(), response.code());
         final String location = response.header("location");
         Assert.assertNotNull(location);
-        Assert.assertTrue(location.startsWith(signInUrl + "?userId=" + GithubApiRouteTest.TEST_USER));
+
         final Subject subject = getSubject(AuthProvider.GITHUB, GithubApiRouteTest.TEST_USER, SubjectType.USER);
         Assert.assertNotNull(subject);
+
+        Assert.assertNotNull(response.getHeaders());
+        final var cookies = response.getHeaders().getAll("set-cookie");
+        Assert.assertEquals(cookies.get(0), "userId=" + GithubApiRouteTest.TEST_USER);
+
+        final var creds = listCredentials(subject);
+        Assert.assertNotNull(creds);
+        final Optional<SubjectCredentials> subjectCreds =
+            creds.stream().filter(cred -> cred.type() == CredentialsType.COOKIE).findFirst();
+        Assert.assertTrue(subjectCreds.isPresent());
+        Assert.assertTrue(cookies.get(1).startsWith("sessionId=" + subjectCreds.get().value()));
     }
 }

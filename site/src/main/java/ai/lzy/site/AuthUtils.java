@@ -24,13 +24,13 @@ public class AuthUtils {
     @Inject
     SubjectServiceGrpcClient subjectService;
 
-    public Subject checkCookieAndGetSubject(String userId, String sessionId) {
-        final Subject subject = subjectService.getSubject(userId);
+    public Subject checkCookieAndGetSubject(String userSubjectId, String sessionId) {
+        final Subject subject = subjectService.getSubject(userSubjectId);
         final SubjectCredentials credentials = subjectService.listCredentials(subject).stream()
             .filter(creds -> creds.type() == CredentialsType.COOKIE)
             .findFirst().orElse(null);
         if (credentials == null || !credentials.value().equals(sessionId)) {
-            final String message = "Invalid cookie passed for user " + userId;
+            final String message = "Invalid cookie passed for user " + userSubjectId;
             LOG.error(message);
             throw new HttpStatusException(HttpStatus.FORBIDDEN, message);
         }

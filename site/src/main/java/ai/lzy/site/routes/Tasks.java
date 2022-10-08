@@ -26,10 +26,10 @@ public class Tasks {
     SchedulerGrpc.SchedulerBlockingStub scheduler;
 
     @Post("get")
-    public HttpResponse<GetTasksResponse> get(@CookieValue String userId, @CookieValue String sessionId,
+    public HttpResponse<GetTasksResponse> get(@CookieValue String userSubjectId, @CookieValue String sessionId,
                                               @Valid @Body GetTasksRequest tasksRequest)
     {
-        authUtils.checkCookieAndGetSubject(userId, sessionId);
+        authUtils.checkCookieAndGetSubject(userSubjectId, sessionId);
         final SchedulerApi.TaskListResponse taskListResponse = scheduler
             .list(SchedulerApi.TaskListRequest.newBuilder()
                 .setWorkflowId(tasksRequest.workflowId())
