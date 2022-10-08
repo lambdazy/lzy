@@ -4,9 +4,7 @@ import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.SubjectType;
-import ai.lzy.site.Cookie;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micronaut.core.annotation.Introspected;
 import io.micronaut.http.HttpRequest;
@@ -19,6 +17,7 @@ import io.micronaut.http.annotation.QueryValue;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientException;
+import io.micronaut.http.cookie.Cookie;
 import io.micronaut.http.exceptions.HttpStatusException;
 import io.micronaut.http.server.util.HttpHostResolver;
 import io.micronaut.http.uri.UriBuilder;
@@ -79,7 +78,7 @@ public class Auth {
     }
 
     @Get("/code/github{?code,state}")
-    public HttpResponse<Void> acceptGithubCode(@QueryValue String code, @QueryValue String state) {
+    public HttpResponse<Object> acceptGithubCode(@QueryValue String code, @QueryValue String state) {
         final var tokenRequest = new GithubAccessTokenRequest(code,
             githubCredentials.getClientId(), githubCredentials.getClientSecret());
         LOG.info("Checking github code: " + code);
@@ -120,26 +119,15 @@ public class Auth {
             throw new HttpStatusException(HttpStatus.FORBIDDEN, "Bad code");
         }
 
-        final Cookie cookie = new Cookie(userName, UUID.randomUUID().toString(), Duration.ofDays(300));
-        final String cookieAsString;
-        try {
-            cookieAsString = objectMapper.writeValueAsString(cookie);
-        } catch (JsonProcessingException e) {
-            throw new HttpStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to dump cookie to json");
-        }
-
-        subjectServiceClient.createSubject(
-            AuthProvider.GITHUB, userName, SubjectType.USER,
-            SubjectCredentials.cookie("main", cookieAsString, cookie.ttl())
-        );
+        final Duration maxAge = Duration.ofDays(300);
+        final SubjectCredentials cookieToken =
+            SubjectCredentials.cookie("main", UUID.randomUUID().toString(), maxAge);
+        subjectServiceClient.createSubject(AuthProvider.GITHUB, userName, SubjectType.USER, cookieToken);
 
         final URI siteSignInUrl = URI.create(state);
-        return HttpResponse.redirect(
-            UriBuilder.of(siteSignInUrl)
-                .queryParam("userId", cookie.userId())
-                .queryParam("sessionId", cookie.sessionId())
-                .build()
-        );
+        return HttpResponse.redirect(siteSignInUrl)
+            .cookie(Cookie.of("userId", userName))
+            .cookie(Cookie.of("sessionId", cookieToken.value()).maxAge(maxAge.getSeconds()).secure(true));
     }
 
     public enum AuthType {

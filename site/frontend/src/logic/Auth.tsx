@@ -46,8 +46,6 @@ export function AuthProvider(props: { children: any }) {
         userId === undefined ? null : {userId, sessionId});
 
     const signIn = (userCreds: UserCredentials, cb: () => void) => {
-        cookies.set("userId", userCreds.userId);
-        cookies.set("sessionId", userCreds.sessionId);
         setUserCreds(userCreds);
         cb();
     };

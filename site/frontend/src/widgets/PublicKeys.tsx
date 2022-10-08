@@ -3,7 +3,7 @@ import {DataGrid, GridColDef, GridRowsProp, GridSelectionModel} from "@mui/x-dat
 import axios, {AxiosResponse} from "axios";
 import {useContext, useEffect, useState} from "react";
 import {BACKEND_HOST} from "../config";
-import {AuthContext, UserCredentials} from "../logic/Auth"
+import {AuthContext} from "../logic/Auth"
 import {useAlert} from "./ErrorAlert";
 import {Redirect} from "react-router-dom";
 
@@ -16,23 +16,21 @@ interface Keys {
     entries: Key[]
 }
 
-async function getKeys(credentials: UserCredentials): Promise<AxiosResponse> {
+async function getKeys(): Promise<AxiosResponse> {
     return await axios.post(
-        BACKEND_HOST() + "/key/list",
-        {credentials: credentials}
+        BACKEND_HOST() + "/key/list"
     );
 }
 
 interface ToolbarProps {
     selectionModel: GridSelectionModel,
-    credentials: UserCredentials,
     addKey: (key: Key) => void,
     deleteKey: (keyName: string) => void,
 }
 
 function Toolbar(props: ToolbarProps) {
     let alert = useAlert();
-    const {selectionModel, credentials, addKey, deleteKey} = props;
+    const {selectionModel, addKey, deleteKey} = props;
 
     const handleClickDelete = () => {
         if (!selectionModel) {
@@ -42,7 +40,7 @@ function Toolbar(props: ToolbarProps) {
             if (typeof keyName === "number") {
                 return;
             }
-            axios.post(BACKEND_HOST() + "/key/delete", {keyName: keyName, credentials})
+            axios.post(BACKEND_HOST() + "/key/delete", {keyName: keyName})
                 .then(() => deleteKey(keyName))
                 .catch(error => alert.showDanger("Unable to delete key " + keyName, error.message))
         });
@@ -59,8 +57,7 @@ function Toolbar(props: ToolbarProps) {
     const handleAddKey = () => {
         axios.post(BACKEND_HOST() + "/key/add", {
             keyName: keyData.name,
-            publicKey: keyData.value,
-            userCredentials: credentials
+            publicKey: keyData.value
         }).then(() => {
             setOpen(false);
             addKey(keyData)
@@ -132,7 +129,7 @@ export function PublicKeys() {
         if (userCreds === null) {
             return;
         }
-        getKeys(userCreds).then((res) => {
+        getKeys().then((res) => {
             setKeys({entries: res.data.keys});
         })
             .catch(error => {
@@ -141,6 +138,7 @@ export function PublicKeys() {
     }, [alert, userCreds]);
 
     if (userCreds === null) {
+        alert.showDanger("Error", "You are not logged in");
         return <Redirect to="/login"/>;
     }
 
@@ -164,7 +162,6 @@ export function PublicKeys() {
         componentsProps={{
             toolbar: {
                 selectionModel,
-                credentials: userCreds,
                 addKey: (key: Key) => {
                     if (keys) {
                         setKeys({entries: keys.entries.concat([key])})

@@ -4,7 +4,7 @@ micronaut:
   ssl:
     enabled: false
   server:
-    port: 8080
+    port: 9090
     cors:
       enabled: true
 grpc:
@@ -57,8 +57,8 @@ site:
     private-key-path: <Some token path> # Can be set with CREDENTIALS_PRIVATE_KEY_PATH env var
 
   github:
-    address: "http://localhost:8080/github"
-    api-address: "http://localhost:8080/github-api"
+    address: "http://localhost:9090/github"
+    api-address: "http://localhost:9090/github-api"
 
   github-credentials:
     client-id: <Some-client-id>

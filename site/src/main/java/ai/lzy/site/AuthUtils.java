@@ -24,21 +24,15 @@ public class AuthUtils {
     @Inject
     SubjectServiceGrpcClient subjectService;
 
-    public Subject checkCookieAndGetSubject(Cookie cookie) {
-        final Subject subject = subjectService.getSubject(cookie.userId());
+    public Subject checkCookieAndGetSubject(String userId, String sessionId) {
+        final Subject subject = subjectService.getSubject(userId);
         final SubjectCredentials credentials = subjectService.listCredentials(subject).stream()
             .filter(creds -> creds.type() == CredentialsType.COOKIE)
             .findFirst().orElse(null);
-        try {
-            if (credentials == null || !objectMapper.readValue(credentials.value(), Cookie.class).equals(cookie)) {
-                final String message = "Invalid cookie passed for user " + cookie.userId();
-                LOG.error(message);
-                throw new HttpStatusException(HttpStatus.FORBIDDEN, message);
-            }
-        } catch (IOException e) {
-            final String message = "Failed via parsing cookie from credentials " + credentials.value();
-            LOG.error(message, e);
-            throw new HttpStatusException(HttpStatus.INTERNAL_SERVER_ERROR, message);
+        if (credentials == null || !credentials.value().equals(sessionId)) {
+            final String message = "Invalid cookie passed for user " + userId;
+            LOG.error(message);
+            throw new HttpStatusException(HttpStatus.FORBIDDEN, message);
         }
         return subject;
     }

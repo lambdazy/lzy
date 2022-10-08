@@ -1,7 +1,6 @@
 package ai.lzy.site.routes;
 
 import ai.lzy.site.AuthUtils;
-import ai.lzy.site.Cookie;
 import ai.lzy.v1.scheduler.Scheduler;
 import ai.lzy.v1.scheduler.SchedulerApi;
 import ai.lzy.v1.scheduler.SchedulerGrpc;
@@ -9,6 +8,7 @@ import io.micronaut.core.annotation.Introspected;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
+import io.micronaut.http.annotation.CookieValue;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.validation.Validated;
 import jakarta.inject.Inject;
@@ -26,8 +26,10 @@ public class Tasks {
     SchedulerGrpc.SchedulerBlockingStub scheduler;
 
     @Post("get")
-    public HttpResponse<GetTasksResponse> get(@Valid @Body GetTasksRequest tasksRequest) {
-        authUtils.checkCookieAndGetSubject(tasksRequest.cookie);
+    public HttpResponse<GetTasksResponse> get(@CookieValue String userId, @CookieValue String sessionId,
+                                              @Valid @Body GetTasksRequest tasksRequest)
+    {
+        authUtils.checkCookieAndGetSubject(userId, sessionId);
         final SchedulerApi.TaskListResponse taskListResponse = scheduler
             .list(SchedulerApi.TaskListRequest.newBuilder()
                 .setWorkflowId(tasksRequest.workflowId())
@@ -38,11 +40,7 @@ public class Tasks {
     }
 
     @Introspected
-    public record GetTasksRequest(
-        Cookie cookie,
-        String workflowId
-    )
-    {
+    public record GetTasksRequest(String workflowId) {
     }
 
     @Introspected

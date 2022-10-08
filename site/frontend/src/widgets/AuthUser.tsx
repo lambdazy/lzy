@@ -1,15 +1,16 @@
 import {useContext} from "react";
 import {useHistory} from "react-router";
 import {AuthContext} from "../logic/Auth";
-import qs from "qs";
+import {cookies} from "../App";
 
 export function AuthUser() {
     let auth = useContext(AuthContext)
     let history = useHistory()
-    let params = qs.parse(window.location.search, {ignoreQueryPrefix: true})
-    if (params.userId != null && params.sessionId != null) {
+    const userId = cookies.get("userId");
+    const sessionId = cookies.get("sessionId");
+    if (userId != null && sessionId != null) {
         auth.signIn(
-        {userId: params.userId.toString(), sessionId: params.sessionId?.toString()},
+        {userId, sessionId},
         () => {history.push("/")}
         )
     }

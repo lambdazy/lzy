@@ -1,8 +1,8 @@
 import axios from "axios";
 import {useContext, useEffect, useState} from "react";
 import {BACKEND_HOST} from "../config";
-import {AuthContext, UserCredentials} from "../logic/Auth";
-import {ErrorAlert, useAlert} from "./ErrorAlert";
+import {AuthContext} from "../logic/Auth";
+import {useAlert} from "./ErrorAlert";
 import {DataGrid, GridColDef, GridRowsProp} from '@mui/x-data-grid';
 import {Redirect} from "react-router-dom";
 import {TextField} from "@mui/material";
@@ -14,10 +14,8 @@ export interface Task {
     description: string;
 }
 
-async function fetchTasks(credentials: UserCredentials, workflowId: string): Promise<Task[]> {
-    const res = await axios.post(BACKEND_HOST() + "/tasks/get", {
-        credentials, workflowId
-    })
+async function fetchTasks(workflowId: string): Promise<Task[]> {
+    const res = await axios.post(BACKEND_HOST() + "/tasks/get", {workflowId})
     return res.data.taskStatusList;
 }
 
@@ -32,7 +30,7 @@ function Toolbar(props: ToolbarProps) {
 
     useEffect(() => {
         if (userCreds && workflowId) {
-            fetchTasks(userCreds, workflowId)
+            fetchTasks(workflowId)
                 .then((tasks) => {
                     if (tasks === undefined) {
                         tasks = [];
@@ -45,7 +43,7 @@ function Toolbar(props: ToolbarProps) {
         }
     }, [workflowId])
 
-    if (userCreds == null) {
+    if (userCreds === null) {
         alert.showDanger("Error", "You are not logged in");
         return <Redirect to="/login" />;
     }
