@@ -16,7 +16,6 @@ import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.runtime.server.EmbeddedServer;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.junit.*;
@@ -25,7 +24,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.List;
 
-@MicronautTest
 public class TasksControllerTest extends BaseTestWithIam {
     @Rule
     public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {
@@ -42,8 +40,8 @@ public class TasksControllerTest extends BaseTestWithIam {
     public void before() throws IOException {
         super.setUp(DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo()));
         context = server.getApplicationContext();
-        auth = context.getBean(Auth.class);
         tasks = context.getBean(Tasks.class);
+        auth = context.getBean(Auth.class);
         server = context.getBean(EmbeddedServer.class);
         ServiceConfig serviceConfig = context.getBean(ServiceConfig.class);
         final HostAndPort schedulerAddress = HostAndPort.fromString(serviceConfig.getSchedulerAddress());

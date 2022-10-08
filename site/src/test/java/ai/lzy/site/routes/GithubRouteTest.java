@@ -19,7 +19,8 @@ public class GithubRouteTest {
     @Post("/login/oauth/access_token")
     public HttpResponse<Auth.GithubAccessTokenResponse> accessToken(@Body Auth.GithubAccessTokenRequest request) {
         if (!Objects.equals(request.clientId(), githubCredentials.getClientId()) ||
-            !Objects.equals(request.clientSecret(), githubCredentials.getClientSecret())) {
+            !Objects.equals(request.clientSecret(), githubCredentials.getClientSecret()))
+        {
             return HttpResponse.unauthorized();
         }
         return HttpResponse.ok(new Auth.GithubAccessTokenResponse(ACCESS_TOKEN, "scope", "tokenType"));
