@@ -53,11 +53,11 @@ public class Auth {
     @Inject
     private RouteBuilder.UriNamingStrategy uriNamingStrategy;
 
-    @Client("https://github.com")
+    @Client("${site.github.address}")
     @Inject
     private HttpClient githubClient;
 
-    @Client("https://api.github.com")
+    @Client("${site.github.api-address}")
     @Inject
     private HttpClient githubApiClient;
 
@@ -116,7 +116,7 @@ public class Auth {
             }
             userName = result.getBody().orElseThrow().login();
         } catch (HttpClientException e) {
-            LOG.error("Error:", e);
+            LOG.error("Failed to get user, cause:", e);
             throw new HttpStatusException(HttpStatus.FORBIDDEN, "Bad code");
         }
 

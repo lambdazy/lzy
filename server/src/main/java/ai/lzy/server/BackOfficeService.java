@@ -1,6 +1,6 @@
 package ai.lzy.server;
 
-import ai.lzy.model.utils.AuthProviders;
+import ai.lzy.model.utils.AuthProvider;
 import ai.lzy.model.utils.Permissions;
 import ai.lzy.server.configs.ServerConfig;
 import ai.lzy.server.hibernate.DbStorage;
@@ -221,14 +221,14 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
                     session.save(user);
                 }
                 if (user.getAuthProvider() != null) {
-                    if (AuthType.fromGrpcMessage(request.getProvider()) != user.getAuthProviderEnum()
+                    if (AuthProvider.fromGrpcMessage(request.getProvider()) != user.getAuthProviderEnum()
                         || !request.getProviderUserId().equals(user.getProviderUserId())) {
                         responseObserver.onError(Status.PERMISSION_DENIED.asException());
                         tx.rollback();
                         return;
                     }
                 } else {
-                    user.setAuthProviderEnum(AuthType.fromGrpcMessage(request.getProvider()));
+                    user.setAuthProviderEnum(AuthProvider.fromGrpcMessage(request.getProvider()));
                     user.setProviderUserId(request.getProviderUserId());
                     session.save(user);
                 }

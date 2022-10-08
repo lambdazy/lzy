@@ -7,13 +7,19 @@ micronaut:
     port: 8080
     cors:
       enabled: true
-    ssl:
-      port: 8443
 grpc:
   host: 127.0.0.1
   port: 8888
 
 site:
+  database:
+    url: 'embedded-postgres'
+    username: 'test'
+    password: ''
+    min-pool-size: 1
+    max-pool-size: 5
+    enabled: true
+
   iam:
     address: 'localhost:8443'
     internal-user-name: "lzy-internal-user"
@@ -51,9 +57,9 @@ site:
     private-key-path: <Some token path> # Can be set with CREDENTIALS_PRIVATE_KEY_PATH env var
 
   github:
-    address: "https://github.com"
-    api-address: "https:/api.github.com"
+    address: "http://localhost:8080/github"
+    api-address: "http://localhost:8080/github-api"
 
   github-credentials:
-    client-id: <Some client id>
-    client-secret: <Some client secret>
+    client-id: <Some-client-id>
+    client-secret: <Some-client-secret>

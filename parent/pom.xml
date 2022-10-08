@@ -82,6 +82,7 @@
         <docker-maven-plugin.version>0.36.1</docker-maven-plugin.version>
         <hibernate.version>5.6.9.Final</hibernate.version>
         <micronaut.version>3.6.3</micronaut.version>
+        <micronaut.test.spock.version>3.6.2</micronaut.test.spock.version>
         <junit-api.version>5.8.1</junit-api.version>
         <micronaut-test.version>3.5.0</micronaut-test.version>
         <micronaut-maven-plugin.version>3.0.2</micronaut-maven-plugin.version>
@@ -623,6 +624,11 @@
                 <groupId>pl.pragmatists</groupId>
                 <artifactId>JUnitParams</artifactId>
                 <version>${JUnitParams.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.micronaut.test</groupId>
+                <artifactId>micronaut-test-spock</artifactId>
+                <version>${micronaut.test.spock.version}</version>
             </dependency>
         </dependencies>
 

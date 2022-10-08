@@ -2,16 +2,16 @@ package ai.lzy.model.utils;
 
 import ai.lzy.v1.deprecated.BackOffice;
 
-public enum AuthType {
+public enum AuthProvider {
     GITHUB("github");
 
     public final String name;
 
-    AuthType(String name) {
+    AuthProvider(String name) {
         this.name = name;
     }
 
-    public static AuthType fromGrpcMessage(BackOffice.AuthUserSessionRequest.OAuthProviders provider) {
+    public static AuthProvider fromGrpcMessage(BackOffice.AuthUserSessionRequest.OAuthProviders provider) {
         switch (provider) {
             case GITHUB:
                 return GITHUB;
@@ -20,7 +20,7 @@ public enum AuthType {
         }
     }
 
-    public static AuthType fromString(String s) {
+    public static AuthProvider fromString(String s) {
         if (s == null) {
             return null;
         }

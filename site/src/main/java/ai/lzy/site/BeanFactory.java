@@ -6,7 +6,6 @@ import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.scheduler.SchedulerGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
@@ -29,27 +28,6 @@ public class BeanFactory {
             .build();
     }
 
-    @Bean(preDestroy = "shutdown")
-    @Singleton
-    @Named("AllocatorIamGrpcChannel")
-    public ManagedChannel iamChannel(ServiceConfig config) {
-        return ChannelBuilder
-            .forAddress(config.getIam().getAddress())
-            .usePlaintext() // TODO
-            .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
-            .build();
-    }
-
-    @Bean
-    @Singleton
-    public SubjectServiceGrpcClient subjectService(ServiceConfig config) {
-        final IamClientConfiguration iam = config.getIam();
-        return new SubjectServiceGrpcClient(
-            GrpcConfig.from(iam.getAddress()),
-            iam::createCredentials
-        );
-    }
-
     @Bean
     @Singleton
     @Named("Scheduler")
@@ -64,5 +42,15 @@ public class BeanFactory {
                     () -> serviceConfig.getIam().createCredentials().token()
                 )
             );
+    }
+
+    @Bean
+    @Singleton
+    public SubjectServiceGrpcClient subjectService(ServiceConfig config) {
+        final IamClientConfiguration iam = config.getIam();
+        return new SubjectServiceGrpcClient(
+            GrpcConfig.from(iam.getAddress()),
+            iam::createCredentials
+        );
     }
 }

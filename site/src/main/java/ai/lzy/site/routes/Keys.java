@@ -1,6 +1,5 @@
 package ai.lzy.site.routes;
 
-import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.CredentialsType;
@@ -25,8 +24,6 @@ public class Keys {
 
     @Inject
     SubjectServiceGrpcClient subjectService;
-    @Inject
-    AuthenticateServiceGrpcClient authenticateService;
 
     @Post("add")
     public HttpResponse<?> add(@Valid @Body AddPublicKeyRequest request) {
@@ -60,23 +57,17 @@ public class Keys {
         Cookie cookie,
         String keyName,
         String publicKey
-    )
-    {
-    }
+    ) {}
 
     @Introspected
     public record DeletePublicKeyRequest(
         Cookie cookie,
         String keyName
-    )
-    {
-    }
+    ) {}
 
     @Introspected
-    public record ListKeysRequest(Cookie cookie) {
-    }
+    public record ListKeysRequest(Cookie cookie) {}
 
     @Introspected
-    public record ListKeysResponse(List<String> keyNames) {
-    }
+    public record ListKeysResponse(List<String> keyNames) {}
 }
