@@ -12,6 +12,7 @@ grpc:
   port: 8888
 
 site:
+  schedulerAddress: 'localhost:8912'
   database:
     url: 'embedded-postgres'
     username: 'test'

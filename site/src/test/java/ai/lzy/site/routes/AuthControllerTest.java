@@ -27,10 +27,12 @@ import java.util.stream.Collectors;
 
 @MicronautTest
 public class AuthControllerTest extends BaseTestWithIam {
-    public EmbeddedServer server = ApplicationContext.run(EmbeddedServer.class);
     @Rule
     public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {
     });
+
+    private ApplicationContext context;
+    private EmbeddedServer server = ApplicationContext.run(EmbeddedServer.class);
 
     private Auth auth;
     private ServiceConfig.GithubCredentials githubCredentials;
@@ -38,7 +40,7 @@ public class AuthControllerTest extends BaseTestWithIam {
     @Before
     public void before() throws IOException {
         super.setUp(DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo()));
-        final ApplicationContext context = server.getApplicationContext();
+        context = server.getApplicationContext();
         auth = context.getBean(Auth.class);
         githubCredentials = context.getBean(ServiceConfig.GithubCredentials.class);
         server = context.getBean(EmbeddedServer.class);
@@ -47,6 +49,8 @@ public class AuthControllerTest extends BaseTestWithIam {
     @After
     public void after() {
         super.after();
+        server.stop();
+        context.stop();
     }
 
     @Test
@@ -81,15 +85,14 @@ public class AuthControllerTest extends BaseTestWithIam {
         final Subject subject = getSubject(AuthProvider.GITHUB, GithubApiRouteTest.TEST_USER, SubjectType.USER);
         Assert.assertNotNull(subject);
 
-        Assert.assertNotNull(response.getHeaders());
-        final var cookies = response.getHeaders().getAll("set-cookie");
-        Assert.assertEquals(cookies.get(0), "userId=" + GithubApiRouteTest.TEST_USER);
+        final Utils.ParsedCookies cookies = Utils.parseCookiesFromHeaders(response);
+        Assert.assertEquals(GithubApiRouteTest.TEST_USER, cookies.userId());
 
         final var creds = listCredentials(subject);
         Assert.assertNotNull(creds);
         final Optional<SubjectCredentials> subjectCreds =
             creds.stream().filter(cred -> cred.type() == CredentialsType.COOKIE).findFirst();
         Assert.assertTrue(subjectCreds.isPresent());
-        Assert.assertTrue(cookies.get(1).startsWith("sessionId=" + subjectCreds.get().value()));
+        Assert.assertEquals(subjectCreds.get().value(), cookies.sessionId());
     }
 }

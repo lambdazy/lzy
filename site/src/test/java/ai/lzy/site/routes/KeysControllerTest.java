@@ -12,22 +12,23 @@ import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.junit.*;
 
 import java.io.IOException;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @MicronautTest
 public class KeysControllerTest extends BaseTestWithIam {
-    public EmbeddedServer server = ApplicationContext.run(EmbeddedServer.class);
     @Rule
     public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {
     });
+
+    private ApplicationContext context;
+    private EmbeddedServer server = ApplicationContext.run(EmbeddedServer.class);
+
     private Auth auth;
     private Keys keys;
 
     @Before
     public void before() throws IOException {
         super.setUp(DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo()));
-        final ApplicationContext context = server.getApplicationContext();
+        context = server.getApplicationContext();
         auth = context.getBean(Auth.class);
         keys = context.getBean(Keys.class);
         server = context.getBean(EmbeddedServer.class);
@@ -36,6 +37,8 @@ public class KeysControllerTest extends BaseTestWithIam {
     @After
     public void after() {
         super.after();
+        server.stop();
+        context.stop();
     }
 
     @Test
@@ -43,15 +46,10 @@ public class KeysControllerTest extends BaseTestWithIam {
         final String signInUrl = "https://host/signIn";
         final var response = auth.acceptGithubCode("code", signInUrl);
         Assert.assertEquals(HttpStatus.MOVED_PERMANENTLY.getCode(), response.code());
-        final Map<String, String> cookies =
-            response.getHeaders().getAll("set-cookie").stream()
-                .map(s -> s.split("=", 2))
-                .collect(Collectors.toMap(s -> s[0], s -> s[1]));
-        Assert.assertTrue(cookies.containsKey("sessionId"));
-        Assert.assertTrue(cookies.containsKey("userSubjectId"));
+        final Utils.ParsedCookies cookies = Utils.parseCookiesFromHeaders(response);
 
-        final String sessionId = cookies.get("sessionId").split(";")[0];
-        final String subjectId = cookies.get("userSubjectId");
+        final String sessionId = cookies.sessionId();
+        final String subjectId = cookies.userSubjectId();
         {
             final HttpResponse<Keys.ListKeysResponse> listKeys = keys.list(subjectId, sessionId);
             final Keys.ListKeysResponse body = listKeys.body();

@@ -12,8 +12,6 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.IOException;
-
 @Singleton
 public class AuthUtils {
     private static final Logger LOG = LogManager.getLogger(AuthUtils.class);
