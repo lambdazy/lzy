@@ -14,6 +14,8 @@ import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.junit.*;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 import spock.lang.AutoCleanup;
 import spock.lang.Shared;
 
@@ -24,6 +26,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+@Execution(ExecutionMode.SAME_THREAD)
 @MicronautTest
 public class AuthControllerTest extends BaseTestWithIam {
     @Shared
