@@ -81,7 +81,8 @@ public class App {
 
         var fsServerJwt = JwtUtils.buildJWT(config.getPortalId(), "INTERNAL", Date.from(Instant.now()),
             JwtUtils.afterDays(7), new StringReader(config.getIamPrivateKey()));
-        var fsServer = new LzyFsServer(config.getPortalId(), config.getFsRoot(), fsUri, channelManagerUri, fsServerJwt);
+        var fsServer = new LzyFsServer(config.getPortalId(), config.getFsRoot(), fsUri,
+            channelManagerUri, fsServerJwt, false);
 
         var main = new App(new Portal(config, allocatorAgent, fsServer));
         main.start();
