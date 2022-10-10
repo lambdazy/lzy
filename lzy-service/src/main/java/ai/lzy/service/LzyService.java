@@ -121,8 +121,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                       WorkflowDao workflowDao, ExecutionDao executionDao)
     {
         this.storage = storage;
-        this.workflowDao = workflowDao;
-        this.executionDao = executionDao;
+        this.dao = dao;
         startupPortalConfig = config.getPortal();
         allocationTimeout = config.getWaitAllocationTimeout();
         channelManagerAddress = config.getChannelManagerAddress();

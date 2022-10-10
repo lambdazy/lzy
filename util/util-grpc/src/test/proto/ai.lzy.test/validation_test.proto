@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package ai.lzy.v1;
+
+import "ai/lzy/v1/validation/validation.proto";
+
+option java_package = "ai.lzy.test";
+
+message TestMessage {
+  string field1 = 1;
+  string field2 = 2 [(validation.sensitive) = true];
+  int32 field3  = 3;
+  int32 field4  = 4 [(validation.sensitive) = true];
+}

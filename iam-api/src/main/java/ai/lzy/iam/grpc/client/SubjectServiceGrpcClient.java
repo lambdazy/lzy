@@ -10,9 +10,7 @@ import ai.lzy.iam.utils.ProtoConverter;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthInternalException;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.util.grpc.ClientHeaderInterceptor;
-import ai.lzy.util.grpc.GrpcHeaders;
+import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.iam.IAM;
 import ai.lzy.v1.iam.LSS;
 import ai.lzy.v1.iam.LzySubjectServiceGrpc;
@@ -34,25 +32,19 @@ public class SubjectServiceGrpcClient implements SubjectServiceClient {
     private final Supplier<Credentials> tokenSupplier;
 
     public SubjectServiceGrpcClient(GrpcConfig config, Supplier<Credentials> tokenSupplier) {
-        this(ChannelBuilder.forAddress(config.host(), config.port())
-                .usePlaintext()
-                .enableRetry(LzySubjectServiceGrpc.SERVICE_NAME)
-                .build(),
-            tokenSupplier);
+        this(GrpcUtils.newGrpcChannel(config.host(), config.port(), LzySubjectServiceGrpc.SERVICE_NAME), tokenSupplier);
     }
 
     public SubjectServiceGrpcClient(Channel channel, Supplier<Credentials> tokenSupplier) {
         this.channel = channel;
         this.tokenSupplier = tokenSupplier;
-        this.subjectService = LzySubjectServiceGrpc.newBlockingStub(this.channel)
-            .withInterceptors(ClientHeaderInterceptor.header(
-                GrpcHeaders.AUTHORIZATION,
-                () -> this.tokenSupplier.get().token()));
+        this.subjectService = GrpcUtils.newBlockingClient(
+            LzySubjectServiceGrpc.newBlockingStub(this.channel), () -> this.tokenSupplier.get().token());
     }
 
     @Override
     public SubjectServiceGrpcClient withToken(Supplier<Credentials> tokenSupplier) {
-        return new SubjectServiceGrpcClient(this.channel, tokenSupplier);
+        return new SubjectServiceGrpcClient(channel, tokenSupplier);
     }
 
     @Override
