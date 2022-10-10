@@ -1,6 +1,5 @@
 package ai.lzy.service;
 
-import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.common.LMS3;
@@ -14,6 +13,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.sql.SQLException;
+
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 @SuppressWarnings("ResultOfMethodCallIgnored")
 public class WorkflowTest extends BaseTest {
@@ -93,7 +94,7 @@ public class WorkflowTest extends BaseTest {
             LWFS.CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build());
 
         var portalAddress = HostAndPort.fromParts("localhost", config.getPortal().getPortalApiPort());
-        var portalChannel = ChannelBuilder.forAddress(portalAddress).usePlaintext().build();
+        var portalChannel = newGrpcChannel(portalAddress, LzyPortalGrpc.SERVICE_NAME);
         var portalClient = LzyPortalGrpc.newBlockingStub(portalChannel).withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, internalUserCredentials::token));
 

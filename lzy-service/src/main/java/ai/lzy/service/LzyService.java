@@ -22,7 +22,6 @@ import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.service.graph.DataFlowGraph;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.RsaUtils;
-import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.JsonUtils;
@@ -75,6 +74,8 @@ import java.util.stream.Collectors;
 import static ai.lzy.channelmanager.grpc.ProtoConverter.createChannelRequest;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.v1.workflow.LWFS.ExecuteGraphRequest;
 import static ai.lzy.v1.workflow.LWFS.ExecuteGraphResponse;
 
@@ -134,57 +135,32 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
         var allocatorAddress = HostAndPort.fromString(config.getAllocatorAddress());
 
-        allocatorServiceChannel = ChannelBuilder.forAddress(allocatorAddress)
-            .usePlaintext()
-            .enableRetry(AllocatorGrpc.SERVICE_NAME)
-            .build();
-        allocatorClient = AllocatorGrpc.newBlockingStub(allocatorServiceChannel)
-            .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION,
-                internalUserCredentials::token));
+        allocatorServiceChannel = newGrpcChannel(allocatorAddress, AllocatorGrpc.SERVICE_NAME);
+        allocatorClient = newBlockingClient(AllocatorGrpc.newBlockingStub(allocatorServiceChannel),
+            internalUserCredentials::token);
+        vmPoolClient = newBlockingClient(VmPoolServiceGrpc.newBlockingStub(allocatorServiceChannel),
+            internalUserCredentials::token);
 
-        vmPoolClient = VmPoolServiceGrpc.newBlockingStub(allocatorServiceChannel)
-            .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION,
-                internalUserCredentials::token));
+        operationServiceChannel = newGrpcChannel(allocatorAddress, OperationServiceApiGrpc.SERVICE_NAME);
+        operationServiceClient = newBlockingClient(OperationServiceApiGrpc.newBlockingStub(operationServiceChannel),
+            internalUserCredentials::token);
 
-        operationServiceChannel = ChannelBuilder.forAddress(allocatorAddress)
-            .usePlaintext()
-            .enableRetry(OperationServiceApiGrpc.SERVICE_NAME)
-            .build();
-        operationServiceClient = OperationServiceApiGrpc.newBlockingStub(operationServiceChannel)
-            .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION,
-                internalUserCredentials::token));
+        storageServiceChannel = newGrpcChannel(config.getStorage().getAddress(), LzyStorageServiceGrpc.SERVICE_NAME);
+        storageServiceClient = newBlockingClient(LzyStorageServiceGrpc.newBlockingStub(storageServiceChannel),
+            internalUserCredentials::token);
 
-        storageServiceChannel = ChannelBuilder.forAddress(HostAndPort.fromString(config.getStorage().getAddress()))
-            .usePlaintext()
-            .enableRetry(LzyStorageServiceGrpc.SERVICE_NAME)
-            .build();
-        storageServiceClient = LzyStorageServiceGrpc.newBlockingStub(storageServiceChannel)
-            .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION,
-                internalUserCredentials::token));
+        channelManagerChannel = newGrpcChannel(channelManagerAddress, LzyChannelManagerPrivateGrpc.SERVICE_NAME);
+        channelManagerClient = newBlockingClient(LzyChannelManagerPrivateGrpc.newBlockingStub(channelManagerChannel),
+            internalUserCredentials::token);
 
-        channelManagerChannel = ChannelBuilder.forAddress(HostAndPort.fromString(config.getChannelManagerAddress()))
-            .usePlaintext()
-            .enableRetry(LzyChannelManagerPrivateGrpc.SERVICE_NAME)
-            .build();
-        channelManagerClient = LzyChannelManagerPrivateGrpc.newBlockingStub(channelManagerChannel)
-            .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION,
-                internalUserCredentials::token));
-
-        iamChannel = ChannelBuilder.forAddress(iamAddress)
-            .usePlaintext()
-            .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
-            .build();
+        iamChannel = newGrpcChannel(iamAddress, LzyAuthenticateServiceGrpc.SERVICE_NAME);
 
         subjectClient = new SubjectServiceGrpcClient(iamChannel, config.getIam()::createCredentials);
         abClient = new AccessBindingServiceGrpcClient(iamChannel, config.getIam()::createCredentials);
 
-        graphExecutorChannel = ChannelBuilder.forAddress(config.getGraphExecutorAddress())
-            .usePlaintext()
-            .enableRetry(GraphExecutorGrpc.SERVICE_NAME)
-            .build();
-        graphExecutorClient = GraphExecutorGrpc.newBlockingStub(graphExecutorChannel)
-            .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION,
-                internalUserCredentials::token));
+        graphExecutorChannel = newGrpcChannel(config.getGraphExecutorAddress(), GraphExecutorGrpc.SERVICE_NAME);
+        graphExecutorClient = newBlockingClient(GraphExecutorGrpc.newBlockingStub(graphExecutorChannel),
+            internalUserCredentials::token);
     }
 
     @PreDestroy
@@ -205,6 +181,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var userId = AuthenticationContext.currentSubject().id();
         var workflowName = request.getWorkflowName();
         var executionId = workflowName + "_" + UUID.randomUUID();
+
+        LOG.debug("[createWorkflow], name={}, executionId={}", workflowName, executionId);
 
         boolean internalSnapshotStorage = !request.hasSnapshotStorage();
         String storageType;
@@ -500,7 +478,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         Set<String> suitableZones;
 
         try {
-            suitableZones = VmPoolClient.findZonesContainAllRequiredPools(vmPoolClient, requiredPoolLabels);
+            suitableZones = VmPoolClient.findZones(vmPoolClient, requiredPoolLabels);
         } catch (StatusRuntimeException e) {
             var causeStatus = e.getStatus();
             LOG.error("Cannot obtain vm pools for { poolLabels: {} } , error: {}",
@@ -537,10 +515,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
-                return ChannelBuilder.forAddress(portalAddress)
-                    .enableRetry(LzyPortalGrpc.SERVICE_NAME)
-                    .usePlaintext()
-                    .build();
+                return newGrpcChannel(portalAddress, LzyPortalGrpc.SERVICE_NAME);
             });
         } catch (RuntimeException e) {
             var cause = Objects.nonNull(e.getCause()) ? e.getCause() : e;

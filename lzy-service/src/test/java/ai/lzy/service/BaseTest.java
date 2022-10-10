@@ -36,6 +36,8 @@ import java.util.ArrayList;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
+
 public class BaseTest {
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
     private static final BaseTestWithStorage storageTestContext = new BaseTestWithStorage();
@@ -113,7 +115,7 @@ public class BaseTest {
             .build();
         lzyServer.start();
 
-        lzyServiceChannel = ChannelBuilder.forAddress(workflowAddress).usePlaintext().build();
+        lzyServiceChannel = newGrpcChannel(workflowAddress, LzyWorkflowServiceGrpc.SERVICE_NAME);
         unauthorizedWorkflowClient = LzyWorkflowServiceGrpc.newBlockingStub(lzyServiceChannel);
 
         internalUserCredentials = config.getIam().createCredentials();
