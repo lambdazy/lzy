@@ -20,21 +20,16 @@ import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.service.graph.DataFlowGraph;
+import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.RsaUtils;
+import ai.lzy.util.grpc.ClientHeaderInterceptor;
+import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.v1.AllocatorGrpc;
-import ai.lzy.v1.OperationService;
-import ai.lzy.v1.OperationServiceApiGrpc;
-import ai.lzy.v1.VmAllocatorApi;
-import ai.lzy.v1.VmPoolServiceGrpc;
+import ai.lzy.v1.*;
 import ai.lzy.v1.channel.LCM;
 import ai.lzy.v1.channel.LCMPS;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
-import ai.lzy.v1.common.LMD;
-import ai.lzy.v1.common.LME;
-import ai.lzy.v1.common.LMO;
-import ai.lzy.v1.common.LMS;
-import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.common.*;
 import ai.lzy.v1.graph.GraphExecutor;
 import ai.lzy.v1.graph.GraphExecutorApi;
 import ai.lzy.v1.graph.GraphExecutorGrpc;
@@ -95,6 +90,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     private final LzyServiceConfig.StartupPortalConfig startupPortalConfig;
     private final String channelManagerAddress;
     private final String iamAddress;
+    private final JwtCredentials internalUserCredentials;
 
     private final WorkflowDao workflowDao;
     private final ExecutionDao executionDao;
@@ -133,7 +129,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         channelManagerAddress = config.getChannelManagerAddress();
 
         iamAddress = config.getIam().getAddress();
-        var internalUserCredentials = config.getIam().createCredentials();
+        internalUserCredentials = config.getIam().createCredentials();
 
         LOG.info("Init Internal User '{}' credentials", config.getIam().getInternalUserName());
 
@@ -141,21 +137,21 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
         allocatorServiceChannel = newGrpcChannel(allocatorAddress, AllocatorGrpc.SERVICE_NAME);
         allocatorClient = newBlockingClient(AllocatorGrpc.newBlockingStub(allocatorServiceChannel),
-                                            internalUserCredentials::token);
+            internalUserCredentials::token);
         vmPoolClient = newBlockingClient(VmPoolServiceGrpc.newBlockingStub(allocatorServiceChannel),
-                                         internalUserCredentials::token);
+            internalUserCredentials::token);
 
         operationServiceChannel = newGrpcChannel(allocatorAddress, OperationServiceApiGrpc.SERVICE_NAME);
         operationServiceClient = newBlockingClient(OperationServiceApiGrpc.newBlockingStub(operationServiceChannel),
-                                                   internalUserCredentials::token);
+            internalUserCredentials::token);
 
         storageServiceChannel = newGrpcChannel(config.getStorage().getAddress(), LzyStorageServiceGrpc.SERVICE_NAME);
         storageServiceClient = newBlockingClient(LzyStorageServiceGrpc.newBlockingStub(storageServiceChannel),
-                                                 internalUserCredentials::token);
+            internalUserCredentials::token);
 
         channelManagerChannel = newGrpcChannel(channelManagerAddress, LzyChannelManagerPrivateGrpc.SERVICE_NAME);
         channelManagerClient = newBlockingClient(LzyChannelManagerPrivateGrpc.newBlockingStub(channelManagerChannel),
-                                                 internalUserCredentials::token);
+            internalUserCredentials::token);
 
         iamChannel = newGrpcChannel(iamAddress, LzyAuthenticateServiceGrpc.SERVICE_NAME);
 
@@ -164,7 +160,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
         graphExecutorChannel = newGrpcChannel(config.getGraphExecutorAddress(), GraphExecutorGrpc.SERVICE_NAME);
         graphExecutorClient = newBlockingClient(GraphExecutorGrpc.newBlockingStub(graphExecutorChannel),
-                                                internalUserCredentials::token);
+            internalUserCredentials::token);
     }
 
     @PreDestroy
@@ -200,13 +196,13 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         if (internalSnapshotStorage) {
             storageType = "internal";
             try {
-                storageData = createTempStorageBucket(userId);
+                storageData = getOrCreateTempStorageBucket(userId);
             } catch (StatusRuntimeException e) {
-                replyError.accept(e.getStatus(), "Cannot create internal storage");
-                return;
-            }
-            if (storageData == null) {
-                replyError.accept(Status.INTERNAL, "Cannot create internal storage");
+                var status = e.getStatus();
+                LOG.error("Cannot obtain temp bucket for user: { userId: {} }, error: {} ",
+                    userId, status.getDescription());
+                response.onError(status.withDescription("Cannot obtain temp bucket: " + status.getDescription())
+                    .asRuntimeException());
                 return;
             }
         } else {
@@ -219,20 +215,19 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             storageData = request.getSnapshotStorage();
         }
 
+        if (storageData == null) {
+            replyError.accept(Status.INTERNAL, "Cannot obtain internal storage");
+            return;
+        }
+
         try {
             withRetries(defaultRetryPolicy(), LOG, () ->
                 workflowDao.create(executionId, userId, workflowName, storageType, storageData));
         } catch (AlreadyExistsException e) {
-            if (internalSnapshotStorage) {
-                safeDeleteTempStorageBucket(storageData.getBucket());
-            }
             replyError.accept(Status.ALREADY_EXISTS, "Cannot create new execution with " +
                 "{ workflowName: '%s', userId: '%s' }: %s".formatted(workflowName, userId, e.getMessage()));
             return;
         } catch (Exception e) {
-            if (internalSnapshotStorage) {
-                safeDeleteTempStorageBucket(storageData.getBucket());
-            }
             replyError.accept(Status.INTERNAL, "Cannot create new execution with " +
                 "{ workflowName: '%s', userId: '%s' }: %s".formatted(workflowName, userId, e.getMessage()));
             return;
@@ -479,25 +474,35 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
 
-        String zoneName;
+        var requiredPoolLabels = graph.getOperationsList().stream().map(LWF.Operation::getPoolSpecName).toList();
+        Set<String> suitableZones;
+
         try {
-            zoneName = VmPoolClient.findZone(vmPoolClient, graph.getOperationsList()
-                .stream()
-                .map(LWF.Operation::getPoolSpecName)
-                .toList());
+            suitableZones = VmPoolClient.findZones(vmPoolClient, requiredPoolLabels);
         } catch (StatusRuntimeException e) {
             var causeStatus = e.getStatus();
-            LOG.error("Cannot obtain vm pools for graph with: { workflowName: {}, executionId: {} } , error: {}",
-                workflowName, executionId, causeStatus.getDescription());
+            LOG.error("Cannot obtain vm pools for { poolLabels: {} } , error: {}",
+                JsonUtils.printAsArray(requiredPoolLabels), causeStatus.getDescription());
             response.onError(causeStatus.withDescription("Cannot obtain vm pools: " + causeStatus.getDescription())
                 .asRuntimeException());
             return;
         }
 
+        var zoneName = graph.getZone().isBlank() ? suitableZones.stream().findAny().orElse(null) : graph.getZone();
+
         if (zoneName == null) {
-            LOG.error("Cannot find zone which has all required pools");
-            response.onError(Status.INVALID_ARGUMENT.withDescription("Cannot find zone " +
-                "which has all required pools").asRuntimeException());
+            LOG.error("Cannot find zone which has all required pools: { poolLabels: {} }",
+                JsonUtils.printAsArray(requiredPoolLabels));
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Cannot find zone which has all required pools")
+                .asRuntimeException());
+            return;
+        }
+
+        if (!suitableZones.contains(zoneName)) {
+            LOG.error("Passed zone does not contain all required pools: { zoneName: {}, poolLabels: {} }",
+                zoneName, JsonUtils.printAsArray(requiredPoolLabels));
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Passed zone does not contains all required pools")
+                .asRuntimeException());
             return;
         }
 
@@ -521,7 +526,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
 
-        LzyPortalGrpc.LzyPortalBlockingStub portalClient = LzyPortalGrpc.newBlockingStub(portalChannel);
+        var portalClient = LzyPortalGrpc.newBlockingStub(portalChannel).withInterceptors(
+            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, internalUserCredentials::token));
 
         // slot name to channel id
         Map<String, String> slots2channels;
@@ -529,8 +535,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             slots2channels = assignSlotsToChannels(executionId, workflowName,
                 dataflowGraph.getDataFlow(), portalClient);
         } catch (Exception e) {
-            LOG.error("Cannot assign slots to channels for execution: { executionId: {}, workflowName: {} } " +
-                e.getMessage(), executionId, workflowName);
+            LOG.error("Cannot assign slots to channels for execution: " +
+                    "{ executionId: {}, workflowName: {} }, error: {} ", executionId, workflowName, e.getMessage());
             response.onError(Status.INTERNAL.withDescription("Cannot assign slots to channels: " + e.getMessage())
                 .asRuntimeException());
             return;
@@ -719,17 +725,18 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             var uri = slotDescription.getStorageUri();
             var description = slot2description.get(uri);
 
-            if (description == null) {
-                LOG.error("Cannot find data description for input slot: " + slotDescription.getPath());
-                return null;
-            }
-
-            LMS.Slot.Builder slot = LMS.Slot.newBuilder()
+            var slot = LMS.Slot.newBuilder()
                 .setName(slotDescription.getPath())
                 .setDirection(LMS.Slot.Direction.INPUT)
                 .setMedia(LMS.Slot.Media.FILE);
-            if (description.hasDataScheme()) {
+
+            if (description != null && description.hasDataScheme()) {
                 slot.setContentType(description.getDataScheme());
+            } else {
+                slot.setContentType(LMD.DataScheme.newBuilder()
+                    .setSchemeContent("text")
+                    .setDataFormat("plain")
+                    .build());
             }
 
             inputSlots.add(slot.build());
@@ -743,17 +750,18 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             var uri = slotDescription.getStorageUri();
             var description = slot2description.get(uri);
 
-            if (description == null) {
-                LOG.error("Cannot find data description for output slot: " + slotDescription.getPath());
-                return null;
-            }
-
-            LMS.Slot.Builder slot = LMS.Slot.newBuilder()
+            var slot = LMS.Slot.newBuilder()
                 .setName(slotDescription.getPath())
                 .setDirection(LMS.Slot.Direction.OUTPUT)
                 .setMedia(LMS.Slot.Media.FILE);
-            if (description.hasDataScheme()) {
+
+            if (description != null && description.hasDataScheme()) {
                 slot.setContentType(description.getDataScheme());
+            } else {
+                slot.setContentType(LMD.DataScheme.newBuilder()
+                    .setSchemeContent("text")
+                    .setDataFormat("plain")
+                    .build());
             }
 
             outputSlots.add(slot.build());
@@ -955,7 +963,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             var slotsUri = dataFlow.stream().map(DataFlowGraph.Data::slotUri).collect(Collectors.toSet());
 
             try {
-                outputSlot2channel = withRetries(LOG, () -> executionDao.findChannelsForOutputSlots(slotsUri));
+                outputSlot2channel = withRetries(LOG, () -> executionDao.findChannels(slotsUri));
             } catch (Exception e) {
                 LOG.error("Cannot obtain information about channels for slots. Execution: { executionId: {} } " +
                     e.getMessage(), executionId);
@@ -1030,8 +1038,9 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var response = portalClient.openSlots(OpenSlotsRequest.newBuilder().addAllSlots(portalSlotToOpen).build());
 
         if (!response.getSuccess()) {
-            LOG.error("Cannot open portal slots for tasks slots { executionId: {}, workflowName: {} }",
-                executionId, workflowName);
+            LOG.error("Cannot open portal slots for tasks { executionId: {}, workflowName: {}, slots: {} }, error: {}",
+                executionId, workflowName, JsonUtils.printAsArray(portalSlotToOpen.stream()
+                    .map(slot -> slot.getSlot().getName()).toList()), response.getDescription());
             throw new RuntimeException(response.getDescription());
         }
 
@@ -1150,7 +1159,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         return null;
     }
 
-    public LMS3.S3Locator createTempStorageBucket(String userId) {
+    @Nullable
+    public LMS3.S3Locator getOrCreateTempStorageBucket(String userId) {
         var bucket = "tmp-bucket-" + userId;
         LOG.info("Creating new temp storage bucket '{}' for user '{}'", bucket, userId);
 

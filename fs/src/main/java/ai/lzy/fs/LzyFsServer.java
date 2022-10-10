@@ -80,9 +80,12 @@ public final class LzyFsServer {
 
     private LzyFSManager fsManager;
 
+    private final boolean startFuse;
+
     @Deprecated
     public LzyFsServer(String agentId, String mountPoint, URI selfUri, @Nullable URI lzyServerUri,
-                       @Nullable URI lzyWhiteboardUri, URI channelManagerUri, LzyAuth.Auth auth) throws IOException
+                       @Nullable URI lzyWhiteboardUri, URI channelManagerUri, LzyAuth.Auth auth,
+                       boolean startFuse) throws IOException
     {
         this.agentId = agentId;
         this.channelManagerUri = channelManagerUri;
@@ -93,11 +96,20 @@ public final class LzyFsServer {
         this.auth = auth;
         this.lzyWhiteboardUri = lzyWhiteboardUri;
 
+        this.startFuse = startFuse;
+
         localServer = NettyServerBuilder.forAddress(new InetSocketAddress(selfUri.getHost(), selfUri.getPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(new Impl())
             .build();
+    }
+
+    @Deprecated
+    public LzyFsServer(String agentId, String mountPoint, URI selfUri, @Nullable URI lzyServerUri,
+                       @Nullable URI lzyWhiteboardUri, URI channelManagerUri, LzyAuth.Auth auth) throws IOException
+    {
+        this(agentId, mountPoint, selfUri, lzyServerUri, lzyWhiteboardUri, channelManagerUri, auth, true);
     }
 
     public LzyFsServer(String agentId, String mountPoint, URI selfUri,
@@ -110,8 +122,20 @@ public final class LzyFsServer {
             .build());
     }
 
+    public LzyFsServer(String agentId, String mountPoint, URI selfUri,
+                       URI channelManagerUri, String token, boolean startFuse) throws IOException
+    {
+        this(agentId, mountPoint, selfUri, null, null, channelManagerUri, LzyAuth.Auth.newBuilder()
+            .setUser(LzyAuth.UserCredentials.newBuilder()
+                .setToken(token)
+                .build())
+            .build(), startFuse);
+    }
+
     public void start() throws IOException {
-        fsManager = startFuse();
+        if (startFuse) {
+            fsManager = startFuse();
+        }
 
         LOG.info("Starting LzyFs gRPC server at {}.", selfUri);
         localServer.start();
@@ -161,9 +185,11 @@ public final class LzyFsServer {
         }
         // >>>
 
-        LOG.info("Registering lzy commands...");
-        for (BuiltinCommandHolder command : BuiltinCommandHolder.values()) {
-            registerBuiltinCommand(Path.of(command.name()), command.name());
+        if (fsManager != null) {
+            LOG.info("Registering lzy commands...");
+            for (BuiltinCommandHolder command : BuiltinCommandHolder.values()) {
+                registerBuiltinCommand(Path.of(command.name()), command.name());
+            }
         }
 
         LOG.info("LzyFs started on {}.", selfUri);
@@ -203,7 +229,9 @@ public final class LzyFsServer {
                 localServer.shutdown();
             } finally {
                 try {
-                    fsManager.umount();
+                    if (fsManager != null) {
+                        fsManager.umount();
+                    }
                 } finally {
                     mounted.decrementAndGet();
                 }

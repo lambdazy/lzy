@@ -12,14 +12,14 @@ import org.apache.logging.log4j.Logger;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.function.Function;
 
 @Singleton
 public class ExecutionDaoImpl implements ExecutionDao {
     private static final Logger LOG = LogManager.getLogger(ExecutionDaoImpl.class);
+
+    private static final Function<String, String> toSqlString = (obj) -> "'" + obj + "'";
 
     private static final String QUERY_EXISTING_SLOTS_IN_EXECUTION = """
         SELECT slot_uri
@@ -31,8 +31,8 @@ public class ExecutionDaoImpl implements ExecutionDao {
         VALUES (?, ?)""";
 
     private static final String QUERY_PUT_CHANNELS = """
-       INSERT INTO channels (output_slot_uri, channel_id)
-       VALUES (?, ?)""";
+        INSERT INTO channels (output_slot_uri, channel_id)
+        VALUES (?, ?)""";
 
     private static final String QUERY_FIND_EXISTING_SLOTS = """
         SELECT slot_uri
@@ -82,10 +82,14 @@ public class ExecutionDaoImpl implements ExecutionDao {
 
     @Override
     public Set<String> retainExistingSlots(Set<String> slotsUri) throws SQLException {
+        if (slotsUri.isEmpty()) {
+            return Collections.emptySet();
+        }
+
         var existingSlots = new HashSet<String>();
 
         DbOperation.execute(null, storage, con -> {
-            var slotsAsString = JsonUtils.printAsTuple(slotsUri);
+            var slotsAsString = JsonUtils.printAsTuple(slotsUri, toSqlString);
 
             try (var statement = con.prepareStatement(QUERY_FIND_EXISTING_SLOTS.formatted(slotsAsString))) {
                 ResultSet rs = statement.executeQuery();
@@ -100,10 +104,14 @@ public class ExecutionDaoImpl implements ExecutionDao {
 
     @Override
     public Set<String> retainNonExistingSlots(String executionId, Set<String> slotsUri) throws SQLException {
+        if (slotsUri.isEmpty()) {
+            return Collections.emptySet();
+        }
+
         var existingSlots = new HashSet<String>();
 
         DbOperation.execute(null, storage, con -> {
-            var slotsAsString = JsonUtils.printAsTuple(slotsUri);
+            var slotsAsString = JsonUtils.printAsTuple(slotsUri, toSqlString);
 
             try (var statement = con.prepareStatement(QUERY_EXISTING_SLOTS_IN_EXECUTION.formatted(slotsAsString))) {
                 statement.setString(1, executionId);
@@ -118,11 +126,15 @@ public class ExecutionDaoImpl implements ExecutionDao {
     }
 
     @Override
-    public Map<String, String> findChannelsForOutputSlots(Set<String> slotsUri) throws SQLException {
+    public Map<String, String> findChannels(Set<String> slotsUri) throws SQLException {
+        if (slotsUri.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
         var existingChannels = new HashMap<String, String>();
 
         DbOperation.execute(null, storage, con -> {
-            var slotsAsString = JsonUtils.printAsTuple(slotsUri);
+            var slotsAsString = JsonUtils.printAsTuple(slotsUri, toSqlString);
 
             try (var statement = con.prepareStatement(QUERY_FIND_CHANNELS.formatted(slotsAsString))) {
                 ResultSet rs = statement.executeQuery();

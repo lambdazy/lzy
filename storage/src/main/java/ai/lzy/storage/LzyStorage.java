@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
-@SuppressWarnings("UnstableApiUsage")
 public class LzyStorage {
     private static final Logger LOG = LogManager.getLogger(LzyStorage.class);
 
