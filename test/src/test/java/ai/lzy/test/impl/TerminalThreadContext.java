@@ -20,6 +20,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -116,6 +117,7 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
 
             @Override
             public ExecutionResult execute(Map<String, String> env, String... command) {
+                LOGGER.info("Execute " + Arrays.toString(command));
                 try {
                     var stream = Stream.concat(
                         System.getenv().entrySet().stream(),
