@@ -34,6 +34,7 @@ import org.junit.Test;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -127,10 +128,12 @@ public class DaoTest {
         final VolumeMount volume = new VolumeMount(
             "volume", "/mnt/volume", false, VolumeMount.MountPropagation.BIDIRECTIONAL);
         final var wl1 = new Workload(
-            "wl1", "im", Map.of("a", "b"), List.of("a1", "a2"), Map.of(1111, 2222), List.of(volume));
+            "wl1", "im", Map.of("a", "b"), List.of("a1", "a2"), Map.of(1111, 2222),
+            List.of(volume));
         final var volumeRequest = new VolumeRequest(new DiskVolumeDescription("diskVolume", "diskId", 3));
-        final var vm = vmDao.create("session", "pool", "zone", List.of(wl1),
-            List.of(volumeRequest), "op1", Instant.now(), null);
+        final var vm = vmDao.create("session", "pool", "zone", Collections.emptyList(),
+            List.of(wl1), List.of(volumeRequest), "op1", Instant.now(), null, null
+        );
 
         final var vm1 = vmDao.get(vm.vmId(), null);
         Assert.assertNotNull(vm1);

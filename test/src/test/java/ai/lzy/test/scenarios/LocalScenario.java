@@ -52,9 +52,6 @@ public abstract class LocalScenario extends LzyBaseTest {
         iamContext = new IAMThreadContext();
         iamContext.init();
 
-        storageContext = new StorageThreadContext(iamContext.address());
-        storageContext.init();
-
         serverContext = new ServerThreadContext(servantAllocatorType);
         serverContext.init();
 
@@ -67,8 +64,8 @@ public abstract class LocalScenario extends LzyBaseTest {
         kharonContext = new KharonThreadContext(
             serverContext.address(),
             whiteboardContext.address(),
-            channelManagerContext.address(),
-            iamContext.address());
+            channelManagerContext.address()
+        );
         kharonContext.init();
 
         s3Mock = new S3Mock.Builder().withPort(Config.S3_PORT).withInMemoryBackend().build();
@@ -88,7 +85,6 @@ public abstract class LocalScenario extends LzyBaseTest {
         serverContext.close();
         whiteboardContext.close();
         channelManagerContext.close();
-        storageContext.close();
         iamContext.close();
         s3Mock.shutdown();
     }

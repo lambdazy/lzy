@@ -26,6 +26,7 @@ public class AllocatorAgent extends TimerTask {
     public static final String VM_HEARTBEAT_PERIOD = "LZY_ALLOCATOR_HEARTBEAT_PERIOD";
     public static final String VM_ALLOCATOR_OTT = "LZY_ALLOCATOR_OTT";
     public static final String VM_IP_ADDRESS = "LZY_VM_IP_ADDRESS";
+    public static final String VM_NODE_IP_ADDRESS = "LZY_VM_NODE_IP_ADDRESS";
 
     private final String vmId;
     private final AllocatorPrivateGrpc.AllocatorPrivateBlockingStub stub;

@@ -51,6 +51,9 @@ allocator:
   heartbeat-timeout: 1m
   allocation-timeout: 15m
 
+  kuber-tunnel-allocator:
+    enabled: false
+
 scheduler:
   base-env-default-image: ""
   max-servants-per-workflow: 2

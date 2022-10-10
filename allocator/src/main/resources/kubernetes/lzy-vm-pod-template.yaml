@@ -12,10 +12,9 @@ spec:
       requiredDuringSchedulingIgnoredDuringExecution:
         - labelSelector:
             matchExpressions:
-              - key: app.kubernetes.io/part-of
+              - key: lzy.ai/app
                 operator: In
                 values:
-                  - lzy
+                  - vm
           topologyKey: "kubernetes.io/hostname"
-  hostNetwork: true
   dnsPolicy: ClusterFirstWithHostNet

@@ -184,7 +184,7 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
             throw new RuntimeException(allocateOperation.getError().getMessage());
         }
 
-        final String podName = KuberVmAllocator.POD_NAME_PREFIX + allocateMetadata.getVmId();
+        final String podName = KuberVmAllocator.VM_POD_NAME_PREFIX + allocateMetadata.getVmId();
         final AtomicReference<String> podPhase = new AtomicReference<>();
         TimeUtils.waitFlagUp(
             () -> {

@@ -3,6 +3,7 @@ package ai.lzy.allocator.services;
 import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
+import ai.lzy.allocator.alloc.impl.kuber.TunnelAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.SessionDao;
@@ -42,13 +43,12 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.net.Inet6Address;
+import java.net.UnknownHostException;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import javax.inject.Named;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
@@ -64,6 +64,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
     private final DiskStorage diskStorage;
     private final SessionDao sessions;
     private final VmAllocator allocator;
+    private final TunnelAllocator tunnelAllocator;
     private final ServiceConfig config;
     private final AllocatorDataSource storage;
     private final Metrics metrics = new Metrics();
@@ -71,14 +72,15 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
     @Inject
     public AllocatorApi(VmDao dao, OperationDao operations, SessionDao sessions, DiskStorage diskStorage,
-                        VmAllocator allocator, ServiceConfig config, AllocatorDataSource storage,
-                        @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel)
+                        VmAllocator allocator, TunnelAllocator tunnelAllocator, ServiceConfig config,
+                        AllocatorDataSource storage, @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel)
     {
         this.dao = dao;
         this.operations = operations;
         this.sessions = sessions;
         this.diskStorage = diskStorage;
         this.allocator = allocator;
+        this.tunnelAllocator = tunnelAllocator;
         this.config = config;
         this.storage = storage;
 
@@ -146,6 +148,21 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
     @Override
     public void allocate(AllocateRequest request, StreamObserver<Operation> responseObserver) {
         LOG.info("Allocation request {}", JsonUtils.printSingleLine(request));
+
+        final Optional<Inet6Address> proxyV6Address;
+        if (request.hasProxyV6Address()) {
+            try {
+                proxyV6Address = Optional.of((Inet6Address) Inet6Address.getByName(request.getProxyV6Address()));
+            } catch (UnknownHostException e) {
+                LOG.error("Invalid proxy v6 address {} in allocate reqeust", request.getProxyV6Address());
+                responseObserver.onError(
+                    Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException()
+                );
+                return;
+            }
+        } else {
+            proxyV6Address = Optional.empty();
+        }
 
         final var startedAt = Instant.now();
 
@@ -221,6 +238,28 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                         var workloads = request.getWorkloadList().stream()
                             .map(wl -> Workload.fromProto(wl, Map.of(AllocatorAgent.VM_ALLOCATOR_OTT, vmOtt)))
                             .toList();
+
+                        var initWorkloads = request.getInitWorkloadList().stream()
+                            .map(Workload::fromProto)
+                            .toList();
+
+                        if (proxyV6Address.isPresent()) {
+                            initWorkloads = new ArrayList<>(initWorkloads);
+                            try {
+                                initWorkloads.add(
+                                    tunnelAllocator.createRequestTunnelWorkload(
+                                        request.getProxyV6Address(), request.getPoolLabel(), request.getZone()
+                                    )
+                                );
+                            } catch (InvalidConfigurationException e) {
+                                LOG.error("Error while allocating: {}", e.getMessage(), e);
+                                op.setError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()));
+                                operations.update(op, transaction);
+                                transaction.commit();
+                                responseObserver.onError(e);
+                                return null;
+                            }
+                        }
                         final List<VolumeRequest> volumes;
                         try {
                             volumes = getVolumeRequests(request, transaction);
@@ -232,8 +271,10 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                             return null;
                         }
 
-                        var vmSpec = dao.create(request.getSessionId(), request.getPoolLabel(), request.getZone(),
-                            workloads, volumes, op.id(), startedAt, transaction);
+                        var vmSpec = dao.create(
+                            request.getSessionId(), request.getPoolLabel(), request.getZone(), initWorkloads, workloads,
+                            volumes, op.id(), startedAt, proxyV6Address.orElse(null), transaction
+                        );
 
                         op.modifyMeta(Any.pack(AllocateMetadata.newBuilder()
                             .setVmId(vmSpec.vmId())
@@ -288,6 +329,9 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
             try {
                 var timer = metrics.allocateDuration.startTimer();
+                if (proxyV6Address.isPresent()) {
+                    tunnelAllocator.allocateTunnel(spec);
+                }
                 allocator.allocate(spec);
                 timer.close();
             } catch (InvalidConfigurationException e) {

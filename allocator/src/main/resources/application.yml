@@ -64,3 +64,6 @@ allocator:
   disk-manager:
     folder-id: 'xxx'
     default-operation-timeout: '1m'
+
+  kuber-tunnel-allocator:
+    enabled: false
