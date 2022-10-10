@@ -10,6 +10,7 @@ import org.apache.commons.collections4.SetUtils;
 import org.junit.*;
 
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 
@@ -195,6 +196,28 @@ public class DaoTest {
 
         Assert.assertEquals(1, channelFromDao.size());
         Assert.assertEquals("channel_2", channels.get("slot_snapshot_2"));
+    }
+
+    @Test
+    public void withEmptyArgs() throws SQLException {
+        var executionId = "execution_1";
+
+        var userId = "user_1";
+        var workflowName = "workflow_1";
+        var storageType = "USER";
+        var s3Locator = LMS3.S3Locator.getDefaultInstance();
+
+        workflowDao.create(executionId, userId, workflowName, storageType, s3Locator);
+
+        executionDao.saveSlots(executionId, Collections.emptySet());
+        executionDao.saveChannels(Collections.emptyMap());
+        Set<String> existingSlots = executionDao.retainExistingSlots(Collections.emptySet());
+        Set<String> nonExistingSlots = executionDao.retainNonExistingSlots(executionId, Collections.emptySet());
+        Map<String, String> existingChannels = executionDao.findChannels(Collections.emptySet());
+
+        Assert.assertTrue(existingSlots.isEmpty());
+        Assert.assertTrue(nonExistingSlots.isEmpty());
+        Assert.assertTrue(existingChannels.isEmpty());
     }
 
     @After

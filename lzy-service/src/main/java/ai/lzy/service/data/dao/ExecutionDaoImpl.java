@@ -12,10 +12,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 
 @Singleton
@@ -85,6 +82,10 @@ public class ExecutionDaoImpl implements ExecutionDao {
 
     @Override
     public Set<String> retainExistingSlots(Set<String> slotsUri) throws SQLException {
+        if (slotsUri.isEmpty()) {
+            return Collections.emptySet();
+        }
+
         var existingSlots = new HashSet<String>();
 
         DbOperation.execute(null, storage, con -> {
@@ -103,6 +104,10 @@ public class ExecutionDaoImpl implements ExecutionDao {
 
     @Override
     public Set<String> retainNonExistingSlots(String executionId, Set<String> slotsUri) throws SQLException {
+        if (slotsUri.isEmpty()) {
+            return Collections.emptySet();
+        }
+
         var existingSlots = new HashSet<String>();
 
         DbOperation.execute(null, storage, con -> {
@@ -122,6 +127,10 @@ public class ExecutionDaoImpl implements ExecutionDao {
 
     @Override
     public Map<String, String> findChannels(Set<String> slotsUri) throws SQLException {
+        if (slotsUri.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
         var existingChannels = new HashMap<String, String>();
 
         DbOperation.execute(null, storage, con -> {

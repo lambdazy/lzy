@@ -170,8 +170,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION,
                 internalUserCredentials::token));
 
-        iamChannel = ChannelBuilder
-            .forAddress(iamAddress)
+        iamChannel = ChannelBuilder.forAddress(iamAddress)
             .usePlaintext()
             .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
             .build();
@@ -179,7 +178,10 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         subjectClient = new SubjectServiceGrpcClient(iamChannel, config.getIam()::createCredentials);
         abClient = new AccessBindingServiceGrpcClient(iamChannel, config.getIam()::createCredentials);
 
-        graphExecutorChannel = ChannelBuilder.forAddress(config.getGraphExecutorAddress()).build();
+        graphExecutorChannel = ChannelBuilder.forAddress(config.getGraphExecutorAddress())
+            .usePlaintext()
+            .enableRetry(GraphExecutorGrpc.SERVICE_NAME)
+            .build();
         graphExecutorClient = GraphExecutorGrpc.newBlockingStub(graphExecutorChannel)
             .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION,
                 internalUserCredentials::token));
@@ -216,13 +218,13 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         if (internalSnapshotStorage) {
             storageType = "internal";
             try {
-                storageData = createTempStorageBucket(userId);
+                storageData = getOrCreateTempStorageBucket(userId);
             } catch (StatusRuntimeException e) {
-                replyError.accept(e.getStatus(), "Cannot create internal storage");
-                return;
-            }
-            if (storageData == null) {
-                replyError.accept(Status.INTERNAL, "Cannot create internal storage");
+                var status = e.getStatus();
+                LOG.error("Cannot obtain temp bucket for user: { userId: {} }, error: {} ",
+                    userId, status.getDescription());
+                response.onError(status.withDescription("Cannot obtain temp bucket: " + status.getDescription())
+                    .asRuntimeException());
                 return;
             }
         } else {
@@ -235,20 +237,19 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             storageData = request.getSnapshotStorage();
         }
 
+        if (storageData == null) {
+            replyError.accept(Status.INTERNAL, "Cannot obtain internal storage");
+            return;
+        }
+
         try {
             withRetries(defaultRetryPolicy(), LOG, () ->
                 workflowDao.create(executionId, userId, workflowName, storageType, storageData));
         } catch (AlreadyExistsException e) {
-            if (internalSnapshotStorage) {
-                safeDeleteTempStorageBucket(storageData.getBucket());
-            }
             replyError.accept(Status.ALREADY_EXISTS, "Cannot create new execution with " +
                 "{ workflowName: '%s', userId: '%s' }: %s".formatted(workflowName, userId, e.getMessage()));
             return;
         } catch (Exception e) {
-            if (internalSnapshotStorage) {
-                safeDeleteTempStorageBucket(storageData.getBucket());
-            }
             replyError.accept(Status.INTERNAL, "Cannot create new execution with " +
                 "{ workflowName: '%s', userId: '%s' }: %s".formatted(workflowName, userId, e.getMessage()));
             return;
@@ -550,7 +551,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
 
-        LzyPortalGrpc.LzyPortalBlockingStub portalClient = LzyPortalGrpc.newBlockingStub(portalChannel);
+        var portalClient = LzyPortalGrpc.newBlockingStub(portalChannel).withInterceptors(
+            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, internalUserCredentials::token));
 
         // slot name to channel id
         Map<String, String> slots2channels;
@@ -558,8 +560,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             slots2channels = assignSlotsToChannels(executionId, workflowName,
                 dataflowGraph.getDataFlow(), portalClient);
         } catch (Exception e) {
-            LOG.error("Cannot assign slots to channels for execution: { executionId: {}, workflowName: {} } " +
-                e.getMessage(), executionId, workflowName);
+            LOG.error("Cannot assign slots to channels for execution: " +
+                    "{ executionId: {}, workflowName: {} }, error: {} ", executionId, workflowName, e.getMessage());
             response.onError(Status.INTERNAL.withDescription("Cannot assign slots to channels: " + e.getMessage())
                 .asRuntimeException());
             return;
@@ -1061,8 +1063,9 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var response = portalClient.openSlots(OpenSlotsRequest.newBuilder().addAllSlots(portalSlotToOpen).build());
 
         if (!response.getSuccess()) {
-            LOG.error("Cannot open portal slots for tasks slots { executionId: {}, workflowName: {} }",
-                executionId, workflowName);
+            LOG.error("Cannot open portal slots for tasks { executionId: {}, workflowName: {}, slots: {} }, error: {}",
+                executionId, workflowName, JsonUtils.printAsArray(portalSlotToOpen.stream()
+                    .map(slot -> slot.getSlot().getName()).toList()), response.getDescription());
             throw new RuntimeException(response.getDescription());
         }
 
@@ -1181,7 +1184,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         return null;
     }
 
-    public LMS3.S3Locator createTempStorageBucket(String userId) {
+    @Nullable
+    public LMS3.S3Locator getOrCreateTempStorageBucket(String userId) {
         var bucket = "tmp-bucket-" + userId;
         LOG.info("Creating new temp storage bucket '{}' for user '{}'", bucket, userId);
 

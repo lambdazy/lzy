@@ -13,6 +13,7 @@ import ai.lzy.v1.portal.LzyPortalApi.OpenSlotsResponse;
 import ai.lzy.v1.portal.LzyPortalApi.PortalStatus;
 import ai.lzy.v1.portal.LzyPortalGrpc.LzyPortalImplBase;
 import com.google.protobuf.Empty;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
@@ -32,12 +33,21 @@ class PortalApiImpl extends LzyPortalImplBase {
 
     @Override
     public void stop(Empty request, StreamObserver<Empty> responseObserver) {
-        portal.shutdown();
-        try {
-            portal.awaitTermination(1, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            LOG.debug("Was interrupted while waiting for portal termination");
-            portal.shutdownNow();
+        if (portal.started() != null) {
+            LOG.warn("Portal start has not been called");
+        } else {
+            try {
+                portal.started().await();
+                portal.shutdown();
+                try {
+                    portal.awaitTermination(1, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    LOG.debug("Was interrupted while waiting for portal termination");
+                    portal.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                LOG.debug("Was interrupted while waiting for portal started");
+            }
         }
         responseObserver.onNext(Empty.getDefaultInstance());
         responseObserver.onCompleted();
@@ -45,7 +55,13 @@ class PortalApiImpl extends LzyPortalImplBase {
 
     @Override
     public synchronized void status(Empty request, StreamObserver<PortalStatus> responseObserver) {
-        LOG.info("Portal status request received");
+        try {
+            waitPortalStarted();
+        } catch (Exception e) {
+            LOG.error(e.getMessage());
+            responseObserver.onError(Status.INTERNAL.withDescription(e.getMessage()).asRuntimeException());
+            return;
+        }
 
         var response = LzyPortalApi.PortalStatus.newBuilder();
 
@@ -62,18 +78,20 @@ class PortalApiImpl extends LzyPortalImplBase {
 
         responseObserver.onNext(response.build());
         responseObserver.onCompleted();
-
     }
 
     @Override
     public synchronized void openSlots(OpenSlotsRequest request, StreamObserver<OpenSlotsResponse> responseObserver) {
         try {
+            waitPortalStarted();
+
             var response = openInternal(request);
             responseObserver.onNext(response);
             responseObserver.onCompleted();
         } catch (Exception e) {
-            LOG.error(e.getMessage(), e);
-            responseObserver.onError(e);
+            LOG.error("Cannot open slots: " + e.getMessage());
+            responseObserver.onError(Status.INTERNAL.withDescription("Cannot open slots: " + e.getMessage())
+                .asRuntimeException());
         }
     }
 
@@ -122,6 +140,18 @@ class PortalApiImpl extends LzyPortalImplBase {
         }
 
         return response.build();
+    }
+
+    private void waitPortalStarted() {
+        if (portal.started() == null) {
+            throw new RuntimeException("Portal start has not been called");
+        }
+
+        try {
+            portal.started().await();
+        } catch (InterruptedException e) {
+            throw new RuntimeException("Was interrupted while waiting for portal started");
+        }
     }
 
     private static String portalSlotToSafeString(LzyPortal.PortalSlotDesc slotDesc) {

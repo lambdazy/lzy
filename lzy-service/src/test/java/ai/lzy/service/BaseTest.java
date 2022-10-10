@@ -8,7 +8,7 @@ import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.service.config.LzyServiceConfig;
-import ai.lzy.storage.impl.MockS3Storage;
+import ai.lzy.storage.test.BaseTestWithStorage;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
@@ -38,10 +38,13 @@ import java.util.concurrent.TimeUnit;
 
 public class BaseTest {
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
+    private static final BaseTestWithStorage storageTestContext = new BaseTestWithStorage();
     private static final BaseTestWithAllocator allocatorTestContext = new BaseTestWithAllocator();
 
     @Rule
     public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+    @Rule
+    public PreparedDbRule storageDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
     @Rule
     public PreparedDbRule allocatorDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
     @Rule
@@ -50,13 +53,11 @@ public class BaseTest {
     protected ApplicationContext context;
     protected LzyServiceConfig config;
 
-    protected MockS3Storage storageMock;
     protected GraphExecutorMock graphExecutorMock;
 
     private ChannelManagerMock channelManagerMock;
 
     private Server lzyServer;
-    protected Server storageServer;
 
     private ManagedChannel lzyServiceChannel;
     private LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub unauthorizedWorkflowClient;
@@ -69,6 +70,9 @@ public class BaseTest {
     public void setUp() throws IOException, InterruptedException {
         var iamDbConfig = DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo());
         iamTestContext.setUp(iamDbConfig);
+
+        var storageDbConfig = DatabaseTestUtils.preparePostgresConfig("storage", storageDb.getConnectionInfo());
+        storageTestContext.setUp(storageDbConfig);
 
         var allocatorConfigOverrides = DatabaseTestUtils.preparePostgresConfig("allocator",
             allocatorDb.getConnectionInfo());
@@ -97,16 +101,6 @@ public class BaseTest {
         });
 
         var workflowAddress = HostAndPort.fromString(config.getAddress());
-        var storageAddress = HostAndPort.fromString(config.getStorage().getAddress());
-
-        storageMock = new MockS3Storage();
-        storageServer = NettyServerBuilder
-            .forAddress(new InetSocketAddress(storageAddress.getHost(), storageAddress.getPort()))
-            .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .addService(ServerInterceptors.intercept(storageMock, authInterceptor))
-            .build();
-        storageServer.start();
 
         channelManagerMock = new ChannelManagerMock(HostAndPort.fromString(config.getChannelManagerAddress()));
         channelManagerMock.start();
@@ -131,13 +125,16 @@ public class BaseTest {
     public void tearDown() throws SQLException, InterruptedException {
         iamTestContext.after();
         allocatorTestContext.after();
-        storageServer.shutdown();
-        storageServer.awaitTermination();
+        storageTestContext.after();
         channelManagerMock.stop();
         lzyServiceChannel.shutdown();
         lzyServer.shutdown();
         lzyServer.awaitTermination();
         context.stop();
+    }
+
+    protected void shutdownStorage() throws SQLException, InterruptedException {
+        storageTestContext.after();
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")

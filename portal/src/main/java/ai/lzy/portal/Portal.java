@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.model.UriScheme.LzyServant;
@@ -46,12 +47,16 @@ public class Portal {
     private final LzyFsServer fsServer;
     private final AllocatorAgent allocatorAgent;
 
+    private SlotsManager slotsManager;
+
     // slots
     private StdoutSlot stdoutSlot;
     private StdoutSlot stderrSlot;
     private final SnapshotSlotsProvider snapshots;
 
     private final String portalId;
+
+    private CountDownLatch started;
 
     public Portal(PortalConfig config, AllocatorAgent agent, LzyFsServer fs) {
         this.stdoutChannelId = config.getStdoutChannelId();
@@ -84,6 +89,8 @@ public class Portal {
     }
 
     public void start() {
+        started = new CountDownLatch(1);
+
         LOG.info("Starting portal with config: { portalId: '{}', url: '{}:/{}:{}', fsRoot: '{}', " +
             "stdoutChannelId: '{}', stderrChannelId: '{}'}", portalId, LzyServant.scheme(), host, port,
             fsServer.getMountPoint(), stdoutChannelId, stderrChannelId);
@@ -100,7 +107,7 @@ public class Portal {
 
         LOG.info("Registering portal stdout/err slots...");
 
-        final SlotsManager slotsManager = fsServer.getSlotsManager();
+        slotsManager = fsServer.getSlotsManager();
         stdoutSlot = new StdoutSlot(stdoutSlotName, portalId, stdoutChannelId,
             slotsManager.resolveSlotUri(portalId, stdoutSlotName));
         slotsManager.registerSlot(stdoutSlot);
@@ -110,6 +117,8 @@ public class Portal {
         slotsManager.registerSlot(stderrSlot);
 
         LOG.info("Portal successfully started at '{}:{}'", host, port);
+
+        started.countDown();
     }
 
     public void shutdown() {
@@ -136,8 +145,12 @@ public class Portal {
         return grpcServer.awaitTermination(count, timeUnit);
     }
 
+    public CountDownLatch started() {
+        return started;
+    }
+
     public SlotsManager getSlotManager() {
-        return fsServer.getSlotsManager();
+        return slotsManager;
     }
 
     public String getPortalId() {

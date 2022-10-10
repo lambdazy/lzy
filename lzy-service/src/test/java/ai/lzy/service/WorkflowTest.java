@@ -1,7 +1,5 @@
 package ai.lzy.service;
 
-import ai.lzy.service.config.LzyServiceConfig;
-import ai.lzy.test.TimeUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
@@ -15,7 +13,7 @@ import io.grpc.StatusRuntimeException;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.concurrent.TimeUnit;
+import java.sql.SQLException;
 
 @SuppressWarnings("ResultOfMethodCallIgnored")
 public class WorkflowTest extends BaseTest {
@@ -32,8 +30,8 @@ public class WorkflowTest extends BaseTest {
     }
 
     @Test
-    public void tempBucketCreationFailed() {
-        storageServer.shutdown();
+    public void tempBucketCreationFailed() throws SQLException, InterruptedException {
+        shutdownStorage();
 
         var thrown = Assert.assertThrows(StatusRuntimeException.class, () ->
             authorizedWorkflowClient.createWorkflow(
@@ -58,23 +56,6 @@ public class WorkflowTest extends BaseTest {
         var expectedErrorCode = Status.INVALID_ARGUMENT.getCode();
 
         Assert.assertEquals(expectedErrorCode, thrown.getStatus().getCode());
-    }
-
-    @Test
-    public void tempBucketDeletedIfCreateExecutionFailed() {
-        Assert.assertThrows(StatusRuntimeException.class, () -> {
-            authorizedWorkflowClient.createWorkflow(
-                LWFS.CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build());
-            authorizedWorkflowClient.createWorkflow(
-                LWFS.CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build());
-        });
-
-        TimeUtils.waitFlagUp(() -> storageMock.getBuckets().size() == 1, 300, TimeUnit.SECONDS);
-
-        var expectedBucketCount = 1;
-        var actualBucketCount = storageMock.getBuckets().size();
-
-        Assert.assertEquals(expectedBucketCount, actualBucketCount);
     }
 
     @Test
@@ -106,14 +87,11 @@ public class WorkflowTest extends BaseTest {
         Assert.assertEquals(Status.INTERNAL.getCode(), thrownUnknownWorkflow.getStatus().getCode());
     }
 
-    @SuppressWarnings("ResultOfMethodCallIgnored")
     @Test
     public void testPortalStartedWhileCreatingWorkflow() {
         authorizedWorkflowClient.createWorkflow(
             LWFS.CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build());
 
-        var config = context.getBean(LzyServiceConfig.class);
-        var internalUserCredentials = config.getIam().createCredentials();
         var portalAddress = HostAndPort.fromParts("localhost", config.getPortal().getPortalApiPort());
         var portalChannel = ChannelBuilder.forAddress(portalAddress).usePlaintext().build();
         var portalClient = LzyPortalGrpc.newBlockingStub(portalChannel).withInterceptors(

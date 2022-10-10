@@ -74,9 +74,10 @@ public class App {
         var fsUri = new URI(LzyFs.scheme(), null, config.getHost(), config.getFsApiPort(), null, null, null);
         var cm = HostAndPort.fromString(config.getChannelManagerAddress());
         var channelManagerUri = new URI("http", null, cm.getHost(), cm.getPort(), null, null, null);
+        var portalAddress = "%s:%s".formatted(config.getHost(), config.getPortalApiPort());
 
         var allocatorAgent = new AllocatorAgent(config.getAllocatorToken(),
-            config.getVmId(), config.getAllocatorAddress(), config.getAllocatorHeartbeatPeriod(), config.getHost());
+            config.getVmId(), config.getAllocatorAddress(), config.getAllocatorHeartbeatPeriod(), portalAddress);
 
         var fsServerJwt = JwtUtils.buildJWT(config.getPortalId(), "INTERNAL", Date.from(Instant.now()),
             JwtUtils.afterDays(7), new StringReader(config.getIamPrivateKey()));
