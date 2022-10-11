@@ -11,6 +11,9 @@ import ai.lzy.portal.config.PortalConfig;
 import ai.lzy.portal.slots.SnapshotSlotsProvider;
 import ai.lzy.portal.slots.StdoutSlot;
 import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.GrpcHeadersServerInterceptor;
+import ai.lzy.util.grpc.GrpcLogsInterceptor;
+import ai.lzy.util.grpc.RequestIdInterceptor;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
@@ -27,9 +30,12 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.model.UriScheme.LzyServant;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 public class Portal {
     private static final Logger LOG = LogManager.getLogger(Portal.class);
+
+    public static final String APP = "LzyPortal";
 
     private static final String stdoutSlotName = "/portal:stdout";
     private static final String stderrSlotName = "/portal:stderr";
@@ -65,16 +71,18 @@ public class Portal {
         this.port = config.getPortalApiPort();
         this.host = config.getHost();
 
-        this.iamChannel = ChannelBuilder.forAddress(config.getIamAddress()).usePlaintext().enableRetry(
-            LzyAuthenticateServiceGrpc.SERVICE_NAME).build();
+        this.iamChannel = newGrpcChannel(config.getIamAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
 
-        var internalOnly = new AllowInternalUserOnlyInterceptor(iamChannel);
+        var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
 
         this.grpcServer = NettyServerBuilder
             .forAddress(new InetSocketAddress(config.getHost(), config.getPortalApiPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(iamChannel)))
+            .intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel)))
+            .intercept(GrpcLogsInterceptor.server())
+            .intercept(RequestIdInterceptor.server())
+            .intercept(GrpcHeadersServerInterceptor.create())
             .addService(ServerInterceptors.intercept(new PortalApiImpl(this), internalOnly))
             .build();
 

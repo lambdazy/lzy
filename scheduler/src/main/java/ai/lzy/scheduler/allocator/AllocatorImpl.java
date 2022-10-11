@@ -13,12 +13,11 @@ import ai.lzy.iam.resources.subjects.Servant;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.model.operation.Operation;
 import ai.lzy.model.utils.FreePortFinder;
+import ai.lzy.scheduler.SchedulerApi;
 import ai.lzy.scheduler.configs.ServantEventProcessorConfig;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.util.auth.credentials.RsaUtils;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.util.grpc.ClientHeaderInterceptor;
-import ai.lzy.util.grpc.GrpcHeaders;
+import ai.lzy.util.grpc.GrpcChannels;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.OperationService;
 import ai.lzy.v1.OperationServiceApiGrpc;
@@ -27,7 +26,6 @@ import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmAllocatorApi.AllocateRequest.Workload;
 import ai.lzy.v1.VmAllocatorApi.CreateSessionRequest;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
-import com.google.common.net.HostAndPort;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -44,6 +42,10 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
+import javax.annotation.PreDestroy;
+
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 
 @Singleton
@@ -61,9 +63,11 @@ public class AllocatorImpl implements ServantsAllocator {
     private final OperationServiceApiBlockingStub operations;
     private final AtomicInteger testServantCounter = new AtomicInteger(0);
     private final IamClientConfiguration authConfig;
-    private final ManagedChannel iamChannel;
     private final SubjectServiceGrpcClient subjectClient;
     private final AccessBindingServiceGrpcClient abClient;
+    private final ManagedChannel iamChannel;
+    private final ManagedChannel allocatorChannel;
+    private final ManagedChannel opChannel;
 
     public AllocatorImpl(ServiceConfig config, ServantEventProcessorConfig processorConfig,
                          ServantMetaStorage metaStorage)
@@ -72,31 +76,27 @@ public class AllocatorImpl implements ServantsAllocator {
         this.processorConfig = processorConfig;
         this.metaStorage = metaStorage;
         this.authConfig = config.getIam();
-        this.iamChannel = ChannelBuilder
-            .forAddress(authConfig.getAddress())
-            .usePlaintext()
-            .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
-            .build();
+        this.iamChannel = newGrpcChannel(authConfig.getAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
 
-        final var address = HostAndPort.fromString(config.getAllocatorAddress());
-        final var channel = new ChannelBuilder(address.getHost(), address.getPort())
-            .enableRetry(AllocatorGrpc.SERVICE_NAME)
-            .usePlaintext()
-            .build();
+        allocatorChannel = newGrpcChannel(config.getAllocatorAddress(), AllocatorGrpc.SERVICE_NAME);
         final var credentials = authConfig.createCredentials();
-        allocator = AllocatorGrpc.newBlockingStub(channel).withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
+        allocator = newBlockingClient(AllocatorGrpc.newBlockingStub(allocatorChannel), SchedulerApi.APP,
+            credentials::token);
 
-        final var opChannel = new ChannelBuilder(address.getHost(), address.getPort())
-            .enableRetry(OperationServiceApiGrpc.SERVICE_NAME)
-            .usePlaintext()
-            .build();
-        operations = OperationServiceApiGrpc.newBlockingStub(opChannel).withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
-        subjectClient = new SubjectServiceGrpcClient(iamChannel, authConfig::createCredentials);
-        abClient = new AccessBindingServiceGrpcClient(iamChannel, authConfig::createCredentials);
+        opChannel = newGrpcChannel(config.getAllocatorAddress(), OperationServiceApiGrpc.SERVICE_NAME);
+        operations = newBlockingClient(OperationServiceApiGrpc.newBlockingStub(opChannel), SchedulerApi.APP,
+            credentials::token);
+
+        subjectClient = new SubjectServiceGrpcClient(SchedulerApi.APP, iamChannel, authConfig::createCredentials);
+        abClient = new AccessBindingServiceGrpcClient(SchedulerApi.APP, iamChannel, authConfig::createCredentials);
     }
 
+    @PreDestroy
+    public void shutdown() {
+        GrpcChannels.awaitTermination(opChannel, java.time.Duration.ofSeconds(10), getClass());
+        GrpcChannels.awaitTermination(allocatorChannel, java.time.Duration.ofSeconds(10), getClass());
+        GrpcChannels.awaitTermination(iamChannel, java.time.Duration.ofSeconds(10), getClass());
+    }
 
     @Override
     public void allocate(String workflowName, String servantId, Operation.Requirements requirements) {

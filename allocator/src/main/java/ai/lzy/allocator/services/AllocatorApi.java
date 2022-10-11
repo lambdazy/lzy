@@ -1,6 +1,7 @@
 package ai.lzy.allocator.services;
 
 import ai.lzy.allocator.AllocatorAgent;
+import ai.lzy.allocator.AllocatorMain;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.alloc.impl.kuber.TunnelAllocator;
@@ -84,7 +85,8 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         this.config = config;
         this.storage = storage;
 
-        this.subjectClient = new SubjectServiceGrpcClient(iamChannel, config.getIam()::createCredentials);
+        this.subjectClient = new SubjectServiceGrpcClient(AllocatorMain.APP, iamChannel,
+            config.getIam()::createCredentials);
     }
 
     @Override

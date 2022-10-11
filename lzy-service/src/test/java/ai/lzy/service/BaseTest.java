@@ -6,22 +6,22 @@ import ai.lzy.graph.test.GraphExecutorMock;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.test.BaseTestWithIam;
-import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.storage.test.BaseTestWithStorage;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
 import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
-import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.net.HostAndPort;
-import io.grpc.*;
-import io.grpc.netty.NettyServerBuilder;
+import io.grpc.ManagedChannel;
+import io.grpc.Server;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.jsonwebtoken.Claims;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
@@ -30,12 +30,12 @@ import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.junit.*;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 
+import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 public class BaseTest {
@@ -70,19 +70,18 @@ public class BaseTest {
 
     @Before
     public void setUp() throws IOException, InterruptedException {
-        var iamDbConfig = DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo());
+        var iamDbConfig = preparePostgresConfig("iam", iamDb.getConnectionInfo());
         iamTestContext.setUp(iamDbConfig);
 
-        var storageDbConfig = DatabaseTestUtils.preparePostgresConfig("storage", storageDb.getConnectionInfo());
+        var storageDbConfig = preparePostgresConfig("storage", storageDb.getConnectionInfo());
         storageTestContext.setUp(storageDbConfig);
 
-        var allocatorConfigOverrides = DatabaseTestUtils.preparePostgresConfig("allocator",
-            allocatorDb.getConnectionInfo());
+        var allocatorConfigOverrides = preparePostgresConfig("allocator", allocatorDb.getConnectionInfo());
         allocatorConfigOverrides.put("allocator.thread-allocator.enabled", true);
         allocatorConfigOverrides.put("allocator.thread-allocator.vm-class-name", "ai.lzy.portal.App");
         allocatorTestContext.setUp(allocatorConfigOverrides);
 
-        var lzyDbConfig = DatabaseTestUtils.preparePostgresConfig("lzy-service", lzyServiceDb.getConnectionInfo());
+        var lzyDbConfig = preparePostgresConfig("lzy-service", lzyServiceDb.getConnectionInfo());
         context = ApplicationContext.run(PropertySource.of(lzyDbConfig));
 
         config = context.getBean(LzyServiceConfig.class);
@@ -107,20 +106,15 @@ public class BaseTest {
         channelManagerMock = new ChannelManagerMock(HostAndPort.fromString(config.getChannelManagerAddress()));
         channelManagerMock.start();
 
-        lzyServer = NettyServerBuilder
-            .forAddress(new InetSocketAddress(workflowAddress.getHost(), workflowAddress.getPort()))
-            .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .addService(ServerInterceptors.intercept(context.getBean(LzyService.class), authInterceptor))
-            .build();
+        lzyServer = App.createServer(workflowAddress, authInterceptor, context.getBean(LzyService.class));
         lzyServer.start();
 
         lzyServiceChannel = newGrpcChannel(workflowAddress, LzyWorkflowServiceGrpc.SERVICE_NAME);
         unauthorizedWorkflowClient = LzyWorkflowServiceGrpc.newBlockingStub(lzyServiceChannel);
 
         internalUserCredentials = config.getIam().createCredentials();
-        authorizedWorkflowClient = unauthorizedWorkflowClient.withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, internalUserCredentials::token));
+        authorizedWorkflowClient = newBlockingClient(unauthorizedWorkflowClient, "TestClient",
+                                                     internalUserCredentials::token);
     }
 
     @After

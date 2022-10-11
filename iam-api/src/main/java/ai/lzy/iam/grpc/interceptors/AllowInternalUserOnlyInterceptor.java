@@ -18,8 +18,9 @@ public class AllowInternalUserOnlyInterceptor implements ServerInterceptor {
 
     private final AccessServiceGrpcClient accessServiceClient;
 
-    public AllowInternalUserOnlyInterceptor(Channel iamChannel) {
-        this.accessServiceClient = new AccessServiceGrpcClient(iamChannel, () -> new JwtCredentials("i-am-a-hacker"));
+    public AllowInternalUserOnlyInterceptor(String clientName, Channel iamChannel) {
+        this.accessServiceClient = new AccessServiceGrpcClient(clientName, iamChannel,
+            () -> new JwtCredentials("i-am-a-hacker"));
     }
 
     @Override

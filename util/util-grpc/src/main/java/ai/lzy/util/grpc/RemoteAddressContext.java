@@ -1,4 +1,4 @@
-package ai.lzy.scheduler.grpc;
+package ai.lzy.util.grpc;
 
 import io.grpc.Context;
 

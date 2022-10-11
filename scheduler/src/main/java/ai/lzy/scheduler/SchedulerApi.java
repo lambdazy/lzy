@@ -6,13 +6,14 @@ import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.scheduler.db.ServantDao;
-import ai.lzy.scheduler.grpc.RemoteAddressInterceptor;
 import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.GrpcHeadersServerInterceptor;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
+import ai.lzy.util.grpc.RemoteAddressInterceptor;
+import ai.lzy.util.grpc.RequestIdInterceptor;
 import com.google.common.annotations.VisibleForTesting;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
-import io.grpc.ServerBuilder;
 import io.grpc.ServerInterceptors;
 import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.context.ApplicationContext;
@@ -28,6 +29,9 @@ import javax.inject.Singleton;
 @Singleton
 public class SchedulerApi {
     private static final Logger LOG = LogManager.getLogger(SchedulerApi.class);
+
+    public static final String APP = "LzyScheduler";
+
     private final Server server;
     private final SchedulerApiImpl impl;
     private final ServantDao dao;
@@ -39,16 +43,19 @@ public class SchedulerApi {
         this.impl = impl;
         this.dao = dao;
 
-        ServerBuilder<?> builder = NettyServerBuilder.forPort(config.getPort())
-                .intercept(new RemoteAddressInterceptor())
-                .permitKeepAliveWithoutCalls(true)
-                .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES);
+        var builder = NettyServerBuilder.forPort(config.getPort())
+            .permitKeepAliveWithoutCalls(true)
+            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
+            .intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel)))
+            .intercept(new RemoteAddressInterceptor())
+            .intercept(GrpcLogsInterceptor.server())
+            .intercept(RequestIdInterceptor.server())
+            .intercept(GrpcHeadersServerInterceptor.create());
 
-        builder.intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(iamChannel)));
-        var internalOnly = new AllowInternalUserOnlyInterceptor(iamChannel);
+        var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
 
-        builder.addService(ServerInterceptors.intercept(impl, new GrpcLogsInterceptor(), internalOnly));
-        builder.addService(ServerInterceptors.intercept(privateApi, new GrpcLogsInterceptor()));
+        builder.addService(ServerInterceptors.intercept(impl, internalOnly));
+        builder.addService(privateApi);
         server = builder.build();
 
         LOG.info("Starting scheduler on port {}...", config.getPort());

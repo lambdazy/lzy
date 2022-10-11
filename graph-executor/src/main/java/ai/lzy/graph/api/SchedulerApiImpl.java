@@ -3,9 +3,6 @@ package ai.lzy.graph.api;
 import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.graph.model.TaskDescription;
 import ai.lzy.model.TaskDesc;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.util.grpc.ClientHeaderInterceptor;
-import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.scheduler.Scheduler.TaskStatus;
 import ai.lzy.v1.scheduler.SchedulerApi.TaskScheduleRequest;
 import ai.lzy.v1.scheduler.SchedulerApi.TaskStatusRequest;
@@ -19,6 +16,9 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.jetbrains.annotations.Nullable;
 
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
+
 @Singleton
 public class SchedulerApiImpl implements SchedulerApi {
     private final SchedulerBlockingStub stub;
@@ -26,14 +26,11 @@ public class SchedulerApiImpl implements SchedulerApi {
 
     @Inject
     public SchedulerApiImpl(ServiceConfig config) {
-        channel = ChannelBuilder.forAddress(config.getScheduler().getHost(), config.getScheduler().getPort())
-            .usePlaintext()
-            .enableRetry(SchedulerGrpc.SERVICE_NAME)
-            .build();
+        channel = newGrpcChannel(config.getScheduler().getHost(), config.getScheduler().getPort(),
+            SchedulerGrpc.SERVICE_NAME);
 
         final var credentials = config.getAuth().createCredentials();
-        stub = SchedulerGrpc.newBlockingStub(channel).withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
+        stub = newBlockingClient(SchedulerGrpc.newBlockingStub(channel), "LzyScheduler", credentials::token);
     }
 
     @Override

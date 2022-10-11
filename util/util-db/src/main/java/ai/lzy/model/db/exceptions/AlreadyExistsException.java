@@ -13,4 +13,9 @@ public class AlreadyExistsException extends SQLException {
     public AlreadyExistsException(String message, Throwable cause) {
         super(message, cause);
     }
+
+    @Override
+    public synchronized Throwable fillInStackTrace() {
+        return this;
+    }
 }

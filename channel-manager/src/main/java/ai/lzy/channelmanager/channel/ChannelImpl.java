@@ -7,7 +7,6 @@ import ai.lzy.model.slot.SlotStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -75,10 +74,7 @@ public class ChannelImpl implements Channel {
     @Override
     public void unbind(Endpoint endpoint) throws ChannelException {
         if (!channelGraph.hasBound(endpoint)) {
-            LOG.warn(MessageFormat.format(
-                "Slot {0} is not bound to the channel {1}",
-                endpoint.uri(), spec.name()
-            ));
+            LOG.warn("Slot {} is not bound to the channel {}", endpoint.uri(), spec.name());
             return;
         }
         controller.executeUnBind(channelGraph, endpoint);

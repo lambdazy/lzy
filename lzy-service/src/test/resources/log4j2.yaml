@@ -6,7 +6,7 @@ Configuration:
       name: Console
       target: SYSTEM_OUT
       PatternLayout:
-        Pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS}{UTC} [%t] %-5level %logger{36} %notEmpty{%X{subj} }%notEmpty{[%X{reqid}] }- %msg%n"
+        Pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS}{UTC} [%t] %-5level %logger{36} %notEmpty{%X{subj} }%notEmpty{[rid=%X{rid}] }- %msg%n"
 
   Loggers:
     Root:
@@ -15,5 +15,11 @@ Configuration:
         ref: Console
 
     Logger:
-      - name: GrpcLogs
+      - name: GrpcServer
         level: trace
+
+      - name: GrpcClient
+        level: trace
+
+      - name: io.zonky.test
+        level: warn
