@@ -6,7 +6,6 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.Status;
 
 import java.net.InetSocketAddress;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +30,7 @@ public class ChannelBuilder {
 
     private List<String> retryableStatusCodes;
 
-    public ChannelBuilder(String host, int port) {
+    private ChannelBuilder(String host, int port) {
         this.host = host;
         this.port = port;
 
@@ -122,26 +121,23 @@ public class ChannelBuilder {
         return builder.build();
     }
 
-    private void configureRetry(ManagedChannelBuilder builder, String serviceName) {
-        Map<String, Object> retryPolicy = new HashMap<>();
+    private void configureRetry(ManagedChannelBuilder<?> builder, String serviceName) {
+        var retryPolicy = new HashMap<>();
         retryPolicy.put("maxAttempts", (double) maxRetry);
         retryPolicy.put("initialBackoff", initialBackoff);
         retryPolicy.put("maxBackoff", maxBackoff);
         retryPolicy.put("backoffMultiplier", backoffMultiplier);
         retryPolicy.put("retryableStatusCodes", retryableStatusCodes);
-        Map<String, Object> methodConfig = new HashMap<>();
-        Map<String, Object> name = new HashMap<>();
-        name.put("service", serviceName);
-        methodConfig.put("name", Collections.<Object>singletonList(name));
-        methodConfig.put("retryPolicy", retryPolicy);
-        Map<String, Object> serviceConfig = new HashMap<>();
-        serviceConfig.put("methodConfig", Collections.<Object>singletonList(methodConfig));
-        builder.defaultServiceConfig(serviceConfig);
+
+        builder.defaultServiceConfig(
+            Map.of(
+                "methodConfig", List.of(Map.of(
+                    "name", List.of(Map.of("service", serviceName)),
+                    "retryPolicy", retryPolicy))));
 
         builder.enableRetry()
             .maxRetryAttempts(maxRetry)
             .maxHedgedAttempts(maxRetry);
-
     }
 
 }

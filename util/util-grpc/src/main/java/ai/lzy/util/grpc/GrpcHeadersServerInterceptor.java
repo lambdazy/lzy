@@ -9,4 +9,8 @@ public class GrpcHeadersServerInterceptor implements ServerInterceptor {
     {
         return Contexts.interceptCall(Context.current().withValue(GrpcHeaders.HEADERS, headers), call, headers, next);
     }
+
+    public static ServerInterceptor create() {
+        return new GrpcHeadersServerInterceptor();
+    }
 }

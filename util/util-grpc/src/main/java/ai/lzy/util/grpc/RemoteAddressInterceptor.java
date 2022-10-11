@@ -1,4 +1,4 @@
-package ai.lzy.scheduler.grpc;
+package ai.lzy.util.grpc;
 
 import io.grpc.*;
 
@@ -7,7 +7,8 @@ import java.net.InetSocketAddress;
 public class RemoteAddressInterceptor implements ServerInterceptor {
     @Override
     public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> serverCall, Metadata metadata,
-                                                                 ServerCallHandler<ReqT, RespT> serverCallHandler) {
+                                                                 ServerCallHandler<ReqT, RespT> serverCallHandler)
+    {
         final InetSocketAddress remoteAddr = (InetSocketAddress) serverCall
                 .getAttributes().get(Grpc.TRANSPORT_ATTR_REMOTE_ADDR);
         var host = remoteAddr == null ? null : remoteAddr.getHostName();

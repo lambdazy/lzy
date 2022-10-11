@@ -130,12 +130,10 @@ public class ThreadVmAllocator implements VmAllocator {
     public void deallocate(String vmId) {
         LOG.info("Deallocate vm with id: " + vmId);
 
-        if (!vmThreads.containsKey(vmId)) {
-            return;
+        var thread = vmThreads.remove(vmId);
+        if (thread != null) {
+            thread.stop();
         }
-        //noinspection removal
-        vmThreads.get(vmId).stop();
-        vmThreads.remove(vmId);
     }
 
     @Override

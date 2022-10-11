@@ -1,6 +1,7 @@
 package ai.lzy.allocator.services;
 
 
+import ai.lzy.allocator.AllocatorMain;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.OperationDao;
@@ -65,7 +66,8 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
         this.sessions = sessions;
         this.storage = storage;
         this.config = config;
-        this.subjectClient = new SubjectServiceGrpcClient(iamChannel, config.getIam()::createCredentials);
+        this.subjectClient = new SubjectServiceGrpcClient(AllocatorMain.APP, iamChannel,
+            config.getIam()::createCredentials);
     }
 
     @Override

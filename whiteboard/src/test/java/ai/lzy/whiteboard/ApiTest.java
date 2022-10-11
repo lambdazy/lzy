@@ -16,6 +16,7 @@ import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
+import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.whiteboard.LWB;
 import ai.lzy.v1.whiteboard.LWBPS;
@@ -377,12 +378,8 @@ public class ApiTest extends BaseTestWithIam {
         private final SubjectServiceClient subjectClient;
 
         IamClient(IamClientConfiguration config) {
-            this.channel = ChannelBuilder
-                .forAddress(config.getAddress())
-                .usePlaintext()
-                .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
-                .build();
-            this.subjectClient = new SubjectServiceGrpcClient(channel, config::createCredentials);
+            this.channel = GrpcUtils.newGrpcChannel(config.getAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
+            this.subjectClient = new SubjectServiceGrpcClient("TestClient", channel, config::createCredentials);
         }
 
         public User createUser(String name) throws Exception {

@@ -12,7 +12,6 @@ import ai.lzy.servant.agents.LzyAgentConfig;
 import ai.lzy.servant.agents.LzyServant;
 import ai.lzy.test.GrpcUtils;
 import ai.lzy.util.auth.credentials.JwtUtils;
-import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.JsonUtils;
@@ -56,6 +55,8 @@ import java.util.concurrent.locks.LockSupport;
 import static ai.lzy.channelmanager.grpc.ProtoConverter.makeCreateDirectChannelCommand;
 import static ai.lzy.channelmanager.grpc.ProtoConverter.makeDestroyChannelCommand;
 import static ai.lzy.model.UriScheme.LzyFs;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 public class PortalTest {
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
@@ -153,19 +154,13 @@ public class PortalTest {
         var internalUserCredentials = iamTestContext.getClientConfig().createCredentials();
 
         unauthorizedPortalClient = LzyPortalGrpc.newBlockingStub(
-            ChannelBuilder.forAddress("localhost", config.getPortalApiPort())
-                .usePlaintext()
-                .enableRetry(LzyPortalGrpc.SERVICE_NAME)
-                .build());
+            newGrpcChannel("localhost", config.getPortalApiPort(), LzyPortalGrpc.SERVICE_NAME));
 
-        authorizedPortalClient = unauthorizedPortalClient.withInterceptors(ClientHeaderInterceptor.header(
-            GrpcHeaders.AUTHORIZATION, internalUserCredentials::token));
+        authorizedPortalClient = newBlockingClient(unauthorizedPortalClient, "TestClient",
+            internalUserCredentials::token);
 
         portalFsStub = LzyFsGrpc.newBlockingStub(
-            ChannelBuilder.forAddress("localhost", config.getFsApiPort())
-                .usePlaintext()
-                .enableRetry(LzyFsGrpc.SERVICE_NAME)
-                .build());
+            newGrpcChannel("localhost", config.getFsApiPort(), LzyFsGrpc.SERVICE_NAME));
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")

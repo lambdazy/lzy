@@ -3,7 +3,6 @@ package ai.lzy.site.routes;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.test.BaseTestWithIam;
-import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.site.ServiceConfig;
 import ai.lzy.v1.scheduler.Scheduler;
@@ -48,7 +47,7 @@ public class TasksControllerTest extends BaseTestWithIam {
         schedulerServer = NettyServerBuilder.forAddress(
                 new InetSocketAddress(schedulerAddress.getHost(), schedulerAddress.getPort()))
             .intercept(new AuthServerInterceptor(
-                new AuthenticateServiceGrpcClient(GrpcConfig.from(serviceConfig.getIam().getAddress()))))
+                new AuthenticateServiceGrpcClient("LzySite", serviceConfig.getIam().getAddress())))
             .addService(new SchedulerTasksMock())
             .build();
         schedulerServer.start();

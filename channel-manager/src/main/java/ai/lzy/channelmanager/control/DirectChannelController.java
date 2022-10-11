@@ -9,6 +9,7 @@ import org.apache.logging.log4j.Logger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Stream;
 
 public class DirectChannelController implements ChannelController {
@@ -63,7 +64,9 @@ public class DirectChannelController implements ChannelController {
     public void executeDestroy(ChannelGraph channelGraph) {
         LOG.info("destroying " + channelGraph.ownerChannelId());
 
-        channelGraph.receivers().forEach(Endpoint::destroy);
-        channelGraph.senders().forEach(Endpoint::destroy);
+        ForkJoinPool.commonPool().execute(() -> {
+            channelGraph.receivers().forEach(Endpoint::destroy);
+            channelGraph.senders().forEach(Endpoint::destroy);
+        });
     }
 }

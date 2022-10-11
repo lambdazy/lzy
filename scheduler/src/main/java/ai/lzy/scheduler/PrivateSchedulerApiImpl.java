@@ -3,9 +3,9 @@ package ai.lzy.scheduler;
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.scheduler.db.ServantDao;
-import ai.lzy.scheduler.grpc.RemoteAddressContext;
 import ai.lzy.scheduler.servant.Servant;
 import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.util.grpc.RemoteAddressContext;
 import ai.lzy.v1.scheduler.SchedulerPrivateApi;
 import ai.lzy.v1.scheduler.SchedulerPrivateGrpc;
 import io.grpc.Status;
@@ -29,7 +29,8 @@ public class PrivateSchedulerApiImpl extends SchedulerPrivateGrpc.SchedulerPriva
 
     @Override
     public void servantProgress(SchedulerPrivateApi.ServantProgressRequest request,
-                                StreamObserver<SchedulerPrivateApi.ServantProgressResponse> responseObserver) {
+                                StreamObserver<SchedulerPrivateApi.ServantProgressResponse> responseObserver)
+    {
         final Servant servant;
         try {
             servant = dao.get(request.getWorkflowName(), request.getServantId());
@@ -71,7 +72,8 @@ public class PrivateSchedulerApiImpl extends SchedulerPrivateGrpc.SchedulerPriva
 
     @Override
     public void registerServant(SchedulerPrivateApi.RegisterServantRequest request,
-                                StreamObserver<SchedulerPrivateApi.RegisterServantResponse> responseObserver) {
+                                StreamObserver<SchedulerPrivateApi.RegisterServantResponse> responseObserver)
+    {
         RemoteAddressContext context = RemoteAddressContext.KEY.get();
         final Servant servant;
         try {

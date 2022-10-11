@@ -3,16 +3,15 @@ package ai.lzy.site;
 import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.utils.GrpcConfig;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.util.grpc.ClientHeaderInterceptor;
-import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.scheduler.SchedulerGrpc;
-import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
+
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 @Factory
 public class BeanFactory {
@@ -21,11 +20,7 @@ public class BeanFactory {
     @Singleton
     @Named("SchedulerGrpcChannel")
     public ManagedChannel schedulerChannel(ServiceConfig config) {
-        return ChannelBuilder
-            .forAddress(HostAndPort.fromString(config.getSchedulerAddress()))
-            .usePlaintext()
-            .enableRetry(SchedulerGrpc.SERVICE_NAME)
-            .build();
+        return newGrpcChannel(config.getSchedulerAddress(), SchedulerGrpc.SERVICE_NAME);
     }
 
     @Bean
@@ -35,13 +30,8 @@ public class BeanFactory {
         ServiceConfig serviceConfig,
         @Named("SchedulerGrpcChannel") ManagedChannel schedulerChannel)
     {
-        return SchedulerGrpc.newBlockingStub(schedulerChannel)
-            .withInterceptors(
-                ClientHeaderInterceptor.header(
-                    GrpcHeaders.AUTHORIZATION,
-                    () -> serviceConfig.getIam().createCredentials().token()
-                )
-            );
+        return newBlockingClient(SchedulerGrpc.newBlockingStub(schedulerChannel), "LzySite",
+            () -> serviceConfig.getIam().createCredentials().token());
     }
 
     @Bean
@@ -49,6 +39,7 @@ public class BeanFactory {
     public SubjectServiceGrpcClient subjectService(ServiceConfig config) {
         final IamClientConfiguration iam = config.getIam();
         return new SubjectServiceGrpcClient(
+            "LzySite",
             GrpcConfig.from(iam.getAddress()),
             iam::createCredentials
         );
