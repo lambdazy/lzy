@@ -5,6 +5,7 @@ import ai.lzy.fs.LzyFsServer;
 import ai.lzy.portal.config.PortalConfig;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import com.google.common.net.HostAndPort;
+import io.micronaut.context.annotation.Requires;
 import io.micronaut.runtime.Micronaut;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -21,6 +22,7 @@ import java.util.Objects;
 
 import static ai.lzy.model.UriScheme.LzyFs;
 
+@Requires
 public class App {
     private static final Logger LOG = LogManager.getLogger(App.class);
 

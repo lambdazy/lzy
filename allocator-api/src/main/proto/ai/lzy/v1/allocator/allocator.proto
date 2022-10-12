@@ -65,14 +65,25 @@ message AllocateRequest {
     repeated string args = 17;
     map<uint32, uint32> port_bindings = 18;  // host port: container port
 
-    repeated Mount volumeMounts = 20;
+    repeated Mount volume_mounts = 20;
   }
 
   string session_id = 1;
   string pool_label = 2;
   string zone = 3;
-  repeated Workload workload = 4;
-  repeated Volume volumes = 5;
+
+  // workloads which are run _before_ the main workloads are started (== K8s Init Containers)
+  // init containers are run until succeeded before running common containers
+  repeated Workload init_workload = 4;
+  // main workloads
+  repeated Workload workload = 5;
+
+  repeated Volume volumes = 6;
+
+  // v6 address of the proxy machine on user network + on the same network where vm will be launched.
+  // Setting this field will result in creating ipip6 tunnel to this address on the vm side.
+  // Only works for k8s allocated machines and expected to be the address of other side of the tunnel.
+  optional string proxy_v6_address = 7;
 }
 
 message AllocateResponse {

@@ -56,6 +56,7 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
         lzyIAM.start();
         ServiceConfig iamConfig = ctx.getBean(ServiceConfig.class);
         subjectClient = new SubjectServiceGrpcClient(
+            "TestClient",
             GrpcConfig.from("localhost:" + iamConfig.getServerPort()),
             () -> credentials
         );

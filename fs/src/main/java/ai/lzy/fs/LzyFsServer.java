@@ -8,10 +8,7 @@ import ai.lzy.model.deprecated.Zygote;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.util.grpc.ClientHeaderInterceptor;
-import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.util.grpc.*;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.deprecated.Lzy;
@@ -50,6 +47,9 @@ import static ai.lzy.model.UriScheme.LzyFs;
 import static ai.lzy.model.UriScheme.SlotAzure;
 import static ai.lzy.model.UriScheme.SlotS3;
 import static ai.lzy.model.deprecated.GrpcConverter.from;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
+import static ai.lzy.v1.channel.LzyChannelManagerGrpc.newBlockingStub;
 
 public final class LzyFsServer {
 
@@ -140,20 +140,16 @@ public final class LzyFsServer {
         LOG.info("Starting LzyFs gRPC server at {}.", selfUri);
         localServer.start();
 
-        channelManagerChannel = ChannelBuilder
-            .forAddress(channelManagerUri.getHost(), channelManagerUri.getPort())
-            .usePlaintext()
-            .enableRetry(LzyChannelManagerGrpc.SERVICE_NAME)
-            .build();
+        channelManagerChannel = newGrpcChannel(channelManagerUri.getHost(), channelManagerUri.getPort(),
+            LzyChannelManagerGrpc.SERVICE_NAME);
         slotsManager = new SlotsManager(
-            LzyChannelManagerGrpc
-                .newBlockingStub(channelManagerChannel)
-                .withInterceptors(ClientHeaderInterceptor.header(
-                    GrpcHeaders.AUTHORIZATION,
-                    () -> auth.hasUser()
-                        ? auth.getUser().getToken()
-                        : generateJwtServantToken(auth.getTask().getServantId())
-                )),
+            newBlockingClient(
+                newBlockingStub(channelManagerChannel),
+                "LzyFs",
+                () -> auth.hasUser()
+                    ? auth.getUser().getToken()
+                    : generateJwtServantToken(auth.getTask().getServantId())
+            ),
             selfUri
         );
 
@@ -161,11 +157,8 @@ public final class LzyFsServer {
         // <<<
 
         if (lzyServerUri != null) {
-            final var lzyServerChannel = ChannelBuilder
-                .forAddress(lzyServerUri.getHost(), lzyServerUri.getPort())
-                .usePlaintext()
-                .enableRetry(LzyKharonGrpc.SERVICE_NAME)
-                .build();
+            final var lzyServerChannel = newGrpcChannel(lzyServerUri.getHost(), lzyServerUri.getPort(),
+                LzyKharonGrpc.SERVICE_NAME);
             final LzyServerGrpc.LzyServerBlockingStub lzyServerClient = LzyServerGrpc.newBlockingStub(lzyServerChannel);
 
             final String bucket = lzyServerClient

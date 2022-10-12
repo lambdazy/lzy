@@ -1,6 +1,5 @@
 package ai.lzy.iam;
 
-import ai.lzy.iam.configs.DbConfig;
 import ai.lzy.iam.configs.InternalUserConfig;
 import ai.lzy.iam.configs.ServiceConfig;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
@@ -11,8 +10,10 @@ import ai.lzy.iam.grpc.service.LzySubjectService;
 import ai.lzy.iam.storage.db.InternalUserInserter;
 import ai.lzy.iam.storage.impl.DbAuthService;
 import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.GrpcHeadersServerInterceptor;
+import ai.lzy.util.grpc.GrpcLogsInterceptor;
+import ai.lzy.util.grpc.RequestIdInterceptor;
 import io.grpc.Server;
-import io.grpc.ServerBuilder;
 import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.exceptions.NoSuchBeanException;
@@ -38,22 +39,27 @@ public class LzyIAM {
 
     public LzyIAM(ApplicationContext context) {
         ServiceConfig config = context.getBean(ServiceConfig.class);
-        DbConfig dbConfig = context.getBean(DbConfig.class);
 
         InternalUserConfig internalUserConfig = context.getBean(InternalUserConfig.class);
         InternalUserInserter internalUserInserter = context.getBean(InternalUserInserter.class);
         internalUserInserter.addOrUpdateInternalUser(internalUserConfig);
 
-        ServerBuilder<?> builder = NettyServerBuilder.forPort(config.getServerPort())
-                .permitKeepAliveWithoutCalls(true)
-                .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES);
-        AuthServerInterceptor internalAuthInterceptor =
-                new AuthServerInterceptor(context.getBean(DbAuthService.class));
+        var builder = NettyServerBuilder.forPort(config.getServerPort())
+            .permitKeepAliveWithoutCalls(true)
+            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES);
+
+        var internalAuthInterceptor = new AuthServerInterceptor(context.getBean(DbAuthService.class));
+
+        builder.intercept(internalAuthInterceptor);
+        builder.intercept(GrpcLogsInterceptor.server());
+        builder.intercept(RequestIdInterceptor.server());
+        builder.intercept(GrpcHeadersServerInterceptor.create());
+
         LzyASService accessService = context.getBean(LzyASService.class);
         LzyABSService accessBindingService = context.getBean(LzyABSService.class);
         LzySubjectService subjectService = context.getBean(LzySubjectService.class);
         LzyAuthService authService = context.getBean(LzyAuthService.class);
-        builder.intercept(internalAuthInterceptor);
+
         builder.addService(accessService);
         builder.addService(accessBindingService);
         builder.addService(subjectService);

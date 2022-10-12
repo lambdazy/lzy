@@ -83,7 +83,7 @@
         <hibernate.version>5.6.9.Final</hibernate.version>
         <micronaut.version>3.6.3</micronaut.version>
         <junit-api.version>5.8.1</junit-api.version>
-        <micronaut-test.version>3.5.0</micronaut-test.version>
+        <micronaut-test.version>3.6.2</micronaut-test.version>
         <micronaut-maven-plugin.version>3.0.2</micronaut-maven-plugin.version>
         <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
         <h2database.version>2.1.214</h2database.version>
@@ -224,6 +224,11 @@
             <dependency>
                 <groupId>io.grpc</groupId>
                 <artifactId>grpc-netty</artifactId>
+                <version>${grpc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-services</artifactId>
                 <version>${grpc.version}</version>
             </dependency>
             <dependency>

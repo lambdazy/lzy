@@ -27,24 +27,27 @@ import java.util.stream.Collectors;
 public class SubjectServiceGrpcClient implements SubjectServiceClient {
     private static final Logger LOG = LogManager.getLogger(SubjectServiceGrpcClient.class);
 
+    private final String clientName;
     private final Channel channel;
     private final LzySubjectServiceGrpc.LzySubjectServiceBlockingStub subjectService;
     private final Supplier<Credentials> tokenSupplier;
 
-    public SubjectServiceGrpcClient(GrpcConfig config, Supplier<Credentials> tokenSupplier) {
-        this(GrpcUtils.newGrpcChannel(config.host(), config.port(), LzySubjectServiceGrpc.SERVICE_NAME), tokenSupplier);
+    public SubjectServiceGrpcClient(String clientName, GrpcConfig config, Supplier<Credentials> tokenSupplier) {
+        this(clientName, GrpcUtils.newGrpcChannel(config.host(), config.port(), LzySubjectServiceGrpc.SERVICE_NAME),
+            tokenSupplier);
     }
 
-    public SubjectServiceGrpcClient(Channel channel, Supplier<Credentials> tokenSupplier) {
+    public SubjectServiceGrpcClient(String clientName, Channel channel, Supplier<Credentials> tokenSupplier) {
+        this.clientName = clientName;
         this.channel = channel;
         this.tokenSupplier = tokenSupplier;
         this.subjectService = GrpcUtils.newBlockingClient(
-            LzySubjectServiceGrpc.newBlockingStub(this.channel), () -> this.tokenSupplier.get().token());
+            LzySubjectServiceGrpc.newBlockingStub(this.channel), clientName, () -> this.tokenSupplier.get().token());
     }
 
     @Override
     public SubjectServiceGrpcClient withToken(Supplier<Credentials> tokenSupplier) {
-        return new SubjectServiceGrpcClient(channel, tokenSupplier);
+        return new SubjectServiceGrpcClient(clientName, channel, tokenSupplier);
     }
 
     @Override

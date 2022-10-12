@@ -17,6 +17,12 @@ public class GrainedLock {
         this.counterLock = new BucketLock(bucketsCount);
     }
 
+    public Guard withLock(String subjectId) {
+        var subject = acquireSubject(subjectId);
+        subject.lock.lock();
+        return new Guard(subjectId);
+    }
+
     public void lock(String subjectId) {
         var subject = acquireSubject(subjectId);
         subject.lock.lock();
@@ -59,6 +65,19 @@ public class GrainedLock {
             }
         } finally {
             counterLock.unlock(subject.id);
+        }
+    }
+
+    public final class Guard implements AutoCloseable {
+        private final String id;
+
+        private Guard(String id) {
+            this.id = id;
+        }
+
+        @Override
+        public void close() {
+            unlock(id);
         }
     }
 

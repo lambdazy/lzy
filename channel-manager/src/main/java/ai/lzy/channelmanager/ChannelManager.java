@@ -5,8 +5,7 @@ import ai.lzy.channelmanager.grpc.ChannelManagerService;
 import ai.lzy.iam.clients.stub.AuthenticateServiceStub;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.util.grpc.GrpcLogsInterceptor;
+import ai.lzy.util.grpc.*;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
@@ -28,6 +27,8 @@ public class ChannelManager {
 
     private static final Logger LOG = LogManager.getLogger(ChannelManager.class);
     private static final Options options = new Options();
+
+    public static final String APP = "LzyChannelManager";
 
     static {
         options.addRequiredOption("p", "port", true, "gRPC port setting");
@@ -85,17 +86,17 @@ public class ChannelManager {
         var config = ctx.getBean(ChannelManagerConfig.class);
         final HostAndPort address = HostAndPort.fromString(config.getAddress());
         final var iamAddress = HostAndPort.fromString(config.getIam().getAddress());
-        iamChannel = ChannelBuilder.forAddress(iamAddress)
-            .usePlaintext()
-            .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
-            .build();
+        iamChannel = GrpcUtils.newGrpcChannel(iamAddress, LzyAuthenticateServiceGrpc.SERVICE_NAME);
         channelManagerServer = NettyServerBuilder
             .forAddress(new InetSocketAddress(address.getHost(), address.getPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .intercept(new AuthServerInterceptor(
-                config.isStubIam() ? new AuthenticateServiceStub() : new AuthenticateServiceGrpcClient(iamChannel)))
-            .intercept(new GrpcLogsInterceptor())
+            .intercept(new AuthServerInterceptor(config.isStubIam()
+                ? new AuthenticateServiceStub()
+                : new AuthenticateServiceGrpcClient(APP, iamChannel)))
+            .intercept(GrpcLogsInterceptor.server())
+            .intercept(RequestIdInterceptor.server())
+            .intercept(GrpcHeadersServerInterceptor.create())
             .addService(ctx.getBean(ChannelManagerService.class))
             .addService(ctx.getBean(ChannelManagerPrivateService.class))
             .build();

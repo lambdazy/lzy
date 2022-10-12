@@ -142,7 +142,8 @@ public class SlotsManager implements AutoCloseable {
                     );
                     LOG.info(JsonUtils.printRequest(unbindResult));
                 } catch (StatusRuntimeException e) {
-                    LOG.warn("Got exception while unbind slot {} from channel {}", spec.name(), channelId, e);
+                    LOG.warn("Got exception while unbind slot {} from channel {}: {}",
+                        spec.name(), channelId, e.getMessage());
                 } finally {
                     SlotsManager.this.notifyAll();
                 }

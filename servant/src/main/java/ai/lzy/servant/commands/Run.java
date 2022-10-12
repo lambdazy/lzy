@@ -338,7 +338,7 @@ public class Run implements LzyCommand {
                 );
             LOG.info(destroyResponse);
         } catch (StatusRuntimeException e) {
-            if (e.getStatus() == Status.NOT_FOUND) {
+            if (e.getStatus().getCode() == Status.NOT_FOUND.getCode()) {
                 return;
             }
             throw e;

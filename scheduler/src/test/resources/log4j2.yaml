@@ -6,25 +6,29 @@ Configuration:
       name: Console
       target: SYSTEM_OUT
       PatternLayout:
-        Pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS}{UTC} [%t] %-5level %logger{36} - %msg%n"
+        Pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS}{UTC} [%t] %-5level %logger{36} %notEmpty{[rid=%X{rid}] }- %msg%n"
 
   Loggers:
     Root:
       level: error
       AppenderRef:
         ref: Console
+
     Logger:
       - name: UserEventLogs
         level: error
-        AppenderRef:
-          ref: Console
 
       - name: "ai.lzy.model.utils.FreePortFinder"
         level: error
-        AppenderRef:
-          ref: Console
 
       - name: "ai.lzy.scheduler"
         level: debug
-        AppenderRef:
-          ref: Console
+
+      - name: io.zonky.test
+        level: warn
+
+      - name: GrpcServer
+        level: debug
+
+      - name: GrpcClient
+        level: debug

@@ -42,7 +42,8 @@ public class GarbageCollector extends TimerTask {
         this.operations = operations;
         this.allocator = allocator;
         this.storage = storage;
-        this.subjectClient = new SubjectServiceGrpcClient(iamChannel, config.getIam()::createCredentials);
+        this.subjectClient = new SubjectServiceGrpcClient(AllocatorMain.APP, iamChannel,
+            config.getIam()::createCredentials);
 
         timer.scheduleAtFixedRate(this, config.getGcPeriod().toMillis(), config.getGcPeriod().toMillis());
     }

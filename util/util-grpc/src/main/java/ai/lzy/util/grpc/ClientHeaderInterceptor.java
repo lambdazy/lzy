@@ -12,6 +12,14 @@ public class ClientHeaderInterceptor<T> implements ClientInterceptor {
     private final Metadata.Key<T> key;
     private final Supplier<T> value;
 
+    public static ClientHeaderInterceptor<String> idempotencyKey(Supplier<String> value) {
+        return new ClientHeaderInterceptor<>(GrpcHeaders.IDEMPOTENCY_KEY, value);
+    }
+
+    public static ClientHeaderInterceptor<String> authorization(Supplier<String> value) {
+        return new ClientHeaderInterceptor<>(GrpcHeaders.AUTHORIZATION, () -> "Bearer " + value.get());
+    }
+
     public static ClientHeaderInterceptor<String> header(Metadata.Key<String> key, Supplier<String> value) {
         if (GrpcHeaders.AUTHORIZATION.equals(key)) {
             return new ClientHeaderInterceptor<>(GrpcHeaders.AUTHORIZATION, () -> "Bearer " + value.get());

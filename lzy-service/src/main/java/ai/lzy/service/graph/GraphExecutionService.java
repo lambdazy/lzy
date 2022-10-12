@@ -4,8 +4,6 @@ import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.util.auth.credentials.JwtCredentials;
-import ai.lzy.util.grpc.ClientHeaderInterceptor;
-import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.VmPoolServiceGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.graph.GraphExecutorApi;
@@ -31,6 +29,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
+import static ai.lzy.service.LzyService.APP;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 public class GraphExecutionService {
@@ -115,8 +115,8 @@ public class GraphExecutionService {
             return;
         }
 
-        var portalClient = LzyPortalGrpc.newBlockingStub(portalChannel).withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, internalUserCredentials::token));
+        var portalClient = newBlockingClient(LzyPortalGrpc.newBlockingStub(portalChannel),
+            APP, internalUserCredentials::token);
 
         builder.build(graphExecutionState, portalClient);
 
