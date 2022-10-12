@@ -1,6 +1,7 @@
 package ai.lzy.util.grpc;
 
 import io.grpc.*;
+import io.grpc.ForwardingServerCallListener.SimpleForwardingServerCallListener;
 import lombok.Lombok;
 import org.apache.logging.log4j.CloseableThreadContext;
 import org.apache.logging.log4j.LogManager;
@@ -15,20 +16,28 @@ public class RequestIdInterceptor {
     private static final Logger LOG = LogManager.getLogger(RequestIdInterceptor.class);
 
     public static ServerInterceptor server() {
+        return server(false);
+    }
+
+    public static ServerInterceptor server(boolean generateRequestId) {
         return new ServerInterceptor() {
             @Override
             public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call, Metadata headers,
                                                                          ServerCallHandler<ReqT, RespT> next)
             {
-                var rid = getOrGenerateRequestId();
+                var rid = generateRequestId ? UUID.randomUUID().toString() : GrpcHeaders.getRequestId();
                 LOG.debug("Server request id: {}", rid);
+
+                if (rid == null) {
+                    return next.startCall(call, headers);
+                }
 
                 var ridContext = GrpcHeaders.createContext(Map.of(GrpcHeaders.X_REQUEST_ID, rid));
                 var logContext = Map.of("rid", rid);
 
                 var original = withRid(ridContext, logContext, () -> next.startCall(call, headers));
 
-                return new ForwardingServerCallListener.SimpleForwardingServerCallListener<>(original) {
+                return new SimpleForwardingServerCallListener<>(original) {
                     @Override
                     public void onMessage(final ReqT message) {
                         withRid(ridContext, logContext, () -> super.onMessage(message));
@@ -64,8 +73,12 @@ public class RequestIdInterceptor {
             public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(MethodDescriptor<ReqT, RespT> method,
                                                                        CallOptions callOptions, Channel next)
             {
-                var rid = getOrGenerateRequestId();
+                var rid = GrpcHeaders.getRequestId();
                 LOG.debug("Client request id: {}", rid);
+
+                if (rid == null) {
+                    return next.newCall(method, callOptions);
+                }
 
                 var ridContext = GrpcHeaders.createContext(Map.of(GrpcHeaders.X_REQUEST_ID, rid));
                 var logContext = Map.of("rid", rid);
@@ -140,11 +153,6 @@ public class RequestIdInterceptor {
         };
     }
 
-
-    private static String getOrGenerateRequestId() {
-        var rid = GrpcHeaders.getRequestId();
-        return rid == null || rid.isBlank() ? UUID.randomUUID().toString() : rid;
-    }
 
     private static void withRid(Context ridContext, Map<String, String> logContext, Runnable r) {
         withRid(ridContext, logContext, () -> {
