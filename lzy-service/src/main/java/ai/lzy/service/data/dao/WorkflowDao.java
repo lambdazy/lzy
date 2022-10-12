@@ -2,7 +2,7 @@ package ai.lzy.service.data.dao;
 
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.AlreadyExistsException;
-import ai.lzy.service.LzyService;
+import ai.lzy.service.data.PortalStatus;
 import ai.lzy.v1.common.LMS3;
 
 import java.sql.SQLException;
@@ -22,11 +22,11 @@ public interface WorkflowDao {
 
     boolean doesActiveExecutionExists(String userId, String workflowName, String executionId) throws SQLException;
 
-    default void updateStatus(String executionId, LzyService.PortalStatus portalStatus) throws SQLException {
+    default void updateStatus(String executionId, PortalStatus portalStatus) throws SQLException {
         updateStatus(executionId, portalStatus, null);
     }
 
-    void updateStatus(String executionId, LzyService.PortalStatus portalStatus, @Nullable TransactionHandle transaction)
+    void updateStatus(String executionId, PortalStatus portalStatus, @Nullable TransactionHandle transaction)
         throws SQLException;
 
     default void updateStdChannelIds(String executionId, String stdoutChannelId, String stderrChannelId)
@@ -73,9 +73,9 @@ public interface WorkflowDao {
                                @Nullable String newExecutionId, @Nullable TransactionHandle transaction)
         throws SQLException;
 
-    String getWorkflowNameBy(String executionId) throws SQLException;
+    String getWorkflowName(String executionId) throws SQLException;
 
-    String getPortalAddressFor(String executionId) throws SQLException;
+    String getPortalAddress(String executionId) throws SQLException;
 
-    LMS3.S3Locator getS3CredentialsFor(String executionId) throws SQLException;
+    LMS3.S3Locator getStorageLocator(String executionId) throws SQLException;
 }

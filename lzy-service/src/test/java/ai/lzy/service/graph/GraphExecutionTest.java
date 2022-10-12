@@ -1,6 +1,7 @@
-package ai.lzy.service;
+package ai.lzy.service.graph;
 
 import ai.lzy.graph.test.GraphExecutorMock;
+import ai.lzy.service.BaseTest;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;

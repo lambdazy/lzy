@@ -6,7 +6,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
-public class DataFlowGraph {
+class DataFlowGraph {
     private final List<List<Integer>> graph;
     private final ArrayList<LWF.Operation> operations;
 

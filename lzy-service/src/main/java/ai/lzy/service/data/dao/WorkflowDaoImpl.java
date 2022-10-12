@@ -6,7 +6,7 @@ import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.AlreadyExistsException;
 import ai.lzy.model.db.exceptions.NotFoundException;
-import ai.lzy.service.LzyService;
+import ai.lzy.service.data.PortalStatus;
 import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.v1.common.LMS3;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -173,12 +173,12 @@ public class WorkflowDaoImpl implements WorkflowDao {
     }
 
     @Override
-    public void updateStatus(String executionId, LzyService.PortalStatus portalStatus,
+    public void updateStatus(String executionId, PortalStatus portalStatus,
                              @Nullable TransactionHandle transaction) throws SQLException
     {
         DbOperation.execute(transaction, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_UPDATE_PORTAL_STATUS)) {
-                statement.setString(1, LzyService.PortalStatus.CREATING_STD_CHANNELS.name());
+                statement.setString(1, PortalStatus.CREATING_STD_CHANNELS.name());
                 statement.setString(2, executionId);
                 statement.executeUpdate();
             }
@@ -191,7 +191,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
     {
         DbOperation.execute(transaction, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_UPDATE_PORTAL_CHANNEL_IDS)) {
-                statement.setString(1, LzyService.PortalStatus.CREATING_SESSION.name());
+                statement.setString(1, PortalStatus.CREATING_SESSION.name());
                 statement.setString(2, stdoutChannelId);
                 statement.setString(3, stderrChannelId);
                 statement.setString(4, executionId);
@@ -206,7 +206,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
     {
         DbOperation.execute(transaction, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_UPDATE_ALLOCATOR_SESSION)) {
-                statement.setString(1, LzyService.PortalStatus.REQUEST_VM.name());
+                statement.setString(1, PortalStatus.REQUEST_VM.name());
                 statement.setString(2, sessionId);
                 statement.setString(3, executionId);
                 statement.executeUpdate();
@@ -220,7 +220,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
     {
         DbOperation.execute(transaction, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_UPDATE_ALLOCATE_OPERATION_DATA)) {
-                statement.setString(1, LzyService.PortalStatus.ALLOCATING_VM.name());
+                statement.setString(1, PortalStatus.ALLOCATING_VM.name());
                 statement.setString(2, opId);
                 statement.setString(3, vmId);
                 statement.setString(4, executionId);
@@ -235,7 +235,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
     {
         DbOperation.execute(transaction, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_UPDATE_ALLOCATE_VM_ADDRESS)) {
-                statement.setString(1, LzyService.PortalStatus.VM_READY.name());
+                statement.setString(1, PortalStatus.VM_READY.name());
                 statement.setString(2, vmAddress);
                 statement.setString(3, executionId);
                 statement.executeUpdate();
@@ -289,7 +289,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
     }
 
     @Override
-    public String getWorkflowNameBy(String executionId) throws SQLException {
+    public String getWorkflowName(String executionId) throws SQLException {
         String[] workflowName = {null};
 
         DbOperation.execute(null, storage, con -> {
@@ -312,7 +312,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
     }
 
     @Override
-    public String getPortalAddressFor(String executionId) throws SQLException {
+    public String getPortalAddress(String executionId) throws SQLException {
         String[] portalAddress = {null};
 
         DbOperation.execute(null, storage, con -> {
@@ -334,7 +334,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
     }
 
     @Override
-    public LMS3.S3Locator getS3CredentialsFor(String executionId) throws SQLException {
+    public LMS3.S3Locator getStorageLocator(String executionId) throws SQLException {
         LMS3.S3Locator[] credentials = {null};
 
         DbOperation.execute(null, storage, con -> {

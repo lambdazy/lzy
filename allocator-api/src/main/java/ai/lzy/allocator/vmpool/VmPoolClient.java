@@ -11,10 +11,8 @@ import java.util.*;
 public class VmPoolClient {
     private static final Logger LOG = LogManager.getLogger(VmPoolClient.class);
 
-    public static Set<String> findZones(VmPoolServiceBlockingStub vmPoolClient,
-                                        Collection<String> requiredPoolLabels)
-    {
-        List<VmPoolSpec> allUserPools = vmPoolClient.getVmPools(GetVmPoolsRequest.newBuilder()
+    public static Set<String> findZones(Collection<String> requiredPoolLabels, VmPoolServiceBlockingStub grpcClient) {
+        List<VmPoolSpec> allUserPools = grpcClient.getVmPools(GetVmPoolsRequest.newBuilder()
             .setWithSystemPools(false)
             .setWithUserPools(true)
             .build()).getUserPoolsList();
