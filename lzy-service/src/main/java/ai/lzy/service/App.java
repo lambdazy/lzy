@@ -50,7 +50,7 @@ public class App {
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .intercept(authInterceptor)
             .intercept(GrpcLogsInterceptor.server())
-            .intercept(RequestIdInterceptor.server())
+            .intercept(RequestIdInterceptor.server(true))
             .intercept(GrpcHeadersServerInterceptor.create())
             .addService(service)
             .build();
