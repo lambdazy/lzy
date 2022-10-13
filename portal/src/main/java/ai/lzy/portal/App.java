@@ -64,7 +64,7 @@ public class App {
         var portalAddress = "%s:%d".formatted(config.getHost(), config.getPortalApiPort());
 
         var allocatorAgent = new AllocatorAgent(config.getAllocatorToken(),
-            config.getVmId(), config.getAllocatorAddress(), config.getAllocatorHeartbeatPeriod(), portalAddress);
+            config.getVmId(), config.getAllocatorAddress(), config.getAllocatorHeartbeatPeriod());
 
         var main = new App(new Portal(config, allocatorAgent, null));
         main.start();

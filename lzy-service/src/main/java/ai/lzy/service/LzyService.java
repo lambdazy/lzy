@@ -4,6 +4,7 @@ import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.dao.ExecutionDao;
+import ai.lzy.service.data.dao.PortalDescription;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.service.graph.GraphExecutionService;
@@ -17,9 +18,11 @@ import ai.lzy.v1.graph.GraphExecutorGrpc;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
+import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Singleton;
@@ -28,6 +31,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.time.Duration;
 
+import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.v1.workflow.LWFS.*;
@@ -140,5 +144,12 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     @Override
     public void stopGraph(StopGraphRequest request, StreamObserver<StopGraphResponse> responseObserver) {
         graphExecutionService.stopGraph(request, responseObserver);
+    }
+
+    @Override
+    public void readStdSlots(
+            LWFS.ReadStdSlotsRequest request, StreamObserver<LWFS.ReadStdSlotsResponse> responseObserver)
+    {
+        workflowService.readStdSlots(request, responseObserver);
     }
 }

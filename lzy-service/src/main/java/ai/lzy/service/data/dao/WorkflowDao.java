@@ -2,6 +2,7 @@ package ai.lzy.service.data.dao;
 
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.AlreadyExistsException;
+import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.service.data.PortalStatus;
 import ai.lzy.v1.common.LMS3;
 
@@ -38,11 +39,12 @@ public interface WorkflowDao {
     void updateStdChannelIds(String executionId, String stdoutChannelId, String stderrChannelId,
                              @Nullable TransactionHandle transaction) throws SQLException;
 
-    default void updateAllocatorSession(String executionId, String sessionId) throws SQLException {
-        updateAllocatorSession(executionId, sessionId, null);
+    default void updateAllocatorSession(String executionId, String sessionId, String portalId) throws SQLException {
+        updateAllocatorSession(executionId, sessionId, portalId, null);
     }
 
-    void updateAllocatorSession(String executionId, String sessionId, @Nullable TransactionHandle transaction)
+    void updateAllocatorSession(String executionId, String sessionId, String portalId,
+                                @Nullable TransactionHandle transaction)
         throws SQLException;
 
     default void updateAllocateOperationData(String executionId, String opId, String vmId) throws SQLException {
@@ -52,11 +54,12 @@ public interface WorkflowDao {
     void updateAllocateOperationData(String executionId, String opId, String vmId,
                                      @Nullable TransactionHandle transaction) throws SQLException;
 
-    default void updateAllocatedVmAddress(String executionId, String vmAddress) throws SQLException {
-        updateAllocatedVmAddress(executionId, vmAddress, null);
+    default void updateAllocatedVmAddress(String executionId, String vmAddress, String fsAddress) throws SQLException {
+        updateAllocatedVmAddress(executionId, vmAddress, fsAddress, null);
     }
 
-    void updateAllocatedVmAddress(String executionId, String vmAddress, @Nullable TransactionHandle transaction)
+    void updateAllocatedVmAddress(String executionId, String vmAddress, String fsAddress,
+                                  @Nullable TransactionHandle transaction)
         throws SQLException;
 
     void updateFinishData(String workflowName, String executionId, Timestamp finishedAt,
@@ -75,7 +78,16 @@ public interface WorkflowDao {
 
     String getWorkflowName(String executionId) throws SQLException;
 
-    String getPortalAddress(String executionId) throws SQLException;
+    default String getPortalAddress(String executionId) throws SQLException {
+        var desc = getPortalDescription(executionId);
+        if (desc == null) {
+            throw new NotFoundException("Cannot obtain portal address");
+        }
+        return desc.vmAddress().toString();
+    }
 
     LMS3.S3Locator getStorageLocator(String executionId) throws SQLException;
+
+    @Nullable
+    PortalDescription getPortalDescription(String executionId) throws SQLException;
 }

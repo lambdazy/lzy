@@ -139,7 +139,7 @@ public class PortalTest {
 
         try {
             var agent = new AllocatorAgent("portal_token", "portal_vm",
-                "localhost:" + server.port, Duration.ofSeconds(5), "localhost");
+                "localhost:" + server.port, Duration.ofSeconds(5));
 
             portal = new Portal(config, agent, "portal_token");
             portal.start();
