@@ -12,11 +12,13 @@ final class GraphExecutionState {
 
     private String workflowName;
     private String zoneName;
-    private DataFlowGraph dataFlowGraph;
+
     private List<LWF.DataDescription> descriptions;
     private List<LWF.Operation> operations;
     private List<TaskDesc> tasks;
     private List<ChannelDesc> channels;
+
+    private DataFlowGraph dataFlowGraph;
 
     private Status errorStatus;
 
@@ -32,16 +34,16 @@ final class GraphExecutionState {
         this.descriptions = descriptions;
     }
 
+    public String getExecutionId() {
+        return executionId;
+    }
+
     public List<LWF.Operation> getOperations() {
         return operations;
     }
 
     public void setOperations(List<LWF.Operation> operations) {
         this.operations = operations;
-    }
-
-    public String getExecutionId() {
-        return executionId;
     }
 
     public String getWorkflowName() {
@@ -72,12 +74,12 @@ final class GraphExecutionState {
         return tasks;
     }
 
-    public List<ChannelDesc> getChannels() {
-        return channels;
-    }
-
     public void setTasks(List<TaskDesc> tasks) {
         this.tasks = tasks;
+    }
+
+    public List<ChannelDesc> getChannels() {
+        return channels;
     }
 
     public void setChannels(List<ChannelDesc> channels) {
@@ -96,12 +98,32 @@ final class GraphExecutionState {
         this.errorStatus = errorStatus.withDescription(description);
     }
 
+    private String printExecutionId() {
+        return "executionId: " + executionId;
+    }
+
+    private String printWorkflowName() {
+        return "workflowName: " + workflowName;
+    }
+
+    private String printZoneName() {
+        return "zoneName: " + zoneName;
+    }
+
     @Override
     public String toString() {
-        return "GraphExecutionState{" +
-            "executionId='" + executionId + '\'' +
-            ", workflowName='" + workflowName + '\'' +
-            ", errorStatus=" + errorStatus +
-            '}';
+        var sb = new StringBuilder();
+        sb.append("{ ");
+
+        sb.append(printExecutionId());
+        if (workflowName != null) {
+            sb.append(", ").append(printWorkflowName());
+        }
+        if (zoneName != null) {
+            sb.append(", ").append(printZoneName());
+        }
+
+        sb.append(" }");
+        return sb.toString();
     }
 }

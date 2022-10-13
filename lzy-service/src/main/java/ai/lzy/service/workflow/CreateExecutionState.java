@@ -83,12 +83,12 @@ final class CreateExecutionState {
         var sb = new StringBuilder();
         sb.append("{ ");
 
-        sb.append(printUserId()).append(", ");
-        sb.append(printWorkflowName()).append(", ");
-        sb.append(printExecutionId()).append(", ");
+        sb.append(printUserId());
+        sb.append(", ").append(printWorkflowName());
+        sb.append(", ").append(printExecutionId());
 
         if (storageType != null) {
-            sb.append(printStorageType()).append(", ");
+            sb.append(", ").append(printStorageType());
         }
 
         sb.append(" }");
