@@ -108,10 +108,8 @@ public class GraphExecutionService {
             });
         } catch (RuntimeException e) {
             var cause = Objects.nonNull(e.getCause()) ? e.getCause() : e;
-            LOG.error("Cannot obtain information about portal for execution: { executionId: {} } " +
-                cause.getMessage(), executionId);
-            response.onError(Status.INTERNAL.withDescription("Cannot obtain information about portal: " +
-                cause.getMessage()).asRuntimeException());
+            replyError.accept(Status.INTERNAL.withDescription("Cannot build graph: " +
+                cause.getMessage()));
             return;
         }
 
@@ -138,10 +136,7 @@ public class GraphExecutionService {
                 .build());
         } catch (StatusRuntimeException e) {
             var causeStatus = e.getStatus();
-            LOG.error("Cannot execute graph in: { workflowName: {}, executionId: {} }, error: {}",
-                graphExecutionState.getWorkflowName(), executionId, causeStatus.getDescription());
-            response.onError(causeStatus.withDescription("Cannot execute graph: " + causeStatus.getDescription())
-                .asRuntimeException());
+            replyError.accept(causeStatus.withDescription("Cannot execute graph: " + causeStatus.getDescription()));
             return;
         }
 
