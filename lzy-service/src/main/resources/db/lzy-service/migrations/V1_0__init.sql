@@ -22,6 +22,8 @@ create table workflow_executions (
     allocate_op_id text,
     portal_vm_id text,
     portal_vm_address text,
+    portal_fs_address text,
+    portal_id text,
 
     portal_stdout_channel_id text,
     portal_stderr_channel_id text,

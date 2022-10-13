@@ -1,6 +1,5 @@
 package ai.lzy.service.workflow;
 
-import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
@@ -11,12 +10,15 @@ import ai.lzy.iam.resources.impl.Workflow;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.SubjectType;
+import ai.lzy.model.Constants;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.AlreadyExistsException;
+import ai.lzy.service.PortalSlotsListener;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.PortalStatus;
 import ai.lzy.service.data.StorageType;
+import ai.lzy.service.data.dao.PortalDescription;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.JsonUtils;
@@ -274,11 +276,15 @@ public class WorkflowService {
 
             var sessionId = createSession(userId);
 
-            withRetries(defaultRetryPolicy(), LOG, () -> workflowDao.updateAllocatorSession(executionId, sessionId));
+            var portalId = "portal_" + executionId + UUID.randomUUID();
+
+            withRetries(defaultRetryPolicy(), LOG,
+                () -> workflowDao.updateAllocatorSession(executionId, sessionId, portalId));
 
             var startAllocationTime = Instant.now();
             var operation = startAllocation(userId, workflowName, sessionId,
-                executionId, stdoutChannelId, stderrChannelId);
+                executionId, stdoutChannelId,
+                stderrChannelId, portalId);
             var opId = operation.getId();
 
             VmAllocatorApi.AllocateMetadata allocateMetadata;
@@ -303,7 +309,9 @@ public class WorkflowService {
             }
 
             withRetries(defaultRetryPolicy(), LOG, () -> workflowDao.updateAllocatedVmAddress(executionId,
-                allocateResponse.getMetadataOrDefault(AllocatorAgent.VM_IP_ADDRESS, null)));
+                allocateResponse.getMetadataOrDefault(Constants.PORTAL_ADDRESS_KEY, null),
+                allocateResponse.getMetadataOrDefault(Constants.FS_ADDRESS_KEY, null)
+            ));
 
         } catch (StatusRuntimeException e) {
             state.fail(e.getStatus(), "Cannot start portal");
@@ -338,9 +346,8 @@ public class WorkflowService {
     }
 
     public LongRunning.Operation startAllocation(String userId, String workflowName, String sessionId,
-                                                 String executionId, String stdoutChannelId, String stderrChannelId)
+                                                 String executionId, String stdoutChannelId, String stderrChannelId, String portalId)
     {
-        var portalId = "portal_" + executionId + UUID.randomUUID();
 
         String privateKey;
         try {
@@ -404,5 +411,49 @@ public class WorkflowService {
             LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(500));
         }
         return null;
+    }
+
+    public void readStdSlots(
+        LWFS.ReadStdSlotsRequest request, StreamObserver<LWFS.ReadStdSlotsResponse> responseObserver)
+    {
+        var executionId = request.getExecutionId();
+        try {
+            var portalDesc = withRetries(LOG, () -> workflowDao.getPortalDescription(executionId));
+            if (portalDesc == null) {
+                throw Status.NOT_FOUND.withDescription("Portal not found").asRuntimeException();
+            }
+
+            if (portalDesc.portalStatus() != PortalDescription.PortalStatus.VM_READY) {
+                throw Status.UNAVAILABLE.withDescription("Portal is creating, retry later.").asRuntimeException();
+            }
+
+            var stdoutReader = new PortalSlotsListener(portalDesc.fsAddress(), portalDesc.portalId(), "/portal:stdout",
+                bs -> responseObserver.onNext(LWFS.ReadStdSlotsResponse.newBuilder()
+                    .setStdout(
+                        LWFS.ReadStdSlotsResponse.Data.newBuilder()
+                            .addData(String.valueOf(bs))
+                            .build()
+                    )
+                    .build()));
+
+            var stderrReader = new PortalSlotsListener(portalDesc.fsAddress(), portalDesc.portalId(), "/portal:stderr",
+                bs -> responseObserver.onNext(LWFS.ReadStdSlotsResponse.newBuilder()
+                    .setStderr(
+                        LWFS.ReadStdSlotsResponse.Data.newBuilder()
+                            .addData(String.valueOf(bs))
+                            .build()
+                    )
+                    .build()));
+
+            stdoutReader.start();
+            stderrReader.start();
+
+            stdoutReader.join();
+            stderrReader.join();
+
+        } catch (Exception e) {
+            LOG.error("Error while reading slots: ", e);
+            throw Status.INTERNAL.withDescription(e.getMessage()).asRuntimeException();
+        }
     }
 }
