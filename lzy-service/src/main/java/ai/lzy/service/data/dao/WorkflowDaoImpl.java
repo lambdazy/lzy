@@ -72,7 +72,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
     public static final String QUERY_UPDATE_ALLOCATOR_SESSION = """
         UPDATE workflow_executions
-        SET portal = cast(? as portal_status), allocator_session_id = ?, portal_id = ?,
+        SET portal = cast(? as portal_status), allocator_session_id = ?, portal_id = ?
         WHERE execution_id = ?""";
 
     public static final String QUERY_UPDATE_ALLOCATE_OPERATION_DATA = """
@@ -82,7 +82,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
     public static final String QUERY_UPDATE_ALLOCATE_VM_ADDRESS = """
         UPDATE workflow_executions
-        SET portal = cast(? as portal_status), portal_vm_address = ?, poeral_fs_address = ?
+        SET portal = cast(? as portal_status), portal_vm_address = ?, portal_fs_address = ?
         WHERE execution_id = ?""";
 
     public static final String QUERY_UPDATE_EXECUTION_FINISH_DATA = """
@@ -91,8 +91,8 @@ public class WorkflowDaoImpl implements WorkflowDao {
         WHERE execution_id = ?""";
 
     public static final String QUERY_GET_PORTAL_ADDRESS = """
-        SELECT portal_vm_address 
-        FROM workflow_executions 
+        SELECT portal_vm_address
+        FROM workflow_executions
         WHERE execution_id = ?""";
 
     public static final String QUERY_GET_STORAGE_CREDENTIALS = """
