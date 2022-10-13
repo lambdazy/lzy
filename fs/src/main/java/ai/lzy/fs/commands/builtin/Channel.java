@@ -3,9 +3,6 @@ package ai.lzy.fs.commands.builtin;
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.model.DataScheme;
 import ai.lzy.model.grpc.ProtoConverter;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.util.grpc.ClientHeaderInterceptor;
-import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.channel.LCMPS;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
@@ -25,6 +22,9 @@ import java.net.URI;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 public final class Channel implements LzyCommand {
 
@@ -77,19 +77,13 @@ public final class Channel implements LzyCommand {
         final LzyAuth.Auth auth = LzyAuth.Auth.parseFrom(Base64.getDecoder().decode(command.getOptionValue('a')));
         LOG.info("Auth {}", JsonUtils.printRequest(auth));
 
-        final ManagedChannel channelManagerChannel = ChannelBuilder
-            .forAddress(channelManagerAddress.getHost(), channelManagerAddress.getPort())
-            .usePlaintext()
-            .enableRetry(LzyKharonGrpc.SERVICE_NAME)
-            .build();
+        final ManagedChannel channelManagerChannel = newGrpcChannel(
+            channelManagerAddress.getHost(), channelManagerAddress.getPort(), LzyKharonGrpc.SERVICE_NAME);
 
-        final LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManager =
-            LzyChannelManagerPrivateGrpc
-                .newBlockingStub(channelManagerChannel)
-                .withInterceptors(ClientHeaderInterceptor.header(
-                    GrpcHeaders.AUTHORIZATION,
-                    auth.getUser()::getToken
-                ));
+        final LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManager = newBlockingClient(
+            LzyChannelManagerPrivateGrpc.newBlockingStub(channelManagerChannel),
+            "CmdChannel",
+            auth.getUser()::getToken);
 
         switch (channelCommand) {
             case "create" -> {

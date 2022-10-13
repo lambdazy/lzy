@@ -8,7 +8,8 @@ import ai.lzy.model.deprecated.Zygote;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
-import ai.lzy.util.grpc.*;
+import ai.lzy.util.grpc.GrpcUtils;
+import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.deprecated.Lzy;
@@ -18,10 +19,10 @@ import ai.lzy.v1.deprecated.LzyServerGrpc;
 import ai.lzy.v1.deprecated.LzyZygote;
 import ai.lzy.v1.fs.LzyFsApi;
 import ai.lzy.v1.fs.LzyFsGrpc;
+import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.Status;
-import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.jsonwebtoken.Jwts;
 import org.apache.commons.lang3.SystemUtils;
@@ -30,13 +31,11 @@ import org.apache.logging.log4j.Logger;
 import ru.serce.jnrfuse.FuseException;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -49,6 +48,7 @@ import static ai.lzy.model.UriScheme.SlotS3;
 import static ai.lzy.model.deprecated.GrpcConverter.from;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 import static ai.lzy.v1.channel.LzyChannelManagerGrpc.newBlockingStub;
 
 public final class LzyFsServer {
@@ -98,9 +98,7 @@ public final class LzyFsServer {
 
         this.startFuse = startFuse;
 
-        localServer = NettyServerBuilder.forAddress(new InetSocketAddress(selfUri.getHost(), selfUri.getPort()))
-            .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
+        localServer = newGrpcServer(HostAndPort.fromParts(selfUri.getHost(), selfUri.getPort()), GrpcUtils.NO_AUTH)
             .addService(new Impl())
             .build();
     }
@@ -159,7 +157,7 @@ public final class LzyFsServer {
         if (lzyServerUri != null) {
             final var lzyServerChannel = newGrpcChannel(lzyServerUri.getHost(), lzyServerUri.getPort(),
                 LzyKharonGrpc.SERVICE_NAME);
-            final LzyServerGrpc.LzyServerBlockingStub lzyServerClient = LzyServerGrpc.newBlockingStub(lzyServerChannel);
+            final var lzyServerClient = newBlockingClient(LzyServerGrpc.newBlockingStub(lzyServerChannel), "Fs", null);
 
             final String bucket = lzyServerClient
                 .getBucket(Lzy.GetBucketRequest.newBuilder().setAuth(auth).build())

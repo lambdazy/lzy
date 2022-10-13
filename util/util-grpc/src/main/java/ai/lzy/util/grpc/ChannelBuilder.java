@@ -6,9 +6,7 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.Status;
 
 import java.net.InetSocketAddress;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 public class ChannelBuilder {
@@ -22,7 +20,7 @@ public class ChannelBuilder {
     private final int port;
 
     private boolean tls;
-    private String retryServiceName;
+    private final List<String> retryServiceNames = new ArrayList<>();
     private int maxRetry;
     private String initialBackoff;
     private String maxBackoff;
@@ -35,7 +33,6 @@ public class ChannelBuilder {
         this.port = port;
 
         this.tls = true;
-        this.retryServiceName = null;
         this.maxRetry = 3;
         this.initialBackoff = "0.5s";
         this.maxBackoff = "2s";
@@ -76,8 +73,8 @@ public class ChannelBuilder {
         return this;
     }
 
-    public ChannelBuilder enableRetry(String service) {
-        this.retryServiceName = service;
+    public ChannelBuilder enableRetry(String... services) {
+        this.retryServiceNames.addAll(Arrays.asList(services));
         return this;
     }
 
@@ -115,13 +112,13 @@ public class ChannelBuilder {
             .idleTimeout(IDLE_TIMEOUT_MINS, TimeUnit.MINUTES)
             .keepAliveTime(KEEP_ALIVE_TIME_MINS, TimeUnit.MINUTES)
             .keepAliveTimeout(KEEP_ALIVE_TIMEOUT_SECS, TimeUnit.SECONDS);
-        if (retryServiceName != null) {
-            configureRetry(builder, retryServiceName);
+        if (!retryServiceNames.isEmpty()) {
+            configureRetry(builder, retryServiceNames);
         }
         return builder.build();
     }
 
-    private void configureRetry(ManagedChannelBuilder<?> builder, String serviceName) {
+    private void configureRetry(ManagedChannelBuilder<?> builder, Collection<String> serviceNames) {
         var retryPolicy = new HashMap<>();
         retryPolicy.put("maxAttempts", (double) maxRetry);
         retryPolicy.put("initialBackoff", initialBackoff);
@@ -131,9 +128,15 @@ public class ChannelBuilder {
 
         builder.defaultServiceConfig(
             Map.of(
-                "methodConfig", List.of(Map.of(
-                    "name", List.of(Map.of("service", serviceName)),
-                    "retryPolicy", retryPolicy))));
+                "methodConfig", List.of(
+                    Map.of(
+                        "name", serviceNames.stream()
+                            .map(serviceName -> Map.of("service", serviceName))
+                            .toList(),
+                        "retryPolicy", retryPolicy)
+                )
+            )
+        );
 
         builder.enableRetry()
             .maxRetryAttempts(maxRetry)

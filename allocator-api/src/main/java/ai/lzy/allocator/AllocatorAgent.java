@@ -1,6 +1,5 @@
 package ai.lzy.allocator;
 
-import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.AllocatorPrivateGrpc;
@@ -17,6 +16,9 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
+
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 public class AllocatorAgent extends TimerTask {
     private static final Logger LOG = LogManager.getLogger(AllocatorAgent.class);
@@ -47,11 +49,8 @@ public class AllocatorAgent extends TimerTask {
             : heartbeatPeriod;
         this.vmIpAddress = vmIpAddress;
 
-        channel = ChannelBuilder.forAddress(allocAddress)
-            .usePlaintext()
-            .enableRetry(AllocatorPrivateGrpc.SERVICE_NAME)
-            .build();
-        stub = AllocatorPrivateGrpc.newBlockingStub(channel);
+        channel = newGrpcChannel(allocAddress, AllocatorPrivateGrpc.SERVICE_NAME);
+        stub = newBlockingClient(AllocatorPrivateGrpc.newBlockingStub(channel), "AllocatorAgent", null);
 
         ott = ott != null ? ott : System.getenv(VM_ALLOCATOR_OTT);
 
