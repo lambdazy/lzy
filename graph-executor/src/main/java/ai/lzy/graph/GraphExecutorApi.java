@@ -17,7 +17,6 @@ import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.v1.graph.GraphExecutor;
 import ai.lzy.v1.graph.GraphExecutorApi.*;
 import ai.lzy.v1.graph.GraphExecutorGrpc;
-import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
@@ -176,8 +175,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
         final var internalUserOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
 
         server =
-            newGrpcServer(
-                HostAndPort.fromParts("0.0.0.0", config.getPort()),
+            newGrpcServer("0.0.0.0", config.getPort(),
                 new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel)))
             .addService(ServerInterceptors.intercept(this, internalUserOnly))
             .build();

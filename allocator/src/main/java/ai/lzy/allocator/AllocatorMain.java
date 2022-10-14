@@ -66,8 +66,7 @@ public class AllocatorMain {
 
         final HostAndPort address = HostAndPort.fromString(config.getAddress());
 
-        var builder = newGrpcServer(
-            HostAndPort.fromParts("0.0.0.0", address.getPort()),
+        var builder = newGrpcServer("0.0.0.0", address.getPort(),
             new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel))
                 .withUnauthenticated(AllocatorPrivateGrpc.getHeartbeatMethod()))
             .intercept(MetricsGrpcInterceptor.server(APP));
