@@ -2,7 +2,6 @@ package ai.lzy.fs.commands.builtin;
 
 import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.fs.fs.LzyFSManager;
-import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.deprecated.LzyAuth;
 import ai.lzy.v1.fs.LzyFsApi;
@@ -16,6 +15,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Base64;
+
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 public final class Touch implements LzyCommand {
 
@@ -44,11 +45,8 @@ public final class Touch implements LzyCommand {
 
         final Path lzyFsRoot = Path.of(command.getOptionValue('m'));
 
-        final ManagedChannel lzyFsChannel = ChannelBuilder
-            .forAddress("localhost", Integer.parseInt(command.getOptionValue('p')))
-            .usePlaintext()
-            .enableRetry(LzyFsGrpc.SERVICE_NAME)
-            .build();
+        final ManagedChannel lzyFsChannel = newGrpcChannel(
+            "localhost", Integer.parseInt(command.getOptionValue('p')), LzyFsGrpc.SERVICE_NAME);
 
         final LzyFsGrpc.LzyFsBlockingStub lzyFs = LzyFsGrpc.newBlockingStub(lzyFsChannel);
 

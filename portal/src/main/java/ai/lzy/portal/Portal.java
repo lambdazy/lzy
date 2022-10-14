@@ -1,7 +1,6 @@
 package ai.lzy.portal;
 
 import ai.lzy.allocator.AllocatorAgent;
-import ai.lzy.fs.LzyFsServer;
 import ai.lzy.fs.SlotsManager;
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
@@ -10,8 +9,11 @@ import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.portal.config.PortalConfig;
 import ai.lzy.portal.slots.SnapshotSlotsProvider;
 import ai.lzy.portal.slots.StdoutSlot;
+import ai.lzy.util.auth.credentials.CredentialsUtils;
+import ai.lzy.util.auth.credentials.RenewableJwt;
+import ai.lzy.util.grpc.GrpcUtils;
+import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
-import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
@@ -19,14 +21,22 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.net.URI;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import javax.annotation.Nullable;
 
-import static ai.lzy.model.UriScheme.LzyServant;
+import static ai.lzy.model.UriScheme.LzyFs;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
+import static ai.lzy.v1.channel.LzyChannelManagerGrpc.newBlockingStub;
 
 public class Portal {
     private static final Logger LOG = LogManager.getLogger(Portal.class);
@@ -39,16 +49,20 @@ public class Portal {
     private final String stdoutChannelId;
     private final String stderrChannelId;
 
-    private final int port;
     private final String host;
+    private final int portalPort;
+    private final int slotsPort;
 
     private final ManagedChannel iamChannel;
+    private final ManagedChannel channelsManagerChannel;
 
     // services
-    private final Server grpcServer;
-    private final LzyFsServer fsServer;
+    private final Server portalServer;
+    private final Server slotsServer;
     private final AllocatorAgent allocatorAgent;
 
+    private final RenewableJwt slotsJwt;
+    private final Supplier<String> tokenFactory;
     private SlotsManager slotsManager;
 
     // slots
@@ -60,45 +74,56 @@ public class Portal {
 
     private CountDownLatch started;
 
-    public Portal(PortalConfig config, AllocatorAgent agent, LzyFsServer fs) {
-        this.stdoutChannelId = config.getStdoutChannelId();
-        this.stderrChannelId = config.getStderrChannelId();
+    public Portal(PortalConfig config, AllocatorAgent agent, @Nullable String testOnlyToken)
+        throws IOException, NoSuchAlgorithmException, InvalidKeySpecException
+    {
+        stdoutChannelId = config.getStdoutChannelId();
+        stderrChannelId = config.getStderrChannelId();
 
-        this.port = config.getPortalApiPort();
-        this.host = config.getHost();
+        host = config.getHost();
+        portalPort = config.getPortalApiPort();
+        slotsPort = config.getFsApiPort();
 
-        this.iamChannel = newGrpcChannel(config.getIamAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
+        iamChannel = newGrpcChannel(config.getIamAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
+        channelsManagerChannel = newGrpcChannel(config.getChannelManagerAddress(), LzyChannelManagerGrpc.SERVICE_NAME);
 
         var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
 
-        this.grpcServer =
-            newGrpcServer(
-                HostAndPort.fromParts(config.getHost(), config.getPortalApiPort()),
+        portalServer = newGrpcServer(host, portalPort,
                 new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel)))
             .addService(ServerInterceptors.intercept(new PortalApiImpl(this), internalOnly))
             .build();
 
-        this.allocatorAgent = agent;
-        this.fsServer = fs;
+        slotsServer = newGrpcServer(host, slotsPort, GrpcUtils.NO_AUTH)
+            .addService(new FsApiImpl(this))
+            .build();
 
-        var prev = fsServer.setSlotApiInterceptor(new FsApiImpl(this));
-        assert prev == null;
+        allocatorAgent = agent;
 
-        this.snapshots = new SnapshotSlotsProvider();
-        this.portalId = config.getPortalId();
+        if (testOnlyToken == null) {
+            var privateKey = CredentialsUtils.readPrivateKey(config.getIamPrivateKey());
+            slotsJwt = new RenewableJwt(config.getPortalId(), "INTERNAL", Duration.ofHours(1), privateKey);
+            tokenFactory = () -> slotsJwt.get().token();
+        } else {
+            slotsJwt = null;
+            tokenFactory = () -> testOnlyToken;
+        }
+
+        snapshots = new SnapshotSlotsProvider();
+        portalId = config.getPortalId();
     }
 
     public void start() {
         started = new CountDownLatch(1);
 
-        LOG.info("Starting portal with config: { portalId: '{}', url: '{}:/{}:{}', fsRoot: '{}', " +
-            "stdoutChannelId: '{}', stderrChannelId: '{}'}", portalId, LzyServant.scheme(), host, port,
-            fsServer.getMountPoint(), stdoutChannelId, stderrChannelId);
+        LOG.info("Starting portal with config: { portalId: '{}', host: '{}', port: '{}', slotsPort: '{}', " +
+            "stdoutChannelId: '{}', stderrChannelId: '{}'}",
+            portalId, host, portalPort, slotsPort, stdoutChannelId, stderrChannelId);
 
         try {
-            grpcServer.start();
+            portalServer.start();
             allocatorAgent.start();
-            fsServer.start();
+            slotsServer.start();
         } catch (IOException | AllocatorAgent.RegisterException e) {
             LOG.error(e);
             this.shutdown();
@@ -107,7 +132,10 @@ public class Portal {
 
         LOG.info("Registering portal stdout/err slots...");
 
-        slotsManager = fsServer.getSlotsManager();
+        slotsManager = new SlotsManager(
+            newBlockingClient(newBlockingStub(channelsManagerChannel), APP, tokenFactory),
+            URI.create("%s://%s:%d".formatted(LzyFs.scheme(), host, slotsPort)));
+
         stdoutSlot = new StdoutSlot(stdoutSlotName, portalId, stdoutChannelId,
             slotsManager.resolveSlotUri(portalId, stdoutSlotName));
         slotsManager.registerSlot(stdoutSlot);
@@ -116,7 +144,7 @@ public class Portal {
             slotsManager.resolveSlotUri(portalId, stderrSlotName));
         slotsManager.registerSlot(stderrSlot);
 
-        LOG.info("Portal successfully started at '{}:{}'", host, port);
+        LOG.info("Portal successfully started at '{}:{}'", host, portalPort);
 
         started.countDown();
     }
@@ -124,25 +152,27 @@ public class Portal {
     public void shutdown() {
         LOG.info("Stopping portal");
         iamChannel.shutdown();
-        grpcServer.shutdown();
+        channelsManagerChannel.shutdown();
+        portalServer.shutdown();
+        slotsServer.shutdown();
         allocatorAgent.shutdown();
-        fsServer.stop();
     }
 
     public void shutdownNow() {
         iamChannel.shutdownNow();
-        grpcServer.shutdownNow();
+        channelsManagerChannel.shutdownNow();
+        portalServer.shutdownNow();
+        slotsServer.shutdownNow();
         allocatorAgent.shutdown();
-        fsServer.stop();
     }
 
     public void awaitTermination() throws InterruptedException {
-        grpcServer.awaitTermination();
+        portalServer.awaitTermination();
     }
 
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     public boolean awaitTermination(long count, TimeUnit timeUnit) throws InterruptedException {
-        return grpcServer.awaitTermination(count, timeUnit);
+        return portalServer.awaitTermination(count, timeUnit);
     }
 
     public CountDownLatch started() {

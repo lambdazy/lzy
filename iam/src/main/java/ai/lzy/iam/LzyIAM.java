@@ -9,7 +9,6 @@ import ai.lzy.iam.grpc.service.LzyAuthService;
 import ai.lzy.iam.grpc.service.LzySubjectService;
 import ai.lzy.iam.storage.db.InternalUserInserter;
 import ai.lzy.iam.storage.impl.DbAuthService;
-import com.google.common.net.HostAndPort;
 import io.grpc.Server;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.exceptions.NoSuchBeanException;
@@ -41,8 +40,7 @@ public class LzyIAM {
         InternalUserInserter internalUserInserter = context.getBean(InternalUserInserter.class);
         internalUserInserter.addOrUpdateInternalUser(internalUserConfig);
 
-        var builder = newGrpcServer(
-            HostAndPort.fromParts("0.0.0.0", config.getServerPort()),
+        var builder = newGrpcServer("0.0.0.0", config.getServerPort(),
             new AuthServerInterceptor(context.getBean(DbAuthService.class)));
 
         LzyASService accessService = context.getBean(LzyASService.class);

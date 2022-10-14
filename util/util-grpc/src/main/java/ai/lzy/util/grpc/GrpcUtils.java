@@ -80,9 +80,13 @@ public final class GrpcUtils {
     }
 
     public static NettyServerBuilder newGrpcServer(HostAndPort address, @Nullable ServerInterceptor authInterceptor) {
+        return newGrpcServer(address.getHost(), address.getPort(), authInterceptor);
+    }
+
+    public static NettyServerBuilder newGrpcServer(String host, int port, @Nullable ServerInterceptor authInterceptor) {
         return intercept(
             addKeepAlive(
-                NettyServerBuilder.forAddress(new InetSocketAddress(address.getHost(), address.getPort()))),
+                NettyServerBuilder.forAddress(new InetSocketAddress(host, port))),
             authInterceptor);
     }
 }

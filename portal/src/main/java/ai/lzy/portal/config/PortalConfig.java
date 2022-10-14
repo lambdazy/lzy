@@ -15,7 +15,6 @@ public class PortalConfig {
     private String host;
     private int portalApiPort;
     private int fsApiPort;
-    private String fsRoot;
 
     private String stdoutChannelId;
     private String stderrChannelId;

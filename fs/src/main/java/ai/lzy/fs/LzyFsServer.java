@@ -19,7 +19,6 @@ import ai.lzy.v1.deprecated.LzyServerGrpc;
 import ai.lzy.v1.deprecated.LzyZygote;
 import ai.lzy.v1.fs.LzyFsApi;
 import ai.lzy.v1.fs.LzyFsGrpc;
-import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.Status;
@@ -38,7 +37,6 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 
 import static ai.lzy.model.Constants.LOGS_DIR;
@@ -76,16 +74,12 @@ public final class LzyFsServer {
     private SlotConnectionManager slotConnectionManager;
 
     private final AtomicBoolean stopped = new AtomicBoolean(false);
-    private final AtomicReference<LzyFsGrpc.LzyFsImplBase> slotApiInterceptor = new AtomicReference<>(null);
 
     private LzyFSManager fsManager;
 
-    private final boolean startFuse;
-
     @Deprecated
     public LzyFsServer(String agentId, String mountPoint, URI selfUri, @Nullable URI lzyServerUri,
-                       @Nullable URI lzyWhiteboardUri, URI channelManagerUri, LzyAuth.Auth auth,
-                       boolean startFuse) throws IOException
+                       @Nullable URI lzyWhiteboardUri, URI channelManagerUri, LzyAuth.Auth auth)
     {
         this.agentId = agentId;
         this.channelManagerUri = channelManagerUri;
@@ -96,22 +90,13 @@ public final class LzyFsServer {
         this.auth = auth;
         this.lzyWhiteboardUri = lzyWhiteboardUri;
 
-        this.startFuse = startFuse;
-
-        localServer = newGrpcServer(HostAndPort.fromParts(selfUri.getHost(), selfUri.getPort()), GrpcUtils.NO_AUTH)
+        localServer = newGrpcServer(selfUri.getHost(), selfUri.getPort(), GrpcUtils.NO_AUTH)
             .addService(new Impl())
             .build();
     }
 
-    @Deprecated
-    public LzyFsServer(String agentId, String mountPoint, URI selfUri, @Nullable URI lzyServerUri,
-                       @Nullable URI lzyWhiteboardUri, URI channelManagerUri, LzyAuth.Auth auth) throws IOException
-    {
-        this(agentId, mountPoint, selfUri, lzyServerUri, lzyWhiteboardUri, channelManagerUri, auth, true);
-    }
-
-    public LzyFsServer(String agentId, String mountPoint, URI selfUri,
-                       URI channelManagerUri, String token) throws IOException
+    public LzyFsServer(String agentId, String mountPoint, URI selfUri, URI channelManagerUri, String token)
+        throws IOException
     {
         this(agentId, mountPoint, selfUri, null, null, channelManagerUri, LzyAuth.Auth.newBuilder()
             .setUser(LzyAuth.UserCredentials.newBuilder()
@@ -120,20 +105,8 @@ public final class LzyFsServer {
             .build());
     }
 
-    public LzyFsServer(String agentId, String mountPoint, URI selfUri,
-                       URI channelManagerUri, String token, boolean startFuse) throws IOException
-    {
-        this(agentId, mountPoint, selfUri, null, null, channelManagerUri, LzyAuth.Auth.newBuilder()
-            .setUser(LzyAuth.UserCredentials.newBuilder()
-                .setToken(token)
-                .build())
-            .build(), startFuse);
-    }
-
     public void start() throws IOException {
-        if (startFuse) {
-            fsManager = startFuse();
-        }
+        fsManager = startFuse();
 
         LOG.info("Starting LzyFs gRPC server at {}.", selfUri);
         localServer.start();
@@ -176,11 +149,9 @@ public final class LzyFsServer {
         }
         // >>>
 
-        if (fsManager != null) {
-            LOG.info("Registering lzy commands...");
-            for (BuiltinCommandHolder command : BuiltinCommandHolder.values()) {
-                registerBuiltinCommand(Path.of(command.name()), command.name());
-            }
+        LOG.info("Registering lzy commands...");
+        for (BuiltinCommandHolder command : BuiltinCommandHolder.values()) {
+            registerBuiltinCommand(Path.of(command.name()), command.name());
         }
 
         LOG.info("LzyFs started on {}.", selfUri);
@@ -220,9 +191,7 @@ public final class LzyFsServer {
                 localServer.shutdown();
             } finally {
                 try {
-                    if (fsManager != null) {
-                        fsManager.umount();
-                    }
+                    fsManager.umount();
                 } finally {
                     mounted.decrementAndGet();
                 }
@@ -246,11 +215,6 @@ public final class LzyFsServer {
     public void addSlot(LzyFileSlot slot) {
         LOG.info("Explicitly add slot: {}", slot.name());
         fsManager.addSlot(slot);
-    }
-
-    @Nullable
-    public LzyFsGrpc.LzyFsImplBase setSlotApiInterceptor(LzyFsGrpc.LzyFsImplBase interceptor) {
-        return slotApiInterceptor.getAndSet(interceptor);
     }
 
     public LzyFsApi.SlotCommandStatus createSlot(LzyFsApi.CreateSlotRequest request) {
@@ -433,11 +397,11 @@ public final class LzyFsServer {
         LOG.info("Mounting LzyFs at {}.", mountPoint.toAbsolutePath().toString());
         try {
             fs.mount(mountPoint);
+            mounted.incrementAndGet();
         } catch (FuseException e) {
             fs.umount();
             throw e;
         }
-        mounted.incrementAndGet();
 
         return fs;
     }
@@ -508,62 +472,32 @@ public final class LzyFsServer {
 
         @Override
         public void createSlot(LzyFsApi.CreateSlotRequest req, StreamObserver<LzyFsApi.SlotCommandStatus> resp) {
-            var interceptor = slotApiInterceptor.get();
-            if (interceptor == null) {
-                slotCall(req, resp, LzyFsServer.this::createSlot);
-            } else {
-                interceptor.createSlot(req, resp);
-            }
+            slotCall(req, resp, LzyFsServer.this::createSlot);
         }
 
         @Override
         public void connectSlot(LzyFsApi.ConnectSlotRequest req, StreamObserver<LzyFsApi.SlotCommandStatus> resp) {
-            var interceptor = slotApiInterceptor.get();
-            if (interceptor == null) {
-                slotCall(req, resp, LzyFsServer.this::connectSlot);
-            } else {
-                interceptor.connectSlot(req, resp);
-            }
+            slotCall(req, resp, LzyFsServer.this::connectSlot);
         }
 
         @Override
         public void disconnectSlot(LzyFsApi.DisconnectSlotRequest req, StreamObserver<LzyFsApi.SlotCommandStatus> rsp) {
-            var interceptor = slotApiInterceptor.get();
-            if (interceptor == null) {
-                slotCall(req, rsp, LzyFsServer.this::disconnectSlot);
-            } else {
-                interceptor.disconnectSlot(req, rsp);
-            }
+            slotCall(req, rsp, LzyFsServer.this::disconnectSlot);
         }
 
         @Override
         public void statusSlot(LzyFsApi.StatusSlotRequest req, StreamObserver<LzyFsApi.SlotCommandStatus> resp) {
-            var interceptor = slotApiInterceptor.get();
-            if (interceptor == null) {
-                slotCall(req, resp, LzyFsServer.this::statusSlot);
-            } else {
-                interceptor.statusSlot(req, resp);
-            }
+            slotCall(req, resp, LzyFsServer.this::statusSlot);
         }
 
         @Override
         public void destroySlot(LzyFsApi.DestroySlotRequest req, StreamObserver<LzyFsApi.SlotCommandStatus> resp) {
-            var interceptor = slotApiInterceptor.get();
-            if (interceptor == null) {
-                slotCall(req, resp, LzyFsServer.this::destroySlot);
-            } else {
-                interceptor.destroySlot(req, resp);
-            }
+            slotCall(req, resp, LzyFsServer.this::destroySlot);
         }
 
         @Override
         public void openOutputSlot(LzyFsApi.SlotRequest req, StreamObserver<LzyFsApi.Message> resp) {
-            var interceptor = slotApiInterceptor.get();
-            if (interceptor == null) {
-                LzyFsServer.this.openOutputSlot(req, resp);
-            } else {
-                interceptor.openOutputSlot(req, resp);
-            }
+            LzyFsServer.this.openOutputSlot(req, resp);
         }
     }
 }
