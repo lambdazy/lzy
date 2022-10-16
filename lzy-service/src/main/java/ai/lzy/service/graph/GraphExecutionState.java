@@ -11,7 +11,7 @@ final class GraphExecutionState {
     private final String executionId;
 
     private String workflowName;
-    private String zoneName;
+    private String zone;
 
     private List<LWF.DataDescription> descriptions;
     private List<LWF.Operation> operations;
@@ -54,12 +54,12 @@ final class GraphExecutionState {
         this.workflowName = workflowName;
     }
 
-    public String getZoneName() {
-        return zoneName;
+    public String getZone() {
+        return zone;
     }
 
-    public void setZoneName(String zoneName) {
-        this.zoneName = zoneName;
+    public void setZone(String zone) {
+        this.zone = zone;
     }
 
     public DataFlowGraph getDataFlowGraph() {
@@ -107,7 +107,7 @@ final class GraphExecutionState {
     }
 
     private String printZoneName() {
-        return "zoneName: " + zoneName;
+        return "zoneName: " + zone;
     }
 
     @Override
@@ -119,7 +119,7 @@ final class GraphExecutionState {
         if (workflowName != null) {
             sb.append(", ").append(printWorkflowName());
         }
-        if (zoneName != null) {
+        if (zone != null) {
             sb.append(", ").append(printZoneName());
         }
 

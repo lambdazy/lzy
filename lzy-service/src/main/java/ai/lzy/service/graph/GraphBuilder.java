@@ -74,7 +74,7 @@ class GraphBuilder {
 
         List<TaskDesc> tasks;
         try {
-            tasks = buildTasksWithZone(executionId, state.getZoneName(), state.getOperations(),
+            tasks = buildTasksWithZone(executionId, state.getZone(), state.getOperations(),
                 slotName2channelId, slot2description, portalClient);
         } catch (StatusRuntimeException e) {
             state.onError(e.getStatus(), "Cannot build graph");
@@ -126,8 +126,9 @@ class GraphBuilder {
             var channelId = channelManagerClient
                 .create(makeCreateDirectChannelCommand(executionId, "channel_" + slotUri))
                 .getChannelId();
+            var portalInputSlotName = "/portal_slot_" + UUID.randomUUID();
 
-            portalSlotToOpen.add(makePortalInputSlot(slotUri, "/portal_slot_" + slotUri, channelId, storageLocator));
+            portalSlotToOpen.add(makePortalInputSlot(slotUri, portalInputSlotName, channelId, storageLocator));
 
             // slotName2channelId.put(portalInputSlotName, channelId); uncomment if necessary
 
@@ -157,7 +158,7 @@ class GraphBuilder {
 
             for (var data : withoutChannels) {
                 var slotUri = data.slotUri();
-                var portalOutputSlotName = "/portal_slot_" + slotUri;
+                var portalOutputSlotName = "/portal_slot_" + UUID.randomUUID();
                 var channelId = channelManagerClient
                     .create(makeCreateDirectChannelCommand(executionId, "portal_channel_" + slotUri))
                     .getChannelId();

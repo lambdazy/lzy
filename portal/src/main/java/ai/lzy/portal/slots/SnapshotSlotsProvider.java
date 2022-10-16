@@ -77,7 +77,8 @@ public class SnapshotSlotsProvider {
     }
 
     private SnapshotSlot getOrCreateSnapshotSlot(S3Repository<Stream<ByteString>> s3Repo, String snapshotId,
-                                                 String key, String bucket) throws CreateSlotException {
+                                                 String key, String bucket) throws CreateSlotException
+    {
         try {
             return snapshots.computeIfAbsent(snapshotId,
                 id -> {
@@ -102,7 +103,8 @@ public class SnapshotSlotsProvider {
     }
 
     private S3Repository<Stream<ByteString>> getS3RepositoryForSnapshots(LMS3.S3Locator s3Locator)
-        throws CreateSlotException {
+        throws CreateSlotException
+    {
         return switch (s3Locator.getEndpointCase()) {
             case AMAZON -> s3Repositories.getOrCreate(s3Locator.getAmazon().getEndpoint(),
                 s3Locator.getAmazon().getAccessToken(), s3Locator.getAmazon().getSecretToken(),

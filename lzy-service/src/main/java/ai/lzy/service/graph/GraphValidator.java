@@ -11,8 +11,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.service.util.CollectionUtils.findFirstDuplicate;
@@ -30,12 +30,18 @@ class GraphValidator {
         this.vmPoolClient = vmPoolClient;
     }
 
-    public void validate(GraphExecutionState state, LWF.Graph graph) {
-        Collection<LWF.Operation> operations = graph.getOperationsList();
-        var slotsUriAsOutput = operations.stream()
+    public void validate(GraphExecutionState state) {
+        Collection<LWF.Operation> operations = state.getOperations();
+
+        if (operations.isEmpty()) {
+            state.onError(Status.INVALID_ARGUMENT, "Collection of graph operations is empty");
+            return;
+        }
+
+        var allOutputSlotsUriList = operations.stream()
             .flatMap(op -> op.getOutputSlotsList().stream().map(LWF.Operation.SlotDescription::getStorageUri))
-            .collect(Collectors.toSet());
-        var duplicate = findFirstDuplicate(slotsUriAsOutput);
+            .toList();
+        var duplicate = findFirstDuplicate(allOutputSlotsUriList);
 
         if (duplicate != null) {
             state.onError(Status.INVALID_ARGUMENT, "Duplicated output slot URI: " + duplicate);
@@ -44,7 +50,7 @@ class GraphValidator {
 
         Set<String> knownSlots;
         try {
-            knownSlots = withRetries(LOG, () -> executionDao.retainExistingSlots(slotsUriAsOutput));
+            knownSlots = withRetries(LOG, () -> executionDao.retainExistingSlots(new HashSet<>(allOutputSlotsUriList)));
         } catch (Exception e) {
             state.onError(Status.INTERNAL, "Cannot obtain existing slots URIs while starting graph: " + e.getMessage());
             return;
@@ -56,7 +62,10 @@ class GraphValidator {
             return;
         }
 
-        var dataflowGraph = new DataFlowGraph(operations);
+        var nodes = operations.stream()
+            .map(op -> new DataFlowGraph.Node(op.getName(), op.getInputSlotsList(), op.getOutputSlotsList()))
+            .toList();
+        var dataflowGraph = new DataFlowGraph(nodes);
 
         state.setDataFlowGraph(dataflowGraph);
 
@@ -94,17 +103,17 @@ class GraphValidator {
             return;
         }
 
-        var zoneName = graph.getZone().isBlank() ? suitableZones.stream().findAny().orElse(null) : graph.getZone();
+        var zone = state.getZone().isBlank() ? suitableZones.stream().findAny().orElse(null) : state.getZone();
 
-        if (zoneName == null) {
+        if (zone == null) {
             state.onError(Status.INVALID_ARGUMENT, "Cannot find zone which has all required pools: " +
                 JsonUtils.printAsArray(requiredPoolLabels));
             return;
         }
 
-        state.setZoneName(zoneName);
+        state.setZone(zone);
 
-        if (!suitableZones.contains(zoneName)) {
+        if (!suitableZones.contains(zone)) {
             state.onError(Status.INVALID_ARGUMENT, "Passed zone does not contain all required pools");
         }
     }

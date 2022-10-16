@@ -83,10 +83,12 @@ public class GraphExecutionService {
         }
 
         LWF.Graph graph = request.getGraph();
+
+        graphExecutionState.setZone(graph.getZone());
         graphExecutionState.setOperations(graph.getOperationsList());
         graphExecutionState.setDescriptions(graph.getDataDescriptionsList());
 
-        validator.validate(graphExecutionState, graph);
+        validator.validate(graphExecutionState);
 
         LOG.debug("[executeGraph], building graph, current state: " + graphExecutionState);
 
