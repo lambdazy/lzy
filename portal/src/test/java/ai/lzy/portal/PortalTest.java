@@ -2,7 +2,6 @@ package ai.lzy.portal;
 
 import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.channelmanager.grpc.ChannelManagerMock;
-import ai.lzy.fs.LzyFsServer;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.model.grpc.ProtoConverter;
@@ -12,7 +11,6 @@ import ai.lzy.servant.agents.LzyAgentConfig;
 import ai.lzy.servant.agents.LzyServant;
 import ai.lzy.test.GrpcUtils;
 import ai.lzy.util.auth.credentials.JwtUtils;
-import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.JsonUtils;
@@ -40,7 +38,11 @@ import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.net.URI;
@@ -55,7 +57,8 @@ import java.util.concurrent.locks.LockSupport;
 
 import static ai.lzy.channelmanager.grpc.ProtoConverter.makeCreateDirectChannelCommand;
 import static ai.lzy.channelmanager.grpc.ProtoConverter.makeDestroyChannelCommand;
-import static ai.lzy.model.UriScheme.LzyFs;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 public class PortalTest {
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
@@ -135,16 +138,10 @@ public class PortalTest {
         createChannel("portal:stderr");
 
         try {
-            var fsUri = new URI(LzyFs.scheme(), null, config.getHost(), config.getFsApiPort(), null, null, null);
-            var cm = HostAndPort.fromString(config.getChannelManagerAddress());
-            var channelManagerUri = new URI("http", null, cm.getHost(), cm.getPort(), null, null, null);
-
             var agent = new AllocatorAgent("portal_token", "portal_vm",
                 "localhost:" + server.port, Duration.ofSeconds(5), "localhost");
-            var fs = new LzyFsServer(config.getPortalId(), config.getFsRoot(), fsUri, channelManagerUri,
-                "portal_token");
 
-            portal = new Portal(config, agent, fs);
+            portal = new Portal(config, agent, "portal_token");
             portal.start();
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -153,19 +150,13 @@ public class PortalTest {
         var internalUserCredentials = iamTestContext.getClientConfig().createCredentials();
 
         unauthorizedPortalClient = LzyPortalGrpc.newBlockingStub(
-            ChannelBuilder.forAddress("localhost", config.getPortalApiPort())
-                .usePlaintext()
-                .enableRetry(LzyPortalGrpc.SERVICE_NAME)
-                .build());
+            newGrpcChannel("localhost", config.getPortalApiPort(), LzyPortalGrpc.SERVICE_NAME));
 
-        authorizedPortalClient = unauthorizedPortalClient.withInterceptors(ClientHeaderInterceptor.header(
-            GrpcHeaders.AUTHORIZATION, internalUserCredentials::token));
+        authorizedPortalClient = newBlockingClient(unauthorizedPortalClient, "TestClient",
+            internalUserCredentials::token);
 
         portalFsStub = LzyFsGrpc.newBlockingStub(
-            ChannelBuilder.forAddress("localhost", config.getFsApiPort())
-                .usePlaintext()
-                .enableRetry(LzyFsGrpc.SERVICE_NAME)
-                .build());
+            newGrpcChannel("localhost", config.getFsApiPort(), LzyFsGrpc.SERVICE_NAME));
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")

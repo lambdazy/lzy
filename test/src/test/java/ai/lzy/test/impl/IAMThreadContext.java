@@ -25,7 +25,7 @@ public class IAMThreadContext implements LzyIAMTestContext {
     private static final Logger LOG = LogManager.getLogger(IAMThreadContext.class);
 
     private static final Duration IAM_STARTUP_TIME = Duration.ofSeconds(10);
-    private static final Duration CHANNEL_SHUTDOWN_TIME = Duration.ofSeconds(5);
+    private static final Duration CHANNEL_SHUTDOWN_TIME = Duration.ofSeconds(15);
 
     public static final int IAM_PORT = 8443;
 
@@ -109,14 +109,20 @@ public class IAMThreadContext implements LzyIAMTestContext {
 
     @Override
     public void close() {
-        channel.shutdown();
         try {
+            channel.shutdown();
             channel.awaitTermination(CHANNEL_SHUTDOWN_TIME.getSeconds(), TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            LOG.error("Cannot shutdown channel {}", channel);
+        }
+
+        try {
             lzyIAM.close();
             lzyIAM.awaitTermination();
-            context.close();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+
+        context.close();
     }
 }

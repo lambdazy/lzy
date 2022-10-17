@@ -81,6 +81,7 @@ public abstract class LzyBaseTest {
         // install extra python libraries if provided any
         if (!extraPyLibs.isEmpty()) {
             final String pipCmd = "pip install " + String.join(" ", extraPyLibs);
+            LOG.info("Install extra python libs: " + pipCmd);
             final ExecutionResult pipInstallResult = execInCondaEnv(term, env, pipCmd);
             if (!pipInstallResult.stdout().isEmpty()) {
                 LOG.info(scenario + " pip install : STDOUT: {}", pipInstallResult.stdout());

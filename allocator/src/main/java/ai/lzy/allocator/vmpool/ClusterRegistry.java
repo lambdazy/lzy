@@ -17,6 +17,8 @@ public interface ClusterRegistry {
 
     ClusterDescription getCluster(String clusterId);
 
+    String getClusterPodsCidr(String clusterId);
+
     List<ClusterDescription> listClusters(ClusterType type);
 
     record ClusterDescription(

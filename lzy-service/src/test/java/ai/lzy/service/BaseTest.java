@@ -6,22 +6,22 @@ import ai.lzy.graph.test.GraphExecutorMock;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.test.BaseTestWithIam;
-import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.service.config.LzyServiceConfig;
-import ai.lzy.storage.impl.MockS3Storage;
+import ai.lzy.storage.test.BaseTestWithStorage;
+import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
 import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
-import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.net.HostAndPort;
-import io.grpc.*;
-import io.grpc.netty.NettyServerBuilder;
+import io.grpc.ManagedChannel;
+import io.grpc.Server;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.jsonwebtoken.Claims;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
@@ -30,60 +30,65 @@ import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.junit.*;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
+
+import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 public class BaseTest {
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
+    private static final BaseTestWithStorage storageTestContext = new BaseTestWithStorage();
     private static final BaseTestWithAllocator allocatorTestContext = new BaseTestWithAllocator();
 
     @Rule
     public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+    @Rule
+    public PreparedDbRule storageDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
     @Rule
     public PreparedDbRule allocatorDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
     @Rule
     public PreparedDbRule lzyServiceDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
 
     protected ApplicationContext context;
+    protected LzyServiceConfig config;
 
-    protected MockS3Storage storageMock;
     protected GraphExecutorMock graphExecutorMock;
 
     private ChannelManagerMock channelManagerMock;
 
     private Server lzyServer;
-    private Server graphExecutorServer;
-    protected Server storageServer;
 
     private ManagedChannel lzyServiceChannel;
     private LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub unauthorizedWorkflowClient;
     protected LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub authorizedWorkflowClient;
 
+    protected JwtCredentials internalUserCredentials;
+    protected AuthServerInterceptor authInterceptor;
+
     @Before
     public void setUp() throws IOException, InterruptedException {
-        var iamDbConfig = DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo());
+        var iamDbConfig = preparePostgresConfig("iam", iamDb.getConnectionInfo());
         iamTestContext.setUp(iamDbConfig);
 
-        var allocatorConfigOverrides = DatabaseTestUtils.preparePostgresConfig("allocator",
-            allocatorDb.getConnectionInfo());
+        var storageDbConfig = preparePostgresConfig("storage", storageDb.getConnectionInfo());
+        storageTestContext.setUp(storageDbConfig);
+
+        var allocatorConfigOverrides = preparePostgresConfig("allocator", allocatorDb.getConnectionInfo());
         allocatorConfigOverrides.put("allocator.thread-allocator.enabled", true);
         allocatorConfigOverrides.put("allocator.thread-allocator.vm-class-name", "ai.lzy.portal.App");
         allocatorTestContext.setUp(allocatorConfigOverrides);
 
-        var lzyDbConfig = DatabaseTestUtils.preparePostgresConfig("lzy-service", lzyServiceDb.getConnectionInfo());
+        var lzyDbConfig = preparePostgresConfig("lzy-service", lzyServiceDb.getConnectionInfo());
         context = ApplicationContext.run(PropertySource.of(lzyDbConfig));
 
-        var config = context.getBean(LzyServiceConfig.class);
+        config = context.getBean(LzyServiceConfig.class);
 
-        var workflowAddress = HostAndPort.fromString(config.getAddress());
-        var storageAddress = HostAndPort.fromString(config.getStorage().getAddress());
-        var graphExecutorAddress = HostAndPort.fromString(config.getGraphExecutorAddress());
+        authInterceptor = new AuthServerInterceptor(credentials -> {
+            var iam = config.getIam();
 
-        var iam = config.getIam();
-        var authInterceptor = new AuthServerInterceptor(credentials -> {
             var user = Objects.requireNonNull(JwtUtils.parseJwt(credentials.token())).get(Claims.ISSUER);
 
             if (user == null) {
@@ -96,49 +101,27 @@ public class BaseTest {
             return new User(iam.getInternalUserName());
         });
 
-        storageMock = new MockS3Storage();
-        storageServer = NettyServerBuilder
-            .forAddress(new InetSocketAddress(storageAddress.getHost(), storageAddress.getPort()))
-            .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .addService(ServerInterceptors.intercept(storageMock, authInterceptor))
-            .build();
-        storageServer.start();
-
-        graphExecutorMock = new GraphExecutorMock();
-        graphExecutorServer = NettyServerBuilder
-            .forAddress(new InetSocketAddress(graphExecutorAddress.getHost(), graphExecutorAddress.getPort()))
-            .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .addService(ServerInterceptors.intercept(graphExecutorMock, authInterceptor))
-            .build();
+        var workflowAddress = HostAndPort.fromString(config.getAddress());
 
         channelManagerMock = new ChannelManagerMock(HostAndPort.fromString(config.getChannelManagerAddress()));
         channelManagerMock.start();
 
-        lzyServer = NettyServerBuilder
-            .forAddress(new InetSocketAddress(workflowAddress.getHost(), workflowAddress.getPort()))
-            .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .addService(ServerInterceptors.intercept(context.getBean(LzyService.class), authInterceptor))
-            .build();
+        lzyServer = App.createServer(workflowAddress, authInterceptor, context.getBean(LzyService.class));
         lzyServer.start();
 
-        var internalUser = iam.createCredentials();
-        lzyServiceChannel = GrpcUtils.newGrpcChannel(workflowAddress, LzyWorkflowServiceGrpc.SERVICE_NAME);
+        lzyServiceChannel = newGrpcChannel(workflowAddress, LzyWorkflowServiceGrpc.SERVICE_NAME);
         unauthorizedWorkflowClient = LzyWorkflowServiceGrpc.newBlockingStub(lzyServiceChannel);
-        authorizedWorkflowClient = unauthorizedWorkflowClient.withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, internalUser::token));
+
+        internalUserCredentials = config.getIam().createCredentials();
+        authorizedWorkflowClient = newBlockingClient(unauthorizedWorkflowClient, "TestClient",
+                                                     internalUserCredentials::token);
     }
 
     @After
     public void tearDown() throws SQLException, InterruptedException {
         iamTestContext.after();
         allocatorTestContext.after();
-        storageServer.shutdown();
-        storageServer.awaitTermination();
-        graphExecutorServer.shutdown();
-        graphExecutorServer.awaitTermination();
+        storageTestContext.after();
         channelManagerMock.stop();
         lzyServiceChannel.shutdown();
         lzyServer.shutdown();
@@ -146,12 +129,17 @@ public class BaseTest {
         context.stop();
     }
 
+    protected void shutdownStorage() throws SQLException, InterruptedException {
+        storageTestContext.after();
+    }
+
     @SuppressWarnings("ResultOfMethodCallIgnored")
     @Test
     public void testUnauthenticated() {
         var workflowName = "workflow_1";
-        var executionId = "some-valid-id";
+        var executionId = "some-valid-execution-id";
         var graphName = "simple-graph";
+        var graphId = "some-valid-graph-id";
 
         var thrown = new ArrayList<StatusRuntimeException>() {
             {
@@ -181,6 +169,20 @@ public class BaseTest {
                             .build())
                         .build()
                 )));
+
+                add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedWorkflowClient.graphStatus(
+                    LWFS.GraphStatusRequest.newBuilder()
+                        .setExecutionId(executionId)
+                        .setGraphId(graphId)
+                        .build()
+                )));
+
+                add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedWorkflowClient.stopGraph(
+                    LWFS.StopGraphRequest.newBuilder()
+                        .setExecutionId(executionId)
+                        .setGraphId(graphId)
+                        .build()
+                )));
             }
         };
 
@@ -191,8 +193,9 @@ public class BaseTest {
     @Test
     public void testPermissionDenied() {
         var workflowName = "workflow_1";
-        var executionId = "some-valid-id";
+        var executionId = "some-valid-execution-id";
         var graphName = "simple-graph";
+        var graphId = "some-valid-graph-id";
         var client = unauthorizedWorkflowClient.withInterceptors(ClientHeaderInterceptor.header(
             GrpcHeaders.AUTHORIZATION, JwtUtils.invalidCredentials("user", "GITHUB")::token));
 
@@ -223,6 +226,20 @@ public class BaseTest {
                         .setGraph(LWF.Graph.newBuilder()
                             .setName(graphName)
                             .build())
+                        .build()
+                )));
+
+                add(Assert.assertThrows(StatusRuntimeException.class, () -> client.graphStatus(
+                    LWFS.GraphStatusRequest.newBuilder()
+                        .setExecutionId(executionId)
+                        .setGraphId(graphId)
+                        .build()
+                )));
+
+                add(Assert.assertThrows(StatusRuntimeException.class, () -> client.stopGraph(
+                    LWFS.StopGraphRequest.newBuilder()
+                        .setExecutionId(executionId)
+                        .setGraphId(graphId)
                         .build()
                 )));
             }

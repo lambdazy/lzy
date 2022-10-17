@@ -48,8 +48,8 @@ public class ClientAuthTest {
         var internalUserCredentials = JwtUtils.credentials(internalUserConfig.userName(), AuthProvider.INTERNAL.name(),
             Date.from(Instant.now()), JwtUtils.afterDays(1), internalUserConfig.credentialPrivateKey());
 
-        subjectClient = new SubjectServiceGrpcClient(getIamAddress(), () -> internalUserCredentials);
-        authClient = new AuthenticateServiceGrpcClient(getIamAddress());
+        subjectClient = new SubjectServiceGrpcClient("TestClient", getIamAddress(), () -> internalUserCredentials);
+        authClient = new AuthenticateServiceGrpcClient("TestClient", getIamAddress());
     }
 
     @After

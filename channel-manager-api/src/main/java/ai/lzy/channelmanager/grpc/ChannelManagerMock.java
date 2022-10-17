@@ -2,7 +2,6 @@ package ai.lzy.channelmanager.grpc;
 
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.SlotInstance;
-import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.channel.LCMPS;
 import ai.lzy.v1.channel.LCMS;
@@ -15,21 +14,21 @@ import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
 import io.grpc.Status;
-import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 import static java.util.Objects.requireNonNull;
 
 public class ChannelManagerMock {
@@ -45,10 +44,7 @@ public class ChannelManagerMock {
         this.port = address.getPort();
         this.privateService = new PrivateServiceMock();
         this.publicService = new PublicServiceMock();
-        server = NettyServerBuilder
-            .forAddress(new InetSocketAddress(address.getHost(), address.getPort()))
-            .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
+        server = newGrpcServer(address, null)
             .addService(ServerInterceptors.intercept(privateService))
             .addService(ServerInterceptors.intercept(publicService))
             .build();
@@ -106,11 +102,8 @@ public class ChannelManagerMock {
 
         private Endpoint(SlotInstance slotInstance) {
             this.slotInstance = slotInstance;
-            channel = ChannelBuilder.forAddress(slotInstance.uri().getHost() + ":" + slotInstance.uri().getPort())
-                .usePlaintext()
-                .enableRetry(LzyFsGrpc.SERVICE_NAME)
-                .build();
-            fs = LzyFsGrpc.newBlockingStub(channel);
+            channel = newGrpcChannel(slotInstance.uri().getHost(), slotInstance.uri().getPort(), LzyFsGrpc.SERVICE_NAME);
+            fs = newBlockingClient(LzyFsGrpc.newBlockingStub(channel), "ChManMock", null);
         }
 
         LzyFsApi.SlotCommandStatus connect(SlotInstance to) {

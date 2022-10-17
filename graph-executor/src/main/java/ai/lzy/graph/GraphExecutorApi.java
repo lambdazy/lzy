@@ -14,8 +14,6 @@ import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.model.db.exceptions.DaoException;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.util.grpc.GrpcLogsInterceptor;
 import ai.lzy.v1.graph.GraphExecutor;
 import ai.lzy.v1.graph.GraphExecutorApi.*;
 import ai.lzy.v1.graph.GraphExecutorGrpc;
@@ -24,7 +22,6 @@ import io.grpc.Server;
 import io.grpc.ServerInterceptors;
 import io.grpc.Status;
 import io.grpc.StatusException;
-import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;
@@ -35,12 +32,15 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 
 @Singleton
 public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
     private static final Logger LOG = LogManager.getLogger(GraphExecutorApi.class);
+
+    public static final String APP = "LzyGraphExecutor";
 
     private final ManagedChannel iamChannel;
     private final GraphExecutionDao dao;
@@ -55,14 +55,14 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
     @Inject
     public GraphExecutorApi(GraphExecutionDao dao, ServiceConfig config,
                             @Named("GraphExecutorIamGrpcChannel") ManagedChannel iamChannel,
-                            GraphBuilder graphBuilder, QueueManager queueManager, SchedulerApi schedulerApi) {
+                            GraphBuilder graphBuilder, QueueManager queueManager, SchedulerApi schedulerApi)
+    {
         this.iamChannel = iamChannel;
         this.dao = dao;
         this.config = config;
         this.graphBuilder = graphBuilder;
         this.queueManager = queueManager;
-        accessClient = new AccessServiceGrpcClient(
-            GrpcConfig.from(config.getAuth().getAddress()),
+        accessClient = new AccessServiceGrpcClient(APP, GrpcConfig.from(config.getAuth().getAddress()),
             config.getAuth()::createCredentials);
         this.schedulerApi = schedulerApi;
     }
@@ -172,13 +172,11 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
 
         queueManager.start();
 
-        final var internalUserOnly = new AllowInternalUserOnlyInterceptor(iamChannel);
+        final var internalUserOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
 
-        server = NettyServerBuilder.forPort(config.getPort())
-            .intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(iamChannel)))
-            .intercept(new GrpcLogsInterceptor())
-            .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
+        server =
+            newGrpcServer("0.0.0.0", config.getPort(),
+                new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel)))
             .addService(ServerInterceptors.intercept(this, internalUserOnly))
             .build();
 

@@ -1,81 +1,92 @@
 package ai.lzy.util.grpc;
 
 import com.google.common.net.HostAndPort;
-import io.grpc.Channel;
 import io.grpc.ManagedChannel;
+import io.grpc.ServerInterceptor;
+import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.AbstractBlockingStub;
-import org.apache.logging.log4j.ThreadContext;
 
-import java.util.function.Function;
+import java.net.InetSocketAddress;
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
 public final class GrpcUtils {
 
+    public static final ServerInterceptor NO_AUTH = null;
+
     private GrpcUtils() {}
 
-    public static <T extends AbstractBlockingStub<T>> T newBlockingClient(T stub, Supplier<String> token) {
-        return stub.withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, token),
-            ClientHeaderInterceptor.header(GrpcHeaders.X_REQUEST_ID, GrpcUtils::getGrpcRequestId)
-        );
-    }
-
-    public static <T extends AbstractBlockingStub<T>> T newBlockingClient(Function<Channel, T> factory, String service,
-                                                                          String address, Supplier<String> token)
+    public static <T extends AbstractBlockingStub<T>> T newBlockingClient(T stub, String name,
+                                                                          @Nullable Supplier<String> token)
     {
-        return factory.apply(newGrpcChannel(address, service))
-            .withInterceptors(
-                ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, token),
-                ClientHeaderInterceptor.header(GrpcHeaders.X_REQUEST_ID, GrpcUtils::getGrpcRequestId));
+        if (token != null) {
+            return stub.withInterceptors(
+                GrpcLogsInterceptor.client(name),
+                ClientHeaderInterceptor.authorization(token),
+                RequestIdInterceptor.client());
+        } else {
+            return stub.withInterceptors(
+                GrpcLogsInterceptor.client(name),
+                RequestIdInterceptor.client());
+        }
     }
 
-    public static ManagedChannel newGrpcChannel(HostAndPort address, String serviceName) {
+    public static <T extends AbstractBlockingStub<T>> T withIdempotencyKey(T stub, String idempotencyKey) {
+        return stub.withInterceptors(ClientHeaderInterceptor.idempotencyKey(() -> idempotencyKey));
+    }
+
+    public static <T extends AbstractBlockingStub<T>> T withTimeout(T stub, Duration timeout) {
+        return stub.withInterceptors(DeadlineClientInterceptor.fromDuration(timeout));
+    }
+
+    public static ManagedChannel newGrpcChannel(HostAndPort address, String... serviceNames) {
         return ChannelBuilder.forAddress(address)
             .usePlaintext()
-            .enableRetry(serviceName)
+            .enableRetry(serviceNames)
             .build();
     }
 
-    public static ManagedChannel newGrpcChannel(String host, int port, String serviceName) {
-        return newGrpcChannel(HostAndPort.fromParts(host, port), serviceName);
+    public static ManagedChannel newGrpcChannel(String host, int port, String... serviceNames) {
+        return newGrpcChannel(HostAndPort.fromParts(host, port), serviceNames);
     }
 
-    public static ManagedChannel newGrpcChannel(String address, String serviceName) {
-        return newGrpcChannel(HostAndPort.fromString(address), serviceName);
+    public static ManagedChannel newGrpcChannel(String address, String... serviceNames) {
+        return newGrpcChannel(HostAndPort.fromString(address), serviceNames);
     }
 
-    private static final String LOG_PROP_REQID = "reqid";
+    public static NettyServerBuilder addKeepAlive(NettyServerBuilder builder) {
+        return builder
+            .permitKeepAliveWithoutCalls(true)
+            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES);
+    }
 
-    @Nullable
-    public static String getGrpcRequestId() {
-        var reqid = GrpcHeaders.getRequestId();
-        if (reqid != null) {
-            return reqid;
+    public static NettyServerBuilder intercept(NettyServerBuilder builder,
+                                               @Nullable ServerInterceptor authInterceptor)
+    {
+        if (authInterceptor != null) {
+            return builder
+                .intercept(authInterceptor)
+                .intercept(GrpcLogsInterceptor.server())
+                .intercept(RequestIdInterceptor.server())
+                .intercept(GrpcHeadersServerInterceptor.create());
+        } else {
+            return builder
+                .intercept(GrpcLogsInterceptor.server())
+                .intercept(RequestIdInterceptor.server())
+                .intercept(GrpcHeadersServerInterceptor.create());
         }
-        return ThreadContext.get(LOG_PROP_REQID);
     }
 
-    public static void attachGrpcRequestId() {
-        ThreadContext.put(LOG_PROP_REQID, getGrpcRequestId());
+    public static NettyServerBuilder newGrpcServer(HostAndPort address, @Nullable ServerInterceptor authInterceptor) {
+        return newGrpcServer(address.getHost(), address.getPort(), authInterceptor);
     }
 
-    public static void detachGrpcRequestId() {
-        ThreadContext.remove(LOG_PROP_REQID);
-    }
-
-    public static final class GrpcRequestIdHolder implements AutoCloseable {
-        public static GrpcRequestIdHolder init() {
-            return new GrpcRequestIdHolder();
-        }
-
-        public GrpcRequestIdHolder() {
-            attachGrpcRequestId();
-        }
-
-        @Override
-        public void close() throws Exception {
-            detachGrpcRequestId();
-        }
+    public static NettyServerBuilder newGrpcServer(String host, int port, @Nullable ServerInterceptor authInterceptor) {
+        return intercept(
+            addKeepAlive(
+                NettyServerBuilder.forAddress(new InetSocketAddress(host, port))),
+            authInterceptor);
     }
 }

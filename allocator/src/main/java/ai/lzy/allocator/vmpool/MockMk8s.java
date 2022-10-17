@@ -6,12 +6,12 @@ import io.micronaut.context.annotation.Requires;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import javax.inject.Singleton;
 
-@SuppressWarnings("UnstableApiUsage")
 @Singleton
 @Primary
 @Requires(property = "allocator.mock-mk8s.enabled", value = "true")
@@ -52,12 +52,17 @@ public class MockMk8s implements VmPoolRegistry, ClusterRegistry {
     }
 
     @Override
+    public String getClusterPodsCidr(String clusterId) {
+        return "10.20.0.0/16";
+    }
+
+    @Override
     public Map<String, VmPoolSpec> getSystemVmPools() {
         return null;
     }
 
     @Override
     public Map<String, VmPoolSpec> getUserVmPools() {
-        return null;
+        return Map.of("s", new VmPoolSpec("s", "IceLake", 2, "V100", 1, 4, Set.of("ru-central1-a")));
     }
 }

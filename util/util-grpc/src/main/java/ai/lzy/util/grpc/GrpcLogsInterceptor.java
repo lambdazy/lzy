@@ -2,90 +2,80 @@ package ai.lzy.util.grpc;
 
 import ai.lzy.v1.validation.LV;
 import com.google.protobuf.MessageOrBuilder;
-import io.grpc.ForwardingServerCallListener.SimpleForwardingServerCallListener;
 import io.grpc.*;
+import io.grpc.ForwardingServerCallListener.SimpleForwardingServerCallListener;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.ThreadContext;
 
 import java.util.UUID;
-import javax.annotation.Nullable;
 
-public class GrpcLogsInterceptor implements ServerInterceptor {
-    private static final Logger LOG = LogManager.getLogger("GrpcLogs");
+public class GrpcLogsInterceptor {
+    private static final Logger SERVER_LOG = LogManager.getLogger("GrpcServer");
+    private static final Logger CLIENT_LOG = LogManager.getLogger("GrpcClient");
+
     private static final ProtoPrinter.Printer SAFE_PRINTER
         = ProtoPrinter.printer().usingSensitiveExtension(LV.sensitive);
 
-    @Override
-    public <M, R> ServerCall.Listener<M> interceptCall(ServerCall<M, R> call,
-                                                       Metadata headers,
-                                                       ServerCallHandler<M, R> next)
-    {
-        final String callId = UUID.randomUUID().toString();
-
-        var grpcServerCall = new GrpcServerCall<>(call, callId, headers.get(GrpcHeaders.X_REQUEST_ID));
-        var listener = next.startCall(grpcServerCall, headers);
-
-        return new GrpcForwardingServerCallListener<>(call.getMethodDescriptor(), listener) {
+    public static ServerInterceptor server() {
+        return new ServerInterceptor() {
             @Override
-            public void onMessage(M message) {
-                if (LOG.isTraceEnabled()) {
-                    LOG.info("{}::<{}>, request: ({})", methodName, callId, printMessageSafe(message));
-                } else {
-                    LOG.info("{}::<{}>, request: <...>", methodName, callId);
-                }
-                super.onMessage(message);
+            public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call, Metadata headers,
+                                                                         ServerCallHandler<ReqT, RespT> next)
+            {
+                var callId = UUID.randomUUID().toString();
+                var methodName = call.getMethodDescriptor().getFullMethodName();
+
+                var grpcServerCall = new ForwardingServerCall.SimpleForwardingServerCall<ReqT, RespT>(call) {
+                    @Override
+                    public void sendMessage(RespT message) {
+                        if (SERVER_LOG.isTraceEnabled()) {
+                            SERVER_LOG.info("{}::<{}>: response: ({})", methodName, callId, printMessageSafe(message));
+                        } else {
+                            SERVER_LOG.info("{}::<{}>: response: <...>", methodName, callId);
+                        }
+                        super.sendMessage(message);
+                    }
+                };
+
+                var listener = next.startCall(grpcServerCall, headers);
+
+                return new GrpcForwardingServerCallListener<>(call.getMethodDescriptor(), listener) {
+                    @Override
+                    public void onMessage(ReqT message) {
+                        if (SERVER_LOG.isTraceEnabled()) {
+                            SERVER_LOG.debug("{}::<{}>, request: ({})", methodName, callId, printMessageSafe(message));
+                        } else {
+                            SERVER_LOG.debug("{}::<{}>, request: <...>", methodName, callId);
+                        }
+                        super.onMessage(message);
+                    }
+                };
             }
         };
     }
 
-    private static class GrpcServerCall<M, R> extends ServerCall<M, R> {
-        final ServerCall<M, R> serverCall;
-        final String callId;
-
-        protected GrpcServerCall(ServerCall<M, R> serverCall, String callId, @Nullable String reqId) {
-            this.serverCall = serverCall;
-            this.callId = callId;
-            ThreadContext.put("reqid", reqId != null ? reqId : callId);
-        }
-
-        @Override
-        public void request(int numMessages) {
-            serverCall.request(numMessages);
-        }
-
-        @Override
-        public void sendHeaders(Metadata headers) {
-            serverCall.sendHeaders(headers);
-        }
-
-        @Override
-        public void sendMessage(R message) {
-            var methodName = serverCall.getMethodDescriptor().getFullMethodName();
-            if (LOG.isTraceEnabled()) {
-                LOG.info("{}::<{}>: response: ({})", methodName, callId, printMessageSafe(message));
-            } else {
-                LOG.info("{}::<{}>: response: <...>", methodName, callId);
+    public static ClientInterceptor client(String name) {
+        return new ClientInterceptor() {
+            @Override
+            public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(MethodDescriptor<ReqT, RespT> method,
+                                                                       CallOptions callOptions, Channel next)
+            {
+                var methodName = method.getFullMethodName();
+                return new ForwardingClientCall.SimpleForwardingClientCall<>(next.newCall(method, callOptions)) {
+                    @Override
+                    public void sendMessage(ReqT message) {
+                        if (CLIENT_LOG.isTraceEnabled()) {
+                            CLIENT_LOG.debug("{} call {}, request ({})", name, methodName, printMessageSafe(message));
+                        } else {
+                            CLIENT_LOG.debug("{} call {}, request <...>", name, methodName);
+                        }
+                        super.sendMessage(message);
+                    }
+                };
             }
-            serverCall.sendMessage(message);
-        }
-
-        @Override
-        public void close(Status status, Metadata trailers) {
-            serverCall.close(status, trailers);
-            ThreadContext.remove("reqid");
-        }
-
-        @Override
-        public boolean isCancelled() {
-            return serverCall.isCancelled();
-        }
-
-        @Override
-        public MethodDescriptor<M, R> getMethodDescriptor() {
-            return serverCall.getMethodDescriptor();
-        }
+        };
     }
+
 
     private static String printMessageSafe(Object message) {
         return message instanceof MessageOrBuilder msg

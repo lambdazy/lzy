@@ -4,11 +4,9 @@ import ai.lzy.channelmanager.channel.ChannelException;
 import ai.lzy.channelmanager.channel.Endpoint;
 import ai.lzy.channelmanager.graph.ChannelGraph;
 import ai.lzy.model.slot.SlotInstance;
-import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.deprecated.LzyAuth;
 import ai.lzy.v1.deprecated.LzyWhiteboard;
 import ai.lzy.v1.deprecated.SnapshotApiGrpc;
-import io.grpc.Channel;
 import io.grpc.StatusRuntimeException;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
@@ -16,6 +14,9 @@ import org.apache.logging.log4j.Logger;
 
 import java.net.URI;
 import java.util.stream.Stream;
+
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 public class SnapshotChannelController implements ChannelController {
 
@@ -28,20 +29,14 @@ public class SnapshotChannelController implements ChannelController {
     private Status status = Status.UNBOUND;
     private URI storageURI;
 
-    public SnapshotChannelController(
-        String entryId,
-        String snapshotId,
-        String userId,
-        URI snapshotAddress
-    ) {
+    public SnapshotChannelController(String entryId, String snapshotId, String userId, URI snapshotAddress) {
         LOG.info("Creating SnapshotChannelController: entryId={}, snapshotId={}", entryId, snapshotId);
         synchronized (SnapshotChannelController.class) {
             if (SNAPSHOT_API == null) {
-                Channel channel = ChannelBuilder.forAddress(snapshotAddress.getHost(), snapshotAddress.getPort())
-                    .enableRetry(SnapshotApiGrpc.SERVICE_NAME)
-                    .usePlaintext()
-                    .build();
-                SNAPSHOT_API = SnapshotApiGrpc.newBlockingStub(channel);
+                var channel = newGrpcChannel(snapshotAddress.getHost(), snapshotAddress.getPort(),
+                    SnapshotApiGrpc.SERVICE_NAME);
+                SNAPSHOT_API = newBlockingClient(
+                    SnapshotApiGrpc.newBlockingStub(channel), "NoAuthSnapshotChannelController", null);
             }
         }
         this.entryId = entryId;

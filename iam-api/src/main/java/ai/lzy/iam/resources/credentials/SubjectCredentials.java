@@ -38,4 +38,8 @@ public record SubjectCredentials(
     public static SubjectCredentials ott(String name, String value, Duration ttl) {
         return new SubjectCredentials(name, value, CredentialsType.OTT, Instant.now().plus(ttl));
     }
+
+    public static SubjectCredentials cookie(String name, String value, Duration ttl) {
+        return new SubjectCredentials(name, value, CredentialsType.COOKIE, Instant.now().plus(ttl));
+    }
 }

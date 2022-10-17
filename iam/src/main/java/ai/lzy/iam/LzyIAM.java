@@ -1,6 +1,5 @@
 package ai.lzy.iam;
 
-import ai.lzy.iam.configs.DbConfig;
 import ai.lzy.iam.configs.InternalUserConfig;
 import ai.lzy.iam.configs.ServiceConfig;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
@@ -10,10 +9,7 @@ import ai.lzy.iam.grpc.service.LzyAuthService;
 import ai.lzy.iam.grpc.service.LzySubjectService;
 import ai.lzy.iam.storage.db.InternalUserInserter;
 import ai.lzy.iam.storage.impl.DbAuthService;
-import ai.lzy.util.grpc.ChannelBuilder;
 import io.grpc.Server;
-import io.grpc.ServerBuilder;
-import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.exceptions.NoSuchBeanException;
 import org.apache.logging.log4j.LogManager;
@@ -21,8 +17,9 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
 
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 
 public class LzyIAM {
 
@@ -38,22 +35,19 @@ public class LzyIAM {
 
     public LzyIAM(ApplicationContext context) {
         ServiceConfig config = context.getBean(ServiceConfig.class);
-        DbConfig dbConfig = context.getBean(DbConfig.class);
 
         InternalUserConfig internalUserConfig = context.getBean(InternalUserConfig.class);
         InternalUserInserter internalUserInserter = context.getBean(InternalUserInserter.class);
         internalUserInserter.addOrUpdateInternalUser(internalUserConfig);
 
-        ServerBuilder<?> builder = NettyServerBuilder.forPort(config.getServerPort())
-                .permitKeepAliveWithoutCalls(true)
-                .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES);
-        AuthServerInterceptor internalAuthInterceptor =
-                new AuthServerInterceptor(context.getBean(DbAuthService.class));
+        var builder = newGrpcServer("0.0.0.0", config.getServerPort(),
+            new AuthServerInterceptor(context.getBean(DbAuthService.class)));
+
         LzyASService accessService = context.getBean(LzyASService.class);
         LzyABSService accessBindingService = context.getBean(LzyABSService.class);
         LzySubjectService subjectService = context.getBean(LzySubjectService.class);
         LzyAuthService authService = context.getBean(LzyAuthService.class);
-        builder.intercept(internalAuthInterceptor);
+
         builder.addService(accessService);
         builder.addService(accessBindingService);
         builder.addService(subjectService);

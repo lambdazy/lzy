@@ -13,6 +13,7 @@ import ai.lzy.allocator.volume.VolumeClaim;
 import ai.lzy.model.db.TransactionHandle;
 import io.fabric8.kubernetes.api.model.ListOptionsBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.StatusDetails;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
@@ -32,12 +33,13 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 @Requires(property = "allocator.kuber-allocator.enabled", value = "true")
 public class KuberVmAllocator implements VmAllocator {
     private static final Logger LOG = LogManager.getLogger(KuberVmAllocator.class);
-    private static final String NAMESPACE = "default";
+    public static final String NAMESPACE = "default";
 
-    private static final String NAMESPACE_KEY = "namespace";
-    private static final String POD_NAME_KEY = "pod-name";
-    private static final String CLUSTER_ID_KEY = "cluster-id";
-    public static final String POD_NAME_PREFIX = "lzy-vm-";
+    public static final String NAMESPACE_KEY = "namespace";
+    public static final String POD_NAME_KEY = "pod-name";
+    public static final String CLUSTER_ID_KEY = "cluster-id";
+    public static final String VM_POD_NAME_PREFIX = "lzy-vm-";
+    public static final String VM_POD_APP_LABEL_VALUE = "vm";
 
     private final VmDao dao;
     private final ClusterRegistry poolRegistry;
@@ -62,7 +64,11 @@ public class KuberVmAllocator implements VmAllocator {
         }
 
         try (final var client = factory.build(cluster)) {
-            var podSpecBuilder = new PodSpecBuilder(vmSpec, client, config);
+            var podSpecBuilder = new PodSpecBuilder(
+                vmSpec, client, config, PodSpecBuilder.VM_POD_TEMPLATE_PATH, VM_POD_NAME_PREFIX
+            );
+
+            final String podName = podSpecBuilder.getPodName();
             withRetries(
                 defaultRetryPolicy(),
                 LOG,
@@ -70,7 +76,7 @@ public class KuberVmAllocator implements VmAllocator {
                     vmSpec.vmId(),
                     Map.of(
                         NAMESPACE_KEY, NAMESPACE,
-                        POD_NAME_KEY, podSpecBuilder.getPodName(),
+                        POD_NAME_KEY, podName,
                         CLUSTER_ID_KEY, cluster.clusterId()),
                     null),
                 RuntimeException::new);
@@ -82,14 +88,28 @@ public class KuberVmAllocator implements VmAllocator {
             final List<VolumeClaim> volumeClaims = KuberVolumeManager.allocateVolumes(client, diskVolumeDescriptions);
             dao.setVolumeClaims(vmSpec.vmId(), volumeClaims, null);
 
+            // add k8s pod affinity to allocate vm pod on the node with the tunnel pod,
+            // which must be allocated by TunnelAllocator#allocateTunnel method
+            if (vmSpec.proxyV6Address() != null) {
+                podSpecBuilder = podSpecBuilder.withPodAffinity(
+                    KuberLabels.LZY_APP_LABEL, "In", KuberTunnelAllocator.TUNNEL_POD_APP_LABEL_VALUE
+                );
+            }
+
             final Pod vmPodSpec = podSpecBuilder
-                .withWorkloads(vmSpec.workloads())
+                .withWorkloads(vmSpec.initWorkloads(), true)
+                .withWorkloads(vmSpec.workloads(), false)
                 .withVolumes(volumeClaims)
                 .withHostVolumes(vmSpec.volumeRequests().stream()
                     .filter(v -> v.volumeDescription() instanceof HostPathVolumeDescription)
                     .map(v -> (HostPathVolumeDescription) v.volumeDescription())
                     .toList())
+                // not to be allocated with another vm
+                .withPodAntiAffinity(KuberLabels.LZY_APP_LABEL, "In", VM_POD_APP_LABEL_VALUE)
+                // not to be allocated with pods from other session
+                .withPodAntiAffinity(KuberLabels.LZY_POD_SESSION_ID_LABEL, "NotIn", vmSpec.sessionId())
                 .build();
+
             LOG.debug("Creating pod with podspec: {}", vmPodSpec);
 
             final Pod pod;
@@ -99,12 +119,14 @@ public class KuberVmAllocator implements VmAllocator {
                     .resource(vmPodSpec)
                     .create();
             } catch (Exception e) {
-                LOG.error("Failed to allocate pod: {}", e.getMessage(), e);
+                LOG.error("Failed to allocate vm pod: {}", e.getMessage(), e);
                 deallocate(vmSpec.vmId());
                 //TODO (tomato): add retries here if the error is caused due to temporal problems with kuber
-                throw new RuntimeException("Failed to allocate pod: " + e.getMessage(), e);
+                throw new RuntimeException(
+                    "Failed to allocate vm (vmId: " + vmSpec.vmId() + ") pod: " + e.getMessage(), e
+                );
             }
-            LOG.debug("Created pod in Kuber: {}", pod);
+            LOG.debug("Created vm pod in Kuber: {}", pod);
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
@@ -113,7 +135,7 @@ public class KuberVmAllocator implements VmAllocator {
     }
 
     @Nullable
-    private Pod getPod(String namespace, String name, KubernetesClient client) {
+    private Pod getVmPod(String namespace, String name, KubernetesClient client) {
         final var podsList = client.pods()
             .inNamespace(namespace)
             .list(new ListOptionsBuilder()
@@ -133,6 +155,33 @@ public class KuberVmAllocator implements VmAllocator {
         return null;
     }
 
+    /**
+     * Find all pods with label "lzy.ai/vm-id"=<code>vmId</code>. It is expected to be the corresponding <code>vm</code>
+     * pod and optionally the <code>tunnel</code> pod on the same k8s node, if it exists. In the future, we may add
+     * other system pods necessary for this vm (for example, pod with mounted disc).
+     *
+     * @param namespace - k8s namespace with pods
+     * @param vmId      - id of vm
+     * @param client    - k8s client
+     * @return k8s pods in <code>namespace</code> with label "lzy.ai/vm-id"=<code>vmId</code> got by <code>client</code>
+     */
+    @Nullable
+    private List<Pod> getAllPodsWithVmId(String namespace, String vmId, KubernetesClient client) {
+        return client.pods()
+            .inNamespace(namespace)
+            .list(new ListOptionsBuilder()
+                .withLabelSelector(KuberLabels.LZY_VM_ID_LABEL + "=" + vmId)
+                .build()
+            ).getItems();
+    }
+
+    /**
+     * Deallocates all pods with label "lzy.ai/vm-id"=<code>vmId</code>. It is expected to be the corresponding
+     * <code>vm</code> pod and optionally the <code>tunnel</code> pod on the same k8s node, if it exists. In the future,
+     * we may add other system pods necessary for this vm (for example, pod with mounted disc).
+     *
+     * @param vmId - id of vm to deallocate
+     */
     @Override
     public void deallocate(String vmId) {
         var meta = withRetries(
@@ -148,17 +197,17 @@ public class KuberVmAllocator implements VmAllocator {
         final var clusterId = meta.get(CLUSTER_ID_KEY);
         final var credentials = poolRegistry.getCluster(clusterId);
         final var ns = meta.get(NAMESPACE_KEY);
-        final var podName = meta.get(POD_NAME_KEY);
 
         try (final var client = factory.build(credentials)) {
-            final var pod = getPod(ns, podName, client);
-            if (pod != null) {
-                client.pods()
-                    .inNamespace(ns)
-                    .resource(pod)
-                    .delete();
-            } else {
-                LOG.warn("Pod with name {} not found", podName);
+            List<StatusDetails> statusDetails = client.pods()
+                .inNamespace(ns)
+                .withLabelSelector(KuberLabels.LZY_VM_ID_LABEL + "=" + vmId)
+                .delete();
+            if (statusDetails.isEmpty()) {
+                LOG.warn(
+                    "No delete status details were provided by k8s client after deleting pods with vm id {}",
+                    vmId
+                );
             }
 
             withRetries(
@@ -189,7 +238,7 @@ public class KuberVmAllocator implements VmAllocator {
         final var podName = meta.get(POD_NAME_KEY);
 
         try (final var client = factory.build(credentials)) {
-            final var pod = getPod(ns, podName, client);
+            final var pod = getVmPod(ns, podName, client);
             if (pod != null) {
                 final var nodeName = pod.getSpec().getNodeName();
                 final var node = client.nodes()

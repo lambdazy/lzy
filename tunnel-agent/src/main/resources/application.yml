@@ -1,0 +1,2 @@
+tunnel-agent:
+  address: 'localhost:1234'

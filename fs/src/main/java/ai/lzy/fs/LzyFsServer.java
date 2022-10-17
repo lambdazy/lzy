@@ -8,9 +8,7 @@ import ai.lzy.model.deprecated.Zygote;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.util.grpc.ClientHeaderInterceptor;
-import ai.lzy.util.grpc.GrpcHeaders;
+import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.common.LMS;
@@ -24,7 +22,6 @@ import ai.lzy.v1.fs.LzyFsGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.Status;
-import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.jsonwebtoken.Jwts;
 import org.apache.commons.lang3.SystemUtils;
@@ -33,16 +30,13 @@ import org.apache.logging.log4j.Logger;
 import ru.serce.jnrfuse.FuseException;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 
 import static ai.lzy.model.Constants.LOGS_DIR;
@@ -50,6 +44,10 @@ import static ai.lzy.model.UriScheme.LzyFs;
 import static ai.lzy.model.UriScheme.SlotAzure;
 import static ai.lzy.model.UriScheme.SlotS3;
 import static ai.lzy.model.deprecated.GrpcConverter.from;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
+import static ai.lzy.v1.channel.LzyChannelManagerGrpc.newBlockingStub;
 
 public final class LzyFsServer {
 
@@ -76,13 +74,12 @@ public final class LzyFsServer {
     private SlotConnectionManager slotConnectionManager;
 
     private final AtomicBoolean stopped = new AtomicBoolean(false);
-    private final AtomicReference<LzyFsGrpc.LzyFsImplBase> slotApiInterceptor = new AtomicReference<>(null);
 
     private LzyFSManager fsManager;
 
     @Deprecated
     public LzyFsServer(String agentId, String mountPoint, URI selfUri, @Nullable URI lzyServerUri,
-                       @Nullable URI lzyWhiteboardUri, URI channelManagerUri, LzyAuth.Auth auth) throws IOException
+                       @Nullable URI lzyWhiteboardUri, URI channelManagerUri, LzyAuth.Auth auth)
     {
         this.agentId = agentId;
         this.channelManagerUri = channelManagerUri;
@@ -93,15 +90,13 @@ public final class LzyFsServer {
         this.auth = auth;
         this.lzyWhiteboardUri = lzyWhiteboardUri;
 
-        localServer = NettyServerBuilder.forAddress(new InetSocketAddress(selfUri.getHost(), selfUri.getPort()))
-            .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
+        localServer = newGrpcServer(selfUri.getHost(), selfUri.getPort(), GrpcUtils.NO_AUTH)
             .addService(new Impl())
             .build();
     }
 
-    public LzyFsServer(String agentId, String mountPoint, URI selfUri,
-                       URI channelManagerUri, String token) throws IOException
+    public LzyFsServer(String agentId, String mountPoint, URI selfUri, URI channelManagerUri, String token)
+        throws IOException
     {
         this(agentId, mountPoint, selfUri, null, null, channelManagerUri, LzyAuth.Auth.newBuilder()
             .setUser(LzyAuth.UserCredentials.newBuilder()
@@ -116,20 +111,16 @@ public final class LzyFsServer {
         LOG.info("Starting LzyFs gRPC server at {}.", selfUri);
         localServer.start();
 
-        channelManagerChannel = ChannelBuilder
-            .forAddress(channelManagerUri.getHost(), channelManagerUri.getPort())
-            .usePlaintext()
-            .enableRetry(LzyChannelManagerGrpc.SERVICE_NAME)
-            .build();
+        channelManagerChannel = newGrpcChannel(channelManagerUri.getHost(), channelManagerUri.getPort(),
+            LzyChannelManagerGrpc.SERVICE_NAME);
         slotsManager = new SlotsManager(
-            LzyChannelManagerGrpc
-                .newBlockingStub(channelManagerChannel)
-                .withInterceptors(ClientHeaderInterceptor.header(
-                    GrpcHeaders.AUTHORIZATION,
-                    () -> auth.hasUser()
-                        ? auth.getUser().getToken()
-                        : generateJwtServantToken(auth.getTask().getServantId())
-                )),
+            newBlockingClient(
+                newBlockingStub(channelManagerChannel),
+                "LzyFs",
+                () -> auth.hasUser()
+                    ? auth.getUser().getToken()
+                    : generateJwtServantToken(auth.getTask().getServantId())
+            ),
             selfUri
         );
 
@@ -137,12 +128,9 @@ public final class LzyFsServer {
         // <<<
 
         if (lzyServerUri != null) {
-            final var lzyServerChannel = ChannelBuilder
-                .forAddress(lzyServerUri.getHost(), lzyServerUri.getPort())
-                .usePlaintext()
-                .enableRetry(LzyKharonGrpc.SERVICE_NAME)
-                .build();
-            final LzyServerGrpc.LzyServerBlockingStub lzyServerClient = LzyServerGrpc.newBlockingStub(lzyServerChannel);
+            final var lzyServerChannel = newGrpcChannel(lzyServerUri.getHost(), lzyServerUri.getPort(),
+                LzyKharonGrpc.SERVICE_NAME);
+            final var lzyServerClient = newBlockingClient(LzyServerGrpc.newBlockingStub(lzyServerChannel), "Fs", null);
 
             final String bucket = lzyServerClient
                 .getBucket(Lzy.GetBucketRequest.newBuilder().setAuth(auth).build())
@@ -227,11 +215,6 @@ public final class LzyFsServer {
     public void addSlot(LzyFileSlot slot) {
         LOG.info("Explicitly add slot: {}", slot.name());
         fsManager.addSlot(slot);
-    }
-
-    @Nullable
-    public LzyFsGrpc.LzyFsImplBase setSlotApiInterceptor(LzyFsGrpc.LzyFsImplBase interceptor) {
-        return slotApiInterceptor.getAndSet(interceptor);
     }
 
     public LzyFsApi.SlotCommandStatus createSlot(LzyFsApi.CreateSlotRequest request) {
@@ -414,11 +397,11 @@ public final class LzyFsServer {
         LOG.info("Mounting LzyFs at {}.", mountPoint.toAbsolutePath().toString());
         try {
             fs.mount(mountPoint);
+            mounted.incrementAndGet();
         } catch (FuseException e) {
             fs.umount();
             throw e;
         }
-        mounted.incrementAndGet();
 
         return fs;
     }
@@ -489,62 +472,32 @@ public final class LzyFsServer {
 
         @Override
         public void createSlot(LzyFsApi.CreateSlotRequest req, StreamObserver<LzyFsApi.SlotCommandStatus> resp) {
-            var interceptor = slotApiInterceptor.get();
-            if (interceptor == null) {
-                slotCall(req, resp, LzyFsServer.this::createSlot);
-            } else {
-                interceptor.createSlot(req, resp);
-            }
+            slotCall(req, resp, LzyFsServer.this::createSlot);
         }
 
         @Override
         public void connectSlot(LzyFsApi.ConnectSlotRequest req, StreamObserver<LzyFsApi.SlotCommandStatus> resp) {
-            var interceptor = slotApiInterceptor.get();
-            if (interceptor == null) {
-                slotCall(req, resp, LzyFsServer.this::connectSlot);
-            } else {
-                interceptor.connectSlot(req, resp);
-            }
+            slotCall(req, resp, LzyFsServer.this::connectSlot);
         }
 
         @Override
         public void disconnectSlot(LzyFsApi.DisconnectSlotRequest req, StreamObserver<LzyFsApi.SlotCommandStatus> rsp) {
-            var interceptor = slotApiInterceptor.get();
-            if (interceptor == null) {
-                slotCall(req, rsp, LzyFsServer.this::disconnectSlot);
-            } else {
-                interceptor.disconnectSlot(req, rsp);
-            }
+            slotCall(req, rsp, LzyFsServer.this::disconnectSlot);
         }
 
         @Override
         public void statusSlot(LzyFsApi.StatusSlotRequest req, StreamObserver<LzyFsApi.SlotCommandStatus> resp) {
-            var interceptor = slotApiInterceptor.get();
-            if (interceptor == null) {
-                slotCall(req, resp, LzyFsServer.this::statusSlot);
-            } else {
-                interceptor.statusSlot(req, resp);
-            }
+            slotCall(req, resp, LzyFsServer.this::statusSlot);
         }
 
         @Override
         public void destroySlot(LzyFsApi.DestroySlotRequest req, StreamObserver<LzyFsApi.SlotCommandStatus> resp) {
-            var interceptor = slotApiInterceptor.get();
-            if (interceptor == null) {
-                slotCall(req, resp, LzyFsServer.this::destroySlot);
-            } else {
-                interceptor.destroySlot(req, resp);
-            }
+            slotCall(req, resp, LzyFsServer.this::destroySlot);
         }
 
         @Override
         public void openOutputSlot(LzyFsApi.SlotRequest req, StreamObserver<LzyFsApi.Message> resp) {
-            var interceptor = slotApiInterceptor.get();
-            if (interceptor == null) {
-                LzyFsServer.this.openOutputSlot(req, resp);
-            } else {
-                interceptor.openOutputSlot(req, resp);
-            }
+            LzyFsServer.this.openOutputSlot(req, resp);
         }
     }
 }

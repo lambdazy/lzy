@@ -4,7 +4,6 @@ import ai.lzy.iam.clients.AccessBindingClient;
 import ai.lzy.iam.resources.AccessBinding;
 import ai.lzy.iam.resources.AccessBindingDelta;
 import ai.lzy.iam.resources.AuthResource;
-import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.iam.utils.ProtoConverter;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.exceptions.AuthException;
@@ -23,27 +22,22 @@ import java.util.stream.Stream;
 public class AccessBindingServiceGrpcClient implements AccessBindingClient {
     private static final Logger LOG = LogManager.getLogger(AccessServiceGrpcClient.class);
 
+    private final String clientName;
     private final Channel channel;
     private final LzyAccessBindingServiceGrpc.LzyAccessBindingServiceBlockingStub accessBindingService;
-    private final Supplier<Credentials> tokenSupplier;
+    private final Supplier<Credentials> token;
 
-    public AccessBindingServiceGrpcClient(GrpcConfig config, Supplier<Credentials> tokenSupplier) {
-        this(
-            GrpcUtils.newGrpcChannel(config.host(), config.port(), LzyAccessBindingServiceGrpc.SERVICE_NAME),
-            tokenSupplier
-        );
-    }
-
-    public AccessBindingServiceGrpcClient(Channel channel, Supplier<Credentials> tokenSupplier) {
+    public AccessBindingServiceGrpcClient(String clientName, Channel channel, Supplier<Credentials> token) {
+        this.clientName = clientName;
         this.channel = channel;
-        this.tokenSupplier = tokenSupplier;
+        this.token = token;
         this.accessBindingService = GrpcUtils.newBlockingClient(
-            LzyAccessBindingServiceGrpc.newBlockingStub(this.channel), () -> this.tokenSupplier.get().token());
+            LzyAccessBindingServiceGrpc.newBlockingStub(this.channel), clientName, () -> this.token.get().token());
     }
 
     @Override
     public AccessBindingClient withToken(Supplier<Credentials> tokenSupplier) {
-        return new AccessBindingServiceGrpcClient(channel, tokenSupplier);
+        return new AccessBindingServiceGrpcClient(clientName, channel, tokenSupplier);
     }
 
     @Override

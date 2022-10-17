@@ -3,6 +3,7 @@ package ai.lzy.allocator.model;
 import ai.lzy.allocator.volume.VolumeClaim;
 import ai.lzy.allocator.volume.VolumeRequest;
 
+import java.net.Inet6Address;
 import java.time.Instant;
 import java.time.temporal.Temporal;
 import java.util.ArrayList;
@@ -44,8 +45,11 @@ public record Vm(
         String poolLabel,
         String zone,
 
+        List<Workload> initWorkloads,
         List<Workload> workloads,
-        List<VolumeRequest> volumeRequests
+        List<VolumeRequest> volumeRequests,
+
+        @Nullable Inet6Address proxyV6Address
     ) {}
 
     public record State(

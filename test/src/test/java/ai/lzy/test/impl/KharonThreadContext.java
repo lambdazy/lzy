@@ -5,7 +5,6 @@ import ai.lzy.model.UriScheme;
 import ai.lzy.test.LzyKharonTestContext;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.deprecated.LzyKharonGrpc;
-import com.google.common.net.HostAndPort;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
@@ -32,15 +31,12 @@ public class KharonThreadContext implements LzyKharonTestContext {
     private final String whiteboardAddress;
     private final String channelManagerAddress;
     private final String channelManagerProxyAddress;
-    private final String iamAddress;
     private ApplicationContext context;
     private LzyKharon kharon;
     private ManagedChannel channel;
     private LzyKharonGrpc.LzyKharonBlockingStub lzyKharonClient;
 
-    public KharonThreadContext(String serverAddress, String whiteboardAddress, String channelManagerAddress,
-                               HostAndPort iamAddress)
-    {
+    public KharonThreadContext(String serverAddress, String whiteboardAddress, String channelManagerAddress) {
         var sa = URI.create(serverAddress);
         var wa = URI.create(whiteboardAddress);
         var parsedChannelManagerAddress = URI.create(channelManagerAddress);
@@ -50,7 +46,6 @@ public class KharonThreadContext implements LzyKharonTestContext {
             + ":" + parsedChannelManagerAddress.getPort();
         channelManagerProxyAddress = "ch-man://" + parsedChannelManagerAddress.getHost()
             + ":" + LZY_KHARON_CHANNEL_MANAGER_PROXY_PORT;
-        this.iamAddress = iamAddress.toString();
     }
 
     @Override
@@ -92,9 +87,6 @@ public class KharonThreadContext implements LzyKharonTestContext {
         props.put("kharon.servant-proxy-port", LZY_KHARON_SERVANT_PROXY_PORT);
         props.put("kharon.servant-fs-proxy-port", LZY_KHARON_SERVANT_FS_PROXY_PORT);
         props.put("kharon.channel-manager-proxy-port", LZY_KHARON_CHANNEL_MANAGER_PROXY_PORT);
-
-        props.put("kharon.iam.address", iamAddress);
-        props.put("kharon.storage.address", "localhost:" + StorageThreadContext.STORAGE_PORT);
 
         LOG.info("Starting LzyKharon on port {}...", LZY_KHARON_PORT);
 
