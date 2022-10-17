@@ -891,7 +891,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
             .always();
     }
 
-    private <T> Future<T> awaitResourceCreate(Class<T> resourceType, String resourcePath) {
+    private <T> CompletableFuture<T> awaitResourceCreate(Class<T> resourceType, String resourcePath) {
         final var future = new CompletableFuture<T>();
         kubernetesServer.expect().post()
             .withPath(resourcePath)
@@ -905,18 +905,8 @@ public class AllocatorApiTest extends BaseTestWithIam {
         return future;
     }
 
-    private Future<String> awaitAllocationRequest() {
-        final var future = new CompletableFuture<String>();
-        kubernetesServer.expect().post()
-            .withPath(POD_PATH)
-            .andReply(HttpURLConnection.HTTP_CREATED, (req) -> {
-                final var pod = Serialization.unmarshal(
-                    new ByteArrayInputStream(req.getBody().readByteArray()), Pod.class, Map.of());
-                future.complete(pod.getMetadata().getName());
-                return pod;
-            })
-            .once();
-        return future;
+    private CompletableFuture<String> awaitAllocationRequest() {
+        return awaitResourceCreate(Pod.class, POD_PATH).thenApply(pod -> pod.getMetadata().getName());
     }
 
     private void mockDeleteResource(String resourcePath, String resourceName, Runnable onDelete, int responseCode) {
