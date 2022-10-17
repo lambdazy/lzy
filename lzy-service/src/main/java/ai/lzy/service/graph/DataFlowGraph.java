@@ -7,7 +7,11 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 class DataFlowGraph {
-    record Node(String operationName, List<SlotDescription> inputs, List<SlotDescription> outputs) {}
+    record Node(
+        String operationName,
+        List<SlotDescription> inputs,
+        List<SlotDescription> outputs
+    ) {}
 
     private static final String edge = " -> ";
 

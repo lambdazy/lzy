@@ -58,7 +58,7 @@ public class GraphExecutionTest extends BaseTest {
         var operations = List.of(
             LWF.Operation.newBuilder()
                 .setName("first task prints string 'i-am-hacker' to variable")
-                .setCommand("a = 'i-am-a-hacker'\nprint('hello')")
+                .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_servant_1/a")
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_1/a")
                     .setStorageUri("snapshot_a_1")
@@ -67,7 +67,7 @@ public class GraphExecutionTest extends BaseTest {
                 .build(),
             LWF.Operation.newBuilder()
                 .setName("second task reads string 'i-am-hacker' from variable and prints it to another one")
-                .setCommand("b = a\nprint(b)")
+                .setCommand("/tmp/lzy_servant_2/sbin/cat /tmp/lzy_servant_2/a > /tmp/lzy_servant_2/b")
                 .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_2/a")
                     .setStorageUri("snapshot_a_1")
@@ -104,7 +104,7 @@ public class GraphExecutionTest extends BaseTest {
         var firstOperation =
             LWF.Operation.newBuilder()
                 .setName("operation-1")
-                .setCommand("a = 'i-am-a-hacker'\nprint(a)")
+                .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_servant_1/a")
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_1/a")
                     .setStorageUri("snapshot_a_1")
@@ -119,7 +119,7 @@ public class GraphExecutionTest extends BaseTest {
         var secondOperation =
             LWF.Operation.newBuilder()
                 .setName("operation-2")
-                .setCommand("b = a + 42\nprint(b)")
+                .setCommand("/tmp/lzy_servant_2/sbin/cat /tmp/lzy_servant_2/a > /tmp/lzy_servant_2/b")
                 .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_2/a")
                     .setStorageUri("snapshot_a_1")
@@ -139,7 +139,7 @@ public class GraphExecutionTest extends BaseTest {
         var thirdOperations = List.of(
             LWF.Operation.newBuilder()
                 .setName("operation-3-1")
-                .setCommand("print(a)")
+                .setCommand("/tmp/lzy_servant_3/sbin/cat /tmp/lzy_servant_3/a")
                 .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_3/a")
                     .setStorageUri("snapshot_a_1")
@@ -148,7 +148,7 @@ public class GraphExecutionTest extends BaseTest {
                 .build(),
             LWF.Operation.newBuilder()
                 .setName("operation-3-2")
-                .setCommand("print(b)")
+                .setCommand("/tmp/lzy_servant_3/sbin/cat /tmp/lzy_servant_3/b")
                 .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_3/b")
                     .setStorageUri("snapshot_b_1")
@@ -194,7 +194,7 @@ public class GraphExecutionTest extends BaseTest {
         var operations = List.of(
             LWF.Operation.newBuilder()
                 .setName("first task prints string 'i-am-hacker' to variable")
-                .setCommand("a = 'i-am-a-hacker'\nprint('hello')")
+                .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_servant_1/a")
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_1/a")
                     .setStorageUri("snapshot_a_1")
@@ -246,7 +246,7 @@ public class GraphExecutionTest extends BaseTest {
         var operation =
             LWF.Operation.newBuilder()
                 .setName("prints strings to variables")
-                .setCommand("a = 'i-am-a-hacker'\nb = 'hello'")
+                .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_servant_1/a && echo 'hello' > /tmp/lzy_servant_1/b")
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_1/a")
                     .setStorageUri("snapshot_a_1")
@@ -279,8 +279,8 @@ public class GraphExecutionTest extends BaseTest {
 
         var firstOperation =
             LWF.Operation.newBuilder()
-                .setName("prints strings to variables")
-                .setCommand("a = 'i-am-a-hacker'\nprint(a)")
+                .setName("prints string to variable")
+                .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_servant_1/a")
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_1/a")
                     .setStorageUri("snapshot_a_1")
@@ -295,7 +295,8 @@ public class GraphExecutionTest extends BaseTest {
         var secondOperation =
             LWF.Operation.newBuilder()
                 .setName("prints strings to variables")
-                .setCommand("b = a\na = 'hello'")
+                .setCommand("/tmp/lzy_servant_2/sbin/cat /tmp/lzy_servant_2/a > /tmp/lzy_servant_2/b " +
+                    "&& echo 'hello' > /tmp/lzy_servant_2/a")
                 .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_2/a")
                     .setStorageUri("snapshot_a_1")
@@ -345,7 +346,8 @@ public class GraphExecutionTest extends BaseTest {
         var operationsWithCycleDependency = List.of(
             LWF.Operation.newBuilder()
                 .setName("first operation")
-                .setCommand("a = 42\nb = c")
+                .setCommand("echo '42' > /tmp/lzy_servant_1/a && " +
+                    "/tmp/lzy_servant_1/sbin/cat /tmp/lzy_servant_1/c > /tmp/lzy_servant_1/b")
                 .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_1/c")
                     .setStorageUri("snapshot_c_1")
@@ -362,7 +364,8 @@ public class GraphExecutionTest extends BaseTest {
                 .build(),
             LWF.Operation.newBuilder()
                 .setName("second operation")
-                .setCommand("d = a\nc = d")
+                .setCommand("/tmp/lzy_servant_2/sbin/cat /tmp/lzy_servant_2/a > /tmp/lzy_servant_2/d &&" +
+                    " /tmp/lzy_servant_2/sbin/cat /tmp/lzy_servant_2/d > /tmp/lzy_servant_2/c")
                 .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_2/a")
                     .setStorageUri("snapshot_a_1")
@@ -402,8 +405,8 @@ public class GraphExecutionTest extends BaseTest {
 
         var firstOperation =
             LWF.Operation.newBuilder()
-                .setName("prints strings to variables")
-                .setCommand("a = 'i-am-a-hacker'\nprint(a)")
+                .setName("prints string to variable")
+                .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_servant_1/a")
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_1/a")
                     .setStorageUri("snapshot_a_1")
@@ -420,7 +423,8 @@ public class GraphExecutionTest extends BaseTest {
         var secondOperation =
             LWF.Operation.newBuilder()
                 .setName("prints strings to variables")
-                .setCommand("b = c\nd = a")
+                .setCommand("/tmp/lzy_servant_2/sbin/cat /tmp/lzy_servant_2/c > /tmp/lzy_servant_2/b && " +
+                    "/tmp/lzy_servant_2/sbin/cat /tmp/lzy_servant_2/a > /tmp/lzy_servant_2/d")
                 .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_2/a")
                     .setStorageUri("snapshot_a_1")
@@ -473,8 +477,8 @@ public class GraphExecutionTest extends BaseTest {
 
         var operation =
             LWF.Operation.newBuilder()
-                .setName("print string to variable")
-                .setCommand("a = 'i-am-a-hacker'")
+                .setName("prints string to variable")
+                .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_servant_1/a")
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_1/a")
                     .setStorageUri("snapshot_a_1")
@@ -505,7 +509,7 @@ public class GraphExecutionTest extends BaseTest {
         var operation =
             LWF.Operation.newBuilder()
                 .setName("prints strings to variables")
-                .setCommand("a = 'i-am-a-hacker'\nb = 'hello'")
+                .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_servant_1/a && echo 'hello' > /tmp/lzy_servant_1/b")
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_1/a")
                     .setStorageUri("snapshot_a_1")
