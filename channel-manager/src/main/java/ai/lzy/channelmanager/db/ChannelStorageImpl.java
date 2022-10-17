@@ -210,7 +210,8 @@ public class ChannelStorageImpl implements ChannelStorage {
                 LEFT JOIN endpoint_connections c ON e.channel_id = c.channel_id AND e.slot_uri = c.sender_uri
                 WHERE ch.channel_id = ? AND ch.channel_life_status = ?
                 """)
-            ) {
+            )
+            {
                 int index = 0;
                 st.setString(++index, channelId);
                 st.setString(++index, lifeStatus.name());

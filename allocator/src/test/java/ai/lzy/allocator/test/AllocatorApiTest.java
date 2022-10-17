@@ -14,14 +14,12 @@ import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.util.auth.credentials.JwtUtils;
-import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.v1.*;
 import ai.lzy.v1.OperationService.Operation;
 import ai.lzy.v1.VmAllocatorApi.*;
-import com.google.common.net.HostAndPort;
 import com.google.protobuf.Duration;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.fabric8.kubernetes.api.model.*;
@@ -62,6 +60,8 @@ import static ai.lzy.allocator.volume.KuberVolumeManager.KUBER_GB_NAME;
 import static ai.lzy.allocator.volume.KuberVolumeManager.VOLUME_CAPACITY_STORAGE_KEY;
 import static ai.lzy.allocator.volume.KuberVolumeManager.YCLOUD_DISK_DRIVER;
 import static ai.lzy.allocator.volume.Volume.AccessMode.READ_WRITE_ONCE;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 public class AllocatorApiTest extends BaseTestWithIam {
 
@@ -126,21 +126,19 @@ public class AllocatorApiTest extends BaseTestWithIam {
         allocatorApp.start();
 
         final var config = allocatorCtx.getBean(ServiceConfig.class);
-        //noinspection UnstableApiUsage
-        channel = ChannelBuilder
-            .forAddress(HostAndPort.fromString(config.getAddress()))
-            .usePlaintext()
-            .build();
+
+        channel = newGrpcChannel(config.getAddress(), AllocatorGrpc.SERVICE_NAME, AllocatorPrivateGrpc.SERVICE_NAME,
+            OperationServiceApiGrpc.SERVICE_NAME, DiskServiceGrpc.SERVICE_NAME);
+
         var credentials = config.getIam().createCredentials();
         unauthorizedAllocatorBlockingStub = AllocatorGrpc.newBlockingStub(channel);
-        privateAllocatorBlockingStub = AllocatorPrivateGrpc.newBlockingStub(channel).withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
-        operationServiceApiBlockingStub = OperationServiceApiGrpc.newBlockingStub(channel).withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
-        authorizedAllocatorBlockingStub = unauthorizedAllocatorBlockingStub.withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
-        diskService = DiskServiceGrpc.newBlockingStub(channel).withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
+        privateAllocatorBlockingStub = newBlockingClient(AllocatorPrivateGrpc.newBlockingStub(channel), "Test",
+            credentials::token);
+        operationServiceApiBlockingStub = newBlockingClient(OperationServiceApiGrpc.newBlockingStub(channel), "Test",
+            credentials::token);
+        authorizedAllocatorBlockingStub = newBlockingClient(unauthorizedAllocatorBlockingStub, "Test",
+            credentials::token);
+        diskService = newBlockingClient(DiskServiceGrpc.newBlockingStub(channel), "Test", credentials::token);
 
         clusterRegistry = allocatorCtx.getBean(ClusterRegistry.class);
     }

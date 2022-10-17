@@ -14,15 +14,14 @@ import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.model.db.exceptions.DaoException;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.util.grpc.GrpcHeadersServerInterceptor;
-import ai.lzy.util.grpc.GrpcLogsInterceptor;
-import ai.lzy.util.grpc.RequestIdInterceptor;
 import ai.lzy.v1.graph.GraphExecutor;
 import ai.lzy.v1.graph.GraphExecutorApi.*;
 import ai.lzy.v1.graph.GraphExecutorGrpc;
-import io.grpc.*;
-import io.grpc.netty.NettyServerBuilder;
+import io.grpc.ManagedChannel;
+import io.grpc.Server;
+import io.grpc.ServerInterceptors;
+import io.grpc.Status;
+import io.grpc.StatusException;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;
@@ -33,8 +32,9 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 
 @Singleton
 public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
@@ -174,13 +174,9 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
 
         final var internalUserOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
 
-        server = NettyServerBuilder.forPort(config.getPort())
-            .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel)))
-            .intercept(GrpcLogsInterceptor.server())
-            .intercept(RequestIdInterceptor.server())
-            .intercept(GrpcHeadersServerInterceptor.create())
+        server =
+            newGrpcServer("0.0.0.0", config.getPort(),
+                new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel)))
             .addService(ServerInterceptors.intercept(this, internalUserOnly))
             .build();
 

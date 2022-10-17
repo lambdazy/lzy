@@ -6,6 +6,5 @@ portal:
   stdout-channel-id: "${portal.portal-id}:stdout"
   stderr-channel-id: "${portal.portal-id}:stderr"
   fs-api-port: "${random.port}"
-  fs-root: "/tmp/lzy_${portal.portal-id}/"
   channel-manager-address: "localhost:${random.port}"
   iam-address: "localhost:8443"
