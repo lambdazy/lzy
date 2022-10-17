@@ -67,7 +67,7 @@ public class GraphExecutionService {
         var executionId = request.getExecutionId();
         var graphExecutionState = new GraphExecutionState(executionId);
 
-        LOG.debug("[executeGraph], validate graph, current state: " + graphExecutionState);
+        LOG.debug("[executeGraph], validate dataflow graph, current state: " + graphExecutionState);
 
         Consumer<Status> replyError = (status) -> {
             LOG.error("[executeGraph], fail: status={}, msg={}.", status,
@@ -90,12 +90,15 @@ public class GraphExecutionService {
 
         validator.validate(graphExecutionState);
 
-        LOG.debug("[executeGraph], building graph, current state: " + graphExecutionState);
-
         if (graphExecutionState.isInvalid()) {
             replyError.accept(graphExecutionState.getErrorStatus());
             return;
         }
+
+        LOG.info("[executeGraph], dataflow graph built and validated: " +
+            graphExecutionState.getDataFlowGraph().toString());
+
+        LOG.debug("[executeGraph], building execution graph, current state: " + graphExecutionState);
 
         ManagedChannel portalChannel;
         try {
@@ -110,7 +113,7 @@ public class GraphExecutionService {
             });
         } catch (RuntimeException e) {
             var cause = Objects.nonNull(e.getCause()) ? e.getCause() : e;
-            replyError.accept(Status.INTERNAL.withDescription("Cannot build graph: " +
+            replyError.accept(Status.INTERNAL.withDescription("Cannot build execution graph: " +
                 cause.getMessage()));
             return;
         }

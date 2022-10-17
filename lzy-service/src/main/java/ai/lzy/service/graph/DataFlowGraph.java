@@ -9,6 +9,8 @@ import javax.annotation.Nullable;
 class DataFlowGraph {
     record Node(String operationName, List<SlotDescription> inputs, List<SlotDescription> outputs) {}
 
+    private static final String edge = " -> ";
+
     private final List<List<Integer>> graph;
     private final ArrayList<Node> operations;
 
@@ -136,7 +138,58 @@ class DataFlowGraph {
         if (cycle == null) {
             throw new IllegalStateException("Cycle not found");
         }
-        return cycle.stream().map(i -> operations.get(i).operationName).collect(Collectors.joining(" --> "));
+        return cycle.stream().map(i -> operations.get(i).operationName).collect(Collectors.joining(edge));
+    }
+
+    @Override
+    public String toString() {
+        // prints operations graph in dot notation
+
+        List<Data> dataflow = getDataFlow();
+        var stringBuilder = new StringBuilder("digraph {");
+
+        for (var data : dataflow) {
+            var slotUri = data.slotUri;
+            var in = findSupplierOperationIdBy(slotUri);
+
+            if (data.consumers != null) {
+                for (String outSlotName : data.consumers) {
+                    var out = findConsumerOperationIdBy(slotUri, outSlotName);
+                    stringBuilder
+                        .append("\t")
+                        .append('"').append(in).append('"')
+                        .append(edge)
+                        .append('"').append(out).append('"')
+                        .append(";");
+                }
+            } else {
+                stringBuilder
+                    .append("\t")
+                    .append('"').append(in).append('"')
+                    .append(";");
+            }
+        }
+
+        stringBuilder.append("\n}");
+        return stringBuilder.toString();
+    }
+
+    private String findSupplierOperationIdBy(String slotUri) {
+        if (danglingInputSlots.containsKey(slotUri)) {
+            return "portal";
+        }
+
+        int operationId = dataSuppliers.get(slotUri).getValue();
+        return operations.get(operationId).operationName;
+    }
+
+    private String findConsumerOperationIdBy(String slotUri, String slotName) {
+        List<Map.Entry<String, Integer>> consumersSlotNames = dataConsumers.get(slotUri);
+        Map.Entry<String, Integer> slotNameAndOpId = consumersSlotNames.stream()
+            .filter(slot -> slot.getKey().contentEquals(slotName))
+            .findFirst()
+            .orElseThrow();
+        return operations.get(slotNameAndOpId.getValue()).operationName;
     }
 
     /**

@@ -110,6 +110,10 @@ final class GraphExecutionState {
         return "zoneName: " + zone;
     }
 
+    private String printDataflowGraph() {
+        return "dataflowGraph: " + dataFlowGraph.toString();
+    }
+
     @Override
     public String toString() {
         var sb = new StringBuilder();
@@ -121,6 +125,9 @@ final class GraphExecutionState {
         }
         if (zone != null) {
             sb.append(", ").append(printZoneName());
+        }
+        if (dataFlowGraph != null) {
+            sb.append(", ").append(printDataflowGraph());
         }
 
         sb.append(" }");
