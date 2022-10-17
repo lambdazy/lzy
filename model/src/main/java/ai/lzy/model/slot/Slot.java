@@ -3,10 +3,13 @@ package ai.lzy.model.slot;
 import ai.lzy.model.DataScheme;
 
 public interface Slot {
+    String STDOUT_SUFFIX = "stdout";
+    String STDERR_SUFFIX = "stderr";
+
     Slot ARGS = new TextLinesInSlot("/dev/args");
     Slot STDIN = new TextLinesInSlot("/dev/stdin");
-    Slot STDOUT = new TextLinesOutSlot("/dev/stdout");
-    Slot STDERR = new TextLinesOutSlot("/dev/stderr");
+    Slot STDOUT = new TextLinesOutSlot("/dev/" + Slot.STDOUT_SUFFIX);
+    Slot STDERR = new TextLinesOutSlot("/dev/" + Slot.STDERR_SUFFIX);
 
     String name();
 

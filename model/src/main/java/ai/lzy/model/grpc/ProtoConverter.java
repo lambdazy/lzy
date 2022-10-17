@@ -155,23 +155,23 @@ public class ProtoConverter {
             .build();
     }
 
-    public static LMS.Slot buildInputPlainContentSlot(String slotName) {
-        return buildInputSlot(slotName, toProto(DataScheme.PLAIN));
+    public static LMS.Slot buildFileInputPlainContentSlot(String slotName) {
+        return buildFileInputSlot(slotName, toProto(DataScheme.PLAIN));
     }
 
-    public static LMS.Slot buildOutputPlainContentSlot(String slotName) {
-        return buildOutputSlot(slotName, toProto(DataScheme.PLAIN));
+    public static LMS.Slot buildFileOutputPlainContentSlot(String slotName) {
+        return buildFileOutputSlot(slotName, toProto(DataScheme.PLAIN));
     }
 
-    public static LMS.Slot buildInputSlot(String slotName, LMD.DataScheme scheme) {
-        return buildSlot(slotName, LMS.Slot.Direction.INPUT, scheme);
+    public static LMS.Slot buildFileInputSlot(String slotName, LMD.DataScheme scheme) {
+        return buildFileSlot(slotName, LMS.Slot.Direction.INPUT, scheme);
     }
 
-    public static LMS.Slot buildOutputSlot(String slotName, LMD.DataScheme scheme) {
-        return buildSlot(slotName, LMS.Slot.Direction.OUTPUT, scheme);
+    public static LMS.Slot buildFileOutputSlot(String slotName, LMD.DataScheme scheme) {
+        return buildFileSlot(slotName, LMS.Slot.Direction.OUTPUT, scheme);
     }
 
-    public static LMS.Slot buildSlot(String slotName, LMS.Slot.Direction direction, LMD.DataScheme scheme) {
+    public static LMS.Slot buildFileSlot(String slotName, LMS.Slot.Direction direction, LMD.DataScheme scheme) {
         return LMS.Slot.newBuilder()
             .setName(slotName)
             .setDirection(direction)

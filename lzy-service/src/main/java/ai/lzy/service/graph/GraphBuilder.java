@@ -1,5 +1,7 @@
 package ai.lzy.service.graph;
 
+import ai.lzy.model.slot.Slot;
+import ai.lzy.portal.Portal;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.util.grpc.JsonUtils;
@@ -18,8 +20,6 @@ import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWF.Operation.SlotDescription;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import org.apache.commons.collections4.ListUtils;
-import org.apache.commons.collections4.PredicateUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -31,8 +31,8 @@ import java.util.stream.Collectors;
 import static ai.lzy.channelmanager.grpc.ProtoConverter.makeCreateDirectChannelCommand;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
-import static ai.lzy.model.deprecated.GrpcConverter.*;
 import static ai.lzy.model.grpc.ProtoConverter.*;
+import static ai.lzy.portal.grpc.ProtoConverter.*;
 
 class GraphBuilder {
     private static final Logger LOG = LogManager.getLogger(GraphBuilder.class);
@@ -58,12 +58,12 @@ class GraphBuilder {
         try {
             slotName2channelId = createChannelsForDataFlow(workflowName, executionId, dataFlow, portalClient);
         } catch (StatusRuntimeException e) {
-            state.onError(e.getStatus(), "Cannot build graph");
+            state.fail(e.getStatus(), "Cannot build graph");
             LOG.error("Cannot assign slots to channels for execution: " +
                 "{ executionId: {}, workflowName: {} }, error: {} ", executionId, workflowName, e.getMessage());
             return;
         } catch (Exception e) {
-            state.onError(Status.INTERNAL, "Cannot build graph");
+            state.fail(Status.INTERNAL, "Cannot build graph");
             LOG.error("Cannot assign slots to channels for execution: " +
                 "{ executionId: {}, workflowName: {} }, error: {} ", executionId, workflowName, e.getMessage());
             return;
@@ -77,12 +77,12 @@ class GraphBuilder {
             tasks = buildTasksWithZone(executionId, state.getZone(), state.getOperations(),
                 slotName2channelId, slot2description, portalClient);
         } catch (StatusRuntimeException e) {
-            state.onError(e.getStatus(), "Cannot build graph");
+            state.fail(e.getStatus(), "Cannot build graph");
             LOG.error("Cannot build tasks for execution: { executionId: {}, workflowName: {} }, error: {} ",
                 executionId, workflowName, e.getMessage());
             return;
         } catch (Exception e) {
-            state.onError(Status.INTERNAL, "Cannot build graph");
+            state.fail(Status.INTERNAL, "Cannot build graph");
             LOG.error("Cannot build tasks for execution: { executionId: {}, workflowName: {} }, error: {} ",
                 executionId, workflowName, e.getMessage());
             return;
@@ -126,11 +126,9 @@ class GraphBuilder {
             var channelId = channelManagerClient
                 .create(makeCreateDirectChannelCommand(executionId, "channel_" + slotUri))
                 .getChannelId();
-            var portalInputSlotName = "/portal_slot_" + UUID.randomUUID();
+            var portalInputSlotName = Portal.PORTAL_SLOT_PREFIX + "_" + UUID.randomUUID();
 
             portalSlotToOpen.add(makePortalInputSlot(slotUri, portalInputSlotName, channelId, storageLocator));
-
-            // slotName2channelId.put(portalInputSlotName, channelId); uncomment if necessary
 
             slotName2channelId.put(data.supplier(), channelId);
             if (data.consumers() != null) {
@@ -158,7 +156,7 @@ class GraphBuilder {
 
             for (var data : withoutChannels) {
                 var slotUri = data.slotUri();
-                var portalOutputSlotName = "/portal_slot_" + UUID.randomUUID();
+                var portalOutputSlotName = Portal.PORTAL_SLOT_PREFIX + "_" + UUID.randomUUID();
                 var channelId = channelManagerClient
                     .create(makeCreateDirectChannelCommand(executionId, "portal_channel_" + slotUri))
                     .getChannelId();
@@ -179,8 +177,6 @@ class GraphBuilder {
         }
 
         for (var data : fromPortal) {
-            // slotName2channelId.put(portalOutputSlotName, channelId); uncomment if necessary
-
             if (data.consumers() != null) {
                 for (var consumer : data.consumers()) {
                     slotName2channelId.put(consumer, outputSlot2channel.get(data.slotUri()));
@@ -215,20 +211,19 @@ class GraphBuilder {
                                               Map<String, LWF.DataDescription> slot2description,
                                               LzyPortalGrpc.LzyPortalBlockingStub portalClient)
     {
-        var tasks = ListUtils.predicatedList(new ArrayList<TaskDesc>(operations.size()),
-            PredicateUtils.notNullPredicate());
+        var tasks = new ArrayList<TaskDesc>(operations.size());
 
         for (var operation : operations) {
             // TODO: ssokolvyak -- must not be generated here but passed in executeGraph request
             var taskId = UUID.randomUUID().toString();
 
-            var stdoutChannelName = taskId + ":stdout";
+            var channelNameForStdoutSlot = "channel_" + taskId + ":" + Slot.STDOUT_SUFFIX;
             var stdoutChannelId = channelManagerClient.create(
-                makeCreateDirectChannelCommand(executionId, stdoutChannelName)).getChannelId();
+                makeCreateDirectChannelCommand(executionId, channelNameForStdoutSlot)).getChannelId();
 
-            var stderrChannelName = taskId + ":stderr";
+            var channelNameForStderrSlot = "channel_" + taskId + ":" + Slot.STDERR_SUFFIX;
             var stderrChannelId = channelManagerClient.create(
-                makeCreateDirectChannelCommand(executionId, stderrChannelName)).getChannelId();
+                makeCreateDirectChannelCommand(executionId, channelNameForStderrSlot)).getChannelId();
 
             tasks.add(buildTaskWithZone(executionId, taskId, operation, zoneName,
                 stdoutChannelId, stderrChannelId, slot2Channel, slot2description, portalClient));
@@ -256,12 +251,12 @@ class GraphBuilder {
                 var hasDataScheme = description != null && description.hasDataScheme();
 
                 if (isInput) {
-                    var slot = hasDataScheme ? buildInputSlot(slotName, description.getDataScheme()) :
-                        buildInputPlainContentSlot(slotName);
+                    var slot = hasDataScheme ? buildFileInputSlot(slotName, description.getDataScheme()) :
+                        buildFileInputPlainContentSlot(slotName);
                     inputSlots.add(slot);
                 } else {
-                    var slot = hasDataScheme ? buildOutputSlot(slotName, description.getDataScheme()) :
-                        buildOutputPlainContentSlot(slotName);
+                    var slot = hasDataScheme ? buildFileOutputSlot(slotName, description.getDataScheme()) :
+                        buildFileOutputPlainContentSlot(slotName);
                     outputSlots.add(slot);
                 }
 
@@ -275,8 +270,8 @@ class GraphBuilder {
         slotsDescriptionsConsumer.accept(operation.getInputSlotsList(), true);
         slotsDescriptionsConsumer.accept(operation.getOutputSlotsList(), false);
 
-        var stdoutPortalSlotName = "/portal_%s:stdout".formatted(taskId);
-        var stderrPortalSlotName = "/portal_%s:stderr".formatted(taskId);
+        var stdoutPortalSlotName = Portal.PORTAL_SLOT_PREFIX + "_" + taskId + ":" + Slot.STDOUT_SUFFIX;
+        var stderrPortalSlotName = Portal.PORTAL_SLOT_PREFIX + "_" + taskId + ":" + Slot.STDERR_SUFFIX;
 
         LzyPortalApi.OpenSlotsResponse response = portalClient.openSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
             .addSlots(makePortalInputStdoutSlot(taskId, stdoutPortalSlotName, stdoutChannelId))
@@ -310,9 +305,6 @@ class GraphBuilder {
                 .build());
         }
 
-        var stdoutSlotName = "/dev/stdout";
-        var stderrSlotName = "/dev/stderr";
-
         var taskOperation = LMO.Operation.newBuilder()
             .setEnv(env.build())
             .setRequirements(requirements)
@@ -321,9 +313,9 @@ class GraphBuilder {
             .addAllSlots(outputSlots)
             .setName(operation.getName())
             .setStdout(LMO.Operation.StdSlotDesc.newBuilder()
-                .setName(stdoutSlotName).setChannelId(stdoutChannelId).build())
+                .setName("/dev/" + Slot.STDOUT_SUFFIX).setChannelId(stdoutChannelId).build())
             .setStderr(LMO.Operation.StdSlotDesc.newBuilder()
-                .setName(stderrSlotName).setChannelId(stderrChannelId).build())
+                .setName("/dev/" + Slot.STDERR_SUFFIX).setChannelId(stderrChannelId).build())
             .build();
 
         return TaskDesc.newBuilder()

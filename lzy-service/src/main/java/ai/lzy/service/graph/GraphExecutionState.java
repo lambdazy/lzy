@@ -94,7 +94,7 @@ final class GraphExecutionState {
         return errorStatus;
     }
 
-    public void onError(Status errorStatus, String description) {
+    public void fail(Status errorStatus, String description) {
         this.errorStatus = errorStatus.withDescription(description);
     }
 

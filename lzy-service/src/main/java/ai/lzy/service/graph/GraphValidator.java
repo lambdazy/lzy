@@ -34,7 +34,7 @@ class GraphValidator {
         Collection<LWF.Operation> operations = state.getOperations();
 
         if (operations.isEmpty()) {
-            state.onError(Status.INVALID_ARGUMENT, "Collection of graph operations is empty");
+            state.fail(Status.INVALID_ARGUMENT, "Collection of graph operations is empty");
             return;
         }
 
@@ -44,7 +44,7 @@ class GraphValidator {
         var duplicate = findFirstDuplicate(allOutputSlotsUriList);
 
         if (duplicate != null) {
-            state.onError(Status.INVALID_ARGUMENT, "Duplicated output slot URI: " + duplicate);
+            state.fail(Status.INVALID_ARGUMENT, "Duplicated output slot URI: " + duplicate);
             return;
         }
 
@@ -52,12 +52,12 @@ class GraphValidator {
         try {
             knownSlots = withRetries(LOG, () -> executionDao.retainExistingSlots(new HashSet<>(allOutputSlotsUriList)));
         } catch (Exception e) {
-            state.onError(Status.INTERNAL, "Cannot obtain existing slots URIs while starting graph: " + e.getMessage());
+            state.fail(Status.INTERNAL, "Cannot obtain existing slots URIs while starting graph: " + e.getMessage());
             return;
         }
 
         if (!knownSlots.isEmpty()) {
-            state.onError(Status.INVALID_ARGUMENT, "Output slots URIs { slotsUri: %s } already used in other execution"
+            state.fail(Status.INVALID_ARGUMENT, "Output slots URIs { slotsUri: %s } already used in other execution"
                 .formatted(JsonUtils.printAsArray(knownSlots)));
             return;
         }
@@ -70,7 +70,7 @@ class GraphValidator {
         state.setDataFlowGraph(dataflowGraph);
 
         if (dataflowGraph.hasCycle()) {
-            state.onError(Status.INVALID_ARGUMENT, "Try to execute graph with cycle: " + dataflowGraph.printCycle());
+            state.fail(Status.INVALID_ARGUMENT, "Try to execute graph with cycle: " + dataflowGraph.printCycle());
             return;
         }
 
@@ -80,13 +80,13 @@ class GraphValidator {
             unknownSlots = withRetries(LOG, () ->
                 executionDao.retainNonExistingSlots(state.getExecutionId(), fromPortal));
         } catch (Exception e) {
-            state.onError(Status.INTERNAL, "Cannot obtain non-existing slots URIs associated with execution: " +
+            state.fail(Status.INTERNAL, "Cannot obtain non-existing slots URIs associated with execution: " +
                 e.getMessage());
             return;
         }
 
         if (!unknownSlots.isEmpty()) {
-            state.onError(Status.NOT_FOUND, String.format("Slots URIs { slotUris: %s } are presented neither in " +
+            state.fail(Status.NOT_FOUND, String.format("Slots URIs { slotUris: %s } are presented neither in " +
                 "output slots URIs nor stored as already associated with portal",
                 JsonUtils.printAsArray(unknownSlots)));
             return;
@@ -98,7 +98,7 @@ class GraphValidator {
         try {
             suitableZones = VmPoolClient.findZones(requiredPoolLabels, vmPoolClient);
         } catch (StatusRuntimeException e) {
-            state.onError(e.getStatus(), "Cannot obtain vm pools for { poolLabels: %s } , error: %s"
+            state.fail(e.getStatus(), "Cannot obtain vm pools for { poolLabels: %s } , error: %s"
                 .formatted(JsonUtils.printAsArray(requiredPoolLabels), e.getStatus().getDescription()));
             return;
         }
@@ -106,7 +106,7 @@ class GraphValidator {
         var zone = state.getZone().isBlank() ? suitableZones.stream().findAny().orElse(null) : state.getZone();
 
         if (zone == null) {
-            state.onError(Status.INVALID_ARGUMENT, "Cannot find zone which has all required pools: " +
+            state.fail(Status.INVALID_ARGUMENT, "Cannot find zone which has all required pools: " +
                 JsonUtils.printAsArray(requiredPoolLabels));
             return;
         }
@@ -114,7 +114,7 @@ class GraphValidator {
         state.setZone(zone);
 
         if (!suitableZones.contains(zone)) {
-            state.onError(Status.INVALID_ARGUMENT, "Passed zone does not contain all required pools");
+            state.fail(Status.INVALID_ARGUMENT, "Passed zone does not contain all required pools");
         }
     }
 }

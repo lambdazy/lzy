@@ -8,19 +8,16 @@ import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotStatus;
 import ai.lzy.v1.common.LMS;
-import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.deprecated.Lzy;
 import ai.lzy.v1.deprecated.LzyTask;
 import ai.lzy.v1.deprecated.LzyWhiteboard;
 import ai.lzy.v1.deprecated.LzyZygote;
-import ai.lzy.v1.portal.LzyPortal;
 
 import java.net.URI;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
 import static ai.lzy.model.grpc.ProtoConverter.fromProto;
-import static ai.lzy.model.grpc.ProtoConverter.toProto;
 
 @Deprecated
 public abstract class GrpcConverter {
@@ -85,9 +82,7 @@ public abstract class GrpcConverter {
             .build();
     }
 
-    public static Lzy.GetS3CredentialsResponse to(
-        StorageCredentials.AmazonCredentials credentials)
-    {
+    public static Lzy.GetS3CredentialsResponse to(StorageCredentials.AmazonCredentials credentials) {
         return Lzy.GetS3CredentialsResponse.newBuilder()
             .setAmazon(Lzy.AmazonCredentials.newBuilder()
                 .setEndpoint(credentials.endpoint())
@@ -97,9 +92,7 @@ public abstract class GrpcConverter {
             .build();
     }
 
-    public static Lzy.GetS3CredentialsResponse to(
-        StorageCredentials.AzureSASCredentials credentials)
-    {
+    public static Lzy.GetS3CredentialsResponse to(StorageCredentials.AzureSASCredentials credentials) {
         return Lzy.GetS3CredentialsResponse.newBuilder()
             .setAzureSas(
                 Lzy.AzureSASCredentials.newBuilder()
@@ -115,70 +108,6 @@ public abstract class GrpcConverter {
             .setType(dataScheme.schemeContent())
             .setSchemeType(dataScheme.dataFormat())
             .build();
-    }
-
-    public static LzyPortal.PortalSlotDesc makePortalOutputSlot(String slotUri, String slotName, String channelId,
-                                                                LMS3.S3Locator s3Locator)
-    {
-        return makePortalSlot(slotUri, slotName, channelId, LMS.Slot.Direction.OUTPUT, s3Locator);
-    }
-
-    public static LzyPortal.PortalSlotDesc makePortalInputSlot(String slotUri, String slotName, String channelId,
-                                                               LMS3.S3Locator s3Locator)
-    {
-        return makePortalSlot(slotUri, slotName, channelId, LMS.Slot.Direction.INPUT, s3Locator);
-    }
-
-    public static LzyPortal.PortalSlotDesc makePortalSlot(String slotUri, String slotName, String channelId,
-                                                          LMS.Slot.Direction direction, LMS3.S3Locator s3Locator)
-    {
-        return LzyPortal.PortalSlotDesc.newBuilder()
-            .setSnapshot(LzyPortal.PortalSlotDesc.Snapshot.newBuilder()
-                .setS3(LMS3.S3Locator.newBuilder()
-                    .setKey(slotUri)
-                    .setBucket(s3Locator.getBucket())
-                    .setAmazon(s3Locator.getAmazon())))
-            .setSlot(LMS.Slot.newBuilder()
-                .setName(slotName)
-                .setMedia(LMS.Slot.Media.FILE)
-                .setDirection(direction)
-                .setContentType(ai.lzy.model.grpc.ProtoConverter.toProto(DataScheme.PLAIN))
-                .build())
-            .setChannelId(channelId)
-            .build();
-    }
-
-    public static LzyPortal.PortalSlotDesc makePortalInputStdoutSlot(String taskId, String stdSlotName,
-                                                                     String channelId)
-    {
-        return makePortalStdSlot(taskId, stdSlotName, channelId, LMS.Slot.Direction.INPUT, true);
-    }
-
-    public static LzyPortal.PortalSlotDesc makePortalInputStderrSlot(String taskId, String stdSlotName,
-                                                                     String channelId)
-    {
-        return makePortalStdSlot(taskId, stdSlotName, channelId, LMS.Slot.Direction.INPUT, false);
-    }
-
-    public static LzyPortal.PortalSlotDesc makePortalStdSlot(String taskId, String stdSlotName, String channelId,
-                                                             LMS.Slot.Direction direction, boolean isStdOut)
-    {
-        var slot = LzyPortal.PortalSlotDesc.newBuilder()
-            .setSlot(LMS.Slot.newBuilder()
-                .setName(stdSlotName)
-                .setMedia(LMS.Slot.Media.FILE)
-                .setDirection(direction)
-                .setContentType(toProto(DataScheme.PLAIN))
-                .build())
-            .setChannelId(channelId);
-
-        if (isStdOut) {
-            slot.setStdout(LzyPortal.PortalSlotDesc.StdOut.newBuilder().setTaskId(taskId).build());
-        } else {
-            slot.setStderr(LzyPortal.PortalSlotDesc.StdErr.newBuilder().setTaskId(taskId).build());
-        }
-
-        return slot.build();
     }
 
     private record AtomicZygoteAdapter(LzyZygote.Zygote operation) implements AtomicZygote {

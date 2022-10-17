@@ -232,12 +232,12 @@ public class WorkflowService {
             try {
                 state.setStorageLocator(getOrCreateTempUserBucket(state.getUserId(), storageServiceClient));
             } catch (StatusRuntimeException e) {
-                state.onError(e.getStatus(), "Cannot create temp bucket");
+                state.fail(e.getStatus(), "Cannot create temp bucket");
             }
         } else {
             var userStorage = request.getSnapshotStorage();
             if (userStorage.getEndpointCase() == LMS3.S3Locator.EndpointCase.ENDPOINT_NOT_SET) {
-                state.onError(Status.INVALID_ARGUMENT, "Snapshot storage not set");
+                state.fail(Status.INVALID_ARGUMENT, "Snapshot storage not set");
             } else {
                 state.setStorageLocator(userStorage);
             }
@@ -250,9 +250,9 @@ public class WorkflowService {
                 workflowDao.create(state.getExecutionId(), state.getUserId(), state.getWorkflowName(),
                     state.getStorageType().name(), state.getStorageLocator()));
         } catch (AlreadyExistsException e) {
-            state.onError(Status.ALREADY_EXISTS, "Cannot create execution: " + e.getMessage());
+            state.fail(Status.ALREADY_EXISTS, "Cannot create execution: " + e.getMessage());
         } catch (Exception e) {
-            state.onError(Status.INTERNAL, "Cannot create execution: " + e.getMessage());
+            state.fail(Status.INTERNAL, "Cannot create execution: " + e.getMessage());
         }
     }
 
@@ -284,7 +284,7 @@ public class WorkflowService {
             try {
                 allocateMetadata = operation.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
             } catch (InvalidProtocolBufferException e) {
-                state.onError(Status.INTERNAL,
+                state.fail(Status.INTERNAL,
                     "Invalid allocate operation metadata: VM id missed. Operation id: " + opId);
                 return;
             }
@@ -296,7 +296,7 @@ public class WorkflowService {
             VmAllocatorApi.AllocateResponse
                 allocateResponse = waitAllocation(startAllocationTime.plus(allocationTimeout), opId);
             if (allocateResponse == null) {
-                state.onError(Status.DEADLINE_EXCEEDED,
+                state.fail(Status.DEADLINE_EXCEEDED,
                     "Cannot wait allocate operation response. Operation id: " + opId);
                 return;
             }
@@ -305,9 +305,9 @@ public class WorkflowService {
                 allocateResponse.getMetadataOrDefault(AllocatorAgent.VM_IP_ADDRESS, null)));
 
         } catch (StatusRuntimeException e) {
-            state.onError(e.getStatus(), "Cannot start portal");
+            state.fail(e.getStatus(), "Cannot start portal");
         } catch (Exception e) {
-            state.onError(Status.INTERNAL, "Cannot start portal: " + e.getMessage());
+            state.fail(Status.INTERNAL, "Cannot start portal: " + e.getMessage());
         }
     }
 

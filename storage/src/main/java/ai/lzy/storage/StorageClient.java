@@ -24,7 +24,6 @@ public class StorageClient {
                 .setBucket(bucketName)
                 .build());
 
-        // there something else except AMAZON or AZURE may be returned here?
         return switch (response.getCredentialsCase()) {
             case AMAZON -> LMS3.S3Locator.newBuilder().setAmazon(response.getAmazon()).setBucket(bucketName).build();
             case AZURE -> LMS3.S3Locator.newBuilder().setAzure(response.getAzure()).setBucket(bucketName).build();
