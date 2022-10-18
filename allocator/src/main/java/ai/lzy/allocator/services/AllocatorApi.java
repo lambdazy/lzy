@@ -187,7 +187,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             return;
         }
 
-        ai.lzy.allocator.model.Operation op;
+        ai.lzy.longrunning.Operation op;
         try {
             op = withRetries(
                 defaultRetryPolicy(),
@@ -351,7 +351,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
     private static void failOperation(
         OperationDao operations,
-        ai.lzy.allocator.model.Operation operation,
+        ai.lzy.longrunning.Operation operation,
         Status error)
     {
         operation.setError(error);
