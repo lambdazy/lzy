@@ -60,3 +60,6 @@ allocator:
 
   kuber-tunnel-allocator:
     enabled: false
+
+  kuber-network-policy-manager:
+    enabled: true

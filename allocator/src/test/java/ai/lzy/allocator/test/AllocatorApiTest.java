@@ -23,6 +23,7 @@ import ai.lzy.v1.VmAllocatorApi.*;
 import com.google.protobuf.Duration;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.fabric8.kubernetes.api.model.*;
+import io.fabric8.kubernetes.api.model.networking.v1.NetworkPolicy;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.grpc.ManagedChannel;
@@ -31,6 +32,8 @@ import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -45,13 +48,13 @@ import java.net.HttpURLConnection;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.*;
@@ -68,6 +71,8 @@ public class AllocatorApiTest extends BaseTestWithIam {
     private static final int TIMEOUT_SEC = 300;
 
     private static final String POD_PATH = "/api/v1/namespaces/%s/pods".formatted(NAMESPACE);
+    private static final String NETWORK_POLICY_PATH = "/apis/networking.k8s.io/v1/namespaces/%s/networkpolicies"
+        .formatted(NAMESPACE);
     private static final String PERSISTENT_VOLUME_PATH = "/api/v1/persistentvolumes";
     private static final String PERSISTENT_VOLUME_CLAIM_PATH = "/api/v1/namespaces/%s/persistentvolumeclaims"
         .formatted(NAMESPACE);
@@ -235,16 +240,20 @@ public class AllocatorApiTest extends BaseTestWithIam {
     }
 
     @Test
-    public void testCreateAndDeleteSession() {
+    public void testCreateAndDeleteSession() throws ExecutionException, InterruptedException {
+        var networkPolicyFutures = getNetworkPolicyFuturesPerCluster();
         final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(100).build()).build())
                 .build());
+        final CountDownLatch kuberRemoveResourceLatch = new CountDownLatch(networkPolicyFutures.size());
+        mockDeleteNetworkPolicies(networkPolicyFutures, kuberRemoveResourceLatch);
         final DeleteSessionResponse deleteSessionResponse = authorizedAllocatorBlockingStub.deleteSession(
             DeleteSessionRequest.newBuilder().setSessionId(createSessionResponse.getSessionId()).build());
 
         Assert.assertNotNull(createSessionResponse.getSessionId());
         Assert.assertNotNull(deleteSessionResponse);
+        Assert.assertTrue(kuberRemoveResourceLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
     }
 
     @Test
@@ -309,6 +318,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
         allocatorCtx.getBean(SessionDaoImpl.class).injectError(
             new PSQLException("retry me, plz", PSQLState.CONNECTION_FAILURE));
 
+        getNetworkPolicyFuturesPerCluster();
         var resp = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder()
                 .setOwner(UUID.randomUUID().toString())
@@ -327,6 +337,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
             .andReturn(HttpURLConnection.HTTP_INTERNAL_ERROR, new PodListBuilder().build())
             .once();
 
+        getNetworkPolicyFuturesPerCluster();
         final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(100).build()).build())
@@ -349,6 +360,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
 
     @Test
     public void allocateServantTimeoutTest() throws InterruptedException, ExecutionException {
+        getNetworkPolicyFuturesPerCluster();
         final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(100).build()).build())
@@ -374,6 +386,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
 
     @Test
     public void allocateInvalidPoolTest() {
+        getNetworkPolicyFuturesPerCluster();
         final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(100).build()).build())
@@ -407,6 +420,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
     public void allocateFreeSuccessTest() throws InvalidProtocolBufferException,
             InterruptedException, ExecutionException
     {
+        getNetworkPolicyFuturesPerCluster();
         final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(0).build()).build())
@@ -452,6 +466,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
     public void eventualFreeAfterFailTest() throws InvalidProtocolBufferException,
             InterruptedException, ExecutionException
     {
+        getNetworkPolicyFuturesPerCluster();
         final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(0).build()).build())
@@ -500,6 +515,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
     public void allocateFromCacheTest() throws InvalidProtocolBufferException,
             InterruptedException, ExecutionException
     {
+        getNetworkPolicyFuturesPerCluster();
         final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(5).build()).build())
@@ -565,6 +581,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
     public void deleteSessionWithActiveVmsAfterRegister() throws InvalidProtocolBufferException,
             InterruptedException, ExecutionException
     {
+        var networkPolicyFutures = getNetworkPolicyFuturesPerCluster();
         final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(0).build()).build())
@@ -581,13 +598,14 @@ public class AllocatorApiTest extends BaseTestWithIam {
 
         final String podName = future.get();
         mockGetPod(podName);
-        final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
+        final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1 + networkPolicyFutures.size());
         mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
 
         String clusterId = Objects.requireNonNull(clusterRegistry.findCluster("S", ZONE, CLUSTER_TYPE))
             .clusterId();
         registerVm(allocateMetadata.getVmId(), clusterId);
 
+        mockDeleteNetworkPolicies(networkPolicyFutures, kuberRemoveRequestLatch);
         //noinspection ResultOfMethodCallIgnored
         authorizedAllocatorBlockingStub.deleteSession(
             DeleteSessionRequest.newBuilder().setSessionId(createSessionResponse.getSessionId()).build());
@@ -602,6 +620,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
     public void deleteSessionWithActiveVmsBeforeRegister() throws InvalidProtocolBufferException,
             InterruptedException, ExecutionException
     {
+        var networkPolicyFutures = getNetworkPolicyFuturesPerCluster();
         final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(0).build()).build())
@@ -618,9 +637,10 @@ public class AllocatorApiTest extends BaseTestWithIam {
 
         final String podName = future.get();
         mockGetPod(podName);
-        final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
+        final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1 + networkPolicyFutures.size());
         mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
 
+        mockDeleteNetworkPolicies(networkPolicyFutures, kuberRemoveRequestLatch);
         //noinspection ResultOfMethodCallIgnored
         authorizedAllocatorBlockingStub.deleteSession(
             DeleteSessionRequest.newBuilder().setSessionId(createSessionResponse.getSessionId()).build());
@@ -653,6 +673,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
     public void repeatedFreeTest() throws InvalidProtocolBufferException,
             InterruptedException, ExecutionException
     {
+        getNetworkPolicyFuturesPerCluster();
         final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(0).build()).build())
@@ -695,6 +716,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
     public void repeatedServantRegister() throws InvalidProtocolBufferException,
             InterruptedException, ExecutionException
     {
+        getNetworkPolicyFuturesPerCluster();
         final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(0).build()).build())
@@ -733,6 +755,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
 
     @Test
     public void runWithVolumes() throws InvalidProtocolBufferException, ExecutionException, InterruptedException {
+        getNetworkPolicyFuturesPerCluster();
         final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(0).build()).build())
@@ -834,6 +857,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
 
     @Test
     public void runWithVolumeButNonExistingDisk() {
+        getNetworkPolicyFuturesPerCluster();
         final CreateSessionResponse createSessionResponse = authorizedAllocatorBlockingStub.createSession(
             CreateSessionRequest.newBuilder().setOwner(UUID.randomUUID().toString()).setCachePolicy(
                     CachePolicy.newBuilder().setIdleTimeout(Duration.newBuilder().setSeconds(0).build()).build())
@@ -909,6 +933,18 @@ public class AllocatorApiTest extends BaseTestWithIam {
         return awaitResourceCreate(Pod.class, POD_PATH).thenApply(pod -> pod.getMetadata().getName());
     }
 
+    private CompletableFuture<NetworkPolicy> awaitNetworkPolicyRequest() {
+        return awaitResourceCreate(NetworkPolicy.class, NETWORK_POLICY_PATH);
+    }
+
+    private ArrayList<CompletableFuture<NetworkPolicy>> getNetworkPolicyFuturesPerCluster() {
+        var networkPolicyFutures = new ArrayList<CompletableFuture<NetworkPolicy>>();
+        clusterRegistry.listClusters(ClusterRegistry.ClusterType.User).forEach(
+            cluster -> networkPolicyFutures.add(awaitNetworkPolicyRequest())
+        );
+        return networkPolicyFutures;
+    }
+
     private void mockDeleteResource(String resourcePath, String resourceName, Runnable onDelete, int responseCode) {
         kubernetesServer.expect().delete()
             .withPath(resourcePath + "/" + resourceName)
@@ -927,6 +963,23 @@ public class AllocatorApiTest extends BaseTestWithIam {
                 onDelete.run();
                 return new StatusDetails();
             }).once();
+    }
+
+    private void mockDeleteNetworkPolicy(String networkPolicyName, Runnable onDelete, int responseCode) {
+        mockDeleteResource(NETWORK_POLICY_PATH, networkPolicyName, onDelete, responseCode);
+    }
+
+    private void mockDeleteNetworkPolicies(
+        ArrayList<CompletableFuture<NetworkPolicy>> networkPolicyFutures, CountDownLatch kuberRemoveResourceLatch
+    ) throws InterruptedException, ExecutionException {
+        for (CompletableFuture<NetworkPolicy> networkPolicyFuture : networkPolicyFutures) {
+            NetworkPolicy networkPolicy = networkPolicyFuture.get();
+            mockDeleteNetworkPolicy(
+                networkPolicy.getMetadata().getName(),
+                kuberRemoveResourceLatch::countDown,
+                HttpURLConnection.HTTP_OK
+            );
+        }
     }
 
     private void registerVm(String vmId, String clusterId) {
