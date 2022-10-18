@@ -3,9 +3,9 @@ package ai.lzy.allocator.test;
 import ai.lzy.allocator.disk.DiskSpec;
 import ai.lzy.allocator.disk.DiskType;
 import ai.lzy.test.TimeUtils;
-import ai.lzy.v1.OperationService;
-import ai.lzy.v1.OperationService.Operation;
-import ai.lzy.v1.OperationServiceApiGrpc;
+import ai.lzy.v1.longrunning.LongRunning;
+import ai.lzy.v1.longrunning.LongRunning.Operation;
+import ai.lzy.v1.longrunning.LongRunningServiceGrpc.LongRunningServiceBlockingStub;
 import yandex.cloud.sdk.Zone;
 
 import java.util.UUID;
@@ -28,17 +28,15 @@ public class Utils {
         );
     }
 
-    public static Operation waitOperation(
-        OperationServiceApiGrpc.OperationServiceApiBlockingStub operationService,
-        Operation operation,
-        long timeoutSeconds)
+    public static Operation waitOperation(LongRunningServiceBlockingStub service, Operation operation,
+                                          long timeoutSeconds)
     {
         TimeUtils.waitFlagUp(() -> {
-            final OperationService.Operation op = operationService.get(
-                OperationService.GetOperationRequest.newBuilder().setOperationId(operation.getId()).build());
+            var op = service.get(
+                LongRunning.GetOperationRequest.newBuilder().setOperationId(operation.getId()).build());
             return op.getDone();
         }, timeoutSeconds, TimeUnit.SECONDS);
-        return operationService.get(
-            OperationService.GetOperationRequest.newBuilder().setOperationId(operation.getId()).build());
+        return service.get(
+            LongRunning.GetOperationRequest.newBuilder().setOperationId(operation.getId()).build());
     }
 }

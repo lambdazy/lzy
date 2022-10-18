@@ -18,8 +18,9 @@ import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.v1.*;
-import ai.lzy.v1.OperationService.Operation;
+import ai.lzy.v1.longrunning.LongRunning.Operation;
 import ai.lzy.v1.VmAllocatorApi.*;
+import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.protobuf.Duration;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.fabric8.kubernetes.api.model.*;
@@ -83,7 +84,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
     private AllocatorGrpc.AllocatorBlockingStub unauthorizedAllocatorBlockingStub;
     private AllocatorGrpc.AllocatorBlockingStub authorizedAllocatorBlockingStub;
     private AllocatorPrivateGrpc.AllocatorPrivateBlockingStub privateAllocatorBlockingStub;
-    private OperationServiceApiGrpc.OperationServiceApiBlockingStub operationServiceApiBlockingStub;
+    private LongRunningServiceGrpc.LongRunningServiceBlockingStub operationServiceApiBlockingStub;
     private DiskServiceGrpc.DiskServiceBlockingStub diskService;
     private AllocatorMain allocatorApp;
     private KubernetesServer kubernetesServer;
@@ -128,13 +129,13 @@ public class AllocatorApiTest extends BaseTestWithIam {
         final var config = allocatorCtx.getBean(ServiceConfig.class);
 
         channel = newGrpcChannel(config.getAddress(), AllocatorGrpc.SERVICE_NAME, AllocatorPrivateGrpc.SERVICE_NAME,
-            OperationServiceApiGrpc.SERVICE_NAME, DiskServiceGrpc.SERVICE_NAME);
+            LongRunningServiceGrpc.SERVICE_NAME, DiskServiceGrpc.SERVICE_NAME);
 
         var credentials = config.getIam().createCredentials();
         unauthorizedAllocatorBlockingStub = AllocatorGrpc.newBlockingStub(channel);
         privateAllocatorBlockingStub = newBlockingClient(AllocatorPrivateGrpc.newBlockingStub(channel), "Test",
             credentials::token);
-        operationServiceApiBlockingStub = newBlockingClient(OperationServiceApiGrpc.newBlockingStub(channel), "Test",
+        operationServiceApiBlockingStub = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(channel), "Test",
             credentials::token);
         authorizedAllocatorBlockingStub = newBlockingClient(unauthorizedAllocatorBlockingStub, "Test",
             credentials::token);

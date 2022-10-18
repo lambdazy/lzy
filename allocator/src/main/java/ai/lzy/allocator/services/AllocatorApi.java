@@ -28,7 +28,7 @@ import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.v1.AllocatorGrpc;
-import ai.lzy.v1.OperationService.Operation;
+import ai.lzy.v1.longrunning.LongRunning.Operation;
 import ai.lzy.v1.VmAllocatorApi.*;
 import com.google.protobuf.Any;
 import io.grpc.ManagedChannel;
