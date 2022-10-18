@@ -1,9 +1,12 @@
 package ai.lzy.test.impl;
 
+import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.channelmanager.ChannelManager;
 import ai.lzy.test.LzyChannelManagerContext;
 import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.deprecated.LzyKharonGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ConnectivityState;
@@ -25,6 +28,7 @@ public class ChannelManagerThreadContext implements LzyChannelManagerContext {
     private final HostAndPort iamAddress;
     private ChannelManager channelManager;
     private LzyChannelManagerGrpc.LzyChannelManagerBlockingStub client;
+    private LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub privateClient;
     private ManagedChannel channel;
     private ApplicationContext context;
 
@@ -40,7 +44,7 @@ public class ChannelManagerThreadContext implements LzyChannelManagerContext {
 
     @Override
     public String address() {
-        return "http://localhost:" + Config.PORT;
+        return "localhost:" + Config.PORT;
     }
 
     @Override
@@ -49,6 +53,10 @@ public class ChannelManagerThreadContext implements LzyChannelManagerContext {
     }
 
     @Override
+    public LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub privateClient() {
+        return privateClient;
+    }
+
     public void init(boolean stubIam) {
         LOG.info("Starting channel-manager...");
 
@@ -73,6 +81,10 @@ public class ChannelManagerThreadContext implements LzyChannelManagerContext {
             client = LzyChannelManagerGrpc.newBlockingStub(channel)
                 .withWaitForReady()
                 .withDeadlineAfter(Config.STARTUP_TIMEOUT_SEC, TimeUnit.SECONDS);
+            var creds = context.getBean(ServiceConfig.class).getIam().createCredentials();
+            privateClient = LzyChannelManagerPrivateGrpc.newBlockingStub(channel).withInterceptors(
+                ClientHeaderInterceptor.authorization(creds::token)
+            );
             while (channel.getState(true) != ConnectivityState.READY) {
                 LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(100));
             }
