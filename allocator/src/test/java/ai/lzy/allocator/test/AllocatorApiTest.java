@@ -32,8 +32,6 @@ import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -971,7 +969,8 @@ public class AllocatorApiTest extends BaseTestWithIam {
 
     private void mockDeleteNetworkPolicies(
         ArrayList<CompletableFuture<NetworkPolicy>> networkPolicyFutures, CountDownLatch kuberRemoveResourceLatch
-    ) throws InterruptedException, ExecutionException {
+    ) throws InterruptedException, ExecutionException
+    {
         for (CompletableFuture<NetworkPolicy> networkPolicyFuture : networkPolicyFutures) {
             NetworkPolicy networkPolicy = networkPolicyFuture.get();
             mockDeleteNetworkPolicy(
