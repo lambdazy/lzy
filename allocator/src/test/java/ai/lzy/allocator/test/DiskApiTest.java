@@ -15,7 +15,7 @@ import ai.lzy.test.TimeUtils;
 import ai.lzy.v1.DiskApi;
 import ai.lzy.v1.DiskServiceApi;
 import ai.lzy.v1.DiskServiceGrpc;
-import ai.lzy.v1.OperationServiceApiGrpc;
+import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
@@ -47,7 +47,7 @@ public class DiskApiTest extends BaseTestWithIam {
 
     private ApplicationContext context;
     private AllocatorMain allocatorApp;
-    private OperationServiceApiGrpc.OperationServiceApiBlockingStub operations;
+    private LongRunningServiceGrpc.LongRunningServiceBlockingStub operations;
     private DiskServiceGrpc.DiskServiceBlockingStub diskService;
     private DiskManager diskManager;
     private ManagedChannel channel;
@@ -68,11 +68,11 @@ public class DiskApiTest extends BaseTestWithIam {
         diskManager = context.getBean(DiskManager.class);
 
         final var config = context.getBean(ServiceConfig.class);
-        channel = newGrpcChannel(config.getAddress(), OperationServiceApiGrpc.SERVICE_NAME,
+        channel = newGrpcChannel(config.getAddress(), LongRunningServiceGrpc.SERVICE_NAME,
             DiskServiceGrpc.SERVICE_NAME);
 
         final var credentials = config.getIam().createCredentials();
-        operations = newBlockingClient(OperationServiceApiGrpc.newBlockingStub(channel), "Test", credentials::token);
+        operations = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(channel), "Test", credentials::token);
         diskService = newBlockingClient(DiskServiceGrpc.newBlockingStub(channel), "Test", credentials::token);
     }
 

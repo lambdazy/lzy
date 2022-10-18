@@ -45,7 +45,7 @@ jobs:
       - name: "Publish operation api"
         timeout-minutes: 10
         run: |
-          cd operation-api/ && mvn clean deploy --also-make-dependents && cd ..
+          cd long-running-api/ && mvn clean deploy --also-make-dependents && cd ..
 
       - name: "Publish allocator api"
         timeout-minutes: 10

@@ -14,6 +14,7 @@ import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.v1.*;
 import ai.lzy.v1.VmAllocatorApi.AllocateRequest.Workload;
+import ai.lzy.v1.longrunning.LongRunning;
 import com.google.protobuf.Duration;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -166,7 +167,7 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
                         .build())
                 .build());
         final String sessionId = createSessionResponse.getSessionId();
-        OperationService.Operation allocateOperation = allocator.allocate(VmAllocatorApi.AllocateRequest.newBuilder()
+        LongRunning.Operation allocateOperation = allocator.allocate(VmAllocatorApi.AllocateRequest.newBuilder()
             .setSessionId(sessionId)
             .setPoolLabel("s")
             .setZone(Zone.RU_CENTRAL1_A.getId())

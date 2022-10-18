@@ -1,6 +1,6 @@
 package ai.lzy.longrunning;
 
-import ai.lzy.v1.OperationService;
+import ai.lzy.v1.longrunning.LongRunning;
 import com.google.protobuf.Any;
 import com.google.protobuf.Timestamp;
 import io.grpc.Status;
@@ -66,8 +66,8 @@ public class Operation {
         this.meta = meta;
     }
 
-    public OperationService.Operation toProto() {
-        final var builder =  OperationService.Operation.newBuilder()
+    public LongRunning.Operation toProto() {
+        final var builder =  LongRunning.Operation.newBuilder()
             .setDescription(description)
             .setCreatedAt(toProto(createdAt))
             .setCreatedBy(createdBy)

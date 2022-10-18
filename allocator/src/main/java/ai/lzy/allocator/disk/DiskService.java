@@ -8,7 +8,7 @@ import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.DiskServiceApi;
 import ai.lzy.v1.DiskServiceGrpc;
-import ai.lzy.v1.OperationService;
+import ai.lzy.v1.longrunning.LongRunning;
 import com.google.protobuf.Any;
 import io.grpc.Status;
 import io.grpc.StatusException;
@@ -46,7 +46,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
 
     @Override
     public void createDisk(DiskServiceApi.CreateDiskRequest request,
-                           StreamObserver<OperationService.Operation> responseObserver)
+                           StreamObserver<LongRunning.Operation> responseObserver)
     {
         LOG.info("Create disk request {}", JsonUtils.printRequest(request));
 
@@ -128,7 +128,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
 
     @Override
     public void cloneDisk(DiskServiceApi.CloneDiskRequest request,
-                          StreamObserver<OperationService.Operation> responseObserver)
+                          StreamObserver<LongRunning.Operation> responseObserver)
     {
         LOG.info("Clone disk request {}", JsonUtils.printRequest(request));
 

@@ -21,12 +21,12 @@ import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.AllocatorGrpc;
-import ai.lzy.v1.OperationService;
-import ai.lzy.v1.OperationServiceApiGrpc;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub;
 import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.longrunning.LongRunning;
+import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LWFS.*;
@@ -70,7 +70,7 @@ public class WorkflowService {
     private final String iamAddress;
 
     private final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
-    private final OperationServiceApiGrpc.OperationServiceApiBlockingStub operationServiceClient;
+    private final LongRunningServiceGrpc.LongRunningServiceBlockingStub operationServiceClient;
 
     private final LzyStorageServiceGrpc.LzyStorageServiceBlockingStub storageServiceClient;
     private final LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerClient;
@@ -80,7 +80,7 @@ public class WorkflowService {
 
     public WorkflowService(LzyServiceConfig config, LzyChannelManagerPrivateBlockingStub channelManagerClient,
                            AllocatorGrpc.AllocatorBlockingStub allocatorClient,
-                           OperationServiceApiGrpc.OperationServiceApiBlockingStub operationServiceClient,
+                           LongRunningServiceGrpc.LongRunningServiceBlockingStub operationServiceClient,
                            SubjectServiceGrpcClient subjectClient, AccessBindingServiceGrpcClient abClient,
                            LzyStorageServiceGrpc.LzyStorageServiceBlockingStub storageServiceClient,
                            Storage storage, WorkflowDao workflowDao)
@@ -336,8 +336,8 @@ public class WorkflowService {
         return session.getSessionId();
     }
 
-    public OperationService.Operation startAllocation(String workflowName, String sessionId, String executionId,
-                                                      String stdoutChannelId, String stderrChannelId)
+    public LongRunning.Operation startAllocation(String workflowName, String sessionId, String executionId,
+                                                 String stdoutChannelId, String stderrChannelId)
     {
         var portalId = "portal_" + executionId + UUID.randomUUID();
 
@@ -389,10 +389,10 @@ public class WorkflowService {
     @Nullable
     public VmAllocatorApi.AllocateResponse waitAllocation(Instant deadline, String operationId) {
         // TODO: ssokolvyak -- replace on streaming request
-        OperationService.Operation allocateOperation;
+        LongRunning.Operation allocateOperation;
 
         while (Instant.now().isBefore(deadline)) {
-            allocateOperation = operationServiceClient.get(OperationService.GetOperationRequest.newBuilder()
+            allocateOperation = operationServiceClient.get(LongRunning.GetOperationRequest.newBuilder()
                 .setOperationId(operationId).build());
             if (allocateOperation.getDone()) {
                 try {
