@@ -11,10 +11,13 @@ import java.util.*;
 public class VmPoolClient {
     private static final Logger LOG = LogManager.getLogger(VmPoolClient.class);
 
-    public static Set<String> findZones(VmPoolServiceBlockingStub vmPoolClient,
-                                        Collection<String> requiredPoolLabels)
-    {
-        List<VmPoolSpec> allUserPools = vmPoolClient.getVmPools(GetVmPoolsRequest.newBuilder()
+    public static Set<String> findZones(Collection<String> requiredPoolLabels, VmPoolServiceBlockingStub grpcClient) {
+        if (requiredPoolLabels.isEmpty()) {
+            LOG.warn("Collection with required pool labels is empty");
+            return Collections.emptySet();
+        }
+
+        List<VmPoolSpec> allUserPools = grpcClient.getVmPools(GetVmPoolsRequest.newBuilder()
             .setWithSystemPools(false)
             .setWithUserPools(true)
             .build()).getUserPoolsList();

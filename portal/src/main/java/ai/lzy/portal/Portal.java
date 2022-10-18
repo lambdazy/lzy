@@ -6,6 +6,7 @@ import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
+import ai.lzy.model.slot.Slot;
 import ai.lzy.portal.config.PortalConfig;
 import ai.lzy.portal.slots.SnapshotSlotsProvider;
 import ai.lzy.portal.slots.StdoutSlot;
@@ -43,8 +44,7 @@ public class Portal {
 
     public static final String APP = "LzyPortal";
 
-    private static final String stdoutSlotName = "/portal:stdout";
-    private static final String stderrSlotName = "/portal:stderr";
+    public static final String PORTAL_SLOT_PREFIX = "/portal_slot";
 
     private final String stdoutChannelId;
     private final String stderrChannelId;
@@ -131,6 +131,9 @@ public class Portal {
         }
 
         LOG.info("Registering portal stdout/err slots...");
+
+        var stdoutSlotName = PORTAL_SLOT_PREFIX + ":" + Slot.STDOUT_SUFFIX;
+        var stderrSlotName = PORTAL_SLOT_PREFIX + ":" + Slot.STDERR_SUFFIX;
 
         slotsManager = new SlotsManager(
             newBlockingClient(newBlockingStub(channelsManagerChannel), APP, tokenFactory),

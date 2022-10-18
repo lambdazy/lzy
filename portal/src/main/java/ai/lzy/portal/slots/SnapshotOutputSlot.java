@@ -33,7 +33,8 @@ public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot {
     private final S3SnapshotSlot slot;
 
     public SnapshotOutputSlot(SlotInstance slotInstance, S3SnapshotSlot slot, Path storage,
-                              String key, String bucket, S3Repository<Stream<ByteString>> s3Repository) {
+                              String key, String bucket, S3Repository<Stream<ByteString>> s3Repository)
+    {
         super(slotInstance);
         this.key = key;
         this.bucket = bucket;

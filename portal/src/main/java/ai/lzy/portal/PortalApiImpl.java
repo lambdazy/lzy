@@ -4,7 +4,6 @@ import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
-import ai.lzy.portal.utils.PortalUtils;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.portal.LzyPortal;
 import ai.lzy.v1.portal.LzyPortalApi;
@@ -21,6 +20,9 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+
+import static ai.lzy.portal.grpc.ProtoConverter.buildInputSlotStatus;
+import static ai.lzy.portal.grpc.ProtoConverter.buildOutputSlotStatus;
 
 class PortalApiImpl extends LzyPortalImplBase {
     private static final Logger LOG = LogManager.getLogger(PortalApiImpl.class);
@@ -67,13 +69,13 @@ class PortalApiImpl extends LzyPortalImplBase {
 
         var snapshots = portal.getSnapshots();
         snapshots.getInputSlots().forEach(slot ->
-            response.addSlots(PortalUtils.buildInputSlotStatus(slot)));
+            response.addSlots(buildInputSlotStatus(slot)));
         snapshots.getOutputSlots().forEach(slot ->
-            response.addSlots(PortalUtils.buildOutputSlotStatus(slot)));
+            response.addSlots(buildOutputSlotStatus(slot)));
 
         for (var stdSlot : portal.getOutErrSlots()) {
-            response.addSlots(PortalUtils.buildOutputSlotStatus(stdSlot));
-            stdSlot.forEachSlot(slot -> response.addSlots(PortalUtils.buildInputSlotStatus(slot)));
+            response.addSlots(buildOutputSlotStatus(stdSlot));
+            stdSlot.forEachSlot(slot -> response.addSlots(buildInputSlotStatus(slot)));
         }
 
         responseObserver.onNext(response.build());

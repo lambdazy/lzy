@@ -1,14 +1,22 @@
 package ai.lzy.service.graph;
 
-import ai.lzy.v1.workflow.LWF;
+import ai.lzy.v1.workflow.LWF.Operation.SlotDescription;
 
 import java.util.*;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
-public class DataFlowGraph {
+class DataFlowGraph {
+    record Node(
+        String operationName,
+        List<SlotDescription> inputs,
+        List<SlotDescription> outputs
+    ) {}
+
+    private static final String edge = " -> ";
+
     private final List<List<Integer>> graph;
-    private final ArrayList<LWF.Operation> operations;
+    private final ArrayList<Node> operations;
 
     // slot uri ---> (slot name, operation id)
     private final Map<String, Map.Entry<String, Integer>> dataSuppliers;
@@ -19,7 +27,7 @@ public class DataFlowGraph {
 
     private List<Integer> cycle = null;
 
-    public DataFlowGraph(Collection<LWF.Operation> operations) {
+    public DataFlowGraph(Collection<Node> operations) {
         this.operations = new ArrayList<>(operations);
 
         dataSuppliers = new HashMap<>();
@@ -27,11 +35,11 @@ public class DataFlowGraph {
 
         var i = 0;
         for (var operation : this.operations) {
-            for (LWF.Operation.SlotDescription slot : operation.getInputSlotsList()) {
+            for (SlotDescription slot : operation.inputs) {
                 var consumers = dataConsumers.computeIfAbsent(slot.getStorageUri(), k -> new ArrayList<>());
                 consumers.add(new AbstractMap.SimpleImmutableEntry<>(slot.getPath(), i));
             }
-            for (LWF.Operation.SlotDescription slot : operation.getOutputSlotsList()) {
+            for (SlotDescription slot : operation.outputs) {
                 var supplier = dataSuppliers.get(slot.getStorageUri());
                 if (supplier != null) {
                     throw new RuntimeException("Output slot with uri '" + slot.getStorageUri() + "' already exists");
@@ -45,7 +53,7 @@ public class DataFlowGraph {
         graph = new ArrayList<>(operations.size());
 
         for (var operation : this.operations) {
-            for (LWF.Operation.SlotDescription slot : operation.getInputSlotsList()) {
+            for (SlotDescription slot : operation.inputs) {
                 if (!dataSuppliers.containsKey(slot.getStorageUri())) {
                     danglingInputSlots.compute(slot.getStorageUri(), (slotUri, consumers) -> {
                         consumers = (consumers != null) ? consumers : new ArrayList<>();
@@ -56,7 +64,7 @@ public class DataFlowGraph {
             }
 
             var to = new ArrayList<Integer>();
-            for (LWF.Operation.SlotDescription slot : operation.getOutputSlotsList()) {
+            for (SlotDescription slot : operation.outputs) {
                 var consumers = dataConsumers.get(slot.getStorageUri());
                 if (consumers != null) {
                     for (var consumer : consumers) {
@@ -106,8 +114,11 @@ public class DataFlowGraph {
 
         int[] cycleEnds = null;
         for (var i = 0; i < n; i++) {
-            if (colors[i] != 0) {
+            if (colors[i] == 0) {
                 cycleEnds = dfs(i, colors, prev);
+            }
+            if (cycleEnds != null) {
+                break;
             }
         }
 
@@ -121,6 +132,7 @@ public class DataFlowGraph {
             cycle.addFirst(cycleEnds[0]);
 
             this.cycle = cycle;
+            return true;
         }
 
         return false;
@@ -130,7 +142,58 @@ public class DataFlowGraph {
         if (cycle == null) {
             throw new IllegalStateException("Cycle not found");
         }
-        return cycle.stream().map(i -> operations.get(i).getName()).collect(Collectors.joining(" --> "));
+        return cycle.stream().map(i -> operations.get(i).operationName).collect(Collectors.joining(edge));
+    }
+
+    @Override
+    public String toString() {
+        // prints operations graph in dot notation
+
+        List<Data> dataflow = getDataFlow();
+        var stringBuilder = new StringBuilder("digraph {");
+
+        for (var data : dataflow) {
+            var slotUri = data.slotUri;
+            var in = findSupplierOperationIdBy(slotUri);
+
+            if (data.consumers != null) {
+                for (String outSlotName : data.consumers) {
+                    var out = findConsumerOperationIdBy(slotUri, outSlotName);
+                    stringBuilder
+                        .append("\t")
+                        .append('"').append(in).append('"')
+                        .append(edge)
+                        .append('"').append(out).append('"')
+                        .append(";");
+                }
+            } else {
+                stringBuilder
+                    .append("\t")
+                    .append('"').append(in).append('"')
+                    .append(";");
+            }
+        }
+
+        stringBuilder.append("\n}");
+        return stringBuilder.toString();
+    }
+
+    private String findSupplierOperationIdBy(String slotUri) {
+        if (danglingInputSlots.containsKey(slotUri)) {
+            return "portal";
+        }
+
+        int operationId = dataSuppliers.get(slotUri).getValue();
+        return operations.get(operationId).operationName;
+    }
+
+    private String findConsumerOperationIdBy(String slotUri, String slotName) {
+        List<Map.Entry<String, Integer>> consumersSlotNames = dataConsumers.get(slotUri);
+        Map.Entry<String, Integer> slotNameAndOpId = consumersSlotNames.stream()
+            .filter(slot -> slot.getKey().contentEquals(slotName))
+            .findFirst()
+            .orElseThrow();
+        return operations.get(slotNameAndOpId.getValue()).operationName;
     }
 
     /**

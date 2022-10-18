@@ -1,5 +1,6 @@
-package ai.lzy.service;
+package ai.lzy.service.workflow;
 
+import ai.lzy.service.BaseTest;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.common.LMS3;
