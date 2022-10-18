@@ -58,7 +58,6 @@
             <groupId>ai.lzy</groupId>
             <artifactId>tunnel-agent</artifactId>
             <version>1.0-SNAPSHOT</version>
-            <scope>compile</scope>
         </dependency>
 
         <dependency>
