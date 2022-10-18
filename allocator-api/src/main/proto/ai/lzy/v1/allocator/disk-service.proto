@@ -6,8 +6,8 @@ option java_outer_classname = "DiskServiceApi";
 option java_package = "ai.lzy.v1";
 
 import "ai/lzy/v1/allocator/disk.proto";
-import "ai/lzy/v1/operation-service/operation.proto";
-import "ai/lzy/v1/operation-service/option.proto";
+import "ai/lzy/v1/long-running/operation.proto";
+import "ai/lzy/v1/long-running/option.proto";
 
 
 service DiskService {

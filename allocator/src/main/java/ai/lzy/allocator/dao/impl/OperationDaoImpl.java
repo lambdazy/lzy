@@ -1,7 +1,7 @@
 package ai.lzy.allocator.dao.impl;
 
 import ai.lzy.allocator.dao.OperationDao;
-import ai.lzy.allocator.model.Operation;
+import ai.lzy.longrunning.Operation;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;

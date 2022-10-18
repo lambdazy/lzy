@@ -3,7 +3,7 @@ package ai.lzy.allocator.disk;
 import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.impl.AllocatorDataSource;
 import ai.lzy.allocator.disk.exceptions.NotFoundException;
-import ai.lzy.allocator.model.Operation;
+import ai.lzy.longrunning.Operation;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.DiskServiceApi;

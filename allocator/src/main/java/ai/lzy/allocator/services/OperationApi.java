@@ -28,7 +28,7 @@ public class OperationApi extends OperationServiceApiImplBase {
 
     @Override
     public void get(GetOperationRequest request, StreamObserver<Operation> responseObserver) {
-        ai.lzy.allocator.model.Operation op;
+        ai.lzy.longrunning.Operation op;
         try {
             op = withRetries(
                 defaultRetryPolicy(),
@@ -53,7 +53,7 @@ public class OperationApi extends OperationServiceApiImplBase {
     public void cancel(OperationService.CancelOperationRequest request, StreamObserver<Operation> responseObserver) {
         // TODO(artolord) add more logic here
 
-        ai.lzy.allocator.model.Operation op;
+        ai.lzy.longrunning.Operation op;
         try {
             op = withRetries(
                 defaultRetryPolicy(),

@@ -5,7 +5,7 @@ package ai.lzy.v1.allocator;
 option java_outer_classname = "VmAllocatorApi";
 option java_package = "ai.lzy.v1";
 
-import "ai/lzy/v1/operation-service/operation.proto";
+import "ai/lzy/v1/long-running/operation.proto";
 import "ai/lzy/v1/allocator/volume.proto";
 import "google/protobuf/duration.proto";
 
