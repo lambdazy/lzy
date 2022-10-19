@@ -106,6 +106,8 @@ public class KuberVmAllocator implements VmAllocator {
                     .toList())
                 // not to be allocated with another vm
                 .withPodAntiAffinity(KuberLabels.LZY_APP_LABEL, "In", VM_POD_APP_LABEL_VALUE)
+                // not to be allocated with system pod (tunnel, disc) for another vm
+                .withPodAntiAffinity(KuberLabels.LZY_VM_ID_LABEL, "NotIn", vmSpec.vmId())
                 // not to be allocated with pods from other session
                 .withPodAntiAffinity(KuberLabels.LZY_POD_SESSION_ID_LABEL, "NotIn", vmSpec.sessionId())
                 .build();
