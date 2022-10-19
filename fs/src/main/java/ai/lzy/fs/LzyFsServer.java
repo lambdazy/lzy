@@ -31,10 +31,8 @@ public class LzyFsServer {
     private static final Logger LOG = LogManager.getLogger(LzyFsServer.class);
     public static final AtomicInteger mounted = new AtomicInteger(); //for tests
 
-    private final String agentId;
     private final Path mountPoint;
     private final URI selfUri;
-    private final HostAndPort channelManagerAddress;
     private final ManagedChannel channelManagerChannel;
     private final SlotsManager slotsManager;
     private final LzyFSManager fsManager;
@@ -45,10 +43,8 @@ public class LzyFsServer {
     public LzyFsServer(String agentId, Path mountPoint, URI selfUri, HostAndPort channelManagerAddress,
                        RenewableJwt token)
     {
-        this.agentId = agentId;
         this.mountPoint = mountPoint;
         this.selfUri = selfUri;
-        this.channelManagerAddress = channelManagerAddress;
 
         this.channelManagerChannel = newGrpcChannel(channelManagerAddress, LzyChannelManagerGrpc.SERVICE_NAME);
         this.slotsManager = new SlotsManager(
@@ -72,6 +68,7 @@ public class LzyFsServer {
         this.localServer = newGrpcServer(selfUri.getHost(), selfUri.getPort(), GrpcUtils.NO_AUTH)
             .addService(slotsService.getSlotsApi())
             .addService(slotsService.getLongrunningApi())
+            .addService(slotsService.getLegacyWrapper())
             .build();
     }
 
@@ -115,6 +112,14 @@ public class LzyFsServer {
             stop();
         }
         LOG.info("LzyFs at {} terminated.", selfUri);
+    }
+
+    public SlotsManager getSlotsManager() {
+        return slotsManager;
+    }
+
+    public Path getMountPoint() {
+        return mountPoint;
     }
 
     public void addSlot(LzyFileSlot slot) {
