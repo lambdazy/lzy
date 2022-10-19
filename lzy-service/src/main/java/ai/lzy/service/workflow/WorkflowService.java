@@ -46,9 +46,11 @@ import java.nio.file.Files;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.BiConsumer;
@@ -79,6 +81,8 @@ public class WorkflowService {
 
     private final SubjectServiceGrpcClient subjectClient;
     private final AccessBindingServiceGrpcClient abClient;
+
+    private final Map<String, List<PortalSlotsListener>> listenersByExecution = new ConcurrentHashMap<>();
 
     public WorkflowService(LzyServiceConfig config, LzyChannelManagerPrivateBlockingStub channelManagerClient,
                            AllocatorGrpc.AllocatorBlockingStub allocatorClient,
@@ -196,6 +200,10 @@ public class WorkflowService {
         if (StringUtils.isEmpty(request.getWorkflowName()) || StringUtils.isEmpty(request.getExecutionId())) {
             replyError.accept(Status.INVALID_ARGUMENT, "Empty 'workflowName' or 'executionId'");
             return;
+        }
+
+        for (var listener: listenersByExecution.getOrDefault(request.getExecutionId(), List.of())) {
+            listener.cancel("Workflow <" + request.getExecutionId() + "> is finished");
         }
 
         // final String[] bucket = {null};
@@ -427,29 +435,8 @@ public class WorkflowService {
                 throw Status.UNAVAILABLE.withDescription("Portal is creating, retry later.").asRuntimeException();
             }
 
-            var stdoutReader = new PortalSlotsListener(portalDesc.fsAddress(), portalDesc.portalId(), "/portal:stdout",
-                bs -> responseObserver.onNext(LWFS.ReadStdSlotsResponse.newBuilder()
-                    .setStdout(
-                        LWFS.ReadStdSlotsResponse.Data.newBuilder()
-                            .addData(String.valueOf(bs))
-                            .build()
-                    )
-                    .build()));
-
-            var stderrReader = new PortalSlotsListener(portalDesc.fsAddress(), portalDesc.portalId(), "/portal:stderr",
-                bs -> responseObserver.onNext(LWFS.ReadStdSlotsResponse.newBuilder()
-                    .setStderr(
-                        LWFS.ReadStdSlotsResponse.Data.newBuilder()
-                            .addData(String.valueOf(bs))
-                            .build()
-                    )
-                    .build()));
-
-            stdoutReader.start();
-            stderrReader.start();
-
-            stdoutReader.join();
-            stderrReader.join();
+            var listener = new PortalSlotsListener(portalDesc.fsAddress(), portalDesc.portalId(), responseObserver);
+            listenersByExecution.computeIfAbsent(executionId, k -> new ArrayList<>()).add(listener);
 
         } catch (Exception e) {
             LOG.error("Error while reading slots: ", e);
