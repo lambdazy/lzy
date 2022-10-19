@@ -52,6 +52,12 @@
                     <include>**/*.yaml</include>
                 </includes>
             </resource>
+            <resource>
+                <directory>src/main/proto</directory>
+                <includes>
+                    <include>**/*.proto</include>
+                </includes>
+            </resource>
         </resources>
         <plugins>
             <plugin>
