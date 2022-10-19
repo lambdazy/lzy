@@ -526,11 +526,9 @@ public class LzyKharon {
     private class ChannelManagerProxy extends LzyChannelManagerGrpc.LzyChannelManagerImplBase {
 
         @Override
-        public void bind(LCMS.SlotAttach request,
-                         StreamObserver<LCMS.SlotAttachStatus> responseObserver)
-        {
+        public void bind(LCMS.BindRequest request, StreamObserver<LCMS.BindResponse> responseObserver) {
             try {
-                final LCMS.SlotAttach updatedRequest = LCMS.SlotAttach.newBuilder()
+                final LCMS.BindRequest updatedRequest = LCMS.BindRequest.newBuilder()
                     .setSlotInstance(LMS.SlotInstance.newBuilder(request.getSlotInstance())
                         .setSlotUri(
                             uriResolver.convertToServantFsProxyUri(
@@ -545,21 +543,18 @@ public class LzyKharon {
         }
 
         @Override
-        public void unbind(LCMS.SlotDetach request,
-                           StreamObserver<LCMS.SlotDetachStatus> responseObserver)
-        {
+        public void unbind(LCMS.UnbindRequest request, StreamObserver<LCMS.UnbindResponse> responseObserver) {
             try {
-                final LCMS.SlotDetach updatedRequest =
-                    LCMS.SlotDetach.newBuilder()
-                        .setSlotInstance(
-                            LMS.SlotInstance.newBuilder(request.getSlotInstance())
-                                .setSlotUri(
-                                    uriResolver.convertToServantFsProxyUri(
-                                        URI.create(request.getSlotInstance().getSlotUri())
-                                    ).toString()
-                                ).build()
-                        )
-                        .build();
+                final LCMS.UnbindRequest updatedRequest = LCMS.UnbindRequest.newBuilder()
+                    .setSlotInstance(
+                        LMS.SlotInstance.newBuilder(request.getSlotInstance())
+                            .setSlotUri(
+                                uriResolver.convertToServantFsProxyUri(
+                                    URI.create(request.getSlotInstance().getSlotUri())
+                                ).toString()
+                            ).build()
+                    )
+                    .build();
                 ProxyCall.exec(channelManager::unbind, updatedRequest, responseObserver);
             } catch (URISyntaxException e) {
                 responseObserver.onError(Status.INVALID_ARGUMENT.withCause(e).asRuntimeException());

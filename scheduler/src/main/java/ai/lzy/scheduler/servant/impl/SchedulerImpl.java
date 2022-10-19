@@ -75,6 +75,10 @@ public class SchedulerImpl extends Thread implements Scheduler {
                 .asException();
         }
 
+        if (task.status() == TaskState.Status.SUCCESS || task.status() == TaskState.Status.ERROR) {
+            return task;
+        }
+
         final Servant servant;
         try {
             servant = dao.get(workflowId, task.servantId());

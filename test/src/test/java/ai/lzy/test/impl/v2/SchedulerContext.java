@@ -2,6 +2,7 @@ package ai.lzy.test.impl.v2;
 
 import ai.lzy.scheduler.SchedulerApi;
 import ai.lzy.test.impl.Utils;
+import ai.lzy.test.impl.v2.AllocatorContext.WorkerAllocatorContext;
 import com.google.common.net.HostAndPort;
 import io.micronaut.context.ApplicationContext;
 import jakarta.annotation.PreDestroy;
@@ -15,7 +16,7 @@ import java.util.Map;
 public class SchedulerContext {
     private static final int SCHEDULER_PORT = 12759;
 
-    private final AllocatorContext allocator;
+    private final WorkerAllocatorContext allocator;
     private final IamContext iam;
     private final ChannelManagerContext channelManager;
     private final HostAndPort address;
@@ -23,7 +24,7 @@ public class SchedulerContext {
     private final SchedulerApi scheduler;
 
     @Inject
-    public SchedulerContext(AllocatorContext allocator, IamContext iam, ChannelManagerContext channelManager) {
+    public SchedulerContext(WorkerAllocatorContext allocator, IamContext iam, ChannelManagerContext channelManager) {
         this.allocator = allocator;
         this.iam = iam;
 

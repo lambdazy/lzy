@@ -90,6 +90,11 @@ jobs:
         run: |
           cd test && mvn test -Dtest=SchedulerTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
+      - name: 'WorkflowTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=WorkflowTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
       - name: 'LzyDryStartupTest'
         timeout-minutes: 5
         run: |

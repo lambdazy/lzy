@@ -17,28 +17,25 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-@Singleton
+
 public class AllocatorContext {
-    private final IamContext iam;
     private final HostAndPort address;
     private final ApplicationContext context;
     private final AllocatorMain main;
     private final ManagedChannel channel;
     private final AllocatorGrpc.AllocatorBlockingStub stub;
 
-    @Inject
-    public AllocatorContext(IamContext iam) {
-        this.iam = iam;
+    public AllocatorContext(IamContext iam, String jarPath, String executableClass, int port) {
 
-        this.address = HostAndPort.fromString("localhost:10239");
+        this.address = HostAndPort.fromParts("localhost", port);
         final var opts = Utils.createModuleDatabase("allocator");
         opts.putAll(new HashMap<String, Object>(Map.of(
             "allocator.iam.address", iam.address(),
             "allocator.address", address.toString(),
             "allocator.kuber-allocator.enabled", "false",
             "allocator.thread-allocator.enabled", "true",
-            "allocator.thread-allocator.vm-jar-file", "../servant/target/servant-1.0-SNAPSHOT.jar",
-            "allocator.thread-allocator.vm-class-name", "ai.lzy.servant.agents.Worker"
+            "allocator.thread-allocator.vm-jar-file", jarPath,
+            "allocator.thread-allocator.vm-class-name", executableClass
         )));
 
         this.context = ApplicationContext.run(opts);
@@ -58,7 +55,6 @@ public class AllocatorContext {
         this.stub = AllocatorGrpc.newBlockingStub(channel);
     }
 
-    @PreDestroy
     public void close() {
         try {
             main.destroyAll();
@@ -80,5 +76,36 @@ public class AllocatorContext {
 
     public AllocatorGrpc.AllocatorBlockingStub stub() {
         return stub;
+    }
+
+
+    @Singleton
+    public static class WorkerAllocatorContext extends AllocatorContext {
+
+        @Inject
+        public WorkerAllocatorContext(IamContext iam) {
+            super(iam, "../servant/target/servant-1.0-SNAPSHOT.jar", "ai.lzy.servant.agents.Worker", 23910);
+        }
+
+        @Override
+        @PreDestroy
+        public void close() {
+            super.close();
+        }
+    }
+
+    @Singleton
+    public static class PortalAllocatorContext extends AllocatorContext {
+
+        @Inject
+        public PortalAllocatorContext(IamContext iam) {
+            super(iam, "../portal/target/portal-1.0-SNAPSHOT.jar", "ai.lzy.portal.App", 23911);
+        }
+
+        @Override
+        @PreDestroy
+        public void close() {
+            super.close();
+        }
     }
 }

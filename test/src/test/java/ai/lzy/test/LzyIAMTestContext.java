@@ -7,9 +7,10 @@ import ai.lzy.v1.iam.LzySubjectServiceGrpc;
 import com.google.common.net.HostAndPort;
 
 @SuppressWarnings("UnstableApiUsage")
-public interface LzyIAMTestContext extends ServiceContext {
+public interface LzyIAMTestContext {
     HostAndPort address();
     void init();
+    void close();
 
     LzyAccessServiceGrpc.LzyAccessServiceBlockingStub accessServiceClient();
 

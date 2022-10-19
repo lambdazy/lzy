@@ -17,6 +17,9 @@ Configuration:
       - name: "ai.lzy.scheduler"
         level: info
 
+      - name: "ai.lzy.portal"
+        level: info
+
       - name: "ai.lzy.allocator"
         level: info
 
