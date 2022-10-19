@@ -1,6 +1,6 @@
 package ai.lzy.servant.agents;
 
-import ai.lzy.fs.LzyFsServer;
+import ai.lzy.fs.LzyFsServerLegacy;
 import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
@@ -42,7 +42,7 @@ public class LzyServant implements Closeable {
 
     private final LzyServerGrpc.LzyServerBlockingStub server;
     private final LzyAgent agent;
-    private final LzyFsServer lzyFs;
+    private final LzyFsServerLegacy lzyFs;
     private final LzyContext context;
     private final AtomicReference<LzyExecution> currentExecution = new AtomicReference<>(null);
     private final CompletableFuture<Boolean> started = new CompletableFuture<>();

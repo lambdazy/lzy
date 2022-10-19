@@ -73,22 +73,20 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             if (channel != null) {
                 final Stream<Endpoint> newBound = channel.bind(endpoint);
 
+                final Map<Endpoint, Endpoint> addedEdges = switch (endpoint.slotSpec().direction()) {
+                    case OUTPUT -> newBound.collect(Collectors.toMap(e -> endpoint, e -> e));
+                    case INPUT -> newBound.collect(Collectors.toMap(e -> e, e -> endpoint));
+                };
+
                 withRetries(defaultRetryPolicy(), LOG, () -> {
                     try (final var transaction = TransactionHandle.create(dataSource)) {
-
                         channelStorage.insertEndpoint(endpoint, transaction);
-
-                        final Map<Endpoint, Endpoint> addedEdges = switch (endpoint.slotSpec().direction()) {
-                            case OUTPUT -> newBound.collect(Collectors.toMap(e -> endpoint, e -> e));
-                            case INPUT -> newBound.collect(Collectors.toMap(e -> e, e -> endpoint));
-                        };
                         channelStorage.insertEndpointConnections(channelId, addedEdges, transaction);
-
                         transaction.commit();
                     }
                 });
             }
-        } catch (ChannelException | IllegalArgumentException e) {
+        } catch (ChannelException e) {
             LOG.error("Bind slot={} to channel={} failed, invalid argument: {}",
                 attach.getSlotInstance().getSlot().getName(),
                 attach.getSlotInstance().getChannelId(),
@@ -100,6 +98,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 attach.getSlotInstance().getSlot().getName(),
                 attach.getSlotInstance().getChannelId(),
                 e.getMessage(), e);
+            // TODO: unbind channel
             responseObserver.onError(Status.INTERNAL.withCause(e).asException());
             return;
         }
@@ -114,6 +113,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             LOG.error("Bind slot={} to channel={} failed, channel not found",
                 attach.getSlotInstance().getSlot().getName(), attach.getSlotInstance().getChannelId());
             responseObserver.onError(Status.NOT_FOUND.withDescription(errorMessage).asException());
+            // TODO: unbind channel
         }
     }
 
@@ -148,7 +148,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 withRetries(defaultRetryPolicy(), LOG,
                     () -> channelStorage.removeEndpointWithConnections(endpoint, null));
             }
-        } catch (ChannelException | IllegalArgumentException e) {
+        } catch (ChannelException e) {
             LOG.error("Unbind slot={} to channel={} failed, invalid argument: {}",
                 detach.getSlotInstance().getSlot().getName(),
                 detach.getSlotInstance().getChannelId(),
