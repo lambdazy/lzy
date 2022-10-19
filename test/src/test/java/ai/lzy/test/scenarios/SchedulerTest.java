@@ -39,7 +39,8 @@ public class SchedulerTest {
     public final ContextRule<GraphExecutorContext> graphExecutor = new ContextRule<>(ctx, GraphExecutorContext.class);
 
     @Rule
-    public final  ContextRule<ChannelManagerContext> channelManager = new ContextRule<>(ctx, ChannelManagerContext.class);
+    public final ContextRule<ChannelManagerContext> channelManager
+        = new ContextRule<>(ctx, ChannelManagerContext.class);
 
     @Test
     public void testGE() throws InterruptedException {
