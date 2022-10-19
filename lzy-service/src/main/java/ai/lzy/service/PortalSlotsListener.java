@@ -54,7 +54,7 @@ public class PortalSlotsListener {
                     .build()
             ).build()));
 
-        errCall = createCall(PORTAL_OUT_SLOT_NAME, msg -> consumer.onNext(LWFS.ReadStdSlotsResponse.newBuilder()
+        errCall = createCall(PORTAL_ERR_SLOT_NAME, msg -> consumer.onNext(LWFS.ReadStdSlotsResponse.newBuilder()
             .setStderr(
                 LWFS.ReadStdSlotsResponse.Data.newBuilder()
                     .addData(msg.toStringUtf8())
