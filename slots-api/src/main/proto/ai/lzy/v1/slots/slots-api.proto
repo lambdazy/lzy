@@ -4,6 +4,7 @@ package ai.lzy.v1;
 
 import "ai/lzy/v1/common/slot.proto";
 import "ai/lzy/v1/long-running/operation.proto";
+import "ai/lzy/v1/long-running/option.proto";
 
 option java_outer_classname = "LSA";
 option java_package = "ai.lzy.v1.slots";
@@ -11,9 +12,12 @@ option java_package = "ai.lzy.v1.slots";
 service LzySlotsApi {
   rpc CreateSlot (CreateSlotRequest) returns (CreateSlotResponse);
 
-  // metadata: ConnectSlotMetadata
-  // response: ConnectSlotResponse
-  rpc ConnectSlot (ConnectSlotRequest) returns (Operation);
+  rpc ConnectSlot (ConnectSlotRequest) returns (Operation) {
+    option (ai.lzy.v1.operation) = {
+      metadata: "ConnectSlotMetadata"
+      response: "ConnectSlotResponse"
+    };
+  }
 
   rpc DisconnectSlot (DisconnectSlotRequest) returns (DisconnectSlotResponse);
 
