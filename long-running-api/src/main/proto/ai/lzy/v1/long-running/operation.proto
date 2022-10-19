@@ -2,14 +2,14 @@ syntax = "proto3";
 
 package ai.lzy.v1;
 
-option java_outer_classname = "OperationService";
-option java_package = "ai.lzy.v1";
+option java_outer_classname = "LongRunning";
+option java_package = "ai.lzy.v1.longrunning";
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/any.proto";
 import "google/rpc/status.proto";
 
-service OperationServiceApi {
+service LongRunningService {
   rpc Get (GetOperationRequest) returns (Operation) {}
 
   rpc Listen (stream GetOperationRequest) returns (stream Operation) {}
@@ -39,6 +39,7 @@ message Operation {
 message GetOperationRequest {
   string operation_id = 1;
 }
+
 message CancelOperationRequest {
   string operation_id = 1;
 }

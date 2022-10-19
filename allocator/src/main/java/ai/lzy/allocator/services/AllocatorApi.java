@@ -28,7 +28,7 @@ import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.v1.AllocatorGrpc;
-import ai.lzy.v1.OperationService.Operation;
+import ai.lzy.v1.longrunning.LongRunning.Operation;
 import ai.lzy.v1.VmAllocatorApi.*;
 import com.google.protobuf.Any;
 import io.grpc.ManagedChannel;
@@ -187,7 +187,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             return;
         }
 
-        ai.lzy.allocator.model.Operation op;
+        ai.lzy.longrunning.Operation op;
         try {
             op = withRetries(
                 defaultRetryPolicy(),
@@ -351,7 +351,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
     private static void failOperation(
         OperationDao operations,
-        ai.lzy.allocator.model.Operation operation,
+        ai.lzy.longrunning.Operation operation,
         Status error)
     {
         operation.setError(error);

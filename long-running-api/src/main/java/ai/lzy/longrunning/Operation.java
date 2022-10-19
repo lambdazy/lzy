@@ -1,8 +1,8 @@
-package ai.lzy.allocator.model;
+package ai.lzy.longrunning;
 
-import ai.lzy.util.grpc.ProtoConverter;
-import ai.lzy.v1.OperationService;
+import ai.lzy.v1.longrunning.LongRunning;
 import com.google.protobuf.Any;
+import com.google.protobuf.Timestamp;
 import io.grpc.Status;
 
 import java.time.Instant;
@@ -19,8 +19,10 @@ public class Operation {
     private Instant modifiedAt;
     private boolean done;
 
-    @Nullable private Any response;
-    @Nullable private Status error;
+    @Nullable
+    private Any response;
+    @Nullable
+    private Status error;
 
     public Operation(String owner, String description, Any meta) {
         final var now = Instant.now(); // TODO: not idempotent...
@@ -64,15 +66,15 @@ public class Operation {
         this.meta = meta;
     }
 
-    public OperationService.Operation toProto() {
-        final var builder =  OperationService.Operation.newBuilder()
+    public LongRunning.Operation toProto() {
+        final var builder =  LongRunning.Operation.newBuilder()
             .setDescription(description)
-            .setCreatedAt(ProtoConverter.toProto(createdAt))
+            .setCreatedAt(toProto(createdAt))
             .setCreatedBy(createdBy)
             .setId(id)
             .setDone(done)
             .setMetadata(meta)
-            .setModifiedAt(ProtoConverter.toProto(modifiedAt));
+            .setModifiedAt(toProto(modifiedAt));
         if (response != null) {
             builder.setResponse(response);
         }
@@ -143,5 +145,13 @@ public class Operation {
     @Nullable
     public Status error() {
         return error;
+    }
+
+    @SuppressWarnings("CheckStyle")
+    private static Timestamp toProto(Instant instant) {
+        return Timestamp.newBuilder()
+            .setSeconds(instant.getEpochSecond())
+            .setNanos(instant.getNano())
+            .build();
     }
 }

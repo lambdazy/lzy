@@ -41,5 +41,6 @@
         <module>workflow-api</module>
         <module>channel-manager-api</module>
         <module>tunnel-agent</module>
+        <module>long-running-api</module>
     </modules>
 </project>

@@ -19,13 +19,12 @@ import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.GrpcChannels;
 import ai.lzy.v1.AllocatorGrpc;
-import ai.lzy.v1.OperationService;
-import ai.lzy.v1.OperationServiceApiGrpc;
-import ai.lzy.v1.OperationServiceApiGrpc.OperationServiceApiBlockingStub;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmAllocatorApi.AllocateRequest.Workload;
 import ai.lzy.v1.VmAllocatorApi.CreateSessionRequest;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
+import ai.lzy.v1.longrunning.LongRunning;
+import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -60,7 +59,7 @@ public class AllocatorImpl implements ServantsAllocator {
     private final ServantEventProcessorConfig processorConfig;
     private final ServantMetaStorage metaStorage;
     private final AllocatorGrpc.AllocatorBlockingStub allocator;
-    private final OperationServiceApiBlockingStub operations;
+    private final LongRunningServiceGrpc.LongRunningServiceBlockingStub operations;
     private final AtomicInteger testServantCounter = new AtomicInteger(0);
     private final IamClientConfiguration authConfig;
     private final SubjectServiceGrpcClient subjectClient;
@@ -83,8 +82,8 @@ public class AllocatorImpl implements ServantsAllocator {
         allocator = newBlockingClient(AllocatorGrpc.newBlockingStub(allocatorChannel), SchedulerApi.APP,
             credentials::token);
 
-        opChannel = newGrpcChannel(config.getAllocatorAddress(), OperationServiceApiGrpc.SERVICE_NAME);
-        operations = newBlockingClient(OperationServiceApiGrpc.newBlockingStub(opChannel), SchedulerApi.APP,
+        opChannel = newGrpcChannel(config.getAllocatorAddress(), LongRunningServiceGrpc.SERVICE_NAME);
+        operations = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(opChannel), SchedulerApi.APP,
             credentials::token);
 
         subjectClient = new SubjectServiceGrpcClient(SchedulerApi.APP, iamChannel, authConfig::createCredentials);
@@ -190,13 +189,13 @@ public class AllocatorImpl implements ServantsAllocator {
             throw new Exception("Cannot parse meta");
         }
 
-        final var op = operations.get(OperationService.GetOperationRequest.newBuilder()
+        final var op = operations.get(LongRunning.GetOperationRequest.newBuilder()
             .setOperationId(meta.opId)
             .build()
         );
 
         if (!op.getDone()) {
-            operations.cancel(OperationService.CancelOperationRequest.newBuilder()
+            operations.cancel(LongRunning.CancelOperationRequest.newBuilder()
                 .setOperationId(op.getId())
                 .build());
             return;

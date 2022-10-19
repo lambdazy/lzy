@@ -12,11 +12,11 @@ import ai.lzy.service.workflow.WorkflowService;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.grpc.GrpcChannels;
 import ai.lzy.v1.AllocatorGrpc;
-import ai.lzy.v1.OperationServiceApiGrpc;
 import ai.lzy.v1.VmPoolServiceGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.graph.GraphExecutorGrpc;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
+import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import ai.lzy.v1.whiteboard.LzyWhiteboardPrivateServiceGrpc;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
@@ -70,9 +70,9 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var vmPoolClient = newBlockingClient(
             VmPoolServiceGrpc.newBlockingStub(allocatorServiceChannel), APP, internalUserCredentials::token);
 
-        operationServiceChannel = newGrpcChannel(allocatorAddress, OperationServiceApiGrpc.SERVICE_NAME);
+        operationServiceChannel = newGrpcChannel(allocatorAddress, LongRunningServiceGrpc.SERVICE_NAME);
         var operationServiceClient = newBlockingClient(
-            OperationServiceApiGrpc.newBlockingStub(operationServiceChannel), APP, internalUserCredentials::token);
+            LongRunningServiceGrpc.newBlockingStub(operationServiceChannel), APP, internalUserCredentials::token);
 
         storageServiceChannel = newGrpcChannel(config.getStorage().getAddress(), LzyStorageServiceGrpc.SERVICE_NAME);
         var storageServiceClient = newBlockingClient(

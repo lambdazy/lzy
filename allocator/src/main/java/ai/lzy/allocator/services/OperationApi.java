@@ -1,10 +1,10 @@
 package ai.lzy.allocator.services;
 
 import ai.lzy.allocator.dao.OperationDao;
-import ai.lzy.v1.OperationService;
-import ai.lzy.v1.OperationService.GetOperationRequest;
-import ai.lzy.v1.OperationService.Operation;
-import ai.lzy.v1.OperationServiceApiGrpc.OperationServiceApiImplBase;
+import ai.lzy.v1.longrunning.LongRunning;
+import ai.lzy.v1.longrunning.LongRunning.GetOperationRequest;
+import ai.lzy.v1.longrunning.LongRunning.Operation;
+import ai.lzy.v1.longrunning.LongRunningServiceGrpc.LongRunningServiceImplBase;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Inject;
@@ -16,7 +16,7 @@ import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
 @Singleton
-public class OperationApi extends OperationServiceApiImplBase {
+public class OperationApi extends LongRunningServiceImplBase {
     private static final Logger LOG = LogManager.getLogger(OperationApi.class);
 
     private final OperationDao operations;
@@ -28,7 +28,7 @@ public class OperationApi extends OperationServiceApiImplBase {
 
     @Override
     public void get(GetOperationRequest request, StreamObserver<Operation> responseObserver) {
-        ai.lzy.allocator.model.Operation op;
+        ai.lzy.longrunning.Operation op;
         try {
             op = withRetries(
                 defaultRetryPolicy(),
@@ -50,10 +50,10 @@ public class OperationApi extends OperationServiceApiImplBase {
     }
 
     @Override
-    public void cancel(OperationService.CancelOperationRequest request, StreamObserver<Operation> responseObserver) {
+    public void cancel(LongRunning.CancelOperationRequest request, StreamObserver<Operation> responseObserver) {
         // TODO(artolord) add more logic here
 
-        ai.lzy.allocator.model.Operation op;
+        ai.lzy.longrunning.Operation op;
         try {
             op = withRetries(
                 defaultRetryPolicy(),
