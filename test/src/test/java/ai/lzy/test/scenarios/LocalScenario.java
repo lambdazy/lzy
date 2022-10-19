@@ -1,6 +1,6 @@
 package ai.lzy.test.scenarios;
 
-import ai.lzy.fs.LzyFsServer;
+import ai.lzy.fs.LzyFsServerLegacy;
 import ai.lzy.servant.agents.AgentStatus;
 import ai.lzy.test.*;
 import ai.lzy.test.impl.*;
@@ -78,7 +78,7 @@ public abstract class LocalScenario extends LzyBaseTest {
     public void tearDown() {
         super.tearDown();
         //wait until all servants unmount fs
-        final boolean flagUp = TimeUtils.waitFlagUp(() -> LzyFsServer.mounted.get() == 0, 60, TimeUnit.SECONDS);
+        final boolean flagUp = TimeUtils.waitFlagUp(() -> LzyFsServerLegacy.mounted.get() == 0, 60, TimeUnit.SECONDS);
         Assert.assertTrue("Not all fs servers are unmounted", flagUp);
 
         kharonContext.close();

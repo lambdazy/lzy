@@ -1,7 +1,7 @@
 package ai.lzy.servant.agents;
 
 import ai.lzy.allocator.AllocatorAgent;
-import ai.lzy.fs.LzyFsServer;
+import ai.lzy.fs.LzyFsServerLegacy;
 import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.fs.slots.LineReaderSlot;
 import ai.lzy.model.EnvironmentInstallationException;
@@ -82,7 +82,7 @@ public class Worker {
         options.addOption(null, "iam-token", true, "IAM private key for servant");
     }
 
-    private final LzyFsServer lzyFs;
+    private final LzyFsServerLegacy lzyFs;
     private final SchedulerAgent schedulerAgent;
     private final AllocatorAgent allocatorAgent;
     private final AtomicReference<Environment> env = new AtomicReference<>(null);
@@ -120,7 +120,7 @@ public class Worker {
             final var cm = HostAndPort.fromString(channelManagerAddress);
             final var channelManagerUri = new URI("http", null, cm.getHost(), cm.getPort(), null, null, null);
 
-            lzyFs = new LzyFsServer(servantId, fsRoot, fsUri, channelManagerUri, JwtUtils.buildJWT(servantId,
+            lzyFs = new LzyFsServerLegacy(servantId, fsRoot, fsUri, channelManagerUri, JwtUtils.buildJWT(servantId,
                 "INTERNAL", Date.from(Instant.now()), JwtUtils.afterDays(7), new StringReader(iamPrivateKey)));
             lzyFs.start();
         } catch (IOException | URISyntaxException e) {
