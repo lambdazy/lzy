@@ -16,6 +16,7 @@ import java.time.Duration;
 public class LzyServiceConfig {
     private String address;
     private String allocatorAddress;
+    private String whiteboardAddress;
     private String graphExecutorAddress;
     private String channelManagerAddress;
 
