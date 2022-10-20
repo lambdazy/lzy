@@ -1,7 +1,7 @@
 package ai.lzy.servant.agents;
 
 import ai.lzy.allocator.AllocatorAgent;
-import ai.lzy.fs.LzyFsServerLegacy;
+import ai.lzy.fs.LzyFsServer;
 import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.fs.slots.LineReaderSlot;
 import ai.lzy.model.EnvironmentInstallationException;
@@ -12,8 +12,8 @@ import ai.lzy.model.scheduler.SchedulerAgent;
 import ai.lzy.model.slot.TextLinesOutSlot;
 import ai.lzy.servant.env.Environment;
 import ai.lzy.servant.env.EnvironmentFactory;
-import ai.lzy.util.auth.credentials.JwtUtils;
-import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.auth.credentials.RenewableJwt;
+import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress;
 import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress.Configured;
@@ -26,7 +26,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.net.HostAndPort;
 import io.grpc.Server;
 import io.grpc.Status;
-import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -40,21 +39,19 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;
-import java.io.StringReader;
-import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.time.Duration;
-import java.time.Instant;
-import java.util.Date;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static ai.lzy.model.UriScheme.LzyFs;
+import static ai.lzy.util.auth.credentials.CredentialsUtils.readPrivateKey;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 
 public class Worker {
     private static final Logger LOG = LogManager.getLogger(Worker.class);
@@ -82,7 +79,7 @@ public class Worker {
         options.addOption(null, "iam-token", true, "IAM private key for servant");
     }
 
-    private final LzyFsServerLegacy lzyFs;
+    private final LzyFsServer lzyFs;
     private final SchedulerAgent schedulerAgent;
     private final AllocatorAgent allocatorAgent;
     private final AtomicReference<Environment> env = new AtomicReference<>(null);
@@ -101,11 +98,9 @@ public class Worker {
         Objects.requireNonNull(allocatorToken);
         Objects.requireNonNull(iamPrivateKey);
 
-        server = NettyServerBuilder.forAddress(new InetSocketAddress(realHost, apiPort))
-                .permitKeepAliveWithoutCalls(true)
-                .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-                .addService(new WorkerApiImpl())
-                .build();
+        server = newGrpcServer(realHost, apiPort, GrpcUtils.NO_AUTH)
+                    .addService(new WorkerApiImpl())
+                    .build();
 
         try {
             server.start();
@@ -118,10 +113,9 @@ public class Worker {
         try {
             final var fsUri = new URI(LzyFs.scheme(), null, host, fsPort, null, null, null);
             final var cm = HostAndPort.fromString(channelManagerAddress);
-            final var channelManagerUri = new URI("http", null, cm.getHost(), cm.getPort(), null, null, null);
 
-            lzyFs = new LzyFsServerLegacy(servantId, fsRoot, fsUri, channelManagerUri, JwtUtils.buildJWT(servantId,
-                "INTERNAL", Date.from(Instant.now()), JwtUtils.afterDays(7), new StringReader(iamPrivateKey)));
+            lzyFs = new LzyFsServer(servantId, Path.of(fsRoot), fsUri, cm,
+                new RenewableJwt(servantId, "INTERNAL", Duration.ofDays(1), readPrivateKey(iamPrivateKey)));
             lzyFs.start();
         } catch (IOException | URISyntaxException e) {
             LOG.error("Error while building uri", e);
