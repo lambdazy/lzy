@@ -230,11 +230,17 @@ class GrpcRuntime(Runtime):
         storage_name: str,
         tags: Sequence[str],
     ) -> WhiteboardInstanceMeta:
-        pass
+        client = await self.__get_client()
+        _LOG.info(f"Creating whiteboard {namespace}:{name}")
+        whiteboard_id = await client.create_whiteboard(namespace, name, fields, storage_name, tags)
+        _LOG.info(f"Whiteboard created {namespace}:{name}")
+        return WhiteboardInstanceMeta(id=whiteboard_id)
 
     @wrap_error("Cannot link whiteboard")
     async def link(self, wb_id: str, field_name: str, url: str) -> None:
-        pass
+        client = await self.__get_client()
+        _LOG.info(f"Linking whiteboard field {wb_id}:{field_name} to {url}")
+        await client.link_whiteboard(whiteboard_id=wb_id, field_name=field_name, storage_uri=url)
 
     async def __load_local_modules(self, module_paths: Iterable[str]) -> Sequence[str]:
         """Returns sequence of urls"""

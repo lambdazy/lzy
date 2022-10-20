@@ -80,7 +80,8 @@ message CreateWhiteboardResponse {
 
 message LinkWhiteboardRequest {
   string whiteboardId = 1;
-  WhiteboardField field = 2;
+  string fieldName = 2;
+  string storageUri = 3;
 }
 
 message LinkWhiteboardResponse {}
