@@ -139,7 +139,8 @@ public class Worker {
         schedulerAgent.start();
     }
 
-    private void stop() {
+    @VisibleForTesting
+    public void stop() {
         LOG.error("Stopping servant");
         server.shutdown();
         schedulerAgent.reportStop();
