@@ -46,11 +46,9 @@ import java.nio.file.Files;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.BiConsumer;
@@ -82,7 +80,7 @@ public class WorkflowService {
     private final SubjectServiceGrpcClient subjectClient;
     private final AccessBindingServiceGrpcClient abClient;
 
-    private final Map<String, List<PortalSlotsListener>> listenersByExecution = new ConcurrentHashMap<>();
+    private final Map<String, Queue<PortalSlotsListener>> listenersByExecution = new ConcurrentHashMap<>();
 
     public WorkflowService(LzyServiceConfig config, LzyChannelManagerPrivateBlockingStub channelManagerClient,
                            AllocatorGrpc.AllocatorBlockingStub allocatorClient,
@@ -202,7 +200,7 @@ public class WorkflowService {
             return;
         }
 
-        for (var listener: listenersByExecution.getOrDefault(request.getExecutionId(), List.of())) {
+        for (var listener: listenersByExecution.getOrDefault(request.getExecutionId(), new ConcurrentLinkedQueue<>())) {
             listener.cancel("Workflow <" + request.getExecutionId() + "> is finished");
         }
 
@@ -436,7 +434,7 @@ public class WorkflowService {
             }
 
             var listener = new PortalSlotsListener(portalDesc.fsAddress(), portalDesc.portalId(), responseObserver);
-            listenersByExecution.computeIfAbsent(executionId, k -> new ArrayList<>()).add(listener);
+            listenersByExecution.computeIfAbsent(executionId, k -> new ConcurrentLinkedQueue<>()).add(listener);
 
         } catch (Exception e) {
             LOG.error("Error while reading slots: ", e);

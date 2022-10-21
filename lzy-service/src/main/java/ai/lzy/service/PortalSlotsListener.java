@@ -20,10 +20,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
+import static ai.lzy.portal.Portal.PORTAL_ERR_SLOT_NAME;
+import static ai.lzy.portal.Portal.PORTAL_OUT_SLOT_NAME;
+
 public class PortalSlotsListener {
     private static final Logger LOG = LogManager.getLogger(PortalSlotsListener.class);
-    private static final String PORTAL_OUT_SLOT_NAME = "portal:stdout";
-    private static final String PORTAL_ERR_SLOT_NAME = "portal:stderr";
 
     private final String portalId;
     private final StreamObserver<LWFS.ReadStdSlotsResponse> consumer;
@@ -47,19 +48,21 @@ public class PortalSlotsListener {
         channel = GrpcUtils.newGrpcChannel(portalAddress, LzyFsGrpc.SERVICE_NAME);
         stub = GrpcUtils.newBlockingClient(LzyFsGrpc.newBlockingStub(channel), "portal-fs-client", null);
 
-        outCall = createCall(PORTAL_OUT_SLOT_NAME, msg -> consumer.onNext(LWFS.ReadStdSlotsResponse.newBuilder()
-            .setStdout(
-                LWFS.ReadStdSlotsResponse.Data.newBuilder()
-                    .addData(msg.toStringUtf8())
-                    .build()
-            ).build()));
+        outCall = createCall(PORTAL_OUT_SLOT_NAME, msg -> consumer.onNext(
+            LWFS.ReadStdSlotsResponse.newBuilder()
+                .setStdout(
+                    LWFS.ReadStdSlotsResponse.Data.newBuilder()
+                        .addData(msg.toStringUtf8())
+                        .build()
+                ).build()));
 
-        errCall = createCall(PORTAL_ERR_SLOT_NAME, msg -> consumer.onNext(LWFS.ReadStdSlotsResponse.newBuilder()
-            .setStderr(
-                LWFS.ReadStdSlotsResponse.Data.newBuilder()
-                    .addData(msg.toStringUtf8())
-                    .build()
-            ).build()));
+        errCall = createCall(PORTAL_ERR_SLOT_NAME, msg -> consumer.onNext(
+            LWFS.ReadStdSlotsResponse.newBuilder()
+                .setStderr(
+                    LWFS.ReadStdSlotsResponse.Data.newBuilder()
+                        .addData(msg.toStringUtf8())
+                        .build()
+                ).build()));
     }
 
     public ClientCall<LzyFsApi.SlotRequest, LzyFsApi.Message> createCall(String slotName, Consumer<ByteString> consumer) {
@@ -90,7 +93,7 @@ public class PortalSlotsListener {
         var msg = LzyFsApi.SlotRequest.newBuilder()
             .setSlotInstance(LMS.SlotInstance.newBuilder()
                 .setTaskId(portalId)
-                .setSlotUri("fs://some.portal.slot/")  // To mock real call to fs api
+                .setSlotUri("fs://some.portal.slot/")  // To mock real call to fs api.
                 .setSlot(
                     LMS.Slot.newBuilder()
                         .setName(slotName)
