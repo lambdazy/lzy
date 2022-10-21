@@ -4,7 +4,6 @@ import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.dao.ExecutionDao;
-import ai.lzy.service.data.dao.PortalDescription;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.service.graph.GraphExecutionService;
@@ -22,7 +21,6 @@ import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
-import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Singleton;
@@ -100,7 +98,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                 internalUserCredentials::token);
 
         workflowService = new WorkflowService(config, channelManagerClient, allocatorClient,
-            operationServiceClient, subjectClient, abClient, storageServiceClient, storage, workflowDao);
+            operationServiceClient, subjectClient, abClient, storageServiceClient, storage, workflowDao, vmPoolClient);
         graphExecutionService = new GraphExecutionService(internalUserCredentials, workflowDao, executionDao,
             vmPoolClient, graphExecutorClient, channelManagerClient);
     }
@@ -152,4 +150,12 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     {
         workflowService.readStdSlots(request, responseObserver);
     }
+
+    @Override
+    public void getAvailablePools(
+            GetAvailablePoolsRequest request, StreamObserver<GetAvailablePoolsResponse> responseObserver)
+    {
+        workflowService.getAvailablePools(request, responseObserver);
+    }
+
 }

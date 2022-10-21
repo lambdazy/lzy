@@ -132,7 +132,14 @@ public class ThreadVmAllocator implements VmAllocator {
 
         var thread = vmThreads.remove(vmId);
         if (thread != null) {
-            thread.stop();
+            thread.interrupt();
+            try {
+                thread.join(100);
+            } catch (InterruptedException e) {
+                LOG.debug("Interrupted", e);
+            } finally {
+                thread.stop();
+            }
         }
     }
 

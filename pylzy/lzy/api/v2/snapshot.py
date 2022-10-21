@@ -81,6 +81,9 @@ class DefaultSnapshot(Snapshot):
         if entry is None:
             return Nothing()
 
+        if not await self.storage_client.blob_exists(entry.storage_url):
+            return Nothing()
+
         with BytesIO() as f:
             await self.storage_client.read(entry.storage_url, f)
             f.seek(0)

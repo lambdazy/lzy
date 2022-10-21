@@ -91,7 +91,7 @@ def _build_token(username: str, key_path: Optional[str] = None) -> str:
                     "nbf": time.time(),
                     "exp": time.time() + 7 * 24 * 60 * 60,  # 7 days
                     "iss": username,
-                    "pvd": "GITHUB",
+                    "pvd": "INTERNAL",
                 },
                 private_key,
                 algorithm="PS256",
@@ -122,7 +122,6 @@ class GrpcRuntime(Runtime):
         self.__running = False
         self.__loaded_modules: Set[str] = set()
 
-    @wrap_error("Cannot start workflow")
     async def start(self, workflow: LzyWorkflow):
         self.__running = True
         self.__workflow = workflow
@@ -145,7 +144,6 @@ class GrpcRuntime(Runtime):
             self.__listen_to_std_slots(exec_id)
         )
 
-    @wrap_error("Cannot execute graph")
     async def exec(
         self,
         calls: List[LzyCall],
@@ -189,7 +187,6 @@ class GrpcRuntime(Runtime):
                     f"Failed executing graph {graph_id}: {status.description}"
                 )
 
-    @wrap_error("Cannot destroy workflow")
     async def destroy(self):
         client = await self.__get_client()
         _LOG.info(f"Finishing workflow {self.__workflow.name}")
@@ -221,7 +218,6 @@ class GrpcRuntime(Runtime):
             self.__workflow_client = None
             self.__running = False
 
-    @wrap_error("Cannot create whiteboard")
     async def create_whiteboard(
         self,
         namespace: str,
@@ -232,7 +228,6 @@ class GrpcRuntime(Runtime):
     ) -> WhiteboardInstanceMeta:
         pass
 
-    @wrap_error("Cannot link whiteboard")
     async def link(self, wb_id: str, field_name: str, url: str) -> None:
         pass
 

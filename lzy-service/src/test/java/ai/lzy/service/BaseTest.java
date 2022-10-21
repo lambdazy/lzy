@@ -7,6 +7,7 @@ import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.service.config.LzyServiceConfig;
+import ai.lzy.service.workflow.WorkflowService;
 import ai.lzy.storage.test.BaseTestWithStorage;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.JwtUtils;
@@ -70,6 +71,7 @@ public class BaseTest {
 
     @Before
     public void setUp() throws IOException, InterruptedException {
+        WorkflowService.PEEK_RANDOM_PORTAL_PORTS = true;
         var iamDbConfig = preparePostgresConfig("iam", iamDb.getConnectionInfo());
         iamTestContext.setUp(iamDbConfig);
 

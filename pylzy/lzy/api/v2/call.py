@@ -3,12 +3,14 @@ import typing
 import uuid
 from typing import Any, Callable, Dict, Iterator, Mapping, Sequence, Tuple, TypeVar
 
-from lzy.api.v2.env import Env
+from lzy.api.v2.env import Env, DockerPullPolicy
 from lzy.api.v2.provisioning import Provisioning
 from lzy.api.v2.signatures import CallSignature
 from lzy.api.v2.utils.proxy_adapter import is_lzy_proxy, lzy_proxy
 from lzy.api.v2.utils.types import infer_call_signature
 from lzy.api.v2.workflow import LzyWorkflow
+from lzy.api.v2.utils.env import generate_env, merge_envs
+
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -106,17 +108,50 @@ class LzyCall:
 def wrap_call(
     f: Callable[..., Any],
     output_types: Sequence[type],
-    provisioning_: Provisioning,
-    env: Env,
-    workflow: LzyWorkflow,
+    python_version: typing.Optional[str] = None,
+    libraries: typing.Optional[Dict[str, str]] = None,
+    conda_yaml_path: typing.Optional[str] = None,
+    docker_image: typing.Optional[str] = None,
+    docker_pull_policy: typing.Optional = DockerPullPolicy.IF_NOT_EXISTS,
+    local_modules_path: typing.Optional[Sequence[str]] = None,
+    provisioning_: Provisioning = Provisioning(),
+    cpu_type: typing.Optional[str] = None,
+    cpu_count: typing.Optional[int] = None,
+    gpu_type: typing.Optional[str] = None,
+    gpu_count: typing.Optional[int] = None,
+    ram_size_gb: typing.Optional[int] = None,
+    env: typing.Optional[Env] = None,
 ) -> Callable[..., Any]:
     @functools.wraps(f)
     def lazy(*args, **kwargs):
-        # TODO: defaults?
+
+        active_workflow: typing.Optional[LzyWorkflow] = LzyWorkflow.get_active()
+        if active_workflow is None:
+            return f(*args, **kwargs)
+
+        if env is None:
+            generated_env = generate_env(
+                active_workflow.auto_py_env,
+                python_version,
+                libraries,
+                conda_yaml_path,
+                docker_image,
+                docker_pull_policy,
+                local_modules_path,
+            )
+        else:
+            generated_env = env
+
+        merged_env = merge_envs(generated_env, active_workflow.default_env)
+
+        prov = provisioning_.override(
+            Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb)
+        ).override(active_workflow.provisioning)
 
         signature = infer_call_signature(f, output_types, *args, **kwargs)
-        lzy_call = LzyCall(workflow, signature, provisioning_, env)
-        workflow.register_call(lzy_call)
+
+        lzy_call = LzyCall(active_workflow, signature, prov, merged_env)
+        active_workflow.register_call(lzy_call)
 
         # Special case for NoneType, just leave op registered and return
         # the real None. LzyEnv later will materialize it anyway.

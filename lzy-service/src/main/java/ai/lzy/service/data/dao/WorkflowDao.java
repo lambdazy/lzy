@@ -90,4 +90,7 @@ public interface WorkflowDao {
 
     @Nullable
     PortalDescription getPortalDescription(String executionId) throws SQLException;
+
+    @Nullable
+    String getAllocatorSession(String executionId) throws SQLException;
 }

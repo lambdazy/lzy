@@ -91,7 +91,7 @@ class WorkflowServiceClient:
     @staticmethod
     async def create(address: str, token: str) -> "WorkflowServiceClient":
         channel = build_channel(
-            address, interceptors=[add_headers_interceptor({"Authorization": token})]
+            address, interceptors=add_headers_interceptor({"authorization": f"Bearer {token}"})
         )
         await channel.channel_ready()
         stub = LzyWorkflowServiceStub(channel)

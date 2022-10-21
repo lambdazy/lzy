@@ -61,8 +61,6 @@ public class App {
         Objects.requireNonNull(config.getAllocatorToken());
         Objects.requireNonNull(config.getIamPrivateKey());
 
-        var portalAddress = "%s:%d".formatted(config.getHost(), config.getPortalApiPort());
-
         var allocatorAgent = new AllocatorAgent(config.getAllocatorToken(),
             config.getVmId(), config.getAllocatorAddress(), config.getAllocatorHeartbeatPeriod());
 
@@ -79,6 +77,11 @@ public class App {
         } catch (InterruptedException e) {
             LOG.debug("Was interrupted while waiting for portal termination");
             main.stop(true);
+            try {
+                main.awaitTermination();
+            } catch (InterruptedException ex) {
+                LOG.debug("Was interrupted while waiting for portal termination");
+            }
         }
     }
 

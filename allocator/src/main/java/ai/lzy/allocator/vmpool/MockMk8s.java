@@ -57,6 +57,6 @@ public class MockMk8s implements VmPoolRegistry, ClusterRegistry {
 
     @Override
     public Map<String, VmPoolSpec> getUserVmPools() {
-        return Map.of("s", new VmPoolSpec("s", "IceLake", 2, "V100", 1, 4, Set.of("ru-central1-a")));
+        return Map.of("s", new VmPoolSpec("s", "Intel Ice Lake", 2, "<none>", 0, 4, Set.of("ru-central1-a")));
     }
 }

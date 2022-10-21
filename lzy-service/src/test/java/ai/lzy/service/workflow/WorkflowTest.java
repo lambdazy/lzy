@@ -32,6 +32,20 @@ public class WorkflowTest extends BaseTest {
     }
 
     @Test
+    public void restartWorkflow() {
+        var res = authorizedWorkflowClient.createWorkflow(
+            LWFS.CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build());
+        authorizedWorkflowClient.finishWorkflow(LWFS.FinishWorkflowRequest.newBuilder()
+            .setWorkflowName("workflow_1")
+            .setExecutionId(res.getExecutionId())
+            .setReason("Test")
+            .build());
+
+        var res1 = authorizedWorkflowClient.createWorkflow(
+            LWFS.CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build());
+    }
+
+    @Test
     public void tempBucketCreationFailed() throws SQLException, InterruptedException {
         shutdownStorage();
 

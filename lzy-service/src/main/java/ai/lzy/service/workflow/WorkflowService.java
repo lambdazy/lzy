@@ -14,6 +14,7 @@ import ai.lzy.model.Constants;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.AlreadyExistsException;
+import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.service.PortalSlotsListener;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.PortalStatus;
@@ -24,12 +25,16 @@ import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmAllocatorApi;
+import ai.lzy.v1.VmPoolServiceApi;
+import ai.lzy.v1.VmPoolServiceGrpc;
+import ai.lzy.v1.channel.LCMPS;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub;
 import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
+import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LWFS.*;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -41,6 +46,8 @@ import io.micronaut.core.util.StringUtils;
 import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.postgresql.util.PSQLException;
+import org.postgresql.util.PSQLState;
 
 import java.nio.file.Files;
 import java.sql.Timestamp;
@@ -60,6 +67,7 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.storage.StorageClient.getOrCreateTempUserBucket;
 
 public class WorkflowService {
+    public static boolean PEEK_RANDOM_PORTAL_PORTS = false;  // Only for tests
     private static final Logger LOG = LogManager.getLogger(WorkflowService.class);
 
     private final LzyServiceConfig.StartupPortalConfig startupPortalConfig;
@@ -77,6 +85,8 @@ public class WorkflowService {
     private final LzyStorageServiceGrpc.LzyStorageServiceBlockingStub storageServiceClient;
     private final LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerClient;
 
+    private final VmPoolServiceGrpc.VmPoolServiceBlockingStub vmPoolClient;
+
     private final SubjectServiceGrpcClient subjectClient;
     private final AccessBindingServiceGrpcClient abClient;
 
@@ -87,7 +97,8 @@ public class WorkflowService {
                            LongRunningServiceGrpc.LongRunningServiceBlockingStub operationServiceClient,
                            SubjectServiceGrpcClient subjectClient, AccessBindingServiceGrpcClient abClient,
                            LzyStorageServiceGrpc.LzyStorageServiceBlockingStub storageServiceClient,
-                           Storage storage, WorkflowDao workflowDao)
+                           Storage storage, WorkflowDao workflowDao,
+                           VmPoolServiceGrpc.VmPoolServiceBlockingStub vmPoolClient)
     {
         allocationTimeout = config.getWaitAllocationTimeout();
         startupPortalConfig = config.getPortal();
@@ -105,6 +116,7 @@ public class WorkflowService {
 
         this.storage = storage;
         this.workflowDao = workflowDao;
+        this.vmPoolClient = vmPoolClient;
     }
 
     public void createWorkflow(CreateWorkflowRequest request, StreamObserver<CreateWorkflowResponse> response) {
@@ -206,6 +218,19 @@ public class WorkflowService {
 
         // final String[] bucket = {null};
         // bucket[0] = retrieve from db
+
+        destroyPortal(request.getExecutionId());
+
+        try {
+            var session = withRetries(LOG, () -> workflowDao.getAllocatorSession(request.getExecutionId()));
+
+            if (session != null) {
+                allocatorClient.deleteSession(VmAllocatorApi.DeleteSessionRequest.newBuilder().setSessionId(session).build());
+            }
+        } catch (Exception e) {
+            LOG.error("Cannot destroy allocator session: ", e);
+        }
+
         try {
             withRetries(defaultRetryPolicy(), LOG, () -> {
                 try (var transaction = TransactionHandle.create(storage)) {
@@ -259,6 +284,15 @@ public class WorkflowService {
                     state.getStorageType().name(), state.getStorageLocator()));
         } catch (AlreadyExistsException e) {
             state.fail(Status.ALREADY_EXISTS, "Cannot create execution: " + e.getMessage());
+        } catch (PSQLException e) {
+            if (
+                e.getSQLState().equals(PSQLState.UNIQUE_VIOLATION.getState())
+                || e.getSQLState().equals(PSQLState.CHECK_VIOLATION.getState()))
+            {
+                state.fail(Status.ALREADY_EXISTS, "Cannot create execution: " + e.getMessage());
+            } else {
+                state.fail(Status.INTERNAL, "Cannot create execution: " + e.getMessage());
+            }
         } catch (Exception e) {
             state.fail(Status.INTERNAL, "Cannot create execution: " + e.getMessage());
         }
@@ -370,10 +404,16 @@ public class WorkflowService {
             throw new RuntimeException(e);
         }
 
+        var portalPort = PEEK_RANDOM_PORTAL_PORTS
+            ? FreePortFinder.find(10000, 11000)
+            : startupPortalConfig.getPortalApiPort();
+
+        var fsPort = PEEK_RANDOM_PORTAL_PORTS ? FreePortFinder.find(11000, 12000) : startupPortalConfig.getFsApiPort();
+
         var args = List.of(
             "-portal.portal-id=" + portalId,
-            "-portal.portal-api-port=" + startupPortalConfig.getPortalApiPort(),
-            "-portal.fs-api-port=" + startupPortalConfig.getFsApiPort(),
+            "-portal.portal-api-port=" + portalPort,
+            "-portal.fs-api-port=" + fsPort,
             "-portal.fs-root=" + startupPortalConfig.getFsRoot(),
             "-portal.stdout-channel-id=" + stdoutChannelId,
             "-portal.stderr-channel-id=" + stderrChannelId,
@@ -440,5 +480,57 @@ public class WorkflowService {
             LOG.error("Error while reading slots: ", e);
             throw Status.INTERNAL.withDescription(e.getMessage()).asRuntimeException();
         }
+    }
+
+    private void destroyPortal(String executionId) {
+        try {
+            var portalDesc = withRetries(LOG, () -> workflowDao.getPortalDescription(executionId));
+            if (portalDesc == null) {
+                return;  // No portal for execution
+            }
+
+            channelManagerClient.destroy(LCMPS.ChannelDestroyRequest.newBuilder()
+                .setChannelId(portalDesc.stderrChannelId())
+                .build());
+
+            channelManagerClient.destroy(LCMPS.ChannelDestroyRequest.newBuilder()
+                .setChannelId(portalDesc.stdoutChannelId())
+                .build());
+
+            allocatorClient.free(VmAllocatorApi.FreeRequest.newBuilder()
+                .setVmId(portalDesc.vmId())
+                .build());
+
+        } catch (Exception e) {
+            LOG.error("Cannot destroy portal for execution <{}>. Please destroy it by yourself", executionId);
+        }
+
+    }
+
+    public void getAvailablePools(
+            GetAvailablePoolsRequest request, StreamObserver<GetAvailablePoolsResponse> responseObserver)
+    {
+        var res = vmPoolClient.getVmPools(VmPoolServiceApi.GetVmPoolsRequest.newBuilder()
+            .setWithSystemPools(false)
+            .setWithUserPools(true)
+            .build());
+
+        responseObserver.onNext(GetAvailablePoolsResponse.newBuilder()
+            .addAllPoolSpecs(
+                res.getUserPoolsList().stream()
+                    .map(spec -> LWF.VmPoolSpec.newBuilder()
+                        .setPoolSpecName(spec.getLabel())
+                        .setCpuCount(spec.getCpuCount())
+                        .setGpuCount(spec.getGpuCount())
+                        .setRamGb(spec.getRamGb())
+                        .setCpuType(spec.getCpuType())
+                        .setGpuType(spec.getGpuType())
+                        .addAllZones(spec.getZonesList())
+                        .build())
+                    .toList()
+            )
+            .build());
+
+        responseObserver.onCompleted();
     }
 }
