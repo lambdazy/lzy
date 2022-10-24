@@ -14,6 +14,7 @@ import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.model.db.exceptions.DaoException;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.graph.GraphExecutor;
 import ai.lzy.v1.graph.GraphExecutorApi.*;
 import ai.lzy.v1.graph.GraphExecutorGrpc;
@@ -54,7 +55,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
 
     @Inject
     public GraphExecutorApi(GraphExecutionDao dao, ServiceConfig config,
-                            @Named("GraphExecutorIamGrpcChannel") ManagedChannel iamChannel,
+                            @Named("GraphExecutorIamGrpcChannel") ManagedChannel iamChannel, RenewableJwt iamToken,
                             GraphBuilder graphBuilder, QueueManager queueManager, SchedulerApi schedulerApi)
     {
         this.iamChannel = iamChannel;
@@ -62,8 +63,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
         this.config = config;
         this.graphBuilder = graphBuilder;
         this.queueManager = queueManager;
-        accessClient = new AccessServiceGrpcClient(APP, GrpcConfig.from(config.getAuth().getAddress()),
-            config.getAuth()::createCredentials);
+        accessClient = new AccessServiceGrpcClient(APP, GrpcConfig.from(config.getAuth().getAddress()), iamToken::get);
         this.schedulerApi = schedulerApi;
     }
 

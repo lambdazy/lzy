@@ -44,6 +44,10 @@ public class SchedulerApiMock implements SchedulerApi {
         return status(workflowId, taskId);
     }
 
+    @Override
+    public void shutdown() {
+    }
+
     public void changeStatus(String taskId, TaskStatus status) {
         statusByTaskId.put(taskId, status);
     }

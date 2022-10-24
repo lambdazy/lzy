@@ -89,11 +89,11 @@ public class ApiTest extends BaseTestWithIam {
             .forAddress(HostAndPort.fromString(config.getAddress()))
             .usePlaintext()
             .build();
-        var credentials = config.getIam().createCredentials();
+        var credentials = config.getIam().createRenewableToken();
         privateWhiteboardClient = LzyWhiteboardPrivateServiceGrpc.newBlockingStub(channel).withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
+            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> credentials.get().token()));
         whiteboardClient = LzyWhiteboardServiceGrpc.newBlockingStub(channel).withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
+            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> credentials.get().token()));
 
         try (final var iamClient = new IamClient(config.getIam())) {
             externalUser = iamClient.createUser("wbUser");
@@ -379,7 +379,8 @@ public class ApiTest extends BaseTestWithIam {
 
         IamClient(IamClientConfiguration config) {
             this.channel = GrpcUtils.newGrpcChannel(config.getAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
-            this.subjectClient = new SubjectServiceGrpcClient("TestClient", channel, config::createCredentials);
+            var iamToken = config.createRenewableToken();
+            this.subjectClient = new SubjectServiceGrpcClient("TestClient", channel, iamToken::get);
         }
 
         public User createUser(String name) throws Exception {

@@ -5,6 +5,7 @@ import ai.lzy.metrics.DummyMetricReporter;
 import ai.lzy.metrics.LogMetricReporter;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.metrics.PrometheusMetricReporter;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -73,5 +74,10 @@ public class BeanFactory {
                 Level.valueOf(config.getLoggerLevel().toUpperCase()));
             case Prometheus -> new PrometheusMetricReporter(config.getPort());
         };
+    }
+
+    @Singleton
+    public RenewableJwt renewableIamToken(ServiceConfig config) {
+        return config.getIam().createRenewableToken();
     }
 }

@@ -89,11 +89,11 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
 
         channel = newGrpcChannel(config.getAddress(), AllocatorGrpc.SERVICE_NAME);
 
-        var credentials = config.getIam().createCredentials();
+        var credentials = config.getIam().createRenewableToken();
         allocator = newBlockingClient(
-            AllocatorGrpc.newBlockingStub(channel), "Test", credentials::token);
+            AllocatorGrpc.newBlockingStub(channel), "Test", () -> credentials.get().token());
         privateAllocatorBlockingStub = newBlockingClient(
-            AllocatorPrivateGrpc.newBlockingStub(channel), "Test", credentials::token);
+            AllocatorPrivateGrpc.newBlockingStub(channel), "Test", () -> credentials.get().token());
     }
 
     @After

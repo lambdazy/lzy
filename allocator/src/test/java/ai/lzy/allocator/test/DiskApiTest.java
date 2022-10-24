@@ -71,9 +71,11 @@ public class DiskApiTest extends BaseTestWithIam {
         channel = newGrpcChannel(config.getAddress(), LongRunningServiceGrpc.SERVICE_NAME,
             DiskServiceGrpc.SERVICE_NAME);
 
-        final var credentials = config.getIam().createCredentials();
-        operations = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(channel), "Test", credentials::token);
-        diskService = newBlockingClient(DiskServiceGrpc.newBlockingStub(channel), "Test", credentials::token);
+        final var credentials = config.getIam().createRenewableToken();
+        operations = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(channel), "Test",
+            () -> credentials.get().token());
+        diskService = newBlockingClient(DiskServiceGrpc.newBlockingStub(channel), "Test",
+            () -> credentials.get().token());
     }
 
     @After

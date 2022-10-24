@@ -32,4 +32,6 @@ public interface SchedulerApi {
      * @return current status of task
      */
     TaskStatus kill(String workflowId, String taskId);
+
+    void shutdown();
 }

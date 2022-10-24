@@ -107,23 +107,23 @@ public class SchedulerTest extends LocalScenario {
             .enableRetry(SchedulerGrpc.SERVICE_NAME)
             .build();
         final var config = context.getBean(ServiceConfig.class);
-        final var credentials = config.getIam().createCredentials();
+        final var credentials = config.getIam().createRenewableToken();
         stub = SchedulerGrpc.newBlockingStub(channel).withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
+            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> credentials.get().token()));
 
         final var chan = ChannelBuilder.forAddress("localhost:" + graphExecutorPort)
             .usePlaintext()
             .enableRetry(GraphExecutorGrpc.SERVICE_NAME)
             .build();
         geStub = GraphExecutorGrpc.newBlockingStub(chan).withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
+            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> credentials.get().token()));
 
         final var ch = ChannelBuilder.forAddress("localhost:" + CHANNEL_MANAGER_PORT)
             .usePlaintext()
             .enableRetry(LzyChannelManagerPrivateGrpc.SERVICE_NAME)
             .build();
         cmStub = LzyChannelManagerPrivateGrpc.newBlockingStub(ch).withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
+            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> credentials.get().token()));
     }
 
     @Before

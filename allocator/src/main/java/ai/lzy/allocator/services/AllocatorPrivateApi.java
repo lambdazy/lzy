@@ -14,6 +14,7 @@ import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.AllocatorPrivateGrpc.AllocatorPrivateImplBase;
 import ai.lzy.v1.VmAllocatorApi.AllocateResponse;
 import ai.lzy.v1.VmAllocatorPrivateApi.HeartbeatRequest;
@@ -58,7 +59,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
     @Inject
     public AllocatorPrivateApi(VmDao dao, OperationDao operations, VmAllocator allocator, SessionDao sessions,
                                AllocatorDataSource storage, ServiceConfig config,
-                               @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel)
+                               @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel, RenewableJwt iamToken)
     {
         this.dao = dao;
         this.operations = operations;
@@ -66,8 +67,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
         this.sessions = sessions;
         this.storage = storage;
         this.config = config;
-        this.subjectClient = new SubjectServiceGrpcClient(AllocatorMain.APP, iamChannel,
-            config.getIam()::createCredentials);
+        this.subjectClient = new SubjectServiceGrpcClient(AllocatorMain.APP, iamChannel, iamToken::get);
     }
 
     @Override

@@ -8,7 +8,6 @@ import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.service.graph.GraphExecutionService;
 import ai.lzy.service.workflow.WorkflowService;
-import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.grpc.GrpcChannels;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmPoolServiceGrpc;
@@ -54,7 +53,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         String channelManagerAddress = config.getChannelManagerAddress();
 
         String iamAddress = config.getIam().getAddress();
-        JwtCredentials internalUserCredentials = config.getIam().createCredentials();
+        var internalUserCredentials = config.getIam().createRenewableToken();
 
         LOG.info("Init Internal User '{}' credentials", config.getIam().getInternalUserName());
 
@@ -63,25 +62,25 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         allocatorServiceChannel = newGrpcChannel(allocatorAddress, AllocatorGrpc.SERVICE_NAME);
         AllocatorGrpc.AllocatorBlockingStub allocatorClient =
             newBlockingClient(AllocatorGrpc.newBlockingStub(allocatorServiceChannel), APP,
-                internalUserCredentials::token);
+                () -> internalUserCredentials.get().token());
         VmPoolServiceGrpc.VmPoolServiceBlockingStub vmPoolClient =
             newBlockingClient(VmPoolServiceGrpc.newBlockingStub(allocatorServiceChannel), APP,
-                internalUserCredentials::token);
+                () -> internalUserCredentials.get().token());
 
         operationServiceChannel = newGrpcChannel(allocatorAddress, LongRunningServiceGrpc.SERVICE_NAME);
         LongRunningServiceGrpc.LongRunningServiceBlockingStub operationServiceClient =
             newBlockingClient(LongRunningServiceGrpc.newBlockingStub(operationServiceChannel), APP,
-                internalUserCredentials::token);
+                () -> internalUserCredentials.get().token());
 
         storageServiceChannel = newGrpcChannel(config.getStorage().getAddress(), LzyStorageServiceGrpc.SERVICE_NAME);
         LzyStorageServiceGrpc.LzyStorageServiceBlockingStub storageServiceClient =
             newBlockingClient(LzyStorageServiceGrpc.newBlockingStub(storageServiceChannel), APP,
-                internalUserCredentials::token);
+                () -> internalUserCredentials.get().token());
 
         channelManagerChannel = newGrpcChannel(channelManagerAddress, LzyChannelManagerPrivateGrpc.SERVICE_NAME);
         LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerClient =
             newBlockingClient(LzyChannelManagerPrivateGrpc.newBlockingStub(channelManagerChannel), APP,
-                internalUserCredentials::token);
+                () -> internalUserCredentials.get().token());
 
         iamChannel = newGrpcChannel(iamAddress, LzyAuthenticateServiceGrpc.SERVICE_NAME);
 
@@ -93,7 +92,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         graphExecutorChannel = newGrpcChannel(config.getGraphExecutorAddress(), GraphExecutorGrpc.SERVICE_NAME);
         GraphExecutorGrpc.GraphExecutorBlockingStub graphExecutorClient =
             newBlockingClient(GraphExecutorGrpc.newBlockingStub(graphExecutorChannel), APP,
-                internalUserCredentials::token);
+                () -> internalUserCredentials.get().token());
 
         workflowService = new WorkflowService(config, channelManagerClient, allocatorClient,
             operationServiceClient, subjectClient, abClient, storageServiceClient, storage, workflowDao);

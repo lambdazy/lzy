@@ -25,6 +25,7 @@ import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.v1.AllocatorGrpc;
@@ -74,7 +75,8 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
     @Inject
     public AllocatorApi(VmDao dao, OperationDao operations, SessionDao sessions, DiskStorage diskStorage,
                         VmAllocator allocator, TunnelAllocator tunnelAllocator, ServiceConfig config,
-                        AllocatorDataSource storage, @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel)
+                        AllocatorDataSource storage, @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
+                        RenewableJwt iamToken)
     {
         this.dao = dao;
         this.operations = operations;
@@ -85,8 +87,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         this.config = config;
         this.storage = storage;
 
-        this.subjectClient = new SubjectServiceGrpcClient(AllocatorMain.APP, iamChannel,
-            config.getIam()::createCredentials);
+        this.subjectClient = new SubjectServiceGrpcClient(AllocatorMain.APP, iamChannel, iamToken::get);
     }
 
     @Override

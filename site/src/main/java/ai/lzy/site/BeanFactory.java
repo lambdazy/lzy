@@ -1,8 +1,8 @@
 package ai.lzy.site;
 
-import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.utils.GrpcConfig;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.scheduler.SchedulerGrpc;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.annotation.Bean;
@@ -23,25 +23,27 @@ public class BeanFactory {
         return newGrpcChannel(config.getSchedulerAddress(), SchedulerGrpc.SERVICE_NAME);
     }
 
-    @Bean
+    @Singleton
+    public RenewableJwt iamToken(ServiceConfig serviceConfig) {
+        return serviceConfig.getIam().createRenewableToken();
+    }
+
     @Singleton
     @Named("Scheduler")
     public SchedulerGrpc.SchedulerBlockingStub scheduler(
-        ServiceConfig serviceConfig,
-        @Named("SchedulerGrpcChannel") ManagedChannel schedulerChannel)
+        @Named("SchedulerGrpcChannel") ManagedChannel schedulerChannel,
+        RenewableJwt iamToken)
     {
         return newBlockingClient(SchedulerGrpc.newBlockingStub(schedulerChannel), "LzySite",
-            () -> serviceConfig.getIam().createCredentials().token());
+            () -> iamToken.get().token());
     }
 
-    @Bean
     @Singleton
-    public SubjectServiceGrpcClient subjectService(ServiceConfig config) {
-        final IamClientConfiguration iam = config.getIam();
+    public SubjectServiceGrpcClient subjectService(ServiceConfig config, RenewableJwt iamToken) {
         return new SubjectServiceGrpcClient(
             "LzySite",
-            GrpcConfig.from(iam.getAddress()),
-            iam::createCredentials
+            GrpcConfig.from(config.getIam().getAddress()),
+            iamToken::get
         );
     }
 }
