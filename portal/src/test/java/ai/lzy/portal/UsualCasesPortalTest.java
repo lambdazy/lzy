@@ -19,7 +19,7 @@ public class UsualCasesPortalTest extends PortalTest {
 
         System.out.println("\n----- PREPARE PORTAL FOR TASK 1 -----------------------------------------\n");
 
-        String firstServantId = prepareTask(1, true, true, "snapshot_1");
+        String firstWorkerId = prepareTask(1, true, true, "snapshot_1");
 
         System.out.println("\n----- RUN TASK 1 -----------------------------------------\n");
 
@@ -27,7 +27,7 @@ public class UsualCasesPortalTest extends PortalTest {
 
         String firstTaskId = startTask(1, "echo 'i-am-a-hacker' > /tmp/lzy_servant_1/slot_1 && echo 'hello'",
             taskOutputSlot, null);
-        server.waitTaskCompleted(firstServantId, firstTaskId);
+        schedulerServer.awaitProcessing(firstWorkerId);
 
         Assert.assertEquals(firstTaskId + "; hello\n", portalStdout.take());
         Assert.assertEquals(firstTaskId + "; ", portalStdout.take());
@@ -57,11 +57,11 @@ public class UsualCasesPortalTest extends PortalTest {
 
         String secondTaskId = startTask(2, "echo 'x' && /tmp/lzy_servant_1/sbin/cat /tmp/lzy_servant_1/slot_2 > "
             + tmpFile.getAbsolutePath(), taskInputSlot, "servant_1");
-        server.waitTaskCompleted(firstServantId, secondTaskId);
+        schedulerServer.awaitProcessing(firstWorkerId);
 
-        Assert.assertEquals("task_2; x\n", portalStdout.take());
-        Assert.assertEquals("task_2; ", portalStdout.take());
-        Assert.assertEquals("task_2; ", portalStderr.take());
+        Assert.assertEquals(secondTaskId + "; x\n", portalStdout.take());
+        Assert.assertEquals(secondTaskId + "; ", portalStdout.take());
+        Assert.assertEquals(secondTaskId + "; ", portalStderr.take());
         waitPortalCompleted();
 
         // task_2 clean up
@@ -86,8 +86,8 @@ public class UsualCasesPortalTest extends PortalTest {
 
         System.out.println("\n----- PREPARE PORTAL FOR TASKS -----------------------------------------\n");
 
-        String firstServantId = prepareTask(1, true, true, "snapshot_1");
-        String secondServantId = prepareTask(2, true, true, "snapshot_2");
+        String firstWorkerId = prepareTask(1, true, true, "snapshot_1");
+        String secondWorkerId = prepareTask(2, true, true, "snapshot_2");
 
         System.out.println("\n----- RUN TASKS -----------------------------------------\n");
 
@@ -99,8 +99,8 @@ public class UsualCasesPortalTest extends PortalTest {
         String secondTaskId = startTask(2, "echo 'hello from task_2' > /tmp/lzy_servant_2/slot_2 && "
             + "echo 'hello from task_2'", task2OutputSlot, null);
 
-        server.waitTaskCompleted(firstServantId, firstTaskId);
-        server.waitTaskCompleted(secondServantId, secondTaskId);
+        schedulerServer.awaitProcessing(firstWorkerId);
+        schedulerServer.awaitProcessing(secondWorkerId);
         waitPortalCompleted();
 
         System.out.println("\n----- TASKS DONE -----------------------------------------\n");
@@ -115,10 +115,10 @@ public class UsualCasesPortalTest extends PortalTest {
 
         var expected = new HashSet<String>() {
             {
-                add("task_1; hello from task_1\n");
-                add("task_1; ");
-                add("task_2; hello from task_2\n");
-                add("task_2; ");
+                add(firstTaskId + "; hello from task_1\n");
+                add(firstTaskId + "; ");
+                add(secondTaskId + "; hello from task_2\n");
+                add(secondTaskId + "; ");
             }
         };
 
@@ -129,8 +129,8 @@ public class UsualCasesPortalTest extends PortalTest {
         }
         Assert.assertNull(portalStdout.poll());
 
-        expected.add("task_1; ");
-        expected.add("task_2; ");
+        expected.add(firstTaskId + "; ");
+        expected.add(secondTaskId + "; ");
 
         while (!expected.isEmpty()) {
             var actual = portalStderr.take();
@@ -150,7 +150,7 @@ public class UsualCasesPortalTest extends PortalTest {
 
         System.out.println("\n----- PREPARE PORTAL FOR TASK 1 -----------------------------------------\n");
 
-        String firstServantId = prepareTask(1, true, true, "snapshot_1");
+        String firstWorkerId = prepareTask(1, true, true, "snapshot_1");
 
         System.out.println("\n----- RUN TASK 1 -----------------------------------------\n");
 
@@ -158,11 +158,11 @@ public class UsualCasesPortalTest extends PortalTest {
 
         String firstTaskId = startTask(1, "echo 'i-am-a-hacker' > /tmp/lzy_servant_1/slot_1 && echo 'hello'",
             taskOutputSlot, null);
-        server.waitTaskCompleted(firstServantId, firstTaskId);
+        schedulerServer.awaitProcessing(firstWorkerId);
 
-        Assert.assertEquals("task_1; hello\n", portalStdout.take());
-        Assert.assertEquals("task_1; ", portalStdout.take());
-        Assert.assertEquals("task_1; ", portalStderr.take());
+        Assert.assertEquals(firstTaskId + "; hello\n", portalStdout.take());
+        Assert.assertEquals(firstTaskId + "; ", portalStdout.take());
+        Assert.assertEquals(firstTaskId + "; ", portalStderr.take());
         waitPortalCompleted();
 
         // task_1 clean up
@@ -175,8 +175,8 @@ public class UsualCasesPortalTest extends PortalTest {
 
         ///// consumer tasks  /////
 
-        String secondServantId = prepareTask(2, true, false, "snapshot_1");
-        String thirdServantId = prepareTask(3, true, false, "snapshot_1");
+        String secondWorkerId = prepareTask(2, true, false, "snapshot_1");
+        String thirdWorkerId = prepareTask(3, true, false, "snapshot_1");
 
         System.out.println("\n----- RUN TASK 2 -----------------------------------------\n");
 
@@ -187,11 +187,11 @@ public class UsualCasesPortalTest extends PortalTest {
 
         String secondTaskId = startTask(2, "echo 'x' && /tmp/lzy_servant_2/sbin/cat /tmp/lzy_servant_2/slot_2 > "
             + tmpFile2.getAbsolutePath(), taskInputSlot2, null);
-        server.waitTaskCompleted(secondServantId, secondTaskId);
+        schedulerServer.awaitProcessing(secondWorkerId);
 
-        Assert.assertEquals("task_2; x\n", portalStdout.take());
-        Assert.assertEquals("task_2; ", portalStdout.take());
-        Assert.assertEquals("task_2; ", portalStderr.take());
+        Assert.assertEquals(secondTaskId + "; x\n", portalStdout.take());
+        Assert.assertEquals(secondTaskId + "; ", portalStdout.take());
+        Assert.assertEquals(secondTaskId + "; ", portalStderr.take());
         waitPortalCompleted();
 
         System.out.println("\n----- RUN TASK 3 -----------------------------------------\n");
@@ -203,11 +203,11 @@ public class UsualCasesPortalTest extends PortalTest {
 
         String thirdTaskId = startTask(3, "echo 'x' && /tmp/lzy_servant_3/sbin/cat /tmp/lzy_servant_3/slot_3 > "
             + tmpFile3.getAbsolutePath(), taskInputSlot3, null);
-        server.waitTaskCompleted(thirdServantId, thirdTaskId);
+        schedulerServer.awaitProcessing(thirdWorkerId);
 
-        Assert.assertEquals("task_3; x\n", portalStdout.take());
-        Assert.assertEquals("task_3; ", portalStdout.take());
-        Assert.assertEquals("task_3; ", portalStderr.take());
+        Assert.assertEquals(thirdTaskId + "; x\n", portalStdout.take());
+        Assert.assertEquals(thirdTaskId + "; ", portalStdout.take());
+        Assert.assertEquals(thirdTaskId + "; ", portalStderr.take());
         waitPortalCompleted();
 
         // task_3 clean up
@@ -240,18 +240,18 @@ public class UsualCasesPortalTest extends PortalTest {
 
         System.out.println("\n----- PREPARE PORTAL FOR TASK 1 -----------------------------------------\n");
 
-        String firstServantId = prepareTask(1, true, true, "snapshot_1");
+        String firstWorkerId = prepareTask(1, true, true, "snapshot_1");
 
         System.out.println("\n----- RUN TASK 1 -----------------------------------------\n");
 
         var taskOutputSlot = makeOutputFileSlot("/slot_1");
         String firstTaskId = startTask(1, "echo 'i-am-a-hacker' > /tmp/lzy_servant_1/slot_1 && echo 'hello'",
             taskOutputSlot, null);
-        server.waitTaskCompleted(firstServantId, firstTaskId);
+        schedulerServer.awaitProcessing(firstWorkerId);
 
-        Assert.assertEquals("task_1; hello\n", portalStdout.take());
-        Assert.assertEquals("task_1; ", portalStdout.take());
-        Assert.assertEquals("task_1; ", portalStderr.take());
+        Assert.assertEquals(firstTaskId + "; hello\n", portalStdout.take());
+        Assert.assertEquals(firstTaskId + "; ", portalStdout.take());
+        Assert.assertEquals(firstTaskId + "; ", portalStderr.take());
         waitPortalCompleted();
 
         // task_1 clean up
@@ -264,8 +264,8 @@ public class UsualCasesPortalTest extends PortalTest {
 
         ///// consumer tasks  /////
 
-        String secondServantId = prepareTask(2, true, false, "snapshot_1");
-        String thirdServantId = prepareTask(3, true, false, "snapshot_1");
+        String secondWorkerId = prepareTask(2, true, false, "snapshot_1");
+        String thirdWorkerId = prepareTask(3, true, false, "snapshot_1");
 
         System.out.println("\n----- RUN TASK 2 & TASK 3 -----------------------------------------\n");
 
@@ -278,17 +278,17 @@ public class UsualCasesPortalTest extends PortalTest {
         var taskInputSlot2 = makeInputFileSlot("/slot_2");
         var taskInputSlot3 = makeInputFileSlot("/slot_3");
 
-        String secondTaskId = startTask(2, "/tmp/lzy_servant_2/sbin/cat /tmp/lzy_servant_2/slot_2 > "
+        startTask(2, "/tmp/lzy_servant_2/sbin/cat /tmp/lzy_servant_2/slot_2 > "
             + tmpFile2.getAbsolutePath(), taskInputSlot2, null);
-        String thirdTaskId = startTask(3, "/tmp/lzy_servant_3/sbin/cat /tmp/lzy_servant_3/slot_3 > "
+        startTask(3, "/tmp/lzy_servant_3/sbin/cat /tmp/lzy_servant_3/slot_3 > "
             + tmpFile3.getAbsolutePath(), taskInputSlot3, null);
 
         // wait
-        server.waitTaskCompleted(secondServantId, secondTaskId);
+        schedulerServer.awaitProcessing(secondWorkerId);
         waitPortalCompleted();
 
         // wait
-        server.waitTaskCompleted(thirdServantId, thirdTaskId);
+        schedulerServer.awaitProcessing(thirdWorkerId);
         waitPortalCompleted();
 
         // task_3 clean up

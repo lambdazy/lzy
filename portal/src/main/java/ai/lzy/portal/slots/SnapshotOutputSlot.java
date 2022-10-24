@@ -48,7 +48,7 @@ public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot {
         try (var storage = new BufferedOutputStream(new FileOutputStream(sink))) {
             data.forEach(chunk -> {
                 try {
-                    LOG.debug("Received chunk of size {}", chunk.size());
+                    LOG.info("Received chunk of size {}", chunk.size());
                     chunk.writeTo(storage);
                 } catch (IOException ioe) {
                     LOG.warn("Unable write chunk of data of size " + chunk.size()
