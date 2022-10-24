@@ -8,9 +8,7 @@ import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.iam.utils.ProtoConverter;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.exceptions.AuthException;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.util.grpc.ClientHeaderInterceptor;
-import ai.lzy.util.grpc.GrpcHeaders;
+import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.iam.LACS;
 import ai.lzy.v1.iam.LzyAccessServiceGrpc;
 import io.grpc.Channel;
@@ -23,39 +21,31 @@ import java.util.function.Supplier;
 public class AccessServiceGrpcClient implements AccessClient {
     private static final Logger LOG = LogManager.getLogger(AccessServiceGrpcClient.class);
 
+    private final String clientName;
     private final Channel channel;
     private final LzyAccessServiceGrpc.LzyAccessServiceBlockingStub accessService;
-    private final Supplier<Credentials> tokenSupplier;
 
-    public AccessServiceGrpcClient(GrpcConfig config, Supplier<Credentials> tokenSupplier) {
-        this(
-                ChannelBuilder.forAddress(config.host(), config.port())
-                        .usePlaintext()
-                        .enableRetry(LzyAccessServiceGrpc.SERVICE_NAME)
-                        .build(),
-                tokenSupplier
-        );
+    public AccessServiceGrpcClient(String clientName, GrpcConfig config, Supplier<Credentials> tokenSupplier) {
+        this(clientName, GrpcUtils.newGrpcChannel(config.host(), config.port(), LzyAccessServiceGrpc.SERVICE_NAME),
+            tokenSupplier);
     }
 
-    public AccessServiceGrpcClient(Channel channel, Supplier<Credentials> tokenSupplier) {
+    public AccessServiceGrpcClient(String clientName, Channel channel, Supplier<Credentials> tokenSupplier) {
+        this.clientName = clientName;
         this.channel = channel;
-        this.tokenSupplier = tokenSupplier;
-        this.accessService = LzyAccessServiceGrpc.newBlockingStub(this.channel)
-                .withInterceptors(ClientHeaderInterceptor.header(
-                        GrpcHeaders.AUTHORIZATION,
-                        () -> this.tokenSupplier.get().token()));
+        this.accessService = GrpcUtils.newBlockingClient(
+            LzyAccessServiceGrpc.newBlockingStub(channel), clientName, () -> tokenSupplier.get().token());
     }
 
     @Override
     public AccessClient withToken(Supplier<Credentials> tokenSupplier) {
-        return new AccessServiceGrpcClient(this.channel, tokenSupplier);
+        return new AccessServiceGrpcClient(clientName, channel, tokenSupplier);
     }
 
     @Override
-    public boolean hasResourcePermission(
-            Subject subject,
-            AuthResource resource,
-            AuthPermission permission) throws AuthException {
+    public boolean hasResourcePermission(Subject subject, AuthResource resource, AuthPermission permission)
+        throws AuthException
+    {
         try {
             var subj = accessService.authorize(LACS.AuthorizeRequest.newBuilder()
                     .setSubject(ProtoConverter.from(subject))

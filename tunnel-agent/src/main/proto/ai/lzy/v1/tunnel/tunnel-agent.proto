@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package ai.lzy.v1.tunnel;
+
+option java_outer_classname = "TA";
+option java_package = "ai.lzy.v1.tunnel";
+
+service LzyTunnelAgent {
+  rpc CreateTunnel (CreateTunnelRequest) returns (CreateTunnelResponse);
+}
+
+message CreateTunnelRequest {
+  string remote_v6_address = 1;
+  string worker_pod_v4_address = 2;
+  string k8s_v4_pod_cidr = 3;
+}
+
+message CreateTunnelResponse {}

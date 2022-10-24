@@ -95,7 +95,8 @@ public class LzyFSTest {
         ForkJoinPool.commonPool().execute(() -> {
             byte[] buffer = new byte[4096];
             try (InputStream is = Files.newInputStream(Path.of(LZY_MOUNT, slotPath),
-                StandardOpenOption.READ)) {
+                StandardOpenOption.READ))
+            {
                 int read;
                 while ((read = is.read(buffer)) >= 0) {
                     System.out.write(buffer, 0, read);
@@ -112,5 +113,7 @@ public class LzyFSTest {
         slot.state(State.OPEN);
 
         Assert.assertTrue(latch.await(10, TimeUnit.SECONDS));
+
+        stream.close();
     }
 }

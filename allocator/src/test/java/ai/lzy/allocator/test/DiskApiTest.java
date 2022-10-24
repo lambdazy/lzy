@@ -12,14 +12,10 @@ import ai.lzy.allocator.disk.exceptions.NotFoundException;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.test.TimeUtils;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.util.grpc.ClientHeaderInterceptor;
-import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.DiskApi;
 import ai.lzy.v1.DiskServiceApi;
 import ai.lzy.v1.DiskServiceGrpc;
-import ai.lzy.v1.OperationServiceApiGrpc;
-import com.google.common.net.HostAndPort;
+import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
@@ -38,6 +34,8 @@ import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.allocator.test.Utils.waitOperation;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 public class DiskApiTest extends BaseTestWithIam {
     private static final int DEFAULT_TIMEOUT_SEC = 300;
@@ -49,7 +47,7 @@ public class DiskApiTest extends BaseTestWithIam {
 
     private ApplicationContext context;
     private AllocatorMain allocatorApp;
-    private OperationServiceApiGrpc.OperationServiceApiBlockingStub operations;
+    private LongRunningServiceGrpc.LongRunningServiceBlockingStub operations;
     private DiskServiceGrpc.DiskServiceBlockingStub diskService;
     private DiskManager diskManager;
     private ManagedChannel channel;
@@ -70,17 +68,12 @@ public class DiskApiTest extends BaseTestWithIam {
         diskManager = context.getBean(DiskManager.class);
 
         final var config = context.getBean(ServiceConfig.class);
-        channel = ChannelBuilder
-            .forAddress(HostAndPort.fromString(config.getAddress()))
-            .usePlaintext()
-            .build();
+        channel = newGrpcChannel(config.getAddress(), LongRunningServiceGrpc.SERVICE_NAME,
+            DiskServiceGrpc.SERVICE_NAME);
+
         final var credentials = config.getIam().createCredentials();
-        operations = OperationServiceApiGrpc
-            .newBlockingStub(channel)
-            .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
-        diskService = DiskServiceGrpc
-            .newBlockingStub(channel)
-            .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
+        operations = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(channel), "Test", credentials::token);
+        diskService = newBlockingClient(DiskServiceGrpc.newBlockingStub(channel), "Test", credentials::token);
     }
 
     @After

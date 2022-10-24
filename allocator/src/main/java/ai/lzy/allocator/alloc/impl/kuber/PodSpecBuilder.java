@@ -14,10 +14,9 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.POD_NAME_PREFIX;
-
 public class PodSpecBuilder {
-    private static final String POD_TEMPLATE_PATH = "kubernetes/lzy-vm-pod-template.yaml";
+    public static final String VM_POD_TEMPLATE_PATH = "kubernetes/lzy-vm-pod-template.yaml";
+    public static final String TUNNEL_POD_TEMPLATE_PATH = "kubernetes/lzy-tunnel-pod-template.yaml";
     private static final List<Toleration> GPU_VM_POD_TOLERATION = List.of(
         new TolerationBuilder()
             .withKey("sku")
@@ -25,19 +24,27 @@ public class PodSpecBuilder {
             .withValue("gpu")
             .withEffect("NoSchedule")
             .build());
+    public static final String AFFINITY_TOPOLOGY_KEY = "kubernetes.io/hostname";
 
     private final Vm.Spec vmSpec;
     private final Pod pod;
     private final ServiceConfig config;
     private final List<Container> containers = new ArrayList<>();
+    private final List<Container> initContainers = new ArrayList<>();
     private final Map<String, Volume> volumes = new HashMap<>();
+    private final List<PodAffinityTerm> podAffinityTerms = new ArrayList<>();
+    private final List<PodAffinityTerm> podAntiAffinityTerms = new ArrayList<>();
 
-    public PodSpecBuilder(Vm.Spec vmSpec, KubernetesClient client, ServiceConfig config) {
+    public PodSpecBuilder(
+        Vm.Spec vmSpec, KubernetesClient client, ServiceConfig config, String templatePath, String podNamePrefix)
+    {
         this.vmSpec = vmSpec;
-        pod = loadPodTemplate(client);
+        pod = loadPodTemplate(client, templatePath);
+
         this.config = config;
 
-        final String podName = POD_NAME_PREFIX + vmSpec.vmId().toLowerCase(Locale.ROOT);
+        String vmId = vmSpec.vmId().toLowerCase(Locale.ROOT);
+        final String podName = podNamePrefix + vmId;
 
         // k8s pod name can only contain symbols [-a-z0-9]
         pod.getMetadata().setName(podName.replaceAll("[^-a-z0-9]", "-"));
@@ -46,7 +53,8 @@ public class PodSpecBuilder {
         Objects.requireNonNull(labels);
         labels.putAll(Map.of(
             KuberLabels.LZY_POD_NAME_LABEL, podName,
-            KuberLabels.LZY_POD_SESSION_ID_LABEL, vmSpec.sessionId()
+            KuberLabels.LZY_POD_SESSION_ID_LABEL, vmSpec.sessionId(),
+            KuberLabels.LZY_VM_ID_LABEL, vmId
         ));
         pod.getMetadata().setLabels(labels);
 
@@ -61,10 +69,10 @@ public class PodSpecBuilder {
         pod.getSpec().setNodeSelector(nodeSelector);
     }
 
-    private Pod loadPodTemplate(KubernetesClient client) {
+    private Pod loadPodTemplate(KubernetesClient client, String templatePath) {
         try (final var stream = Objects.requireNonNull(getClass()
             .getClassLoader()
-            .getResourceAsStream(POD_TEMPLATE_PATH)))
+            .getResourceAsStream(templatePath)))
         {
             return client.pods()
                 .load(stream)
@@ -78,7 +86,7 @@ public class PodSpecBuilder {
         return pod.getMetadata().getName();
     }
 
-    public PodSpecBuilder withWorkloads(List<Workload> workloads) {
+    public PodSpecBuilder withWorkloads(List<Workload> workloads, boolean init) {
         for (var workload : workloads) {
             final var container = new Container();
             final var envList = workload.env().entrySet()
@@ -108,6 +116,14 @@ public class PodSpecBuilder {
                     .withValueFrom(
                         new EnvVarSourceBuilder()
                             .withNewFieldRef("v1", "status.podIP")
+                            .build()
+                    )
+                    .build(),
+                new EnvVarBuilder()
+                    .withName(AllocatorAgent.VM_NODE_IP_ADDRESS)
+                    .withValueFrom(
+                        new EnvVarSourceBuilder()
+                            .withNewFieldRef("v1", "status.hostIP")
                             .build()
                     )
                     .build()
@@ -144,7 +160,11 @@ public class PodSpecBuilder {
             context.setRunAsUser(0L);
             container.setSecurityContext(context);
 
-            containers.add(container);
+            if (init) {
+                initContainers.add(container);
+            } else {
+                containers.add(container);
+            }
         }
         return this;
     }
@@ -168,7 +188,7 @@ public class PodSpecBuilder {
     }
 
     public PodSpecBuilder withHostVolumes(List<HostPathVolumeDescription> volumeRequests) {
-        for (var request: volumeRequests) {
+        for (var request : volumeRequests) {
             final var volume = new VolumeBuilder()
                 .withName(request.volumeId())
                 .withHostPath(new HostPathVolumeSourceBuilder()
@@ -181,8 +201,44 @@ public class PodSpecBuilder {
         return this;
     }
 
+    public PodSpecBuilder withPodAffinity(String key, String operator, String... values) {
+        podAffinityTerms.add(
+            new PodAffinityTermBuilder()
+                .withLabelSelector(
+                    new LabelSelectorBuilder()
+                        .withMatchExpressions(
+                            new LabelSelectorRequirementBuilder()
+                                .withKey(key)
+                                .withOperator(operator)
+                                .withValues(values)
+                                .build()
+                        ).build()
+                ).withTopologyKey(AFFINITY_TOPOLOGY_KEY)
+                .build()
+        );
+        return this;
+    }
+
+    public PodSpecBuilder withPodAntiAffinity(String key, String operator, String... values) {
+        podAntiAffinityTerms.add(
+            new PodAffinityTermBuilder()
+                .withLabelSelector(
+                    new LabelSelectorBuilder()
+                        .withMatchExpressions(
+                            new LabelSelectorRequirementBuilder()
+                                .withKey(key)
+                                .withOperator(operator)
+                                .withValues(values)
+                                .build()
+                        ).build()
+                ).withTopologyKey(AFFINITY_TOPOLOGY_KEY)
+                .build()
+        );
+        return this;
+    }
+
     public Pod build() {
-        for (var container: containers) {
+        for (var container : containers) {
             container.setVolumeMounts(
                 container.getVolumeMounts().stream()
                     .map(volumeMount -> new VolumeMountBuilder()
@@ -196,7 +252,20 @@ public class PodSpecBuilder {
         }
 
         pod.getSpec().setContainers(containers);
+        pod.getSpec().setInitContainers(initContainers);
         pod.getSpec().setVolumes(volumes.values().stream().toList());
+        pod.getSpec().setAffinity(
+            new AffinityBuilder().withPodAffinity(
+                new PodAffinityBuilder().addAllToRequiredDuringSchedulingIgnoredDuringExecution(
+                    podAffinityTerms
+                ).build()
+            ).withPodAntiAffinity(
+                new PodAntiAffinityBuilder().addAllToRequiredDuringSchedulingIgnoredDuringExecution(
+                    podAntiAffinityTerms
+                ).build()
+            ).build()
+        );
+
         return pod;
     }
 }

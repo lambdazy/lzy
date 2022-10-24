@@ -155,6 +155,31 @@ public class ProtoConverter {
             .build();
     }
 
+    public static LMS.Slot buildFileInputPlainContentSlot(String slotName) {
+        return buildFileInputSlot(slotName, toProto(DataScheme.PLAIN));
+    }
+
+    public static LMS.Slot buildFileOutputPlainContentSlot(String slotName) {
+        return buildFileOutputSlot(slotName, toProto(DataScheme.PLAIN));
+    }
+
+    public static LMS.Slot buildFileInputSlot(String slotName, LMD.DataScheme scheme) {
+        return buildFileSlot(slotName, LMS.Slot.Direction.INPUT, scheme);
+    }
+
+    public static LMS.Slot buildFileOutputSlot(String slotName, LMD.DataScheme scheme) {
+        return buildFileSlot(slotName, LMS.Slot.Direction.OUTPUT, scheme);
+    }
+
+    public static LMS.Slot buildFileSlot(String slotName, LMS.Slot.Direction direction, LMD.DataScheme scheme) {
+        return LMS.Slot.newBuilder()
+            .setName(slotName)
+            .setDirection(direction)
+            .setContentType(scheme)
+            .setMedia(LMS.Slot.Media.FILE)
+            .build();
+    }
+
     private static class EnvImpl implements Env {
 
         private final BaseEnv baseEnv;

@@ -60,7 +60,8 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
             }
             response.onError(Status.UNAUTHENTICATED.asException());
         } catch (AuthException e) {
-            LOG.error("Auth exception::", e);
+            LOG.error("LzySubjectService::createSubject exception {}: {}",
+                e.getClass().getSimpleName(), e.getInternalDetails());
             response.onError(e.status().asException());
         }
     }
@@ -76,7 +77,8 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
             }
             response.onError(Status.UNAUTHENTICATED.asException());
         } catch (AuthException e) {
-            LOG.error("Auth exception::", e);
+            LOG.error("LzySubjectService::removeSubject exception {}: {}",
+                e.getClass().getSimpleName(), e.getInternalDetails());
             response.onError(e.status().asException());
         }
     }
@@ -90,7 +92,8 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
                 response.onCompleted();
             }
         } catch (AuthException e) {
-            LOG.error("Auth exception::", e);
+            LOG.error("LzySubjectService::getSubject exception {}: {}",
+                e.getClass().getSimpleName(), e.getInternalDetails());
             response.onError(e.status().asException());
         }
     }
@@ -108,7 +111,8 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
             }
             response.onError(Status.UNAUTHENTICATED.asException());
         } catch (AuthException e) {
-            LOG.error("Auth exception::", e);
+            LOG.error("LzySubjectService::addCredentials exception {}: {}",
+                e.getClass().getSimpleName(), e.getInternalDetails());
             response.onError(e.status().asException());
         }
     }
@@ -129,7 +133,8 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
             }
             response.onError(Status.UNAUTHENTICATED.asException());
         } catch (AuthException e) {
-            LOG.error("Auth exception::", e);
+            LOG.error("LzySubjectService::removeCredentials exception {}: {}",
+                e.getClass().getSimpleName(), e.getInternalDetails());
             response.onError(e.status().asException());
         }
     }
@@ -152,7 +157,8 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
                 response.onCompleted();
             }
         } catch (AuthException e) {
-            LOG.error("Auth exception::", e);
+            LOG.error("LzySubjectService::listCredentials exception {}: {}",
+                e.getClass().getSimpleName(), e.getInternalDetails());
             response.onError(e.status().asException());
         }
     }

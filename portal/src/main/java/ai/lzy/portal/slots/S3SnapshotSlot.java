@@ -31,7 +31,8 @@ public class S3SnapshotSlot implements SnapshotSlot {
     private final AtomicReference<State> state = new AtomicReference<>(State.INITIAL);
 
     public S3SnapshotSlot(String snapshotId, String key, String bucket, S3Repository<Stream<ByteString>> s3Repository)
-        throws IOException {
+        throws IOException
+    {
         this.snapshotId = snapshotId;
         this.key = key;
         this.bucket = bucket;

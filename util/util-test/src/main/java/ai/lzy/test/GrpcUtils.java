@@ -1,7 +1,7 @@
 package ai.lzy.test;
 
+import ai.lzy.model.DataScheme;
 import ai.lzy.model.utils.FreePortFinder;
-import ai.lzy.v1.common.LMD;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.portal.LzyPortal;
@@ -11,20 +11,12 @@ import org.junit.Assert;
 import java.util.function.Consumer;
 
 public class GrpcUtils {
-
-    public static LMD.DataScheme makePlainTextDataScheme() {
-        return LMD.DataScheme.newBuilder()
-            .setSchemeContent("text")
-            .setDataFormat("plain")
-            .build();
-    }
-
     public static LMS.Slot makeInputFileSlot(String slotName) {
         return LMS.Slot.newBuilder()
             .setName(slotName)
             .setMedia(LMS.Slot.Media.FILE)
             .setDirection(LMS.Slot.Direction.INPUT)
-            .setContentType(makePlainTextDataScheme())
+            .setContentType(ai.lzy.model.grpc.ProtoConverter.toProto(DataScheme.PLAIN))
             .build();
     }
 
@@ -33,7 +25,7 @@ public class GrpcUtils {
             .setName(slotName)
             .setMedia(LMS.Slot.Media.FILE)
             .setDirection(LMS.Slot.Direction.OUTPUT)
-            .setContentType(makePlainTextDataScheme())
+            .setContentType(ai.lzy.model.grpc.ProtoConverter.toProto(DataScheme.PLAIN))
             .build();
     }
 
@@ -42,7 +34,7 @@ public class GrpcUtils {
             .setName(slotName)
             .setMedia(LMS.Slot.Media.PIPE)
             .setDirection(LMS.Slot.Direction.INPUT)
-            .setContentType(makePlainTextDataScheme())
+            .setContentType(ai.lzy.model.grpc.ProtoConverter.toProto(DataScheme.PLAIN))
             .build();
     }
 
@@ -51,13 +43,11 @@ public class GrpcUtils {
             .setName(slotName)
             .setMedia(LMS.Slot.Media.PIPE)
             .setDirection(LMS.Slot.Direction.OUTPUT)
-            .setContentType(makePlainTextDataScheme())
+            .setContentType(ai.lzy.model.grpc.ProtoConverter.toProto(DataScheme.PLAIN))
             .build();
     }
 
-    public static LzyPortal.PortalSlotDesc.Snapshot makeAmazonSnapshot(String key, String bucket,
-                                                                       String endpoint)
-    {
+    public static LzyPortal.PortalSlotDesc.Snapshot makeAmazonSnapshot(String key, String bucket, String endpoint) {
         return LzyPortal.PortalSlotDesc.Snapshot.newBuilder()
             .setS3(LMS3.S3Locator.newBuilder()
                 .setKey(key)

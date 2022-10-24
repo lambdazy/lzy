@@ -3,7 +3,7 @@ package ai.lzy.storage;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
-import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.*;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import com.google.common.net.HostAndPort;
@@ -20,9 +20,10 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
-@SuppressWarnings("UnstableApiUsage")
 public class LzyStorage {
     private static final Logger LOG = LogManager.getLogger(LzyStorage.class);
+
+    public static final String APP = "LzyStorage";
 
     private final ManagedChannel iamChannel;
     private final Server server;
@@ -35,17 +36,18 @@ public class LzyStorage {
 
         var service = context.getBean(LzyStorageServiceGrpc.LzyStorageServiceImplBase.class);
 
-        iamChannel = ChannelBuilder.forAddress(iamAddress)
-            .usePlaintext()
-            .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
-            .build();
+        iamChannel = GrpcUtils.newGrpcChannel(iamAddress, LzyAuthenticateServiceGrpc.SERVICE_NAME);
 
         server = NettyServerBuilder
             .forAddress(new InetSocketAddress(address.getHost(), address.getPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(iamChannel)))
-            .addService(ServerInterceptors.intercept(service, new AllowInternalUserOnlyInterceptor(iamChannel)))
+            .intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel)))
+            .intercept(GrpcLogsInterceptor.server())
+            .intercept(RequestIdInterceptor.server())
+            .intercept(GrpcHeadersServerInterceptor.create())
+            .addService(
+                ServerInterceptors.intercept(service, new AllowInternalUserOnlyInterceptor(APP, iamChannel)))
             .build();
     }
 

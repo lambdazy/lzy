@@ -1,6 +1,6 @@
 package ai.lzy.test.scenarios;
 
-import ai.lzy.fs.LzyFsServer;
+import ai.lzy.fs.LzyFsServerLegacy;
 import ai.lzy.servant.agents.AgentStatus;
 import ai.lzy.test.*;
 import ai.lzy.test.impl.*;
@@ -52,9 +52,6 @@ public abstract class LocalScenario extends LzyBaseTest {
         iamContext = new IAMThreadContext();
         iamContext.init();
 
-        storageContext = new StorageThreadContext(iamContext.address());
-        storageContext.init();
-
         serverContext = new ServerThreadContext(servantAllocatorType);
         serverContext.init();
 
@@ -67,8 +64,8 @@ public abstract class LocalScenario extends LzyBaseTest {
         kharonContext = new KharonThreadContext(
             serverContext.address(),
             whiteboardContext.address(),
-            channelManagerContext.address(),
-            iamContext.address());
+            channelManagerContext.address()
+        );
         kharonContext.init();
 
         s3Mock = new S3Mock.Builder().withPort(Config.S3_PORT).withInMemoryBackend().build();
@@ -81,14 +78,13 @@ public abstract class LocalScenario extends LzyBaseTest {
     public void tearDown() {
         super.tearDown();
         //wait until all servants unmount fs
-        final boolean flagUp = TimeUtils.waitFlagUp(() -> LzyFsServer.mounted.get() == 0, 60, TimeUnit.SECONDS);
+        final boolean flagUp = TimeUtils.waitFlagUp(() -> LzyFsServerLegacy.mounted.get() == 0, 60, TimeUnit.SECONDS);
         Assert.assertTrue("Not all fs servers are unmounted", flagUp);
 
         kharonContext.close();
         serverContext.close();
         whiteboardContext.close();
         channelManagerContext.close();
-        storageContext.close();
         iamContext.close();
         s3Mock.shutdown();
     }

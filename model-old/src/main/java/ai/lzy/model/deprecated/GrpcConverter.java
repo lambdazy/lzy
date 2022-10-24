@@ -82,8 +82,7 @@ public abstract class GrpcConverter {
             .build();
     }
 
-    public static Lzy.GetS3CredentialsResponse to(
-        StorageCredentials.AmazonCredentials credentials) {
+    public static Lzy.GetS3CredentialsResponse to(StorageCredentials.AmazonCredentials credentials) {
         return Lzy.GetS3CredentialsResponse.newBuilder()
             .setAmazon(Lzy.AmazonCredentials.newBuilder()
                 .setEndpoint(credentials.endpoint())
@@ -93,8 +92,7 @@ public abstract class GrpcConverter {
             .build();
     }
 
-    public static Lzy.GetS3CredentialsResponse to(
-        StorageCredentials.AzureSASCredentials credentials) {
+    public static Lzy.GetS3CredentialsResponse to(StorageCredentials.AzureSASCredentials credentials) {
         return Lzy.GetS3CredentialsResponse.newBuilder()
             .setAzureSas(
                 Lzy.AzureSASCredentials.newBuilder()

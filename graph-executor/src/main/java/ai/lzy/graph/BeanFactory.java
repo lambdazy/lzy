@@ -1,7 +1,7 @@
 package ai.lzy.graph;
 
 import ai.lzy.graph.config.ServiceConfig;
-import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.annotation.Bean;
@@ -16,11 +16,7 @@ public class BeanFactory {
     @Singleton
     @Named("GraphExecutorIamGrpcChannel")
     public ManagedChannel iamChannel(ServiceConfig config) {
-        return ChannelBuilder
-            .forAddress(config.getAuth().getAddress())
-            .usePlaintext()
-            .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
-            .build();
+        return GrpcUtils.newGrpcChannel(config.getAuth().getAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
     }
 
 }

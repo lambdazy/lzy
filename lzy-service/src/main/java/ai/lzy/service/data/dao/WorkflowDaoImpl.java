@@ -5,13 +5,13 @@ import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.AlreadyExistsException;
-import ai.lzy.service.LzyService;
+import ai.lzy.model.db.exceptions.NotFoundException;
+import ai.lzy.service.data.PortalStatus;
 import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.v1.common.LMS3;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micronaut.core.util.StringUtils;
-import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -35,6 +35,11 @@ public class WorkflowDaoImpl implements WorkflowDao {
     private static final String QUERY_INSERT_WORKFLOW = """
         INSERT INTO workflows (user_id, workflow_name, created_at, active_execution_id)
         VALUES (?, ?, ?, ?)""";
+
+    private static final String QUERY_GET_WORKFLOW_NAME = """
+        SELECT workflow_name
+        FROM workflows
+        WHERE active_execution_id = ?""";
 
     private static final String QUERY_EXISTS_ACTIVE_EXECUTION_FOR_WORKFLOW = """
         SELECT 1 FROM workflows
@@ -79,10 +84,19 @@ public class WorkflowDaoImpl implements WorkflowDao {
         FROM workflow_executions
         WHERE execution_id = ?""";
 
+    public static final String QUERY_GET_PORTAL_ADDRESS = """
+        SELECT portal_vm_address 
+        FROM workflow_executions 
+        WHERE execution_id = ?""";
+
+    public static final String QUERY_GET_STORAGE_CREDENTIALS = """
+        SELECT storage_credentials
+        FROM workflow_executions
+        WHERE execution_id = ?""";
+
     private final Storage storage;
     private final ObjectMapper objectMapper;
 
-    @Inject
     public WorkflowDaoImpl(LzyServiceStorage storage, ObjectMapper objectMapper) {
         this.storage = storage;
         this.objectMapper = objectMapper;
@@ -143,11 +157,11 @@ public class WorkflowDaoImpl implements WorkflowDao {
     }
 
     @Override
-    public boolean doesActiveExecutionExists(String userId, String workflowName, String executionId,
-                                             @Nullable TransactionHandle transaction) throws SQLException
+    public boolean doesActiveExecutionExists(String userId, String workflowName, String executionId)
+        throws SQLException
     {
         boolean[] result = {false};
-        DbOperation.execute(transaction, storage, con -> {
+        DbOperation.execute(null, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_EXISTS_ACTIVE_EXECUTION_FOR_WORKFLOW)) {
                 statement.setString(1, userId);
                 statement.setString(2, workflowName);
@@ -159,12 +173,12 @@ public class WorkflowDaoImpl implements WorkflowDao {
     }
 
     @Override
-    public void updateStatus(String executionId, LzyService.PortalStatus portalStatus,
+    public void updateStatus(String executionId, PortalStatus portalStatus,
                              @Nullable TransactionHandle transaction) throws SQLException
     {
         DbOperation.execute(transaction, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_UPDATE_PORTAL_STATUS)) {
-                statement.setString(1, LzyService.PortalStatus.CREATING_STD_CHANNELS.name());
+                statement.setString(1, PortalStatus.CREATING_STD_CHANNELS.name());
                 statement.setString(2, executionId);
                 statement.executeUpdate();
             }
@@ -177,7 +191,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
     {
         DbOperation.execute(transaction, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_UPDATE_PORTAL_CHANNEL_IDS)) {
-                statement.setString(1, LzyService.PortalStatus.CREATING_SESSION.name());
+                statement.setString(1, PortalStatus.CREATING_SESSION.name());
                 statement.setString(2, stdoutChannelId);
                 statement.setString(3, stderrChannelId);
                 statement.setString(4, executionId);
@@ -192,7 +206,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
     {
         DbOperation.execute(transaction, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_UPDATE_ALLOCATOR_SESSION)) {
-                statement.setString(1, LzyService.PortalStatus.REQUEST_VM.name());
+                statement.setString(1, PortalStatus.REQUEST_VM.name());
                 statement.setString(2, sessionId);
                 statement.setString(3, executionId);
                 statement.executeUpdate();
@@ -206,7 +220,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
     {
         DbOperation.execute(transaction, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_UPDATE_ALLOCATE_OPERATION_DATA)) {
-                statement.setString(1, LzyService.PortalStatus.ALLOCATING_VM.name());
+                statement.setString(1, PortalStatus.ALLOCATING_VM.name());
                 statement.setString(2, opId);
                 statement.setString(3, vmId);
                 statement.setString(4, executionId);
@@ -221,7 +235,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
     {
         DbOperation.execute(transaction, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_UPDATE_ALLOCATE_VM_ADDRESS)) {
-                statement.setString(1, LzyService.PortalStatus.VM_READY.name());
+                statement.setString(1, PortalStatus.VM_READY.name());
                 statement.setString(2, vmAddress);
                 statement.setString(3, executionId);
                 statement.executeUpdate();
@@ -272,5 +286,78 @@ public class WorkflowDaoImpl implements WorkflowDao {
                 statement.executeUpdate();
             }
         });
+    }
+
+    @Override
+    public String getWorkflowName(String executionId) throws SQLException {
+        String[] workflowName = {null};
+
+        DbOperation.execute(null, storage, con -> {
+            try (var statement = con.prepareStatement(QUERY_GET_WORKFLOW_NAME)) {
+                statement.setString(1, executionId);
+                ResultSet rs = statement.executeQuery();
+
+                if (rs.next()) {
+                    workflowName[0] = rs.getString("workflow_name");
+
+                }
+                if (workflowName[0] == null) {
+                    LOG.error("Cannot find workflow name for execution: { executionId: {} }", executionId);
+                    throw new NotFoundException("Cannot find workflow name");
+                }
+            }
+        });
+
+        return workflowName[0];
+    }
+
+    @Override
+    public String getPortalAddress(String executionId) throws SQLException {
+        String[] portalAddress = {null};
+
+        DbOperation.execute(null, storage, con -> {
+            try (var statement = con.prepareStatement(QUERY_GET_PORTAL_ADDRESS)) {
+                statement.setString(1, executionId);
+                ResultSet rs = statement.executeQuery();
+
+                if (rs.next()) {
+                    portalAddress[0] = rs.getString("portal_vm_address");
+                }
+                if (portalAddress[0] == null) {
+                    LOG.warn("Cannot obtain portal vm address for execution: { executionId : {} }", executionId);
+                    throw new NotFoundException("Cannot obtain portal address");
+                }
+            }
+        });
+
+        return portalAddress[0];
+    }
+
+    @Override
+    public LMS3.S3Locator getStorageLocator(String executionId) throws SQLException {
+        LMS3.S3Locator[] credentials = {null};
+
+        DbOperation.execute(null, storage, con -> {
+            try (var statement = con.prepareStatement(QUERY_GET_STORAGE_CREDENTIALS)) {
+                statement.setString(1, executionId);
+                ResultSet rs = statement.executeQuery();
+
+                if (rs.next()) {
+                    var dump = rs.getString("storage_credentials");
+                    if (dump == null) {
+                        LOG.warn("Cannot obtain storage credentials for execution: { executionId : {} }", executionId);
+                        throw new RuntimeException("Cannot obtain storage credentials");
+                    }
+                    credentials[0] = objectMapper.readValue(dump, LMS3.S3Locator.class);
+                } else {
+                    LOG.warn("Cannot obtain storage credentials for execution: { executionId : {} }", executionId);
+                    throw new RuntimeException("Cannot obtain storage credentials");
+                }
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Cannot parse values", e);
+            }
+        });
+
+        return credentials[0];
     }
 }

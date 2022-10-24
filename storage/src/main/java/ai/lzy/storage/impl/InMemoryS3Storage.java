@@ -29,7 +29,6 @@ public class InMemoryS3Storage extends LzyStorageServiceGrpc.LzyStorageServiceIm
     private final S3Mock server;
     private final AmazonS3 client;
 
-    @SuppressWarnings("UnstableApiUsage")
     public InMemoryS3Storage(StorageConfig config, StorageConfig.S3Credentials.InMemoryS3Credentials s3Config) {
         var storageAddress = HostAndPort.fromString(config.getAddress());
         this.endpoint = "http://" + storageAddress.getHost() + ":" + s3Config.getPort();
@@ -97,7 +96,8 @@ public class InMemoryS3Storage extends LzyStorageServiceGrpc.LzyStorageServiceIm
 
     @Override
     public void getS3BucketCredentials(GetS3BucketCredentialsRequest request,
-                                       StreamObserver<GetS3BucketCredentialsResponse> response) {
+                                       StreamObserver<GetS3BucketCredentialsResponse> response)
+    {
         LOG.debug("InMemoryS3Storage::getBucketCredentials, userId={}, bucket={}",
             request.getUserId(), request.getBucket());
 

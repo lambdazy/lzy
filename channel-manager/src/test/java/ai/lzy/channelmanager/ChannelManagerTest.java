@@ -4,15 +4,11 @@ import ai.lzy.channelmanager.db.ChannelManagerDataSource;
 import ai.lzy.channelmanager.grpc.ProtoConverter;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.db.test.DatabaseTestUtils;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.util.grpc.ClientHeaderInterceptor;
-import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.channel.LCMPS.ChannelCreateResponse;
 import ai.lzy.v1.channel.LCMPS.ChannelDestroyResponse;
 import ai.lzy.v1.channel.LCMPS.ChannelStatus;
 import ai.lzy.v1.channel.LCMPS.ChannelStatusRequest;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
-import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -32,6 +28,8 @@ import java.util.concurrent.TimeUnit;
 import static ai.lzy.channelmanager.grpc.ProtoConverter.makeCreateDirectChannelCommand;
 import static ai.lzy.channelmanager.grpc.ProtoConverter.makeDestroyAllCommand;
 import static ai.lzy.channelmanager.grpc.ProtoConverter.makeDestroyChannelCommand;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 @SuppressWarnings({"UnstableApiUsage", "ResultOfMethodCallIgnored"})
 public class ChannelManagerTest extends BaseTestWithIam {
@@ -63,15 +61,13 @@ public class ChannelManagerTest extends BaseTestWithIam {
         channelManagerApp = new ChannelManager(channelManagerCtx);
         channelManagerApp.start();
 
-        channel = ChannelBuilder
-            .forAddress(HostAndPort.fromString(channelManagerConfig.getAddress()))
-            .usePlaintext()
-            .build();
-        unauthorizedChannelManagerPrivateClient = LzyChannelManagerPrivateGrpc.newBlockingStub(channel);
+        channel = newGrpcChannel(channelManagerConfig.getAddress(), LzyChannelManagerPrivateGrpc.SERVICE_NAME);
+        unauthorizedChannelManagerPrivateClient = newBlockingClient(
+            LzyChannelManagerPrivateGrpc.newBlockingStub(channel), "NoAuthTest", null);
 
         var internalUser = channelManagerConfig.getIam().createCredentials();
-        authorizedChannelManagerPrivateClient = unauthorizedChannelManagerPrivateClient.withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, internalUser::token));
+        authorizedChannelManagerPrivateClient = newBlockingClient(
+            unauthorizedChannelManagerPrivateClient, "AuthTest", internalUser::token);
     }
 
     @After

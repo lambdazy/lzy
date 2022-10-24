@@ -2,12 +2,13 @@ package ai.lzy.service;
 
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
-import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.GrpcHeadersServerInterceptor;
+import ai.lzy.util.grpc.GrpcLogsInterceptor;
+import ai.lzy.util.grpc.RequestIdInterceptor;
 import com.google.common.net.HostAndPort;
 import io.grpc.Server;
-import io.grpc.ServerInterceptors;
 import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.runtime.Micronaut;
 import org.apache.logging.log4j.LogManager;
@@ -42,19 +43,31 @@ public class App {
         server.awaitTermination();
     }
 
+    public static Server createServer(HostAndPort endpoint, AuthServerInterceptor authInterceptor, LzyService service) {
+        return NettyServerBuilder
+            .forAddress(new InetSocketAddress(endpoint.getHost(), endpoint.getPort()))
+            .permitKeepAliveWithoutCalls(true)
+            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
+            .intercept(authInterceptor)
+            .intercept(GrpcLogsInterceptor.server())
+            .intercept(RequestIdInterceptor.server(true))
+            .intercept(GrpcHeadersServerInterceptor.create())
+            .addService(service)
+            .build();
+    }
+
     public static void main(String[] args) throws InterruptedException, IOException {
         try (var context = Micronaut.run(App.class, args)) {
             var config = context.getBean(LzyServiceConfig.class);
 
             var authInterceptor = new AuthServerInterceptor(
-                new AuthenticateServiceGrpcClient(GrpcConfig.from(config.getIam().getAddress())));
-            var address = HostAndPort.fromString(config.getAddress());
-            var server = NettyServerBuilder
-                .forAddress(new InetSocketAddress(address.getHost(), address.getPort()))
-                .permitKeepAliveWithoutCalls(true)
-                .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-                .addService(ServerInterceptors.intercept(context.getBean(LzyService.class), authInterceptor))
-                .build();
+                new AuthenticateServiceGrpcClient("LzyService", config.getIam().getAddress()));
+
+            var server = createServer(
+                HostAndPort.fromString(config.getAddress()),
+                authInterceptor,
+                context.getBean(LzyService.class));
+
             var main = new App(server);
             main.start();
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {

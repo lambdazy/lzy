@@ -89,8 +89,8 @@ public class SlotsManager implements AutoCloseable {
     public synchronized LzySlot getOrCreateSlot(String taskId, Slot spec, final String channelId) {
         LOG.info("getOrCreateSlot, taskId: {}, spec: {}, binding: {}", taskId, spec.name(), channelId);
 
-        final Map<String, LzySlot> taskSlots = task2slots.computeIfAbsent(taskId, t -> new HashMap<>());
-        final LzySlot existing = taskSlots.get(spec.name());
+        final Map<String, LzySlot> taskSlots = task2slots.get(taskId);
+        final LzySlot existing = taskSlots != null ? taskSlots.get(spec.name()) : null;
         if (existing != null) {
             return existing;
         }
@@ -114,7 +114,7 @@ public class SlotsManager implements AutoCloseable {
 
     public synchronized void registerSlot(LzySlot slot) {
         final String taskId = slot.taskId();
-        final Map<String, LzySlot> taskSlots = task2slots.computeIfAbsent(taskId, t -> new HashMap<>());
+        final Map<String, LzySlot> taskSlots = task2slots.computeIfAbsent(taskId, t -> new ConcurrentHashMap<>());
         if (taskSlots.containsKey(slot.name())) {
             throw new RuntimeException("Slot is already registered");
         }
@@ -142,7 +142,8 @@ public class SlotsManager implements AutoCloseable {
                     );
                     LOG.info(JsonUtils.printRequest(unbindResult));
                 } catch (StatusRuntimeException e) {
-                    LOG.warn("Got exception while unbind slot {} from channel {}", spec.name(), channelId, e);
+                    LOG.warn("Got exception while unbind slot {} from channel {}: {}",
+                        spec.name(), channelId, e.getMessage());
                 } finally {
                     SlotsManager.this.notifyAll();
                 }

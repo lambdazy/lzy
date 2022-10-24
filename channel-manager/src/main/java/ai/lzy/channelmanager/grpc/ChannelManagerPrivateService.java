@@ -5,7 +5,6 @@ import ai.lzy.channelmanager.channel.Channel;
 import ai.lzy.channelmanager.channel.ChannelSpec;
 import ai.lzy.channelmanager.channel.DirectChannelSpec;
 import ai.lzy.channelmanager.channel.SnapshotChannelSpec;
-import ai.lzy.channelmanager.db.ChannelManagerDataSource;
 import ai.lzy.channelmanager.db.ChannelStorage;
 import ai.lzy.channelmanager.lock.GrainedLock;
 import ai.lzy.model.grpc.ProtoConverter;
@@ -34,16 +33,14 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
 
     private static final Logger LOG = LogManager.getLogger(ChannelManagerPrivateService.class);
 
-    private final ChannelManagerDataSource dataSource;
     private final ChannelStorage channelStorage;
     private final URI whiteboardAddress;
     private final GrainedLock lockManager;
 
     @Inject
-    public ChannelManagerPrivateService(ChannelManagerDataSource dataSource, ChannelManagerConfig config,
-                                        ChannelStorage channelStorage, GrainedLock lockManager)
+    public ChannelManagerPrivateService(ChannelManagerConfig config, ChannelStorage channelStorage,
+                                        GrainedLock lockManager)
     {
-        this.dataSource = dataSource;
         this.channelStorage = channelStorage;
         this.whiteboardAddress = URI.create(config.getWhiteboardAddress());
         this.lockManager = lockManager;
@@ -98,11 +95,8 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
             };
 
             withRetries(defaultRetryPolicy(), LOG, () -> {
-                lockManager.lock(channelId);
-                try {
+                try (var guard = lockManager.withLock(channelId)) {
                     channelStorage.insertChannel(channelId, executionId, channelName, channelType, spec, null);
-                } finally {
-                    lockManager.unlock(channelId);
                 }
             });
 
@@ -129,37 +123,35 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
     {
         LOG.info("Destroy channel {}", request.getChannelId());
 
-        try {
-            final String channelId = request.getChannelId();
-            if (channelId.isBlank()) {
-                String errorMessage = "Empty channel id, request shouldn't contain empty fields";
-                LOG.error("Destroy channel {} failed, invalid argument: {}", request.getChannelId(), errorMessage);
-                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(errorMessage).asException());
-                return;
-            }
+        final String channelId = request.getChannelId();
+        if (channelId.isBlank()) {
+            String errorMessage = "Empty channel id, request shouldn't contain empty fields";
+            LOG.error("Destroy channel {} failed, invalid argument: {}", request.getChannelId(), errorMessage);
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(errorMessage).asException());
+            return;
+        }
 
-            lockManager.lock(channelId);
-            try {
+        try {
+            Channel channel;
+            try (var guard = lockManager.withLock(channelId)) {
                 withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.setChannelLifeStatus(
                     channelId, ChannelStorage.ChannelLifeStatus.DESTROYING, null));
 
-                final Channel channel =
-                    channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.DESTROYING, null);
-                if (channel == null) {
-                    String errorMessage = "Channel with id " + channelId + " not found";
-                    LOG.error("Destroy channel {} failed, channel not found", request.getChannelId());
-                    responseObserver.onError(Status.NOT_FOUND.withDescription(errorMessage).asException());
-                    return;
+                channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.DESTROYING, null);
+                if (channel != null) {
+                    channel.destroy();
+                    withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.removeChannel(channelId, null));
                 }
+            }
 
-                channel.destroy();
-                withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.removeChannel(channelId, null));
-
+            if (channel != null) {
                 responseObserver.onNext(LCMPS.ChannelDestroyResponse.getDefaultInstance());
                 LOG.info("Destroy channel {} done", channelId);
                 responseObserver.onCompleted();
-            } finally {
-                lockManager.unlock(channelId);
+            } else {
+                String errorMessage = "Channel with id " + channelId + " not found";
+                LOG.error("Destroy channel {} failed, channel not found", request.getChannelId());
+                responseObserver.onError(Status.NOT_FOUND.withDescription(errorMessage).asException());
             }
         } catch (IllegalArgumentException e) {
             LOG.error("Destroy channel {} failed, invalid argument: {}",
@@ -194,12 +186,9 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
             List<Channel> channels =
                 channelStorage.listChannels(executionId, ChannelStorage.ChannelLifeStatus.DESTROYING, null);
             for (final Channel channel : channels) {
-                lockManager.lock(channel.id());
-                try {
+                try (var guard = lockManager.withLock(channel.id())) {
                     channel.destroy();
                     withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.removeChannel(channel.id(), null));
-                } finally {
-                    lockManager.unlock(channel.id());
                 }
             }
 

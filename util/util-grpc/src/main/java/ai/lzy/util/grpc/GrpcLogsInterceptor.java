@@ -1,83 +1,86 @@
 package ai.lzy.util.grpc;
 
-import com.google.protobuf.InvalidProtocolBufferException;
+import ai.lzy.v1.validation.LV;
 import com.google.protobuf.MessageOrBuilder;
-import com.google.protobuf.util.JsonFormat;
-import io.grpc.ForwardingServerCallListener.SimpleForwardingServerCallListener;
 import io.grpc.*;
+import io.grpc.ForwardingServerCallListener.SimpleForwardingServerCallListener;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.UUID;
 
-public class GrpcLogsInterceptor implements ServerInterceptor {
-    private static final Logger logger = LogManager.getLogger(GrpcLogsInterceptor.class);
+public class GrpcLogsInterceptor {
+    private static final Logger SERVER_LOG = LogManager.getLogger("GrpcServer");
+    private static final Logger CLIENT_LOG = LogManager.getLogger("GrpcClient");
 
-    @Override
-    public <M, R> ServerCall.Listener<M> interceptCall(ServerCall<M, R> call,
-                                                       Metadata headers,
-                                                       ServerCallHandler<M, R> next)
-    {
-        final String callId = UUID.randomUUID().toString();
+    private static final ProtoPrinter.Printer SAFE_PRINTER
+        = ProtoPrinter.printer().usingSensitiveExtension(LV.sensitive);
 
-        GrpcServerCall<M, R> grpcServerCall = new GrpcServerCall<>(call, callId);
-
-        ServerCall.Listener<M> listener = next.startCall(grpcServerCall, headers);
-
-        return new GrpcForwardingServerCallListener<>(call.getMethodDescriptor(), listener) {
+    public static ServerInterceptor server() {
+        return new ServerInterceptor() {
             @Override
-            public void onMessage(M message) {
-                try {
-                    logger.info("{}::<{}>, request: {}", methodName, callId,
-                        message instanceof MessageOrBuilder msg ? JsonFormat.printer().print(msg) : message.toString());
-                } catch (InvalidProtocolBufferException e) {
-                    logger.error(e);
-                }
-                super.onMessage(message);
+            public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call, Metadata headers,
+                                                                         ServerCallHandler<ReqT, RespT> next)
+            {
+                var callId = UUID.randomUUID().toString();
+                var methodName = call.getMethodDescriptor().getFullMethodName();
+
+                var grpcServerCall = new ForwardingServerCall.SimpleForwardingServerCall<ReqT, RespT>(call) {
+                    @Override
+                    public void sendMessage(RespT message) {
+                        if (SERVER_LOG.isTraceEnabled()) {
+                            SERVER_LOG.info("{}::<{}>: response: ({})", methodName, callId, printMessageSafe(message));
+                        } else {
+                            SERVER_LOG.info("{}::<{}>: response: <...>", methodName, callId);
+                        }
+                        super.sendMessage(message);
+                    }
+                };
+
+                var listener = next.startCall(grpcServerCall, headers);
+
+                return new GrpcForwardingServerCallListener<>(call.getMethodDescriptor(), listener) {
+                    @Override
+                    public void onMessage(ReqT message) {
+                        if (SERVER_LOG.isTraceEnabled()) {
+                            SERVER_LOG.debug("{}::<{}>, request: ({})", methodName, callId, printMessageSafe(message));
+                        } else {
+                            SERVER_LOG.debug("{}::<{}>, request: <...>", methodName, callId);
+                        }
+                        super.onMessage(message);
+                    }
+                };
             }
         };
     }
 
-    private static class GrpcServerCall<M, R> extends ServerCall<M, R> {
-        final ServerCall<M, R> serverCall;
-        final String callId;
+    public static ClientInterceptor client(String name) {
+        return new ClientInterceptor() {
+            @Override
+            public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(MethodDescriptor<ReqT, RespT> method,
+                                                                       CallOptions callOptions, Channel next)
+            {
+                var methodName = method.getFullMethodName();
+                return new ForwardingClientCall.SimpleForwardingClientCall<>(next.newCall(method, callOptions)) {
+                    @Override
+                    public void sendMessage(ReqT message) {
+                        if (CLIENT_LOG.isTraceEnabled()) {
+                            CLIENT_LOG.debug("{} call {}, request ({})", name, methodName, printMessageSafe(message));
+                        } else {
+                            CLIENT_LOG.debug("{} call {}, request <...>", name, methodName);
+                        }
+                        super.sendMessage(message);
+                    }
+                };
+            }
+        };
+    }
 
-        protected GrpcServerCall(ServerCall<M, R> serverCall, String callId) {
-            this.serverCall = serverCall;
-            this.callId = callId;
-        }
 
-        @Override
-        public void request(int numMessages) {
-            serverCall.request(numMessages);
-        }
-
-        @Override
-        public void sendHeaders(Metadata headers) {
-            serverCall.sendHeaders(headers);
-        }
-
-        @Override
-        public void sendMessage(R message) {
-            logger.info("{}::<{}>: response: {}",
-                serverCall.getMethodDescriptor().getFullMethodName(), callId, message);
-            serverCall.sendMessage(message);
-        }
-
-        @Override
-        public void close(Status status, Metadata trailers) {
-            serverCall.close(status, trailers);
-        }
-
-        @Override
-        public boolean isCancelled() {
-            return serverCall.isCancelled();
-        }
-
-        @Override
-        public MethodDescriptor<M, R> getMethodDescriptor() {
-            return serverCall.getMethodDescriptor();
-        }
+    private static String printMessageSafe(Object message) {
+        return message instanceof MessageOrBuilder msg
+            ? SAFE_PRINTER.shortDebugString(msg)
+            : message.getClass().getName();
     }
 
     private static class GrpcForwardingServerCallListener<M, R> extends SimpleForwardingServerCallListener<M> {

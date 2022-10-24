@@ -8,7 +8,6 @@ import ai.lzy.fs.storage.StorageClient;
 import ai.lzy.model.UriScheme;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.SlotInstance;
-import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.deprecated.Lzy;
 import ai.lzy.v1.deprecated.LzyAuth;
 import ai.lzy.v1.deprecated.LzyKharonGrpc;
@@ -32,6 +31,8 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
+
 public class SlotConnectionManager {
     private final Map<String, Transmitter> transmitters = new HashMap<>();
     private final Snapshooter snapshooter;
@@ -54,11 +55,7 @@ public class SlotConnectionManager {
 
         transmitters.put(endpoint, client.transmitter());
         if (wb != null) {
-            final ManagedChannel channelWb = ChannelBuilder
-                .forAddress(wb.getHost(), wb.getPort())
-                .usePlaintext()
-                .enableRetry(SnapshotApiGrpc.SERVICE_NAME)
-                .build();
+            final var channelWb = newGrpcChannel(wb.getHost(), wb.getPort(), SnapshotApiGrpc.SERVICE_NAME);
             final SnapshotApiGrpc.SnapshotApiBlockingStub api = SnapshotApiGrpc.newBlockingStub(channelWb);
             this.snapshooter = new SnapshooterImpl(auth, api, new SlotSnapshotProvider.Cached(slot ->
                 new SlotSnapshotImpl(bucket, slot, client)
@@ -83,18 +80,12 @@ public class SlotConnectionManager {
             .build();
 
         if (UriScheme.LzyKharon.match(slotUri)) {
-            channel = ChannelBuilder.forAddress(slotUri.getHost(), slotUri.getPort())
-                .usePlaintext()
-                .enableRetry(LzyKharonGrpc.SERVICE_NAME)
-                .build();
+            channel = newGrpcChannel(slotUri.getHost(), slotUri.getPort(), LzyKharonGrpc.SERVICE_NAME);
             final LzyKharonGrpc.LzyKharonBlockingStub stub = LzyKharonGrpc.newBlockingStub(channel);
 
             msgIter = new LazyIterator<>(() -> stub.openOutputSlot(request));
         } else if (UriScheme.LzyFs.match(slotUri)) {
-            channel = ChannelBuilder.forAddress(slotUri.getHost(), slotUri.getPort())
-                .usePlaintext()
-                .enableRetry(LzyFsGrpc.SERVICE_NAME)
-                .build();
+            channel = newGrpcChannel(slotUri.getHost(), slotUri.getPort(), LzyFsGrpc.SERVICE_NAME);
             final LzyFsGrpc.LzyFsBlockingStub stub = LzyFsGrpc.newBlockingStub(channel);
 
             msgIter = new LazyIterator<>(() -> stub.openOutputSlot(request));

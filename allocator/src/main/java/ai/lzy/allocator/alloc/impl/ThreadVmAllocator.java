@@ -83,7 +83,7 @@ public class ThreadVmAllocator implements VmAllocator {
                 "-portal.allocator-token=" + env.get(AllocatorAgent.VM_ALLOCATOR_OTT)
             ));
             if (env.containsKey("LZY_PORTAL_PKEY")) {
-                startupArgs.add("-portal.iam-token=" + env.get("LZY_PORTAL_PKEY"));
+                startupArgs.add("-portal.iam-private-key=" + env.get("LZY_PORTAL_PKEY"));
             }
         } else {
             startupArgs.addAll(List.of(
@@ -130,12 +130,10 @@ public class ThreadVmAllocator implements VmAllocator {
     public void deallocate(String vmId) {
         LOG.info("Deallocate vm with id: " + vmId);
 
-        if (!vmThreads.containsKey(vmId)) {
-            return;
+        var thread = vmThreads.remove(vmId);
+        if (thread != null) {
+            thread.stop();
         }
-        //noinspection removal
-        vmThreads.get(vmId).stop();
-        vmThreads.remove(vmId);
     }
 
     @Override

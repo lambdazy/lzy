@@ -14,13 +14,6 @@ public class ProtoConverter {
         return builder.build();
     }
 
-    public static LCMPS.ChannelCreateRequest createChannelRequest(String workflowId, LCM.ChannelSpec spec) {
-        return LCMPS.ChannelCreateRequest.newBuilder()
-            .setExecutionId(workflowId)
-            .setChannelSpec(spec)
-            .build();
-    }
-
     public static LCMPS.ChannelCreateRequest makeCreateDirectChannelCommand(String workflowId, String channelName) {
         return LCMPS.ChannelCreateRequest.newBuilder()
             .setExecutionId(workflowId)
@@ -42,5 +35,4 @@ public class ProtoConverter {
     public static LCMPS.ChannelDestroyAllRequest makeDestroyAllCommand(String workflowId) {
         return LCMPS.ChannelDestroyAllRequest.newBuilder().setExecutionId(workflowId).build();
     }
-
 }

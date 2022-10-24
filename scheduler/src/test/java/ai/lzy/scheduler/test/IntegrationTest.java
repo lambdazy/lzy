@@ -11,9 +11,7 @@ import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.scheduler.test.mocks.AllocatedServantMock;
 import ai.lzy.scheduler.test.mocks.AllocatorMock;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.util.grpc.ClientHeaderInterceptor;
-import ai.lzy.util.grpc.GrpcHeaders;
+import ai.lzy.util.grpc.GrpcChannels;
 import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.scheduler.SchedulerApi.TaskScheduleRequest;
@@ -37,13 +35,12 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
+import java.util.concurrent.*;
 
 import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 public class IntegrationTest extends BaseTestWithIam {
 
@@ -73,20 +70,15 @@ public class IntegrationTest extends BaseTestWithIam {
             api = new SchedulerApi(impl, privateApi, config, new BeanFactory().iamChannel(config), dao);
             allocator = context.getBean(AllocatorMock.class);
         }
-        chan = ChannelBuilder.forAddress("localhost", 2392)
-            .usePlaintext()
-            .build();
 
         var credentials = auth.createCredentials();
-        stub = SchedulerGrpc.newBlockingStub(chan).withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
 
-        privateChan = ChannelBuilder.forAddress("localhost", 2392)
-            .usePlaintext()
-            .build();
+        chan = newGrpcChannel("localhost", 2392, SchedulerGrpc.SERVICE_NAME);
+        stub = newBlockingClient(SchedulerGrpc.newBlockingStub(chan), "Test", credentials::token);
 
-        privateStub = SchedulerPrivateGrpc.newBlockingStub(privateChan).withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
+        privateChan = newGrpcChannel("localhost", 2392, SchedulerPrivateGrpc.SERVICE_NAME);
+        privateStub = newBlockingClient(SchedulerPrivateGrpc.newBlockingStub(privateChan), "Test", credentials::token);
+
         Configurator.setAllLevels("ai.lzy.scheduler", Level.ALL);
     }
 
@@ -94,10 +86,8 @@ public class IntegrationTest extends BaseTestWithIam {
     public void tearDown() throws InterruptedException {
         api.close();
         api.awaitTermination();
-        privateChan.shutdown();
-        privateChan.awaitTermination(100, TimeUnit.SECONDS);
-        chan.shutdown();
-        chan.awaitTermination(100, TimeUnit.SECONDS);
+        GrpcChannels.awaitTermination(privateChan, Duration.ofSeconds(15), getClass());
+        GrpcChannels.awaitTermination(chan, Duration.ofSeconds(15), getClass());
     }
 
     @Test

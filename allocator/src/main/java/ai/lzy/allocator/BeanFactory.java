@@ -5,7 +5,7 @@ import ai.lzy.metrics.DummyMetricReporter;
 import ai.lzy.metrics.LogMetricReporter;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.metrics.PrometheusMetricReporter;
-import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -59,11 +59,7 @@ public class BeanFactory {
     @Singleton
     @Named("AllocatorIamGrpcChannel")
     public ManagedChannel iamChannel(ServiceConfig config) {
-        return ChannelBuilder
-            .forAddress(config.getIam().getAddress())
-            .usePlaintext() // TODO
-            .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
-            .build();
+        return GrpcUtils.newGrpcChannel(config.getIam().getAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
     }
 
     @Singleton

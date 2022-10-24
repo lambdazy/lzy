@@ -6,7 +6,7 @@ import ai.lzy.iam.clients.SubjectServiceClient;
 import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
 import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
-import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.annotation.Bean;
@@ -21,11 +21,7 @@ public class BeanFactory {
     @Singleton
     @Named("WhiteboardIamGrpcChannel")
     public ManagedChannel iamChannel(AppConfig config) {
-        return ChannelBuilder
-            .forAddress(config.getIam().getAddress())
-            .usePlaintext()
-            .enableRetry(LzyAuthenticateServiceGrpc.SERVICE_NAME)
-            .build();
+        return GrpcUtils.newGrpcChannel(config.getIam().getAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
     }
 
     @Singleton
@@ -33,7 +29,7 @@ public class BeanFactory {
     public AccessBindingClient iamAccessBindingClient(
         @Named("WhiteboardIamGrpcChannel") ManagedChannel iamChannel, AppConfig config)
     {
-        return new AccessBindingServiceGrpcClient(iamChannel, config.getIam()::createCredentials);
+        return new AccessBindingServiceGrpcClient(WhiteboardApp.APP, iamChannel, config.getIam()::createCredentials);
     }
 
     @Singleton
@@ -41,7 +37,7 @@ public class BeanFactory {
     public AccessClient iamAccessClient(
         @Named("WhiteboardIamGrpcChannel") ManagedChannel iamChannel, AppConfig config)
     {
-        return new AccessServiceGrpcClient(iamChannel, config.getIam()::createCredentials);
+        return new AccessServiceGrpcClient(WhiteboardApp.APP, iamChannel, config.getIam()::createCredentials);
     }
 
     @Singleton
@@ -49,7 +45,7 @@ public class BeanFactory {
     public SubjectServiceClient iamSubjectClient(
         @Named("WhiteboardIamGrpcChannel") ManagedChannel iamChannel, AppConfig config)
     {
-        return new SubjectServiceGrpcClient(iamChannel, config.getIam()::createCredentials);
+        return new SubjectServiceGrpcClient(WhiteboardApp.APP, iamChannel, config.getIam()::createCredentials);
     }
 
 }

@@ -12,12 +12,9 @@ import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.allocator.volume.KuberVolumeManager;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.test.TimeUtils;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.util.grpc.ClientHeaderInterceptor;
-import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.*;
 import ai.lzy.v1.VmAllocatorApi.AllocateRequest.Workload;
-import com.google.common.net.HostAndPort;
+import ai.lzy.v1.longrunning.LongRunning;
 import com.google.protobuf.Duration;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -52,6 +49,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 
 import static ai.lzy.allocator.test.Utils.createTestDiskSpec;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 @Ignore
 public class AllocateWithVolumeTest extends BaseTestWithIam {
@@ -87,16 +86,14 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
         allocatorApp.start();
 
         final var config = context.getBean(ServiceConfig.class);
-        //noinspection UnstableApiUsage
-        channel = ChannelBuilder
-            .forAddress(HostAndPort.fromString(config.getAddress()))
-            .usePlaintext()
-            .build();
+
+        channel = newGrpcChannel(config.getAddress(), AllocatorGrpc.SERVICE_NAME);
+
         var credentials = config.getIam().createCredentials();
-        allocator = AllocatorGrpc.newBlockingStub(channel).withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
-        privateAllocatorBlockingStub = AllocatorPrivateGrpc.newBlockingStub(channel).withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
+        allocator = newBlockingClient(
+            AllocatorGrpc.newBlockingStub(channel), "Test", credentials::token);
+        privateAllocatorBlockingStub = newBlockingClient(
+            AllocatorPrivateGrpc.newBlockingStub(channel), "Test", credentials::token);
     }
 
     @After
@@ -170,7 +167,7 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
                         .build())
                 .build());
         final String sessionId = createSessionResponse.getSessionId();
-        OperationService.Operation allocateOperation = allocator.allocate(VmAllocatorApi.AllocateRequest.newBuilder()
+        LongRunning.Operation allocateOperation = allocator.allocate(VmAllocatorApi.AllocateRequest.newBuilder()
             .setSessionId(sessionId)
             .setPoolLabel("s")
             .setZone(Zone.RU_CENTRAL1_A.getId())
@@ -184,7 +181,7 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
             throw new RuntimeException(allocateOperation.getError().getMessage());
         }
 
-        final String podName = KuberVmAllocator.POD_NAME_PREFIX + allocateMetadata.getVmId();
+        final String podName = KuberVmAllocator.VM_POD_NAME_PREFIX + allocateMetadata.getVmId();
         final AtomicReference<String> podPhase = new AtomicReference<>();
         TimeUtils.waitFlagUp(
             () -> {

@@ -15,13 +15,13 @@ public class PortalConfig {
     private String host;
     private int portalApiPort;
     private int fsApiPort;
-    private String fsRoot;
 
     private String stdoutChannelId;
     private String stderrChannelId;
     private String channelManagerAddress;
 
-    private String iamToken;
+    private String iamAddress;
+    private String iamPrivateKey;
     private String allocatorToken;
 
     private String vmId;

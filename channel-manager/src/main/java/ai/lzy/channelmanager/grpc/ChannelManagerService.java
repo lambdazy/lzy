@@ -62,56 +62,58 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             return;
         }
 
-        lockManager.lock(attach.getSlotInstance().getChannelId());
-        try {
-            final SlotInstance slotInstance = ProtoConverter.fromProto(attach.getSlotInstance());
-            final Endpoint endpoint = SlotEndpoint.getInstance(slotInstance);
-            final String channelId = endpoint.slotInstance().channelId();
+        final SlotInstance slotInstance = ProtoConverter.fromProto(attach.getSlotInstance());
+        final Endpoint endpoint = SlotEndpoint.getInstance(slotInstance);
+        final String channelId = endpoint.slotInstance().channelId();
 
-            final Channel channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
-            if (channel == null) {
-                String errorMessage = "Channel with id " + channelId + " not found";
-                LOG.error("Bind slot={} to channel={} failed, channel not found",
-                    attach.getSlotInstance().getSlot().getName(), attach.getSlotInstance().getChannelId());
-                responseObserver.onError(Status.NOT_FOUND.withDescription(errorMessage).asException());
-                return;
+        Channel channel;
+
+        try (var guard = lockManager.withLock(attach.getSlotInstance().getChannelId())) {
+            channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
+            if (channel != null) {
+                final Stream<Endpoint> newBound = channel.bind(endpoint);
+
+                final Map<Endpoint, Endpoint> addedEdges = switch (endpoint.slotSpec().direction()) {
+                    case OUTPUT -> newBound.collect(Collectors.toMap(e -> endpoint, e -> e));
+                    case INPUT -> newBound.collect(Collectors.toMap(e -> e, e -> endpoint));
+                };
+
+                withRetries(defaultRetryPolicy(), LOG, () -> {
+                    try (final var transaction = TransactionHandle.create(dataSource)) {
+                        channelStorage.insertEndpoint(endpoint, transaction);
+                        channelStorage.insertEndpointConnections(channelId, addedEdges, transaction);
+                        transaction.commit();
+                    }
+                });
             }
-
-            final Stream<Endpoint> newBound = channel.bind(endpoint);
-
-            withRetries(defaultRetryPolicy(), LOG, () -> {
-                try (final var transaction = TransactionHandle.create(dataSource)) {
-
-                    channelStorage.insertEndpoint(endpoint, transaction);
-
-                    final Map<Endpoint, Endpoint> addedEdges = switch (endpoint.slotSpec().direction()) {
-                        case OUTPUT -> newBound.collect(Collectors.toMap(e -> endpoint, e -> e));
-                        case INPUT -> newBound.collect(Collectors.toMap(e -> e, e -> endpoint));
-                    };
-                    channelStorage.insertEndpointConnections(channelId, addedEdges, transaction);
-
-                    transaction.commit();
-                }
-            });
-
-            responseObserver.onNext(LCMS.BindResponse.getDefaultInstance());
-            LOG.info("Bind slot={} to channel={} done",
-                attach.getSlotInstance().getSlot().getName(), attach.getSlotInstance().getChannelId());
-            responseObserver.onCompleted();
-        } catch (ChannelException | IllegalArgumentException e) {
+        } catch (ChannelException e) {
             LOG.error("Bind slot={} to channel={} failed, invalid argument: {}",
                 attach.getSlotInstance().getSlot().getName(),
                 attach.getSlotInstance().getChannelId(),
                 e.getMessage(), e);
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
+            return;
         } catch (Exception e) {
             LOG.error("Bind slot={} to channel={} failed, got exception: {}",
                 attach.getSlotInstance().getSlot().getName(),
                 attach.getSlotInstance().getChannelId(),
                 e.getMessage(), e);
+            // TODO: unbind channel
             responseObserver.onError(Status.INTERNAL.withCause(e).asException());
-        } finally {
-            lockManager.unlock(attach.getSlotInstance().getChannelId());
+            return;
+        }
+
+        if (channel != null) {
+            responseObserver.onNext(LCMS.BindResponse.getDefaultInstance());
+            LOG.info("Bind slot={} to channel={} done",
+                attach.getSlotInstance().getSlot().getName(), attach.getSlotInstance().getChannelId());
+            responseObserver.onCompleted();
+        } else {
+            String errorMessage = "Channel with id " + channelId + " not found";
+            LOG.error("Bind slot={} to channel={} failed, channel not found",
+                attach.getSlotInstance().getSlot().getName(), attach.getSlotInstance().getChannelId());
+            responseObserver.onError(Status.NOT_FOUND.withDescription(errorMessage).asException());
+            // TODO: unbind channel
         }
     }
 
@@ -133,41 +135,43 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             return;
         }
 
-        lockManager.lock(detach.getSlotInstance().getChannelId());
-        try {
-            final SlotInstance slotInstance = ProtoConverter.fromProto(detach.getSlotInstance());
-            final Endpoint endpoint = SlotEndpoint.getInstance(slotInstance);
-            final String channelId = endpoint.slotInstance().channelId();
+        final SlotInstance slotInstance = ProtoConverter.fromProto(detach.getSlotInstance());
+        final Endpoint endpoint = SlotEndpoint.getInstance(slotInstance);
+        final String channelId = endpoint.slotInstance().channelId();
 
-            final Channel channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
-            if (channel == null) {
-                String errorMessage = "Channel with id " + channelId + " not found";
-                LOG.error("Unbind slot={} to channel={} failed, channel not found",
-                    detach.getSlotInstance().getSlot().getName(), detach.getSlotInstance().getChannelId());
-                responseObserver.onError(Status.NOT_FOUND.withDescription(errorMessage).asException());
-                return;
+        Channel channel;
+
+        try (var guard = lockManager.withLock(detach.getSlotInstance().getChannelId())) {
+            channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
+            if (channel != null) {
+                channel.unbind(endpoint);
+                withRetries(defaultRetryPolicy(), LOG,
+                    () -> channelStorage.removeEndpointWithConnections(endpoint, null));
             }
-
-            channel.unbind(endpoint);
-
-            withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.removeEndpointWithConnections(endpoint, null));
-
-            responseObserver.onNext(LCMS.UnbindResponse.getDefaultInstance());
-            responseObserver.onCompleted();
-        } catch (ChannelException | IllegalArgumentException e) {
+        } catch (ChannelException e) {
             LOG.error("Unbind slot={} to channel={} failed, invalid argument: {}",
                 detach.getSlotInstance().getSlot().getName(),
                 detach.getSlotInstance().getChannelId(),
                 e.getMessage(), e);
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
+            return;
         } catch (Exception e) {
             LOG.error("Unbind slot={} to channel={} failed, got exception: {}",
                 detach.getSlotInstance().getSlot().getName(),
                 detach.getSlotInstance().getChannelId(),
                 e.getMessage(), e);
             responseObserver.onError(Status.INTERNAL.withCause(e).asException());
-        } finally {
-            lockManager.unlock(detach.getSlotInstance().getChannelId());
+            return;
+        }
+
+        if (channel != null) {
+            responseObserver.onNext(LCMS.UnbindResponse.getDefaultInstance());
+            responseObserver.onCompleted();
+        } else {
+            String errorMessage = "Channel with id " + channelId + " not found";
+            LOG.error("Unbind slot={} to channel={} failed, channel not found",
+                detach.getSlotInstance().getSlot().getName(), detach.getSlotInstance().getChannelId());
+            responseObserver.onError(Status.NOT_FOUND.withDescription(errorMessage).asException());
         }
     }
 
