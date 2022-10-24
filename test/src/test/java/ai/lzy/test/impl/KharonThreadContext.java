@@ -5,6 +5,7 @@ import ai.lzy.model.UriScheme;
 import ai.lzy.test.LzyKharonTestContext;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.deprecated.LzyKharonGrpc;
+import com.google.common.net.HostAndPort;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
@@ -39,7 +40,7 @@ public class KharonThreadContext implements LzyKharonTestContext {
     public KharonThreadContext(String serverAddress, String whiteboardAddress, String channelManagerAddress) {
         var sa = URI.create(serverAddress);
         var wa = URI.create(whiteboardAddress);
-        var parsedChannelManagerAddress = URI.create(channelManagerAddress);
+        var parsedChannelManagerAddress = HostAndPort.fromString(channelManagerAddress);
         this.serverAddress = sa.getHost() + ":" + sa.getPort();
         this.whiteboardAddress = wa.getHost() + ":" + wa.getPort();
         this.channelManagerAddress = parsedChannelManagerAddress.getHost()
@@ -91,7 +92,7 @@ public class KharonThreadContext implements LzyKharonTestContext {
         LOG.info("Starting LzyKharon on port {}...", LZY_KHARON_PORT);
 
         try {
-            context = ApplicationContext.run(PropertySource.of(props));
+            context = ApplicationContext.run(props);
 
             try {
                 kharon = new LzyKharon(context);
