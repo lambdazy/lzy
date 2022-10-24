@@ -164,6 +164,7 @@ class GrpcRuntime(Runtime):
         graph = await asyncio.get_event_loop().run_in_executor(
             None, self.__build_graph, calls, pools, zip(modules, urls)
         )  # Running long op in threadpool
+        _LOG.info(f"Starting executing graph {graph}")
 
         graph_id = await client.execute_graph(self.__execution_id, graph)
         _LOG.info(f"Send graph to Lzy, graph_id={graph_id}")
@@ -322,7 +323,7 @@ class GrpcRuntime(Runtime):
         assert self.__workflow is not None
 
         operations: List[Operation] = []
-        data_descriptions: List[DataDescription] = []
+        data_descriptions: Dict[str, DataDescription] = {}
         pool_to_call: List[Tuple[VmPoolSpec, LzyCall]] = []
 
         for call in calls:
@@ -342,6 +343,16 @@ class GrpcRuntime(Runtime):
                 )
                 arg_descriptions.append((entry.typ, slot_path))
 
+                data_descriptions[entry.storage_url] = DataDescription(
+                    storageUri=entry.storage_url,
+                    dataScheme=DataScheme(
+                        dataFormat=entry.data_scheme.scheme_type,
+                        schemeContent=entry.data_scheme.type,
+                    )
+                    if entry.data_scheme is not None
+                    else None,
+                )
+
             for name, eid in call.kwarg_entry_ids.items():
                 entry = self.__workflow.snapshot.get(eid)
                 slot_path = f"/{call.id}/arg_{name}"
@@ -352,6 +363,16 @@ class GrpcRuntime(Runtime):
                 )
                 kwarg_descriptions[name] = (entry.typ, slot_path)
 
+                data_descriptions[entry.storage_url] = DataDescription(
+                    storageUri=entry.storage_url,
+                    dataScheme=DataScheme(
+                        dataFormat=entry.data_scheme.scheme_type,
+                        schemeContent=entry.data_scheme.type,
+                    )
+                    if entry.data_scheme is not None
+                    else None,
+                )
+
             for i, eid in enumerate(call.entry_ids):
                 slot_path = f"/{call.id}/ret_{i}"
                 entry = self.__workflow.snapshot.get(eid)
@@ -360,16 +381,14 @@ class GrpcRuntime(Runtime):
                         path=slot_path, storageUri=entry.storage_url
                     )
                 )
-                data_descriptions.append(
-                    DataDescription(
-                        storageUri=entry.storage_url,
-                        dataScheme=DataScheme(
-                            dataFormat=entry.data_scheme.scheme_type,
-                            schemeContent=entry.data_scheme.type,
-                        )
-                        if entry.data_scheme is not None
-                        else None,
+                data_descriptions[entry.storage_url] = DataDescription(
+                    storageUri=entry.storage_url,
+                    dataScheme=DataScheme(
+                        dataFormat=entry.data_scheme.scheme_type,
+                        schemeContent=entry.data_scheme.type,
                     )
+                    if entry.data_scheme is not None
+                    else None,
                 )
                 ret_descriptions.append(slot_path)
 
@@ -440,7 +459,7 @@ class GrpcRuntime(Runtime):
 
         return Graph(
             name="",
-            dataDescriptions=data_descriptions,
+            dataDescriptions=list(data_descriptions.values()),
             operations=operations,
             zone="",
         )

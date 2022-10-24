@@ -1,4 +1,4 @@
-#!/usr/bin/env nix-shell
+#!/bin/bash
 #! nix-shell build.nix -A dev -i bash
 
 set -eux
@@ -27,7 +27,7 @@ find . -iname "*.proto" -type f \
        -exec python -m grpc_tools.protoc -I . \
                     --python_out="$OLDPWD" \
                     --mypy_out="$OLDPWD" \
-                    --grpclib_python_out="$OLDPWD" \
+                    --grpc_python_out="$OLDPWD" \
                     --proto_path="." \
                     '{}' +
 cd "$OLDPWD"
@@ -37,7 +37,7 @@ find . -iname "*.proto" -type f \
        -exec python -m grpc_tools.protoc -I . -I "$OLDPWD/$proto_validation_path" \
                     --python_out="$OLDPWD" \
                     --mypy_out="$OLDPWD" \
-                    --grpclib_python_out="$OLDPWD" \
+                    --grpc_python_out="$OLDPWD" \
                     --proto_path="." \
                     '{}' +
 cd "$OLDPWD"

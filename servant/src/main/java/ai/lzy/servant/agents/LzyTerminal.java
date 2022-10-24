@@ -46,7 +46,8 @@ public class LzyTerminal implements Closeable {
 
     public LzyTerminal(LzyAgentConfig config)
         throws URISyntaxException, IOException, InvocationTargetException, NoSuchMethodException,
-        InstantiationException, IllegalAccessException {
+        InstantiationException, IllegalAccessException
+    {
         channel = ChannelBuilder
             .forAddress(config.getServerAddress().getHost(), config.getServerAddress().getPort())
             .usePlaintext()

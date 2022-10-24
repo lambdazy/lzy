@@ -148,7 +148,7 @@ def wrap_call(
             Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb)
         ).override(active_workflow.provisioning)
 
-        signature = infer_call_signature(f, output_types, *args, **kwargs)
+        signature = infer_call_signature(f, output_types, active_workflow.snapshot, *args, **kwargs)
 
         lzy_call = LzyCall(active_workflow, signature, prov, merged_env)
         active_workflow.register_call(lzy_call)

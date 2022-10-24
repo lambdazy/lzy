@@ -3,13 +3,11 @@ package ai.lzy.servant.agents;
 import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.fs.LzyFsServer;
 import ai.lzy.fs.fs.LzyFileSlot;
-import ai.lzy.fs.slots.LineReaderSlot;
 import ai.lzy.model.EnvironmentInstallationException;
 import ai.lzy.model.Signal;
 import ai.lzy.model.TaskDesc;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.scheduler.SchedulerAgent;
-import ai.lzy.model.slot.TextLinesOutSlot;
 import ai.lzy.servant.env.Environment;
 import ai.lzy.servant.env.EnvironmentFactory;
 import ai.lzy.util.auth.credentials.JwtUtils;
@@ -33,18 +31,17 @@ import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.io.IoBuilder;
 
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.LineNumberReader;
 import java.io.StringReader;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.time.Duration;
@@ -276,26 +273,17 @@ public class Worker {
 
                 final var stdoutSpec = task.operation().stdout();
                 final var stderrSpec = task.operation().stderr();
-
-                if (stdoutSpec != null) {
-                    final var slot = (LineReaderSlot) lzyFs.getSlotsManager().getOrCreateSlot(tid,
-                            new TextLinesOutSlot(stdoutSpec.slotName()), stdoutSpec.channelId());
-                    slot.setStream(new LineNumberReader(new InputStreamReader(
-                            exec.process().out(),
-                            StandardCharsets.UTF_8
-                    )));
-                }
-
-                if (stderrSpec != null) {
-                    final var slot = (LineReaderSlot) lzyFs.getSlotsManager().getOrCreateSlot(tid,
-                            new TextLinesOutSlot(stderrSpec.slotName()), stderrSpec.channelId());
-                    slot.setStream(new LineNumberReader(new InputStreamReader(
-                            exec.process().err(),
-                            StandardCharsets.UTF_8
-                    )));
-                }
+                var err = exec.process().err();
+                var out = exec.process().out();
 
                 final int rc = exec.waitFor();
+
+                var errLog = IoBuilder.forLogger(LOG).setLevel(Level.ERROR).buildOutputStream();
+                var outLog = IoBuilder.forLogger(LOG).setLevel(Level.INFO).buildOutputStream();
+
+                IOUtils.copy(err, errLog);
+                IOUtils.copy(out, outLog);
+
                 schedulerAgent.reportProgress(ServantProgress.newBuilder()
                     .setExecutionCompleted(ServantProgress.ExecutionCompleted.newBuilder()
                         .setRc(rc)

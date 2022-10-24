@@ -19,6 +19,14 @@ message PortalSlotStatus {
   Slot slot = 1;
   string connectedTo = 2;
   SlotStatus.State state = 3;
+  SnapshotStatus snapshotStatus = 4;
+
+  enum SnapshotStatus {
+    UNDEFINED = 0;
+    NOT_IN_SNAPSHOT = 1;  // If slot not a snapshot slot
+    SYNCING = 2;  // Loading data to or from storage
+    SYNCED = 3;  // Data synchronized with storage
+  }
 }
 
 message PortalStatus {

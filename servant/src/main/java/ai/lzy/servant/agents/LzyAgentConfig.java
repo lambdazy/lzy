@@ -19,7 +19,8 @@ public class LzyAgentConfig {
 
     private LzyAgentConfig(URI serverAddress, URI whiteboardAddress, String agentHost, int agentPort, int fsPort,
                            String token, Path root, String user, String agentId, String bucket,
-                           URI channelManagerAddress, String scheme) {
+                           URI channelManagerAddress, String scheme)
+    {
         this.serverAddress = serverAddress;
         this.whiteboardAddress = whiteboardAddress;
         this.agentHost = agentHost;
