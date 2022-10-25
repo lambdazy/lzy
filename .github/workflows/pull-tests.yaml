@@ -32,18 +32,17 @@ jobs:
         timeout-minutes: 20
         run: |
           cd pylzy/
-          ./scripts/gen_proto.sh
-          nix-shell --command ./scripts/run_tests.sh
+          ./scripts/run_tests.sh
          
-      - name: 'upload coverage badge'
-        uses: exuanbo/actions-deploy-gist@v1
-        if: github.ref == 'refs/heads/master'
-        with:
-          token: ${{ secrets.GIST_SECRET }}
-          gist_id: 0095e900fb0fcbe5575ddc3c717fb65b
-          file_path: pylzy/coverage.svg
-          file_type: binary
-          gist_file_name: ${{ (github.head_ref || github.ref_name) }}-coverage.svg
+#      - name: 'upload coverage badge'
+#        uses: exuanbo/actions-deploy-gist@v1
+#        if: github.ref == 'refs/heads/master'
+#        with:
+#          token: ${{ secrets.GIST_SECRET }}
+#          gist_id: 0095e900fb0fcbe5575ddc3c717fb65b
+#          file_path: pylzy/coverage.svg
+#          file_type: binary
+#          gist_file_name: ${{ (github.head_ref || github.ref_name) }}-coverage.svg
       
       - name: 'clean after python-test'
         run: |
