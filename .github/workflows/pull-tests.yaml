@@ -155,6 +155,7 @@ jobs:
       - name: 'Clean docker files'
         run: |
           docker stop $(docker ps -a -q) && docker rm $(docker ps -a -q)
+          docker image rm -f $(docker image ls 6a7b4d -a -q)
           docker image prune -f
           docker volume prune -f
 
