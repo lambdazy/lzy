@@ -98,8 +98,8 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
     }
 
     @Override
-    public void finalizeField(LWBPS.FinalizeFieldRequest request,
-                              StreamObserver<LWBPS.FinalizeFieldResponse> responseObserver)
+    public void linkField(LWBPS.LinkFieldRequest request,
+                              StreamObserver<LWBPS.LinkFieldResponse> responseObserver)
     {
         LOG.info("Finalize field {} of whiteboard {}", request.getFieldName(), request.getWhiteboardId());
 
@@ -140,7 +140,7 @@ public class WhiteboardPrivateService extends LzyWhiteboardPrivateServiceGrpc.Lz
                 }
             });
 
-            responseObserver.onNext(LWBPS.FinalizeFieldResponse.getDefaultInstance());
+            responseObserver.onNext(LWBPS.LinkFieldResponse.getDefaultInstance());
             LOG.info("Finalize field {} of whiteboard {} done", fieldName, whiteboardId);
             responseObserver.onCompleted();
         } catch (NotFoundException e) {

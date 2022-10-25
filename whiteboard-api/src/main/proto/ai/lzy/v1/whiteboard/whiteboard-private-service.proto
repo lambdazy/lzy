@@ -10,7 +10,7 @@ option java_package = "ai.lzy.v1.whiteboard";
 
 service LzyWhiteboardPrivateService {
   rpc CreateWhiteboard (CreateWhiteboardRequest) returns (CreateWhiteboardResponse);
-  rpc FinalizeField (FinalizeFieldRequest) returns (FinalizeFieldResponse);
+  rpc LinkField (LinkFieldRequest) returns (LinkFieldResponse);
   rpc FinalizeWhiteboard (FinalizeWhiteboardRequest) returns (FinalizeWhiteboardResponse);
 }
 
@@ -27,14 +27,14 @@ message CreateWhiteboardResponse {
   Whiteboard whiteboard = 1;
 }
 
-message FinalizeFieldRequest {
+message LinkFieldRequest {
   string whiteboardId = 1;
   string fieldName = 2;
   string storageUri = 3;
   DataScheme scheme = 4;
 }
 
-message FinalizeFieldResponse {
+message LinkFieldResponse {
 }
 
 message FinalizeWhiteboardRequest {
