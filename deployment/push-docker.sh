@@ -55,18 +55,18 @@ if [[ $REBUILD = true ]]; then
     docker pull "$TEST_ENV_BASE"
     TEST_ENV_BASE_TAG="$(echo $TEST_ENV_BASE | awk -F: '{print $2}')"
   fi
-  cd pylzy/ && ./gen_proto.sh  && cd ..
+  cd pylzy/ && ./scripts/gen_proto.sh && cd ..
   mvn clean install -DskipTests
 
   mkdir -p servant/docker/tmp-for-context
-  cp -R ../pylzy servant/docker/tmp-for-context
+  cp -R pylzy servant/docker/tmp-for-context/pylzy
   docker build --build-arg "SERVANT_BASE_TAG=$SERVANT_BASE_TAG"         -t lzy-servant -f servant/docker/System.Dockerfile servant
   docker build --build-arg "DEFAULT_ENV_BASE_TAG=$DEFAULT_ENV_BASE_TAG" -t default-env -f servant/docker/DefaultEnv.Dockerfile servant
   docker build --build-arg "TEST_ENV_BASE_TAG=$TEST_ENV_BASE_TAG"       -t test-env    -f servant/docker/TestEnv.Dockerfile servant
   rm -rf servant/docker/tmp-for-context
 
   docker build -t lzy-server -f server/Dockerfile server
-  docker build -t lzy-whiteboard -f whiteboard/Dockerfile whiteboard
+  docker build -t lzy-whiteboard -f whiteboard-old/Dockerfile whiteboard-old
   docker build -t lzy-kharon -f kharon/Dockerfile kharon
   docker build -t lzy-iam -f iam/Dockerfile iam
   docker build -t lzy-allocator -f allocator/Dockerfile allocator
