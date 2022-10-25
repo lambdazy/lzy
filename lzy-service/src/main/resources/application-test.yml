@@ -53,7 +53,7 @@ lzy-service:
   portal:
     host: 'localhost'
     portal-api-port: '${random.port}'
-    fs-api-port: '${random.port}'
+    slots-api-port: '${random.port}'
     fs-root: '/tmp/lzy-portal'
     stdout-channel-name: 'portal:stdout'
     stderr-channel-name: 'portal:stderr'

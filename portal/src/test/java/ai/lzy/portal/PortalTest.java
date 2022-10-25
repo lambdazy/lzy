@@ -16,11 +16,12 @@ import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.common.LMS;
-import ai.lzy.v1.fs.LzyFsApi;
 import ai.lzy.v1.fs.LzyFsGrpc;
 import ai.lzy.v1.portal.LzyPortal;
 import ai.lzy.v1.portal.LzyPortalApi;
 import ai.lzy.v1.portal.LzyPortalGrpc;
+import ai.lzy.v1.slots.LSA;
+import ai.lzy.v1.slots.LzySlotsApiGrpc;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
@@ -37,7 +38,11 @@ import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -79,7 +84,7 @@ public class PortalTest {
 
     private LzyPortalGrpc.LzyPortalBlockingStub unauthorizedPortalClient;
     private LzyPortalGrpc.LzyPortalBlockingStub authorizedPortalClient;
-    private LzyFsGrpc.LzyFsBlockingStub portalFsStub;
+    private LzySlotsApiGrpc.LzySlotsApiBlockingStub portalSlotsClient;
 
     @Before
     public void before() throws IOException {
@@ -154,8 +159,8 @@ public class PortalTest {
         authorizedPortalClient = newBlockingClient(unauthorizedPortalClient, "TestClient",
             () -> internalUserCredentials.get().token());
 
-        portalFsStub = LzyFsGrpc.newBlockingStub(
-            newGrpcChannel("localhost", config.getFsApiPort(), LzyFsGrpc.SERVICE_NAME));
+        portalSlotsClient = LzySlotsApiGrpc.newBlockingStub(
+            newGrpcChannel("localhost", config.getSlotsApiPort(), LzyFsGrpc.SERVICE_NAME));
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
@@ -200,11 +205,11 @@ public class PortalTest {
         destroyChannel("portal:stderr");
 
         var portalStubChannel = (ManagedChannel) unauthorizedPortalClient.getChannel();
-        var portalFsStubChannel = (ManagedChannel) portalFsStub.getChannel();
+        var portalSlotsStubChannel = (ManagedChannel) portalSlotsClient.getChannel();
 
         portal.shutdown();
         portalStubChannel.shutdown();
-        portalFsStubChannel.shutdown();
+        portalSlotsStubChannel.shutdown();
 
         try {
             if (!portal.awaitTermination(60, TimeUnit.SECONDS)) {
@@ -217,7 +222,7 @@ public class PortalTest {
             portal.shutdownNow();
         } finally {
             portalStubChannel.shutdownNow();
-            portalFsStubChannel.shutdownNow();
+            portalSlotsStubChannel.shutdownNow();
         }
     }
 
@@ -358,9 +363,9 @@ public class PortalTest {
         return response.getDescription();
     }
 
-    protected Iterator<LzyFsApi.Message> openOutputSlot(SlotInstance slot) {
-        return portalFsStub.openOutputSlot(
-            LzyFsApi.SlotRequest.newBuilder()
+    protected Iterator<LSA.SlotDataChunk> openOutputSlot(SlotInstance slot) {
+        return portalSlotsClient.openOutputSlot(
+            LSA.SlotDataRequest.newBuilder()
                 .setSlotInstance(ProtoConverter.toProto(slot))
                 .setOffset(0)
                 .build());
@@ -385,9 +390,9 @@ public class PortalTest {
             try {
                 iter.forEachRemaining(message -> {
                     System.out.println(" ::: got " + JsonUtils.printSingleLine(message));
-                    switch (message.getMessageCase()) {
+                    switch (message.getKindCase()) {
                         case CONTROL -> {
-                            if (LzyFsApi.Message.Controls.EOS != message.getControl()) {
+                            if (LSA.SlotDataChunk.Control.EOS != message.getControl()) {
                                 values.offer(new AssertionError(JsonUtils.printSingleLine(message)));
                             }
                         }

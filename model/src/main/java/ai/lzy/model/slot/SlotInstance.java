@@ -13,6 +13,6 @@ public record SlotInstance(
     }
 
     public String shortDesc() {
-        return taskId + '/' + spec.name();
+        return taskId + spec.name();
     }
 }

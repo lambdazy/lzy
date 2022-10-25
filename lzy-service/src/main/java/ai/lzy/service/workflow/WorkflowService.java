@@ -360,7 +360,7 @@ public class WorkflowService {
         var args = List.of(
             "-portal.portal-id=" + portalId,
             "-portal.portal-api-port=" + startupPortalConfig.getPortalApiPort(),
-            "-portal.fs-api-port=" + startupPortalConfig.getFsApiPort(),
+            "-portal.slots-api-port=" + startupPortalConfig.getFsApiPort(),
             "-portal.fs-root=" + startupPortalConfig.getFsRoot(),
             "-portal.stdout-channel-id=" + stdoutChannelId,
             "-portal.stderr-channel-id=" + stderrChannelId,
