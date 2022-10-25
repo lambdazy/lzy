@@ -97,7 +97,7 @@ for IMAGE in $IMAGES; do
   NEW_NAME="lzydock/$IMAGE:$BRANCH-$NEW_TAG"
   docker tag "$IMAGE" "$NEW_NAME" && docker image rm "$IMAGE"
   echo "pushing $NEW_NAME"
-  docker push "$NEW_NAME" && ([[ $NEW_NAME == *"base"* ]] || docker image rm "$NEW_NAME")
+  docker push "$NEW_NAME" && docker image rm "$NEW_NAME"
   echo "::set-output name=${IMAGE#lzy-}-image::$BRANCH-$NEW_TAG" # for github actions
   echo ""
   PUSHED_IMAGES="$PUSHED_IMAGES${NL}$IMAGE-image = \"$NEW_NAME\""
