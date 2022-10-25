@@ -26,7 +26,8 @@ class FileIOOperation implements AtomicZygote {
     }
 
     FileIOOperation(String operationName, List<String> inputFiles, List<String> outputFiles, String command,
-        String baseEnv) {
+        String baseEnv)
+    {
         this.operationName = operationName;
         inputs = new ArrayList<>();
         outputs = new ArrayList<>();

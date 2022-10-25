@@ -2,16 +2,9 @@ lzy-service:
   address: 'localhost:8899'
   # external-host: ''
 
-  server-address: 'localhost:7777'
-  whiteboard-address: 'localhost:8999'
-  snapshot-address: 'localhost:8999'
   allocator-address: 'localhost:8799'
   graph-executor-address: 'localhost:8699'
   channel-manager-address: 'localhost:8122'
-
-  servant-proxy-port: 8900
-  servant-fs-proxy-port: 8901
-  channel-manager-proxy-port: 8123
   wait-allocation-timeout: 10s
 
   database:
@@ -60,6 +53,6 @@ lzy-service:
     host: 'localhost'
     portal-api-port: '${random.port}'
     fs-api-port: '${random.port}'
-    fs-root: '/tmp/lzy-fs'
+    fs-root: '/tmp/lzy-portal'
     stdout-channel-name: 'portal:stdout'
     stderr-channel-name: 'portal:stderr'

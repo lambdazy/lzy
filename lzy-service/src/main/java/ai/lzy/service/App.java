@@ -11,6 +11,7 @@ import com.google.common.net.HostAndPort;
 import io.grpc.Server;
 import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.runtime.Micronaut;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -18,13 +19,20 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
+@Singleton
 public class App {
     private static final Logger LOG = LogManager.getLogger(App.class);
 
     private final Server server;
 
-    public App(Server server) {
-        this.server = server;
+    public App(LzyServiceConfig config, LzyService service) {
+        var authInterceptor = new AuthServerInterceptor(
+            new AuthenticateServiceGrpcClient("LzyService", config.getIam().getAddress()));
+
+        server = createServer(
+            HostAndPort.fromString(config.getAddress()),
+            authInterceptor,
+            service);
     }
 
     public void start() throws IOException {
@@ -39,7 +47,7 @@ public class App {
         }
     }
 
-    private void awaitTermination() throws InterruptedException {
+    public void awaitTermination() throws InterruptedException {
         server.awaitTermination();
     }
 
@@ -58,17 +66,7 @@ public class App {
 
     public static void main(String[] args) throws InterruptedException, IOException {
         try (var context = Micronaut.run(App.class, args)) {
-            var config = context.getBean(LzyServiceConfig.class);
-
-            var authInterceptor = new AuthServerInterceptor(
-                new AuthenticateServiceGrpcClient("LzyService", config.getIam().getAddress()));
-
-            var server = createServer(
-                HostAndPort.fromString(config.getAddress()),
-                authInterceptor,
-                context.getBean(LzyService.class));
-
-            var main = new App(server);
+            var main = context.getBean(App.class);
             main.start();
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 LOG.info("Stopping lzy service");
