@@ -55,7 +55,8 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
 
     @Inject
     public GraphExecutorApi(GraphExecutionDao dao, ServiceConfig config,
-                            @Named("GraphExecutorIamGrpcChannel") ManagedChannel iamChannel, RenewableJwt iamToken,
+                            @Named("GraphExecutorIamGrpcChannel") ManagedChannel iamChannel,
+                            @Named("GraphExecutorIamToken") RenewableJwt iamToken,
                             GraphBuilder graphBuilder, QueueManager queueManager, SchedulerApi schedulerApi)
     {
         this.iamChannel = iamChannel;

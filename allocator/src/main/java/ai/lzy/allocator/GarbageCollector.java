@@ -38,7 +38,7 @@ public class GarbageCollector extends TimerTask {
     @Inject
     public GarbageCollector(VmDao dao, OperationDao operations, VmAllocator allocator, ServiceConfig config,
                             AllocatorDataSource storage, @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
-                            RenewableJwt iamToken)
+                            @Named("AllocatorIamToken") RenewableJwt iamToken)
     {
         this.dao = dao;
         this.operations = operations;

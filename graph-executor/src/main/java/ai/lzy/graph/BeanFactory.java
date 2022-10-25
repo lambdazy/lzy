@@ -21,6 +21,7 @@ public class BeanFactory {
     }
 
     @Singleton
+    @Named("GraphExecutorIamToken")
     public RenewableJwt renewableIamToken(ServiceConfig config) {
         return config.getAuth().createRenewableToken();
     }

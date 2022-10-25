@@ -19,7 +19,6 @@ import jakarta.inject.Singleton;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
-
 import javax.annotation.PreDestroy;
 
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;

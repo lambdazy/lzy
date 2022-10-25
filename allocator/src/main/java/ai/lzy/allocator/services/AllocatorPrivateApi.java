@@ -59,7 +59,8 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
     @Inject
     public AllocatorPrivateApi(VmDao dao, OperationDao operations, VmAllocator allocator, SessionDao sessions,
                                AllocatorDataSource storage, ServiceConfig config,
-                               @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel, RenewableJwt iamToken)
+                               @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
+                               @Named("AllocatorIamToken") RenewableJwt iamToken)
     {
         this.dao = dao;
         this.operations = operations;

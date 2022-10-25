@@ -77,6 +77,7 @@ public class BeanFactory {
     }
 
     @Singleton
+    @Named("AllocatorIamToken")
     public RenewableJwt renewableIamToken(ServiceConfig config) {
         return config.getIam().createRenewableToken();
     }

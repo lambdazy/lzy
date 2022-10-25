@@ -24,6 +24,7 @@ public class BeanFactory {
     }
 
     @Singleton
+    @Named("SiteIamToken")
     public RenewableJwt iamToken(ServiceConfig serviceConfig) {
         return serviceConfig.getIam().createRenewableToken();
     }
@@ -32,14 +33,14 @@ public class BeanFactory {
     @Named("Scheduler")
     public SchedulerGrpc.SchedulerBlockingStub scheduler(
         @Named("SchedulerGrpcChannel") ManagedChannel schedulerChannel,
-        RenewableJwt iamToken)
+        @Named("SiteIamToken") RenewableJwt iamToken)
     {
         return newBlockingClient(SchedulerGrpc.newBlockingStub(schedulerChannel), "LzySite",
             () -> iamToken.get().token());
     }
 
     @Singleton
-    public SubjectServiceGrpcClient subjectService(ServiceConfig config, RenewableJwt iamToken) {
+    public SubjectServiceGrpcClient subjectService(ServiceConfig config, @Named("SiteIamToken") RenewableJwt iamToken) {
         return new SubjectServiceGrpcClient(
             "LzySite",
             GrpcConfig.from(config.getIam().getAddress()),

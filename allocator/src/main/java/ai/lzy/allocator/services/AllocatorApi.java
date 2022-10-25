@@ -76,7 +76,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
     public AllocatorApi(VmDao dao, OperationDao operations, SessionDao sessions, DiskStorage diskStorage,
                         VmAllocator allocator, TunnelAllocator tunnelAllocator, ServiceConfig config,
                         AllocatorDataSource storage, @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
-                        RenewableJwt iamToken)
+                        @Named("AllocatorIamToken") RenewableJwt iamToken)
     {
         this.dao = dao;
         this.operations = operations;

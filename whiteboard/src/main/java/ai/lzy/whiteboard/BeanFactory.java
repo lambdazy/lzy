@@ -19,6 +19,7 @@ import jakarta.inject.Singleton;
 public class BeanFactory {
 
     @Singleton
+    @Named("WhiteboardIamToken")
     public RenewableJwt iamToken(AppConfig config) {
         return config.getIam().createRenewableToken();
     }
@@ -33,7 +34,8 @@ public class BeanFactory {
     @Singleton
     @Named("WhiteboardIamAccessBindingClient")
     public AccessBindingClient iamAccessBindingClient(
-        @Named("WhiteboardIamGrpcChannel") ManagedChannel iamChannel, RenewableJwt iamToken)
+        @Named("WhiteboardIamGrpcChannel") ManagedChannel iamChannel,
+        @Named("WhiteboardIamToken") RenewableJwt iamToken)
     {
         return new AccessBindingServiceGrpcClient(WhiteboardApp.APP, iamChannel, iamToken::get);
     }
@@ -41,7 +43,8 @@ public class BeanFactory {
     @Singleton
     @Named("WhiteboardIamAccessClient")
     public AccessClient iamAccessClient(
-        @Named("WhiteboardIamGrpcChannel") ManagedChannel iamChannel, RenewableJwt iamToken)
+        @Named("WhiteboardIamGrpcChannel") ManagedChannel iamChannel,
+        @Named("WhiteboardIamToken") RenewableJwt iamToken)
     {
         return new AccessServiceGrpcClient(WhiteboardApp.APP, iamChannel, iamToken::get);
     }
@@ -49,7 +52,8 @@ public class BeanFactory {
     @Singleton
     @Named("WhiteboardIamSubjectClient")
     public SubjectServiceClient iamSubjectClient(
-        @Named("WhiteboardIamGrpcChannel") ManagedChannel iamChannel, RenewableJwt iamToken)
+        @Named("WhiteboardIamGrpcChannel") ManagedChannel iamChannel,
+        @Named("WhiteboardIamToken") RenewableJwt iamToken)
     {
         return new SubjectServiceGrpcClient(WhiteboardApp.APP, iamChannel, iamToken::get);
     }
