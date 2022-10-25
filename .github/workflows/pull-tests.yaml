@@ -137,7 +137,7 @@ jobs:
           docker pull $SERVANT_BASE_IMAGE
           SERVANT_BASE_TAG="$(echo $SERVANT_BASE_IMAGE | awk -F: '{print $2}')"
           mkdir -p servant/docker/tmp-for-context
-          cp -R ../pylzy servant/docker/tmp-for-context
+          cp -R pylzy servant/docker/tmp-for-context/pylzy
           docker build --build-arg "SERVANT_BASE_TAG=$SERVANT_BASE_TAG" -t lzy-servant -f servant/docker/System.Dockerfile servant
 
       - name: 'DockerServantTest'
