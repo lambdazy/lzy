@@ -14,6 +14,7 @@ import ai.lzy.util.grpc.GrpcChannels;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmPoolServiceGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
+import ai.lzy.v1.deprecated.LzyWhiteboard;
 import ai.lzy.v1.graph.GraphExecutorGrpc;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
@@ -160,7 +161,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
     @Override
     public void readStdSlots(
-            LWFS.ReadStdSlotsRequest request, StreamObserver<LWFS.ReadStdSlotsResponse> responseObserver)
+            ReadStdSlotsRequest request, StreamObserver<ReadStdSlotsResponse> responseObserver)
     {
         workflowService.readStdSlots(request, responseObserver);
     }
