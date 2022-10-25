@@ -13,6 +13,8 @@ proto_workflow_path="../workflow-api/src/main/proto/"
 
 [ -d "$proto_out" ] || mkdir -p "$proto_out"
 
+pip install -r proto_requirements.txt
+
 # check mypy, it's hack actually but for some reason it's not installed
 # ok with nix
 python -m mypy_protobuf 1>/dev/null 2>&1\
