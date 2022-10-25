@@ -54,6 +54,9 @@ allocator:
   kuber-tunnel-allocator:
     enabled: false
 
+  mock-mk8s:
+    enabled: true
+
 scheduler:
   base-env-default-image: ""
   max-servants-per-workflow: 2

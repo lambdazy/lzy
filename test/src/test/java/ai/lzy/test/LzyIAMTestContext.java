@@ -9,6 +9,8 @@ import com.google.common.net.HostAndPort;
 @SuppressWarnings("UnstableApiUsage")
 public interface LzyIAMTestContext {
     HostAndPort address();
+    void init();
+    void close();
 
     LzyAccessServiceGrpc.LzyAccessServiceBlockingStub accessServiceClient();
 
@@ -17,8 +19,4 @@ public interface LzyIAMTestContext {
     LzyAccessBindingServiceGrpc.LzyAccessBindingServiceBlockingStub accessBindingServiceClient();
 
     LzyAuthenticateServiceGrpc.LzyAuthenticateServiceBlockingStub authenticateServiceClient();
-
-    void init();
-
-    void close();
 }

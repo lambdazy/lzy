@@ -56,7 +56,8 @@ public class SnapshotThreadContext implements LzySnapshotTestContext {
                                 "service.server-uri", serverAddress
                         )
                 )
-        )) {
+        ))
+        {
             var logger = LogManager.getLogger(SnapshotApi.class);
             logger.info("Starting LzySnapshot and LzyWhiteboard on port {}...", SNAPSHOT_PORT);
 
