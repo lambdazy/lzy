@@ -90,7 +90,9 @@ class GraphBuilder {
 
         state.setTasks(tasks);
 
-        var channelsDescriptions = slotName2channelId.values().stream()
+        var channelIds = new HashSet<>(slotName2channelId.values());
+
+        var channelsDescriptions = channelIds.stream()
             .map(id -> GraphExecutor.ChannelDesc
                 .newBuilder()
                 .setId(id)

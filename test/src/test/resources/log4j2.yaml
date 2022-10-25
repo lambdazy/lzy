@@ -15,16 +15,19 @@ Configuration:
         ref: Console
     Logger:
       - name: "ai.lzy.scheduler"
-        level: error
+        level: info
+
+      - name: "ai.lzy.portal"
+        level: info
 
       - name: "ai.lzy.allocator"
-        level: error
+        level: info
 
       - name: "ai.lzy.graph"
         level: error
 
       - name: "ai.lzy.servant"
-        level: error
+        level: info
 
       - name: "ai.lzy.channelmanager"
         level: info

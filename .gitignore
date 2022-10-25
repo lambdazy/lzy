@@ -196,3 +196,4 @@ tvars.json
 test/bindings.json
 test/filename
 test/slot.json
+/pylzy/.tox/

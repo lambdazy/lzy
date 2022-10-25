@@ -202,7 +202,8 @@ public interface LzyTerminalTestContext extends AutoCloseable {
         }
 
         default String whiteboards(String namespace, List<String> tags,
-                                   Long fromDateLocalTimezone, Long toDateLocalTimezone) {
+                                   Long fromDateLocalTimezone, Long toDateLocalTimezone)
+        {
             String command = String.join(
                 " ",
                 "list",

@@ -1,1 +1,2 @@
 include lzy/lzy-servant.jar
+include requirements.txt

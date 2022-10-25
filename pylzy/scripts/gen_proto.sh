@@ -1,5 +1,4 @@
-#!/usr/bin/env nix-shell
-#! nix-shell build.nix -A dev -i bash
+#!/bin/bash
 
 set -eux
 
@@ -14,6 +13,8 @@ proto_workflow_path="../workflow-api/src/main/proto/"
 
 [ -d "$proto_out" ] || mkdir -p "$proto_out"
 
+pip install -r proto_requirements.txt
+
 # check mypy, it's hack actually but for some reason it's not installed
 # ok with nix
 python -m mypy_protobuf 1>/dev/null 2>&1\
@@ -27,7 +28,7 @@ find . -iname "*.proto" -type f \
        -exec python -m grpc_tools.protoc -I . \
                     --python_out="$OLDPWD" \
                     --mypy_out="$OLDPWD" \
-                    --grpclib_python_out="$OLDPWD" \
+                    --grpc_python_out="$OLDPWD" \
                     --proto_path="." \
                     '{}' +
 cd "$OLDPWD"
@@ -37,7 +38,7 @@ find . -iname "*.proto" -type f \
        -exec python -m grpc_tools.protoc -I . -I "$OLDPWD/$proto_validation_path" \
                     --python_out="$OLDPWD" \
                     --mypy_out="$OLDPWD" \
-                    --grpclib_python_out="$OLDPWD" \
+                    --grpc_python_out="$OLDPWD" \
                     --proto_path="." \
                     '{}' +
 cd "$OLDPWD"
