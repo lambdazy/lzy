@@ -24,10 +24,10 @@ import java.util.stream.Stream;
 
 import static ai.lzy.portal.Portal.CreateSlotException;
 
-public class SnapshotSlotsProvider {
-    private static final Logger LOG = LogManager.getLogger(SnapshotSlotsProvider.class);
+public class SnapshotEntriesProvider {
+    private static final Logger LOG = LogManager.getLogger(SnapshotEntriesProvider.class);
 
-    private final Map<String, SnapshotSlot> snapshots = new HashMap<>(); // snapshot id -> snapshot slot
+    private final Map<String, SnapshotEntry> snapshots = new HashMap<>(); // snapshot id -> snapshot slot
     private final Map<String, String> name2id = new HashMap<>(); // slot name -> snapshot id
 
     private final S3Repositories<Stream<ByteString>> s3Repositories = new S3Repositories<>();
@@ -60,14 +60,14 @@ public class SnapshotSlotsProvider {
                     throw new CreateSlotException("Snapshot with id '" + snapshotId + "' already associated with data");
                 }
 
-                yield getOrCreateSnapshotSlot(s3Repo, snapshotId, key, bucket).setInputSlot(instance);
+                yield getOrCreateSnapshotEntry(s3Repo, snapshotId, key, bucket).setInputSlot(instance);
             }
             case OUTPUT -> {
                 if (!snapshots.containsKey(snapshotId) && !s3ContainsSnapshot) {
                     throw new CreateSlotException("Snapshot with id '" + snapshotId + "' not found");
                 }
 
-                yield getOrCreateSnapshotSlot(s3Repo, snapshotId, key, bucket).addOutputSlot(instance);
+                yield getOrCreateSnapshotEntry(s3Repo, snapshotId, key, bucket).addOutputSlot(instance);
             }
         };
 
@@ -76,14 +76,14 @@ public class SnapshotSlotsProvider {
         return lzySlot;
     }
 
-    private SnapshotSlot getOrCreateSnapshotSlot(S3Repository<Stream<ByteString>> s3Repo, String snapshotId,
-                                                 String key, String bucket) throws CreateSlotException
+    private SnapshotEntry getOrCreateSnapshotEntry(S3Repository<Stream<ByteString>> s3Repo, String snapshotId,
+                                                   String key, String bucket) throws CreateSlotException
     {
         try {
             return snapshots.computeIfAbsent(snapshotId,
                 id -> {
                     try {
-                        return new S3SnapshotSlot(id, key, bucket, s3Repo);
+                        return new S3SnapshotEntry(id, key, bucket, s3Repo);
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -116,17 +116,17 @@ public class SnapshotSlotsProvider {
     }
 
     public boolean removeInputSlot(String slotName) {
-        SnapshotSlot ss = snapshots.get(name2id.get(slotName));
+        SnapshotEntry ss = snapshots.get(name2id.get(slotName));
         return Objects.nonNull(ss) && ss.removeInputSlot(slotName);
     }
 
     public boolean removeOutputSlot(String slotName) {
-        SnapshotSlot ss = snapshots.get(name2id.get(slotName));
+        SnapshotEntry ss = snapshots.get(name2id.get(slotName));
         return Objects.nonNull(ss) && ss.removeOutputSlot(slotName);
     }
 
     public Collection<? extends LzyInputSlot> getInputSlots() {
-        return snapshots.values().stream().map(SnapshotSlot::getInputSlot).filter(Objects::nonNull).toList();
+        return snapshots.values().stream().map(SnapshotEntry::getInputSlot).filter(Objects::nonNull).toList();
     }
 
     public Collection<? extends LzyOutputSlot> getOutputSlots() {
@@ -134,12 +134,12 @@ public class SnapshotSlotsProvider {
     }
 
     public LzyInputSlot getInputSlot(String slotName) {
-        SnapshotSlot ss = snapshots.get(name2id.get(slotName));
+        SnapshotEntry ss = snapshots.get(name2id.get(slotName));
         return Objects.nonNull(ss) ? ss.getInputSlot() : null;
     }
 
     public LzyOutputSlot getOutputSlot(String slotName) {
-        SnapshotSlot ss = snapshots.get(name2id.get(slotName));
+        SnapshotEntry ss = snapshots.get(name2id.get(slotName));
         return Objects.nonNull(ss) ? ss.getOutputSlot(slotName) : null;
     }
 }

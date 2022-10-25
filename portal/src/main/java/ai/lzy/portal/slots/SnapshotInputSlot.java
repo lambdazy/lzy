@@ -29,9 +29,9 @@ public class SnapshotInputSlot extends LzyInputSlotBase {
     private final String bucket;
     private final S3Repository<Stream<ByteString>> s3Repository;
 
-    private final S3SnapshotSlot slot;
+    private final S3SnapshotEntry slot;
 
-    public SnapshotInputSlot(SlotInstance slotInstance, S3SnapshotSlot slot, Path storage, String key,
+    public SnapshotInputSlot(SlotInstance slotInstance, S3SnapshotEntry slot, Path storage, String key,
                              String bucket, S3Repository<Stream<ByteString>> s3Repository) throws IOException {
         super(slotInstance);
         this.slot = slot;
@@ -44,7 +44,7 @@ public class SnapshotInputSlot extends LzyInputSlotBase {
 
     @Override
     public void connect(URI slotUri, Stream<ByteString> dataProvider) {
-        slot.getState().set(S3SnapshotSlot.State.PREPARING);
+        slot.getState().set(S3SnapshotEntry.State.PREPARING);
         super.connect(slotUri, dataProvider);
         LOG.info("Attempt to connect to " + slotUri + " slot " + this);
 
@@ -59,7 +59,7 @@ public class SnapshotInputSlot extends LzyInputSlotBase {
         var t = new Thread(READER_TG, () -> {
             // read all data to local storage (file), then OPEN the slot
             readAll();
-            slot.getState().set(S3SnapshotSlot.State.DONE);
+            slot.getState().set(S3SnapshotEntry.State.DONE);
             synchronized (slot) {
                 slot.notifyAll();
             }

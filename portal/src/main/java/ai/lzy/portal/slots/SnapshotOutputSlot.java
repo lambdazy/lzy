@@ -30,9 +30,9 @@ public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot {
 
     private final boolean hasInputSlot;
 
-    private final S3SnapshotSlot slot;
+    private final S3SnapshotEntry slot;
 
-    public SnapshotOutputSlot(SlotInstance slotInstance, S3SnapshotSlot slot, Path storage,
+    public SnapshotOutputSlot(SlotInstance slotInstance, S3SnapshotEntry slot, Path storage,
                               String key, String bucket, S3Repository<Stream<ByteString>> s3Repository)
     {
         super(slotInstance);
@@ -61,13 +61,13 @@ public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot {
     @Override
     public Stream<ByteString> readFromPosition(long offset) throws IOException {
         if (hasInputSlot) {
-            if (slot.getState().get() == S3SnapshotSlot.State.INITIAL) {
+            if (slot.getState().get() == S3SnapshotEntry.State.INITIAL) {
                 LOG.error("Input slot of this snapshot is not already connected");
                 throw new IllegalStateException("Input slot of this snapshot is not already connected");
             }
-        } else if (slot.getState().compareAndSet(S3SnapshotSlot.State.INITIAL, S3SnapshotSlot.State.PREPARING)) {
+        } else if (slot.getState().compareAndSet(S3SnapshotEntry.State.INITIAL, S3SnapshotEntry.State.PREPARING)) {
             write(s3Repository.get(bucket, key), storage.toFile());
-            slot.getState().set(S3SnapshotSlot.State.DONE);
+            slot.getState().set(S3SnapshotEntry.State.DONE);
             synchronized (slot) {
                 slot.notifyAll();
             }
@@ -75,7 +75,7 @@ public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot {
 
         try {
             synchronized (slot) {
-                while (slot.getState().get() != S3SnapshotSlot.State.DONE) {
+                while (slot.getState().get() != S3SnapshotEntry.State.DONE) {
                     slot.wait();
                 }
             }

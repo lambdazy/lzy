@@ -5,6 +5,7 @@ package ai.lzy.v1.portal;
 import "ai/lzy/v1/common/slot.proto";
 import "ai/lzy/v1/portal/portal.proto";
 import "google/protobuf/empty.proto";
+import "ai/lzy/v1/common/s3.proto";
 
 option java_outer_classname = "LzyPortalApi";
 option java_package = "ai.lzy.v1.portal";
@@ -21,8 +22,27 @@ message PortalSlotStatus {
   SlotStatus.State state = 3;
 }
 
+message SnapshotEntryStatus {
+  Slot inputSlot = 1;  // Input slot that connected to entry or null
+  repeated Slot outputSlots = 2;  // Output slot that connected to entry or empty
+  SnapshotEntryState state = 3;
+
+  oneof storage {
+      S3Locator s3 = 4;  // Returns locator without credentials, to identify data
+  }
+
+  enum SnapshotEntryState {
+    UNDEFINED = 0;
+    INITIALIZING = 1;  // Creating entry
+    READING_DATA = 2;  // Reading data from portal input slot
+    WRITING_DATA = 3;  // Writing data to storage or/and to output slots
+    DATA_SYNCED = 4;  // Data synced to storage. Can send data to output slots
+  }
+}
+
 message PortalStatus {
   repeated PortalSlotStatus slots = 1;
+  repeated SnapshotEntryStatus entries = 2;
 }
 
 message OpenSlotsRequest {
