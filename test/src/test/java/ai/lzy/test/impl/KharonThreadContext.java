@@ -9,7 +9,6 @@ import com.google.common.net.HostAndPort;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
-import io.micronaut.context.env.PropertySource;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
