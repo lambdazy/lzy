@@ -85,9 +85,9 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         iamChannel = newGrpcChannel(iamAddress, LzyAuthenticateServiceGrpc.SERVICE_NAME);
 
         SubjectServiceGrpcClient subjectClient =
-            new SubjectServiceGrpcClient(APP, iamChannel, config.getIam()::createCredentials);
+            new SubjectServiceGrpcClient(APP, iamChannel, internalUserCredentials::get);
         AccessBindingServiceGrpcClient abClient =
-            new AccessBindingServiceGrpcClient(APP, iamChannel, config.getIam()::createCredentials);
+            new AccessBindingServiceGrpcClient(APP, iamChannel, internalUserCredentials::get);
 
         graphExecutorChannel = newGrpcChannel(config.getGraphExecutorAddress(), GraphExecutorGrpc.SERVICE_NAME);
         GraphExecutorGrpc.GraphExecutorBlockingStub graphExecutorClient =

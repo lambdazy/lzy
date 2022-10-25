@@ -86,8 +86,8 @@ public class AllocatorImpl implements ServantsAllocator {
         operations = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(opChannel), SchedulerApi.APP,
             () -> credentials.get().token());
 
-        subjectClient = new SubjectServiceGrpcClient(SchedulerApi.APP, iamChannel, authConfig::createCredentials);
-        abClient = new AccessBindingServiceGrpcClient(SchedulerApi.APP, iamChannel, authConfig::createCredentials);
+        subjectClient = new SubjectServiceGrpcClient(SchedulerApi.APP, iamChannel, credentials::get);
+        abClient = new AccessBindingServiceGrpcClient(SchedulerApi.APP, iamChannel, credentials::get);
     }
 
     @PreDestroy
