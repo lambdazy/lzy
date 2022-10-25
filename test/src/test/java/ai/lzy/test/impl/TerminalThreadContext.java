@@ -85,7 +85,8 @@ public class TerminalThreadContext implements LzyTerminalTestContext {
             | NoSuchMethodException
             | InstantiationException
             | IllegalAccessException e
-        ) {
+        )
+        {
             throw new RuntimeException(e);
         }
 
