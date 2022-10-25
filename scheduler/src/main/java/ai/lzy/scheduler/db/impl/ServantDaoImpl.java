@@ -32,7 +32,7 @@ public class ServantDaoImpl implements ServantDao, ServantMetaStorage {
     private final SchedulerDataSource storage;
     private final EventQueueManager queue;
 
-    private static final String FIELDS = "id, userId, workflow_name, status, requirements_json,"
+    private static final String FIELDS = "id, user_id, workflow_name, status, requirements_json,"
             + " error_description, task_id, servant_url";
 
     @Inject
