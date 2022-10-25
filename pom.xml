@@ -42,5 +42,6 @@
         <module>channel-manager-api</module>
         <module>tunnel-agent</module>
         <module>long-running-api</module>
+        <module>slots-api</module>
     </modules>
 </project>

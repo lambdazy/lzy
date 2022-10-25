@@ -1,6 +1,6 @@
 package ai.lzy.servant.agents;
 
-import ai.lzy.fs.LzyFsServer;
+import ai.lzy.fs.LzyFsServerLegacy;
 import ai.lzy.logs.MetricEvent;
 import ai.lzy.logs.MetricEventLogger;
 import ai.lzy.servant.BashApi;
@@ -47,7 +47,7 @@ public class LzyAgent implements Closeable {
     private final AtomicReference<AgentStatus> status = new AtomicReference<>(AgentStatus.STARTED);
     private final URI serverUri;
     private final Server server;
-    private final LzyFsServer lzyFs;
+    private final LzyFsServerLegacy lzyFs;
     private final LzyContext context;
 
     protected LzyAgent(LzyAgentConfig config, String agentName, BindableService... agentServices)
@@ -78,7 +78,7 @@ public class LzyAgent implements Closeable {
         server = nettyServerBuilder.build();
         server.start();
 
-        lzyFs = new LzyFsServer(
+        lzyFs = new LzyFsServerLegacy(
             config.getAgentId(),
             config.getRoot().toString(),
             new URI(LzyFs.scheme(), null, config.getAgentHost(), config.getFsPort(), null, null, null),
@@ -264,7 +264,7 @@ public class LzyAgent implements Closeable {
         return context;
     }
 
-    public LzyFsServer fs() {
+    public LzyFsServerLegacy fs() {
         return lzyFs;
     }
 

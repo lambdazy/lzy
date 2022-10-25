@@ -1,9 +1,7 @@
 package ai.lzy.model.scheduler;
 
-import ai.lzy.util.auth.credentials.JwtUtils;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.util.grpc.ClientHeaderInterceptor;
-import ai.lzy.util.grpc.GrpcHeaders;
+import ai.lzy.util.auth.credentials.CredentialsUtils;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.scheduler.SchedulerPrivateApi;
 import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress;
 import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress.Executing;
@@ -14,10 +12,7 @@ import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.StringReader;
 import java.time.Duration;
-import java.time.Instant;
-import java.util.Date;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
@@ -25,6 +20,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 
 public class SchedulerAgent extends Thread {
@@ -51,20 +49,16 @@ public class SchedulerAgent extends Thread {
         this.heartbeatPeriod = heartbeatPeriod;
         this.apiPort = apiPort;
 
-        String jwt;
+        RenewableJwt jwt;
         try {
-            jwt = JwtUtils.buildJWT(servantId, "INTERNAL", Date.from(Instant.now()), JwtUtils.afterDays(7),
-                new StringReader(iamPrivateKey));
+            jwt = new RenewableJwt(servantId, "INTERNAL", Duration.ofDays(1),
+                CredentialsUtils.readPrivateKey(iamPrivateKey));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
 
-        channel = ChannelBuilder.forAddress(schedulerAddress)
-            .usePlaintext()
-            .enableRetry(SchedulerPrivateGrpc.SERVICE_NAME)
-            .build();
-        stub = SchedulerPrivateGrpc.newBlockingStub(channel)
-            .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> jwt));
+        channel = newGrpcChannel(schedulerAddress, SchedulerPrivateGrpc.SERVICE_NAME);
+        stub = newBlockingClient(SchedulerPrivateGrpc.newBlockingStub(channel), "SA", () -> jwt.get().token());
     }
 
     public void start() {

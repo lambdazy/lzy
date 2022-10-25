@@ -24,7 +24,7 @@ public class DirectChannelController implements ChannelController {
         switch (endpoint.slotSpec().direction()) {
             case INPUT -> { // Receiver
                 if (!channelGraph.senders().isEmpty()) {
-                    channelGraph.link(channelGraph.firstSender(), endpoint);
+                    channelGraph.link(channelGraph.firstSender(), endpoint); // throws ChannelException on error
                     connected.add(channelGraph.firstSender());
                 } else {
                     channelGraph.addReceiver(endpoint);
@@ -37,13 +37,12 @@ public class DirectChannelController implements ChannelController {
                 }
                 // TODO(d-kruchinin): is here bug? iterate over all receivers
                 if (!channelGraph.receivers().isEmpty()) {
-                    channelGraph.link(endpoint, channelGraph.firstReceiver());
+                    channelGraph.link(endpoint, channelGraph.firstReceiver()); // throws ChannelException on error
                     connected.add(channelGraph.firstReceiver());
                 } else {
                     channelGraph.addSender(endpoint);
                 }
             }
-            default -> throw new IllegalStateException("Unexpected slot direction: " + endpoint.slotSpec().direction());
         }
         return connected.stream();
     }
@@ -56,7 +55,6 @@ public class DirectChannelController implements ChannelController {
         switch (endpoint.slotSpec().direction()) {
             case INPUT -> channelGraph.removeReceiver(endpoint);
             case OUTPUT -> channelGraph.removeSender(endpoint);
-            default -> throw new IllegalStateException("Unexpected slot direction: " + endpoint.slotSpec().direction());
         }
     }
 

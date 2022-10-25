@@ -34,7 +34,7 @@ class CatboostPoolSerializer(Serializer):
                     break
                 dest.write(data)
 
-    def deserialize(self, source: BinaryIO, typ: Type) -> T:
+    def deserialize(self, source: BinaryIO, typ: Type[T]) -> T:
         with tempfile.NamedTemporaryFile() as handle:
             while True:
                 data = source.read(8096)
