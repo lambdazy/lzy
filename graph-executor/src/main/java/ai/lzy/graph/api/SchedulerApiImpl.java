@@ -75,7 +75,6 @@ public class SchedulerApiImpl implements SchedulerApi {
     }
 
     @PreDestroy
-    @Override
     public void shutdown() {
         GrpcChannels.awaitTermination(channel, Duration.ofSeconds(10), getClass());
     }
