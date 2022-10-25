@@ -147,13 +147,13 @@ public class PortalTest {
             throw new RuntimeException(e);
         }
 
-        var internalUserCredentials = iamTestContext.getClientConfig().createCredentials();
+        var internalUserCredentials = iamTestContext.getClientConfig().createRenewableToken();
 
         unauthorizedPortalClient = LzyPortalGrpc.newBlockingStub(
             newGrpcChannel("localhost", config.getPortalApiPort(), LzyPortalGrpc.SERVICE_NAME));
 
         authorizedPortalClient = newBlockingClient(unauthorizedPortalClient, "TestClient",
-            internalUserCredentials::token);
+            () -> internalUserCredentials.get().token());
 
         portalFsStub = LzyFsGrpc.newBlockingStub(
             newGrpcChannel("localhost", config.getFsApiPort(), LzyFsGrpc.SERVICE_NAME));

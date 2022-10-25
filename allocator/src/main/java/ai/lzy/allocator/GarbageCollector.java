@@ -9,6 +9,7 @@ import ai.lzy.allocator.model.Vm;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import jakarta.inject.Inject;
@@ -36,14 +37,14 @@ public class GarbageCollector extends TimerTask {
 
     @Inject
     public GarbageCollector(VmDao dao, OperationDao operations, VmAllocator allocator, ServiceConfig config,
-                            AllocatorDataSource storage, @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel)
+                            AllocatorDataSource storage, @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
+                            @Named("AllocatorIamToken") RenewableJwt iamToken)
     {
         this.dao = dao;
         this.operations = operations;
         this.allocator = allocator;
         this.storage = storage;
-        this.subjectClient = new SubjectServiceGrpcClient(AllocatorMain.APP, iamChannel,
-            config.getIam()::createCredentials);
+        this.subjectClient = new SubjectServiceGrpcClient(AllocatorMain.APP, iamChannel, iamToken::get);
 
         timer.scheduleAtFixedRate(this, config.getGcPeriod().toMillis(), config.getGcPeriod().toMillis());
     }

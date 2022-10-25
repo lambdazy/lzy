@@ -3,6 +3,8 @@ package ai.lzy.graph.api;
 import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.graph.model.TaskDescription;
 import ai.lzy.model.TaskDesc;
+import ai.lzy.util.auth.credentials.RenewableJwt;
+import ai.lzy.util.grpc.GrpcChannels;
 import ai.lzy.v1.scheduler.Scheduler.TaskStatus;
 import ai.lzy.v1.scheduler.SchedulerApi.TaskScheduleRequest;
 import ai.lzy.v1.scheduler.SchedulerApi.TaskStatusRequest;
@@ -13,8 +15,12 @@ import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.jetbrains.annotations.Nullable;
+
+import java.time.Duration;
+import javax.annotation.PreDestroy;
 
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
@@ -25,12 +31,11 @@ public class SchedulerApiImpl implements SchedulerApi {
     private final ManagedChannel channel;
 
     @Inject
-    public SchedulerApiImpl(ServiceConfig config) {
+    public SchedulerApiImpl(ServiceConfig config, @Named("GraphExecutorIamToken") RenewableJwt iamToken) {
         channel = newGrpcChannel(config.getScheduler().getHost(), config.getScheduler().getPort(),
             SchedulerGrpc.SERVICE_NAME);
 
-        final var credentials = config.getAuth().createCredentials();
-        stub = newBlockingClient(SchedulerGrpc.newBlockingStub(channel), "LzyScheduler", credentials::token);
+        stub = newBlockingClient(SchedulerGrpc.newBlockingStub(channel), "LzyScheduler", () -> iamToken.get().token());
     }
 
     @Override
@@ -68,5 +73,10 @@ public class SchedulerApiImpl implements SchedulerApi {
             .setIssue("Killing by GraphExecutor")
             .build());
         return res.getStatus();
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        GrpcChannels.awaitTermination(channel, Duration.ofSeconds(10), getClass());
     }
 }

@@ -3,7 +3,7 @@ package ai.lzy.test.impl;
 import ai.lzy.storage.LzyStorage;
 import ai.lzy.storage.StorageConfig;
 import ai.lzy.test.LzyStorageTestContext;
-import ai.lzy.util.auth.credentials.JwtCredentials;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
@@ -70,7 +70,7 @@ public class StorageThreadContext implements LzyStorageTestContext {
         props.put("storage.s3.memory.enabled", "true");
         props.put("storage.s3.memory.port", S3_PORT);
 
-        JwtCredentials internalUserCreds;
+        RenewableJwt internalUserCreds;
 
         try (ApplicationContext context = ApplicationContext.run(PropertySource.of(props))) {
             var logger = LogManager.getLogger(SnapshotApi.class);
@@ -84,7 +84,7 @@ public class StorageThreadContext implements LzyStorageTestContext {
             }
 
             var config = context.getBean(StorageConfig.class);
-            internalUserCreds = config.getIam().createCredentials();
+            internalUserCreds = config.getIam().createRenewableToken();
         }
 
         var channel = ChannelBuilder.forAddress(address())
@@ -95,7 +95,8 @@ public class StorageThreadContext implements LzyStorageTestContext {
         client = LzyStorageServiceGrpc.newBlockingStub(channel)
             .withWaitForReady()
             .withDeadlineAfter(STORAGE_STARTUP_TIME.getSeconds(), TimeUnit.SECONDS)
-            .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, internalUserCreds::token));
+            .withInterceptors(ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION,
+                                                             () -> internalUserCreds.get().token()));
 
         while (channel.getState(true) != ConnectivityState.READY) {
             LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(100));

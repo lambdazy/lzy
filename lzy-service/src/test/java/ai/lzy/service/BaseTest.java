@@ -8,8 +8,8 @@ import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.storage.test.BaseTestWithStorage;
-import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.JwtUtils;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
 import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
@@ -27,7 +27,11 @@ import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -65,7 +69,7 @@ public class BaseTest {
     private LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub unauthorizedWorkflowClient;
     protected LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub authorizedWorkflowClient;
 
-    protected JwtCredentials internalUserCredentials;
+    protected RenewableJwt internalUserCredentials;
     protected AuthServerInterceptor authInterceptor;
 
     @Before
@@ -112,9 +116,9 @@ public class BaseTest {
         lzyServiceChannel = newGrpcChannel(workflowAddress, LzyWorkflowServiceGrpc.SERVICE_NAME);
         unauthorizedWorkflowClient = LzyWorkflowServiceGrpc.newBlockingStub(lzyServiceChannel);
 
-        internalUserCredentials = config.getIam().createCredentials();
+        internalUserCredentials = config.getIam().createRenewableToken();
         authorizedWorkflowClient = newBlockingClient(unauthorizedWorkflowClient, "TestClient",
-                                                     internalUserCredentials::token);
+            () -> internalUserCredentials.get().token());
     }
 
     @After
