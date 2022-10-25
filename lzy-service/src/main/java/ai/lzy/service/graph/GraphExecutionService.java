@@ -3,7 +3,7 @@ package ai.lzy.service.graph;
 import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.WorkflowDao;
-import ai.lzy.util.auth.credentials.JwtCredentials;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.VmPoolServiceGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.graph.GraphExecutorApi;
@@ -36,7 +36,7 @@ import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 public class GraphExecutionService {
     private static final Logger LOG = LogManager.getLogger(GraphExecutionService.class);
 
-    private final JwtCredentials internalUserCredentials;
+    private final RenewableJwt internalUserCredentials;
 
     private final WorkflowDao workflowDao;
 
@@ -47,7 +47,7 @@ public class GraphExecutionService {
 
     private final Map<String, ManagedChannel> portalChannelForExecution = new ConcurrentHashMap<>();
 
-    public GraphExecutionService(JwtCredentials internalUserCredentials,
+    public GraphExecutionService(RenewableJwt internalUserCredentials,
                                  WorkflowDao workflowDao, ExecutionDao executionDao,
                                  VmPoolServiceGrpc.VmPoolServiceBlockingStub vmPoolClient,
                                  GraphExecutorGrpc.GraphExecutorBlockingStub graphExecutorClient,
@@ -119,7 +119,7 @@ public class GraphExecutionService {
         }
 
         var portalClient = newBlockingClient(LzyPortalGrpc.newBlockingStub(portalChannel),
-            APP, internalUserCredentials::token);
+            APP, () -> internalUserCredentials.get().token());
 
         builder.build(graphExecutionState, portalClient);
 

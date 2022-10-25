@@ -141,10 +141,10 @@ public class StorageTest extends BaseTestWithIam {
 
     @Test
     public void testSuccess() throws IOException {
-        var credentials = storageConfig.getIam().createCredentials();
+        var credentials = storageConfig.getIam().createRenewableToken();
 
         var client = storageClient.withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
+            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> credentials.get().token()));
 
         var resp = client.createS3Bucket(LSS.CreateS3BucketRequest.newBuilder()
             .setUserId("test-user")

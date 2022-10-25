@@ -65,9 +65,9 @@ public class ChannelManagerTest extends BaseTestWithIam {
         unauthorizedChannelManagerPrivateClient = newBlockingClient(
             LzyChannelManagerPrivateGrpc.newBlockingStub(channel), "NoAuthTest", null);
 
-        var internalUser = channelManagerConfig.getIam().createCredentials();
+        var internalUser = channelManagerConfig.getIam().createRenewableToken();
         authorizedChannelManagerPrivateClient = newBlockingClient(
-            unauthorizedChannelManagerPrivateClient, "AuthTest", internalUser::token);
+            unauthorizedChannelManagerPrivateClient, "AuthTest", () -> internalUser.get().token());
     }
 
     @After

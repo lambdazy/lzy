@@ -31,4 +31,12 @@ public final class Cat implements LzyCommand {
         }
         return 0;
     }
+
+    public static void main(String[] args) throws Exception {
+        var cmd = new CommandLine.Builder().addArg("fictive");
+        for (String arg : args) {
+            cmd.addArg(arg);
+        }
+        System.exit(new Cat().execute(cmd.build()));
+    }
 }

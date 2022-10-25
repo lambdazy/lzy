@@ -7,16 +7,15 @@ import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.config.PortalConfig;
-import ai.lzy.servant.agents.LzyAgentConfig;
-import ai.lzy.servant.agents.LzyServant;
+import ai.lzy.servant.agents.Worker;
 import ai.lzy.test.GrpcUtils;
 import ai.lzy.util.auth.credentials.JwtUtils;
+import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.common.LMS;
-import ai.lzy.v1.deprecated.LzyTask;
-import ai.lzy.v1.deprecated.LzyZygote;
 import ai.lzy.v1.fs.LzyFsApi;
 import ai.lzy.v1.fs.LzyFsGrpc;
 import ai.lzy.v1.portal.LzyPortal;
@@ -38,16 +37,10 @@ import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.file.Path;
+import java.nio.file.Files;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -70,14 +63,17 @@ public class PortalTest {
 
     private final ApplicationContext context = ApplicationContext.run("test");
 
-    protected ServerMock server;
+    protected SchedulerPrivateApiMock schedulerServer;
     private ChannelManagerMock channelManager;
-    private Map<String, LzyServant> servants;
+    private Map<String, Worker> workers;
     private Portal portal;
 
     private static final int S3_PORT = 8001;
     protected static final String S3_ADDRESS = "http://localhost:" + S3_PORT;
     protected static final String BUCKET_NAME = "lzy-bucket";
+
+    private String allocatorAndSchedulerAddress;
+    private String channelManagerAddress;
 
     private S3Mock s3;
 
@@ -91,28 +87,31 @@ public class PortalTest {
         var iamDbConfig = DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo());
         iamTestContext.setUp(iamDbConfig);
         startS3();
-        server = new ServerMock();
-        server.startup();
-        servants = new HashMap<>();
         var config = context.getBean(PortalConfig.class);
-        channelManager = new ChannelManagerMock(HostAndPort.fromString(config.getChannelManagerAddress()));
+        allocatorAndSchedulerAddress = config.getAllocatorAddress();
+        String[] hostAndPort = allocatorAndSchedulerAddress.split(":");
+        schedulerServer = new SchedulerPrivateApiMock(Integer.parseInt(hostAndPort[1]));
+        schedulerServer.start();
+        workers = new HashMap<>();
+        channelManagerAddress = config.getChannelManagerAddress();
+        channelManager = new ChannelManagerMock(HostAndPort.fromString(channelManagerAddress));
         channelManager.start();
         startPortal(config);
     }
 
     @After
-    public void after() throws InterruptedException, IOException {
+    public void after() throws InterruptedException {
         iamTestContext.after();
         stopS3();
         shutdownAndAwaitTerminationPortal();
         channelManager.stop();
-        server.stop();
-        for (var servant : servants.values()) {
-            servant.close();
+        schedulerServer.stop();
+        for (var servant : workers.values()) {
+            servant.stop();
         }
-        server = null;
+        schedulerServer = null;
         channelManager = null;
-        servants = null;
+        workers = null;
     }
 
     private void startS3() {
@@ -138,8 +137,8 @@ public class PortalTest {
         createChannel("portal:stderr");
 
         try {
-            var agent = new AllocatorAgent("portal_token", "portal_vm",
-                "localhost:" + server.port, Duration.ofSeconds(5), "localhost");
+            var agent = new AllocatorAgent("portal_token", "portal_vm", allocatorAndSchedulerAddress,
+                Duration.ofSeconds(5), "localhost:" + config.getPortalApiPort());
 
             portal = new Portal(config, agent, "portal_token");
             portal.start();
@@ -147,13 +146,13 @@ public class PortalTest {
             throw new RuntimeException(e);
         }
 
-        var internalUserCredentials = iamTestContext.getClientConfig().createCredentials();
+        var internalUserCredentials = iamTestContext.getClientConfig().createRenewableToken();
 
         unauthorizedPortalClient = LzyPortalGrpc.newBlockingStub(
             newGrpcChannel("localhost", config.getPortalApiPort(), LzyPortalGrpc.SERVICE_NAME));
 
         authorizedPortalClient = newBlockingClient(unauthorizedPortalClient, "TestClient",
-            internalUserCredentials::token);
+            () -> internalUserCredentials.get().token());
 
         portalFsStub = LzyFsGrpc.newBlockingStub(
             newGrpcChannel("localhost", config.getFsApiPort(), LzyFsGrpc.SERVICE_NAME));
@@ -222,24 +221,23 @@ public class PortalTest {
         }
     }
 
-    protected String prepareTask(int taskId, boolean newServant, boolean isInput, String snapshotId) throws Exception {
-        String taskName = "task_" + taskId;
+    protected String prepareTask(int taskNum, boolean newWorker, boolean isInput, String snapshotId) {
+        String taskId = "task_" + taskNum;
 
-        String servant = null;
-        if (newServant) {
-            servant = "servant_" + taskId;
-            startServant(servant);
-            server.waitServantStart(servant);
+        String worker = null;
+        if (newWorker) {
+            worker = "servant_" + taskNum;
+            startWorker(worker);
         }
 
-        String channelName = "channel_" + taskId;
-        String[] stdChannelNames = {taskName + ":stdout", taskName + ":stderr"};
+        String channelName = "channel_" + taskNum;
+        String[] stdChannelNames = {taskId + ":stdout", taskId + ":stderr"};
 
         createChannel(channelName);
         createChannel(stdChannelNames[0]);
         createChannel(stdChannelNames[1]);
 
-        String slotName = "/portal_slot_" + taskId;
+        String slotName = "/portal_slot_" + taskNum;
         LMS.Slot slot = isInput ? GrpcUtils.makeInputFileSlot(slotName) : GrpcUtils.makeOutputFileSlot(slotName);
 
         openPortalSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
@@ -249,69 +247,73 @@ public class PortalTest {
                 .setChannelId(channelName)
                 .build())
             .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
-                .setSlot(GrpcUtils.makeInputFileSlot("/portal_%s:stdout".formatted(taskName)))
+                .setSlot(GrpcUtils.makeInputFileSlot("/portal_%s:stdout".formatted(taskId)))
                 .setChannelId(stdChannelNames[0])
-                .setStdout(GrpcUtils.makeStdoutStorage(taskName))
+                .setStdout(GrpcUtils.makeStdoutStorage(taskId))
                 .build())
             .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
-                .setSlot(GrpcUtils.makeInputFileSlot("/portal_%s:stderr".formatted(taskName)))
+                .setSlot(GrpcUtils.makeInputFileSlot("/portal_%s:stderr".formatted(taskId)))
                 .setChannelId(stdChannelNames[1])
-                .setStderr(GrpcUtils.makeStderrStorage(taskName))
+                .setStderr(GrpcUtils.makeStderrStorage(taskId))
                 .build())
             .build());
 
-        return servant;
+        return worker;
     }
 
-    protected String startTask(int taskNum, String fuze, LMS.Slot slot, String specifiedServant) {
+    protected String startTask(int taskNum, String fuze, LMS.Slot slot, String specifiedWorker) {
         String taskId = "task_" + taskNum;
-        String actualServant = Objects.isNull(specifiedServant) ? "servant_" + taskNum : specifiedServant;
+        String actualWorker = Objects.isNull(specifiedWorker) ? "servant_" + taskNum : specifiedWorker;
 
-        server.start(actualServant,
-            LzyTask.TaskSpec.newBuilder()
-                .setTid(taskId)
-                .setZygote(LzyZygote.Zygote.newBuilder()
+        schedulerServer.startWorker(actualWorker,
+            LMO.TaskDesc.newBuilder()
+                .setOperation(LMO.Operation.newBuilder()
                     .setName("zygote_" + taskNum)
+                    .setCommand(fuze)
+                    .setStdout(LMO.Operation.StdSlotDesc.newBuilder()
+                        .setName("/dev/stdout")
+                        .setChannelId(taskId + ":stdout")
+                        .build())
+                    .setStderr(LMO.Operation.StdSlotDesc.newBuilder()
+                        .setName("/dev/stderr")
+                        .setChannelId(taskId + ":stderr")
+                        .build())
                     .addSlots(slot)
-                    .setFuze(fuze)
                     .build())
-                .addAssignments(LzyTask.SlotAssignment.newBuilder()
-                    .setTaskId(taskId)
-                    .setSlot(slot)
-                    .setBinding("channel_" + taskNum)
+                .addSlotAssignments(LMO.SlotToChannelAssignment.newBuilder()
+                    .setSlotName(slot.getName())
+                    .setChannelId("channel_" + taskNum)
                     .build())
-                .addAssignments(LzyTask.SlotAssignment.newBuilder()
-                    .setTaskId(taskId)
-                    .setSlot(GrpcUtils.makeOutputPipeSlot("/dev/stdout"))
-                    .setBinding(taskId + ":stdout")
+                .addSlotAssignments(LMO.SlotToChannelAssignment.newBuilder()
+                    .setSlotName("/dev/stdout")
+                    .setChannelId(taskId + ":stdout")
                     .build())
-                .addAssignments(LzyTask.SlotAssignment.newBuilder()
-                    .setTaskId(taskId)
-                    .setSlot(GrpcUtils.makeOutputPipeSlot("/dev/stderr"))
-                    .setBinding(taskId + ":stderr")
+                .addSlotAssignments(LMO.SlotToChannelAssignment.newBuilder()
+                    .setSlotName("/dev/stderr")
+                    .setChannelId(taskId + ":stderr")
                     .build())
-                .build(),
-            GrpcUtils.SuccessStreamObserver.wrap(
-                state -> System.out.println("Progress: " + JsonUtils.printSingleLine(state))));
+                .build(), taskId, "execution-id");
 
         return taskId;
     }
 
-    protected void startServant(String servantId) throws URISyntaxException, IOException {
-        var servant = new LzyServant(LzyAgentConfig.builder()
-            .serverAddress(URI.create("grpc://localhost:" + server.port()))
-            .whiteboardAddress(URI.create("grpc://localhost:" + GrpcUtils.rollPort()))
-            .channelManagerAddress(URI.create("grpc://localhost:" + channelManager.port()))
-            .servantId(servantId)
-            .token("token_" + servantId)
-            .bucket("bucket_" + servantId)
-            .scheme("servant")
-            .agentHost("localhost")
-            .agentPort(GrpcUtils.rollPort())
-            .fsPort(GrpcUtils.rollPort())
-            .root(Path.of("/tmp/lzy_" + servantId + "/"))
-            .build());
-        servants.put(servantId, servant);
+    protected void startWorker(String workerId) {
+        var allocatorDuration = Duration.ofSeconds(5);
+        var schedulerDuration = Duration.ofSeconds(1);
+        String privateKey;
+        try {
+            var workerKeys = RsaUtils.generateRsaKeys();
+            var publicKey = Files.readString(workerKeys.publicKeyPath());
+            privateKey = Files.readString(workerKeys.privateKeyPath());
+        } catch (Exception e) {
+            LOG.error("Cannot build credentials for portal", e);
+            throw new RuntimeException(e);
+        }
+        var worker = new Worker("workflow", workerId, UUID.randomUUID().toString(), allocatorAndSchedulerAddress,
+            allocatorAndSchedulerAddress, allocatorDuration, schedulerDuration,
+            GrpcUtils.rollPort(), GrpcUtils.rollPort(), "/tmp/lzy_" + workerId + "/", channelManagerAddress,
+            "localhost", privateKey, "token_" + workerId);
+        workers.put(workerId, worker);
     }
 
     protected void waitPortalCompleted() {

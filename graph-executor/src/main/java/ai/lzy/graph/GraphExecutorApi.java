@@ -11,6 +11,7 @@ import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.model.db.exceptions.DaoException;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.graph.GraphExecutor;
 import ai.lzy.v1.graph.GraphExecutorApi.*;
 import ai.lzy.v1.graph.GraphExecutorGrpc;
@@ -51,6 +52,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
     @Inject
     public GraphExecutorApi(GraphExecutionDao dao, ServiceConfig config,
                             @Named("GraphExecutorIamGrpcChannel") ManagedChannel iamChannel,
+                            @Named("GraphExecutorIamToken") RenewableJwt iamToken,
                             GraphBuilder graphBuilder, QueueManager queueManager, SchedulerApi schedulerApi)
     {
         this.iamChannel = iamChannel;

@@ -78,16 +78,16 @@ public class AllocatorImpl implements ServantsAllocator {
         this.iamChannel = newGrpcChannel(authConfig.getAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
 
         allocatorChannel = newGrpcChannel(config.getAllocatorAddress(), AllocatorGrpc.SERVICE_NAME);
-        final var credentials = authConfig.createCredentials();
+        final var credentials = authConfig.createRenewableToken();
         allocator = newBlockingClient(AllocatorGrpc.newBlockingStub(allocatorChannel), SchedulerApi.APP,
-            credentials::token);
+            () -> credentials.get().token());
 
         opChannel = newGrpcChannel(config.getAllocatorAddress(), LongRunningServiceGrpc.SERVICE_NAME);
         operations = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(opChannel), SchedulerApi.APP,
-            credentials::token);
+            () -> credentials.get().token());
 
-        subjectClient = new SubjectServiceGrpcClient(SchedulerApi.APP, iamChannel, authConfig::createCredentials);
-        abClient = new AccessBindingServiceGrpcClient(SchedulerApi.APP, iamChannel, authConfig::createCredentials);
+        subjectClient = new SubjectServiceGrpcClient(SchedulerApi.APP, iamChannel, credentials::get);
+        abClient = new AccessBindingServiceGrpcClient(SchedulerApi.APP, iamChannel, credentials::get);
     }
 
     @PreDestroy

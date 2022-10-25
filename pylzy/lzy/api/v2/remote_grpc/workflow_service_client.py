@@ -4,7 +4,7 @@ from typing import AsyncIterable, AsyncIterator, List, Optional, Sequence, Tuple
 from grpc.aio import Channel
 
 from ai.lzy.v1.common.s3_pb2 import S3Locator
-from ai.lzy.v1.workflow.workflow_pb2 import Graph, VmPoolSpec
+from ai.lzy.v1.workflow.workflow_pb2 import Graph, VmPoolSpec, WhiteboardField
 from ai.lzy.v1.workflow.workflow_service_pb2 import (
     AttachWorkflowRequest,
     CreateWorkflowRequest,
@@ -20,6 +20,9 @@ from ai.lzy.v1.workflow.workflow_service_pb2 import (
     ReadStdSlotsRequest,
     ReadStdSlotsResponse,
     StopGraphRequest,
+    CreateWhiteboardRequest,
+    CreateWhiteboardResponse,
+    LinkWhiteboardRequest
 )
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceStub
 from lzy.api.v2.remote_grpc.model import converter
@@ -27,6 +30,7 @@ from lzy.api.v2.remote_grpc.model.converter.storage_creds import to
 from lzy.api.v2.remote_grpc.utils import add_headers_interceptor, build_channel
 from lzy.storage.api import AmazonCredentials, StorageConfig, StorageCredentials
 
+from lzy.api.v2.runtime import WhiteboardField as Wb
 
 @dataclass
 class Waiting:
@@ -202,6 +206,30 @@ class WorkflowServiceClient:
         )
 
         return pools.poolSpecs
+
+    async def create_whiteboard(
+            self,
+            namespace: str,
+            name: str,
+            fields: Sequence[Wb],
+            storage_name: str,
+            tags: Sequence[str]) -> str:
+        request = CreateWhiteboardRequest(name=name, namespace=namespace, storageName=storage_name)
+        request.tags.extend(tags)
+
+        for fld in fields:
+            request.fields.append(
+                WhiteboardField(name=fld.name) if fld.url is None else WhiteboardField(name=fld.name, uri=fld.url)
+            )
+
+        whiteboard: CreateWhiteboardResponse = await self.__stub.CreateWhiteboard(request)
+
+        return whiteboard.whiteboardId
+
+    async def link_whiteboard(self, whiteboard_id: str, field_name: str, storage_uri: str):
+        await self.__stub.LinkWhiteboard(
+            LinkWhiteboardRequest(whiteboardId=whiteboard_id, fieldName=field_name, storageUri=storage_uri)
+        )
 
     async def stop(self):
         await self.__channel.close()

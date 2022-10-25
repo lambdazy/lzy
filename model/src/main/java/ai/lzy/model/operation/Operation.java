@@ -54,10 +54,10 @@ public record Operation(
         }
 
         StdSlotDesc stderr = null;
-        if (operation.hasStdout()) {
+        if (operation.hasStderr()) {
             stderr = new StdSlotDesc(
-                operation.getStdout().getName(),
-                operation.getStdout().getChannelId()
+                operation.getStderr().getName(),
+                operation.getStderr().getChannelId()
             );
         }
 

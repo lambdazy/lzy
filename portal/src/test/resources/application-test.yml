@@ -8,3 +8,4 @@ portal:
   fs-api-port: "${random.port}"
   channel-manager-address: "localhost:${random.port}"
   iam-address: "localhost:8443"
+  allocator-address: "localhost:${random.port}"

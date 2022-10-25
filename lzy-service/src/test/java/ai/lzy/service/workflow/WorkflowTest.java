@@ -97,7 +97,7 @@ public class WorkflowTest extends BaseTest {
         var portalAddress = HostAndPort.fromParts("localhost", config.getPortal().getPortalApiPort());
         var portalChannel = newGrpcChannel(portalAddress, LzyPortalGrpc.SERVICE_NAME);
         var portalClient = LzyPortalGrpc.newBlockingStub(portalChannel).withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, internalUserCredentials::token));
+            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> internalUserCredentials.get().token()));
 
         portalClient.status(Empty.getDefaultInstance());
     }

@@ -222,8 +222,10 @@ public class SlotsService {
             final LzySlot slot = slotsManager.slot(slotInstance.taskId(), slotInstance.name());
             if (slot == null) {
                 var msg = "Slot `" + slotInstance.shortDesc() + "` not found.";
-                LOG.error(msg);
-                response.onError(Status.NOT_FOUND.withDescription(msg).asException());
+                LOG.warn(msg);
+                response.onNext(LSA.DestroySlotResponse.getDefaultInstance());
+                response.onCompleted();
+                // response.onError(Status.NOT_FOUND.withDescription(msg).asException());
                 return;
             }
 
