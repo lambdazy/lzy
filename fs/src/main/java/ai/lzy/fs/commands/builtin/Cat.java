@@ -15,11 +15,11 @@ public final class Cat implements LzyCommand {
 
     @Override
     public int execute(CommandLine command) throws Exception {
-        if (command.getArgs().length < 1) {
+        if (command.getArgs().length < 2) {
             throw new IllegalArgumentException("Missing filename");
         }
 
-        final Path file = Paths.get(command.getArgs()[0]).toAbsolutePath();
+        final Path file = Paths.get(command.getArgs()[1]).toAbsolutePath();
         byte[] buffer = new byte[BUFFER_SIZE];
         try (InputStream is = Files.newInputStream(file, StandardOpenOption.READ)) {
             int read;
@@ -33,7 +33,7 @@ public final class Cat implements LzyCommand {
     }
 
     public static void main(String[] args) throws Exception {
-        var cmd = new CommandLine.Builder();
+        var cmd = new CommandLine.Builder().addArg("fictive");
         for (String arg : args) {
             cmd.addArg(arg);
         }
