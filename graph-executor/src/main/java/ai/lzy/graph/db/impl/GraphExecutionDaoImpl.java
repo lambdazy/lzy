@@ -239,7 +239,7 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
         int count = 0;
         st.setString(++count, state.workflowId());
         st.setString(++count, state.workflowName());
-        st.setString(++count, state.workflowName());
+        st.setString(++count, state.userId());
         st.setString(++count, state.id());
         st.setString(++count, state.errorDescription());
         st.setString(++count, state.status().name());

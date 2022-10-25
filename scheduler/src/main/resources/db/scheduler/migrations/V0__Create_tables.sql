@@ -77,7 +77,7 @@ CREATE TABLE task (
     id varchar(255) NOT NULL,
     workflow_id varchar(255) NOT NULL,
     workflow_name varchar(255) NOT NULL,
-    userId varchar(255) NOT NULL,
+    user_id varchar(255) NOT NULL,
     task_description_json varchar(10485760) NOT NULL,
     status task_status NOT NULL,
 

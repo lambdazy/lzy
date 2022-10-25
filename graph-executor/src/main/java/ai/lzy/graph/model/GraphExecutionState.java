@@ -149,7 +149,7 @@ public record GraphExecutionState(
         }
 
         public GraphExecutionStateBuilder withUserId(String userId) {
-            this.userId = id;
+            this.userId = userId;
             return this;
         }
 

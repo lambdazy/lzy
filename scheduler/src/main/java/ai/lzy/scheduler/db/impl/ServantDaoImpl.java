@@ -70,8 +70,8 @@ public class ServantDaoImpl implements ServantDao, ServantMetaStorage {
             " UPDATE servant SET (" + FIELDS + ", acquired) = (?, ?, ?, CAST(? AS servant_status), ?, ?, ?, ?, false) "
                 + " WHERE workflow_name = ? AND  id = ?")) {
             writeState(resource, con, ps);
-            ps.setString(8, resource.workflowName());
-            ps.setString(9, resource.id());
+            ps.setString(9, resource.workflowName());
+            ps.setString(10, resource.id());
             ps.executeUpdate();
         } catch (SQLException | JsonProcessingException e) {
             throw new DaoException(e);
