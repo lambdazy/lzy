@@ -15,6 +15,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.jetbrains.annotations.Nullable;
 
@@ -30,7 +31,7 @@ public class SchedulerApiImpl implements SchedulerApi {
     private final ManagedChannel channel;
 
     @Inject
-    public SchedulerApiImpl(ServiceConfig config, RenewableJwt iamToken) {
+    public SchedulerApiImpl(ServiceConfig config, @Named("GraphExecutorIamToken") RenewableJwt iamToken) {
         channel = newGrpcChannel(config.getScheduler().getHost(), config.getScheduler().getPort(),
             SchedulerGrpc.SERVICE_NAME);
 
