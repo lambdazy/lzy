@@ -1,7 +1,7 @@
 package ai.lzy.scheduler.models;
 
 import ai.lzy.model.operation.Operation;
-import org.apache.curator.shaded.com.google.common.net.HostAndPort;
+import com.google.common.net.HostAndPort;
 
 import javax.annotation.Nullable;
 

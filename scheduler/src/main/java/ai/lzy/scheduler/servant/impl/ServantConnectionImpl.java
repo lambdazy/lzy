@@ -8,9 +8,9 @@ import ai.lzy.scheduler.servant.ServantConnection;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.worker.LWS;
 import ai.lzy.v1.worker.WorkerApiGrpc;
+import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
-import org.apache.curator.shaded.com.google.common.net.HostAndPort;
 
 public class ServantConnectionImpl implements ServantConnection {
     private final ManagedChannel channel;

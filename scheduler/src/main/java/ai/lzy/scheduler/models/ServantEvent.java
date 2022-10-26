@@ -1,6 +1,6 @@
 package ai.lzy.scheduler.models;
 
-import org.apache.curator.shaded.com.google.common.net.HostAndPort;
+import com.google.common.net.HostAndPort;
 import org.jetbrains.annotations.NotNull;
 
 import java.time.Duration;
