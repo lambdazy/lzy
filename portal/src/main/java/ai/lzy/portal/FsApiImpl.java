@@ -6,7 +6,7 @@ import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.SlotInstance;
-import ai.lzy.portal.slots.SnapshotSlotsProvider;
+import ai.lzy.portal.slots.SnapshotProvider;
 import ai.lzy.portal.slots.StdoutSlot;
 import ai.lzy.v1.fs.LzyFsApi;
 import ai.lzy.v1.fs.LzyFsApi.ConnectSlotRequest;
@@ -102,7 +102,7 @@ class FsApiImpl extends LzyFsImplBase {
 
         boolean done = false;
 
-        SnapshotSlotsProvider snapshots = portal.getSnapshots();
+        SnapshotProvider snapshots = portal.getSnapshots();
         LzyInputSlot inputSlot = snapshots.getInputSlot(slotName);
         LzyOutputSlot outputSlot = snapshots.getOutputSlot(slotName);
         if (inputSlot != null) {
@@ -177,7 +177,7 @@ class FsApiImpl extends LzyFsImplBase {
             response.onCompleted();
         };
 
-        SnapshotSlotsProvider snapshots = portal.getSnapshots();
+        SnapshotProvider snapshots = portal.getSnapshots();
         for (var slot : snapshots.getInputSlots()) {
             if (slot.name().equals(slotInstance.name())) {
                 reply.accept(slot);
@@ -217,7 +217,7 @@ class FsApiImpl extends LzyFsImplBase {
 
         boolean done = false;
 
-        SnapshotSlotsProvider snapshots = portal.getSnapshots();
+        SnapshotProvider snapshots = portal.getSnapshots();
         LzyInputSlot inputSlot = snapshots.getInputSlot(slotName);
         LzyOutputSlot outputSlot = snapshots.getOutputSlot(slotName);
         if (inputSlot != null) {

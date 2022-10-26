@@ -4,7 +4,6 @@ import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.portal.LzyPortalApi;
-import com.google.protobuf.Empty;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import org.junit.Assert;
@@ -24,7 +23,7 @@ public class PortalAuthTest extends PortalTestBase {
                 )));
 
                 add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedPortalClient.status(
-                    Empty.getDefaultInstance()
+                    LzyPortalApi.PortalStatusRequest.newBuilder().build()
                 )));
             }
         };
@@ -44,7 +43,9 @@ public class PortalAuthTest extends PortalTestBase {
                     LzyPortalApi.OpenSlotsRequest.newBuilder().build()
                 )));
 
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> client.status(Empty.getDefaultInstance())));
+                add(Assert.assertThrows(StatusRuntimeException.class, () -> client.status(
+                    LzyPortalApi.PortalStatusRequest.newBuilder().build()
+                )));
             }
         };
 

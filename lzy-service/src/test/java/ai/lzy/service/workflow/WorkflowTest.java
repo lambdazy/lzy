@@ -4,6 +4,7 @@ import ai.lzy.service.BaseTest;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.portal.LzyPortalApi;
 import ai.lzy.v1.portal.LzyPortalGrpc;
 import ai.lzy.v1.workflow.LWFS;
 import com.google.common.net.HostAndPort;
@@ -99,6 +100,6 @@ public class WorkflowTest extends BaseTest {
         var portalClient = LzyPortalGrpc.newBlockingStub(portalChannel).withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> internalUserCredentials.get().token()));
 
-        portalClient.status(Empty.getDefaultInstance());
+        portalClient.status(LzyPortalApi.PortalStatusRequest.newBuilder().build());
     }
 }
