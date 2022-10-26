@@ -1,4 +1,4 @@
-package ai.lzy.portal;
+package ai.lzy.whiteboard;
 
 import ai.lzy.v1.whiteboard.LWBPS;
 import ai.lzy.v1.whiteboard.LzyWhiteboardPrivateServiceGrpc;

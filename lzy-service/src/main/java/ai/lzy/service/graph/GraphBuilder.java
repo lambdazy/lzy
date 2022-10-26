@@ -132,7 +132,8 @@ class GraphBuilder {
                 .getChannelId();
             var portalInputSlotName = Portal.PORTAL_SLOT_PREFIX + "_" + UUID.randomUUID();
             var dataDescription = slot2dataDescription.get(slotUri);
-            var whiteboardRef = dataDescription.hasWhiteboardRef() ? dataDescription.getWhiteboardRef() : null;
+            var whiteboardRef = Objects.nonNull(dataDescription) && dataDescription.hasWhiteboardRef() ?
+                dataDescription.getWhiteboardRef() : null;
 
             portalSlotToOpen.add(makePortalInputSlot(slotUri, portalInputSlotName, channelId, storageLocator,
                 whiteboardRef));
