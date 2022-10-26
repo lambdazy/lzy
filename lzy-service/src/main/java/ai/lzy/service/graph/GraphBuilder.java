@@ -56,7 +56,7 @@ class GraphBuilder {
 
         Map<String, String> slotName2channelId;
         try {
-            slotName2channelId = createChannelsForDataFlow(workflowName, executionId, dataFlow, portalClient);
+            slotName2channelId = createChannelsForDataFlow(workflowName, executionId, dataFlow, portalClient, state);
         } catch (StatusRuntimeException e) {
             state.fail(e.getStatus(), "Cannot build graph");
             LOG.error("Cannot assign slots to channels for execution: " +
@@ -105,7 +105,8 @@ class GraphBuilder {
 
     private Map<String, String> createChannelsForDataFlow(String workflowName, String executionId,
                                                           List<DataFlowGraph.Data> dataFlow,
-                                                          LzyPortalGrpc.LzyPortalBlockingStub portalClient)
+                                                          LzyPortalGrpc.LzyPortalBlockingStub portalClient,
+                                                          GraphExecutionState state)
     {
         var slotName2channelId = new HashMap<String, String>();
         var partitionBySupplier = dataFlow.stream().collect(Collectors.partitioningBy(data -> data.supplier() != null));
@@ -141,6 +142,7 @@ class GraphBuilder {
         }
 
         Map<String, String> outputSlot2channel;
+        var outputSlotNames = new ArrayList<String>();
 
         synchronized (this) {
             try {
@@ -159,6 +161,7 @@ class GraphBuilder {
             for (var data : withoutChannels) {
                 var slotUri = data.slotUri();
                 var portalOutputSlotName = Portal.PORTAL_SLOT_PREFIX + "_" + UUID.randomUUID();
+                outputSlotNames.add(portalOutputSlotName);
                 var channelId = channelManagerClient
                     .create(makeCreateDirectChannelCommand(executionId, "portal_channel_" + slotUri))
                     .getChannelId();
@@ -177,6 +180,7 @@ class GraphBuilder {
 
             outputSlot2channel.putAll(newChannels);
         }
+        state.setPortalOutputSlots(outputSlotNames);
 
         for (var data : fromPortal) {
             if (data.consumers() != null) {
