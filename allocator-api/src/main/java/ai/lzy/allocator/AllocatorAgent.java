@@ -10,10 +10,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.time.Duration;
-import java.util.Base64;
-import java.util.Objects;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
@@ -35,19 +32,17 @@ public class AllocatorAgent extends TimerTask {
     private final Duration heartbeatPeriod;
     private final Timer timer;
     private final ManagedChannel channel;
-    private final String vmIpAddress;
 
     private final ClientHeaderInterceptor<String> authInterceptor;
 
     public AllocatorAgent(@Nullable String ott, @Nullable String vmId, @Nullable String allocatorAddress,
-                          @Nullable Duration heartbeatPeriod, String vmIpAddress)
+                          @Nullable Duration heartbeatPeriod)
     {
         this.vmId = vmId == null ? System.getenv(VM_ID_KEY) : vmId;
         final var allocAddress = allocatorAddress == null
             ? System.getenv(VM_ALLOCATOR_ADDRESS) : allocatorAddress;
         this.heartbeatPeriod = heartbeatPeriod == null ? Duration.parse(System.getenv(VM_HEARTBEAT_PERIOD))
             : heartbeatPeriod;
-        this.vmIpAddress = vmIpAddress;
 
         channel = newGrpcChannel(allocAddress, AllocatorPrivateGrpc.SERVICE_NAME);
         stub = newBlockingClient(AllocatorPrivateGrpc.newBlockingStub(channel), "AllocatorAgent", null);
@@ -55,7 +50,6 @@ public class AllocatorAgent extends TimerTask {
         ott = ott != null ? ott : System.getenv(VM_ALLOCATOR_OTT);
 
         Objects.requireNonNull(this.vmId);
-        Objects.requireNonNull(this.vmIpAddress);
         Objects.requireNonNull(this.heartbeatPeriod);
         Objects.requireNonNull(ott);
 
@@ -65,15 +59,16 @@ public class AllocatorAgent extends TimerTask {
         timer = new Timer("allocator-agent-timer-" + this.vmId);
     }
 
-    public void start() throws RegisterException {
+    public void start(@Nullable Map<String, String> meta) throws RegisterException {
         LOG.info("Register vm with id '{}' in allocator", vmId);
+        Map<String, String> m = meta == null ? Map.of() : meta;
 
         try {
             //noinspection ResultOfMethodCallIgnored
             stub.withInterceptors(authInterceptor).register(
                 VmAllocatorPrivateApi.RegisterRequest.newBuilder()
                     .setVmId(vmId)
-                    .putMetadata(VM_IP_ADDRESS, vmIpAddress)
+                    .putAllMetadata(m)
                     .build());
         } catch (StatusRuntimeException e) {
             LOG.error("Cannot register allocator", e);
@@ -81,6 +76,10 @@ public class AllocatorAgent extends TimerTask {
         }
 
         timer.scheduleAtFixedRate(this, heartbeatPeriod.toMillis(), heartbeatPeriod.toMillis());
+    }
+
+    public void start() throws RegisterException {
+        start(null);
     }
 
     @Override
