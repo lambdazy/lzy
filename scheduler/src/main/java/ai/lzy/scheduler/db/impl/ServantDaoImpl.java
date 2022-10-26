@@ -12,9 +12,9 @@ import ai.lzy.scheduler.servant.impl.EventQueueManager;
 import ai.lzy.scheduler.servant.impl.ServantImpl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.net.HostAndPort;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import org.apache.curator.shaded.com.google.common.net.HostAndPort;
 import org.jetbrains.annotations.Nullable;
 
 import java.sql.Connection;

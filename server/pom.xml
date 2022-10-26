@@ -146,12 +146,6 @@
             <version>${io.kubernetes.version}</version>
         </dependency>
         <dependency>
-            <artifactId>util-zk</artifactId>
-            <groupId>ai.lzy</groupId>
-            <scope>compile</scope>
-            <version>1.0-SNAPSHOT</version>
-        </dependency>
-        <dependency>
             <artifactId>clickhouse-jdbc</artifactId>
             <groupId>ru.yandex.clickhouse</groupId>
         </dependency>

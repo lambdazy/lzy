@@ -4,8 +4,8 @@ import ai.lzy.model.db.Transaction;
 import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.scheduler.db.ServantEventDao;
 import ai.lzy.scheduler.models.ServantEvent;
+import com.google.common.net.HostAndPort;
 import jakarta.inject.Singleton;
-import org.apache.curator.shaded.com.google.common.net.HostAndPort;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
