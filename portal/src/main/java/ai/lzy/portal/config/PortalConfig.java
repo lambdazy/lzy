@@ -19,6 +19,7 @@ public class PortalConfig {
     private String stdoutChannelId;
     private String stderrChannelId;
     private String channelManagerAddress;
+    private String whiteboardAddress;
 
     private String iamAddress;
     private String iamPrivateKey;

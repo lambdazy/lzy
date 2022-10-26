@@ -8,9 +8,11 @@ import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.portal.LzyPortal;
 import ai.lzy.v1.portal.LzyPortalApi;
+import ai.lzy.v1.workflow.LWF.DataDescription.WhiteboardRef;
 
 import java.net.URI;
 import java.util.Optional;
+import javax.annotation.Nullable;
 
 import static ai.lzy.model.grpc.ProtoConverter.toProto;
 
@@ -20,31 +22,40 @@ public enum ProtoConverter {
     public static LzyPortal.PortalSlotDesc makePortalOutputSlot(String slotUri, String slotName,
                                                                 String channelId, LMS3.S3Locator s3Locator)
     {
-        return makePortalSlot(slotUri, slotName, channelId, LMS.Slot.Direction.OUTPUT, s3Locator);
+        return makePortalSlot(slotUri, slotName, channelId, LMS.Slot.Direction.OUTPUT, s3Locator, null);
     }
 
     public static LzyPortal.PortalSlotDesc makePortalInputSlot(String slotUri, String slotName,
-                                                               String channelId, LMS3.S3Locator s3Locator)
+                                                               String channelId, LMS3.S3Locator s3Locator,
+                                                               @Nullable WhiteboardRef whiteboardRef)
     {
-        return makePortalSlot(slotUri, slotName, channelId, LMS.Slot.Direction.INPUT, s3Locator);
+        return makePortalSlot(slotUri, slotName, channelId, LMS.Slot.Direction.INPUT, s3Locator, whiteboardRef);
     }
 
     public static LzyPortal.PortalSlotDesc makePortalSlot(String slotUri, String slotName, String channelId,
-                                                          LMS.Slot.Direction direction, LMS3.S3Locator s3Locator)
+                                                          LMS.Slot.Direction direction, LMS3.S3Locator s3Locator,
+                                                          @Nullable WhiteboardRef whiteboardRef)
     {
+        var snapshot = LzyPortal.PortalSlotDesc.Snapshot.newBuilder()
+            .setS3(LMS3.S3Locator.newBuilder()
+                .setKey(slotUri)
+                .setBucket(s3Locator.getBucket())
+                .setAmazon(s3Locator.getAmazon()));
+
+        if (whiteboardRef != null) {
+            snapshot.setWhiteboardRef(LzyPortal.PortalSlotDesc.Snapshot.WhiteboardRef.newBuilder()
+                .setWhiteboardId(whiteboardRef.getWhiteboardId())
+                .setFieldName(whiteboardRef.getFieldName()));
+        }
+
         return LzyPortal.PortalSlotDesc.newBuilder()
-            .setSnapshot(LzyPortal.PortalSlotDesc.Snapshot.newBuilder()
-                .setS3(LMS3.S3Locator.newBuilder()
-                    .setKey(slotUri)
-                    .setBucket(s3Locator.getBucket())
-                    .setAmazon(s3Locator.getAmazon())))
             .setSlot(LMS.Slot.newBuilder()
                 .setName(slotName)
                 .setMedia(LMS.Slot.Media.FILE)
                 .setDirection(direction)
-                .setContentType(ai.lzy.model.grpc.ProtoConverter.toProto(DataScheme.PLAIN))
-                .build())
+                .setContentType(toProto(DataScheme.PLAIN)))
             .setChannelId(channelId)
+            .setSnapshot(snapshot)
             .build();
     }
 

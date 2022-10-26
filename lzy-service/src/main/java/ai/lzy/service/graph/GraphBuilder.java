@@ -53,10 +53,14 @@ class GraphBuilder {
         var executionId = state.getExecutionId();
         var workflowName = state.getWorkflowName();
         var dataFlow = state.getDataFlowGraph().getDataFlow();
+        var slot2description = state.getDescriptions().stream()
+            .collect(Collectors.toMap(LWF.DataDescription::getStorageUri, Function.identity()));
+
 
         Map<String, String> slotName2channelId;
         try {
-            slotName2channelId = createChannelsForDataFlow(workflowName, executionId, dataFlow, portalClient);
+            slotName2channelId = createChannelsForDataFlow(workflowName, executionId, dataFlow, slot2description,
+                portalClient);
         } catch (StatusRuntimeException e) {
             state.fail(e.getStatus(), "Cannot build graph");
             LOG.error("Cannot assign slots to channels for execution: " +
@@ -68,9 +72,6 @@ class GraphBuilder {
                 "{ executionId: {}, workflowName: {} }, error: {} ", executionId, workflowName, e.getMessage());
             return;
         }
-
-        var slot2description = state.getDescriptions().stream()
-            .collect(Collectors.toMap(LWF.DataDescription::getStorageUri, Function.identity()));
 
         List<TaskDesc> tasks;
         try {
@@ -105,6 +106,7 @@ class GraphBuilder {
 
     private Map<String, String> createChannelsForDataFlow(String workflowName, String executionId,
                                                           List<DataFlowGraph.Data> dataFlow,
+                                                          Map<String, LWF.DataDescription> slot2dataDescription,
                                                           LzyPortalGrpc.LzyPortalBlockingStub portalClient)
     {
         var slotName2channelId = new HashMap<String, String>();
@@ -129,8 +131,11 @@ class GraphBuilder {
                 .create(makeCreateDirectChannelCommand(executionId, "channel_" + slotUri))
                 .getChannelId();
             var portalInputSlotName = Portal.PORTAL_SLOT_PREFIX + "_" + UUID.randomUUID();
+            var dataDescription = slot2dataDescription.get(slotUri);
+            var whiteboardRef = dataDescription.hasWhiteboardRef() ? dataDescription.getWhiteboardRef() : null;
 
-            portalSlotToOpen.add(makePortalInputSlot(slotUri, portalInputSlotName, channelId, storageLocator));
+            portalSlotToOpen.add(makePortalInputSlot(slotUri, portalInputSlotName, channelId, storageLocator,
+                whiteboardRef));
 
             slotName2channelId.put(data.supplier(), channelId);
             if (data.consumers() != null) {

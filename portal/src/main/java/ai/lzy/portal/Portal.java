@@ -15,6 +15,7 @@ import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
+import ai.lzy.v1.whiteboard.LzyWhiteboardPrivateServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
@@ -34,9 +35,7 @@ import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
 import static ai.lzy.model.UriScheme.LzyFs;
-import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
-import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
-import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
+import static ai.lzy.util.grpc.GrpcUtils.*;
 import static ai.lzy.v1.channel.LzyChannelManagerGrpc.newBlockingStub;
 
 public class Portal {
@@ -55,11 +54,14 @@ public class Portal {
 
     private final ManagedChannel iamChannel;
     private final ManagedChannel channelsManagerChannel;
+    private final ManagedChannel whiteboardChannel;
 
     // services
     private final Server portalServer;
     private final Server slotsServer;
     private final AllocatorAgent allocatorAgent;
+
+    private final LzyWhiteboardPrivateServiceGrpc.LzyWhiteboardPrivateServiceBlockingStub whiteboardClient;
 
     private final RenewableJwt slotsJwt;
     private final Supplier<String> tokenFactory;
@@ -86,11 +88,12 @@ public class Portal {
 
         iamChannel = newGrpcChannel(config.getIamAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
         channelsManagerChannel = newGrpcChannel(config.getChannelManagerAddress(), LzyChannelManagerGrpc.SERVICE_NAME);
+        whiteboardChannel = newGrpcChannel(config.getWhiteboardAddress(), LzyWhiteboardPrivateServiceGrpc.SERVICE_NAME);
 
         var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
 
         portalServer = newGrpcServer(host, portalPort,
-                new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel)))
+            new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel)))
             .addService(ServerInterceptors.intercept(new PortalApiImpl(this), internalOnly))
             .build();
 
@@ -109,6 +112,9 @@ public class Portal {
             tokenFactory = () -> testOnlyToken;
         }
 
+        whiteboardClient = newBlockingClient(LzyWhiteboardPrivateServiceGrpc.newBlockingStub(whiteboardChannel), APP,
+            tokenFactory);
+
         snapshots = new SnapshotSlotsProvider();
         portalId = config.getPortalId();
     }
@@ -117,7 +123,7 @@ public class Portal {
         started = new CountDownLatch(1);
 
         LOG.info("Starting portal with config: { portalId: '{}', host: '{}', port: '{}', slotsPort: '{}', " +
-            "stdoutChannelId: '{}', stderrChannelId: '{}'}",
+                "stdoutChannelId: '{}', stderrChannelId: '{}'}",
             portalId, host, portalPort, slotsPort, stdoutChannelId, stderrChannelId);
 
         try {
@@ -156,6 +162,7 @@ public class Portal {
         LOG.info("Stopping portal");
         iamChannel.shutdown();
         channelsManagerChannel.shutdown();
+        whiteboardChannel.shutdown();
         portalServer.shutdown();
         slotsServer.shutdown();
         allocatorAgent.shutdown();
@@ -164,6 +171,7 @@ public class Portal {
     public void shutdownNow() {
         iamChannel.shutdownNow();
         channelsManagerChannel.shutdownNow();
+        whiteboardChannel.shutdownNow();
         portalServer.shutdownNow();
         slotsServer.shutdownNow();
         allocatorAgent.shutdown();
@@ -184,6 +192,10 @@ public class Portal {
 
     public SlotsManager getSlotManager() {
         return slotsManager;
+    }
+
+    public LzyWhiteboardPrivateServiceGrpc.LzyWhiteboardPrivateServiceBlockingStub getWhiteboardClient() {
+        return whiteboardClient;
     }
 
     public String getPortalId() {

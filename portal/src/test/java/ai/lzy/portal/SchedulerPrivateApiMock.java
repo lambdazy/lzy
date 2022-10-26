@@ -35,6 +35,7 @@ class SchedulerPrivateApiMock extends SchedulerPrivateGrpc.SchedulerPrivateImplB
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(this)
             .addService(new AllocatorPrivateAPIMock())
+            .addService(new WhiteboardPrivateApiMock())
             .build();
     }
 

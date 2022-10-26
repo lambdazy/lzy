@@ -9,3 +9,4 @@ portal:
   channel-manager-address: "localhost:${random.port}"
   iam-address: "localhost:8443"
   allocator-address: "localhost:${random.port}"
+  whiteboard-address: "${portal.allocator-address}"
