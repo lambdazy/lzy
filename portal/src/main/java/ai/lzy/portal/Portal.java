@@ -59,6 +59,7 @@ public class Portal {
     // services
     private final Server portalServer;
     private final Server slotsServer;
+    private final PortalSlotsService portalSlotsService;
     private final AllocatorAgent allocatorAgent;
 
     private final RenewableJwt slotsJwt;
@@ -82,7 +83,7 @@ public class Portal {
 
         host = config.getHost();
         portalPort = config.getPortalApiPort();
-        slotsPort = config.getFsApiPort();
+        slotsPort = config.getSlotsApiPort();
 
         iamChannel = newGrpcChannel(config.getIamAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
         channelsManagerChannel = newGrpcChannel(config.getChannelManagerAddress(), LzyChannelManagerGrpc.SERVICE_NAME);
@@ -94,8 +95,12 @@ public class Portal {
             .addService(ServerInterceptors.intercept(new PortalApiImpl(this), internalOnly))
             .build();
 
+        portalSlotsService = new PortalSlotsService(this);
+
         slotsServer = newGrpcServer(host, slotsPort, GrpcUtils.NO_AUTH)
-            .addService(new FsApiImpl(this))
+            .addService(portalSlotsService.getSlotsApi())
+            .addService(portalSlotsService.getLongrunningApi())
+            .addService(portalSlotsService.getLegacyWrapper())
             .build();
 
         allocatorAgent = agent;
@@ -157,6 +162,7 @@ public class Portal {
         iamChannel.shutdown();
         channelsManagerChannel.shutdown();
         portalServer.shutdown();
+        portalSlotsService.shutdown();
         slotsServer.shutdown();
         allocatorAgent.shutdown();
     }
@@ -165,6 +171,7 @@ public class Portal {
         iamChannel.shutdownNow();
         channelsManagerChannel.shutdownNow();
         portalServer.shutdownNow();
+        portalSlotsService.shutdown();
         slotsServer.shutdownNow();
         allocatorAgent.shutdown();
     }

@@ -6,9 +6,11 @@ import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.longrunning.Operation;
+import ai.lzy.model.UriScheme;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.util.grpc.ContextAwareTask;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.fs.LzyFsApi;
@@ -18,9 +20,11 @@ import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.slots.LSA;
 import ai.lzy.v1.slots.LzySlotsApiGrpc;
 import com.google.protobuf.Any;
+import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import org.apache.commons.lang3.Validate;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -28,14 +32,18 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
+import java.util.Spliterator;
+import java.util.Spliterators;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
+import java.util.stream.StreamSupport;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import static ai.lzy.util.grpc.GrpcUtils.NO_AUTH_TOKEN;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 
 public class SlotsService {
@@ -56,17 +64,18 @@ public class SlotsService {
         this.slotsManager = slotsManager;
         this.fsManager = fsManager;
 
-        this.longrunningExecutor = Executors.newCachedThreadPool(new ThreadFactory() {
-            private final AtomicInteger counter = new AtomicInteger(1);
+        this.longrunningExecutor = new ThreadPoolExecutor(5, 20, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
+            new ThreadFactory() {
+                private final AtomicInteger counter = new AtomicInteger(1);
 
-            @Override
-            public Thread newThread(@Nonnull Runnable r) {
-                var th = new Thread(r, "lr-slots-" + counter.getAndIncrement());
-                th.setUncaughtExceptionHandler(
-                    (t, e) -> LOG.error("Unexpected exception in thread {}: {}", t.getName(), e.getMessage(), e));
-                return th;
-            }
-        });
+                @Override
+                public Thread newThread(@Nonnull Runnable r) {
+                    var th = new Thread(r, "lr-slots-" + counter.getAndIncrement());
+                    th.setUncaughtExceptionHandler(
+                        (t, e) -> LOG.error("Unexpected exception in thread {}: {}", t.getName(), e.getMessage(), e));
+                    return th;
+                }
+            });
 
         this.slotsApi = new SlotsApiImpl();
         this.longrunningApi = new LongRunningApiImpl();
@@ -131,6 +140,8 @@ public class SlotsService {
 
             final SlotInstance toSlot = ProtoConverter.fromProto(request.getTo());
             if (slot instanceof LzyInputSlot inputSlot) {
+                Validate.isTrue(UriScheme.LzyFs.match(toSlot.uri()));
+
                 var op = new Operation(
                     agentId,
                     "ConnectSlot: %s -> %s".formatted(fromSlot.shortDesc(), toSlot.shortDesc()),
@@ -139,26 +150,47 @@ public class SlotsService {
 
                 operations.put(op.id(), op);
 
-                longrunningExecutor.submit(() -> {
-                    LOG.info("Trying to connect slots, {} -> {}...", fromSlot.shortDesc(), toSlot.shortDesc());
-                    try {
-                        var dataProvider =  SlotConnectionManager.connectToSlot(toSlot, 0);
-                        inputSlot.connect(toSlot.uri(), dataProvider);
-                        synchronized (op) {
-                            op.setResponse(Any.pack(LSA.ConnectSlotResponse.getDefaultInstance()));
-                        }
-                        LOG.info("... connected");
-                    } catch (Exception e) {
-                        LOG.error("Cannot connect slots, {} -> {}: {}",
-                            fromSlot.shortDesc(), toSlot.shortDesc(), e.getMessage(), e);
-                        synchronized (op) {
-                            op.setError(Status.INTERNAL.withDescription(e.getMessage()));
+                response.onNext(op.toProto());
+                response.onCompleted();
+
+                longrunningExecutor.submit(new ContextAwareTask() {
+                    @Override
+                    protected void execute() {
+                        LOG.info("[{}] Trying to connect slots, {} -> {}...",
+                            op.id(), fromSlot.shortDesc(), toSlot.shortDesc());
+                        try {
+                            var channel = newGrpcChannel(toSlot.uri().getHost(), toSlot.uri().getPort(),
+                                LzySlotsApiGrpc.SERVICE_NAME);
+                            var client = newBlockingClient(LzySlotsApiGrpc.newBlockingStub(channel), "LzyFs",
+                                NO_AUTH_TOKEN);
+
+                            var req = LSA.SlotDataRequest.newBuilder()
+                                .setSlotInstance(request.getTo())
+                                .setOffset(0)
+                                .build();
+
+                            var msgIter = client.openOutputSlot(req);
+
+                            var dataProvider = StreamSupport
+                                .stream(Spliterators.spliteratorUnknownSize(msgIter, Spliterator.NONNULL), false)
+                                .map(msg -> msg.hasChunk() ? msg.getChunk() : ByteString.EMPTY)
+                                .onClose(channel::shutdownNow);
+
+                            inputSlot.connect(toSlot.uri(), dataProvider);
+
+                            synchronized (op) {
+                                op.setResponse(Any.pack(LSA.ConnectSlotResponse.getDefaultInstance()));
+                            }
+                            LOG.info("[{}] ... connected", op.id());
+                        } catch (Exception e) {
+                            LOG.error("[{}] Cannot connect slots, {} -> {}: {}",
+                                op.id(), fromSlot.shortDesc(), toSlot.shortDesc(), e.getMessage(), e);
+                            synchronized (op) {
+                                op.setError(Status.INTERNAL.withDescription(e.getMessage()));
+                            }
                         }
                     }
                 });
-
-                response.onNext(op.toProto());
-                response.onCompleted();
             } else {
                 var msg = "Slot " + fromSlot.spec().name() + " not found in " + fromSlot.taskId();
                 LOG.error(msg);
@@ -181,7 +213,12 @@ public class SlotsService {
                 return;
             }
 
-            longrunningExecutor.submit(slot::suspend);
+            longrunningExecutor.submit(new ContextAwareTask() {
+                @Override
+                protected void execute() {
+                    slot.suspend();
+                }
+            });
 
             resp.onNext(LSA.DisconnectSlotResponse.getDefaultInstance());
             resp.onCompleted();
@@ -229,11 +266,14 @@ public class SlotsService {
                 return;
             }
 
-            longrunningExecutor.submit(() -> {
-                LOG.info("Explicitly closing slot {}", slotInstance.shortDesc());
-                slot.destroy();
-                if (fsManager != null) {
-                    fsManager.removeSlot(slot.name());
+            longrunningExecutor.submit(new ContextAwareTask() {
+                @Override
+                protected void execute() {
+                    LOG.info("Explicitly closing slot {}", slotInstance.shortDesc());
+                    slot.destroy();
+                    if (fsManager != null) {
+                        fsManager.removeSlot(slot.name());
+                    }
                 }
             });
 
@@ -467,36 +507,7 @@ public class SlotsService {
 
         @Override
         public void openOutputSlot(LzyFsApi.SlotRequest request, StreamObserver<LzyFsApi.Message> response) {
-            slotsApi.openOutputSlot(
-                LSA.SlotDataRequest.newBuilder()
-                    .setSlotInstance(request.getSlotInstance())
-                    .setOffset(request.getOffset())
-                    .build(),
-                new StreamObserver<>() {
-                    @Override
-                    public void onNext(LSA.SlotDataChunk value) {
-                        if (value.hasChunk()) {
-                            response.onNext(LzyFsApi.Message.newBuilder()
-                                .setChunk(value.getChunk())
-                                .build());
-                        } else {
-                            response.onNext(LzyFsApi.Message.newBuilder()
-                                .setControl(LzyFsApi.Message.Controls.EOS)
-                                .build());
-                        }
-                    }
-
-                    @Override
-                    public void onError(Throwable t) {
-                        response.onError(t);
-                    }
-
-                    @Override
-                    public void onCompleted() {
-                        response.onCompleted();
-                    }
-                }
-            );
+            response.onError(Status.UNIMPLEMENTED.withDescription("Legacy API").asException());
         }
 
         private void onError(Throwable t, StreamObserver<LzyFsApi.SlotCommandStatus> response) {

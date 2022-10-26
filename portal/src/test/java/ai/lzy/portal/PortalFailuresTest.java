@@ -10,7 +10,7 @@ import org.junit.Test;
 import java.time.Duration;
 
 
-public class IncorrectCasesPortalTest extends PortalTest {
+public class PortalFailuresTest extends PortalTestBase {
     @Test
     public void testSnapshotOnPortalWithNonActiveS3() {
         stopS3();

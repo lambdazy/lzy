@@ -11,7 +11,7 @@ import java.util.HashSet;
 import static ai.lzy.test.GrpcUtils.makeInputFileSlot;
 import static ai.lzy.test.GrpcUtils.makeOutputFileSlot;
 
-public class UsualCasesPortalTest extends PortalTest {
+public class PortalCommonTest extends PortalTestBase {
     @Test
     public void makeSnapshotOnPortalThenReadIt() throws Exception {
         var portalStdout = readPortalSlot("portal:stdout");
