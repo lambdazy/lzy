@@ -6,9 +6,10 @@ import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
+import ai.lzy.model.Constants;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.portal.config.PortalConfig;
-import ai.lzy.portal.slots.SnapshotSlotsProvider;
+import ai.lzy.portal.slots.SnapshotProvider;
 import ai.lzy.portal.slots.StdoutSlot;
 import ai.lzy.util.auth.credentials.CredentialsUtils;
 import ai.lzy.util.auth.credentials.RenewableJwt;
@@ -16,6 +17,7 @@ import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.whiteboard.LzyWhiteboardPrivateServiceGrpc;
+import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
@@ -29,6 +31,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -44,6 +47,8 @@ public class Portal {
     public static final String APP = "LzyPortal";
 
     public static final String PORTAL_SLOT_PREFIX = "/portal_slot";
+    public static final String PORTAL_OUT_SLOT_NAME = "/portal_slot:stdout";
+    public static final String PORTAL_ERR_SLOT_NAME = "/portal_slot:stderr";
 
     private final String stdoutChannelId;
     private final String stderrChannelId;
@@ -71,7 +76,7 @@ public class Portal {
     // slots
     private StdoutSlot stdoutSlot;
     private StdoutSlot stderrSlot;
-    private final SnapshotSlotsProvider snapshots;
+    private final SnapshotProvider snapshots;
 
     private final String portalId;
 
@@ -83,7 +88,7 @@ public class Portal {
         stdoutChannelId = config.getStdoutChannelId();
         stderrChannelId = config.getStderrChannelId();
 
-        host = config.getHost();
+        this.host = config.getHost();
         portalPort = config.getPortalApiPort();
         slotsPort = config.getSlotsApiPort();
 
@@ -120,7 +125,7 @@ public class Portal {
         whiteboardClient = newBlockingClient(LzyWhiteboardPrivateServiceGrpc.newBlockingStub(whiteboardChannel), APP,
             tokenFactory);
 
-        snapshots = new SnapshotSlotsProvider();
+        snapshots = new SnapshotProvider();
         portalId = config.getPortalId();
     }
 
@@ -133,7 +138,12 @@ public class Portal {
 
         try {
             portalServer.start();
-            allocatorAgent.start();
+
+            allocatorAgent.start(Map.of(
+                Constants.PORTAL_ADDRESS_KEY, HostAndPort.fromParts(host, portalPort).toString(),
+                Constants.FS_ADDRESS_KEY, HostAndPort.fromParts(host, slotsPort).toString()
+            ));
+
             slotsServer.start();
         } catch (IOException | AllocatorAgent.RegisterException e) {
             LOG.error(e);
@@ -232,7 +242,7 @@ public class Portal {
         return Collections.emptyList();
     }
 
-    SnapshotSlotsProvider getSnapshots() {
+    SnapshotProvider getSnapshots() {
         return snapshots;
     }
 

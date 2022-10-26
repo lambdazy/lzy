@@ -12,13 +12,15 @@ public class AmazonS3RepositoryAdapter<T> extends AmazonS3Repository<T> implemen
     private static final String BUCKET_KEY_DELIMITER = "#";
 
     public AmazonS3RepositoryAdapter(AmazonS3 amazonS3, Transmitter transmitter,
-                                     int toStreamPoolSize, BiDirectS3Converter<T> converter) {
+                                     int toStreamPoolSize, BiDirectS3Converter<T> converter)
+    {
         super(amazonS3, transmitter, toStreamPoolSize, "", converter);
     }
 
     public AmazonS3RepositoryAdapter(AmazonS3 amazonS3, Transmitter transmitter,
                                      ExecutorService consumerExecutor,
-                                     BiDirectS3Converter<T> converter) {
+                                     BiDirectS3Converter<T> converter)
+    {
         super(amazonS3, transmitter, consumerExecutor, "", 0, null, converter);
     }
 

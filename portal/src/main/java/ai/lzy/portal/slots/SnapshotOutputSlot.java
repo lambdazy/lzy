@@ -20,7 +20,7 @@ import java.util.stream.Stream;
 
 import static ai.lzy.v1.common.LMS.SlotStatus.State.OPEN;
 
-public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot {
+public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot, SnapshotSlot {
     private static final Logger LOG = LogManager.getLogger(SnapshotOutputSlot.class);
 
     private final String key;
@@ -30,9 +30,10 @@ public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot {
 
     private final boolean hasInputSlot;
 
-    private final S3SnapshotSlot slot;
+    private final S3Snapshot slot;
+    private SnapshotSlotStatus state = SnapshotSlotStatus.INITIALIZING;
 
-    public SnapshotOutputSlot(SlotInstance slotInstance, S3SnapshotSlot slot, Path storage,
+    public SnapshotOutputSlot(SlotInstance slotInstance, S3Snapshot slot, Path storage,
                               String key, String bucket, S3Repository<Stream<ByteString>> s3Repository)
     {
         super(slotInstance);
@@ -61,13 +62,21 @@ public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot {
     @Override
     public Stream<ByteString> readFromPosition(long offset) throws IOException {
         if (hasInputSlot) {
-            if (slot.getState().get() == S3SnapshotSlot.State.INITIAL) {
+            if (slot.getState().get() == S3Snapshot.State.INITIAL) {
                 LOG.error("Input slot of this snapshot is not already connected");
+                state = SnapshotSlotStatus.FAILED;
                 throw new IllegalStateException("Input slot of this snapshot is not already connected");
             }
-        } else if (slot.getState().compareAndSet(S3SnapshotSlot.State.INITIAL, S3SnapshotSlot.State.PREPARING)) {
-            write(s3Repository.get(bucket, key), storage.toFile());
-            slot.getState().set(S3SnapshotSlot.State.DONE);
+        } else if (slot.getState().compareAndSet(S3Snapshot.State.INITIAL, S3Snapshot.State.PREPARING)) {
+            state = SnapshotSlotStatus.SYNCING;
+            try {
+                write(s3Repository.get(bucket, key), storage.toFile());
+            } catch (Exception e) {
+                LOG.error("Cannot sync data with remote storage", e);
+                state = SnapshotSlotStatus.FAILED;
+                throw e;
+            }
+            slot.getState().set(S3Snapshot.State.DONE);
             synchronized (slot) {
                 slot.notifyAll();
             }
@@ -75,7 +84,7 @@ public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot {
 
         try {
             synchronized (slot) {
-                while (slot.getState().get() != S3SnapshotSlot.State.DONE) {
+                while (slot.getState().get() != S3Snapshot.State.DONE) {
                     slot.wait();
                 }
             }
@@ -83,9 +92,15 @@ public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot {
             LOG.error("Can not open file channel on file {}", storage);
             throw new RuntimeException(e);
         }
+        state = SnapshotSlotStatus.SYNCED;
 
         FileChannel channel = FileChannel.open(storage);
         state(OPEN);
         return OutFileSlot.readFileChannel(definition().name(), offset, channel, () -> true);
+    }
+
+    @Override
+    public SnapshotSlotStatus snapshotState() {
+        return state;
     }
 }

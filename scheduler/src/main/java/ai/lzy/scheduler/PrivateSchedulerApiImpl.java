@@ -8,9 +8,9 @@ import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.util.grpc.RemoteAddressContext;
 import ai.lzy.v1.scheduler.SchedulerPrivateApi;
 import ai.lzy.v1.scheduler.SchedulerPrivateGrpc;
+import com.google.common.net.HostAndPort;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
-import org.apache.curator.shaded.com.google.common.net.HostAndPort;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 

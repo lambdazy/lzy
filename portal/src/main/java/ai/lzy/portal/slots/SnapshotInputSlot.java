@@ -18,7 +18,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.stream.Stream;
 
-public class SnapshotInputSlot extends LzyInputSlotBase {
+public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot {
     private static final Logger LOG = LogManager.getLogger(SnapshotInputSlot.class);
     private static final ThreadGroup READER_TG = new ThreadGroup("input-slot-readers");
 
@@ -29,10 +29,12 @@ public class SnapshotInputSlot extends LzyInputSlotBase {
     private final String bucket;
     private final S3Repository<Stream<ByteString>> s3Repository;
 
-    private final S3SnapshotSlot slot;
+    private final S3Snapshot slot;
+    private SnapshotSlotStatus state = SnapshotSlotStatus.INITIALIZING;
 
-    public SnapshotInputSlot(SlotInstance slotInstance, S3SnapshotSlot slot, Path storage, String key,
-                             String bucket, S3Repository<Stream<ByteString>> s3Repository) throws IOException {
+    public SnapshotInputSlot(SlotInstance slotInstance, S3Snapshot slot, Path storage, String key,
+                             String bucket, S3Repository<Stream<ByteString>> s3Repository) throws IOException
+    {
         super(slotInstance);
         this.slot = slot;
         this.storage = storage;
@@ -44,7 +46,7 @@ public class SnapshotInputSlot extends LzyInputSlotBase {
 
     @Override
     public void connect(URI slotUri, Stream<ByteString> dataProvider) {
-        slot.getState().set(S3SnapshotSlot.State.PREPARING);
+        slot.getState().set(S3Snapshot.State.PREPARING);
         super.connect(slotUri, dataProvider);
         LOG.info("Attempt to connect to " + slotUri + " slot " + this);
 
@@ -59,16 +61,19 @@ public class SnapshotInputSlot extends LzyInputSlotBase {
         var t = new Thread(READER_TG, () -> {
             // read all data to local storage (file), then OPEN the slot
             readAll();
-            slot.getState().set(S3SnapshotSlot.State.DONE);
+            slot.getState().set(S3Snapshot.State.DONE);
             synchronized (slot) {
                 slot.notifyAll();
             }
             // store local snapshot to S3
             try {
+                state = SnapshotSlotStatus.SYNCING;
                 FileChannel channel = FileChannel.open(storage, StandardOpenOption.READ);
                 s3Repository.put(bucket, key, OutFileSlot.readFileChannel(definition().name(), 0, channel, () -> true));
+                state = SnapshotSlotStatus.SYNCED;
             } catch (Exception e) {
                 LOG.error("Error while storing slot '{}' content in s3 storage: {}", name(), e.getMessage(), e);
+                state = SnapshotSlotStatus.FAILED;
             }
         }, "reader-from-" + slotUri + "-to-" + definition().name());
         t.start();
@@ -95,5 +100,10 @@ public class SnapshotInputSlot extends LzyInputSlotBase {
     @Override
     public String toString() {
         return "SnapshotInputSlot: " + definition().name() + " -> " + storage.toString();
+    }
+
+    @Override
+    public SnapshotSlotStatus snapshotState() {
+        return state;
     }
 }

@@ -12,14 +12,16 @@ public class AzureRepositoryAdapter<T> extends ru.yandex.qe.s3.repository.S3Repo
     private final BlobServiceClient client;
 
     public AzureRepositoryAdapter(BlobServiceClient client, Transmitter transmitter,
-                                  int toStreamPoolSize, BiDirectS3Converter<T> converter) {
+                                  int toStreamPoolSize, BiDirectS3Converter<T> converter)
+    {
         super(transmitter, toStreamPoolSize, "", converter);
         this.client = client;
     }
 
     public AzureRepositoryAdapter(BlobServiceClient client, Transmitter transmitter,
                                   ExecutorService consumerExecutor,
-                                  BiDirectS3Converter<T> converter) {
+                                  BiDirectS3Converter<T> converter)
+    {
         super(transmitter, consumerExecutor, "", 0, null, converter);
         this.client = client;
     }

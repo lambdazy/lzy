@@ -11,6 +11,7 @@ import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.v1.common.LMS3;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.net.HostAndPort;
 import io.micronaut.core.util.StringUtils;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -71,7 +72,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
     public static final String QUERY_UPDATE_ALLOCATOR_SESSION = """
         UPDATE workflow_executions
-        SET portal = cast(? as portal_status), allocator_session_id = ?
+        SET portal = cast(? as portal_status), allocator_session_id = ?, portal_id = ?
         WHERE execution_id = ?""";
 
     public static final String QUERY_UPDATE_ALLOCATE_OPERATION_DATA = """
@@ -81,7 +82,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
     public static final String QUERY_UPDATE_ALLOCATE_VM_ADDRESS = """
         UPDATE workflow_executions
-        SET portal = cast(? as portal_status), portal_vm_address = ?
+        SET portal = cast(? as portal_status), portal_vm_address = ?, portal_fs_address = ?
         WHERE execution_id = ?""";
 
     public static final String QUERY_UPDATE_EXECUTION_FINISH_DATA = """
@@ -90,12 +91,24 @@ public class WorkflowDaoImpl implements WorkflowDao {
         WHERE execution_id = ?""";
 
     public static final String QUERY_GET_PORTAL_ADDRESS = """
-        SELECT portal_vm_address 
-        FROM workflow_executions 
+        SELECT portal_vm_address
+        FROM workflow_executions
         WHERE execution_id = ?""";
 
     public static final String QUERY_GET_STORAGE_CREDENTIALS = """
         SELECT storage_credentials
+        FROM workflow_executions
+        WHERE execution_id = ?""";
+
+    public static final String QUERY_GET_PORTAL_DESCRIPTION = """
+        SELECT
+          portal,
+          portal_vm_id,
+          portal_vm_address,
+          portal_fs_address,
+          portal_stdout_channel_id,
+          portal_stderr_channel_id,
+          portal_id
         FROM workflow_executions
         WHERE execution_id = ?""";
 
@@ -206,14 +219,16 @@ public class WorkflowDaoImpl implements WorkflowDao {
     }
 
     @Override
-    public void updateAllocatorSession(String executionId, String sessionId, @Nullable TransactionHandle transaction)
+    public void updateAllocatorSession(String executionId, String sessionId, String portalId,
+                                       @Nullable TransactionHandle transaction)
         throws SQLException
     {
         DbOperation.execute(transaction, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_UPDATE_ALLOCATOR_SESSION)) {
                 statement.setString(1, PortalStatus.REQUEST_VM.name());
                 statement.setString(2, sessionId);
-                statement.setString(3, executionId);
+                statement.setString(3, portalId);
+                statement.setString(4, executionId);
                 statement.executeUpdate();
             }
         });
@@ -235,14 +250,16 @@ public class WorkflowDaoImpl implements WorkflowDao {
     }
 
     @Override
-    public void updateAllocatedVmAddress(String executionId, String vmAddress, @Nullable TransactionHandle transaction)
+    public void updateAllocatedVmAddress(String executionId, String vmAddress, String fsAddress,
+                                         @Nullable TransactionHandle transaction)
         throws SQLException
     {
         DbOperation.execute(transaction, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_UPDATE_ALLOCATE_VM_ADDRESS)) {
                 statement.setString(1, PortalStatus.VM_READY.name());
                 statement.setString(2, vmAddress);
-                statement.setString(3, executionId);
+                statement.setString(3, fsAddress);
+                statement.setString(4, executionId);
                 statement.executeUpdate();
             }
         });
@@ -387,5 +404,32 @@ public class WorkflowDaoImpl implements WorkflowDao {
         });
 
         return credentials[0];
+    }
+
+    @Nullable
+    @Override
+    public PortalDescription getPortalDescription(String executionId) throws SQLException {
+        PortalDescription[] descriptions = {null};
+
+        DbOperation.execute(null, storage, con -> {
+            try (var statement = con.prepareStatement(QUERY_GET_PORTAL_DESCRIPTION)) {
+                statement.setString(1, executionId);
+                ResultSet rs = statement.executeQuery();
+
+                if (rs.next()) {
+                    var status = PortalDescription.PortalStatus.valueOf(rs.getString(1));
+                    var vmId = rs.getString(2);
+                    var vmAddress = HostAndPort.fromString(rs.getString(3));
+                    var fsAddress = HostAndPort.fromString(rs.getString(4));
+                    var stdoutChannelId = rs.getString(5);
+                    var stderrChannelId = rs.getString(6);
+                    var portalId = rs.getString(7);
+
+                    descriptions[0] = new PortalDescription(portalId, vmId, vmAddress, fsAddress,
+                            stdoutChannelId, stderrChannelId, status);
+                }
+            }
+        });
+        return descriptions[0];
     }
 }

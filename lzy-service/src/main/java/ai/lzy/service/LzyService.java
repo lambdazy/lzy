@@ -4,6 +4,7 @@ import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.dao.ExecutionDao;
+import ai.lzy.service.data.dao.PortalDescription;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.service.graph.GraphExecutionService;
@@ -13,6 +14,7 @@ import ai.lzy.util.grpc.GrpcChannels;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmPoolServiceGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
+import ai.lzy.v1.deprecated.LzyWhiteboard;
 import ai.lzy.v1.graph.GraphExecutorGrpc;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
@@ -21,6 +23,7 @@ import ai.lzy.v1.whiteboard.LzyWhiteboardPrivateServiceGrpc;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Singleton;
@@ -29,6 +32,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.time.Duration;
 
+import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.v1.workflow.LWFS.*;
@@ -153,5 +157,12 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     @Override
     public void linkWhiteboard(LinkWhiteboardRequest request, StreamObserver<LinkWhiteboardResponse> responseObserver) {
         whiteboardService.linkWhiteboard(request, responseObserver);
+    }
+
+    @Override
+    public void readStdSlots(
+            ReadStdSlotsRequest request, StreamObserver<ReadStdSlotsResponse> responseObserver)
+    {
+        workflowService.readStdSlots(request, responseObserver);
     }
 }

@@ -4,6 +4,7 @@ import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.model.DataScheme;
+import ai.lzy.portal.slots.SnapshotSlot;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.portal.LzyPortal;
@@ -94,9 +95,22 @@ public enum ProtoConverter {
     }
 
     private static LzyPortalApi.PortalSlotStatus.Builder commonSlotStatusBuilder(LzySlot slot) {
-        return LzyPortalApi.PortalSlotStatus.newBuilder()
+        var builder = LzyPortalApi.PortalSlotStatus.newBuilder()
             .setSlot(ai.lzy.model.grpc.ProtoConverter.toProto(slot.definition()))
             .setState(slot.state());
+        if (slot instanceof SnapshotSlot) {
+            builder.setSnapshotStatus(
+                switch (((SnapshotSlot) slot).snapshotState()) {
+                    case INITIALIZING -> LzyPortalApi.PortalSlotStatus.SnapshotSlotStatus.INITIALIZING;
+                    case SYNCING -> LzyPortalApi.PortalSlotStatus.SnapshotSlotStatus.SYNCING;
+                    case SYNCED -> LzyPortalApi.PortalSlotStatus.SnapshotSlotStatus.SYNCED;
+                    case FAILED -> LzyPortalApi.PortalSlotStatus.SnapshotSlotStatus.FAILED;
+                }
+            );
+        } else {
+            builder.setSnapshotStatus(LzyPortalApi.PortalSlotStatus.SnapshotSlotStatus.NOT_IN_SNAPSHOT);
+        }
+        return builder;
     }
 
     public static LzyPortalApi.PortalSlotStatus buildInputSlotStatus(LzyInputSlot slot) {
