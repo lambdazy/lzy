@@ -124,12 +124,15 @@ class GraphBuilder {
 
         var portalSlotToOpen = new ArrayList<LzyPortal.PortalSlotDesc>();
 
+        var inputSlotNames = new ArrayList<String>();
+
         for (var data : fromOutput) {
             var slotUri = data.slotUri();
             var channelId = channelManagerClient
                 .create(makeCreateDirectChannelCommand(executionId, "channel_" + slotUri))
                 .getChannelId();
             var portalInputSlotName = Portal.PORTAL_SLOT_PREFIX + "_" + UUID.randomUUID();
+            inputSlotNames.add(portalInputSlotName);
 
             portalSlotToOpen.add(makePortalInputSlot(slotUri, portalInputSlotName, channelId, storageLocator));
 
@@ -140,9 +143,9 @@ class GraphBuilder {
                 }
             }
         }
+        state.setPortalInputSlots(inputSlotNames);
 
         Map<String, String> outputSlot2channel;
-        var outputSlotNames = new ArrayList<String>();
 
         synchronized (this) {
             try {
@@ -161,7 +164,6 @@ class GraphBuilder {
             for (var data : withoutChannels) {
                 var slotUri = data.slotUri();
                 var portalOutputSlotName = Portal.PORTAL_SLOT_PREFIX + "_" + UUID.randomUUID();
-                outputSlotNames.add(portalOutputSlotName);
                 var channelId = channelManagerClient
                     .create(makeCreateDirectChannelCommand(executionId, "portal_channel_" + slotUri))
                     .getChannelId();
@@ -180,7 +182,6 @@ class GraphBuilder {
 
             outputSlot2channel.putAll(newChannels);
         }
-        state.setPortalOutputSlots(outputSlotNames);
 
         for (var data : fromPortal) {
             if (data.consumers() != null) {
