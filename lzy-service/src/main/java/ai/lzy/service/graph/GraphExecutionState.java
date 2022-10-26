@@ -10,6 +10,7 @@ import java.util.List;
 final class GraphExecutionState {
     private final String executionId;
 
+    private String userId;
     private String workflowName;
     private String zone;
 
@@ -44,6 +45,14 @@ final class GraphExecutionState {
 
     public void setOperations(List<LWF.Operation> operations) {
         this.operations = operations;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 
     public String getWorkflowName() {

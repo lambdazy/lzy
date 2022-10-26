@@ -183,8 +183,8 @@ public class ServantEventProcessor extends Thread {
                 task.notifyExecuting(currentState.id());
 
                 if (currentState.status() == Status.CREATED) {
-                    allocator.allocate(currentState.workflowName(), currentState.id(),
-                        currentState.requirements());
+                    allocator.allocate(currentState.userId(), currentState.workflowName(),
+                        currentState.id(), currentState.requirements());
                     final ServantEvent timeout = ServantEvent.fromState(currentState, Type.ALLOCATION_TIMEOUT)
                         .setTimeout(config.allocationTimeout())
                         .setRc(ReturnCodes.INTERNAL_ERROR.getRc())

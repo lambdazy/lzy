@@ -91,15 +91,15 @@ public class QueueManager extends Thread {
         putIntoQueue(GraphExecutionKey.noop());
     }
 
-    public GraphExecutionState startGraph(String workflowId,
-                                          String workflowName, GraphDescription graph) throws StatusException {
+    public GraphExecutionState startGraph(String workflowId, String workflowName, String userId,
+                                          GraphDescription graph) throws StatusException {
         if (stopping.get()) {
             throw io.grpc.Status.UNAVAILABLE.withDescription("Service stopping, please try later").asException();
         }
 
         final GraphExecutionState state;
         try {
-            state = dao.create(workflowId, workflowName, graph);
+            state = dao.create(workflowId, workflowName, userId, graph);
             eventDao.add(QueueEvent.Type.START, state.workflowId(), state.id(), "Starting graph");
         } catch (DaoException e) {
             LOG.error("Error while adding start graph event from workflow <{}>", workflowId, e);
@@ -169,7 +169,7 @@ public class QueueManager extends Thread {
             } else {
                 newState = processor.exec(state);
             }
-            dao.free(newState);
+            dao.updateAndFree(newState);
             if (!Set.of(Status.FAILED, Status.COMPLETED).contains(newState.status())) {
                 putIntoQueue(stateKey);
             } else {
@@ -178,7 +178,7 @@ public class QueueManager extends Thread {
         } catch (Exception e) {
             LOG.error("Error while executing graph", e);
             try {
-                dao.free(state);  // Free state if it is acquired
+                dao.updateAndFree(state);  // Free state if it is acquired
                 stopGraph(stateKey.workflowId(), stateKey.graphId(),
                     "Stopped because of exception in executor");
                 putIntoQueue(stateKey);
@@ -201,7 +201,7 @@ public class QueueManager extends Thread {
                     return;
                 }
                 putIntoQueue(new GraphExecutionKey(s.workflowId(), s.id()));
-                dao.free(s);
+                dao.updateAndFree(s);
             } catch (DaoException e) {
                 final GraphExecutionKey key = new GraphExecutionKey(t.workflowId(), t.id());
                 stoppingGraphs.put(key, "Error while restoring graphExecution");

@@ -27,33 +27,36 @@ import java.util.concurrent.atomic.AtomicReference;
 @Singleton
 public class GraphExecutionDaoImpl implements GraphExecutionDao {
     private final GraphExecutorDataSource storage;
+    private final ObjectMapper objectMapper;
 
-    private static final String GRAPH_UPDATE_FIELDS_LIST = """
-        workflow_id, workflow_name, id, error_description, status,
+    private static final String GRAPH_INSERT_FIELDS_LIST = """
+        workflow_id, workflow_name, user_id, id, error_description, status,
         graph_description_json, task_executions_json, current_execution_group_json, last_updated, acquired""";
 
     private static final String GRAPH_SELECT_FIELDS_LIST = """
-        workflow_id, workflow_name, id, error_description, status::text as status,
+        workflow_id, workflow_name, user_id, id, error_description, status::text as status,
         graph_description_json, task_executions_json, current_execution_group_json, last_updated, acquired""";
 
     @Inject
     public GraphExecutionDaoImpl(GraphExecutorDataSource storage) {
         this.storage = storage;
+        this.objectMapper = new ObjectMapper();
     }
 
     @Override
-    public GraphExecutionState create(String workflowId, String workflowName, GraphDescription description)
-        throws DaoException
+    public GraphExecutionState create(String workflowId, String workflowName, String userId,
+                                      GraphDescription description) throws DaoException
     {
         try (final Connection con = storage.connect();
-             final PreparedStatement st = con.prepareStatement("""
-                 INSERT INTO graph_execution_state (%s)
-                 VALUES (?, ?, ?, ?, ?::graph_execution_status, ?, ?, ?, ?, ?)""".formatted(GRAPH_UPDATE_FIELDS_LIST)))
+             final PreparedStatement st = con.prepareStatement(
+                 "INSERT INTO graph_execution_state (" + GRAPH_INSERT_FIELDS_LIST + ")"
+                 + "VALUES (?, ?, ?, ?, ?, ?::graph_execution_status, ?, ?, ?, ?, ?)"))
         {
             String id = UUID.randomUUID().toString();
             GraphExecutionState state = GraphExecutionState.builder()
                 .withWorkflowId(workflowId)
                 .withWorkflowName(workflowName)
+                .withUserId(userId)
                 .withId(id)
                 .withDescription(description)
                 .build();
@@ -169,14 +172,11 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
     }
 
     @Override
-    public void free(GraphExecutionState graph) throws DaoException {
+    public void updateAndFree(GraphExecutionState graph) throws DaoException {
         try (final Connection con = storage.connect();
             final PreparedStatement st = con.prepareStatement("""
                 UPDATE graph_execution_state
-                SET workflow_id = ?,
-                    workflow_name = ?,
-                    id = ?,
-                    error_description = ?,
+                SET error_description = ?,
                     status = ?::graph_execution_status,
                     graph_description_json = ?,
                     task_executions_json = ?,
@@ -185,9 +185,17 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
                     acquired = ?
                 WHERE workflow_id = ? AND id = ?"""))
         {
-            setGraphFields(st, graph);
-            st.setString(11, graph.workflowId());
-            st.setString(12, graph.id());
+            int count = 0;
+            st.setString(++count, graph.errorDescription());
+            st.setString(++count, graph.status().name());
+            st.setString(++count, objectMapper.writeValueAsString(graph.description()));
+            st.setString(++count, objectMapper.writeValueAsString(graph.executions()));
+            st.setString(++count, objectMapper.writeValueAsString(graph.currentExecutionGroup()));
+            st.setTimestamp(++count, Timestamp.valueOf(LocalDateTime.now()));
+            st.setBoolean(++count, false);
+
+            st.setString(++count, graph.workflowId());
+            st.setString(++count, graph.id());
             st.executeUpdate();
         } catch (Exception e) {
             throw new DaoException(e);
@@ -197,19 +205,19 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
     private GraphExecutionState fromResultSet(ResultSet resultSet) throws SQLException, JsonProcessingException {
         final String workflowId = resultSet.getString("workflow_id");
         final String workflowName = resultSet.getString("workflow_name");
+        final String userId = resultSet.getString("user_id");
         final String id = resultSet.getString("id");
         final String errorDescription = resultSet.getString("error_description");
         final GraphExecutionState.Status status = GraphExecutionState.Status.valueOf(resultSet.getString("status"));
         final String graphDescriptionJson  = resultSet.getString("graph_description_json");
         final String taskExecutionsJson  = resultSet.getString("task_executions_json");
         final String currentExecutionGroupJson  = resultSet.getString("current_execution_group_json");
-        final ObjectMapper objectMapper = new ObjectMapper();
         final GraphDescription graph = objectMapper.readValue(graphDescriptionJson, GraphDescription.class);
         final List<TaskExecution> executions = objectMapper.readValue(taskExecutionsJson, new TypeReference<>() {});
         final List<TaskExecution> currentExecutionGroup = objectMapper.readValue(
             currentExecutionGroupJson, new TypeReference<>() {});
         return new GraphExecutionState(
-            workflowId, workflowName, id, graph, executions,
+            workflowId, workflowName, userId, id, graph, executions,
             currentExecutionGroup, status, errorDescription
         );
     }
@@ -228,16 +236,17 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
     private void setGraphFields(PreparedStatement st, GraphExecutionState state)
         throws SQLException, JsonProcessingException
     {
-        ObjectMapper objectMapper = new ObjectMapper();
-        st.setString(1, state.workflowId());
-        st.setString(2, state.workflowName());
-        st.setString(3, state.id());
-        st.setString(4, state.errorDescription());
-        st.setString(5, state.status().name());
-        st.setString(6, objectMapper.writeValueAsString(state.description()));
-        st.setString(7, objectMapper.writeValueAsString(state.executions()));
-        st.setString(8, objectMapper.writeValueAsString(state.currentExecutionGroup()));
-        st.setTimestamp(9, Timestamp.valueOf(LocalDateTime.now()));
-        st.setBoolean(10, false);
+        int count = 0;
+        st.setString(++count, state.workflowId());
+        st.setString(++count, state.workflowName());
+        st.setString(++count, state.userId());
+        st.setString(++count, state.id());
+        st.setString(++count, state.errorDescription());
+        st.setString(++count, state.status().name());
+        st.setString(++count, objectMapper.writeValueAsString(state.description()));
+        st.setString(++count, objectMapper.writeValueAsString(state.executions()));
+        st.setString(++count, objectMapper.writeValueAsString(state.currentExecutionGroup()));
+        st.setTimestamp(++count, Timestamp.valueOf(LocalDateTime.now()));
+        st.setBoolean(++count, false);
     }
 }

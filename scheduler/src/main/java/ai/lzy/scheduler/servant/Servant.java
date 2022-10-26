@@ -23,6 +23,7 @@ public interface Servant {
 
     // ========= Fields ===========
     String id();
+    String userId();
     String workflowName();
     Operation.Requirements requirements();
     Status status();

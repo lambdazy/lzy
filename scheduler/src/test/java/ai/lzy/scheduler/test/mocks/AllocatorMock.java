@@ -16,7 +16,7 @@ public class AllocatorMock implements ServantsAllocator {
     private final List<BiConsumer<String, String>> onDestroy = new ArrayList<>();
 
     @Override
-    public void allocate(String workflowId, String servantId, Operation.Requirements provisioning) {
+    public void allocate(String userId, String workflowId, String servantId, Operation.Requirements provisioning) {
         onAllocate.forEach(t -> t.call(workflowId, servantId, ""));
     }
 

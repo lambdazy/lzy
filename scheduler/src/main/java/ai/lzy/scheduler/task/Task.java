@@ -13,6 +13,7 @@ public interface Task {
     String taskId();
     String workflowId();
     String workflowName();
+    String userId();
     TaskDesc description();
     TaskState.Status status();
 

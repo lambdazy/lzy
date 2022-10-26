@@ -58,7 +58,9 @@ public class ServantsPoolImpl implements ServantsPool {
 
     @Nullable
     @Override
-    public CompletableFuture<Servant> waitForFree(String workflowName, Operation.Requirements requirements) {
+    public CompletableFuture<Servant> waitForFree(String userId, String workflowName,
+                                                  Operation.Requirements requirements)
+    {
         final CompletableFuture<Servant> future = new CompletableFuture<>();
         if (stopping.get()) {
             return null;
@@ -72,7 +74,7 @@ public class ServantsPoolImpl implements ServantsPool {
         synchronized (this) {
             try {
                 if (countAlive(workflowName, requirements) < limit(requirements)) {
-                    servant = dao.create(workflowName, requirements);
+                    servant = dao.create(userId, workflowName, requirements);
                 }
             } catch (DaoException e) {
                 LOG.error("Cannot count servants", e);
@@ -236,7 +238,7 @@ public class ServantsPoolImpl implements ServantsPool {
                 try {
                     if (countAlive(workflowName, waiter.requirements) < limit(waiter.requirements)) {
                         set.remove(waiter);
-                        var newServant = dao.create(workflowName, waiter.requirements);
+                        var newServant = dao.create(servant.userId(), workflowName, waiter.requirements);
                         initProcessor(newServant);
                         dao.acquireForTask(workflowName, newServant.id());
                         waiter.future.complete(newServant);

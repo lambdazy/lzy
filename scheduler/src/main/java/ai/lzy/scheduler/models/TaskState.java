@@ -8,6 +8,7 @@ public record TaskState(
     String id,
     String workflowId,
     String workflowName,
+    String userId,
     TaskDesc description,
     Status status,
 

@@ -17,7 +17,7 @@ public interface ServantDao {
     List<Servant> getAllFree() throws DaoException;
     List<Servant> getAllAcquired() throws DaoException;
 
-    Servant create(String workflowName, Operation.Requirements requirements) throws DaoException;
+    Servant create(String userId, String workflowName, Operation.Requirements requirements) throws DaoException;
 
     @Nullable
     Servant get(String workflowName, String servantId) throws DaoException;
