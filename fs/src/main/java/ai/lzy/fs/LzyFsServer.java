@@ -1,12 +1,12 @@
 package ai.lzy.fs;
 
-import ai.lzy.fs.fs.LzyFSManager;
-import ai.lzy.fs.fs.LzyFileSlot;
-import ai.lzy.fs.fs.LzyLinuxFsManagerImpl;
-import ai.lzy.fs.fs.LzyMacosFsManagerImpl;
+import ai.lzy.fs.commands.builtin.Cat;
+import ai.lzy.fs.fs.*;
+import ai.lzy.model.deprecated.Zygote;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.deprecated.LzyZygote;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
@@ -18,12 +18,13 @@ import ru.serce.jnrfuse.FuseException;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
-import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
-import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
+import static ai.lzy.model.deprecated.GrpcConverter.from;
+import static ai.lzy.util.grpc.GrpcUtils.*;
 import static ai.lzy.v1.channel.LzyChannelManagerGrpc.newBlockingStub;
 
 
@@ -84,7 +85,41 @@ public class LzyFsServer {
 
         LOG.info("Starting LzyFs gRPC server at {}.", selfUri);
         localServer.start();
+
+        LOG.info("Registering lzy cat command...");
+        registerCatCommand();
         LOG.info("LzyFs started on {}.", selfUri);
+    }
+
+    private void registerCatCommand() {
+        var name = "cat";
+        var cmd = Path.of(name);
+        final List<String> commandParts = new ArrayList<>();
+        commandParts.add(System.getProperty("java.home") + "/bin/java");
+        commandParts.add("-classpath");
+        commandParts.add('"' + System.getProperty("java.class.path") + '"');
+        commandParts.add(Cat.class.getCanonicalName());
+        commandParts.add("$@");
+
+        final String script = String.join(" ", commandParts) + "\n";
+        if (fsManager.addScript(new LzyScriptImpl(cmd, script, null), /* isSystem */ true)) {
+            LOG.debug("Register command `{}`.", name);
+        } else {
+            LOG.warn("Command `{}` already exists.", name);
+        }
+    }
+
+    private record LzyScriptImpl(
+        Path location,
+        CharSequence scriptText,
+        LzyZygote.Zygote zygote
+    ) implements LzyScript
+    {
+
+        @Override
+        public Zygote operation() {
+            return from(zygote);
+        }
     }
 
     public void stop() {

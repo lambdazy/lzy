@@ -60,10 +60,9 @@ public class WorkflowContext {
             .enableRetry(LzyWorkflowServiceGrpc.SERVICE_NAME)
             .build();
 
-        var creds = ctx.getBean(ServiceConfig.class).getIam().createCredentials();
-        stub = LzyWorkflowServiceGrpc.newBlockingStub(chn).withInterceptors(
-            ClientHeaderInterceptor.authorization(creds::token)
-        );
+        var creds = ctx.getBean(ServiceConfig.class).getIam().createRenewableToken();
+        stub = LzyWorkflowServiceGrpc.newBlockingStub(chn)
+            .withInterceptors(ClientHeaderInterceptor.authorization(() -> creds.get().token()));
     }
 
     public HostAndPort address() {

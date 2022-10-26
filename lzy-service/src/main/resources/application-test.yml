@@ -5,6 +5,7 @@ lzy-service:
   allocator-address: 'localhost:8799'
   graph-executor-address: 'localhost:8699'
   channel-manager-address: 'localhost:8122'
+  whiteboard-address: 'localhost:8999'
   wait-allocation-timeout: 10s
 
   database:

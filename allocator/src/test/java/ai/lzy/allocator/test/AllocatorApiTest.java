@@ -131,15 +131,16 @@ public class AllocatorApiTest extends BaseTestWithIam {
         channel = newGrpcChannel(config.getAddress(), AllocatorGrpc.SERVICE_NAME, AllocatorPrivateGrpc.SERVICE_NAME,
             LongRunningServiceGrpc.SERVICE_NAME, DiskServiceGrpc.SERVICE_NAME);
 
-        var credentials = config.getIam().createCredentials();
+        var credentials = config.getIam().createRenewableToken();
         unauthorizedAllocatorBlockingStub = AllocatorGrpc.newBlockingStub(channel);
         privateAllocatorBlockingStub = newBlockingClient(AllocatorPrivateGrpc.newBlockingStub(channel), "Test",
-            credentials::token);
+            () -> credentials.get().token());
         operationServiceApiBlockingStub = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(channel), "Test",
-            credentials::token);
+            () -> credentials.get().token());
         authorizedAllocatorBlockingStub = newBlockingClient(unauthorizedAllocatorBlockingStub, "Test",
-            credentials::token);
-        diskService = newBlockingClient(DiskServiceGrpc.newBlockingStub(channel), "Test", credentials::token);
+            () -> credentials.get().token());
+        diskService = newBlockingClient(DiskServiceGrpc.newBlockingStub(channel), "Test",
+            () -> credentials.get().token());
 
         clusterRegistry = allocatorCtx.getBean(ClusterRegistry.class);
     }

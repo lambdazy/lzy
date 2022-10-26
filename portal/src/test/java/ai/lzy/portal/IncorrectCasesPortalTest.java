@@ -26,7 +26,7 @@ public class IncorrectCasesPortalTest extends PortalTest {
         System.out.println("\n----- RUN SCENARIO -----------------------------------------\n");
 
         // configure portal to snapshot `channel-1` data on non-active S3
-        String errorMessage = openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest.newBuilder()
+        openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest.newBuilder()
             .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSnapshot(GrpcUtils.makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_slot_1"))
@@ -34,7 +34,6 @@ public class IncorrectCasesPortalTest extends PortalTest {
                 .build())
             .build());
 
-        Assert.assertTrue(errorMessage.contains("Unable to execute HTTP request"));
         Assert.assertTrue(portalStdout.isEmpty());
         Assert.assertTrue(portalStderr.isEmpty());
 
@@ -56,14 +55,13 @@ public class IncorrectCasesPortalTest extends PortalTest {
         System.out.println("\n----- RUN SCENARIO -----------------------------------------\n");
 
         // open portal output slot before input one was opened, there must be an error here
-        String errorMessage = openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest.newBuilder()
+        openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest.newBuilder()
             .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSnapshot(GrpcUtils.makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
                 .setSlot(GrpcUtils.makeOutputFileSlot("/slot_2"))
                 .setChannelId("channel_1"))
             .build());
 
-        Assert.assertEquals("Snapshot with id 'snapshot_1-lzy-bucket-http:localhost:8001' not found", errorMessage);
         Assert.assertTrue(portalStdout.isEmpty());
         Assert.assertTrue(portalStderr.isEmpty());
 
@@ -97,7 +95,7 @@ public class IncorrectCasesPortalTest extends PortalTest {
         System.out.println("\n----- RUN SCENARIO -----------------------------------------\n");
 
         // snapshot portal_slot_1 one more time, there must be an error here
-        String errorMessage = openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest.newBuilder()
+        openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest.newBuilder()
             .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSnapshot(GrpcUtils.makeAmazonSnapshot("snapshot_2", BUCKET_NAME, S3_ADDRESS))
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_slot_1"))
@@ -105,8 +103,6 @@ public class IncorrectCasesPortalTest extends PortalTest {
                 .build())
             .build());
 
-        Assert.assertEquals("Slot '/portal_slot_1' already associated with snapshot "
-            + "'snapshot_1-lzy-bucket-http:localhost:8001'", errorMessage);
         Assert.assertTrue(portalStdout.isEmpty());
         Assert.assertTrue(portalStderr.isEmpty());
 
@@ -139,7 +135,7 @@ public class IncorrectCasesPortalTest extends PortalTest {
             .build());
 
         // configure portal to snapshot `channel-2` data with same snapshot id, there must be an error here
-        String errorMessage = openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest.newBuilder()
+        openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest.newBuilder()
             .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSnapshot(GrpcUtils.makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_slot_2"))
@@ -147,8 +143,6 @@ public class IncorrectCasesPortalTest extends PortalTest {
                 .build())
             .build());
 
-        Assert.assertEquals("Snapshot with id 'snapshot_1-lzy-bucket-http:localhost:8001' "
-            + "already associated with data", errorMessage);
         Assert.assertTrue(portalStdout.isEmpty());
         Assert.assertTrue(portalStderr.isEmpty());
 

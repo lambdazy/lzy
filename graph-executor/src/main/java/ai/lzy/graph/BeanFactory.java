@@ -1,6 +1,7 @@
 package ai.lzy.graph;
 
 import ai.lzy.graph.config.ServiceConfig;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import io.grpc.ManagedChannel;
@@ -17,6 +18,12 @@ public class BeanFactory {
     @Named("GraphExecutorIamGrpcChannel")
     public ManagedChannel iamChannel(ServiceConfig config) {
         return GrpcUtils.newGrpcChannel(config.getAuth().getAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
+    }
+
+    @Singleton
+    @Named("GraphExecutorIamToken")
+    public RenewableJwt renewableIamToken(ServiceConfig config) {
+        return config.getAuth().createRenewableToken();
     }
 
 }
