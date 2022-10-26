@@ -24,7 +24,6 @@ import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bouncycastle.crypto.StagedAgreement;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -146,7 +145,7 @@ public class GraphExecutionService {
         try {
             withRetries(
                 defaultRetryPolicy(), LOG, () -> graphDao.save(new GraphDao.GraphDescription(
-                    executeResponse.getStatus().getGraphId(), executionId, graphExecutionState.getPortalOutputSlots()
+                    executeResponse.getStatus().getGraphId(), executionId, graphExecutionState.getPortalInputSlots()
             )));
         } catch (Exception e) {
             LOG.error("Cannot save portal slots", e);
@@ -267,6 +266,9 @@ public class GraphExecutionService {
                 var hasFailed = false;
 
                 for (var s: status.getSlotsList()) {
+                    if (s.getSnapshotStatus() == SnapshotSlotStatus.NOT_IN_SNAPSHOT) {
+                        continue;
+                    }
                     if (s.getSnapshotStatus() != SnapshotSlotStatus.SYNCED) {
                         allSynced = false;
                     }
