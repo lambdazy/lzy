@@ -9,7 +9,8 @@ import ai.lzy.v1.portal.LzyPortal;
 import ai.lzy.v1.portal.LzyPortalApi;
 import ai.lzy.v1.portal.LzyPortalApi.OpenSlotsRequest;
 import ai.lzy.v1.portal.LzyPortalApi.OpenSlotsResponse;
-import ai.lzy.v1.portal.LzyPortalApi.PortalStatus;
+import ai.lzy.v1.portal.LzyPortalApi.PortalStatusRequest;
+import ai.lzy.v1.portal.LzyPortalApi.PortalStatusResponse;
 import ai.lzy.v1.portal.LzyPortalGrpc.LzyPortalImplBase;
 import com.google.protobuf.Empty;
 import io.grpc.Status;
@@ -18,6 +19,7 @@ import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -56,7 +58,9 @@ class PortalApiImpl extends LzyPortalImplBase {
     }
 
     @Override
-    public synchronized void status(Empty request, StreamObserver<PortalStatus> responseObserver) {
+    public synchronized void status(PortalStatusRequest request,
+                                    StreamObserver<PortalStatusResponse> responseObserver)
+    {
         try {
             waitPortalStarted();
         } catch (Exception e) {
@@ -65,13 +69,29 @@ class PortalApiImpl extends LzyPortalImplBase {
             return;
         }
 
-        var response = LzyPortalApi.PortalStatus.newBuilder();
+        var response = LzyPortalApi.PortalStatusResponse.newBuilder();
+
+        var slotNames = new HashSet<>(request.getSlotNamesList());
 
         var snapshots = portal.getSnapshots();
-        snapshots.getInputSlots().forEach(slot ->
-            response.addSlots(buildInputSlotStatus(slot)));
-        snapshots.getOutputSlots().forEach(slot ->
-            response.addSlots(buildOutputSlotStatus(slot)));
+
+        snapshots.getInputSlots().stream()
+            .filter(s -> {
+                if (!request.getAll()) {
+                    return slotNames.contains(s.name());
+                }
+                return true;
+            })
+            .forEach(slot -> response.addSlots(buildInputSlotStatus(slot)));
+
+        snapshots.getOutputSlots().stream()
+            .filter(s -> {
+                if (!request.getAll()) {
+                    return slotNames.contains(s.name());
+                }
+                return true;
+            })
+            .forEach(slot -> response.addSlots(buildOutputSlotStatus(slot)));
 
         for (var stdSlot : portal.getOutErrSlots()) {
             response.addSlots(buildOutputSlotStatus(stdSlot));

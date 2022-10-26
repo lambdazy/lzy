@@ -16,6 +16,7 @@ import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.fs.LzyFsGrpc;
 import ai.lzy.v1.portal.LzyPortal;
 import ai.lzy.v1.portal.LzyPortalApi;
+import ai.lzy.v1.portal.LzyPortalApi.PortalStatusRequest;
 import ai.lzy.v1.portal.LzyPortalGrpc;
 import ai.lzy.v1.slots.LSA;
 import ai.lzy.v1.slots.LzySlotsApiGrpc;
@@ -25,7 +26,6 @@ import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.google.common.net.HostAndPort;
-import com.google.protobuf.Empty;
 import io.findify.s3mock.S3Mock;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
@@ -287,7 +287,10 @@ public class PortalTestBase {
     protected void waitPortalCompleted() {
         boolean done = false;
         while (!done) {
-            var status = authorizedPortalClient.status(Empty.getDefaultInstance());
+            var status = authorizedPortalClient.status(PortalStatusRequest.newBuilder()
+                .setAll(true)
+                .build()
+            );
             done = status.getSlotsList().stream().allMatch(
                 slot -> {
                     System.out.println("[portal slot] " + JsonUtils.printSingleLine(slot));

@@ -24,7 +24,7 @@ public class PortalAuthTest extends PortalTestBase {
                 )));
 
                 add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedPortalClient.status(
-                    Empty.getDefaultInstance()
+                    LzyPortalApi.PortalStatusRequest.newBuilder().build()
                 )));
             }
         };
@@ -44,7 +44,9 @@ public class PortalAuthTest extends PortalTestBase {
                     LzyPortalApi.OpenSlotsRequest.newBuilder().build()
                 )));
 
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> client.status(Empty.getDefaultInstance())));
+                add(Assert.assertThrows(StatusRuntimeException.class, () -> client.status(
+                    LzyPortalApi.PortalStatusRequest.newBuilder().build()
+                )));
             }
         };
 

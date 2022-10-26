@@ -26,7 +26,8 @@ public class S3Repositories<T> {
     private final Map<S3RepositoryProvider<T>, S3Repository<T>> repositories = new HashMap<>();
 
     public S3Repository<T> getOrCreate(String endpoint, String accessToken, String secretToken,
-                                       BiDirectS3Converter<T> converter) {
+                                       BiDirectS3Converter<T> converter)
+    {
         return repositories.computeIfAbsent(AmazonS3Key.of(endpoint, accessToken, secretToken, converter),
             S3RepositoryProvider::getRepository);
     }
@@ -39,7 +40,8 @@ public class S3Repositories<T> {
     record AmazonS3Key<T>(String endpoint, String accessToken, String secretToken, BiDirectS3Converter<T> converter)
         implements S3RepositoryProvider<T> {
         static <U> AmazonS3Key<U> of(String endpoint, String accessToken, String secretToken,
-                                     BiDirectS3Converter<U> converter) {
+                                     BiDirectS3Converter<U> converter)
+        {
             return new AmazonS3Key<>(endpoint, accessToken, secretToken, converter);
         }
 

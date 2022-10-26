@@ -8,7 +8,7 @@ import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.portal.config.PortalConfig;
-import ai.lzy.portal.slots.SnapshotEntriesProvider;
+import ai.lzy.portal.slots.SnapshotProvider;
 import ai.lzy.portal.slots.StdoutSlot;
 import ai.lzy.util.auth.credentials.CredentialsUtils;
 import ai.lzy.util.auth.credentials.RenewableJwt;
@@ -69,7 +69,7 @@ public class Portal {
     // slots
     private StdoutSlot stdoutSlot;
     private StdoutSlot stderrSlot;
-    private final SnapshotEntriesProvider snapshots;
+    private final SnapshotProvider snapshots;
 
     private final String portalId;
 
@@ -114,7 +114,7 @@ public class Portal {
             tokenFactory = () -> testOnlyToken;
         }
 
-        snapshots = new SnapshotEntriesProvider();
+        snapshots = new SnapshotProvider();
         portalId = config.getPortalId();
     }
 
@@ -220,7 +220,7 @@ public class Portal {
         return Collections.emptyList();
     }
 
-    SnapshotEntriesProvider getSnapshots() {
+    SnapshotProvider getSnapshots() {
         return snapshots;
     }
 

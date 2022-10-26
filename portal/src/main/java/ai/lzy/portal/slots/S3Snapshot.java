@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
-public class S3SnapshotEntry implements SnapshotEntry {
+public class S3Snapshot implements Snapshot {
     private final String snapshotId;
 
     private final AtomicReference<SnapshotInputSlot> inputSlot = new AtomicReference<>(null);
@@ -30,7 +30,7 @@ public class S3SnapshotEntry implements SnapshotEntry {
 
     private final AtomicReference<State> state = new AtomicReference<>(State.INITIAL);
 
-    public S3SnapshotEntry(String snapshotId, String key, String bucket, S3Repository<Stream<ByteString>> s3Repository)
+    public S3Snapshot(String snapshotId, String key, String bucket, S3Repository<Stream<ByteString>> s3Repository)
         throws IOException
     {
         this.snapshotId = snapshotId;

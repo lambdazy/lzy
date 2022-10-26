@@ -8,7 +8,7 @@ import ai.lzy.portal.s3.ByteStringStreamConverter;
 import ai.lzy.portal.s3.S3Repositories;
 import ai.lzy.portal.s3.S3Repository;
 import ai.lzy.v1.common.LMS3;
-import ai.lzy.v1.portal.LzyPortal.PortalSlotDesc.Snapshot;
+import ai.lzy.v1.portal.LzyPortal;
 import com.amazonaws.AmazonClientException;
 import com.azure.storage.common.implementation.connectionstring.StorageConnectionString;
 import com.google.protobuf.ByteString;
@@ -24,15 +24,17 @@ import java.util.stream.Stream;
 
 import static ai.lzy.portal.Portal.CreateSlotException;
 
-public class SnapshotEntriesProvider {
-    private static final Logger LOG = LogManager.getLogger(SnapshotEntriesProvider.class);
+public class SnapshotProvider {
+    private static final Logger LOG = LogManager.getLogger(SnapshotProvider.class);
 
-    private final Map<String, SnapshotEntry> snapshots = new HashMap<>(); // snapshot id -> snapshot slot
+    private final Map<String, Snapshot> snapshots = new HashMap<>(); // snapshot id -> snapshot slot
     private final Map<String, String> name2id = new HashMap<>(); // slot name -> snapshot id
 
     private final S3Repositories<Stream<ByteString>> s3Repositories = new S3Repositories<>();
 
-    public synchronized LzySlot createSlot(Snapshot snapshotData, SlotInstance instance) throws CreateSlotException {
+    public synchronized LzySlot createSlot(LzyPortal.PortalSlotDesc.Snapshot snapshotData, SlotInstance instance)
+            throws CreateSlotException
+    {
         String key = snapshotData.getS3().getKey();
         String bucket = snapshotData.getS3().getBucket();
         String endpoint = endpointFrom(snapshotData.getS3());
@@ -60,14 +62,14 @@ public class SnapshotEntriesProvider {
                     throw new CreateSlotException("Snapshot with id '" + snapshotId + "' already associated with data");
                 }
 
-                yield getOrCreateSnapshotEntry(s3Repo, snapshotId, key, bucket).setInputSlot(instance);
+                yield getOrCreateSnapshot(s3Repo, snapshotId, key, bucket).setInputSlot(instance);
             }
             case OUTPUT -> {
                 if (!snapshots.containsKey(snapshotId) && !s3ContainsSnapshot) {
                     throw new CreateSlotException("Snapshot with id '" + snapshotId + "' not found");
                 }
 
-                yield getOrCreateSnapshotEntry(s3Repo, snapshotId, key, bucket).addOutputSlot(instance);
+                yield getOrCreateSnapshot(s3Repo, snapshotId, key, bucket).addOutputSlot(instance);
             }
         };
 
@@ -76,14 +78,14 @@ public class SnapshotEntriesProvider {
         return lzySlot;
     }
 
-    private SnapshotEntry getOrCreateSnapshotEntry(S3Repository<Stream<ByteString>> s3Repo, String snapshotId,
-                                                   String key, String bucket) throws CreateSlotException
+    private Snapshot getOrCreateSnapshot(S3Repository<Stream<ByteString>> s3Repo, String snapshotId,
+                                         String key, String bucket) throws CreateSlotException
     {
         try {
             return snapshots.computeIfAbsent(snapshotId,
                 id -> {
                     try {
-                        return new S3SnapshotEntry(id, key, bucket, s3Repo);
+                        return new S3Snapshot(id, key, bucket, s3Repo);
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -116,17 +118,17 @@ public class SnapshotEntriesProvider {
     }
 
     public boolean removeInputSlot(String slotName) {
-        SnapshotEntry ss = snapshots.get(name2id.get(slotName));
+        Snapshot ss = snapshots.get(name2id.get(slotName));
         return Objects.nonNull(ss) && ss.removeInputSlot(slotName);
     }
 
     public boolean removeOutputSlot(String slotName) {
-        SnapshotEntry ss = snapshots.get(name2id.get(slotName));
+        Snapshot ss = snapshots.get(name2id.get(slotName));
         return Objects.nonNull(ss) && ss.removeOutputSlot(slotName);
     }
 
     public Collection<? extends LzyInputSlot> getInputSlots() {
-        return snapshots.values().stream().map(SnapshotEntry::getInputSlot).filter(Objects::nonNull).toList();
+        return snapshots.values().stream().map(Snapshot::getInputSlot).filter(Objects::nonNull).toList();
     }
 
     public Collection<? extends LzyOutputSlot> getOutputSlots() {
@@ -134,12 +136,12 @@ public class SnapshotEntriesProvider {
     }
 
     public LzyInputSlot getInputSlot(String slotName) {
-        SnapshotEntry ss = snapshots.get(name2id.get(slotName));
+        Snapshot ss = snapshots.get(name2id.get(slotName));
         return Objects.nonNull(ss) ? ss.getInputSlot() : null;
     }
 
     public LzyOutputSlot getOutputSlot(String slotName) {
-        SnapshotEntry ss = snapshots.get(name2id.get(slotName));
+        Snapshot ss = snapshots.get(name2id.get(slotName));
         return Objects.nonNull(ss) ? ss.getOutputSlot(slotName) : null;
     }
 }
