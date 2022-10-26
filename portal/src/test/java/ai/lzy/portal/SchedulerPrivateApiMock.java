@@ -1,6 +1,6 @@
 package ai.lzy.portal;
 
-import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LMO;
@@ -10,7 +10,6 @@ import ai.lzy.v1.worker.LWS;
 import ai.lzy.v1.worker.WorkerApiGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
-import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,6 +22,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
 
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
+
 class SchedulerPrivateApiMock extends SchedulerPrivateGrpc.SchedulerPrivateImplBase {
     private static final Logger LOG = LogManager.getLogger(SchedulerPrivateApiMock.class);
 
@@ -30,9 +32,7 @@ class SchedulerPrivateApiMock extends SchedulerPrivateGrpc.SchedulerPrivateImplB
     final Map<String, WorkerHandler> workerHandlers = new ConcurrentHashMap<>();
 
     public SchedulerPrivateApiMock(int port) {
-        this.server = NettyServerBuilder.forPort(port)
-            .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
+        this.server = GrpcUtils.newGrpcServer("localhost", port, GrpcUtils.NO_AUTH)
             .addService(this)
             .addService(new AllocatorPrivateAPIMock())
             .build();
@@ -99,23 +99,24 @@ class SchedulerPrivateApiMock extends SchedulerPrivateGrpc.SchedulerPrivateImplB
         private final AtomicBoolean active = new AtomicBoolean(false);
 
         private final WorkerApiGrpc.WorkerApiBlockingStub workerClient;
+        private final ManagedChannel workerChannel;
 
         WorkerHandler(SchedulerPrivateApi.RegisterServantRequest req) {
-            this.workerClient = WorkerApiGrpc.newBlockingStub(
-                ChannelBuilder.forAddress("localhost", req.getApiPort())
-                    .usePlaintext()
-                    .enableRetry(WorkerApiGrpc.SERVICE_NAME)
-                    .build());
+            workerChannel = newGrpcChannel("localhost", req.getApiPort(), WorkerApiGrpc.SERVICE_NAME);
+            workerClient = newBlockingClient(
+                WorkerApiGrpc.newBlockingStub(workerChannel),
+                "WorkerHandler",
+                GrpcUtils.NO_AUTH_TOKEN);
         }
 
         public void shutdown() {
             workerClient.stop(LWS.StopRequest.getDefaultInstance());
-            ((ManagedChannel) workerClient.getChannel()).shutdown();
+            workerChannel.shutdown();
         }
 
         @SuppressWarnings("UnusedReturnValue")
         public boolean awaitTermination(long c, TimeUnit timeUnit) throws InterruptedException {
-            return ((ManagedChannel) workerClient.getChannel()).awaitTermination(c, timeUnit);
+            return workerChannel.awaitTermination(c, timeUnit);
         }
 
         public void startTask(LMO.TaskDesc taskDesc, String taskId, String executionId) {
