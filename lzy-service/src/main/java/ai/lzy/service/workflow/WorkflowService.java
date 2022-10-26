@@ -277,7 +277,8 @@ public class WorkflowService {
             withRetries(defaultRetryPolicy(), LOG, () -> workflowDao.updateAllocatorSession(executionId, sessionId));
 
             var startAllocationTime = Instant.now();
-            var operation = startAllocation(workflowName, sessionId, executionId, stdoutChannelId, stderrChannelId);
+            var operation = startAllocation(userId, workflowName, sessionId,
+                executionId, stdoutChannelId, stderrChannelId);
             var opId = operation.getId();
 
             VmAllocatorApi.AllocateMetadata allocateMetadata;
@@ -336,8 +337,8 @@ public class WorkflowService {
         return session.getSessionId();
     }
 
-    public LongRunning.Operation startAllocation(String workflowName, String sessionId, String executionId,
-                                                 String stdoutChannelId, String stderrChannelId)
+    public LongRunning.Operation startAllocation(String userId, String workflowName, String sessionId,
+                                                 String executionId, String stdoutChannelId, String stderrChannelId)
     {
         var portalId = "portal_" + executionId + UUID.randomUUID();
 
@@ -350,7 +351,7 @@ public class WorkflowService {
             final var subj = subjectClient.createSubject(AuthProvider.INTERNAL, portalId, SubjectType.SERVANT,
                 new SubjectCredentials("main", publicKey, CredentialsType.PUBLIC_KEY));
 
-            abClient.setAccessBindings(new Workflow(workflowName),
+            abClient.setAccessBindings(new Workflow(userId + "/" + workflowName),
                 List.of(new AccessBinding(Role.LZY_WORKFLOW_OWNER, subj)));
         } catch (Exception e) {
             LOG.error("Cannot build credentials for portal", e);
@@ -360,15 +361,14 @@ public class WorkflowService {
         var args = List.of(
             "-portal.portal-id=" + portalId,
             "-portal.portal-api-port=" + startupPortalConfig.getPortalApiPort(),
-            "-portal.fs-api-port=" + startupPortalConfig.getFsApiPort(),
-            "-portal.fs-root=" + startupPortalConfig.getFsRoot(),
+            "-portal.slots-api-port=" + startupPortalConfig.getSlotsApiPort(),
             "-portal.stdout-channel-id=" + stdoutChannelId,
             "-portal.stderr-channel-id=" + stderrChannelId,
             "-portal.channel-manager-address=" + channelManagerAddress,
             "-portal.iam-address=" + iamAddress);
 
         var ports = Map.of(
-            startupPortalConfig.getFsApiPort(), startupPortalConfig.getFsApiPort(),
+            startupPortalConfig.getSlotsApiPort(), startupPortalConfig.getSlotsApiPort(),
             startupPortalConfig.getPortalApiPort(), startupPortalConfig.getPortalApiPort()
         );
 

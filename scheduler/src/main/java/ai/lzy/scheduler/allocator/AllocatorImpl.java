@@ -98,7 +98,7 @@ public class AllocatorImpl implements ServantsAllocator {
     }
 
     @Override
-    public void allocate(String workflowName, String servantId, Operation.Requirements requirements) {
+    public void allocate(String userId, String workflowName, String servantId, Operation.Requirements requirements) {
         String privateKey;
         try {
             var workerKeys = RsaUtils.generateRsaKeys();
@@ -108,7 +108,7 @@ public class AllocatorImpl implements ServantsAllocator {
             final var subj = subjectClient.createSubject(AuthProvider.INTERNAL, servantId, SubjectType.SERVANT,
                 new SubjectCredentials("main", publicKey, CredentialsType.PUBLIC_KEY));
 
-            abClient.setAccessBindings(new Workflow(workflowName),
+            abClient.setAccessBindings(new Workflow(userId + "/" + workflowName),
                 List.of(new AccessBinding(Role.LZY_WORKFLOW_OWNER, subj)));
         } catch (Exception e) {
             LOG.error("Cannot build credentials for servant", e);

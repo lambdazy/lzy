@@ -53,6 +53,8 @@ public class EventProcessorTest {
 
     public AllocatorMock allocator;
     public String workflowId;
+    public String workflowName;
+    public String userId;
     public CountDownLatch servantReady;
 
     @Rule
@@ -67,14 +69,16 @@ public class EventProcessorTest {
         tasks = context.getBean(TaskDao.class);
         manager = context.getBean(EventQueueManager.class);
 
-        workflowId = "wf" + UUID.randomUUID();
+        workflowId = "wfid" + UUID.randomUUID();
+        workflowName = "wf" + UUID.randomUUID();
+        userId = "uid" + UUID.randomUUID();
         allocator = new AllocatorMock();
         servantReady = new CountDownLatch(1);
     }
 
     @After
     public void tearDown() throws DaoException {
-        for (Servant servant : servantDao.get(workflowId)) {
+        for (Servant servant : servantDao.get(workflowName)) {
             servantDao.invalidate(servant, "destroy");
             events.removeAll(servant.id());
         }
@@ -87,7 +91,7 @@ public class EventProcessorTest {
 
     @Test(timeout = 1000)
     public void testAwaitState() throws Exception {
-        var s = servantDao.create(workflowId, new Operation.Requirements("s", "a"));
+        var s = servantDao.create(userId, workflowName, new Operation.Requirements("s", "a"));
         var t = new Thread(() -> {
             try {
                 awaitState(s.workflowName(), s.id(), ServantState.Status.DESTROYED);
@@ -428,8 +432,8 @@ public class EventProcessorTest {
         private AllocatedServantMock mock;
 
         public ProcessorContext(ServantEventProcessorConfig config, String... provisioningTags) throws DaoException {
-            servant = servantDao.create(workflowId, new Operation.Requirements("s", "a"));
-            processor = new ServantEventProcessor(workflowId, servant.id(), config, allocator, tasks, events,
+            servant = servantDao.create(userId, workflowName, new Operation.Requirements("s", "a"));
+            processor = new ServantEventProcessor(workflowName, servant.id(), config, allocator, tasks, events,
                 servantDao, manager, (a, b) -> latch.countDown(), (a, b) -> {
             });
             processor.start();
@@ -438,8 +442,8 @@ public class EventProcessorTest {
 
         public ProcessorContext(String servantId,
             ServantEventProcessorConfig config, String... provisioningTags) throws DaoException {
-            servant = Objects.requireNonNull(servantDao.get(workflowId, servantId));
-            processor = new ServantEventProcessor(workflowId, servantId, config, allocator, tasks, events,
+            servant = Objects.requireNonNull(servantDao.get(workflowName, servantId));
+            processor = new ServantEventProcessor(workflowName, servantId, config, allocator, tasks, events,
                 servantDao, manager, (a, b) -> latch.countDown(), (a, b) -> {
             });
             processor.start();
@@ -447,7 +451,7 @@ public class EventProcessorTest {
         }
 
         public Task generateTask() throws DaoException {
-            return tasks.create(workflowId, workflowId, new TaskDesc(buildOp(tags), Map.of()));
+            return tasks.create(workflowId, workflowName, userId, new TaskDesc(buildOp(tags), Map.of()));
         }
 
         public HostAndPort generateServant() throws IOException {
@@ -493,17 +497,17 @@ public class EventProcessorTest {
         }
     }
 
-    public void awaitState(String workflowId, String servantId,
+    public void awaitState(String workflowName, String servantId,
         ServantState.Status status) throws InterruptedException, DaoException {
         ServantState.Status s = null;
-        var servant = servantDao.get(workflowId, servantId);
+        var servant = servantDao.get(workflowName, servantId);
         if (servant != null) {
             s = servant.status();
         }
         while (s == null || s != status) {
             LOG.debug("Got status {}, awaiting {}", s, status);
             Thread.sleep(10);
-            servant = servantDao.get(workflowId, servantId);
+            servant = servantDao.get(workflowName, servantId);
             if (servant == null) {
                 s = null;
             } else {

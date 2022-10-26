@@ -98,7 +98,7 @@ public class DbAccessClientTest {
                 AuthPermission.WHITEBOARD_DELETE)
         );
 
-        AuthResource workflowResource = new Workflow("workflow");
+        AuthResource workflowResource = new Workflow("uid/workflow");
         List<AccessBinding> workflowAccessBinding = List.of(
                 new AccessBinding(Role.LZY_WORKFLOW_OWNER, user)
         );
@@ -165,7 +165,7 @@ public class DbAccessClientTest {
             LOG.info("Valid exception::{}", e.getInternalDetails());
         }
 
-        AuthResource workflowResource = new Workflow("workflow");
+        AuthResource workflowResource = new Workflow("uid/workflow");
         accessBindingClient.setAccessBindings(workflowResource, List.of(
                 new AccessBinding(Role.LZY_WORKFLOW_OWNER, user)
         ));

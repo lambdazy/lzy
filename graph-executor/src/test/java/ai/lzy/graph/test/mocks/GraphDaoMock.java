@@ -19,8 +19,8 @@ public class GraphDaoMock extends GraphExecutionDaoImpl {
 
     @Override
     public synchronized GraphExecutionState create(String workflowId, String workflowName,
-                                                   GraphDescription description) throws DaoException {
-        var graph = super.create(workflowId, workflowName, description);
+                                                   String userId, GraphDescription description) throws DaoException {
+        var graph = super.create(workflowId, workflowName, userId, description);
         this.notifyAll();
         return graph;
     }

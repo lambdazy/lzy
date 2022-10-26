@@ -19,9 +19,10 @@ service GraphExecutor {
 message GraphExecuteRequest {
   string workflowId = 1;
   string workflowName = 2;
-  repeated TaskDesc tasks = 3;
-  string parentGraphId = 4;
-  repeated ChannelDesc channels = 5;
+  string userId = 3;
+  repeated TaskDesc tasks = 4;
+  string parentGraphId = 5;
+  repeated ChannelDesc channels = 6;
 }
 message GraphExecuteResponse {
   GraphExecutionStatus status = 1;

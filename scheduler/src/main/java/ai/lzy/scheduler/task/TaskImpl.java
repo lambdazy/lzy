@@ -33,6 +33,11 @@ public class TaskImpl implements Task {
     }
 
     @Override
+    public String userId() {
+        return state.userId();
+    }
+
+    @Override
     public TaskDesc description() {
         return state.description();
     }
@@ -62,14 +67,14 @@ public class TaskImpl implements Task {
 
     @Override
     public void notifyScheduled() throws DaoException {
-        state = new TaskState(taskId(), workflowId(), workflowName(), description(),
+        state = new TaskState(taskId(), workflowId(), workflowName(), userId(), description(),
                 Status.SCHEDULED, rc(), errorDescription(), servantId());
         dao.update(this);
     }
 
     @Override
     public void notifyExecuting(String servantId) throws DaoException {
-        state = new TaskState(taskId(), workflowId(), workflowName(), description(),
+        state = new TaskState(taskId(), workflowId(), workflowName(), userId(), description(),
             Status.EXECUTING, rc(), errorDescription(), servantId);
         dao.update(this);
     }
@@ -77,7 +82,7 @@ public class TaskImpl implements Task {
     @Override
     public void notifyExecutionCompleted(Integer rc, String description) throws DaoException {
         final Status status = rc == 0 ? Status.SUCCESS : Status.ERROR;
-        state = new TaskState(taskId(), workflowId(), workflowName(), description(),
+        state = new TaskState(taskId(), workflowId(), workflowName(), userId(), description(),
             status, rc, description, servantId());
         dao.update(this);
     }

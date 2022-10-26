@@ -75,7 +75,7 @@ public class GraphExecutionService {
             response.onError(status.asRuntimeException());
         };
 
-        setWorkflowName(graphExecutionState);
+        setWorkflowInfo(graphExecutionState);
 
         if (graphExecutionState.isInvalid()) {
             replyError.accept(graphExecutionState.getErrorStatus());
@@ -135,6 +135,7 @@ public class GraphExecutionService {
             executeResponse = graphExecutorClient.execute(GraphExecutorApi.GraphExecuteRequest.newBuilder()
                 .setWorkflowId(executionId)
                 .setWorkflowName(graphExecutionState.getWorkflowName())
+                .setUserId(graphExecutionState.getUserId())
                 .setParentGraphId(graph.getParentGraphId())
                 .addAllTasks(graphExecutionState.getTasks())
                 .addAllChannels(graphExecutionState.getChannels())
@@ -244,13 +245,21 @@ public class GraphExecutionService {
     }
 
 
-    private void setWorkflowName(GraphExecutionState state) {
+    private void setWorkflowInfo(GraphExecutionState state) {
         try {
             state.setWorkflowName(withRetries(LOG, () -> workflowDao.getWorkflowName(state.getExecutionId())));
         } catch (NotFoundException e) {
             state.fail(Status.NOT_FOUND, "Cannot obtain workflow name for execution: " + e.getMessage());
         } catch (Exception e) {
             state.fail(Status.INTERNAL, "Cannot obtain workflow name for execution: " + e.getMessage());
+        }
+
+        try {
+            state.setUserId(withRetries(LOG, () -> workflowDao.getUserId(state.getExecutionId())));
+        } catch (NotFoundException e) {
+            state.fail(Status.NOT_FOUND, "Cannot obtain userId for execution: " + e.getMessage());
+        } catch (Exception e) {
+            state.fail(Status.INTERNAL, "Cannot obtain userId for execution: " + e.getMessage());
         }
     }
 }

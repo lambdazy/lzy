@@ -49,11 +49,11 @@ public class DaoTest {
             .addEdge("2", "3")
             .addEdge("3", "1")
             .build();
-        GraphExecutionState s = dao.create("1", "changeMe", d);
+        GraphExecutionState s = dao.create("1", "changeMe", "userId", d);
         GraphExecutionState s2 = dao.get("1", s.id());
         Assert.assertEquals(s, s2);
 
-        GraphExecutionState s3 = dao.create("1", "changeMe", d);
+        GraphExecutionState s3 = dao.create("1", "changeMe", "userId", d);
         List<GraphExecutionState> list = dao.list("1");
         Assert.assertEquals(Set.of(s, s3), Set.copyOf(list));
 
@@ -63,7 +63,7 @@ public class DaoTest {
         Assert.assertThrows(DaoException.class,
             () -> dao.acquire("1", s.id()));
 
-        dao.free(
+        dao.updateAndFree(
             s4.copyFromThis()
             .withStatus(GraphExecutionState.Status.EXECUTING)
             .build()

@@ -15,6 +15,7 @@ import javax.annotation.Nullable;
 public final class GrpcUtils {
 
     public static final ServerInterceptor NO_AUTH = null;
+    public static final Supplier<String>  NO_AUTH_TOKEN = null;
 
     private GrpcUtils() {}
 

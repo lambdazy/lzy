@@ -12,11 +12,11 @@ ENV DOCKER_CHANNEL=stable \
 	DOCKER_COMPOSE_VERSION=1.29.2 \
 	DEBUG=false
 
-COPY servant/docker/dind/docker_installer.sh /
+COPY docker/dind/docker_installer.sh /
 RUN chmod a+rx /docker_installer.sh
 RUN ./docker_installer.sh
 
-COPY servant/docker/dind/modprobe /usr/local/bin/modprobe
+COPY docker/dind/modprobe /usr/local/bin/modprobe
 RUN chmod +x /usr/local/bin/modprobe
 
 VOLUME /var/lib/docker
@@ -49,7 +49,7 @@ SHELL ["/bin/bash", "-c"]
 # for future interactive shell sessions
 RUN conda init bash
 
-COPY servant/docker/requirements.txt /
-COPY servant/docker/conda_prepare.sh /
+COPY docker/requirements.txt /
+COPY docker/conda_prepare.sh /
 RUN chmod a+rx /conda_prepare.sh
 RUN ./conda_prepare.sh init

@@ -20,6 +20,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.LockSupport;
 
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
@@ -98,18 +99,23 @@ public class SchedulerAgent extends Thread {
             var retryCount = 0;
             while (++retryCount < 5) {
                 try {
-                    stub.servantProgress(SchedulerPrivateApi.ServantProgressRequest.newBuilder()
-                        .setServantId(servantId)
-                        .setWorkflowName(workflowName)
-                        .setProgress(progress)
-                        .build());
+                    stub.servantProgress(
+                        SchedulerPrivateApi.ServantProgressRequest.newBuilder()
+                            .setServantId(servantId)
+                            .setWorkflowName(workflowName)
+                            .setProgress(progress)
+                            .build());
                     break;
                 } catch (StatusRuntimeException e) {
+                    if (stopping.get()) {
+                        return;
+                    }
                     LOG.error("Cannot send progress to scheduler: {}. Retrying...", e.getStatus());
+                    LockSupport.parkNanos(Duration.ofMillis(100L * retryCount).toNanos());
                 }
             }
 
-            if (retryCount == 5) {
+            if (retryCount == 5 && !stopping.get()) {
                 LOG.error("Cannot send progress to scheduler. Stopping thread");
                 throw new RuntimeException("Cannot send progress to scheduler");
             }

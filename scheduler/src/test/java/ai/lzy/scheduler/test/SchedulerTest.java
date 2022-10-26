@@ -54,6 +54,7 @@ public class SchedulerTest {
     public AllocatorMock allocator;
     public String workflowId;
     public String workflowName;
+    public String userId;
 
     @Rule
     public Timeout globalTimeout = Timeout.seconds(30);
@@ -69,6 +70,7 @@ public class SchedulerTest {
 
         workflowId = "wfid" + UUID.randomUUID();
         workflowName = "wf" + UUID.randomUUID();
+        userId = "uid" + UUID.randomUUID();
         allocator = new AllocatorMock();
     }
 
@@ -98,7 +100,7 @@ public class SchedulerTest {
         final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
         allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
 
-        scheduler.execute(workflowId, workflowName, new TaskDesc(buildOp(), Map.of())); //task 1
+        scheduler.execute(workflowId, workflowName, userId, new TaskDesc(buildOp(), Map.of())); //task 1
         var req = allocationRequested.get();
 
         final var port = FreePortFinder.find(1000, 2000);
@@ -122,8 +124,8 @@ public class SchedulerTest {
         exec.take();
         servant.notifyExecutionCompleted(0, "Ok");
 
-        scheduler.execute(workflowId, workflowName, new TaskDesc(buildOp(), Map.of())); //task 2
-        scheduler.execute(workflowId, workflowName, new TaskDesc(buildOp(), Map.of())); //task 3
+        scheduler.execute(workflowId, workflowName, userId, new TaskDesc(buildOp(), Map.of())); //task 2
+        scheduler.execute(workflowId, workflowName, userId, new TaskDesc(buildOp(), Map.of())); //task 3
 
         env.take();
         servant.notifyConfigured(0, "OK");
@@ -161,8 +163,8 @@ public class SchedulerTest {
 
         allocator.onAllocationRequested(((a, b, c) -> requests.add(new AllocationRequest(a, b, c))));
 
-        scheduler.execute(workflowId, workflowName, new TaskDesc(buildOp(), Map.of())); //task 1
-        scheduler.execute(workflowId, workflowName, new TaskDesc(buildOp(), Map.of())); //task 2
+        scheduler.execute(workflowId, workflowName, userId, new TaskDesc(buildOp(), Map.of())); //task 1
+        scheduler.execute(workflowId, workflowName, userId, new TaskDesc(buildOp(), Map.of())); //task 2
 
         final var port1 = FreePortFinder.find(1000, 2000);
         final CountDownLatch env1 = new CountDownLatch(1);
@@ -254,7 +256,7 @@ public class SchedulerTest {
 
         final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
         allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
-        scheduler.execute(workflowId, workflowName, new TaskDesc(buildOp(), Map.of())); //task 1
+        scheduler.execute(workflowId, workflowName, userId, new TaskDesc(buildOp(), Map.of())); //task 1
         var req = allocationRequested.get();
 
         final var port = FreePortFinder.find(1000, 2000);
@@ -284,11 +286,11 @@ public class SchedulerTest {
 
         scheduler = restart.apply(scheduler);
 
-        scheduler.execute(workflowId, workflowName, new TaskDesc(buildOp(), Map.of())); //task 2
+        scheduler.execute(workflowId, workflowName, userId, new TaskDesc(buildOp(), Map.of())); //task 2
 
         scheduler = restart.apply(scheduler);
 
-        scheduler.execute(workflowId, workflowName, new TaskDesc(buildOp(), Map.of())); //task 3
+        scheduler.execute(workflowId, workflowName, userId, new TaskDesc(buildOp(), Map.of())); //task 3
 
         env.take();
         servant.notifyConfigured(0, "OK");

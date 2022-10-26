@@ -8,7 +8,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 public interface GraphExecutionDao {
-    GraphExecutionState create(String workflowId, String workflowName,
+    GraphExecutionState create(String workflowId, String workflowName, String userId,
                                GraphDescription description) throws DaoException;
 
     @Nullable
@@ -19,6 +19,6 @@ public interface GraphExecutionDao {
     @Nullable
     GraphExecutionState acquire(String workflowId, String graphExecutionId) throws DaoException;
 
-    void free(GraphExecutionState graph) throws DaoException;
+    void updateAndFree(GraphExecutionState graph) throws DaoException;
 
 }

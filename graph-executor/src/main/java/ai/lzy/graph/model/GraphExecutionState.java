@@ -24,6 +24,7 @@ import java.util.List;
 public record GraphExecutionState(
         String workflowId,
         String workflowName,
+        String userId,
         String id,
         GraphDescription description,
         List<TaskExecution> executions,
@@ -117,6 +118,7 @@ public record GraphExecutionState(
         return new GraphExecutionStateBuilder()
             .withWorkflowId(workflowId)
             .withWorkflowName(workflowName)
+            .withUserId(userId)
             .withId(id)
             .withDescription(description)
             .withExecutions(executions)
@@ -128,6 +130,7 @@ public record GraphExecutionState(
     public static class GraphExecutionStateBuilder {
         private String workflowId = null;
         private String workflowName = null;
+        private String userId = null;
         private String id = null;
         private GraphDescription description = null;
         private List<TaskExecution> executions = new ArrayList<>();
@@ -142,6 +145,11 @@ public record GraphExecutionState(
 
         public GraphExecutionStateBuilder withWorkflowName(String workflowName) {
             this.workflowName = workflowName;
+            return this;
+        }
+
+        public GraphExecutionStateBuilder withUserId(String userId) {
+            this.userId = userId;
             return this;
         }
 
@@ -181,7 +189,7 @@ public record GraphExecutionState(
                     "Cannot build GraphExecutionState with workflowId, id or description == null");
             }
             return new GraphExecutionState(
-                workflowId, workflowName, id, description, executions, currentExecutionGroup,
+                workflowId, workflowName, userId, id, description, executions, currentExecutionGroup,
                 status, errorDescription
             );
         }

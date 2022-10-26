@@ -10,12 +10,13 @@ public interface ServantsPool {
     /**
      * Waits for free servant to execute task with this requirements. If it can, it allocates new servant.
      * Returns null if pool is stopping.
+     * @param userId workflow belongs to
      * @param workflowName workflow in what to allocate servant
      * @param provisioning requirements to match
      * @return allocated servant future.
      */
     @Nullable
-    CompletableFuture<Servant> waitForFree(String workflowName, Operation.Requirements provisioning);
+    CompletableFuture<Servant> waitForFree(String userId, String workflowName, Operation.Requirements provisioning);
 
     /**
      * Gracefully shutting down the pool

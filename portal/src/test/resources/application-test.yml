@@ -5,7 +5,7 @@ portal:
   iam-token: "token_${portal.portal-id}"
   stdout-channel-id: "${portal.portal-id}:stdout"
   stderr-channel-id: "${portal.portal-id}:stderr"
-  fs-api-port: "${random.port}"
+  slots-api-port: "${random.port}"
   channel-manager-address: "localhost:${random.port}"
   iam-address: "localhost:8443"
   allocator-address: "localhost:${random.port}"

@@ -3,7 +3,6 @@ syntax = "proto3";
 package ai.lzy.v1.deprecated;
 
 import "ai/lzy/v1/deprecated/auth.proto";
-import "ai/lzy/v1/common/slot.proto";
 import "ai/lzy/v1/fs/fs-service.proto";
 
 option java_outer_classname = "Kharon";

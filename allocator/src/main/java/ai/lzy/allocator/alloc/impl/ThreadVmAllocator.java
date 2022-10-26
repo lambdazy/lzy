@@ -132,7 +132,11 @@ public class ThreadVmAllocator implements VmAllocator {
 
         var thread = vmThreads.remove(vmId);
         if (thread != null) {
-            thread.stop();
+            try {
+                thread.stop();
+            } catch (ThreadDeath e) {
+                // ignored
+            }
         }
     }
 
