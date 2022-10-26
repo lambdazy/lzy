@@ -77,19 +77,19 @@ class PortalApiImpl extends LzyPortalImplBase {
 
         snapshots.getInputSlots().stream()
             .filter(s -> {
-                if (!request.getAll()) {
-                    return slotNames.contains(s.name());
+                if (slotNames.isEmpty()) {
+                    return true;
                 }
-                return true;
+                return slotNames.contains(s.name());
             })
             .forEach(slot -> response.addSlots(buildInputSlotStatus(slot)));
 
         snapshots.getOutputSlots().stream()
             .filter(s -> {
-                if (!request.getAll()) {
-                    return slotNames.contains(s.name());
+                if (slotNames.isEmpty()) {
+                    return true;
                 }
-                return true;
+                return slotNames.contains(s.name());
             })
             .forEach(slot -> response.addSlots(buildOutputSlotStatus(slot)));
 

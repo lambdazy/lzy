@@ -287,10 +287,7 @@ public class PortalTestBase {
     protected void waitPortalCompleted() {
         boolean done = false;
         while (!done) {
-            var status = authorizedPortalClient.status(PortalStatusRequest.newBuilder()
-                .setAll(true)
-                .build()
-            );
+            var status = authorizedPortalClient.status(PortalStatusRequest.newBuilder().build());
             done = status.getSlotsList().stream().allMatch(
                 slot -> {
                     System.out.println("[portal slot] " + JsonUtils.printSingleLine(slot));
