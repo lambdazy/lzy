@@ -6,6 +6,7 @@ import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.portal.LzyPortal;
+import ai.lzy.v1.portal.LzyPortal.PortalSlotDesc;
 import ai.lzy.v1.portal.LzyPortalApi;
 import ai.lzy.v1.portal.LzyPortalApi.OpenSlotsRequest;
 import ai.lzy.v1.portal.LzyPortalApi.OpenSlotsResponse;
@@ -176,7 +177,7 @@ class PortalApiImpl extends LzyPortalImplBase {
         }
     }
 
-    private static String portalSlotToSafeString(LzyPortal.PortalSlotDesc slotDesc) {
+    private static String portalSlotToSafeString(PortalSlotDesc slotDesc) {
         var sb = new StringBuilder()
             .append("PortalSlotDesc{")
             .append("\"slot\": ").append(JsonUtils.printSingleLine(slotDesc))

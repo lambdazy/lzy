@@ -125,7 +125,7 @@ public class Portal {
         whiteboardClient = newBlockingClient(LzyWhiteboardPrivateServiceGrpc.newBlockingStub(whiteboardChannel), APP,
             tokenFactory);
 
-        snapshots = new SnapshotProvider();
+        snapshots = new SnapshotProvider(whiteboardClient);
         portalId = config.getPortalId();
     }
 

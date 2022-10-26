@@ -32,6 +32,8 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
     private final S3Snapshot slot;
     private SnapshotSlotStatus state = SnapshotSlotStatus.INITIALIZING;
 
+    private Runnable actionAfterS3Stored;
+
     public SnapshotInputSlot(SlotInstance slotInstance, S3Snapshot slot, Path storage, String key,
                              String bucket, S3Repository<Stream<ByteString>> s3Repository) throws IOException
     {
@@ -71,6 +73,9 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
                 FileChannel channel = FileChannel.open(storage, StandardOpenOption.READ);
                 s3Repository.put(bucket, key, OutFileSlot.readFileChannel(definition().name(), 0, channel, () -> true));
                 state = SnapshotSlotStatus.SYNCED;
+                if (actionAfterS3Stored != null) {
+                    actionAfterS3Stored.run();
+                }
             } catch (Exception e) {
                 LOG.error("Error while storing slot '{}' content in s3 storage: {}", name(), e.getMessage(), e);
                 state = SnapshotSlotStatus.FAILED;
@@ -105,5 +110,10 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
     @Override
     public SnapshotSlotStatus snapshotState() {
         return state;
+    }
+
+    public SnapshotInputSlot setActionAfterSynced(Runnable action) {
+        actionAfterS3Stored = action;
+        return this;
     }
 }

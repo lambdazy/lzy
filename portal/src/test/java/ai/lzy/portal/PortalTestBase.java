@@ -139,8 +139,7 @@ public class PortalTestBase {
         createChannel("portal:stderr");
 
         try {
-            var agent = new AllocatorAgent("portal_token", "portal_vm", mocksAddress,
-                Duration.ofSeconds(5), "localhost:" + config.getPortalApiPort());
+            var agent = new AllocatorAgent("portal_token", "portal_vm", mocksAddress, Duration.ofSeconds(5));
 
             portal = new Portal(config, agent, "portal_token");
             portal.start();
