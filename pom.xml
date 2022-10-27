@@ -38,7 +38,7 @@
         <module>allocator</module>
         <module>allocator-api</module>
         <module>coverage</module>
-        <module>workflow-api</module>
+        <module>lzy-service-api</module>
         <module>channel-manager-api</module>
         <module>tunnel-agent</module>
         <module>long-running-api</module>

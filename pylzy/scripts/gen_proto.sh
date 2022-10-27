@@ -9,7 +9,7 @@ source "$src_dir/util.sh"
 proto_out="lzy/proto"
 proto_validation_path="../util/util-grpc/src/main/proto/"
 proto_model_path="../model/src/main/proto/"
-proto_workflow_path="../workflow-api/src/main/proto/"
+proto_workflow_path="../lzy-service-api/src/main/proto/"
 
 [ -d "$proto_out" ] || mkdir -p "$proto_out"
 
