@@ -38,8 +38,8 @@ public enum ProtoConverter {
                                                           @Nullable WhiteboardRef whiteboardRef)
     {
         var keyAndBucket = parseStorageUri(slotUri);
-        var key = keyAndBucket[0];
-        var bucket = keyAndBucket[1];
+        var bucket = keyAndBucket[0];
+        var key = keyAndBucket[1];
 
         var snapshot = LzyPortal.PortalSlotDesc.Snapshot.newBuilder()
             .setS3(LMS3.S3Locator.newBuilder()
@@ -140,6 +140,6 @@ public enum ProtoConverter {
             case AMAZON -> "s3";
             case ENDPOINT_NOT_SET -> throw new IllegalArgumentException("Unsupported bucket storage type");
         };
-        return uriSchema + "://" + s3locator.getKey() + "/" + s3locator.getBucket();
+        return uriSchema + "://" + s3locator.getBucket() + "/" + s3locator.getKey();
     }
 }
