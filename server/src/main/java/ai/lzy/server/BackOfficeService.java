@@ -221,14 +221,14 @@ public class BackOfficeService extends LzyBackofficeGrpc.LzyBackofficeImplBase {
                     session.save(user);
                 }
                 if (user.getAuthProvider() != null) {
-                    if (AuthProvider.fromGrpcMessage(request.getProvider()) != user.getAuthProviderEnum()
+                    if (AuthProvider.fromProto(request.getProvider()) != user.getAuthProviderEnum()
                         || !request.getProviderUserId().equals(user.getProviderUserId())) {
                         responseObserver.onError(Status.PERMISSION_DENIED.asException());
                         tx.rollback();
                         return;
                     }
                 } else {
-                    user.setAuthProviderEnum(AuthProvider.fromGrpcMessage(request.getProvider()));
+                    user.setAuthProviderEnum(AuthProvider.fromProto(request.getProvider()));
                     user.setProviderUserId(request.getProviderUserId());
                     session.save(user);
                 }
