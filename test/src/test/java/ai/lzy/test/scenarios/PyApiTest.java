@@ -9,6 +9,7 @@ import org.junit.Test;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+@Ignore
 public class PyApiTest extends LocalScenario {
     @Before
     public void setUp() {

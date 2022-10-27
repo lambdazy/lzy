@@ -5,6 +5,7 @@ import ai.lzy.servant.agents.AgentStatus;
 import ai.lzy.test.LzyTerminalTestContext.Terminal;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.List;
@@ -13,6 +14,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
+@Ignore
 public class MultiSessionTest extends LocalScenario {
 
     private Terminal createTerminal(int port, int fsPort, int debugPort, String user, String mount) {

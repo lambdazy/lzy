@@ -6,12 +6,14 @@ import ai.lzy.test.LzyTerminalTestContext;
 import ai.lzy.test.impl.Utils;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 
+@Ignore
 public class ServantCrashTest extends LocalScenario {
     @Before
     public void setUp() {
