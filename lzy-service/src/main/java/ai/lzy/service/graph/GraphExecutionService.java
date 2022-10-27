@@ -236,7 +236,6 @@ public class GraphExecutionService {
             case COMPLETED -> {
                 var portalChannel = getOrCreatePortalChannel(executionId);
                 if (portalChannel == null) {
-                    LOG.error("Error while creating portal channel");
                     response.onError(Status.INTERNAL
                         .withDescription("Error while creating portal channel")
                         .asException());
@@ -256,9 +255,11 @@ public class GraphExecutionService {
                         .addAllSlotNames(desc.portalInputSlotNames())
                         .build());
                 } catch (StatusRuntimeException e) {
+                    LOG.error("Exception while getting status of portal", e);
                     response.onError(e);
                     return;
                 } catch (Exception e) {
+                    LOG.error("Exception while getting status of portal", e);
                     response.onError(Status.INTERNAL.asException());
                     return;
                 }
@@ -273,6 +274,10 @@ public class GraphExecutionService {
                         allSynced = false;
                     }
                     if (s.getSnapshotStatus() == SnapshotSlotStatus.FAILED) {
+                        LOG.error(
+                            "Portal slot <{}> of graph <{}> of execution <{}> is failed to sync data with storage",
+                            s.getSlot().getName(), graphId, executionId
+                        );
                         hasFailed = true;
                     }
                 }
