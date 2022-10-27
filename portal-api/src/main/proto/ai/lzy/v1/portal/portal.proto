@@ -16,8 +16,14 @@ message PortalSlotDesc {
     // external s3 storage
     S3Locator s3 = 1;
 
+    /* optional */ WhiteboardRef whiteboardRef = 2;  // Whiteboard field to link data to
+
+    message WhiteboardRef {
+      string whiteboardId = 1;
+      string fieldName = 2;
+    }
+
     // TODO:
-    //  - support whiteboard
     //  - support kafka (streaming)
   }
 

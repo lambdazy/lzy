@@ -34,4 +34,13 @@ public final class ProtoConverter {
             }).toList())
             .build();
     }
+
+    public static LWBPS.LinkFieldRequest newLWBPSLinkFieldRequest(LWFS.LinkWhiteboardRequest request) {
+        return LWBPS.LinkFieldRequest.newBuilder()
+            .setWhiteboardId(request.getWhiteboardId())
+            .setFieldName(request.getFieldName())
+            .setStorageUri(request.getStorageUri())
+            .setScheme(toProto(DataScheme.PLAIN))
+            .build();
+    }
 }

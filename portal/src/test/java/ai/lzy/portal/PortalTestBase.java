@@ -72,7 +72,7 @@ public class PortalTestBase {
     protected static final String S3_ADDRESS = "http://localhost:" + S3_PORT;
     protected static final String BUCKET_NAME = "lzy-bucket";
 
-    private String allocatorAndSchedulerAddress;
+    private String mocksAddress;
     private String channelManagerAddress;
 
     private S3Mock s3;
@@ -90,8 +90,8 @@ public class PortalTestBase {
         iamTestContext.setUp(iamDbConfig);
         startS3();
         var config = context.getBean(PortalConfig.class);
-        allocatorAndSchedulerAddress = config.getAllocatorAddress();
-        String[] hostAndPort = allocatorAndSchedulerAddress.split(":");
+        mocksAddress = config.getAllocatorAddress();
+        String[] hostAndPort = mocksAddress.split(":");
         schedulerServer = new SchedulerPrivateApiMock(Integer.parseInt(hostAndPort[1]));
         schedulerServer.start();
         workers = new HashMap<>();
@@ -139,8 +139,7 @@ public class PortalTestBase {
         createChannel("portal:stderr");
 
         try {
-            var agent = new AllocatorAgent("portal_token", "portal_vm", allocatorAndSchedulerAddress,
-                Duration.ofSeconds(5));
+            var agent = new AllocatorAgent("portal_token", "portal_vm", mocksAddress, Duration.ofSeconds(5));
 
             portal = new Portal(config, agent, "portal_token");
             portal.start();
@@ -277,8 +276,8 @@ public class PortalTestBase {
             LOG.error("Cannot build credentials for portal", e);
             throw new RuntimeException(e);
         }
-        var worker = new Worker("workflow", workerId, UUID.randomUUID().toString(), allocatorAndSchedulerAddress,
-            allocatorAndSchedulerAddress, allocatorDuration, schedulerDuration,
+        var worker = new Worker("workflow", workerId, UUID.randomUUID().toString(), mocksAddress,
+            mocksAddress, allocatorDuration, schedulerDuration,
             GrpcUtils.rollPort(), GrpcUtils.rollPort(), "/tmp/lzy_" + workerId + "/", channelManagerAddress,
             "localhost", privateKey, "token_" + workerId);
         workers.put(workerId, worker);

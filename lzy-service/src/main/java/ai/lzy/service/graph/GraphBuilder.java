@@ -52,10 +52,13 @@ class GraphBuilder {
         var executionId = state.getExecutionId();
         var workflowName = state.getWorkflowName();
         var dataFlow = state.getDataFlowGraph().getDataFlow();
+        var slot2description = state.getDescriptions().stream()
+            .collect(Collectors.toMap(LWF.DataDescription::getStorageUri, Function.identity()));
+
 
         Map<String, String> slotName2channelId;
         try {
-            slotName2channelId = createChannelsForDataFlow(workflowName, executionId, dataFlow, portalClient, state);
+            slotName2channelId = createChannelsForDataFlow(executionId, dataFlow, slot2description, portalClient, state);
         } catch (StatusRuntimeException e) {
             state.fail(e.getStatus(), "Cannot build graph");
             LOG.error("Cannot assign slots to channels for execution: " +
@@ -67,9 +70,6 @@ class GraphBuilder {
                 "{ executionId: {}, workflowName: {} }, error: {} ", executionId, workflowName, e.getMessage());
             return;
         }
-
-        var slot2description = state.getDescriptions().stream()
-            .collect(Collectors.toMap(LWF.DataDescription::getStorageUri, Function.identity()));
 
         List<TaskDesc> tasks;
         try {
@@ -102,8 +102,8 @@ class GraphBuilder {
         state.setChannels(channelsDescriptions);
     }
 
-    private Map<String, String> createChannelsForDataFlow(String workflowName, String executionId,
-                                                          List<DataFlowGraph.Data> dataFlow,
+    private Map<String, String> createChannelsForDataFlow(String executionId, List<DataFlowGraph.Data> dataFlow,
+                                                          Map<String, LWF.DataDescription> slot2dataDescription,
                                                           LzyPortalGrpc.LzyPortalBlockingStub portalClient,
                                                           GraphExecutionState state)
     {
@@ -122,7 +122,6 @@ class GraphBuilder {
         }
 
         var portalSlotToOpen = new ArrayList<LzyPortal.PortalSlotDesc>();
-
         var inputSlotNames = new ArrayList<String>();
 
         for (var data : fromOutput) {
@@ -131,9 +130,13 @@ class GraphBuilder {
                 .create(makeCreateDirectChannelCommand(executionId, "channel_" + slotUri))
                 .getChannelId();
             var portalInputSlotName = Portal.PORTAL_SLOT_PREFIX + "_" + UUID.randomUUID();
-            inputSlotNames.add(portalInputSlotName);
+            var dataDescription = slot2dataDescription.get(slotUri);
+            var whiteboardRef = Objects.nonNull(dataDescription) && dataDescription.hasWhiteboardRef() ?
+                dataDescription.getWhiteboardRef() : null;
 
-            portalSlotToOpen.add(makePortalInputSlot(slotUri, portalInputSlotName, channelId, storageLocator));
+            inputSlotNames.add(portalInputSlotName);
+            portalSlotToOpen.add(makePortalInputSlot(slotUri, portalInputSlotName, channelId, storageLocator,
+                whiteboardRef));
 
             slotName2channelId.put(data.supplier(), channelId);
             if (data.consumers() != null) {
@@ -235,14 +238,14 @@ class GraphBuilder {
             var stderrChannelId = channelManagerClient.create(
                 makeCreateDirectChannelCommand(executionId, channelNameForStderrSlot)).getChannelId();
 
-            tasks.add(buildTaskWithZone(executionId, taskId, operation, zoneName,
-                stdoutChannelId, stderrChannelId, slot2Channel, slot2description, portalClient));
+            tasks.add(buildTaskWithZone(taskId, operation, zoneName, stdoutChannelId, stderrChannelId, slot2Channel,
+                slot2description, portalClient));
         }
 
         return tasks;
     }
 
-    private TaskDesc buildTaskWithZone(String executionId, String taskId, LWF.Operation operation,
+    private TaskDesc buildTaskWithZone(String taskId, LWF.Operation operation,
                                        String zoneName, String stdoutChannelId, String stderrChannelId,
                                        Map<String, String> slot2Channel,
                                        Map<String, LWF.DataDescription> slot2description,
@@ -283,15 +286,11 @@ class GraphBuilder {
         var stdoutPortalSlotName = Portal.PORTAL_SLOT_PREFIX + "_" + taskId + ":" + Slot.STDOUT_SUFFIX;
         var stderrPortalSlotName = Portal.PORTAL_SLOT_PREFIX + "_" + taskId + ":" + Slot.STDERR_SUFFIX;
 
-        LzyPortalApi.OpenSlotsResponse response = portalClient.openSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
+        //noinspection ResultOfMethodCallIgnored
+        portalClient.openSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
             .addSlots(makePortalInputStdoutSlot(taskId, stdoutPortalSlotName, stdoutChannelId))
             .addSlots(makePortalInputStderrSlot(taskId, stderrPortalSlotName, stderrChannelId))
             .build());
-
-        if (!response.getSuccess()) {
-            LOG.error("Cannot open portal slots for { executionId: {} }: " + response.getDescription(), executionId);
-            throw new RuntimeException("Cannot open portal slots: " + response.getDescription());
-        }
 
         var requirements = LMO.Requirements.newBuilder()
             .setZone(zoneName).setPoolLabel(operation.getPoolSpecName()).build();

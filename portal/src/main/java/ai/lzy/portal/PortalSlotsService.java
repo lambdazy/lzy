@@ -86,7 +86,7 @@ public class PortalSlotsService {
         return legacyWrapper;
     }
 
-    private class SlotsApiImpl  extends LzySlotsApiGrpc.LzySlotsApiImplBase {
+    private class SlotsApiImpl extends LzySlotsApiGrpc.LzySlotsApiImplBase {
         @Override
         public void createSlot(LSA.CreateSlotRequest request, StreamObserver<LSA.CreateSlotResponse> response) {
             response.onError(Status.UNIMPLEMENTED.withDescription("Not supported in portal").asException());

@@ -14,6 +14,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import static ai.lzy.service.whiteboard.ProtoConverter.newLWBPSCreateWhiteboardRequest;
+import static ai.lzy.service.whiteboard.ProtoConverter.newLWBPSLinkFieldRequest;
 
 public class WhiteboardService {
     private static final Logger LOG = LogManager.getLogger(WhiteboardService.class);
@@ -53,7 +54,19 @@ public class WhiteboardService {
     }
 
     public void linkWhiteboard(LinkWhiteboardRequest request, StreamObserver<LinkWhiteboardResponse> response) {
-        response.onError(Status.UNIMPLEMENTED.asRuntimeException());
+        try {
+            //noinspection ResultOfMethodCallIgnored
+            client.linkField(newLWBPSLinkFieldRequest(request));
+        } catch (StatusRuntimeException e) {
+            var status = e.getStatus();
+            LOG.error("Cannot link whiteboard field: { whiteboardId: {}, fieldName: {}, storageUri: {} }, error: {}",
+                request.getWhiteboardId(), request.getFieldName(), request.getStorageUri(), status.getDescription());
+            response.onError(status.withDescription("Cannot link whiteboard field: " + status.getDescription())
+                .asRuntimeException());
+            return;
+        }
+
+        response.onNext(LinkWhiteboardResponse.getDefaultInstance());
         response.onCompleted();
     }
 }

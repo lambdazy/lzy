@@ -46,10 +46,12 @@ public class S3Snapshot implements Snapshot {
     }
 
     @Override
-    public SnapshotInputSlot setInputSlot(SlotInstance slotInstance) throws CreateSlotException {
-        assert slotInstance.spec().direction() == Slot.Direction.INPUT;
+    public SnapshotInputSlot setInputSlot(SlotInstance instance, @Nullable Runnable syncHandler)
+        throws CreateSlotException
+    {
+        assert instance.spec().direction() == Slot.Direction.INPUT;
         try {
-            var inputSlot = new SnapshotInputSlot(slotInstance, this, storageFile, key, bucket, s3Repository);
+            var inputSlot = new SnapshotInputSlot(instance, this, storageFile, key, bucket, s3Repository, syncHandler);
             if (!this.inputSlot.compareAndSet(null, inputSlot)) {
                 throw new CreateSlotException("InputSlot already set for snapshot " + snapshotId);
             }

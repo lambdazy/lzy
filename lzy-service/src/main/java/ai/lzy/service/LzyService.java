@@ -30,7 +30,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.time.Duration;
 
-import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.v1.workflow.LWFS.*;
@@ -85,7 +84,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
         iamChannel = newGrpcChannel(iamAddress, LzyAuthenticateServiceGrpc.SERVICE_NAME);
 
-        var subjectClient = new SubjectServiceGrpcClient(APP, iamChannel,  creds::get);
+        var subjectClient = new SubjectServiceGrpcClient(APP, iamChannel, creds::get);
         var abClient = new AccessBindingServiceGrpcClient(APP, iamChannel, creds::get);
 
         whiteboardChannel = newGrpcChannel(config.getWhiteboardAddress(), LzyWhiteboardPrivateServiceGrpc.SERVICE_NAME);
@@ -158,9 +157,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     }
 
     @Override
-    public void readStdSlots(
-            ReadStdSlotsRequest request, StreamObserver<ReadStdSlotsResponse> responseObserver)
-    {
+    public void readStdSlots(ReadStdSlotsRequest request, StreamObserver<ReadStdSlotsResponse> responseObserver) {
         workflowService.readStdSlots(request, responseObserver);
     }
 }

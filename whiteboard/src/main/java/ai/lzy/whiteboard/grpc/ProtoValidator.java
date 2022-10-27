@@ -51,7 +51,7 @@ public class ProtoValidator {
         }
     }
 
-    public static boolean isValid(LWBPS.FinalizeFieldRequest request) {
+    public static boolean isValid(LWBPS.LinkFieldRequest request) {
         try {
             boolean isValid = true;
             isValid = isValid && !request.getWhiteboardId().isBlank();

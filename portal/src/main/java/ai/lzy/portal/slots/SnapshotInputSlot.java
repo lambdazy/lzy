@@ -17,6 +17,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.stream.Stream;
+import javax.annotation.Nullable;
 
 public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot {
     private static final Logger LOG = LogManager.getLogger(SnapshotInputSlot.class);
@@ -32,8 +33,11 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
     private final S3Snapshot slot;
     private SnapshotSlotStatus state = SnapshotSlotStatus.INITIALIZING;
 
+    private final Runnable slotSyncHandler;
+
     public SnapshotInputSlot(SlotInstance slotInstance, S3Snapshot slot, Path storage, String key,
-                             String bucket, S3Repository<Stream<ByteString>> s3Repository) throws IOException
+                             String bucket, S3Repository<Stream<ByteString>> s3Repository,
+                             @Nullable Runnable syncHandler) throws IOException
     {
         super(slotInstance);
         this.slot = slot;
@@ -42,6 +46,7 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
         this.key = key;
         this.bucket = bucket;
         this.s3Repository = s3Repository;
+        this.slotSyncHandler = syncHandler;
     }
 
     @Override
@@ -71,6 +76,9 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
                 FileChannel channel = FileChannel.open(storage, StandardOpenOption.READ);
                 s3Repository.put(bucket, key, OutFileSlot.readFileChannel(definition().name(), 0, channel, () -> true));
                 state = SnapshotSlotStatus.SYNCED;
+                if (slotSyncHandler != null) {
+                    slotSyncHandler.run();
+                }
             } catch (Exception e) {
                 LOG.error("Error while storing slot '{}' content in s3 storage: {}", name(), e.getMessage(), e);
                 state = SnapshotSlotStatus.FAILED;
