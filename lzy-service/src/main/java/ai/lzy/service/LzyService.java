@@ -4,6 +4,7 @@ import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.dao.ExecutionDao;
+import ai.lzy.service.data.dao.GraphDao;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.service.graph.GraphExecutionService;
@@ -52,7 +53,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     private final GraphExecutionService graphExecutionService;
 
     public LzyService(LzyServiceConfig config, LzyServiceStorage storage,
-                      WorkflowDao workflowDao, ExecutionDao executionDao)
+                      WorkflowDao workflowDao, ExecutionDao executionDao, GraphDao graphDao)
     {
         String channelManagerAddress = config.getChannelManagerAddress();
 
@@ -97,7 +98,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         workflowService = new WorkflowService(config, channelManagerClient, allocatorClient,
             operationServiceClient, subjectClient, abClient, storageServiceClient, storage, workflowDao);
         whiteboardService = new WhiteboardService(whiteboardClient);
-        graphExecutionService = new GraphExecutionService(creds, workflowDao, executionDao,
+        graphExecutionService = new GraphExecutionService(creds, workflowDao, graphDao, executionDao,
             vmPoolClient, graphExecutorClient, channelManagerClient);
     }
 

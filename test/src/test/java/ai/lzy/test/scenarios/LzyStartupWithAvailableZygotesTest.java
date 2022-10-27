@@ -5,12 +5,14 @@ import ai.lzy.v1.deprecated.Lzy;
 import ai.lzy.v1.deprecated.LzyZygote;
 import io.grpc.StatusRuntimeException;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.stream.IntStream;
 
+@Ignore
 public class LzyStartupWithAvailableZygotesTest extends LocalScenario {
     @Test
     public void testRegisteredZygotesAvailable() {

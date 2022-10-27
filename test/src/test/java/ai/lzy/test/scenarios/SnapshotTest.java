@@ -19,6 +19,7 @@ import org.jose4j.json.internal.json_simple.parser.JSONParser;
 import org.jose4j.json.internal.json_simple.parser.ParseException;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -31,6 +32,7 @@ import java.util.concurrent.ForkJoinPool;
 
 import static ai.lzy.fs.commands.BuiltinCommandHolder.cat;
 
+@Ignore
 public class SnapshotTest extends LocalScenario {
 
     @Before

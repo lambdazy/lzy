@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.Map;
 
+@Ignore
 public class DockerServantTest extends LocalScenario {
 
     @Before

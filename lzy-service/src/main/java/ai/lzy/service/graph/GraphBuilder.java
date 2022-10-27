@@ -58,7 +58,7 @@ class GraphBuilder {
 
         Map<String, String> slotName2channelId;
         try {
-            slotName2channelId = createChannelsForDataFlow(executionId, dataFlow, slot2description, portalClient);
+            slotName2channelId = createChannelsForDataFlow(executionId, dataFlow, slot2description, portalClient, state);
         } catch (StatusRuntimeException e) {
             state.fail(e.getStatus(), "Cannot build graph");
             LOG.error("Cannot assign slots to channels for execution: " +
@@ -104,7 +104,8 @@ class GraphBuilder {
 
     private Map<String, String> createChannelsForDataFlow(String executionId, List<DataFlowGraph.Data> dataFlow,
                                                           Map<String, LWF.DataDescription> slot2dataDescription,
-                                                          LzyPortalGrpc.LzyPortalBlockingStub portalClient)
+                                                          LzyPortalGrpc.LzyPortalBlockingStub portalClient,
+                                                          GraphExecutionState state)
     {
         var slotName2channelId = new HashMap<String, String>();
         var partitionBySupplier = dataFlow.stream().collect(Collectors.partitioningBy(data -> data.supplier() != null));
@@ -121,6 +122,7 @@ class GraphBuilder {
         }
 
         var portalSlotToOpen = new ArrayList<LzyPortal.PortalSlotDesc>();
+        var inputSlotNames = new ArrayList<String>();
 
         for (var data : fromOutput) {
             var slotUri = data.slotUri();
@@ -132,6 +134,7 @@ class GraphBuilder {
             var whiteboardRef = Objects.nonNull(dataDescription) && dataDescription.hasWhiteboardRef() ?
                 dataDescription.getWhiteboardRef() : null;
 
+            inputSlotNames.add(portalInputSlotName);
             portalSlotToOpen.add(makePortalInputSlot(slotUri, portalInputSlotName, channelId, storageLocator,
                 whiteboardRef));
 
@@ -142,6 +145,7 @@ class GraphBuilder {
                 }
             }
         }
+        state.setPortalInputSlots(inputSlotNames);
 
         Map<String, String> outputSlot2channel;
 
