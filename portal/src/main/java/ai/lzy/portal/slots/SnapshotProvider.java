@@ -4,6 +4,9 @@ import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.portal.exceptions.CreateSlotException;
+import ai.lzy.portal.exceptions.SnapshotNotFound;
+import ai.lzy.portal.exceptions.SnapshotUniquenessException;
 import ai.lzy.portal.s3.ByteStringStreamConverter;
 import ai.lzy.portal.s3.S3Repositories;
 import ai.lzy.portal.s3.S3Repository;
@@ -22,8 +25,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
 
-import static ai.lzy.portal.Portal.CreateSlotException;
-
 public class SnapshotProvider {
     private static final Logger LOG = LogManager.getLogger(SnapshotProvider.class);
 
@@ -33,7 +34,7 @@ public class SnapshotProvider {
     private final S3Repositories<Stream<ByteString>> s3Repositories = new S3Repositories<>();
 
     public synchronized LzySlot createSlot(LzyPortal.PortalSlotDesc.Snapshot snapshotData, SlotInstance instance)
-            throws CreateSlotException
+        throws CreateSlotException
     {
         String key = snapshotData.getS3().getKey();
         String bucket = snapshotData.getS3().getBucket();
@@ -42,7 +43,7 @@ public class SnapshotProvider {
         var snapshotId = "%s-%s-%s".formatted(key, bucket, endpoint).replaceAll("/", "");
         var previousSnapshotId = name2id.get(instance.name());
         if (Objects.nonNull(previousSnapshotId)) {
-            throw new CreateSlotException("Slot '" + instance.name() + "' already associated with "
+            throw new SnapshotUniquenessException("Slot '" + instance.name() + "' already associated with "
                 + "snapshot '" + previousSnapshotId + "'");
         }
 
@@ -59,14 +60,15 @@ public class SnapshotProvider {
         LzySlot lzySlot = switch (instance.spec().direction()) {
             case INPUT -> {
                 if (snapshots.containsKey(snapshotId) || s3ContainsSnapshot) {
-                    throw new CreateSlotException("Snapshot with id '" + snapshotId + "' already associated with data");
+                    throw new SnapshotUniquenessException("Snapshot with id '" + snapshotId +
+                        "' already associated with data");
                 }
 
                 yield getOrCreateSnapshot(s3Repo, snapshotId, key, bucket).setInputSlot(instance);
             }
             case OUTPUT -> {
                 if (!snapshots.containsKey(snapshotId) && !s3ContainsSnapshot) {
-                    throw new CreateSlotException("Snapshot with id '" + snapshotId + "' not found");
+                    throw new SnapshotNotFound("Snapshot with id '" + snapshotId + "' not found");
                 }
 
                 yield getOrCreateSnapshot(s3Repo, snapshotId, key, bucket).addOutputSlot(instance);

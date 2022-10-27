@@ -4,7 +4,6 @@ import ai.lzy.model.slot.Slot;
 import ai.lzy.portal.Portal;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.WorkflowDao;
-import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LMO;
@@ -149,6 +148,17 @@ class GraphBuilder {
 
         synchronized (this) {
             try {
+                var slotsUriAsOutput = fromPortal.stream().map(DataFlowGraph.Data::slotUri).collect(Collectors.toSet());
+                var unknownFromPortal = withRetries(LOG, () ->
+                    executionDao.retainNonExistingSlots(executionId, slotsUriAsOutput));
+
+                withRetries(defaultRetryPolicy(), LOG, () -> executionDao.saveSlots(executionId, unknownFromPortal));
+            } catch (Exception e) {
+                LOG.error("Cannot save information to internal storage: " + e.getMessage());
+                throw new RuntimeException(e);
+            }
+
+            try {
                 var slotsUri = dataFlow.stream().map(DataFlowGraph.Data::slotUri).collect(Collectors.toSet());
                 outputSlot2channel = withRetries(LOG, () -> executionDao.findChannels(slotsUri));
             } catch (Exception e) {
@@ -158,10 +168,10 @@ class GraphBuilder {
             }
 
             var newChannels = new HashMap<String, String>();
-            var withoutChannels = fromPortal.stream()
+            var withoutOpenedPortalSlot = fromPortal.stream()
                 .filter(data -> !outputSlot2channel.containsKey(data.slotUri())).toList();
 
-            for (var data : withoutChannels) {
+            for (var data : withoutOpenedPortalSlot) {
                 var slotUri = data.slotUri();
                 var portalOutputSlotName = Portal.PORTAL_SLOT_PREFIX + "_" + UUID.randomUUID();
                 var channelId = channelManagerClient
@@ -191,15 +201,8 @@ class GraphBuilder {
             }
         }
 
-        var response =
-            portalClient.openSlots(LzyPortalApi.OpenSlotsRequest.newBuilder().addAllSlots(portalSlotToOpen).build());
-
-        if (!response.getSuccess()) {
-            LOG.error("Cannot open portal slots for tasks { executionId: {}, workflowName: {}, slots: {} }, error: {}",
-                executionId, workflowName, JsonUtils.printAsArray(portalSlotToOpen.stream()
-                    .map(slot -> slot.getSlot().getName()).toList()), response.getDescription());
-            throw new RuntimeException(response.getDescription());
-        }
+        //noinspection ResultOfMethodCallIgnored
+        portalClient.openSlots(LzyPortalApi.OpenSlotsRequest.newBuilder().addAllSlots(portalSlotToOpen).build());
 
         try {
             var slotsUriAsOutput = fromOutput.stream().map(DataFlowGraph.Data::slotUri).collect(Collectors.toSet());

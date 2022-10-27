@@ -2,7 +2,7 @@ package ai.lzy.portal.slots;
 
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
-import ai.lzy.portal.Portal.CreateSlotException;
+import ai.lzy.portal.exceptions.CreateSlotException;
 import ai.lzy.portal.s3.S3Repository;
 import com.google.protobuf.ByteString;
 
