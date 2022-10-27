@@ -3,11 +3,10 @@ package ai.lzy.portal.slots;
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.portal.exceptions.CreateSlotException;
 
 import java.util.Collection;
 import javax.annotation.Nullable;
-
-import static ai.lzy.portal.Portal.CreateSlotException;
 
 public interface Snapshot {
 

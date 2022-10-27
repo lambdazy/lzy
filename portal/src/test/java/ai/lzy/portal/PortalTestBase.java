@@ -28,6 +28,8 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.google.common.net.HostAndPort;
 import io.findify.s3mock.S3Mock;
 import io.grpc.ManagedChannel;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
@@ -49,9 +51,7 @@ import java.util.concurrent.locks.LockSupport;
 
 import static ai.lzy.channelmanager.grpc.ProtoConverter.makeCreateDirectChannelCommand;
 import static ai.lzy.channelmanager.grpc.ProtoConverter.makeDestroyChannelCommand;
-import static ai.lzy.util.grpc.GrpcUtils.NO_AUTH_TOKEN;
-import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
-import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
+import static ai.lzy.util.grpc.GrpcUtils.*;
 
 public class PortalTestBase {
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
@@ -320,10 +320,15 @@ public class PortalTestBase {
         Assert.assertTrue(response.getDescription(), response.getSuccess());
     }
 
-    protected String openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest request) {
-        var response = authorizedPortalClient.openSlots(request);
-        Assert.assertFalse(response.getSuccess());
-        return response.getDescription();
+    protected Status openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest request) {
+        Status status = null;
+        try {
+            var response = authorizedPortalClient.openSlots(request);
+            Assert.fail(response.getDescription());
+        } catch (StatusRuntimeException e) {
+            status = e.getStatus();
+        }
+        return status;
     }
 
     protected Iterator<LSA.SlotDataChunk> openOutputSlot(SlotInstance slot) {

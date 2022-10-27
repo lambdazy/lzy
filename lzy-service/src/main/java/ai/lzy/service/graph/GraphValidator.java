@@ -74,24 +74,6 @@ class GraphValidator {
             return;
         }
 
-        Set<String> unknownSlots;
-        Set<String> fromPortal = dataflowGraph.getDanglingInputSlots().keySet();
-        try {
-            unknownSlots = withRetries(LOG, () ->
-                executionDao.retainNonExistingSlots(state.getExecutionId(), fromPortal));
-        } catch (Exception e) {
-            state.fail(Status.INTERNAL, "Cannot obtain non-existing slots URIs associated with execution: " +
-                e.getMessage());
-            return;
-        }
-
-        if (!unknownSlots.isEmpty()) {
-            state.fail(Status.NOT_FOUND, String.format("Slots URIs { slotUris: %s } are presented neither in " +
-                "output slots URIs nor stored as already associated with portal",
-                JsonUtils.printAsArray(unknownSlots)));
-            return;
-        }
-
         var requiredPoolLabels = operations.stream().map(LWF.Operation::getPoolSpecName).toList();
         Set<String> suitableZones;
 
