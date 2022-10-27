@@ -8,6 +8,7 @@ import org.junit.Test;
 
 import java.nio.file.Paths;
 
+@Ignore
 public class LzyDryStartupTest extends LocalScenario {
 
     @Before

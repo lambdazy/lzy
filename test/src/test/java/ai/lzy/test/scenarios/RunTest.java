@@ -15,6 +15,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 
+@Ignore
 public class RunTest extends LocalScenario {
     @Before
     public void setUp() {
