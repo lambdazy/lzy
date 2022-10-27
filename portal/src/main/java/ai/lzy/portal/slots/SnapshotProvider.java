@@ -30,7 +30,6 @@ import java.util.Objects;
 import java.util.stream.Stream;
 
 import static ai.lzy.model.grpc.ProtoConverter.toProto;
-import static ai.lzy.portal.Portal.CreateSlotException;
 
 public class SnapshotProvider {
     private static final Logger LOG = LogManager.getLogger(SnapshotProvider.class);
