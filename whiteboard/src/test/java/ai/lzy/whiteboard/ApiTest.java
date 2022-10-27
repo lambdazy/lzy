@@ -203,14 +203,14 @@ public class ApiTest extends BaseTestWithIam {
             .createWhiteboard(genCreateWhiteboardRequest()).getWhiteboard();
         final var getRequest = LWBS.GetRequest.newBuilder().setWhiteboardId(createdWhiteboard.getId()).build();
 
-        privateWhiteboardClient.finalizeField(LWBPS.FinalizeFieldRequest.newBuilder()
+        privateWhiteboardClient.linkField(LWBPS.LinkFieldRequest.newBuilder()
             .setWhiteboardId(createdWhiteboard.getId())
             .setFieldName("f1")
             .setStorageUri("s-uri-1")
             .setScheme(toProto(DataScheme.PLAIN))
             .build());
 
-        privateWhiteboardClient.finalizeField(LWBPS.FinalizeFieldRequest.newBuilder()
+        privateWhiteboardClient.linkField(LWBPS.LinkFieldRequest.newBuilder()
             .setWhiteboardId(createdWhiteboard.getId())
             .setFieldName("f4")
             .setStorageUri("s-uri-4")
@@ -288,7 +288,7 @@ public class ApiTest extends BaseTestWithIam {
             Assert.assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
         }
         try {
-            client.finalizeField(LWBPS.FinalizeFieldRequest.getDefaultInstance());
+            client.linkField(LWBPS.LinkFieldRequest.getDefaultInstance());
             Assert.fail();
         } catch (StatusRuntimeException e) {
             Assert.assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());

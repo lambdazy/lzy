@@ -4,14 +4,21 @@ import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.portal.exceptions.CreateSlotException;
+import ai.lzy.portal.exceptions.SnapshotNotFound;
+import ai.lzy.portal.exceptions.SnapshotUniquenessException;
+import ai.lzy.portal.grpc.ProtoConverter;
 import ai.lzy.portal.s3.ByteStringStreamConverter;
 import ai.lzy.portal.s3.S3Repositories;
 import ai.lzy.portal.s3.S3Repository;
 import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.portal.LzyPortal;
+import ai.lzy.v1.whiteboard.LWBPS;
+import ai.lzy.v1.whiteboard.LzyWhiteboardPrivateServiceGrpc;
 import com.amazonaws.AmazonClientException;
 import com.azure.storage.common.implementation.connectionstring.StorageConnectionString;
 import com.google.protobuf.ByteString;
+import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -22,7 +29,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
 
-import static ai.lzy.portal.Portal.CreateSlotException;
+import static ai.lzy.model.grpc.ProtoConverter.toProto;
 
 public class SnapshotProvider {
     private static final Logger LOG = LogManager.getLogger(SnapshotProvider.class);
@@ -31,9 +38,14 @@ public class SnapshotProvider {
     private final Map<String, String> name2id = new HashMap<>(); // slot name -> snapshot id
 
     private final S3Repositories<Stream<ByteString>> s3Repositories = new S3Repositories<>();
+    private final LzyWhiteboardPrivateServiceGrpc.LzyWhiteboardPrivateServiceBlockingStub whiteboardClient;
+
+    public SnapshotProvider(LzyWhiteboardPrivateServiceGrpc.LzyWhiteboardPrivateServiceBlockingStub whiteboardClient) {
+        this.whiteboardClient = whiteboardClient;
+    }
 
     public synchronized LzySlot createSlot(LzyPortal.PortalSlotDesc.Snapshot snapshotData, SlotInstance instance)
-            throws CreateSlotException
+        throws CreateSlotException
     {
         String key = snapshotData.getS3().getKey();
         String bucket = snapshotData.getS3().getBucket();
@@ -42,7 +54,7 @@ public class SnapshotProvider {
         var snapshotId = "%s-%s-%s".formatted(key, bucket, endpoint).replaceAll("/", "");
         var previousSnapshotId = name2id.get(instance.name());
         if (Objects.nonNull(previousSnapshotId)) {
-            throw new CreateSlotException("Slot '" + instance.name() + "' already associated with "
+            throw new SnapshotUniquenessException("Slot '" + instance.name() + "' already associated with "
                 + "snapshot '" + previousSnapshotId + "'");
         }
 
@@ -59,14 +71,40 @@ public class SnapshotProvider {
         LzySlot lzySlot = switch (instance.spec().direction()) {
             case INPUT -> {
                 if (snapshots.containsKey(snapshotId) || s3ContainsSnapshot) {
-                    throw new CreateSlotException("Snapshot with id '" + snapshotId + "' already associated with data");
+                    throw new SnapshotUniquenessException("Snapshot with id '" + snapshotId +
+                        "' already associated with data");
                 }
 
-                yield getOrCreateSnapshot(s3Repo, snapshotId, key, bucket).setInputSlot(instance);
+                Runnable slotSyncHandler = null;
+                if (snapshotData.hasWhiteboardRef()) {
+                    var whiteboardRef = snapshotData.getWhiteboardRef();
+                    var whiteboardId = whiteboardRef.getWhiteboardId();
+                    var fieldName = whiteboardRef.getFieldName();
+
+                    slotSyncHandler = () -> {
+                        try {
+                            var storageUri = ProtoConverter.getSlotUri(snapshotData.getS3());
+
+                            //noinspection ResultOfMethodCallIgnored
+                            whiteboardClient.linkField(LWBPS.LinkFieldRequest.newBuilder()
+                                .setWhiteboardId(whiteboardId)
+                                .setFieldName(fieldName)
+                                .setStorageUri(storageUri)
+                                .setScheme(toProto(instance.spec().contentType()))
+                                .build());
+                        } catch (StatusRuntimeException e) {
+                            LOG.error("Cannot link whiteboard field: { whiteboardId: {}, fieldName: {}, " +
+                                    "storageUri: {} }, error: {}", whiteboardId, fieldName, key,
+                                e.getStatus().getDescription());
+                        }
+                    };
+                }
+
+                yield getOrCreateSnapshot(s3Repo, snapshotId, key, bucket).setInputSlot(instance, slotSyncHandler);
             }
             case OUTPUT -> {
                 if (!snapshots.containsKey(snapshotId) && !s3ContainsSnapshot) {
-                    throw new CreateSlotException("Snapshot with id '" + snapshotId + "' not found");
+                    throw new SnapshotNotFound("Snapshot with id '" + snapshotId + "' not found");
                 }
 
                 yield getOrCreateSnapshot(s3Repo, snapshotId, key, bucket).addOutputSlot(instance);

@@ -28,6 +28,8 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.google.common.net.HostAndPort;
 import io.findify.s3mock.S3Mock;
 import io.grpc.ManagedChannel;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
@@ -49,9 +51,7 @@ import java.util.concurrent.locks.LockSupport;
 
 import static ai.lzy.channelmanager.grpc.ProtoConverter.makeCreateDirectChannelCommand;
 import static ai.lzy.channelmanager.grpc.ProtoConverter.makeDestroyChannelCommand;
-import static ai.lzy.util.grpc.GrpcUtils.NO_AUTH_TOKEN;
-import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
-import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
+import static ai.lzy.util.grpc.GrpcUtils.*;
 
 public class PortalTestBase {
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
@@ -72,7 +72,7 @@ public class PortalTestBase {
     protected static final String S3_ADDRESS = "http://localhost:" + S3_PORT;
     protected static final String BUCKET_NAME = "lzy-bucket";
 
-    private String allocatorAndSchedulerAddress;
+    private String mocksAddress;
     private String channelManagerAddress;
 
     private S3Mock s3;
@@ -90,8 +90,8 @@ public class PortalTestBase {
         iamTestContext.setUp(iamDbConfig);
         startS3();
         var config = context.getBean(PortalConfig.class);
-        allocatorAndSchedulerAddress = config.getAllocatorAddress();
-        String[] hostAndPort = allocatorAndSchedulerAddress.split(":");
+        mocksAddress = config.getAllocatorAddress();
+        String[] hostAndPort = mocksAddress.split(":");
         schedulerServer = new SchedulerPrivateApiMock(Integer.parseInt(hostAndPort[1]));
         schedulerServer.start();
         workers = new HashMap<>();
@@ -139,8 +139,7 @@ public class PortalTestBase {
         createChannel("portal:stderr");
 
         try {
-            var agent = new AllocatorAgent("portal_token", "portal_vm", allocatorAndSchedulerAddress,
-                Duration.ofSeconds(5));
+            var agent = new AllocatorAgent("portal_token", "portal_vm", mocksAddress, Duration.ofSeconds(5));
 
             portal = new Portal(config, agent, "portal_token");
             portal.start();
@@ -277,8 +276,8 @@ public class PortalTestBase {
             LOG.error("Cannot build credentials for portal", e);
             throw new RuntimeException(e);
         }
-        var worker = new Worker("workflow", workerId, UUID.randomUUID().toString(), allocatorAndSchedulerAddress,
-            allocatorAndSchedulerAddress, allocatorDuration, schedulerDuration,
+        var worker = new Worker("workflow", workerId, UUID.randomUUID().toString(), mocksAddress,
+            mocksAddress, allocatorDuration, schedulerDuration,
             GrpcUtils.rollPort(), GrpcUtils.rollPort(), "/tmp/lzy_" + workerId + "/", channelManagerAddress,
             "localhost", privateKey, "token_" + workerId);
         workers.put(workerId, worker);
@@ -320,10 +319,15 @@ public class PortalTestBase {
         Assert.assertTrue(response.getDescription(), response.getSuccess());
     }
 
-    protected String openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest request) {
-        var response = authorizedPortalClient.openSlots(request);
-        Assert.assertFalse(response.getSuccess());
-        return response.getDescription();
+    protected Status openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest request) {
+        Status status = null;
+        try {
+            var response = authorizedPortalClient.openSlots(request);
+            Assert.fail(response.getDescription());
+        } catch (StatusRuntimeException e) {
+            status = e.getStatus();
+        }
+        return status;
     }
 
     protected Iterator<LSA.SlotDataChunk> openOutputSlot(SlotInstance slot) {

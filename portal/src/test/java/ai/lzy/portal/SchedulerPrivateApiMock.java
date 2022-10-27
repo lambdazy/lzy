@@ -8,6 +8,7 @@ import ai.lzy.v1.scheduler.SchedulerPrivateApi;
 import ai.lzy.v1.scheduler.SchedulerPrivateGrpc;
 import ai.lzy.v1.worker.LWS;
 import ai.lzy.v1.worker.WorkerApiGrpc;
+import ai.lzy.whiteboard.WhiteboardPrivateApiMock;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.stub.StreamObserver;
@@ -35,6 +36,7 @@ class SchedulerPrivateApiMock extends SchedulerPrivateGrpc.SchedulerPrivateImplB
         this.server = GrpcUtils.newGrpcServer("localhost", port, GrpcUtils.NO_AUTH)
             .addService(this)
             .addService(new AllocatorPrivateAPIMock())
+            .addService(new WhiteboardPrivateApiMock())
             .build();
     }
 
