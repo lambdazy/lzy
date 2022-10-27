@@ -4,6 +4,8 @@ import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.fs.LzyFsApi;
 import ai.lzy.v1.fs.LzyFsGrpc;
+import ai.lzy.v1.slots.LSA;
+import ai.lzy.v1.slots.LzySlotsApiGrpc;
 import ai.lzy.v1.workflow.LWFS;
 import com.google.common.net.HostAndPort;
 import com.google.protobuf.ByteString;
@@ -29,11 +31,11 @@ public class PortalSlotsListener {
     private final String portalId;
     private final StreamObserver<LWFS.ReadStdSlotsResponse> consumer;
     private final ManagedChannel channel;
-    private final LzyFsGrpc.LzyFsBlockingStub stub;
+    private final LzySlotsApiGrpc.LzySlotsApiBlockingStub stub;
 
     private final AtomicInteger openedCalls = new AtomicInteger(2);
-    private final ClientCall<LzyFsApi.SlotRequest, LzyFsApi.Message> outCall;
-    private final ClientCall<LzyFsApi.SlotRequest, LzyFsApi.Message> errCall;
+    private final ClientCall<LSA.SlotDataRequest, LSA.SlotDataChunk> outCall;
+    private final ClientCall<LSA.SlotDataRequest, LSA.SlotDataChunk> errCall;
 
 
     public PortalSlotsListener(
@@ -45,8 +47,8 @@ public class PortalSlotsListener {
         this.portalId = portalId;
         this.consumer = consumer;
 
-        channel = GrpcUtils.newGrpcChannel(portalAddress, LzyFsGrpc.SERVICE_NAME);
-        stub = GrpcUtils.newBlockingClient(LzyFsGrpc.newBlockingStub(channel), "portal-fs-client", null);
+        channel = GrpcUtils.newGrpcChannel(portalAddress, LzySlotsApiGrpc.SERVICE_NAME);
+        stub = GrpcUtils.newBlockingClient(LzySlotsApiGrpc.newBlockingStub(channel), "portal-fs-client", null);
 
         outCall = createCall(PORTAL_OUT_SLOT_NAME, msg -> consumer.onNext(
             LWFS.ReadStdSlotsResponse.newBuilder()
@@ -65,13 +67,13 @@ public class PortalSlotsListener {
                 ).build()));
     }
 
-    public ClientCall<LzyFsApi.SlotRequest, LzyFsApi.Message> createCall(String slotName, Consumer<ByteString> consumer) {
-        var call = stub.getChannel().newCall(LzyFsGrpc.getOpenOutputSlotMethod(), stub.getCallOptions());
+    public ClientCall<LSA.SlotDataRequest, LSA.SlotDataChunk> createCall(String slotName, Consumer<ByteString> consumer) {
+        var call = stub.getChannel().newCall(LzySlotsApiGrpc.getOpenOutputSlotMethod(), stub.getCallOptions());
 
-        var listener = new Listener<LzyFsApi.Message>() {
+        var listener = new Listener<LSA.SlotDataChunk>() {
             @Override
-            public void onMessage(LzyFsApi.Message message) {
-                if (message.hasControl() && message.getControl() == LzyFsApi.Message.Controls.EOS) {
+            public void onMessage(LSA.SlotDataChunk message) {
+                if (message.hasControl() && message.getControl() == LSA.SlotDataChunk.Control.EOS) {
                     LOG.info("Stream of portal <{}> slot <{}> is completed", portalId, slotName);
                     return;
                 }
@@ -90,7 +92,7 @@ public class PortalSlotsListener {
 
         call.start(listener, new Metadata());
 
-        var msg = LzyFsApi.SlotRequest.newBuilder()
+        var msg = LSA.SlotDataRequest.newBuilder()
             .setSlotInstance(LMS.SlotInstance.newBuilder()
                 .setTaskId(portalId)
                 .setSlotUri("fs://some.portal.slot/")  // To mock real call to fs api.

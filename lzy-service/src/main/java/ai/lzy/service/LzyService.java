@@ -163,4 +163,11 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     {
         workflowService.readStdSlots(request, responseObserver);
     }
+
+    @Override
+    public void getAvailablePools(GetAvailablePoolsRequest request,
+                                  StreamObserver<GetAvailablePoolsResponse> responseObserver)
+    {
+        workflowService.getAvailablePools(request, responseObserver);
+    }
 }
