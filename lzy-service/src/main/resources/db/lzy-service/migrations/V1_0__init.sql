@@ -59,3 +59,11 @@ create table channels (
     foreign key (output_slot_uri) references snapshots (slot_uri),
     unique (output_slot_uri, channel_id)
 );
+
+create table graphs (
+    graph_id text not null,
+    execution_id text not null,
+    portal_input_slots text[] not null,
+    primary key (graph_id, execution_id),
+    foreign key (execution_id) references workflow_executions(execution_id)
+);

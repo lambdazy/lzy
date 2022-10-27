@@ -18,6 +18,7 @@ final class GraphExecutionState {
     private List<LWF.Operation> operations;
     private List<TaskDesc> tasks;
     private List<ChannelDesc> channels;
+    private List<String> portalInputSlots;
 
     private DataFlowGraph dataFlowGraph;
 
@@ -101,6 +102,14 @@ final class GraphExecutionState {
 
     public Status getErrorStatus() {
         return errorStatus;
+    }
+
+    public void setPortalInputSlots(List<String> portalInputSlots) {
+        this.portalInputSlots = portalInputSlots;
+    }
+
+    public List<String> getPortalInputSlots() {
+        return portalInputSlots;
     }
 
     public void fail(Status errorStatus, String description) {
