@@ -43,5 +43,6 @@
         <module>tunnel-agent</module>
         <module>long-running-api</module>
         <module>slots-api</module>
+        <module>scheduler-api</module>
     </modules>
 </project>

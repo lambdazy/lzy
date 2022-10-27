@@ -1,4 +1,4 @@
-package ai.lzy.model.scheduler;
+package ai.lzy.scheduler;
 
 import ai.lzy.util.auth.credentials.CredentialsUtils;
 import ai.lzy.util.auth.credentials.RenewableJwt;
