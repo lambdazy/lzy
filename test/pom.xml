@@ -1,15 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xmlns="http://maven.apache.org/POM/4.0.0"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
     <parent>
-        <artifactId>parent</artifactId>
         <groupId>ai.lzy</groupId>
+        <artifactId>parent</artifactId>
         <version>1.0-SNAPSHOT</version>
         <relativePath>../parent</relativePath>
     </parent>
-
-    <modelVersion>4.0.0</modelVersion>
     <artifactId>test</artifactId>
     <version>1.0-SNAPSHOT</version>
 
@@ -21,18 +19,7 @@
     <dependencies>
         <dependency>
             <groupId>ai.lzy</groupId>
-            <artifactId>iam</artifactId>
-            <version>1.0-SNAPSHOT</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>ai.lzy</groupId>
             <artifactId>allocator</artifactId>
-            <version>1.0-SNAPSHOT</version>
-        </dependency>
-        <dependency>
-            <groupId>ai.lzy</groupId>
-            <artifactId>scheduler</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
         <dependency>
@@ -47,6 +34,29 @@
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
+            <artifactId>scheduler</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>channel-manager</artifactId>
+            <version>1.0-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>iam</artifactId>
+            <version>1.0-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>kharon</artifactId>
+            <version>1.0-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
             <artifactId>model-old</artifactId>
             <version>1.0-SNAPSHOT</version>
             <scope>test</scope>
@@ -54,22 +64,6 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>servant</artifactId>
-            <version>1.0-SNAPSHOT</version>
-            <scope>test</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-log4j12</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>log4j</groupId>
-                    <artifactId>log4j</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>ai.lzy</groupId>
-            <artifactId>util-test</artifactId>
             <version>1.0-SNAPSHOT</version>
             <scope>test</scope>
             <exclusions>
@@ -101,7 +95,7 @@
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
-            <artifactId>whiteboard-old</artifactId>
+            <artifactId>util-test</artifactId>
             <version>1.0-SNAPSHOT</version>
             <scope>test</scope>
             <exclusions>
@@ -117,29 +111,23 @@
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
-            <artifactId>kharon</artifactId>
+            <artifactId>whiteboard-old</artifactId>
             <version>1.0-SNAPSHOT</version>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-log4j12</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>log4j</groupId>
+                    <artifactId>log4j</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
-            <groupId>ai.lzy</groupId>
-            <artifactId>channel-manager</artifactId>
-            <version>1.0-SNAPSHOT</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j-impl</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -153,13 +141,23 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
+            <groupId>io.zonky.test</groupId>
+            <artifactId>embedded-postgres</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>io.zonky.test</groupId>
-            <artifactId>embedded-postgres</artifactId>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j-impl</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -174,11 +172,11 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-resources-plugin</artifactId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
             </plugin>
             <plugin>
-                <groupId>org.xolstice.maven.plugins</groupId>
-                <artifactId>protobuf-maven-plugin</artifactId>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -191,8 +189,8 @@
                 </configuration>
             </plugin>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-checkstyle-plugin</artifactId>
+                <groupId>org.xolstice.maven.plugins</groupId>
+                <artifactId>protobuf-maven-plugin</artifactId>
             </plugin>
         </plugins>
     </build>

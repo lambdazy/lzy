@@ -1,15 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xmlns="http://maven.apache.org/POM/4.0.0"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
     <parent>
-        <artifactId>parent</artifactId>
         <groupId>ai.lzy</groupId>
+        <artifactId>parent</artifactId>
         <version>1.0-SNAPSHOT</version>
         <relativePath>../../parent</relativePath>
     </parent>
-
-    <modelVersion>4.0.0</modelVersion>
     <artifactId>util-test</artifactId>
     <version>1.0-SNAPSHOT</version>
 
@@ -21,42 +19,42 @@
     <dependencies>
         <dependency>
             <groupId>ai.lzy</groupId>
-            <artifactId>model</artifactId>
+            <artifactId>channel-manager-api</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
-            <artifactId>channel-manager-api</artifactId>
+            <artifactId>model</artifactId>
             <version>1.0-SNAPSHOT</version>
-        </dependency>
-
-        <dependency>
-            <artifactId>junit</artifactId>
-            <groupId>junit</groupId>
         </dependency>
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-protobuf</artifactId>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java-util</artifactId>
         </dependency>
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-netty</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.google.protobuf</groupId>
-            <artifactId>protobuf-java-util</artifactId>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-protobuf</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
         </dependency>
     </dependencies>
 
     <build>
         <plugins>
             <plugin>
-                <artifactId>maven-checkstyle-plugin</artifactId>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
                 <configuration>
                     <configLocation>${project.basedir}/../../.idea/codeStyles/LzyCheckStyle.xml</configLocation>
                     <encoding>UTF-8</encoding>

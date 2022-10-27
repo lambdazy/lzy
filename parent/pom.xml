@@ -1,170 +1,144 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>ai.lzy</groupId>
     <artifactId>parent</artifactId>
-    <packaging>pom</packaging>
     <version>1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <distributionManagement>
+        <repository>
+            <id>repsy</id>
+            <name>lzy allocator repo</name>
+            <url>https://repo.repsy.io/mvn/lzy/api</url>
+        </repository>
+    </distributionManagement>
 
     <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <maven-dependency-plugin.version>3.3.0</maven-dependency-plugin.version>
-        <maven-help-plugin.version>3.2.0</maven-help-plugin.version>
+        <JUnitParams.version>1.1.1</JUnitParams.version>
+        <aws-java-sdk-cloudwatchmetrics.version>1.12.112</aws-java-sdk-cloudwatchmetrics.version>
+        <aws-java-sdk-core.version>1.12.112</aws-java-sdk-core.version>
+        <azure-sdk-bom.version>1.2.5</azure-sdk-bom.version>
+        <bcprov-jdk18on.version>1.71.1</bcprov-jdk18on.version>
         <build-helper-maven-plugin.version>3.1.0</build-helper-maven-plugin.version>
-        <kafka.version>1.0.0</kafka.version>
-        <junit.version>4.13.2</junit.version>
+        <c3p0.version>0.9.5.5</c3p0.version>
+        <checkstyle-maven-plugin.version>3.1.2</checkstyle-maven-plugin.version>
+        <checkstyle.version>9.3</checkstyle.version>
+        <clickhouse.version>0.3.1</clickhouse.version>
         <com.amazonaws.awsjavasdk.version>1.12.300</com.amazonaws.awsjavasdk.version>
-        <s3mock_2.12.version>0.2.4</s3mock_2.12.version>
-        <grpc.version>1.49.0</grpc.version>
-        <netty-transport-native-epoll.version>4.1.42.Final</netty-transport-native-epoll.version>
-        <prometheus.version>0.6.0</prometheus.version>
-        <guava.version>31.1-jre</guava.version>
-        <httpcore.version>4.4.8</httpcore.version>
-        <httpclient.version>4.5.13</httpclient.version>
-        <log4j.version>2.18.0</log4j.version>
+        <commons-cli.version>1.4</commons-cli.version>
+        <commons-collections4.version>4.4</commons-collections4.version>
+        <commons-io.version>2.11.0</commons-io.version>
         <commons-lang3.version>3.9</commons-lang3.version>
-        <commons-pool2.version>2.11.1</commons-pool2.version>
         <commons-math3.version>3.6.1</commons-math3.version>
-        <proto-google-common-protos.version>1.17.0</proto-google-common-protos.version>
-        <protobuf.version>3.21.5</protobuf.version>
-        <protobuf-java-util.version>3.21.5</protobuf-java-util.version>
-        <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
-        <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
-        <java.version>17</java.version>
-        <jsonwebtoken.version>0.11.2</jsonwebtoken.version>
-        <jaxb-api.version>2.3.1</jaxb-api.version>
+        <commons-pool2.version>2.11.1</commons-pool2.version>
+        <commons-s3-amazon.version>6.3287</commons-s3-amazon.version>
+        <docker-maven-plugin.version>0.36.1</docker-maven-plugin.version>
+        <docker.java.version>3.2.13</docker.java.version>
+        <easystream.version>1.2.15</easystream.version>
+        <embedded-postgres.version>2.0.1</embedded-postgres.version>
+        <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
+        <fabric8-kuber-client.version>6.0.0</fabric8-kuber-client.version>
+        <flyway-core.version>9.3.0</flyway-core.version>
+        <flyway-maven-plugin.version>9.3.0</flyway-maven-plugin.version>
+        <grpc.version>1.49.0</grpc.version>
+        <guava.version>31.1-jre</guava.version>
+        <h2database.version>2.1.214</h2database.version>
+        <hamcrest-core.version>2.2</hamcrest-core.version>
+        <hibernate.version>5.6.9.Final</hibernate.version>
+        <httpclient.version>4.5.13</httpclient.version>
+        <httpcore.version>4.4.8</httpcore.version>
+        <io.kubernetes.version>15.0.1</io.kubernetes.version>
+        <jackson-annotations.version>2.13.0</jackson-annotations.version>
         <jackson-core.version>2.13.4</jackson-core.version>
         <jackson-databind.version>2.13.4</jackson-databind.version>
         <jackson-dataformat-yaml.version>2.13.4</jackson-dataformat-yaml.version>
         <jackson-datatype-jdk8.version>2.13.4</jackson-datatype-jdk8.version>
         <jackson-datatype-jsr310.version>2.13.4</jackson-datatype-jsr310.version>
         <jackson-datatype-protobuf.version>0.9.12</jackson-datatype-protobuf.version>
-        <bcprov-jdk18on.version>1.71.1</bcprov-jdk18on.version>
+        <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
+        <java.version>17</java.version>
         <javax.annotation-api.version>1.3.2</javax.annotation-api.version>
-        <mockito-core.version>3.5.15</mockito-core.version>
-        <commons-cli.version>1.4</commons-cli.version>
-        <commons-s3-amazon.version>6.3287</commons-s3-amazon.version>
-        <!-- opentracing -->
-        <opentracing-api.version>0.33.0</opentracing-api.version>
-        <opentracing-util.version>0.33.0</opentracing-util.version>
-        <opentracing-grpc.version>0.2.3</opentracing-grpc.version>
-        <opentracing-ahttp.version>0.3.3</opentracing-ahttp.version>
-        <opentracing-jaeger.version>1.4.0</opentracing-jaeger.version>
-        <opentracing-web-servlet.version>0.4.1</opentracing-web-servlet.version>
-        <postgresql.version>42.5.0</postgresql.version>
-        <flyway-core.version>9.3.0</flyway-core.version>
-        <jnr-fuse.version>0.5.7</jnr-fuse.version>
+        <javax.inject.version>1</javax.inject.version>
+        <javax.validation.api.version>2.0.1.Final</javax.validation.api.version>
+        <javax.ws.rs.version>2.1.1</javax.ws.rs.version>
+        <jaxb-api.version>2.3.1</jaxb-api.version>
         <jnr-ffi.version>2.2.12</jnr-ffi.version>
-        <docker-maven-plugin.version>0.36.1</docker-maven-plugin.version>
-        <hibernate.version>5.6.9.Final</hibernate.version>
-        <micronaut.version>3.6.3</micronaut.version>
+        <jnr-fuse.version>0.5.7</jnr-fuse.version>
+        <joda-time.version>2.10.13</joda-time.version>
+        <jsonwebtoken.version>0.11.2</jsonwebtoken.version>
+        <jsr305.version>3.0.2</jsr305.version>
         <junit-api.version>5.8.1</junit-api.version>
-        <micronaut-test.version>3.6.2</micronaut-test.version>
-        <micronaut-maven-plugin.version>3.0.2</micronaut-maven-plugin.version>
-        <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
-        <h2database.version>2.1.214</h2database.version>
-        <embedded-postgres.version>2.0.1</embedded-postgres.version>
+        <junit.version>4.13.2</junit.version>
+        <kafka.version>1.0.0</kafka.version>
+        <kotlin-stdlib.version>1.5.21</kotlin-stdlib.version>
+        <kubernetes-server-mock.version>6.0.0</kubernetes-server-mock.version>
+        <log4j.version>2.18.0</log4j.version>
+        <lombok.version>1.18.24</lombok.version>
         <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
+        <maven-dependency-plugin.version>3.3.0</maven-dependency-plugin.version>
         <maven-failsafe-plugin.version>2.22.2</maven-failsafe-plugin.version>
-        <maven-surefire-plugin.version>3.0.0-M7</maven-surefire-plugin.version>
+        <maven-help-plugin.version>3.2.0</maven-help-plugin.version>
         <maven-resources-plugin.version>3.1.0</maven-resources-plugin.version>
         <maven-shade-plugin.version>3.2.4</maven-shade-plugin.version>
-        <flyway-maven-plugin.version>9.3.0</flyway-maven-plugin.version>
-        <io.kubernetes.version>15.0.1</io.kubernetes.version>
-        <slf4j.version>1.7.30</slf4j.version>
-        <joda-time.version>2.10.13</joda-time.version>
-        <easystream.version>1.2.15</easystream.version>
-        <hamcrest-core.version>2.2</hamcrest-core.version>
-        <aws-java-sdk-cloudwatchmetrics.version>1.12.112</aws-java-sdk-cloudwatchmetrics.version>
-        <jackson-annotations.version>2.13.0</jackson-annotations.version>
-        <javax.ws.rs.version>2.1.1</javax.ws.rs.version>
-        <clickhouse.version>0.3.1</clickhouse.version>
-        <s3mock_2.13.version>0.2.6</s3mock_2.13.version>
+        <maven-surefire-plugin.version>3.0.0-M7</maven-surefire-plugin.version>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <micronaut-maven-plugin.version>3.0.2</micronaut-maven-plugin.version>
+        <micronaut-test.version>3.6.2</micronaut-test.version>
+        <micronaut.version>3.6.3</micronaut.version>
+        <mockito-core.version>3.5.15</mockito-core.version>
         <mockito-inline.version>3.6.28</mockito-inline.version>
-        <aws-java-sdk-core.version>1.12.112</aws-java-sdk-core.version>
-        <commons-io.version>2.11.0</commons-io.version>
-        <s3proxy.version>1.7.1</s3proxy.version>
-        <org.json.verion>20211205</org.json.verion>
-        <checkstyle-maven-plugin.version>3.1.2</checkstyle-maven-plugin.version>
-        <checkstyle.version>9.3</checkstyle.version>
-        <net.lingala.zip4j.version>2.11.2</net.lingala.zip4j.version>
-        <docker.java.version>3.2.13</docker.java.version>
-        <javax.validation.api.version>2.0.1.Final</javax.validation.api.version>
-        <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
-        <yc.java.sdk.version>2.5.1</yc.java.sdk.version>
-        <c3p0.version>0.9.5.5</c3p0.version>
-        <javax.inject.version>1</javax.inject.version>
-        <fabric8-kuber-client.version>6.0.0</fabric8-kuber-client.version>
-        <kubernetes-server-mock.version>6.0.0</kubernetes-server-mock.version>
         <mockwebserver.version>4.10.0</mockwebserver.version>
-        <kotlin-stdlib.version>1.5.21</kotlin-stdlib.version>
-        <lombok.version>1.18.24</lombok.version>
-        <jsr305.version>3.0.2</jsr305.version>
-        <azure-sdk-bom.version>1.2.5</azure-sdk-bom.version>
+        <net.lingala.zip4j.version>2.11.2</net.lingala.zip4j.version>
         <netty-codec.version>4.1.81.Final</netty-codec.version>
-        <JUnitParams.version>1.1.1</JUnitParams.version>
-        <commons-collections4.version>4.4</commons-collections4.version>
+        <netty-transport-native-epoll.version>4.1.42.Final</netty-transport-native-epoll.version>
         <okhttp.version>4.10.0</okhttp.version>
-    </properties>
 
-    <repositories>
-        <repository>
-            <id>maven-central</id>
-            <url>https://repo1.maven.org/maven2/</url>
-        </repository>
-        <repository>
-            <id>jcentral</id>
-            <url>https://jcenter.bintray.com/</url>
-        </repository>
-    </repositories>
+        <!-- opentracing -->
+        <opentracing-ahttp.version>0.3.3</opentracing-ahttp.version>
+        <opentracing-api.version>0.33.0</opentracing-api.version>
+        <opentracing-grpc.version>0.2.3</opentracing-grpc.version>
+        <opentracing-jaeger.version>1.4.0</opentracing-jaeger.version>
+        <opentracing-util.version>0.33.0</opentracing-util.version>
+        <opentracing-web-servlet.version>0.4.1</opentracing-web-servlet.version>
+
+        <org.json.verion>20211205</org.json.verion>
+        <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
+        <postgresql.version>42.5.0</postgresql.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <prometheus.version>0.6.0</prometheus.version>
+        <proto-google-common-protos.version>1.17.0</proto-google-common-protos.version>
+        <protobuf-java-util.version>3.21.5</protobuf-java-util.version>
+        <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
+        <protobuf.version>3.21.5</protobuf.version>
+        <s3mock_2.12.version>0.2.4</s3mock_2.12.version>
+        <s3mock_2.13.version>0.2.6</s3mock_2.13.version>
+        <s3proxy.version>1.7.1</s3proxy.version>
+        <slf4j.version>1.7.30</slf4j.version>
+        <yc.java.sdk.version>2.5.1</yc.java.sdk.version>
+    </properties>
 
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>io.jsonwebtoken</groupId>
-                <artifactId>jjwt-api</artifactId>
-                <version>${jsonwebtoken.version}</version>
+                <groupId>com.azure</groupId>
+                <artifactId>azure-sdk-bom</artifactId>
+                <version>${azure-sdk-bom.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
             <dependency>
-                <groupId>io.jsonwebtoken</groupId>
-                <artifactId>jjwt-impl</artifactId>
-                <version>${jsonwebtoken.version}</version>
+                <groupId>com.amazonaws</groupId>
+                <artifactId>aws-java-sdk-cloudwatchmetrics</artifactId>
+                <version>${aws-java-sdk-cloudwatchmetrics.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.jsonwebtoken</groupId>
-                <artifactId>jjwt-jackson</artifactId>
-                <version>${jsonwebtoken.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.logging.log4j</groupId>
-                <artifactId>log4j-api</artifactId>
-                <version>${log4j.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.logging.log4j</groupId>
-                <artifactId>log4j-core</artifactId>
-                <version>${log4j.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.logging.log4j</groupId>
-                <artifactId>log4j-slf4j-impl</artifactId>
-                <version>${log4j.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.commons</groupId>
-                <artifactId>commons-lang3</artifactId>
-                <version>${commons-lang3.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.commons</groupId>
-                <artifactId>commons-pool2</artifactId>
-                <version>${commons-pool2.version}</version>
+                <groupId>com.amazonaws</groupId>
+                <artifactId>aws-java-sdk-core</artifactId>
+                <version>${aws-java-sdk-core.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.amazonaws</groupId>
@@ -172,64 +146,14 @@
                 <version>${com.amazonaws.awsjavasdk.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.postgresql</groupId>
-                <artifactId>postgresql</artifactId>
-                <version>${postgresql.version}</version>
+                <groupId>com.amazonaws</groupId>
+                <artifactId>aws-java-sdk-sts</artifactId>
+                <version>${aws-java-sdk-core.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-protobuf</artifactId>
-                <version>${grpc.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-core</artifactId>
-                <version>${grpc.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-api</artifactId>
-                <version>${grpc.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-context</artifactId>
-                <version>${grpc.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-stub</artifactId>
-                <version>${grpc.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-netty</artifactId>
-                <version>${grpc.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-services</artifactId>
-                <version>${grpc.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.prometheus</groupId>
-                <artifactId>simpleclient</artifactId>
-                <version>${prometheus.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.prometheus</groupId>
-                <artifactId>simpleclient_common</artifactId>
-                <version>${prometheus.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.prometheus</groupId>
-                <artifactId>simpleclient_httpserver</artifactId>
-                <version>${prometheus.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.google.guava</groupId>
-                <artifactId>guava</artifactId>
-                <version>${guava.version}</version>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-annotations</artifactId>
+                <version>${jackson-annotations.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
@@ -257,44 +181,14 @@
                 <version>${jackson-datatype-jsr310.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.google.protobuf</groupId>
-                <artifactId>protobuf-java</artifactId>
-                <version>${protobuf.version}</version>
+                <groupId>com.github.docker-java</groupId>
+                <artifactId>docker-java</artifactId>
+                <version>${docker.java.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.google.protobuf</groupId>
-                <artifactId>protobuf-java-util</artifactId>
-                <version>${protobuf-java-util.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>javax.annotation</groupId>
-                <artifactId>javax.annotation-api</artifactId>
-                <version>${javax.annotation-api.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.bouncycastle</groupId>
-                <artifactId>bcprov-jdk18on</artifactId>
-                <version>${bcprov-jdk18on.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>commons-cli</groupId>
-                <artifactId>commons-cli</artifactId>
-                <version>${commons-cli.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.mockito</groupId>
-                <artifactId>mockito-core</artifactId>
-                <version>${mockito-core.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>junit</groupId>
-                <artifactId>junit</artifactId>
-                <version>${junit.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.flywaydb</groupId>
-                <artifactId>flyway-core</artifactId>
-                <version>${flyway-core.version}</version>
+                <groupId>com.github.jnr</groupId>
+                <artifactId>jnr-ffi</artifactId>
+                <version>${jnr-ffi.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.github.serceman</groupId>
@@ -308,20 +202,29 @@
                 </exclusions>
             </dependency>
             <dependency>
-                <groupId>com.github.jnr</groupId>
-                <artifactId>jnr-ffi</artifactId>
-                <version>${jnr-ffi.version}</version>
+                <groupId>com.google.code.findbugs</groupId>
+                <artifactId>jsr305</artifactId>
+                <version>${jsr305.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.hibernate</groupId>
-                <artifactId>hibernate-c3p0</artifactId>
-                <version>${hibernate.version}</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>com.mchange</groupId>
-                        <artifactId>c3p0</artifactId>
-                    </exclusion>
-                </exclusions>
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>${guava.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java</artifactId>
+                <version>${protobuf.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java-util</artifactId>
+                <version>${protobuf-java-util.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.hubspot.jackson</groupId>
+                <artifactId>jackson-datatype-protobuf</artifactId>
+                <version>${jackson-datatype-protobuf.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.mchange</groupId>
@@ -329,178 +232,14 @@
                 <version>${c3p0.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.micronaut</groupId>
-                <artifactId>micronaut-inject</artifactId>
-                <version>${micronaut.version}</version>
+                <groupId>com.squareup.okhttp3</groupId>
+                <artifactId>mockwebserver</artifactId>
+                <version>${mockwebserver.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.micronaut</groupId>
-                <artifactId>micronaut-runtime</artifactId>
-                <version>${micronaut.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.micronaut</groupId>
-                <artifactId>micronaut-inject-java</artifactId>
-                <version>${micronaut.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.micronaut</groupId>
-                <artifactId>micronaut-http-server-netty</artifactId>
-                <version>${micronaut.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.micronaut</groupId>
-                <artifactId>micronaut-validation</artifactId>
-                <version>${micronaut.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.junit.jupiter</groupId>
-                <artifactId>junit-jupiter-api</artifactId>
-                <version>${junit-api.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.junit.jupiter</groupId>
-                <artifactId>junit-jupiter-engine</artifactId>
-                <version>${junit-api.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.micronaut.test</groupId>
-                <artifactId>micronaut-test-junit5</artifactId>
-                <version>${micronaut-test.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>com.h2database</groupId>
-                <artifactId>h2</artifactId>
-                <version>${h2database.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>io.zonky.test</groupId>
-                <artifactId>embedded-postgres</artifactId>
-                <version>${embedded-postgres.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>io.kubernetes</groupId>
-                <artifactId>client-java</artifactId>
-                <version>${io.kubernetes.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.micronaut</groupId>
-                <artifactId>micronaut-http-client</artifactId>
-                <version>${micronaut.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.azure</groupId>
-                <artifactId>azure-sdk-bom</artifactId>
-                <version>${azure-sdk-bom.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.slf4j</groupId>
-                <artifactId>slf4j-api</artifactId>
-                <version>${slf4j.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>ru.yandex.clickhouse</groupId>
-                <artifactId>clickhouse-jdbc</artifactId>
-                <version>${clickhouse.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>joda-time</groupId>
-                <artifactId>joda-time</artifactId>
-                <version>${joda-time.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>net.sf.jsignature.io-tools</groupId>
-                <artifactId>easystream</artifactId>
-                <version>${easystream.version}</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>commons-io</groupId>
-                        <artifactId>commons-io</artifactId>
-                    </exclusion>
-                </exclusions>
-            </dependency>
-            <dependency>
-                <groupId>org.hamcrest</groupId>
-                <artifactId>hamcrest-core</artifactId>
-                <version>${hamcrest-core.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>com.amazonaws</groupId>
-                <artifactId>aws-java-sdk-cloudwatchmetrics</artifactId>
-                <version>${aws-java-sdk-cloudwatchmetrics.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-annotations</artifactId>
-                <version>${jackson-annotations.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>javax.ws.rs</groupId>
-                <artifactId>javax.ws.rs-api</artifactId>
-                <version>${javax.ws.rs.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.findify</groupId>
-                <artifactId>s3mock_2.13</artifactId>
-                <version>${s3mock_2.13.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.mockito</groupId>
-                <artifactId>mockito-inline</artifactId>
-                <version>${mockito-inline.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>com.amazonaws</groupId>
-                <artifactId>aws-java-sdk-core</artifactId>
-                <version>${aws-java-sdk-core.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.github.docker-java</groupId>
-                <artifactId>docker-java</artifactId>
-                <version>${docker.java.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.kafka</groupId>
-                <artifactId>kafka-clients</artifactId>
-                <version>${kafka.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>commons-io</groupId>
-                <artifactId>commons-io</artifactId>
-                <version>${commons-io.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.json</groupId>
-                <artifactId>json</artifactId>
-                <version>${org.json.verion}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.amazonaws</groupId>
-                <artifactId>aws-java-sdk-sts</artifactId>
-                <version>${aws-java-sdk-core.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>net.lingala.zip4j</groupId>
-                <artifactId>zip4j</artifactId>
-                <version>${net.lingala.zip4j.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.commons</groupId>
-                <artifactId>commons-collections4</artifactId>
-                <version>${commons-collections4.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>javax.validation</groupId>
-                <artifactId>validation-api</artifactId>
-                <version>${javax.validation.api.version}</version>
+                <groupId>com.squareup.okhttp3</groupId>
+                <artifactId>okhttp</artifactId>
+                <version>${okhttp.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.yandex.cloud</groupId>
@@ -518,14 +257,14 @@
                 </exclusions>
             </dependency>
             <dependency>
-                <groupId>com.google.code.findbugs</groupId>
-                <artifactId>jsr305</artifactId>
-                <version>${jsr305.version}</version>
+                <groupId>commons-cli</groupId>
+                <artifactId>commons-cli</artifactId>
+                <version>${commons-cli.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.hubspot.jackson</groupId>
-                <artifactId>jackson-datatype-protobuf</artifactId>
-                <version>${jackson-datatype-protobuf.version}</version>
+                <groupId>commons-io</groupId>
+                <artifactId>commons-io</artifactId>
+                <version>${commons-io.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.fabric8</groupId>
@@ -538,14 +277,201 @@
                 <version>${kubernetes-server-mock.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.squareup.okhttp3</groupId>
-                <artifactId>mockwebserver</artifactId>
-                <version>${mockwebserver.version}</version>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-api</artifactId>
+                <version>${grpc.version}</version>
             </dependency>
             <dependency>
-                <artifactId>okhttp</artifactId>
-                <groupId>com.squareup.okhttp3</groupId>
-                <version>${okhttp.version}</version>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-context</artifactId>
+                <version>${grpc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-core</artifactId>
+                <version>${grpc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-netty</artifactId>
+                <version>${grpc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-protobuf</artifactId>
+                <version>${grpc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-services</artifactId>
+                <version>${grpc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-stub</artifactId>
+                <version>${grpc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-api</artifactId>
+                <version>${jsonwebtoken.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-impl</artifactId>
+                <version>${jsonwebtoken.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-jackson</artifactId>
+                <version>${jsonwebtoken.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.kubernetes</groupId>
+                <artifactId>client-java</artifactId>
+                <version>${io.kubernetes.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.micronaut</groupId>
+                <artifactId>micronaut-http-client</artifactId>
+                <version>${micronaut.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.micronaut</groupId>
+                <artifactId>micronaut-http-server-netty</artifactId>
+                <version>${micronaut.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.micronaut</groupId>
+                <artifactId>micronaut-inject</artifactId>
+                <version>${micronaut.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.micronaut</groupId>
+                <artifactId>micronaut-inject-java</artifactId>
+                <version>${micronaut.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.micronaut</groupId>
+                <artifactId>micronaut-runtime</artifactId>
+                <version>${micronaut.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.micronaut</groupId>
+                <artifactId>micronaut-validation</artifactId>
+                <version>${micronaut.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.prometheus</groupId>
+                <artifactId>simpleclient</artifactId>
+                <version>${prometheus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.prometheus</groupId>
+                <artifactId>simpleclient_common</artifactId>
+                <version>${prometheus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.prometheus</groupId>
+                <artifactId>simpleclient_httpserver</artifactId>
+                <version>${prometheus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>javax.annotation</groupId>
+                <artifactId>javax.annotation-api</artifactId>
+                <version>${javax.annotation-api.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>javax.validation</groupId>
+                <artifactId>validation-api</artifactId>
+                <version>${javax.validation.api.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>javax.ws.rs</groupId>
+                <artifactId>javax.ws.rs-api</artifactId>
+                <version>${javax.ws.rs.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>joda-time</groupId>
+                <artifactId>joda-time</artifactId>
+                <version>${joda-time.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>junit</groupId>
+                <artifactId>junit</artifactId>
+                <version>${junit.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.lingala.zip4j</groupId>
+                <artifactId>zip4j</artifactId>
+                <version>${net.lingala.zip4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.sf.jsignature.io-tools</groupId>
+                <artifactId>easystream</artifactId>
+                <version>${easystream.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>commons-io</groupId>
+                        <artifactId>commons-io</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-collections4</artifactId>
+                <version>${commons-collections4.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>${commons-lang3.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-pool2</artifactId>
+                <version>${commons-pool2.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.kafka</groupId>
+                <artifactId>kafka-clients</artifactId>
+                <version>${kafka.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-api</artifactId>
+                <version>${log4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-core</artifactId>
+                <version>${log4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-slf4j-impl</artifactId>
+                <version>${log4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcprov-jdk18on</artifactId>
+                <version>${bcprov-jdk18on.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-core</artifactId>
+                <version>${flyway-core.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.hibernate</groupId>
+                <artifactId>hibernate-c3p0</artifactId>
+                <version>${hibernate.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>com.mchange</groupId>
+                        <artifactId>c3p0</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>org.jetbrains.kotlin</groupId>
@@ -553,9 +479,49 @@
                 <version>${kotlin-stdlib.version}</version>
             </dependency>
             <dependency>
-                <artifactId>kotlin-stdlib-common</artifactId>
                 <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib-common</artifactId>
                 <version>${kotlin-stdlib.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.json</groupId>
+                <artifactId>json</artifactId>
+                <version>${org.json.verion}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter-api</artifactId>
+                <version>${junit-api.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter-engine</artifactId>
+                <version>${junit-api.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-core</artifactId>
+                <version>${mockito-core.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>${postgresql.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${slf4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>pl.pragmatists</groupId>
+                <artifactId>JUnitParams</artifactId>
+                <version>${JUnitParams.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ru.yandex.clickhouse</groupId>
+                <artifactId>clickhouse-jdbc</artifactId>
+                <version>${clickhouse.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.projectlombok</groupId>
@@ -564,37 +530,174 @@
                 <scope>provided</scope>
             </dependency>
             <dependency>
-                <groupId>pl.pragmatists</groupId>
-                <artifactId>JUnitParams</artifactId>
-                <version>${JUnitParams.version}</version>
+                <groupId>com.h2database</groupId>
+                <artifactId>h2</artifactId>
+                <version>${h2database.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.findify</groupId>
+                <artifactId>s3mock_2.13</artifactId>
+                <version>${s3mock_2.13.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.micronaut.test</groupId>
+                <artifactId>micronaut-test-junit5</artifactId>
+                <version>${micronaut-test.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.zonky.test</groupId>
+                <artifactId>embedded-postgres</artifactId>
+                <version>${embedded-postgres.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.hamcrest</groupId>
+                <artifactId>hamcrest-core</artifactId>
+                <version>${hamcrest-core.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-inline</artifactId>
+                <version>${mockito-inline.version}</version>
+                <scope>test</scope>
             </dependency>
         </dependencies>
 
     </dependencyManagement>
 
+    <repositories>
+        <repository>
+            <id>maven-central</id>
+            <url>https://repo1.maven.org/maven2/</url>
+        </repository>
+        <repository>
+            <id>jcentral</id>
+            <url>https://jcenter.bintray.com/</url>
+        </repository>
+    </repositories>
+
     <build>
-        <extensions>
-            <extension>
-                <groupId>kr.motd.maven</groupId>
-                <artifactId>os-maven-plugin</artifactId>
-                <version>${os-maven-plugin.version}</version>
-            </extension>
-        </extensions>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>io.fabric8</groupId>
+                    <artifactId>docker-maven-plugin</artifactId>
+                    <version>${docker-maven-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>io.micronaut.build</groupId>
+                    <artifactId>micronaut-maven-plugin</artifactId>
+                    <version>${micronaut-maven-plugin.version}</version>
+                    <extensions>true</extensions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-checkstyle-plugin</artifactId>
+                    <version>${checkstyle-maven-plugin.version}</version>
+                    <configuration>
+                        <configLocation>${project.basedir}/../.idea/codeStyles/LzyCheckStyle.xml</configLocation>
+                        <sourceDirectories>${project.basedir}/src</sourceDirectories>
+                        <encoding>UTF-8</encoding>
+                        <consoleOutput>true</consoleOutput>
+                        <failsOnError>true</failsOnError>
+                        <violationSeverity>warning</violationSeverity>
+                        <linkXRef>false</linkXRef>
+                    </configuration>
+                    <dependencies>
+                        <dependency>
+                            <groupId>com.puppycrawl.tools</groupId>
+                            <artifactId>checkstyle</artifactId>
+                            <version>${checkstyle.version}</version>
+                        </dependency>
+                    </dependencies>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
+                            <phase>install</phase>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-resources-plugin</artifactId>
+                    <version>${maven-resources-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-shade-plugin</artifactId>
+                    <version>${maven-shade-plugin.version}</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>io.github.edwgiz</groupId>
+                            <artifactId>log4j-maven-shade-plugin-extensions</artifactId>
+                            <version>${log4j.version}</version>
+                        </dependency>
+                    </dependencies>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${maven-surefire-plugin.version}</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.apache.maven.surefire</groupId>
+                            <artifactId>surefire-junit47</artifactId>
+                            <version>${maven-surefire-plugin.version}</version>
+                        </dependency>
+                    </dependencies>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>exec-maven-plugin</artifactId>
+                    <version>${exec-maven-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.flywaydb</groupId>
+                    <artifactId>flyway-maven-plugin</artifactId>
+                    <version>${flyway-maven-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.xolstice.maven.plugins</groupId>
+                    <artifactId>protobuf-maven-plugin</artifactId>
+                    <version>${protobuf-maven-plugin.version}</version>
+                    <configuration>
+                        <!--suppress MavenModelInspection -->
+                        <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
+                        <pluginId>grpc-java</pluginId>
+                        <!--suppress MavenModelInspection -->
+                        <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
+                        <clearOutputDirectory>false</clearOutputDirectory>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>src</id>
+                            <goals>
+                                <goal>compile</goal>
+                                <goal>compile-custom</goal>
+                                <goal>test-compile</goal>
+                            </goals>
+                            <configuration>
+                                <protoSourceRoot>${basedir}/src/main/proto</protoSourceRoot>
+                                <includes>
+                                    <include>**/*.proto</include>
+                                </includes>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <version>${maven-dependency-plugin.version}</version>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-help-plugin</artifactId>
-                <version>${maven-help-plugin.version}</version>
-            </plugin>
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>build-helper-maven-plugin</artifactId>
-                <version>${build-helper-maven-plugin.version}</version>
+                <groupId>com.github.ekryd.sortpom</groupId>
+                <artifactId>sortpom-maven-plugin</artifactId>
+                <version>3.2.0</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -629,9 +732,29 @@
                 </configuration>
             </plugin>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>${maven-dependency-plugin.version}</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-help-plugin</artifactId>
+                <version>${maven-help-plugin.version}</version>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>${build-helper-maven-plugin.version}</version>
+            </plugin>
+            <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>${jacoco-maven-plugin.version}</version>
+                <configuration>
+                    <excludes>
+                        <exclude>ai/lzy/v1/**/*</exclude>
+                    </excludes>
+                </configuration>
                 <executions>
                     <execution>
                         <goals>
@@ -640,141 +763,20 @@
                     </execution>
                     <execution>
                         <id>report</id>
-                        <phase>prepare-package</phase>
                         <goals>
                             <goal>report</goal>
                         </goals>
+                        <phase>prepare-package</phase>
                     </execution>
                 </executions>
-                <configuration>
-                    <excludes>
-                        <exclude>ai/lzy/v1/**/*</exclude>
-                    </excludes>
-                </configuration>
             </plugin>
         </plugins>
-        <pluginManagement>
-            <plugins>
-                <plugin>
-                    <groupId>org.xolstice.maven.plugins</groupId>
-                    <artifactId>protobuf-maven-plugin</artifactId>
-                    <version>${protobuf-maven-plugin.version}</version>
-                    <configuration>
-                        <!--suppress MavenModelInspection -->
-                        <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
-                        </protocArtifact>
-                        <pluginId>grpc-java</pluginId>
-                        <!--suppress MavenModelInspection -->
-                        <pluginArtifact>
-                            io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}
-                        </pluginArtifact>
-                        <clearOutputDirectory>false</clearOutputDirectory>
-                    </configuration>
-                    <executions>
-                        <execution>
-                            <id>src</id>
-                            <configuration>
-                                <protoSourceRoot>${basedir}/src/main/proto</protoSourceRoot>
-                                <includes>
-                                    <include>**/*.proto</include>
-                                </includes>
-                            </configuration>
-                            <goals>
-                                <goal>compile</goal>
-                                <goal>compile-custom</goal>
-                                <goal>test-compile</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                </plugin>
-                <plugin>
-                    <groupId>io.fabric8</groupId>
-                    <artifactId>docker-maven-plugin</artifactId>
-                    <version>${docker-maven-plugin.version}</version>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-shade-plugin</artifactId>
-                    <version>${maven-shade-plugin.version}</version>
-                    <dependencies>
-                        <dependency>
-                            <artifactId>log4j-maven-shade-plugin-extensions</artifactId>
-                            <groupId>io.github.edwgiz</groupId>
-                            <version>${log4j.version}</version>
-                        </dependency>
-                    </dependencies>
-                </plugin>
-                <plugin>
-                    <groupId>org.flywaydb</groupId>
-                    <artifactId>flyway-maven-plugin</artifactId>
-                    <version>${flyway-maven-plugin.version}</version>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-resources-plugin</artifactId>
-                    <version>${maven-resources-plugin.version}</version>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-checkstyle-plugin</artifactId>
-                    <version>${checkstyle-maven-plugin.version}</version>
-                    <dependencies>
-                        <dependency>
-                            <groupId>com.puppycrawl.tools</groupId>
-                            <artifactId>checkstyle</artifactId>
-                            <version>${checkstyle.version}</version>
-                        </dependency>
-                    </dependencies>
-                    <configuration>
-                        <configLocation>${project.basedir}/../.idea/codeStyles/LzyCheckStyle.xml</configLocation>
-                        <sourceDirectories>${project.basedir}/src</sourceDirectories>
-                        <encoding>UTF-8</encoding>
-                        <consoleOutput>true</consoleOutput>
-                        <failsOnError>true</failsOnError>
-                        <violationSeverity>warning</violationSeverity>
-                        <linkXRef>false</linkXRef>
-                    </configuration>
-                    <executions>
-                        <execution>
-                            <phase>install</phase>
-                            <goals>
-                                <goal>check</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-surefire-plugin</artifactId>
-                    <version>${maven-surefire-plugin.version}</version>
-                    <dependencies>
-                        <dependency>
-                            <groupId>org.apache.maven.surefire</groupId>
-                            <artifactId>surefire-junit47</artifactId>
-                            <version>${maven-surefire-plugin.version}</version>
-                        </dependency>
-                    </dependencies>
-                </plugin>
-                <plugin>
-                    <groupId>io.micronaut.build</groupId>
-                    <artifactId>micronaut-maven-plugin</artifactId>
-                    <version>${micronaut-maven-plugin.version}</version>
-                    <extensions>true</extensions>
-                </plugin>
-                <plugin>
-                    <groupId>org.codehaus.mojo</groupId>
-                    <artifactId>exec-maven-plugin</artifactId>
-                    <version>${exec-maven-plugin.version}</version>
-                </plugin>
-            </plugins>
-        </pluginManagement>
+        <extensions>
+            <extension>
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>os-maven-plugin</artifactId>
+                <version>${os-maven-plugin.version}</version>
+            </extension>
+        </extensions>
     </build>
-
-    <distributionManagement>
-        <repository>
-            <id>repsy</id>
-            <name>lzy allocator repo</name>
-            <url>https://repo.repsy.io/mvn/lzy/api</url>
-        </repository>
-    </distributionManagement>
 </project>
