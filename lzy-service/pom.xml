@@ -46,7 +46,7 @@
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
-            <artifactId>workflow-api</artifactId>
+            <artifactId>lzy-service-api</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
         <dependency>

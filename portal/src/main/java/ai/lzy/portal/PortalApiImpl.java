@@ -4,6 +4,9 @@ import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.portal.exceptions.CreateSlotException;
+import ai.lzy.portal.exceptions.SnapshotNotFound;
+import ai.lzy.portal.exceptions.SnapshotUniquenessException;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.portal.LzyPortal;
 import ai.lzy.v1.portal.LzyPortal.PortalSlotDesc;
@@ -22,7 +25,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
+import java.util.function.BiConsumer;
 
 import static ai.lzy.portal.grpc.ProtoConverter.buildInputSlotStatus;
 import static ai.lzy.portal.grpc.ProtoConverter.buildOutputSlotStatus;
@@ -104,31 +107,18 @@ class PortalApiImpl extends LzyPortalImplBase {
     }
 
     @Override
-    public synchronized void openSlots(OpenSlotsRequest request, StreamObserver<OpenSlotsResponse> responseObserver) {
+    public synchronized void openSlots(OpenSlotsRequest request, StreamObserver<OpenSlotsResponse> response) {
+        final BiConsumer<String, Status> replyError = (message, status) -> {
+            LOG.error(message);
+            response.onError(status.withDescription(message).asRuntimeException());
+        };
+
         try {
             waitPortalStarted();
-
-            var response = openInternal(request);
-            responseObserver.onNext(response);
-            responseObserver.onCompleted();
-        } catch (Exception e) {
-            LOG.error("Cannot open slots: " + e.getMessage());
-            responseObserver.onError(Status.INTERNAL.withDescription("Cannot open slots: " + e.getMessage())
-                .asRuntimeException());
+        } catch (RuntimeException e) {
+            replyError.accept(e.getMessage(), Status.FAILED_PRECONDITION);
+            return;
         }
-    }
-
-    private OpenSlotsResponse openInternal(OpenSlotsRequest request) {
-        LOG.info("Configure portal slots request.");
-
-        var response = OpenSlotsResponse.newBuilder().setSuccess(true);
-
-        final Function<String, OpenSlotsResponse> replyError = message -> {
-            LOG.error(message);
-            response.setSuccess(false);
-            response.setDescription(message);
-            return response.build();
-        };
 
         for (LzyPortal.PortalSlotDesc slotDesc : request.getSlotsList()) {
             LOG.info("Open slot {}", portalSlotToSafeString(slotDesc));
@@ -137,7 +127,8 @@ class PortalApiImpl extends LzyPortalImplBase {
             if (Slot.STDIN.equals(slot) || Slot.ARGS.equals(slot)
                 || Slot.STDOUT.equals(slot) || Slot.STDERR.equals(slot))
             {
-                return replyError.apply("Invalid slot " + slot);
+                replyError.accept("Invalid slot " + slot, Status.INTERNAL);
+                return;
             }
 
             final String taskId = switch (slotDesc.getKindCase()) {
@@ -157,12 +148,17 @@ class PortalApiImpl extends LzyPortalImplBase {
                     default -> throw new NotImplementedException(slotDesc.getKindCase().name());
                 };
                 portal.getSlotManager().registerSlot(newLzySlot);
-            } catch (Portal.CreateSlotException e) {
-                replyError.apply(e.getMessage());
+            } catch (SnapshotNotFound e) {
+                replyError.accept(e.getMessage(), Status.NOT_FOUND);
+            } catch (SnapshotUniquenessException e) {
+                replyError.accept(e.getMessage(), Status.INVALID_ARGUMENT);
+            } catch (CreateSlotException e) {
+                replyError.accept(e.getMessage(), Status.INTERNAL);
             }
         }
 
-        return response.build();
+        response.onNext(OpenSlotsResponse.newBuilder().setSuccess(true).build());
+        response.onCompleted();
     }
 
     private void waitPortalStarted() {

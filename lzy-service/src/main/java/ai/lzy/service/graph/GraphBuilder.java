@@ -151,6 +151,17 @@ class GraphBuilder {
 
         synchronized (this) {
             try {
+                var slotsUriAsOutput = fromPortal.stream().map(DataFlowGraph.Data::slotUri).collect(Collectors.toSet());
+                var unknownFromPortal = withRetries(LOG, () ->
+                    executionDao.retainNonExistingSlots(executionId, slotsUriAsOutput));
+
+                withRetries(defaultRetryPolicy(), LOG, () -> executionDao.saveSlots(executionId, unknownFromPortal));
+            } catch (Exception e) {
+                LOG.error("Cannot save information to internal storage: " + e.getMessage());
+                throw new RuntimeException(e);
+            }
+
+            try {
                 var slotsUri = dataFlow.stream().map(DataFlowGraph.Data::slotUri).collect(Collectors.toSet());
                 outputSlot2channel = withRetries(LOG, () -> executionDao.findChannels(slotsUri));
             } catch (Exception e) {
@@ -160,10 +171,10 @@ class GraphBuilder {
             }
 
             var newChannels = new HashMap<String, String>();
-            var withoutChannels = fromPortal.stream()
+            var withoutOpenedPortalSlot = fromPortal.stream()
                 .filter(data -> !outputSlot2channel.containsKey(data.slotUri())).toList();
 
-            for (var data : withoutChannels) {
+            for (var data : withoutOpenedPortalSlot) {
                 var slotUri = data.slotUri();
                 var portalOutputSlotName = Portal.PORTAL_SLOT_PREFIX + "_" + UUID.randomUUID();
                 var channelId = channelManagerClient
