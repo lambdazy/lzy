@@ -2,8 +2,8 @@ package ai.lzy.kharon;
 
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.deprecated.Kharon;
-import ai.lzy.v1.fs.LzyFsApi;
-import ai.lzy.v1.fs.LzyFsApi.SlotRequest;
+import ai.lzy.v1.deprecated.LzyFsApi;
+import ai.lzy.v1.deprecated.LzyFsApi.SlotRequest;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;

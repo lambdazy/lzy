@@ -13,7 +13,7 @@ import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.common.LMS;
-import ai.lzy.v1.fs.LzyFsGrpc;
+import ai.lzy.v1.deprecated.LzyFsGrpc;
 import ai.lzy.v1.portal.LzyPortal;
 import ai.lzy.v1.portal.LzyPortalApi;
 import ai.lzy.v1.portal.LzyPortalApi.PortalStatusRequest;

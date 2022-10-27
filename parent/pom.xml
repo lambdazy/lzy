@@ -18,14 +18,8 @@
         <maven-help-plugin.version>3.2.0</maven-help-plugin.version>
         <build-helper-maven-plugin.version>3.1.0</build-helper-maven-plugin.version>
         <kafka.version>1.0.0</kafka.version>
-        <yql-jdbc.version>1.0.31</yql-jdbc.version>
-        <iceberg-inside-yt-version>5696584</iceberg-inside-yt-version>
-        <tomcat-version>9.0.22</tomcat-version>
-        <javax.servlet-api-version>4.0.1</javax.servlet-api-version>
         <commons.version>1.4.9</commons.version>
         <junit.version>4.13.2</junit.version>
-        <testng.version>7.6.1</testng.version>
-        <testcontainers.version>1.16.2</testcontainers.version>
         <com.amazonaws.awsjavasdk.version>1.12.300</com.amazonaws.awsjavasdk.version>
         <s3mock_2.12.version>0.2.4</s3mock_2.12.version>
         <grpc.version>1.49.0</grpc.version>
@@ -38,7 +32,6 @@
         <commons-lang3.version>3.9</commons-lang3.version>
         <commons-pool2.version>2.11.1</commons-pool2.version>
         <commons-math3.version>3.6.1</commons-math3.version>
-        <AmazonCorrettoCryptoProvider.version>1.2.0</AmazonCorrettoCryptoProvider.version>
         <proto-google-common-protos.version>1.17.0</proto-google-common-protos.version>
         <protobuf.version>3.21.5</protobuf.version>
         <protobuf-java-util.version>3.21.5</protobuf-java-util.version>
@@ -60,12 +53,6 @@
         <mockito-core.version>3.5.15</mockito-core.version>
         <commons-cli.version>1.4</commons-cli.version>
         <commons-s3-amazon.version>6.3287</commons-s3-amazon.version>
-        <net.razorvine-pickle.version>1.0</net.razorvine-pickle.version>
-        <jeromq.version>0.5.1</jeromq.version>
-        <cxf.version>3.3.6</cxf.version>
-        <javax.mail.version>1.4.7</javax.mail.version>
-        <zt-exec.version>1.12</zt-exec.version>
-        <zt-process-killer.version>1.10</zt-process-killer.version>
         <!-- opentracing -->
         <opentracing-api.version>0.33.0</opentracing-api.version>
         <opentracing-util.version>0.33.0</opentracing-util.version>
@@ -75,8 +62,6 @@
         <opentracing-web-servlet.version>0.4.1</opentracing-web-servlet.version>
         <postgresql.version>42.5.0</postgresql.version>
         <flyway-core.version>9.3.0</flyway-core.version>
-        <envoy.version>0.1.28</envoy.version>
-        <unified-agent-client.version>8232432</unified-agent-client.version>
         <jnr-fuse.version>0.5.7</jnr-fuse.version>
         <jnr-ffi.version>2.2.12</jnr-ffi.version>
         <docker-maven-plugin.version>0.36.1</docker-maven-plugin.version>
@@ -326,16 +311,6 @@
                 <groupId>junit</groupId>
                 <artifactId>junit</artifactId>
                 <version>${junit.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.testng</groupId>
-                <artifactId>testng</artifactId>
-                <version>${testng.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.testcontainers</groupId>
-                <artifactId>testcontainers</artifactId>
-                <version>${testcontainers.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.flywaydb</groupId>

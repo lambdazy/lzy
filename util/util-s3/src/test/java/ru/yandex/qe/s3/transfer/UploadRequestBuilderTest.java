@@ -2,7 +2,7 @@ package ru.yandex.qe.s3.transfer;
 
 import org.hamcrest.core.Is;
 import org.junit.Assert;
-import org.testng.annotations.Test;
+import org.junit.Test;
 import ru.yandex.qe.s3.transfer.meta.Metadata;
 import ru.yandex.qe.s3.transfer.meta.MetadataBuilder;
 import ru.yandex.qe.s3.transfer.upload.UploadRequest;
@@ -15,17 +15,17 @@ import java.io.ByteArrayInputStream;
  */
 public class UploadRequestBuilderTest {
 
-    @Test(expectedExceptions = NullPointerException.class)
+    @Test(expected = NullPointerException.class)
     public void fail_to_create_if_key_not_set() {
         new UploadRequestBuilder().bucket("bucket").build();
     }
 
-    @Test(expectedExceptions = NullPointerException.class)
+    @Test(expected = NullPointerException.class)
     public void fail_to_create_if_bucket_not_set() {
         new UploadRequestBuilder().key("key").build();
     }
 
-    @Test(expectedExceptions = NullPointerException.class)
+    @Test(expected = NullPointerException.class)
     public void fail_to_create_if_stream_supplier_not_set() {
         new UploadRequestBuilder().key("key").bucket("bucket").build();
     }
