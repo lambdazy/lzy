@@ -3,7 +3,7 @@ package ru.yandex.qe.s3.transfer;
 import org.hamcrest.core.Is;
 import org.joda.time.Duration;
 import org.junit.Assert;
-import org.testng.annotations.Test;
+import org.junit.Test;
 import ru.yandex.qe.s3.transfer.meta.Metadata;
 import ru.yandex.qe.s3.transfer.meta.MetadataBuilder;
 import ru.yandex.qe.s3.transfer.ttl.TTLUploadRequest;
@@ -16,7 +16,7 @@ import java.io.ByteArrayInputStream;
  */
 public class TTLUploadRequestBuilderTest {
 
-    @Test(expectedExceptions = NullPointerException.class)
+    @Test(expected = NullPointerException.class)
     public void fail_if_ttl_not_set() {
         final ByteArrayInputStream inputStream = new ByteArrayInputStream(new byte[0]);
         new TTLUploadRequestBuilder().key("key").bucket("bucket")

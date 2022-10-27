@@ -44,5 +44,9 @@
         <module>long-running-api</module>
         <module>slots-api</module>
         <module>scheduler-api</module>
+        <module>graph-executor-api</module>
+        <module>storage-api</module>
+        <module>portal-api</module>
+        <module>worker-api</module>
     </modules>
 </project>
