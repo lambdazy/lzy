@@ -71,13 +71,14 @@ public class IntegrationTest extends BaseTestWithIam {
             allocator = context.getBean(AllocatorMock.class);
         }
 
-        var credentials = auth.createCredentials();
+        var credentials = auth.createRenewableToken();
 
         chan = newGrpcChannel("localhost", 2392, SchedulerGrpc.SERVICE_NAME);
-        stub = newBlockingClient(SchedulerGrpc.newBlockingStub(chan), "Test", credentials::token);
+        stub = newBlockingClient(SchedulerGrpc.newBlockingStub(chan), "Test", () -> credentials.get().token());
 
         privateChan = newGrpcChannel("localhost", 2392, SchedulerPrivateGrpc.SERVICE_NAME);
-        privateStub = newBlockingClient(SchedulerPrivateGrpc.newBlockingStub(privateChan), "Test", credentials::token);
+        privateStub = newBlockingClient(SchedulerPrivateGrpc.newBlockingStub(privateChan), "Test",
+            () -> credentials.get().token());
 
         Configurator.setAllLevels("ai.lzy.scheduler", Level.ALL);
     }
@@ -101,6 +102,7 @@ public class IntegrationTest extends BaseTestWithIam {
         stub.schedule(TaskScheduleRequest.newBuilder()
             .setWorkflowId("wfid")
             .setWorkflowName("wf")
+            .setUserId("uid")
             .setTask(LMO.TaskDesc.newBuilder()
                 .setOperation(LMO.Operation.newBuilder()
                     .setName("name")

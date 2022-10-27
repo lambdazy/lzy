@@ -3,6 +3,7 @@ package ai.lzy.test.scenarios;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.servant.agents.AgentStatus;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.List;
@@ -71,9 +72,11 @@ public class PyApiTest extends LocalScenario {
     }
 
     @Test
+    @Ignore
     public void testWhiteboards() {
         /* This scenario checks for:
                 1. Whiteboards/Views machinery
+                TODO: turn on after new whiteboards finished
          */
         evalAndAssertScenarioResult(terminal, "whiteboards");
     }

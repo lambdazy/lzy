@@ -245,9 +245,9 @@ public class ChannelManagerMock {
                 var inputSlot = requireNonNull(channel.inputSlot.get());
                 var outputSlot = requireNonNull(channel.outputSlot.get());
 
-                System.out.println("Connecting channel '" + channelName + "' slots, input='"
-                                   + inputSlot.getSlotInstance().getSlot().getName()
-                                   + "', output='" + outputSlot.getSlotInstance().getSlot().getName() + "'...");
+                LOG.info("Connecting channel '" + channelName + "' slots, input='" +
+                    inputSlot.getSlotInstance().getSlot().getName() +
+                    "', output='" + outputSlot.getSlotInstance().getSlot().getName() + "'...");
 
                 var status = channel.inputEndpoint.get().connect(channel.outputEndpoint.get().slotInstance);
 

@@ -78,16 +78,16 @@ public class AllocatorImpl implements ServantsAllocator {
         this.iamChannel = newGrpcChannel(authConfig.getAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
 
         allocatorChannel = newGrpcChannel(config.getAllocatorAddress(), AllocatorGrpc.SERVICE_NAME);
-        final var credentials = authConfig.createCredentials();
+        final var credentials = authConfig.createRenewableToken();
         allocator = newBlockingClient(AllocatorGrpc.newBlockingStub(allocatorChannel), SchedulerApi.APP,
-            credentials::token);
+            () -> credentials.get().token());
 
         opChannel = newGrpcChannel(config.getAllocatorAddress(), LongRunningServiceGrpc.SERVICE_NAME);
         operations = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(opChannel), SchedulerApi.APP,
-            credentials::token);
+            () -> credentials.get().token());
 
-        subjectClient = new SubjectServiceGrpcClient(SchedulerApi.APP, iamChannel, authConfig::createCredentials);
-        abClient = new AccessBindingServiceGrpcClient(SchedulerApi.APP, iamChannel, authConfig::createCredentials);
+        subjectClient = new SubjectServiceGrpcClient(SchedulerApi.APP, iamChannel, credentials::get);
+        abClient = new AccessBindingServiceGrpcClient(SchedulerApi.APP, iamChannel, credentials::get);
     }
 
     @PreDestroy
@@ -98,7 +98,7 @@ public class AllocatorImpl implements ServantsAllocator {
     }
 
     @Override
-    public void allocate(String workflowName, String servantId, Operation.Requirements requirements) {
+    public void allocate(String userId, String workflowName, String servantId, Operation.Requirements requirements) {
         String privateKey;
         try {
             var workerKeys = RsaUtils.generateRsaKeys();
@@ -108,7 +108,7 @@ public class AllocatorImpl implements ServantsAllocator {
             final var subj = subjectClient.createSubject(AuthProvider.INTERNAL, servantId, SubjectType.SERVANT,
                 new SubjectCredentials("main", publicKey, CredentialsType.PUBLIC_KEY));
 
-            abClient.setAccessBindings(new Workflow(workflowName),
+            abClient.setAccessBindings(new Workflow(userId + "/" + workflowName),
                 List.of(new AccessBinding(Role.LZY_WORKFLOW_OWNER, subj)));
         } catch (Exception e) {
             LOG.error("Cannot build credentials for servant", e);

@@ -73,3 +73,8 @@ message VmPoolSpec {
   uint32 ramGb = 6;            // RAM in GB
   repeated string zones = 7;    // availability zones
 }
+
+message WhiteboardField {
+  string name = 1;
+  /* optional */ string uri = 2;
+}

@@ -5,13 +5,14 @@ package ai.lzy.v1.portal;
 import "ai/lzy/v1/common/slot.proto";
 import "ai/lzy/v1/portal/portal.proto";
 import "google/protobuf/empty.proto";
+import "ai/lzy/v1/common/s3.proto";
 
 option java_outer_classname = "LzyPortalApi";
 option java_package = "ai.lzy.v1.portal";
 
 service LzyPortal {
   rpc Stop (google.protobuf.Empty) returns (google.protobuf.Empty);
-  rpc Status (google.protobuf.Empty) returns (PortalStatus);
+  rpc Status (PortalStatusRequest) returns (PortalStatusResponse);
   rpc OpenSlots (OpenSlotsRequest) returns (OpenSlotsResponse);
 }
 
@@ -19,17 +20,22 @@ message PortalSlotStatus {
   Slot slot = 1;
   string connectedTo = 2;
   SlotStatus.State state = 3;
-  SnapshotStatus snapshotStatus = 4;
+  SnapshotSlotStatus snapshotStatus = 4;
 
-  enum SnapshotStatus {
-    UNDEFINED = 0;
-    NOT_IN_SNAPSHOT = 1;  // If slot not a snapshot slot
-    SYNCING = 2;  // Loading data to or from storage
-    SYNCED = 3;  // Data synchronized with storage
+  enum SnapshotSlotStatus {
+    UNSPECIFIED = 0;
+    NOT_IN_SNAPSHOT = 1;  // Not a snapshot slot
+    INITIALIZING = 2;  // Creating snapshot slot
+    SYNCING = 3;  // Syncing snapshot slot with remote storage
+    SYNCED = 4;  // Slot data synced with storage, can send data if output slot
+    FAILED = 5;  // Slot failed
   }
 }
 
-message PortalStatus {
+message PortalStatusRequest {
+  repeated string slotNames = 1;  // Slot names to return status of. If empty, returns all slots
+}
+message PortalStatusResponse {
   repeated PortalSlotStatus slots = 1;
 }
 

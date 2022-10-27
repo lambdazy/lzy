@@ -10,6 +10,7 @@ import java.util.List;
 final class GraphExecutionState {
     private final String executionId;
 
+    private String userId;
     private String workflowName;
     private String zone;
 
@@ -17,6 +18,7 @@ final class GraphExecutionState {
     private List<LWF.Operation> operations;
     private List<TaskDesc> tasks;
     private List<ChannelDesc> channels;
+    private List<String> portalInputSlots;
 
     private DataFlowGraph dataFlowGraph;
 
@@ -44,6 +46,14 @@ final class GraphExecutionState {
 
     public void setOperations(List<LWF.Operation> operations) {
         this.operations = operations;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 
     public String getWorkflowName() {
@@ -92,6 +102,14 @@ final class GraphExecutionState {
 
     public Status getErrorStatus() {
         return errorStatus;
+    }
+
+    public void setPortalInputSlots(List<String> portalInputSlots) {
+        this.portalInputSlots = portalInputSlots;
+    }
+
+    public List<String> getPortalInputSlots() {
+        return portalInputSlots;
     }
 
     public void fail(Status errorStatus, String description) {

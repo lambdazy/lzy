@@ -42,6 +42,11 @@ public class WorkflowDaoImpl implements WorkflowDao {
         FROM workflows
         WHERE active_execution_id = ?""";
 
+    private static final String QUERY_GET_USER_ID = """
+        SELECT user_id
+        FROM workflows
+        WHERE active_execution_id = ?""";
+
     private static final String QUERY_EXISTS_ACTIVE_EXECUTION_FOR_WORKFLOW = """
         SELECT 1 FROM workflows
         WHERE user_id = ? AND workflow_name = ? AND active_execution_id = ?""";
@@ -318,6 +323,29 @@ public class WorkflowDaoImpl implements WorkflowDao {
                 statement.executeUpdate();
             }
         });
+    }
+
+    @Override
+    public String getUserId(String executionId) throws SQLException {
+        String[] userId = {null};
+
+        DbOperation.execute(null, storage, con -> {
+            try (var statement = con.prepareStatement(QUERY_GET_USER_ID)) {
+                statement.setString(1, executionId);
+                ResultSet rs = statement.executeQuery();
+
+                if (rs.next()) {
+                    userId[0] = rs.getString("user_id");
+
+                }
+                if (userId[0] == null) {
+                    LOG.error("Cannot find userId for execution: { executionId: {} }", executionId);
+                    throw new NotFoundException("Cannot find userId");
+                }
+            }
+        });
+
+        return userId[0];
     }
 
     @Override

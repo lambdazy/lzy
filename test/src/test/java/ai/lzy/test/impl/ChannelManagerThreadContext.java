@@ -81,10 +81,9 @@ public class ChannelManagerThreadContext implements LzyChannelManagerContext {
             client = LzyChannelManagerGrpc.newBlockingStub(channel)
                 .withWaitForReady()
                 .withDeadlineAfter(Config.STARTUP_TIMEOUT_SEC, TimeUnit.SECONDS);
-            var creds = context.getBean(ServiceConfig.class).getIam().createCredentials();
-            privateClient = LzyChannelManagerPrivateGrpc.newBlockingStub(channel).withInterceptors(
-                ClientHeaderInterceptor.authorization(creds::token)
-            );
+            var creds = context.getBean(ServiceConfig.class).getIam().createRenewableToken();
+            privateClient = LzyChannelManagerPrivateGrpc.newBlockingStub(channel)
+                .withInterceptors(ClientHeaderInterceptor.authorization(() -> creds.get().token()));
             while (channel.getState(true) != ConnectivityState.READY) {
                 LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(100));
             }

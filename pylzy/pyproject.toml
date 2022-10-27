@@ -19,3 +19,10 @@ extend-exclude = '''
 exclude = [
    # 'lzy/proto/'  # TOML literal string (single-quotes, no escaping necessary)
 ]
+
+[build-system]
+requires = [
+    "setuptools >= 35.0.2",
+    "wheel >= 0.37.1"
+]
+build-backend = "setuptools.build_meta"

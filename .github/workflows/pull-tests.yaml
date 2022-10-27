@@ -32,18 +32,17 @@ jobs:
         timeout-minutes: 20
         run: |
           cd pylzy/
-          ./scripts/gen_proto.sh
-          nix-shell --command ./scripts/run_tests.sh
+          ./scripts/run_tests.sh
          
-      - name: 'upload coverage badge'
-        uses: exuanbo/actions-deploy-gist@v1
-        if: github.ref == 'refs/heads/master'
-        with:
-          token: ${{ secrets.GIST_SECRET }}
-          gist_id: 0095e900fb0fcbe5575ddc3c717fb65b
-          file_path: pylzy/coverage.svg
-          file_type: binary
-          gist_file_name: ${{ (github.head_ref || github.ref_name) }}-coverage.svg
+#      - name: 'upload coverage badge'
+#        uses: exuanbo/actions-deploy-gist@v1
+#        if: github.ref == 'refs/heads/master'
+#        with:
+#          token: ${{ secrets.GIST_SECRET }}
+#          gist_id: 0095e900fb0fcbe5575ddc3c717fb65b
+#          file_path: pylzy/coverage.svg
+#          file_type: binary
+#          gist_file_name: ${{ (github.head_ref || github.ref_name) }}-coverage.svg
       
       - name: 'clean after python-test'
         run: |
@@ -137,7 +136,9 @@ jobs:
           SERVANT_BASE_IMAGE=$(deployment/latest-docker-image-on-branches.sh lzy-servant-base $BRANCH master)
           docker pull $SERVANT_BASE_IMAGE
           SERVANT_BASE_TAG="$(echo $SERVANT_BASE_IMAGE | awk -F: '{print $2}')"
-          docker build --build-arg "SERVANT_BASE_TAG=$SERVANT_BASE_TAG" -t lzy-servant -f servant/docker/System.Dockerfile .
+          mkdir -p servant/docker/tmp-for-context
+          cp -R pylzy servant/docker/tmp-for-context/pylzy
+          docker build --build-arg "SERVANT_BASE_TAG=$SERVANT_BASE_TAG" -t lzy-servant -f servant/docker/System.Dockerfile servant
 
       - name: 'DockerServantTest'
         timeout-minutes: 20
@@ -154,6 +155,7 @@ jobs:
       - name: 'Clean docker files'
         run: |
           docker stop $(docker ps -a -q) && docker rm $(docker ps -a -q)
+          docker image rm -f $(docker image ls 6a7b4d -a -q)
           docker image prune -f
           docker volume prune -f
 

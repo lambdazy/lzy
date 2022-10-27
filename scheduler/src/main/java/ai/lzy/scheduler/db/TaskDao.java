@@ -9,7 +9,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 public interface TaskDao {
-    Task create(String workflowId, String workflowName, TaskDesc taskDesc) throws DaoException;
+    Task create(String workflowId, String workflowName, String userId, TaskDesc taskDesc) throws DaoException;
 
     @Nullable
     Task get(String taskId) throws DaoException;

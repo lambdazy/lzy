@@ -76,6 +76,8 @@ public interface WorkflowDao {
                                @Nullable String newExecutionId, @Nullable TransactionHandle transaction)
         throws SQLException;
 
+    String getUserId(String executionId) throws SQLException;
+
     String getWorkflowName(String executionId) throws SQLException;
 
     default String getPortalAddress(String executionId) throws SQLException {

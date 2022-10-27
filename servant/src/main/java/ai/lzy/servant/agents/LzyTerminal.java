@@ -1,6 +1,6 @@
 package ai.lzy.servant.agents;
 
-import ai.lzy.fs.LzyFsServer;
+import ai.lzy.fs.LzyFsServerLegacy;
 import ai.lzy.fs.SlotConnectionManager;
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
@@ -37,7 +37,7 @@ public class LzyTerminal implements Closeable {
     private static final Logger LOG = LogManager.getLogger(LzyTerminal.class);
 
     private final LzyAgent agent;
-    private final LzyFsServer lzyFs;
+    private final LzyFsServerLegacy lzyFs;
     private final LzyContext context;
     private final ManagedChannel channel;
     private final LzyKharonGrpc.LzyKharonStub kharon;

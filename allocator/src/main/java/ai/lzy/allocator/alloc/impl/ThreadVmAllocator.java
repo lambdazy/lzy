@@ -138,7 +138,11 @@ public class ThreadVmAllocator implements VmAllocator {
             } catch (InterruptedException e) {
                 LOG.debug("Interrupted", e);
             } finally {
-                thread.stop();
+                try {
+                    thread.stop();
+                } catch (ThreadDeath e) {
+                    // ignored
+                }
             }
         }
     }

@@ -27,7 +27,7 @@ for ARG in "$@"; do
   esac
 done
 
-IMAGES="lzy-servant default-env test-env lzy-server lzy-kharon lzy-whiteboard lzy-iam lzy-allocator"
+IMAGES="lzy-servant default-env test-env lzy-server lzy-kharon lzy-whiteboard lzy-iam"
 if [[ $BASE = true ]]; then
   IMAGES="lzy-servant-base default-env-base test-env-base $IMAGES"
 fi
@@ -36,11 +36,11 @@ CUSTOM_TAG=$2
 
 if [[ $REBUILD = true ]]; then
   if [[ $BASE = true ]]; then
-    docker build -t lzy-servant-base -t lzydock/lzy-servant-base:local -f servant/docker/System.Base.Dockerfile .
+    docker build -t lzy-servant-base -t lzydock/lzy-servant-base:local -f servant/docker/System.Base.Dockerfile servant
     SERVANT_BASE_TAG="local"
-    docker build -t default-env-base -t lzydock/default-env-base:local -f servant/docker/DefaultEnv.Base.Dockerfile .
+    docker build -t default-env-base -t lzydock/default-env-base:local -f servant/docker/DefaultEnv.Base.Dockerfile servant
     DEFAULT_ENV_BASE_TAG="local"
-    docker build -t test-env-base    -t lzydock/test-env-base:local    -f servant/docker/TestEnv.Base.Dockerfile .
+    docker build -t test-env-base    -t lzydock/test-env-base:local    -f servant/docker/TestEnv.Base.Dockerfile servant
     TEST_ENV_BASE_TAG="local"
   else
     SERVANT_BASE="$(deployment/latest-docker-image-on-branches.sh lzy-servant-base $BRANCH master)"
@@ -55,18 +55,21 @@ if [[ $REBUILD = true ]]; then
     docker pull "$TEST_ENV_BASE"
     TEST_ENV_BASE_TAG="$(echo $TEST_ENV_BASE | awk -F: '{print $2}')"
   fi
-  cd pylzy/ && ./gen_proto.sh  && cd ..
+  cd pylzy/ && ./scripts/gen_proto.sh && cd ..
   mvn clean install -DskipTests
 
-  docker build --build-arg "SERVANT_BASE_TAG=$SERVANT_BASE_TAG"         -t lzy-servant -f servant/docker/System.Dockerfile .
-  docker build --build-arg "DEFAULT_ENV_BASE_TAG=$DEFAULT_ENV_BASE_TAG" -t default-env -f servant/docker/DefaultEnv.Dockerfile .
-  docker build --build-arg "TEST_ENV_BASE_TAG=$TEST_ENV_BASE_TAG"       -t test-env    -f servant/docker/TestEnv.Dockerfile .
+  mkdir -p servant/docker/tmp-for-context
+  cp -R pylzy servant/docker/tmp-for-context/pylzy
+  docker build --build-arg "SERVANT_BASE_TAG=$SERVANT_BASE_TAG"         -t lzy-servant -f servant/docker/System.Dockerfile servant
+  docker build --build-arg "DEFAULT_ENV_BASE_TAG=$DEFAULT_ENV_BASE_TAG" -t default-env -f servant/docker/DefaultEnv.Dockerfile servant
+  docker build --build-arg "TEST_ENV_BASE_TAG=$TEST_ENV_BASE_TAG"       -t test-env    -f servant/docker/TestEnv.Dockerfile servant
+  rm -rf servant/docker/tmp-for-context
 
   docker build -t lzy-server -f server/Dockerfile server
-  docker build -t lzy-whiteboard -f whiteboard/Dockerfile whiteboard
+  docker build -t lzy-whiteboard -f whiteboard-old/Dockerfile whiteboard-old
   docker build -t lzy-kharon -f kharon/Dockerfile kharon
   docker build -t lzy-iam -f iam/Dockerfile iam
-  docker build -t lzy-allocator -f allocator/Dockerfile allocator
+#  docker build -t lzy-allocator -f allocator/Dockerfile allocator
 #  docker build -t "lzydock/$BRANCH/lzy-backoffice-backend:$CUSTOM_TAG" lzy-backoffice/Dockerfile
 #  docker build -t "lzydock/$BRANCH/lzy-backoffice-frontend:$CUSTOM_TAG" lzy-backoffice/frontend/Dockerfile
 fi
@@ -94,7 +97,7 @@ for IMAGE in $IMAGES; do
   NEW_NAME="lzydock/$IMAGE:$BRANCH-$NEW_TAG"
   docker tag "$IMAGE" "$NEW_NAME" && docker image rm "$IMAGE"
   echo "pushing $NEW_NAME"
-  docker push "$NEW_NAME" && ([[ $NEW_NAME == *"base"* ]] || docker image rm "$NEW_NAME")
+  docker push "$NEW_NAME" && docker image rm "$NEW_NAME"
   echo "::set-output name=${IMAGE#lzy-}-image::$BRANCH-$NEW_TAG" # for github actions
   echo ""
   PUSHED_IMAGES="$PUSHED_IMAGES${NL}$IMAGE-image = \"$NEW_NAME\""

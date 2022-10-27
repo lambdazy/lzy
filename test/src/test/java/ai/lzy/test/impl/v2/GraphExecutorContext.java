@@ -53,11 +53,10 @@ public class GraphExecutorContext  {
                 .enableRetry(GraphExecutorGrpc.SERVICE_NAME)
                 .build();
 
-        var creds = context.getBean(ServiceConfig.class).getIam().createCredentials();
+        var creds = context.getBean(ServiceConfig.class).getIam().createRenewableToken();
 
-        this.stub = GraphExecutorGrpc.newBlockingStub(channel).withInterceptors(
-            ClientHeaderInterceptor.authorization(creds::token)
-        );
+        this.stub = GraphExecutorGrpc.newBlockingStub(channel)
+            .withInterceptors(ClientHeaderInterceptor.authorization(() -> creds.get().token()));
     }
 
     @PreDestroy

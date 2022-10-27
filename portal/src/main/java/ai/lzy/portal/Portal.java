@@ -9,7 +9,7 @@ import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.model.Constants;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.portal.config.PortalConfig;
-import ai.lzy.portal.slots.SnapshotSlotsProvider;
+import ai.lzy.portal.slots.SnapshotProvider;
 import ai.lzy.portal.slots.StdoutSlot;
 import ai.lzy.util.auth.credentials.CredentialsUtils;
 import ai.lzy.util.auth.credentials.RenewableJwt;
@@ -64,6 +64,7 @@ public class Portal {
     // services
     private final Server portalServer;
     private final Server slotsServer;
+    private final PortalSlotsService portalSlotsService;
     private final AllocatorAgent allocatorAgent;
 
     private final RenewableJwt slotsJwt;
@@ -73,7 +74,7 @@ public class Portal {
     // slots
     private StdoutSlot stdoutSlot;
     private StdoutSlot stderrSlot;
-    private final SnapshotSlotsProvider snapshots;
+    private final SnapshotProvider snapshots;
 
     private final String portalId;
 
@@ -87,7 +88,7 @@ public class Portal {
 
         this.host = config.getHost();
         portalPort = config.getPortalApiPort();
-        slotsPort = config.getFsApiPort();
+        slotsPort = config.getSlotsApiPort();
 
         iamChannel = newGrpcChannel(config.getIamAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
         channelsManagerChannel = newGrpcChannel(config.getChannelManagerAddress(), LzyChannelManagerGrpc.SERVICE_NAME);
@@ -99,8 +100,12 @@ public class Portal {
             .addService(ServerInterceptors.intercept(new PortalApiImpl(this), internalOnly))
             .build();
 
+        portalSlotsService = new PortalSlotsService(this);
+
         slotsServer = newGrpcServer(host, slotsPort, GrpcUtils.NO_AUTH)
-            .addService(new FsApiImpl(this))
+            .addService(portalSlotsService.getSlotsApi())
+            .addService(portalSlotsService.getLongrunningApi())
+            .addService(portalSlotsService.getLegacyWrapper())
             .build();
 
         allocatorAgent = agent;
@@ -114,7 +119,7 @@ public class Portal {
             tokenFactory = () -> testOnlyToken;
         }
 
-        snapshots = new SnapshotSlotsProvider();
+        snapshots = new SnapshotProvider();
         portalId = config.getPortalId();
     }
 
@@ -167,6 +172,7 @@ public class Portal {
         iamChannel.shutdown();
         channelsManagerChannel.shutdown();
         portalServer.shutdown();
+        portalSlotsService.shutdown();
         slotsServer.shutdown();
         allocatorAgent.shutdown();
     }
@@ -175,6 +181,7 @@ public class Portal {
         iamChannel.shutdownNow();
         channelsManagerChannel.shutdownNow();
         portalServer.shutdownNow();
+        portalSlotsService.shutdown();
         slotsServer.shutdownNow();
         allocatorAgent.shutdown();
     }
@@ -223,7 +230,7 @@ public class Portal {
         return Collections.emptyList();
     }
 
-    SnapshotSlotsProvider getSnapshots() {
+    SnapshotProvider getSnapshots() {
         return snapshots;
     }
 

@@ -5,7 +5,7 @@ import ai.lzy.scheduler.models.ServantEvent;
 import ai.lzy.scheduler.models.ServantState;
 import ai.lzy.scheduler.servant.Servant;
 import ai.lzy.scheduler.task.Task;
-import org.apache.curator.shaded.com.google.common.net.HostAndPort;
+import com.google.common.net.HostAndPort;
 import org.jetbrains.annotations.Nullable;
 
 public class ServantImpl implements Servant {
@@ -88,6 +88,11 @@ public class ServantImpl implements Servant {
     @Override
     public String id() {
         return state.id();
+    }
+
+    @Override
+    public String userId() {
+        return state.userId();
     }
 
     @Override

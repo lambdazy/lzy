@@ -322,7 +322,8 @@ public class WorkflowService {
                 () -> workflowDao.updateAllocatorSession(executionId, sessionId, portalId));
 
             var startAllocationTime = Instant.now();
-            var operation = startAllocation(workflowName, sessionId, executionId, stdoutChannelId,
+            var operation = startAllocation(userId, workflowName, sessionId,
+                executionId, stdoutChannelId,
                 stderrChannelId, portalId);
             var opId = operation.getId();
 
@@ -384,8 +385,8 @@ public class WorkflowService {
         return session.getSessionId();
     }
 
-    public LongRunning.Operation startAllocation(String workflowName, String sessionId, String executionId,
-                                                 String stdoutChannelId, String stderrChannelId, String portalId)
+    public LongRunning.Operation startAllocation(String userId, String workflowName, String sessionId,
+                                                 String executionId, String stdoutChannelId, String stderrChannelId, String portalId)
     {
 
         String privateKey;
@@ -397,7 +398,7 @@ public class WorkflowService {
             final var subj = subjectClient.createSubject(AuthProvider.INTERNAL, portalId, SubjectType.SERVANT,
                 new SubjectCredentials("main", publicKey, CredentialsType.PUBLIC_KEY));
 
-            abClient.setAccessBindings(new Workflow(workflowName),
+            abClient.setAccessBindings(new Workflow(userId + "/" + workflowName),
                 List.of(new AccessBinding(Role.LZY_WORKFLOW_OWNER, subj)));
         } catch (Exception e) {
             LOG.error("Cannot build credentials for portal", e);
@@ -408,20 +409,21 @@ public class WorkflowService {
             ? FreePortFinder.find(10000, 11000)
             : startupPortalConfig.getPortalApiPort();
 
-        var fsPort = PEEK_RANDOM_PORTAL_PORTS ? FreePortFinder.find(11000, 12000) : startupPortalConfig.getFsApiPort();
+        var fsPort = PEEK_RANDOM_PORTAL_PORTS
+            ? FreePortFinder.find(11000, 12000)
+            : startupPortalConfig.getSlotsApiPort();
 
         var args = List.of(
             "-portal.portal-id=" + portalId,
             "-portal.portal-api-port=" + portalPort,
-            "-portal.fs-api-port=" + fsPort,
-            "-portal.fs-root=" + startupPortalConfig.getFsRoot(),
+            "-portal.slots-api-port=" + fsPort,
             "-portal.stdout-channel-id=" + stdoutChannelId,
             "-portal.stderr-channel-id=" + stderrChannelId,
             "-portal.channel-manager-address=" + channelManagerAddress,
             "-portal.iam-address=" + iamAddress);
 
         var ports = Map.of(
-            startupPortalConfig.getFsApiPort(), startupPortalConfig.getFsApiPort(),
+            startupPortalConfig.getSlotsApiPort(), startupPortalConfig.getSlotsApiPort(),
             startupPortalConfig.getPortalApiPort(), startupPortalConfig.getPortalApiPort()
         );
 

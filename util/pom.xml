@@ -11,7 +11,6 @@
 
     <modules>
         <module>util-s3</module>
-        <module>util-zk</module>
         <module>util-azure</module>
         <module>util-auth</module>
         <module>util-test</module>

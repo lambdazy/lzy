@@ -16,6 +16,7 @@ import java.time.Duration;
 public class LzyServiceConfig {
     private String address;
     private String allocatorAddress;
+    private String whiteboardAddress;
     private String graphExecutorAddress;
     private String channelManagerAddress;
 
@@ -28,8 +29,7 @@ public class LzyServiceConfig {
     @ConfigurationProperties("portal")
     public static final class StartupPortalConfig {
         private int portalApiPort;
-        private int fsApiPort;
-        private String fsRoot;
+        private int slotsApiPort;
         private String dockerImage;
         private String stdoutChannelName;
         private String stderrChannelName;

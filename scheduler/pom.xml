@@ -129,12 +129,6 @@
             <artifactId>client-java</artifactId>
         </dependency>
         <dependency>
-            <groupId>ai.lzy</groupId>
-            <artifactId>util-zk</artifactId>
-            <version>1.0-SNAPSHOT</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
             <groupId>ru.yandex.clickhouse</groupId>
             <artifactId>clickhouse-jdbc</artifactId>
         </dependency>
