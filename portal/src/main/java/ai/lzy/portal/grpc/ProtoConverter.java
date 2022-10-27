@@ -37,10 +37,14 @@ public enum ProtoConverter {
                                                           LMS.Slot.Direction direction, LMS3.S3Locator s3Locator,
                                                           @Nullable WhiteboardRef whiteboardRef)
     {
+        var keyAndBucket = parseStorageUri(slotUri);
+        var key = keyAndBucket[0];
+        var bucket = keyAndBucket[1];
+
         var snapshot = LzyPortal.PortalSlotDesc.Snapshot.newBuilder()
             .setS3(LMS3.S3Locator.newBuilder()
-                .setKey(slotUri)
-                .setBucket(s3Locator.getBucket())
+                .setKey(key)
+                .setBucket(bucket)
                 .setAmazon(s3Locator.getAmazon()));
 
         if (whiteboardRef != null) {
@@ -58,6 +62,11 @@ public enum ProtoConverter {
             .setChannelId(channelId)
             .setSnapshot(snapshot)
             .build();
+    }
+
+    private static String[] parseStorageUri(String storageUri) {
+        String[] schemaAndRest = storageUri.split("//", 2);
+        return schemaAndRest[1].split("/", 2);
     }
 
     public static LzyPortal.PortalSlotDesc makePortalInputStdoutSlot(String taskId,
@@ -123,5 +132,14 @@ public enum ProtoConverter {
         return commonSlotStatusBuilder(slot)
             .setConnectedTo("")
             .build();
+    }
+
+    public static String getSlotUri(LMS3.S3Locator s3locator) {
+        var uriSchema = switch (s3locator.getEndpointCase()) {
+            case AZURE -> "azure";
+            case AMAZON -> "s3";
+            case ENDPOINT_NOT_SET -> throw new IllegalArgumentException("Unsupported bucket storage type");
+        };
+        return uriSchema + "://" + s3locator.getKey() + "/" + s3locator.getBucket();
     }
 }

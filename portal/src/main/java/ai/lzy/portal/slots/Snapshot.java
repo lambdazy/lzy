@@ -9,7 +9,7 @@ import static ai.lzy.portal.Portal.CreateSlotException;
 
 public interface Snapshot {
 
-    SnapshotInputSlot setInputSlot(SlotInstance slot) throws CreateSlotException;
+    SnapshotInputSlot setInputSlot(SlotInstance slot, @Nullable Runnable syncHandler) throws CreateSlotException;
 
     SnapshotOutputSlot addOutputSlot(SlotInstance slot) throws CreateSlotException;
 

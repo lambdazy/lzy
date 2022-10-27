@@ -4,7 +4,6 @@ import ai.lzy.model.slot.Slot;
 import ai.lzy.portal.Portal;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.WorkflowDao;
-import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LMO;
@@ -59,8 +58,7 @@ class GraphBuilder {
 
         Map<String, String> slotName2channelId;
         try {
-            slotName2channelId = createChannelsForDataFlow(workflowName, executionId, dataFlow, slot2description,
-                portalClient);
+            slotName2channelId = createChannelsForDataFlow(executionId, dataFlow, slot2description, portalClient);
         } catch (StatusRuntimeException e) {
             state.fail(e.getStatus(), "Cannot build graph");
             LOG.error("Cannot assign slots to channels for execution: " +
@@ -104,8 +102,7 @@ class GraphBuilder {
         state.setChannels(channelsDescriptions);
     }
 
-    private Map<String, String> createChannelsForDataFlow(String workflowName, String executionId,
-                                                          List<DataFlowGraph.Data> dataFlow,
+    private Map<String, String> createChannelsForDataFlow(String executionId, List<DataFlowGraph.Data> dataFlow,
                                                           Map<String, LWF.DataDescription> slot2dataDescription,
                                                           LzyPortalGrpc.LzyPortalBlockingStub portalClient)
     {
@@ -192,15 +189,8 @@ class GraphBuilder {
             }
         }
 
-        var response =
-            portalClient.openSlots(LzyPortalApi.OpenSlotsRequest.newBuilder().addAllSlots(portalSlotToOpen).build());
-
-        if (!response.getSuccess()) {
-            LOG.error("Cannot open portal slots for tasks { executionId: {}, workflowName: {}, slots: {} }, error: {}",
-                executionId, workflowName, JsonUtils.printAsArray(portalSlotToOpen.stream()
-                    .map(slot -> slot.getSlot().getName()).toList()), response.getDescription());
-            throw new RuntimeException(response.getDescription());
-        }
+        //noinspection ResultOfMethodCallIgnored
+        portalClient.openSlots(LzyPortalApi.OpenSlotsRequest.newBuilder().addAllSlots(portalSlotToOpen).build());
 
         try {
             var slotsUriAsOutput = fromOutput.stream().map(DataFlowGraph.Data::slotUri).collect(Collectors.toSet());
@@ -233,14 +223,14 @@ class GraphBuilder {
             var stderrChannelId = channelManagerClient.create(
                 makeCreateDirectChannelCommand(executionId, channelNameForStderrSlot)).getChannelId();
 
-            tasks.add(buildTaskWithZone(executionId, taskId, operation, zoneName,
-                stdoutChannelId, stderrChannelId, slot2Channel, slot2description, portalClient));
+            tasks.add(buildTaskWithZone(taskId, operation, zoneName, stdoutChannelId, stderrChannelId, slot2Channel,
+                slot2description, portalClient));
         }
 
         return tasks;
     }
 
-    private TaskDesc buildTaskWithZone(String executionId, String taskId, LWF.Operation operation,
+    private TaskDesc buildTaskWithZone(String taskId, LWF.Operation operation,
                                        String zoneName, String stdoutChannelId, String stderrChannelId,
                                        Map<String, String> slot2Channel,
                                        Map<String, LWF.DataDescription> slot2description,
@@ -281,15 +271,11 @@ class GraphBuilder {
         var stdoutPortalSlotName = Portal.PORTAL_SLOT_PREFIX + "_" + taskId + ":" + Slot.STDOUT_SUFFIX;
         var stderrPortalSlotName = Portal.PORTAL_SLOT_PREFIX + "_" + taskId + ":" + Slot.STDERR_SUFFIX;
 
-        LzyPortalApi.OpenSlotsResponse response = portalClient.openSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
+        //noinspection ResultOfMethodCallIgnored
+        portalClient.openSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
             .addSlots(makePortalInputStdoutSlot(taskId, stdoutPortalSlotName, stdoutChannelId))
             .addSlots(makePortalInputStderrSlot(taskId, stderrPortalSlotName, stderrChannelId))
             .build());
-
-        if (!response.getSuccess()) {
-            LOG.error("Cannot open portal slots for { executionId: {} }: " + response.getDescription(), executionId);
-            throw new RuntimeException("Cannot open portal slots: " + response.getDescription());
-        }
 
         var requirements = LMO.Requirements.newBuilder()
             .setZone(zoneName).setPoolLabel(operation.getPoolSpecName()).build();

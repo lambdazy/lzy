@@ -4,6 +4,7 @@ import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.portal.grpc.ProtoConverter;
 import ai.lzy.portal.s3.ByteStringStreamConverter;
 import ai.lzy.portal.s3.S3Repositories;
 import ai.lzy.portal.s3.S3Repository;
@@ -71,20 +72,21 @@ public class SnapshotProvider {
                     throw new CreateSlotException("Snapshot with id '" + snapshotId + "' already associated with data");
                 }
 
-                var inputSlot = getOrCreateSnapshot(s3Repo, snapshotId, key, bucket).setInputSlot(instance);
-
+                Runnable slotSyncHandler = null;
                 if (snapshotData.hasWhiteboardRef()) {
                     var whiteboardRef = snapshotData.getWhiteboardRef();
                     var whiteboardId = whiteboardRef.getWhiteboardId();
                     var fieldName = whiteboardRef.getFieldName();
 
-                    inputSlot.setActionAfterSynced(() -> {
+                    slotSyncHandler = () -> {
                         try {
+                            var storageUri = ProtoConverter.getSlotUri(snapshotData.getS3());
+
                             //noinspection ResultOfMethodCallIgnored
                             whiteboardClient.linkField(LWBPS.LinkFieldRequest.newBuilder()
                                 .setWhiteboardId(whiteboardId)
                                 .setFieldName(fieldName)
-                                .setStorageUri(key)
+                                .setStorageUri(storageUri)
                                 .setScheme(toProto(instance.spec().contentType()))
                                 .build());
                         } catch (StatusRuntimeException e) {
@@ -92,10 +94,10 @@ public class SnapshotProvider {
                                     "storageUri: {} }, error: {}", whiteboardId, fieldName, key,
                                 e.getStatus().getDescription());
                         }
-                    });
+                    };
                 }
 
-                yield inputSlot;
+                yield getOrCreateSnapshot(s3Repo, snapshotId, key, bucket).setInputSlot(instance, slotSyncHandler);
             }
             case OUTPUT -> {
                 if (!snapshots.containsKey(snapshotId) && !s3ContainsSnapshot) {
