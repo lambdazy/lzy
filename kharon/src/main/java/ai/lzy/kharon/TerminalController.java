@@ -2,7 +2,7 @@ package ai.lzy.kharon;
 
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.deprecated.Kharon;
-import ai.lzy.v1.fs.LzyFsApi;
+import ai.lzy.v1.deprecated.LzyFsApi;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;

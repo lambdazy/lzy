@@ -1,7 +1,7 @@
 package ai.lzy.model;
 
 import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.v1.fs.LzyFsGrpc;
+import ai.lzy.v1.deprecated.LzyFsGrpc;
 import io.grpc.ManagedChannel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
