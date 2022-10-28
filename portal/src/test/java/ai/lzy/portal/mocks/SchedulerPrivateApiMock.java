@@ -1,4 +1,4 @@
-package ai.lzy.portal;
+package ai.lzy.portal.mocks;
 
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.util.grpc.JsonUtils;
@@ -8,14 +8,11 @@ import ai.lzy.v1.scheduler.SchedulerPrivateApi;
 import ai.lzy.v1.scheduler.SchedulerPrivateGrpc;
 import ai.lzy.v1.worker.LWS;
 import ai.lzy.v1.worker.WorkerApiGrpc;
-import ai.lzy.whiteboard.WhiteboardPrivateApiMock;
 import io.grpc.ManagedChannel;
-import io.grpc.Server;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,23 +23,10 @@ import java.util.concurrent.locks.LockSupport;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
-class SchedulerPrivateApiMock extends SchedulerPrivateGrpc.SchedulerPrivateImplBase {
+public class SchedulerPrivateApiMock extends SchedulerPrivateGrpc.SchedulerPrivateImplBase {
     private static final Logger LOG = LogManager.getLogger(SchedulerPrivateApiMock.class);
 
-    final Server server;
     final Map<String, WorkerHandler> workerHandlers = new ConcurrentHashMap<>();
-
-    public SchedulerPrivateApiMock(int port) {
-        this.server = GrpcUtils.newGrpcServer("localhost", port, GrpcUtils.NO_AUTH)
-            .addService(this)
-            .addService(new AllocatorPrivateAPIMock())
-            .addService(new WhiteboardPrivateApiMock())
-            .build();
-    }
-
-    public void start() throws IOException {
-        server.start();
-    }
 
     void stop() throws InterruptedException {
         for (var worker : workerHandlers.values()) {
@@ -51,19 +35,17 @@ class SchedulerPrivateApiMock extends SchedulerPrivateGrpc.SchedulerPrivateImplB
         for (var worker : workerHandlers.values()) {
             worker.awaitTermination(2, TimeUnit.SECONDS);
         }
-        server.shutdown();
-        server.awaitTermination();
     }
 
     WorkerHandler worker(String workerId) {
         return workerHandlers.get(workerId);
     }
 
-    void startWorker(String workerId, LMO.TaskDesc taskDesc, String taskId, String executionId) {
+    public void startWorker(String workerId, LMO.TaskDesc taskDesc, String taskId, String executionId) {
         worker(workerId).startTask(taskDesc, taskId, executionId);
     }
 
-    void awaitProcessing(String workerId) {
+    public void awaitProcessing(String workerId) {
         var worker = worker(workerId);
         while (worker.active.get()) {
             LockSupport.parkNanos(Duration.ofMillis(100).toNanos());

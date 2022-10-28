@@ -43,6 +43,10 @@ public class BaseTestWithIam {
         iamCtx.close();
     }
 
+    public int getPort() {
+        return this.iamApp.port();
+    }
+
     @Nullable
     public Subject getSubject(AuthProvider provider, String providerSubjectId, SubjectType type) {
         try {

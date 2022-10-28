@@ -1,12 +1,12 @@
 portal:
   portal-id: "portal"
-  portal-api-port: "${random.port}"
+  portal-api-port: 7001
   host: "localhost"
   iam-token: "token_${portal.portal-id}"
   stdout-channel-id: "${portal.portal-id}:stdout"
   stderr-channel-id: "${portal.portal-id}:stderr"
-  slots-api-port: "${random.port}"
-  channel-manager-address: "localhost:${random.port}"
+  slots-api-port: 7002
+  channel-manager-address: "localhost:8122"
   iam-address: "localhost:8443"
-  allocator-address: "localhost:${random.port}"
-  whiteboard-address: "${portal.allocator-address}"
+  allocator-address: "localhost:8799"
+  whiteboard-address: "localhost:8999"
