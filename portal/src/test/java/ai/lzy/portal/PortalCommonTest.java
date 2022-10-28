@@ -27,7 +27,7 @@ public class PortalCommonTest extends PortalTestBase {
 
         String firstTaskId = startTask(1, "echo 'i-am-a-hacker' > /tmp/lzy_servant_1/slot_1 && echo 'hello'",
             taskOutputSlot, null);
-        schedulerServer.awaitProcessing(firstWorkerId);
+        mocksServer.getSchedulerMock().awaitProcessing(firstWorkerId);
 
         Assert.assertEquals(firstTaskId + "; hello\n", portalStdout.take());
         Assert.assertEquals(firstTaskId + "; ", portalStdout.take());
@@ -57,7 +57,7 @@ public class PortalCommonTest extends PortalTestBase {
 
         String secondTaskId = startTask(2, "echo 'x' && /tmp/lzy_servant_1/sbin/cat /tmp/lzy_servant_1/slot_2 > "
             + tmpFile.getAbsolutePath(), taskInputSlot, "servant_1");
-        schedulerServer.awaitProcessing(firstWorkerId);
+        mocksServer.getSchedulerMock().awaitProcessing(firstWorkerId);
 
         Assert.assertEquals(secondTaskId + "; x\n", portalStdout.take());
         Assert.assertEquals(secondTaskId + "; ", portalStdout.take());
@@ -99,8 +99,8 @@ public class PortalCommonTest extends PortalTestBase {
         String secondTaskId = startTask(2, "echo 'hello from task_2' > /tmp/lzy_servant_2/slot_2 && "
             + "echo 'hello from task_2'", task2OutputSlot, null);
 
-        schedulerServer.awaitProcessing(firstWorkerId);
-        schedulerServer.awaitProcessing(secondWorkerId);
+        mocksServer.getSchedulerMock().awaitProcessing(firstWorkerId);
+        mocksServer.getSchedulerMock().awaitProcessing(secondWorkerId);
         waitPortalCompleted();
 
         System.out.println("\n----- TASKS DONE -----------------------------------------\n");
@@ -158,7 +158,7 @@ public class PortalCommonTest extends PortalTestBase {
 
         String firstTaskId = startTask(1, "echo 'i-am-a-hacker' > /tmp/lzy_servant_1/slot_1 && echo 'hello'",
             taskOutputSlot, null);
-        schedulerServer.awaitProcessing(firstWorkerId);
+        mocksServer.getSchedulerMock().awaitProcessing(firstWorkerId);
 
         Assert.assertEquals(firstTaskId + "; hello\n", portalStdout.take());
         Assert.assertEquals(firstTaskId + "; ", portalStdout.take());
@@ -187,7 +187,7 @@ public class PortalCommonTest extends PortalTestBase {
 
         String secondTaskId = startTask(2, "echo 'x' && /tmp/lzy_servant_2/sbin/cat /tmp/lzy_servant_2/slot_2 > "
             + tmpFile2.getAbsolutePath(), taskInputSlot2, null);
-        schedulerServer.awaitProcessing(secondWorkerId);
+        mocksServer.getSchedulerMock().awaitProcessing(secondWorkerId);
 
         Assert.assertEquals(secondTaskId + "; x\n", portalStdout.take());
         Assert.assertEquals(secondTaskId + "; ", portalStdout.take());
@@ -203,7 +203,7 @@ public class PortalCommonTest extends PortalTestBase {
 
         String thirdTaskId = startTask(3, "echo 'x' && /tmp/lzy_servant_3/sbin/cat /tmp/lzy_servant_3/slot_3 > "
             + tmpFile3.getAbsolutePath(), taskInputSlot3, null);
-        schedulerServer.awaitProcessing(thirdWorkerId);
+        mocksServer.getSchedulerMock().awaitProcessing(thirdWorkerId);
 
         Assert.assertEquals(thirdTaskId + "; x\n", portalStdout.take());
         Assert.assertEquals(thirdTaskId + "; ", portalStdout.take());
@@ -247,7 +247,7 @@ public class PortalCommonTest extends PortalTestBase {
         var taskOutputSlot = makeOutputFileSlot("/slot_1");
         String firstTaskId = startTask(1, "echo 'i-am-a-hacker' > /tmp/lzy_servant_1/slot_1 && echo 'hello'",
             taskOutputSlot, null);
-        schedulerServer.awaitProcessing(firstWorkerId);
+        mocksServer.getSchedulerMock().awaitProcessing(firstWorkerId);
 
         Assert.assertEquals(firstTaskId + "; hello\n", portalStdout.take());
         Assert.assertEquals(firstTaskId + "; ", portalStdout.take());
@@ -284,11 +284,11 @@ public class PortalCommonTest extends PortalTestBase {
             + tmpFile3.getAbsolutePath(), taskInputSlot3, null);
 
         // wait
-        schedulerServer.awaitProcessing(secondWorkerId);
+        mocksServer.getSchedulerMock().awaitProcessing(secondWorkerId);
         waitPortalCompleted();
 
         // wait
-        schedulerServer.awaitProcessing(thirdWorkerId);
+        mocksServer.getSchedulerMock().awaitProcessing(thirdWorkerId);
         waitPortalCompleted();
 
         // task_3 clean up

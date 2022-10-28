@@ -1,12 +1,12 @@
 package ai.lzy.portal;
 
 import ai.lzy.allocator.AllocatorAgent;
-import ai.lzy.channelmanager.grpc.ChannelManagerMock;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.config.PortalConfig;
+import ai.lzy.portal.mocks.MocksServer;
 import ai.lzy.servant.agents.Worker;
 import ai.lzy.test.GrpcUtils;
 import ai.lzy.util.auth.credentials.RsaUtils;
@@ -25,7 +25,6 @@ import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.google.common.net.HostAndPort;
 import io.findify.s3mock.S3Mock;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
@@ -62,18 +61,16 @@ public class PortalTestBase {
     private static final Logger LOG = LogManager.getLogger(PortalTestBase.class);
 
     private final ApplicationContext context = ApplicationContext.run("test");
+    private PortalConfig config;
 
-    protected SchedulerPrivateApiMock schedulerServer;
-    private ChannelManagerMock channelManager;
+    protected MocksServer mocksServer;
+
     private Map<String, Worker> workers;
     private Portal portal;
 
     private static final int S3_PORT = 8001;
     protected static final String S3_ADDRESS = "http://localhost:" + S3_PORT;
     protected static final String BUCKET_NAME = "lzy-bucket";
-
-    private String mocksAddress;
-    private String channelManagerAddress;
 
     private S3Mock s3;
 
@@ -86,34 +83,39 @@ public class PortalTestBase {
     @Before
     public void before() throws IOException {
         System.err.println("---> " + ForkJoinPool.commonPool().getParallelism());
+
         var iamDbConfig = DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo());
         iamTestContext.setUp(iamDbConfig);
-        startS3();
-        var config = context.getBean(PortalConfig.class);
-        mocksAddress = config.getAllocatorAddress();
-        String[] hostAndPort = mocksAddress.split(":");
-        schedulerServer = new SchedulerPrivateApiMock(Integer.parseInt(hostAndPort[1]));
-        schedulerServer.start();
+
         workers = new HashMap<>();
-        channelManagerAddress = config.getChannelManagerAddress();
-        channelManager = new ChannelManagerMock(HostAndPort.fromString(channelManagerAddress));
-        channelManager.start();
-        startPortal(config);
+
+        config = context.getBean(PortalConfig.class);
+        var mocksPort = GrpcUtils.rollPort();
+        var mocksAddress = "localhost:" + mocksPort;
+        config.setIamAddress("localhost:" + iamTestContext.getPort());
+        config.setChannelManagerAddress(mocksAddress);
+        config.setAllocatorAddress(mocksAddress);
+        config.setWhiteboardAddress(mocksAddress);
+        config.setPortalApiPort(GrpcUtils.rollPort());
+        config.setSlotsApiPort(GrpcUtils.rollPort());
+
+        mocksServer = new MocksServer(mocksPort);
+        mocksServer.start();
+
+        startS3();
+        startPortal();
     }
 
     @After
     public void after() throws InterruptedException {
-        iamTestContext.after();
-        stopS3();
         shutdownAndAwaitTerminationPortal();
-        channelManager.stop();
-        schedulerServer.stop();
-        for (var servant : workers.values()) {
-            servant.stop();
-        }
-        schedulerServer = null;
-        channelManager = null;
+        stopS3();
+
+        mocksServer.stop();
+        mocksServer = null;
         workers = null;
+
+        iamTestContext.after();
     }
 
     private void startS3() {
@@ -134,12 +136,13 @@ public class PortalTestBase {
         }
     }
 
-    private void startPortal(PortalConfig config) {
+    private void startPortal() {
         createChannel("portal:stdout");
         createChannel("portal:stderr");
 
         try {
-            var agent = new AllocatorAgent("portal_token", "portal_vm", mocksAddress, Duration.ofSeconds(5));
+            var agent = new AllocatorAgent("portal_token", "portal_vm", config.getAllocatorAddress(),
+                Duration.ofSeconds(5));
 
             portal = new Portal(config, agent, "portal_token");
             portal.start();
@@ -232,7 +235,7 @@ public class PortalTestBase {
         String taskId = "task_" + taskNum;
         String actualWorker = Objects.isNull(specifiedWorker) ? "servant_" + taskNum : specifiedWorker;
 
-        schedulerServer.startWorker(actualWorker,
+        mocksServer.getSchedulerMock().startWorker(actualWorker,
             LMO.TaskDesc.newBuilder()
                 .setOperation(LMO.Operation.newBuilder()
                     .setName("zygote_" + taskNum)
@@ -269,17 +272,15 @@ public class PortalTestBase {
         var schedulerDuration = Duration.ofSeconds(1);
         String privateKey;
         try {
-            var workerKeys = RsaUtils.generateRsaKeys();
-            var publicKey = Files.readString(workerKeys.publicKeyPath());
-            privateKey = Files.readString(workerKeys.privateKeyPath());
+            privateKey = Files.readString(RsaUtils.generateRsaKeys().privateKeyPath());
         } catch (Exception e) {
             LOG.error("Cannot build credentials for portal", e);
             throw new RuntimeException(e);
         }
-        var worker = new Worker("workflow", workerId, UUID.randomUUID().toString(), mocksAddress,
-            mocksAddress, allocatorDuration, schedulerDuration,
-            GrpcUtils.rollPort(), GrpcUtils.rollPort(), "/tmp/lzy_" + workerId + "/", channelManagerAddress,
-            "localhost", privateKey, "token_" + workerId);
+        var worker = new Worker("workflow", workerId, UUID.randomUUID().toString(), config.getAllocatorAddress(),
+            config.getAllocatorAddress(), allocatorDuration, schedulerDuration,
+            GrpcUtils.rollPort(), GrpcUtils.rollPort(), "/tmp/lzy_" + workerId + "/",
+            config.getChannelManagerAddress(), "localhost", privateKey, "token_" + workerId);
         workers.put(workerId, worker);
     }
 
@@ -304,14 +305,15 @@ public class PortalTestBase {
     }
 
     protected void createChannel(String name) {
-        channelManager.create(makeCreateDirectChannelCommand(UUID.randomUUID().toString(), name),
+        mocksServer.getChannelManagerMock().create(makeCreateDirectChannelCommand(UUID.randomUUID().toString(), name),
             GrpcUtils.SuccessStreamObserver.wrap(
                 status -> System.out.println("Channel '" + name + "' created: " + JsonUtils.printSingleLine(status))));
     }
 
     protected void destroyChannel(String name) {
-        channelManager.destroy(makeDestroyChannelCommand(name), GrpcUtils.SuccessStreamObserver.wrap(
-            status -> System.out.println("Channel '" + name + "' removed: " + JsonUtils.printSingleLine(status))));
+        mocksServer.getChannelManagerMock().destroy(makeDestroyChannelCommand(name),
+            GrpcUtils.SuccessStreamObserver.wrap(
+                status -> System.out.println("Channel '" + name + "' removed: " + JsonUtils.printSingleLine(status))));
     }
 
     protected void openPortalSlots(LzyPortalApi.OpenSlotsRequest request) {
@@ -339,7 +341,7 @@ public class PortalTestBase {
     }
 
     protected ArrayBlockingQueue<Object> readPortalSlot(String channelName) {
-        var outputSlotRef = Objects.requireNonNull(channelManager.get(channelName)).outputSlot;
+        var outputSlotRef = Objects.requireNonNull(mocksServer.getChannelManagerMock().get(channelName)).outputSlot;
         var portalSlot = outputSlotRef.get();
         int n = 100;
         while (portalSlot == null && n-- > 0) {

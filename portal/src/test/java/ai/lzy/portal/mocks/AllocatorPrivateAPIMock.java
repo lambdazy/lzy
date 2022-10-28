@@ -1,4 +1,4 @@
-package ai.lzy.portal;
+package ai.lzy.portal.mocks;
 
 import ai.lzy.v1.AllocatorPrivateGrpc;
 import ai.lzy.v1.VmAllocatorPrivateApi;
