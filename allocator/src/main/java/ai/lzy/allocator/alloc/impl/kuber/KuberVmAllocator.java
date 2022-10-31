@@ -6,10 +6,7 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
-import ai.lzy.allocator.volume.DiskVolumeDescription;
-import ai.lzy.allocator.volume.HostPathVolumeDescription;
-import ai.lzy.allocator.volume.KuberVolumeManager;
-import ai.lzy.allocator.volume.VolumeClaim;
+import ai.lzy.allocator.volume.*;
 import ai.lzy.model.db.TransactionHandle;
 import io.fabric8.kubernetes.api.model.ListOptionsBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -57,73 +54,77 @@ public class KuberVmAllocator implements VmAllocator {
     @Override
     public void allocate(Vm.Spec vmSpec) throws InvalidConfigurationException {
         final var cluster = poolRegistry.findCluster(
-            vmSpec.poolLabel(), vmSpec.zone(), ClusterRegistry.ClusterType.User);
+                vmSpec.poolLabel(), vmSpec.zone(), ClusterRegistry.ClusterType.User);
         if (cluster == null) {
             throw new InvalidConfigurationException(
-                "Cannot find pool for label " + vmSpec.poolLabel() + " and zone " + vmSpec.zone());
+                    "Cannot find pool for label " + vmSpec.poolLabel() + " and zone " + vmSpec.zone());
         }
 
         try (final var client = factory.build(cluster)) {
             var podSpecBuilder = new PodSpecBuilder(
-                vmSpec, client, config, PodSpecBuilder.VM_POD_TEMPLATE_PATH, VM_POD_NAME_PREFIX
+                    vmSpec, client, config, PodSpecBuilder.VM_POD_TEMPLATE_PATH, VM_POD_NAME_PREFIX
             );
 
             final String podName = podSpecBuilder.getPodName();
             withRetries(
-                defaultRetryPolicy(),
-                LOG,
-                () -> dao.saveAllocatorMeta(
-                    vmSpec.vmId(),
-                    Map.of(
-                        NAMESPACE_KEY, NAMESPACE,
-                        POD_NAME_KEY, podName,
-                        CLUSTER_ID_KEY, cluster.clusterId()),
-                    null),
-                RuntimeException::new);
+                    defaultRetryPolicy(),
+                    LOG,
+                    () -> dao.saveAllocatorMeta(
+                            vmSpec.vmId(),
+                            Map.of(
+                                    NAMESPACE_KEY, NAMESPACE,
+                                    POD_NAME_KEY, podName,
+                                    CLUSTER_ID_KEY, cluster.clusterId()),
+                            null),
+                    RuntimeException::new);
 
-            final List<DiskVolumeDescription> diskVolumeDescriptions = vmSpec.volumeRequests().stream()
-                .filter(volumeRequest -> volumeRequest.volumeDescription() instanceof DiskVolumeDescription)
-                .map(volumeRequest -> (DiskVolumeDescription) volumeRequest.volumeDescription())
-                .toList();
-            final List<VolumeClaim> volumeClaims = KuberVolumeManager.allocateVolumes(client, diskVolumeDescriptions);
+            final List<VolumeRequest.ResourceVolumeDescription> resourceVolumeDescriptions =
+                    vmSpec.volumeRequests().stream()
+                            .filter(volumeRequest -> volumeRequest.volumeDescription() instanceof DiskVolumeDescription
+                                    || volumeRequest.volumeDescription() instanceof NFSVolumeDescription)
+                            .map(volumeRequest ->
+                                    (VolumeRequest.ResourceVolumeDescription) volumeRequest.volumeDescription())
+                            .toList();
+            final List<VolumeClaim> volumeClaims =
+                    KuberVolumeManager.allocateVolumes(client, resourceVolumeDescriptions);
             dao.setVolumeClaims(vmSpec.vmId(), volumeClaims, null);
 
             // add k8s pod affinity to allocate vm pod on the node with the tunnel pod,
             // which must be allocated by TunnelAllocator#allocateTunnel method
             if (vmSpec.proxyV6Address() != null) {
                 podSpecBuilder = podSpecBuilder.withPodAffinity(
-                    KuberLabels.LZY_APP_LABEL, "In", KuberTunnelAllocator.TUNNEL_POD_APP_LABEL_VALUE
+                        KuberLabels.LZY_APP_LABEL, "In", KuberTunnelAllocator.TUNNEL_POD_APP_LABEL_VALUE
                 );
             }
 
             final Pod vmPodSpec = podSpecBuilder
-                .withWorkloads(vmSpec.initWorkloads(), true)
-                .withWorkloads(vmSpec.workloads(), false)
-                .withVolumes(volumeClaims)
-                .withHostVolumes(vmSpec.volumeRequests().stream()
-                    .filter(v -> v.volumeDescription() instanceof HostPathVolumeDescription)
-                    .map(v -> (HostPathVolumeDescription) v.volumeDescription())
-                    .toList())
-                // not to be allocated with another vm
-                .withPodAntiAffinity(KuberLabels.LZY_APP_LABEL, "In", VM_POD_APP_LABEL_VALUE)
-                // not to be allocated with pods from other session
-                .withPodAntiAffinity(KuberLabels.LZY_POD_SESSION_ID_LABEL, "NotIn", vmSpec.sessionId())
-                .build();
+                    .withWorkloads(vmSpec.initWorkloads(), true)
+                    .withWorkloads(vmSpec.workloads(), false)
+                    .withVolumes(volumeClaims)
+                    .withHostVolumes(vmSpec.volumeRequests().stream()
+                            .filter(v -> v.volumeDescription() instanceof HostPathVolumeDescription)
+                            .map(v -> (HostPathVolumeDescription) v.volumeDescription())
+                            .toList())
+                    // not to be allocated with another vm
+                    .withPodAntiAffinity(KuberLabels.LZY_APP_LABEL, "In", VM_POD_APP_LABEL_VALUE)
+                    // not to be allocated with pods from other session
+                    .withPodAntiAffinity(KuberLabels.LZY_POD_SESSION_ID_LABEL, "NotIn", vmSpec.sessionId())
+                    .build();
 
             LOG.debug("Creating pod with podspec: {}", vmPodSpec);
 
             final Pod pod;
             try {
                 pod = client.pods()
-                    .inNamespace(NAMESPACE)
-                    .resource(vmPodSpec)
-                    .create();
+                        .inNamespace(NAMESPACE)
+                        .resource(vmPodSpec)
+                        .create();
             } catch (Exception e) {
                 LOG.error("Failed to allocate vm pod: {}", e.getMessage(), e);
                 deallocate(vmSpec.vmId());
                 //TODO (tomato): add retries here if the error is caused due to temporal problems with kuber
                 throw new RuntimeException(
-                    "Failed to allocate vm (vmId: " + vmSpec.vmId() + ") pod: " + e.getMessage(), e
+                        "Failed to allocate vm (vmId: " + vmSpec.vmId() + ") pod: " + e.getMessage(), e
                 );
             }
             LOG.debug("Created vm pod in Kuber: {}", pod);
@@ -137,19 +138,18 @@ public class KuberVmAllocator implements VmAllocator {
     @Nullable
     private Pod getVmPod(String namespace, String name, KubernetesClient client) {
         final var podsList = client.pods()
-            .inNamespace(namespace)
-            .list(new ListOptionsBuilder()
-                .withLabelSelector(KuberLabels.LZY_POD_NAME_LABEL + "=" + name)
-                .build()
-            ).getItems();
+                .inNamespace(namespace)
+                .list(new ListOptionsBuilder()
+                        .withLabelSelector(KuberLabels.LZY_POD_NAME_LABEL + "=" + name)
+                        .build()
+                ).getItems();
         if (podsList.size() < 1) {
             return null;
         }
         final var podSpec = podsList.get(0);
         if (podSpec.getMetadata() != null
-            && podSpec.getMetadata().getName() != null
-            && podSpec.getMetadata().getName().equals(name))
-        {
+                && podSpec.getMetadata().getName() != null
+                && podSpec.getMetadata().getName().equals(name)) {
             return podSpec;
         }
         return null;
@@ -168,11 +168,11 @@ public class KuberVmAllocator implements VmAllocator {
     @Nullable
     private List<Pod> getAllPodsWithVmId(String namespace, String vmId, KubernetesClient client) {
         return client.pods()
-            .inNamespace(namespace)
-            .list(new ListOptionsBuilder()
-                .withLabelSelector(KuberLabels.LZY_VM_ID_LABEL + "=" + vmId)
-                .build()
-            ).getItems();
+                .inNamespace(namespace)
+                .list(new ListOptionsBuilder()
+                        .withLabelSelector(KuberLabels.LZY_VM_ID_LABEL + "=" + vmId)
+                        .build()
+                ).getItems();
     }
 
     /**
@@ -185,10 +185,10 @@ public class KuberVmAllocator implements VmAllocator {
     @Override
     public void deallocate(String vmId) {
         var meta = withRetries(
-            defaultRetryPolicy(),
-            LOG,
-            () -> dao.getAllocatorMeta(vmId, null),
-            ex -> new RuntimeException("Database error: " + ex.getMessage(), ex));
+                defaultRetryPolicy(),
+                LOG,
+                () -> dao.getAllocatorMeta(vmId, null),
+                ex -> new RuntimeException("Database error: " + ex.getMessage(), ex));
 
         if (meta == null) {
             throw new RuntimeException("Cannot get allocator metadata for vmId " + vmId);
@@ -200,21 +200,21 @@ public class KuberVmAllocator implements VmAllocator {
 
         try (final var client = factory.build(credentials)) {
             List<StatusDetails> statusDetails = client.pods()
-                .inNamespace(ns)
-                .withLabelSelector(KuberLabels.LZY_VM_ID_LABEL + "=" + vmId)
-                .delete();
+                    .inNamespace(ns)
+                    .withLabelSelector(KuberLabels.LZY_VM_ID_LABEL + "=" + vmId)
+                    .delete();
             if (statusDetails.isEmpty()) {
                 LOG.warn(
-                    "No delete status details were provided by k8s client after deleting pods with vm id {}",
-                    vmId
+                        "No delete status details were provided by k8s client after deleting pods with vm id {}",
+                        vmId
                 );
             }
 
             withRetries(
-                defaultRetryPolicy(),
-                LOG,
-                () -> KuberVolumeManager.freeVolumes(client, dao.getVolumeClaims(vmId, null)),
-                ex -> new RuntimeException("Database error: " + ex.getMessage(), ex));
+                    defaultRetryPolicy(),
+                    LOG,
+                    () -> KuberVolumeManager.freeVolumes(client, dao.getVolumeClaims(vmId, null)),
+                    ex -> new RuntimeException("Database error: " + ex.getMessage(), ex));
         }
     }
 
@@ -223,10 +223,10 @@ public class KuberVmAllocator implements VmAllocator {
         final List<VmEndpoint> hosts = new ArrayList<>();
 
         final var meta = withRetries(
-            defaultRetryPolicy(),
-            LOG,
-            () -> dao.getAllocatorMeta(vmId, transaction),
-            ex -> new RuntimeException("Database error: " + ex.getMessage(), ex));
+                defaultRetryPolicy(),
+                LOG,
+                () -> dao.getAllocatorMeta(vmId, transaction),
+                ex -> new RuntimeException("Database error: " + ex.getMessage(), ex));
 
         if (meta == null) {
             throw new RuntimeException("Cannot get allocator metadata for vmId " + vmId);
@@ -245,7 +245,7 @@ public class KuberVmAllocator implements VmAllocator {
                         .withName(nodeName)
                         .get();
 
-                for (final var address: node.getStatus().getAddresses()) {
+                for (final var address : node.getStatus().getAddresses()) {
                     final var type = switch (address.getType().toLowerCase()) {
                         case "hostname" -> VmEndpointType.HOST_NAME;
                         case "internalip" -> VmEndpointType.INTERNAL_IP;

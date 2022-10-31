@@ -18,6 +18,7 @@ import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.allocator.volume.DiskVolumeDescription;
 import ai.lzy.allocator.volume.HostPathVolumeDescription;
+import ai.lzy.allocator.volume.NFSVolumeDescription;
 import ai.lzy.allocator.volume.VolumeRequest;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
@@ -396,6 +397,12 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
                 volumes.add(new VolumeRequest(new DiskVolumeDescription(
                     volume.getName(), diskVolume.getDiskId(), disk.spec().sizeGb()
+                )));
+            } else if (volume.hasNfsVolume()) {
+                final var nfsVolume = volume.getNfsVolume();
+                volumes.add(new VolumeRequest(new NFSVolumeDescription(
+                        volume.getName(), nfsVolume.getServer(), nfsVolume.getShare(), nfsVolume.getCapacity(),
+                        nfsVolume.getMountOptionsList()
                 )));
             } else {
                 final String message = "Unknown volumeType %s for volume=%s"

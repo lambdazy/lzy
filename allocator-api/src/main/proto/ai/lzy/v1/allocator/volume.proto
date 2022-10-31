@@ -10,6 +10,7 @@ message Volume {
   oneof VolumeType {
     DiskVolumeType disk_volume = 2;
     HostPathVolumeType host_path_volume = 3;
+    NFSVolumeType nfs_volume = 4;
   }
 }
 
@@ -29,6 +30,13 @@ message HostPathVolumeType {
     FILE = 4;
     SOCKET = 5;
   }
+}
+
+message NFSVolumeType {
+  string server = 1;
+  string share = 2;
+  int32 capacity = 3;
+  repeated string mount_options = 5;
 }
 
 message Mount {

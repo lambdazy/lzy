@@ -7,7 +7,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
-public class DiskVolumeDescription extends VolumeRequest.VolumeDescription {
+public class DiskVolumeDescription extends VolumeRequest.ResourceVolumeDescription {
     private final String name;
     private final String diskId;
     private final int sizeGb;
