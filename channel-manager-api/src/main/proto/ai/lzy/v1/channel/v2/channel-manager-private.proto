@@ -1,19 +1,20 @@
 syntax = "proto3";
 
-package ai.lzy.v1.channel;
+// TODO (lindvv): remove v2 suffix
+package ai.lzy.v1.channel.v2;
 
-import "ai/lzy/v1/deprecated/slot.proto";
-import "ai/lzy/v1/channel/channel.proto";
+import "ai/lzy/v1/common/slot.proto";
+import "ai/lzy/v1/channel/v2/channel.proto";
 
 option java_outer_classname = "LCMPS";
-option java_package = "ai.lzy.v1.channel";
+option java_package = "ai.lzy.v1.channel.v2";
 
 service LzyChannelManagerPrivate {
   rpc Create (ChannelCreateRequest) returns (ChannelCreateResponse);
   rpc Destroy (ChannelDestroyRequest) returns (ChannelDestroyResponse);
   rpc DestroyAll (ChannelDestroyAllRequest) returns (ChannelDestroyAllResponse);
-  rpc Status (ChannelStatusRequest) returns (ChannelStatus);
-  rpc StatusAll (ChannelStatusAllRequest) returns (ChannelStatusList);
+  rpc Status (ChannelStatusRequest) returns (ChannelStatusResponse);
+  rpc StatusAll (ChannelStatusAllRequest) returns (ChannelStatusAllResponse);
 }
 
 message ChannelCreateRequest {
@@ -42,15 +43,17 @@ message ChannelStatusRequest {
 }
 
 message ChannelStatus {
-  ChannelSpec channelSpec = 1;
-  repeated SlotStatus connected = 2;
-  string channelId = 3;
+  Channel channel = 1;
+}
+
+message ChannelStatusResponse {
+  ChannelStatus status = 1;
 }
 
 message ChannelStatusAllRequest {
   string executionId = 1;
 }
 
-message ChannelStatusList {
+message ChannelStatusAllResponse {
   repeated ChannelStatus statuses = 1;
 }

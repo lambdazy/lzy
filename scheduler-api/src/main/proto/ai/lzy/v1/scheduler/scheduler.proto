@@ -9,7 +9,7 @@ message TaskStatus {
   string workflowId = 1;
   string taskId = 2;
 
-  string zygoteName = 3;
+  string operationName = 3;
 
   oneof status {
     Queue queue = 4;

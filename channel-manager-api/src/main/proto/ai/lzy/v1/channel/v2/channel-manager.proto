@@ -1,11 +1,12 @@
 syntax = "proto3";
 
-package ai.lzy.v1.channel;
+// TODO (lindvv): remove v2 suffix
+package ai.lzy.v1.channel.v2;
 
-import "ai/lzy/v1/deprecated/slot.proto";
+import "ai/lzy/v1/common/slot.proto";
 
 option java_outer_classname = "LCMS";
-option java_package = "ai.lzy.v1.channel";
+option java_package = "ai.lzy.v1.channel.v2";
 
 service LzyChannelManager {
   rpc Bind (BindRequest) returns (BindResponse);
@@ -19,7 +20,7 @@ message BindRequest {
 message BindResponse {}
 
 message UnbindRequest {
-  SlotInstance slotInstance = 1;
+  string slotUri = 1;
 }
 
 message UnbindResponse {}

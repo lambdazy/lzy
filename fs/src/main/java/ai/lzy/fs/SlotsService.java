@@ -180,6 +180,8 @@ public class SlotsService {
 
                             inputSlot.connect(toSlot.uri(), dataProvider);
 
+                            // waiting for changing status from connecting to downloading or other
+
                             synchronized (op) {
                                 op.setResponse(Any.pack(LSA.ConnectSlotResponse.getDefaultInstance()));
                             }

@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+// TODO (lindvv): remove v2 suffix
+package ai.lzy.v1.channel.v2;
+
+import "ai/lzy/v1/common/data-scheme.proto";
+import "ai/lzy/v1/common/slot.proto";
+
+option java_outer_classname = "LCM";
+option java_package = "ai.lzy.v1.channel.v2";
+
+message Channel {
+  string channelId = 1;
+  ChannelSpec spec = 2;
+  ChannelSources sources  = 3;
+  ChannelDestinations destinations = 4;
+}
+
+message ChannelSpec {
+  string channelName = 1;
+  DataScheme contentType = 2;
+}
+
+message ChannelSources {
+  /* optional */ SlotInstance workerSlot = 1;
+  /* optional */ SlotInstance portalSlot = 2;
+}
+
+message ChannelDestinations {
+  repeated SlotInstance workerSlots = 1;
+  /* optional */ SlotInstance portalSlot = 2;
+}

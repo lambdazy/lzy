@@ -22,7 +22,7 @@ message TaskScheduleRequest {
   string workflowId = 1;
   string workflowName = 2;
   string userId = 3;
-  TaskDesc task = 4;
+  Operation task = 4;
 }
 message TaskScheduleResponse {
   TaskStatus status = 1;
