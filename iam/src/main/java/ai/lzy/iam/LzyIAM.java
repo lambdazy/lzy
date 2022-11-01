@@ -68,6 +68,10 @@ public class LzyIAM {
         }));
     }
 
+    public int port() {
+        return this.iamServer.getPort();
+    }
+
     public void close() {
         iamServer.shutdownNow();
     }

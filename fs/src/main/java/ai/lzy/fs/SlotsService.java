@@ -142,6 +142,8 @@ public class SlotsService {
             if (slot instanceof LzyInputSlot inputSlot) {
                 Validate.isTrue(UriScheme.LzyFs.match(toSlot.uri()));
 
+                // TODO: use idempotency-token as operation-id (?)
+
                 var op = new Operation(
                     agentId,
                     "ConnectSlot: %s -> %s".formatted(fromSlot.shortDesc(), toSlot.shortDesc()),

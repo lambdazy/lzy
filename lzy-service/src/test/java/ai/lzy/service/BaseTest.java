@@ -63,7 +63,7 @@ public class BaseTest {
 
     protected GraphExecutorMock graphExecutorMock;
 
-    private ChannelManagerMock channelManagerMock;
+    private Server channelManagerServer;
 
     private Server whiteboardServer;
 
@@ -112,8 +112,13 @@ public class BaseTest {
 
         var workflowAddress = HostAndPort.fromString(config.getAddress());
 
-        channelManagerMock = new ChannelManagerMock(HostAndPort.fromString(config.getChannelManagerAddress()));
-        channelManagerMock.start();
+        var channelManagerAddress = HostAndPort.fromString(config.getChannelManagerAddress());
+        var channelManagerMock = new ChannelManagerMock();
+        channelManagerServer = GrpcUtils.newGrpcServer(channelManagerAddress, GrpcUtils.NO_AUTH)
+            .addService(channelManagerMock.publicService)
+            .addService(channelManagerMock.privateService)
+            .build();
+        channelManagerServer.start();
 
         lzyServer = App.createServer(workflowAddress, authInterceptor, context.getBean(LzyService.class));
         lzyServer.start();
@@ -144,13 +149,13 @@ public class BaseTest {
         iamTestContext.after();
         allocatorTestContext.after();
         storageTestContext.after();
-        channelManagerMock.stop();
+        channelManagerServer.shutdown();
+        channelManagerServer.awaitTermination();
         lzyServiceChannel.shutdown();
         lzyServer.shutdown();
         lzyServer.awaitTermination();
         whiteboardServer.shutdown();
         whiteboardServer.awaitTermination();
-        ;
         context.stop();
     }
 

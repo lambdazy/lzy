@@ -9,17 +9,13 @@ import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.deprecated.LzyFsApi;
 import ai.lzy.v1.deprecated.LzyFsGrpc;
-import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
-import io.grpc.Server;
-import io.grpc.ServerInterceptors;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,47 +24,25 @@ import javax.annotation.Nullable;
 
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
-import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 import static java.util.Objects.requireNonNull;
 
 public class ChannelManagerMock {
     private static final Logger LOG = LogManager.getLogger(ChannelManagerMock.class);
 
-    final int port;
-    final Server server;
-    final PublicServiceMock publicService;
-    final PrivateServiceMock privateService;
+    public final PublicServiceMock publicService = new PublicServiceMock();
+    public final PrivateServiceMock privateService = new PrivateServiceMock();
+
     final Map<String, DirectChannelInfo> directChannels = new ConcurrentHashMap<>(); // channelId -> ...
-
-    public ChannelManagerMock(HostAndPort address) {
-        this.port = address.getPort();
-        this.privateService = new PrivateServiceMock();
-        this.publicService = new PublicServiceMock();
-        server = newGrpcServer(address, null)
-            .addService(ServerInterceptors.intercept(privateService))
-            .addService(ServerInterceptors.intercept(publicService))
-            .build();
-    }
-
-    public void start() throws IOException {
-        server.start();
-    }
 
     public void stop() throws InterruptedException {
         for (var channel : directChannels.values()) {
             channel.close();
         }
-        server.shutdown();
-        server.awaitTermination();
     }
 
     @Nullable
     public DirectChannelInfo get(String channelId) {
         return directChannels.get(channelId);
-    }
-
-    public int port() {
-        return port;
     }
 
     public void create(LCMPS.ChannelCreateRequest request, StreamObserver<LCMPS.ChannelCreateResponse> response) {
@@ -94,7 +68,7 @@ public class ChannelManagerMock {
     public void unbind(LCMS.UnbindRequest request, StreamObserver<LCMS.UnbindResponse> response) {
         publicService.unbind(request, response);
     }
-    
+
     private static class Endpoint implements Closeable {
         private final LzyFsGrpc.LzyFsBlockingStub fs;
         private final ManagedChannel channel;
@@ -102,7 +76,8 @@ public class ChannelManagerMock {
 
         private Endpoint(SlotInstance slotInstance) {
             this.slotInstance = slotInstance;
-            channel = newGrpcChannel(slotInstance.uri().getHost(), slotInstance.uri().getPort(), LzyFsGrpc.SERVICE_NAME);
+            channel =
+                newGrpcChannel(slotInstance.uri().getHost(), slotInstance.uri().getPort(), LzyFsGrpc.SERVICE_NAME);
             fs = newBlockingClient(LzyFsGrpc.newBlockingStub(channel), "ChManMock", null);
         }
 
@@ -149,9 +124,9 @@ public class ChannelManagerMock {
             }
         }
     }
-    
+
     private class PrivateServiceMock extends LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateImplBase {
-        
+
         @Override
         public void create(LCMPS.ChannelCreateRequest request, StreamObserver<LCMPS.ChannelCreateResponse> response) {
             LOG.info("create {}", JsonUtils.printRequest(request));
@@ -222,16 +197,16 @@ public class ChannelManagerMock {
                 case INPUT -> {
                     if (!channel.inputSlot.compareAndSet(null, request)) {
                         throw new RuntimeException("INPUT slot already set."
-                                                   + " Existing: " + JsonUtils.printSingleLine(channel.inputSlot.get())
-                                                   + ", new: " + JsonUtils.printSingleLine(request));
+                            + " Existing: " + JsonUtils.printSingleLine(channel.inputSlot.get())
+                            + ", new: " + JsonUtils.printSingleLine(request));
                     }
                     channel.inputEndpoint.set(new Endpoint(slotInstance));
                 }
                 case OUTPUT -> {
                     if (!channel.outputSlot.compareAndSet(null, request)) {
                         throw new RuntimeException("OUTPUT slot already set."
-                                                   + " Existing: " + JsonUtils.printSingleLine(channel.outputSlot.get())
-                                                   + ", new: " + JsonUtils.printSingleLine(request));
+                            + " Existing: " + JsonUtils.printSingleLine(channel.outputSlot.get())
+                            + ", new: " + JsonUtils.printSingleLine(request));
                     }
                     channel.outputEndpoint.set(new Endpoint(slotInstance));
                 }
@@ -297,7 +272,5 @@ public class ChannelManagerMock {
 
             response.onCompleted();
         }
-
     }
-    
 }

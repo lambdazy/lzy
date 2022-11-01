@@ -16,17 +16,21 @@
     </distributionManagement>
 
     <properties>
-        <JUnitParams.version>1.1.1</JUnitParams.version>
+        <java.version>17</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+
         <aws-java-sdk-cloudwatchmetrics.version>1.12.112</aws-java-sdk-cloudwatchmetrics.version>
         <aws-java-sdk-core.version>1.12.112</aws-java-sdk-core.version>
-        <azure-sdk-bom.version>1.2.5</azure-sdk-bom.version>
+        <azure-sdk-blob.version>12.19.0</azure-sdk-blob.version>
+        <com.amazonaws.awsjavasdk.version>1.12.300</com.amazonaws.awsjavasdk.version>
+
         <bcprov-jdk18on.version>1.71.1</bcprov-jdk18on.version>
-        <build-helper-maven-plugin.version>3.1.0</build-helper-maven-plugin.version>
         <c3p0.version>0.9.5.5</c3p0.version>
-        <checkstyle-maven-plugin.version>3.1.2</checkstyle-maven-plugin.version>
         <checkstyle.version>9.3</checkstyle.version>
         <clickhouse.version>0.3.1</clickhouse.version>
-        <com.amazonaws.awsjavasdk.version>1.12.300</com.amazonaws.awsjavasdk.version>
         <commons-cli.version>1.4</commons-cli.version>
         <commons-collections4.version>4.4</commons-collections4.version>
         <commons-io.version>2.11.0</commons-io.version>
@@ -34,21 +38,13 @@
         <commons-math3.version>3.6.1</commons-math3.version>
         <commons-pool2.version>2.11.1</commons-pool2.version>
         <commons-s3-amazon.version>6.3287</commons-s3-amazon.version>
-        <docker-maven-plugin.version>0.36.1</docker-maven-plugin.version>
         <docker.java.version>3.2.13</docker.java.version>
         <easystream.version>1.2.15</easystream.version>
-        <embedded-postgres.version>2.0.1</embedded-postgres.version>
-        <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
         <fabric8-kuber-client.version>6.0.0</fabric8-kuber-client.version>
         <flyway-core.version>9.3.0</flyway-core.version>
-        <flyway-maven-plugin.version>9.3.0</flyway-maven-plugin.version>
         <grpc.version>1.49.0</grpc.version>
         <guava.version>31.1-jre</guava.version>
-        <h2database.version>2.1.214</h2database.version>
-        <hamcrest-core.version>2.2</hamcrest-core.version>
         <hibernate.version>5.6.9.Final</hibernate.version>
-        <httpclient.version>4.5.13</httpclient.version>
-        <httpcore.version>4.4.8</httpcore.version>
         <io.kubernetes.version>15.0.1</io.kubernetes.version>
         <jackson-annotations.version>2.13.0</jackson-annotations.version>
         <jackson-core.version>2.13.4</jackson-core.version>
@@ -57,40 +53,19 @@
         <jackson-datatype-jdk8.version>2.13.4</jackson-datatype-jdk8.version>
         <jackson-datatype-jsr310.version>2.13.4</jackson-datatype-jsr310.version>
         <jackson-datatype-protobuf.version>0.9.12</jackson-datatype-protobuf.version>
-        <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
-        <java.version>17</java.version>
         <javax.annotation-api.version>1.3.2</javax.annotation-api.version>
         <javax.inject.version>1</javax.inject.version>
         <javax.validation.api.version>2.0.1.Final</javax.validation.api.version>
         <javax.ws.rs.version>2.1.1</javax.ws.rs.version>
-        <jaxb-api.version>2.3.1</jaxb-api.version>
         <jnr-ffi.version>2.2.12</jnr-ffi.version>
         <jnr-fuse.version>0.5.7</jnr-fuse.version>
-        <joda-time.version>2.10.13</joda-time.version>
         <jsonwebtoken.version>0.11.2</jsonwebtoken.version>
         <jsr305.version>3.0.2</jsr305.version>
-        <junit-api.version>5.8.1</junit-api.version>
-        <junit.version>4.13.2</junit.version>
         <kafka.version>1.0.0</kafka.version>
         <kotlin-stdlib.version>1.5.21</kotlin-stdlib.version>
-        <kubernetes-server-mock.version>6.0.0</kubernetes-server-mock.version>
         <log4j.version>2.18.0</log4j.version>
         <lombok.version>1.18.24</lombok.version>
-        <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
-        <maven-dependency-plugin.version>3.3.0</maven-dependency-plugin.version>
-        <maven-failsafe-plugin.version>2.22.2</maven-failsafe-plugin.version>
-        <maven-help-plugin.version>3.2.0</maven-help-plugin.version>
-        <maven-resources-plugin.version>3.1.0</maven-resources-plugin.version>
-        <maven-shade-plugin.version>3.2.4</maven-shade-plugin.version>
-        <maven-surefire-plugin.version>3.0.0-M7</maven-surefire-plugin.version>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
-        <micronaut-maven-plugin.version>3.0.2</micronaut-maven-plugin.version>
-        <micronaut-test.version>3.6.2</micronaut-test.version>
         <micronaut.version>3.6.3</micronaut.version>
-        <mockito-core.version>3.5.15</mockito-core.version>
-        <mockito-inline.version>3.6.28</mockito-inline.version>
-        <mockwebserver.version>4.10.0</mockwebserver.version>
         <net.lingala.zip4j.version>2.11.2</net.lingala.zip4j.version>
         <netty-codec.version>4.1.81.Final</netty-codec.version>
         <netty-transport-native-epoll.version>4.1.42.Final</netty-transport-native-epoll.version>
@@ -105,30 +80,51 @@
         <opentracing-web-servlet.version>0.4.1</opentracing-web-servlet.version>
 
         <org.json.verion>20211205</org.json.verion>
-        <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
         <postgresql.version>42.5.0</postgresql.version>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <prometheus.version>0.6.0</prometheus.version>
         <proto-google-common-protos.version>1.17.0</proto-google-common-protos.version>
         <protobuf-java-util.version>3.21.5</protobuf-java-util.version>
-        <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
         <protobuf.version>3.21.5</protobuf.version>
-        <s3mock_2.12.version>0.2.4</s3mock_2.12.version>
-        <s3mock_2.13.version>0.2.6</s3mock_2.13.version>
-        <s3proxy.version>1.7.1</s3proxy.version>
         <slf4j.version>1.7.30</slf4j.version>
         <yc.java.sdk.version>2.5.1</yc.java.sdk.version>
+
+        <!-- maven plugins -->
+        <build-helper-maven-plugin.version>3.1.0</build-helper-maven-plugin.version>
+        <checkstyle-maven-plugin.version>3.1.2</checkstyle-maven-plugin.version>
+        <docker-maven-plugin.version>0.36.1</docker-maven-plugin.version>
+        <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
+        <flyway-maven-plugin.version>9.3.0</flyway-maven-plugin.version>
+        <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
+        <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
+        <maven-dependency-plugin.version>3.3.0</maven-dependency-plugin.version>
+        <maven-failsafe-plugin.version>2.22.2</maven-failsafe-plugin.version>
+        <maven-help-plugin.version>3.2.0</maven-help-plugin.version>
+        <maven-resources-plugin.version>3.1.0</maven-resources-plugin.version>
+        <maven-shade-plugin.version>3.2.4</maven-shade-plugin.version>
+        <maven-surefire-plugin.version>3.0.0-M7</maven-surefire-plugin.version>
+        <micronaut-maven-plugin.version>3.0.2</micronaut-maven-plugin.version>
+        <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
+        <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
+
+        <!-- testing -->
+        <JUnitParams.version>1.1.1</JUnitParams.version>
+        <embedded-postgres.version>2.0.1</embedded-postgres.version>
+        <h2database.version>2.1.214</h2database.version>
+        <junit.version>4.13.2</junit.version>
+        <kubernetes-server-mock.version>6.0.0</kubernetes-server-mock.version>
+        <mockito-core.version>3.5.15</mockito-core.version>
+        <mockito-inline.version>3.6.28</mockito-inline.version>
+        <mockwebserver.version>4.10.0</mockwebserver.version>
+        <micronaut-test.version>3.6.2</micronaut-test.version>
+        <s3mock_2.13.version>0.2.6</s3mock_2.13.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
             <dependency>
                 <groupId>com.azure</groupId>
-                <artifactId>azure-sdk-bom</artifactId>
-                <version>${azure-sdk-bom.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
+                <artifactId>azure-storage-blob</artifactId>
+                <version>${azure-sdk-blob.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.amazonaws</groupId>
@@ -169,11 +165,6 @@
                 <groupId>com.fasterxml.jackson.dataformat</groupId>
                 <artifactId>jackson-dataformat-yaml</artifactId>
                 <version>${jackson-dataformat-yaml.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.fasterxml.jackson.datatype</groupId>
-                <artifactId>jackson-datatype-jdk8</artifactId>
-                <version>${jackson-datatype-jdk8.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.datatype</groupId>
@@ -357,11 +348,6 @@
                 <version>${micronaut.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.micronaut</groupId>
-                <artifactId>micronaut-validation</artifactId>
-                <version>${micronaut.version}</version>
-            </dependency>
-            <dependency>
                 <groupId>io.prometheus</groupId>
                 <artifactId>simpleclient</artifactId>
                 <version>${prometheus.version}</version>
@@ -390,11 +376,6 @@
                 <groupId>javax.ws.rs</groupId>
                 <artifactId>javax.ws.rs-api</artifactId>
                 <version>${javax.ws.rs.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>joda-time</groupId>
-                <artifactId>joda-time</artifactId>
-                <version>${joda-time.version}</version>
             </dependency>
             <dependency>
                 <groupId>junit</groupId>
@@ -489,16 +470,6 @@
                 <version>${org.json.verion}</version>
             </dependency>
             <dependency>
-                <groupId>org.junit.jupiter</groupId>
-                <artifactId>junit-jupiter-api</artifactId>
-                <version>${junit-api.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.junit.jupiter</groupId>
-                <artifactId>junit-jupiter-engine</artifactId>
-                <version>${junit-api.version}</version>
-            </dependency>
-            <dependency>
                 <groupId>org.mockito</groupId>
                 <artifactId>mockito-core</artifactId>
                 <version>${mockito-core.version}</version>
@@ -551,12 +522,6 @@
                 <groupId>io.zonky.test</groupId>
                 <artifactId>embedded-postgres</artifactId>
                 <version>${embedded-postgres.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.hamcrest</groupId>
-                <artifactId>hamcrest-core</artifactId>
-                <version>${hamcrest-core.version}</version>
                 <scope>test</scope>
             </dependency>
             <dependency>
