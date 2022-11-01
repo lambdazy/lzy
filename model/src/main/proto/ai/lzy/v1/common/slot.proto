@@ -39,7 +39,7 @@ message SlotStatus {
     IS_CLOSED = 3;       // Slot is ready for destroying
     IS_FAILED = 4;       // Something got failed
     IS_CONNECTING = 5;   // Slot is going to connect or is connecting for downloading data
-    IS_DOWNLOADING = 6;  // Slot is downloading data
+    IS_READING = 6;      // Slot is reading data
   }
 
   enum OutputSlotStatus {
