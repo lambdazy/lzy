@@ -24,6 +24,7 @@ message SlotInstance {
   SlotSpec slot = 1;
   string endpoint = 2;
   string slotUri = 3;
+  string taskId = 4; // TODO: Why? Why not?
 }
 
 message SlotStatus {
