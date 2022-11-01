@@ -18,13 +18,13 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.Strings;
-import org.jetbrains.annotations.NotNull;
 
 import java.io.StringReader;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Base64;
+import javax.annotation.Nonnull;
 
 @Singleton
 @Requires(beans = IamDataSource.class)
@@ -47,7 +47,7 @@ public class DbAuthService implements AuthenticateService {
         throw new AuthUnauthenticatedException("Failed to authenticate. Unknown credentials type.");
     }
 
-    @NotNull
+    @Nonnull
     private Subject authenticateOtt(OttCredentials ott) {
         var decoded = new String(Base64.getDecoder().decode(ott.token()));
         int separatorIdx = decoded.indexOf('/');
@@ -105,7 +105,7 @@ public class DbAuthService implements AuthenticateService {
         }
     }
 
-    @NotNull
+    @Nonnull
     private Subject authenticateJwt(Credentials credentials) {
         var jwtPayload = JwtUtils.parseJwt(credentials.token());
         if (jwtPayload == null) {

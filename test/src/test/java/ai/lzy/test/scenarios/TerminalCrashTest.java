@@ -6,13 +6,14 @@ import ai.lzy.test.LzyTerminalTestContext;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.test.impl.Utils;
 import ai.lzy.v1.deprecated.LzyTask;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import org.jetbrains.annotations.Nullable;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
-import org.testcontainers.shaded.com.fasterxml.jackson.databind.JsonNode;
-import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -25,6 +26,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+@Ignore
 public class TerminalCrashTest extends LocalScenario {
 
     private LzyTerminalTestContext.Terminal createTerminal(@SuppressWarnings("SameParameterValue") String mount) {

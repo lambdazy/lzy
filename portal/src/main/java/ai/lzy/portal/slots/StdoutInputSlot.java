@@ -28,9 +28,10 @@ public class StdoutInputSlot extends LzyInputSlotBase {
         LOG.info("Attempt to connect to " + slotUri + " slot " + this);
 
         var t = new Thread(READER_TG, this::readAll, "reader-from-" + slotUri + "-to-" + definition().name());
-        t.start();
 
+        onState(LMS.SlotStatus.State.OPEN, this::disconnect);
         onState(LMS.SlotStatus.State.DESTROYED, t::interrupt);
+        t.start();
     }
 
     @Override

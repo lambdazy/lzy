@@ -6,6 +6,7 @@ import ai.lzy.graph.test.GraphExecutorMock;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.test.BaseTestWithIam;
+import ai.lzy.portal.grpc.ProtoConverter;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.workflow.WorkflowService;
 import ai.lzy.storage.test.BaseTestWithStorage;
@@ -13,31 +14,31 @@ import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
 import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
-import ai.lzy.util.grpc.ClientHeaderInterceptor;
-import ai.lzy.util.grpc.GrpcHeaders;
+import ai.lzy.util.grpc.*;
+import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
+import ai.lzy.whiteboard.WhiteboardPrivateApiMock;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.grpc.netty.NettyServerBuilder;
 import io.jsonwebtoken.Claims;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
@@ -63,6 +64,8 @@ public class BaseTest {
     protected GraphExecutorMock graphExecutorMock;
 
     private ChannelManagerMock channelManagerMock;
+
+    private Server whiteboardServer;
 
     private Server lzyServer;
 
@@ -115,6 +118,19 @@ public class BaseTest {
         lzyServer = App.createServer(workflowAddress, authInterceptor, context.getBean(LzyService.class));
         lzyServer.start();
 
+        var whiteboardAddress = HostAndPort.fromString(config.getWhiteboardAddress());
+        whiteboardServer = NettyServerBuilder
+            .forAddress(new InetSocketAddress(whiteboardAddress.getHost(), whiteboardAddress.getPort()))
+            .permitKeepAliveWithoutCalls(true)
+            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
+            .intercept(authInterceptor)
+            .intercept(GrpcLogsInterceptor.server())
+            .intercept(RequestIdInterceptor.server(true))
+            .intercept(GrpcHeadersServerInterceptor.create())
+            .addService(new WhiteboardPrivateApiMock())
+            .build();
+        whiteboardServer.start();
+
         lzyServiceChannel = newGrpcChannel(workflowAddress, LzyWorkflowServiceGrpc.SERVICE_NAME);
         unauthorizedWorkflowClient = LzyWorkflowServiceGrpc.newBlockingStub(lzyServiceChannel);
 
@@ -132,6 +148,9 @@ public class BaseTest {
         lzyServiceChannel.shutdown();
         lzyServer.shutdown();
         lzyServer.awaitTermination();
+        whiteboardServer.shutdown();
+        whiteboardServer.awaitTermination();
+        ;
         context.stop();
     }
 
@@ -252,5 +271,14 @@ public class BaseTest {
         };
 
         thrown.forEach(e -> Assert.assertEquals(Status.PERMISSION_DENIED.getCode(), e.getStatus().getCode()));
+    }
+
+    public static String buildSlotUri(String key, LMS3.S3Locator locator) {
+        return ProtoConverter.getSlotUri(LMS3.S3Locator.newBuilder()
+            .setKey(key)
+            .setBucket(locator.getBucket())
+            .setAmazon(locator.getAmazon())
+            .setAzure(locator.getAzure())
+            .build());
     }
 }

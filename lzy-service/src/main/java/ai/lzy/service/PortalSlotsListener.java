@@ -2,8 +2,8 @@ package ai.lzy.service;
 
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.common.LMS;
-import ai.lzy.v1.fs.LzyFsApi;
-import ai.lzy.v1.fs.LzyFsGrpc;
+import ai.lzy.v1.deprecated.LzyFsApi;
+import ai.lzy.v1.deprecated.LzyFsGrpc;
 import ai.lzy.v1.slots.LSA;
 import ai.lzy.v1.slots.LzySlotsApiGrpc;
 import ai.lzy.v1.workflow.LWFS;

@@ -1,47 +1,50 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
 
     <groupId>ai.lzy</groupId>
     <artifactId>lzy</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <packaging>pom</packaging>
-    <modelVersion>4.0.0</modelVersion>
 
     <modules>
-        <module>util</module>
-        <module>model-old</module>
-        <module>model</module>
-        <module>site</module>
-        <module>server</module>
-        <module>servant</module>
-        <module>portal</module>
-        <module>kharon</module>
-        <module>lzy-service</module>
-        <module>test</module>
-        <module>pylzy</module>
-        <module>parent</module>
-        <module>whiteboard-old</module>
-        <module>whiteboard-api</module>
-        <module>whiteboard</module>
-        <module>fs</module>
-        <module>iam</module>
-        <module>iam-api</module>
-        <module>graph-executor</module>
-        <module>jupyter-kernel</module>
-        <module>channel-manager</module>
-        <module>scheduler</module>
-        <module>storage</module>
-        <module>disk-service</module>
         <module>allocator</module>
         <module>allocator-api</module>
-        <module>coverage</module>
-        <module>workflow-api</module>
+        <module>channel-manager</module>
         <module>channel-manager-api</module>
-        <module>tunnel-agent</module>
+        <module>coverage</module>
+        <module>disk-service</module>
+        <module>fs</module>
+        <module>graph-executor</module>
+        <module>graph-executor-api</module>
+        <module>iam</module>
+        <module>iam-api</module>
+        <module>jupyter-kernel</module>
+        <module>kharon</module>
         <module>long-running-api</module>
+        <module>lzy-service</module>
+        <module>lzy-service-api</module>
+        <module>model</module>
+        <module>model-old</module>
+        <module>parent</module>
+        <module>portal</module>
+        <module>portal-api</module>
+        <module>pylzy</module>
+        <module>scheduler</module>
+        <module>scheduler-api</module>
+        <module>servant</module>
+        <module>server</module>
+        <module>site</module>
         <module>slots-api</module>
+        <module>storage</module>
+        <module>storage-api</module>
+        <module>test</module>
+        <module>tunnel-agent</module>
+        <module>util</module>
+        <module>whiteboard</module>
+        <module>whiteboard-api</module>
+        <module>whiteboard-old</module>
+        <module>worker-api</module>
     </modules>
 </project>

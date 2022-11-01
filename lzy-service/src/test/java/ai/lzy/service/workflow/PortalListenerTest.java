@@ -2,8 +2,8 @@ package ai.lzy.service.workflow;
 
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.service.PortalSlotsListener;
-import ai.lzy.v1.fs.LzyFsApi;
-import ai.lzy.v1.fs.LzyFsGrpc;
+import ai.lzy.v1.deprecated.LzyFsApi;
+import ai.lzy.v1.deprecated.LzyFsGrpc;
 import ai.lzy.v1.workflow.LWFS;
 import com.google.common.net.HostAndPort;
 import com.google.protobuf.ByteString;

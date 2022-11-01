@@ -78,6 +78,7 @@ public class WorkflowService {
     private final Duration allocationTimeout;
     private final String channelManagerAddress;
     private final String iamAddress;
+    private final String whiteboardAddress;
 
     private final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
     private final LongRunningServiceGrpc.LongRunningServiceBlockingStub operationServiceClient;
@@ -104,6 +105,7 @@ public class WorkflowService {
         startupPortalConfig = config.getPortal();
         channelManagerAddress = config.getChannelManagerAddress();
         iamAddress = config.getIam().getAddress();
+        whiteboardAddress = config.getWhiteboardAddress();
 
         this.allocatorClient = allocatorClient;
         this.operationServiceClient = operationServiceClient;
@@ -420,7 +422,8 @@ public class WorkflowService {
             "-portal.stdout-channel-id=" + stdoutChannelId,
             "-portal.stderr-channel-id=" + stderrChannelId,
             "-portal.channel-manager-address=" + channelManagerAddress,
-            "-portal.iam-address=" + iamAddress);
+            "-portal.iam-address=" + iamAddress,
+            "-portal.whiteboard-address=" + whiteboardAddress);
 
         var ports = Map.of(
             startupPortalConfig.getSlotsApiPort(), startupPortalConfig.getSlotsApiPort(),

@@ -200,6 +200,8 @@ class GrpcRuntime(Runtime):
             assert self.__workflow is not None
             assert self.__std_slots_listener is not None
 
+            await self.__std_slots_listener  # read all stdout and stderr
+
             await client.finish_workflow(
                 self.__workflow.name, self.__execution_id, "Workflow completed"
             )
@@ -208,7 +210,6 @@ class GrpcRuntime(Runtime):
                 self.__execution_id
             )
 
-            await self.__std_slots_listener  # read all stdout and stderr
 
             self.__execution_id = None
             self.__workflow = None

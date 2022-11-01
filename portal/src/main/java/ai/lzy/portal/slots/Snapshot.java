@@ -1,29 +1,26 @@
 package ai.lzy.portal.slots;
 
-import ai.lzy.fs.fs.LzyInputSlot;
-import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.portal.exceptions.CreateSlotException;
 
 import java.util.Collection;
 import javax.annotation.Nullable;
 
-import static ai.lzy.portal.Portal.CreateSlotException;
-
 public interface Snapshot {
 
-    LzyInputSlot setInputSlot(SlotInstance slot) throws CreateSlotException;
+    SnapshotInputSlot setInputSlot(SlotInstance slot, @Nullable Runnable syncHandler) throws CreateSlotException;
 
-    LzyOutputSlot addOutputSlot(SlotInstance slot) throws CreateSlotException;
+    SnapshotOutputSlot addOutputSlot(SlotInstance slot) throws CreateSlotException;
 
     boolean removeInputSlot(String slotName);
 
     boolean removeOutputSlot(String slotName);
 
     @Nullable
-    LzyInputSlot getInputSlot();
+    SnapshotInputSlot getInputSlot();
 
-    Collection<? extends LzyOutputSlot> getOutputSlots();
+    Collection<? extends SnapshotOutputSlot> getOutputSlots();
 
     @Nullable
-    LzyOutputSlot getOutputSlot(String slotName);
+    SnapshotOutputSlot getOutputSlot(String slotName);
 }

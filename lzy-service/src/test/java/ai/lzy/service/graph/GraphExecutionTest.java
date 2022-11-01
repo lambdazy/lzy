@@ -52,8 +52,11 @@ public class GraphExecutionTest extends BaseTest {
     @Test
     public void executeSimpleGraph() {
         var workflowName = "workflow_1";
-        var executionId = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
-            .setWorkflowName(workflowName).build()).getExecutionId();
+        var createWorkflowResponse = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
+            .setWorkflowName(workflowName).build());
+
+        var executionId = createWorkflowResponse.getExecutionId();
+        var s3locator = createWorkflowResponse.getInternalSnapshotStorage();
 
         var operations = List.of(
             LWF.Operation.newBuilder()
@@ -61,7 +64,7 @@ public class GraphExecutionTest extends BaseTest {
                 .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_servant_1/a")
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_1/a")
-                    .setStorageUri("snapshot_a_1")
+                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
                     .build())
                 .setPoolSpecName("s")
                 .build(),
@@ -70,11 +73,11 @@ public class GraphExecutionTest extends BaseTest {
                 .setCommand("/tmp/lzy_servant_2/sbin/cat /tmp/lzy_servant_2/a > /tmp/lzy_servant_2/b")
                 .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_2/a")
-                    .setStorageUri("snapshot_a_1")
+                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
                     .build())
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_2/b")
-                    .setStorageUri("snapshot_b_1")
+                    .setStorageUri(buildSlotUri("snapshot_b_1", s3locator))
                     .build())
                 .setPoolSpecName("s")
                 .build()
@@ -98,8 +101,11 @@ public class GraphExecutionTest extends BaseTest {
     @Test
     public void executeSequenceOfGraphs() {
         var workflowName = "workflow_1";
-        var executionId = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
-            .setWorkflowName(workflowName).build()).getExecutionId();
+        var createWorkflowResponse = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
+            .setWorkflowName(workflowName).build());
+
+        var executionId = createWorkflowResponse.getExecutionId();
+        var s3locator = createWorkflowResponse.getInternalSnapshotStorage();
 
         var firstOperation =
             LWF.Operation.newBuilder()
@@ -107,7 +113,7 @@ public class GraphExecutionTest extends BaseTest {
                 .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_servant_1/a")
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_1/a")
-                    .setStorageUri("snapshot_a_1")
+                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
                     .build())
                 .setPoolSpecName("s")
                 .build();
@@ -122,11 +128,11 @@ public class GraphExecutionTest extends BaseTest {
                 .setCommand("/tmp/lzy_servant_2/sbin/cat /tmp/lzy_servant_2/a > /tmp/lzy_servant_2/b")
                 .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_2/a")
-                    .setStorageUri("snapshot_a_1")
+                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
                     .build())
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_2/b")
-                    .setStorageUri("snapshot_b_1")
+                    .setStorageUri(buildSlotUri("snapshot_b_1", s3locator))
                     .build())
                 .setPoolSpecName("s")
                 .build();
@@ -142,7 +148,7 @@ public class GraphExecutionTest extends BaseTest {
                 .setCommand("/tmp/lzy_servant_3/sbin/cat /tmp/lzy_servant_3/a")
                 .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_3/a")
-                    .setStorageUri("snapshot_a_1")
+                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
                     .build())
                 .setPoolSpecName("s")
                 .build(),
@@ -151,7 +157,7 @@ public class GraphExecutionTest extends BaseTest {
                 .setCommand("/tmp/lzy_servant_3/sbin/cat /tmp/lzy_servant_3/b")
                 .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_3/b")
-                    .setStorageUri("snapshot_b_1")
+                    .setStorageUri(buildSlotUri("snapshot_b_1", s3locator))
                     .build())
                 .setPoolSpecName("s")
                 .build()
@@ -187,8 +193,12 @@ public class GraphExecutionTest extends BaseTest {
     @Test
     public void failedWithUnknownExecutionId() {
         var workflowName = "workflow_1";
-        var executionId = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
-            .setWorkflowName(workflowName).build()).getExecutionId();
+        var createWorkflowResponse = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
+            .setWorkflowName(workflowName).build());
+
+        var executionId = createWorkflowResponse.getExecutionId();
+        var s3locator = createWorkflowResponse.getInternalSnapshotStorage();
+
         var invalidExecutionId = executionId + "_invalid_prefix";
 
         var operations = List.of(
@@ -197,7 +207,7 @@ public class GraphExecutionTest extends BaseTest {
                 .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_servant_1/a")
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_1/a")
-                    .setStorageUri("snapshot_a_1")
+                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
                     .build())
                 .setPoolSpecName("s")
                 .build());
@@ -240,8 +250,11 @@ public class GraphExecutionTest extends BaseTest {
     @Test
     public void failedWithDuplicatedOutputSlotUris() {
         var workflowName = "workflow_1";
-        var executionId = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
-            .setWorkflowName(workflowName).build()).getExecutionId();
+        var createWorkflowResponse = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
+            .setWorkflowName(workflowName).build());
+
+        var executionId = createWorkflowResponse.getExecutionId();
+        var s3locator = createWorkflowResponse.getInternalSnapshotStorage();
 
         var operation =
             LWF.Operation.newBuilder()
@@ -249,11 +262,11 @@ public class GraphExecutionTest extends BaseTest {
                 .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_servant_1/a && echo 'hello' > /tmp/lzy_servant_1/b")
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_1/a")
-                    .setStorageUri("snapshot_a_1")
+                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
                     .build())
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_1/b")
-                    .setStorageUri("snapshot_a_1"))
+                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator)))
                 .setPoolSpecName("s")
                 .build();
         var graph = LWF.Graph.newBuilder()
@@ -274,8 +287,11 @@ public class GraphExecutionTest extends BaseTest {
     @Test
     public void failedWithAlreadyUsedSlotUri() {
         var workflowName = "workflow_1";
-        var executionId = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
-            .setWorkflowName(workflowName).build()).getExecutionId();
+        var createWorkflowResponse = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
+            .setWorkflowName(workflowName).build());
+
+        var executionId = createWorkflowResponse.getExecutionId();
+        var s3locator = createWorkflowResponse.getInternalSnapshotStorage();
 
         var firstOperation =
             LWF.Operation.newBuilder()
@@ -283,7 +299,7 @@ public class GraphExecutionTest extends BaseTest {
                 .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_servant_1/a")
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_1/a")
-                    .setStorageUri("snapshot_a_1")
+                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
                     .build())
                 .setPoolSpecName("s")
                 .build();
@@ -299,15 +315,15 @@ public class GraphExecutionTest extends BaseTest {
                     "&& echo 'hello' > /tmp/lzy_servant_2/a")
                 .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_2/a")
-                    .setStorageUri("snapshot_a_1")
+                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
                     .build())
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_2/b")
-                    .setStorageUri("snapshot_b_1")
+                    .setStorageUri(buildSlotUri("snapshot_b_1", s3locator))
                     .build())
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_2/a")
-                    .setStorageUri("snapshot_a_1")
+                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
                     .build())
                 .setPoolSpecName("s")
                 .build();
@@ -340,8 +356,11 @@ public class GraphExecutionTest extends BaseTest {
     @Test
     public void failedWithCyclicDataflowGraph() {
         var workflowName = "workflow_1";
-        var executionId = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
-            .setWorkflowName(workflowName).build()).getExecutionId();
+        var createWorkflowResponse = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
+            .setWorkflowName(workflowName).build());
+
+        var executionId = createWorkflowResponse.getExecutionId();
+        var s3locator = createWorkflowResponse.getInternalSnapshotStorage();
 
         var operationsWithCycleDependency = List.of(
             LWF.Operation.newBuilder()
@@ -350,15 +369,15 @@ public class GraphExecutionTest extends BaseTest {
                     "/tmp/lzy_servant_1/sbin/cat /tmp/lzy_servant_1/c > /tmp/lzy_servant_1/b")
                 .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_1/c")
-                    .setStorageUri("snapshot_c_1")
+                    .setStorageUri(buildSlotUri("snapshot_c_1", s3locator))
                     .build())
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_1/a")
-                    .setStorageUri("snapshot_a_1")
+                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
                     .build())
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_1/b")
-                    .setStorageUri("snapshot_b_1")
+                    .setStorageUri(buildSlotUri("snapshot_b_1", s3locator))
                     .build())
                 .setPoolSpecName("s")
                 .build(),
@@ -368,15 +387,15 @@ public class GraphExecutionTest extends BaseTest {
                     " /tmp/lzy_servant_2/sbin/cat /tmp/lzy_servant_2/d > /tmp/lzy_servant_2/c")
                 .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_2/a")
-                    .setStorageUri("snapshot_a_1")
+                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
                     .build())
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_2/d")
-                    .setStorageUri("snapshot_d_1")
+                    .setStorageUri(buildSlotUri("snapshot_d_1", s3locator))
                     .build())
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_2/c")
-                    .setStorageUri("snapshot_c_1")
+                    .setStorageUri(buildSlotUri("snapshot_c_1", s3locator))
                     .build())
                 .setPoolSpecName("s")
                 .build());
@@ -400,8 +419,11 @@ public class GraphExecutionTest extends BaseTest {
     @Test
     public void failedWithUnknownInputSlotUri() {
         var workflowName = "workflow_1";
-        var executionId = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
-            .setWorkflowName(workflowName).build()).getExecutionId();
+        var createWorkflowResponse = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
+            .setWorkflowName(workflowName).build());
+
+        var executionId = createWorkflowResponse.getExecutionId();
+        var s3locator = createWorkflowResponse.getInternalSnapshotStorage();
 
         var firstOperation =
             LWF.Operation.newBuilder()
@@ -409,7 +431,7 @@ public class GraphExecutionTest extends BaseTest {
                 .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_servant_1/a")
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_1/a")
-                    .setStorageUri("snapshot_a_1")
+                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
                     .build())
                 .setPoolSpecName("s")
                 .build();
@@ -418,7 +440,7 @@ public class GraphExecutionTest extends BaseTest {
             .addOperations(firstOperation)
             .build();
 
-        var unknownStorageUri = "snapshot_c_1";
+        var unknownStorageUri = buildSlotUri("snapshot_c_1", s3locator);
 
         var secondOperation =
             LWF.Operation.newBuilder()
@@ -427,7 +449,7 @@ public class GraphExecutionTest extends BaseTest {
                     "/tmp/lzy_servant_2/sbin/cat /tmp/lzy_servant_2/a > /tmp/lzy_servant_2/d")
                 .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_2/a")
-                    .setStorageUri("snapshot_a_1")
+                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
                     .build())
                 .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_2/c")
@@ -435,11 +457,11 @@ public class GraphExecutionTest extends BaseTest {
                     .build())
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_2/b")
-                    .setStorageUri("snapshot_b_1")
+                    .setStorageUri(buildSlotUri("snapshot_b_1", s3locator))
                     .build())
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_2/d")
-                    .setStorageUri("snapshot_d_1")
+                    .setStorageUri(buildSlotUri("snapshot_d_1", s3locator))
                     .build())
                 .setPoolSpecName("s")
                 .build();
@@ -472,8 +494,11 @@ public class GraphExecutionTest extends BaseTest {
     @Test
     public void failedWithoutSuitableZone() {
         var workflowName = "workflow_1";
-        var executionId = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
-            .setWorkflowName(workflowName).build()).getExecutionId();
+        var createWorkflowResponse = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
+            .setWorkflowName(workflowName).build());
+
+        var executionId = createWorkflowResponse.getExecutionId();
+        var s3locator = createWorkflowResponse.getInternalSnapshotStorage();
 
         var operation =
             LWF.Operation.newBuilder()
@@ -481,7 +506,7 @@ public class GraphExecutionTest extends BaseTest {
                 .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_servant_1/a")
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_1/a")
-                    .setStorageUri("snapshot_a_1")
+                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
                     .build())
                 .setPoolSpecName("m")
                 .build();
@@ -503,8 +528,11 @@ public class GraphExecutionTest extends BaseTest {
     @Test
     public void failedWithNonSuitableZone() {
         var workflowName = "workflow_1";
-        var executionId = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
-            .setWorkflowName(workflowName).build()).getExecutionId();
+        var createWorkflowResponse = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
+            .setWorkflowName(workflowName).build());
+
+        var executionId = createWorkflowResponse.getExecutionId();
+        var s3locator = createWorkflowResponse.getInternalSnapshotStorage();
 
         var operation =
             LWF.Operation.newBuilder()
@@ -512,11 +540,11 @@ public class GraphExecutionTest extends BaseTest {
                 .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_servant_1/a && echo 'hello' > /tmp/lzy_servant_1/b")
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_1/a")
-                    .setStorageUri("snapshot_a_1")
+                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
                     .build())
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_1/b")
-                    .setStorageUri("snapshot_b_1"))
+                    .setStorageUri(buildSlotUri("snapshot_b_1", s3locator)))
                 .setPoolSpecName("l")
                 .build();
 

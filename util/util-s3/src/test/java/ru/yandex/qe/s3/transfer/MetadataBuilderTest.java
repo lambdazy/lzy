@@ -1,7 +1,7 @@
 package ru.yandex.qe.s3.transfer;
 
-import org.testng.Assert;
-import org.testng.annotations.Test;
+import org.junit.Assert;
+import org.junit.Test;
 import ru.yandex.qe.s3.transfer.meta.Metadata;
 import ru.yandex.qe.s3.transfer.meta.MetadataBuilder;
 

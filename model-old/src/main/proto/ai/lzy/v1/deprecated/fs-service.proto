@@ -5,7 +5,7 @@ package ai.lzy.v1.fs;
 import "ai/lzy/v1/common/slot.proto";
 
 option java_outer_classname = "LzyFsApi";
-option java_package = "ai.lzy.v1.fs";
+option java_package = "ai.lzy.v1.deprecated";
 
 service LzyFs {
   rpc CreateSlot (CreateSlotRequest) returns (SlotCommandStatus);
