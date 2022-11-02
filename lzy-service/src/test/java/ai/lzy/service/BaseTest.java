@@ -78,7 +78,6 @@ public class BaseTest {
 
     @Before
     public void setUp() throws IOException, InterruptedException {
-        WorkflowService.PEEK_RANDOM_PORTAL_PORTS = true;
         var iamDbConfig = preparePostgresConfig("iam", iamDb.getConnectionInfo());
         iamTestContext.setUp(iamDbConfig);
 

@@ -29,7 +29,6 @@ public class StdoutInputSlot extends LzyInputSlotBase {
 
         var t = new Thread(READER_TG, this::readAll, "reader-from-" + slotUri + "-to-" + definition().name());
 
-        onState(LMS.SlotStatus.State.OPEN, this::disconnect);
         onState(LMS.SlotStatus.State.DESTROYED, t::interrupt);
         t.start();
     }

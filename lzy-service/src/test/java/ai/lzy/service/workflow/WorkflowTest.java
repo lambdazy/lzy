@@ -33,6 +33,7 @@ public class WorkflowTest extends BaseTest {
 
     @Test
     public void restartWorkflow() {
+        WorkflowService.PEEK_RANDOM_PORTAL_PORTS = true;
         var res = authorizedWorkflowClient.createWorkflow(
             LWFS.CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build());
         authorizedWorkflowClient.finishWorkflow(LWFS.FinishWorkflowRequest.newBuilder()
@@ -43,6 +44,7 @@ public class WorkflowTest extends BaseTest {
 
         var res1 = authorizedWorkflowClient.createWorkflow(
             LWFS.CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build());
+        WorkflowService.PEEK_RANDOM_PORTAL_PORTS = false;
     }
 
     @Test

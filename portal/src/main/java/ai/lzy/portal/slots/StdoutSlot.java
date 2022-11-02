@@ -69,9 +69,6 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
             task2slot.remove(taskId);
             notify();
         }
-        if (slot2task.isEmpty()) {
-            destroy();
-        }
     }
 
     public synchronized void onLine(String slot, ByteString line) {
