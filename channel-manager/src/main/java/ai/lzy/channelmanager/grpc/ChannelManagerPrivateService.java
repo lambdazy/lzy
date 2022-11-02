@@ -24,7 +24,6 @@ import java.net.URI;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static ai.lzy.channelmanager.grpc.ProtoConverter.toProto;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
@@ -286,7 +285,10 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         final LCMPS.ChannelStatus.Builder statusBuilder = LCMPS.ChannelStatus.newBuilder();
         statusBuilder
             .setChannelId(channel.id())
-            .setChannelSpec(toProto(channel.spec()));
+            .setChannelSpec(LCM.ChannelSpec.newBuilder()
+                .setChannelName(channel.name())
+                .setContentType(ai.lzy.model.grpc.ProtoConverter.toProto(channel.spec().contentType()))
+                .build());
         channel.slotsStatus()
             .map(slotStatus ->
                 LMS.SlotStatus.newBuilder()

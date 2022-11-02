@@ -13,8 +13,8 @@ message Channel {
   string channelId = 1;
   ChannelSpec spec = 2;
   string executionId = 3;
-  ChannelSources sources  = 4;
-  ChannelDestinations destinations = 5;
+  ChannelSenders senders  = 4;
+  ChannelReceivers receivers = 5;
 
 }
 
@@ -23,12 +23,12 @@ message ChannelSpec {
   DataScheme scheme = 2;
 }
 
-message ChannelSources {
+message ChannelSenders {
   /* optional */ SlotInstance workerSlot = 1;
   /* optional */ SlotInstance portalSlot = 2;
 }
 
-message ChannelDestinations {
+message ChannelReceivers {
   repeated SlotInstance workerSlots = 1;
   /* optional */ SlotInstance portalSlot = 2;
 }
