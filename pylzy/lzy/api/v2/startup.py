@@ -4,13 +4,16 @@ import datetime
 import os
 import sys
 import time
-from typing import Any, Callable, Mapping, Sequence, Tuple, Type, TypeVar, cast
+from typing import Any, Callable, Mapping, Sequence, Tuple, Type, TypeVar, cast, Optional
 
 from lzy.serialization.api import SerializerRegistry
 
 import cloudpickle
 
 T = TypeVar("T")
+
+
+_lzy_mount: Optional[str] = None  # for tests only
 
 
 def unpickle(base64_str: str, obj_type: Type[T] = None) -> T:
@@ -23,7 +26,9 @@ def read_data(path: str, typ: Type, serializers: SerializerRegistry) -> Any:
 
     log(f"Reading data from {path} with type {typ} and serializer {type(ser)}")
 
-    mount = os.getenv("LZY_MOUNT")
+    mount = os.getenv("LZY_MOUNT", _lzy_mount)
+    assert mount is not None
+
     with open(mount + path, "rb") as file:
         # Wait for slot become open
         while file.read(1) is None:
@@ -34,7 +39,9 @@ def read_data(path: str, typ: Type, serializers: SerializerRegistry) -> Any:
 
 
 def write_data(path: str, data: Any, serializers: SerializerRegistry):
-    mount = os.getenv("LZY_MOUNT")
+    mount = os.getenv("LZY_MOUNT", _lzy_mount)
+    assert mount is not None
+
     typ = type(data)
 
     ser = serializers.find_serializer_by_type(typ)

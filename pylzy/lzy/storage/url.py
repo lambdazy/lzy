@@ -1,6 +1,6 @@
 from enum import Enum
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Iterable
 from urllib.parse import urlsplit
 
 
@@ -23,6 +23,7 @@ def bucket_from_uri(scheme: Scheme, uri: str) -> Tuple[str, str]:
     assert parsed_scheme == scheme.name
 
     path = Path(_path)
+    other: Iterable[str]
     if path.is_absolute():
         _, *other = path.parts
     else:

@@ -112,7 +112,7 @@ def wrap_call(
     libraries: typing.Optional[Dict[str, str]] = None,
     conda_yaml_path: typing.Optional[str] = None,
     docker_image: typing.Optional[str] = None,
-    docker_pull_policy: typing.Optional = DockerPullPolicy.IF_NOT_EXISTS,
+    docker_pull_policy: typing.Optional[DockerPullPolicy] = DockerPullPolicy.IF_NOT_EXISTS,
     local_modules_path: typing.Optional[Sequence[str]] = None,
     provisioning_: Provisioning = Provisioning(),
     cpu_type: typing.Optional[str] = None,
