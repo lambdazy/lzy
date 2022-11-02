@@ -7,20 +7,11 @@ import "ai/lzy/v1/common/data-scheme.proto";
 option java_outer_classname = "LMS";
 option java_package = "ai.lzy.v1.common";
 
-message Slot {
-  string name = 1;
-
-  Media media = 2;
-  Direction direction = 4;
-
-  DataScheme contentType = 3;
-
-  enum Media {
-    UNSPECIFIED = 0;
-    FILE = 1;
-    PIPE = 2;
-    ARG = 3;
-  }
+message SlotSpec {
+  string path = 1;
+  DataScheme scheme = 2;
+  Direction direction = 3;
+  string channelId = 4;
 
   enum Direction {
     UNKNOWN = 0;
@@ -29,35 +20,34 @@ message Slot {
   }
 }
 
-message SlotStatus {
-  string taskId = 1;
-  Slot declaration = 2;
-
-  string connectedTo = 3;
-
-  uint64 pointer = 4;
-
-  State state = 5;
-
-  /* For input slot SUSPENDED command could happen while reading to change a source of data
-  * For output slot CLOSED means that process has finished generating data.
-  * CLOSED and SUSPENDED are independent events: one could happen before or after the other. If CLOSED come while
-  * slot is in SUSPENDED state, slot must remember this event and after reconnection feed CLOSED back to the server
-  */
-  enum State {
-    UNSPECIFIED = 0;
-    UNBOUND = 1;
-    PREPARING = 2;
-    OPEN = 3;
-    SUSPENDED = 4;
-    CLOSED = 5;
-    DESTROYED = 6;
-  }
+message SlotInstance {
+  SlotSpec slot = 1;
+  string endpoint = 2;
+  string slotUri = 3;
 }
 
-message SlotInstance {
-  string taskId = 1;
-  Slot slot = 2;
-  string slotUri = 3;
-  string channelId = 4;
+message SlotStatus {
+  oneof status {
+    InputSlotStatus inputSlotStatus = 1;
+    OutputSlotStatus outputSlotStatus = 2;
+  }
+
+  enum InputSlotStatus {
+    IS_UNKNOWN = 0;
+    IS_CREATED = 1;      // Initial status
+    IS_READY = 2;        // Data has downloaded, slot is ready for sending data
+    IS_CLOSED = 3;       // Slot is ready for destroying
+    IS_FAILED = 4;       // Something got failed
+    IS_CONNECTING = 5;   // Slot is going to connect or is connecting for downloading data
+    IS_READING = 6;      // Slot is reading data
+  }
+
+  enum OutputSlotStatus {
+    OS_UNKNOWN = 0;
+    OS_CREATED = 1;      // Initial status
+    OS_READY = 2;        // Data has written, slot is ready for sending data
+    OS_CLOSED = 3;       // Slot is ready for destroying
+    OS_FAILED = 4;       // Something got failed
+    OS_WRITING = 5;      // Slot is writing data
+  }
 }

@@ -9,35 +9,19 @@ option java_outer_classname = "LMO";
 option java_package = "ai.lzy.v1.common";
 
 message Operation {
-  message StdSlotDesc {
-    string name = 1;
-    string channelId = 2;
-  }
-
   EnvSpec env = 1;
   Requirements requirements = 2;
   string command = 3;
-  repeated Slot slots = 4;
+  repeated SlotSpec slots = 4;
   string description = 5;
   string name = 6;
 
   // Std slots for stderr and stdout. Optional
-  StdSlotDesc stdout = 7;
-  StdSlotDesc stderr = 8;
+  SlotSpec stdout = 7;
+  SlotSpec stderr = 8;
 }
 
 message Requirements {
   string poolLabel = 1;
   string zone = 2;
 }
-
-message SlotToChannelAssignment {
-  string slotName = 1;
-  string channelId = 2;
-}
-
-message TaskDesc {
-  Operation operation = 2;
-  repeated SlotToChannelAssignment slotAssignments = 3;
-}
-

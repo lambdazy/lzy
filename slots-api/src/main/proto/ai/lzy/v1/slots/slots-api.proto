@@ -29,9 +29,7 @@ service LzySlotsApi {
 }
 
 message CreateSlotRequest {
-  string taskId = 1;
-  Slot slot = 2;
-  string channelId = 3;
+  SlotSpec slot = 2;
 }
 
 message CreateSlotResponse {

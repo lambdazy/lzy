@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package ai.lzy.v1.fs;
 
-import "ai/lzy/v1/common/slot.proto";
+import "ai/lzy/v1/deprecated/slot.proto";
 
 option java_outer_classname = "LzyFsApi";
 option java_package = "ai.lzy.v1.deprecated";

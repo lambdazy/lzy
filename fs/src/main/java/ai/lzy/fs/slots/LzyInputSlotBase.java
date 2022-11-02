@@ -46,6 +46,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
         try (final Stream<ByteString> data = dataProvider) {
             data.forEach(chunk -> {
                 try {
+                    // change slot status to downloading
                     LOG.debug("From {} received chunk of size {}", name(), chunk.size());
                     onChunk(chunk);
                 } catch (IOException ioe) {
@@ -53,6 +54,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
                         "Unable write chunk of data of size " + chunk.size() + " to input slot " + name(),
                         ioe
                     );
+                    // change slot status to fail
                 } finally {
                     offset += chunk.size();
                 }
