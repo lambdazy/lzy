@@ -215,7 +215,7 @@ public class WorkflowService {
         }
 
         for (var listener: listenersByExecution.getOrDefault(request.getExecutionId(), new ConcurrentLinkedQueue<>())) {
-            listener.cancel("Workflow <" + request.getExecutionId() + "> is finished");
+            listener.complete();
         }
 
         // final String[] bucket = {null};

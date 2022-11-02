@@ -129,4 +129,11 @@ public class PortalSlotsListener {
         outCall.cancel(issue, null);
         errCall.cancel(issue, null);
     }
+
+    public void complete() {  // TODO(artolord) remove and wait for completion
+        LOG.info("Completing listener");
+        consumer.onCompleted();
+        outCall.cancel("Completed", null);
+        errCall.cancel("Completed", null);
+    }
 }

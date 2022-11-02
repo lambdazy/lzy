@@ -164,7 +164,7 @@ class GrpcRuntime(Runtime):
         graph = await asyncio.get_event_loop().run_in_executor(
             None, self.__build_graph, calls, pools, zip(modules, urls)
         )  # Running long op in threadpool
-        _LOG.info(f"Starting executing graph {graph}")
+        _LOG.debug(f"Starting executing graph {graph}")
 
         graph_id = await client.execute_graph(self.__execution_id, graph)
         _LOG.info(f"Send graph to Lzy, graph_id={graph_id}")
@@ -200,8 +200,6 @@ class GrpcRuntime(Runtime):
             assert self.__workflow is not None
             assert self.__std_slots_listener is not None
 
-            await self.__std_slots_listener  # read all stdout and stderr
-
             await client.finish_workflow(
                 self.__workflow.name, self.__execution_id, "Workflow completed"
             )
@@ -210,6 +208,7 @@ class GrpcRuntime(Runtime):
                 self.__execution_id
             )
 
+            await self.__std_slots_listener  # read all stdout and stderr
 
             self.__execution_id = None
             self.__workflow = None
