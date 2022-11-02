@@ -99,7 +99,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         if (channel == null) {
             LOG.warn("Destroy channel {} skipped, channel not found", channelId);
         } else {
-            // destroy channel
+            // destroy channel ?? more statuses
         }
 
         // mark operation done
@@ -143,7 +143,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
 
         for (final Channel channel : channels) {
 
-            // destroy channel
+            // destroy channel ?? more statuses
 
             // change operation metadata, add deleted channel
 

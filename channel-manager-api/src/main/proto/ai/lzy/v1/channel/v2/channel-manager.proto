@@ -15,6 +15,14 @@ service LzyChannelManager {
 
 message BindRequest {
   SlotInstance slotInstance = 1;
+  SlotType slotType = 2;
+
+  enum SlotType {
+    UNKNOWN = 0;
+    WORKER = 1;
+    PORTAL = 2;
+  }
+
 }
 
 message BindResponse {}
