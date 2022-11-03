@@ -122,6 +122,7 @@ class GraphBuilder {
         }
 
         var portalSlotToOpen = new ArrayList<LzyPortal.PortalSlotDesc>();
+
         var inputSlotNames = new ArrayList<String>();
 
         for (var data : fromOutput) {

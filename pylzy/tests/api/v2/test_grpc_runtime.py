@@ -29,7 +29,7 @@ from ai.lzy.v1.workflow.workflow_service_pb2_grpc import (
 from lzy.api.v2 import Lzy, LzyWorkflow, op
 from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
 from lzy.api.v2.snapshot import DefaultSnapshot
-from lzy.api.v2.startup import ProcessingRequest, main
+import lzy.api.v2.startup as startup
 from lzy.api.v2.utils._pickle import pickle
 from lzy.proxy.result import Just
 from lzy.serialization.registry import DefaultSerializerRegistry
@@ -125,7 +125,7 @@ class GrpcRuntimeTests(TestCase):
         runtime = GrpcRuntime("ArtoLord", "localhost:12345", self.__key_path)
         lzy = Lzy(runtime=runtime)
         self.mock.fail = True
-        with self.assertRaises(expected_exception=RuntimeError):
+        with self.assertRaises(expected_exception=Exception):
             with lzy.workflow("some_name"):
                 self.assertIsNotNone(lzy.storage_registry.default_config())
         self.assertIsNone(lzy.storage_registry.default_config())
@@ -149,7 +149,9 @@ class GrpcRuntimeTests(TestCase):
             ser.find_serializer_by_type(str).serialize("4", arg)
             ser.find_serializer_by_type(File).serialize(file, kwarg)
 
-        req = ProcessingRequest(
+        startup._lzy_mount = ""
+
+        req = startup.ProcessingRequest(
             serializers=ser,
             op=test,
             args_paths=[(str, arg_file)],
@@ -157,7 +159,7 @@ class GrpcRuntimeTests(TestCase):
             output_paths=[ret_file],
         )
 
-        main(pickle(req))
+        startup.main(pickle(req))
 
         with open(ret_file, "rb") as f:
             ret = ser.find_serializer_by_type(str).deserialize(f, str)

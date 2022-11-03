@@ -72,8 +72,6 @@ public class PortalCommonTest extends PortalTestBase {
 
         Assert.assertTrue(portalStdout.isEmpty());
         Assert.assertTrue(portalStderr.isEmpty());
-        destroyChannel("portal:stdout");
-        destroyChannel("portal:stderr");
 
         var result = new String(Files.readAllBytes(tmpFile.toPath()));
         Assert.assertEquals("i-am-a-hacker\n", result);
@@ -138,9 +136,6 @@ public class PortalCommonTest extends PortalTestBase {
             Assert.assertTrue(actual.toString(), expected.remove(actual));
         }
         Assert.assertNull(portalStderr.poll());
-
-        destroyChannel("portal:stdout");
-        destroyChannel("portal:stderr");
     }
 
     @Test
@@ -224,8 +219,6 @@ public class PortalCommonTest extends PortalTestBase {
 
         Assert.assertTrue(portalStdout.isEmpty());
         Assert.assertTrue(portalStderr.isEmpty());
-        destroyChannel("portal:stdout");
-        destroyChannel("portal:stderr");
 
         var result2 = new String(Files.readAllBytes(tmpFile2.toPath()));
         var result3 = new String(Files.readAllBytes(tmpFile3.toPath()));
@@ -302,9 +295,6 @@ public class PortalCommonTest extends PortalTestBase {
         destroyChannel("channel_3");
         destroyChannel("task_3:stdout");
         destroyChannel("task_3:stderr");
-
-        destroyChannel("portal:stdout");
-        destroyChannel("portal:stderr");
 
         var result2 = new String(Files.readAllBytes(tmpFile2.toPath()));
         var result3 = new String(Files.readAllBytes(tmpFile3.toPath()));

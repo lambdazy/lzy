@@ -75,8 +75,7 @@ public abstract class S3Repository<T> {
         }
     }
 
-    public void put(@Nonnull String key, @Nonnull T value) {
-        final String bucket = selectBucket(key);
+    public void put(String bucket, String key, T value) {
         try {
             transmitter.upload(new UploadRequestBuilder().key(key).bucket(bucket)
                 .stream(StreamSuppliers.lazy(outputStream -> converter.toStream(value, outputStream), consumerExecutor,
@@ -86,22 +85,35 @@ public abstract class S3Repository<T> {
         }
     }
 
-    public T get(@Nonnull String key) {
+    public void put(@Nonnull String key, @Nonnull T value) {
         final String bucket = selectBucket(key);
+        put(bucket, key, value);
+    }
+
+    public T get(String bucket, String key) {
         try {
             return transmitter.downloadF(new DownloadRequestBuilder().bucket(bucket).key(key).build(),
-                metaAndStream -> {
-                    try (InputStream inputStream = metaAndStream.getInputStream()) {
-                        return converter.fromStream(inputStream);
-                    }
-                }).get().getProcessingResult();
+                    metaAndStream -> {
+                        try (InputStream inputStream = metaAndStream.getInputStream()) {
+                            return converter.fromStream(inputStream);
+                        }
+                    }).get().getProcessingResult();
         } catch (InterruptedException | ExecutionException e) {
             throw Throwables.propagate(e);
         }
     }
 
+    public T get(@Nonnull String key) {
+        final String bucket = selectBucket(key);
+        return get(bucket, key);
+    }
+
+    public void remove(String bucket, String key) {
+        deleteObject(bucket, key);
+    }
+
     public void remove(@Nonnull String key) {
-        deleteObject(selectBucket(key), key);
+        remove(selectBucket(key), key);
     }
 
     protected String selectBucket(String key) {

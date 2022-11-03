@@ -8,6 +8,7 @@ import ai.lzy.v1.common.LMS3;
 
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.util.List;
 import javax.annotation.Nullable;
 
 
@@ -92,4 +93,7 @@ public interface WorkflowDao {
 
     @Nullable
     PortalDescription getPortalDescription(String executionId) throws SQLException;
+
+    @Nullable
+    String getAllocatorSession(String executionId) throws SQLException;
 }

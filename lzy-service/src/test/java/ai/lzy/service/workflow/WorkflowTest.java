@@ -32,6 +32,22 @@ public class WorkflowTest extends BaseTest {
     }
 
     @Test
+    public void restartWorkflow() {
+        WorkflowService.PEEK_RANDOM_PORTAL_PORTS = true;
+        var res = authorizedWorkflowClient.createWorkflow(
+            LWFS.CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build());
+        authorizedWorkflowClient.finishWorkflow(LWFS.FinishWorkflowRequest.newBuilder()
+            .setWorkflowName("workflow_1")
+            .setExecutionId(res.getExecutionId())
+            .setReason("Test")
+            .build());
+
+        var res1 = authorizedWorkflowClient.createWorkflow(
+            LWFS.CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build());
+        WorkflowService.PEEK_RANDOM_PORTAL_PORTS = false;
+    }
+
+    @Test
     public void tempBucketCreationFailed() throws SQLException, InterruptedException {
         shutdownStorage();
 

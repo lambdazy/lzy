@@ -35,7 +35,8 @@ public class LzyContext implements AutoCloseable {
     private Environment env;
 
     public LzyContext(String contextId, SlotsManager slotsManager,
-                      String mountRoot) {
+                      String mountRoot)
+    {
         this.contextId = contextId;
         this.slotsManager = slotsManager;
         this.mountRoot = mountRoot;

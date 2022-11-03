@@ -43,7 +43,8 @@ public class ServantAppender extends AbstractAppender {
         @PluginElement("Layout") Layout<? extends Serializable> layout,
         @PluginElement("Filter") final Filter filter,
         @PluginAttribute("servantId") String servantId
-    ) {
+    )
+    {
         lock.lock();
         try {
             if (instance == null) {
@@ -61,7 +62,8 @@ public class ServantAppender extends AbstractAppender {
     }
 
     private void log(String eventId, String eventDate, String level, String logger, String message)
-        throws SQLException {
+        throws SQLException
+    {
         Connection connection = ConnectionFactory.getDatabaseConnection();
         PreparedStatement stmt = connection.prepareStatement(
             "INSERT INTO lzy.servant_logs "

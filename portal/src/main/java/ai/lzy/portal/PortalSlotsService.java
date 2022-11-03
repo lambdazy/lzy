@@ -196,7 +196,6 @@ public class PortalSlotsService {
             final SlotInstance slotInstance = ProtoConverter.fromProto(request.getSlotInstance());
             LOG.info("Disconnect portal slot, taskId: {}, slotName: {}", slotInstance.taskId(), slotInstance.name());
 
-            assert slotInstance.taskId().isEmpty() : slotInstance.taskId();
             var slotName = slotInstance.name();
 
             boolean done = false;
@@ -372,8 +371,7 @@ public class PortalSlotsService {
         public void openOutputSlot(LSA.SlotDataRequest request, StreamObserver<LSA.SlotDataChunk> response) {
             final SlotInstance slotInstance = ProtoConverter.fromProto(request.getSlotInstance());
             LOG.info("Open portal output slot, uri: {}, offset: {}", slotInstance.uri(), request.getOffset());
-            final var slotUri = slotInstance.uri();
-            final var slotName = slotUri.getPath().substring(portal.getPortalId().length() + 1);
+            final var slotName = slotInstance.name();
 
             Consumer<LzyOutputSlot> reader = outputSlot -> {
                 try {

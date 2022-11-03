@@ -72,7 +72,6 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
     }
 
     public synchronized void onLine(String slot, ByteString line) {
-        LOG.info("append line, slot={}, line={}", slot, line.toStringUtf8());
         var taskId = slot2task.get(slot);
         if (taskId != null) {
             buffer.offer(taskId + "; " + line.toStringUtf8());

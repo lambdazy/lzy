@@ -9,6 +9,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 
 public class EnvironmentFactory {
     private static final Logger LOG = LogManager.getLogger(EnvironmentFactory.class);
@@ -16,7 +17,7 @@ public class EnvironmentFactory {
     private static boolean IS_DOCKER_SUPPORTED = true;
 
     @Deprecated
-    public static Environment create(Env env, StorageClient storage) throws EnvironmentInstallationException {
+    public static Environment create(Env env, @Nullable StorageClient storage) throws EnvironmentInstallationException {
         //to mock environment in tests
         if (envForTests != null) {
             LOG.info("EnvironmentFactory: using mocked environment");
@@ -53,9 +54,6 @@ public class EnvironmentFactory {
     }
 
     public static Environment create(Env env) throws EnvironmentInstallationException {
-        if (env.auxEnv() instanceof PythonEnv) {
-            return create(env, StorageClient.create(((PythonEnv) env.auxEnv()).credentials()));
-        }
         return create(env, null);
     }
 
