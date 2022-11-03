@@ -4,20 +4,32 @@ syntax = "proto3";
 package ai.lzy.v1.channel.v2;
 
 import "ai/lzy/v1/common/slot.proto";
+import "ai/lzy/v1/long-running/operation.proto";
+import "ai/lzy/v1/long-running/option.proto";
 
 option java_outer_classname = "LCMS";
 option java_package = "ai.lzy.v1.channel.v2";
 
 service LzyChannelManager {
-  rpc Bind (BindRequest) returns (BindResponse);
-  rpc Unbind (UnbindRequest) returns (UnbindResponse);
+  rpc Bind (BindRequest) returns (Operation) {
+    option (ai.lzy.v1.operation) = {
+      response: "BindResponse"
+      metadata: "BindMetadata"
+    };
+  }
+  rpc Unbind (UnbindRequest) returns (Operation) {
+    option (ai.lzy.v1.operation) = {
+      response: "UnbindResponse"
+      metadata: "UnbindMetadata"
+    };
+  }
 }
 
 message BindRequest {
   SlotInstance slotInstance = 1;
-  SlotType slotType = 2;
+  SlotOwner slotOwner = 2;
 
-  enum SlotType {
+  enum SlotOwner {
     UNKNOWN = 0;
     WORKER = 1;
     PORTAL = 2;
@@ -27,8 +39,12 @@ message BindRequest {
 
 message BindResponse {}
 
+message BindMetadata {}
+
 message UnbindRequest {
   string slotUri = 1;
 }
 
 message UnbindResponse {}
+
+message UnbindMetadata {}

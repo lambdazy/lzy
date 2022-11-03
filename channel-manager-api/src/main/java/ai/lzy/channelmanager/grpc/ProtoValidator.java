@@ -2,6 +2,7 @@ package ai.lzy.channelmanager.grpc;
 
 import ai.lzy.v1.channel.v2.LCM;
 import ai.lzy.v1.channel.v2.LCMPS;
+import ai.lzy.v1.channel.v2.LCMS;
 import ai.lzy.v1.common.LMS;
 
 public class ProtoValidator {
@@ -51,6 +52,27 @@ public class ProtoValidator {
         try {
             boolean isValid = true;
             isValid = isValid && !request.getExecutionId().isBlank();
+            return isValid;
+        } catch (NullPointerException e) {
+            return false;
+        }
+    }
+
+    public static boolean isValid(LCMS.BindRequest request) {
+        try {
+            boolean isValid = true;
+            isValid = isValid && isValid(request.getSlotInstance());
+            isValid = isValid && request.getSlotOrigin().getNumber() != 0;
+            return isValid;
+        } catch (NullPointerException e) {
+            return false;
+        }
+    }
+
+    public static boolean isValid(LCMS.UnbindRequest request) {
+        try {
+            boolean isValid = true;
+            isValid = isValid && !request.getSlotUri().isBlank();
             return isValid;
         } catch (NullPointerException e) {
             return false;

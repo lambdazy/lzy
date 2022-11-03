@@ -1,9 +1,10 @@
 package ai.lzy.channelmanager.v2.grpc;
 
-import ai.lzy.channelmanager.channel.v2.Channel;
 import ai.lzy.channelmanager.grpc.ProtoConverter;
 import ai.lzy.channelmanager.grpc.ProtoValidator;
 import ai.lzy.channelmanager.v2.db.ChannelStorage;
+import ai.lzy.channelmanager.v2.model.Channel;
+import ai.lzy.model.db.exceptions.AlreadyExistsException;
 import ai.lzy.v1.channel.v2.LCM;
 import ai.lzy.v1.channel.v2.LCMPS;
 import ai.lzy.v1.channel.v2.LzyChannelManagerPrivateGrpc;
@@ -48,17 +49,22 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         final String executionId = request.getExecutionId();
         final LCM.ChannelSpec channelSpec = request.getChannelSpec();
         final String channelName = channelSpec.getChannelName();
-        final String channelId = String.join("-", "channel", executionId).replaceAll("[^a-zA-z0-9-]+", "-")
-                                 + "!" + channelName;
+        final String channelId = "channel-" + executionId.replaceAll("[^a-zA-z0-9-]+", "-") + "!" + channelName;
 
         try {
             withRetries(defaultRetryPolicy(), LOG, () ->
                 channelStorage.insertChannel(channelId, executionId, ProtoConverter.fromProto(channelSpec), null));
+        } catch (AlreadyExistsException e) {
+            LOG.error("Create channel {} failed, channel already exists", channelName);
+            responseObserver.onError(Status.ALREADY_EXISTS.withDescription(e.getMessage()).asException());
+            return;
         } catch (Exception e) {
             LOG.error("Create channel {} failed, got exception: {}", channelName, e.getMessage(), e);
             responseObserver.onError(Status.INTERNAL.withCause(e).asException());
+            return;
         }
 
+        responseObserver.onNext(LCMPS.ChannelCreateResponse.newBuilder().setChannelId(channelId).build());
         LOG.info("Create channel {} done, channelId={}", channelName, channelId);
         responseObserver.onCompleted();
     }

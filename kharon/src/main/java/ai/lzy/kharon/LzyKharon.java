@@ -41,6 +41,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
+import static ai.lzy.model.UriScheme.LzyKharon;
 import static ai.lzy.model.UriScheme.*;
 
 public class LzyKharon {

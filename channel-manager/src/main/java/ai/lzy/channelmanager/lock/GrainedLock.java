@@ -18,9 +18,9 @@ public class GrainedLock {
     }
 
     public Guard withLock(String subjectId) {
-        var subject = acquireSubject(subjectId);
-        subject.lock.lock();
-        return new Guard(subjectId);
+        var guard = new Guard(subjectId);
+        lock(subjectId);
+        return guard;
     }
 
     public void lock(String subjectId) {
