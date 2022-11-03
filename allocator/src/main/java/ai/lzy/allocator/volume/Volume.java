@@ -12,7 +12,8 @@ public record Volume(
     String volumeRequestName,
     String diskId,
     int sizeGb,
-    AccessMode accessMode
+    AccessMode accessMode,
+    String storageClass
 ) {
     public enum AccessMode {
         READ_WRITE_ONCE("ReadWriteOnce"),

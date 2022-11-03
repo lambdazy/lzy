@@ -52,9 +52,14 @@ public class VolumeRequest {
     @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "type")
     @JsonSubTypes({
         @JsonSubTypes.Type(value = DiskVolumeDescription.class),
-        @JsonSubTypes.Type(value = HostPathVolumeDescription.class)
+        @JsonSubTypes.Type(value = HostPathVolumeDescription.class),
+        @JsonSubTypes.Type(value = NFSVolumeDescription.class)
+
     })
     public abstract static class VolumeDescription {
         public abstract String name();
+    }
+
+    public abstract static class ResourceVolumeDescription extends VolumeDescription {
     }
 }
