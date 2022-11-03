@@ -286,16 +286,8 @@ public class WorkflowService {
                     state.getStorageType().name(), state.getStorageLocator()));
         } catch (AlreadyExistsException e) {
             state.fail(Status.ALREADY_EXISTS, "Cannot create execution: " + e.getMessage());
-        } catch (PSQLException e) {
-            if (
-                e.getSQLState().equals(PSQLState.UNIQUE_VIOLATION.getState())
-                || e.getSQLState().equals(PSQLState.CHECK_VIOLATION.getState()))
-            {
-                state.fail(Status.ALREADY_EXISTS, "Cannot create execution: " + e.getMessage());
-            } else {
-                state.fail(Status.INTERNAL, "Cannot create execution: " + e.getMessage());
-            }
         } catch (Exception e) {
+            LOG.error("Error while creating execution state in dao", e);
             state.fail(Status.INTERNAL, "Cannot create execution: " + e.getMessage());
         }
     }
