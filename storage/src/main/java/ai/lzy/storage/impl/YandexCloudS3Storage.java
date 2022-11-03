@@ -41,7 +41,8 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
     private final StorageDataSource dataSource;
 
     public YandexCloudS3Storage(StorageConfig.S3Credentials.YcS3Credentials s3, StorageConfig.YcCredentials yc,
-                                StorageDataSource dataSource) {
+                                StorageDataSource dataSource)
+    {
         this.s3Creds = s3;
         this.ycCreds = yc;
         this.dataSource = dataSource;
@@ -93,10 +94,11 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
         try {
             Transaction.execute(dataSource, conn -> {
                 try (var st = conn.prepareStatement("""
-                        select service_account, access_token, secret_token
-                        from yc_s3_credentials
-                        where user_id = ?
-                        for update""")) {
+                    select service_account, access_token, secret_token
+                    from yc_s3_credentials
+                    where user_id = ?
+                    for update"""))
+                {
                     st.setString(1, request.getUserId());
 
                     var rs = st.executeQuery();
@@ -111,8 +113,9 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
                 var newTokens = createServiceAccountForUser(request.getUserId(), request.getBucket());
 
                 try (var st = conn.prepareStatement("""
-                        insert into yc_s3_credentials (user_id, service_account, access_token, secret_token)
-                        values (?, ?, ?, ?)""")) {
+                    insert into yc_s3_credentials (user_id, service_account, access_token, secret_token)
+                    values (?, ?, ?, ?)"""))
+                {
                     st.setString(1, request.getUserId());
                     st.setString(2, newTokens[0]);
                     st.setString(3, newTokens[1]);
@@ -171,15 +174,17 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
 
     @Override
     public void getS3BucketCredentials(GetS3BucketCredentialsRequest request,
-                                       StreamObserver<GetS3BucketCredentialsResponse> response) {
+                                       StreamObserver<GetS3BucketCredentialsResponse> response)
+    {
         LOG.debug("YandexCloudS3Storage::getBucketCredentials, userId={}, bucket={}",
             request.getUserId(), request.getBucket());
 
         try (var conn = dataSource.connect();
              var st = conn.prepareStatement("""
-                select access_token, secret_token
-                from yc_s3_credentials
-                where user_id = ?""")) {
+                 select access_token, secret_token
+                 from yc_s3_credentials
+                 where user_id = ?"""))
+        {
             st.setString(1, request.getUserId());
 
             var rs = st.executeQuery();
@@ -222,7 +227,8 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
     }
 
     private String[] createServiceAccountForUser(String userId, String bucket)
-            throws IOException, InterruptedException {
+        throws IOException, InterruptedException
+    {
         CloseableHttpClient httpclient = HttpClients.createDefault();
 
         String serviceAccountId = YcIamClient.createServiceAccount(userId, RenewableToken.getToken(), httpclient,
@@ -231,6 +237,6 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
         AWSCredentials credentials = YcIamClient.createStaticCredentials(serviceAccountId,
             RenewableToken.getToken(), httpclient);
 
-        return new String[]{serviceAccountId, credentials.getAWSAccessKeyId(), credentials.getAWSSecretKey()};
+        return new String[] {serviceAccountId, credentials.getAWSAccessKeyId(), credentials.getAWSSecretKey()};
     }
 }

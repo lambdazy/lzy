@@ -46,8 +46,7 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
     public synchronized LzySlot attach(SlotInstance slotInstance) throws CreateSlotException {
         final String taskId = slotInstance.taskId();
         if (task2slot.containsKey(taskId)) {
-            throw new CreateSlotException("Slot " + slotInstance.name() + " from task "
-                + taskId + " already exists");
+            throw new CreateSlotException("Slot " + slotInstance.name() + " from task " + taskId + " already exists");
         }
 
         LOG.info("attach slot " + slotInstance.spec() + ", task " + taskId);

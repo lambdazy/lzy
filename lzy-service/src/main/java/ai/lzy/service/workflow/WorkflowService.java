@@ -422,9 +422,7 @@ public class WorkflowService {
         return null;
     }
 
-    public void readStdSlots(
-        LWFS.ReadStdSlotsRequest request, StreamObserver<LWFS.ReadStdSlotsResponse> responseObserver)
-    {
+    public void readStdSlots(LWFS.ReadStdSlotsRequest request, StreamObserver<LWFS.ReadStdSlotsResponse> response) {
         var executionId = request.getExecutionId();
         try {
             var portalDesc = withRetries(LOG, () -> workflowDao.getPortalDescription(executionId));
@@ -436,7 +434,7 @@ public class WorkflowService {
                 throw Status.UNAVAILABLE.withDescription("Portal is creating, retry later.").asRuntimeException();
             }
 
-            var listener = new PortalSlotsListener(portalDesc.fsAddress(), portalDesc.portalId(), responseObserver);
+            var listener = new PortalSlotsListener(portalDesc.fsAddress(), portalDesc.portalId(), response);
             listenersByExecution.computeIfAbsent(executionId, k -> new ConcurrentLinkedQueue<>()).add(listener);
 
         } catch (Exception e) {
