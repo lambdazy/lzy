@@ -5,6 +5,7 @@ import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
+import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.model.UriScheme;
 import ai.lzy.model.grpc.ProtoConverter;
@@ -30,11 +31,14 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Spliterator;
 import java.util.Spliterators;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 import java.util.stream.StreamSupport;
@@ -54,15 +58,15 @@ public class SlotsService {
     @Nullable
     private final LzyFSManager fsManager;
     private final ExecutorService longrunningExecutor;
-    private final Map<String, Operation> operations = new ConcurrentHashMap<>();
+    private final LocalOperationService operationService;
     private final LzySlotsApiGrpc.LzySlotsApiImplBase slotsApi;
-    private final LongRunningServiceGrpc.LongRunningServiceImplBase longrunningApi;
     private final LzyFsGrpc.LzyFsImplBase legacyWrapper;
 
     public SlotsService(String agentId, SlotsManager slotsManager, @Nullable LzyFSManager fsManager) {
         this.agentId = agentId;
         this.slotsManager = slotsManager;
         this.fsManager = fsManager;
+        this.operationService = new LocalOperationService(agentId);
 
         this.longrunningExecutor = new ThreadPoolExecutor(5, 20, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
             new ThreadFactory() {
@@ -78,7 +82,6 @@ public class SlotsService {
             });
 
         this.slotsApi = new SlotsApiImpl();
-        this.longrunningApi = new LongRunningApiImpl();
         this.legacyWrapper = new LegacyWrapper();
     }
 
@@ -91,7 +94,7 @@ public class SlotsService {
     }
 
     public LongRunningServiceGrpc.LongRunningServiceImplBase getLongrunningApi() {
-        return longrunningApi;
+        return operationService;
     }
 
     public LzyFsGrpc.LzyFsImplBase getLegacyWrapper() {
@@ -150,7 +153,7 @@ public class SlotsService {
                     Any.pack(LSA.ConnectSlotMetadata.getDefaultInstance())
                 );
 
-                operations.put(op.id(), op);
+                operationService.registerOperation(op);
 
                 response.onNext(op.toProto());
                 response.onCompleted();
@@ -318,37 +321,6 @@ public class SlotsService {
         }
     }
 
-    private class LongRunningApiImpl extends LongRunningServiceGrpc.LongRunningServiceImplBase {
-        @Override
-        public void get(LongRunning.GetOperationRequest request, StreamObserver<LongRunning.Operation> response) {
-            LOG.info("LzySlotsLRApi::get op {}.", request.getOperationId());
-
-            var op = operations.get(request.getOperationId());
-            if (op == null) {
-                var msg = "Operation %s not found".formatted(request.getOperationId());
-                LOG.error(msg);
-                response.onError(Status.NOT_FOUND.withDescription(msg).asException());
-                return;
-            }
-
-            synchronized (op) {
-                if (op.done()) {
-                    if (op.response() != null) {
-                        LOG.info("Operation {} successfully completed.", op.id());
-                    } else if (op.error() != null) {
-                        LOG.info("Operation {} failed with error {}.", op.id(), op.error());
-                    } else {
-                        LOG.error("Operation {} is in unknown completed state {}.", op.id(), op.toString());
-                    }
-                    operations.remove(op.id());
-                }
-            }
-
-            response.onNext(op.toProto());
-            response.onCompleted();
-        }
-    }
-
     private class LegacyWrapper extends LzyFsGrpc.LzyFsImplBase {
         @Override
         public void createSlot(LzyFsApi.CreateSlotRequest request, StreamObserver<LzyFsApi.SlotCommandStatus> resp) {
@@ -407,16 +379,14 @@ public class SlotsService {
             if (opRef[0] != null) {
                 while (true) {
                     LockSupport.parkNanos(Duration.ofMillis(50).toNanos());
-                    var op = operations.get(opRef[0].getId());
-                    if (op != null) {
-                        synchronized (op) {
-                            if (op.done()) {
-                                operations.remove(op.id());
-                                resp.onNext(LzyFsApi.SlotCommandStatus.getDefaultInstance());
-                                resp.onCompleted();
-                                return;
-                            }
+                    var done = operationService.isDone(opRef[0].getId());
+                    if (done != null) {
+                        if (done) {
+                            resp.onNext(LzyFsApi.SlotCommandStatus.getDefaultInstance());
+                            resp.onCompleted();
+                            return;
                         }
+                        // wait...
                     } else {
                         resp.onError(Status.INTERNAL.withDescription("Smth goes wrong").asException());
                         return;
