@@ -5,17 +5,15 @@ from typing import List, Any, TypeVar, Optional, Union, Iterable, Dict
 
 from lzy.proxy.result import Nothing
 
-from lzy.api.v1.whiteboard.model import WhiteboardStatus
-from lzy.api.v2.event_loop import LzyEventLoop
+from lzy.utils.event_loop import LzyEventLoop
 
 from lzy.serialization.api import SerializerRegistry, Schema
 from lzy.storage.api import StorageRegistry, AsyncStorageClient
 
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, WhiteboardField
-from lzy.api.v2 import Query
-from lzy.api.v2.remote_grpc.utils import build_token
-from lzy.api.v2.remote_grpc.whiteboard_service_client import WhiteboardServiceClient
-from lzy.api.v2.whiteboard_declaration import WhiteboardRepository
+from lzy.utils.grpc import build_token
+from lzy.whiteboards.query import Query
+from lzy.whiteboards.whiteboard_service_client import WhiteboardServiceClient
 
 
 LZY_WHITEBOARD_ADDRESS_ENV = "LZY_WHITEBOARD_ADDRESS"
@@ -24,10 +22,10 @@ LZY_WHITEBOARD_ADDRESS_ENV = "LZY_WHITEBOARD_ADDRESS"
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
-class GrpcWhiteboardRepository(WhiteboardRepository):
+class WhiteboardRepository:
     def __init__(
-            self, storage: StorageRegistry, serializers: SerializerRegistry, username: Optional[str] = None,
-            address: Optional[str] = None, key_path: Optional[str] = None
+        self, storage: StorageRegistry, serializers: SerializerRegistry, username: Optional[str] = None,
+        address: Optional[str] = None, key_path: Optional[str] = None
     ):
         self.__storage = storage
         self.__serializers = serializers

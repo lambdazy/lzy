@@ -1,13 +1,11 @@
 from typing import TYPE_CHECKING, Any, cast, TypeVar, Type
 
-from lzy.api.v2.event_loop import LzyEventLoop
+from lzy.utils.event_loop import LzyEventLoop
 from lzy.proxy.automagic import proxy
 from lzy.proxy.result import Just, Result, Nothing
 
 if TYPE_CHECKING:
     from lzy.api.v2 import LzyWorkflow
-
-from lzy.api.v2.exceptions import LzyExecutionException
 
 __lzy_proxied = "__lzy_proxied__"
 __entry_id = "__lzy_entry_id__"

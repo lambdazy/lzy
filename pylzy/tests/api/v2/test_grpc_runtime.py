@@ -30,9 +30,9 @@ from ai.lzy.v1.workflow.workflow_service_pb2_grpc import (
     add_LzyWorkflowServiceServicer_to_server,
 )
 from lzy.api.v2 import Lzy, op, whiteboard
-from lzy.api.v2.event_loop import LzyEventLoop
+from lzy.utils.event_loop import LzyEventLoop
 from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
-from lzy.api.v2.remote_grpc.whiteboard import _ReadOnlyWhiteboard
+from lzy.whiteboards.whiteboard import _ReadOnlyWhiteboard
 from lzy.api.v2.snapshot import DefaultSnapshot
 import lzy.api.v2.startup as startup
 from lzy.api.v2.utils._pickle import pickle

@@ -4,10 +4,8 @@ import logging
 import os
 import sys
 import tempfile
-import time
 import zipfile
 from asyncio import Task
-from collections import defaultdict
 from io import BytesIO
 from typing import (
     Callable,
@@ -19,11 +17,8 @@ from typing import (
     Set,
     Tuple,
     Type,
-    Union,
     cast,
 )
-
-import jwt
 
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
 from ai.lzy.v1.workflow.workflow_pb2 import (
@@ -34,7 +29,7 @@ from ai.lzy.v1.workflow.workflow_pb2 import (
 )
 from lzy.api.v2 import LzyCall, LzyWorkflow, Provisioning
 from lzy.api.v2.exceptions import LzyExecutionException
-from lzy.api.v2.remote_grpc.utils import build_token
+from lzy.utils.grpc import build_token
 from lzy.api.v2.remote_grpc.workflow_service_client import (
     Completed,
     Executing,
@@ -77,7 +72,7 @@ def wrap_error(message: str = "Something went wrong"):
 class GrpcRuntime(Runtime):
     def __init__(
         self,
-        username: str,
+        username: Optional[str] = None,
         address: Optional[str] = None,
         key_path: Optional[str] = None,
     ):

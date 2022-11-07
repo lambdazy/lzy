@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import AsyncIterable, AsyncIterator, List, Optional, Sequence, Tuple, Union
+from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Tuple, Union
 
 from grpc.aio import Channel
 
@@ -27,7 +27,7 @@ from ai.lzy.v1.workflow.workflow_service_pb2 import (
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceStub
 from lzy.api.v2.remote_grpc.model import converter
 from lzy.api.v2.remote_grpc.model.converter.storage_creds import to
-from lzy.api.v2.remote_grpc.utils import add_headers_interceptor, build_channel
+from lzy.utils.grpc import add_headers_interceptor, build_channel
 from lzy.storage.api import AmazonCredentials, StorageConfig, StorageCredentials
 
 from lzy.api.v2.whiteboard_declaration import WhiteboardField as Wb

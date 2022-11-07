@@ -11,7 +11,7 @@ from typing import (
     TypeVar, Set, cast, Mapping,
 )
 
-from lzy.api.v2.event_loop import LzyEventLoop
+from lzy.utils.event_loop import LzyEventLoop
 from lzy.proxy.result import Just
 
 from lzy.api.v2.env import Env
@@ -201,8 +201,8 @@ class LzyWorkflow:
 
 class _WritableWhiteboard:
     __internal_fields = {
-        "_Whiteboard__fields_dict", "_Whiteboard__fields_assigned", "_Whiteboard__whiteboard_meta",
-        "_Whiteboard__workflow", "_Whiteboard__fields",
+        "_WritableWhiteboard__fields_dict", "_WritableWhiteboard__fields_assigned",
+        "_WritableWhiteboard__whiteboard_meta", "_WritableWhiteboard__workflow", "_WritableWhiteboard__fields",
     }
 
     def __init__(

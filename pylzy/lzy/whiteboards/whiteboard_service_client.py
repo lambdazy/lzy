@@ -6,8 +6,8 @@ from grpc.aio import Channel
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, TimeBounds
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2 import GetRequest, GetResponse, ListResponse, ListRequest
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2_grpc import LzyWhiteboardServiceStub
-from lzy.api.v2 import Query
-from lzy.api.v2.remote_grpc.utils import build_channel, add_headers_interceptor
+from lzy.utils.grpc import build_channel, add_headers_interceptor
+from lzy.whiteboards.query import Query
 
 
 class WhiteboardServiceClient:
