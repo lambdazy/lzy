@@ -1,9 +1,6 @@
-import abc
 import dataclasses
 from dataclasses import dataclass
-from typing import Optional, Type, Any, List
-
-from lzy.api.v2.query import Query
+from typing import Optional, Type
 
 WB_NAMESPACE_FIELD_NAME = "__lzy_wb_namespace__"
 WB_NAME_FIELD_NAME = "__lzy_wb_name__"
