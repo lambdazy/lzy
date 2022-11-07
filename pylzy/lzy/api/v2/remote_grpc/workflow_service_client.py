@@ -30,7 +30,8 @@ from lzy.api.v2.remote_grpc.model.converter.storage_creds import to
 from lzy.api.v2.remote_grpc.utils import add_headers_interceptor, build_channel
 from lzy.storage.api import AmazonCredentials, StorageConfig, StorageCredentials
 
-from lzy.api.v2.runtime import WhiteboardField as Wb
+from lzy.api.v2.whiteboard_declaration import WhiteboardField as Wb
+
 
 @dataclass
 class Waiting:

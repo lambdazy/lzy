@@ -1,6 +1,9 @@
+import abc
 import dataclasses
 from dataclasses import dataclass
-from typing import Optional, Type
+from typing import Optional, Type, Any, List
+
+from lzy.api.v2.query import Query
 
 WB_NAMESPACE_FIELD_NAME = "__lzy_wb_namespace__"
 WB_NAME_FIELD_NAME = "__lzy_wb_name__"
@@ -44,3 +47,24 @@ def fetch_whiteboard_meta(typ: Type) -> Optional[DeclaredWhiteboardMeta]:
     return DeclaredWhiteboardMeta(
         getattr(typ, WB_NAMESPACE_FIELD_NAME), getattr(typ, WB_NAME_FIELD_NAME)
     )
+
+
+@dataclass
+class WhiteboardField:
+    name: str
+    url: Optional[str]
+
+
+@dataclass
+class WhiteboardInstanceMeta:
+    id: str
+
+
+class WhiteboardRepository(abc.ABC):
+    @abc.abstractmethod
+    def get(self, wb_id: str) -> Any:
+        pass
+
+    @abc.abstractmethod
+    def list(self, query: Query) -> List[Any]:
+        pass

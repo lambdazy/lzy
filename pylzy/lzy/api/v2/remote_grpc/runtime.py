@@ -34,6 +34,7 @@ from ai.lzy.v1.workflow.workflow_pb2 import (
 )
 from lzy.api.v2 import LzyCall, LzyWorkflow, Provisioning
 from lzy.api.v2.exceptions import LzyExecutionException
+from lzy.api.v2.remote_grpc.utils import build_token
 from lzy.api.v2.remote_grpc.workflow_service_client import (
     Completed,
     Executing,
@@ -44,14 +45,13 @@ from lzy.api.v2.remote_grpc.workflow_service_client import (
 from lzy.api.v2.runtime import (
     ProgressStep,
     Runtime,
-    WhiteboardField,
-    WhiteboardInstanceMeta,
 )
+from lzy.api.v2.whiteboard_declaration import WhiteboardField, WhiteboardInstanceMeta
 from lzy.api.v2.startup import ProcessingRequest
 from lzy.api.v2.utils._pickle import pickle
 from lzy.api.v2.utils.files import fileobj_hash, zipdir
+from lzy.api.v2.workflow import WbRef
 
-KEY_PATH_ENV = "LZY_KEY_PATH"
 LZY_ADDRESS_ENV = "LZY_ADDRESS_ENV"
 FETCH_STATUS_PERIOD_SEC = 10
 
@@ -72,31 +72,6 @@ def wrap_error(message: str = "Something went wrong"):
         return wrap
 
     return decorator
-
-
-def _build_token(username: str, key_path: Optional[str] = None) -> str:
-    if key_path is None:
-        key_path = os.getenv(KEY_PATH_ENV)
-        if key_path is None:
-            raise ValueError(
-                f"Key path must be specified by env variable {KEY_PATH_ENV} or in Runtime"
-            )
-
-    with open(key_path, "r") as f:
-        private_key = f.read()
-        return str(
-            jwt.encode(
-                {  # TODO(artolord) add renewing of token
-                    "iat": time.time(),
-                    "nbf": time.time(),
-                    "exp": time.time() + 7 * 24 * 60 * 60,  # 7 days
-                    "iss": username,
-                    "pvd": "INTERNAL",
-                },
-                private_key,
-                algorithm="PS256",
-            )
-        )
 
 
 class GrpcRuntime(Runtime):
@@ -147,6 +122,7 @@ class GrpcRuntime(Runtime):
     async def exec(
         self,
         calls: List[LzyCall],
+        links: Dict[str, WbRef],
         progress: Callable[[ProgressStep], None],
     ) -> None:
         assert self.__execution_id is not None
@@ -162,7 +138,7 @@ class GrpcRuntime(Runtime):
 
         _LOG.info("Building graph")
         graph = await asyncio.get_event_loop().run_in_executor(
-            None, self.__build_graph, calls, pools, zip(modules, urls)
+            None, self.__build_graph, calls, pools, zip(modules, urls), links
         )  # Running long op in threadpool
         _LOG.debug(f"Starting executing graph {graph}")
 
@@ -308,7 +284,7 @@ class GrpcRuntime(Runtime):
     async def __get_client(self):
         if self.__workflow_client is None:
             self.__workflow_client = await WorkflowServiceClient.create(
-                self.__workflow_address, _build_token(self.__username, self.__key_path)
+                self.__workflow_address, build_token(self.__username, self.__key_path)
             )
         return self.__workflow_client
 
@@ -325,6 +301,7 @@ class GrpcRuntime(Runtime):
         calls: List[LzyCall],
         pools: Sequence[VmPoolSpec],
         modules: Iterable[Tuple[str, str]],
+        links: Dict[str, WbRef]
     ) -> Graph:
         assert self.__workflow is not None
 
@@ -349,11 +326,15 @@ class GrpcRuntime(Runtime):
                 )
                 arg_descriptions.append((entry.typ, slot_path))
 
+                scheme = entry.data_scheme
+
                 data_descriptions[entry.storage_url] = DataDescription(
                     storageUri=entry.storage_url,
                     dataScheme=DataScheme(
-                        dataFormat=entry.data_scheme.scheme_type,
-                        schemeContent=entry.data_scheme.type,
+                        dataFormat=scheme.data_format,
+                        schemeFormat=scheme.schema_format,
+                        schemeContent=scheme.schema_content if scheme.schema_content else "",
+                        metadata=entry.data_scheme.meta
                     )
                     if entry.data_scheme is not None
                     else None,
@@ -372,8 +353,10 @@ class GrpcRuntime(Runtime):
                 data_descriptions[entry.storage_url] = DataDescription(
                     storageUri=entry.storage_url,
                     dataScheme=DataScheme(
-                        dataFormat=entry.data_scheme.scheme_type,
-                        schemeContent=entry.data_scheme.type,
+                        dataFormat=entry.data_scheme.data_format,
+                        schemeFormat=entry.data_scheme.schema_format,
+                        schemeContent=entry.data_scheme.schema_content if entry.data_scheme.schema_content else "",
+                        metadata=entry.data_scheme.meta
                     )
                     if entry.data_scheme is not None
                     else None,
@@ -387,14 +370,28 @@ class GrpcRuntime(Runtime):
                         path=slot_path, storageUri=entry.storage_url
                     )
                 )
+
+                res = links.pop(entry.storage_url, None)
+
+                wb_ref: Optional[DataDescription.WhiteboardRef] = None
+
+                if res is not None:
+                    wb_ref = DataDescription.WhiteboardRef(
+                        whiteboardId=res.whiteboard_id,
+                        fieldName=res.field_name
+                    )
+
                 data_descriptions[entry.storage_url] = DataDescription(
                     storageUri=entry.storage_url,
                     dataScheme=DataScheme(
-                        dataFormat=entry.data_scheme.scheme_type,
-                        schemeContent=entry.data_scheme.type,
+                        dataFormat=entry.data_scheme.data_format,
+                        schemeFormat=entry.data_scheme.schema_format,
+                        schemeContent=entry.data_scheme.schema_content if entry.data_scheme.schema_content else "",
+                        metadata=entry.data_scheme.meta
                     )
                     if entry.data_scheme is not None
                     else None,
+                    whiteboardRef=wb_ref
                 )
                 ret_descriptions.append(slot_path)
 

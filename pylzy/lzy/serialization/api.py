@@ -85,15 +85,15 @@ class Serializer(abc.ABC):
         """
         return StandardSchemaFormats.pickled_type.name
 
-    def schema(self, obj: Any) -> Schema:
+    def schema(self, typ: type) -> Schema:
         """
-        :param obj: object for serialization
+        :param typ: type of object for serialization
         :return: schema for the object
         """
         return Schema(
             self.format(),
             self.schema_format(),
-            base64.b64encode(cloudpickle.dumps(type(obj))).decode("ascii"),
+            base64.b64encode(cloudpickle.dumps(typ)).decode("ascii"),
             self.meta(),
         )
 

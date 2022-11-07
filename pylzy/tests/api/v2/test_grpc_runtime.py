@@ -1,4 +1,5 @@
 import asyncio
+import dataclasses
 import logging
 import tempfile
 from concurrent import futures
@@ -10,10 +11,12 @@ import aioboto3
 import grpc.aio
 import requests
 from Crypto.PublicKey import RSA
+from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
 from grpc import StatusCode
 from moto.server import ThreadedMotoServer
 
 from ai.lzy.v1.common.s3_pb2 import AmazonS3Endpoint, S3Locator
+from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, WhiteboardField, WhiteboardFieldInfo, Storage
 from ai.lzy.v1.workflow.workflow_service_pb2 import (
     CreateWorkflowRequest,
     CreateWorkflowResponse,
@@ -26,8 +29,10 @@ from ai.lzy.v1.workflow.workflow_service_pb2_grpc import (
     LzyWorkflowServiceServicer,
     add_LzyWorkflowServiceServicer_to_server,
 )
-from lzy.api.v2 import Lzy, LzyWorkflow, op
+from lzy.api.v2 import Lzy, op, whiteboard
+from lzy.api.v2.event_loop import LzyEventLoop
 from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
+from lzy.api.v2.remote_grpc.whiteboard import _ReadOnlyWhiteboard
 from lzy.api.v2.snapshot import DefaultSnapshot
 import lzy.api.v2.startup as startup
 from lzy.api.v2.utils._pickle import pickle
@@ -176,6 +181,13 @@ def c(d: int) -> str:
     return str(d)
 
 
+@dataclasses.dataclass
+@whiteboard("wb")
+class Wb:
+    b: str
+    a: int = 1
+
+
 class SnapshotTests(TestCase):
     def setUp(self) -> None:
         self.service = ThreadedMotoServer(port=12345)
@@ -263,3 +275,100 @@ class SnapshotTests(TestCase):
         response = requests.get(presigned_url, stream=True)
         data = next(iter(response.iter_content(16)))
         self.assertEqual(data, b"42")
+
+    def test_whiteboard(self):
+        storage_config = storage.StorageConfig(
+            bucket="bucket",
+            credentials=storage.AmazonCredentials(
+                self.endpoint_url, access_token="", secret_token=""
+            ),
+        )
+
+        storages = DefaultStorageRegistry()
+        storages.register_storage("storage", storage_config, True)
+
+        lzy = Lzy(storage_registry=storages)
+        with lzy.workflow("test") as wf:
+            wb = wf.create_whiteboard(Wb)
+            self.assertEqual(1, wb.a)
+            wb.b = "lol"
+            self.assertEqual("lol", wb.b)
+            wb.a = 2
+            self.assertEqual(2, wb.a)
+
+            with self.assertRaises(AttributeError):
+                wb.a = 3
+
+            with self.assertRaises(AttributeError):
+                wb.b = ""
+
+    def test_read_whiteboard(self):
+        storage_config = storage.StorageConfig(
+            bucket="bucket",
+            credentials=storage.AmazonCredentials(
+                self.endpoint_url, access_token="", secret_token=""
+            ),
+        )
+
+        storages = DefaultStorageRegistry()
+        storages.register_storage("storage", storage_config, True)
+        serializer = DefaultSerializerRegistry()
+
+        snapshot = DefaultSnapshot(storages, serializer)
+
+        e1 = snapshot.create_entry(str)
+        e2 = snapshot.create_entry(int)
+
+        LzyEventLoop.run_async(snapshot.put_data(e1.id, "42"))
+        LzyEventLoop.run_async(snapshot.put_data(e2.id, 42))
+
+        wb_desc = Whiteboard(
+            id="wb_id",
+            name="wb",
+            tags=["1", "2"],
+            namespace="namespace",
+            status=Whiteboard.Status.FINALIZED,
+            storage=Storage(
+                name="storage"
+            ),
+            fields=[
+                WhiteboardField(
+                    status=WhiteboardField.Status.FINALIZED,
+                    info=WhiteboardFieldInfo(
+                        name="a",
+                        linkedState=WhiteboardFieldInfo.LinkedField(
+                            scheme=DataScheme(
+                                dataFormat=e1.data_scheme.data_format,
+                                schemeFormat=e1.data_scheme.schema_format,
+                                schemeContent=e1.data_scheme.schema_content,
+                                metadata=e1.data_scheme.meta
+                            ),
+                            storageUri=e1.storage_url
+                        )
+                    )
+                ),
+                WhiteboardField(
+                    status=WhiteboardField.Status.FINALIZED,
+                    info=WhiteboardFieldInfo(
+                        name="b",
+                        linkedState=WhiteboardFieldInfo.LinkedField(
+                            scheme=DataScheme(
+                                dataFormat=e2.data_scheme.data_format,
+                                schemeFormat=e2.data_scheme.schema_format,
+                                schemeContent=e2.data_scheme.schema_content,
+                                metadata=e2.data_scheme.meta
+                            ),
+                            storageUri=e2.storage_url
+                        )
+                    )
+                )
+            ]
+        )
+
+        wb = _ReadOnlyWhiteboard(storage=storages, serializers=serializer, wb=wb_desc)
+
+        self.assertEqual("42", wb.a)
+        self.assertEqual(42, wb.b)
+
+        with self.assertRaises(AttributeError):
+            err = wb.c
