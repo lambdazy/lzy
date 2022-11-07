@@ -2,8 +2,8 @@ package ai.lzy.service.workflow;
 
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.service.PortalSlotsListener;
-import ai.lzy.v1.deprecated.LzyFsApi;
-import ai.lzy.v1.deprecated.LzyFsGrpc;
+import ai.lzy.v1.slots.LSA;
+import ai.lzy.v1.slots.LzySlotsApiGrpc;
 import ai.lzy.v1.workflow.LWFS;
 import com.google.common.net.HostAndPort;
 import com.google.protobuf.ByteString;
@@ -22,15 +22,15 @@ import java.util.concurrent.ExecutionException;
 
 public class PortalListenerTest {
 
-    private static class FsMock extends LzyFsGrpc.LzyFsImplBase {
+    private static class SlotsApiMock extends LzySlotsApiGrpc.LzySlotsApiImplBase {
         private final boolean waitForever;
 
-        private FsMock(boolean waitForever) {
+        private SlotsApiMock(boolean waitForever) {
             this.waitForever = waitForever;
         }
 
         @Override
-        public void openOutputSlot(LzyFsApi.SlotRequest request, StreamObserver<LzyFsApi.Message> responseObserver) {
+        public void openOutputSlot(LSA.SlotDataRequest request, StreamObserver<LSA.SlotDataChunk> responseObserver) {
             if (waitForever) {
                 try {
                     Thread.sleep(10000);
@@ -40,14 +40,16 @@ public class PortalListenerTest {
                 }
             }
             for (int i = 0; i < 10; i++) {
-                responseObserver.onNext(LzyFsApi.Message.newBuilder()
-                    .setChunk(ByteString.copyFromUtf8(String.valueOf(i)))
-                    .build());
+                responseObserver.onNext(
+                    LSA.SlotDataChunk.newBuilder()
+                        .setChunk(ByteString.copyFromUtf8(String.valueOf(i)))
+                        .build());
             }
 
-            responseObserver.onNext(LzyFsApi.Message.newBuilder()
-                .setControl(LzyFsApi.Message.Controls.EOS)
-                .build());
+            responseObserver.onNext(
+                LSA.SlotDataChunk.newBuilder()
+                    .setControl(LSA.SlotDataChunk.Control.EOS)
+                    .build());
 
             responseObserver.onCompleted();
         }
@@ -84,7 +86,7 @@ public class PortalListenerTest {
 
     @Test
     public void simple() throws IOException, ExecutionException, InterruptedException {
-        var service = new FsMock(false);
+        var service = new SlotsApiMock(false);
         var port = FreePortFinder.find(10000, 20000);
 
         var server = ServerBuilder.forPort(port)
@@ -106,7 +108,7 @@ public class PortalListenerTest {
 
     @Test
     public void cancel() throws IOException, ExecutionException, InterruptedException {
-        var service = new FsMock(true);
+        var service = new SlotsApiMock(true);
         var port = FreePortFinder.find(10000, 20000);
 
         var server = ServerBuilder.forPort(port)
