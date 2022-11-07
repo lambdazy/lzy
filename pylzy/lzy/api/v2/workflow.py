@@ -194,12 +194,12 @@ class LzyWorkflow:
             tags,
         )
 
-        wb = Whiteboard(typ, created_meta, self, defaults)
+        wb = _WritableWhiteboard(typ, created_meta, self, defaults)
 
         return cast(T, wb)
 
 
-class Whiteboard:
+class _WritableWhiteboard:
     __internal_fields = {
         "_Whiteboard__fields_dict", "_Whiteboard__fields_assigned", "_Whiteboard__whiteboard_meta",
         "_Whiteboard__workflow", "_Whiteboard__fields",
@@ -223,8 +223,8 @@ class Whiteboard:
         self.__fields.update(fields)
 
     def __setattr__(self, key: str, value: Any):
-        if key in Whiteboard.__internal_fields:  # To complete constructor
-            super(Whiteboard, self).__setattr__(key, value)
+        if key in _WritableWhiteboard.__internal_fields:  # To complete constructor
+            super(_WritableWhiteboard, self).__setattr__(key, value)
             return
 
         if key not in self.__fields_dict:
