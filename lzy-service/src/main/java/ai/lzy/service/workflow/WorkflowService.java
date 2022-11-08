@@ -46,14 +46,14 @@ import io.micronaut.core.util.StringUtils;
 import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.postgresql.util.PSQLException;
-import org.postgresql.util.PSQLState;
 
-import java.nio.file.Files;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
@@ -380,22 +380,21 @@ public class WorkflowService {
     }
 
     public LongRunning.Operation startAllocation(String userId, String workflowName, String sessionId,
-                                                 String executionId, String stdoutChannelId, String stderrChannelId, String portalId)
+                                                 String executionId, String stdoutChannelId, String stderrChannelId,
+                                                 String portalId)
     {
-
         String privateKey;
         try {
             var workerKeys = RsaUtils.generateRsaKeys();
-            var publicKey = Files.readString(workerKeys.publicKeyPath());
-            privateKey = Files.readString(workerKeys.privateKeyPath());
+            privateKey = workerKeys.privateKey();
 
             final var subj = subjectClient.createSubject(AuthProvider.INTERNAL, portalId, SubjectType.SERVANT,
-                new SubjectCredentials("main", publicKey, CredentialsType.PUBLIC_KEY));
+                new SubjectCredentials("main", workerKeys.publicKey(), CredentialsType.PUBLIC_KEY));
 
             abClient.setAccessBindings(new Workflow(userId + "/" + workflowName),
                 List.of(new AccessBinding(Role.LZY_WORKFLOW_OWNER, subj)));
         } catch (Exception e) {
-            LOG.error("Cannot build credentials for portal", e);
+            LOG.error("Cannot build credentials for portal, workflow <{}/{}>", userId, workflowName, e);
             throw new RuntimeException(e);
         }
 
@@ -451,31 +450,32 @@ public class WorkflowService {
                     LOG.warn("Cannot deserialize allocate response from operation with id: " + operationId);
                 }
             }
-            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(500));
+            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(300));
         }
         return null;
     }
 
-    public void readStdSlots(
-        LWFS.ReadStdSlotsRequest request, StreamObserver<LWFS.ReadStdSlotsResponse> responseObserver)
-    {
+    public void readStdSlots(LWFS.ReadStdSlotsRequest request, StreamObserver<LWFS.ReadStdSlotsResponse> response) {
         var executionId = request.getExecutionId();
         try {
             var portalDesc = withRetries(LOG, () -> workflowDao.getPortalDescription(executionId));
             if (portalDesc == null) {
-                throw Status.NOT_FOUND.withDescription("Portal not found").asRuntimeException();
+                response.onError(Status.NOT_FOUND.withDescription("Portal not found.").asException());
+                return;
             }
 
             if (portalDesc.portalStatus() != PortalDescription.PortalStatus.VM_READY) {
-                throw Status.UNAVAILABLE.withDescription("Portal is creating, retry later.").asRuntimeException();
+                response.onError(Status.FAILED_PRECONDITION
+                    .withDescription("Portal is creating, retry later.").asException());
+                return;
             }
 
-            var listener = new PortalSlotsListener(portalDesc.fsAddress(), portalDesc.portalId(), responseObserver);
+            var listener = new PortalSlotsListener(portalDesc.fsAddress(), portalDesc.portalId(), response);
             listenersByExecution.computeIfAbsent(executionId, k -> new ConcurrentLinkedQueue<>()).add(listener);
 
         } catch (Exception e) {
-            LOG.error("Error while reading slots: ", e);
-            throw Status.INTERNAL.withDescription(e.getMessage()).asRuntimeException();
+            LOG.error("Error while reading std slots: ", e);
+            response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
         }
     }
 
@@ -486,33 +486,44 @@ public class WorkflowService {
                 return;  // No portal for execution
             }
 
-            channelManagerClient.destroy(LCMPS.ChannelDestroyRequest.newBuilder()
-                .setChannelId(portalDesc.stderrChannelId())
-                .build());
+            try {
+                //noinspection ResultOfMethodCallIgnored
+                channelManagerClient.destroy(LCMPS.ChannelDestroyRequest.newBuilder()
+                    .setChannelId(portalDesc.stderrChannelId())
+                    .build());
+            } catch (Exception e) {
+                LOG.error("Exception while destroying portal {} stderr channel {}",
+                    portalDesc.portalId(), portalDesc.stderrChannelId(), e);
+            }
 
-            channelManagerClient.destroy(LCMPS.ChannelDestroyRequest.newBuilder()
-                .setChannelId(portalDesc.stdoutChannelId())
-                .build());
+            try {
+                //noinspection ResultOfMethodCallIgnored
+                channelManagerClient.destroy(LCMPS.ChannelDestroyRequest.newBuilder()
+                    .setChannelId(portalDesc.stdoutChannelId())
+                    .build());
+            } catch (Exception e) {
+                LOG.error("Exception while destroying portal {} stdout channel {}",
+                    portalDesc.portalId(), portalDesc.stdoutChannelId(), e);
+            }
 
+            //noinspection ResultOfMethodCallIgnored
             allocatorClient.free(VmAllocatorApi.FreeRequest.newBuilder()
                 .setVmId(portalDesc.vmId())
                 .build());
 
         } catch (Exception e) {
-            LOG.error("Cannot destroy portal for execution <{}>. Please destroy it by yourself", executionId);
+            LOG.error("Cannot destroy portal for execution <{}>. Please destroy it by yourself", executionId, e);
         }
 
     }
 
-    public void getAvailablePools(
-            GetAvailablePoolsRequest request, StreamObserver<GetAvailablePoolsResponse> responseObserver)
-    {
+    public void getAvailablePools(GetAvailablePoolsRequest req, StreamObserver<GetAvailablePoolsResponse> response) {
         var res = vmPoolClient.getVmPools(VmPoolServiceApi.GetVmPoolsRequest.newBuilder()
             .setWithSystemPools(false)
             .setWithUserPools(true)
             .build());
 
-        responseObserver.onNext(GetAvailablePoolsResponse.newBuilder()
+        response.onNext(GetAvailablePoolsResponse.newBuilder()
             .addAllPoolSpecs(
                 res.getUserPoolsList().stream()
                     .map(spec -> LWF.VmPoolSpec.newBuilder()
@@ -524,10 +535,9 @@ public class WorkflowService {
                         .setGpuType(spec.getGpuType())
                         .addAllZones(spec.getZonesList())
                         .build())
-                    .toList()
-            )
+                    .toList())
             .build());
 
-        responseObserver.onCompleted();
+        response.onCompleted();
     }
 }

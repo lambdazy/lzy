@@ -23,7 +23,6 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.time.Instant;
 import java.util.Date;
 
@@ -66,19 +65,19 @@ public class ClientAuthTest {
         var login = "user1";
 
         var subject = subjectClient.createSubject(AuthProvider.GITHUB, login, SubjectType.USER,
-            new SubjectCredentials("main", Files.readString(keys.publicKeyPath()), CredentialsType.PUBLIC_KEY));
+            new SubjectCredentials("main", keys.publicKey(), CredentialsType.PUBLIC_KEY));
         Assert.assertEquals(SubjectType.USER, subject.type());
 
         var subject2 = authClient.authenticate(
             JwtUtils.credentials(login, AuthProvider.GITHUB.name(), Date.from(Instant.now()), JwtUtils.afterDays(1),
-                Files.readString(keys.privateKeyPath())));
+                keys.privateKey()));
         Assert.assertEquals(subject, subject2);
 
         subjectClient.removeCredentials(subject, "main");
         try {
             authClient.authenticate(
                 JwtUtils.credentials(login, AuthProvider.GITHUB.name(), Date.from(Instant.now()), JwtUtils.afterDays(1),
-                    Files.readString(keys.privateKeyPath())));
+                    keys.privateKey()));
             Assert.fail();
         } catch (AuthPermissionDeniedException e) {
             // ignored

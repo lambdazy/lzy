@@ -26,8 +26,8 @@ public class JwtTest {
     @BeforeClass
     public static void beforeClass() throws Exception {
         var keys = RsaUtils.generateRsaKeys();
-        publicKey = CredentialsUtils.readPublicKey(keys.publicKeyPath());
-        privateKey = CredentialsUtils.readPrivateKey(keys.privateKeyPath());
+        publicKey = CredentialsUtils.readPublicKey(keys.publicKey());
+        privateKey = CredentialsUtils.readPrivateKey(keys.privateKey());
     }
 
     @Test

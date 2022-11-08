@@ -10,6 +10,7 @@ import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.DataScheme;
 import ai.lzy.model.db.test.DatabaseTestUtils;
+import ai.lzy.util.auth.credentials.CredentialsUtils;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.auth.credentials.RsaUtils;
@@ -39,9 +40,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import java.io.FileReader;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.time.Instant;
@@ -408,14 +407,12 @@ public class ApiTest extends BaseTestWithIam {
         throws IOException, InterruptedException, NoSuchAlgorithmException, InvalidKeySpecException
     {
         final var keys = RsaUtils.generateRsaKeys();
-        final JwtCredentials credentials;
-        try (final var reader = new FileReader(keys.privateKeyPath().toFile())) {
-            var from = Date.from(Instant.now());
-            var till = JwtUtils.afterDays(7);
-            credentials = new JwtCredentials(JwtUtils.buildJWT(login, provider, from, till, reader));
-        }
+        var from = Date.from(Instant.now());
+        var till = JwtUtils.afterDays(7);
+        var credentials = new JwtCredentials(JwtUtils.buildJWT(login, provider, from, till,
+            CredentialsUtils.readPrivateKey(keys.privateKey())));
 
-        final var publicKey = Files.readString(keys.publicKeyPath());
+        final var publicKey = keys.publicKey();
 
         return new GeneratedCredentials(publicKey, credentials);
     }

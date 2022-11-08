@@ -35,7 +35,6 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.nio.file.Files;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -102,11 +101,10 @@ public class AllocatorImpl implements ServantsAllocator {
         String privateKey;
         try {
             var workerKeys = RsaUtils.generateRsaKeys();
-            var publicKey = Files.readString(workerKeys.publicKeyPath());
-            privateKey = Files.readString(workerKeys.privateKeyPath());
+            privateKey = workerKeys.privateKey();
 
             final var subj = subjectClient.createSubject(AuthProvider.INTERNAL, servantId, SubjectType.SERVANT,
-                new SubjectCredentials("main", publicKey, CredentialsType.PUBLIC_KEY));
+                new SubjectCredentials("main", workerKeys.publicKey(), CredentialsType.PUBLIC_KEY));
 
             abClient.setAccessBindings(new Workflow(userId + "/" + workflowName),
                 List.of(new AccessBinding(Role.LZY_WORKFLOW_OWNER, subj)));

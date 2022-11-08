@@ -1,9 +1,6 @@
 package ai.lzy.service;
 
-import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.common.LMS;
-import ai.lzy.v1.deprecated.LzyFsApi;
-import ai.lzy.v1.deprecated.LzyFsGrpc;
 import ai.lzy.v1.slots.LSA;
 import ai.lzy.v1.slots.LzySlotsApiGrpc;
 import ai.lzy.v1.workflow.LWFS;
@@ -24,67 +21,77 @@ import java.util.function.Consumer;
 
 import static ai.lzy.portal.Portal.PORTAL_ERR_SLOT_NAME;
 import static ai.lzy.portal.Portal.PORTAL_OUT_SLOT_NAME;
+import static ai.lzy.util.grpc.GrpcUtils.NO_AUTH_TOKEN;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 public class PortalSlotsListener {
     private static final Logger LOG = LogManager.getLogger(PortalSlotsListener.class);
 
     private final String portalId;
     private final StreamObserver<LWFS.ReadStdSlotsResponse> consumer;
-    private final ManagedChannel channel;
-    private final LzySlotsApiGrpc.LzySlotsApiBlockingStub stub;
+    private final ManagedChannel slotsChannel;
+    private final LzySlotsApiGrpc.LzySlotsApiBlockingStub slotsApi;
 
     private final AtomicInteger openedCalls = new AtomicInteger(2);
     private final ClientCall<LSA.SlotDataRequest, LSA.SlotDataChunk> outCall;
     private final ClientCall<LSA.SlotDataRequest, LSA.SlotDataChunk> errCall;
 
 
-    public PortalSlotsListener(
-        HostAndPort portalAddress,
-        String portalId,
-        StreamObserver<LWFS.ReadStdSlotsResponse> consumer
-    )
+    public PortalSlotsListener(HostAndPort portalAddress, String portalId,
+                               StreamObserver<LWFS.ReadStdSlotsResponse> consumer)
     {
         this.portalId = portalId;
         this.consumer = consumer;
 
-        channel = GrpcUtils.newGrpcChannel(portalAddress, LzySlotsApiGrpc.SERVICE_NAME);
-        stub = GrpcUtils.newBlockingClient(LzySlotsApiGrpc.newBlockingStub(channel), "portal-fs-client", null);
+        slotsChannel = newGrpcChannel(portalAddress, LzySlotsApiGrpc.SERVICE_NAME);
+        slotsApi = newBlockingClient(LzySlotsApiGrpc.newBlockingStub(slotsChannel), "PortalStdSlots", NO_AUTH_TOKEN);
 
         outCall = createCall(PORTAL_OUT_SLOT_NAME, msg -> consumer.onNext(
             LWFS.ReadStdSlotsResponse.newBuilder()
                 .setStdout(
                     LWFS.ReadStdSlotsResponse.Data.newBuilder()
                         .addData(msg.toStringUtf8())
-                        .build()
-                ).build()));
+                        .build())
+                .build()));
 
         errCall = createCall(PORTAL_ERR_SLOT_NAME, msg -> consumer.onNext(
             LWFS.ReadStdSlotsResponse.newBuilder()
                 .setStderr(
                     LWFS.ReadStdSlotsResponse.Data.newBuilder()
                         .addData(msg.toStringUtf8())
-                        .build()
-                ).build()));
+                        .build())
+                .build()));
     }
 
-    public ClientCall<LSA.SlotDataRequest, LSA.SlotDataChunk> createCall(String slotName, Consumer<ByteString> consumer) {
-        var call = stub.getChannel().newCall(LzySlotsApiGrpc.getOpenOutputSlotMethod(), stub.getCallOptions());
+    public ClientCall<LSA.SlotDataRequest, LSA.SlotDataChunk> createCall(String slotName, Consumer<ByteString> cons) {
+        var call = slotsApi.getChannel().newCall(LzySlotsApiGrpc.getOpenOutputSlotMethod(), slotsApi.getCallOptions());
 
         var listener = new Listener<LSA.SlotDataChunk>() {
             @Override
             public void onMessage(LSA.SlotDataChunk message) {
-                if (message.hasControl() && message.getControl() == LSA.SlotDataChunk.Control.EOS) {
-                    LOG.info("Stream of portal <{}> slot <{}> is completed", portalId, slotName);
-                    return;
+                if (message.hasControl()) {
+                    switch (message.getControl()) {
+                        case EOS -> {
+                            LOG.info("Stream of portal <{}> slot <{}> is completed", portalId, slotName);
+                            return;
+                        }
+                        case UNRECOGNIZED -> {
+                            LOG.error("Unexpected control value, portal <{}>, slot <{}>", portalId, slotName);
+                            return;
+                        }
+                    }
                 }
-                consumer.accept(message.getChunk());
+
+                LOG.debug("Got data, portal <{}>, slot <{}>: {} bytes", portalId, slotName, message.getChunk().size());
+                cons.accept(message.getChunk());
                 call.request(1);
             }
 
             @Override
             public void onClose(Status status, Metadata trailers) {
                 if (!status.isOk()) {
-                    LOG.error("Error while listening for portal slots: ", status.asException());
+                    LOG.error("Error while listening for portal <{}> slots: ", portalId, status.asException());
                 }
                 callClosed();
             }
@@ -95,12 +102,11 @@ public class PortalSlotsListener {
         var msg = LSA.SlotDataRequest.newBuilder()
             .setSlotInstance(LMS.SlotInstance.newBuilder()
                 .setTaskId(portalId)
-                .setSlotUri("fs://some.portal.slot/")  // To mock real call to fs api.
+                .setSlotUri("fs://portal-%s/slot-%s".formatted(portalId, slotName)) // just debug string
                 .setSlot(
                     LMS.Slot.newBuilder()
                         .setName(slotName)
-                        .build()
-                )
+                        .build())
                 .build())
             .setOffset(0)
             .build();
@@ -114,11 +120,11 @@ public class PortalSlotsListener {
     private void callClosed() {
         if (openedCalls.decrementAndGet() == 0) {
             consumer.onCompleted();
-            channel.shutdown();
+            slotsChannel.shutdown();
             try {
-                channel.awaitTermination(10, TimeUnit.SECONDS);
+                slotsChannel.awaitTermination(10, TimeUnit.SECONDS);
             } catch (InterruptedException e) {
-                LOG.error("Cannot terminate channel", e);
+                LOG.error("Cannot terminate std slots channel", e);
             }
         }
     }
