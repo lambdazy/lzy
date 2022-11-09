@@ -78,8 +78,6 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var storageServiceAddress = config.getStorage().getAddress();
 
         storageServiceChannel = newGrpcChannel(storageServiceAddress, LzyStorageServiceGrpc.SERVICE_NAME);
-        var storageServiceClient = newBlockingClient(
-            LzyStorageServiceGrpc.newBlockingStub(storageServiceChannel), APP, () -> creds.get().token());
 
         storageOperationServiceChannel = newGrpcChannel(storageServiceAddress, LongRunningServiceGrpc.SERVICE_NAME);
         var storageOperationServiceClient = newBlockingClient(
