@@ -380,8 +380,7 @@ public class WorkflowService {
 
             var startAllocationTime = Instant.now();
             var operation = startAllocation(userId, workflowName, sessionId,
-                executionId, stdoutChannelId,
-                stderrChannelId, portalId);
+                stdoutChannelId, stderrChannelId, portalId);
             var opId = operation.getId();
 
             VmAllocatorApi.AllocateMetadata allocateMetadata;
