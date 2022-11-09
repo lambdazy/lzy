@@ -14,6 +14,7 @@ import ai.lzy.model.Constants;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.AlreadyExistsException;
+import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.service.PortalSlotsListener;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.PortalStatus;
@@ -25,6 +26,9 @@ import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmAllocatorApi;
+import ai.lzy.v1.VmPoolServiceApi;
+import ai.lzy.v1.VmPoolServiceGrpc;
+import ai.lzy.v1.channel.LCMPS;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub;
 import ai.lzy.v1.common.LMS3;
@@ -32,6 +36,7 @@ import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.storage.LSS;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
+import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LWFS.*;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -45,7 +50,6 @@ import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.nio.file.Files;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
@@ -69,6 +73,7 @@ import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 
 public class WorkflowService {
+    public static boolean PEEK_RANDOM_PORTAL_PORTS = false;  // Only for tests
     private static final Logger LOG = LogManager.getLogger(WorkflowService.class);
 
     private final LzyServiceConfig.StartupPortalConfig startupPortalConfig;
@@ -89,6 +94,8 @@ public class WorkflowService {
     private final LongRunningServiceGrpc.LongRunningServiceBlockingStub storageOperationServiceClient;
     private final LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerClient;
 
+    private final VmPoolServiceGrpc.VmPoolServiceBlockingStub vmPoolClient;
+
     private final SubjectServiceGrpcClient subjectClient;
     private final AccessBindingServiceGrpcClient abClient;
 
@@ -102,7 +109,8 @@ public class WorkflowService {
                            SubjectServiceGrpcClient subjectClient, AccessBindingServiceGrpcClient abClient,
                            ManagedChannel storageServiceChannel,
                            LongRunningServiceGrpc.LongRunningServiceBlockingStub storageOperationServiceClient,
-                           Storage storage, WorkflowDao workflowDao)
+                           Storage storage, WorkflowDao workflowDao,
+                           VmPoolServiceGrpc.VmPoolServiceBlockingStub vmPoolClient)
     {
         allocationTimeout = config.getWaitAllocationTimeout();
         createBucketTimeout = Duration.ofSeconds(1);
@@ -123,6 +131,7 @@ public class WorkflowService {
 
         this.storage = storage;
         this.workflowDao = workflowDao;
+        this.vmPoolClient = vmPoolClient;
 
         this.creds = config.getIam().createRenewableToken();
     }
@@ -220,14 +229,25 @@ public class WorkflowService {
             return;
         }
 
-        for (var listener : listenersByExecution.getOrDefault(request.getExecutionId(),
-            new ConcurrentLinkedQueue<>()))
-        {
-            listener.cancel("Workflow <" + request.getExecutionId() + "> is finished");
+        for (var listener: listenersByExecution.getOrDefault(request.getExecutionId(), new ConcurrentLinkedQueue<>())) {
+            listener.complete();
         }
 
         // final String[] bucket = {null};
         // bucket[0] = retrieve from db
+
+        destroyPortal(request.getExecutionId());
+
+        try {
+            var session = withRetries(LOG, () -> workflowDao.getAllocatorSession(request.getExecutionId()));
+
+            if (session != null) {
+                allocatorClient.deleteSession(VmAllocatorApi.DeleteSessionRequest.newBuilder().setSessionId(session).build());
+            }
+        } catch (Exception e) {
+            LOG.error("Cannot destroy allocator session: ", e);
+        }
+
         try {
             withRetries(defaultRetryPolicy(), LOG, () -> {
                 try (var transaction = TransactionHandle.create(storage)) {
@@ -330,6 +350,7 @@ public class WorkflowService {
         } catch (AlreadyExistsException e) {
             state.fail(Status.ALREADY_EXISTS, "Cannot create execution: " + e.getMessage());
         } catch (Exception e) {
+            LOG.error("Error while creating execution state in dao", e);
             state.fail(Status.INTERNAL, "Cannot create execution: " + e.getMessage());
         }
     }
@@ -422,30 +443,35 @@ public class WorkflowService {
     }
 
     public LongRunning.Operation startAllocation(String userId, String workflowName, String sessionId,
-                                                 String executionId, String stdoutChannelId, String stderrChannelId,
-                                                 String portalId)
+                                                 String stdoutChannelId, String stderrChannelId, String portalId)
     {
-
         String privateKey;
         try {
             var workerKeys = RsaUtils.generateRsaKeys();
-            var publicKey = Files.readString(workerKeys.publicKeyPath());
-            privateKey = Files.readString(workerKeys.privateKeyPath());
+            privateKey = workerKeys.privateKey();
 
             final var subj = subjectClient.createSubject(AuthProvider.INTERNAL, portalId, SubjectType.SERVANT,
-                new SubjectCredentials("main", publicKey, CredentialsType.PUBLIC_KEY));
+                new SubjectCredentials("main", workerKeys.publicKey(), CredentialsType.PUBLIC_KEY));
 
             abClient.setAccessBindings(new Workflow(userId + "/" + workflowName),
                 List.of(new AccessBinding(Role.LZY_WORKFLOW_OWNER, subj)));
         } catch (Exception e) {
-            LOG.error("Cannot build credentials for portal", e);
+            LOG.error("Cannot build credentials for portal, workflow <{}/{}>", userId, workflowName, e);
             throw new RuntimeException(e);
         }
 
+        var portalPort = PEEK_RANDOM_PORTAL_PORTS
+            ? FreePortFinder.find(10000, 11000)
+            : startupPortalConfig.getPortalApiPort();
+
+        var fsPort = PEEK_RANDOM_PORTAL_PORTS
+            ? FreePortFinder.find(11000, 12000)
+            : startupPortalConfig.getSlotsApiPort();
+
         var args = List.of(
             "-portal.portal-id=" + portalId,
-            "-portal.portal-api-port=" + startupPortalConfig.getPortalApiPort(),
-            "-portal.slots-api-port=" + startupPortalConfig.getSlotsApiPort(),
+            "-portal.portal-api-port=" + portalPort,
+            "-portal.slots-api-port=" + fsPort,
             "-portal.stdout-channel-id=" + stdoutChannelId,
             "-portal.stderr-channel-id=" + stderrChannelId,
             "-portal.channel-manager-address=" + channelManagerAddress,
@@ -486,7 +512,7 @@ public class WorkflowService {
                     LOG.warn("Cannot deserialize allocate response from operation with id: " + operationId);
                 }
             }
-            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(500));
+            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(300));
         }
         return null;
     }
@@ -496,19 +522,84 @@ public class WorkflowService {
         try {
             var portalDesc = withRetries(LOG, () -> workflowDao.getPortalDescription(executionId));
             if (portalDesc == null) {
-                throw Status.NOT_FOUND.withDescription("Portal not found").asRuntimeException();
+                response.onError(Status.NOT_FOUND.withDescription("Portal not found.").asException());
+                return;
             }
 
             if (portalDesc.portalStatus() != PortalDescription.PortalStatus.VM_READY) {
-                throw Status.UNAVAILABLE.withDescription("Portal is creating, retry later.").asRuntimeException();
+                response.onError(Status.FAILED_PRECONDITION
+                    .withDescription("Portal is creating, retry later.").asException());
+                return;
             }
 
             var listener = new PortalSlotsListener(portalDesc.fsAddress(), portalDesc.portalId(), response);
             listenersByExecution.computeIfAbsent(executionId, k -> new ConcurrentLinkedQueue<>()).add(listener);
 
         } catch (Exception e) {
-            LOG.error("Error while reading slots: ", e);
-            throw Status.INTERNAL.withDescription(e.getMessage()).asRuntimeException();
+            LOG.error("Error while reading std slots: ", e);
+            response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
         }
+    }
+
+    private void destroyPortal(String executionId) {
+        try {
+            var portalDesc = withRetries(LOG, () -> workflowDao.getPortalDescription(executionId));
+            if (portalDesc == null) {
+                return;  // No portal for execution
+            }
+
+            try {
+                //noinspection ResultOfMethodCallIgnored
+                channelManagerClient.destroy(LCMPS.ChannelDestroyRequest.newBuilder()
+                    .setChannelId(portalDesc.stderrChannelId())
+                    .build());
+            } catch (Exception e) {
+                LOG.error("Exception while destroying portal {} stderr channel {}",
+                    portalDesc.portalId(), portalDesc.stderrChannelId(), e);
+            }
+
+            try {
+                //noinspection ResultOfMethodCallIgnored
+                channelManagerClient.destroy(LCMPS.ChannelDestroyRequest.newBuilder()
+                    .setChannelId(portalDesc.stdoutChannelId())
+                    .build());
+            } catch (Exception e) {
+                LOG.error("Exception while destroying portal {} stdout channel {}",
+                    portalDesc.portalId(), portalDesc.stdoutChannelId(), e);
+            }
+
+            //noinspection ResultOfMethodCallIgnored
+            allocatorClient.free(VmAllocatorApi.FreeRequest.newBuilder()
+                .setVmId(portalDesc.vmId())
+                .build());
+
+        } catch (Exception e) {
+            LOG.error("Cannot destroy portal for execution <{}>. Please destroy it by yourself", executionId, e);
+        }
+
+    }
+
+    public void getAvailablePools(GetAvailablePoolsRequest req, StreamObserver<GetAvailablePoolsResponse> response) {
+        var res = vmPoolClient.getVmPools(VmPoolServiceApi.GetVmPoolsRequest.newBuilder()
+            .setWithSystemPools(false)
+            .setWithUserPools(true)
+            .build());
+
+        response.onNext(GetAvailablePoolsResponse.newBuilder()
+            .addAllPoolSpecs(
+                res.getUserPoolsList().stream()
+                    .map(spec -> LWF.VmPoolSpec.newBuilder()
+                        .setPoolSpecName(spec.getLabel())
+                        .setCpuCount(spec.getCpuCount())
+                        .setGpuCount(spec.getGpuCount())
+                        .setRamGb(spec.getRamGb())
+                        .setCpuType(spec.getCpuType())
+                        .setGpuType(spec.getGpuType())
+                        .addAllZones(spec.getZonesList())
+                        .build())
+                    .toList())
+            .build());
+
+        response.onCompleted();
     }
 }

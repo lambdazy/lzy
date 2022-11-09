@@ -5,7 +5,7 @@ import ai.lzy.allocator.disk.exceptions.NotFoundException;
 import javax.annotation.Nullable;
 
 public interface VolumeManager {
-    Volume create(DiskVolumeDescription diskVolumeType) throws NotFoundException;
+    Volume create(VolumeRequest.ResourceVolumeDescription resourceVolumeType) throws NotFoundException;
     VolumeClaim createClaim(Volume volume);
 
     @Nullable

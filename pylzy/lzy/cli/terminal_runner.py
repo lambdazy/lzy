@@ -41,7 +41,7 @@ def console_main():
                              "Optional: $LZY_MOUNT environment variable is used"
                              " as default value if key is not given. If $LZY_MOUNT is not given, /tmp/lzy is used.")
     parser.add_argument("-u", "--user", default=None, dest="user",
-                        type=str, help="User name. \n"
+                        type=str, help="User name (case sensitive!). \n"
                                        "Optional: $USER environment variable is used"
                                        " as default value if key is not given.")
     parser.add_argument("-d", "--debug-port", default="5006", dest="debug",

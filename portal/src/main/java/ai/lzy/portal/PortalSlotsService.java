@@ -3,6 +3,7 @@ package ai.lzy.portal;
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
+import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.SlotInstance;
@@ -24,11 +25,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.time.Duration;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Spliterator;
 import java.util.Spliterators;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
@@ -44,13 +48,13 @@ public class PortalSlotsService {
 
     private final Portal portal;
     private final ExecutorService longrunningExecutor;
-    private final Map<String, Operation> operations = new ConcurrentHashMap<>();
+    private final LocalOperationService operationService;
     private final LzySlotsApiGrpc.LzySlotsApiImplBase slotsApi;
-    private final LongRunningServiceGrpc.LongRunningServiceImplBase longrunningApi;
     private final LzyFsGrpc.LzyFsImplBase legacyWrapper;
 
     public PortalSlotsService(Portal portal) {
         this.portal = portal;
+        this.operationService = new LocalOperationService("Portal-" + portal.getPortalId());
 
         this.longrunningExecutor = new ThreadPoolExecutor(5, 20, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
             new ThreadFactory() {
@@ -66,7 +70,6 @@ public class PortalSlotsService {
             });
 
         this.slotsApi = new SlotsApiImpl();
-        this.longrunningApi = new LongRunningApiImpl();
         this.legacyWrapper = new LegacyWrapper();
     }
 
@@ -79,7 +82,7 @@ public class PortalSlotsService {
     }
 
     public LongRunningServiceGrpc.LongRunningServiceImplBase getLongrunningApi() {
-        return longrunningApi;
+        return operationService;
     }
 
     public LzyFsGrpc.LzyFsImplBase getLegacyWrapper() {
@@ -109,7 +112,7 @@ public class PortalSlotsService {
                         Any.pack(LSA.ConnectSlotMetadata.getDefaultInstance())
                     );
 
-                    operations.put(op.id(), op);
+                    operationService.registerOperation(op);
 
                     response.onNext(op.toProto());
                     response.onCompleted();
@@ -196,7 +199,6 @@ public class PortalSlotsService {
             final SlotInstance slotInstance = ProtoConverter.fromProto(request.getSlotInstance());
             LOG.info("Disconnect portal slot, taskId: {}, slotName: {}", slotInstance.taskId(), slotInstance.name());
 
-            assert slotInstance.taskId().isEmpty() : slotInstance.taskId();
             var slotName = slotInstance.name();
 
             boolean done = false;
@@ -372,8 +374,7 @@ public class PortalSlotsService {
         public void openOutputSlot(LSA.SlotDataRequest request, StreamObserver<LSA.SlotDataChunk> response) {
             final SlotInstance slotInstance = ProtoConverter.fromProto(request.getSlotInstance());
             LOG.info("Open portal output slot, uri: {}, offset: {}", slotInstance.uri(), request.getOffset());
-            final var slotUri = slotInstance.uri();
-            final var slotName = slotUri.getPath().substring(portal.getPortalId().length() + 1);
+            final var slotName = slotInstance.name();
 
             Consumer<LzyOutputSlot> reader = outputSlot -> {
                 try {
@@ -415,37 +416,6 @@ public class PortalSlotsService {
         }
     }
 
-    private class LongRunningApiImpl extends LongRunningServiceGrpc.LongRunningServiceImplBase {
-        @Override
-        public void get(LongRunning.GetOperationRequest request, StreamObserver<LongRunning.Operation> response) {
-            LOG.info("PortalSlotsLRApi::get op {}.", request.getOperationId());
-
-            var op = operations.get(request.getOperationId());
-            if (op == null) {
-                var msg = "Operation %s not found".formatted(request.getOperationId());
-                LOG.error(msg);
-                response.onError(Status.NOT_FOUND.withDescription(msg).asException());
-                return;
-            }
-
-            synchronized (op) {
-                if (op.done()) {
-                    if (op.response() != null) {
-                        LOG.info("Operation {} successfully completed.", op.id());
-                    } else if (op.error() != null) {
-                        LOG.info("Operation {} failed with error {}.", op.id(), op.error());
-                    } else {
-                        LOG.error("Operation {} is in unknown completed state {}.", op.id(), op.toString());
-                    }
-                    operations.remove(op.id());
-                }
-            }
-
-            response.onNext(op.toProto());
-            response.onCompleted();
-        }
-    }
-
     private class LegacyWrapper extends LzyFsGrpc.LzyFsImplBase {
         @Override
         public void createSlot(LzyFsApi.CreateSlotRequest request, StreamObserver<LzyFsApi.SlotCommandStatus> resp) {
@@ -483,16 +453,14 @@ public class PortalSlotsService {
             if (opRef[0] != null) {
                 while (true) {
                     LockSupport.parkNanos(Duration.ofMillis(50).toNanos());
-                    var op = operations.get(opRef[0].getId());
-                    if (op != null) {
-                        synchronized (op) {
-                            if (op.done()) {
-                                operations.remove(op.id());
-                                resp.onNext(LzyFsApi.SlotCommandStatus.getDefaultInstance());
-                                resp.onCompleted();
-                                return;
-                            }
+                    var done = operationService.isDone(opRef[0].getId());
+                    if (done != null) {
+                        if (done) {
+                            resp.onNext(LzyFsApi.SlotCommandStatus.getDefaultInstance());
+                            resp.onCompleted();
+                            return;
                         }
+                        // wait...
                     } else {
                         resp.onError(Status.INTERNAL.withDescription("Smth goes wrong").asException());
                         return;

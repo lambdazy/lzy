@@ -91,7 +91,7 @@ def _build_token(username: str, key_path: Optional[str] = None) -> str:
                     "nbf": time.time(),
                     "exp": time.time() + 7 * 24 * 60 * 60,  # 7 days
                     "iss": username,
-                    "pvd": "GITHUB",
+                    "pvd": "INTERNAL",
                 },
                 private_key,
                 algorithm="PS256",
@@ -122,7 +122,6 @@ class GrpcRuntime(Runtime):
         self.__running = False
         self.__loaded_modules: Set[str] = set()
 
-    @wrap_error("Cannot start workflow")
     async def start(self, workflow: LzyWorkflow):
         self.__running = True
         self.__workflow = workflow
@@ -145,7 +144,6 @@ class GrpcRuntime(Runtime):
             self.__listen_to_std_slots(exec_id)
         )
 
-    @wrap_error("Cannot execute graph")
     async def exec(
         self,
         calls: List[LzyCall],
@@ -166,6 +164,7 @@ class GrpcRuntime(Runtime):
         graph = await asyncio.get_event_loop().run_in_executor(
             None, self.__build_graph, calls, pools, zip(modules, urls)
         )  # Running long op in threadpool
+        _LOG.debug(f"Starting executing graph {graph}")
 
         graph_id = await client.execute_graph(self.__execution_id, graph)
         _LOG.info(f"Send graph to Lzy, graph_id={graph_id}")
@@ -189,7 +188,6 @@ class GrpcRuntime(Runtime):
                     f"Failed executing graph {graph_id}: {status.description}"
                 )
 
-    @wrap_error("Cannot destroy workflow")
     async def destroy(self):
         client = await self.__get_client()
         _LOG.info(f"Finishing workflow {self.__workflow.name}")
@@ -221,7 +219,6 @@ class GrpcRuntime(Runtime):
             self.__workflow_client = None
             self.__running = False
 
-    @wrap_error("Cannot create whiteboard")
     async def create_whiteboard(
         self,
         namespace: str,
@@ -236,7 +233,6 @@ class GrpcRuntime(Runtime):
         _LOG.info(f"Whiteboard created {namespace}:{name}")
         return WhiteboardInstanceMeta(id=whiteboard_id)
 
-    @wrap_error("Cannot link whiteboard")
     async def link(self, wb_id: str, field_name: str, url: str) -> None:
         client = await self.__get_client()
         _LOG.info(f"Linking whiteboard field {wb_id}:{field_name} to {url}")
@@ -333,7 +329,7 @@ class GrpcRuntime(Runtime):
         assert self.__workflow is not None
 
         operations: List[Operation] = []
-        data_descriptions: List[DataDescription] = []
+        data_descriptions: Dict[str, DataDescription] = {}
         pool_to_call: List[Tuple[VmPoolSpec, LzyCall]] = []
 
         for call in calls:
@@ -353,6 +349,16 @@ class GrpcRuntime(Runtime):
                 )
                 arg_descriptions.append((entry.typ, slot_path))
 
+                data_descriptions[entry.storage_url] = DataDescription(
+                    storageUri=entry.storage_url,
+                    dataScheme=DataScheme(
+                        dataFormat=entry.data_scheme.scheme_type,
+                        schemeContent=entry.data_scheme.type,
+                    )
+                    if entry.data_scheme is not None
+                    else None,
+                )
+
             for name, eid in call.kwarg_entry_ids.items():
                 entry = self.__workflow.snapshot.get(eid)
                 slot_path = f"/{call.id}/arg_{name}"
@@ -363,6 +369,16 @@ class GrpcRuntime(Runtime):
                 )
                 kwarg_descriptions[name] = (entry.typ, slot_path)
 
+                data_descriptions[entry.storage_url] = DataDescription(
+                    storageUri=entry.storage_url,
+                    dataScheme=DataScheme(
+                        dataFormat=entry.data_scheme.scheme_type,
+                        schemeContent=entry.data_scheme.type,
+                    )
+                    if entry.data_scheme is not None
+                    else None,
+                )
+
             for i, eid in enumerate(call.entry_ids):
                 slot_path = f"/{call.id}/ret_{i}"
                 entry = self.__workflow.snapshot.get(eid)
@@ -371,16 +387,14 @@ class GrpcRuntime(Runtime):
                         path=slot_path, storageUri=entry.storage_url
                     )
                 )
-                data_descriptions.append(
-                    DataDescription(
-                        storageUri=entry.storage_url,
-                        dataScheme=DataScheme(
-                            dataFormat=entry.data_scheme.scheme_type,
-                            schemeContent=entry.data_scheme.type,
-                        )
-                        if entry.data_scheme is not None
-                        else None,
+                data_descriptions[entry.storage_url] = DataDescription(
+                    storageUri=entry.storage_url,
+                    dataScheme=DataScheme(
+                        dataFormat=entry.data_scheme.scheme_type,
+                        schemeContent=entry.data_scheme.type,
                     )
+                    if entry.data_scheme is not None
+                    else None,
                 )
                 ret_descriptions.append(slot_path)
 
@@ -451,7 +465,7 @@ class GrpcRuntime(Runtime):
 
         return Graph(
             name="",
-            dataDescriptions=data_descriptions,
+            dataDescriptions=list(data_descriptions.values()),
             operations=operations,
             zone="",
         )

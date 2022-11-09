@@ -153,7 +153,7 @@ public class ChannelManagerMock {
         public void destroy(LCMPS.ChannelDestroyRequest request, StreamObserver<LCMPS.ChannelDestroyResponse> response)
         {
             LOG.info("destroy {}", JsonUtils.printRequest(request));
-            var channel = directChannels.get(request.getChannelId());
+            var channel = directChannels.remove(request.getChannelId());
             if (channel == null) {
                 response.onError(Status.NOT_FOUND.asException());
                 return;

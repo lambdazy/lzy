@@ -11,8 +11,8 @@ public class SignTokenTest {
     @Test
     public void test() throws Exception {
         var keys = RsaUtils.generateRsaKeys();
-        var publicKey = CredentialsUtils.readPublicKey(keys.publicKeyPath());
-        var privateKey = CredentialsUtils.readPrivateKey(keys.privateKeyPath());
+        var publicKey = CredentialsUtils.readPublicKey(keys.publicKey());
+        var privateKey = CredentialsUtils.readPrivateKey(keys.privateKey());
 
         var anyToken = UUID.randomUUID().toString();
         var tokenSignature = CredentialsUtils.signToken(anyToken, privateKey);

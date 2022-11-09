@@ -1,6 +1,4 @@
 import inspect
-import logging
-import sys
 from typing import Any, Callable, Dict, Iterator, Optional, Sequence, TypeVar
 
 from lzy.api.v2.call import LzyCall, wrap_call
@@ -69,32 +67,10 @@ def op(
             else:
                 output_types = infer_result.value  # expecting multiple return types
 
-        active_workflow: Optional[LzyWorkflow] = LzyWorkflow.get_active()
-        if active_workflow is None:
-            return f
-
-        if env is None:
-            generated_env = generate_env(
-                active_workflow.auto_py_env,
-                python_version,
-                libraries,
-                conda_yaml_path,
-                docker_image,
-                docker_pull_policy,
-                local_modules_path,
-            )
-        else:
-            generated_env = env
-
-        merged_env = merge_envs(generated_env, active_workflow.default_env)
-
-        prov = provisioning_.override(
-            Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb)
-        ).override(active_workflow.provisioning)
-
         # yep, create lazy constructor and return it
         # instead of function
-        return wrap_call(f, output_types, prov, merged_env, active_workflow)
+        return wrap_call(f, output_types, python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy,
+                         local_modules_path, provisioning_, cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb, env)
 
     if func is None:
         return deco

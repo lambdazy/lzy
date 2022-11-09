@@ -47,7 +47,7 @@ class AmazonClient(AsyncStorageClient):
                     Key=blob,
                 )
                 return True
-        except ClientError:
+        except ClientError as e:
             return False
 
     def generate_uri(self, container: str, blob: str) -> str:

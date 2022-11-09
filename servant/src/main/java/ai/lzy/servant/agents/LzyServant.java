@@ -48,7 +48,8 @@ public class LzyServant implements Closeable {
     private final CompletableFuture<Boolean> started = new CompletableFuture<>();
 
     public LzyServant(LzyAgentConfig config)
-        throws URISyntaxException, IOException {
+        throws URISyntaxException, IOException
+    {
         agent = new LzyAgent(config, "LzyServant", new ServantImpl());
         LOG.info("Starting servant at {}://{}:{}/{} with fs at {}:{}",
             UriScheme.LzyServant.scheme(),

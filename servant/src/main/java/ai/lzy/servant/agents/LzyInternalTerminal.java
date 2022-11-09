@@ -30,7 +30,8 @@ public class LzyInternalTerminal implements Closeable {
     private final CompletableFuture<Boolean> started = new CompletableFuture<>();
 
     public LzyInternalTerminal(LzyAgentConfig config)
-        throws URISyntaxException, IOException {
+        throws URISyntaxException, IOException
+    {
         agent = new LzyAgent(LzyAgentConfig.updateAgentId(config, "iterm_" + config.getUser()),
             "LzyInternalTerminal", new Impl());
 

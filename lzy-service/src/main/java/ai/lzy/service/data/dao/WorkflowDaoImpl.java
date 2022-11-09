@@ -100,6 +100,12 @@ public class WorkflowDaoImpl implements WorkflowDao {
         FROM workflow_executions
         WHERE execution_id = ?""";
 
+    public static final String QUERY_GET_ALLOCATOR_SESSION = """
+        SELECT allocator_session_id
+        FROM workflow_executions
+        WHERE execution_id = ?
+        """;
+
     public static final String QUERY_GET_PORTAL_DESCRIPTION = """
         SELECT
           portal,
@@ -128,20 +134,23 @@ public class WorkflowDaoImpl implements WorkflowDao {
         try (var transaction = TransactionHandle.getOrCreate(storage, outerTransaction)) {
             DbOperation.execute(transaction, storage, con -> {
                 // TODO: add `nowait` and handle it's warning or error
-                var activeExecStmt = con.prepareStatement(QUERY_GET_ACTIVE_EXECUTION_ID + " FOR UPDATE",
-                    ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
+                var activeExecStmt = con.prepareStatement(QUERY_GET_ACTIVE_EXECUTION_ID + " FOR UPDATE");
                 activeExecStmt.setString(1, userId);
                 activeExecStmt.setString(2, workflowName);
 
                 boolean update = false;
-                ResultSet rs = activeExecStmt.executeQuery();
-                if (rs.next()) {
-                    var existingExecutionId = rs.getString("active_execution_id");
-                    if (StringUtils.isNotEmpty(existingExecutionId)) {
-                        throw new AlreadyExistsException(String.format(
-                            "Attempt to start one more instance of workflow: active is '%s'", existingExecutionId));
+                String existingExecutionId = null;
+                try (var rs = activeExecStmt.executeQuery()) {
+                    if (rs.next()) {
+                        existingExecutionId = rs.getString("active_execution_id");
+                        if (StringUtils.isNotEmpty(existingExecutionId)) {
+                            throw new AlreadyExistsException(
+                                String.format("Attempt to start one more instance of workflow: active is '%s'",
+                                existingExecutionId)
+                            );
+                        }
+                        update = true;
                     }
-                    update = true;
                 }
 
                 try (var statement = con.prepareStatement(QUERY_INSERT_EXECUTION)) {
@@ -156,8 +165,14 @@ public class WorkflowDaoImpl implements WorkflowDao {
                 }
 
                 if (update) {
-                    rs.updateString("active_execution_id", executionId);
-                    rs.updateRow();
+                    try (var statement = con.prepareStatement(QUERY_UPDATE_ACTIVE_EXECUTION)) {
+                        statement.setString(1, executionId);
+                        statement.setString(2, userId);
+                        statement.setString(3, workflowName);
+                        statement.setString(4, existingExecutionId);
+
+                        statement.executeUpdate();
+                    }
                     return;
                 }
 
@@ -431,5 +446,22 @@ public class WorkflowDaoImpl implements WorkflowDao {
             }
         });
         return descriptions[0];
+    }
+
+    @Nullable
+    public String getAllocatorSession(String executionId) throws SQLException {
+        String[] res = {null};
+
+        DbOperation.execute(null, storage, con -> {
+            try (var statement = con.prepareStatement(QUERY_GET_ALLOCATOR_SESSION)) {
+                statement.setString(1, executionId);
+                ResultSet rs = statement.executeQuery();
+
+                if (rs.next()) {
+                    res[0] = rs.getString(1);
+                }
+            }
+        });
+        return res[0];
     }
 }

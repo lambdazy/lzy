@@ -40,7 +40,6 @@ import org.junit.Before;
 import org.junit.Rule;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -50,7 +49,9 @@ import java.util.concurrent.locks.LockSupport;
 
 import static ai.lzy.channelmanager.grpc.ProtoConverter.makeCreateDirectChannelCommand;
 import static ai.lzy.channelmanager.grpc.ProtoConverter.makeDestroyChannelCommand;
-import static ai.lzy.util.grpc.GrpcUtils.*;
+import static ai.lzy.util.grpc.GrpcUtils.NO_AUTH_TOKEN;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 public class PortalTestBase {
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
@@ -272,7 +273,7 @@ public class PortalTestBase {
         var schedulerDuration = Duration.ofSeconds(1);
         String privateKey;
         try {
-            privateKey = Files.readString(RsaUtils.generateRsaKeys().privateKeyPath());
+            privateKey = RsaUtils.generateRsaKeys().privateKey();
         } catch (Exception e) {
             LOG.error("Cannot build credentials for portal", e);
             throw new RuntimeException(e);

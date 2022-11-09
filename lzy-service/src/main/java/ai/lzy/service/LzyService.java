@@ -104,7 +104,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
         workflowService = new WorkflowService(config, channelManagerClient, allocatorClient,
             operationServiceClient, subjectClient, abClient, storageServiceChannel, storageOperationServiceClient,
-            storage, workflowDao);
+            storage, workflowDao, vmPoolClient);
         whiteboardService = new WhiteboardService(whiteboardClient);
         graphExecutionService = new GraphExecutionService(creds, workflowDao, graphDao, executionDao,
             vmPoolClient, graphExecutorClient, channelManagerClient);
@@ -167,5 +167,12 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     @Override
     public void readStdSlots(ReadStdSlotsRequest request, StreamObserver<ReadStdSlotsResponse> responseObserver) {
         workflowService.readStdSlots(request, responseObserver);
+    }
+
+    @Override
+    public void getAvailablePools(GetAvailablePoolsRequest request,
+                                  StreamObserver<GetAvailablePoolsResponse> responseObserver)
+    {
+        workflowService.getAvailablePools(request, responseObserver);
     }
 }

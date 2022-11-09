@@ -278,8 +278,7 @@ class FsApiImpl extends LzyFsImplBase {
     public void openOutputSlot(LzyFsApi.SlotRequest request, StreamObserver<LzyFsApi.Message> response) {
         final SlotInstance slotInstance = ProtoConverter.fromProto(request.getSlotInstance());
         LOG.info("Open portal output slot, uri: {}, offset: {}", slotInstance.uri(), request.getOffset());
-        final var slotUri = slotInstance.uri();
-        final var slotName = slotUri.getPath().substring(portal.getPortalId().length() + 1);
+        final var slotName = slotInstance.name();
 
         Consumer<LzyOutputSlot> reader = outputSlot -> {
             try {

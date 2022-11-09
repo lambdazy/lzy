@@ -161,7 +161,8 @@ public class Run implements LzyCommand {
             try {
                 LOG.info("[progress] " + JsonFormat.printer().print(progress));
                 if (progress.getStatus() == LzyTask.TaskProgress.Status.ERROR
-                    || progress.getStatus() == LzyTask.TaskProgress.Status.SUCCESS) {
+                    || progress.getStatus() == LzyTask.TaskProgress.Status.SUCCESS)
+                {
                     exit[0] = progress.getRc();
                     descriptionArr[0] = progress.getDescription();
                     System.in.close();

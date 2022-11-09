@@ -19,7 +19,8 @@ public class CustomConfigurationFactory extends ConfigurationFactory {
     public Configuration getConfiguration(LoggerContext loggerContext, ConfigurationSource configurationSource) {
 
         if (Objects.equals(System.getenv("LOGS_APPENDER"), "Kafka")
-                && System.getenv("SERVANT_ID") == null) {
+                && System.getenv("SERVANT_ID") == null)
+        {
             throw new RuntimeException("SERVANT_ID env is null. Logging configuration failed.");
         }
 

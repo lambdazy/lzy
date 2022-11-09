@@ -30,7 +30,7 @@ public abstract class LocalScenario extends LzyBaseTest {
     protected LzyChannelManagerContext channelManagerContext;
     protected S3Mock s3Mock;
     protected LzyTerminalTestContext.Terminal terminal;
-    protected RsaUtils.Keys terminalKeys;
+    protected RsaUtils.RsaKeysFiles terminalKeys;
 
     @Before
     public void setUp() {
@@ -44,7 +44,7 @@ public abstract class LocalScenario extends LzyBaseTest {
         createServantLzyFolder();
 
         try {
-            terminalKeys = RsaUtils.generateRsaKeys();
+            terminalKeys = RsaUtils.generateRsaKeysFiles();
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }

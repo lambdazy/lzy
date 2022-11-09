@@ -1,28 +1,56 @@
+import base64
 import dataclasses
 import datetime
 import os
 import sys
 import time
-from typing import Any, Callable, Mapping, Sequence, Tuple, Type
+from typing import Any, Callable, Mapping, Sequence, Tuple, Type, TypeVar, cast, Optional
 
-from lzy.api.v2.utils._pickle import unpickle
 from lzy.serialization.api import SerializerRegistry
+
+import cloudpickle
+
+T = TypeVar("T")
+
+
+_lzy_mount: Optional[str] = None  # for tests only
+
+
+def unpickle(base64_str: str, obj_type: Type[T] = None) -> T:
+    t = cloudpickle.loads(base64.b64decode(base64_str.encode("ascii")))
+    return cast(T, t)
 
 
 def read_data(path: str, typ: Type, serializers: SerializerRegistry) -> Any:
-    with open(path, "rb") as file:
+    ser = serializers.find_serializer_by_type(typ)
+
+    log(f"Reading data from {path} with type {typ} and serializer {type(ser)}")
+
+    mount = os.getenv("LZY_MOUNT", _lzy_mount)
+    assert mount is not None
+
+    with open(mount + path, "rb") as file:
         # Wait for slot become open
         while file.read(1) is None:
             time.sleep(0)  # Thread.yield
         file.seek(0)
-        data = serializers.find_serializer_by_type(typ).deserialize(file, typ)  # type: ignore
+        data = ser.deserialize(file, typ)  # type: ignore
         return data
 
 
 def write_data(path: str, data: Any, serializers: SerializerRegistry):
+    mount = os.getenv("LZY_MOUNT", _lzy_mount)
+    assert mount is not None
+
     typ = type(data)
-    with open(path, "wb") as out_handle:
-        serializers.find_serializer_by_type(typ).serialize(data, out_handle)
+
+    ser = serializers.find_serializer_by_type(typ)
+    log(f"Writing data to {path} with type {typ} and serializer {type(ser)}")
+
+    with open(mount + path, "wb") as out_handle:
+        out_handle.seek(0)
+        out_handle.flush()
+        ser.serialize(data, out_handle)
         out_handle.flush()
         os.fsync(out_handle.fileno())
 
@@ -50,7 +78,7 @@ def process_execution(
         for name, (typ, path) in kwargs_paths.items()
     }
 
-    log("Executing operation")
+    log(f"Executing operation with args <{args}> and kwargs <{kwargs}>")
     try:
         res = op(*args, **kwargs)
     except Exception as e:
@@ -83,4 +111,5 @@ def main(arg: str):
 
 
 if __name__ == "__main__":
+    log(f"Running with environment: {os.environ}")
     main(sys.argv[1])

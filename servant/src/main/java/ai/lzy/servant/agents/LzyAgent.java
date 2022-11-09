@@ -51,7 +51,8 @@ public class LzyAgent implements Closeable {
     private final LzyContext context;
 
     protected LzyAgent(LzyAgentConfig config, String agentName, BindableService... agentServices)
-        throws URISyntaxException, IOException {
+        throws URISyntaxException, IOException
+    {
         final long start = System.currentTimeMillis();
 
         this.config = config;
@@ -221,7 +222,8 @@ public class LzyAgent implements Closeable {
     }
 
     public void status(@SuppressWarnings("unused") LzyAuth.Empty request,
-                       StreamObserver<Servant.ServantStatus> responseObserver) {
+                       StreamObserver<Servant.ServantStatus> responseObserver)
+    {
         final Servant.ServantStatus.Builder builder = Servant.ServantStatus.newBuilder();
         builder.setStatus(status.get().toGrpcServantStatus());
         builder.addAllConnections(context.slots().map(slot -> {

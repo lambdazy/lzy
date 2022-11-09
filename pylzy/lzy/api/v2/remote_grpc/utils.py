@@ -103,11 +103,8 @@ async def async_iter(it: Iterable[T]) -> AsyncIterable[T]:
         yield i
 
 
-class _GenericClientInterceptor(
-    aio.UnaryUnaryClientInterceptor,
-    aio.UnaryStreamClientInterceptor,
-    aio.StreamUnaryClientInterceptor,
-    aio.StreamStreamClientInterceptor,
+class _GenericUnaryUnaryInterceptor(
+    aio.UnaryUnaryClientInterceptor
 ):
     def __init__(self, interceptor_function: InterceptorFunction):
         self._fn = interceptor_function
@@ -121,14 +118,28 @@ class _GenericClientInterceptor(
             response = await continuation(new_details, resp)
         return postprocess(response) if postprocess else response
 
+
+class _GenericUnaryStreamInterceptor(
+    aio.UnaryStreamClientInterceptor
+):
+    def __init__(self, interceptor_function: InterceptorFunction):
+        self._fn = interceptor_function
+
     async def intercept_unary_stream(self, continuation, client_call_details, request):
         new_details, new_request_iterator, postprocess = await self._fn(
             client_call_details, async_iter((request,))
         )
         response = None
         async for resp in new_request_iterator:
-            response = continuation(new_details, resp)
+            response = await continuation(new_details, resp)
         return postprocess(response) if postprocess else response
+
+
+class _GenericStreamUnaryInterceptor(
+    aio.StreamUnaryClientInterceptor
+):
+    def __init__(self, interceptor_function: InterceptorFunction):
+        self._fn = interceptor_function
 
     async def intercept_stream_unary(
         self, continuation, client_call_details, request_iterator
@@ -136,8 +147,15 @@ class _GenericClientInterceptor(
         new_details, new_request_iterator, postprocess = await self._fn(
             client_call_details, request_iterator
         )
-        response = continuation(new_details, new_request_iterator)
+        response = await continuation(new_details, new_request_iterator)
         return postprocess(response) if postprocess else response
+
+
+class _GenericStreamStreamInterceptor(
+    aio.StreamStreamClientInterceptor
+):
+    def __init__(self, interceptor_function: InterceptorFunction):
+        self._fn = interceptor_function
 
     async def intercept_stream_stream(
         self, continuation, client_call_details, request_iterator
@@ -145,11 +163,11 @@ class _GenericClientInterceptor(
         new_details, new_request_iterator, postprocess = await self._fn(
             client_call_details, request_iterator
         )
-        response_it = continuation(new_details, new_request_iterator)
+        response_it = await continuation(new_details, new_request_iterator)
         return postprocess(response_it) if postprocess else response_it
 
 
-def add_headers_interceptor(headers: Mapping[str, str]) -> ClientInterceptor:
+def add_headers_interceptor(headers: Mapping[str, str]) -> List[ClientInterceptor]:
     async def intercept(
         details: ClientCallDetails, request_iter: AsyncIterable
     ) -> Tuple[ClientCallDetails, AsyncIterable[RequestType], None]:
@@ -160,11 +178,12 @@ def add_headers_interceptor(headers: Mapping[str, str]) -> ClientInterceptor:
         new_details = ClientCallDetails(
             details.method,
             details.timeout,
-            details.metadata,  # type: ignore
+            meta,  # type: ignore
             details.credentials,
             details.wait_for_ready,
         )  # type: ignore
 
         return new_details, request_iter, None
 
-    return _GenericClientInterceptor(intercept)
+    return [_GenericUnaryUnaryInterceptor(intercept), _GenericUnaryStreamInterceptor(intercept),
+            _GenericStreamUnaryInterceptor(intercept), _GenericStreamStreamInterceptor(intercept)]
