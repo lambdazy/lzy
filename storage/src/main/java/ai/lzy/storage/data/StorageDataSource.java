@@ -1,6 +1,7 @@
-package ai.lzy.storage;
+package ai.lzy.storage.data;
 
 import ai.lzy.model.db.Storage;
+import ai.lzy.storage.config.StorageConfig;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;

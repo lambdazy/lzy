@@ -43,6 +43,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     private final ManagedChannel allocatorServiceChannel;
     private final ManagedChannel operationServiceChannel;
     private final ManagedChannel storageServiceChannel;
+    private final ManagedChannel storageOperationServiceChannel;
     private final ManagedChannel channelManagerChannel;
     private final ManagedChannel iamChannel;
     private final ManagedChannel whiteboardChannel;
@@ -74,9 +75,15 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var operationServiceClient = newBlockingClient(
             LongRunningServiceGrpc.newBlockingStub(operationServiceChannel), APP, () -> creds.get().token());
 
-        storageServiceChannel = newGrpcChannel(config.getStorage().getAddress(), LzyStorageServiceGrpc.SERVICE_NAME);
+        var storageServiceAddress = config.getStorage().getAddress();
+
+        storageServiceChannel = newGrpcChannel(storageServiceAddress, LzyStorageServiceGrpc.SERVICE_NAME);
         var storageServiceClient = newBlockingClient(
             LzyStorageServiceGrpc.newBlockingStub(storageServiceChannel), APP, () -> creds.get().token());
+
+        storageOperationServiceChannel = newGrpcChannel(storageServiceAddress, LongRunningServiceGrpc.SERVICE_NAME);
+        var storageOperationServiceClient = newBlockingClient(
+            LongRunningServiceGrpc.newBlockingStub(storageOperationServiceChannel), APP, () -> creds.get().token());
 
         channelManagerChannel = newGrpcChannel(channelManagerAddress, LzyChannelManagerPrivateGrpc.SERVICE_NAME);
         var channelManagerClient = newBlockingClient(
@@ -96,7 +103,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             GraphExecutorGrpc.newBlockingStub(graphExecutorChannel), APP, () -> creds.get().token());
 
         workflowService = new WorkflowService(config, channelManagerClient, allocatorClient,
-            operationServiceClient, subjectClient, abClient, storageServiceClient, storage, workflowDao);
+            operationServiceClient, subjectClient, abClient, storageServiceChannel, storageOperationServiceClient,
+            storage, workflowDao);
         whiteboardService = new WhiteboardService(whiteboardClient);
         graphExecutionService = new GraphExecutionService(creds, workflowDao, graphDao, executionDao,
             vmPoolClient, graphExecutorClient, channelManagerClient);

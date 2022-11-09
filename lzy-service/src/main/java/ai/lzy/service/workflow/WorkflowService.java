@@ -20,6 +20,7 @@ import ai.lzy.service.data.PortalStatus;
 import ai.lzy.service.data.StorageType;
 import ai.lzy.service.data.dao.PortalDescription;
 import ai.lzy.service.data.dao.WorkflowDao;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.AllocatorGrpc;
@@ -29,11 +30,13 @@ import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBl
 import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
+import ai.lzy.v1.storage.LSS;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LWFS.*;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.Durations;
+import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
@@ -46,7 +49,10 @@ import java.nio.file.Files;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
@@ -57,7 +63,10 @@ import java.util.function.Consumer;
 import static ai.lzy.channelmanager.grpc.ProtoConverter.makeCreateDirectChannelCommand;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
-import static ai.lzy.storage.StorageClient.getOrCreateTempUserBucket;
+import static ai.lzy.service.LzyService.APP;
+import static ai.lzy.storage.StorageClient.deleteTempUserBucket;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 
 public class WorkflowService {
     private static final Logger LOG = LogManager.getLogger(WorkflowService.class);
@@ -68,6 +77,7 @@ public class WorkflowService {
     private final WorkflowDao workflowDao;
 
     private final Duration allocationTimeout;
+    private final Duration createBucketTimeout;
     private final String channelManagerAddress;
     private final String iamAddress;
     private final String whiteboardAddress;
@@ -75,11 +85,14 @@ public class WorkflowService {
     private final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
     private final LongRunningServiceGrpc.LongRunningServiceBlockingStub operationServiceClient;
 
-    private final LzyStorageServiceGrpc.LzyStorageServiceBlockingStub storageServiceClient;
+    private final ManagedChannel storageServiceChannel;
+    private final LongRunningServiceGrpc.LongRunningServiceBlockingStub storageOperationServiceClient;
     private final LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerClient;
 
     private final SubjectServiceGrpcClient subjectClient;
     private final AccessBindingServiceGrpcClient abClient;
+
+    private final RenewableJwt creds;
 
     private final Map<String, Queue<PortalSlotsListener>> listenersByExecution = new ConcurrentHashMap<>();
 
@@ -87,10 +100,12 @@ public class WorkflowService {
                            AllocatorGrpc.AllocatorBlockingStub allocatorClient,
                            LongRunningServiceGrpc.LongRunningServiceBlockingStub operationServiceClient,
                            SubjectServiceGrpcClient subjectClient, AccessBindingServiceGrpcClient abClient,
-                           LzyStorageServiceGrpc.LzyStorageServiceBlockingStub storageServiceClient,
+                           ManagedChannel storageServiceChannel,
+                           LongRunningServiceGrpc.LongRunningServiceBlockingStub storageOperationServiceClient,
                            Storage storage, WorkflowDao workflowDao)
     {
         allocationTimeout = config.getWaitAllocationTimeout();
+        createBucketTimeout = Duration.ofSeconds(1);
         startupPortalConfig = config.getPortal();
         channelManagerAddress = config.getChannelManagerAddress();
         iamAddress = config.getIam().getAddress();
@@ -99,7 +114,8 @@ public class WorkflowService {
         this.allocatorClient = allocatorClient;
         this.operationServiceClient = operationServiceClient;
 
-        this.storageServiceClient = storageServiceClient;
+        this.storageServiceChannel = storageServiceChannel;
+        this.storageOperationServiceClient = storageOperationServiceClient;
         this.channelManagerClient = channelManagerClient;
 
         this.subjectClient = subjectClient;
@@ -107,6 +123,8 @@ public class WorkflowService {
 
         this.storage = storage;
         this.workflowDao = workflowDao;
+
+        this.creds = config.getIam().createRenewableToken();
     }
 
     public void createWorkflow(CreateWorkflowRequest request, StreamObserver<CreateWorkflowResponse> response) {
@@ -202,7 +220,9 @@ public class WorkflowService {
             return;
         }
 
-        for (var listener: listenersByExecution.getOrDefault(request.getExecutionId(), new ConcurrentLinkedQueue<>())) {
+        for (var listener : listenersByExecution.getOrDefault(request.getExecutionId(),
+            new ConcurrentLinkedQueue<>()))
+        {
             listener.cancel("Workflow <" + request.getExecutionId() + "> is finished");
         }
 
@@ -239,8 +259,37 @@ public class WorkflowService {
         state.setStorageType(internalSnapshotStorage);
 
         if (internalSnapshotStorage) {
+            var storageServiceClient = withIdempotencyKey(
+                newBlockingClient(LzyStorageServiceGrpc.newBlockingStub(storageServiceChannel), APP,
+                    () -> creds.get().token()),
+                state.getExecutionId());
             try {
-                state.setStorageLocator(getOrCreateTempUserBucket(state.getUserId(), storageServiceClient));
+                var bucketName = "tmp-bucket-" + UUID.randomUUID();
+
+                LOG.info("Creating new temp storage bucket '{}' for user '{}'", bucketName, state.getUserId());
+
+                LongRunning.Operation operation = storageServiceClient.createS3Bucket(
+                    LSS.CreateS3BucketRequest.newBuilder()
+                        .setUserId(state.getUserId())
+                        .setBucket(bucketName)
+                        .build());
+
+                LSS.CreateS3BucketResponse response = awaitBucketCreate(Instant.now().plus(createBucketTimeout),
+                    operation.getId());
+
+                LMS3.S3Locator s3Locator = switch (response.getCredentialsCase()) {
+                    case AMAZON -> LMS3.S3Locator.newBuilder().setAmazon(response.getAmazon()).setBucket(bucketName)
+                        .build();
+                    case AZURE -> LMS3.S3Locator.newBuilder().setAzure(response.getAzure()).setBucket(bucketName)
+                        .build();
+                    default -> {
+                        LOG.error("Unsupported bucket storage type {}", response.getCredentialsCase());
+                        deleteTempUserBucket(bucketName, storageServiceClient);
+                        yield null;
+                    }
+                };
+
+                state.setStorageLocator(s3Locator);
             } catch (StatusRuntimeException e) {
                 state.fail(e.getStatus(), "Cannot create temp bucket");
             }
@@ -252,6 +301,25 @@ public class WorkflowService {
                 state.setStorageLocator(userStorage);
             }
         }
+    }
+
+    @Nullable
+    public LSS.CreateS3BucketResponse awaitBucketCreate(Instant deadline, String operationId) {
+        LongRunning.Operation createBucketOp;
+
+        while (Instant.now().isBefore(deadline)) {
+            createBucketOp = storageOperationServiceClient.get(LongRunning.GetOperationRequest.newBuilder()
+                .setOperationId(operationId).build());
+            if (createBucketOp.getDone()) {
+                try {
+                    return createBucketOp.getResponse().unpack(LSS.CreateS3BucketResponse.class);
+                } catch (InvalidProtocolBufferException e) {
+                    LOG.warn("Cannot deserialize create bucket response from operation with id: " + operationId);
+                }
+            }
+            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(50));
+        }
+        return null;
     }
 
     private void createExecutionInDao(CreateExecutionState state) {
@@ -354,7 +422,8 @@ public class WorkflowService {
     }
 
     public LongRunning.Operation startAllocation(String userId, String workflowName, String sessionId,
-                                                 String executionId, String stdoutChannelId, String stderrChannelId, String portalId)
+                                                 String executionId, String stdoutChannelId, String stderrChannelId,
+                                                 String portalId)
     {
 
         String privateKey;

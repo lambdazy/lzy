@@ -55,3 +55,7 @@ message ListOperationsResponse {
   repeated Operation operations = 1;
   string next_page_token = 2;
 }
+
+message MessageChecksum {
+  bytes md5digest = 1;
+}

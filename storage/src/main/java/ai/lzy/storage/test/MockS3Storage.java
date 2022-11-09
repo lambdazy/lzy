@@ -1,11 +1,14 @@
-package ai.lzy.storage.impl;
+package ai.lzy.storage.test;
 
+import ai.lzy.longrunning.Operation;
 import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.storage.LSS.CreateS3BucketRequest;
 import ai.lzy.v1.storage.LSS.CreateS3BucketResponse;
 import ai.lzy.v1.storage.LSS.DeleteS3BucketRequest;
 import ai.lzy.v1.storage.LSS.DeleteS3BucketResponse;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
+import com.google.protobuf.Any;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 
@@ -21,22 +24,28 @@ public class MockS3Storage extends LzyStorageServiceGrpc.LzyStorageServiceImplBa
     }
 
     @Override
-    public void createS3Bucket(CreateS3BucketRequest request, StreamObserver<CreateS3BucketResponse> response) {
+    public void createS3Bucket(CreateS3BucketRequest request, StreamObserver<LongRunning.Operation> response) {
         var creds = LMS3.AmazonS3Endpoint.newBuilder()
             .setEndpoint("localhost:32000")
             .setAccessToken(UUID.randomUUID().toString())
             .setSecretToken(UUID.randomUUID().toString())
             .build();
 
+        var operation = new Operation("userId-" + request.getUserId(), "Create bucket: " + request.getBucket(),
+            Any.getDefaultInstance());
+
         var prev = buckets.putIfAbsent(request.getBucket(), creds);
         if (prev != null) {
-            response.onError(Status.ALREADY_EXISTS.asException());
+            operation.setError(Status.ALREADY_EXISTS);
+            response.onNext(operation.toProto());
+            response.onCompleted();
             return;
         }
 
-        response.onNext(CreateS3BucketResponse.newBuilder()
+        operation.setResponse(Any.pack(CreateS3BucketResponse.newBuilder()
             .setAmazon(creds)
-            .build());
+            .build()));
+        response.onNext(operation.toProto());
         response.onCompleted();
     }
 

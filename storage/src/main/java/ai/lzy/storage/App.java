@@ -3,6 +3,7 @@ package ai.lzy.storage;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
+import ai.lzy.storage.config.StorageConfig;
 import ai.lzy.util.grpc.*;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
@@ -20,21 +21,22 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
-public class LzyStorage {
-    private static final Logger LOG = LogManager.getLogger(LzyStorage.class);
+public class App {
+    private static final Logger LOG = LogManager.getLogger(App.class);
 
     public static final String APP = "LzyStorage";
 
     private final ManagedChannel iamChannel;
     private final Server server;
 
-    public LzyStorage(ApplicationContext context) {
+    public App(ApplicationContext context) {
         var config = context.getBean(StorageConfig.class);
 
         var address = HostAndPort.fromString(config.getAddress());
         var iamAddress = HostAndPort.fromString(config.getIam().getAddress());
 
         var service = context.getBean(LzyStorageServiceGrpc.LzyStorageServiceImplBase.class);
+        var operationsService = context.getBean(OperationService.class);
 
         iamChannel = GrpcUtils.newGrpcChannel(iamAddress, LzyAuthenticateServiceGrpc.SERVICE_NAME);
 
@@ -48,6 +50,8 @@ public class LzyStorage {
             .intercept(GrpcHeadersServerInterceptor.create())
             .addService(
                 ServerInterceptors.intercept(service, new AllowInternalUserOnlyInterceptor(APP, iamChannel)))
+            .addService(
+                ServerInterceptors.intercept(operationsService, new AllowInternalUserOnlyInterceptor(APP, iamChannel)))
             .build();
     }
 
@@ -86,7 +90,7 @@ public class LzyStorage {
 
     public static void main(String[] args) throws IOException, InterruptedException {
         try (ApplicationContext context = ApplicationContext.run("storage")) {
-            var app = new LzyStorage(context);
+            var app = new App(context);
 
             app.start();
             app.awaitTermination();
