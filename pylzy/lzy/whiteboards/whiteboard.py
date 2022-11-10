@@ -1,7 +1,8 @@
 import asyncio
+import datetime
 import os
-from io import BytesIO
-from typing import List, Any, TypeVar, Optional, Union, Iterable, Dict
+import tempfile
+from typing import List, Any, TypeVar, Optional, Union, Iterable, Dict, Sequence
 
 from lzy.proxy.result import Nothing
 
@@ -12,9 +13,7 @@ from lzy.storage.api import StorageRegistry, AsyncStorageClient
 
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, WhiteboardField
 from lzy.utils.grpc import build_token
-from lzy.whiteboards.query import Query
-from lzy.whiteboards.whiteboard_service_client import WhiteboardServiceClient
-
+from lzy.whiteboards.whiteboard_service_client import GrpcWhiteboardServiceClient, WhiteboardServiceClient
 
 LZY_WHITEBOARD_ADDRESS_ENV = "LZY_WHITEBOARD_ADDRESS"
 
@@ -23,12 +22,15 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 
 
 class WhiteboardRepository:
-    def __init__(
-        self, storage: StorageRegistry, serializers: SerializerRegistry, username: Optional[str] = None,
-        address: Optional[str] = None, key_path: Optional[str] = None
-    ):
-        self.__storage = storage
-        self.__serializers = serializers
+
+    @staticmethod
+    def with_grpc_client(
+        storage: StorageRegistry,
+        serializers: SerializerRegistry,
+        username: Optional[str] = None,
+        address: Optional[str] = None,
+        key_path: Optional[str] = None
+    ) -> "WhiteboardRepository":
 
         addr = (
             address
@@ -38,14 +40,35 @@ class WhiteboardRepository:
 
         token = build_token(username, key_path)
 
-        self.__client: WhiteboardServiceClient = LzyEventLoop.run_async(WhiteboardServiceClient.create(addr, token))
+        client = LzyEventLoop.run_async(GrpcWhiteboardServiceClient.create(addr, token))
+        return WhiteboardRepository(
+            storage, serializers, client
+        )
+
+    def __init__(
+        self,
+        storage: StorageRegistry,
+        serializers: SerializerRegistry,
+        client: WhiteboardServiceClient
+    ):
+        self.__storage = storage
+        self.__serializers = serializers
+        self.__client = client
 
     def get(self, wb_id: str) -> Any:
         wb: Whiteboard = LzyEventLoop.run_async(self.__client.get(wb_id))
         return LzyEventLoop.run_async(self.__build_whiteboard(wb))
 
-    def list(self, query: Query) -> List[Any]:
-        wbs: Iterable[Whiteboard] = LzyEventLoop.run_async(self.__client.list(query))
+    def list(
+        self, *,
+        name: Optional[str] = None,
+        tags: Sequence[str] = (),
+        not_before: Optional[datetime.datetime] = None,
+        not_after: Optional[datetime.datetime] = None
+    ) -> List[Any]:
+        wbs: Iterable[Whiteboard] = LzyEventLoop.run_async(self.__client.list(
+            name, tags, not_before, not_after
+        ))
         wbs_to_build = [self.__build_whiteboard(wb) for wb in wbs]
         return list(LzyEventLoop.run_async(asyncio.gather(*wbs_to_build)))
 
@@ -127,7 +150,9 @@ class _ReadOnlyWhiteboard:
         if not exists:
             raise RuntimeError(f"Cannot read data from {storage_uri}, blob is empty")
 
-        with BytesIO() as f:
+        with tempfile.TemporaryFile() as f:
             await client.read(storage_uri, f)
             f.seek(0)
-            return serializer.deserialize(f, typ)
+            return await asyncio.get_running_loop().run_in_executor(  # Running in separate thread to not block loop
+                None, serializer.deserialize, f, typ
+            )

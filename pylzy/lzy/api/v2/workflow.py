@@ -100,7 +100,7 @@ class LzyWorkflow:
         if self.__eager:
             self.barrier()
 
-    def add_whiteboard_link(self, storage_uri: str, ref: WbRef):
+    def _add_whiteboard_link(self, storage_uri: str, ref: WbRef):
         self.__whiteboards_links[storage_uri] = ref
 
     def barrier(self):
@@ -238,7 +238,7 @@ class _WritableWhiteboard:
         if is_lzy_proxy(value):
             entry_id = get_proxy_entry_id(value)
             entry = self.__workflow.snapshot.get(entry_id)
-            self.__workflow.add_whiteboard_link(entry.storage_url, WbRef(whiteboard_id, key))
+            self.__workflow._add_whiteboard_link(entry.storage_url, WbRef(whiteboard_id, key))
         else:
             entry = self.__workflow.snapshot.create_entry(type(value))
             LzyEventLoop.run_async(self.__workflow.snapshot.put_data(entry_id=entry.id, data=value))
