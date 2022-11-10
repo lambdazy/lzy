@@ -151,7 +151,7 @@ class _ReadOnlyWhiteboard:
             raise RuntimeError(f"Cannot read data from {storage_uri}, blob is empty")
 
         with tempfile.TemporaryFile() as f:
-            await client.read(storage_uri, f)
+            await client.read(storage_uri, f)  # type: ignore
             f.seek(0)
             return await asyncio.get_running_loop().run_in_executor(  # Running in separate thread to not block loop
                 None, serializer.deserialize, f, typ
