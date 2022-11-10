@@ -32,7 +32,7 @@ class PrimitiveSerializationTests(TestCase):
             file.flush()
             file.seek(0)
 
-            schema = serializer.schema(var)
+            schema = serializer.schema(type(var))
             deserializer = self.registry.find_serializer_by_data_format(
                 schema.data_format
             )

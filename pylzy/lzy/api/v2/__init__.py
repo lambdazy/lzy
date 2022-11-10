@@ -1,11 +1,10 @@
 import inspect
-from typing import Any, Callable, Dict, Iterator, Optional, Sequence, TypeVar
+from typing import Any, Callable, Dict, Optional, Sequence, TypeVar
 
 from lzy.api.v2.call import LzyCall, wrap_call
 from lzy.api.v2.env import CondaEnv, DockerEnv, DockerPullPolicy, Env
 from lzy.api.v2.local.runtime import LocalRuntime
 from lzy.api.v2.provisioning import Provisioning
-from lzy.api.v2.query import Query
 from lzy.api.v2.runtime import Runtime
 from lzy.api.v2.snapshot import DefaultSnapshot
 from lzy.api.v2.utils.conda import generate_conda_yaml
@@ -115,18 +114,6 @@ class Lzy:
     @property
     def storage_registry(self) -> StorageRegistry:
         return self.__storage_registry
-
-    def whiteboard(self, wid: str) -> Any:
-        # TODO: implement
-        pass
-
-    def whiteboards(self, query: Query) -> Iterator[Any]:
-        # TODO: implement
-        pass
-
-    # views(Iterator[Any], ViewType)
-    # whiteboards(T).views(ViewType)
-    # TODO: SQL for whiteboards?
 
     def workflow(
         self,

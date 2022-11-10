@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable, List, Optional, Sequence
+from typing import TYPE_CHECKING, Callable, List, Sequence, Dict
+
+from lzy.api.v2.whiteboard_declaration import WhiteboardField, WhiteboardInstanceMeta
+from lzy.api.v2.workflow import WbRef
 
 if TYPE_CHECKING:
     from lzy.api.v2 import LzyWorkflow
@@ -13,17 +16,6 @@ class ProgressStep:
     pass
 
 
-@dataclass
-class WhiteboardField:
-    name: str
-    url: Optional[str]
-
-
-@dataclass
-class WhiteboardInstanceMeta:
-    id: str
-
-
 class Runtime(ABC):
     @abstractmethod
     async def start(self, workflow: "LzyWorkflow"):
@@ -33,6 +25,7 @@ class Runtime(ABC):
     async def exec(
         self,
         calls: List[LzyCall],
+        links: Dict[str, WbRef],
         progress: Callable[[ProgressStep], None],
     ) -> None:
         pass

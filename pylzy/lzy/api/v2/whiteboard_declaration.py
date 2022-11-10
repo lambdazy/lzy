@@ -44,3 +44,14 @@ def fetch_whiteboard_meta(typ: Type) -> Optional[DeclaredWhiteboardMeta]:
     return DeclaredWhiteboardMeta(
         getattr(typ, WB_NAMESPACE_FIELD_NAME), getattr(typ, WB_NAME_FIELD_NAME)
     )
+
+
+@dataclass
+class WhiteboardField:
+    name: str
+    url: Optional[str]
+
+
+@dataclass
+class WhiteboardInstanceMeta:
+    id: str
