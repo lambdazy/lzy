@@ -6,7 +6,6 @@ import ai.lzy.v1.longrunning.LongRunning.Operation;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
-import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -14,7 +13,6 @@ import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.v1.longrunning.LongRunning.GetOperationRequest;
 
-@Singleton
 public class OperationService extends LongRunningServiceGrpc.LongRunningServiceImplBase {
     private static final Logger LOG = LogManager.getLogger(OperationService.class);
 

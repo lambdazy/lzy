@@ -1,14 +1,9 @@
 package ai.lzy.allocator.test;
 
-import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.SessionDao;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.dao.impl.AllocatorDataSource;
-import ai.lzy.allocator.disk.Disk;
-import ai.lzy.allocator.disk.DiskMeta;
-import ai.lzy.allocator.disk.DiskSpec;
-import ai.lzy.allocator.disk.DiskStorage;
-import ai.lzy.allocator.disk.DiskType;
+import ai.lzy.allocator.disk.*;
 import ai.lzy.allocator.model.CachePolicy;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
@@ -16,6 +11,8 @@ import ai.lzy.allocator.volume.DiskVolumeDescription;
 import ai.lzy.allocator.volume.VolumeMount;
 import ai.lzy.allocator.volume.VolumeRequest;
 import ai.lzy.longrunning.Operation;
+import ai.lzy.longrunning.dao.OperationDao;
+import ai.lzy.longrunning.dao.SimpleOperationDao;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.test.DatabaseTestUtils;
@@ -25,11 +22,7 @@ import io.grpc.Status;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 
 import java.sql.SQLException;
 import java.time.Duration;
@@ -53,8 +46,8 @@ public class DaoTest {
     @Before
     public void setUp() {
         context = ApplicationContext.run(DatabaseTestUtils.preparePostgresConfig("allocator", db.getConnectionInfo()));
-        opDao = context.getBean(OperationDao.class);
         storage = context.getBean(Storage.class);
+        opDao = new SimpleOperationDao(storage);
         sessionDao = context.getBean(SessionDao.class);
         vmDao = context.getBean(VmDao.class);
         diskStorage = context.getBean(DiskStorage.class);
@@ -71,15 +64,21 @@ public class DaoTest {
         final var meta = VmAllocatorApi.AllocateMetadata.newBuilder()
             .setVmId("id")
             .build();
-        final var op1 = opDao.create("Some op", "test", Any.pack(meta), null);
+        var op1 = new Operation("test", "Some op", Any.pack(meta));
+        opDao.create(op1, null, null, null);
 
         final var op2 = opDao.get(op1.id(), null);
         Assert.assertNotNull(op2);
         Assert.assertFalse(op2.done());
         Assert.assertEquals("Some op", op2.description());
 
-        op2.setError(Status.NOT_FOUND.withDescription("Error"));
-        opDao.update(op2, null);
+        var status = com.google.rpc.Status.newBuilder()
+            .setCode(Status.NOT_FOUND.getCode().value())
+            .setMessage("Error")
+            .build();
+
+        opDao.updateError(op2.id(), status.toByteArray(), null);
+
         final var op3 = opDao.get(op1.id(), null);
         Assert.assertNotNull(op3);
         Assert.assertTrue(op3.done());
@@ -92,17 +91,18 @@ public class DaoTest {
         final var meta = VmAllocatorApi.AllocateMetadata.newBuilder()
             .setVmId("id")
             .build();
-        Operation op;
+        var op = new Operation("test", "Some op", Any.pack(meta));
         try (final var tx = TransactionHandle.create(storage)) {
-            op = opDao.create("Some op", "test", Any.pack(meta), tx);
+            opDao.create(op, null, null, tx);
             // Do not commit
         }
 
         final var op1 = opDao.get(op.id(), null);
         Assert.assertNull(op1);
 
+        op = new Operation("test", "Some op", Any.pack(meta));
         try (final var tx = TransactionHandle.create(storage)) {
-            op = opDao.create("Some op", "test", Any.pack(meta), tx);
+            opDao.create(op, null, null, tx);
             tx.commit();
         }
 

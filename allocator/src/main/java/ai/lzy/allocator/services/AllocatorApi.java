@@ -6,7 +6,6 @@ import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.alloc.impl.kuber.TunnelAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.SessionDao;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.dao.impl.AllocatorDataSource;
@@ -24,14 +23,16 @@ import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.SubjectType;
+import ai.lzy.longrunning.dao.OperationDao;
+import ai.lzy.longrunning.dao.SimpleOperationDao;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.v1.AllocatorGrpc;
-import ai.lzy.v1.longrunning.LongRunning.Operation;
 import ai.lzy.v1.VmAllocatorApi.*;
+import ai.lzy.v1.longrunning.LongRunning.Operation;
 import com.google.protobuf.Any;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
@@ -74,19 +75,19 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
     private final SubjectServiceGrpcClient subjectClient;
 
     @Inject
-    public AllocatorApi(VmDao dao, OperationDao operations, SessionDao sessions, DiskStorage diskStorage,
+    public AllocatorApi(VmDao dao, SessionDao sessions, DiskStorage diskStorage,
                         VmAllocator allocator, TunnelAllocator tunnelAllocator, ServiceConfig config,
                         AllocatorDataSource storage, @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
                         @Named("AllocatorIamToken") RenewableJwt iamToken)
     {
         this.dao = dao;
-        this.operations = operations;
         this.sessions = sessions;
         this.diskStorage = diskStorage;
         this.allocator = allocator;
         this.tunnelAllocator = tunnelAllocator;
         this.config = config;
         this.storage = storage;
+        this.operations = new SimpleOperationDao(storage);
 
         this.subjectClient = new SubjectServiceGrpcClient(AllocatorMain.APP, iamChannel, iamToken::get);
     }
@@ -189,13 +190,12 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             return;
         }
 
-        ai.lzy.longrunning.Operation op;
+        final var op = new ai.lzy.longrunning.Operation(session.owner(), "Allocating VM", null);
         try {
-            op = withRetries(
+            withRetries(
                 defaultRetryPolicy(),
                 LOG,
-                () -> operations.create("Allocating VM", session.owner(),
-                    Any.pack(AllocateMetadata.getDefaultInstance()), null)
+                () -> operations.create(op, null, null, null)
             );
         } catch (Exception ex) {
             LOG.error("Cannot create allocate vm operation for session {}: {}",
@@ -220,16 +220,21 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                         if (existingVm != null) {
                             LOG.info("Found existing VM {}", existingVm);
 
-                            op.modifyMeta(Any.pack(AllocateMetadata.newBuilder()
-                                .setVmId(existingVm.vmId())
-                                .build()));
-                            op.setResponse(Any.pack(AllocateResponse.newBuilder()
-                                .setSessionId(existingVm.sessionId())
-                                .setPoolId(existingVm.poolLabel())
-                                .setVmId(existingVm.vmId())
-                                .putAllMetadata(existingVm.vmMeta())
-                                .build()));
-                            operations.update(op, transaction);
+                            var meta = Any.pack(AllocateMetadata.newBuilder()
+                                    .setVmId(existingVm.vmId())
+                                    .build());
+                            var response = Any.pack(AllocateResponse.newBuilder()
+                                    .setSessionId(existingVm.sessionId())
+                                    .setPoolId(existingVm.poolLabel())
+                                    .setVmId(existingVm.vmId())
+                                    .putAllMetadata(existingVm.vmMeta())
+                                    .build());
+
+                            op.modifyMeta(meta);
+                            op.setResponse(response);
+
+                            operations.updateMetaAndResponse(op.id(), meta.toByteArray(), response.toByteArray(),
+                                transaction);
 
                             transaction.commit();
                             responseObserver.onNext(op.toProto());
@@ -257,8 +262,11 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                                 );
                             } catch (InvalidConfigurationException e) {
                                 LOG.error("Error while allocating: {}", e.getMessage(), e);
-                                op.setError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()));
-                                operations.update(op, transaction);
+                                var status = com.google.rpc.Status.newBuilder()
+                                    .setCode(Status.INVALID_ARGUMENT.getCode().value())
+                                    .setMessage(e.getMessage())
+                                    .build();
+                                operations.updateError(op.id(), status.toByteArray(), transaction);
                                 transaction.commit();
                                 responseObserver.onError(e);
                                 return null;
@@ -268,8 +276,11 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                         try {
                             volumes = getVolumeRequests(request, transaction);
                         } catch (StatusException e) {
-                            op.setError(e.getStatus());
-                            operations.update(op, transaction);
+                            var status = com.google.rpc.Status.newBuilder()
+                                .setCode(e.getStatus().getCode().value())
+                                .setMessage(Objects.toString(e.getStatus().getDescription(), ""))
+                                .build();
+                            operations.updateError(op.id(), status.toByteArray(), transaction);
                             transaction.commit();
                             responseObserver.onError(e);
                             return null;
@@ -280,11 +291,12 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                             volumes, op.id(), startedAt, proxyV6Address.orElse(null), transaction
                         );
 
-                        op.modifyMeta(Any.pack(AllocateMetadata.newBuilder()
-                            .setVmId(vmSpec.vmId())
-                            .build()));
+                        var meta = Any.pack(AllocateMetadata.newBuilder()
+                                .setVmId(vmSpec.vmId())
+                                .build());
 
-                        operations.update(op, transaction);
+                        op.modifyMeta(meta);
+                        operations.updateMeta(op.id(), meta.toByteArray(), transaction);
 
                         final var vmState = new Vm.VmStateBuilder()
                             .setStatus(Vm.VmStatus.CONNECTING)
@@ -302,13 +314,13 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                     }
                 });
         } catch (StatusRuntimeException e) {
-            failOperation(operations, op, e.getStatus());
+            failOperation(operations, op.id(), e.getStatus(), e.getStatus().getDescription());
             responseObserver.onError(e);
             return;
         } catch (Exception ex) {
             LOG.error("Error while executing transaction: {}", ex.getMessage(), ex);
-            final var status = Status.INTERNAL.withDescription("Error while executing request").withCause(ex);
-            failOperation(operations, op, status);
+            var status = Status.INTERNAL.withDescription("Error while executing request").withCause(ex);
+            failOperation(operations, op.id(), status, status.getDescription());
 
             metrics.allocationError.inc();
 
@@ -341,34 +353,35 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             } catch (InvalidConfigurationException e) {
                 LOG.error("Error while allocating: {}", e.getMessage(), e);
                 metrics.allocationError.inc();
-                op.setError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()));
-                operations.update(op, null);
+                failOperation(operations, op.id(), Status.INVALID_ARGUMENT, e.getMessage());
             }
         } catch (Exception e) {
             LOG.error("Error during allocation: {}", e.getMessage(), e);
             metrics.allocationError.inc();
-            failOperation(operations, op, Status.INTERNAL.withDescription("Error while executing request"));
+            failOperation(operations, op.id(), Status.INTERNAL, "Error while executing request");
         }
     }
 
-    private static void failOperation(
-        OperationDao operations,
-        ai.lzy.longrunning.Operation operation,
-        Status error)
-    {
-        operation.setError(error);
-
+    private static void failOperation(OperationDao operations, String operationId, Status error, String message) {
+        var status = com.google.rpc.Status.newBuilder()
+            .setCode(error.getCode().value())
+            .setMessage(message)
+            .build();
         try {
-            withRetries(
+            var op = withRetries(
                 defaultRetryPolicy(),
                 LOG,
                 () -> {
-                    operations.update(operation, null);
+                    operations.updateError(operationId, status.toByteArray(), null);
                     return null;
                 });
+            if (op == null) {
+                LOG.error("Cannot fail operation {} with reason {}: operation not found",
+                    operationId, message);
+            }
         } catch (Exception ex) {
             LOG.error("Cannot fail operation {} with reason {}: {}",
-                operation, error.getDescription(), ex.getMessage(), ex);
+                operationId, message, ex.getMessage(), ex);
         }
     }
 
@@ -376,7 +389,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         throws SQLException, StatusException
     {
         final List<VolumeRequest> volumes = new ArrayList<>();
-        for (var volume: request.getVolumesList()) {
+        for (var volume : request.getVolumesList()) {
             if (volume.hasHostPathVolume()) {
                 final var hostPathVolume = volume.getHostPathVolume();
                 volumes.add(new VolumeRequest(new HostPathVolumeDescription(
@@ -401,8 +414,8 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             } else if (volume.hasNfsVolume()) {
                 final var nfsVolume = volume.getNfsVolume();
                 volumes.add(new VolumeRequest(new NFSVolumeDescription(
-                        volume.getName(), nfsVolume.getServer(), nfsVolume.getShare(), nfsVolume.getCapacity(),
-                        nfsVolume.getMountOptionsList()
+                    volume.getName(), nfsVolume.getServer(), nfsVolume.getShare(), nfsVolume.getCapacity(),
+                    nfsVolume.getMountOptionsList()
                 )));
             } else {
                 final String message = "Unknown volumeType %s for volume=%s"

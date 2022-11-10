@@ -17,6 +17,10 @@ public interface OperationDao {
     Operation get(String id, @Nullable TransactionHandle transaction) throws SQLException;
 
     @Nullable
+    Operation updateMetaAndResponse(String id, byte[] meta, byte[] response, @Nullable TransactionHandle transaction)
+        throws SQLException;
+
+    @Nullable
     Operation updateMeta(String id, byte[] meta, @Nullable TransactionHandle transaction) throws SQLException;
 
     @Nullable

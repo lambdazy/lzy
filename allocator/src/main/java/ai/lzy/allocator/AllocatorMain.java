@@ -3,14 +3,16 @@ package ai.lzy.allocator;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.VmDao;
+import ai.lzy.allocator.dao.impl.AllocatorDataSource;
 import ai.lzy.allocator.disk.DiskService;
 import ai.lzy.allocator.services.AllocatorApi;
 import ai.lzy.allocator.services.AllocatorPrivateApi;
-import ai.lzy.allocator.services.OperationApi;
 import ai.lzy.allocator.vmpool.VmPoolService;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
+import ai.lzy.longrunning.OperationService;
+import ai.lzy.longrunning.dao.SimpleOperationDao;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.metrics.MetricsGrpcInterceptor;
 import ai.lzy.v1.AllocatorPrivateGrpc;
@@ -46,8 +48,9 @@ public class AllocatorMain {
 
     public AllocatorMain(MetricReporter metricReporter, AllocatorApi allocator,
                          AllocatorPrivateApi allocatorPrivate, DiskService diskService,
-                         OperationApi opApi, ServiceConfig config, GarbageCollector gc, VmPoolService vmPool,
-                         @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel, VmDao vmDao, VmAllocator alloc)
+                         ServiceConfig config, GarbageCollector gc, VmPoolService vmPool,
+                         @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
+                         VmDao vmDao, VmAllocator alloc, AllocatorDataSource storage)
     {
         this.config = config;
         this.gc = gc;
@@ -72,6 +75,8 @@ public class AllocatorMain {
             .intercept(MetricsGrpcInterceptor.server(APP));
 
         var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
+
+        var opApi = new OperationService(new SimpleOperationDao(storage));
 
         builder.addService(ServerInterceptors.intercept(allocator, internalOnly));
         builder.addService(allocatorPrivate);

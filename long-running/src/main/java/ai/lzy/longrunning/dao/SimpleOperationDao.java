@@ -7,7 +7,6 @@ import ai.lzy.model.db.TransactionHandle;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.rpc.Status;
-import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -20,7 +19,6 @@ import java.util.List;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
-@Singleton
 public class SimpleOperationDao implements OperationDao {
     private static final Logger LOG = LogManager.getLogger(SimpleOperationDao.class);
 
@@ -29,7 +27,7 @@ public class SimpleOperationDao implements OperationDao {
 
     private static final String QUERY_CREATE_OPERATION = """
         INSERT INTO operation (%s)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""".formatted(String.join(", ", FIELDS));
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""".formatted(String.join(", ", FIELDS));
 
     private static final String QUERY_GET_OPERATION = """
         SELECT %s
@@ -40,6 +38,11 @@ public class SimpleOperationDao implements OperationDao {
         SELECT %s
         FROM operation
         WHERE idempotency_key = ?""".formatted(String.join(", ", FIELDS));
+
+    private static final String QUERY_UPDATE_OPERATION_META_RESPONSE = """
+        UPDATE operation
+        SET (meta, response, done, modified_at) = (?, ?, ?, ?)
+        WHERE id = ?""";
 
     private static final String QUERY_UPDATE_OPERATION_META = """
         UPDATE operation
@@ -75,6 +78,8 @@ public class SimpleOperationDao implements OperationDao {
 
                 if (operation.meta() != null) {
                     statement.setBytes(2, Objects.requireNonNull(operation.meta()).toByteArray());
+                } else {
+                    statement.setBytes(2, null);
                 }
 
                 statement.setString(3, operation.createdBy());
@@ -160,6 +165,46 @@ public class SimpleOperationDao implements OperationDao {
         return result[0];
     }
 
+    @Nullable
+    @Override
+    public Operation updateMetaAndResponse(String id, byte[] meta, byte[] response,
+                                           @Nullable TransactionHandle transaction) throws SQLException
+    {
+        LOG.info("Update operation meta and response: { operationId: {} }", id);
+
+        Operation[] result = {null};
+
+        DbOperation.execute(transaction, storage, con -> {
+            try (var statement = con.prepareStatement(QUERY_UPDATE_OPERATION_META_RESPONSE,
+                Statement.RETURN_GENERATED_KEYS))
+            {
+                statement.setBytes(1, meta);
+                statement.setBytes(2, response);
+                statement.setBoolean(3, true);
+                statement.setTimestamp(4, Timestamp.from(Instant.now()));
+                statement.setString(5, id);
+
+                statement.execute();
+
+                try (ResultSet rs = statement.getGeneratedKeys()) {
+                    if (rs.next()) {
+                        result[0] = from(rs);
+                    }
+                } catch (InvalidProtocolBufferException e) {
+                    throw new RuntimeException("Cannot parse proto", e);
+                }
+            }
+        });
+
+        if (result[0] != null) {
+            LOG.info("Operation meta and response has been updated: { operationId: {} }", id);
+        } else {
+            LOG.warn("Operation not found: { operationId: {} }", id);
+        }
+
+        return result[0];
+    }
+
     @Override
     @Nullable
     public Operation updateMeta(String id, byte[] meta, @Nullable TransactionHandle transaction) throws SQLException {
@@ -227,7 +272,9 @@ public class SimpleOperationDao implements OperationDao {
                 statement.execute();
 
                 try (ResultSet rs = statement.getGeneratedKeys()) {
-                    result[0] = from(rs);
+                    if (rs.next()) {
+                        result[0] = from(rs);
+                    }
                 } catch (InvalidProtocolBufferException e) {
                     throw new RuntimeException("Cannot parse proto", e);
                 }
@@ -244,10 +291,6 @@ public class SimpleOperationDao implements OperationDao {
     }
 
     private Operation from(ResultSet resultSet) throws InvalidProtocolBufferException, SQLException {
-        if (!resultSet.next()) {
-            return null;
-        }
-
         var id = resultSet.getString("id");
         var createdBy = resultSet.getString("created_by");
         var createdAt = resultSet.getTimestamp("created_at").toInstant();
