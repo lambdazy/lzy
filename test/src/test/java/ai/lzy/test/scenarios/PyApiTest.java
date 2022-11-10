@@ -1,34 +1,24 @@
 package ai.lzy.test.scenarios;
 
-import ai.lzy.model.utils.FreePortFinder;
-import ai.lzy.servant.agents.AgentStatus;
-import org.junit.Before;
+import ai.lzy.test.ApplicationContextRule;
+import ai.lzy.test.ContextRule;
+import ai.lzy.test.impl.v2.PythonContext;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
-@Ignore
-public class PyApiTest extends LocalScenario {
-    @Before
-    public void setUp() {
-        super.setUp();
-        terminal = terminalContext.startTerminalAtPathAndPort(
-            Config.LZY_MOUNT,
-            FreePortFinder.find(20000, 21000),
-            FreePortFinder.find(21000, 22000),
-            kharonContext.serverAddress(),
-            kharonContext.channelManagerProxyAddress(),
-            FreePortFinder.find(22000, 23000),
-            "testUser",
-            terminalKeys.privateKeyPath().toString());
-        terminal.waitForStatus(
-            AgentStatus.EXECUTING,
-            Config.TIMEOUT_SEC,
-            TimeUnit.SECONDS
-        );
-    }
+public class PyApiTest {
+    static final Logger LOG = LogManager.getLogger(SchedulerTest.class);
+
+    @Rule
+    public final ApplicationContextRule ctx = new ApplicationContextRule();
+
+    @Rule
+    public final ContextRule<PythonContext> pythonContext = new ContextRule<>(ctx, PythonContext.class);
 
     @Test
     public void testSimpleCatboostGraph() {
@@ -36,22 +26,22 @@ public class PyApiTest extends LocalScenario {
                 1. Importing external modules (catboost)
                 2. Functions which accept and return complex objects
          */
-        evalAndAssertScenarioResult(terminal, "catboost_integration_cpu", List.of("catboost"));
+        pythonContext.context().evalAndAssertScenarioResult("catboost_integration_cpu", List.of("catboost"));
     }
 
     @Test
     public void testExecFail() {
-        evalAndAssertScenarioResult(terminal, "exec_fail");
+        pythonContext.context().evalAndAssertScenarioResult("exec_fail");
     }
 
     @Test
     public void testEnvFail() {
-        evalAndAssertScenarioResult(terminal, "env_fail");
+        pythonContext.context().evalAndAssertScenarioResult("env_fail");
     }
 
     @Test
     public void testCache() {
-        evalAndAssertScenarioResult(terminal, "test_cache");
+        pythonContext.context().evalAndAssertScenarioResult("test_cache");
     }
 
     @Test
@@ -59,7 +49,7 @@ public class PyApiTest extends LocalScenario {
         /* This scenario checks for:
                 1. Importing local file package 
          */
-        evalAndAssertScenarioResult(terminal, "import");
+        pythonContext.context().evalAndAssertScenarioResult("import");
     }
 
     @Test
@@ -69,7 +59,7 @@ public class PyApiTest extends LocalScenario {
          */
 
         //Arrange
-        evalAndAssertScenarioResult(terminal, "none_result");
+        pythonContext.context().evalAndAssertScenarioResult("none_result");
     }
 
     @Test
@@ -79,7 +69,7 @@ public class PyApiTest extends LocalScenario {
                 1. Whiteboards/Views machinery
                 TODO: turn on after new whiteboards finished
          */
-        evalAndAssertScenarioResult(terminal, "whiteboards");
+        pythonContext.context().evalAndAssertScenarioResult("whiteboards");
     }
 
     @Test
@@ -87,6 +77,6 @@ public class PyApiTest extends LocalScenario {
         /* This scenario checks for:
                 1. File as an argument/return value/whiteboard field
          */
-        evalAndAssertScenarioResult(terminal, "file_test");
+        pythonContext.context().evalAndAssertScenarioResult("file_test");
     }
 }

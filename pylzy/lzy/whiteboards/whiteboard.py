@@ -74,7 +74,7 @@ class WhiteboardRepository:
 
     async def __build_whiteboard(self, wb: Whiteboard) -> Any:
 
-        if wb.status != Whiteboard.Status.FINALIZED:
+        if wb.status != Whiteboard.CREATED:
             raise RuntimeError(f"Status of whiteboard with name {wb.name} is {wb.status}, but must be COMPLETED")
 
         return _ReadOnlyWhiteboard(self.__storage, self.__serializers, wb)
@@ -90,7 +90,7 @@ class _ReadOnlyWhiteboard:
         cli = storage.client(wb.storage.name)
 
         if cli is None:
-            raise RuntimeError(f"Storage {wb.storage.name} not found in your registry")
+            raise RuntimeError(f"Storage {wb.storage.name} not found in your registry, available {storage.available_storages()}")
 
         self.__storage = cli
 
@@ -126,7 +126,7 @@ class _ReadOnlyWhiteboard:
         return self.__wb.tags
 
     async def __read_data(self, field: WhiteboardField, client: AsyncStorageClient) -> Any:
-        if field.status != WhiteboardField.Status.FINALIZED:
+        if field.status != WhiteboardField.FINALIZED:
             raise RuntimeError(f"Whiteboard field {field.info.name} is not finalized")
 
         data_scheme = field.info.linkedState.scheme

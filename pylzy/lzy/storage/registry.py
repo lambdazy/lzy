@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Dict, Optional
+from typing import Dict, Optional, Sequence, Iterable
 
 from lzy.storage.api import AsyncStorageClient, StorageConfig, StorageRegistry
 from lzy.storage.async_ import from_credentials
@@ -51,3 +51,6 @@ class DefaultStorageRegistry(StorageRegistry):
 
     def default_client(self) -> Optional[AsyncStorageClient]:
         return self.__default_client
+
+    def available_storages(self) -> Iterable[str]:
+        return self.__clients_map.keys()

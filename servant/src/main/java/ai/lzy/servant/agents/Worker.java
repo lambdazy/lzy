@@ -174,7 +174,11 @@ public class Worker {
                 parse.getOptionValue('m'), parse.getOptionValue("channel-manager"), parse.getOptionValue('h'),
                 parse.getOptionValue("iam-token"), parse.getOptionValue("allocator-token"));
 
-            worker.awaitTermination();
+            try {
+                worker.awaitTermination();
+            } catch (InterruptedException e) {
+                worker.stop();
+            }
             return 0;
         } catch (ParseException e) {
             LOG.error("Cannot correctly parse options", e);

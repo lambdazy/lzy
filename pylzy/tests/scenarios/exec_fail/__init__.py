@@ -1,15 +1,16 @@
 import uuid
 
-from lzy.api.v1 import LzyRemoteEnv, op
+from lzy.api.v2 import op, Lzy
+from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
 
 
 @op
 def raises() -> int:
     raise RuntimeError("Bad exception")
 
-
-WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
-
 if __name__ == "__main__":
-    with LzyRemoteEnv().workflow(name=WORKFLOW_NAME):
-        raises()
+    runtime = GrpcRuntime()
+    lzy = Lzy(runtime=runtime)
+    with lzy.workflow("wf"):
+        res = raises()
+        print(res)

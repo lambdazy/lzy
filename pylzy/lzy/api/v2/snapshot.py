@@ -44,10 +44,6 @@ class Snapshot(ABC):
         pass
 
     @abstractmethod
-    def resolve_url(self, entry_id: str) -> Optional[str]:
-        return str(uuid.uuid4())
-
-    @abstractmethod
     def get(self, entry_id: str) -> SnapshotEntry:
         pass
 
@@ -110,9 +106,6 @@ class DefaultSnapshot(Snapshot):
 
     def get(self, entry_id: str) -> SnapshotEntry:
         return self.__entry_id_to_entry[entry_id]
-
-    def resolve_url(self, entry_id: str) -> str:
-        return str(uuid.uuid4())
 
     def storage_name(self) -> str:
         if self.__storage_name is None:

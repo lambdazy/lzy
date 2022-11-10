@@ -1,8 +1,9 @@
 import dataclasses
-from typing import Optional
 
-from lzy.api.v1 import LzyRemoteEnv, op
-from lzy.api.v1.whiteboard import whiteboard
+from lzy.whiteboards.whiteboard import WhiteboardRepository
+
+from lzy.api.v2 import op, whiteboard, Lzy
+from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
 from lzy.serialization.types import File
 
 
@@ -26,16 +27,21 @@ def b() -> (int, str):
 
 
 @dataclasses.dataclass
-@whiteboard(tags=["tag"])
+@whiteboard(name="wb")
 class FileWb:
-    f2: Optional[File] = None
-    f3: Optional[File] = None
+    f2: File
+    f3: File
 
 
 if __name__ == "__main__":
-    file_wb = FileWb()
     wb_id = ""
-    with LzyRemoteEnv().workflow(name="wf", whiteboard=file_wb) as wf:
+
+    runtime = GrpcRuntime()
+    lzy = Lzy(runtime=runtime)
+
+    with lzy.workflow("wf", interactive=False) as wf:
+        file_wb = wf.create_whiteboard(FileWb)
+
         with open("/tmp/a.txt", "w") as f:
             f.write("fizz")
         file = File("/tmp/a.txt")
@@ -52,13 +58,13 @@ if __name__ == "__main__":
 
         file_wb.f2 = f2
         file_wb.f3 = f3
-        wb_id = file_wb.__id__
+        wb_id = file_wb.whiteboard_id
 
         i, s = b()
         print(f"{i}, {s}")
 
-    env = LzyRemoteEnv()
-    wb = env.whiteboard_by_id(wb_id)
+    wb_repo = WhiteboardRepository(lzy.storage_registry, lzy.serializer)
+    wb = wb_repo.get(wb_id)
     with wb.f2.open("r") as f:
         for line in f.readlines():
             print(f"wb: {line}")

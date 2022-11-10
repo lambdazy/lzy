@@ -1,0 +1,153 @@
+package ai.lzy.test.impl.v2;
+
+import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
+import ai.lzy.iam.resources.credentials.SubjectCredentials;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.SubjectType;
+import ai.lzy.iam.utils.GrpcConfig;
+import ai.lzy.scheduler.configs.ServiceConfig;
+import ai.lzy.util.auth.credentials.RsaUtils;
+import jakarta.inject.Singleton;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.LineIterator;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.Assert;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
+
+@Singleton
+public class PythonContext {
+    private static final Logger LOG = LogManager.getLogger(PythonContext.class);
+    protected static final Path scenarios = Paths.get("../pylzy/tests/scenarios/");
+    protected static final String condaPrefix = "eval \"$(conda shell.bash hook)\" && "
+        + "conda activate py39 && ";
+
+    private final Map<String, String> envs;
+
+    public PythonContext(WorkflowContext workflow, WhiteboardContext whiteboard, IamContext iam, ServiceConfig cfg)
+            throws IOException, InterruptedException
+    {
+        var client = new SubjectServiceGrpcClient(
+            "subject-service",
+            new GrpcConfig(iam.address().getHost(), iam.address().getPort()),
+            () -> cfg.getIam().createRenewableToken().get()
+        );
+
+        var keys = RsaUtils.generateRsaKeys();
+        var pubKey = Files.readString(keys.publicKeyPath());
+
+        client.createSubject(
+            AuthProvider.GITHUB, "test", SubjectType.USER, SubjectCredentials.publicKey("test", pubKey));
+
+        envs = Map.of(
+            "LZY_ADDRESS_ENV", workflow.address().toString(),
+            "LZY_KEY_PATH", keys.privateKeyPath().toString(),
+            "LZY_USERNAME", "test",
+            "LZY_WHITEBOARD_ADDRESS", whiteboard.publicAddress().toString()
+        );
+    }
+
+    public ExecResult execInCondaEnv(Map<String, String> env, String cmd) {
+        var processBuilder = new ProcessBuilder();
+        processBuilder.environment().putAll(env);
+        processBuilder.environment().putAll(envs);
+        processBuilder.command("/bin/bash", "-c", condaPrefix + cmd);
+        Process process;
+        try {
+            process = processBuilder.start();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        try {
+            var rc = process.waitFor();
+
+            var stdout = IOUtils.toString(process.getInputStream(), StandardCharsets.UTF_8);
+            var stderr = IOUtils.toString(process.getErrorStream(), StandardCharsets.UTF_8);
+
+            return new ExecResult(rc, stdout, stderr);
+        } catch (InterruptedException | IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static void forEachLineInFile(File file, Consumer<String> action) throws IOException {
+        try (LineIterator outIt = FileUtils.lineIterator(file, "UTF-8")) {
+            while (outIt.hasNext()) {
+                action.accept(outIt.nextLine().stripTrailing());
+            }
+        }
+    }
+
+    private ExecResult evalScenario(Map<String, String> env, String scenario, List<String> extraPyLibs)
+    {
+        final Path scenarioPath = scenarios.resolve(scenario);
+        if (!scenarioPath.toFile().exists()) {
+            LOG.error("THERE IS NO SUCH SCENARIO: {}", scenario);
+            Assert.fail();
+        }
+
+        // install extra python libraries if provided any
+        if (!extraPyLibs.isEmpty()) {
+            final String pipCmd = "pip install " + String.join(" ", extraPyLibs);
+            LOG.info("Install extra python libs: " + pipCmd);
+            var pipInstallResult = execInCondaEnv(env, pipCmd);
+            if (!pipInstallResult.stdout().isEmpty()) {
+                LOG.info(scenario + " pip install : STDOUT: {}", pipInstallResult.stdout());
+            }
+            if (!pipInstallResult.stderr().isEmpty()) {
+                LOG.info(scenario + " pip install : STDERR: {}", pipInstallResult.stderr());
+            }
+        }
+
+        // run scenario and return result
+        final String pythonCmd = "python " + scenarioPath.resolve("__init__.py");
+        return execInCondaEnv(env, pythonCmd);
+    }
+
+    public void assertWithExpected(String scenarioName, ExecResult result) {
+        try {
+            final Path scenario = scenarios.resolve(scenarioName);
+            final File stdout_file = scenario.resolve("expected_stdout").toFile();
+            forEachLineInFile(stdout_file, line -> {
+                LOG.info("assert check if stdout contains: {}", line);
+                Assert.assertTrue("'" + result.stdout() + "' doesn't contain '" + line + "'",
+                        result.stdout().contains(line));
+            });
+
+            final File stderr_file = scenario.resolve("expected_stderr").toFile();
+            forEachLineInFile(stderr_file, line -> {
+                LOG.info("assert check if stderr contains: {}", line);
+                Assert.assertTrue("'" + result.stderr() + "' doesn't contain '" + line + "'",
+                        result.stderr().contains(line));
+            });
+        } catch (IOException ioexc) {
+            LOG.error("Happened while was reading one of expected files: ", ioexc);
+            Assert.fail();
+        }
+    }
+
+    public void evalAndAssertScenarioResult(String scenarioName) {
+        evalAndAssertScenarioResult(scenarioName, List.of());
+    }
+
+    public void evalAndAssertScenarioResult(String scenarioName, List<String> extraPyLibs) {
+        LOG.info("Starting scenario: " + scenarioName);
+        var result = evalScenario(Map.of(), scenarioName, extraPyLibs);
+        LOG.info(scenarioName + ": STDOUT: {}", result.stdout());
+        LOG.info(scenarioName + ": STDERR: {}", result.stderr());
+        assertWithExpected(scenarioName, result);
+    }
+
+    private record ExecResult(int rc, String stdout, String stderr) {}
+}

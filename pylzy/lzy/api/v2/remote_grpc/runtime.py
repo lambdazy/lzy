@@ -27,8 +27,11 @@ from ai.lzy.v1.workflow.workflow_pb2 import (
     Operation,
     VmPoolSpec,
 )
-from lzy.api.v2 import LzyCall, LzyWorkflow, Provisioning
+from lzy.api.v2.call import LzyCall
+from lzy.api.v2.workflow import LzyWorkflow
+from lzy.api.v2.provisioning import Provisioning
 from lzy.api.v2.exceptions import LzyExecutionException
+from lzy.serialization.api import Schema
 from lzy.utils.grpc import build_token
 from lzy.api.v2.remote_grpc.workflow_service_client import (
     Completed,
@@ -46,6 +49,9 @@ from lzy.api.v2.startup import ProcessingRequest
 from lzy.api.v2.utils._pickle import pickle
 from lzy.api.v2.utils.files import fileobj_hash, zipdir
 from lzy.api.v2.workflow import WbRef
+
+from ai.lzy.v1.workflow.workflow_pb2 import WhiteboardField as Wb
+
 
 LZY_ADDRESS_ENV = "LZY_ADDRESS_ENV"
 FETCH_STATUS_PERIOD_SEC = 10
@@ -175,10 +181,6 @@ class GrpcRuntime(Runtime):
                 self.__workflow.name, self.__execution_id, "Workflow completed"
             )
 
-            self.__workflow.owner.storage_registry.unregister_storage(
-                self.__execution_id
-            )
-
             await self.__std_slots_listener  # read all stdout and stderr
 
             self.__execution_id = None
@@ -198,16 +200,32 @@ class GrpcRuntime(Runtime):
         storage_name: str,
         tags: Sequence[str],
     ) -> WhiteboardInstanceMeta:
+
+        f = [
+            Wb(
+               name=field.name,
+               default=None if field.url is None else Wb.DefaultFieldDesc(
+                   uri=field.url,
+                   dataScheme=DataScheme(
+                       dataFormat=field.data_scheme.data_format,
+                       schemeFormat=field.data_scheme.schema_format,
+                       schemeContent=field.data_scheme.schema_content if field.data_scheme.schema_content else "",
+                       metadata=field.data_scheme.meta
+                   )
+               )
+            ) for field in fields
+        ]
+
         client = await self.__get_client()
         _LOG.info(f"Creating whiteboard {namespace}:{name}")
-        whiteboard_id = await client.create_whiteboard(namespace, name, fields, storage_name, tags)
+        whiteboard_id = await client.create_whiteboard(namespace, name, f, storage_name, tags)
         _LOG.info(f"Whiteboard created {namespace}:{name}")
         return WhiteboardInstanceMeta(id=whiteboard_id)
 
-    async def link(self, wb_id: str, field_name: str, url: str) -> None:
+    async def link(self, wb_id: str, field_name: str, url: str, data_scheme: Schema) -> None:
         client = await self.__get_client()
         _LOG.info(f"Linking whiteboard field {wb_id}:{field_name} to {url}")
-        await client.link_whiteboard(whiteboard_id=wb_id, field_name=field_name, storage_uri=url)
+        await client.link_whiteboard(whiteboard_id=wb_id, field_name=field_name, storage_uri=url, data_scheme=data_scheme)
 
     async def __load_local_modules(self, module_paths: Iterable[str]) -> Sequence[str]:
         """Returns sequence of urls"""

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence
 
 from lzy.api.v2.workflow import WbRef
 from lzy.proxy.result import unwrap
+from lzy.serialization.api import Schema
 from lzy.storage.api import StorageConfig
 
 if TYPE_CHECKING:
@@ -104,7 +105,7 @@ class LocalRuntime(Runtime):
     async def destroy(self) -> None:
         pass
 
-    async def link(self, wb_id: str, field_name: str, url: str) -> None:
+    async def link(self, wb_id: str, field_name: str, url: str, data_scheme: Schema) -> None:
         pass
 
     async def create_whiteboard(
