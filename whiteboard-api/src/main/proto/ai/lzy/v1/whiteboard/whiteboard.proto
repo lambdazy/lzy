@@ -58,6 +58,6 @@ message Storage {
 }
 
 message TimeBounds {
-  google.protobuf.Timestamp from = 1;
+  google.protobuf.Timestamp from_ = 1;  // from_ because of python 'from' keyword
   google.protobuf.Timestamp to = 2;
 }

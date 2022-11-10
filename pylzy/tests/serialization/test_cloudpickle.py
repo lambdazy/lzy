@@ -39,7 +39,7 @@ class CatboostSerializationTests(TestCase):
 
         serializer = self.registry.find_serializer_by_type(B)
         b = B(42)
-        schema = serializer.schema(b)
+        schema = serializer.schema(type(b))
 
         self.assertEqual(StandardDataFormats.pickle.name, schema.data_format)
         self.assertEqual(StandardSchemaFormats.pickled_type.name, schema.schema_format)

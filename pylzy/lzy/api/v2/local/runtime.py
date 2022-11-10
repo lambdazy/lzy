@@ -3,6 +3,7 @@ import uuid
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence
 
+from lzy.api.v2.workflow import WbRef
 from lzy.proxy.result import unwrap
 from lzy.storage.api import StorageConfig
 
@@ -13,9 +14,8 @@ from lzy.api.v2.call import LzyCall
 from lzy.api.v2.runtime import (
     ProgressStep,
     Runtime,
-    WhiteboardField,
-    WhiteboardInstanceMeta,
 )
+from lzy.api.v2.whiteboard_declaration import WhiteboardField, WhiteboardInstanceMeta
 
 
 class LocalRuntime(Runtime):
@@ -31,6 +31,7 @@ class LocalRuntime(Runtime):
     async def exec(
         self,
         calls: List[LzyCall],
+        _: Dict[str, WbRef],
         progress: Callable[[ProgressStep], None],
     ):
         assert self.__workflow is not None

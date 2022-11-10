@@ -1,5 +1,7 @@
 import dataclasses
 import json
+import os
+import time
 from dataclasses import dataclass
 from typing import (
     Any,
@@ -19,12 +21,15 @@ from typing import (
 import grpc.aio as aio
 
 # Copy from util/util-grpc/src/main/java/ai/lzy/util/grpc/ChannelBuilder.java
+import jwt
 from grpc.aio import ClientCallDetails, ClientInterceptor
 from grpc.aio._typing import RequestType, ResponseType
 
 KEEP_ALIVE_TIME_MINS = 3
 IDLE_TIMEOUT_MINS = 5
 KEEP_ALIVE_TIMEOUT_SECS = 10
+KEY_PATH_ENV = "LZY_KEY_PATH"
+USERNAME_ENV = "LZY_USERNAME"
 
 
 @dataclass
@@ -187,3 +192,35 @@ def add_headers_interceptor(headers: Mapping[str, str]) -> List[ClientIntercepto
 
     return [_GenericUnaryUnaryInterceptor(intercept), _GenericUnaryStreamInterceptor(intercept),
             _GenericStreamUnaryInterceptor(intercept), _GenericStreamStreamInterceptor(intercept)]
+
+
+def build_token(username: Optional[str] = None, key_path: Optional[str] = None) -> str:
+    if key_path is None:
+        key_path = os.getenv(KEY_PATH_ENV)
+        if key_path is None:
+            raise ValueError(
+                f"Key path must be specified by env variable {KEY_PATH_ENV} or in Runtime"
+            )
+
+    if username is None:
+        username = os.getenv(USERNAME_ENV)
+        if username is None:
+            raise ValueError(
+                f"Username must be specified"
+            )
+
+    with open(key_path, "r") as f:
+        private_key = f.read()
+        return str(
+            jwt.encode(
+                {  # TODO(artolord) add renewing of token
+                    "iat": time.time(),
+                    "nbf": time.time(),
+                    "exp": time.time() + 7 * 24 * 60 * 60,  # 7 days
+                    "iss": username,
+                    "pvd": "INTERNAL",
+                },
+                private_key,
+                algorithm="PS256",
+            )
+        )

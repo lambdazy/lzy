@@ -7,8 +7,9 @@ from io import BytesIO
 from typing import Any, Dict, Optional, Type, TypeVar, cast
 
 from lzy.proxy.result import Just, Nothing, Result
-from lzy.serialization.api import SerializerRegistry
+from lzy.serialization.api import SerializerRegistry, Schema
 from lzy.storage.api import AsyncStorageClient, StorageRegistry
+
 
 _LOG = logging.getLogger(__name__)
 
@@ -24,8 +25,8 @@ class SnapshotEntry:
     id: str
     typ: Type
     storage_url: str
-    storage_name: Optional[str] = None
-    data_scheme: Optional[DataScheme] = None
+    storage_name: Optional[str]
+    data_scheme: Schema
 
 
 class Snapshot(ABC):
@@ -70,7 +71,8 @@ class DefaultSnapshot(Snapshot):
     def create_entry(self, typ: Type) -> SnapshotEntry:
         eid = str(uuid.uuid4())
         url = self.storage_client.generate_uri(self.storage_bucket, eid)
-        e = SnapshotEntry(eid, typ, url, self.storage_name)
+        schema = self.__serializer_registry.find_serializer_by_type(typ).schema(typ)
+        e = SnapshotEntry(eid, typ, url, self.storage_name(), data_scheme=schema)
         self.__entry_id_to_entry[e.id] = e
         _LOG.debug(f"Created entry {e}")
         return e
@@ -112,7 +114,6 @@ class DefaultSnapshot(Snapshot):
     def resolve_url(self, entry_id: str) -> str:
         return str(uuid.uuid4())
 
-    @property
     def storage_name(self) -> str:
         if self.__storage_name is None:
             name = self.__storage_registry.default_storage_name()

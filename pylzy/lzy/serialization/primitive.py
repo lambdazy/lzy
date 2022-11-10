@@ -38,11 +38,11 @@ class PrimitiveSerializer(Serializer):
     def schema_format(self) -> str:
         return StandardSchemaFormats.json_pickled_type.name
 
-    def schema(self, obj: Any) -> Schema:
+    def schema(self, typ: type) -> Schema:
         return Schema(
             self.format(),
             self.schema_format(),
-            jsonpickle.dumps(type(obj)),
+            jsonpickle.dumps(typ),
             self.meta(),
         )
 
