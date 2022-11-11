@@ -451,6 +451,7 @@ public class WorkflowService {
                 VmAllocatorApi.AllocateRequest.newBuilder()
                     .setSessionId(sessionId)
                     .setPoolLabel("portals")
+                    .setZone("default") // TODO: ???
                     .addWorkload(
                         VmAllocatorApi.AllocateRequest.Workload.newBuilder()
                             .setName("portal")
