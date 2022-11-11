@@ -65,6 +65,7 @@ import static ai.lzy.channelmanager.grpc.ProtoConverter.makeCreateDirectChannelC
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.storage.StorageClient.getOrCreateTempUserBucket;
+import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 
 public class WorkflowService {
     public static boolean PEEK_RANDOM_PORTAL_PORTS = false;  // Only for tests
@@ -76,6 +77,7 @@ public class WorkflowService {
     private final WorkflowDao workflowDao;
 
     private final Duration allocationTimeout;
+    private final Duration allocatorVmCacheTimeout;
     private final String channelManagerAddress;
     private final String iamAddress;
     private final String whiteboardAddress;
@@ -102,6 +104,7 @@ public class WorkflowService {
                            VmPoolServiceGrpc.VmPoolServiceBlockingStub vmPoolClient)
     {
         allocationTimeout = config.getWaitAllocationTimeout();
+        allocatorVmCacheTimeout = config.getAllocatorVmCacheTimeout();
         startupPortalConfig = config.getPortal();
         channelManagerAddress = config.getChannelManagerAddress();
         iamAddress = config.getIam().getAddress();
@@ -308,7 +311,11 @@ public class WorkflowService {
             withRetries(defaultRetryPolicy(), LOG, () ->
                 workflowDao.updateStdChannelIds(executionId, stdoutChannelId, stderrChannelId));
 
-            var sessionId = createSession(userId);
+            var sessionId = createAllocatorSession(userId, workflowName, executionId);
+            if (sessionId == null) {
+                state.fail(Status.INTERNAL, "Cannot create allocator session");
+                return;
+            }
 
             var portalId = "portal_" + executionId + UUID.randomUUID();
 
@@ -368,15 +375,32 @@ public class WorkflowService {
         return new String[] {stdoutChannelId, stderrChannelId};
     }
 
-    public String createSession(String userId) {
-        LOG.info("Creating session for user with id '{}'", userId);
+    @Nullable
+    public String createAllocatorSession(String userId, String workflowName, String executionId) {
+        LOG.info("Creating session for {}/{}", userId, workflowName);
 
-        VmAllocatorApi.CreateSessionResponse session = allocatorClient.createSession(
-            VmAllocatorApi.CreateSessionRequest.newBuilder()
-                .setOwner(userId)
-                .setCachePolicy(VmAllocatorApi.CachePolicy.newBuilder().setIdleTimeout(Durations.ZERO))
-                .build());
-        return session.getSessionId();
+        var op = withIdempotencyKey(allocatorClient, executionId)
+                    .createSession(
+                        VmAllocatorApi.CreateSessionRequest.newBuilder()
+                            .setOwner(userId)
+                            .setDescription(executionId)
+                            .setCachePolicy(
+                                VmAllocatorApi.CachePolicy.newBuilder()
+                                    .setIdleTimeout(Durations.fromSeconds(allocatorVmCacheTimeout.getSeconds()))
+                                    .build())
+                            .build());
+
+        if (op.getDone()) {
+            try {
+                return op.getResponse().unpack(VmAllocatorApi.CreateSessionResponse.class).getSessionId();
+            } catch (InvalidProtocolBufferException e) {
+                LOG.error("Cannot parse CreateSessionResponse", e);
+                return null;
+            }
+        }
+
+        LOG.error("Unexpected operation state for {}/{}", userId, workflowName);
+        return null;
     }
 
     public LongRunning.Operation startAllocation(String userId, String workflowName, String sessionId,
@@ -423,16 +447,20 @@ public class WorkflowService {
 
         var portalEnvPKEY = "LZY_PORTAL_PKEY";
 
-        return allocatorClient.allocate(
-            VmAllocatorApi.AllocateRequest.newBuilder().setSessionId(sessionId).setPoolLabel("portals")
-                .addWorkload(VmAllocatorApi.AllocateRequest.Workload.newBuilder()
-                    .setName("portal")
-                    //.setImage(portalConfig.getPortalImage())
-                    .addAllArgs(args)
-                    .putEnv(portalEnvPKEY, privateKey)
-                    .putAllPortBindings(ports)
-                    .build())
-                .build());
+        return withIdempotencyKey(allocatorClient, "portal-" + executionId).allocate(
+                VmAllocatorApi.AllocateRequest.newBuilder()
+                    .setSessionId(sessionId)
+                    .setPoolLabel("portals")
+                    .setZone("default") // TODO: ???
+                    .addWorkload(
+                        VmAllocatorApi.AllocateRequest.Workload.newBuilder()
+                            .setName("portal")
+                            //.setImage(portalConfig.getPortalImage())
+                            .addAllArgs(args)
+                            .putEnv(portalEnvPKEY, privateKey)
+                            .putAllPortBindings(ports)
+                            .build())
+                    .build());
     }
 
     @Nullable

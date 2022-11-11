@@ -64,6 +64,7 @@ public class SchedulerTest {
         final var g1 = graphExecutor.context().stub().execute(GraphExecuteRequest.newBuilder()
             .setWorkflowId("wf_id")
             .setWorkflowName("wf")
+            .setUserId("Semjon.Semjonych")
             .addChannels(ChannelDesc.newBuilder()
                 .setId(ch1)
                 .setDirect(ChannelDesc.DirectChannel.newBuilder().build())

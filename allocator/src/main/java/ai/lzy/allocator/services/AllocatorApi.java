@@ -27,11 +27,13 @@ import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.auth.credentials.RenewableJwt;
-import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.ProtoConverter;
+import ai.lzy.util.grpc.ProtoPrinter;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmAllocatorApi.*;
 import ai.lzy.v1.longrunning.LongRunning.Operation;
+import ai.lzy.v1.validation.LV;
 import com.google.protobuf.Any;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
@@ -51,10 +53,16 @@ import java.net.UnknownHostException;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 import javax.inject.Named;
 
+import static ai.lzy.longrunning.dao.OperationDao.OPERATION_IDEMPOTENCY_KEY_CONSTRAINT;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
+import static ai.lzy.model.db.DbHelper.isUniqueViolation;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
 @Singleton
@@ -62,10 +70,13 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
     private static final Logger LOG = LogManager.getLogger(AllocatorApi.class);
 
-    private final VmDao dao;
-    private final OperationDao operations;
+    private static final ProtoPrinter.Printer SAFE_PRINTER =
+        ProtoPrinter.printer().usingSensitiveExtension(LV.sensitive);
+
+    private final VmDao vmDao;
+    private final OperationDao operationsDao;
     private final DiskStorage diskStorage;
-    private final SessionDao sessions;
+    private final SessionDao sessionsDao;
     private final VmAllocator allocator;
     private final TunnelAllocator tunnelAllocator;
     private final ServiceConfig config;
@@ -74,75 +85,106 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
     private final SubjectServiceGrpcClient subjectClient;
 
     @Inject
-    public AllocatorApi(VmDao dao, SessionDao sessions, DiskStorage diskStorage,
-                        VmAllocator allocator, TunnelAllocator tunnelAllocator, ServiceConfig config,
-                        AllocatorDataSource storage, @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
-                        @Named("AllocatorOperationDao") OperationDao operationDao,
+    public AllocatorApi(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao, SessionDao sessionsDao,
+                        DiskStorage diskStorage, VmAllocator allocator, TunnelAllocator tunnelAllocator,
+                        ServiceConfig config, AllocatorDataSource storage,
+                        @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
                         @Named("AllocatorIamToken") RenewableJwt iamToken)
     {
-        this.dao = dao;
-        this.sessions = sessions;
+        this.vmDao = vmDao;
+        this.operationsDao = operationsDao;
+        this.sessionsDao = sessionsDao;
         this.diskStorage = diskStorage;
         this.allocator = allocator;
         this.tunnelAllocator = tunnelAllocator;
         this.config = config;
         this.storage = storage;
-        this.operations = operationDao;
 
         this.subjectClient = new SubjectServiceGrpcClient(AllocatorMain.APP, iamChannel, iamToken::get);
     }
 
     @Override
-    public void createSession(CreateSessionRequest request, StreamObserver<CreateSessionResponse> responseObserver) {
-        if (request.getOwner().isBlank()) {
-            responseObserver.onError(
-                Status.INVALID_ARGUMENT.withDescription("Owner is not provided").asRuntimeException());
+    public void createSession(CreateSessionRequest request, StreamObserver<Operation> responseObserver) {
+        if (!validateRequest(request, responseObserver)) {
             return;
         }
 
-        if (!request.hasCachePolicy() || !request.getCachePolicy().hasIdleTimeout()) {
-            responseObserver.onError(
-                Status.INVALID_ARGUMENT.withDescription("Cache policy is not properly set").asRuntimeException());
-            return;
+        var idempotencyToken = GrpcHeaders.getIdempotencyKey();
+        ai.lzy.longrunning.Operation.IdempotencyKey idempotencyKey = null;
+
+        if (idempotencyToken != null) {
+            idempotencyKey = new ai.lzy.longrunning.Operation.IdempotencyKey(idempotencyToken, "" + request.hashCode());
+            if (loadExistingOp(idempotencyKey, responseObserver)) {
+                return;
+            }
         }
+
+        final var operationId = UUID.randomUUID().toString();
+        final var sessionId = UUID.randomUUID().toString();
+
+        final var response = CreateSessionResponse.newBuilder()
+            .setSessionId(sessionId)
+            .build();
+
+        final var op = ai.lzy.longrunning.Operation.createCompleted(
+            operationId,
+            request.getOwner(),
+            "CreateSession: " + request.getDescription(),
+            idempotencyKey,
+            /* meta */ null,
+            Any.pack(response));
 
         final var minIdleTimeout = ProtoConverter.fromProto(request.getCachePolicy().getIdleTimeout());
-        final var policy = new CachePolicy(minIdleTimeout);
+        final var session = new Session(sessionId, request.getOwner(), request.getDescription(),
+            new CachePolicy(minIdleTimeout), operationId);
 
-        Session session;
         try {
-            session = withRetries(
-                defaultRetryPolicy(),
+            withRetries(
                 LOG,
-                () -> sessions.create(request.getOwner(), policy, null));
+                () -> {
+                    try (var tx = TransactionHandle.create(storage)) {
+                        operationsDao.create(op, tx);
+                        sessionsDao.create(session, tx);
+                        tx.commit();
+                    }
+                });
         } catch (Exception ex) {
+            if (idempotencyKey != null && isUniqueViolation(ex, OPERATION_IDEMPOTENCY_KEY_CONSTRAINT)) {
+                if (loadExistingOp(idempotencyKey, responseObserver)) {
+                    return;
+                }
+
+                LOG.error("Idempotency key {} not found", idempotencyToken);
+                responseObserver.onError(Status.INTERNAL.withDescription("Idempotency key conflict").asException());
+                return;
+            }
+
             LOG.error("Cannot create session: {}", ex.getMessage(), ex);
-            responseObserver.onError(
-                Status.INTERNAL.withDescription(ex.getMessage()).asException());
+            responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
             return;
         }
 
-        responseObserver.onNext(CreateSessionResponse.newBuilder()
-            .setSessionId(session.sessionId())
-            .build());
+        responseObserver.onNext(op.toProto());
         responseObserver.onCompleted();
     }
 
     @Override
     public void deleteSession(DeleteSessionRequest request, StreamObserver<DeleteSessionResponse> responseObserver) {
+        if (!validateRequest(request, responseObserver)) {
+            return;
+        }
+
         try {
             withRetries(
-                defaultRetryPolicy(),
                 LOG,
                 () -> {
-                    sessions.delete(request.getSessionId(), null);
-                    dao.delete(request.getSessionId());
+                    sessionsDao.delete(request.getSessionId(), null);
+                    vmDao.delete(request.getSessionId());
                 });
         } catch (Exception ex) {
             LOG.error("Error while executing `deleteSession` request, sessionId={}: {}",
                 request.getSessionId(), ex.getMessage(), ex);
-            responseObserver.onError(
-                Status.INTERNAL.withDescription(ex.getMessage()).asException());
+            responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
             return;
         }
 
@@ -152,56 +194,79 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
     @Override
     public void allocate(AllocateRequest request, StreamObserver<Operation> responseObserver) {
-        LOG.info("Allocation request {}", JsonUtils.printSingleLine(request));
+        if (!validateRequest(request, responseObserver)) {
+            return;
+        }
 
-        final Optional<Inet6Address> proxyV6Address;
+        LOG.info("Allocation request {}", SAFE_PRINTER.shortDebugString(request));
+        final var startedAt = Instant.now();
+
+        final var idempotencyToken = GrpcHeaders.getIdempotencyKey();
+        ai.lzy.longrunning.Operation.IdempotencyKey idempotencyKey = null;
+
+        if (idempotencyToken != null) {
+            idempotencyKey = new ai.lzy.longrunning.Operation.IdempotencyKey(idempotencyToken, "" + request.hashCode());
+            if (loadExistingOp(idempotencyKey, responseObserver)) {
+                return;
+            }
+        }
+
+        final Inet6Address proxyV6Address;
         if (request.hasProxyV6Address()) {
             try {
-                proxyV6Address = Optional.of((Inet6Address) Inet6Address.getByName(request.getProxyV6Address()));
+                proxyV6Address = (Inet6Address) Inet6Address.getByName(request.getProxyV6Address());
             } catch (UnknownHostException e) {
-                LOG.error("Invalid proxy v6 address {} in allocate reqeust", request.getProxyV6Address());
-                responseObserver.onError(
-                    Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException()
-                );
+                LOG.error("Invalid proxy v6 address {} in allocate request", request.getProxyV6Address());
+                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
                 return;
             }
         } else {
-            proxyV6Address = Optional.empty();
+            proxyV6Address = null;
         }
 
-        final var startedAt = Instant.now();
-
-        Session session;
+        final Session session;
         try {
-            session = withRetries(
-                defaultRetryPolicy(),
-                LOG,
-                () -> sessions.get(request.getSessionId(), null));
+            session = withRetries(LOG, () -> sessionsDao.get(request.getSessionId(), null));
         } catch (Exception ex) {
             LOG.error("Cannot get session {}: {}", request.getSessionId(), ex.getMessage(), ex);
-            responseObserver.onError(
-                Status.INTERNAL.withDescription(ex.getMessage()).asException());
+            responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
             return;
         }
 
         if (session == null) {
-            responseObserver.onError(
-                Status.INVALID_ARGUMENT.withDescription("Session not found").asException());
+            LOG.error("Cannot allocate, session not found. Request: {}", SAFE_PRINTER.shortDebugString(request));
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Session not found").asException());
             return;
         }
 
-        final var op = new ai.lzy.longrunning.Operation(session.owner(), "Allocating VM", null);
+        final var op = new ai.lzy.longrunning.Operation(
+            UUID.randomUUID().toString(),
+            session.owner(),
+            Instant.now(),
+            "AllocateVM: pool=%s, zone=%s".formatted(request.getPoolLabel(), request.getZone()),
+            idempotencyKey,
+            Any.pack(AllocateMetadata.getDefaultInstance()),
+            Instant.now(),
+            /* done */ false,
+            null,
+            null);
+
         try {
-            withRetries(
-                defaultRetryPolicy(),
-                LOG,
-                () -> operations.create(op, null)
-            );
+            withRetries(LOG, () -> operationsDao.create(op, null));
         } catch (Exception ex) {
+            if (idempotencyKey != null && isUniqueViolation(ex, OPERATION_IDEMPOTENCY_KEY_CONSTRAINT)) {
+                if (loadExistingOp(idempotencyKey, responseObserver)) {
+                    return;
+                }
+
+                LOG.error("Idempotency key {} not found", idempotencyToken);
+                responseObserver.onError(Status.INTERNAL.withDescription("Idempotency key conflict").asException());
+                return;
+            }
+
             LOG.error("Cannot create allocate vm operation for session {}: {}",
                 request.getSessionId(), ex.getMessage(), ex);
-            responseObserver.onError(
-                Status.INTERNAL.withDescription(ex.getMessage()).asException());
+            responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
             return;
         }
 
@@ -210,11 +275,10 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         Vm.Spec spec;
         try {
             spec = withRetries(
-                defaultRetryPolicy(),
                 LOG,
                 () -> {
                     try (var transaction = TransactionHandle.create(storage)) {
-                        final var existingVm = dao.acquire(request.getSessionId(), request.getPoolLabel(),
+                        final var existingVm = vmDao.acquire(request.getSessionId(), request.getPoolLabel(),
                             request.getZone(), transaction);
 
                         if (existingVm != null) {
@@ -233,7 +297,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                             op.modifyMeta(meta);
                             op.setResponse(response);
 
-                            operations.updateMetaAndResponse(op.id(), meta.toByteArray(), response.toByteArray(),
+                            operationsDao.updateMetaAndResponse(op.id(), meta.toByteArray(), response.toByteArray(),
                                 transaction);
 
                             transaction.commit();
@@ -252,7 +316,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                             .map(Workload::fromProto)
                             .toList();
 
-                        if (proxyV6Address.isPresent()) {
+                        if (proxyV6Address != null) {
                             initWorkloads = new ArrayList<>(initWorkloads);
                             try {
                                 initWorkloads.add(
@@ -266,7 +330,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                                     .setCode(Status.INVALID_ARGUMENT.getCode().value())
                                     .setMessage(e.getMessage())
                                     .build();
-                                operations.updateError(op.id(), status.toByteArray(), transaction);
+                                operationsDao.updateError(op.id(), status.toByteArray(), transaction);
                                 transaction.commit();
                                 responseObserver.onError(e);
                                 return null;
@@ -280,29 +344,28 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                                 .setCode(e.getStatus().getCode().value())
                                 .setMessage(Objects.toString(e.getStatus().getDescription(), ""))
                                 .build();
-                            operations.updateError(op.id(), status.toByteArray(), transaction);
+                            operationsDao.updateError(op.id(), status.toByteArray(), transaction);
                             transaction.commit();
                             responseObserver.onError(e);
                             return null;
                         }
 
-                        var vmSpec = dao.create(
+                        var vmSpec = vmDao.create(
                             request.getSessionId(), request.getPoolLabel(), request.getZone(), initWorkloads, workloads,
-                            volumes, op.id(), startedAt, proxyV6Address.orElse(null), transaction
-                        );
+                            volumes, op.id(), startedAt, proxyV6Address, transaction);
 
                         var meta = Any.pack(AllocateMetadata.newBuilder()
                             .setVmId(vmSpec.vmId())
                             .build());
 
                         op.modifyMeta(meta);
-                        operations.updateMeta(op.id(), meta.toByteArray(), transaction);
+                        operationsDao.updateMeta(op.id(), meta.toByteArray(), transaction);
 
                         final var vmState = new Vm.VmStateBuilder()
                             .setStatus(Vm.VmStatus.CONNECTING)
                             .setAllocationDeadline(Instant.now().plus(config.getAllocationTimeout()))
                             .build();
-                        dao.update(vmSpec.vmId(), vmState, transaction);
+                        vmDao.update(vmSpec.vmId(), vmState, transaction);
 
                         transaction.commit();
                         metrics.allocateVmNew.inc();
@@ -314,13 +377,13 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                     }
                 });
         } catch (StatusRuntimeException e) {
-            failOperation(operations, op.id(), e.getStatus(), e.getStatus().getDescription());
+            failOperation(operationsDao, op.id(), e.getStatus(), e.getStatus().getDescription());
             responseObserver.onError(e);
             return;
         } catch (Exception ex) {
             LOG.error("Error while executing transaction: {}", ex.getMessage(), ex);
             var status = Status.INTERNAL.withDescription("Error while executing request").withCause(ex);
-            failOperation(operations, op.id(), status, status.getDescription());
+            failOperation(operationsDao, op.id(), status, status.getDescription());
 
             metrics.allocationError.inc();
 
@@ -338,14 +401,11 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                 SubjectCredentials.ott("main", vmOtt, Duration.ofMinutes(15)));
             LOG.info("Create IAM VM subject {} with OTT credentials for vmId {}", vmSubj.id(), spec.vmId());
 
-            withRetries(
-                defaultRetryPolicy(),
-                LOG,
-                () -> dao.setVmSubjectId(spec.vmId(), vmSubj.id(), null));
+            withRetries(LOG, () -> vmDao.setVmSubjectId(spec.vmId(), vmSubj.id(), null));
 
             try {
                 var timer = metrics.allocateDuration.startTimer();
-                if (proxyV6Address.isPresent()) {
+                if (proxyV6Address != null) {
                     tunnelAllocator.allocateTunnel(spec);
                 }
                 allocator.allocate(spec);
@@ -353,12 +413,12 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             } catch (InvalidConfigurationException e) {
                 LOG.error("Error while allocating: {}", e.getMessage(), e);
                 metrics.allocationError.inc();
-                failOperation(operations, op.id(), Status.INVALID_ARGUMENT, e.getMessage());
+                failOperation(operationsDao, op.id(), Status.INVALID_ARGUMENT, e.getMessage());
             }
         } catch (Exception e) {
             LOG.error("Error during allocation: {}", e.getMessage(), e);
             metrics.allocationError.inc();
-            failOperation(operations, op.id(), Status.INTERNAL, "Error while executing request");
+            failOperation(operationsDao, op.id(), Status.INTERNAL, "Error while executing request");
         }
     }
 
@@ -368,13 +428,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             .setMessage(message)
             .build();
         try {
-            var op = withRetries(
-                defaultRetryPolicy(),
-                LOG,
-                () -> {
-                    operations.updateError(operationId, status.toByteArray(), null);
-                    return null;
-                });
+            var op = withRetries(LOG, () -> operations.updateError(operationId, status.toByteArray(), null));
             if (op == null) {
                 LOG.error("Cannot fail operation {} with reason {}: operation not found",
                     operationId, message);
@@ -435,8 +489,8 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                 defaultRetryPolicy(),
                 LOG,
                 () -> {
-                    try (var transaction = TransactionHandle.create(storage)) {
-                        var vm = dao.get(request.getVmId(), transaction);
+                    try (var tx = TransactionHandle.create(storage)) {
+                        var vm = vmDao.get(request.getVmId(), tx);
                         if (vm == null) {
                             LOG.error("Cannot find vm {}", request.getVmId());
                             return Status.NOT_FOUND.withDescription("Cannot find vm");
@@ -448,15 +502,15 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                             return Status.FAILED_PRECONDITION.withDescription("State is " + vm.state());
                         }
 
-                        var session = sessions.get(vm.sessionId(), transaction);
+                        var session = sessionsDao.get(vm.sessionId(), tx);
                         if (session == null) {
                             LOG.error("Corrupted vm with incorrect session id: {}", vm);
                             return Status.INTERNAL;
                         }
 
-                        dao.release(vm.vmId(), Instant.now().plus(session.cachePolicy().minIdleTimeout()), transaction);
+                        vmDao.release(vm.vmId(), Instant.now().plus(session.cachePolicy().minIdleTimeout()), tx);
 
-                        transaction.commit();
+                        tx.commit();
                         return Status.OK;
                     }
                 });
@@ -472,6 +526,68 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         } else {
             responseObserver.onError(status.asException());
         }
+    }
+
+    private boolean loadExistingOp(ai.lzy.longrunning.Operation.IdempotencyKey idempotencyKey,
+                                   StreamObserver<Operation> responseObserver)
+    {
+        try {
+            var op = withRetries(LOG, () -> operationsDao.getByIdempotencyKey(idempotencyKey.token(), null));
+            if (op != null) {
+                if (!idempotencyKey.equals(op.idempotencyKey())) {
+                    LOG.error("Idempotency key {} conflict", idempotencyKey.token());
+                    responseObserver.onError(Status.INVALID_ARGUMENT
+                        .withDescription("IdempotencyKey conflict").asException());
+                    return true;
+                }
+
+                responseObserver.onNext(op.toProto());
+                responseObserver.onCompleted();
+                return true;
+            }
+
+            return false; // key doesn't exist
+        } catch (Exception ex) {
+            LOG.error("Cannot create session: {}", ex.getMessage(), ex);
+            responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
+            return true;
+        }
+    }
+
+    private static boolean validateRequest(CreateSessionRequest request, StreamObserver<Operation> response) {
+        if (request.getOwner().isBlank()) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Owner is not provided").asException());
+            return false;
+        }
+        if (!request.hasCachePolicy() || !request.getCachePolicy().hasIdleTimeout()) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Cache policy is not properly set").asException());
+            return false;
+        }
+        return true;
+    }
+
+    private static boolean validateRequest(DeleteSessionRequest request, StreamObserver<DeleteSessionResponse> resp) {
+        if (request.getSessionId().isBlank()) {
+            resp.onError(Status.INVALID_ARGUMENT.withDescription("session_id not set").asException());
+            return false;
+        }
+        return true;
+    }
+
+    private static boolean validateRequest(AllocateRequest request, StreamObserver<Operation> response) {
+        if (request.getSessionId().isBlank()) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("session_id not set").asException());
+            return false;
+        }
+        if (request.getPoolLabel().isBlank()) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("pool_label not set").asException());
+            return false;
+        }
+        if (request.getZone().isBlank()) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("zone not set").asException());
+            return false;
+        }
+        return true;
     }
 
     private static final class Metrics {

@@ -15,7 +15,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
-import java.util.UUID;
 import javax.annotation.Nullable;
 
 @Singleton
@@ -32,26 +31,26 @@ public class SessionDaoImpl implements SessionDao {
     }
 
     @Override
-    public Session create(String owner, CachePolicy cachePolicy, @Nullable TransactionHandle th) throws SQLException {
-        LOG.debug("Create session for {} in tx {}", owner, th);
+    public void create(Session session, @Nullable TransactionHandle transaction) throws SQLException {
+        LOG.debug("Create session {}", session);
 
         throwInjectedError();
 
-        final var session = new Session(UUID.randomUUID().toString(), owner, cachePolicy);
-
-        DbOperation.execute(th, storage, con -> {
-            try (final var s = con.prepareStatement(
-                "INSERT INTO session (id, owner, cache_policy_json) VALUES (?, ?, ?)"))
+        DbOperation.execute(transaction, storage, con -> {
+            try (final var s = con.prepareStatement("""
+                INSERT INTO session(id, owner, description, cache_policy_json, op_id)
+                VALUES (?, ?, ?, ?, ?)"""))
             {
                 s.setString(1, session.sessionId());
                 s.setString(2, session.owner());
-                s.setString(3, objectMapper.writeValueAsString(session.cachePolicy()));
+                s.setString(3, session.description());
+                s.setString(4, objectMapper.writeValueAsString(session.cachePolicy()));
+                s.setString(5, session.opId());
                 s.execute();
             } catch (JsonProcessingException e) {
-                throw new RuntimeException("Cannot dump cache policy", e);
+                throw new RuntimeException("Cannot dump cache policy %s".formatted(session.cachePolicy()), e);
             }
         });
-        return session;
     }
 
     @Nullable
@@ -64,9 +63,9 @@ public class SessionDaoImpl implements SessionDao {
         final Session[] session = {null};
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement("""
-                SELECT id, owner, cache_policy_json
+                SELECT id, owner, description, cache_policy_json, op_id
                 FROM session
-                WHERE id = ?""" + forUpdate(transaction)))
+                WHERE id = ? AND deleted_at IS NULL""" + forUpdate(transaction)))
             {
                 s.setString(1, sessionId);
                 final var rs = s.executeQuery();
@@ -76,10 +75,12 @@ public class SessionDaoImpl implements SessionDao {
                 }
                 final var id = rs.getString(1);
                 final var owner = rs.getString(2);
-                final var cachePolicy = objectMapper.readValue(rs.getString(3), CachePolicy.class);
-                session[0] = new Session(id, owner, cachePolicy);
+                final var description = rs.getString(3);
+                final var cachePolicy = objectMapper.readValue(rs.getString(4), CachePolicy.class);
+                final var opId = rs.getString(5);
+                session[0] = new Session(id, owner, description, cachePolicy, opId);
             } catch (JsonProcessingException e) {
-                throw new RuntimeException("Cannot parse cache policy", e);
+                throw new RuntimeException("Cannot parse cache policy for session " + sessionId, e);
             }
         });
         return session[0];
@@ -92,8 +93,10 @@ public class SessionDaoImpl implements SessionDao {
         throwInjectedError();
 
         DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement(
-                "DELETE FROM session WHERE id = ?"))
+            try (final var s = con.prepareStatement("""
+                UPDATE session
+                SET deleted_at = now()
+                WHERE id = ? AND deleted_at IS NULL"""))
             {
                 s.setString(1, sessionId);
                 s.execute();
@@ -106,6 +109,7 @@ public class SessionDaoImpl implements SessionDao {
         injectedError = error;
     }
 
+    @SuppressWarnings({"ResultOfMethodCallIgnored", "ThrowableNotThrown"})
     private void throwInjectedError() {
         final var error = injectedError;
         if (error != null) {

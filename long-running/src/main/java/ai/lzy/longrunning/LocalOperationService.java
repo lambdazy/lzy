@@ -16,13 +16,19 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
 
     private final String name;
     private final Map<String, Operation> operations = new ConcurrentHashMap<>();
+    private final Map<String, Operation> idempotencyKey2Operation = new ConcurrentHashMap<>();
 
     public LocalOperationService(String name) {
         this.name = name;
     }
 
-    public boolean registerOperation(Operation operation) {
-        LOG.info("[{}] Register operation {}: {}", name, operation.id(), operation.toShortString());
+    public synchronized boolean registerOperation(Operation operation) {
+        LOG.info("[{}] Register operation {}", name, operation.toShortString());
+
+        if (operation.idempotencyKey() != null && idempotencyKey2Operation.containsKey(operation.idempotencyKey())) {
+            LOG.error("[{}] Operation {} already exists.", name, operation.id());
+            return false;
+        }
 
         var existing = operations.putIfAbsent(operation.id(), operation);
         if (existing != null) {

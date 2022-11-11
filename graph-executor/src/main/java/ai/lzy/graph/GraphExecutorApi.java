@@ -65,6 +65,10 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
 
     @Override
     public void execute(GraphExecuteRequest request, StreamObserver<GraphExecuteResponse> responseObserver) {
+        if (!validateRequest(request, responseObserver)) {
+            return;
+        }
+
         final GraphDescription graph = GraphDescription.fromGrpc(request.getTasksList(), request.getChannelsList());
         try {
             graphBuilder.validate(graph);
@@ -154,6 +158,30 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
             .setStatus(state.toGrpc(schedulerApi))
             .build());
         responseObserver.onCompleted();
+    }
+
+    private static boolean validateRequest(GraphExecuteRequest request, StreamObserver<GraphExecuteResponse> response) {
+        if (request.getWorkflowId().isBlank()) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("workflowId not set").asException());
+            return false;
+        }
+
+        if (request.getWorkflowName().isBlank()) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("workflowName not set").asException());
+            return false;
+        }
+
+        if (request.getUserId().isBlank()) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("userId not set").asException());
+            return false;
+        }
+
+        if (request.getTasksCount() == 0) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("tasks not set").asException());
+            return false;
+        }
+
+        return true;
     }
 
     public void close() {

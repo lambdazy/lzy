@@ -7,6 +7,9 @@ import java.sql.SQLException;
 import javax.annotation.Nullable;
 
 public interface OperationDao {
+
+    String OPERATION_IDEMPOTENCY_KEY_CONSTRAINT = "idempotency_key_to_operation_index";
+
     void create(Operation operation, @Nullable TransactionHandle transaction) throws SQLException;
 
     @Nullable

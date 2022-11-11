@@ -28,7 +28,8 @@ import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.google.protobuf.Duration;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.Durations;
 import io.grpc.ManagedChannel;
 import io.gsonfire.builders.JsonObjectBuilder;
 import jakarta.inject.Singleton;
@@ -113,16 +114,29 @@ public class AllocatorImpl implements ServantsAllocator {
             throw new RuntimeException(e);
         }
 
-        // TODO(artolord) add session caching
-        final var session = allocator.createSession(CreateSessionRequest.newBuilder()
-            .setOwner("lzy-scheduler")
-            .setCachePolicy(VmAllocatorApi.CachePolicy.newBuilder()
-                .setIdleTimeout(Duration.newBuilder()
-                    .setNanos(0)
-                    .setSeconds(0)
-                    .build())
-                .build())
-            .build());
+        // TODO: use allocator_session_id from LzyServant
+        final var createSessionOp = allocator.createSession(
+            CreateSessionRequest.newBuilder()
+                .setOwner(userId)
+                .setDescription("Worker allocation, wf='%s', w='%s'".formatted(workflowName, servantId))
+                .setCachePolicy(
+                    VmAllocatorApi.CachePolicy.newBuilder()
+                        .setIdleTimeout(Durations.ZERO)
+                        .build())
+                .build());
+
+        if (!createSessionOp.getDone()) {
+            LOG.error("Unexpected create session operation state");
+            throw new RuntimeException("Unexpected create session operation state");
+        }
+
+        String sessionId;
+        try {
+            sessionId = createSessionOp.getResponse().unpack(VmAllocatorApi.CreateSessionResponse.class).getSessionId();
+        } catch (InvalidProtocolBufferException e) {
+            LOG.error("Cannot parse CreateSessionResponse", e);
+            throw new RuntimeException(e);
+        }
 
         final int port;
         final int fsPort;
@@ -164,12 +178,12 @@ public class AllocatorImpl implements ServantsAllocator {
         final var request = VmAllocatorApi.AllocateRequest.newBuilder()
             .setPoolLabel(requirements.poolLabel())
             .setZone(requirements.zone())
-            .setSessionId(session.getSessionId())
+            .setSessionId(sessionId)
             .addWorkload(workload)
             .build();
 
         final var op = allocator.allocate(request);
-        metaStorage.saveMeta(workflowName, servantId, new KuberMeta(session.getSessionId(), op.getId()).toJson());
+        metaStorage.saveMeta(workflowName, servantId, new KuberMeta(sessionId, op.getId()).toJson());
     }
 
     @Override

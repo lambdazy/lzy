@@ -3,6 +3,7 @@ lzy-service:
   snapshot-address: 'localhost:8999'
   channel-manager-address: 'localhost:8122'
   allocator-address: 'localhost:8899'
+  allocator-vm-cache-timeout: 21m
 
   database:
     url: 'jdbc:postgresql://localhost:5432/lzy_workflows_db'
