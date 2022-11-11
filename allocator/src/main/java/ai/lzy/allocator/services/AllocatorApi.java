@@ -60,6 +60,7 @@ import java.util.Objects;
 import java.util.UUID;
 import javax.inject.Named;
 
+import static ai.lzy.longrunning.RequestHash.md5;
 import static ai.lzy.longrunning.dao.OperationDao.OPERATION_IDEMPOTENCY_KEY_CONSTRAINT;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.isUniqueViolation;
@@ -113,7 +114,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         ai.lzy.longrunning.Operation.IdempotencyKey idempotencyKey = null;
 
         if (idempotencyToken != null) {
-            idempotencyKey = new ai.lzy.longrunning.Operation.IdempotencyKey(idempotencyToken, "" + request.hashCode());
+            idempotencyKey = new ai.lzy.longrunning.Operation.IdempotencyKey(idempotencyToken, md5(request));
             if (loadExistingOp(idempotencyKey, responseObserver)) {
                 return;
             }
@@ -205,7 +206,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         ai.lzy.longrunning.Operation.IdempotencyKey idempotencyKey = null;
 
         if (idempotencyToken != null) {
-            idempotencyKey = new ai.lzy.longrunning.Operation.IdempotencyKey(idempotencyToken, "" + request.hashCode());
+            idempotencyKey = new ai.lzy.longrunning.Operation.IdempotencyKey(idempotencyToken, md5(request));
             if (loadExistingOp(idempotencyKey, responseObserver)) {
                 return;
             }
@@ -336,6 +337,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                                 return null;
                             }
                         }
+
                         final List<VolumeRequest> volumes;
                         try {
                             volumes = getVolumeRequests(request, transaction);
