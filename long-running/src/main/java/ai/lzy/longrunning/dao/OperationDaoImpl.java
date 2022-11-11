@@ -16,7 +16,6 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
-import java.util.Objects;
 import javax.annotation.Nullable;
 
 public class OperationDaoImpl implements OperationDao {
@@ -74,8 +73,10 @@ public class OperationDaoImpl implements OperationDao {
             try (var statement = connection.prepareStatement(QUERY_CREATE_OPERATION)) {
                 statement.setString(1, operation.id());
 
-                if (operation.meta() != null) {
-                    statement.setBytes(2, Objects.requireNonNull(operation.meta()).toByteArray());
+                var meta = operation.meta();
+
+                if (meta != null) {
+                    statement.setBytes(2, meta.toByteArray());
                 } else {
                     statement.setBytes(2, null);
                 }
@@ -86,17 +87,19 @@ public class OperationDaoImpl implements OperationDao {
                 statement.setString(6, operation.description());
                 statement.setBoolean(7, operation.done());
 
+                var response = operation.response();
 
-                if (operation.response() != null) {
-                    statement.setBytes(8, Objects.requireNonNull(operation.response()).toByteArray());
+                if (response != null) {
+                    statement.setBytes(8, response.toByteArray());
                 } else {
                     statement.setBytes(8, null);
                 }
 
-                if (operation.error() != null) {
-                    var status = Status.newBuilder()
-                        .setCode(Objects.requireNonNull(operation.error()).getCode().value());
-                    String description = Objects.requireNonNull(operation.error()).getDescription();
+                var error = operation.error();
+
+                if (error != null) {
+                    var status = Status.newBuilder().setCode(error.getCode().value());
+                    String description = error.getDescription();
                     if (description != null) {
                         status.setMessage(description);
                     }
