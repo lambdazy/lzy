@@ -24,7 +24,7 @@ import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.longrunning.dao.OperationDao;
-import ai.lzy.longrunning.dao.SimpleOperationDao;
+import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.auth.credentials.RenewableJwt;
@@ -87,7 +87,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         this.tunnelAllocator = tunnelAllocator;
         this.config = config;
         this.storage = storage;
-        this.operations = new SimpleOperationDao(storage);
+        this.operations = new OperationDaoImpl(storage);
 
         this.subjectClient = new SubjectServiceGrpcClient(AllocatorMain.APP, iamChannel, iamToken::get);
     }

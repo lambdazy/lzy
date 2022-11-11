@@ -7,7 +7,7 @@ import ai.lzy.allocator.dao.impl.AllocatorDataSource;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.dao.OperationDao;
-import ai.lzy.longrunning.dao.SimpleOperationDao;
+import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.auth.credentials.RenewableJwt;
@@ -41,7 +41,7 @@ public class GarbageCollector extends TimerTask {
         this.dao = dao;
         this.allocator = allocator;
         this.storage = storage;
-        this.operations = new SimpleOperationDao(storage);
+        this.operations = new OperationDaoImpl(storage);
         this.subjectClient = new SubjectServiceGrpcClient(AllocatorMain.APP, iamChannel, iamToken::get);
 
         timer.scheduleAtFixedRate(this, config.getGcPeriod().toMillis(), config.getGcPeriod().toMillis());

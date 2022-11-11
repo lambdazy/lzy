@@ -7,11 +7,10 @@ import java.sql.SQLException;
 import javax.annotation.Nullable;
 
 public interface OperationDao {
-    void create(Operation operation, @Nullable String idempotencyKey, @Nullable String requestChecksum,
-                @Nullable TransactionHandle transaction) throws SQLException;
+    void create(Operation operation, @Nullable TransactionHandle transaction) throws SQLException;
 
     @Nullable
-    Operation find(String idempotencyKey, @Nullable TransactionHandle transaction) throws SQLException;
+    Operation getByIdempotencyKey(String idempotencyKey, @Nullable TransactionHandle transaction) throws SQLException;
 
     @Nullable
     Operation get(String id, @Nullable TransactionHandle transaction) throws SQLException;

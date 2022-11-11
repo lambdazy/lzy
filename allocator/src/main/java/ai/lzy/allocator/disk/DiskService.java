@@ -4,7 +4,7 @@ import ai.lzy.allocator.dao.impl.AllocatorDataSource;
 import ai.lzy.allocator.disk.exceptions.NotFoundException;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
-import ai.lzy.longrunning.dao.SimpleOperationDao;
+import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.DiskServiceApi;
@@ -44,7 +44,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
         this.diskManager = diskManager;
         this.diskStorage = diskStorage;
         this.storage = storage;
-        this.operations = new SimpleOperationDao(storage);
+        this.operations = new OperationDaoImpl(storage);
     }
 
     @Override

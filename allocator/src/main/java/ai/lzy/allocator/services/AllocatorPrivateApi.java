@@ -11,7 +11,7 @@ import ai.lzy.allocator.model.Vm;
 import ai.lzy.iam.clients.SubjectServiceClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.dao.OperationDao;
-import ai.lzy.longrunning.dao.SimpleOperationDao;
+import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
@@ -67,7 +67,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
         this.allocator = allocator;
         this.sessions = sessions;
         this.storage = storage;
-        this.operations = new SimpleOperationDao(storage);
+        this.operations = new OperationDaoImpl(storage);
         this.config = config;
         this.subjectClient = new SubjectServiceGrpcClient(AllocatorMain.APP, iamChannel, iamToken::get);
     }

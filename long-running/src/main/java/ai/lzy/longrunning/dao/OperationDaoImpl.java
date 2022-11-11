@@ -19,8 +19,8 @@ import java.util.List;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
-public class SimpleOperationDao implements OperationDao {
-    private static final Logger LOG = LogManager.getLogger(SimpleOperationDao.class);
+public class OperationDaoImpl implements OperationDao {
+    private static final Logger LOG = LogManager.getLogger(OperationDaoImpl.class);
 
     private static final List<String> FIELDS = List.of("id", "meta", "created_by", "created_at",
         "modified_at", "description", "done", "response", "error", "idempotency_key", "request_hash");
@@ -62,14 +62,12 @@ public class SimpleOperationDao implements OperationDao {
 
     private final Storage storage;
 
-    public SimpleOperationDao(Storage storage) {
+    public OperationDaoImpl(Storage storage) {
         this.storage = storage;
     }
 
     @Override
-    public void create(Operation operation, @Nullable String idempotencyKey, @Nullable String requestChecksum,
-                       @Nullable TransactionHandle transaction) throws SQLException
-    {
+    public void create(Operation operation, @Nullable TransactionHandle transaction) throws SQLException {
         LOG.info("Create operation {}", operation.toShortString());
 
         DbOperation.execute(transaction, storage, connection -> {
@@ -107,8 +105,14 @@ public class SimpleOperationDao implements OperationDao {
                     statement.setBytes(9, null);
                 }
 
-                statement.setString(10, idempotencyKey);
-                statement.setString(11, requestChecksum);
+                Operation.IdempotencyKey idempotencyKey = operation.idempotencyKey();
+                if (idempotencyKey != null) {
+                    statement.setString(10, idempotencyKey.token());
+                    statement.setString(11, idempotencyKey.requestHash());
+                } else {
+                    statement.setString(10, null);
+                    statement.setString(11, null);
+                }
 
                 statement.execute();
             }
@@ -119,7 +123,7 @@ public class SimpleOperationDao implements OperationDao {
 
     @Nullable
     @Override
-    public Operation find(String idempotencyKey, @Nullable TransactionHandle transaction)
+    public Operation getByIdempotencyKey(String idempotencyKey, @Nullable TransactionHandle transaction)
         throws SQLException
     {
         var operation = getBy(idempotencyKey, QUERY_FIND_OPERATION, transaction);

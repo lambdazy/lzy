@@ -12,7 +12,7 @@ import ai.lzy.allocator.volume.VolumeMount;
 import ai.lzy.allocator.volume.VolumeRequest;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
-import ai.lzy.longrunning.dao.SimpleOperationDao;
+import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.test.DatabaseTestUtils;
@@ -47,7 +47,7 @@ public class DaoTest {
     public void setUp() {
         context = ApplicationContext.run(DatabaseTestUtils.preparePostgresConfig("allocator", db.getConnectionInfo()));
         storage = context.getBean(Storage.class);
-        opDao = new SimpleOperationDao(storage);
+        opDao = new OperationDaoImpl(storage);
         sessionDao = context.getBean(SessionDao.class);
         vmDao = context.getBean(VmDao.class);
         diskStorage = context.getBean(DiskStorage.class);
