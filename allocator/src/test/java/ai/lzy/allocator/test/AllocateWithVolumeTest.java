@@ -15,8 +15,8 @@ import ai.lzy.test.TimeUtils;
 import ai.lzy.v1.*;
 import ai.lzy.v1.VmAllocatorApi.AllocateRequest.Workload;
 import ai.lzy.v1.longrunning.LongRunning;
-import com.google.protobuf.Duration;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.Durations;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.ExecWatch;
@@ -152,21 +152,18 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
     }
 
     @Nullable
-    private ExecResult runWorkloadWithDisk(
-        List<Workload> workloads,
-        List<VolumeApi.Volume> volumes,
-        ExecPodFunc execPodFunc
-    ) throws InvalidProtocolBufferException
+    private ExecResult runWorkloadWithDisk(List<Workload> workloads, List<VolumeApi.Volume> volumes,
+                                           ExecPodFunc execPodFunc) throws InvalidProtocolBufferException
     {
-        final VmAllocatorApi.CreateSessionResponse createSessionResponse = allocator.createSession(
+        var createSessionOp = allocator.createSession(
             VmAllocatorApi.CreateSessionRequest.newBuilder()
                 .setOwner(UUID.randomUUID().toString())
                 .setCachePolicy(
                     VmAllocatorApi.CachePolicy.newBuilder()
-                        .setIdleTimeout(Duration.newBuilder().setSeconds(0).build())
+                        .setIdleTimeout(Durations.ZERO)
                         .build())
                 .build());
-        final String sessionId = createSessionResponse.getSessionId();
+        final String sessionId = Utils.extractSessionId(createSessionOp);
         LongRunning.Operation allocateOperation = allocator.allocate(VmAllocatorApi.AllocateRequest.newBuilder()
             .setSessionId(sessionId)
             .setPoolLabel("s")

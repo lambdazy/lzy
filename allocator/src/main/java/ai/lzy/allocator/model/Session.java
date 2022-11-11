@@ -1,7 +1,12 @@
 package ai.lzy.allocator.model;
 
+import javax.annotation.Nullable;
+
 public record Session(
     String sessionId,
     String owner,
-    CachePolicy cachePolicy
+    @Nullable
+    String description,
+    CachePolicy cachePolicy,
+    String opId
 ) {}

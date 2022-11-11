@@ -26,6 +26,10 @@ public enum DbHelper {
         return withRetries(defaultRetryPolicy(), logger, fn, ex -> ex);
     }
 
+    public static void withRetries(Logger logger, FuncV fn) throws Exception {
+        withRetries(defaultRetryPolicy(), logger, fn, ex -> ex);
+    }
+
     public static <T> T withRetries(RetryPolicy retryPolicy, Logger logger, Func<T> fn) throws Exception {
         return withRetries(retryPolicy, logger, fn, ex -> ex);
     }
@@ -145,5 +149,22 @@ public enum DbHelper {
         }
 
         return PSQLState.isConnectionError(e.getSQLState());
+    }
+
+    public static boolean isUniqueViolation(Exception e, String constraint) {
+        if (e instanceof PSQLException ex) {
+            if (!PSQLState.UNIQUE_VIOLATION.getState().equals(ex.getSQLState())) {
+                return false;
+            }
+
+            var serverError = ex.getServerErrorMessage();
+            if (serverError == null) {
+                return false;
+            }
+
+            return constraint.equals(serverError.getConstraint());
+        }
+
+        return false;
     }
 }

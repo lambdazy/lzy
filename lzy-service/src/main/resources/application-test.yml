@@ -3,6 +3,7 @@ lzy-service:
   # external-host: ''
 
   allocator-address: 'localhost:8799'
+  allocator-vm-cache-timeout: 21m
   graph-executor-address: 'localhost:8699'
   channel-manager-address: 'localhost:8122'
   whiteboard-address: 'localhost:8999'

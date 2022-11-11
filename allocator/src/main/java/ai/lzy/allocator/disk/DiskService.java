@@ -19,7 +19,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
+import java.time.Instant;
 import java.util.Objects;
+import java.util.UUID;
 import javax.inject.Named;
 import javax.inject.Singleton;
 
@@ -51,10 +53,20 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
     {
         LOG.info("Create disk request {}", JsonUtils.printRequest(request));
 
-        var createDiskOperation = new Operation(request.getUserId(), "Create disk",
-            Any.pack(DiskServiceApi.CreateDiskMetadata.getDefaultInstance()));
+        final Operation createDiskOperation = new Operation(
+            UUID.randomUUID().toString(),
+            request.getUserId(),
+            Instant.now(),
+            "CreateDisk",
+            null,
+            Any.pack(DiskServiceApi.CreateDiskMetadata.getDefaultInstance()),
+            Instant.now(),
+            false,
+            null,
+            null);
+
         try {
-            withRetries(defaultRetryPolicy(), LOG, () -> operations.create(createDiskOperation, null));
+            withRetries(LOG, () -> operations.create(createDiskOperation, null));
         } catch (Exception e) {
             LOG.error("Cannot create \"create_disk_operation\" for owner {}: {}",
                 request.getUserId(), e.getMessage(), e);
@@ -144,10 +156,20 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
     {
         LOG.info("Clone disk request {}", JsonUtils.printRequest(request));
 
-        var cloneDiskOperation = new Operation(request.getUserId(), "Clone disk",
-            Any.pack(DiskServiceApi.CloneDiskMetadata.getDefaultInstance()));
+        final Operation cloneDiskOperation = new Operation(
+            UUID.randomUUID().toString(),
+            request.getUserId(),
+            Instant.now(),
+            "CloneDisk",
+            null,
+            Any.pack(DiskServiceApi.CloneDiskMetadata.getDefaultInstance()),
+            Instant.now(),
+            false,
+            null,
+            null);
+
         try {
-            withRetries(defaultRetryPolicy(), LOG, () -> operations.create(cloneDiskOperation, null));
+            withRetries(LOG, () -> operations.create(cloneDiskOperation, null));
         } catch (Exception e) {
             LOG.error("Cannot create \"clone_disk_operation\" for owner {}: {}",
                 request.getUserId(), e.getMessage(), e);
