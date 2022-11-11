@@ -6,15 +6,25 @@ import com.google.protobuf.Timestamp;
 import io.grpc.Status;
 
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nullable;
 
 public class Operation {
+
+    public record IdempotencyKey(
+        String token,
+        String requestHash
+    ) {}
+
     private final String id;
     private final String createdBy;
     private final Instant createdAt;
     private final String description;
+    @Nullable
+    private final IdempotencyKey idempotencyKey;
 
+    @Nullable
     private Any meta;
     private Instant modifiedAt;
     private boolean done;
@@ -24,26 +34,30 @@ public class Operation {
     @Nullable
     private Status error;
 
-    public Operation(String owner, String description, Any meta) {
-        final var now = Instant.now(); // TODO: not idempotent...
-        id = UUID.randomUUID().toString();
-        this.meta = meta;
-        this.createdBy = owner;
-        this.createdAt = now;
-        this.modifiedAt = now;
-        this.description = description;
-        done = false;
+    public static Operation createCompleted(String id, String createdBy, String description,
+                                            @Nullable IdempotencyKey idempotencyKey, @Nullable Any meta, Any response)
+    {
+        Objects.requireNonNull(response);
+        var now = Instant.now();
+        return new Operation(id, createdBy, now, description, idempotencyKey, meta, now, true, response, null);
     }
 
-    public Operation(String id, Any meta, String createdBy, Instant createdAt, Instant modifiedAt, String description,
+    public Operation(String owner, String description, @Nullable Any meta) {
+        this(UUID.randomUUID().toString(), owner, Instant.now(), description, null, meta, Instant.now(),
+            false, null, null);
+    }
+
+    public Operation(String id, String createdBy, Instant createdAt, String description,
+                     @Nullable IdempotencyKey idempotencyKey, @Nullable Any meta, Instant modifiedAt,
                      boolean done, @Nullable Any response, @Nullable Status error)
     {
         this.id = id;
-        this.meta = meta;
         this.createdBy = createdBy;
         this.createdAt = createdAt;
-        this.modifiedAt = modifiedAt;
         this.description = description;
+        this.idempotencyKey = idempotencyKey;
+        this.meta = meta;
+        this.modifiedAt = modifiedAt;
         this.done = done;
         this.response = response;
         this.error = error;
@@ -68,13 +82,15 @@ public class Operation {
 
     public LongRunning.Operation toProto() {
         final var builder =  LongRunning.Operation.newBuilder()
-            .setDescription(description)
-            .setCreatedAt(toProto(createdAt))
-            .setCreatedBy(createdBy)
             .setId(id)
+            .setCreatedBy(createdBy)
+            .setCreatedAt(toProto(createdAt))
+            .setDescription(description)
             .setDone(done)
-            .setMetadata(meta)
             .setModifiedAt(toProto(modifiedAt));
+        if (meta != null) {
+            builder.setMetadata(meta);
+        }
         if (response != null) {
             builder.setResponse(response);
         }
@@ -83,8 +99,7 @@ public class Operation {
                 com.google.rpc.Status.newBuilder()
                     .setCode(error.getCode().value())
                     .setMessage(error.toString())
-                    .build()
-            );
+                    .build());
         }
         return builder.build();
     }
@@ -93,11 +108,12 @@ public class Operation {
     public String toString() {
         return "Operation{" +
             "id='" + id + '\'' +
-            ", meta=" + meta +
             ", createdBy='" + createdBy + '\'' +
             ", createdAt=" + createdAt +
-            ", modifiedAt=" + modifiedAt +
             ", description='" + description + '\'' +
+            ", idempotencyKey='" + idempotencyKey + '\'' +
+            ", meta=" + meta +
+            ", modifiedAt=" + modifiedAt +
             ", done=" + done +
             ", response=" + response +
             ", error=" + error +
@@ -105,14 +121,15 @@ public class Operation {
     }
 
     public String toShortString() {
-        return "Operation{id='%s', description='%s', createdBy='%s', meta='%s'}"
-            .formatted(id, description, createdBy, meta);
+        return "Operation{id='%s', description='%s', createdBy='%s', idempotencyKey='%s', meta='%s'}"
+            .formatted(id, description, createdBy, idempotencyKey, meta);
     }
 
     public String id() {
         return id;
     }
 
+    @Nullable
     public Any meta() {
         return meta;
     }
@@ -131,6 +148,11 @@ public class Operation {
 
     public String description() {
         return description;
+    }
+
+    @Nullable
+    public IdempotencyKey idempotencyKey() {
+        return idempotencyKey;
     }
 
     public boolean done() {

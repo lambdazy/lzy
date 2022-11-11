@@ -2,17 +2,16 @@ package ai.lzy.allocator;
 
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.dao.impl.AllocatorDataSource;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
+import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
-import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -34,16 +33,15 @@ public class GarbageCollector extends TimerTask {
     private final Timer timer = new Timer("gc-timer", true);
     private final Storage storage;
 
-
-    @Inject
-    public GarbageCollector(VmDao dao, OperationDao operations, VmAllocator allocator, ServiceConfig config,
-                            AllocatorDataSource storage, @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
+    public GarbageCollector(VmDao dao, VmAllocator allocator, ServiceConfig config, AllocatorDataSource storage,
+                            @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
+                            @Named("AllocatorOperationDao") OperationDao operationDao,
                             @Named("AllocatorIamToken") RenewableJwt iamToken)
     {
         this.dao = dao;
-        this.operations = operations;
         this.allocator = allocator;
         this.storage = storage;
+        this.operations = operationDao;
         this.subjectClient = new SubjectServiceGrpcClient(AllocatorMain.APP, iamChannel, iamToken::get);
 
         timer.scheduleAtFixedRate(this, config.getGcPeriod().toMillis(), config.getGcPeriod().toMillis());
@@ -58,11 +56,13 @@ public class GarbageCollector extends TimerTask {
                 try {
                     LOG.info("Vm {} is expired", vm);
                     try (var tr = TransactionHandle.create(storage)) {
-                        var op = operations.get(vm.allocationOperationId(), tr);
-                        if (op != null) {
-                            op.setError(Status.DEADLINE_EXCEEDED.withDescription("Vm is expired"));
-                            operations.update(op, tr);
-                        } else {
+                        var status = com.google.rpc.Status.newBuilder()
+                            .setCode(Status.DEADLINE_EXCEEDED.getCode().value())
+                            .setMessage("Vm is expired")
+                            .build();
+
+                        var op = operations.updateError(vm.allocationOperationId(), status.toByteArray(), tr);
+                        if (op == null) {
                             LOG.warn("Op with id={} not found", vm.allocationOperationId());
                         }
                         tr.commit();

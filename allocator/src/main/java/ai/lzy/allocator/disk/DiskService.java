@@ -1,9 +1,9 @@
 package ai.lzy.allocator.disk;
 
-import ai.lzy.allocator.dao.OperationDao;
 import ai.lzy.allocator.dao.impl.AllocatorDataSource;
 import ai.lzy.allocator.disk.exceptions.NotFoundException;
 import ai.lzy.longrunning.Operation;
+import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.DiskServiceApi;
@@ -19,9 +19,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
-import javax.inject.Inject;
+import java.util.Objects;
+import javax.inject.Named;
 import javax.inject.Singleton;
 
+import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
 @Singleton
@@ -34,14 +36,13 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
     private final AllocatorDataSource storage;
     private final Metrics metrics = new Metrics();
 
-    @Inject
-    public DiskService(DiskManager diskManager, OperationDao operations, DiskStorage diskStorage,
-                       AllocatorDataSource storage)
+    public DiskService(DiskManager diskManager, DiskStorage diskStorage, AllocatorDataSource storage,
+                       @Named("AllocatorOperationDao") OperationDao operationDao)
     {
         this.diskManager = diskManager;
-        this.operations = operations;
         this.diskStorage = diskStorage;
         this.storage = storage;
+        this.operations = operationDao;
     }
 
     @Override
@@ -50,15 +51,10 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
     {
         LOG.info("Create disk request {}", JsonUtils.printRequest(request));
 
-        final Operation createDiskOperation;
+        var createDiskOperation = new Operation(request.getUserId(), "Create disk",
+            Any.pack(DiskServiceApi.CreateDiskMetadata.getDefaultInstance()));
         try {
-            createDiskOperation = withRetries(LOG,
-                () -> operations.create(
-                    "Create disk",
-                    request.getUserId(),
-                    Any.pack(DiskServiceApi.CreateDiskMetadata.getDefaultInstance()),
-                    null)
-            );
+            withRetries(defaultRetryPolicy(), LOG, () -> operations.create(createDiskOperation, null));
         } catch (Exception e) {
             LOG.error("Cannot create \"create_disk_operation\" for owner {}: {}",
                 request.getUserId(), e.getMessage(), e);
@@ -85,9 +81,15 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                         final String diskId = request.getExistingDisk().getDiskId();
                         disk = diskManager.get(diskId);
                         if (disk == null) {
-                            final String excMessage = "Disk with id " + diskId + " not found";
-                            createDiskOperation.setError(Status.NOT_FOUND.withDescription(excMessage));
-                            operations.update(createDiskOperation, transaction);
+                            var excMessage = "Disk with id " + diskId + " not found";
+
+                            var status = com.google.rpc.Status.newBuilder()
+                                .setCode(Status.NOT_FOUND.getCode().value())
+                                .setMessage(excMessage)
+                                .build();
+
+                            operations.updateError(createDiskOperation.id(), status.toByteArray(), transaction);
+
                             transaction.commit();
                             metrics.createDiskError.inc();
                             return null;
@@ -95,34 +97,44 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                         diskStorage.insert(disk, transaction);
                         metrics.createDiskExisting.inc();
                     } else {
-                        final String excMessage = "Unknown disk spec type " + request.getDiskDescriptionCase();
-                        createDiskOperation.setError(Status.INVALID_ARGUMENT.withDescription(excMessage));
-                        operations.update(createDiskOperation, transaction);
+                        var excMessage = "Unknown disk spec type " + request.getDiskDescriptionCase();
+
+                        var status = com.google.rpc.Status.newBuilder()
+                            .setCode(Status.INVALID_ARGUMENT.getCode().value())
+                            .setMessage(excMessage)
+                            .build();
+
+                        operations.updateError(createDiskOperation.id(), status.toByteArray(), transaction);
+
                         transaction.commit();
                         metrics.createDiskError.inc();
                         return null;
                     }
-                    createDiskOperation.modifyMeta(Any.pack(
-                        DiskServiceApi.CreateDiskMetadata.newBuilder()
-                            .setDiskId(disk.id())
-                            .build()
-                    ));
-                    createDiskOperation.setResponse(Any.pack(
-                        DiskServiceApi.CreateDiskResponse.newBuilder()
-                            .setDisk(disk.toProto())
-                            .build()
-                    ));
-                    operations.update(createDiskOperation, transaction);
+
+                    var metaBytes = Any.pack(
+                            DiskServiceApi.CreateDiskMetadata.newBuilder()
+                                .setDiskId(disk.id())
+                                .build())
+                        .toByteArray();
+
+                    var responseBytes = Any.pack(
+                            DiskServiceApi.CreateDiskResponse.newBuilder()
+                                .setDisk(disk.toProto())
+                                .build())
+                        .toByteArray();
+
+                    operations.updateMetaAndResponse(createDiskOperation.id(), metaBytes, responseBytes, transaction);
+
                     transaction.commit();
                 }
                 return (Void) null;
             });
         } catch (Exception e) {
-            final String errorMessage = "Error while executing transaction for create disk operation_id=%s: %s"
+            var errorMessage = "Error while executing transaction for create disk operation_id=%s: %s"
                 .formatted(createDiskOperation.id(), e.getMessage());
             LOG.error(errorMessage, e);
             metrics.createDiskError.inc();
-            failOperation(createDiskOperation, errorMessage);
+            failOperation(createDiskOperation.id(), errorMessage);
         }
     }
 
@@ -132,15 +144,10 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
     {
         LOG.info("Clone disk request {}", JsonUtils.printRequest(request));
 
-        final Operation cloneDiskOperation;
+        var cloneDiskOperation = new Operation(request.getUserId(), "Clone disk",
+            Any.pack(DiskServiceApi.CloneDiskMetadata.getDefaultInstance()));
         try {
-            cloneDiskOperation = withRetries(LOG,
-                () -> operations.create(
-                    "Clone disk",
-                    request.getUserId(),
-                    Any.pack(DiskServiceApi.CloneDiskMetadata.getDefaultInstance()),
-                    null)
-            );
+            withRetries(defaultRetryPolicy(), LOG, () -> operations.create(cloneDiskOperation, null));
         } catch (Exception e) {
             LOG.error("Cannot create \"clone_disk_operation\" for owner {}: {}",
                 request.getUserId(), e.getMessage(), e);
@@ -164,31 +171,40 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
 
                             diskStorage.insert(clonedDisk, transaction);
 
-                            cloneDiskOperation.modifyMeta(Any.pack(DiskServiceApi.CloneDiskMetadata.newBuilder()
-                                .setDiskId(clonedDisk.id()).build()));
-                            cloneDiskOperation.setResponse(Any.pack(DiskServiceApi.CloneDiskResponse.newBuilder()
-                                .setDisk(clonedDisk.toProto()).build()));
+                            var metaBytes = Any.pack(DiskServiceApi.CloneDiskMetadata.newBuilder()
+                                .setDiskId(clonedDisk.id()).build()).toByteArray();
+                            var responseBytes = Any.pack(DiskServiceApi.CloneDiskResponse.newBuilder()
+                                .setDisk(clonedDisk.toProto()).build()).toByteArray();
+
+                            operations.updateMetaAndResponse(cloneDiskOperation.id(), metaBytes, responseBytes,
+                                transaction);
 
                             metrics.cloneDisk.inc();
                         } catch (NotFoundException | IllegalArgumentException e) {
-                            cloneDiskOperation.setError(Status.INVALID_ARGUMENT.withDescription(
-                                "Unable to clone disk [operation_id=" + cloneDiskOperation.id() + "] "
-                                    + " Invalid argument; cause=" + e.getMessage()
-                            ));
+                            var status = com.google.rpc.Status.newBuilder()
+                                .setCode(Status.INVALID_ARGUMENT.getCode().value())
+                                .setMessage("Unable to clone disk [operation_id=" + cloneDiskOperation.id() + "] "
+                                    + " Invalid argument; cause=" + e.getMessage())
+                                .build();
+                            operations.updateError(cloneDiskOperation.id(), status.toByteArray(), transaction);
                         } catch (StatusException e) {
-                            cloneDiskOperation.setError(e.getStatus());
+                            var status = com.google.rpc.Status.newBuilder()
+                                .setCode(e.getStatus().getCode().value())
+                                .setMessage(Objects.toString(e.getStatus().getDescription(), ""))
+                                .build();
+                            operations.updateError(cloneDiskOperation.id(), status.toByteArray(), transaction);
                         }
-                        operations.update(cloneDiskOperation, transaction);
+
                         transaction.commit();
                     }
                     return (Void) null;
                 }
             );
         } catch (Exception e) {
-            final String errorMessage = "Error while executing transaction for clone disk operation_id=%s: %s"
+            var errorMessage = "Error while executing transaction for clone disk operation_id=%s: %s"
                 .formatted(cloneDiskOperation.id(), e.getMessage());
             LOG.error(errorMessage, e);
-            failOperation(cloneDiskOperation, errorMessage);
+            failOperation(cloneDiskOperation.id(), errorMessage);
             metrics.cloneDiskError.inc();
         }
     }
@@ -241,18 +257,26 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
         return disk;
     }
 
-    private void failOperation(Operation createDiskOperation, String errorMessage) {
+    private void failOperation(String operationId, String message) {
+        var status = com.google.rpc.Status.newBuilder()
+            .setCode(Status.INTERNAL.getCode().value())
+            .setMessage(message)
+            .build();
         try {
-            withRetries(LOG,
+            var op = withRetries(
+                defaultRetryPolicy(),
+                LOG,
                 () -> {
-                    createDiskOperation.setError(Status.INTERNAL.withDescription(errorMessage));
-                    operations.update(createDiskOperation, null);
+                    operations.updateError(operationId, status.toByteArray(), null);
                     return null;
-                }
-            );
+                });
+            if (op == null) {
+                LOG.error("Cannot fail operation {} with reason {}: operation not found",
+                    operationId, message);
+            }
         } catch (Exception ex) {
             LOG.error("Cannot fail operation {} with reason {}: {}",
-                createDiskOperation, errorMessage, ex.getMessage(), ex);
+                operationId, message, ex.getMessage(), ex);
         }
     }
 
