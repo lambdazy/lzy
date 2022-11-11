@@ -105,15 +105,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
     @Override
     public void createSession(CreateSessionRequest request, StreamObserver<Operation> responseObserver) {
-        if (request.getOwner().isBlank()) {
-            responseObserver.onError(
-                Status.INVALID_ARGUMENT.withDescription("Owner is not provided").asRuntimeException());
-            return;
-        }
-
-        if (!request.hasCachePolicy() || !request.getCachePolicy().hasIdleTimeout()) {
-            responseObserver.onError(
-                Status.INVALID_ARGUMENT.withDescription("Cache policy is not properly set").asRuntimeException());
+        if (!validateRequest(request, responseObserver)) {
             return;
         }
 
@@ -178,6 +170,10 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
     @Override
     public void deleteSession(DeleteSessionRequest request, StreamObserver<DeleteSessionResponse> responseObserver) {
+        if (!validateRequest(request, responseObserver)) {
+            return;
+        }
+
         try {
             withRetries(
                 LOG,
@@ -198,6 +194,10 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
     @Override
     public void allocate(AllocateRequest request, StreamObserver<Operation> responseObserver) {
+        if (!validateRequest(request, responseObserver)) {
+            return;
+        }
+
         LOG.info("Allocation request {}", SAFE_PRINTER.shortDebugString(request));
         final var startedAt = Instant.now();
 
@@ -552,6 +552,42 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
             return true;
         }
+    }
+
+    private static boolean validateRequest(CreateSessionRequest request, StreamObserver<Operation> response) {
+        if (request.getOwner().isBlank()) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Owner is not provided").asException());
+            return false;
+        }
+        if (!request.hasCachePolicy() || !request.getCachePolicy().hasIdleTimeout()) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Cache policy is not properly set").asException());
+            return false;
+        }
+        return true;
+    }
+
+    private static boolean validateRequest(DeleteSessionRequest request, StreamObserver<DeleteSessionResponse> resp) {
+        if (request.getSessionId().isBlank()) {
+            resp.onError(Status.INVALID_ARGUMENT.withDescription("session_id not set").asException());
+            return false;
+        }
+        return true;
+    }
+
+    private static boolean validateRequest(AllocateRequest request, StreamObserver<Operation> response) {
+        if (request.getSessionId().isBlank()) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("session_id not set").asException());
+            return false;
+        }
+        if (request.getPoolLabel().isBlank()) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("pool_label not set").asException());
+            return false;
+        }
+        if (request.getZone().isBlank()) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("zone not set").asException());
+            return false;
+        }
+        return true;
     }
 
     private static final class Metrics {
