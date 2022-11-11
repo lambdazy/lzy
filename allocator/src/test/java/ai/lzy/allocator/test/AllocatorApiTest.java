@@ -417,6 +417,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
             AllocateRequest.newBuilder()
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
+                .setZone("Bali")
                 .build());
         final VmAllocatorApi.AllocateMetadata allocateMetadata =
             operation.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
@@ -440,6 +441,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
             AllocateRequest.newBuilder()
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
+                .setZone("Bali")
                 .build());
 
         final String podName = future.get();
@@ -461,6 +463,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
                 AllocateRequest.newBuilder()
                     .setSessionId(sessionId)
                     .setPoolLabel("LABEL")
+                    .setZone("Bali")
                     .build()),
             Status.INVALID_ARGUMENT);
     }
@@ -493,6 +496,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
             AllocateRequest.newBuilder()
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
+                .setZone("Bali")
                 .build());
         var allocateMetadata = allocationStarted.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
 
@@ -532,6 +536,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
             AllocateRequest.newBuilder()
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
+                .setZone("Bali")
                 .build());
         var allocateMetadata = allocationStarted.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
 
@@ -574,6 +579,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
             AllocateRequest.newBuilder()
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
+                .setZone("Bali")
                 .build());
         var allocateMetadataFirst = operationFirst.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
 
@@ -595,6 +601,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
             AllocateRequest.newBuilder()
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
+                .setZone("Bali")
                 .build());
         final VmAllocatorApi.AllocateMetadata allocateMetadataSecond =
             operationSecond.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
@@ -634,6 +641,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
             AllocateRequest.newBuilder()
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
+                .setZone("Bali")
                 .build());
         var allocateMetadata = allocate.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
 
@@ -667,6 +675,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
             AllocateRequest.newBuilder()
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
+                .setZone("Bali")
                 .build());
         var allocateMetadata = allocate.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
 
@@ -716,6 +725,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
             AllocateRequest.newBuilder()
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
+                .setZone("Bali")
                 .build());
         var allocateMetadata = allocationStarted.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
 
@@ -752,6 +762,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
             AllocateRequest.newBuilder()
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
+                .setZone("Bali")
                 .build());
         var allocateMetadata = allocate.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
 
@@ -817,6 +828,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
             AllocateRequest.newBuilder()
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
+                .setZone("Bali")
                 .addWorkload(AllocateRequest.Workload.newBuilder()
                     .setName("workload")
                     .addVolumeMounts(volumeMount)
@@ -894,6 +906,7 @@ public class AllocatorApiTest extends BaseTestWithIam {
                 AllocateRequest.newBuilder()
                     .setSessionId(sessionId)
                     .setPoolLabel("S")
+                    .setZone("Bali")
                     .addWorkload(AllocateRequest.Workload.newBuilder()
                         .setName("workload")
                         .addVolumeMounts(volumeMount)
