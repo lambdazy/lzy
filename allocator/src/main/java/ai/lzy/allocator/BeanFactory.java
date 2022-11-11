@@ -1,6 +1,9 @@
 package ai.lzy.allocator;
 
 import ai.lzy.allocator.configs.ServiceConfig;
+import ai.lzy.allocator.dao.impl.AllocatorDataSource;
+import ai.lzy.longrunning.dao.OperationDao;
+import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.metrics.DummyMetricReporter;
 import ai.lzy.metrics.LogMetricReporter;
 import ai.lzy.metrics.MetricReporter;
@@ -33,7 +36,7 @@ public class BeanFactory {
     @Singleton
     @Requires(property = "allocator.yc-credentials.enabled", value = "true")
     public ServiceFactory serviceFactory(
-            CredentialProvider credentialProvider, ServiceConfig.YcCredentialsConfig config)
+        CredentialProvider credentialProvider, ServiceConfig.YcCredentialsConfig config)
     {
         return ServiceFactory.builder()
             .credentialProvider(credentialProvider)
@@ -80,5 +83,12 @@ public class BeanFactory {
     @Named("AllocatorIamToken")
     public RenewableJwt renewableIamToken(ServiceConfig config) {
         return config.getIam().createRenewableToken();
+    }
+
+    @Singleton
+    @Requires(beans = AllocatorDataSource.class)
+    @Named("AllocatorOperationDao")
+    public OperationDao operationDao(AllocatorDataSource storage) {
+        return new OperationDaoImpl(storage);
     }
 }

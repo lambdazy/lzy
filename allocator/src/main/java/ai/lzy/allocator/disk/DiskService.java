@@ -4,7 +4,6 @@ import ai.lzy.allocator.dao.impl.AllocatorDataSource;
 import ai.lzy.allocator.disk.exceptions.NotFoundException;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
-import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.DiskServiceApi;
@@ -21,7 +20,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
 import java.util.Objects;
-import javax.inject.Inject;
+import javax.inject.Named;
 import javax.inject.Singleton;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
@@ -37,14 +36,13 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
     private final AllocatorDataSource storage;
     private final Metrics metrics = new Metrics();
 
-    @Inject
-    public DiskService(DiskManager diskManager, DiskStorage diskStorage,
-                       AllocatorDataSource storage)
+    public DiskService(DiskManager diskManager, DiskStorage diskStorage, AllocatorDataSource storage,
+                       @Named("AllocatorOperationDao") OperationDao operationDao)
     {
         this.diskManager = diskManager;
         this.diskStorage = diskStorage;
         this.storage = storage;
-        this.operations = new OperationDaoImpl(storage);
+        this.operations = operationDao;
     }
 
     @Override
@@ -56,7 +54,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
         var createDiskOperation = new Operation(request.getUserId(), "Create disk",
             Any.pack(DiskServiceApi.CreateDiskMetadata.getDefaultInstance()));
         try {
-            withRetries(defaultRetryPolicy(), LOG, () -> operations.create(createDiskOperation, null, null, null));
+            withRetries(defaultRetryPolicy(), LOG, () -> operations.create(createDiskOperation, null));
         } catch (Exception e) {
             LOG.error("Cannot create \"create_disk_operation\" for owner {}: {}",
                 request.getUserId(), e.getMessage(), e);
@@ -149,7 +147,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
         var cloneDiskOperation = new Operation(request.getUserId(), "Clone disk",
             Any.pack(DiskServiceApi.CloneDiskMetadata.getDefaultInstance()));
         try {
-            withRetries(defaultRetryPolicy(), LOG, () -> operations.create(cloneDiskOperation, null, null, null));
+            withRetries(defaultRetryPolicy(), LOG, () -> operations.create(cloneDiskOperation, null));
         } catch (Exception e) {
             LOG.error("Cannot create \"clone_disk_operation\" for owner {}: {}",
                 request.getUserId(), e.getMessage(), e);

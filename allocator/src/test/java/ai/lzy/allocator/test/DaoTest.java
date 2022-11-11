@@ -12,7 +12,6 @@ import ai.lzy.allocator.volume.VolumeMount;
 import ai.lzy.allocator.volume.VolumeRequest;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
-import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.test.DatabaseTestUtils;
@@ -20,6 +19,7 @@ import ai.lzy.v1.VmAllocatorApi;
 import com.google.protobuf.Any;
 import io.grpc.Status;
 import io.micronaut.context.ApplicationContext;
+import io.micronaut.inject.qualifiers.Qualifiers;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.junit.*;
@@ -47,7 +47,7 @@ public class DaoTest {
     public void setUp() {
         context = ApplicationContext.run(DatabaseTestUtils.preparePostgresConfig("allocator", db.getConnectionInfo()));
         storage = context.getBean(Storage.class);
-        opDao = new OperationDaoImpl(storage);
+        opDao = context.getBean(OperationDao.class, Qualifiers.byName("AllocatorOperationDao"));
         sessionDao = context.getBean(SessionDao.class);
         vmDao = context.getBean(VmDao.class);
         diskStorage = context.getBean(DiskStorage.class);
@@ -65,7 +65,7 @@ public class DaoTest {
             .setVmId("id")
             .build();
         var op1 = new Operation("test", "Some op", Any.pack(meta));
-        opDao.create(op1, null, null, null);
+        opDao.create(op1, null);
 
         final var op2 = opDao.get(op1.id(), null);
         Assert.assertNotNull(op2);
@@ -93,7 +93,7 @@ public class DaoTest {
             .build();
         var op = new Operation("test", "Some op", Any.pack(meta));
         try (final var tx = TransactionHandle.create(storage)) {
-            opDao.create(op, null, null, tx);
+            opDao.create(op, tx);
             // Do not commit
         }
 
@@ -102,7 +102,7 @@ public class DaoTest {
 
         op = new Operation("test", "Some op", Any.pack(meta));
         try (final var tx = TransactionHandle.create(storage)) {
-            opDao.create(op, null, null, tx);
+            opDao.create(op, tx);
             tx.commit();
         }
 

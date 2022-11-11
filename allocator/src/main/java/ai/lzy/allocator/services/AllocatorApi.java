@@ -24,7 +24,6 @@ import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.longrunning.dao.OperationDao;
-import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.auth.credentials.RenewableJwt;
@@ -78,6 +77,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
     public AllocatorApi(VmDao dao, SessionDao sessions, DiskStorage diskStorage,
                         VmAllocator allocator, TunnelAllocator tunnelAllocator, ServiceConfig config,
                         AllocatorDataSource storage, @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
+                        @Named("AllocatorOperationDao") OperationDao operationDao,
                         @Named("AllocatorIamToken") RenewableJwt iamToken)
     {
         this.dao = dao;
@@ -87,7 +87,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         this.tunnelAllocator = tunnelAllocator;
         this.config = config;
         this.storage = storage;
-        this.operations = new OperationDaoImpl(storage);
+        this.operations = operationDao;
 
         this.subjectClient = new SubjectServiceGrpcClient(AllocatorMain.APP, iamChannel, iamToken::get);
     }
@@ -195,7 +195,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             withRetries(
                 defaultRetryPolicy(),
                 LOG,
-                () -> operations.create(op, null, null, null)
+                () -> operations.create(op, null)
             );
         } catch (Exception ex) {
             LOG.error("Cannot create allocate vm operation for session {}: {}",
@@ -221,14 +221,14 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                             LOG.info("Found existing VM {}", existingVm);
 
                             var meta = Any.pack(AllocateMetadata.newBuilder()
-                                    .setVmId(existingVm.vmId())
-                                    .build());
+                                .setVmId(existingVm.vmId())
+                                .build());
                             var response = Any.pack(AllocateResponse.newBuilder()
-                                    .setSessionId(existingVm.sessionId())
-                                    .setPoolId(existingVm.poolLabel())
-                                    .setVmId(existingVm.vmId())
-                                    .putAllMetadata(existingVm.vmMeta())
-                                    .build());
+                                .setSessionId(existingVm.sessionId())
+                                .setPoolId(existingVm.poolLabel())
+                                .setVmId(existingVm.vmId())
+                                .putAllMetadata(existingVm.vmMeta())
+                                .build());
 
                             op.modifyMeta(meta);
                             op.setResponse(response);
@@ -292,8 +292,8 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                         );
 
                         var meta = Any.pack(AllocateMetadata.newBuilder()
-                                .setVmId(vmSpec.vmId())
-                                .build());
+                            .setVmId(vmSpec.vmId())
+                            .build());
 
                         op.modifyMeta(meta);
                         operations.updateMeta(op.id(), meta.toByteArray(), transaction);

@@ -11,7 +11,6 @@ import ai.lzy.allocator.model.Vm;
 import ai.lzy.iam.clients.SubjectServiceClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.dao.OperationDao;
-import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
@@ -37,7 +36,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
-import javax.inject.Inject;
 import javax.inject.Named;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
@@ -57,9 +55,9 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
     private final Metrics metrics = new Metrics();
     private final SubjectServiceClient subjectClient;
 
-    @Inject
     public AllocatorPrivateApi(VmDao dao, VmAllocator allocator, SessionDao sessions,
                                AllocatorDataSource storage, ServiceConfig config,
+                               @Named("AllocatorOperationDao") OperationDao operationDao,
                                @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
                                @Named("AllocatorIamToken") RenewableJwt iamToken)
     {
@@ -67,7 +65,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
         this.allocator = allocator;
         this.sessions = sessions;
         this.storage = storage;
-        this.operations = new OperationDaoImpl(storage);
+        this.operations = operationDao;
         this.config = config;
         this.subjectClient = new SubjectServiceGrpcClient(AllocatorMain.APP, iamChannel, iamToken::get);
     }

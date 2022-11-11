@@ -3,7 +3,6 @@ package ai.lzy.allocator;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.VmDao;
-import ai.lzy.allocator.dao.impl.AllocatorDataSource;
 import ai.lzy.allocator.disk.DiskService;
 import ai.lzy.allocator.services.AllocatorApi;
 import ai.lzy.allocator.services.AllocatorPrivateApi;
@@ -12,7 +11,7 @@ import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.longrunning.OperationService;
-import ai.lzy.longrunning.dao.OperationDaoImpl;
+import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.metrics.MetricsGrpcInterceptor;
 import ai.lzy.v1.AllocatorPrivateGrpc;
@@ -49,8 +48,9 @@ public class AllocatorMain {
     public AllocatorMain(MetricReporter metricReporter, AllocatorApi allocator,
                          AllocatorPrivateApi allocatorPrivate, DiskService diskService,
                          ServiceConfig config, GarbageCollector gc, VmPoolService vmPool,
+                         @Named("AllocatorOperationDao") OperationDao operationDao,
                          @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
-                         VmDao vmDao, VmAllocator alloc, AllocatorDataSource storage)
+                         VmDao vmDao, VmAllocator alloc)
     {
         this.config = config;
         this.gc = gc;
@@ -76,7 +76,7 @@ public class AllocatorMain {
 
         var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
 
-        var opApi = new OperationService(new OperationDaoImpl(storage));
+        var opApi = new OperationService(operationDao);
 
         builder.addService(ServerInterceptors.intercept(allocator, internalOnly));
         builder.addService(allocatorPrivate);
