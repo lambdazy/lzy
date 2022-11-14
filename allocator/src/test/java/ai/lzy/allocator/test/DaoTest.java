@@ -3,7 +3,11 @@ package ai.lzy.allocator.test;
 import ai.lzy.allocator.dao.SessionDao;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.dao.impl.AllocatorDataSource;
-import ai.lzy.allocator.disk.*;
+import ai.lzy.allocator.disk.Disk;
+import ai.lzy.allocator.disk.DiskMeta;
+import ai.lzy.allocator.disk.DiskSpec;
+import ai.lzy.allocator.disk.DiskStorage;
+import ai.lzy.allocator.disk.DiskType;
 import ai.lzy.allocator.model.CachePolicy;
 import ai.lzy.allocator.model.Session;
 import ai.lzy.allocator.model.Vm;
@@ -24,12 +28,15 @@ import io.micronaut.context.ApplicationContext;
 import io.micronaut.inject.qualifiers.Qualifiers;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -49,6 +56,7 @@ public class DaoTest {
     @Before
     public void setUp() {
         context = ApplicationContext.run(DatabaseTestUtils.preparePostgresConfig("allocator", db.getConnectionInfo()));
+        //context = ApplicationContext.run(DatabaseTestUtils.prepareLocalhostConfig("allocator"));
         storage = context.getBean(Storage.class);
         opDao = context.getBean(OperationDao.class, Qualifiers.byName("AllocatorOperationDao"));
         sessionDao = context.getBean(SessionDao.class);
@@ -152,7 +160,7 @@ public class DaoTest {
 
     private Session createSession() throws SQLException {
         var opId = UUID.randomUUID().toString();
-        var op = Operation.createCompleted(opId, "owner", "descr", null, null, Any.pack(Empty.getDefaultInstance()));
+        var op = Operation.createCompleted(opId, "owner", "descr", null, null, Empty.getDefaultInstance());
         var sid = UUID.randomUUID().toString();
         var s = new Session(sid, "owner", "descr", new CachePolicy(Duration.ofSeconds(10)), opId);
 
@@ -168,7 +176,7 @@ public class DaoTest {
     public void testVm() throws SQLException {
         var session = createSession();
         var allocOp = Operation.createCompleted("xxx", "owner", "descr", null, null,
-            Any.pack(VmAllocatorApi.AllocateResponse.getDefaultInstance()));
+            VmAllocatorApi.AllocateResponse.getDefaultInstance());
         opDao.create(allocOp, null);
 
         final VolumeMount volume = new VolumeMount(
@@ -177,11 +185,20 @@ public class DaoTest {
             "wl1", "im", Map.of("a", "b"), List.of("a1", "a2"), Map.of(1111, 2222),
             List.of(volume));
         final var volumeRequest = new VolumeRequest(new DiskVolumeDescription("diskVolume", "diskId", 3));
-        final var vm = vmDao.create(session.sessionId(), "pool", "zone", Collections.emptyList(),
-            List.of(wl1), List.of(volumeRequest), allocOp.id(), Instant.now(), null, null
-        );
 
-        final var vm1 = vmDao.get(vm.vmId(), null);
+        final var vmSpec = new Vm.Spec(
+            "placeholder",
+            session.sessionId(),
+            Instant.now(),
+            "pool",
+            "zone",
+            List.of(),
+            List.of(wl1),
+            List.of(volumeRequest),
+            null);
+        final var vmId = vmDao.create(vmSpec, allocOp.id(), null);
+
+        final var vm1 = vmDao.get(vmId, null);
         Assert.assertNotNull(vm1);
         Assert.assertEquals(session.sessionId(), vm1.sessionId());
         Assert.assertEquals("pool", vm1.poolLabel());
@@ -192,7 +209,7 @@ public class DaoTest {
         Assert.assertEquals(List.of(volumeRequest), vm1.volumeRequests());
 
         vmDao.updateStatus(vm1.vmId(), Vm.VmStatus.IDLE, null);
-        final var vm2 = vmDao.acquire(session.sessionId(), "pool", "zone", null);
+        final var vm2 = vmDao.acquire(vmSpec, null);
         Assert.assertNotNull(vm2);
         Assert.assertEquals(vm1.vmId(), vm2.vmId());
         Assert.assertEquals(Vm.VmStatus.RUNNING, vm2.status());
@@ -206,14 +223,14 @@ public class DaoTest {
             .build(), null);
 
         final var vms2 = vmDao.listExpired(100);
-        Assert.assertEquals(vm.vmId(), vms2.get(0).vmId());
+        Assert.assertEquals(vmId, vms2.get(0).vmId());
 
         final var meta = Map.of("a", "b", "c", "d");
 
-        Assert.assertNull(vmDao.getAllocatorMeta(vm.vmId(), null));
+        Assert.assertNull(vmDao.getAllocatorMeta(vmId, null));
 
-        vmDao.saveAllocatorMeta(vm.vmId(), meta, null);
-        Assert.assertEquals(meta, vmDao.getAllocatorMeta(vm.vmId(), null));
+        vmDao.saveAllocatorMeta(vmId, meta, null);
+        Assert.assertEquals(meta, vmDao.getAllocatorMeta(vmId, null));
     }
 
     @Test

@@ -2,6 +2,7 @@ package ai.lzy.longrunning;
 
 import ai.lzy.v1.longrunning.LongRunning;
 import com.google.protobuf.Any;
+import com.google.protobuf.Message;
 import com.google.protobuf.Timestamp;
 import io.grpc.Status;
 
@@ -35,11 +36,21 @@ public class Operation {
     private Status error;
 
     public static Operation createCompleted(String id, String createdBy, String description,
-                                            @Nullable IdempotencyKey idempotencyKey, @Nullable Any meta, Any response)
+                                            @Nullable IdempotencyKey idempotencyKey, @Nullable Message meta,
+                                            Message response)
     {
         Objects.requireNonNull(response);
         var now = Instant.now();
-        return new Operation(id, createdBy, now, description, idempotencyKey, meta, now, true, response, null);
+        return new Operation(id, createdBy, now, description, idempotencyKey,
+            meta != null ? Any.pack(meta) : null, now, true, Any.pack(response), null);
+    }
+
+    public static Operation create(String createdBy, String description, @Nullable IdempotencyKey idempotencyKey,
+                                   @Nullable Message meta)
+    {
+        var now = Instant.now();
+        return new Operation(UUID.randomUUID().toString(), createdBy, now, description, idempotencyKey,
+            meta != null ? Any.pack(meta) : null, now, false, null, null);
     }
 
     public Operation(String owner, String description, @Nullable Any meta) {

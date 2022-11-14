@@ -147,9 +147,10 @@ public class KuberVmAllocator implements VmAllocator {
             return null;
         }
         final var podSpec = podsList.get(0);
-        if (podSpec.getMetadata() != null
-                && podSpec.getMetadata().getName() != null
-                && podSpec.getMetadata().getName().equals(name)) {
+        if (podSpec.getMetadata() != null &&
+            podSpec.getMetadata().getName() != null &&
+            podSpec.getMetadata().getName().equals(name))
+        {
             return podSpec;
         }
         return null;

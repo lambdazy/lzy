@@ -50,7 +50,12 @@ public record Vm(
         List<VolumeRequest> volumeRequests,
 
         @Nullable Inet6Address proxyV6Address
-    ) {}
+    ) {
+        public Spec withVmId(String vmId) {
+            return new Spec(vmId, sessionId, allocationStartedAt, poolLabel, zone, initWorkloads, workloads,
+                volumeRequests, proxyV6Address);
+        }
+    }
 
     public record State(
         VmStatus status,
