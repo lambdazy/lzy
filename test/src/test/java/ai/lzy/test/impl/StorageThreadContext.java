@@ -1,7 +1,7 @@
 package ai.lzy.test.impl;
 
-import ai.lzy.storage.LzyStorage;
-import ai.lzy.storage.StorageConfig;
+import ai.lzy.storage.App;
+import ai.lzy.storage.config.StorageConfig;
 import ai.lzy.test.LzyStorageTestContext;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.ChannelBuilder;
@@ -33,7 +33,7 @@ public class StorageThreadContext implements LzyStorageTestContext {
     public static final int S3_PORT = 18081;
 
     private final HostAndPort iamAddress;
-    private LzyStorage storage;
+    private App storage;
     private LzyStorageServiceGrpc.LzyStorageServiceBlockingStub client;
 
     public StorageThreadContext(HostAndPort iamAddress) {
@@ -77,7 +77,7 @@ public class StorageThreadContext implements LzyStorageTestContext {
             logger.info("Starting LzyStorage on port {}...", STORAGE_PORT);
 
             try {
-                storage = new LzyStorage(context);
+                storage = new App(context);
                 storage.start();
             } catch (IOException e) {
                 throw new RuntimeException(e);

@@ -1,6 +1,6 @@
-package ai.lzy.storage.impl;
+package ai.lzy.storage.test;
 
-import ai.lzy.storage.StorageConfig;
+import ai.lzy.storage.config.StorageConfig;
 import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.storage.LSS.*;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;

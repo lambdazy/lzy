@@ -1,6 +1,6 @@
 package ai.lzy.storage.impl;
 
-import ai.lzy.storage.StorageConfig;
+import ai.lzy.storage.config.StorageConfig;
 import io.micronaut.context.annotation.Context;
 import io.micronaut.context.annotation.Requires;
 import org.bouncycastle.util.io.pem.PemObject;

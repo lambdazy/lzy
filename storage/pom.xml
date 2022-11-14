@@ -13,7 +13,7 @@
     <packaging>${packaging}</packaging>
 
     <properties>
-        <exec.mainClass>ai.lzy.storage.LzyStorage</exec.mainClass>
+        <exec.mainClass>ai.lzy.storage.App</exec.mainClass>
         <maven.compiler.source>18</maven.compiler.source>
         <maven.compiler.target>18</maven.compiler.target>
         <micronaut.runtime>netty</micronaut.runtime>

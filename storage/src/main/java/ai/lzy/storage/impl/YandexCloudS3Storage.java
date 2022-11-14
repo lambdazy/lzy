@@ -2,8 +2,8 @@ package ai.lzy.storage.impl;
 
 import ai.lzy.model.db.Transaction;
 import ai.lzy.model.db.exceptions.DaoException;
-import ai.lzy.storage.StorageConfig;
-import ai.lzy.storage.StorageDataSource;
+import ai.lzy.storage.config.StorageConfig;
+import ai.lzy.storage.data.StorageDataSource;
 import ai.lzy.util.auth.YcIamClient;
 import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.storage.LSS.*;

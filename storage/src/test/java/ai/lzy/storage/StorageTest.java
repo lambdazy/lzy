@@ -2,6 +2,7 @@ package ai.lzy.storage;
 
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.db.test.DatabaseTestUtils;
+import ai.lzy.storage.config.StorageConfig;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
@@ -38,7 +39,7 @@ public class StorageTest extends BaseTestWithIam {
 
     private ApplicationContext storageCtx;
     private StorageConfig storageConfig;
-    private LzyStorage storageApp;
+    private App storageApp;
 
     private LzyStorageServiceGrpc.LzyStorageServiceBlockingStub storageClient;
 
@@ -48,7 +49,7 @@ public class StorageTest extends BaseTestWithIam {
 
         storageCtx = ApplicationContext.run(DatabaseTestUtils.preparePostgresConfig("storage", db.getConnectionInfo()));
         storageConfig = storageCtx.getBean(StorageConfig.class);
-        storageApp = new LzyStorage(storageCtx);
+        storageApp = new App(storageCtx);
         storageApp.start();
 
         var channel = ChannelBuilder
