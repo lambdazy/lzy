@@ -1,6 +1,6 @@
 package ai.lzy.kharon;
 
-import ai.lzy.model.SlotConnectionManager;
+import ai.lzy.model.deprecated.SlotConnectionManager;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.util.grpc.ProxyClientHeaderInterceptor;
@@ -16,9 +16,7 @@ import ai.lzy.v1.deprecated.Kharon.SendSlotDataMessage;
 import ai.lzy.v1.deprecated.Kharon.TerminalCommand;
 import ai.lzy.v1.deprecated.Lzy.GetSessionsRequest;
 import ai.lzy.v1.deprecated.Lzy.GetSessionsResponse;
-import ai.lzy.v1.deprecated.LzyFsApi;
 import ai.lzy.v1.deprecated.LzyFsApi.SlotCommandStatus;
-import ai.lzy.v1.deprecated.LzyFsGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.Context;
 import io.grpc.ManagedChannel;
