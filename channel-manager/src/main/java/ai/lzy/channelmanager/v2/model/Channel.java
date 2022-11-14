@@ -47,8 +47,13 @@ public class Channel {
 
     }
 
-    public Endpoint connection(URI senderUri, URI receiverUri) {
+    @Nullable
+    public Connection connection(URI senderUri, URI receiverUri) {
+        return
+    }
 
+    public List<Connection> connections(URI endpointUri) {
+        return
     }
 
     @Nullable
@@ -99,4 +104,5 @@ public class Channel {
         }
 
     }
+
 }

@@ -20,7 +20,7 @@ public interface ChannelStorage {
     void insertBindingEndpoint(Endpoint endpoint, @Nullable TransactionHandle transaction) throws SQLException;
     void markEndpointBound(String endpointUri, @Nullable TransactionHandle transaction) throws SQLException;
     void markEndpointUnbinding(String endpointUri, @Nullable TransactionHandle transaction) throws SQLException;
-    void removeEndpointWithConnections(String endpointUri, @Nullable TransactionHandle transaction) throws SQLException;
+    void removeEndpointWithoutConnections(String endpointUri, @Nullable TransactionHandle transaction) throws SQLException;
 
     void insertEndpointConnection(String channelId, String senderUri, String receiverUri,
                                   @Nullable TransactionHandle transaction) throws SQLException;
@@ -60,11 +60,5 @@ public interface ChannelStorage {
     enum ChannelLifeStatus {
         ALIVE,
         DESTROYING,
-    }
-
-    enum ConnectionLifeStatus {
-        CONNECTING,
-        ALIVE,
-        DISCONNECTING
     }
 }

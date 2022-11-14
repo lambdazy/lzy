@@ -95,7 +95,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         responseObserver.onCompleted();
 
         LOG.info(operationDescription + " responded, async operation started");
-        channelController.executeBind(endpoint);
+        channelController.executeBind(endpoint, );
 
         /*
 
@@ -181,10 +181,12 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
 
         responseObserver.onNext(operation.toProto());
         responseObserver.onCompleted();
-
-
         LOG.info(operationDescription + " responded, async operation started");
-        channelController.executeUnbind(endpoint);
+
+        // in other thread
+        {
+            channelController.executeUnbind(endpoint);
+        }
 /*
         try (final var guard = lockManager.withLock(channelId)) {
             final Channel channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.ALIVE, null);

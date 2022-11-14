@@ -4,6 +4,7 @@ import ai.lzy.channelmanager.lock.GrainedLock;
 import ai.lzy.channelmanager.v2.db.ChannelStorage;
 import ai.lzy.channelmanager.v2.grpc.SlotConnectionManager;
 import ai.lzy.channelmanager.v2.model.Channel;
+import ai.lzy.channelmanager.v2.model.Connection;
 import ai.lzy.channelmanager.v2.model.Endpoint;
 import ai.lzy.channelmanager.v2.slot.SlotApiClient;
 import ai.lzy.longrunning.Operation;
@@ -39,14 +40,29 @@ public class ChannelControllerImpl implements ChannelController {
     }
 
     @Override
-    public void executeBind(Endpoint endpoint) {
+    public void executeBind(Endpoint endpoint, Operation bindOperation) {
         LOG.debug("[executeBind], endpoint={}", endpoint.uri());
 
+        try {
+            bind(endpoint);
+        } catch (CancellingStateException e) {
+            LOG.warn("[executeBind] operation {} cancelled, " + e.getMessage());
+            bindOperation.setError(Status.CANCELLED);
+            operationStorage.update(operation);
+        }  catch (Exception e) {
+            LOG.error("[executeBind] operation {} failed, " + e.getMessage());
+            // error op
+        }
+
+        bindOperation.setResponse(Any.pack(LCMS.BindRequest.getDefaultInstance()));
+        operationStorage.update(bindOperation);
+
+        LOG.debug("[executeBind] done, endpoint={}", endpoint.uri());
 
     }
 
     @Override
-    public void executeUnbind(Channel channel, Endpoint endpoint) {
+    public void executeUnbind(Endpoint endpoint) {
         LOG.debug("[executeUnbind], endpoint={}, channel={}", endpoint.uri(), channel.id());
 
         for (final Endpoint connectedEndpoint : channel.connections().ofEndpoint(endpoint)) {
@@ -54,212 +70,143 @@ public class ChannelControllerImpl implements ChannelController {
         }
     }
 
-    private void bindSender(Endpoint endpoint, Operation bindOperation) {
-        final String channelId = endpoint.channelId();
-
-        boolean toCancelOperation = false;
-        Endpoint receiverToUndoConnection;
+    private void bind(Endpoint endpoint) throws Exception {
         while (true) {
-            final Endpoint receiverToConnect;
-            receiverToUndoConnection = null;
+            final Endpoint endpointToConnect = findEndpointToConnect(endpoint);
 
-            try (final var guard = lockManager.withLock(channelId)) {
-                Channel channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
-
-                if (channel == null) {
-                    LOG.warn("[bindSender] operation {} cancelled, channel {} not found",
-                        bindOperation.id(), channelId);
-                    toCancelOperation = true;
-                    break;
-                }
-
-                Endpoint sender = channel.endpoint(endpoint.uri());
-                if (sender == null || sender.lifeStatus() != Endpoint.EndpointLifeStatus.BINDING) {
-                    LOG.warn("[bindSender] operation {} cancelled, endpoint {} not found or has wrong lifeStatus",
-                        bindOperation.id(), endpoint.uri());
-                    toCancelOperation = true;
-                    break;
-                }
-
-                List<Endpoint> receivers = channel.findReceiversToConnect(endpoint);
-                if (receivers.isEmpty()) {
-                    break;
-                }
-                receiverToConnect = channel.findReceiversToConnect(endpoint).get(0);
-
-                withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.insertEndpointConnection(
-                    channelId, endpoint.uri().toString(), receiverToConnect.uri().toString(), null));
-            } catch (Exception e) {
-                LOG.error("[bindSender] operation {} failed", bindOperation.id(), e);
-                sendError();
+            if (endpointToConnect == null) {
                 return;
             }
 
+            Connection potentialConnection = Connection.of(endpoint, endpointToConnect);
+            slotApiClient.connect(potentialConnection.sender(), potentialConnection.receiver(), Duration.ofSeconds(10));
+
+            boolean connectionSaved;
             try {
-                slotApiClient.connect(endpoint, receiverToConnect, Duration.ofSeconds(10));
-            } catch (Exception e) {
-                LOG.error("[bindSender] operation {} failed while connecting, sender={}, receiver={}",
-                    bindOperation.id(), endpoint.uri(), receiverToConnect.uri(), e);
-                sendError();
-                return;
+                connectionSaved = saveConnection(endpoint, endpointToConnect);
+            } catch (CancellingStateException e) {
+                slotApiClient.disconnect(potentialConnection.receiver());
+                throw e;
             }
 
-            try (final var guard = lockManager.withLock(channelId)) {
-                Channel channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
-
-                if (channel == null) {
-                    LOG.warn("[bindSender] operation {} cancelled, channel {} not found",
-                        bindOperation.id(), channelId);
-                    toCancelOperation = true;
-                    receiverToUndoConnection = receiverToConnect;
-                    break;
-                }
-
-                Endpoint sender = channel.endpoint(endpoint.uri());
-                if (sender == null || sender.lifeStatus() != Endpoint.EndpointLifeStatus.BINDING) {
-                    LOG.warn("[bindSender] operation {} cancelled, endpoint {} has unexpected lifeStatus",
-                        bindOperation.id(), endpoint.uri());
-                    toCancelOperation = true;
-                    receiverToUndoConnection = receiverToConnect;
-                    break;
-                }
-
-                Connection ???connection = channel.connection(endpoint.uri(), receiverToConnect.uri());
-                if (channel.connection(sender.uri(), receiverToConnect.uri()) == null
-                    || connection.lifeStatus != CONNECTING)
-                {
-                    LOG.warn("[bindSender] operation {} undo connection,"
-                             + " sender={}, receiver={}, unexpected connection lifeStatus",
-                        bindOperation.id(), endpoint.uri(), receiverToConnect.uri());
-                    receiverToUndoConnection = receiverToConnect;
-                } else {
-                    withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.markEndpointConnectionAlive(
-                        channelId, endpoint.uri().toString(), receiverToConnect.uri().toString(), null));
-                }
-            } catch (Exception e) {
-                // TODO
+            if (!connectionSaved) {
+                slotApiClient.disconnect(potentialConnection.receiver());
             }
-
-            if (toUndoConnection) {
-                try {
-                    slotApiClient.disconnect(receiverToConnect);
-                } catch (Exception e) {
-                    // TODO
-                }
-            }
-
-        }
-
-        if (receiverToUndoConnection != null) {
-            try {
-                slotApiClient.disconnect(receiverToUndoConnection);
-            } catch (Exception e) {
-                // TODO
-            }
-        }
-
-        try (final var guard = lockManager.withLock(channelId)) {
-            if (toCancelOperation) {
-                bindOperation.setError(Status.CANCELLED);
-                operationStorage.update(bindOperation);
-            } else {
-                bindOperation.setResponse(Any.pack(LCMS.BindRequest.getDefaultInstance()));
-                operationStorage.update(bindOperation);
-                channelStorage.markEndpointBound(endpoint.uri().toString(), null);
-            }
-        } catch (Exception e) {
-            // TODO
         }
     }
 
-    private void bindReceiver(Endpoint endpoint, Operation bindOperation) {
+    private void unbindSender(Endpoint endpoint) throws Exception {
         final String channelId = endpoint.channelId();
+        while (true) {
+            final Connection connectionToBreak;
+            try (final var guard = lockManager.withLock(channelId)) {
+                final Channel channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
 
-        boolean toCancelOperation = false;
-        boolean toUndoConnection = false;
-        final Endpoint senderToConnect;
+                if (channel == null) {
+                    // ok, already removed
+                }
+
+                final Endpoint actualStateEndpoint = channel.endpoint(endpoint.uri());
+                if (actualStateEndpoint == null) {
+                    // ok, already removed
+                }
+
+                if (actualStateEndpoint.lifeStatus() != Endpoint.LifeStatus.UNBINDING) {
+                    // unexpected , mark error
+                }
+
+                final List<Connection> actualStateConnections = channel.connections(endpoint.uri());
+                connectionToBreak = actualStateConnections.stream()
+                    .filter(it -> it.status() == Connection.LifeStatus.CONNECTED)
+                    .findFirst().orElse(null);
+
+                if (connectionToBreak == null) {
+                    break;
+                }
+
+                // log warning, force unbinding receiver
+                withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.markEndpointUnbinding(
+                    connectionToBreak.receiver().uri().toString(), null));
+            }
+
+            unbindReceiver(connectionToBreak.receiver());
+        }
+
+        slotApiClient.disconnect(endpoint);
+
         try (final var guard = lockManager.withLock(channelId)) {
-            Channel channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
+            withRetries(defaultRetryPolicy(), LOG,
+                () -> channelStorage.removeEndpointWithoutConnections(endpoint.uri().toString(), null));
+        }
+    }
+
+    private void unbindReceiver(Endpoint endpoint) throws Exception {
+        final String channelId = endpoint.channelId();
+        final Connection connectionToBreak;
+        try (final var guard = lockManager.withLock(channelId)) {
+            final Channel channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
 
             if (channel == null) {
-                LOG.warn("[bindReceiver] operation {} cancelled, channel {} not found",
-                    bindOperation.id(), channelId);
-                toCancelOperation = true;
-                break;
+                // ok, already removed
             }
 
-            Endpoint receiver = channel.endpoint(endpoint.uri());
-            if (receiver == null || receiver.lifeStatus() != Endpoint.EndpointLifeStatus.BINDING) {
-                LOG.warn("[bindReceiver] operation {} cancelled, endpoint {} not found or has wrong lifeStatus",
-                    bindOperation.id(), endpoint.uri());
-                toCancelOperation = true;
-                break;
+            final Endpoint actualStateEndpoint = channel.endpoint(endpoint.uri());
+            if (actualStateEndpoint == null) {
+                // ok, already removed
             }
 
-            senderToConnect = channel.findSenderToConnect(endpoint);
+            if (actualStateEndpoint.lifeStatus() != Endpoint.LifeStatus.UNBINDING) {
+                // unexpected , mark error
+            }
 
-            if (senderToConnect == null) {
-                bindOperation.setResponse(Any.pack(LCMS.UnbindRequest.getDefaultInstance()));
-                operationStorage.update(bindOperation);
-                channelStorage.markEndpointBound(endpoint.uri().toString(), null);
+            final List<Connection> actualStateConnections = channel.connections(endpoint.uri());
+            connectionToBreak = actualStateConnections.stream()
+                .filter(it -> it.status() == Connection.LifeStatus.CONNECTED)
+                .findFirst().orElse(null);
+
+            if (connectionToBreak == null) {
+                withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.removeEndpointWithoutConnections(endpoint.uri().toString(), null));
                 return;
             }
 
-            withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.insertEndpointConnection(
-                channelId, senderToConnect.uri().toString(), endpoint.uri().toString(), null));
-        } catch (Exception e) {
-            // TODO
+            withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.markEndpointConnectionDisconnecting(
+                channelId, connectionToBreak.sender().uri().toString(), connectionToBreak.receiver().uri().toString(), null));
         }
 
-        try {
-            slotApiClient.connect(senderToConnect, endpoint, Duration.ofSeconds(10));
-        } catch (Exception e) {
-            // TODO
-        }
+        slotApiClient.disconnect(endpoint);
 
         try (final var guard = lockManager.withLock(channelId)) {
-            Channel channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
+            final Channel channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
 
-            if (channel == null
-                || channel.receiver(endpoint.uri()) == null || receiver.lifeStatus != BINDING)
-            {
-                toCancelOperation = true;
-                toUndoConnection = true;
-                break;
+            if (channel == null) {
+                // ok, already removed
             }
-            if (channel.connection(receiver.uri(), senderToConnect.uri()) == null ||
-                connection.lifeStatus != CONNECTING)
-            {
-                toUndoConnection = true;
-            } else {
-                withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.markEndpointConnectionAlive(
-                    channelId, senderToConnect.uri().toString(), endpoint.uri().toString(), null));
+
+            final Endpoint actualStateEndpoint = channel.endpoint(endpoint.uri());
+            if (actualStateEndpoint == null) {
+                // ok, already removed
             }
-        } catch (Exception e) {
-            // TODO
+
+            if (actualStateEndpoint.lifeStatus() != Endpoint.LifeStatus.UNBINDING) {
+                // unexpected, mark error
+            }
+
+            final Connection actualStateConnection = channel.connection(connectionToBreak.sender().uri(), connectionToBreak.receiver().uri());
+            if (actualStateConnection == null) {
+                // ok, already removed connection, to remove endpoint
+                withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.removeEndpointWithoutConnections(endpoint.uri().toString(), null));
+            }
+
+            if (actualStateConnection.status() != Connection.LifeStatus.DISCONNECTING) {
+                // unexpected, mark error
+            }
+
+            withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.removeEndpointConnection(
+                channelId, connectionToBreak.sender().uri().toString(), connectionToBreak.receiver().uri().toString(), null));
+
+            withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.removeEndpointWithoutConnections(endpoint.uri().toString(), null));
         }
 
-    }
-
-    private unbindSender(Channel channel, Endpoint endpoint) {
-        /* for each connected receiver
-
-            unbind receiver
-
-        */
-
-    }
-
-    private unbindReceiver(Channel channel, Endpoint endpoint) {
-        /* single edge */
-
-        // set status disconnecting
-
-        // call disconnect
-    }
-
-    private Endpoint resolveBoundUnconnectedReceiver() {
-        return null;
     }
 
     @Nullable
@@ -269,12 +216,12 @@ public class ChannelControllerImpl implements ChannelController {
             final Channel channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
 
             if (channel == null) {
-                throw new CancellingStateException("channel " + channelId + " not found");
+                throw new CancellingStateException("Channel " + channelId + " not found");
             }
 
-            Endpoint actualStateEndpoint = channel.endpoint(endpoint.uri());
-            if (actualStateEndpoint == null || actualStateEndpoint.lifeStatus() != Endpoint.EndpointLifeStatus.BINDING) {
-                throw new CancellingStateException("endpoint " + endpoint.uri() + " has wrong lifeStatus");
+            final Endpoint actualStateEndpoint = channel.endpoint(endpoint.uri());
+            if (actualStateEndpoint == null || actualStateEndpoint.lifeStatus() != Endpoint.LifeStatus.BINDING) {
+                throw new CancellingStateException("Endpoint " + endpoint.uri() + " has wrong lifeStatus");
             }
 
             final Endpoint endpointToConnect;
@@ -290,10 +237,11 @@ public class ChannelControllerImpl implements ChannelController {
                     sender = endpointToConnect;
                     receiver = endpoint;
                 }
-                default -> throw new IllegalStateException("endpoint " + endpoint.uri() + " has unexpected direction");
+                default -> throw new IllegalStateException("Endpoint " + endpoint.uri() + " has unexpected direction");
             }
 
             if (endpointToConnect == null) {
+                withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.markEndpointBound(endpoint.uri().toString(), null));
                 return null;
             }
 
@@ -317,33 +265,34 @@ public class ChannelControllerImpl implements ChannelController {
                 sender = connectedEndpoint;
                 receiver = endpoint;
             }
-            default -> throw new IllegalStateException("endpoint " + endpoint.uri() + " has unexpected direction");
+            default -> throw new IllegalStateException("Endpoint " + endpoint.uri() + " has unexpected direction" + endpoint.slotDirection());
         }
 
         try (final var guard = lockManager.withLock(channelId)) {
             Channel channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
 
             if (channel == null) {
-                throw new CancellingStateException("channel " + channelId + " not found");
+                throw new CancellingStateException("Channel " + channelId + " not found");
             }
 
-            Endpoint actualStateEndpoint = channel.endpoint(endpoint.uri());
-            if (actualStateEndpoint == null || actualStateEndpoint.lifeStatus() != Endpoint.EndpointLifeStatus.BINDING) {
-                throw new CancellingStateException("endpoint " + endpoint.uri() + " has wrong lifeStatus");
+            final Endpoint actualStateEndpoint = channel.endpoint(endpoint.uri());
+            if (actualStateEndpoint == null || actualStateEndpoint.lifeStatus() != Endpoint.LifeStatus.BINDING) {
+                throw new CancellingStateException("Endpoint " + endpoint.uri() + " has wrong lifeStatus");
             }
 
-            if (newConnection.lifeStatus != CONNECTING) {
+            final Connection actualStateConnection = channel.connection(sender.uri(), receiver.uri());
+            if (actualStateConnection == null || actualStateConnection.status() != Connection.LifeStatus.CONNECTING) {
                 return false;
             }
 
             withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.markEndpointConnectionAlive(
                 channelId, sender.uri().toString(), receiver.uri().toString(), null));
-
-            return true;
         }
+
+        return true;
     }
 
-    private class CancellingStateException extends Exception {
+    private static class CancellingStateException extends Exception {
 
         public CancellingStateException(String message) {
             super(message);

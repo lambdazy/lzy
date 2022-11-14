@@ -23,21 +23,21 @@ public class Endpoint {
     private final LzySlotsApiGrpc.LzySlotsApiBlockingStub slotApiStub;
     private final SlotInstance slot;
     private final SlotOwner slotOwner;
-    private final EndpointLifeStatus lifeStatus;
+    private final LifeStatus lifeStatus;
 
-    private Endpoint(SlotInstance slot, SlotOwner slotOwner, EndpointLifeStatus lifeStatus) {
+    private Endpoint(SlotInstance slot, SlotOwner slotOwner, LifeStatus lifeStatus) {
         this.slotApiStub = SLOT_CONNECTION_MANAGER.getOrCreate(slot.uri());
         this.slotOwner = slotOwner;
         this.slot = slot;
         this.lifeStatus = lifeStatus;
     }
 
-    public static synchronized Endpoint fromSlot(SlotInstance slot, SlotOwner owner, EndpointLifeStatus lifeStatus) {
+    public static synchronized Endpoint fromSlot(SlotInstance slot, SlotOwner owner, LifeStatus lifeStatus) {
         return ENDPOINTS_CACHE.computeIfAbsent(slot.uri(), uri -> new Endpoint(slot, owner, lifeStatus));
     }
 
     public static Endpoint fromProto(LMS.SlotInstance instance, LCMS.BindRequest.SlotOwner origin) {
-        return fromSlot(ProtoConverter.fromProto(instance), SlotOwner.fromProto(origin), EndpointLifeStatus.BINDING);
+        return fromSlot(ProtoConverter.fromProto(instance), SlotOwner.fromProto(origin), LifeStatus.BINDING);
     }
 
     public LzySlotsApiGrpc.LzySlotsApiBlockingStub getSlotApiStub() {
@@ -64,7 +64,7 @@ public class Endpoint {
         return slot.spec().direction();
     }
 
-    public EndpointLifeStatus lifeStatus() {
+    public LifeStatus lifeStatus() {
         return lifeStatus;
     }
 
@@ -78,7 +78,7 @@ public class Endpoint {
         }
     }
 
-    public enum EndpointLifeStatus {
+    public enum LifeStatus {
         BINDING,
         BOUND,
         UNBINDING,
