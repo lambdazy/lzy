@@ -77,7 +77,7 @@ def op(
     return deco(func)
 
 
-def whiteboard(name: str):
+def whiteboard(name: str, namespace: str = None):
     def wrap(cls):
         return whiteboard_(cls, "default", name)
 

@@ -63,7 +63,7 @@ if __name__ == "__main__":
         i, s = b()
         print(f"{i}, {s}")
 
-    wb_repo = WhiteboardRepository(lzy.storage_registry, lzy.serializer)
+    wb_repo = WhiteboardRepository.with_grpc_client(lzy.storage_registry, lzy.serializer)
     wb = wb_repo.get(wb_id)
     with wb.f2.open("r") as f:
         for line in f.readlines():

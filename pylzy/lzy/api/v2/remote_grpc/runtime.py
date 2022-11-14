@@ -138,6 +138,7 @@ class GrpcRuntime(Runtime):
         urls = await self.__load_local_modules(modules)
 
         _LOG.info("Building graph")
+        print(links)
         graph = await asyncio.get_event_loop().run_in_executor(
             None, self.__build_graph, calls, pools, zip(modules, urls), links
         )  # Running long op in threadpool
@@ -240,7 +241,7 @@ class GrpcRuntime(Runtime):
             with tempfile.NamedTemporaryFile("rb") as archive:
                 if not os.path.isdir(local_module):
                     with zipfile.ZipFile(archive.name, "w") as z:
-                        z.write(local_module, os.path.basename(local_module))
+                        z.write(local_module, os.path.relpath(local_module))
                 else:
                     with zipfile.ZipFile(archive.name, "w") as z:
                         zipdir(local_module, z)

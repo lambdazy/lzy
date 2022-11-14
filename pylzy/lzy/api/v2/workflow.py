@@ -11,6 +11,7 @@ from typing import (
     TypeVar, Set, cast, Mapping,
 )
 
+from lzy.api.v2.exceptions import LzyExecutionException
 from lzy.utils.event_loop import LzyEventLoop
 from lzy.proxy.result import Just
 
@@ -121,7 +122,8 @@ class LzyWorkflow:
         try:
             if not self.__started:
                 raise RuntimeError("Workflow not started")
-            LzyEventLoop.run_async(self._barrier())
+            if exc_type != LzyExecutionException:
+                LzyEventLoop.run_async(self._barrier())
         finally:
             self.__destroy()
 

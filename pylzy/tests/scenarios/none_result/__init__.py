@@ -1,6 +1,5 @@
-import uuid
-
-from lzy.api.v1 import LzyRemoteEnv, op
+from lzy.api.v2 import op, Lzy
+from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
 
 
 @op
@@ -8,9 +7,9 @@ def just_return_none() -> None:
     return None
 
 
-WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
+runtime = GrpcRuntime()
+lzy = Lzy(runtime=runtime)
 
-with LzyRemoteEnv().workflow(name=WORKFLOW_NAME):
+with lzy.workflow(name="wf", interactive=False):
     res = just_return_none()
-
-print(res)
+    print(res)

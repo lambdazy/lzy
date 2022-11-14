@@ -11,6 +11,5 @@ def raises() -> int:
 if __name__ == "__main__":
     runtime = GrpcRuntime()
     lzy = Lzy(runtime=runtime)
-    with lzy.workflow("wf"):
+    with lzy.workflow("wf", interactive=False):
         res = raises()
-        print(res)

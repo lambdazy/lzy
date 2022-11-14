@@ -2,7 +2,8 @@ import tempfile
 import uuid
 from pathlib import Path
 
-from lzy.api.v1 import LzyRemoteEnv, op
+from lzy.api.v2 import Lzy, op
+from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
 
 
 @op
@@ -29,5 +30,7 @@ if __name__ == "__main__":
         )
         f.flush()
 
-        with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, conda_yaml_path=Path(f.name)):
+        runtime = GrpcRuntime()
+        lzy = Lzy(runtime=runtime)
+        with lzy.workflow("wf", interactive=False, conda_yaml_path=f.name):
             main()
