@@ -61,13 +61,15 @@ class CatboostSerializationTests(TestCase):
                 Schema(
                     StandardDataFormats.proto.name,
                     StandardSchemaFormats.pickled_type.name,
+                    "content"
                 )
             )
-        with self.assertRaisesRegex(ValueError, "Invalid schema format*"):
+        with self.assertRaisesRegex(ValueError, "BaseDataSchemaSerializer supports only pickled schema format*"):
             serializer.resolve(
                 Schema(
                     StandardDataFormats.pickle.name,
                     StandardSchemaFormats.json_pickled_type.name,
+                    "content"
                 )
             )
         with self.assertRaisesRegex(ValueError, "No schema content*"):

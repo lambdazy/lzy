@@ -3,13 +3,18 @@ import os
 import tempfile
 from typing import BinaryIO, Callable, Dict, Type, TypeVar, Union
 
-from lzy.serialization.api import Serializer
+from lzy.serialization.api import DefaultDataSchemaSerializer, Schema
+from lzy.serialization.utils import cached_installed_packages
+
+from packaging import version
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
+_LOG = logging.getLogger(__name__)
+
 
 # noinspection PyPackageRequirements
-class CatboostPoolSerializer(Serializer):
+class CatboostPoolSerializer(DefaultDataSchemaSerializer):
     def __init__(self):
         self._log = logging.getLogger(str(self.__class__))
 
@@ -64,3 +69,12 @@ class CatboostPoolSerializer(Serializer):
         import catboost
 
         return {"catboost": catboost.__version__}
+
+    def resolve(self, schema: Schema) -> Type:
+        typ = super().resolve(schema)
+        if 'catboost' not in schema.meta:
+            _LOG.warning('No catboost version in meta')
+        elif version.parse(schema.meta['catboost']) > version.parse(cached_installed_packages["catboost"]):
+            _LOG.warning(f'Installed version of catboost {cached_installed_packages["catboost"]} '
+                         f'is older than used for serialization {schema.meta["catboost"]}')
+        return typ

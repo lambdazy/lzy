@@ -2,7 +2,7 @@ import uuid
 from typing import Any, BinaryIO, Callable, Dict, Type, Union
 from unittest import TestCase
 
-from lzy.serialization.api import Serializer
+from lzy.serialization.api import Serializer, DefaultDataSchemaSerializer
 from lzy.serialization.registry import DefaultSerializerRegistry
 
 
@@ -11,7 +11,7 @@ def generate_serializer(
     available: bool = True,
     stable: bool = True,
 ) -> Type[Serializer]:
-    class TestSerializer(Serializer):
+    class TestSerializer(DefaultDataSchemaSerializer):
         def format(self) -> str:
             return "test_format"
 

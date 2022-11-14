@@ -27,4 +27,4 @@ class ProtoSerializationTests(TestCase):
 
         serializer = self.registry.find_serializer_by_type(type(test_message))
         self.assertTrue(serializer.stable())
-        self.assertIn("hidden-pure-protobuf", serializer.meta())
+        self.assertIn("pure-protobuf", serializer.meta())
