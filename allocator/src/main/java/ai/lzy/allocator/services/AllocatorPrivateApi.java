@@ -75,7 +75,6 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
         final Vm[] vmRef = {null};
         try {
             var status = withRetries(
-                defaultRetryPolicy(),
                 LOG,
                 () -> {
                     Vm vm;

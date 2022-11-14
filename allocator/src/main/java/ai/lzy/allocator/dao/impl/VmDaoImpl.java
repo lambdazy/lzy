@@ -15,7 +15,6 @@ import com.google.common.annotations.VisibleForTesting;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
-import java.net.Inet6Address;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -79,7 +78,7 @@ public class VmDaoImpl implements VmDao {
         WHERE (status = 'IDLE' AND deadline IS NOT NULL AND deadline < NOW())
            OR (status = 'DELETING')
            OR (status = 'CONNECTING' AND allocation_deadline IS NOT NULL AND allocation_deadline < NOW())
-           OR (status != 'CREATED' AND status != 'DEAD' AND last_activity_time < NOW())
+           OR (status != 'CREATED' AND status != 'DEAD' AND COALESCE(last_activity_time < NOW(), FALSE))
         LIMIT ?""".formatted(FIELDS);
 
     private static final String QUERY_ACQUIRE_VM = """
@@ -87,6 +86,9 @@ public class VmDaoImpl implements VmDao {
         FROM vm
         WHERE
             session_id = ? AND pool_label = ? AND zone = ? AND status = 'IDLE'
+            AND workloads_json = ? AND init_workloads_json = ?
+            AND volume_requests_json = ?
+            AND COALESCE(v6_proxy_address, '') = ?
         LIMIT 1
         FOR UPDATE""".formatted(FIELDS);
 
@@ -135,35 +137,28 @@ public class VmDaoImpl implements VmDao {
     }
 
     @Override
-    public Vm.Spec create(String sessionId, String poolLabel, String zone, List<Workload> initWorkload,
-                          List<Workload> workload, List<VolumeRequest> volumeRequests, String allocationOpId,
-                          Instant now, @Nullable Inet6Address v6ProxyAddress, @Nullable TransactionHandle transaction)
-        throws SQLException
-    {
+    public String create(Vm.Spec vmSpec, String opId, @Nullable TransactionHandle transaction) throws SQLException {
         final var vmId = "vm-" + UUID.randomUUID();
-        final var vmSpec = new Vm.Spec(
-            vmId, sessionId, now, poolLabel, zone, initWorkload, workload, volumeRequests, v6ProxyAddress
-        );
 
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(QUERY_CREATE_VM)) {
-                s.setString(1, vmSpec.vmId());
+                s.setString(1, vmId);
                 s.setString(2, vmSpec.sessionId());
                 s.setString(3, vmSpec.poolLabel());
                 s.setString(4, vmSpec.zone());
-                s.setString(5, allocationOpId);
-                s.setTimestamp(6, Timestamp.from(now));
+                s.setString(5, opId);
+                s.setTimestamp(6, Timestamp.from(vmSpec.allocationStartedAt()));
                 s.setString(7, objectMapper.writeValueAsString(vmSpec.initWorkloads()));
                 s.setString(8, objectMapper.writeValueAsString(vmSpec.workloads()));
                 s.setString(9, objectMapper.writeValueAsString(vmSpec.volumeRequests()));
                 s.setString(10, Vm.VmStatus.CREATED.name());
-                s.setString(11, v6ProxyAddress == null ? null : v6ProxyAddress.getHostAddress());
+                s.setString(11, vmSpec.proxyV6Address() == null ? null : vmSpec.proxyV6Address().getHostAddress());
                 s.execute();
             } catch (JsonProcessingException e) {
                 throw new RuntimeException("Cannot dump values", e);
             }
         });
-        return vmSpec;
+        return vmId;
     }
 
     @Override
@@ -298,18 +293,20 @@ public class VmDaoImpl implements VmDao {
 
     @Nullable
     @Override
-    public Vm acquire(String sessionId, String poolId, String zone, @Nullable TransactionHandle outerTransaction)
-        throws SQLException
-    {
+    public Vm acquire(Vm.Spec vmSpec, @Nullable TransactionHandle outerTransaction) throws SQLException {
         final Vm[] vm = {null};
         try (final var transaction = TransactionHandle.getOrCreate(storage, outerTransaction)) {
             DbOperation.execute(transaction, storage, con -> {
                 try (final var s = con.prepareStatement(QUERY_ACQUIRE_VM,
                     ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE))
                 {
-                    s.setString(1, sessionId);
-                    s.setString(2, poolId);
-                    s.setString(3, zone);
+                    s.setString(1, vmSpec.sessionId());
+                    s.setString(2, vmSpec.poolLabel());
+                    s.setString(3, vmSpec.zone());
+                    s.setString(4, objectMapper.writeValueAsString(vmSpec.workloads()));
+                    s.setString(5, objectMapper.writeValueAsString(vmSpec.initWorkloads()));
+                    s.setString(6, objectMapper.writeValueAsString(vmSpec.volumeRequests()));
+                    s.setString(7, vmSpec.proxyV6Address() != null ? vmSpec.proxyV6Address().getHostAddress() : "");
 
                     final var res = s.executeQuery();
                     if (!res.next()) {
@@ -328,7 +325,6 @@ public class VmDaoImpl implements VmDao {
 
                     res.updateString("status", Vm.VmStatus.RUNNING.name());
                     res.updateRow();
-
                 } catch (JsonProcessingException e) {
                     throw new RuntimeException("Cannot dump values", e);
                 }
@@ -450,48 +446,45 @@ public class VmDaoImpl implements VmDao {
         });
     }
 
-    private Vm readVm(ResultSet res) throws SQLException, JsonProcessingException {
-        final var id = res.getString(1);
-        final var sessionIdRes = res.getString(2);
-        final var poolLabel = res.getString(3);
-        final var zone = res.getString(4);
-        final var allocationOpId = res.getString(5);
-        final var allocationStartedAt = res.getTimestamp(6).toInstant();
+    private Vm readVm(ResultSet rs) throws SQLException, JsonProcessingException {
+        final var id = rs.getString(1);
+        final var sessionIdRes = rs.getString(2);
+        final var poolLabel = rs.getString(3);
+        final var zone = rs.getString(4);
+        final var allocationOpId = rs.getString(5);
+        final var allocationStartedAt = rs.getTimestamp(6).toInstant();
 
-        final var initWorkloads = objectMapper.readValue(res.getString(7),
-            new TypeReference<List<Workload>>() {});
-        final var workloads = objectMapper.readValue(res.getString(8),
-            new TypeReference<List<Workload>>() {});
-        final var volumeRequests = objectMapper.readValue(
-            res.getString(9), new TypeReference<List<VolumeRequest>>() {});
+        final var initWorkloads = objectMapper.readValue(rs.getString(7), new TypeReference<List<Workload>>() {});
+        final var workloads = objectMapper.readValue(rs.getString(8), new TypeReference<List<Workload>>() {});
+        final var volumeRequests = objectMapper.readValue(rs.getString(9), new TypeReference<List<VolumeRequest>>() {});
 
-        final var vmStatus = Vm.VmStatus.valueOf(res.getString(10));
-        final var lastActivityTimeTs = res.getTimestamp(11);
+        final var vmStatus = Vm.VmStatus.valueOf(rs.getString(10));
+        final var lastActivityTimeTs = rs.getTimestamp(11);
         final var lastActivityTime = lastActivityTimeTs == null ? null : lastActivityTimeTs.toInstant();
 
-        final var deadlineTs = res.getTimestamp(12);
+        final var deadlineTs = rs.getTimestamp(12);
         final var deadline = deadlineTs == null ? null : deadlineTs.toInstant();
 
-        final var allocationDeadlineTs = res.getTimestamp(13);
+        final var allocationDeadlineTs = rs.getTimestamp(13);
         final var allocationDeadline = allocationDeadlineTs == null ? null : allocationDeadlineTs.toInstant();
 
-        final String vmMetaString = res.getString(14);
-        final var vmMeta = vmMetaString == null ? null : objectMapper.readValue(vmMetaString,
-            new TypeReference<Map<String, String>>() {});
+        final String vmMetaString = rs.getString(14);
+        final var vmMeta = vmMetaString == null
+            ? null
+            : objectMapper.readValue(vmMetaString, new TypeReference<Map<String, String>>() {});
 
-        final String volumeClaimString = res.getString(15);
-        final var volumeClaims = volumeClaimString == null ? null : objectMapper.readValue(volumeClaimString,
-            new TypeReference<List<VolumeClaim>>() {});
+        final String volumeClaimString = rs.getString(15);
+        final var volumeClaims = volumeClaimString == null
+            ? null
+            : objectMapper.readValue(volumeClaimString, new TypeReference<List<VolumeClaim>>() {});
 
-        final String vmSubjectId = res.getString(16);
+        final String vmSubjectId = rs.getString(16);
 
         return new Vm(
-            new Vm.Spec(
-                id, sessionIdRes, allocationStartedAt, poolLabel, zone, initWorkloads, workloads, volumeRequests, null
-            ),
+            new Vm.Spec(id, sessionIdRes, allocationStartedAt, poolLabel, zone, initWorkloads, workloads,
+                volumeRequests, null),
             new Vm.State(vmStatus, lastActivityTime, deadline, allocationDeadline, vmSubjectId, vmMeta, volumeClaims),
-            allocationOpId
-        );
+            allocationOpId);
     }
 
     private static String forUpdate(@Nullable TransactionHandle tx) {

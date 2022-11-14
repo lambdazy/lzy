@@ -132,6 +132,8 @@ public class Worker {
             throw new RuntimeException(e);
         }
 
+        // TODO: when should we start this agent?
+        //       we can share VM among _all_ workflows of user, so, workflowName is not a constant
         schedulerAgent = new SchedulerAgent(schedulerAddress, servantId, workflowName, schedulerHeartbeatPeriod,
                 apiPort, iamPrivateKey);
 

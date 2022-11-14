@@ -1,14 +1,22 @@
 package ai.lzy.longrunning;
 
+import ai.lzy.util.grpc.GrpcHeaders;
 import com.google.protobuf.Message;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import javax.annotation.Nullable;
 
-public final class RequestHash {
+public final class IdempotencyUtils {
 
-    private RequestHash() {
+    @Nullable
+    public static Operation.IdempotencyKey getIdempotencyKey(Message request) {
+        var idempotencyToken = GrpcHeaders.getIdempotencyKey();
+        if (idempotencyToken != null) {
+            return new Operation.IdempotencyKey(idempotencyToken, md5(request));
+        }
+        return null;
     }
 
     public static String md5(Message message) {
@@ -20,5 +28,4 @@ public final class RequestHash {
             throw new RuntimeException(e);
         }
     }
-
 }
