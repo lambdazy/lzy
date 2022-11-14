@@ -212,7 +212,7 @@ class GrpcRuntime(Runtime):
                        schemeFormat=field.data_scheme.schema_format,
                        schemeContent=field.data_scheme.schema_content if field.data_scheme.schema_content else "",
                        metadata=field.data_scheme.meta
-                   )
+                   ) if field.data_scheme is not None else None
                )
             ) for field in fields
         ]

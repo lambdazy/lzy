@@ -124,8 +124,6 @@ class GrpcRuntimeTests(TestCase):
         with lzy.workflow("some_name"):
             self.assertIsNotNone(lzy.storage_registry.default_config())
 
-        self.assertIsNone(lzy.storage_registry.default_config())
-
     def test_error(self):
         runtime = GrpcRuntime("ArtoLord", "localhost:12345", self.__key_path)
         lzy = Lzy(runtime=runtime)

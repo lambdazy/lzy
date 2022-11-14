@@ -56,7 +56,7 @@ def merge_conda_env_yamls(envs: Sequence[str]) -> str:
     if deps:
         unified_definition['dependencies'] = deps
 
-    return yaml.dump(unified_definition, indent=2, default_flow_style=False)
+    return cast(str, yaml.dump(unified_definition, indent=2, default_flow_style=False))
 
 
 def merge_names(names):
