@@ -87,11 +87,4 @@ public class WorkflowTest {
 
         Assert.assertTrue(status.hasCompleted());
     }
-
-    @Test
-    public void run() throws InterruptedException {
-        System.out.println(whiteboard.context().publicAddress());
-        System.out.println(workflow.context().address());
-        Thread.sleep(10000000);
-    }
 }
