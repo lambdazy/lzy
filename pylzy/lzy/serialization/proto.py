@@ -42,7 +42,7 @@ class ProtoMessageSerializer(DefaultDataSchemaSerializer):
 
         return lambda t: issubclass(t, Message)
 
-    def format(self) -> str:
+    def data_format(self) -> str:
         return StandardDataFormats.proto.name
 
     def meta(self) -> Dict[str, str]:

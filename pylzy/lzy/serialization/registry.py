@@ -60,7 +60,7 @@ class DefaultSerializerRegistry(SerializerRegistry):
         priority = self._default_priority if priority is None else priority
         self._serializer_priorities[name] = priority
         self._name_registry[name] = serializer
-        self._data_formats_name_registry[serializer.format()].append(name)
+        self._data_formats_name_registry[serializer.data_format()].append(name)
         # mypy issue: https://github.com/python/mypy/issues/3060
         if isinstance(serializer.supported_types(), Type):  # type: ignore
             self._type_registry[cast(Type, serializer.supported_types())] = serializer
@@ -73,7 +73,7 @@ class DefaultSerializerRegistry(SerializerRegistry):
             if isinstance(serializer.supported_types(), Type):  # type: ignore
                 del self._type_registry[cast(Type, serializer.supported_types())]
                 del self._type_name_registry[cast(Type, serializer.supported_types())]
-                self._data_formats_name_registry[serializer.format()].remove(name)
+                self._data_formats_name_registry[serializer.data_format()].remove(name)
             del self._serializer_priorities[name]
             del self._name_registry[name]
 

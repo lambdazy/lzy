@@ -71,7 +71,7 @@ class Serializer(abc.ABC):
         """
 
     @abc.abstractmethod
-    def format(self) -> str:
+    def data_format(self) -> str:
         """
         :return: data format that this serializer is working with
         """
@@ -97,9 +97,9 @@ class Serializer(abc.ABC):
         """
 
     def _validate_schema(self, schema: Schema) -> None:
-        if schema.data_format != self.format():
+        if schema.data_format != self.data_format():
             raise ValueError(
-                f"Invalid data format {schema.data_format}, expected {self.format()}"
+                f"Invalid data format {schema.data_format}, expected {self.data_format()}"
             )
 
         if schema.schema_content is None:
@@ -113,7 +113,7 @@ class DefaultDataSchemaSerializer(Serializer, ABC):
         :return: schema for the object
         """
         return Schema(
-            self.format(),
+            self.data_format(),
             StandardSchemaFormats.pickled_type.name,
             base64.b64encode(cloudpickle.dumps(typ)).decode("ascii"),
             {**self.meta(), **{"cloudpickle": cloudpickle.__version__}},

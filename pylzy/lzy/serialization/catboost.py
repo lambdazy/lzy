@@ -60,7 +60,7 @@ class CatboostPoolSerializer(DefaultDataSchemaSerializer):
     def stable(self) -> bool:
         return True
 
-    def format(self) -> str:
+    def data_format(self) -> str:
         import catboost
 
         return str(catboost.Pool.__module__) + "." + str(catboost.Pool.__name__)

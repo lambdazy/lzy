@@ -34,7 +34,7 @@ class PrimitiveSerializer(Serializer):
     def stable(self) -> bool:
         return True
 
-    def format(self) -> str:
+    def data_format(self) -> str:
         return StandardDataFormats.primitive_type.name
 
     def meta(self) -> Dict[str, str]:
@@ -42,7 +42,7 @@ class PrimitiveSerializer(Serializer):
 
     def schema(self, typ: type) -> Schema:
         return Schema(
-            self.format(),
+            self.data_format(),
             StandardSchemaFormats.json_pickled_type.name,
             jsonpickle.dumps(typ),
             self.meta(),

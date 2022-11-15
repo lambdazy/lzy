@@ -12,7 +12,7 @@ def generate_serializer(
     stable: bool = True,
 ) -> Type[Serializer]:
     class TestSerializer(DefaultDataSchemaSerializer):
-        def format(self) -> str:
+        def data_format(self) -> str:
             return "test_format"
 
         def meta(self) -> Dict[str, str]:

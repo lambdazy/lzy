@@ -38,7 +38,7 @@ class FileSerializer(DefaultDataSchemaSerializer):
     def stable(self) -> bool:
         return True
 
-    def format(self) -> str:
+    def data_format(self) -> str:
         return StandardDataFormats.raw_file.name
 
     def meta(self) -> Dict[str, str]:
