@@ -7,6 +7,6 @@ public interface ChannelController {
 
     void executeBind(Endpoint endpoint, Operation bindOperation);
 
-    void executeUnbind(Endpoint endpoint);
+    void executeUnbind(Endpoint endpoint, Operation unbindOperation);
 
 }
