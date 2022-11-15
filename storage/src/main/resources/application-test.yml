@@ -39,6 +39,7 @@ storage:
     password: ''
     min-pool-size: 1
     max-pool-size: 1
+    enabled: true
 
   s3:
     memory:

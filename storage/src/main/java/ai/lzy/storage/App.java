@@ -3,6 +3,8 @@ package ai.lzy.storage;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
+import ai.lzy.longrunning.OperationService;
+import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.storage.config.StorageConfig;
 import ai.lzy.util.grpc.*;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
@@ -14,6 +16,7 @@ import io.grpc.ServerInterceptors;
 import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.exceptions.NoSuchBeanException;
+import io.micronaut.inject.qualifiers.Qualifiers;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -36,8 +39,11 @@ public class App {
         var iamAddress = HostAndPort.fromString(config.getIam().getAddress());
 
         var service = context.getBean(LzyStorageServiceGrpc.LzyStorageServiceImplBase.class);
+        var operationDao = context.getBean(OperationDao.class, Qualifiers.byName(BeanFactory.DAO_NAME));
+        var opService = new OperationService(operationDao);
 
         iamChannel = GrpcUtils.newGrpcChannel(iamAddress, LzyAuthenticateServiceGrpc.SERVICE_NAME);
+        var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
 
         server = NettyServerBuilder
             .forAddress(new InetSocketAddress(address.getHost(), address.getPort()))
@@ -47,8 +53,8 @@ public class App {
             .intercept(GrpcLogsInterceptor.server())
             .intercept(RequestIdInterceptor.server())
             .intercept(GrpcHeadersServerInterceptor.create())
-            .addService(
-                ServerInterceptors.intercept(service, new AllowInternalUserOnlyInterceptor(APP, iamChannel)))
+            .addService(ServerInterceptors.intercept(opService, internalOnly))
+            .addService(ServerInterceptors.intercept(service, internalOnly))
             .build();
     }
 

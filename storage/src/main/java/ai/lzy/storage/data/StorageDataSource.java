@@ -3,7 +3,7 @@ package ai.lzy.storage.data;
 import ai.lzy.model.db.Storage;
 import ai.lzy.storage.config.StorageConfig;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
-import jakarta.inject.Inject;
+import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import org.flywaydb.core.Flyway;
 
@@ -11,12 +11,12 @@ import java.sql.Connection;
 import java.sql.SQLException;
 
 @Singleton
+@Requires(property = "storage.database.enabled", value = "true")
 public class StorageDataSource implements Storage {
     private static final String VALIDATION_QUERY_SQL = "select 1";
 
     private final ComboPooledDataSource dataSource;
 
-    @Inject
     public StorageDataSource(StorageConfig config) {
         var dbConfig = config.getDatabase();
 
@@ -32,7 +32,7 @@ public class StorageDataSource implements Storage {
         dataSource.setPreferredTestQuery(VALIDATION_QUERY_SQL);
 
         var flyway = Flyway.configure()
-            .dataSource(dataSource)
+            .dataSource(dbConfig.getUrl(), dbConfig.getUsername(), dbConfig.getPassword())
             .locations("classpath:db/storage/migrations")
             .load();
         flyway.migrate();

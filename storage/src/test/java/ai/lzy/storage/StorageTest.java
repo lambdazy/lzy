@@ -3,10 +3,12 @@ package ai.lzy.storage;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.storage.config.StorageConfig;
+import ai.lzy.test.TimeUtils;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
+import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.storage.LSS;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
@@ -20,16 +22,17 @@ import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.TimeUnit;
 
-@SuppressWarnings({"UnstableApiUsage", "ResultOfMethodCallIgnored"})
+import static ai.lzy.storage.App.APP;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.v1.longrunning.LongRunningServiceGrpc.newBlockingStub;
+
+@SuppressWarnings("ResultOfMethodCallIgnored")
 public class StorageTest extends BaseTestWithIam {
 
     @Rule
@@ -147,10 +150,20 @@ public class StorageTest extends BaseTestWithIam {
         var client = storageClient.withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> credentials.get().token()));
 
-        var resp = client.createS3Bucket(LSS.CreateS3BucketRequest.newBuilder()
+        var opClient = newBlockingClient(newBlockingStub(client.getChannel()), APP, () -> credentials.get().token());
+
+        var respOp = client.createS3Bucket(LSS.CreateS3BucketRequest.newBuilder()
             .setUserId("test-user")
             .setBucket("bucket-1")
             .build());
+
+        TimeUtils.waitFlagUp(() -> opClient.get(LongRunning.GetOperationRequest.newBuilder()
+                .setOperationId(respOp.getId()).build()).getDone(),
+            300, TimeUnit.SECONDS);
+
+        var resp = opClient.get(LongRunning.GetOperationRequest.newBuilder()
+            .setOperationId(respOp.getId()).build()).getResponse().unpack(LSS.CreateS3BucketResponse.class);
+
         Assert.assertTrue(resp.toString(), resp.hasAmazon());
         Assert.assertTrue(resp.toString(), resp.getAmazon().getAccessToken().isEmpty());
         Assert.assertTrue(resp.toString(), resp.getAmazon().getSecretToken().isEmpty());

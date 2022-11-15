@@ -43,6 +43,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     private final ManagedChannel allocatorServiceChannel;
     private final ManagedChannel operationServiceChannel;
     private final ManagedChannel storageServiceChannel;
+    private final ManagedChannel storageOpChannel;
     private final ManagedChannel channelManagerChannel;
     private final ManagedChannel iamChannel;
     private final ManagedChannel whiteboardChannel;
@@ -71,12 +72,17 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             VmPoolServiceGrpc.newBlockingStub(allocatorServiceChannel), APP, () -> creds.get().token());
 
         operationServiceChannel = newGrpcChannel(allocatorAddress, LongRunningServiceGrpc.SERVICE_NAME);
-        var operationServiceClient = newBlockingClient(
+        var allocOperationClient = newBlockingClient(
             LongRunningServiceGrpc.newBlockingStub(operationServiceChannel), APP, () -> creds.get().token());
 
         storageServiceChannel = newGrpcChannel(config.getStorage().getAddress(), LzyStorageServiceGrpc.SERVICE_NAME);
         var storageServiceClient = newBlockingClient(
             LzyStorageServiceGrpc.newBlockingStub(storageServiceChannel), APP, () -> creds.get().token());
+
+        storageOpChannel = newGrpcChannel(config.getStorage().getAddress(), LongRunningServiceGrpc.SERVICE_NAME);
+        var storageOpClient = newBlockingClient(
+            LongRunningServiceGrpc.newBlockingStub(storageOpChannel), APP, () -> creds.get().token()
+        );
 
         channelManagerChannel = newGrpcChannel(channelManagerAddress, LzyChannelManagerPrivateGrpc.SERVICE_NAME);
         var channelManagerClient = newBlockingClient(
@@ -96,7 +102,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             GraphExecutorGrpc.newBlockingStub(graphExecutorChannel), APP, () -> creds.get().token());
 
         workflowService = new WorkflowService(config, channelManagerClient, allocatorClient,
-            operationServiceClient, subjectClient, abClient, storageServiceClient, storage, workflowDao, vmPoolClient);
+            allocOperationClient, subjectClient, abClient, storageServiceClient, storageOpClient, storage, workflowDao, vmPoolClient);
         whiteboardService = new WhiteboardService(whiteboardClient);
         graphExecutionService = new GraphExecutionService(creds, workflowDao, graphDao, executionDao,
             vmPoolClient, graphExecutorClient, channelManagerClient);
@@ -108,6 +114,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         GrpcChannels.awaitTermination(allocatorServiceChannel, Duration.ofSeconds(10), getClass());
         GrpcChannels.awaitTermination(operationServiceChannel, Duration.ofSeconds(10), getClass());
         GrpcChannels.awaitTermination(storageServiceChannel, Duration.ofSeconds(10), getClass());
+        GrpcChannels.awaitTermination(storageOpChannel, Duration.ofSeconds(10), getClass());
         GrpcChannels.awaitTermination(channelManagerChannel, Duration.ofSeconds(10), getClass());
         GrpcChannels.awaitTermination(iamChannel, Duration.ofSeconds(10), getClass());
         GrpcChannels.awaitTermination(whiteboardChannel, Duration.ofSeconds(10), getClass());

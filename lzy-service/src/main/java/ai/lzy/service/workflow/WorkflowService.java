@@ -33,6 +33,7 @@ import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBl
 import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
+import ai.lzy.v1.storage.LSS;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;
@@ -64,7 +65,6 @@ import java.util.function.Consumer;
 import static ai.lzy.channelmanager.grpc.ProtoConverter.makeCreateDirectChannelCommand;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
-import static ai.lzy.storage.StorageClient.getOrCreateTempUserBucket;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 
 public class WorkflowService {
@@ -83,9 +83,11 @@ public class WorkflowService {
     private final String whiteboardAddress;
 
     private final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
-    private final LongRunningServiceGrpc.LongRunningServiceBlockingStub operationServiceClient;
+    private final LongRunningServiceGrpc.LongRunningServiceBlockingStub allocOpService;
 
     private final LzyStorageServiceGrpc.LzyStorageServiceBlockingStub storageServiceClient;
+    private final LongRunningServiceGrpc.LongRunningServiceBlockingStub storageOpService;
+
     private final LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerClient;
 
     private final VmPoolServiceGrpc.VmPoolServiceBlockingStub vmPoolClient;
@@ -97,9 +99,10 @@ public class WorkflowService {
 
     public WorkflowService(LzyServiceConfig config, LzyChannelManagerPrivateBlockingStub channelManagerClient,
                            AllocatorGrpc.AllocatorBlockingStub allocatorClient,
-                           LongRunningServiceGrpc.LongRunningServiceBlockingStub operationServiceClient,
+                           LongRunningServiceGrpc.LongRunningServiceBlockingStub allocOperationService,
                            SubjectServiceGrpcClient subjectClient, AccessBindingServiceGrpcClient abClient,
                            LzyStorageServiceGrpc.LzyStorageServiceBlockingStub storageServiceClient,
+                           LongRunningServiceGrpc.LongRunningServiceBlockingStub storageOperationService,
                            Storage storage, WorkflowDao workflowDao,
                            VmPoolServiceGrpc.VmPoolServiceBlockingStub vmPoolClient)
     {
@@ -111,9 +114,11 @@ public class WorkflowService {
         whiteboardAddress = config.getWhiteboardAddress();
 
         this.allocatorClient = allocatorClient;
-        this.operationServiceClient = operationServiceClient;
+        this.allocOpService = allocOperationService;
 
         this.storageServiceClient = storageServiceClient;
+        this.storageOpService = storageOperationService;
+
         this.channelManagerClient = channelManagerClient;
 
         this.subjectClient = subjectClient;
@@ -217,7 +222,8 @@ public class WorkflowService {
             return;
         }
 
-        for (var listener: listenersByExecution.getOrDefault(request.getExecutionId(), new ConcurrentLinkedQueue<>())) {
+        for (var listener : listenersByExecution.getOrDefault(request.getExecutionId(),
+            new ConcurrentLinkedQueue<>())) {
             listener.complete();
         }
 
@@ -230,7 +236,8 @@ public class WorkflowService {
             var session = withRetries(LOG, () -> workflowDao.getAllocatorSession(request.getExecutionId()));
 
             if (session != null) {
-                allocatorClient.deleteSession(VmAllocatorApi.DeleteSessionRequest.newBuilder().setSessionId(session).build());
+                allocatorClient.deleteSession(
+                    VmAllocatorApi.DeleteSessionRequest.newBuilder().setSessionId(session).build());
             }
         } catch (Exception e) {
             LOG.error("Cannot destroy allocator session: ", e);
@@ -268,7 +275,38 @@ public class WorkflowService {
 
         if (internalSnapshotStorage) {
             try {
-                state.setStorageLocator(getOrCreateTempUserBucket(state.getUserId(), storageServiceClient));
+                var bucketName = "tmp-bucket-" + state.getUserId();
+
+                LOG.info("Creating new temp storage bucket '{}' for user '{}'", bucketName, state.getUserId());
+
+                LongRunning.Operation createOp = withIdempotencyKey(storageServiceClient, state.getUserId())
+                    .createS3Bucket(LSS.CreateS3BucketRequest.newBuilder()
+                        .setUserId(state.getUserId())
+                        .setBucket(bucketName)
+                        .build());
+
+                LSS.CreateS3BucketResponse response = waitBucketCreate(Instant.now().plus(Duration.ofSeconds(2)),
+                    createOp.getId());
+
+                if (response == null) {
+                    state.fail(Status.DEADLINE_EXCEEDED,
+                        "Cannot wait create bucket operation response. Operation id: " + createOp.getId());
+                    return;
+                }
+
+                LMS3.S3Locator s3Locator = switch (response.getCredentialsCase()) {
+                    case AMAZON -> LMS3.S3Locator.newBuilder().setAmazon(response.getAmazon()).setBucket(bucketName)
+                        .build();
+                    case AZURE -> LMS3.S3Locator.newBuilder().setAzure(response.getAzure()).setBucket(bucketName)
+                        .build();
+                    default -> {
+                        LOG.error("Unsupported bucket storage type {}", response.getCredentialsCase());
+                        deleteTempUserBucket(bucketName);
+                        yield null;
+                    }
+                };
+
+                state.setStorageLocator(s3Locator);
             } catch (StatusRuntimeException e) {
                 state.fail(e.getStatus(), "Cannot create temp bucket");
             }
@@ -279,6 +317,44 @@ public class WorkflowService {
             } else {
                 state.setStorageLocator(userStorage);
             }
+        }
+    }
+
+    @Nullable
+    private LSS.CreateS3BucketResponse waitBucketCreate(Instant deadline, String operationId) {
+        // TODO: ssokolvyak -- replace on streaming request
+        LongRunning.Operation createBucketOp;
+
+        while (Instant.now().isBefore(deadline)) {
+            createBucketOp = storageOpService.get(LongRunning.GetOperationRequest.newBuilder()
+                .setOperationId(operationId).build());
+            if (createBucketOp.getDone()) {
+                try {
+                    return createBucketOp.getResponse().unpack(LSS.CreateS3BucketResponse.class);
+                } catch (InvalidProtocolBufferException e) {
+                    LOG.warn("Cannot deserialize create bucket response from operation with id: " + operationId);
+                }
+            }
+            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(300));
+        }
+        return null;
+    }
+
+    private void deleteTempUserBucket(String bucket) {
+        if (StringUtils.isEmpty(bucket)) {
+            return;
+        }
+
+        LOG.info("Deleting temp storage bucket '{}'", bucket);
+
+        try {
+            @SuppressWarnings("unused")
+            var resp = storageServiceClient.deleteS3Bucket(
+                LSS.DeleteS3BucketRequest.newBuilder()
+                    .setBucket(bucket)
+                    .build());
+        } catch (StatusRuntimeException e) {
+            LOG.error("Can't delete temp bucket '{}': ({}) {}", bucket, e.getStatus(), e.getMessage(), e);
         }
     }
 
@@ -380,15 +456,15 @@ public class WorkflowService {
         LOG.info("Creating session for {}/{}", userId, workflowName);
 
         var op = withIdempotencyKey(allocatorClient, executionId)
-                    .createSession(
-                        VmAllocatorApi.CreateSessionRequest.newBuilder()
-                            .setOwner(userId)
-                            .setDescription(executionId)
-                            .setCachePolicy(
-                                VmAllocatorApi.CachePolicy.newBuilder()
-                                    .setIdleTimeout(Durations.fromSeconds(allocatorVmCacheTimeout.getSeconds()))
-                                    .build())
-                            .build());
+            .createSession(
+                VmAllocatorApi.CreateSessionRequest.newBuilder()
+                    .setOwner(userId)
+                    .setDescription(executionId)
+                    .setCachePolicy(
+                        VmAllocatorApi.CachePolicy.newBuilder()
+                            .setIdleTimeout(Durations.fromSeconds(allocatorVmCacheTimeout.getSeconds()))
+                            .build())
+                    .build());
 
         if (op.getDone()) {
             try {
@@ -448,19 +524,19 @@ public class WorkflowService {
         var portalEnvPKEY = "LZY_PORTAL_PKEY";
 
         return withIdempotencyKey(allocatorClient, "portal-" + executionId).allocate(
-                VmAllocatorApi.AllocateRequest.newBuilder()
-                    .setSessionId(sessionId)
-                    .setPoolLabel("portals")
-                    .setZone("default") // TODO: ???
-                    .addWorkload(
-                        VmAllocatorApi.AllocateRequest.Workload.newBuilder()
-                            .setName("portal")
-                            //.setImage(portalConfig.getPortalImage())
-                            .addAllArgs(args)
-                            .putEnv(portalEnvPKEY, privateKey)
-                            .putAllPortBindings(ports)
-                            .build())
-                    .build());
+            VmAllocatorApi.AllocateRequest.newBuilder()
+                .setSessionId(sessionId)
+                .setPoolLabel("portals")
+                .setZone("default") // TODO: ???
+                .addWorkload(
+                    VmAllocatorApi.AllocateRequest.Workload.newBuilder()
+                        .setName("portal")
+                        //.setImage(portalConfig.getPortalImage())
+                        .addAllArgs(args)
+                        .putEnv(portalEnvPKEY, privateKey)
+                        .putAllPortBindings(ports)
+                        .build())
+                .build());
     }
 
     @Nullable
@@ -469,7 +545,7 @@ public class WorkflowService {
         LongRunning.Operation allocateOperation;
 
         while (Instant.now().isBefore(deadline)) {
-            allocateOperation = operationServiceClient.get(LongRunning.GetOperationRequest.newBuilder()
+            allocateOperation = allocOpService.get(LongRunning.GetOperationRequest.newBuilder()
                 .setOperationId(operationId).build());
             if (allocateOperation.getDone()) {
                 try {
