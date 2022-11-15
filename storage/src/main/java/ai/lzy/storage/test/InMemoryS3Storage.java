@@ -110,22 +110,10 @@ public class InMemoryS3Storage extends LzyStorageServiceGrpc.LzyStorageServiceIm
         } catch (Exception e) {
             LOG.error("Error while executing transaction: {}", e.getMessage(), e);
             var status = Status.INTERNAL.withDescription("Error while executing request: " + e.getMessage());
-            failOperation(op.id(), toProto(status));
+
+            OperationDao.failOperation(operationsDao, op.id(), toProto(status), LOG);
 
             responseObserver.onError(status.asRuntimeException());
-        }
-    }
-
-    private void failOperation(String operationId, com.google.rpc.Status error) {
-        try {
-            var op = withRetries(LOG, () -> operationsDao.updateError(operationId, error.toByteArray(), null));
-            if (op == null) {
-                LOG.error("Cannot fail operation {} with reason {}: operation not found",
-                    operationId, error.getMessage());
-            }
-        } catch (Exception ex) {
-            LOG.error("Cannot fail operation {} with reason {}: {}",
-                operationId, error.getMessage(), ex.getMessage(), ex);
         }
     }
 

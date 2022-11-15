@@ -1,7 +1,7 @@
 package ai.lzy.storage.impl;
 
+import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
-import ai.lzy.longrunning.Operation.IdempotencyKey;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.Transaction;
 import ai.lzy.model.db.exceptions.DaoException;
@@ -9,7 +9,6 @@ import ai.lzy.storage.BeanFactory;
 import ai.lzy.storage.config.StorageConfig;
 import ai.lzy.storage.data.StorageDataSource;
 import ai.lzy.util.auth.YcIamClient;
-import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.storage.LSS.*;
@@ -38,9 +37,8 @@ import java.io.IOException;
 import java.sql.SQLException;
 import javax.annotation.Nullable;
 
-import static ai.lzy.longrunning.RequestHash.md5;
-import static ai.lzy.longrunning.dao.OperationDao.OPERATION_IDEMPOTENCY_KEY_CONSTRAINT;
-import static ai.lzy.model.db.DbHelper.isUniqueViolation;
+import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
+import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
 
@@ -54,7 +52,7 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
     private final StorageConfig.YcCredentials ycCreds;
     private final StorageDataSource dataSource;
 
-    private final OperationDao operationsDao;
+    private final OperationDao operationDao;
 
     public YandexCloudS3Storage(StorageConfig.S3Credentials.YcS3Credentials s3, StorageConfig.YcCredentials yc,
                                 StorageDataSource dataSource, @Named(BeanFactory.DAO_NAME) OperationDao operationDao)
@@ -62,7 +60,7 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
         this.s3Creds = s3;
         this.ycCreds = yc;
         this.dataSource = dataSource;
-        this.operationsDao = operationDao;
+        this.operationDao = operationDao;
     }
 
     @Override
@@ -72,28 +70,19 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
 
         LOG.debug("YandexCloudS3Storage::createBucket, userId={}, bucket={}", userId, bucketName);
 
-        final var idempotencyToken = GrpcHeaders.getIdempotencyKey();
-        IdempotencyKey idempotencyKey = null;
-
-        if (idempotencyToken != null) {
-            idempotencyKey = new IdempotencyKey(idempotencyToken, md5(request));
-            if (loadExistingOp(idempotencyKey, responseObserver)) {
-                return;
-            }
+        var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+        if (idempotencyKey != null && loadExistingOp(operationDao, idempotencyKey, responseObserver, LOG)) {
+            return;
         }
 
         final var op = new Operation(userId, "Create S3 bucket: name=" + bucketName, Any.getDefaultInstance());
 
         try {
-            withRetries(LOG, () -> operationsDao.create(op, null));
+            withRetries(LOG, () -> operationDao.create(op, null));
         } catch (Exception ex) {
-            if (idempotencyKey != null && isUniqueViolation(ex, OPERATION_IDEMPOTENCY_KEY_CONSTRAINT)) {
-                if (loadExistingOp(idempotencyKey, responseObserver)) {
-                    return;
-                }
-
-                LOG.error("Idempotency key {} not found", idempotencyToken);
-                responseObserver.onError(Status.INTERNAL.withDescription("Idempotency key conflict").asException());
+            if (idempotencyKey != null &&
+                handleIdempotencyKeyConflict(idempotencyKey, ex, operationDao, responseObserver, LOG))
+            {
                 return;
             }
 
@@ -105,190 +94,144 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
 
         var client = s3Client();
 
-        Status errorStatus = null;
-
         try {
             if (!client.doesBucketExistV2(request.getBucket())) {
                 client.createBucket(request.getBucket());
             } else {
-                errorStatus = Status.ALREADY_EXISTS.withDescription("Bucket '" + request.getBucket() +
+                var errorStatus = Status.ALREADY_EXISTS.withDescription("Bucket '" + request.getBucket() +
                     "' already exists");
+
+                OperationDao.failOperation(operationDao, op.id(), toProto(errorStatus), LOG);
+
+                responseObserver.onError(errorStatus.asRuntimeException());
+                return;
             }
         } catch (SdkClientException e) {
             LOG.error("AWS SDK error while creating bucket '{}' for '{}': {}",
                 request.getBucket(), request.getUserId(), e.getMessage(), e);
 
-            errorStatus = Status.INTERNAL.withDescription("S3 internal error: " + e.getMessage()).withCause(e);
+            var errorStatus = Status.INTERNAL.withDescription("S3 internal error: " + e.getMessage()).withCause(e);
+
+            OperationDao.failOperation(operationDao, op.id(), toProto(errorStatus), LOG);
+
+            responseObserver.onError(errorStatus.asRuntimeException());
+            return;
         }
 
         try {
-            if (errorStatus != null) {
-                var statusProto = toProto(errorStatus);
-                withRetries(LOG, () -> operationsDao.updateError(op.id(), statusProto.toByteArray(), null));
+            client.setBucketLifecycleConfiguration(request.getBucket(),
+                new BucketLifecycleConfiguration()
+                    .withRules(new BucketLifecycleConfiguration.Rule().withExpirationInDays(30)));
+        } catch (SdkClientException e) {
+            LOG.error("AWS SDK error while creating bucket '{}' for '{}': {}",
+                request.getBucket(), request.getUserId(), e.getMessage(), e);
 
-                responseObserver.onError(errorStatus.asRuntimeException());
-                return;
-            }
+            var errorStatus = Status.INTERNAL.withDescription("S3 internal error: " + e.getMessage()).withCause(e);
+
+            OperationDao.failOperation(operationDao, op.id(), toProto(errorStatus), LOG);
+
+            responseObserver.onError(errorStatus.asRuntimeException());
 
             try {
-                client.setBucketLifecycleConfiguration(request.getBucket(),
-                    new BucketLifecycleConfiguration()
-                        .withRules(new BucketLifecycleConfiguration.Rule().withExpirationInDays(30)));
-            } catch (SdkClientException e) {
-                LOG.error("AWS SDK error while creating bucket '{}' for '{}': {}",
-                    request.getBucket(), request.getUserId(), e.getMessage(), e);
+                client.deleteBucket(request.getBucket());
+            } catch (Exception ee) {
+                LOG.error("Cannot remove s3 bucket '{}': {}", request.getBucket(), e.getMessage(), e);
+            }
 
-                errorStatus = Status.INTERNAL.withDescription("S3 internal error: " + e.getMessage()).withCause(e);
+            return;
+        }
 
-                try {
-                    client.deleteBucket(request.getBucket());
-                } catch (Exception ee) {
-                    LOG.error("Cannot remove s3 bucket '{}': {}", request.getBucket(), e.getMessage(), e);
+        final String[] tokens = {/* service_account */ null, /* access_token */ null, /* secret_token */ null};
+
+        try {
+            Transaction.execute(dataSource, conn -> {
+                try (var st = conn.prepareStatement("""
+                    select service_account, access_token, secret_token
+                    from yc_s3_credentials
+                    where user_id = ?
+                    for update"""))
+                {
+                    st.setString(1, request.getUserId());
+
+                    var rs = st.executeQuery();
+                    if (rs.next()) {
+                        tokens[0] = rs.getString("service_account");
+                        tokens[1] = rs.getString("access_token");
+                        tokens[2] = rs.getString("secret_token");
+                        return true;
+                    }
                 }
-            }
 
-            if (errorStatus != null) {
-                var statusProto = toProto(errorStatus);
-                withRetries(LOG, () -> operationsDao.updateError(op.id(), statusProto.toByteArray(), null));
+                var newTokens = createServiceAccountForUser(request.getUserId(), request.getBucket());
 
-                responseObserver.onError(errorStatus.asRuntimeException());
-                return;
-            }
+                try (var st = conn.prepareStatement("""
+                    insert into yc_s3_credentials (user_id, service_account, access_token, secret_token)
+                    values (?, ?, ?, ?)"""))
+                {
+                    st.setString(1, request.getUserId());
+                    st.setString(2, newTokens[0]);
+                    st.setString(3, newTokens[1]);
+                    st.setString(4, newTokens[2]);
+                    st.executeUpdate();
+                }
 
-            final String[] tokens = {/* service_account */ null, /* access_token */ null, /* secret_token */ null};
+                tokens[0] = newTokens[0];
+                tokens[1] = newTokens[1];
+                tokens[2] = newTokens[2];
+                return true;
+            });
+        } catch (DaoException e) {
+            LOG.error("SQL error while creating bucket '{}' for '{}': {}",
+                request.getBucket(), request.getUserId(), e.getMessage(), e);
+            safeDeleteBucket(request.getUserId(), request.getBucket(), client);
 
-            try {
-                Transaction.execute(dataSource, conn -> {
-                    try (var st = conn.prepareStatement("""
-                        select service_account, access_token, secret_token
-                        from yc_s3_credentials
-                        where user_id = ?
-                        for update"""))
-                    {
-                        st.setString(1, request.getUserId());
+            var errorStatus = Status.INTERNAL.withDescription("SQL error: " + e.getMessage()).withCause(e);
 
-                        var rs = st.executeQuery();
-                        if (rs.next()) {
-                            tokens[0] = rs.getString("service_account");
-                            tokens[1] = rs.getString("access_token");
-                            tokens[2] = rs.getString("secret_token");
-                            return true;
-                        }
-                    }
+            OperationDao.failOperation(operationDao, op.id(), toProto(errorStatus), LOG);
 
-                    var newTokens = createServiceAccountForUser(request.getUserId(), request.getBucket());
+            responseObserver.onError(errorStatus.asRuntimeException());
+            return;
+        }
 
-                    try (var st = conn.prepareStatement("""
-                        insert into yc_s3_credentials (user_id, service_account, access_token, secret_token)
-                        values (?, ?, ?, ?)"""))
-                    {
-                        st.setString(1, request.getUserId());
-                        st.setString(2, newTokens[0]);
-                        st.setString(3, newTokens[1]);
-                        st.setString(4, newTokens[2]);
-                        st.executeUpdate();
-                    }
+        try {
+            var acl = client.getBucketAcl(request.getBucket());
+            var grantee = new CanonicalGrantee(/* service_account */ tokens[0]);
+            acl.grantPermission(grantee, Permission.FullControl);
+            client.setBucketAcl(request.getBucket(), acl);
+        } catch (SdkClientException e) {
+            LOG.error("AWS SDK error while creating ACL at bucket '{}' for user '{}': {}. Delete bucket.",
+                request.getBucket(), request.getUserId(), e.getMessage(), e);
+            safeDeleteBucket(request.getUserId(), request.getBucket(), client);
 
-                    tokens[0] = newTokens[0];
-                    tokens[1] = newTokens[1];
-                    tokens[2] = newTokens[2];
-                    return true;
-                });
-            } catch (DaoException e) {
-                LOG.error("SQL error while creating bucket '{}' for '{}': {}",
-                    request.getBucket(), request.getUserId(), e.getMessage(), e);
-                safeDeleteBucket(request.getUserId(), request.getBucket(), client);
+            var errorStatus = Status.INTERNAL.withDescription("S3 internal error: " + e.getMessage()).withCause(e);
 
-                errorStatus = Status.INTERNAL.withDescription("SQL error: " + e.getMessage()).withCause(e);
-            }
+            OperationDao.failOperation(operationDao, op.id(), toProto(errorStatus), LOG);
 
-            if (errorStatus != null) {
-                var statusProto = toProto(errorStatus);
-                withRetries(LOG, () -> operationsDao.updateError(op.id(), statusProto.toByteArray(), null));
+            responseObserver.onError(errorStatus.asRuntimeException());
+            return;
+        }
 
-                responseObserver.onError(errorStatus.asRuntimeException());
-                return;
-            }
+        var response = Any.pack(CreateS3BucketResponse.newBuilder()
+            .setAmazon(LMS3.AmazonS3Endpoint.newBuilder()
+                .setEndpoint(s3Creds.getEndpoint())
+                .setAccessToken(tokens[1])
+                .setSecretToken(tokens[2])
+                .build())
+            .build());
 
-            try {
-                var acl = client.getBucketAcl(request.getBucket());
-                var grantee = new CanonicalGrantee(/* service_account */ tokens[0]);
-                acl.grantPermission(grantee, Permission.FullControl);
-                client.setBucketAcl(request.getBucket(), acl);
-            } catch (SdkClientException e) {
-                LOG.error("AWS SDK error while creating ACL at bucket '{}' for user '{}': {}. Delete bucket.",
-                    request.getBucket(), request.getUserId(), e.getMessage(), e);
-                safeDeleteBucket(request.getUserId(), request.getBucket(), client);
-
-                errorStatus = Status.INTERNAL.withDescription("S3 internal error: " + e.getMessage()).withCause(e);
-            }
-
-            if (errorStatus != null) {
-                var statusProto = toProto(errorStatus);
-                withRetries(LOG, () -> operationsDao.updateError(op.id(), statusProto.toByteArray(), null));
-
-                responseObserver.onError(errorStatus.asRuntimeException());
-                return;
-            }
-
-            var response = Any.pack(CreateS3BucketResponse.newBuilder()
-                .setAmazon(LMS3.AmazonS3Endpoint.newBuilder()
-                    .setEndpoint(s3Creds.getEndpoint())
-                    .setAccessToken(tokens[1])
-                    .setSecretToken(tokens[2])
-                    .build())
-                .build());
+        try {
             var completedOp = withRetries(LOG, () ->
-                operationsDao.updateResponse(op.id(), response.toByteArray(), null));
+                operationDao.updateResponse(op.id(), response.toByteArray(), null));
 
             responseObserver.onNext(completedOp.toProto());
             responseObserver.onCompleted();
-
         } catch (Exception ex) {
             LOG.error("Error while executing transaction: {}", ex.getMessage(), ex);
-            var status = Status.INTERNAL.withDescription("Error while executing request: " + ex.getMessage());
-            failOperation(op.id(), toProto(status));
+            var errorStatus = Status.INTERNAL.withDescription("Error while executing request: " + ex.getMessage());
 
-            responseObserver.onError(status.asRuntimeException());
-        }
-    }
+            OperationDao.failOperation(operationDao, op.id(), toProto(errorStatus), LOG);
 
-    private boolean loadExistingOp(ai.lzy.longrunning.Operation.IdempotencyKey idempotencyKey,
-                                   StreamObserver<LongRunning.Operation> responseObserver)
-    {
-        try {
-            var op = withRetries(LOG, () -> operationsDao.getByIdempotencyKey(idempotencyKey.token(), null));
-            if (op != null) {
-                if (!idempotencyKey.equals(op.idempotencyKey())) {
-                    LOG.error("Idempotency key {} conflict", idempotencyKey.token());
-                    responseObserver.onError(Status.INVALID_ARGUMENT
-                        .withDescription("IdempotencyKey conflict").asException());
-                    return true;
-                }
-
-                responseObserver.onNext(op.toProto());
-                responseObserver.onCompleted();
-                return true;
-            }
-
-            return false; // key doesn't exist
-        } catch (Exception ex) {
-            LOG.error("Cannot create session: {}", ex.getMessage(), ex);
-            responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
-            return true;
-        }
-    }
-
-    private void failOperation(String operationId, com.google.rpc.Status error) {
-        try {
-            var op = withRetries(LOG, () -> operationsDao.updateError(operationId, error.toByteArray(), null));
-            if (op == null) {
-                LOG.error("Cannot fail operation {} with reason {}: operation not found",
-                    operationId, error.getMessage());
-            }
-        } catch (Exception ex) {
-            LOG.error("Cannot fail operation {} with reason {}: {}",
-                operationId, error.getMessage(), ex.getMessage(), ex);
+            responseObserver.onError(errorStatus.asRuntimeException());
         }
     }
 
@@ -310,9 +253,9 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
 
         try (var conn = dataSource.connect();
              var st = conn.prepareStatement("""
-                select access_token, secret_token
-                from yc_s3_credentials
-                where user_id = ?"""))
+                 select access_token, secret_token
+                 from yc_s3_credentials
+                 where user_id = ?"""))
         {
             st.setString(1, request.getUserId());
 
@@ -356,7 +299,7 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
     }
 
     private String[] createServiceAccountForUser(String userId, String bucket)
-            throws IOException, InterruptedException
+        throws IOException, InterruptedException
     {
         CloseableHttpClient httpclient = HttpClients.createDefault();
 
@@ -366,6 +309,6 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
         AWSCredentials credentials = YcIamClient.createStaticCredentials(serviceAccountId,
             RenewableToken.getToken(), httpclient);
 
-        return new String[]{serviceAccountId, credentials.getAWSAccessKeyId(), credentials.getAWSSecretKey()};
+        return new String[] {serviceAccountId, credentials.getAWSAccessKeyId(), credentials.getAWSSecretKey()};
     }
 }
