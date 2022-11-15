@@ -1,5 +1,6 @@
 package ai.lzy.util.grpc;
 
+import ai.lzy.v1.validation.LV;
 import com.google.protobuf.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -24,6 +25,10 @@ public class ProtoPrinter {
     /** Printer instance which escapes non-ASCII characters. */
     public static Printer printer() {
         return Printer.DEFAULT;
+    }
+
+    public static Printer safePrinter() {
+        return printer().usingSensitiveExtension(LV.sensitive);
     }
 
     /** Helper class for converting protobufs to text. */

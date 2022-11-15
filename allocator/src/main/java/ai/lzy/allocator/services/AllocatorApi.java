@@ -34,7 +34,6 @@ import ai.lzy.util.grpc.ProtoPrinter;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmAllocatorApi.*;
 import ai.lzy.v1.longrunning.LongRunning;
-import ai.lzy.v1.validation.LV;
 import com.google.protobuf.Any;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
@@ -61,17 +60,14 @@ import java.util.Objects;
 import java.util.UUID;
 import javax.inject.Named;
 
-import static ai.lzy.longrunning.dao.OperationDao.OPERATION_IDEMPOTENCY_KEY_CONSTRAINT;
-import static ai.lzy.model.db.DbHelper.isUniqueViolation;
+import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
+import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
 @Singleton
 @Requires(beans = MetricReporter.class)
 public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
     private static final Logger LOG = LogManager.getLogger(AllocatorApi.class);
-
-    private static final ProtoPrinter.Printer SAFE_PRINTER =
-        ProtoPrinter.printer().usingSensitiveExtension(LV.sensitive);
 
     private final VmDao vmDao;
     private final OperationDao operationsDao;
@@ -110,7 +106,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         }
 
         var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
-        if (idempotencyKey != null && loadExistingOp(idempotencyKey, responseObserver)) {
+        if (idempotencyKey != null && loadExistingOp(operationsDao, idempotencyKey, responseObserver, LOG)) {
             return;
         }
 
@@ -144,13 +140,9 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                     }
                 });
         } catch (Exception ex) {
-            if (idempotencyKey != null && isUniqueViolation(ex, OPERATION_IDEMPOTENCY_KEY_CONSTRAINT)) {
-                if (loadExistingOp(idempotencyKey, responseObserver)) {
-                    return;
-                }
-
-                LOG.error("Idempotency key {} not found", idempotencyKey.token());
-                responseObserver.onError(Status.INTERNAL.withDescription("Idempotency key conflict").asException());
+            if (idempotencyKey != null &&
+                handleIdempotencyKeyConflict(idempotencyKey, ex, operationsDao, responseObserver, LOG))
+            {
                 return;
             }
 
@@ -193,11 +185,11 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             return;
         }
 
-        LOG.info("Allocation request {}", SAFE_PRINTER.shortDebugString(request));
+        LOG.info("Allocation request {}", ProtoPrinter.safePrinter().shortDebugString(request));
         final var startedAt = Instant.now();
 
         var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
-        if (idempotencyKey != null && loadExistingOp(idempotencyKey, responseObserver)) {
+        if (idempotencyKey != null && loadExistingOp(operationsDao, idempotencyKey, responseObserver, LOG)) {
             return;
         }
 
@@ -224,7 +216,8 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         }
 
         if (session == null) {
-            LOG.error("Cannot allocate, session not found. Request: {}", SAFE_PRINTER.shortDebugString(request));
+            LOG.error("Cannot allocate, session not found. Request: {}",
+                ProtoPrinter.safePrinter().shortDebugString(request));
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Session not found").asException());
             return;
         }
@@ -238,13 +231,9 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
         try {
             withRetries(LOG, () -> operationsDao.create(op, null));
         } catch (Exception ex) {
-            if (idempotencyKey != null && isUniqueViolation(ex, OPERATION_IDEMPOTENCY_KEY_CONSTRAINT)) {
-                if (loadExistingOp(idempotencyKey, responseObserver)) {
-                    return;
-                }
-
-                LOG.error("Idempotency key {} not found", idempotencyKey.token());
-                responseObserver.onError(Status.INTERNAL.withDescription("Idempotency key conflict").asException());
+            if (idempotencyKey != null &&
+                handleIdempotencyKeyConflict(idempotencyKey, ex, operationsDao, responseObserver, LOG))
+            {
                 return;
             }
 
@@ -477,7 +466,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
 
     @Override
     public void free(FreeRequest request, StreamObserver<FreeResponse> responseObserver) {
-        LOG.info("Free request {}", SAFE_PRINTER.shortDebugString(request));
+        LOG.info("Free request {}", ProtoPrinter.safePrinter().shortDebugString(request));
 
         Status status;
         try {
@@ -520,32 +509,6 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             responseObserver.onCompleted();
         } else {
             responseObserver.onError(status.asException());
-        }
-    }
-
-    private boolean loadExistingOp(Operation.IdempotencyKey idempotencyKey,
-                                   StreamObserver<LongRunning.Operation> responseObserver)
-    {
-        try {
-            var op = withRetries(LOG, () -> operationsDao.getByIdempotencyKey(idempotencyKey.token(), null));
-            if (op != null) {
-                if (!idempotencyKey.equals(op.idempotencyKey())) {
-                    LOG.error("Idempotency key {} conflict", idempotencyKey.token());
-                    responseObserver.onError(Status.INVALID_ARGUMENT
-                        .withDescription("IdempotencyKey conflict").asException());
-                    return true;
-                }
-
-                responseObserver.onNext(op.toProto());
-                responseObserver.onCompleted();
-                return true;
-            }
-
-            return false; // key doesn't exist
-        } catch (Exception ex) {
-            LOG.error("Cannot create session: {}", ex.getMessage(), ex);
-            responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
-            return true;
         }
     }
 
