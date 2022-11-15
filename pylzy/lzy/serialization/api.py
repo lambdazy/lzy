@@ -1,9 +1,12 @@
 import abc
 import base64
 import logging
+from abc import ABC
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, BinaryIO, Callable, Dict, Optional, Type, TypeVar, Union, cast
+from packaging import version
+from lzy.serialization.utils import cached_installed_packages
 
 import cloudpickle
 
@@ -68,7 +71,7 @@ class Serializer(abc.ABC):
         """
 
     @abc.abstractmethod
-    def format(self) -> str:
+    def data_format(self) -> str:
         """
         :return: data format that this serializer is working with
         """
@@ -79,22 +82,41 @@ class Serializer(abc.ABC):
         :return: meta of this serializer, e.g., versions of dependencies
         """
 
-    def schema_format(self) -> str:
+    @abc.abstractmethod
+    def schema(self, typ: type) -> Schema:
         """
-        :return: schema format for this serializer
+        :param typ: type of object for serialization
+        :return: schema for the object
         """
-        return StandardSchemaFormats.pickled_type.name
 
+    @abc.abstractmethod
+    def resolve(self, schema: Schema) -> Type:
+        """
+        :param schema: schema that contains information about serialized data
+        :return: Type used for python representation of the schema
+        """
+
+    def _validate_schema(self, schema: Schema) -> None:
+        if schema.data_format != self.data_format():
+            raise ValueError(
+                f"Invalid data format {schema.data_format}, expected {self.data_format()}"
+            )
+
+        if schema.schema_content is None:
+            raise ValueError(f"No schema content")
+
+
+class DefaultDataSchemaSerializer(Serializer, ABC):
     def schema(self, typ: type) -> Schema:
         """
         :param typ: type of object for serialization
         :return: schema for the object
         """
         return Schema(
-            self.format(),
-            self.schema_format(),
+            self.data_format(),
+            StandardSchemaFormats.pickled_type.name,
             base64.b64encode(cloudpickle.dumps(typ)).decode("ascii"),
-            self.meta(),
+            {**self.meta(), **{"cloudpickle": cloudpickle.__version__}},
         )
 
     def resolve(self, schema: Schema) -> Type:
@@ -102,9 +124,14 @@ class Serializer(abc.ABC):
         :param schema: schema that contains information about serialized data
         :return: Type used for python representation of the schema
         """
-        self._fail_if_formats_are_invalid(schema)
-        self._fail_if_schema_content_none(schema)
-        self._warn_if_metas_are_not_equal(schema)
+        self._validate_schema(schema)
+        if schema.schema_format != StandardSchemaFormats.pickled_type.name:
+            raise ValueError('BaseDataSchemaSerializer supports only pickled schema format')
+        if 'cloudpickle' not in schema.meta:
+            _LOG.warning('No cloudpickle version in meta')
+        elif version.parse(schema.meta['cloudpickle']) > version.parse(cached_installed_packages["cloudpickle"]):
+            _LOG.warning(f'Installed version of cloudpickle {cached_installed_packages["cloudpickle"]} '
+                         f'is older than used for serialization {schema.meta["cloudpickle"]}')
         return cast(
             Type,
             cloudpickle.loads(
@@ -112,30 +139,11 @@ class Serializer(abc.ABC):
             ),
         )
 
-    def _fail_if_formats_are_invalid(self, schema: Schema) -> None:
-        if schema.data_format != self.format():
-            raise ValueError(
-                f"Invalid data format {schema.data_format}, expected {self.format()}"
-            )
-        if schema.schema_format != self.schema_format():
-            raise ValueError(f"Invalid schema format {schema.schema_format}")
-
-    def _warn_if_metas_are_not_equal(self, schema: Schema) -> None:
-        if schema.meta != self.meta():
-            _LOG.warning(
-                f"Meta from schema {schema.meta} differs from the current meta {self.meta()}"
-            )
-
-    @staticmethod
-    def _fail_if_schema_content_none(schema: Schema) -> None:
-        if schema.schema_content is None:
-            raise ValueError(f"No schema content")
-
 
 class SerializerRegistry(abc.ABC):
     @abc.abstractmethod
     def register_serializer(
-        self, name: str, serializer: Serializer, priority: Optional[int] = None
+            self, name: str, serializer: Serializer, priority: Optional[int] = None
     ) -> None:
         """
         :param name: unique serializer's name
@@ -153,7 +161,7 @@ class SerializerRegistry(abc.ABC):
 
     @abc.abstractmethod
     def find_serializer_by_type(
-        self, typ: Type
+            self, typ: Type
     ) -> Serializer:  # we assume that default serializer always can be found
         """
         :param typ: python Type needed to serialize
