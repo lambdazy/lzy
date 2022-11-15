@@ -1,6 +1,5 @@
 package ai.lzy.util.grpc;
 
-import ai.lzy.v1.validation.LV;
 import com.google.protobuf.MessageOrBuilder;
 import io.grpc.*;
 import io.grpc.ForwardingServerCallListener.SimpleForwardingServerCallListener;
@@ -12,9 +11,6 @@ import java.util.UUID;
 public class GrpcLogsInterceptor {
     private static final Logger SERVER_LOG = LogManager.getLogger("GrpcServer");
     private static final Logger CLIENT_LOG = LogManager.getLogger("GrpcClient");
-
-    private static final ProtoPrinter.Printer SAFE_PRINTER
-        = ProtoPrinter.printer().usingSensitiveExtension(LV.sensitive);
 
     public static ServerInterceptor server() {
         return new ServerInterceptor() {
@@ -79,7 +75,7 @@ public class GrpcLogsInterceptor {
 
     private static String printMessageSafe(Object message) {
         return message instanceof MessageOrBuilder msg
-            ? SAFE_PRINTER.shortDebugString(msg)
+            ? ProtoPrinter.safePrinter().shortDebugString(msg)
             : message.getClass().getName();
     }
 

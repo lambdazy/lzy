@@ -31,11 +31,16 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static ai.lzy.allocator.test.Utils.waitOperation;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
+import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 
 public class DiskApiTest extends BaseTestWithIam {
     private static final int DEFAULT_TIMEOUT_SEC = 300;
@@ -98,6 +103,81 @@ public class DiskApiTest extends BaseTestWithIam {
 
         context.stop();
         super.after();
+    }
+
+    @Test
+    public void idempotentCreateDisk() throws Exception {
+        var op1 = withIdempotencyKey(diskService, "key-1").createDisk(
+            DiskServiceApi.CreateDiskRequest.newBuilder()
+                .setUserId(defaultUserName)
+                .setDiskSpec(defaultDiskSpec.toProto())
+                .build());
+        op1 = waitOperation(operations, op1, DEFAULT_TIMEOUT_SEC);
+        Assert.assertFalse(op1.hasError());
+        Assert.assertTrue(op1.hasResponse());
+
+        var op2 = withIdempotencyKey(diskService, "key-1").createDisk(
+            DiskServiceApi.CreateDiskRequest.newBuilder()
+                .setUserId(defaultUserName)
+                .setDiskSpec(defaultDiskSpec.toProto())
+                .build());
+        op2 = waitOperation(operations, op1, DEFAULT_TIMEOUT_SEC);
+        Assert.assertFalse(op2.hasError());
+        Assert.assertTrue(op2.hasResponse());
+
+        Assert.assertEquals(op1.getId(), op2.getId());
+        Assert.assertEquals(
+            op1.getResponse().unpack(DiskServiceApi.CreateDiskResponse.class).getDisk().getDiskId(),
+            op2.getResponse().unpack(DiskServiceApi.CreateDiskResponse.class).getDisk().getDiskId());
+    }
+
+    @Test
+    public void idempotentConcurrentCreateDisk() throws Exception {
+        final int N = 10;
+        final var readyLatch = new CountDownLatch(N);
+        final var doneLatch = new CountDownLatch(N);
+        final var executor = Executors.newFixedThreadPool(N);
+        final var opIds = new String[N];
+        final var diskIds = new String[N];
+        final var failed = new AtomicBoolean(false);
+
+        for (int i = 0; i < N; ++i) {
+            final int index = i;
+            executor.submit(() -> {
+                try {
+                    readyLatch.countDown();
+                    readyLatch.await();
+
+                    var op = withIdempotencyKey(diskService, "key-1").createDisk(
+                        DiskServiceApi.CreateDiskRequest.newBuilder()
+                            .setUserId(defaultUserName)
+                            .setDiskSpec(defaultDiskSpec.toProto())
+                            .build());
+                    op = waitOperation(operations, op, DEFAULT_TIMEOUT_SEC);
+                    Assert.assertFalse(op.getId().isEmpty());
+                    Assert.assertFalse(op.hasError());
+                    Assert.assertTrue(op.hasResponse());
+
+                    opIds[index] = op.getId();
+                    diskIds[index] = op.getResponse().unpack(DiskServiceApi.CreateDiskResponse.class)
+                        .getDisk().getDiskId();
+                } catch (Exception e) {
+                    failed.set(true);
+                    e.printStackTrace(System.err);
+                } finally {
+                    doneLatch.countDown();
+                }
+            });
+        }
+
+        doneLatch.await();
+        executor.shutdown();
+
+        Assert.assertFalse(failed.get());
+        Assert.assertFalse(opIds[0].isEmpty());
+        Assert.assertTrue(Arrays.stream(opIds).allMatch(opId -> opId.equals(opIds[0])));
+        Assert.assertFalse(diskIds[0].isEmpty());
+        Assert.assertTrue(Arrays.stream(diskIds).allMatch(diskId -> diskId.equals(diskIds[0])));
     }
 
     @Test
@@ -200,6 +280,96 @@ public class DiskApiTest extends BaseTestWithIam {
 
         Assert.assertTrue(waitDiskDeletion(disk));
         Assert.assertTrue(waitDiskDeletion(clonedDisk));
+    }
+
+    @Test
+    public void idempotentCloneDisk() throws Exception {
+        final DiskApi.Disk disk = createDefaultDisk();
+
+        final DiskSpec clonedDiskSpec = new DiskSpec("clonedDiskName", DiskType.HDD, 4, "ru-central1-a");
+        final String newUserId = "new_user_id";
+
+        var op1 = withIdempotencyKey(diskService, "key-1").cloneDisk(
+            DiskServiceApi.CloneDiskRequest.newBuilder()
+                .setUserId(newUserId)
+                .setDiskId(disk.getDiskId())
+                .setNewDiskSpec(clonedDiskSpec.toProto())
+                .build());
+        op1 = waitOperation(operations, op1, DEFAULT_TIMEOUT_SEC);
+        Assert.assertEquals(newUserId, op1.getCreatedBy());
+        Assert.assertFalse(op1.hasError());
+        Assert.assertTrue(op1.hasResponse());
+
+        var op2 = withIdempotencyKey(diskService, "key-1").cloneDisk(
+            DiskServiceApi.CloneDiskRequest.newBuilder()
+                .setUserId(newUserId)
+                .setDiskId(disk.getDiskId())
+                .setNewDiskSpec(clonedDiskSpec.toProto())
+                .build());
+        op2 = waitOperation(operations, op2, DEFAULT_TIMEOUT_SEC);
+        Assert.assertEquals(newUserId, op2.getCreatedBy());
+        Assert.assertFalse(op2.hasError());
+        Assert.assertTrue(op2.hasResponse());
+
+        Assert.assertEquals(op1.getId(), op2.getId());
+        Assert.assertEquals(
+            op1.getResponse().unpack(DiskServiceApi.CloneDiskResponse.class).getDisk().getDiskId(),
+            op2.getResponse().unpack(DiskServiceApi.CloneDiskResponse.class).getDisk().getDiskId());
+    }
+
+    @Test
+    public void idempotentConcurrentCloneDisk() throws Exception {
+        final DiskApi.Disk disk = createDefaultDisk();
+
+        final DiskSpec clonedDiskSpec = new DiskSpec("clonedDiskName", DiskType.HDD, 4, "ru-central1-a");
+        final String newUserId = "new_user_id";
+
+        final int N = 10;
+        final var readyLatch = new CountDownLatch(N);
+        final var doneLatch = new CountDownLatch(N);
+        final var executor = Executors.newFixedThreadPool(N);
+        final var opIds = new String[N];
+        final var diskIds = new String[N];
+        final var failed = new AtomicBoolean(false);
+
+        for (int i = 0; i < N; ++i) {
+            final int index = i;
+            executor.submit(() -> {
+                try {
+                    readyLatch.countDown();
+                    readyLatch.await();
+
+                    var op = withIdempotencyKey(diskService, "key-1").cloneDisk(
+                        DiskServiceApi.CloneDiskRequest.newBuilder()
+                            .setUserId(newUserId)
+                            .setDiskId(disk.getDiskId())
+                            .setNewDiskSpec(clonedDiskSpec.toProto())
+                            .build());
+                    op = waitOperation(operations, op, DEFAULT_TIMEOUT_SEC);
+                    Assert.assertEquals(newUserId, op.getCreatedBy());
+                    Assert.assertFalse(op.hasError());
+                    Assert.assertTrue(op.hasResponse());
+
+                    opIds[index] = op.getId();
+                    diskIds[index] = op.getResponse().unpack(DiskServiceApi.CloneDiskResponse.class)
+                        .getDisk().getDiskId();
+                } catch (Exception e) {
+                    failed.set(true);
+                    e.printStackTrace(System.err);
+                } finally {
+                    doneLatch.countDown();
+                }
+            });
+        }
+
+        doneLatch.await();
+        executor.shutdown();
+
+        Assert.assertFalse(failed.get());
+        Assert.assertFalse(opIds[0].isEmpty());
+        Assert.assertTrue(Arrays.stream(opIds).allMatch(opId -> opId.equals(opIds[0])));
+        Assert.assertFalse(diskIds[0].isEmpty());
+        Assert.assertTrue(Arrays.stream(diskIds).allMatch(diskId -> diskId.equals(diskIds[0])));
     }
 
     @Test
