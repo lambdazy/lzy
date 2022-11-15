@@ -249,7 +249,7 @@ public class WorkflowService {
                     workflowDao.updateFinishData(request.getWorkflowName(), request.getExecutionId(),
                         Timestamp.from(Instant.now()), request.getReason(), transaction);
                     workflowDao.updateActiveExecution(userId, request.getWorkflowName(), request.getExecutionId(),
-                        null);
+                        null, transaction);
 
                     transaction.commit();
                 }

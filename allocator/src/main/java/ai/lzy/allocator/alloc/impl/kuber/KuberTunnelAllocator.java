@@ -94,7 +94,8 @@ public class KuberTunnelAllocator implements TunnelAllocator {
      * @throws InvalidConfigurationException if allocator cannot find suit cluster for the vm spec.
      */
     public Workload createRequestTunnelWorkload(String remoteV6, String poolLabel, String zone)
-        throws InvalidConfigurationException {
+        throws InvalidConfigurationException
+    {
         final var cluster = clusterRegistry.findCluster(
             poolLabel, zone, ClusterRegistry.ClusterType.User);
         if (cluster == null) {

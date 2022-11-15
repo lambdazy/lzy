@@ -1,4 +1,4 @@
-package ai.lzy.model;
+package ai.lzy.model.deprecated;
 
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.deprecated.LzyFsGrpc;
@@ -10,6 +10,7 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
+@Deprecated
 public class SlotConnectionManager {
 
     private static final Logger LOG = LogManager.getLogger(SlotConnectionManager.class);
