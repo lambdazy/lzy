@@ -57,12 +57,12 @@ import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.LockSupport;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import static ai.lzy.channelmanager.grpc.ProtoConverter.makeCreateDirectChannelCommand;
+import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
+import static ai.lzy.longrunning.OperationUtils.extractResponseOrNull;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
@@ -223,7 +223,8 @@ public class WorkflowService {
         }
 
         for (var listener : listenersByExecution.getOrDefault(request.getExecutionId(),
-            new ConcurrentLinkedQueue<>())) {
+            new ConcurrentLinkedQueue<>()))
+        {
             listener.complete();
         }
 
@@ -236,6 +237,7 @@ public class WorkflowService {
             var session = withRetries(LOG, () -> workflowDao.getAllocatorSession(request.getExecutionId()));
 
             if (session != null) {
+                //noinspection ResultOfMethodCallIgnored
                 allocatorClient.deleteSession(
                     VmAllocatorApi.DeleteSessionRequest.newBuilder().setSessionId(session).build());
             }
@@ -285,8 +287,7 @@ public class WorkflowService {
                         .setBucket(bucketName)
                         .build());
 
-                LSS.CreateS3BucketResponse response = waitBucketCreate(Instant.now().plus(Duration.ofSeconds(2)),
-                    createOp.getId());
+                LSS.CreateS3BucketResponse response = waitBucketCreate(Duration.ofSeconds(2), createOp.getId());
 
                 if (response == null) {
                     state.fail(Status.DEADLINE_EXCEEDED,
@@ -294,7 +295,7 @@ public class WorkflowService {
                     return;
                 }
 
-                LMS3.S3Locator s3Locator = switch (response.getCredentialsCase()) {
+                var s3Locator = switch (response.getCredentialsCase()) {
                     case AMAZON -> LMS3.S3Locator.newBuilder().setAmazon(response.getAmazon()).setBucket(bucketName)
                         .build();
                     case AZURE -> LMS3.S3Locator.newBuilder().setAzure(response.getAzure()).setBucket(bucketName)
@@ -321,23 +322,17 @@ public class WorkflowService {
     }
 
     @Nullable
-    private LSS.CreateS3BucketResponse waitBucketCreate(Instant deadline, String operationId) {
-        // TODO: ssokolvyak -- replace on streaming request
-        LongRunning.Operation createBucketOp;
+    private LSS.CreateS3BucketResponse waitBucketCreate(Duration timeout, String operationId) {
+        LSS.CreateS3BucketResponse response = null;
 
-        while (Instant.now().isBefore(deadline)) {
-            createBucketOp = storageOpService.get(LongRunning.GetOperationRequest.newBuilder()
-                .setOperationId(operationId).build());
-            if (createBucketOp.getDone()) {
-                try {
-                    return createBucketOp.getResponse().unpack(LSS.CreateS3BucketResponse.class);
-                } catch (InvalidProtocolBufferException e) {
-                    LOG.warn("Cannot deserialize create bucket response from operation with id: " + operationId);
-                }
-            }
-            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(300));
+        try {
+            response = extractResponseOrNull(awaitOperationDone(storageOpService, operationId, timeout),
+                LSS.CreateS3BucketResponse.class);
+        } catch (InvalidProtocolBufferException e) {
+            LOG.error("Cannot deserialize create bucket response from operation with id: " + operationId);
         }
-        return null;
+
+        return response;
     }
 
     private void deleteTempUserBucket(String bucket) {
@@ -417,8 +412,7 @@ public class WorkflowService {
             withRetries(defaultRetryPolicy(), LOG,
                 () -> workflowDao.updateAllocateOperationData(executionId, opId, vmId));
 
-            VmAllocatorApi.AllocateResponse
-                allocateResponse = waitAllocation(startAllocationTime.plus(allocationTimeout), opId);
+            VmAllocatorApi.AllocateResponse allocateResponse = waitAllocation(allocationTimeout, opId);
             if (allocateResponse == null) {
                 state.fail(Status.DEADLINE_EXCEEDED,
                     "Cannot wait allocate operation response. Operation id: " + opId);
@@ -540,23 +534,17 @@ public class WorkflowService {
     }
 
     @Nullable
-    public VmAllocatorApi.AllocateResponse waitAllocation(Instant deadline, String operationId) {
-        // TODO: ssokolvyak -- replace on streaming request
-        LongRunning.Operation allocateOperation;
+    public VmAllocatorApi.AllocateResponse waitAllocation(Duration timeout, String operationId) {
+        VmAllocatorApi.AllocateResponse response = null;
 
-        while (Instant.now().isBefore(deadline)) {
-            allocateOperation = allocOpService.get(LongRunning.GetOperationRequest.newBuilder()
-                .setOperationId(operationId).build());
-            if (allocateOperation.getDone()) {
-                try {
-                    return allocateOperation.getResponse().unpack(VmAllocatorApi.AllocateResponse.class);
-                } catch (InvalidProtocolBufferException e) {
-                    LOG.warn("Cannot deserialize allocate response from operation with id: " + operationId);
-                }
-            }
-            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(300));
+        try {
+            response = extractResponseOrNull(awaitOperationDone(allocOpService, operationId, timeout),
+                VmAllocatorApi.AllocateResponse.class);
+        } catch (InvalidProtocolBufferException e) {
+            LOG.error("Cannot deserialize allocate response from operation with id: " + operationId);
         }
-        return null;
+
+        return response;
     }
 
     public void readStdSlots(LWFS.ReadStdSlotsRequest request, StreamObserver<LWFS.ReadStdSlotsResponse> response) {
