@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Callable, List, Sequence, Dict
 
 from lzy.api.v2.whiteboard_declaration import WhiteboardField, WhiteboardInstanceMeta
 from lzy.api.v2.workflow import WbRef
+from lzy.serialization.api import Schema
 
 if TYPE_CHECKING:
     from lzy.api.v2 import LzyWorkflow
@@ -35,7 +36,7 @@ class Runtime(ABC):
         pass
 
     @abstractmethod
-    async def link(self, wb_id: str, field_name: str, url: str) -> None:
+    async def link(self, wb_id: str, field_name: str, url: str, data_scheme: Schema) -> None:
         pass
 
     @abstractmethod

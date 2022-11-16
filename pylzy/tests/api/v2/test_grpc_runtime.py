@@ -11,6 +11,8 @@ import aioboto3
 import grpc.aio
 import requests
 from Crypto.PublicKey import RSA
+from lzy.api.v2.local.runtime import LocalRuntime
+
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
 from grpc import StatusCode
 from moto.server import ThreadedMotoServer
@@ -123,8 +125,6 @@ class GrpcRuntimeTests(TestCase):
 
         with lzy.workflow("some_name"):
             self.assertIsNotNone(lzy.storage_registry.default_config())
-
-        self.assertIsNone(lzy.storage_registry.default_config())
 
     def test_error(self):
         runtime = GrpcRuntime("ArtoLord", "localhost:12345", self.__key_path)
@@ -241,7 +241,7 @@ class SnapshotTests(TestCase):
         storages = DefaultStorageRegistry()
         storages.register_storage("storage", storage_config, True)
 
-        lzy = Lzy(storage_registry=storages)
+        lzy = Lzy(storage_registry=storages, runtime=LocalRuntime())
 
         with lzy.workflow("") as wf:
             l = a(41)
@@ -287,7 +287,7 @@ class SnapshotTests(TestCase):
         storages = DefaultStorageRegistry()
         storages.register_storage("storage", storage_config, True)
 
-        lzy = Lzy(storage_registry=storages)
+        lzy = Lzy(storage_registry=storages, runtime=LocalRuntime())
         with lzy.workflow("test") as wf:
             wb = wf.create_whiteboard(Wb)
             self.assertEqual(1, wb.a)

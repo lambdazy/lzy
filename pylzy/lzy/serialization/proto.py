@@ -1,3 +1,4 @@
+import inspect
 import logging
 from typing import Any, BinaryIO, Callable, Dict, Type, Union
 
@@ -40,7 +41,7 @@ class ProtoMessageSerializer(DefaultDataSchemaSerializer):
     def supported_types(self) -> Union[Type, Callable[[Type], bool]]:
         from pure_protobuf.dataclasses_ import Message  # type: ignore
 
-        return lambda t: issubclass(t, Message)
+        return lambda t: inspect.isclass(t) and issubclass(t, Message)
 
     def data_format(self) -> str:
         return StandardDataFormats.proto.name

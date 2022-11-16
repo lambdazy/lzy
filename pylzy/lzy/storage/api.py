@@ -1,7 +1,7 @@
 import dataclasses
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import BinaryIO, Optional, Union
+from typing import BinaryIO, Optional, Union, Sequence, Iterable
 
 
 @dataclasses.dataclass
@@ -107,4 +107,8 @@ class StorageRegistry:
 
     @abstractmethod
     def default_client(self) -> Optional[AsyncStorageClient]:
+        pass
+
+    @abstractmethod
+    def available_storages(self) -> Iterable[str]:
         pass

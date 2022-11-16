@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 from unittest import TestCase
 
 from pure_protobuf.dataclasses_ import field, message
@@ -13,6 +14,9 @@ from tests.serialization.utils import serialized_and_deserialized
 class ProtoSerializationTests(TestCase):
     def setUp(self):
         self.registry = DefaultSerializerRegistry()
+
+    def test_optional(self):
+        serializer = self.registry.find_serializer_by_type(Optional[str])
 
     def test_proto_serialization(self):
         @message

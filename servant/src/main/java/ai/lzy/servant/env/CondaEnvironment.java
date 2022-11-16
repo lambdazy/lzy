@@ -32,6 +32,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import javax.annotation.Nullable;
 
 public class CondaEnvironment implements AuxEnvironment {
+    public static boolean RECONFIGURE_CONDA = true;  // Only for tests
 
     private static final Logger LOG = LogManager.getLogger(CondaEnvironment.class);
     private static final Lock lockForMultithreadingTests = new ReentrantLock();
@@ -115,40 +116,44 @@ public class CondaEnvironment implements AuxEnvironment {
     private void installPyenv() throws EnvironmentInstallationException {
         lockForMultithreadingTests.lock();
         try {
-            LOG.info("CondaEnvironment::installPyenv trying to install pyenv");
-            File condaFile = File.createTempFile("conda", ".yaml");
+            if (RECONFIGURE_CONDA) {
+                LOG.info("CondaEnvironment::installPyenv trying to install pyenv");
+                File condaFile = File.createTempFile("conda", ".yaml");
 
-            try (FileWriter file = new FileWriter(condaFile.getAbsolutePath())) {
-                file.write(pythonEnv.yaml());
-            }
+                try (FileWriter file = new FileWriter(condaFile.getAbsolutePath())) {
+                    file.write(pythonEnv.yaml());
+                }
 
-            final LzyProcess lzyProcess = execInEnv("conda env update --file " + condaFile.getAbsolutePath());
-            final StringBuilder stdout = new StringBuilder();
-            final StringBuilder stderr = new StringBuilder();
-            try (LineNumberReader reader = new LineNumberReader(new InputStreamReader(lzyProcess.out()))) {
-                reader.lines().forEach(s -> {
-                    LOG.info(s);
-                    stdout.append(s);
-                });
-            }
-            try (LineNumberReader reader = new LineNumberReader(new InputStreamReader(lzyProcess.err()))) {
-                reader.lines().forEach(s -> {
-                    LOG.error(s);
-                    stderr.append(s);
-                });
-            }
-            final int rc = lzyProcess.waitFor();
-            if (rc != 0) {
-                String errorMessage = "Failed to update conda env\n"
-                    + "  ReturnCode: " + rc + "\n"
-                    + "  Stdout: " + stdout + "\n\n"
-                    + "  Stderr: " + stderr + "\n";
-                LOG.error(errorMessage);
-                throw new EnvironmentInstallationException(errorMessage);
-            }
-            LOG.info("CondaEnvironment::installPyenv successfully updated conda env");
+                final LzyProcess lzyProcess = execInEnv("conda env update --file " + condaFile.getAbsolutePath());
+                final StringBuilder stdout = new StringBuilder();
+                final StringBuilder stderr = new StringBuilder();
+                try (LineNumberReader reader = new LineNumberReader(new InputStreamReader(lzyProcess.out()))) {
+                    reader.lines().forEach(s -> {
+                        LOG.info(s);
+                        stdout.append(s);
+                        stdout.append("\n");
+                    });
+                }
+                try (LineNumberReader reader = new LineNumberReader(new InputStreamReader(lzyProcess.err()))) {
+                    reader.lines().forEach(s -> {
+                        LOG.error(s);
+                        stderr.append(s);
+                        stderr.append("\n");
+                    });
+                }
+                final int rc = lzyProcess.waitFor();
+                if (rc != 0) {
+                    String errorMessage = "Failed to update conda env\n"
+                            + "  ReturnCode: " + rc + "\n"
+                            + "  Stdout: " + stdout + "\n\n"
+                            + "  Stderr: " + stderr + "\n";
+                    LOG.error(errorMessage);
+                    throw new EnvironmentInstallationException(errorMessage);
+                }
+                LOG.info("CondaEnvironment::installPyenv successfully updated conda env");
 
-            condaFile.delete();
+                condaFile.delete();
+            }
 
             File directory = new File(localModulesDirectoryAbsolutePath());
             boolean created = directory.mkdirs();

@@ -2,6 +2,8 @@ import dataclasses
 from dataclasses import dataclass
 from typing import Optional, Type
 
+from lzy.serialization.api import Schema
+
 WB_NAMESPACE_FIELD_NAME = "__lzy_wb_namespace__"
 WB_NAME_FIELD_NAME = "__lzy_wb_name__"
 
@@ -47,9 +49,15 @@ def fetch_whiteboard_meta(typ: Type) -> Optional[DeclaredWhiteboardMeta]:
 
 
 @dataclass
+class WhiteboardDefaultDescription:
+    url: str
+    data_scheme: Schema
+
+
+@dataclass
 class WhiteboardField:
     name: str
-    url: Optional[str]
+    default: Optional[WhiteboardDefaultDescription] = None
 
 
 @dataclass

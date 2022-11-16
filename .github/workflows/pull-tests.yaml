@@ -147,10 +147,10 @@ jobs:
 #          ENV_IMAGE=$(deployment/latest-docker-image-on-branches.sh test-env $BRANCH master)
 #          cd test && mvn test -Dtest=DockerServantTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" -Dserver.baseEnvDefaultImage="$ENV_IMAGE" && cd ..
 #
-#      - name: 'PyApiTest'
-#        timeout-minutes: 30
-#        run: |
-#          cd test && mvn test -Dtest=PyApiTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+      - name: 'PyApiTest'
+        timeout-minutes: 10
+        run: |
+          cd test && mvn test -Dtest=PyApiTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'Clean docker files'
         run: |

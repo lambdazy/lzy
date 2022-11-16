@@ -3,8 +3,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from data import MessageClass, Rule
-
-from lzy.api.v1.whiteboard import view, whiteboard
+from lzy.api.v2 import whiteboard
 
 simple_whiteboard_tag = "simple_whiteboard_" + str(uuid.uuid4())
 another_simple_whiteboard_tag = "another_simple_whiteboard_" + str(uuid.uuid4())
@@ -28,59 +27,29 @@ class AnotherSimpleView:
 
 
 @dataclass
-@whiteboard(tags=[simple_whiteboard_tag])
+@whiteboard("SimpleWhiteboard")
 class SimpleWhiteboard:
     a: int = 0
     b: Optional[List[str]] = None
 
-    @view
-    def to_simple_view_plus_one_rule(self) -> SimpleView:
-        return SimpleView(
-            "first_id_SimpleWhiteboard", [Rule(self.a + 1, "plus_one_rule")]
-        )
-
-    @view
-    def to_simple_view_minus_one_rule(self) -> SimpleView:
-        return SimpleView(
-            "second_id_SimpleWhiteboard", [Rule(self.a - 1, "minus_one_rule")]
-        )
-
-    # it's important that view and staticmethod annotations are present in the following order
-    @staticmethod
-    @view
-    def to_another_simple_view() -> AnotherSimpleView:
-        return AnotherSimpleView(
-            "first_id_SimpleWhiteboard", "made_from_SimpleWhiteboard"
-        )
-
 
 @dataclass
-@whiteboard(namespace="another/simple/whiteboard", tags=[another_simple_whiteboard_tag])
+@whiteboard("AnotherSimpleWhiteboard")
 class AnotherSimpleWhiteboard:
     a: str = "first_id_AnotherSimpleWhiteboard"
     b: int = 5
     c: int = 3
 
-    @view
-    def to_another_simple_view(self) -> AnotherSimpleView:
-        return AnotherSimpleView(self.a, "made_from_AnotherSimpleWhiteboard")
-
 
 @dataclass
-@whiteboard(tags=[simple_whiteboard_tag])
+@whiteboard("OneMoreSimpleWhiteboard")
 class OneMoreSimpleWhiteboard:
     a: int = 0
     b: Optional[List[str]] = None
 
-    @view
-    def to_simple_view_with_plus_two_rule(self) -> SimpleView:
-        return SimpleView(
-            "third_id_OneMoreSimpleWhiteboard", [Rule(self.a + 2, "plus_two_rule")]
-        )
-
 
 @dataclass
-@whiteboard(tags=[default_whiteboard_tag])
+@whiteboard("DefaultWhiteboard")
 class DefaultWhiteboard:
     a: int = 0
     b: Optional[List[str]] = None
@@ -89,20 +58,20 @@ class DefaultWhiteboard:
 
 
 @dataclass
-@whiteboard(tags=[lzy_message_fields_tag])
+@whiteboard("WhiteboardWithLzyMessageFields")
 class WhiteboardWithLzyMessageFields:
     b: int
     a: MessageClass = MessageClass()
 
 
 @dataclass
-@whiteboard(tags=[lzy_message_fields_tag])
+@whiteboard("WhiteboardWithOneLzyMessageField")
 class WhiteboardWithOneLzyMessageField:
     a: MessageClass = MessageClass()
 
 
 @dataclass
-@whiteboard(tags=[lzy_message_fields_tag])
+@whiteboard("WhiteboardWithTwoLzyMessageFields")
 class WhiteboardWithTwoLzyMessageFields:
     a: MessageClass = MessageClass()
     c: MessageClass = MessageClass()

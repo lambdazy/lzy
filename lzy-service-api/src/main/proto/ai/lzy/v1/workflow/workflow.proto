@@ -76,5 +76,10 @@ message VmPoolSpec {
 
 message WhiteboardField {
   string name = 1;
-  /* optional */ string uri = 2;
+  /* optional */ DefaultFieldDesc default = 2;  // Default field value
+
+  message DefaultFieldDesc {
+    string uri = 2;
+    DataScheme dataScheme = 3;
+  }
 }

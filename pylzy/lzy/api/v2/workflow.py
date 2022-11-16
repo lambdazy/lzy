@@ -11,14 +11,16 @@ from typing import (
     TypeVar, Set, cast, Mapping,
 )
 
+from lzy.api.v2.exceptions import LzyExecutionException
 from lzy.utils.event_loop import LzyEventLoop
 from lzy.proxy.result import Just
 
 from lzy.api.v2.env import Env
 from lzy.api.v2.provisioning import Provisioning
 from lzy.api.v2.snapshot import Snapshot
-from lzy.api.v2.utils.proxy_adapter import is_lzy_proxy, get_proxy_entry_id, lzy_proxy
-from lzy.api.v2.whiteboard_declaration import fetch_whiteboard_meta, WhiteboardField, WhiteboardInstanceMeta
+from lzy.api.v2.utils.proxy_adapter import is_lzy_proxy, get_proxy_entry_id, lzy_proxy, materialized
+from lzy.api.v2.whiteboard_declaration import fetch_whiteboard_meta, WhiteboardField, WhiteboardInstanceMeta, \
+    WhiteboardDefaultDescription
 from lzy.py_env.api import PyEnv
 
 T = TypeVar("T")  # pylint: disable=invalid-name
@@ -121,7 +123,8 @@ class LzyWorkflow:
         try:
             if not self.__started:
                 raise RuntimeError("Workflow not started")
-            LzyEventLoop.run_async(self._barrier())
+            if exc_type != LzyExecutionException:
+                LzyEventLoop.run_async(self._barrier())
         finally:
             self.__destroy()
 
@@ -180,9 +183,13 @@ class LzyWorkflow:
                 entry = self.snapshot.create_entry(field.type)
                 data_to_load.append(self.snapshot.put_data(entry.id, field.default))
                 fields.append(
-                    WhiteboardField(field.name, self.snapshot.resolve_url(entry.id))
+                    WhiteboardField(field.name, WhiteboardDefaultDescription(entry.storage_url, entry.data_scheme))
                 )
                 defaults[field.name] = lzy_proxy(entry.id, field.type, self, Just(field.default))
+            else:
+                fields.append(
+                    WhiteboardField(field.name)
+                )
 
         await asyncio.gather(*data_to_load)
 
@@ -238,12 +245,20 @@ class _WritableWhiteboard:
         if is_lzy_proxy(value):
             entry_id = get_proxy_entry_id(value)
             entry = self.__workflow.snapshot.get(entry_id)
-            self.__workflow._add_whiteboard_link(entry.storage_url, WbRef(whiteboard_id, key))
+
+            if materialized(value):
+                LzyEventLoop.run_async(self.__workflow.owner.runtime.link(
+                    whiteboard_id, key, entry.storage_url, entry.data_scheme
+                ))
+            else:
+                self.__workflow._add_whiteboard_link(entry.storage_url, WbRef(whiteboard_id, key))
         else:
             entry = self.__workflow.snapshot.create_entry(type(value))
             LzyEventLoop.run_async(self.__workflow.snapshot.put_data(entry_id=entry.id, data=value))
             value = lzy_proxy(entry.id, type(value), self.__workflow, Just(value))
-            LzyEventLoop.run_async(self.__workflow.owner.runtime.link(whiteboard_id, key, entry.storage_url))
+            LzyEventLoop.run_async(self.__workflow.owner.runtime.link(
+                whiteboard_id, key, entry.storage_url, entry.data_scheme
+            ))
 
         self.__fields_assigned.add(key)
 
