@@ -81,14 +81,6 @@ public class InMemoryS3Storage implements StorageService {
         try {
             if (!client.doesBucketExistV2(request.getBucket())) {
                 client.createBucket(request.getBucket());
-            } else {
-                var errorStatus = Status.ALREADY_EXISTS.withDescription("Bucket '" + request.getBucket() +
-                    "' already exists");
-
-                OperationDao.failOperation(operationDao, operation.id(), toProto(errorStatus), LOG);
-
-                responseObserver.onError(errorStatus.asRuntimeException());
-                return;
             }
         } catch (SdkClientException e) {
             LOG.error("AWS SDK error while creating bucket '{}' for '{}': {}",
