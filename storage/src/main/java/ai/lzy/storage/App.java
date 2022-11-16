@@ -8,7 +8,6 @@ import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.storage.config.StorageConfig;
 import ai.lzy.util.grpc.*;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
-import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
@@ -38,7 +37,7 @@ public class App {
         var address = HostAndPort.fromString(config.getAddress());
         var iamAddress = HostAndPort.fromString(config.getIam().getAddress());
 
-        var service = context.getBean(LzyStorageServiceGrpc.LzyStorageServiceImplBase.class);
+        var service = context.getBean(StorageServiceGrpc.class);
         var operationDao = context.getBean(OperationDao.class, Qualifiers.byName(BeanFactory.DAO_NAME));
         var opService = new OperationService(operationDao);
 

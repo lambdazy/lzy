@@ -1,4 +1,4 @@
-package ai.lzy.storage.impl;
+package ai.lzy.storage.yc;
 
 import ai.lzy.storage.config.StorageConfig;
 import io.micronaut.context.annotation.Context;

@@ -1,18 +1,17 @@
-package ai.lzy.storage.impl;
+package ai.lzy.storage.yc;
 
-import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.Transaction;
 import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.storage.BeanFactory;
+import ai.lzy.storage.StorageService;
 import ai.lzy.storage.config.StorageConfig;
 import ai.lzy.storage.data.StorageDataSource;
 import ai.lzy.util.auth.YcIamClient;
 import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.storage.LSS.*;
-import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import com.amazonaws.SdkClientException;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
@@ -37,15 +36,13 @@ import java.io.IOException;
 import java.sql.SQLException;
 import javax.annotation.Nullable;
 
-import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
-import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
 
 @Singleton
 @Requires(property = "storage.yc.enabled", value = "true")
 @Requires(property = "storage.s3.yc.enabled", value = "true")
-public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServiceImplBase {
+public class YandexCloudS3Storage implements StorageService {
     private static final Logger LOG = LogManager.getLogger(YandexCloudS3Storage.class);
 
     private final StorageConfig.S3Credentials.YcS3Credentials s3Creds;
@@ -64,33 +61,13 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
     }
 
     @Override
-    public void createS3Bucket(CreateS3BucketRequest request, StreamObserver<LongRunning.Operation> responseObserver) {
+    public void processCreateBucketOperation(CreateS3BucketRequest request, Operation operation,
+                                             StreamObserver<LongRunning.Operation> responseObserver)
+    {
         var userId = request.getUserId();
         var bucketName = request.getBucket();
 
         LOG.debug("YandexCloudS3Storage::createBucket, userId={}, bucket={}", userId, bucketName);
-
-        var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
-        if (idempotencyKey != null && loadExistingOp(operationDao, idempotencyKey, responseObserver, LOG)) {
-            return;
-        }
-
-        final var op = new Operation(userId, "Create S3 bucket: name=" + bucketName, Any.getDefaultInstance());
-
-        try {
-            withRetries(LOG, () -> operationDao.create(op, null));
-        } catch (Exception ex) {
-            if (idempotencyKey != null &&
-                handleIdempotencyKeyConflict(idempotencyKey, ex, operationDao, responseObserver, LOG))
-            {
-                return;
-            }
-
-            LOG.error("Cannot create operation for s3 bucket creation: { bucketName: {}, userId: {} }, error: {}",
-                bucketName, userId, ex.getMessage(), ex);
-            responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
-            return;
-        }
 
         var client = s3Client();
 
@@ -101,7 +78,7 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
                 var errorStatus = Status.ALREADY_EXISTS.withDescription("Bucket '" + request.getBucket() +
                     "' already exists");
 
-                OperationDao.failOperation(operationDao, op.id(), toProto(errorStatus), LOG);
+                OperationDao.failOperation(operationDao, operation.id(), toProto(errorStatus), LOG);
 
                 responseObserver.onError(errorStatus.asRuntimeException());
                 return;
@@ -112,7 +89,7 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
 
             var errorStatus = Status.INTERNAL.withDescription("S3 internal error: " + e.getMessage()).withCause(e);
 
-            OperationDao.failOperation(operationDao, op.id(), toProto(errorStatus), LOG);
+            OperationDao.failOperation(operationDao, operation.id(), toProto(errorStatus), LOG);
 
             responseObserver.onError(errorStatus.asRuntimeException());
             return;
@@ -128,7 +105,7 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
 
             var errorStatus = Status.INTERNAL.withDescription("S3 internal error: " + e.getMessage()).withCause(e);
 
-            OperationDao.failOperation(operationDao, op.id(), toProto(errorStatus), LOG);
+            OperationDao.failOperation(operationDao, operation.id(), toProto(errorStatus), LOG);
 
             responseObserver.onError(errorStatus.asRuntimeException());
 
@@ -187,7 +164,7 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
 
             var errorStatus = Status.INTERNAL.withDescription("SQL error: " + e.getMessage()).withCause(e);
 
-            OperationDao.failOperation(operationDao, op.id(), toProto(errorStatus), LOG);
+            OperationDao.failOperation(operationDao, operation.id(), toProto(errorStatus), LOG);
 
             responseObserver.onError(errorStatus.asRuntimeException());
             return;
@@ -205,7 +182,7 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
 
             var errorStatus = Status.INTERNAL.withDescription("S3 internal error: " + e.getMessage()).withCause(e);
 
-            OperationDao.failOperation(operationDao, op.id(), toProto(errorStatus), LOG);
+            OperationDao.failOperation(operationDao, operation.id(), toProto(errorStatus), LOG);
 
             responseObserver.onError(errorStatus.asRuntimeException());
             return;
@@ -221,7 +198,7 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
 
         try {
             var completedOp = withRetries(LOG, () ->
-                operationDao.updateResponse(op.id(), response.toByteArray(), null));
+                operationDao.updateResponse(operation.id(), response.toByteArray(), null));
 
             responseObserver.onNext(completedOp.toProto());
             responseObserver.onCompleted();
@@ -229,14 +206,14 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
             LOG.error("Error while executing transaction: {}", ex.getMessage(), ex);
             var errorStatus = Status.INTERNAL.withDescription("Error while executing request: " + ex.getMessage());
 
-            OperationDao.failOperation(operationDao, op.id(), toProto(errorStatus), LOG);
+            OperationDao.failOperation(operationDao, operation.id(), toProto(errorStatus), LOG);
 
             responseObserver.onError(errorStatus.asRuntimeException());
         }
     }
 
     @Override
-    public void deleteS3Bucket(DeleteS3BucketRequest request, StreamObserver<DeleteS3BucketResponse> response) {
+    public void deleteBucket(DeleteS3BucketRequest request, StreamObserver<DeleteS3BucketResponse> response) {
         LOG.debug("YandexCloudS3Storage::deleteBucket, bucket={}", request.getBucket());
         safeDeleteBucket(null, request.getBucket(), s3Client());
 
@@ -245,8 +222,8 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
     }
 
     @Override
-    public void getS3BucketCredentials(GetS3BucketCredentialsRequest request,
-                                       StreamObserver<GetS3BucketCredentialsResponse> response)
+    public void getBucketCreds(GetS3BucketCredentialsRequest request,
+                               StreamObserver<GetS3BucketCredentialsResponse> response)
     {
         LOG.debug("YandexCloudS3Storage::getBucketCredentials, userId={}, bucket={}",
             request.getUserId(), request.getBucket());
