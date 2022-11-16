@@ -53,12 +53,14 @@ class PrimitiveSerializationTests(TestCase):
                 Schema(
                     StandardDataFormats.proto.name,
                     StandardSchemaFormats.json_pickled_type.name,
+                    "content"
                 )
             )
-        with self.assertRaisesRegex(ValueError, "Invalid schema format*"):
+        with self.assertRaisesRegex(ValueError, "PrimitiveSerializer supports only jsonpickle schema format*"):
             serializer.resolve(
                 Schema(
                     StandardDataFormats.primitive_type.name,
                     StandardSchemaFormats.pickled_type.name,
+                    "content"
                 )
             )

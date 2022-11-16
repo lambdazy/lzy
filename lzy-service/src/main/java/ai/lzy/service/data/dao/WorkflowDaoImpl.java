@@ -54,7 +54,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
     private static final String QUERY_UPDATE_ACTIVE_EXECUTION = """
         UPDATE workflows
         SET active_execution_id = ?
-        WHERE user_id = ? AND workflow_name=? AND active_execution_id = ?""";
+        WHERE user_id = ? AND workflow_name=?""";
 
     private static final String QUERY_INSERT_EXECUTION = """
         INSERT INTO workflow_executions (execution_id, created_at, storage, storage_bucket, storage_credentials)
@@ -169,9 +169,11 @@ public class WorkflowDaoImpl implements WorkflowDao {
                         statement.setString(1, executionId);
                         statement.setString(2, userId);
                         statement.setString(3, workflowName);
-                        statement.setString(4, existingExecutionId);
 
-                        statement.executeUpdate();
+                        var res = statement.executeUpdate();
+                        if (res != 1) {
+                            throw new RuntimeException("Active execution was not updated");
+                        }
                     }
                     return;
                 }
@@ -198,7 +200,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
             try (var statement = con.prepareStatement(QUERY_EXISTS_ACTIVE_EXECUTION_FOR_WORKFLOW)) {
                 statement.setString(1, userId);
                 statement.setString(2, workflowName);
-                statement.setString(2, executionId);
+                statement.setString(3, executionId);
                 result[0] = statement.executeQuery().next();
             }
         });
@@ -319,7 +321,6 @@ public class WorkflowDaoImpl implements WorkflowDao {
                 statement.setString(1, newExecutionId);
                 statement.setString(2, userId);
                 statement.setString(3, workflowName);
-                statement.setString(4, oldExecutionId);
                 statement.executeUpdate();
             }
         });

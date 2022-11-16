@@ -1,5 +1,5 @@
-hidden-pure-protobuf
 coverage
+pure-protobuf==2.1.1
 catboost==1.0.6
 moto==4.0.8
 flask==2.2.2

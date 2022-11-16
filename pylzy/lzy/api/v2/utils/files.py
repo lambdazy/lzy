@@ -8,7 +8,8 @@ from zipfile import ZipFile
 def zipdir(path: str, zipfile: ZipFile):
     for root, dirs, files in os.walk(path):
         for file in files:
-            zipfile.write(Path(root) / file, Path("../..") / root / file)
+            file_path = (Path(root) / file).relative_to(Path.cwd())
+            zipfile.write(file_path, file_path)
 
 
 def fileobj_hash(fileobj: BytesIO) -> str:

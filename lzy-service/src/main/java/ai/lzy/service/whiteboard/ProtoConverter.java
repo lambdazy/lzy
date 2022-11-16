@@ -21,12 +21,13 @@ public final class ProtoConverter {
                 var fieldInfo = LWB.WhiteboardFieldInfo.newBuilder()
                     .setName(field.getName());
 
-                if (field.getUri().isBlank()) {
+                if (!field.hasDefault()) {
                     fieldInfo.setNoneState(LWB.WhiteboardFieldInfo.NoneField.getDefaultInstance());
                 } else {
+                    var def = field.getDefault();
                     fieldInfo.setLinkedState(LWB.WhiteboardFieldInfo.LinkedField.newBuilder()
-                        .setScheme(toProto(DataScheme.PLAIN))
-                        .setStorageUri(field.getUri())
+                        .setScheme(def.getDataScheme())
+                        .setStorageUri(def.getUri())
                         .build());
                 }
 
@@ -40,7 +41,7 @@ public final class ProtoConverter {
             .setWhiteboardId(request.getWhiteboardId())
             .setFieldName(request.getFieldName())
             .setStorageUri(request.getStorageUri())
-            .setScheme(toProto(DataScheme.PLAIN))
+            .setScheme(request.getDataScheme())
             .build();
     }
 }

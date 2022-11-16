@@ -4,6 +4,9 @@ from typing import List, Optional
 
 from data import MessageClass, Test1, TestEnum
 from pure_protobuf.types import int32
+
+from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
+from lzy.whiteboards.whiteboard import WhiteboardRepository
 from wbs import (
     AnotherSimpleView,
     AnotherSimpleWhiteboard,
@@ -13,10 +16,11 @@ from wbs import (
     SimpleWhiteboard,
     WhiteboardWithLzyMessageFields,
     WhiteboardWithOneLzyMessageField,
-    WhiteboardWithTwoLzyMessageFields,
+    WhiteboardWithTwoLzyMessageFields, simple_whiteboard_tag, another_simple_whiteboard_tag, lzy_message_fields_tag,
+    default_whiteboard_tag,
 )
 
-from lzy.api.v1 import LzyRemoteEnv, op
+from lzy.api.v2 import Lzy, op
 
 """
 This scenario contains:
@@ -82,64 +86,37 @@ def fun8(a: MessageClass) -> int:
 
 WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
 
-wb = SimpleWhiteboard()
-with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
-    wb.a = fun1()
-    wb.b = fun2(wb.a)
-    wb_id = wb.__id__
+lzy = Lzy(runtime=GrpcRuntime())
+wb_repo = WhiteboardRepository.with_grpc_client(lzy.storage_registry, lzy.serializer)
 
-env = LzyRemoteEnv()
-# wb = env.whiteboard(wb_id, SimpleWhiteboard)
-wb = env.whiteboard_by_id(wb_id)
+with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
+    wb = wf.create_whiteboard(SimpleWhiteboard, [simple_whiteboard_tag])
+    wb.a = fun1()
+    wb.b = fun2(42)
+    wb_id = wb.whiteboard_id
+
+wb = wb_repo.get(wb_id)
 print(wb.a, wb.a)
 print("Len: " + str(len(wb.b)))
 
-wb = env.whiteboard_by_id(wb_id)
+wb = wb_repo.get(wb_id)
 print(wb.a, wb.b)
 print("Len: " + str(len(wb.b)))
 
-wb = AnotherSimpleWhiteboard()
-with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
+
+with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
+    wb = wf.create_whiteboard(AnotherSimpleWhiteboard, [another_simple_whiteboard_tag])
     wb.a = fun3(3)
     wb.b = fun4(3)
     wb.c = fun5(4)
 
-wb = OneMoreSimpleWhiteboard()
-with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
+
+with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
+    wb = wf.create_whiteboard(OneMoreSimpleWhiteboard, [simple_whiteboard_tag])
     wb.a = fun1()
     wb.b = fun2(wb.a)
 
-# Simulate crash before whiteboard is finished
-wb = OneMoreSimpleWhiteboard()
-with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb) as env:
-    wb.a = fun1()
-    wb.b = fun2(wb.a)
-    # noinspection PyProtectedMember
-    env._ops.clear()
-
-env = LzyRemoteEnv()
-views = env.whiteboards(
-    [SimpleWhiteboard, AnotherSimpleWhiteboard, OneMoreSimpleWhiteboard]
-).views(SimpleView)
-print("Number of SimpleView views " + str(len(views)))
-simple_view_ids = "Ids of SimpleView "
-simple_view_rules = "Rules of SimpleView "
-for view in views:
-    simple_view_ids += view.id + ";"
-    simple_view_rules += view.rules[0].b + ";"
-print(simple_view_ids)
-print(simple_view_rules)
-
-views = env.whiteboards(
-    [SimpleWhiteboard, AnotherSimpleWhiteboard, OneMoreSimpleWhiteboard]
-).views(AnotherSimpleView)
-print("Number of AnotherSimpleView views " + str(len(views)))
-another_simple_view_ids = "Ids of AnotherSimpleView "
-for view in views:
-    another_simple_view_ids += view.id + ";"
-print(another_simple_view_ids)
-
-whiteboards = env.whiteboards([SimpleWhiteboard, AnotherSimpleWhiteboard])
+whiteboards = wb_repo.list(tags=[simple_whiteboard_tag, another_simple_whiteboard_tag])
 print("Number of whiteboard is " + str(len(whiteboards)))
 print("First whiteboard type is " + whiteboards[0].__class__.__name__)
 iteration = "Iterating over whiteboards with types "
@@ -149,49 +126,47 @@ print(iteration)
 
 current_datetime_local = datetime.now() - timedelta(days=1)
 next_day_datetime_local = current_datetime_local + timedelta(days=1)
-whiteboards = env.whiteboards(
-    [SimpleWhiteboard, AnotherSimpleWhiteboard, OneMoreSimpleWhiteboard],
-    from_date=current_datetime_local,
-    to_date=next_day_datetime_local,
+whiteboards = wb_repo.list(
+    tags=[simple_whiteboard_tag, another_simple_whiteboard_tag],
+    not_before=current_datetime_local,
+    not_after=next_day_datetime_local,
 )
 print(
     "Number of whiteboard when date lower and upper bounds are specified is "
     + str(len(whiteboards))
 )
-whiteboards = env.whiteboards(
-    [SimpleWhiteboard, AnotherSimpleWhiteboard, OneMoreSimpleWhiteboard],
-    from_date=current_datetime_local,
+whiteboards = wb_repo.list(
+    tags=[simple_whiteboard_tag, another_simple_whiteboard_tag],
+    not_before=current_datetime_local,
 )
 print(
     "Number of whiteboard when date lower bound is specified is "
     + str(len(whiteboards))
 )
-whiteboards = env.whiteboards(
-    [SimpleWhiteboard, AnotherSimpleWhiteboard, OneMoreSimpleWhiteboard],
-    to_date=next_day_datetime_local,
+whiteboards = wb_repo.list(
+    tags=[simple_whiteboard_tag, another_simple_whiteboard_tag],
+    not_after=next_day_datetime_local,
 )
 print(
     "Number of whiteboard when date upper bounds is specified is "
     + str(len(whiteboards))
 )
-whiteboards = env.whiteboards(
-    [SimpleWhiteboard, AnotherSimpleWhiteboard, OneMoreSimpleWhiteboard],
-    from_date=next_day_datetime_local,
+whiteboards = wb_repo.list(
+    tags=[simple_whiteboard_tag, another_simple_whiteboard_tag],
+    not_before=next_day_datetime_local
 )
 print(
     "Number of whiteboard when date interval is set for the future is "
     + str(len(whiteboards))
 )
 
-wb = WhiteboardWithLzyMessageFields(3)
-with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
+with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
+    wb = wf.create_whiteboard(WhiteboardWithLzyMessageFields, tags=[lzy_message_fields_tag])
     wb.a = fun6(fun7())
     wb.b = fun8(wb.a)
-    wb_id = wb.__id__
+    wb_id = wb.whiteboard_id
 
-env = LzyRemoteEnv()
-# wb = env.whiteboard(wb_id, WhiteboardWithLzyMessageFields)
-wb = env.whiteboard_by_id(wb_id)
+wb = wb_repo.get(wb_id)
 print("string_field value in WhiteboardWithLzyMessageFields is " + wb.a.string_field)
 print("int_field value in WhiteboardWithLzyMessageFields is " + str(wb.a.int_field))
 print(
@@ -208,46 +183,28 @@ print(
 print("enum_field value in WhiteboardWithLzyMessageFields is " + str(wb.a.enum_field))
 print("non lzy message int field in WhiteboardWithLzyMessageFields is " + str(wb.b))
 
-# wb = env.whiteboard(wb_id, WhiteboardWithOneLzyMessageField)
-wb = env.whiteboard_by_id(wb_id)
+
+wb = wb_repo.get(wb_id)
 print("string_field value in WhiteboardWithOneLzyMessageField is " + wb.a.string_field)
 print("int_field value in WhiteboardWithOneLzyMessageField is " + str(wb.a.int_field))
 
-try:
-    wb = env.whiteboard(wb_id, WhiteboardWithTwoLzyMessageFields)
-    print("Could create WhiteboardWithTwoLzyMessageFields")
-except TypeError:
-    print(
-        "Could not create WhiteboardWithTwoLzyMessageFields because of a missing field"
-    )
-
-wb = WhiteboardWithOneLzyMessageField()
-with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
+with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
+    wb = wf.create_whiteboard(WhiteboardWithOneLzyMessageField, tags=[lzy_message_fields_tag])
     wb.a = fun7()
-    wb_id = wb.__id__
 
-env = LzyRemoteEnv()
-try:
-    wb = env.whiteboard(wb_id, WhiteboardWithLzyMessageFields)
-    print("Could create WhiteboardWithLzyMessageFields")
-except TypeError:
-    print("Could not create WhiteboardWithLzyMessageFields because of a missing field")
-
-wb = DefaultWhiteboard()
-with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
+with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
+    wb = wf.create_whiteboard(DefaultWhiteboard, tags=[default_whiteboard_tag])
     wb.a = 7
     wb.b = fun2(fun1())
-    wb_id = wb.__id__
+    wb_id = wb.whiteboard_id
 
-env = LzyRemoteEnv()
-# wb = env.whiteboard(wb_id, DefaultWhiteboard)
-wb = env.whiteboard_by_id(wb_id)
+wb = wb_repo.get(wb_id)
 print(
     f"Value a in DefaultWhiteboard is {wb.a}, b length is {len(wb.b)}, c is {wb.c}, d is {wb.d}"
 )
 
-wb = WhiteboardWithOneLzyMessageField()
-with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
+with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
+    wb = wf.create_whiteboard(WhiteboardWithOneLzyMessageField, tags=[lzy_message_fields_tag])
     wb.a = MessageClass(
         "local_data",
         int32(2),
@@ -256,10 +213,9 @@ with LzyRemoteEnv().workflow(name=WORKFLOW_NAME, whiteboard=wb):
         Test1(int32(5)),
         TestEnum.FOO,
     )
-    wb_id = wb.__id__
+    wb_id = wb.whiteboard_id
 
-env = LzyRemoteEnv()
-wb = env.whiteboard(wb_id, WhiteboardWithOneLzyMessageField)
+wb = wb_repo.get(wb_id)
 print(
     f"Value a.string_field in WhiteboardWithOneLzyMessageField is {wb.a.string_field}"
 )

@@ -33,12 +33,14 @@ public class WorkflowContext {
         PortalAllocatorContext allocator,
         ChannelManagerContext channel,
         IamContext iam,
-        StorageContext storage
+        StorageContext storage,
+        WhiteboardContext whiteboard
     )
     {
         var opts = Utils.loadModuleTestProperties("lzy-service");
         opts.putAll(Utils.createModuleDatabase("lzy-service"));
         opts.putAll(Map.of(
+            "lzy-service.whiteboard-address", whiteboard.privateAddress(),
             "lzy-service.allocator-address", allocator.address(),
             "lzy-service.graph-executor-address", graph.address(),
             "lzy-service.channel-manager-address", channel.address(),

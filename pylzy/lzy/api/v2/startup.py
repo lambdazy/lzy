@@ -104,6 +104,10 @@ class ProcessingRequest:
 
 
 def main(arg: str):
+
+    if "LOCAL_MODULES" in os.environ:
+        sys.path.append(os.environ["LOCAL_MODULES"])
+
     req = unpickle(arg, ProcessingRequest)
     process_execution(
         req.serializers, req.op, req.args_paths, req.kwargs_paths, req.output_paths

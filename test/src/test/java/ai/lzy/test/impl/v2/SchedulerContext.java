@@ -37,7 +37,9 @@ public class SchedulerContext {
                 "scheduler.port", SCHEDULER_PORT,
                 "scheduler.allocator-address", allocator.address(),
                 "scheduler.channel-manager-address", channelManager.address(),
-                "scheduler.iam.address", iam.address()
+                "scheduler.iam.address", iam.address(),
+                "max-servants-per-workflow", 2,
+                "default-provisioning-limit", 2
         )));
         this.context = ApplicationContext.run(opts);
         this.scheduler = this.context.getBean(SchedulerApi.class);

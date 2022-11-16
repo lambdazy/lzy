@@ -12,3 +12,4 @@ pycryptodome>=3.15.0
 protobuf>=3.19.0
 aioboto3==9.6.0
 jsonpickle>=2.2.0
+packaging>=21.3

@@ -63,7 +63,8 @@ public class BfsGraphProcessor implements GraphProcessor {
                     }
                     if (status.hasError()) {
                         LOG.error("TaskVertex <" + task.id() + "> is in error state, stopping graph execution");
-                        yield stop(graph, "TaskVertex <" + task.id() + "> is in error state");
+                        yield stop(graph, "TaskVertex <" + task.id() + "> is in error state.\n" +
+                            "Error message: " + status.getError().getDescription());
                     }
                 }
                 if (completed == graph.description().tasks().size()) {
