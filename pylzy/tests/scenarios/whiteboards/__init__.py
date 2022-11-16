@@ -5,7 +5,7 @@ from typing import List, Optional
 from data import MessageClass, Test1, TestEnum
 from pure_protobuf.types import int32
 
-from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
+from lzy.api.v1.remote_grpc.runtime import GrpcRuntime
 from lzy.whiteboards.whiteboard import WhiteboardRepository
 from wbs import (
     AnotherSimpleView,
@@ -20,7 +20,7 @@ from wbs import (
     default_whiteboard_tag,
 )
 
-from lzy.api.v2 import Lzy, op
+from lzy.api.v1 import Lzy, op
 
 """
 This scenario contains:

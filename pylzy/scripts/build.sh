@@ -1,5 +1,4 @@
-#!/usr/bin/env nix-shell
-#! nix-shell build.nix -A publish -i bash
+#!/bin/bash
 
 set -ex
 

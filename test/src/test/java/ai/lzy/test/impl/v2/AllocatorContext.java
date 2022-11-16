@@ -84,7 +84,7 @@ public class AllocatorContext {
 
         @Inject
         public WorkerAllocatorContext(IamContext iam) {
-            super(iam, "../servant/target/servant-1.0-SNAPSHOT.jar", "ai.lzy.servant.agents.Worker", 23910);
+            super(iam, "../worker/target/worker-1.0-SNAPSHOT.jar", "ai.lzy.worker.Worker", 23910);
         }
 
         @Override

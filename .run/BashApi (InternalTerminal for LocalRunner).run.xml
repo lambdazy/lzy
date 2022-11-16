@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="BashApi (InternalTerminal for LocalRunner)" type="MicronautRunConfigurationType" factoryName="Micronaut">
-    <module name="servant" />
+    <module name="worker" />
     <extension name="coverage">
       <pattern>
         <option name="PATTERN" value="ai.lzy.servant.*" />

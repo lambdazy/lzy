@@ -1,23 +1,58 @@
+import base64
+import dataclasses
 import datetime
 import os
 import sys
 import time
-from pathlib import Path
-from typing import Any, Mapping, Optional, Type, TypeVar
+from typing import Any, Callable, Mapping, Sequence, Tuple, Type, TypeVar, cast, Optional
 
-from lzy.api.v1 import LzyRemoteOp, UUIDEntryIdGenerator
-from lzy.api.v1.servant.bash_servant_client import BashServantClient
-from lzy.api.v1.servant.model.execution import ExecutionDescription, InputExecutionValue
-from lzy.api.v1.servant.servant_client import ServantClient
-from lzy.api.v1.signatures import CallSignature, FuncSignature
-from lzy.api.v1.utils import lazy_proxy, unpickle
-from lzy.serialization.hasher import DelegatingHasher
-from lzy.serialization.registry import DefaultSerializerRegistry
+from lzy.serialization.api import SerializerRegistry
 
-T = TypeVar("T")  # pylint: disable=invalid-name
+import cloudpickle
 
-file_serializer = DefaultSerializerRegistry()
-hasher = DelegatingHasher(file_serializer)
+T = TypeVar("T")
+
+
+_lzy_mount: Optional[str] = None  # for tests only
+
+
+def unpickle(base64_str: str, obj_type: Type[T] = None) -> T:
+    t = cloudpickle.loads(base64.b64decode(base64_str.encode("ascii")))
+    return cast(T, t)
+
+
+def read_data(path: str, typ: Type, serializers: SerializerRegistry) -> Any:
+    ser = serializers.find_serializer_by_type(typ)
+
+    log(f"Reading data from {path} with type {typ} and serializer {type(ser)}")
+
+    mount = os.getenv("LZY_MOUNT", _lzy_mount)
+    assert mount is not None
+
+    with open(mount + path, "rb") as file:
+        # Wait for slot become open
+        while file.read(1) is None:
+            time.sleep(0)  # Thread.yield
+        file.seek(0)
+        data = ser.deserialize(file, typ)  # type: ignore
+        return data
+
+
+def write_data(path: str, data: Any, serializers: SerializerRegistry):
+    mount = os.getenv("LZY_MOUNT", _lzy_mount)
+    assert mount is not None
+
+    typ = type(data)
+
+    ser = serializers.find_serializer_by_type(typ)
+    log(f"Writing data to {path} with type {typ} and serializer {type(ser)}")
+
+    with open(mount + path, "wb") as out_handle:
+        out_handle.seek(0)
+        out_handle.flush()
+        ser.serialize(data, out_handle)
+        out_handle.flush()
+        os.fsync(out_handle.fileno())
 
 
 def log(msg: str, *args, **kwargs):
@@ -29,83 +64,56 @@ def log(msg: str, *args, **kwargs):
         print("[LZY]", time_prefix, msg)
 
 
-def load_arg(
-    path: Path, inp_type: Type[T], input_value: Optional[InputExecutionValue]
-) -> T:
-    with open(path, "rb") as file:
-        # Wait for slot become open
-        while file.read(1) is None:
-            time.sleep(0)  # Thread.yield
-        file.seek(0)
-        data: T = file_serializer.find_serializer_by_type(inp_type).deserialize(
-            file, inp_type
-        )
-        if input_value:
-            input_value.hash = hasher.hash(data)
-        return data
+def process_execution(
+    serializers: SerializerRegistry,
+    op: Callable,
+    args_paths: Sequence[Tuple[Type, str]],
+    kwargs_paths: Mapping[str, Tuple[Type, str]],
+    output_paths: Sequence[str],
+):
+    log("Reading arguments...")
+    args = [read_data(path, typ, serializers) for typ, path in args_paths]
+    kwargs = {
+        name: read_data(path, typ, serializers)
+        for name, (typ, path) in kwargs_paths.items()
+    }
+
+    log(f"Executing operation with args <{args}> and kwargs <{kwargs}>")
+    try:
+        res = op(*args, **kwargs)
+    except Exception as e:
+        log("Exception while executing op:")
+        raise e
+
+    log("Writing arguments...")
+    if len(output_paths) == 1:
+        write_data(output_paths[0], res, serializers)
+        return
+    for path, data in zip(output_paths, res):
+        write_data(path, data, serializers)
+    log("Execution completed")
 
 
-def main():
-    argv = sys.argv[1:]
-    servant: ServantClient = BashServantClient.instance(os.getenv("LZY_MOUNT"))
+@dataclasses.dataclass
+class ProcessingRequest:
+    serializers: SerializerRegistry
+    op: Callable
+    args_paths: Sequence[Tuple[Type, str]]
+    kwargs_paths: Mapping[str, Tuple[Type, str]]
+    output_paths: Sequence[str]
+
+
+def main(arg: str):
+
     if "LOCAL_MODULES" in os.environ:
         sys.path.append(os.environ["LOCAL_MODULES"])
 
-    log("Loading function")
-    func_s: FuncSignature = unpickle(argv[0], FuncSignature)
-    exec_description: Optional[ExecutionDescription] = unpickle(
-        argv[1], ExecutionDescription
+    req = unpickle(arg, ProcessingRequest)
+    process_execution(
+        req.serializers, req.op, req.args_paths, req.kwargs_paths, req.output_paths
     )
-    log("Function loaded: " + func_s.name)
-
-    inputs: Mapping[str, InputExecutionValue] = (
-        {input_val.name: input_val for input_val in exec_description.inputs}
-        if exec_description is not None
-        else {}
-    )
-
-    def build_proxy(arg_name: str) -> Any:
-        return lazy_proxy(
-            lambda n=arg_name: load_arg(servant.mount() / func_s.name / n, func_s.input_types[n], inputs.get(n)),  # type: ignore
-            func_s.input_types[arg_name],
-            {},
-        )
-
-    args = tuple(build_proxy(name) for name in func_s.arg_names)
-    kwargs = {}
-    for name in func_s.kwarg_names:
-        kwargs[name] = build_proxy(name)
-
-    lazy_call = CallSignature(func_s, args, kwargs)
-    log(f"Loaded {len(args) + len(kwargs)} lazy args")
-
-    log(f"Running {func_s.name}")
-    snapshot_id = "" if exec_description is None else exec_description.snapshot_id
-    op_ = LzyRemoteOp(
-        servant,
-        lazy_call,
-        snapshot_id,
-        UUIDEntryIdGenerator(snapshot_id),
-        file_serializer,
-        hasher,
-        deployed=True,
-    )
-
-    for num, val in enumerate(op_.return_values()):
-
-        result_path = servant.mount() / func_s.name / "return" / str(num)
-        log(f"Writing result to file {result_path}")
-        with open(result_path, "wb") as out_handle:
-            materialize = val.materialize()
-            file_serializer.find_serializer_by_type(val.type).serialize(
-                materialize, out_handle
-            )
-            out_handle.flush()
-            os.fsync(out_handle.fileno())
-    log("Execution done")
-    if exec_description is not None:
-        servant.save_execution(exec_description)
 
 
 if __name__ == "__main__":
-    main()
+    log(f"Running with environment: {os.environ}")
+    main(sys.argv[1])

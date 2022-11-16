@@ -1,6 +1,6 @@
 package ai.lzy.channelmanager.channel;
 
-import ai.lzy.model.deprecated.SlotConnectionManager;
+import ai.lzy.model.SlotConnectionManager;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;

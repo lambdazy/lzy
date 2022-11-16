@@ -1,5 +1,5 @@
-from lzy.api.v2 import op, Lzy
-from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
+from lzy.api.v1 import op, Lzy
+from lzy.api.v1.remote_grpc.runtime import GrpcRuntime
 
 
 @op

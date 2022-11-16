@@ -11,7 +11,7 @@ import aioboto3
 import grpc.aio
 import requests
 from Crypto.PublicKey import RSA
-from lzy.api.v2.local.runtime import LocalRuntime
+from lzy.api.v1.local.runtime import LocalRuntime
 
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
 from grpc import StatusCode
@@ -31,13 +31,13 @@ from ai.lzy.v1.workflow.workflow_service_pb2_grpc import (
     LzyWorkflowServiceServicer,
     add_LzyWorkflowServiceServicer_to_server,
 )
-from lzy.api.v2 import Lzy, op, whiteboard
+from lzy.api.v1 import Lzy, op, whiteboard
 from lzy.utils.event_loop import LzyEventLoop
-from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
+from lzy.api.v1.remote_grpc.runtime import GrpcRuntime
 from lzy.whiteboards.whiteboard import _ReadOnlyWhiteboard
-from lzy.api.v2.snapshot import DefaultSnapshot
-import lzy.api.v2.startup as startup
-from lzy.api.v2.utils._pickle import pickle
+from lzy.api.v1.snapshot import DefaultSnapshot
+import lzy.api.v1.startup as startup
+from lzy.api.v1.utils._pickle import pickle
 from lzy.proxy.result import Just
 from lzy.serialization.registry import DefaultSerializerRegistry
 from lzy.serialization.types import File

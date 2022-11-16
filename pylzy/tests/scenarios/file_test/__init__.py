@@ -2,8 +2,8 @@ import dataclasses
 
 from lzy.whiteboards.whiteboard import WhiteboardRepository
 
-from lzy.api.v2 import op, whiteboard, Lzy
-from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
+from lzy.api.v1 import op, whiteboard, Lzy
+from lzy.api.v1.remote_grpc.runtime import GrpcRuntime
 from lzy.serialization.types import File
 
 

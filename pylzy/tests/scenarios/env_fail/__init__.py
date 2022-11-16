@@ -2,8 +2,8 @@ import tempfile
 import uuid
 from pathlib import Path
 
-from lzy.api.v2 import Lzy, op
-from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
+from lzy.api.v1 import Lzy, op
+from lzy.api.v1.remote_grpc.runtime import GrpcRuntime
 
 
 @op

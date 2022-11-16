@@ -1,4 +1,4 @@
-from lzy.api.v2 import op, Lzy
+from lzy.api.v1 import op, Lzy
 
 
 @op
