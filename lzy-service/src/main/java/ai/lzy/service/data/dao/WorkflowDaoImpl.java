@@ -172,7 +172,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
                         var res = statement.executeUpdate();
                         if (res != 1) {
-                            throw new RuntimeException();
+                            throw new RuntimeException("Active execution was not updated");
                         }
                     }
                     return;

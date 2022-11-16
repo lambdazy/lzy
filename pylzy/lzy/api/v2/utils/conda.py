@@ -29,7 +29,7 @@ def generate_conda_yaml(
 
 
 """
-The next code was taken from conda-merge project (https://github.com/amitbeka/conda-merge)
+The next code was taken from conda-merge project (https://github.com/amitbeka/conda-merge (MIT license))
 and adopted to merge envs in runtime.
 """
 

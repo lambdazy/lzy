@@ -49,10 +49,15 @@ def fetch_whiteboard_meta(typ: Type) -> Optional[DeclaredWhiteboardMeta]:
 
 
 @dataclass
+class WhiteboardDefaultDescription:
+    url: str
+    data_scheme: Schema
+
+
+@dataclass
 class WhiteboardField:
     name: str
-    url: Optional[str] = None
-    data_scheme: Optional[Schema] = None
+    default: Optional[WhiteboardDefaultDescription] = None
 
 
 @dataclass

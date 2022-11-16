@@ -205,14 +205,15 @@ class GrpcRuntime(Runtime):
         f = [
             Wb(
                name=field.name,
-               default=None if field.url is None else Wb.DefaultFieldDesc(
-                   uri=field.url,
+               default=None if field.default is None else Wb.DefaultFieldDesc(
+                   uri=field.default.url,
                    dataScheme=DataScheme(
-                       dataFormat=field.data_scheme.data_format,
-                       schemeFormat=field.data_scheme.schema_format,
-                       schemeContent=field.data_scheme.schema_content if field.data_scheme.schema_content else "",
-                       metadata=field.data_scheme.meta
-                   ) if field.data_scheme is not None else None
+                       dataFormat=field.default.data_scheme.data_format,
+                       schemeFormat=field.default.data_scheme.schema_format,
+                       schemeContent=field.default.data_scheme.schema_content
+                       if field.default.data_scheme.schema_content else "",
+                       metadata=field.default.data_scheme.meta
+                   )
                )
             ) for field in fields
         ]

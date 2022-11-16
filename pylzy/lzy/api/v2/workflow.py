@@ -19,7 +19,8 @@ from lzy.api.v2.env import Env
 from lzy.api.v2.provisioning import Provisioning
 from lzy.api.v2.snapshot import Snapshot
 from lzy.api.v2.utils.proxy_adapter import is_lzy_proxy, get_proxy_entry_id, lzy_proxy, materialized
-from lzy.api.v2.whiteboard_declaration import fetch_whiteboard_meta, WhiteboardField, WhiteboardInstanceMeta
+from lzy.api.v2.whiteboard_declaration import fetch_whiteboard_meta, WhiteboardField, WhiteboardInstanceMeta, \
+    WhiteboardDefaultDescription
 from lzy.py_env.api import PyEnv
 
 T = TypeVar("T")  # pylint: disable=invalid-name
@@ -182,7 +183,7 @@ class LzyWorkflow:
                 entry = self.snapshot.create_entry(field.type)
                 data_to_load.append(self.snapshot.put_data(entry.id, field.default))
                 fields.append(
-                    WhiteboardField(field.name, entry.storage_url, entry.data_scheme)
+                    WhiteboardField(field.name, WhiteboardDefaultDescription(entry.storage_url, entry.data_scheme))
                 )
                 defaults[field.name] = lzy_proxy(entry.id, field.type, self, Just(field.default))
             else:
