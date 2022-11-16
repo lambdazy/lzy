@@ -2,8 +2,8 @@ package ai.lzy.storage.yc;
 
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
-import ai.lzy.model.db.Transaction;
-import ai.lzy.model.db.exceptions.DaoException;
+import ai.lzy.model.db.DbOperation;
+import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.storage.BeanFactory;
 import ai.lzy.storage.StorageService;
 import ai.lzy.storage.config.StorageConfig;
@@ -120,8 +120,10 @@ public class YandexCloudS3Storage implements StorageService {
 
         final String[] tokens = {/* service_account */ null, /* access_token */ null, /* secret_token */ null};
 
-        try {
-            Transaction.execute(dataSource, conn -> {
+        // todo: ssokolvyak -- add with retries, but pull createServiceAccount call out from transaction
+        //  or make it idempotent
+        try (var transaction = TransactionHandle.create(dataSource)) {
+            DbOperation.execute(transaction, dataSource, conn -> {
                 try (var st = conn.prepareStatement("""
                     select service_account, access_token, secret_token
                     from yc_s3_credentials
@@ -135,11 +137,16 @@ public class YandexCloudS3Storage implements StorageService {
                         tokens[0] = rs.getString("service_account");
                         tokens[1] = rs.getString("access_token");
                         tokens[2] = rs.getString("secret_token");
-                        return true;
+                        return;
                     }
                 }
 
-                var newTokens = createServiceAccountForUser(request.getUserId(), request.getBucket());
+                String[] newTokens;
+                try {
+                    newTokens = createServiceAccountForUser(request.getUserId(), request.getBucket());
+                } catch (Exception e) {
+                    throw new SQLException(e);
+                }
 
                 try (var st = conn.prepareStatement("""
                     insert into yc_s3_credentials (user_id, service_account, access_token, secret_token)
@@ -155,9 +162,10 @@ public class YandexCloudS3Storage implements StorageService {
                 tokens[0] = newTokens[0];
                 tokens[1] = newTokens[1];
                 tokens[2] = newTokens[2];
-                return true;
             });
-        } catch (DaoException e) {
+
+            transaction.commit();
+        } catch (SQLException e) {
             LOG.error("SQL error while creating bucket '{}' for '{}': {}",
                 request.getBucket(), request.getUserId(), e.getMessage(), e);
             safeDeleteBucket(request.getUserId(), request.getBucket(), client);
