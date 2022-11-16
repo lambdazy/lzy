@@ -2,12 +2,9 @@ package ai.lzy.longrunning;
 
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc.LongRunningServiceBlockingStub;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.Message;
 
 import java.time.Duration;
 import java.util.concurrent.locks.LockSupport;
-import javax.annotation.Nullable;
 
 public enum OperationUtils {
     ;
@@ -32,15 +29,5 @@ public enum OperationUtils {
         }
 
         return result;
-    }
-
-    @Nullable
-    public static <T extends Message> T extractResponseOrNull(LongRunning.Operation operation, Class<T> responseType)
-        throws InvalidProtocolBufferException
-    {
-        if (operation.getDone() && operation.hasResponse()) {
-            return operation.getResponse().unpack(responseType);
-        }
-        return null;
     }
 }

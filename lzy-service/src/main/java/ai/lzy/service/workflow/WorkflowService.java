@@ -62,7 +62,6 @@ import java.util.function.Consumer;
 
 import static ai.lzy.channelmanager.grpc.ProtoConverter.makeCreateDirectChannelCommand;
 import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
-import static ai.lzy.longrunning.OperationUtils.extractResponseOrNull;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
@@ -70,6 +69,8 @@ import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 public class WorkflowService {
     public static boolean PEEK_RANDOM_PORTAL_PORTS = false;  // Only for tests
     private static final Logger LOG = LogManager.getLogger(WorkflowService.class);
+
+    private static final Duration bucketCreationTimeout = Duration.ofSeconds(2);
 
     private final LzyServiceConfig.StartupPortalConfig startupPortalConfig;
 
@@ -287,13 +288,22 @@ public class WorkflowService {
                         .setBucket(bucketName)
                         .build());
 
-                LSS.CreateS3BucketResponse response = waitBucketCreate(Duration.ofSeconds(2), createOp.getId());
+                createOp = awaitOperationDone(storageOpService, createOp.getId(), bucketCreationTimeout);
 
-                if (response == null) {
+                if (!createOp.getDone()) {
                     state.fail(Status.DEADLINE_EXCEEDED,
                         "Cannot wait create bucket operation response. Operation id: " + createOp.getId());
                     return;
                 }
+
+                if (createOp.hasError()) {
+                    var status = createOp.getError();
+                    state.fail(Status.fromCodeValue(status.getCode()), "Cannot process create S3 bucket operation: " +
+                        "{ operationId: %s }, error: %s".formatted(createOp.getId(), status.getMessage()));
+                    return;
+                }
+
+                LSS.CreateS3BucketResponse response = createOp.getResponse().unpack(LSS.CreateS3BucketResponse.class);
 
                 var s3Locator = switch (response.getCredentialsCase()) {
                     case AMAZON -> LMS3.S3Locator.newBuilder().setAmazon(response.getAmazon()).setBucket(bucketName)
@@ -310,6 +320,9 @@ public class WorkflowService {
                 state.setStorageLocator(s3Locator);
             } catch (StatusRuntimeException e) {
                 state.fail(e.getStatus(), "Cannot create temp bucket");
+            } catch (InvalidProtocolBufferException e) {
+                LOG.error("Cannot deserialize create S3 bucket response from operation: " + e.getMessage());
+                state.fail(Status.INTERNAL, "Cannot create temp bucket: " + e.getMessage());
             }
         } else {
             var userStorage = request.getSnapshotStorage();
@@ -319,20 +332,6 @@ public class WorkflowService {
                 state.setStorageLocator(userStorage);
             }
         }
-    }
-
-    @Nullable
-    private LSS.CreateS3BucketResponse waitBucketCreate(Duration timeout, String operationId) {
-        LSS.CreateS3BucketResponse response = null;
-
-        try {
-            response = extractResponseOrNull(awaitOperationDone(storageOpService, operationId, timeout),
-                LSS.CreateS3BucketResponse.class);
-        } catch (InvalidProtocolBufferException e) {
-            LOG.error("Cannot deserialize create bucket response from operation with id: " + operationId);
-        }
-
-        return response;
     }
 
     private void deleteTempUserBucket(String bucket) {
@@ -393,15 +392,14 @@ public class WorkflowService {
             withRetries(defaultRetryPolicy(), LOG,
                 () -> workflowDao.updateAllocatorSession(executionId, sessionId, portalId));
 
-            var startAllocationTime = Instant.now();
-            var operation = startAllocation(userId, workflowName, sessionId,
+            var allocateVmOp = startAllocation(userId, workflowName, sessionId,
                 executionId, stdoutChannelId,
                 stderrChannelId, portalId);
-            var opId = operation.getId();
+            var opId = allocateVmOp.getId();
 
             VmAllocatorApi.AllocateMetadata allocateMetadata;
             try {
-                allocateMetadata = operation.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
+                allocateMetadata = allocateVmOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
             } catch (InvalidProtocolBufferException e) {
                 state.fail(Status.INTERNAL,
                     "Invalid allocate operation metadata: VM id missed. Operation id: " + opId);
@@ -412,12 +410,22 @@ public class WorkflowService {
             withRetries(defaultRetryPolicy(), LOG,
                 () -> workflowDao.updateAllocateOperationData(executionId, opId, vmId));
 
-            VmAllocatorApi.AllocateResponse allocateResponse = waitAllocation(allocationTimeout, opId);
-            if (allocateResponse == null) {
+            allocateVmOp = awaitOperationDone(allocOpService, opId, allocationTimeout);
+
+            if (!allocateVmOp.getDone()) {
                 state.fail(Status.DEADLINE_EXCEEDED,
                     "Cannot wait allocate operation response. Operation id: " + opId);
                 return;
             }
+
+            if (allocateVmOp.hasError()) {
+                var status = allocateVmOp.getError();
+                state.fail(Status.fromCodeValue(status.getCode()), "Cannot process allocate vm operation: " +
+                    "{ operationId: %s }, error: %s".formatted(allocateVmOp.getId(), status.getMessage()));
+                return;
+            }
+
+            var allocateResponse = allocateVmOp.getResponse().unpack(VmAllocatorApi.AllocateResponse.class);
 
             withRetries(defaultRetryPolicy(), LOG, () -> workflowDao.updateAllocatedVmAddress(executionId,
                 allocateResponse.getMetadataOrDefault(Constants.PORTAL_ADDRESS_KEY, null),
@@ -426,6 +434,9 @@ public class WorkflowService {
 
         } catch (StatusRuntimeException e) {
             state.fail(e.getStatus(), "Cannot start portal");
+        } catch (InvalidProtocolBufferException e) {
+            LOG.error("Cannot deserialize allocate response from operation: " + e.getMessage());
+            state.fail(Status.INTERNAL, "Cannot start portal: " + e.getMessage());
         } catch (Exception e) {
             state.fail(Status.INTERNAL, "Cannot start portal: " + e.getMessage());
         }
@@ -531,20 +542,6 @@ public class WorkflowService {
                         .putAllPortBindings(ports)
                         .build())
                 .build());
-    }
-
-    @Nullable
-    public VmAllocatorApi.AllocateResponse waitAllocation(Duration timeout, String operationId) {
-        VmAllocatorApi.AllocateResponse response = null;
-
-        try {
-            response = extractResponseOrNull(awaitOperationDone(allocOpService, operationId, timeout),
-                VmAllocatorApi.AllocateResponse.class);
-        } catch (InvalidProtocolBufferException e) {
-            LOG.error("Cannot deserialize allocate response from operation with id: " + operationId);
-        }
-
-        return response;
     }
 
     public void readStdSlots(LWFS.ReadStdSlotsRequest request, StreamObserver<LWFS.ReadStdSlotsResponse> response) {
