@@ -12,7 +12,6 @@ import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.exceptions.AlreadyExistsException;
 import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.model.slot.Slot;
-import ai.lzy.util.grpc.ContextAwareTask;
 import ai.lzy.v1.channel.v2.LCMS;
 import ai.lzy.v1.channel.v2.LzyChannelManagerGrpc;
 import ai.lzy.v1.longrunning.LongRunning;
@@ -132,23 +131,20 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         responseObserver.onCompleted();
         LOG.info(operationDescription + " responded, async operation started");
 
-        longrunningExecutor.submit(new ContextAwareTask() {
-            @Override
-            protected void execute() {
-                try {
-                    channelController.bind(endpoint);
-                } catch (CancellingChannelGraphStateException e) {
-                    LOG.warn("[executeBind] operation {} cancelled, " + e.getMessage());
-                    bindOperation.setError(Status.CANCELLED);
-                    operationStorage.update(bindOperation);
-                } catch (Exception e) {
-                    LOG.error("[executeBind] operation {} failed, " + e.getMessage());
-                    // error op
-                }
-
-                bindOperation.setResponse(Any.pack(LCMS.BindResponse.getDefaultInstance()));
+        longrunningExecutor.submit(() -> {
+            try {
+                channelController.bind(endpoint);
+            } catch (CancellingChannelGraphStateException e) {
+                LOG.warn("[executeBind] operation {} cancelled, " + e.getMessage());
+                bindOperation.setError(Status.CANCELLED);
                 operationStorage.update(bindOperation);
+            } catch (Exception e) {
+                LOG.error("[executeBind] operation {} failed, " + e.getMessage());
+                // error op
             }
+
+            bindOperation.setResponse(Any.pack(LCMS.BindResponse.getDefaultInstance()));
+            operationStorage.update(bindOperation);
         });
     }
 
@@ -202,17 +198,14 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         responseObserver.onCompleted();
         LOG.info(operationDescription + " responded, async operation started");
 
-        longrunningExecutor.submit(new ContextAwareTask() {
-            @Override
-            protected void execute() {
-                try {
-                    switch (endpoint.slotDirection()) {
-                        case OUTPUT /* SENDER */ -> channelController.unbindSender(endpoint);
-                        case INPUT /* RECEIVER */ -> channelController.unbindReceiver(endpoint);
-                    }
-                } catch (Exception e) {
-
+        longrunningExecutor.submit(() -> {
+            try {
+                switch (endpoint.slotDirection()) {
+                    case OUTPUT /* SENDER */ -> channelController.unbindSender(endpoint);
+                    case INPUT /* RECEIVER */ -> channelController.unbindReceiver(endpoint);
                 }
+            } catch (Exception e) {
+
             }
         });
 

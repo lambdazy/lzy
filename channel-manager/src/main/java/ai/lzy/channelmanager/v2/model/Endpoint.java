@@ -64,7 +64,7 @@ public class Endpoint {
         return slot.spec().direction();
     }
 
-    public LifeStatus lifeStatus() {
+    public LifeStatus status() {
         return lifeStatus;
     }
 

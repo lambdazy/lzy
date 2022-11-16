@@ -18,7 +18,8 @@ public class Channel {
     private final String executionId;
     private final Senders senders;
     private final Receivers receivers;
-    private final Connections connections;
+    private final List<Connection> connections;
+    private final LifeStatus lifeStatus;
 
     public Channel(String id, ChannelSpec spec, String executionId) {
         this.id = id;
@@ -26,6 +27,18 @@ public class Channel {
         this.executionId = executionId;
         this.senders = new Senders();
         this.receivers = new Receivers();
+        this.connections = new ArrayList<>();
+        this.lifeStatus = LifeStatus.ALIVE;
+    }
+
+    public Channel(String id, ChannelSpec spec, String executionId, List<Endpoint> endpoints, List<Connection> connections, LifeStatus lifeStatus) {
+        this.id = id;
+        this.spec = spec;
+        this.executionId = executionId;
+        this.senders = Senders.fromList(endpoints.stream().filter(e -> e.slotDirection() == Slot.Direction.OUTPUT).toList());
+        this.receivers = Receivers.fromList(endpoints.stream().filter(e -> e.slotDirection() == Slot.Direction.INPUT).toList());
+        this.connections = connections;
+        this.lifeStatus = lifeStatus;
     }
 
     public String id() {
@@ -40,14 +53,38 @@ public class Channel {
         return executionId;
     }
 
-    public Endpoint endpoint(URI endpointUri) {
-
+    public Senders senders() {
+        return senders;
     }
 
     public List<Endpoint> existedSenders() {
     }
 
+    public Receivers receivers() {
+        return receivers;
+    }
+
     public List<Endpoint> existedReceivers() {
+    }
+
+
+    public List<Endpoint> endpoints() {
+        final List<Endpoint> endpoints = new ArrayList<>();
+        endpoints.addAll(senders.asList());
+        endpoints.addAll(receivers.asList());
+        return endpoints;
+    }
+
+    public List<Connection> connections() {
+        return connections;
+    }
+
+    public LifeStatus lifeStatus() {
+        return lifeStatus;
+    }
+
+    public Endpoint endpoint(URI endpointUri) {
+
     }
 
     public List<Endpoint> endpoints(Slot.Direction slotDirection) {
@@ -83,34 +120,118 @@ public class Channel {
         return endpoints;
     }
 
-    private static class Senders {
+    public static class Senders {
 
         @Nullable
-        private final Endpoint workerEndpoint = null;
+        private final Endpoint workerEndpoint;
 
         @Nullable
-        private final Endpoint portalEndpoint = null;
+        private final Endpoint portalEndpoint;
 
-        List<Endpoint> asList() {
+        public Senders() {
+            this.workerEndpoint = null;
+            this.portalEndpoint = null;
+        }
+
+        public Senders(@Nullable Endpoint portalEndpoint, @Nullable Endpoint workerEndpoint) {
+            this.workerEndpoint = workerEndpoint;
+            this.portalEndpoint = portalEndpoint;
+        }
+
+        private static Senders fromList(List<Endpoint> senders) {
+            Endpoint portalEndpoint = null;
+            Endpoint workerEndpoint = null;
+            for (final Endpoint sender : senders) {
+                if (sender.slotDirection() != Slot.Direction.OUTPUT) {
+                    throw new IllegalArgumentException("Wrong endpoint direction");
+                }
+                switch (sender.slotOwner()) {
+                    case PORTAL -> {
+                        if (portalEndpoint != null) {
+                            throw new IllegalArgumentException("Multiple portal endpoints");
+                        }
+                        portalEndpoint = sender;
+                    }
+                    case WORKER -> {
+                        if (workerEndpoint != null) {
+                            throw new IllegalArgumentException("Multiple worker endpoints");
+                        }
+                        workerEndpoint = sender;
+                    }
+                }
+            }
+            return new Senders(portalEndpoint, workerEndpoint);
+        }
+
+        public List<Endpoint> asList() {
             List<Endpoint> senders = new ArrayList<>();
             if (workerEndpoint != null) senders.add(workerEndpoint);
             if (portalEndpoint != null) senders.add(portalEndpoint);
             return senders;
         }
 
-    }
-
-    private static class Receivers {
-
-        private final List<Endpoint> workerEndpoints = new ArrayList<>();
+        @Nullable
+        public Endpoint workerEndpoint() {
+            return workerEndpoint;
+        }
 
         @Nullable
-        private final Endpoint portalEndpoint = null;
+        public Endpoint portalEndpoint() {
+            return portalEndpoint;
+        }
 
-        List<Endpoint> asList() {
+    }
+
+    public static class Receivers {
+
+        private final List<Endpoint> workerEndpoints;
+
+        @Nullable
+        private final Endpoint portalEndpoint;
+
+        public Receivers() {
+            workerEndpoints = new ArrayList<>();
+            portalEndpoint = null;
+        }
+
+        public Receivers(@Nullable Endpoint portalEndpoint, List<Endpoint> workerEndpoints) {
+            this.workerEndpoints = new ArrayList<>(workerEndpoints);
+            this.portalEndpoint = portalEndpoint;
+        }
+
+        private static Receivers fromList(List<Endpoint> receivers) {
+            Endpoint portalEndpoint = null;
+            final List<Endpoint> workerEndpoints = new ArrayList<>();
+            for (final Endpoint receiver : receivers) {
+                if (receiver.slotDirection() != Slot.Direction.INPUT) {
+                    throw new IllegalArgumentException("Wrong endpoint direction");
+                }
+                switch (receiver.slotOwner()) {
+                    case PORTAL -> {
+                        if (portalEndpoint != null) {
+                            throw new IllegalArgumentException("Multiple portal endpoints");
+                        }
+                        portalEndpoint = receiver;
+                    }
+                    case WORKER -> workerEndpoints.add(receiver);
+                }
+            }
+            return new Receivers(portalEndpoint, workerEndpoints);
+        }
+
+        public List<Endpoint> asList() {
             List<Endpoint> receivers = new ArrayList<>(workerEndpoints);
             if (portalEndpoint != null) receivers.add(portalEndpoint);
             return receivers;
+        }
+
+        public List<Endpoint> workerEndpoints() {
+            return workerEndpoints;
+        }
+
+        @Nullable
+        public Endpoint portalEndpoint() {
+            return portalEndpoint;
         }
 
     }
@@ -123,6 +244,11 @@ public class Channel {
             return null;
         }
 
+    }
+
+    public enum LifeStatus {
+        ALIVE,
+        DESTROYING,
     }
 
 }

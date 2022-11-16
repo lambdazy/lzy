@@ -14,6 +14,7 @@ import ai.lzy.model.db.exceptions.NotFoundException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.sql.SQLException;
 import java.time.Duration;
 import java.util.List;
 import javax.annotation.Nullable;
@@ -133,7 +134,7 @@ public class ChannelControllerImpl implements ChannelController {
 
         final Channel channel;
         try (final var guard = lockManager.withLock(channelId)) {
-            channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.DESTROYING, null);
+            channel = channelStorage.findChannel(channelId, Channel.LifeStatus.DESTROYING, null);
             if (channel == null) {
                 // already destroyed
                 return;
@@ -156,10 +157,16 @@ public class ChannelControllerImpl implements ChannelController {
     }
 
     @Nullable
-    private Endpoint findEndpointToConnect(Endpoint bindingEndpoint) throws Exception {
-        final String channelId = bindingEndpoint.channelId();
+    private Endpoint findEndpointToConnect(Endpoint bindingEndpoint) throws ChannelGraphStateException {
+        LOG.debug("[findEndpointToConnect], bindingEndpoint={}", bindingEndpoint.uri());
 
-        final Channel channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
+        final String channelId = bindingEndpoint.channelId();
+        final Channel channel;
+        try {
+            channel = channelStorage.findChannel(channelId, Channel.LifeStatus.ALIVE, null);
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to find channel in storage", e); // EXCEPTION_TYPE: request failed
+        }
         if (channel == null) {
             throw new CancellingChannelGraphStateException(channelId, "Channel not found");
         }
@@ -169,9 +176,9 @@ public class ChannelControllerImpl implements ChannelController {
             throw new CancellingChannelGraphStateException(channelId, "Endpoint " + bindingEndpoint.uri() + " not found");
         }
 
-        if (actualStateEndpoint.lifeStatus() != Endpoint.LifeStatus.BINDING) {
+        if (actualStateEndpoint.status() != Endpoint.LifeStatus.BINDING) {
             throw new CancellingChannelGraphStateException(channelId,
-                "Endpoint " + bindingEndpoint.uri() + " has wrong lifeStatus " + actualStateEndpoint.lifeStatus());
+                "Endpoint " + bindingEndpoint.uri() + " has wrong lifeStatus " + actualStateEndpoint.status());
         }
 
         final Endpoint endpointToConnect;
@@ -194,8 +201,11 @@ public class ChannelControllerImpl implements ChannelController {
             return null;
         }
 
-        withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.insertConnection(
-            channelId, sender.uri().toString(), receiver.uri().toString(), null));
+        withRetries(defaultRetryPolicy(), LOG, () ->
+            channelStorage.insertConnection(channelId, Connection.of(sender, receiver), null));
+
+        LOG.debug("[findEndpointToConnect] done, bindingEndpoint={}, found endpointToConnect={}",
+            bindingEndpoint.uri(), endpointToConnect.uri());
 
         return endpointToConnect;
     }
@@ -217,7 +227,7 @@ public class ChannelControllerImpl implements ChannelController {
                 "Endpoint " + bindingEndpoint.uri() + " has unexpected direction" + bindingEndpoint.slotDirection());
         }
 
-        Channel channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
+        Channel channel = channelStorage.findChannel(channelId, Channel.LifeStatus.ALIVE, null);
         if (channel == null) {
             throw new CancellingChannelGraphStateException(channelId, "Channel not found");
         }
@@ -227,9 +237,9 @@ public class ChannelControllerImpl implements ChannelController {
             throw new CancellingChannelGraphStateException(channelId, "Endpoint " + bindingEndpoint.uri() + " not found");
         }
 
-        if (actualStateEndpoint.lifeStatus() != Endpoint.LifeStatus.BINDING) {
+        if (actualStateEndpoint.status() != Endpoint.LifeStatus.BINDING) {
             throw new CancellingChannelGraphStateException(channelId,
-                "Endpoint " + bindingEndpoint.uri() + " has wrong lifeStatus " + actualStateEndpoint.lifeStatus());
+                "Endpoint " + bindingEndpoint.uri() + " has wrong lifeStatus " + actualStateEndpoint.status());
         }
 
         final Connection actualStateConnection = channel.connection(sender.uri(), receiver.uri());
@@ -258,9 +268,9 @@ public class ChannelControllerImpl implements ChannelController {
             return null;
         }
 
-        if (actualStateEndpoint.lifeStatus() != Endpoint.LifeStatus.UNBINDING) {
+        if (actualStateEndpoint.status() != Endpoint.LifeStatus.UNBINDING) {
             throw new IllegalChannelGraphStateException(channelId,
-                "Endpoint " + unbindingSender.uri() + " has wrong lifeStatus " + actualStateEndpoint.lifeStatus());
+                "Endpoint " + unbindingSender.uri() + " has wrong lifeStatus " + actualStateEndpoint.status());
         }
 
         final List<Connection> actualStateConnections = channel.connections(unbindingSender.uri());
@@ -296,7 +306,7 @@ public class ChannelControllerImpl implements ChannelController {
             return null;
         }
 
-        if (actualStateEndpoint.lifeStatus() != Endpoint.LifeStatus.UNBINDING) {
+        if (actualStateEndpoint.status() != Endpoint.LifeStatus.UNBINDING) {
             throw new IllegalChannelGraphStateException(channelId, ""); // TODO
         }
 
@@ -330,7 +340,7 @@ public class ChannelControllerImpl implements ChannelController {
             return false;
         }
 
-        if (actualStateEndpoint.lifeStatus() != Endpoint.LifeStatus.UNBINDING) {
+        if (actualStateEndpoint.status() != Endpoint.LifeStatus.UNBINDING) {
             throw new IllegalChannelGraphStateException(channelId, ""); // TODO
         }
 
