@@ -5,6 +5,7 @@ from lzy.api.v2.call import LzyCall, wrap_call
 from lzy.api.v2.env import CondaEnv, DockerEnv, DockerPullPolicy, Env
 from lzy.api.v2.local.runtime import LocalRuntime
 from lzy.api.v2.provisioning import Provisioning
+from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
 from lzy.api.v2.runtime import Runtime
 from lzy.api.v2.snapshot import DefaultSnapshot
 from lzy.api.v2.utils.conda import generate_conda_yaml
@@ -89,7 +90,7 @@ class Lzy:
     def __init__(
         self,
         *,
-        runtime: Runtime = LocalRuntime(),
+        runtime: Runtime = GrpcRuntime(),
         py_env_provider: PyEnvProvider = AutomaticPyEnvProvider(),
         storage_registry: StorageRegistry = DefaultStorageRegistry(),
         serializer_registry: SerializerRegistry = DefaultSerializerRegistry(),

@@ -57,7 +57,8 @@ public class PythonContext {
             "LZY_ADDRESS_ENV", workflow.address().toString(),
             "LZY_KEY_PATH", file.toAbsolutePath().toString(),
             "LZY_USERNAME", "test",
-            "LZY_WHITEBOARD_ADDRESS", whiteboard.publicAddress().toString()
+            "LZY_WHITEBOARD_ADDRESS", whiteboard.publicAddress().toString(),
+            "FETCH_STATUS_PERIOD_SEC", "0"
         );
     }
 

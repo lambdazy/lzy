@@ -16,9 +16,6 @@ def just_call_imported_stuff() -> str:
     return v1 + " " + v2
 
 
-runtime = GrpcRuntime()
-lzy = Lzy(runtime=runtime)
-
-with lzy.workflow(name="wf", interactive=False):
+with Lzy().workflow(name="wf", interactive=False):
     res = just_call_imported_stuff()
     print(res)

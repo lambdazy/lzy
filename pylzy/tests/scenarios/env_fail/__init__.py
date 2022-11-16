@@ -29,8 +29,5 @@ if __name__ == "__main__":
             )
         )
         f.flush()
-
-        runtime = GrpcRuntime()
-        lzy = Lzy(runtime=runtime)
-        with lzy.workflow("wf", interactive=False, conda_yaml_path=f.name):
+        with Lzy().workflow("wf", interactive=False, conda_yaml_path=f.name):
             main()

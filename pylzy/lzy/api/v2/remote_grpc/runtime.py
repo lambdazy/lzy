@@ -54,7 +54,7 @@ from ai.lzy.v1.workflow.workflow_pb2 import WhiteboardField as Wb
 
 
 LZY_ADDRESS_ENV = "LZY_ADDRESS_ENV"
-FETCH_STATUS_PERIOD_SEC = 10
+FETCH_STATUS_PERIOD_SEC = float(os.getenv("FETCH_STATUS_PERIOD_SEC", "10"))
 
 _LOG = logging.getLogger(__name__)
 

@@ -35,9 +35,7 @@ class FileWb:
 
 if __name__ == "__main__":
     wb_id = ""
-
-    runtime = GrpcRuntime()
-    lzy = Lzy(runtime=runtime)
+    lzy = Lzy()
 
     with lzy.workflow("wf", interactive=False) as wf:
         file_wb = wf.create_whiteboard(FileWb)
