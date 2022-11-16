@@ -38,6 +38,9 @@ public enum OperationUtils {
     public static <T extends Message> T extractResponseOrNull(LongRunning.Operation operation, Class<T> responseType)
         throws InvalidProtocolBufferException
     {
-        return operation.getDone() ? operation.getResponse().unpack(responseType) : null;
+        if (operation.getDone() && operation.hasResponse()) {
+            return operation.getResponse().unpack(responseType);
+        }
+        return null;
     }
 }
