@@ -3,17 +3,14 @@ package ai.lzy.channelmanager.v2.control;
 import ai.lzy.channelmanager.lock.GrainedLock;
 import ai.lzy.channelmanager.v2.db.ChannelStorage;
 import ai.lzy.channelmanager.v2.exceptions.CancellingChannelGraphStateException;
+import ai.lzy.channelmanager.v2.exceptions.ChannelGraphStateException;
 import ai.lzy.channelmanager.v2.exceptions.IllegalChannelGraphStateException;
 import ai.lzy.channelmanager.v2.grpc.SlotConnectionManager;
 import ai.lzy.channelmanager.v2.model.Channel;
 import ai.lzy.channelmanager.v2.model.Connection;
 import ai.lzy.channelmanager.v2.model.Endpoint;
 import ai.lzy.channelmanager.v2.slot.SlotApiClient;
-import ai.lzy.longrunning.Operation;
 import ai.lzy.model.db.exceptions.NotFoundException;
-import ai.lzy.v1.channel.v2.LCMS;
-import com.google.protobuf.Any;
-import io.grpc.Status;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -43,42 +40,7 @@ public class ChannelControllerImpl implements ChannelController {
     }
 
     @Override
-    public void executeBind(Endpoint endpoint, Operation bindOperation) {
-        LOG.debug("[executeBind], endpoint={}", endpoint.uri());
-
-        try {
-            bind(endpoint);
-        } catch (CancellingChannelGraphStateException e) {
-            LOG.warn("[executeBind] operation {} cancelled, " + e.getMessage());
-            bindOperation.setError(Status.CANCELLED);
-            operationStorage.update(operation);
-        }  catch (Exception e) {
-            LOG.error("[executeBind] operation {} failed, " + e.getMessage());
-            // error op
-        }
-
-        bindOperation.setResponse(Any.pack(LCMS.BindRequest.getDefaultInstance()));
-        operationStorage.update(bindOperation);
-
-        LOG.debug("[executeBind] done, endpoint={}", endpoint.uri());
-
-    }
-
-    @Override
-    public void executeUnbind(Endpoint endpoint, Operation unbindOperation) {
-        LOG.debug("[executeUnbind], endpoint={}, channel={}", endpoint.uri(), channel.id());
-
-        try {
-            switch (endpoint.slotDirection()) {
-                case OUTPUT /* SENDER */ -> unbindSender(endpoint);
-                case INPUT /* RECEIVER */ -> unbindReceiver(endpoint);
-            }
-        } catch (Exception e) {
-
-        }
-    }
-
-    private void bind(Endpoint endpoint) throws Exception {
+    public void bind(Endpoint endpoint) throws ChannelGraphStateException {
         while (true) {
             final Endpoint endpointToConnect;
 
@@ -108,7 +70,8 @@ public class ChannelControllerImpl implements ChannelController {
         }
     }
 
-    private void unbindSender(Endpoint sender) throws Exception {
+    @Override
+    public void unbindSender(Endpoint sender) throws ChannelGraphStateException {
         final String channelId = sender.channelId();
         while (true) {
             final Endpoint receiverToUnbind;
@@ -125,6 +88,9 @@ public class ChannelControllerImpl implements ChannelController {
 
         slotApiClient.disconnect(sender);
 
+        // TODO (lindvv): maybe should suspend, so shouldn't destroy, fix after slots refactoring
+        slotApiClient.destroy(sender);
+
         try (final var guard = lockManager.withLock(channelId)) {
             withRetries(defaultRetryPolicy(), LOG,
                 () -> channelStorage.removeEndpointWithoutConnections(sender.uri().toString(), null));
@@ -133,7 +99,8 @@ public class ChannelControllerImpl implements ChannelController {
         }
     }
 
-    private void unbindReceiver(Endpoint receiver) throws Exception {
+    @Override
+    public void unbindReceiver(Endpoint receiver) throws ChannelGraphStateException {
         final String channelId = receiver.channelId();
 
         final Connection connectionToBreak;
@@ -148,6 +115,9 @@ public class ChannelControllerImpl implements ChannelController {
 
         slotApiClient.disconnect(receiver);
 
+        // TODO (lindvv): maybe should suspend, so shouldn't destroy, fix after slots refactoring
+        slotApiClient.destroy(receiver);
+
         try (final var guard = lockManager.withLock(channelId)) {
             boolean connectionRemoved = removeConnection(connectionToBreak.receiver(), connectionToBreak.sender());
             if (connectionRemoved) {
@@ -156,6 +126,33 @@ public class ChannelControllerImpl implements ChannelController {
             }
         }
 
+    }
+
+    @Override
+    public void destroy(String channelId) throws ChannelGraphStateException {
+
+        final Channel channel;
+        try (final var guard = lockManager.withLock(channelId)) {
+            channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.DESTROYING, null);
+            if (channel == null) {
+                // already destroyed
+                return;
+            }
+
+            withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.markAllEndpointsUnbinding(channelId, null));
+        }
+
+        for (Endpoint receiver : channel.existedReceivers()) {
+            unbindReceiver(receiver);
+        }
+
+        for (Endpoint sender : channel.existedSenders()) {
+            unbindSender(sender);
+        }
+
+        try (final var guard = lockManager.withLock(channelId)) {
+            withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.removeChannel(channelId, null));
+        }
     }
 
     @Nullable
@@ -197,7 +194,7 @@ public class ChannelControllerImpl implements ChannelController {
             return null;
         }
 
-        withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.insertEndpointConnection(
+        withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.insertConnection(
             channelId, sender.uri().toString(), receiver.uri().toString(), null));
 
         return endpointToConnect;
@@ -240,7 +237,7 @@ public class ChannelControllerImpl implements ChannelController {
             return false;
         }
 
-        withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.markEndpointConnectionAlive(
+        withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.markConnectionAlive(
             channelId, sender.uri().toString(), receiver.uri().toString(), null));
         return true;
     }
@@ -249,7 +246,7 @@ public class ChannelControllerImpl implements ChannelController {
     private Endpoint findReceiverToUnbind(Endpoint unbindingSender) throws Exception {
         final String channelId = unbindingSender.channelId();
 
-        final Channel channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
+        final Channel channel = channelStorage.findChannel(channelId, null);
         if (channel == null) {
             // log warn, already removed
             return null;
@@ -287,7 +284,7 @@ public class ChannelControllerImpl implements ChannelController {
     private Connection findConnectionToBreak(Endpoint unbindingReceiver) throws Exception {
         final String channelId = unbindingReceiver.channelId();
 
-        final Channel channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
+        final Channel channel = channelStorage.findChannel(channelId, null);
         if (channel == null) {
             // TODO log warn, already removed
             return null;
@@ -312,7 +309,7 @@ public class ChannelControllerImpl implements ChannelController {
             return null;
         }
 
-        withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.markEndpointConnectionDisconnecting(
+        withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.markConnectionDisconnecting(
             channelId, connectionToBreak.sender().uri().toString(), connectionToBreak.receiver().uri().toString(), null));
 
         return connectionToBreak;
@@ -321,7 +318,7 @@ public class ChannelControllerImpl implements ChannelController {
     private boolean removeConnection(Endpoint unbindingReceiver, Endpoint connectedSender) throws Exception {
         final String channelId = unbindingReceiver.channelId();
 
-        final Channel channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
+        final Channel channel = channelStorage.findChannel(channelId, null);
         if (channel == null) {
             // ok, already removed
             return false;

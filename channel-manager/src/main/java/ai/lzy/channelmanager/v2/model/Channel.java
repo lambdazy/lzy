@@ -1,6 +1,7 @@
 package ai.lzy.channelmanager.v2.model;
 
 import ai.lzy.channelmanager.channel.ChannelSpec;
+import ai.lzy.model.slot.Slot;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -39,11 +40,17 @@ public class Channel {
         return executionId;
     }
 
-    public Connections connections() {
-        return connections;
+    public Endpoint endpoint(URI endpointUri) {
+
     }
 
-    public Endpoint endpoint(URI endpointUri) {
+    public List<Endpoint> existedSenders() {
+    }
+
+    public List<Endpoint> existedReceivers() {
+    }
+
+    public List<Endpoint> endpoints(Slot.Direction slotDirection) {
 
     }
 
@@ -84,6 +91,13 @@ public class Channel {
         @Nullable
         private final Endpoint portalEndpoint = null;
 
+        List<Endpoint> asList() {
+            List<Endpoint> senders = new ArrayList<>();
+            if (workerEndpoint != null) senders.add(workerEndpoint);
+            if (portalEndpoint != null) senders.add(portalEndpoint);
+            return senders;
+        }
+
     }
 
     private static class Receivers {
@@ -92,6 +106,12 @@ public class Channel {
 
         @Nullable
         private final Endpoint portalEndpoint = null;
+
+        List<Endpoint> asList() {
+            List<Endpoint> receivers = new ArrayList<>(workerEndpoints);
+            if (portalEndpoint != null) receivers.add(portalEndpoint);
+            return receivers;
+        }
 
     }
 

@@ -1,6 +1,6 @@
 package ai.lzy.channelmanager.v2.exceptions;
 
-abstract class ChannelGraphStateException extends Exception {
+public abstract class ChannelGraphStateException extends Exception {
 
     private final String channelId;
 

@@ -12,34 +12,31 @@ import javax.annotation.Nullable;
 
 public interface ChannelStorage {
 
-    void insertChannel(String channelId, String executionId, ChannelSpec channelSpec,
-                       @Nullable TransactionHandle transaction) throws SQLException;
-
+    void insertChannel(String channelId, String executionId, ChannelSpec channelSpec, @Nullable TransactionHandle transaction) throws SQLException;
+    void markChannelDestroying(String channelId, @Nullable TransactionHandle transaction) throws SQLException;
     void removeChannel(String channelId, @Nullable TransactionHandle transaction) throws SQLException;
 
     void insertBindingEndpoint(Endpoint endpoint, @Nullable TransactionHandle transaction) throws SQLException;
     void markEndpointBound(String endpointUri, @Nullable TransactionHandle transaction) throws SQLException;
     void markEndpointUnbinding(String endpointUri, @Nullable TransactionHandle transaction) throws SQLException;
+    void markAllEndpointsUnbinding(String chanelId, @Nullable TransactionHandle transaction) throws SQLException;
     void removeEndpointWithoutConnections(String endpointUri, @Nullable TransactionHandle transaction) throws SQLException;
 
-    void insertEndpointConnection(String channelId, String senderUri, String receiverUri,
-                                  @Nullable TransactionHandle transaction) throws SQLException;
-    void markEndpointConnectionAlive(String channelId, String senderUri, String receiverUri,
+    void insertConnection(String channelId, String senderUri, String receiverUri,
+                          @Nullable TransactionHandle transaction) throws SQLException;
+    void markConnectionAlive(String channelId, String senderUri, String receiverUri,
+                             @Nullable TransactionHandle transaction) throws SQLException;
+    void markConnectionDisconnecting(String channelId, String senderUri, String receiverUri,
                                      @Nullable TransactionHandle transaction) throws SQLException;
-    void markEndpointConnectionDisconnecting(String channelId, String senderUri, String receiverUri,
-                                             @Nullable TransactionHandle transaction) throws SQLException;
     void removeEndpointConnection(String channelId, String senderUri, String receiverUri,
                                   @Nullable TransactionHandle transaction) throws SQLException;
 
-
-    void setChannelLifeStatusDestroying(
-        String channelId, @Nullable TransactionHandle transaction) throws SQLException;
-    void setChannelLifeStatusDestroyingOfExecution(
-        String executionId, @Nullable TransactionHandle transaction) throws SQLException;
-
+    @Nullable
+    Channel findChannel(String channelId, @Nullable TransactionHandle transaction) throws SQLException;
     @Nullable
     Channel findChannel(String channelId, ChannelLifeStatus lifeStatus,
                         @Nullable TransactionHandle transaction) throws SQLException;
+
 
     List<Channel> listChannels(String executionId, ChannelLifeStatus lifeStatus,
                                @Nullable TransactionHandle transaction) throws SQLException;

@@ -1,12 +1,15 @@
 package ai.lzy.channelmanager.v2.control;
 
+import ai.lzy.channelmanager.v2.exceptions.ChannelGraphStateException;
 import ai.lzy.channelmanager.v2.model.Endpoint;
-import ai.lzy.longrunning.Operation;
 
 public interface ChannelController {
 
-    void executeBind(Endpoint endpoint, Operation bindOperation);
+    void bind(Endpoint endpoint) throws ChannelGraphStateException;
 
-    void executeUnbind(Endpoint endpoint, Operation unbindOperation);
+    void unbindSender(Endpoint sender) throws ChannelGraphStateException;
+    void unbindReceiver(Endpoint receiver) throws ChannelGraphStateException;
+
+    void destroy(String channelId) throws ChannelGraphStateException;
 
 }
