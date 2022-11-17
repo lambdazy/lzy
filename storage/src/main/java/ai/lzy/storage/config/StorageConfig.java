@@ -1,4 +1,4 @@
-package ai.lzy.storage;
+package ai.lzy.storage.config;
 
 import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.model.db.DatabaseConfiguration;

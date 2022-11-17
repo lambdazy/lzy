@@ -2,9 +2,12 @@ package ai.lzy.longrunning.dao;
 
 import ai.lzy.longrunning.Operation;
 import ai.lzy.model.db.TransactionHandle;
+import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
 import javax.annotation.Nullable;
+
+import static ai.lzy.model.db.DbHelper.withRetries;
 
 public interface OperationDao {
 
@@ -30,4 +33,17 @@ public interface OperationDao {
 
     @Nullable
     Operation updateError(String id, byte[] error, @Nullable TransactionHandle transaction) throws SQLException;
+
+    default void failOperation(String operationId, com.google.rpc.Status error, Logger log) {
+        try {
+            var op = withRetries(log, () -> updateError(operationId, error.toByteArray(), null));
+            if (op == null) {
+                log.error("Cannot fail operation {} with reason {}: operation not found",
+                    operationId, error.getMessage());
+            }
+        } catch (Exception ex) {
+            log.error("Cannot fail operation {} with reason {}: {}",
+                operationId, error.getMessage(), ex.getMessage(), ex);
+        }
+    }
 }

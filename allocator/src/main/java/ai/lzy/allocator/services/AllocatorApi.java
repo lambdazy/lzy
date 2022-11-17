@@ -53,16 +53,13 @@ import java.net.UnknownHostException;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import javax.inject.Named;
 
 import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
 import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
 import static ai.lzy.model.db.DbHelper.withRetries;
+import static ai.lzy.util.grpc.ProtoConverter.toProto;
 
 @Singleton
 @Requires(beans = MetricReporter.class)
@@ -360,13 +357,15 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                     }
                 });
         } catch (StatusRuntimeException e) {
-            failOperation(operationsDao, op.id(), e.getStatus(), e.getStatus().getDescription());
+            operationsDao.failOperation(op.id(), toProto(e.getStatus()), LOG);
+
             responseObserver.onError(e);
             return;
         } catch (Exception ex) {
             LOG.error("Error while executing transaction: {}", ex.getMessage(), ex);
             var status = Status.INTERNAL.withDescription("Error while executing request").withCause(ex);
-            failOperation(operationsDao, op.id(), status, status.getDescription());
+
+            operationsDao.failOperation(op.id(), toProto(status), LOG);
 
             metrics.allocationError.inc();
 
@@ -396,29 +395,16 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             } catch (InvalidConfigurationException e) {
                 LOG.error("Error while allocating: {}", e.getMessage(), e);
                 metrics.allocationError.inc();
-                failOperation(operationsDao, op.id(), Status.INVALID_ARGUMENT, e.getMessage());
+
+                operationsDao.failOperation(op.id(),
+                    toProto(Status.INVALID_ARGUMENT.withDescription(e.getMessage())), LOG);
             }
         } catch (Exception e) {
             LOG.error("Error during allocation: {}", e.getMessage(), e);
             metrics.allocationError.inc();
-            failOperation(operationsDao, op.id(), Status.INTERNAL, "Error while executing request");
-        }
-    }
 
-    private static void failOperation(OperationDao operations, String operationId, Status error, String message) {
-        var status = com.google.rpc.Status.newBuilder()
-            .setCode(error.getCode().value())
-            .setMessage(message)
-            .build();
-        try {
-            var op = withRetries(LOG, () -> operations.updateError(operationId, status.toByteArray(), null));
-            if (op == null) {
-                LOG.error("Cannot fail operation {} with reason {}: operation not found",
-                    operationId, message);
-            }
-        } catch (Exception ex) {
-            LOG.error("Cannot fail operation {} with reason {}: {}",
-                operationId, message, ex.getMessage(), ex);
+            operationsDao.failOperation(op.id(),
+                toProto(Status.INTERNAL.withDescription("Error while executing request")), LOG);
         }
     }
 

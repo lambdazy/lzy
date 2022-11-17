@@ -1,11 +1,8 @@
 package ai.lzy.service.whiteboard;
 
-import ai.lzy.model.DataScheme;
 import ai.lzy.v1.whiteboard.LWB;
 import ai.lzy.v1.whiteboard.LWBPS;
 import ai.lzy.v1.workflow.LWFS;
-
-import static ai.lzy.model.grpc.ProtoConverter.toProto;
 
 public final class ProtoConverter {
     public static LWBPS.CreateWhiteboardRequest newLWBPSCreateWhiteboardRequest(String userId,

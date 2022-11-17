@@ -27,6 +27,7 @@ import javax.inject.Singleton;
 import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
 import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
 import static ai.lzy.model.db.DbHelper.withRetries;
+import static ai.lzy.util.grpc.ProtoConverter.toProto;
 
 @Singleton
 public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
@@ -149,7 +150,9 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                 .formatted(createDiskOperation.id(), e.getMessage());
             LOG.error(errorMessage, e);
             metrics.createDiskError.inc();
-            failOperation(createDiskOperation.id(), errorMessage);
+
+            operationsDao.failOperation(createDiskOperation.id(),
+                toProto(Status.INTERNAL.withDescription(errorMessage)), LOG);
         }
     }
 
@@ -233,7 +236,10 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
             var errorMessage = "Error while executing transaction for clone disk operation_id=%s: %s"
                 .formatted(cloneDiskOperation.id(), e.getMessage());
             LOG.error(errorMessage, e);
-            failOperation(cloneDiskOperation.id(), errorMessage);
+
+            operationsDao.failOperation(cloneDiskOperation.id(),
+                toProto(Status.INTERNAL.withDescription(errorMessage)), LOG);
+
             metrics.cloneDiskError.inc();
         }
     }
@@ -284,23 +290,6 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
             throw new NotFoundException("Disk with id=" + diskId + " not found");
         }
         return disk;
-    }
-
-    private void failOperation(String operationId, String message) {
-        var status = com.google.rpc.Status.newBuilder()
-            .setCode(Status.INTERNAL.getCode().value())
-            .setMessage(message)
-            .build();
-        try {
-            var op = withRetries(LOG, () -> operationsDao.updateError(operationId, status.toByteArray(), null));
-            if (op == null) {
-                LOG.error("Cannot fail operation {} with reason {}: operation not found",
-                    operationId, message);
-            }
-        } catch (Exception ex) {
-            LOG.error("Cannot fail operation {} with reason {}: {}",
-                operationId, message, ex.getMessage(), ex);
-        }
     }
 
     private static final class Metrics {
