@@ -41,7 +41,8 @@ public class LzyASService extends LzyAccessServiceGrpc.LzyAccessServiceImplBase 
             }
             if (accessClient.hasResourcePermission(
                     ProtoConverter.to(request.getSubject()), request.getResource().getId(),
-                    AuthPermission.fromString(request.getPermission()))) {
+                    AuthPermission.fromString(request.getPermission())))
+            {
                 responseObserver.onNext(Subject.newBuilder()
                         .setId(request.getSubject().getId())
                         .build());
