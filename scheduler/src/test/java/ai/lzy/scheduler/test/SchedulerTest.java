@@ -1,5 +1,6 @@
 package ai.lzy.scheduler.test;
 
+import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.TaskDesc;
 import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.model.db.test.DatabaseTestUtils;
@@ -10,6 +11,7 @@ import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.scheduler.db.ServantEventDao;
 import ai.lzy.scheduler.db.TaskDao;
 import ai.lzy.scheduler.models.ServantState;
+import ai.lzy.scheduler.models.TaskState;
 import ai.lzy.scheduler.servant.Servant;
 import ai.lzy.scheduler.servant.ServantsPool;
 import ai.lzy.scheduler.servant.impl.EventQueueManager;
@@ -19,19 +21,16 @@ import ai.lzy.scheduler.test.EventProcessorTest.AllocationRequest;
 import ai.lzy.scheduler.test.mocks.AllocatedServantMock;
 import ai.lzy.scheduler.test.mocks.AllocatorMock;
 import com.google.common.net.HostAndPort;
+import io.grpc.Status;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.jetbrains.annotations.NotNull;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.Timeout;
 
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
+import java.io.IOException;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -150,83 +149,45 @@ public class SchedulerTest {
 
     @Test
     public void testParallel() throws Exception {
-        ServiceConfig config = buildConfig(2);
-        var processorConfig = new ProcessorConfigBuilder()
-            .setIdleTimeout(100)
-            .build();
+        SchedulerImpl scheduler = createScheduler(2);
 
         final BlockingQueue<AllocationRequest> requests = new LinkedBlockingQueue<>();
-        ServantsPool pool = new ServantsPoolImpl(config, processorConfig, servantDao, allocator, events, tasks,
-            manager);
-        SchedulerImpl scheduler = new SchedulerImpl(servantDao, tasks, pool, config);
-        scheduler.start();
-
         allocator.onAllocationRequested(((a, b, c) -> requests.add(new AllocationRequest(a, b, c))));
 
         scheduler.execute(workflowId, workflowName, userId, new TaskDesc(buildOp(), Map.of())); //task 1
         scheduler.execute(workflowId, workflowName, userId, new TaskDesc(buildOp(), Map.of())); //task 2
 
-        final var port1 = FreePortFinder.find(1000, 2000);
-        final CountDownLatch env1 = new CountDownLatch(1);
-        final CountDownLatch exec1 = new CountDownLatch(1);
-        final CountDownLatch stop1 = new CountDownLatch(1);
-
-        new AllocatedServantMock.ServantBuilder(port1)
-            .setOnEnv(env1::countDown)
-            .setOnExec(exec1::countDown)
-            .setOnStop(stop1::countDown)
-            .build();
-        final HostAndPort servantUri1 = HostAndPort.fromParts("localhost", port1);
-
-        final var port2 = FreePortFinder.find(1000, 2000);
-        final CountDownLatch env2 = new CountDownLatch(1);
-        final CountDownLatch exec2 = new CountDownLatch(1);
-        final CountDownLatch stop2 = new CountDownLatch(1);
-
-        new AllocatedServantMock.ServantBuilder(port2)
-            .setOnEnv(env2::countDown)
-            .setOnExec(exec2::countDown)
-            .setOnStop(stop2::countDown)
-            .build();
-        final HostAndPort servantUri2 = HostAndPort.fromParts("localhost", port2);
+        final var state1 = new ServantTestState();
+        final var state2 = new ServantTestState();
 
         var r1 = requests.take();
         var servant1 = servantDao.get(r1.workflowId(), r1.servantId());
-        Objects.requireNonNull(servant1).notifyConnected(servantUri1);
+        Objects.requireNonNull(servant1).notifyConnected(state1.servantUri);
 
         var r2 = requests.take();
         var servant2 = servantDao.get(r2.workflowId(), r2.servantId());
-        Objects.requireNonNull(servant2).notifyConnected(servantUri2);
+        Objects.requireNonNull(servant2).notifyConnected(state2.servantUri);
 
-        env1.await();
-        env2.await();
+        state1.env.await();
+        state2.env.await();
 
         servant1.notifyConfigured(0, "Ok");
         servant2.notifyConfigured(0, "Ok");
 
-        exec1.await();
-        exec2.await();
+        state1.exec.await();
+        state2.exec.await();
 
         servant1.notifyExecutionCompleted(0, "Ok");
         servant2.notifyExecutionCompleted(0, "Ok");
 
-        stop1.await();
-        stop2.await();
+        state1.stop.await();
+        state2.stop.await();
 
         servant1.notifyStopped(0, "Ok");
         servant2.notifyStopped(0, "Ok");
 
         awaitState(r1.workflowId(), r1.servantId(), ServantState.Status.DESTROYED);
         awaitState(r2.workflowId(), r2.servantId(), ServantState.Status.DESTROYED);
-    }
-
-    @NotNull
-    private ServiceConfig buildConfig(int maxServants) {
-        ServiceConfig config = new ServiceConfig();
-        config.setMaxServantsPerWorkflow(maxServants);
-        config.setDefaultProvisioningLimit(maxServants);
-        config.setProvisioningLimits(Map.of());
-        return config;
     }
 
     @Test
@@ -324,6 +285,388 @@ public class SchedulerTest {
         scheduler = restart.apply(scheduler);
 
         awaitState(req.workflowId(), req.servantId(), ServantState.Status.DESTROYED);
+    }
+
+    @Test
+    public void testFailOnEnv() throws Exception {
+        SchedulerImpl scheduler = createScheduler(1);
+
+        final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
+        allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
+
+        scheduler.execute(workflowId, workflowName, userId, new TaskDesc(buildOp(), Map.of()));
+        /// WHEN
+        final var state1 = new ServantTestState(true, false, false);
+
+        var req = allocationRequested.get();
+        awaitState(req.workflowId(), req.servantId(), ServantState.Status.CONNECTING);
+        var servant = servantDao.get(req.workflowId(), req.servantId());
+        Objects.requireNonNull(servant).notifyConnected(state1.servantUri);
+
+        state1.env.await();
+
+        /// THEN
+        awaitState(req.workflowId(), req.servantId(), ServantState.Status.DESTROYED);
+
+        for (var task : tasks.list(workflowId)) {
+            Assert.assertEquals(TaskState.Status.ERROR, task.status());
+            Assert.assertEquals("Internal error", task.errorDescription());
+        }
+    }
+
+    @Test
+    public void testFailOnExec() throws Exception {
+        SchedulerImpl scheduler = createScheduler(1);
+
+        final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
+        allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
+
+        scheduler.execute(workflowId, workflowName, userId, new TaskDesc(buildOp(), Map.of()));
+        /// WHEN
+        final var state1 = new ServantTestState(false, true, false);
+
+        var req = allocationRequested.get();
+        awaitState(req.workflowId(), req.servantId(), ServantState.Status.CONNECTING);
+        var servant = servantDao.get(req.workflowId(), req.servantId());
+        Objects.requireNonNull(servant).notifyConnected(state1.servantUri);
+
+        state1.env.await();
+        servant.notifyConfigured(0, "Ok");
+        state1.exec.await();
+
+        /// THEN
+        awaitState(req.workflowId(), req.servantId(), ServantState.Status.DESTROYED);
+
+        for (var task : tasks.list(workflowId)) {
+            Assert.assertEquals(TaskState.Status.ERROR, task.status());
+            Assert.assertEquals("Internal error", task.errorDescription());
+        }
+    }
+
+    @Test
+    public void testFailOnStop() throws Exception {
+        SchedulerImpl scheduler = createScheduler(1);
+
+        final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
+        allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
+
+        scheduler.execute(workflowId, workflowName, userId, new TaskDesc(buildOp(), Map.of()));
+        /// WHEN
+        final var state1 = new ServantTestState(false, false, true);
+
+        var req = allocationRequested.get();
+        awaitState(req.workflowId(), req.servantId(), ServantState.Status.CONNECTING);
+        var servant = servantDao.get(req.workflowId(), req.servantId());
+        Objects.requireNonNull(servant).notifyConnected(state1.servantUri);
+
+        state1.env.await();
+        servant.notifyConfigured(0, "Ok");
+        state1.exec.await();
+        servant.notifyExecutionCompleted(0, "Ok");
+        state1.stop.await();
+
+        /// THEN
+        awaitState(req.workflowId(), req.servantId(), ServantState.Status.DESTROYED);
+
+        for (var task : tasks.list(workflowId)) {
+            Assert.assertEquals(TaskState.Status.SUCCESS, task.status());
+        }
+    }
+
+    @Test
+    public void testConfigurationTimeout() throws Exception {
+        SchedulerImpl scheduler = createScheduler(1);
+
+        final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
+        allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
+
+        scheduler.execute(workflowId, workflowName, userId, new TaskDesc(buildOp(), Map.of()));
+        final var state1 = new ServantTestState();
+
+        var req = allocationRequested.get();
+        awaitState(req.workflowId(), req.servantId(), ServantState.Status.CONNECTING);
+        var servant = servantDao.get(req.workflowId(), req.servantId());
+        Objects.requireNonNull(servant).notifyConnected(state1.servantUri);
+
+        state1.env.await();
+        /// WHEN - not notified
+
+        /// THEN
+        awaitState(req.workflowId(), req.servantId(), ServantState.Status.DESTROYED);
+
+        for (var task : tasks.list(workflowId)) {
+            Assert.assertEquals(TaskState.Status.ERROR, task.status());
+            Assert.assertEquals("Servant stopping: <Environment is installing too long.>", task.errorDescription());
+        }
+    }
+    @Test
+    public void testExecutionTimeout() throws Exception {
+        SchedulerImpl scheduler = createScheduler(1);
+
+        final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
+        allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
+
+        scheduler.execute(workflowId, workflowName, userId, new TaskDesc(buildOp(), Map.of()));
+        final var state1 = new ServantTestState();
+
+        var req = allocationRequested.get();
+        awaitState(req.workflowId(), req.servantId(), ServantState.Status.CONNECTING);
+        var servant = servantDao.get(req.workflowId(), req.servantId());
+        Objects.requireNonNull(servant).notifyConnected(state1.servantUri);
+
+        state1.env.await();
+        servant.notifyConfigured(0, "Ok");
+        state1.exec.await();
+        servant.executingHeartbeat();
+        /// WHEN - not notified
+
+        /// THEN
+        awaitState(req.workflowId(), req.servantId(), ServantState.Status.DESTROYED);
+
+        for (var task : tasks.list(workflowId)) {
+            Assert.assertEquals(TaskState.Status.ERROR, task.status());
+            Assert.assertEquals("Servant is dead", task.errorDescription());
+        }
+    }
+
+    @Test
+    public void testStopTimeout() throws Exception {
+        SchedulerImpl scheduler = createScheduler(1);
+
+        final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
+        allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
+
+        scheduler.execute(workflowId, workflowName, userId, new TaskDesc(buildOp(), Map.of()));
+        final var state1 = new ServantTestState();
+
+        var req = allocationRequested.get();
+        awaitState(req.workflowId(), req.servantId(), ServantState.Status.CONNECTING);
+        var servant = servantDao.get(req.workflowId(), req.servantId());
+        Objects.requireNonNull(servant).notifyConnected(state1.servantUri);
+
+        state1.env.await();
+        servant.notifyConfigured(0, "Ok");
+        state1.exec.await();
+        servant.notifyExecutionCompleted(0,"Ok");
+        state1.stop.await();
+        /// WHEN - not notified
+
+        /// THEN
+        awaitState(req.workflowId(), req.servantId(), ServantState.Status.DESTROYED);
+
+        for (var task : tasks.list(workflowId)) {
+            Assert.assertEquals(TaskState.Status.SUCCESS, task.status());
+        }
+    }
+
+    @Test
+    public void testFailOnEnvNotifying() throws Exception {
+        SchedulerImpl scheduler = createScheduler(1);
+
+        final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
+        allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
+
+        scheduler.execute(workflowId, workflowName, userId, new TaskDesc(buildOp(), Map.of()));
+        final var state1 = new ServantTestState();
+
+        var req = allocationRequested.get();
+        awaitState(req.workflowId(), req.servantId(), ServantState.Status.CONNECTING);
+        var servant = servantDao.get(req.workflowId(), req.servantId());
+        Objects.requireNonNull(servant).notifyConnected(state1.servantUri);
+
+        state1.env.await();
+
+        /// WHEN
+        servant.notifyConfigured(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc(),"test");
+
+        /// THEN
+        awaitState(req.workflowId(), req.servantId(), ServantState.Status.STOPPING);
+        servant.notifyStopped(0, "Stopped");
+        awaitState(req.workflowId(), req.servantId(), ServantState.Status.DESTROYED);
+
+        for (var task : tasks.list(workflowId)) {
+            Assert.assertEquals(TaskState.Status.ERROR, task.status());
+            Assert.assertEquals("Error while configuring servant: test", task.errorDescription());
+        }
+    }
+
+    @Test
+    public void testFailOnExecNotifying() throws Exception {
+        SchedulerImpl scheduler = createScheduler(1);
+
+        final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
+        allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
+
+        scheduler.execute(workflowId, workflowName, userId, new TaskDesc(buildOp(), Map.of()));
+        final var state1 = new ServantTestState();
+
+        var req = allocationRequested.get();
+        awaitState(req.workflowId(), req.servantId(), ServantState.Status.CONNECTING);
+        var servant = servantDao.get(req.workflowId(), req.servantId());
+        Objects.requireNonNull(servant).notifyConnected(state1.servantUri);
+
+        state1.env.await();
+        servant.notifyConfigured(0, "Ok");
+        state1.exec.await();
+
+        /// WHEN
+        servant.notifyExecutionCompleted(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc(),"test");
+
+        /// THEN
+        awaitState(req.workflowId(), req.servantId(), ServantState.Status.STOPPING);
+        servant.notifyStopped(0, "Stopped");
+        awaitState(req.workflowId(), req.servantId(), ServantState.Status.DESTROYED);
+
+        for (var task : tasks.list(workflowId)) {
+            Assert.assertEquals(TaskState.Status.ERROR, task.status());
+            Assert.assertEquals("test", task.errorDescription());
+        }
+    }
+
+    @Test
+    public void testFailOnStopNotifying() throws Exception {
+        SchedulerImpl scheduler = createScheduler(1);
+
+        final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
+        allocator.onAllocationRequested(((a, b, c) -> allocationRequested.complete(new AllocationRequest(a, b, c))));
+
+        scheduler.execute(workflowId, workflowName, userId, new TaskDesc(buildOp(), Map.of()));
+        final var state1 = new ServantTestState();
+
+        var req = allocationRequested.get();
+        awaitState(req.workflowId(), req.servantId(), ServantState.Status.CONNECTING);
+        var servant = servantDao.get(req.workflowId(), req.servantId());
+        Objects.requireNonNull(servant).notifyConnected(state1.servantUri);
+
+        state1.env.await();
+        servant.notifyConfigured(0, "Ok");
+        state1.exec.await();
+        servant.notifyExecutionCompleted(0,"Ok");
+        state1.stop.await();
+
+        /// WHEN
+        servant.notifyStopped(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc(),"test");
+
+        /// THEN
+        awaitState(req.workflowId(), req.servantId(), ServantState.Status.DESTROYED);
+
+        for (var task : tasks.list(workflowId)) {
+            Assert.assertEquals(TaskState.Status.SUCCESS, task.status());
+        }
+    }
+
+    @Test
+    public void testFailingServantDontAffectOther() throws Exception {
+        SchedulerImpl scheduler = createScheduler(2);
+
+        final BlockingQueue<AllocationRequest> requests = new LinkedBlockingQueue<>();
+        allocator.onAllocationRequested(((a, b, c) -> requests.add(new AllocationRequest(a, b, c))));
+
+        var workflowId2 = "wfid" + UUID.randomUUID();
+        var workflowName2 = "wf" + UUID.randomUUID();
+        scheduler.execute(workflowId, workflowName, userId, new TaskDesc(buildOp(), Map.of())); //task 1
+        scheduler.execute(workflowId2, workflowName2, userId, new TaskDesc(buildOp(), Map.of())); //task 2
+
+        /// WHEN
+        final var state1 = new ServantTestState(true, false, false);
+        final var state2 = new ServantTestState();
+
+        var r1 = requests.take();
+        var servant1 = servantDao.get(r1.workflowId(), r1.servantId());
+        Objects.requireNonNull(servant1).notifyConnected(state1.servantUri);
+
+        var r2 = requests.take();
+        var servant2 = servantDao.get(r2.workflowId(), r2.servantId());
+        Objects.requireNonNull(servant2).notifyConnected(state2.servantUri);
+
+        state1.env.await();
+        state2.env.await();
+        servant2.notifyConfigured(0, "Ok");
+
+        state2.exec.await();
+        servant2.notifyExecutionCompleted(0, "Ok");
+
+        awaitState(r2.workflowId(), r2.servantId(), ServantState.Status.RUNNING);
+        servant2.notifyCommunicationCompleted();
+
+        awaitState(r2.workflowId(), r2.servantId(), ServantState.Status.STOPPING);
+        servant2.notifyStopped(0, "Stopped");
+
+        awaitState(r2.workflowId(), r2.servantId(), ServantState.Status.DESTROYED);
+
+        /// THEN
+        awaitState(r1.workflowId(), r1.servantId(), ServantState.Status.DESTROYED);
+
+        for (var task : tasks.list(workflowId)) {
+            Assert.assertEquals(TaskState.Status.ERROR, task.status());
+            Assert.assertEquals("Internal error", task.errorDescription());
+        }
+
+        for (var task : tasks.list(workflowId2)) {
+            Assert.assertEquals(TaskState.Status.SUCCESS, task.status());
+        }
+    }
+
+    private static class ServantTestState {
+        final CountDownLatch env = new CountDownLatch(1);
+        final CountDownLatch exec = new CountDownLatch(1);
+        final CountDownLatch stop = new CountDownLatch(1);
+        final HostAndPort servantUri;
+
+        public ServantTestState() throws IOException {
+            this(false, false, false);
+        }
+
+        public ServantTestState(boolean failEnv, boolean failExec, boolean failStop) throws IOException {
+            final var port = FreePortFinder.find(1000, 2000);
+            new AllocatedServantMock.ServantBuilder(port)
+                .setOnEnv(() -> {
+                    env.countDown();
+                    if (failEnv) {
+                        throw Status.INTERNAL.asRuntimeException();
+                    }
+                })
+                .setOnExec(() -> {
+                    exec.countDown();
+                    if (failExec) {
+                        throw Status.INTERNAL.asRuntimeException();
+                    }
+                })
+                .setOnStop(() -> {
+                    stop.countDown();
+                    if (failStop) {
+                        throw Status.INTERNAL.asRuntimeException();
+                    }
+                })
+                .build();
+            servantUri = HostAndPort.fromParts("localhost", port);
+        }
+    }
+
+    @NotNull
+    private ServiceConfig buildConfig(int maxServants) {
+        ServiceConfig config = new ServiceConfig();
+        config.setMaxServantsPerWorkflow(maxServants);
+        config.setDefaultProvisioningLimit(maxServants);
+        config.setProvisioningLimits(Map.of());
+        return config;
+    }
+
+    private SchedulerImpl createScheduler(int maxServants) {
+        ServiceConfig config = buildConfig(maxServants);
+        var processorConfig = new ProcessorConfigBuilder()
+            .setIdleTimeout(100)
+            .setConfiguringTimeout(100)
+            .setExecutingHeartbeatPeriod(100)
+            .setServantStopTimeout(100)
+            .build();
+
+        ServantsPool pool = new ServantsPoolImpl(config, processorConfig, servantDao, allocator, events, tasks,
+            manager);
+        SchedulerImpl scheduler = new SchedulerImpl(servantDao, tasks, pool, config);
+        scheduler.start();
+
+        return scheduler;
     }
 
     public void awaitState(String workflowId, String servantId,
