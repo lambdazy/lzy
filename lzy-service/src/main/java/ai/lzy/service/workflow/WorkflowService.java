@@ -317,9 +317,14 @@ public class WorkflowService {
                     }
                 };
 
+                if (s3Locator == null) {
+                    state.fail(Status.INTERNAL, "Cannot create temp bucket");
+                    return;
+                }
+
                 state.setStorageLocator(s3Locator);
             } catch (StatusRuntimeException e) {
-                state.fail(e.getStatus(), "Cannot create temp bucket");
+                state.fail(e.getStatus(), "Cannot create temp bucket: " + e.getMessage());
             } catch (InvalidProtocolBufferException e) {
                 LOG.error("Cannot deserialize create S3 bucket response from operation: " + e.getMessage());
                 state.fail(Status.INTERNAL, "Cannot create temp bucket: " + e.getMessage());
