@@ -357,7 +357,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                     }
                 });
         } catch (StatusRuntimeException e) {
-            OperationDao.failOperation(operationsDao, op.id(), toProto(e.getStatus()), LOG);
+            operationsDao.failOperation(op.id(), toProto(e.getStatus()), LOG);
 
             responseObserver.onError(e);
             return;
@@ -365,7 +365,7 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
             LOG.error("Error while executing transaction: {}", ex.getMessage(), ex);
             var status = Status.INTERNAL.withDescription("Error while executing request").withCause(ex);
 
-            OperationDao.failOperation(operationsDao, op.id(), toProto(status), LOG);
+            operationsDao.failOperation(op.id(), toProto(status), LOG);
 
             metrics.allocationError.inc();
 
@@ -396,14 +396,14 @@ public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
                 LOG.error("Error while allocating: {}", e.getMessage(), e);
                 metrics.allocationError.inc();
 
-                OperationDao.failOperation(operationsDao, op.id(),
+                operationsDao.failOperation(op.id(),
                     toProto(Status.INVALID_ARGUMENT.withDescription(e.getMessage())), LOG);
             }
         } catch (Exception e) {
             LOG.error("Error during allocation: {}", e.getMessage(), e);
             metrics.allocationError.inc();
 
-            OperationDao.failOperation(operationsDao, op.id(),
+            operationsDao.failOperation(op.id(),
                 toProto(Status.INTERNAL.withDescription("Error while executing request")), LOG);
         }
     }

@@ -151,7 +151,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
             LOG.error(errorMessage, e);
             metrics.createDiskError.inc();
 
-            OperationDao.failOperation(operationsDao, createDiskOperation.id(),
+            operationsDao.failOperation(createDiskOperation.id(),
                 toProto(Status.INTERNAL.withDescription(errorMessage)), LOG);
         }
     }
@@ -237,7 +237,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                 .formatted(cloneDiskOperation.id(), e.getMessage());
             LOG.error(errorMessage, e);
 
-            OperationDao.failOperation(operationsDao, cloneDiskOperation.id(),
+            operationsDao.failOperation(cloneDiskOperation.id(),
                 toProto(Status.INTERNAL.withDescription(errorMessage)), LOG);
 
             metrics.cloneDiskError.inc();

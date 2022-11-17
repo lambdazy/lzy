@@ -31,13 +31,15 @@ public class App {
     private final ManagedChannel iamChannel;
     private final Server server;
 
+    private final StorageServiceGrpc service;
+
     public App(ApplicationContext context) {
         var config = context.getBean(StorageConfig.class);
 
         var address = HostAndPort.fromString(config.getAddress());
         var iamAddress = HostAndPort.fromString(config.getIam().getAddress());
 
-        var service = context.getBean(StorageServiceGrpc.class);
+        service = context.getBean(StorageServiceGrpc.class);
         var operationDao = context.getBean(OperationDao.class, Qualifiers.byName(BeanFactory.DAO_NAME));
         var opService = new OperationService(operationDao);
 
@@ -72,8 +74,10 @@ public class App {
     public void close(boolean force) {
         try {
             if (force) {
+                service.shutdownNow();
                 server.shutdownNow();
             } else {
+                service.shutdown();
                 server.shutdown();
             }
         } finally {
@@ -86,6 +90,7 @@ public class App {
     }
 
     public void awaitTermination() throws InterruptedException {
+        service.awaitTermination(10, TimeUnit.SECONDS);
         server.awaitTermination();
         iamChannel.awaitTermination(10, TimeUnit.SECONDS);
     }

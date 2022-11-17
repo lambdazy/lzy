@@ -41,9 +41,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     public static final String APP = "LzyService";
 
     private final ManagedChannel allocatorServiceChannel;
-    private final ManagedChannel operationServiceChannel;
     private final ManagedChannel storageServiceChannel;
-    private final ManagedChannel storageOpChannel;
     private final ManagedChannel channelManagerChannel;
     private final ManagedChannel iamChannel;
     private final ManagedChannel whiteboardChannel;
@@ -71,17 +69,15 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var vmPoolClient = newBlockingClient(
             VmPoolServiceGrpc.newBlockingStub(allocatorServiceChannel), APP, () -> creds.get().token());
 
-        operationServiceChannel = newGrpcChannel(allocatorAddress, LongRunningServiceGrpc.SERVICE_NAME);
         var allocOperationClient = newBlockingClient(
-            LongRunningServiceGrpc.newBlockingStub(operationServiceChannel), APP, () -> creds.get().token());
+            LongRunningServiceGrpc.newBlockingStub(allocatorServiceChannel), APP, () -> creds.get().token());
 
         storageServiceChannel = newGrpcChannel(config.getStorage().getAddress(), LzyStorageServiceGrpc.SERVICE_NAME);
         var storageServiceClient = newBlockingClient(
             LzyStorageServiceGrpc.newBlockingStub(storageServiceChannel), APP, () -> creds.get().token());
 
-        storageOpChannel = newGrpcChannel(config.getStorage().getAddress(), LongRunningServiceGrpc.SERVICE_NAME);
         var storageOpClient = newBlockingClient(
-            LongRunningServiceGrpc.newBlockingStub(storageOpChannel), APP, () -> creds.get().token()
+            LongRunningServiceGrpc.newBlockingStub(storageServiceChannel), APP, () -> creds.get().token()
         );
 
         channelManagerChannel = newGrpcChannel(channelManagerAddress, LzyChannelManagerPrivateGrpc.SERVICE_NAME);
@@ -112,9 +108,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     public void shutdown() {
         LOG.info("Shutdown WorkflowService.");
         GrpcChannels.awaitTermination(allocatorServiceChannel, Duration.ofSeconds(10), getClass());
-        GrpcChannels.awaitTermination(operationServiceChannel, Duration.ofSeconds(10), getClass());
         GrpcChannels.awaitTermination(storageServiceChannel, Duration.ofSeconds(10), getClass());
-        GrpcChannels.awaitTermination(storageOpChannel, Duration.ofSeconds(10), getClass());
         GrpcChannels.awaitTermination(channelManagerChannel, Duration.ofSeconds(10), getClass());
         GrpcChannels.awaitTermination(iamChannel, Duration.ofSeconds(10), getClass());
         GrpcChannels.awaitTermination(whiteboardChannel, Duration.ofSeconds(10), getClass());

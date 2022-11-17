@@ -70,8 +70,6 @@ public class WorkflowService {
     public static boolean PEEK_RANDOM_PORTAL_PORTS = false;  // Only for tests
     private static final Logger LOG = LogManager.getLogger(WorkflowService.class);
 
-    private static final Duration bucketCreationTimeout = Duration.ofSeconds(2);
-
     private final LzyServiceConfig.StartupPortalConfig startupPortalConfig;
 
     private final Storage storage;
@@ -79,6 +77,7 @@ public class WorkflowService {
 
     private final Duration allocationTimeout;
     private final Duration allocatorVmCacheTimeout;
+    private final Duration bucketCreationTimeout;
     private final String channelManagerAddress;
     private final String iamAddress;
     private final String whiteboardAddress;
@@ -109,6 +108,7 @@ public class WorkflowService {
     {
         allocationTimeout = config.getWaitAllocationTimeout();
         allocatorVmCacheTimeout = config.getAllocatorVmCacheTimeout();
+        bucketCreationTimeout = config.getStorage().getBucketCreationTimeout();
         startupPortalConfig = config.getPortal();
         channelManagerAddress = config.getChannelManagerAddress();
         iamAddress = config.getIam().getAddress();
