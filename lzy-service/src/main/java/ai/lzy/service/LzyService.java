@@ -97,8 +97,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var graphExecutorClient = newBlockingClient(
             GraphExecutorGrpc.newBlockingStub(graphExecutorChannel), APP, () -> creds.get().token());
 
-        workflowService = new WorkflowService(config, channelManagerClient, allocatorClient,
-            allocOperationClient, subjectClient, abClient, storageServiceClient, storageOpClient, storage, workflowDao, vmPoolClient);
+        workflowService = new WorkflowService(config, channelManagerClient, allocatorClient, allocOperationClient,
+            subjectClient, abClient, storageServiceClient, storageOpClient, storage, workflowDao, vmPoolClient);
         whiteboardService = new WhiteboardService(whiteboardClient);
         graphExecutionService = new GraphExecutionService(creds, workflowDao, graphDao, executionDao,
             vmPoolClient, graphExecutorClient, channelManagerClient);
