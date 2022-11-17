@@ -447,7 +447,7 @@ public class SchedulerTest {
         state1.env.await();
         servant.notifyConfigured(0, "Ok");
         state1.exec.await();
-        servant.notifyExecutionCompleted(0,"Ok");
+        servant.notifyExecutionCompleted(0, "Ok");
         state1.stop.await();
         /// WHEN - not notified
 
@@ -477,7 +477,7 @@ public class SchedulerTest {
         state1.env.await();
 
         /// WHEN
-        servant.notifyConfigured(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc(),"test");
+        servant.notifyConfigured(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc(), "test");
 
         /// THEN
         awaitState(req.workflowId(), req.servantId(), ServantState.Status.STOPPING);
@@ -510,7 +510,7 @@ public class SchedulerTest {
         state1.exec.await();
 
         /// WHEN
-        servant.notifyExecutionCompleted(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc(),"test");
+        servant.notifyExecutionCompleted(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc(), "test");
 
         /// THEN
         awaitState(req.workflowId(), req.servantId(), ServantState.Status.STOPPING);
@@ -541,11 +541,11 @@ public class SchedulerTest {
         state1.env.await();
         servant.notifyConfigured(0, "Ok");
         state1.exec.await();
-        servant.notifyExecutionCompleted(0,"Ok");
+        servant.notifyExecutionCompleted(0, "Ok");
         state1.stop.await();
 
         /// WHEN
-        servant.notifyStopped(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc(),"test");
+        servant.notifyStopped(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc(), "test");
 
         /// THEN
         awaitState(req.workflowId(), req.servantId(), ServantState.Status.DESTROYED);
