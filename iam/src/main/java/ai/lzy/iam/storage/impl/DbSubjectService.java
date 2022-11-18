@@ -16,14 +16,11 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.sql.Types;
+import java.sql.*;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -35,6 +32,28 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 @Requires(beans = IamDataSource.class)
 public class DbSubjectService {
     private static final Logger LOG = LogManager.getLogger(DbSubjectService.class);
+
+    private static final String QUERY_INSERT_CREDENTIALS_IF_NOT_EXISTS_AND_RETURN_THEM = """
+        WITH
+          row_to_insert (name, value, user_id, type, expired_at) AS (VALUES (?, ?, ?, ?, ?)),
+          attempt_to_insert AS
+            (
+              INSERT INTO credentials (name, value, user_id, type, expired_at)
+              SELECT name, value, user_id, type, CAST(expired_at as timestamp without time zone) FROM row_to_insert
+              ON CONFLICT (name, user_id) DO NOTHING
+              RETURNING name, value, user_id, type, expired_at
+            )
+        SELECT
+            COALESCE(attempt_to_insert.name, credentials.name) AS name,  
+            COALESCE(attempt_to_insert.value, credentials.value) AS value,
+            COALESCE(attempt_to_insert.user_id, credentials.user_id) AS user_id,
+            COALESCE(attempt_to_insert.type, credentials.type) AS type,
+            COALESCE(attempt_to_insert.expired_at, credentials.expired_at) AS expired_at
+        FROM row_to_insert
+        LEFT JOIN credentials
+        ON (credentials.name = row_to_insert.name AND credentials.user_id = row_to_insert.user_id)
+        LEFT JOIN attempt_to_insert
+        ON (attempt_to_insert.name = row_to_insert.name AND attempt_to_insert.user_id = row_to_insert.user_id)""";
 
     @Inject
     private IamDataSource storage;
@@ -62,8 +81,8 @@ public class DbSubjectService {
                 () -> {
                     try (var connect = storage.connect();
                          var st = connect.prepareStatement("""
-                            INSERT INTO users (user_id, auth_provider, provider_user_id, access_type, user_type)
-                            VALUES (?, ?, ?, ?, ?)"""))
+                             INSERT INTO users (user_id, auth_provider, provider_user_id, access_type, user_type)
+                             VALUES (?, ?, ?, ?, ?)"""))
                     {
                         int parameterIndex = 0;
                         st.setString(++parameterIndex, subjectId);
@@ -91,11 +110,11 @@ public class DbSubjectService {
                 try (var tx = TransactionHandle.create(storage);
                      var conn = tx.connect();
                      var subjSt = conn.prepareStatement("""
-                            INSERT INTO users (user_id, auth_provider, provider_user_id, access_type, user_type)
-                            VALUES (?, ?, ?, ?, ?)""");
+                         INSERT INTO users (user_id, auth_provider, provider_user_id, access_type, user_type)
+                         VALUES (?, ?, ?, ?, ?)""");
                      var credsSt = conn.prepareStatement("""
-                            INSERT INTO credentials (name, value, user_id, type, expired_at)
-                            VALUES (?, ?, ?, ?, ?)"""))
+                         INSERT INTO credentials (name, value, user_id, type, expired_at)
+                         VALUES (?, ?, ?, ?, ?)"""))
                 {
                     subjSt.setString(1, subjectId);
                     subjSt.setString(2, authProvider.name());
@@ -181,23 +200,44 @@ public class DbSubjectService {
             LOG,
             () -> {
                 try (var connect = storage.connect();
-                     var st = connect.prepareStatement("""
-                        INSERT INTO credentials (name, value, user_id, type, expired_at)
-                        VALUES (?, ?, ?, ?, ?)"""))
+                     var st = connect.prepareStatement(QUERY_INSERT_CREDENTIALS_IF_NOT_EXISTS_AND_RETURN_THEM))
                 {
                     int parameterIndex = 0;
                     st.setString(++parameterIndex, credentials.name());
                     st.setString(++parameterIndex, credentials.value());
                     st.setString(++parameterIndex, subject.id());
                     st.setString(++parameterIndex, credentials.type().name());
+
+                    var expiredAtTimestamp = (credentials.expiredAt() != null)
+                        ? Timestamp.from(credentials.expiredAt().truncatedTo(ChronoUnit.SECONDS))
+                        : null;
+
                     if (credentials.expiredAt() != null) {
-                        st.setTimestamp(++parameterIndex,
-                            Timestamp.from(credentials.expiredAt().truncatedTo(ChronoUnit.SECONDS)));
+                        st.setTimestamp(++parameterIndex, expiredAtTimestamp);
                     } else {
                         st.setNull(++parameterIndex, Types.TIMESTAMP);
                     }
 
-                    st.executeUpdate();
+                    ResultSet rs = st.executeQuery();
+
+                    if (rs.next()) {
+                        var actualName = rs.getString("name");
+                        var actualValue = rs.getString("value");
+                        var actualId = rs.getString("user_id");
+                        var actualType = CredentialsType.valueOf(rs.getString("type"));
+                        var actualExpiredAt = rs.getTimestamp("expired_at");
+
+                        if (!credentials.name().contentEquals(actualName) || !subject.id().contentEquals(actualId)) {
+                            return;
+                        }
+
+                        if (!credentials.value().contentEquals(actualValue) || credentials.type() != actualType
+                            || !Objects.equals(expiredAtTimestamp, actualExpiredAt))
+                        {
+                            throw new IllegalArgumentException(String.format("Credentials name '%s' is already used " +
+                                "for another user '%s' credentials", actualName, actualId));
+                        }
+                    }
                 }
             },
             AuthInternalException::new);
@@ -210,9 +250,9 @@ public class DbSubjectService {
             () -> {
                 try (var connect = storage.connect();
                      var st = connect.prepareStatement("""
-                        SELECT name, value, type, expired_at
-                        FROM credentials
-                        WHERE user_id = ? AND name = ? AND (expired_at IS NULL OR expired_at > NOW())"""))
+                         SELECT name, value, type, expired_at
+                         FROM credentials
+                         WHERE user_id = ? AND name = ? AND (expired_at IS NULL OR expired_at > NOW())"""))
                 {
                     int parameterIndex = 0;
                     st.setString(++parameterIndex, subject.id());
@@ -240,9 +280,9 @@ public class DbSubjectService {
             () -> {
                 try (var connect = storage.connect();
                      var st = connect.prepareStatement("""
-                        SELECT name, value, type, expired_at
-                        FROM credentials
-                        WHERE user_id = ? AND (expired_at IS NULL OR expired_at > NOW())"""))
+                         SELECT name, value, type, expired_at
+                         FROM credentials
+                         WHERE user_id = ? AND (expired_at IS NULL OR expired_at > NOW())"""))
                 {
                     int parameterIndex = 0;
                     st.setString(++parameterIndex, subject.id());
@@ -290,9 +330,9 @@ public class DbSubjectService {
 
         try (var connect = storage.connect();
              var st = connect.prepareStatement("""
-                SELECT user_id
-                FROM users
-                WHERE auth_provider = ? AND provider_user_id = ? AND user_type = ?"""))
+                 SELECT user_id
+                 FROM users
+                 WHERE auth_provider = ? AND provider_user_id = ? AND user_type = ?"""))
         {
             st.setString(1, authProvider.name());
             st.setString(2, providerSubjectId);
