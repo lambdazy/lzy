@@ -99,6 +99,8 @@ public class SchedulerTest {
             LOG.info("Exec status: {}", JsonUtils.printRequest(status));
 
         } while (!status.hasCompleted() && !status.hasFailed());
+
+        Assert.assertTrue(status.hasCompleted());
     }
 
     @NotNull
