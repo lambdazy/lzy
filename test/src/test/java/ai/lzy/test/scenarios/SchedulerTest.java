@@ -23,6 +23,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.junit.*;
+import org.junit.rules.Timeout;
 
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,9 @@ public class SchedulerTest {
     @Rule
     public final ContextRule<ChannelManagerContext> channelManager
         = new ContextRule<>(ctx, ChannelManagerContext.class);
+
+    @Rule
+    public Timeout globalTimeout = Timeout.seconds(60);
 
     @Test
     public void testGE() throws InterruptedException {
@@ -95,7 +99,9 @@ public class SchedulerTest {
 
             LOG.info("Exec status: {}", JsonUtils.printRequest(status));
 
-        } while (!status.hasCompleted());
+        } while (!status.hasCompleted() && !status.hasFailed());
+
+        Assert.assertTrue(status.hasCompleted());
     }
 
     @NotNull
