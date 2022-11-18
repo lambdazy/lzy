@@ -1,13 +1,17 @@
-package ai.lzy.storage.impl;
+package ai.lzy.storage.yc;
 
-import ai.lzy.model.db.Transaction;
-import ai.lzy.model.db.exceptions.DaoException;
-import ai.lzy.storage.StorageConfig;
-import ai.lzy.storage.StorageDataSource;
+import ai.lzy.longrunning.Operation;
+import ai.lzy.longrunning.dao.OperationDao;
+import ai.lzy.model.db.DbOperation;
+import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.storage.BeanFactory;
+import ai.lzy.storage.StorageService;
+import ai.lzy.storage.config.StorageConfig;
+import ai.lzy.storage.data.StorageDataSource;
 import ai.lzy.util.auth.YcIamClient;
 import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.storage.LSS.*;
-import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import com.amazonaws.SdkClientException;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
@@ -17,9 +21,11 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.BucketLifecycleConfiguration;
 import com.amazonaws.services.s3.model.CanonicalGrantee;
 import com.amazonaws.services.s3.model.Permission;
+import com.google.protobuf.Any;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
@@ -30,42 +36,54 @@ import java.io.IOException;
 import java.sql.SQLException;
 import javax.annotation.Nullable;
 
+import static ai.lzy.model.db.DbHelper.withRetries;
+import static ai.lzy.util.grpc.ProtoConverter.toProto;
+
 @Singleton
 @Requires(property = "storage.yc.enabled", value = "true")
 @Requires(property = "storage.s3.yc.enabled", value = "true")
-public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServiceImplBase {
+public class YandexCloudS3Storage implements StorageService {
     private static final Logger LOG = LogManager.getLogger(YandexCloudS3Storage.class);
 
     private final StorageConfig.S3Credentials.YcS3Credentials s3Creds;
     private final StorageConfig.YcCredentials ycCreds;
     private final StorageDataSource dataSource;
 
+    private final OperationDao operationDao;
+
     public YandexCloudS3Storage(StorageConfig.S3Credentials.YcS3Credentials s3, StorageConfig.YcCredentials yc,
-                                StorageDataSource dataSource) {
+                                StorageDataSource dataSource, @Named(BeanFactory.DAO_NAME) OperationDao operationDao)
+    {
         this.s3Creds = s3;
         this.ycCreds = yc;
         this.dataSource = dataSource;
+        this.operationDao = operationDao;
     }
 
     @Override
-    public void createS3Bucket(CreateS3BucketRequest request, StreamObserver<CreateS3BucketResponse> response) {
-        LOG.debug("YandexCloudS3Storage::createBucket, userId={}, bucket={}", request.getUserId(), request.getBucket());
+    public void processCreateBucketOperation(CreateS3BucketRequest request, Operation operation,
+                                             StreamObserver<LongRunning.Operation> responseObserver)
+    {
+        var userId = request.getUserId();
+        var bucketName = request.getBucket();
+
+        LOG.debug("YandexCloudS3Storage::createBucket, userId={}, bucket={}", userId, bucketName);
 
         var client = s3Client();
 
         try {
             if (!client.doesBucketExistV2(request.getBucket())) {
                 client.createBucket(request.getBucket());
-            } else {
-                response.onError(Status.ALREADY_EXISTS
-                    .withDescription("Bucket '" + request.getBucket() + "' already exists").asException());
-                return;
             }
         } catch (SdkClientException e) {
             LOG.error("AWS SDK error while creating bucket '{}' for '{}': {}",
                 request.getBucket(), request.getUserId(), e.getMessage(), e);
-            response.onError(Status.INTERNAL
-                .withDescription("S3 internal error: " + e.getMessage()).withCause(e).asException());
+
+            var errorStatus = Status.INTERNAL.withDescription("S3 internal error: " + e.getMessage()).withCause(e);
+
+            operationDao.failOperation(operation.id(), toProto(errorStatus), LOG);
+
+            responseObserver.onError(errorStatus.asRuntimeException());
             return;
         }
 
@@ -76,8 +94,12 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
         } catch (SdkClientException e) {
             LOG.error("AWS SDK error while creating bucket '{}' for '{}': {}",
                 request.getBucket(), request.getUserId(), e.getMessage(), e);
-            response.onError(Status.INTERNAL
-                .withDescription("S3 internal error: " + e.getMessage()).withCause(e).asException());
+
+            var errorStatus = Status.INTERNAL.withDescription("S3 internal error: " + e.getMessage()).withCause(e);
+
+            operationDao.failOperation(operation.id(), toProto(errorStatus), LOG);
+
+            responseObserver.onError(errorStatus.asRuntimeException());
 
             try {
                 client.deleteBucket(request.getBucket());
@@ -90,13 +112,16 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
 
         final String[] tokens = {/* service_account */ null, /* access_token */ null, /* secret_token */ null};
 
-        try {
-            Transaction.execute(dataSource, conn -> {
+        // todo: ssokolvyak -- add with retries, but pull createServiceAccount call out from transaction
+        //  or make it idempotent
+        try (var transaction = TransactionHandle.create(dataSource)) {
+            DbOperation.execute(transaction, dataSource, conn -> {
                 try (var st = conn.prepareStatement("""
-                        select service_account, access_token, secret_token
-                        from yc_s3_credentials
-                        where user_id = ?
-                        for update""")) {
+                    select service_account, access_token, secret_token
+                    from yc_s3_credentials
+                    where user_id = ?
+                    for update"""))
+                {
                     st.setString(1, request.getUserId());
 
                     var rs = st.executeQuery();
@@ -104,15 +129,21 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
                         tokens[0] = rs.getString("service_account");
                         tokens[1] = rs.getString("access_token");
                         tokens[2] = rs.getString("secret_token");
-                        return true;
+                        return;
                     }
                 }
 
-                var newTokens = createServiceAccountForUser(request.getUserId(), request.getBucket());
+                String[] newTokens;
+                try {
+                    newTokens = createServiceAccountForUser(request.getUserId(), request.getBucket());
+                } catch (Exception e) {
+                    throw new SQLException(e);
+                }
 
                 try (var st = conn.prepareStatement("""
-                        insert into yc_s3_credentials (user_id, service_account, access_token, secret_token)
-                        values (?, ?, ?, ?)""")) {
+                    insert into yc_s3_credentials (user_id, service_account, access_token, secret_token)
+                    values (?, ?, ?, ?)"""))
+                {
                     st.setString(1, request.getUserId());
                     st.setString(2, newTokens[0]);
                     st.setString(3, newTokens[1]);
@@ -123,15 +154,19 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
                 tokens[0] = newTokens[0];
                 tokens[1] = newTokens[1];
                 tokens[2] = newTokens[2];
-                return true;
             });
-        } catch (DaoException e) {
+
+            transaction.commit();
+        } catch (SQLException e) {
             LOG.error("SQL error while creating bucket '{}' for '{}': {}",
                 request.getBucket(), request.getUserId(), e.getMessage(), e);
             safeDeleteBucket(request.getUserId(), request.getBucket(), client);
 
-            response.onError(Status.INTERNAL
-                .withDescription("SQL error: " + e.getMessage()).withCause(e).asException());
+            var errorStatus = Status.INTERNAL.withDescription("SQL error: " + e.getMessage()).withCause(e);
+
+            operationDao.failOperation(operation.id(), toProto(errorStatus), LOG);
+
+            responseObserver.onError(errorStatus.asRuntimeException());
             return;
         }
 
@@ -145,23 +180,40 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
                 request.getBucket(), request.getUserId(), e.getMessage(), e);
             safeDeleteBucket(request.getUserId(), request.getBucket(), client);
 
-            response.onError(Status.INTERNAL
-                .withDescription("S3 internal error: " + e.getMessage()).withCause(e).asException());
+            var errorStatus = Status.INTERNAL.withDescription("S3 internal error: " + e.getMessage()).withCause(e);
+
+            operationDao.failOperation(operation.id(), toProto(errorStatus), LOG);
+
+            responseObserver.onError(errorStatus.asRuntimeException());
             return;
         }
 
-        response.onNext(CreateS3BucketResponse.newBuilder()
+        var response = Any.pack(CreateS3BucketResponse.newBuilder()
             .setAmazon(LMS3.AmazonS3Endpoint.newBuilder()
                 .setEndpoint(s3Creds.getEndpoint())
                 .setAccessToken(tokens[1])
                 .setSecretToken(tokens[2])
                 .build())
             .build());
-        response.onCompleted();
+
+        try {
+            var completedOp = withRetries(LOG, () ->
+                operationDao.updateResponse(operation.id(), response.toByteArray(), null));
+
+            responseObserver.onNext(completedOp.toProto());
+            responseObserver.onCompleted();
+        } catch (Exception ex) {
+            LOG.error("Error while executing transaction: {}", ex.getMessage(), ex);
+            var errorStatus = Status.INTERNAL.withDescription("Error while executing request: " + ex.getMessage());
+
+            operationDao.failOperation(operation.id(), toProto(errorStatus), LOG);
+
+            responseObserver.onError(errorStatus.asRuntimeException());
+        }
     }
 
     @Override
-    public void deleteS3Bucket(DeleteS3BucketRequest request, StreamObserver<DeleteS3BucketResponse> response) {
+    public void deleteBucket(DeleteS3BucketRequest request, StreamObserver<DeleteS3BucketResponse> response) {
         LOG.debug("YandexCloudS3Storage::deleteBucket, bucket={}", request.getBucket());
         safeDeleteBucket(null, request.getBucket(), s3Client());
 
@@ -170,16 +222,18 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
     }
 
     @Override
-    public void getS3BucketCredentials(GetS3BucketCredentialsRequest request,
-                                       StreamObserver<GetS3BucketCredentialsResponse> response) {
+    public void getBucketCreds(GetS3BucketCredentialsRequest request,
+                               StreamObserver<GetS3BucketCredentialsResponse> response)
+    {
         LOG.debug("YandexCloudS3Storage::getBucketCredentials, userId={}, bucket={}",
             request.getUserId(), request.getBucket());
 
         try (var conn = dataSource.connect();
              var st = conn.prepareStatement("""
-                select access_token, secret_token
-                from yc_s3_credentials
-                where user_id = ?""")) {
+                 select access_token, secret_token
+                 from yc_s3_credentials
+                 where user_id = ?"""))
+        {
             st.setString(1, request.getUserId());
 
             var rs = st.executeQuery();
@@ -222,7 +276,8 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
     }
 
     private String[] createServiceAccountForUser(String userId, String bucket)
-            throws IOException, InterruptedException {
+        throws IOException, InterruptedException
+    {
         CloseableHttpClient httpclient = HttpClients.createDefault();
 
         String serviceAccountId = YcIamClient.createServiceAccount(userId, RenewableToken.getToken(), httpclient,
@@ -231,6 +286,6 @@ public class YandexCloudS3Storage extends LzyStorageServiceGrpc.LzyStorageServic
         AWSCredentials credentials = YcIamClient.createStaticCredentials(serviceAccountId,
             RenewableToken.getToken(), httpclient);
 
-        return new String[]{serviceAccountId, credentials.getAWSAccessKeyId(), credentials.getAWSSecretKey()};
+        return new String[] {serviceAccountId, credentials.getAWSAccessKeyId(), credentials.getAWSSecretKey()};
     }
 }

@@ -1,10 +1,12 @@
 package ai.lzy.util.grpc;
 
 import com.google.protobuf.Timestamp;
+import com.google.rpc.Status;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Objects;
 
 @SuppressWarnings("OverloadMethodsDeclarationOrder")
 public enum ProtoConverter {
@@ -32,4 +34,10 @@ public enum ProtoConverter {
             .build();
     }
 
+    public static Status toProto(io.grpc.Status status) {
+        return Status.newBuilder()
+            .setCode(status.getCode().value())
+            .setMessage(Objects.toString(status.getDescription(), ""))
+            .build();
+    }
 }

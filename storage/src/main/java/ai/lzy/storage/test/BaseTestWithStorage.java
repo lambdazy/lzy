@@ -1,6 +1,6 @@
 package ai.lzy.storage.test;
 
-import ai.lzy.storage.LzyStorage;
+import ai.lzy.storage.App;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
@@ -12,7 +12,7 @@ import java.util.Map;
 
 public class BaseTestWithStorage {
     private ApplicationContext context;
-    private LzyStorage storage;
+    private App storage;
 
     public void before() throws IOException {
         setUp(Map.of());
@@ -23,7 +23,7 @@ public class BaseTestWithStorage {
             .read("storage", new FileInputStream("../storage/src/main/resources/application-test.yml"));
         storageConfig.putAll(overrides);
         context = ApplicationContext.run(PropertySource.of(storageConfig));
-        storage = new LzyStorage(context);
+        storage = new App(context);
         storage.start();
     }
 

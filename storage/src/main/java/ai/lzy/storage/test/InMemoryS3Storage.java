@@ -1,9 +1,13 @@
-package ai.lzy.storage.impl;
+package ai.lzy.storage.test;
 
-import ai.lzy.storage.StorageConfig;
+import ai.lzy.longrunning.Operation;
+import ai.lzy.longrunning.dao.OperationDao;
+import ai.lzy.storage.BeanFactory;
+import ai.lzy.storage.StorageService;
+import ai.lzy.storage.config.StorageConfig;
 import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.storage.LSS.*;
-import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import com.amazonaws.SdkClientException;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
@@ -11,25 +15,34 @@ import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.google.common.net.HostAndPort;
+import com.google.protobuf.Any;
 import io.findify.s3mock.S3Mock;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
 import jakarta.annotation.PreDestroy;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import static ai.lzy.model.db.DbHelper.withRetries;
+import static ai.lzy.util.grpc.ProtoConverter.toProto;
+
 @Singleton
 @Requires(property = "storage.s3.memory.enabled", value = "true")
-public class InMemoryS3Storage extends LzyStorageServiceGrpc.LzyStorageServiceImplBase {
+public class InMemoryS3Storage implements StorageService {
     private static final Logger LOG = LogManager.getLogger(InMemoryS3Storage.class);
 
     private final String endpoint;
     private final S3Mock server;
     private final AmazonS3 client;
 
-    public InMemoryS3Storage(StorageConfig config, StorageConfig.S3Credentials.InMemoryS3Credentials s3Config) {
+    private final OperationDao operationDao;
+
+    public InMemoryS3Storage(StorageConfig config, StorageConfig.S3Credentials.InMemoryS3Credentials s3Config,
+                             @Named(BeanFactory.DAO_NAME) OperationDao operationDao)
+    {
         var storageAddress = HostAndPort.fromString(config.getAddress());
         this.endpoint = "http://" + storageAddress.getHost() + ":" + s3Config.getPort();
 
@@ -47,6 +60,8 @@ public class InMemoryS3Storage extends LzyStorageServiceGrpc.LzyStorageServiceIm
             .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(endpoint, "us-west-1"))
             .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
             .build();
+
+        this.operationDao = operationDao;
     }
 
     @PreDestroy
@@ -55,30 +70,54 @@ public class InMemoryS3Storage extends LzyStorageServiceGrpc.LzyStorageServiceIm
     }
 
     @Override
-    public void createS3Bucket(CreateS3BucketRequest request, StreamObserver<CreateS3BucketResponse> response) {
-        LOG.debug("InMemoryS3Storage::createBucket, userId={}, bucket={}", request.getUserId(), request.getBucket());
+    public void processCreateBucketOperation(CreateS3BucketRequest request, Operation operation,
+                                             StreamObserver<LongRunning.Operation> responseObserver)
+    {
+        var userId = request.getUserId();
+        var bucketName = request.getBucket();
+
+        LOG.debug("InMemoryS3Storage::createBucket, userId={}, bucket={}", userId, bucketName);
 
         try {
             if (!client.doesBucketExistV2(request.getBucket())) {
                 client.createBucket(request.getBucket());
             }
         } catch (SdkClientException e) {
-            LOG.error("Can not create bucket '{}' for user '{}': {}",
+            LOG.error("AWS SDK error while creating bucket '{}' for '{}': {}",
                 request.getBucket(), request.getUserId(), e.getMessage(), e);
-            response.onError(Status.INTERNAL.withCause(e).asException());
+
+            var errorStatus = Status.INTERNAL.withDescription("S3 internal error: " + e.getMessage()).withCause(e);
+
+            operationDao.failOperation(operation.id(), toProto(errorStatus), LOG);
+
+            responseObserver.onError(errorStatus.asRuntimeException());
             return;
         }
 
-        response.onNext(CreateS3BucketResponse.newBuilder()
+        var response = Any.pack(CreateS3BucketResponse.newBuilder()
             .setAmazon(LMS3.AmazonS3Endpoint.newBuilder()
                 .setEndpoint(endpoint)
                 .build())
             .build());
-        response.onCompleted();
+
+        try {
+            var completedOp = withRetries(LOG, () ->
+                operationDao.updateResponse(operation.id(), response.toByteArray(), null));
+
+            responseObserver.onNext(completedOp.toProto());
+            responseObserver.onCompleted();
+        } catch (Exception ex) {
+            LOG.error("Error while executing transaction: {}", ex.getMessage(), ex);
+            var errorStatus = Status.INTERNAL.withDescription("Error while executing request: " + ex.getMessage());
+
+            operationDao.failOperation(operation.id(), toProto(errorStatus), LOG);
+
+            responseObserver.onError(errorStatus.asRuntimeException());
+        }
     }
 
     @Override
-    public void deleteS3Bucket(DeleteS3BucketRequest request, StreamObserver<DeleteS3BucketResponse> response) {
+    public void deleteBucket(DeleteS3BucketRequest request, StreamObserver<DeleteS3BucketResponse> response) {
         LOG.debug("InMemoryS3Storage::deleteBucket, bucket={}", request.getBucket());
 
         try {
@@ -95,8 +134,8 @@ public class InMemoryS3Storage extends LzyStorageServiceGrpc.LzyStorageServiceIm
     }
 
     @Override
-    public void getS3BucketCredentials(GetS3BucketCredentialsRequest request,
-                                       StreamObserver<GetS3BucketCredentialsResponse> response)
+    public void getBucketCreds(GetS3BucketCredentialsRequest request,
+                               StreamObserver<GetS3BucketCredentialsResponse> response)
     {
         LOG.debug("InMemoryS3Storage::getBucketCredentials, userId={}, bucket={}",
             request.getUserId(), request.getBucket());

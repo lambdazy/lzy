@@ -18,6 +18,7 @@ lzy-service:
 
   storage:
     address: 'localhost:7780'
+    bucket-creation-timeout: 10s
 
   iam:
     address: 'localhost:8443'
