@@ -9,14 +9,13 @@ import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthInternalException;
 import ai.lzy.util.auth.exceptions.AuthNotFoundException;
+import ai.lzy.util.auth.exceptions.AuthUniqueViolationException;
 import com.google.common.annotations.VisibleForTesting;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.postgresql.util.PSQLException;
-import org.postgresql.util.PSQLState;
 
 import java.sql.*;
 import java.time.temporal.ChronoUnit;
@@ -111,7 +110,7 @@ public class DbSubjectService {
                         return subjectWith(subjectType, actualSubjectId);
                     }
                 },
-                AuthInternalException::new);
+                DbSubjectService::wrapError);
         }
 
         return withRetries(
@@ -131,7 +130,7 @@ public class DbSubjectService {
                     return subjectWith(subjectType, actualSubjectId);
                 }
             },
-            AuthInternalException::new);
+            DbSubjectService::wrapError);
     }
 
     private String insertSubject(AuthProvider authProvider, String providerSubjectId, SubjectType subjectType,
@@ -152,9 +151,8 @@ public class DbSubjectService {
         var actualRequestHash = rs.getString("request_hash");
 
         if (!requestHash.contentEquals(actualRequestHash)) {
-            throw new PSQLException(String.format("Subject with auth_provider '%s' and " +
-                "provider_user_id '%s' already exists", authProvider.name(), providerSubjectId),
-                PSQLState.UNIQUE_VIOLATION);
+            throw new AuthUniqueViolationException(String.format("Subject with auth_provider '%s' and " +
+                "provider_user_id '%s' already exists", authProvider.name(), providerSubjectId));
         }
 
         return rs.getString("user_id");
@@ -205,13 +203,13 @@ public class DbSubjectService {
                         if (!credentials.value().contentEquals(actualValue) || credentials.type() != actualType
                             || !Objects.equals(expiredAt, actualExpiredAt))
                         {
-                            throw new IllegalArgumentException(String.format("Credentials name '%s' is already used " +
-                                "for another user '%s' credentials", credentials.name(), subject.id()));
+                            throw new AuthUniqueViolationException(String.format("Credentials name '%s' is already " +
+                                "used for another user '%s' credentials", credentials.name(), subject.id()));
                         }
                     }
                 }
             },
-            AuthInternalException::new);
+            DbSubjectService::wrapError);
     }
 
     public Subject subject(String id) throws AuthException {

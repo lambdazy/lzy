@@ -8,6 +8,7 @@ import ai.lzy.iam.utils.ProtoConverter;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.util.auth.exceptions.AuthInternalException;
 import ai.lzy.util.auth.exceptions.AuthNotFoundException;
+import ai.lzy.util.auth.exceptions.AuthUniqueViolationException;
 import ai.lzy.v1.iam.LSS;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
@@ -86,7 +87,7 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
         assertEquals(dima.id(), actualDima.id());
         assertSame(dima.type(), actualDima.type());
 
-        assertThrows(AuthInternalException.class, () -> createSubject("Dima", SubjectType.USER));
+        assertThrows(AuthUniqueViolationException.class, () -> createSubject("Dima", SubjectType.USER));
 
         removeSubject(dima);
         assertThrows(AuthNotFoundException.class, () -> subject(dima.id()));
@@ -96,7 +97,7 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
     public void createSubjectsWithSameAuthButDifferentPropertiesIsError() {
         var alisa = createSubject("Alisa", SubjectType.VM);
 
-        assertThrows(AuthInternalException.class, () ->
+        assertThrows(AuthUniqueViolationException.class, () ->
             createSubject("Alisa", SubjectType.SERVANT,
                 List.of(new SubjectCredentials("super-user", "SuperValue", CredentialsType.PUBLIC_KEY))));
 
@@ -207,9 +208,9 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
         var credentials2ReplicaWithOtherTypeAndTtl = new SubjectCredentials(credentialsName2, "Value",
             CredentialsType.OTT, Instant.now().plus(Duration.ofDays(30)));
 
-        assertThrows(AuthInternalException.class, () ->
+        assertThrows(AuthUniqueViolationException.class, () ->
             subjectService.addCredentials(dima, credentials1ReplicaWithOtherValueAndType));
-        assertThrows(AuthInternalException.class, () ->
+        assertThrows(AuthUniqueViolationException.class, () ->
             subjectService.addCredentials(dima, credentials2ReplicaWithOtherTypeAndTtl));
     }
 
