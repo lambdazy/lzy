@@ -163,9 +163,8 @@ class Lzy:
             interactive=interactive,
         )
 
-    # register cloud injections
-    # noinspection PyBroadException
-    try:
-        from lzy.injections import catboost_injection
-    except:
-        pass
+
+try:
+    from lzy.injections import catboost_injection
+except:
+    pass

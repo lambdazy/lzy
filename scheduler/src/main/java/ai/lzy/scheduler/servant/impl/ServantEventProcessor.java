@@ -355,8 +355,8 @@ public class ServantEventProcessor extends Thread {
 
         final int rc;
         final String description;
-        if (currentEvent != null) {
-            rc = currentEvent.rc() == null ? ReturnCodes.INTERNAL_ERROR.getRc() : currentEvent.rc();
+        if (currentEvent != null && currentEvent.rc() != null && currentEvent.rc() != ReturnCodes.SUCCESS.getRc()) {
+            rc = currentEvent.rc();
             description = currentEvent.description() == null ? "Internal error" : currentEvent.description();
         } else {
             rc = ReturnCodes.INTERNAL_ERROR.getRc();
