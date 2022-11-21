@@ -1,4 +1,4 @@
-package ai.lzy.storage.config;
+package ai.lzy.storage;
 
 import java.time.Duration;
 

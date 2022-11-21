@@ -44,12 +44,6 @@ import static ai.lzy.v1.channel.LzyChannelManagerGrpc.newBlockingStub;
 public class Portal {
     private static final Logger LOG = LogManager.getLogger(Portal.class);
 
-    public static final String APP = "LzyPortal";
-
-    public static final String PORTAL_SLOT_PREFIX = "/portal_slot";
-    public static final String PORTAL_OUT_SLOT_NAME = "/portal_slot:stdout";
-    public static final String PORTAL_ERR_SLOT_NAME = "/portal_slot:stderr";
-
     private final String stdoutChannelId;
     private final String stderrChannelId;
 
@@ -96,10 +90,10 @@ public class Portal {
         channelsManagerChannel = newGrpcChannel(config.getChannelManagerAddress(), LzyChannelManagerGrpc.SERVICE_NAME);
         whiteboardChannel = newGrpcChannel(config.getWhiteboardAddress(), LzyWhiteboardPrivateServiceGrpc.SERVICE_NAME);
 
-        var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
+        var internalOnly = new AllowInternalUserOnlyInterceptor(ai.lzy.portal.Constants.APP, iamChannel);
 
         portalServer = newGrpcServer(host, portalPort,
-            new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel)))
+            new AuthServerInterceptor(new AuthenticateServiceGrpcClient(ai.lzy.portal.Constants.APP, iamChannel)))
             .addService(ServerInterceptors.intercept(new PortalApiImpl(this), internalOnly))
             .build();
 
@@ -122,7 +116,9 @@ public class Portal {
             tokenFactory = () -> testOnlyToken;
         }
 
-        whiteboardClient = newBlockingClient(LzyWhiteboardPrivateServiceGrpc.newBlockingStub(whiteboardChannel), APP,
+        whiteboardClient = newBlockingClient(
+            LzyWhiteboardPrivateServiceGrpc.newBlockingStub(whiteboardChannel),
+            ai.lzy.portal.Constants.APP,
             tokenFactory);
 
         snapshots = new SnapshotProvider(whiteboardClient);
@@ -153,11 +149,11 @@ public class Portal {
 
         LOG.info("Registering portal stdout/err slots...");
 
-        var stdoutSlotName = PORTAL_SLOT_PREFIX + ":" + Slot.STDOUT_SUFFIX;
-        var stderrSlotName = PORTAL_SLOT_PREFIX + ":" + Slot.STDERR_SUFFIX;
+        var stdoutSlotName = ai.lzy.portal.Constants.PORTAL_SLOT_PREFIX + ":" + Slot.STDOUT_SUFFIX;
+        var stderrSlotName = ai.lzy.portal.Constants.PORTAL_SLOT_PREFIX + ":" + Slot.STDERR_SUFFIX;
 
         slotsManager = new SlotsManager(
-            newBlockingClient(newBlockingStub(channelsManagerChannel), APP, tokenFactory),
+            newBlockingClient(newBlockingStub(channelsManagerChannel), ai.lzy.portal.Constants.APP, tokenFactory),
             URI.create("%s://%s:%d".formatted(LzyFs.scheme(), host, slotsPort)));
 
         stdoutSlot = new StdoutSlot(stdoutSlotName, portalId, stdoutChannelId,

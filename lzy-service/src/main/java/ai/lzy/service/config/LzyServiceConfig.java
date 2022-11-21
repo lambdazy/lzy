@@ -2,7 +2,7 @@ package ai.lzy.service.config;
 
 import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.model.db.DatabaseConfiguration;
-import ai.lzy.storage.config.StorageClientConfiguration;
+import ai.lzy.storage.StorageClientConfiguration;
 import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
 import lombok.Getter;

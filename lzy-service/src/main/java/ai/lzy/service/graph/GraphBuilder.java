@@ -1,7 +1,7 @@
 package ai.lzy.service.graph;
 
 import ai.lzy.model.slot.Slot;
-import ai.lzy.portal.Portal;
+import ai.lzy.portal.Constants;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
@@ -31,7 +31,7 @@ import static ai.lzy.channelmanager.grpc.ProtoConverter.makeCreateDirectChannelC
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.model.grpc.ProtoConverter.*;
-import static ai.lzy.portal.grpc.ProtoConverter.*;
+import static ai.lzy.portal.Utils.*;
 
 class GraphBuilder {
     private static final Logger LOG = LogManager.getLogger(GraphBuilder.class);
@@ -130,14 +130,23 @@ class GraphBuilder {
             var channelId = channelManagerClient
                 .create(makeCreateDirectChannelCommand(executionId, "channel_" + slotUri))
                 .getChannelId();
-            var portalInputSlotName = Portal.PORTAL_SLOT_PREFIX + "_" + UUID.randomUUID();
+            var portalInputSlotName = Constants.PORTAL_SLOT_PREFIX + "_" + UUID.randomUUID();
             var dataDescription = slot2dataDescription.get(slotUri);
             var whiteboardRef = Objects.nonNull(dataDescription) && dataDescription.hasWhiteboardRef() ?
                 dataDescription.getWhiteboardRef() : null;
 
+            LzyPortal.PortalSlotDesc.Snapshot.WhiteboardRef portalWbRef = null;
+
+            if (whiteboardRef != null) {
+                portalWbRef = LzyPortal.PortalSlotDesc.Snapshot.WhiteboardRef.newBuilder()
+                    .setFieldName(whiteboardRef.getFieldName())
+                    .setWhiteboardId(whiteboardRef.getWhiteboardId())
+                    .build();
+            }
+
             inputSlotNames.add(portalInputSlotName);
             portalSlotToOpen.add(makePortalInputSlot(slotUri, portalInputSlotName, channelId, storageLocator,
-                whiteboardRef));
+                portalWbRef));
 
             slotName2channelId.put(data.supplier(), channelId);
             if (data.consumers() != null) {
@@ -177,7 +186,7 @@ class GraphBuilder {
 
             for (var data : withoutOpenedPortalSlot) {
                 var slotUri = data.slotUri();
-                var portalOutputSlotName = Portal.PORTAL_SLOT_PREFIX + "_" + UUID.randomUUID();
+                var portalOutputSlotName = Constants.PORTAL_SLOT_PREFIX + "_" + UUID.randomUUID();
                 var channelId = channelManagerClient
                     .create(makeCreateDirectChannelCommand(executionId, "portal_channel_" + slotUri))
                     .getChannelId();
@@ -284,8 +293,8 @@ class GraphBuilder {
         slotsDescriptionsConsumer.accept(operation.getInputSlotsList(), true);
         slotsDescriptionsConsumer.accept(operation.getOutputSlotsList(), false);
 
-        var stdoutPortalSlotName = Portal.PORTAL_SLOT_PREFIX + "_" + taskId + ":" + Slot.STDOUT_SUFFIX;
-        var stderrPortalSlotName = Portal.PORTAL_SLOT_PREFIX + "_" + taskId + ":" + Slot.STDERR_SUFFIX;
+        var stdoutPortalSlotName = Constants.PORTAL_SLOT_PREFIX + "_" + taskId + ":" + Slot.STDOUT_SUFFIX;
+        var stderrPortalSlotName = Constants.PORTAL_SLOT_PREFIX + "_" + taskId + ":" + Slot.STDERR_SUFFIX;
 
         //noinspection ResultOfMethodCallIgnored
         portalClient.openSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()

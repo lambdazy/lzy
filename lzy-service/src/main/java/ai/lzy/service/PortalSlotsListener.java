@@ -19,8 +19,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
-import static ai.lzy.portal.Portal.PORTAL_ERR_SLOT_NAME;
-import static ai.lzy.portal.Portal.PORTAL_OUT_SLOT_NAME;
+import static ai.lzy.portal.Constants.PORTAL_ERR_SLOT_NAME;
+import static ai.lzy.portal.Constants.PORTAL_OUT_SLOT_NAME;
 import static ai.lzy.util.grpc.GrpcUtils.NO_AUTH_TOKEN;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
