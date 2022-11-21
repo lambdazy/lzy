@@ -6,9 +6,6 @@ import ai.lzy.model.slot.Slot;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -53,18 +50,16 @@ public class Channel {
         return executionId;
     }
 
-    public Senders senders() {
-        return senders;
-    }
-
     public List<Endpoint> existedSenders() {
-    }
-
-    public Receivers receivers() {
-        return receivers;
+        return senders.asList().stream()
+            .filter(s -> s.status() == Endpoint.LifeStatus.BINDING || s.status() == Endpoint.LifeStatus.BOUND)
+            .collect(Collectors.toList());
     }
 
     public List<Endpoint> existedReceivers() {
+        return receivers.asList().stream()
+            .filter(s -> s.status() == Endpoint.LifeStatus.BINDING || s.status() == Endpoint.LifeStatus.BOUND)
+            .collect(Collectors.toList());
     }
 
 
@@ -75,29 +70,32 @@ public class Channel {
         return endpoints;
     }
 
+    @Nullable
+    public Endpoint endpoint(URI endpointUri) {
+        return endpoints().stream()
+            .filter(e -> endpointUri.equals(e.uri()))
+            .findFirst().orElse(null);
+    }
+
     public List<Connection> connections() {
         return connections;
     }
 
-    public LifeStatus lifeStatus() {
-        return lifeStatus;
-    }
-
-    public Endpoint endpoint(URI endpointUri) {
-
-    }
-
-    public List<Endpoint> endpoints(Slot.Direction slotDirection) {
-
-    }
-
     @Nullable
     public Connection connection(URI senderUri, URI receiverUri) {
-        return
+        return connections.stream()
+            .filter(c -> senderUri.equals(c.sender().uri()) && receiverUri.equals(c.receiver().uri()))
+            .findFirst().orElse(null);
     }
 
-    public List<Connection> connections(URI endpointUri) {
-        return
+    public List<Connection> connectionsOfEndpoint(URI endpointUri) {
+        return connections.stream()
+            .filter(c -> endpointUri.equals(c.sender().uri()) || endpointUri.equals(c.receiver().uri()))
+            .collect(Collectors.toList());
+    }
+
+    public LifeStatus lifeStatus() {
+        return lifeStatus;
     }
 
     @Nullable
@@ -108,11 +106,9 @@ public class Channel {
         };
     }
 
-
     public List<Endpoint> findReceiversToConnect(Endpoint sender) {
         List<Endpoint> endpoints = receivers.workerEndpoints.stream()
-            .filter(e -> connections().ofEndpoint(e).isEmpty())
-            .filter(Objects::nonNull)
+            .filter(e -> connectionsOfEndpoint(e.uri()).isEmpty())
             .collect(Collectors.toList());
         if (!Endpoint.SlotOwner.PORTAL.equals(sender.slotOwner()) && receivers.portalEndpoint != null) {
             endpoints.add(receivers.portalEndpoint);
@@ -170,16 +166,6 @@ public class Channel {
             return senders;
         }
 
-        @Nullable
-        public Endpoint workerEndpoint() {
-            return workerEndpoint;
-        }
-
-        @Nullable
-        public Endpoint portalEndpoint() {
-            return portalEndpoint;
-        }
-
     }
 
     public static class Receivers {
@@ -223,25 +209,6 @@ public class Channel {
             List<Endpoint> receivers = new ArrayList<>(workerEndpoints);
             if (portalEndpoint != null) receivers.add(portalEndpoint);
             return receivers;
-        }
-
-        public List<Endpoint> workerEndpoints() {
-            return workerEndpoints;
-        }
-
-        @Nullable
-        public Endpoint portalEndpoint() {
-            return portalEndpoint;
-        }
-
-    }
-
-    public static class Connections {
-
-        Map<URI, Set<URI>> connections;
-
-        public Set<Endpoint> ofEndpoint(Endpoint endpoint) {
-            return null;
         }
 
     }

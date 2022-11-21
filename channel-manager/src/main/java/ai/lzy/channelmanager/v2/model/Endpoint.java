@@ -1,5 +1,6 @@
 package ai.lzy.channelmanager.v2.model;
 
+import ai.lzy.channelmanager.channel.SlotEndpoint;
 import ai.lzy.channelmanager.v2.grpc.SlotConnectionManager;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
@@ -25,11 +26,14 @@ public class Endpoint {
     private final SlotOwner slotOwner;
     private final LifeStatus lifeStatus;
 
+    private boolean invalidated;
+
     private Endpoint(SlotInstance slot, SlotOwner slotOwner, LifeStatus lifeStatus) {
         this.slotApiStub = SLOT_CONNECTION_MANAGER.getOrCreate(slot.uri());
         this.slotOwner = slotOwner;
         this.slot = slot;
         this.lifeStatus = lifeStatus;
+        this.invalidated = false;
     }
 
     public static synchronized Endpoint fromSlot(SlotInstance slot, SlotOwner owner, LifeStatus lifeStatus) {
@@ -66,6 +70,18 @@ public class Endpoint {
 
     public LifeStatus status() {
         return lifeStatus;
+    }
+
+    public boolean isValid() {
+        return !invalidated;
+    }
+
+    public void invalidate() {
+        invalidated = true;
+        SLOT_CONNECTION_MANAGER.shutdownConnection(slot.uri());
+        synchronized (SlotEndpoint.class) {
+            ENDPOINTS_CACHE.remove(slot.uri());
+        }
     }
 
     public enum SlotOwner {

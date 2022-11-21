@@ -14,7 +14,6 @@ import ai.lzy.model.db.exceptions.NotFoundException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.SQLException;
 import java.time.Duration;
 import java.util.List;
 import javax.annotation.Nullable;
@@ -48,8 +47,12 @@ public class ChannelControllerImpl implements ChannelController {
             try (final var guard = lockManager.withLock(endpoint.channelId())) {
                 endpointToConnect = findEndpointToConnect(endpoint);
                 if (endpointToConnect == null) {
-                    withRetries(defaultRetryPolicy(), LOG, () ->
-                        channelStorage.markEndpointBound(endpoint.uri().toString(), null));
+                    try {
+                        withRetries(defaultRetryPolicy(), LOG, () ->
+                            channelStorage.markEndpointBound(endpoint.uri().toString(), null));
+                    } catch (Exception e) {
+                        throw new RuntimeException("Failed to mark endpoint bound in storage");
+                    }
                     return;
                 }
             }
@@ -61,12 +64,20 @@ public class ChannelControllerImpl implements ChannelController {
             try (final var guard = lockManager.withLock(endpoint.channelId())) {
                 connectionSaved = saveConnection(endpoint, endpointToConnect);
             } catch (CancellingChannelGraphStateException e) {
+                LOG.info("[bind] disconnecting endpoints after CancellingException, sender={}, receiver={}",
+                    potentialConnection.sender().uri(), potentialConnection.receiver().uri());
                 slotApiClient.disconnect(potentialConnection.receiver());
+                LOG.info("[bind] endpoints disconnected after CancellingException, sender={}, receiver={}",
+                    potentialConnection.sender().uri(), potentialConnection.receiver().uri());
                 throw e;
             }
 
             if (!connectionSaved) {
+                LOG.info("[bind] disconnecting endpoints after saving connection fail, sender={}, receiver={}",
+                    potentialConnection.sender().uri(), potentialConnection.receiver().uri());
                 slotApiClient.disconnect(potentialConnection.receiver());
+                LOG.info("[bind] endpoints disconnected after saving connection fail, sender={}, receiver={}",
+                    potentialConnection.sender().uri(), potentialConnection.receiver().uri());
             }
         }
     }
@@ -83,20 +94,28 @@ public class ChannelControllerImpl implements ChannelController {
                 }
             }
 
-            // log warn, force unbind receiver
+            LOG.warn("[unbindSender], found bound receiver, need force unbind, sender={}, receiver={}",
+                sender.uri(), receiverToUnbind.uri());
             unbindReceiver(receiverToUnbind);
         }
 
+        LOG.info("[unbindSender] disconnecting endpoint, sender={}", sender.uri());
         slotApiClient.disconnect(sender);
+        LOG.info("[unbindSender] endpoint disconnected, sender={}", sender.uri());
 
         // TODO (lindvv): maybe should suspend, so shouldn't destroy, fix after slots refactoring
+        LOG.info("[unbindSender] destroying endpoint, sender={}", sender.uri());
         slotApiClient.destroy(sender);
+        sender.invalidate();
+        LOG.info("[unbindSender] endpoint destroyed, sender={}", sender.uri());
 
         try (final var guard = lockManager.withLock(channelId)) {
             withRetries(defaultRetryPolicy(), LOG,
                 () -> channelStorage.removeEndpointWithoutConnections(sender.uri().toString(), null));
         } catch (NotFoundException e) {
-            // ok, already removed
+            LOG.info("[unbindSender] removing endpoint skipped, sender already removed, sender={}", sender.uri());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to remove endpoint in storage");
         }
     }
 
@@ -108,22 +127,35 @@ public class ChannelControllerImpl implements ChannelController {
         try (final var guard = lockManager.withLock(channelId)) {
             connectionToBreak = findConnectionToBreak(receiver);
             if (connectionToBreak == null) {
-                withRetries(defaultRetryPolicy(), LOG, () ->
-                    channelStorage.removeEndpointWithoutConnections(receiver.uri().toString(), null));
+                try {
+                    withRetries(defaultRetryPolicy(), LOG, () ->
+                        channelStorage.removeEndpointWithoutConnections(receiver.uri().toString(), null));
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to remove endpoint in storage");
+                }
                 return;
             }
         }
 
+        LOG.info("[unbindReceiver] disconnecting endpoint, receiver={}", receiver.uri());
         slotApiClient.disconnect(receiver);
+        LOG.info("[unbindReceiver] endpoint disconnected, receiver={}", receiver.uri());
 
         // TODO (lindvv): maybe should suspend, so shouldn't destroy, fix after slots refactoring
+        LOG.info("[unbindReceiver] destroying endpoint, receiver={}", receiver.uri());
         slotApiClient.destroy(receiver);
+        receiver.invalidate();
+        LOG.info("[unbindReceiver] endpoint destroyed, receiver={}", receiver.uri());
 
         try (final var guard = lockManager.withLock(channelId)) {
             boolean connectionRemoved = removeConnection(connectionToBreak.receiver(), connectionToBreak.sender());
             if (connectionRemoved) {
-                withRetries(defaultRetryPolicy(), LOG, () ->
-                    channelStorage.removeEndpointWithoutConnections(receiver.uri().toString(), null));
+                try {
+                    withRetries(defaultRetryPolicy(), LOG, () ->
+                        channelStorage.removeEndpointWithoutConnections(receiver.uri().toString(), null));
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to remove endpoint in storage");
+                }
             }
         }
 
@@ -131,16 +163,24 @@ public class ChannelControllerImpl implements ChannelController {
 
     @Override
     public void destroy(String channelId) throws ChannelGraphStateException {
-
         final Channel channel;
         try (final var guard = lockManager.withLock(channelId)) {
-            channel = channelStorage.findChannel(channelId, Channel.LifeStatus.DESTROYING, null);
+            try {
+                channel = withRetries(defaultRetryPolicy(), LOG, () ->
+                    channelStorage.findChannel(channelId, Channel.LifeStatus.DESTROYING, null));
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to find destroying channel in storage", e);
+            }
             if (channel == null) {
-                // already destroyed
+                LOG.info("[destroy] skipped, channel {} already removed", channelId);
                 return;
             }
-
-            withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.markAllEndpointsUnbinding(channelId, null));
+            try {
+                withRetries(defaultRetryPolicy(), LOG, () ->
+                    channelStorage.markAllEndpointsUnbinding(channelId, null));
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to mark channel endpoints unbinding in storage", e);
+            }
         }
 
         for (Endpoint receiver : channel.existedReceivers()) {
@@ -153,19 +193,24 @@ public class ChannelControllerImpl implements ChannelController {
 
         try (final var guard = lockManager.withLock(channelId)) {
             withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.removeChannel(channelId, null));
+        } catch (NotFoundException e) {
+            LOG.info("[destroy] removing channel skipped, channel {} already removed", channelId);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to remove channel in storage", e);
         }
     }
 
     @Nullable
-    private Endpoint findEndpointToConnect(Endpoint bindingEndpoint) throws ChannelGraphStateException {
+    private Endpoint findEndpointToConnect(Endpoint bindingEndpoint) throws CancellingChannelGraphStateException {
         LOG.debug("[findEndpointToConnect], bindingEndpoint={}", bindingEndpoint.uri());
 
         final String channelId = bindingEndpoint.channelId();
         final Channel channel;
         try {
-            channel = channelStorage.findChannel(channelId, Channel.LifeStatus.ALIVE, null);
-        } catch (SQLException e) {
-            throw new RuntimeException("Failed to find channel in storage", e); // EXCEPTION_TYPE: request failed
+            channel = withRetries(defaultRetryPolicy(), LOG, () ->
+                channelStorage.findChannel(channelId, Channel.LifeStatus.ALIVE, null));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to find channel in storage", e);
         }
         if (channel == null) {
             throw new CancellingChannelGraphStateException(channelId, "Channel not found");
@@ -173,7 +218,8 @@ public class ChannelControllerImpl implements ChannelController {
 
         final Endpoint actualStateEndpoint = channel.endpoint(bindingEndpoint.uri());
         if (actualStateEndpoint == null) {
-            throw new CancellingChannelGraphStateException(channelId, "Endpoint " + bindingEndpoint.uri() + " not found");
+            throw new CancellingChannelGraphStateException(channelId,
+                "Endpoint " + bindingEndpoint.uri() + " not found");
         }
 
         if (actualStateEndpoint.status() != Endpoint.LifeStatus.BINDING) {
@@ -194,15 +240,21 @@ public class ChannelControllerImpl implements ChannelController {
                 sender = endpointToConnect;
                 receiver = bindingEndpoint;
             }
-            default -> throw new IllegalStateException("Endpoint " + bindingEndpoint.uri() + " has unexpected direction");
+            default -> throw new IllegalStateException(
+                "Endpoint " + bindingEndpoint.uri() + " has unexpected direction");
         }
 
         if (endpointToConnect == null) {
+            LOG.debug("[findEndpointToConnect] done, nothing to connect, bindingEndpoint={}", bindingEndpoint.uri());
             return null;
         }
 
-        withRetries(defaultRetryPolicy(), LOG, () ->
-            channelStorage.insertConnection(channelId, Connection.of(sender, receiver), null));
+        try {
+            withRetries(defaultRetryPolicy(), LOG, () ->
+                channelStorage.insertConnection(channelId, Connection.of(sender, receiver), null));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to insert connection in storage", e);
+        }
 
         LOG.debug("[findEndpointToConnect] done, bindingEndpoint={}, found endpointToConnect={}",
             bindingEndpoint.uri(), endpointToConnect.uri());
@@ -210,9 +262,13 @@ public class ChannelControllerImpl implements ChannelController {
         return endpointToConnect;
     }
 
-    private boolean saveConnection(Endpoint bindingEndpoint, Endpoint connectedEndpoint) throws Exception {
-        final String channelId = bindingEndpoint.channelId();
+    private boolean saveConnection(Endpoint bindingEndpoint, Endpoint connectedEndpoint)
+        throws CancellingChannelGraphStateException
+    {
+        LOG.debug("[saveConnection], bindingEndpoint={}, connectedEndpoint={}",
+            bindingEndpoint.uri(), connectedEndpoint.uri());
 
+        final String channelId = bindingEndpoint.channelId();
         final Endpoint sender, receiver;
         switch (bindingEndpoint.slotDirection()) {
             case OUTPUT /* SENDER */ -> {
@@ -227,14 +283,21 @@ public class ChannelControllerImpl implements ChannelController {
                 "Endpoint " + bindingEndpoint.uri() + " has unexpected direction" + bindingEndpoint.slotDirection());
         }
 
-        Channel channel = channelStorage.findChannel(channelId, Channel.LifeStatus.ALIVE, null);
+        final Channel channel;
+        try {
+            channel = withRetries(defaultRetryPolicy(), LOG, () ->
+                channelStorage.findChannel(channelId, Channel.LifeStatus.ALIVE, null));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to find channel in storage", e);
+        }
         if (channel == null) {
             throw new CancellingChannelGraphStateException(channelId, "Channel not found");
         }
 
         final Endpoint actualStateEndpoint = channel.endpoint(bindingEndpoint.uri());
         if (actualStateEndpoint == null) {
-            throw new CancellingChannelGraphStateException(channelId, "Endpoint " + bindingEndpoint.uri() + " not found");
+            throw new CancellingChannelGraphStateException(channelId,
+                "Endpoint " + bindingEndpoint.uri() + " not found");
         }
 
         if (actualStateEndpoint.status() != Endpoint.LifeStatus.BINDING) {
@@ -244,27 +307,47 @@ public class ChannelControllerImpl implements ChannelController {
 
         final Connection actualStateConnection = channel.connection(sender.uri(), receiver.uri());
         if (actualStateConnection == null || actualStateConnection.status() != Connection.LifeStatus.CONNECTING) {
+            String connectionStatus = actualStateConnection == null ? "null" : actualStateConnection.status().name();
+            LOG.warn("[saveConnection] skipped, unexpected connection status {}, "
+                      + "bindingEndpoint={}, connectedEndpoint={}",
+                connectionStatus, bindingEndpoint.uri(), connectedEndpoint.uri());
             return false;
         }
 
-        withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.markConnectionAlive(
-            channelId, sender.uri().toString(), receiver.uri().toString(), null));
+        try {
+            withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.markConnectionAlive(
+                channelId, sender.uri().toString(), receiver.uri().toString(), null));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to save alive connection in storage", e);
+        }
+
+        LOG.debug("[saveConnection] done, bindingEndpoint={}, connectedEndpoint={}",
+            bindingEndpoint.uri().toString(), connectedEndpoint.uri().toString());
+
         return true;
     }
 
     @Nullable
-    private Endpoint findReceiverToUnbind(Endpoint unbindingSender) throws Exception {
-        final String channelId = unbindingSender.channelId();
+    private Endpoint findReceiverToUnbind(Endpoint unbindingSender) throws IllegalChannelGraphStateException {
+        LOG.debug("[findReceiverToUnbind], unbindingSender={}", unbindingSender.uri());
 
-        final Channel channel = channelStorage.findChannel(channelId, null);
+        final String channelId = unbindingSender.channelId();
+        final Channel channel;
+        try {
+            channel = withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.findChannel(channelId, null));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to find channel in storage", e);
+        }
         if (channel == null) {
-            // log warn, already removed
+            LOG.warn("[findReceiverToUnbind] skipped, channel already removed, unbindingSender={}",
+                unbindingSender.uri());
             return null;
         }
 
         final Endpoint actualStateEndpoint = channel.endpoint(unbindingSender.uri());
         if (actualStateEndpoint == null) {
-            // log warn, already removed
+            LOG.warn("[findReceiverToUnbind] skipped, sender already removed, unbindingSender={}",
+                unbindingSender.uri());
             return null;
         }
 
@@ -273,89 +356,137 @@ public class ChannelControllerImpl implements ChannelController {
                 "Endpoint " + unbindingSender.uri() + " has wrong lifeStatus " + actualStateEndpoint.status());
         }
 
-        final List<Connection> actualStateConnections = channel.connections(unbindingSender.uri());
+        final List<Connection> actualStateConnections = channel.connectionsOfEndpoint(unbindingSender.uri());
         final Endpoint receiverToUnbind = actualStateConnections.stream()
             .filter(conn -> conn.status() == Connection.LifeStatus.CONNECTED)
             .map(Connection::receiver)
             .findFirst().orElse(null);
 
         if (receiverToUnbind == null) {
+            LOG.debug("[findReceiverToUnbind] done, nothing to unbind, unbindingSender={}", unbindingSender.uri());
             return null;
         }
 
-        // log warning, force unbinding receiver
-        withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.markEndpointUnbinding(
-            receiverToUnbind.uri().toString(), null));
+        try {
+            withRetries(defaultRetryPolicy(), LOG, () ->
+                channelStorage.markEndpointUnbinding(receiverToUnbind.uri().toString(), null));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to mark endpoint unbinding in storage", e);
+        }
+
+        LOG.debug("[findReceiverToUnbind] done, unbindingSender={}, found receiverToUnbind={}",
+            unbindingSender.uri(), receiverToUnbind.uri());
 
         return receiverToUnbind;
     }
 
     @Nullable
-    private Connection findConnectionToBreak(Endpoint unbindingReceiver) throws Exception {
-        final String channelId = unbindingReceiver.channelId();
+    private Connection findConnectionToBreak(Endpoint unbindingReceiver) throws IllegalChannelGraphStateException {
+        LOG.debug("[findConnectionToBreak], unbindingReceiver={}", unbindingReceiver.uri());
 
-        final Channel channel = channelStorage.findChannel(channelId, null);
+        final String channelId = unbindingReceiver.channelId();
+        final Channel channel;
+        try {
+            channel = withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.findChannel(channelId, null));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to find channel in storage", e);
+        }
         if (channel == null) {
-            // TODO log warn, already removed
+            LOG.warn("[findConnectionToBreak] skipped, channel already removed, unbindingReceiver={}",
+                unbindingReceiver.uri());
             return null;
         }
 
         final Endpoint actualStateEndpoint = channel.endpoint(unbindingReceiver.uri());
         if (actualStateEndpoint == null) {
-            // TODO log warn, already removed
+            LOG.warn("[findConnectionToBreak] skipped, receiver already removed, unbindingReceiver={}",
+                unbindingReceiver.uri());
             return null;
         }
 
         if (actualStateEndpoint.status() != Endpoint.LifeStatus.UNBINDING) {
-            throw new IllegalChannelGraphStateException(channelId, ""); // TODO
+            throw new IllegalChannelGraphStateException(channelId,
+                "Endpoint " + unbindingReceiver.uri() + " has wrong lifeStatus " + actualStateEndpoint.status());
         }
 
-        final List<Connection> actualStateConnections = channel.connections(unbindingReceiver.uri());
+        final List<Connection> actualStateConnections = channel.connectionsOfEndpoint(unbindingReceiver.uri());
         final Connection connectionToBreak = actualStateConnections.stream()
             .filter(it -> it.status() == Connection.LifeStatus.DISCONNECTING)
             .findFirst().orElse(null);
 
         if (connectionToBreak == null) {
+            LOG.debug("[findConnectionToBreak] done, nothing to disconnect, unbindingReceiver={}",
+                unbindingReceiver.uri());
             return null;
         }
 
-        withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.markConnectionDisconnecting(
-            channelId, connectionToBreak.sender().uri().toString(), connectionToBreak.receiver().uri().toString(), null));
+        try {
+            withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.markConnectionDisconnecting(channelId,
+                connectionToBreak.sender().uri().toString(), connectionToBreak.receiver().uri().toString(), null));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to mark connection disconnecting in storage", e);
+        }
+
+        LOG.debug("[findConnectionToBreak] done, connection found, unbindingReceiver={}, foundConnectedSender={}",
+            unbindingReceiver.uri(), connectionToBreak.sender().uri());
 
         return connectionToBreak;
     }
 
-    private boolean removeConnection(Endpoint unbindingReceiver, Endpoint connectedSender) throws Exception {
-        final String channelId = unbindingReceiver.channelId();
+    private boolean removeConnection(Endpoint unbindingReceiver, Endpoint connectedSender)
+        throws IllegalChannelGraphStateException
+    {
+        LOG.debug("[removeConnection], unbindingReceiver={}, connectedSender={}",
+            unbindingReceiver.uri(), connectedSender.uri());
 
-        final Channel channel = channelStorage.findChannel(channelId, null);
+        final String channelId = unbindingReceiver.channelId();
+        final Channel channel;
+        try {
+            channel = withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.findChannel(channelId, null));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to find channel in storage", e);
+        }
         if (channel == null) {
-            // ok, already removed
+            LOG.warn("[removeConnection] skipped, channel already removed, unbindingReceiver={}, connectedSender={}",
+                unbindingReceiver.uri(), connectedSender.uri());
             return false;
         }
 
         final Endpoint actualStateEndpoint = channel.endpoint(unbindingReceiver.uri());
         if (actualStateEndpoint == null) {
-            // ok, already removed
+            LOG.warn("[removeConnection] skipped, receiver already removed, unbindingReceiver={}, connectedSender={}",
+                unbindingReceiver.uri(), connectedSender.uri());
             return false;
         }
 
         if (actualStateEndpoint.status() != Endpoint.LifeStatus.UNBINDING) {
-            throw new IllegalChannelGraphStateException(channelId, ""); // TODO
+            throw new IllegalChannelGraphStateException(channelId,
+                "Endpoint " + unbindingReceiver.uri() + " has wrong lifeStatus " + actualStateEndpoint.status());
         }
 
         final Connection actualStateConnection = channel.connection(connectedSender.uri(), unbindingReceiver.uri());
         if (actualStateConnection == null) {
-            // log warn
+            LOG.warn("[removeConnection] skipped, connection already removed, unbindingReceiver={}, connectedSender={}",
+                unbindingReceiver.uri(), connectedSender.uri());
             return true;
         }
 
         if (actualStateConnection.status() != Connection.LifeStatus.DISCONNECTING) {
-            throw new IllegalChannelGraphStateException(channelId, ""); // TODO
+            throw new IllegalChannelGraphStateException(channelId, "Connection "
+                + "(sender=" + actualStateConnection.sender().uri() + ", "
+                + "receiver=" + actualStateConnection.receiver().uri() + ") "
+                + "has wrong lifeStatus " + actualStateConnection.status());
         }
 
-        withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.removeEndpointConnection(
-            channelId, connectedSender.uri().toString(), unbindingReceiver.uri().toString(), null));
+        try {
+            withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.removeEndpointConnection(
+                channelId, connectedSender.uri().toString(), unbindingReceiver.uri().toString(), null));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to remove connection in storage");
+        }
+
+        LOG.debug("[removeConnection] done, unbindingReceiver={}, connectedSender={}",
+            unbindingReceiver.uri(), connectedSender.uri());
 
         return true;
     }
