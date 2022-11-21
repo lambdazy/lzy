@@ -15,16 +15,17 @@ import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static ai.lzy.iam.utils.IdempotencyUtils.md5;
 import static org.junit.Assert.*;
@@ -72,6 +73,51 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
 
         removeSubject(anotherDima);
         assertThrows(AuthNotFoundException.class, () -> subject(dima.id()));
+    }
+
+    @Test
+    public void createMultipleSameSubjectsConcurrent() throws InterruptedException {
+        final int N = 10;
+        final var readyLatch = new CountDownLatch(N);
+        final var doneLatch = new CountDownLatch(N);
+        final var executor = Executors.newFixedThreadPool(N);
+        final var subjectIds = new String[N];
+        final var failed = new AtomicBoolean(false);
+
+        for (int i = 0; i < N; ++i) {
+            final int index = i;
+            executor.submit(() -> {
+                try {
+                    readyLatch.countDown();
+                    readyLatch.await();
+
+                    var credentials = List.of(
+                        new SubjectCredentials("key", "val", CredentialsType.PUBLIC_KEY,
+                            Instant.now().plus(Duration.ofDays(120))),
+                        new SubjectCredentials("cookie", "val", CredentialsType.COOKIE,
+                            Instant.now().plus(Duration.ofHours(24))),
+                        new SubjectCredentials("ott", "val", CredentialsType.OTT,
+                            Instant.now().plus(Duration.ofDays(30)))
+                    );
+
+                    var dima = createSubject("Dima", SubjectType.USER, credentials);
+
+                    subjectIds[index] = dima.id();
+                } catch (Exception e) {
+                    failed.set(true);
+                    e.printStackTrace(System.err);
+                } finally {
+                    doneLatch.countDown();
+                }
+            });
+        }
+
+        doneLatch.await();
+        executor.shutdown();
+
+        assertFalse(failed.get());
+        assertFalse(subjectIds[0].isEmpty());
+        assertTrue(Arrays.stream(subjectIds).allMatch(subjectId -> subjectId.equals(subjectIds[0])));
     }
 
     @Test
@@ -134,24 +180,62 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
 
         removeCredentials(dima, credentialsName1);
         credentials(dima, credentialsName2);
-        try {
-            credentials(dima, credentialsName1);
-            fail();
-        } catch (NoSuchElementException e) {
-            LOG.info("Valid exception {}", e.getMessage());
-        } catch (AuthNotFoundException e) {
-            LOG.info("Valid exception {}", e.getInternalDetails());
-        }
+
+        assertThrows(AuthNotFoundException.class, () -> credentials(dima, credentialsName1));
 
         removeCredentials(dima, credentialsName2);
-        try {
-            credentials(dima, credentialsName2);
-            fail();
-        } catch (NoSuchElementException e) {
-            LOG.info("Valid exception {}", e.getMessage());
-        } catch (AuthNotFoundException e) {
-            LOG.info("Valid exception {}", e.getInternalDetails());
+
+        assertThrows(AuthNotFoundException.class, () -> credentials(dima, credentialsName2));
+    }
+
+    @Test
+    public void addToSubjectMultipleSameCredentialsConcurrent() throws InterruptedException {
+        final int N = 10;
+        final var readyLatch = new CountDownLatch(N);
+        final var doneLatch = new CountDownLatch(N);
+        final var executor = Executors.newFixedThreadPool(N);
+        final var failed = new AtomicBoolean(false);
+
+        var dima = createSubject("Dima", SubjectType.USER);
+        var credentialsName1 = "Scotty-secure";
+        var credentialsName2 = "New-chapter";
+
+        for (int i = 0; i < N; ++i) {
+            final int index = i;
+            executor.submit(() -> {
+                try {
+                    readyLatch.countDown();
+                    readyLatch.await();
+
+                    if (index % 2 == 0) {
+                        addCredentials(dima, credentialsName1);
+                    } else {
+                        addCredentials(dima, credentialsName2);
+                    }
+
+                } catch (Exception e) {
+                    failed.set(true);
+                    e.printStackTrace(System.err);
+                } finally {
+                    doneLatch.countDown();
+                }
+            });
         }
+
+        doneLatch.await();
+        executor.shutdown();
+
+        assertFalse(failed.get());
+
+        var credentials1 = credentials(dima, credentialsName1);
+        var credentials2 = credentials(dima, credentialsName2);
+
+        assertEquals(credentialsName1, credentials1.name());
+        assertEquals("Value", credentials1.value());
+        assertEquals(CredentialsType.PUBLIC_KEY, credentials1.type());
+        assertEquals(credentialsName2, credentials2.name());
+        assertEquals("Value", credentials2.value());
+        assertEquals(CredentialsType.PUBLIC_KEY, credentials2.type());
     }
 
     @Test
