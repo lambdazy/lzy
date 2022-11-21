@@ -67,7 +67,8 @@ public class DbAccessBindingClient {
     }
 
     public void updateAccessBindings(AuthResource resource, List<AccessBindingDelta> accessBindingDeltas)
-            throws AuthException {
+            throws AuthException
+    {
         try (final Connection connection = storage.connect()) {
             StringBuilder query = new StringBuilder();
             for (AccessBindingDelta binding : accessBindingDeltas) {
@@ -99,7 +100,6 @@ public class DbAccessBindingClient {
         } catch (SQLException e) {
             throw new AuthInternalException(e);
         }
-
     }
 
     private AccessBinding toAccessBinding(ResourceBinding model) {
