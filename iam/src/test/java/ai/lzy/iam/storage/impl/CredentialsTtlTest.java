@@ -69,7 +69,7 @@ public class CredentialsTtlTest {
         var creds5 = new SubjectCredentials("5", "5", CredentialsType.OTT, expired);
 
         var subject = subjectService.createSubject(AuthProvider.GITHUB, "subject", SubjectType.USER, List.of(
-            creds1, creds2, creds3, creds4, creds5));
+            creds1, creds2, creds3, creds4, creds5), "some-hash");
 
         var creds = subjectService.listCredentials(subject);
         Assert.assertEquals(3, creds.size());

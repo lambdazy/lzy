@@ -7,22 +7,29 @@ import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.storage.db.IamDataSource;
+import ai.lzy.iam.utils.ProtoConverter;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthInternalException;
 import ai.lzy.util.auth.exceptions.AuthNotFoundException;
+import ai.lzy.v1.iam.LSS;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import static ai.lzy.iam.utils.IdempotencyUtils.md5;
 import static org.junit.Assert.*;
 
 public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
@@ -47,6 +54,43 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
     public void tearDown() {
         DatabaseTestUtils.cleanup(storage);
         ctx.stop();
+    }
+
+    @Test
+    public void createMultipleSameSubjectsIsOkay() {
+        var credentials = List.of(
+            new SubjectCredentials("key", "val", CredentialsType.PUBLIC_KEY, Instant.now().plus(Duration.ofDays(120))),
+            new SubjectCredentials("cookie", "val", CredentialsType.COOKIE, Instant.now().plus(Duration.ofHours(24))),
+            new SubjectCredentials("ott", "val", CredentialsType.OTT, Instant.now().plus(Duration.ofDays(30)))
+        );
+
+        var dima = createSubject("Dima", SubjectType.USER, credentials);
+        var anotherDima = createSubject("Dima", SubjectType.USER, credentials);
+
+        var actualDima = subject(dima.id());
+
+        assertEquals(dima.id(), anotherDima.id());
+        assertEquals(dima.id(), actualDima.id());
+        assertSame(dima.type(), actualDima.type());
+
+        removeSubject(anotherDima);
+        assertThrows(AuthNotFoundException.class, () -> subject(dima.id()));
+    }
+
+    @Test
+    public void createSubjectsWithSameAuthButDifferentPropertiesIsError() {
+        var alisa = createSubject("Alisa", SubjectType.VM);
+
+        assertThrows(AuthInternalException.class, () ->
+            createSubject("Alisa", SubjectType.SERVANT,
+                List.of(new SubjectCredentials("super-user", "SuperValue", CredentialsType.PUBLIC_KEY))));
+
+        var actualAlisa = subject(alisa.id());
+
+        assertEquals(alisa.id(), actualAlisa.id());
+        assertSame(alisa.type(), actualAlisa.type());
+
+        assertThrows(AuthNotFoundException.class, () -> credentials(alisa, "super_user"));
     }
 
     @Test
@@ -94,36 +138,16 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
         }
     }
 
-    @Ignore
     @Test
-    public void createSubjectWithDuplicatedCredentialsIsOkay() {
+    public void createSubjectWithDuplicatedCredentialsIsError() {
         var credentialName1 = "work-macbook";
         var credentialName2 = "virtual-vm";
         var credentials1 = new SubjectCredentials(credentialName1, "Value", CredentialsType.PUBLIC_KEY);
         var credentials2 = new SubjectCredentials(credentialName2, "Value", CredentialsType.OTT,
             Instant.now().plus(Duration.ofDays(30)));
 
-        var anton = subjectService.createSubject(AuthProvider.GITHUB, "Anton", SubjectType.USER, List.of(
-            credentials1, credentials2, credentials1
-        ));
-
-        var actualCredentials2 = credentials(anton, credentialName2);
-        var actualCredentials1 = credentials(anton, credentialName1);
-
-        assertEquals(anton.id(), subject(anton.id()).id());
-        assertEquals(credentialName1, actualCredentials1.name());
-        assertEquals(credentialName2, actualCredentials2.name());
-
-        removeSubject(anton);
-        try {
-            subject(anton.id());
-            credentials(anton, credentialName1);
-            credentials(anton, credentialName2);
-        } catch (NoSuchElementException e) {
-            LOG.info("Valid exception {}", e.getMessage());
-        } catch (AuthNotFoundException e) {
-            LOG.info("Valid exception {}", e.getInternalDetails());
-        }
+        assertThrows(AuthInternalException.class, () ->
+            createSubject("Anton", SubjectType.USER, List.of(credentials1, credentials2, credentials1)));
     }
 
     @Test
@@ -176,14 +200,9 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
         var credentials2ReplicaWithOtherTtl = new SubjectCredentials(credentialName2, "Value", CredentialsType.OTT,
             Instant.now().plus(Duration.ofMinutes(30)));
 
-        try {
-            subjectService.createSubject(AuthProvider.GITHUB, "Anton", SubjectType.USER, List.of(
-                credentials1, credentials2, credentials2ReplicaWithOtherTtl
-            ));
-            fail();
-        } catch (AuthInternalException e) {
-            //
-        }
+        assertThrows(AuthInternalException.class, () ->
+            createSubject("Anton", SubjectType.USER,
+                List.of(credentials1, credentials2, credentials2ReplicaWithOtherTtl)));
     }
 
     @Override
@@ -193,7 +212,20 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
 
     @Override
     protected Subject createSubject(String name, SubjectType subjectType) {
-        return subjectService.createSubject(AuthProvider.GITHUB, name, subjectType, List.of());
+        return createSubject(name, subjectType, Collections.emptyList());
+    }
+
+    @Override
+    protected Subject createSubject(String name, SubjectType subjectType, List<SubjectCredentials> credentials) {
+        var authProvider = AuthProvider.GITHUB;
+        var request = LSS.CreateSubjectRequest.newBuilder()
+            .setAuthProvider(authProvider.toProto())
+            .setProviderSubjectId(name)
+            .setType(subjectType.name())
+            .addAllCredentials(credentials.stream().map(ProtoConverter::from).toList())
+            .build();
+
+        return subjectService.createSubject(authProvider, name, subjectType, credentials, md5(request));
     }
 
     @Override

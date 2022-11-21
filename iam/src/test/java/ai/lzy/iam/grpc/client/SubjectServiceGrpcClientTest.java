@@ -27,9 +27,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.NoSuchElementException;
+import java.util.*;
 
 public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
 
@@ -107,7 +105,13 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
 
     @Override
     protected Subject createSubject(String name, SubjectType subjectType) {
-        return subjectClient.createSubject(AuthProvider.GITHUB, name, subjectType);
+        return createSubject(name, subjectType, Collections.emptyList());
+    }
+
+    @Override
+    protected Subject createSubject(String name, SubjectType subjectType, List<SubjectCredentials> credentials) {
+        return subjectClient.createSubject(AuthProvider.GITHUB, name, subjectType,
+            credentials.toArray(new SubjectCredentials[0]));
     }
 
     @Override

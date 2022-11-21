@@ -13,6 +13,7 @@ import org.junit.runner.RunWith;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 import static org.junit.Assert.assertEquals;
@@ -131,6 +132,8 @@ public abstract class BaseSubjectServiceApiTest {
     protected abstract Subject subject(String id);
 
     protected abstract Subject createSubject(String name, SubjectType subjectType);
+
+    protected abstract Subject createSubject(String name, SubjectType subjectType, List<SubjectCredentials> credentials);
 
     protected abstract void removeSubject(Subject subject);
 

@@ -157,7 +157,7 @@ public class DbAuthServiceTest {
 
     public void validAuth(SubjectType subjectType) throws Exception {
         var userId = subjectService.createSubject(AuthProvider.GITHUB, "user1", subjectType, List.of(
-            new SubjectCredentials("testCred", PUBLIC_PEM2, CredentialsType.PUBLIC_KEY))).id();
+            new SubjectCredentials("testCred", PUBLIC_PEM2, CredentialsType.PUBLIC_KEY)), "hash").id();
 
         final Subject user = subjectService.subject(userId);
 
@@ -178,7 +178,7 @@ public class DbAuthServiceTest {
 
     public void invalidAuth(SubjectType subjectType) throws Exception {
         var userId = subjectService.createSubject(AuthProvider.GITHUB, "user1", subjectType, List.of(
-            new SubjectCredentials("testCred", PUBLIC_PEM2, CredentialsType.PUBLIC_KEY))).id();
+            new SubjectCredentials("testCred", PUBLIC_PEM2, CredentialsType.PUBLIC_KEY)), "hash").id();
 
         final Subject user = subjectService.subject(userId);
 
@@ -196,7 +196,7 @@ public class DbAuthServiceTest {
         var token = UUID.randomUUID().toString();
 
         var vm = subjectService.createSubject(AuthProvider.INTERNAL, "vm-01", SubjectType.VM, List.of(
-            SubjectCredentials.ott("main", token, Duration.ofDays(1))));
+            SubjectCredentials.ott("main", token, Duration.ofDays(1))), "hash");
 
         var ott = Base64.getEncoder().encodeToString(("vm-01/" + token).getBytes());
 
