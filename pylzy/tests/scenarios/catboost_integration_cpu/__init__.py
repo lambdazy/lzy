@@ -4,7 +4,7 @@ import numpy as np
 # noinspection PyPackageRequirements
 from catboost import CatBoostClassifier, Pool
 
-from lzy.api.v1 import Provisioning
+from lzy.api.v2 import Provisioning
 
 if __name__ == "__main__":
     # fmt: off
@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     model = CatBoostClassifier(iterations=1000, train_dir="/tmp/catboost")
     # noinspection PyArgumentList
-    model.fit(train_data, provisioning=Provisioning())
+    model.fit(train_data, provisioning=Provisioning.default())
 
     result = model.predict(np.array([1, 4, 5, 6]))
     print("Prediction: " + str(result))

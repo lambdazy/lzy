@@ -28,7 +28,6 @@ public class PyApiTest {
     }
 
     @Test
-    @Ignore
     public void testSimpleCatboostGraph() {
         /* This scenario checks for:
                 1. Importing external modules (catboost)
