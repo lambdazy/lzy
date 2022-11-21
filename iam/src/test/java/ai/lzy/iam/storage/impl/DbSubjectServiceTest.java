@@ -2,14 +2,10 @@ package ai.lzy.iam.storage.impl;
 
 import ai.lzy.iam.BaseSubjectServiceApiTest;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
-import ai.lzy.iam.resources.subjects.AuthProvider;
-import ai.lzy.iam.resources.subjects.CredentialsType;
-import ai.lzy.iam.resources.subjects.Subject;
-import ai.lzy.iam.resources.subjects.SubjectType;
+import ai.lzy.iam.resources.subjects.*;
 import ai.lzy.iam.storage.db.IamDataSource;
 import ai.lzy.iam.utils.ProtoConverter;
 import ai.lzy.model.db.test.DatabaseTestUtils;
-import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthInternalException;
 import ai.lzy.util.auth.exceptions.AuthNotFoundException;
 import ai.lzy.v1.iam.LSS;
@@ -74,6 +70,25 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
         assertSame(dima.type(), actualDima.type());
 
         removeSubject(anotherDima);
+        assertThrows(AuthNotFoundException.class, () -> subject(dima.id()));
+    }
+
+    @Test
+    public void createSameSubjectsWithDifferentInitCredentialsIsError() {
+        var credentials = List.of(
+            new SubjectCredentials("key", "val", CredentialsType.PUBLIC_KEY, Instant.now().plus(Duration.ofDays(120))),
+            new SubjectCredentials("cookie", "val", CredentialsType.COOKIE, Instant.now().plus(Duration.ofHours(24))),
+            new SubjectCredentials("ott", "val", CredentialsType.OTT, Instant.now().plus(Duration.ofDays(30)))
+        );
+
+        var dima = createSubject("Dima", SubjectType.USER, credentials);
+        var actualDima = subject(dima.id());
+        assertEquals(dima.id(), actualDima.id());
+        assertSame(dima.type(), actualDima.type());
+
+        assertThrows(AuthInternalException.class, () -> createSubject("Dima", SubjectType.USER));
+
+        removeSubject(dima);
         assertThrows(AuthNotFoundException.class, () -> subject(dima.id()));
     }
 
@@ -151,6 +166,23 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
     }
 
     @Test
+    public void addCredentialsToNonExistentSubjectIsError() {
+        var dima = createSubject("Dima", SubjectType.USER);
+        var credentialsName = "Scotty-secure";
+
+        addCredentials(dima, credentialsName);
+        var credentialsOfDima = credentials(dima, credentialsName);
+
+        assertEquals(credentialsName, credentialsOfDima.name());
+        assertEquals("Value", credentialsOfDima.value());
+        assertEquals(CredentialsType.PUBLIC_KEY, credentialsOfDima.type());
+
+        var nonExistentSubject = new User("some-id");
+        assertThrows(AuthInternalException.class, () ->
+            addCredentials(nonExistentSubject, credentialsName));
+    }
+
+    @Test
     public void addCredentialsWithSameNameButDifferentPropertiesIsError() {
         var dima = createSubject("Dima", SubjectType.USER);
 
@@ -175,19 +207,10 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
         var credentials2ReplicaWithOtherTypeAndTtl = new SubjectCredentials(credentialsName2, "Value",
             CredentialsType.OTT, Instant.now().plus(Duration.ofDays(30)));
 
-        try {
-            subjectService.addCredentials(dima, credentials1ReplicaWithOtherValueAndType);
-            fail();
-        } catch (AuthException e) {
-            assertSame(IllegalArgumentException.class, e.getCause().getClass());
-        }
-
-        try {
-            subjectService.addCredentials(dima, credentials2ReplicaWithOtherTypeAndTtl);
-            fail();
-        } catch (AuthException e) {
-            assertSame(IllegalArgumentException.class, e.getCause().getClass());
-        }
+        assertThrows(AuthInternalException.class, () ->
+            subjectService.addCredentials(dima, credentials1ReplicaWithOtherValueAndType));
+        assertThrows(AuthInternalException.class, () ->
+            subjectService.addCredentials(dima, credentials2ReplicaWithOtherTypeAndTtl));
     }
 
     @Test
