@@ -10,14 +10,15 @@ import ai.lzy.util.auth.credentials.RsaUtils;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Singleton;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.LineIterator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -85,13 +86,54 @@ public class PythonContext {
         }
 
         try {
+            var outBuilder = new StringBuilder();
+            var errBuilder = new StringBuilder();
+
+            var out = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            var err = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+
+            var threadOut = new Thread(() -> {
+                while (true) {
+                    try {
+                        var l = out.readLine();
+                        if (l == null) {
+                            break;
+                        }
+                        outBuilder.append(l)
+                            .append("\n");
+                        LOG.debug(l);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+
+            });
+
+            var threadErr = new Thread(() -> {
+                while (true) {
+                    try {
+                        var l = err.readLine();
+                        if (l == null) {
+                            break;
+                        }
+                        errBuilder.append(l)
+                                .append("\n");
+                        LOG.debug(l);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            });
+            threadOut.start();
+            threadErr.start();
+
             var rc = process.waitFor();
 
-            var stdout = IOUtils.toString(process.getInputStream(), StandardCharsets.UTF_8);
-            var stderr = IOUtils.toString(process.getErrorStream(), StandardCharsets.UTF_8);
+            threadOut.join();
+            threadErr.join();
 
-            return new ExecResult(rc, stdout, stderr);
-        } catch (InterruptedException | IOException e) {
+            return new ExecResult(rc, outBuilder.toString(), errBuilder.toString());
+        } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
     }
@@ -104,8 +146,7 @@ public class PythonContext {
         }
     }
 
-    private ExecResult evalScenario(Map<String, String> env, String scenario, List<String> extraPyLibs)
-    {
+    private ExecResult evalScenario(Map<String, String> env, String scenario, List<String> extraPyLibs) {
         final Path scenarioPath = scenarios.resolve(scenario).toAbsolutePath().normalize();
         if (!scenarioPath.toFile().exists()) {
             LOG.error("THERE IS NO SUCH SCENARIO: {}", scenario);

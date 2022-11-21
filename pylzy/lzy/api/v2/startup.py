@@ -82,7 +82,7 @@ def process_execution(
     try:
         res = op(*args, **kwargs)
     except Exception as e:
-        log("Exception while executing op:")
+        log(f"Exception while executing op: {e}")
         raise e
 
     log("Writing arguments...")
