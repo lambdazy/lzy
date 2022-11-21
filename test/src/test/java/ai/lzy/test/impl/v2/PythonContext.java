@@ -10,7 +10,6 @@ import ai.lzy.util.auth.credentials.RsaUtils;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Singleton;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.LineIterator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -147,8 +146,7 @@ public class PythonContext {
         }
     }
 
-    private ExecResult evalScenario(Map<String, String> env, String scenario, List<String> extraPyLibs)
-    {
+    private ExecResult evalScenario(Map<String, String> env, String scenario, List<String> extraPyLibs) {
         final Path scenarioPath = scenarios.resolve(scenario).toAbsolutePath().normalize();
         if (!scenarioPath.toFile().exists()) {
             LOG.error("THERE IS NO SUCH SCENARIO: {}", scenario);
