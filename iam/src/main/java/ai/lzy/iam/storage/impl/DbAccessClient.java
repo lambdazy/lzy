@@ -26,7 +26,8 @@ public class DbAccessClient {
     private IamDataSource storage;
 
     public boolean hasResourcePermission(Subject subject, String resourceId, AuthPermission permission)
-            throws AuthException {
+            throws AuthException
+    {
         if (Role.LZY_INTERNAL_USER.permissions().contains(permission)) {
             try (var conn = storage.connect()) {
                 var st = conn.prepareStatement("""

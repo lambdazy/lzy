@@ -133,7 +133,8 @@ public abstract class BaseSubjectServiceApiTest {
 
     protected abstract Subject createSubject(String name, SubjectType subjectType);
 
-    protected abstract Subject createSubject(String name, SubjectType subjectType, List<SubjectCredentials> credentials);
+    protected abstract Subject createSubject(String name, SubjectType subjectType,
+                                             List<SubjectCredentials> credentials);
 
     protected abstract void removeSubject(Subject subject);
 
