@@ -37,7 +37,7 @@ storage:
     url: 'jdbc:postgresql://localhost:5432/lzy_storage_db'
     username: 'lzy_user'
     password: 'q'
-    min-pool-size: 1
+    min-pool-size: 3
     max-pool-size: 5
 
   yc:
