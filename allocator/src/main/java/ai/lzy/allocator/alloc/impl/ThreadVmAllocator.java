@@ -1,6 +1,5 @@
 package ai.lzy.allocator.alloc.impl;
 
-import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.model.Vm;
@@ -89,7 +88,7 @@ public class ThreadVmAllocator implements VmAllocator {
                 "--host", "localhost"
             ));
             startupArgs.add("--allocator-token");
-            startupArgs.add('"' + env.get(AllocatorAgent.VM_ALLOCATOR_OTT) + '"');
+            startupArgs.add('"' + vmOtt + '"');
             if (env.containsKey("LZY_WORKER_PKEY")) {
                 startupArgs.add("--iam-token");
                 startupArgs.add('"' + env.get("LZY_WORKER_PKEY") + '"');
