@@ -42,6 +42,9 @@ public class AllocatorDataSource implements Storage {
 
     @Override
     public Connection connect() throws SQLException {
-        return dataSource.getConnection();
+        var conn = dataSource.getConnection();
+        conn.setAutoCommit(true);
+        conn.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+        return conn;
     }
 }
