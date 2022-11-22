@@ -1,6 +1,11 @@
-package ai.lzy.allocator.disk;
+package ai.lzy.allocator.services;
 
 import ai.lzy.allocator.dao.impl.AllocatorDataSource;
+import ai.lzy.allocator.disk.Disk;
+import ai.lzy.allocator.disk.DiskManager;
+import ai.lzy.allocator.disk.DiskMeta;
+import ai.lzy.allocator.disk.DiskSpec;
+import ai.lzy.allocator.disk.DiskStorage;
 import ai.lzy.allocator.disk.exceptions.NotFoundException;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
