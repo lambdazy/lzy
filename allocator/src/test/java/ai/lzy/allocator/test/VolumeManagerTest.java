@@ -61,7 +61,7 @@ public class VolumeManagerTest {
     public void createVolumeTest() throws NotFoundException {
         final Disk disk = diskManager.create(createTestDiskSpec(3), new DiskMeta("user-id"));
         final Volume volume = volumeManager.create(
-            new DiskVolumeDescription("some-volume-name", disk.id(), disk.spec().sizeGb())
+            new DiskVolumeDescription("id-1", "some-volume-name", disk.id(), disk.spec().sizeGb())
         );
         final VolumeClaim volumeClaim = volumeManager.createClaim(volume);
         Assert.notNull(volumeManager.get(volume.name()));
@@ -91,7 +91,7 @@ public class VolumeManagerTest {
 
             final Instant volumeCreation = Instant.now();
             final Volume volume = volumeManager.create(
-                new DiskVolumeDescription("some-volume-name", disk.id(), disk.spec().sizeGb())
+                new DiskVolumeDescription("id-1", "some-volume-name", disk.id(), disk.spec().sizeGb())
             );
 
             final Instant volumeClaimCreation = Instant.now();

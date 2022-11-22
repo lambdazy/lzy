@@ -25,7 +25,7 @@ Configuration:
         level: debug
 
       - name: "ai.lzy.iam"
-        level: debug
+        level: warn
 
       - name: io.zonky.test
         level: warn

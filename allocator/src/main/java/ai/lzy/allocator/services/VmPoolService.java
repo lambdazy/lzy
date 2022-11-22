@@ -1,5 +1,6 @@
-package ai.lzy.allocator.vmpool;
+package ai.lzy.allocator.services;
 
+import ai.lzy.allocator.vmpool.VmPoolRegistry;
 import ai.lzy.v1.VmPoolServiceGrpc;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;

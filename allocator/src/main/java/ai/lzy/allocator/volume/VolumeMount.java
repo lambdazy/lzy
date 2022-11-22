@@ -1,9 +1,19 @@
 package ai.lzy.allocator.volume;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
+@JsonSerialize
+@JsonDeserialize
 public record VolumeMount(
+    @JsonInclude
     String name,
+    @JsonInclude
     String path,
+    @JsonInclude
     boolean readOnly,
+    @JsonInclude
     MountPropagation mountPropagation
 ) {
     public enum MountPropagation {

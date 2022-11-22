@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 from dataclasses import dataclass
-
 from yandex.cloud.k8s.v1.cluster_service_pb2 import *
 from yandex.cloud.k8s.v1.cluster_service_pb2_grpc import *
 from yandex.cloud.vpc.v1.subnet_service_pb2_grpc import *

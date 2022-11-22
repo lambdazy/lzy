@@ -27,7 +27,7 @@ public class KuberClientFactoryImpl implements KuberClientFactory {
             .withCaCertData(credentials.masterCert())
             .withOauthTokenProvider(() -> credentialProvider.get().getToken())
             .withRequestRetryBackoffInterval(/* millis */ 500)
-            .withRequestRetryBackoffLimit(5)
+            .withRequestRetryBackoffLimit(10)
             .build();
         return new KubernetesClientBuilder()
             .withConfig(config)

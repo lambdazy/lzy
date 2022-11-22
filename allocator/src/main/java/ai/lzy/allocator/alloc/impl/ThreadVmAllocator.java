@@ -1,6 +1,5 @@
 package ai.lzy.allocator.alloc.impl;
 
-import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.model.Vm;
@@ -61,17 +60,14 @@ public class ThreadVmAllocator implements VmAllocator {
     }
 
     @Override
-    public void allocate(Vm.Spec vm) {
-        allocateWithSingleWorkload(vm.vmId(), vm.poolLabel(), vm.workloads().get(0));
+    public void allocate(Vm vm) {
+        allocateWithSingleWorkload(vm.vmId(), vm.poolLabel(), vm.allocateState().vmOtt(), vm.workloads().get(0));
     }
 
-    private void allocateWithSingleWorkload(String vmId, String poolLabel, Workload workload) {
+    private void allocateWithSingleWorkload(String vmId, String poolLabel, String vmOtt, Workload workload) {
         LOG.info("Allocating vm with id: " + vmId);
 
         var env = workload.env();
-        if (!env.containsKey(AllocatorAgent.VM_ALLOCATOR_OTT)) {
-            throw new AssertionError("Missing env " + AllocatorAgent.VM_ALLOCATOR_OTT);
-        }
 
         var startupArgs = new ArrayList<>(workload.args());
         if (poolLabel.contentEquals(PORTAL_POOL_LABEL)) {
@@ -80,8 +76,7 @@ public class ThreadVmAllocator implements VmAllocator {
                 "-portal.allocator-address=" + cfg.getAddress(),
                 "-portal.allocator-heartbeat-period=" + cfg.getHeartbeatTimeout().dividedBy(2).toString(),
                 "-portal.host=localhost",
-                "-portal.allocator-token=" + env.get(AllocatorAgent.VM_ALLOCATOR_OTT)
-            ));
+                "-portal.allocator-token=" + vmOtt));
             if (env.containsKey("LZY_PORTAL_PKEY")) {
                 startupArgs.add("-portal.iam-private-key=" + env.get("LZY_PORTAL_PKEY"));
             }
@@ -93,7 +88,7 @@ public class ThreadVmAllocator implements VmAllocator {
                 "--host", "localhost"
             ));
             startupArgs.add("--allocator-token");
-            startupArgs.add('"' + env.get(AllocatorAgent.VM_ALLOCATOR_OTT) + '"');
+            startupArgs.add('"' + vmOtt + '"');
             if (env.containsKey("LZY_WORKER_PKEY")) {
                 startupArgs.add("--iam-token");
                 startupArgs.add('"' + env.get("LZY_WORKER_PKEY") + '"');

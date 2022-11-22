@@ -5,23 +5,22 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Objects;
-import java.util.UUID;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
 public class HostPathVolumeDescription extends VolumeRequest.VolumeDescription {
-    private final String volumeId;
+    private final String id;
     private final String name;
     private final String path;
     private final HostPathType hostPathType;
 
     @JsonCreator
-    public HostPathVolumeDescription(
-        @JsonProperty("name") String name,
-        @JsonProperty("path") String path,
-        @JsonProperty("host_path_type") HostPathType hostPathType)
+    public HostPathVolumeDescription(@JsonProperty("id") String id,
+                                     @JsonProperty("name") String name,
+                                     @JsonProperty("path") String path,
+                                     @JsonProperty("host_path_type") HostPathType hostPathType)
     {
+        this.id = id;
         this.name = name;
-        this.volumeId = "host-path-volume-" + UUID.randomUUID();
         this.path = path;
         this.hostPathType = hostPathType;
     }
@@ -44,8 +43,9 @@ public class HostPathVolumeDescription extends VolumeRequest.VolumeDescription {
         }
     }
 
-    public String volumeId() {
-        return volumeId;
+    @Override
+    public String id() {
+        return id;
     }
 
     @Override
@@ -64,7 +64,7 @@ public class HostPathVolumeDescription extends VolumeRequest.VolumeDescription {
     @Override
     public String toString() {
         return "HostPathVolumeDescription{" +
-            "volumeId='" + volumeId + '\'' +
+            "id='" + id + '\'' +
             ", name='" + name + '\'' +
             ", path='" + path + '\'' +
             ", hostPathType=" + hostPathType +
@@ -80,12 +80,12 @@ public class HostPathVolumeDescription extends VolumeRequest.VolumeDescription {
             return false;
         }
         HostPathVolumeDescription that = (HostPathVolumeDescription) o;
-        return Objects.equals(volumeId, that.volumeId) && Objects.equals(name, that.name)
+        return Objects.equals(id, that.id) && Objects.equals(name, that.name)
             && Objects.equals(path, that.path) && hostPathType == that.hostPathType;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(volumeId, name, path, hostPathType);
+        return Objects.hash(id, name, path, hostPathType);
     }
 }

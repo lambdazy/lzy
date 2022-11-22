@@ -1,7 +1,6 @@
 package ai.lzy.allocator;
 
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
-import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.AllocatorPrivateGrpc;
 import ai.lzy.v1.VmAllocatorPrivateApi;
 import io.grpc.ManagedChannel;
@@ -10,7 +9,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.time.Duration;
-import java.util.*;
+import java.util.Base64;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
@@ -54,7 +57,7 @@ public class AllocatorAgent extends TimerTask {
         Objects.requireNonNull(ott);
 
         var auth = Base64.getEncoder().encodeToString((this.vmId + '/' + ott).getBytes());
-        authInterceptor = ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> auth);
+        authInterceptor = ClientHeaderInterceptor.authorization(() -> auth);
 
         timer = new Timer("allocator-agent-timer-" + this.vmId);
     }

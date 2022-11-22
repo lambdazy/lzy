@@ -2,24 +2,26 @@ package ai.lzy.allocator.test;
 
 import ai.lzy.allocator.AllocatorMain;
 import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactory;
+import ai.lzy.allocator.alloc.impl.kuber.KuberLabels;
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.dao.impl.AllocatorDataSource;
+import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.db.test.DatabaseTestUtils;
+import ai.lzy.test.TimeUtils;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.AllocatorPrivateGrpc;
 import ai.lzy.v1.DiskServiceGrpc;
 import ai.lzy.v1.VmAllocatorApi;
+import ai.lzy.v1.VmAllocatorPrivateApi;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.protobuf.Duration;
-import io.fabric8.kubernetes.api.model.Node;
-import io.fabric8.kubernetes.api.model.NodeAddressBuilder;
-import io.fabric8.kubernetes.api.model.NodeStatusBuilder;
-import io.fabric8.kubernetes.api.model.PodListBuilder;
+import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.grpc.ManagedChannel;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
@@ -28,15 +30,29 @@ import org.junit.Rule;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
+import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.*;
+import static ai.lzy.allocator.test.Utils.waitOperation;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 
 public class AllocatorApiTestBase extends BaseTestWithIam {
+
+    protected static final long TIMEOUT_SEC = 10;
+
+    protected static final String POD_PATH = "/api/v1/namespaces/%s/pods".formatted(NAMESPACE);
+    protected static final String PERSISTENT_VOLUME_PATH = "/api/v1/persistentvolumes";
+    protected static final String PERSISTENT_VOLUME_CLAIM_PATH = "/api/v1/namespaces/%s/persistentvolumeclaims"
+        .formatted(NAMESPACE);
+    protected static final ClusterRegistry.ClusterType CLUSTER_TYPE = ClusterRegistry.ClusterType.User;
+
 
     @Rule
     public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
@@ -53,6 +69,8 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     protected KubernetesServer kubernetesServer;
     protected ManagedChannel channel;
     protected ClusterRegistry clusterRegistry;
+
+    protected void updateStartupProperties(Map<String, Object> props) {}
 
     protected void setUp() throws IOException {
         super.setUp(DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo()));
@@ -79,6 +97,8 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
 
         var props = DatabaseTestUtils.preparePostgresConfig("allocator", db.getConnectionInfo());
         // props.putAll(DatabaseTestUtils.prepareLocalhostConfig("allocator"));
+
+        updateStartupProperties(props);
 
         allocatorCtx = ApplicationContext.run(props);
         ((MockKuberClientFactory) allocatorCtx.getBean(KuberClientFactory.class)).setClientSupplier(
@@ -152,4 +172,60 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         Assert.assertTrue(op.getDone());
         return op;
     }
+
+    protected LongRunning.Operation waitOpSuccess(LongRunning.Operation operation) {
+        var updatedOperation = waitOperation(operationServiceApiBlockingStub, operation, TIMEOUT_SEC);
+        Assert.assertTrue(updatedOperation.hasResponse());
+        Assert.assertFalse(updatedOperation.hasError());
+        Assert.assertTrue(updatedOperation.getDone());
+        return updatedOperation;
+    }
+
+    protected void waitOpError(LongRunning.Operation operation, Status expectedErrorStatus) {
+        var updatedOperation = waitOperation(operationServiceApiBlockingStub, operation, TIMEOUT_SEC);
+        Assert.assertFalse(updatedOperation.hasResponse());
+        Assert.assertTrue(updatedOperation.hasError());
+        Assert.assertEquals(expectedErrorStatus.getCode().value(), updatedOperation.getError().getCode());
+    }
+
+    protected void mockGetPod(String podName) {
+        final Pod pod = new Pod();
+        pod.setMetadata(
+            new ObjectMetaBuilder()
+                .withName(podName)
+                .withLabels(Map.of(
+                    KuberLabels.LZY_VM_ID_LABEL, podName.substring(VM_POD_NAME_PREFIX.length())))
+                .build()
+        );
+        pod.setSpec(new PodSpecBuilder()
+            .withNodeName("node")
+            .build());
+        kubernetesServer.expect().get()
+            .withPath(POD_PATH + "?labelSelector=" +
+                URLEncoder.encode(KuberLabels.LZY_POD_NAME_LABEL + "=" + podName, StandardCharsets.UTF_8))
+            .andReturn(HttpURLConnection.HTTP_OK, new PodListBuilder().withItems(pod).build())
+            .always();
+    }
+
+    protected void registerVm(String vmId, String clusterId) {
+        TimeUtils.waitFlagUp(() -> {
+            try {
+                //noinspection ResultOfMethodCallIgnored
+                privateAllocatorBlockingStub.register(
+                    VmAllocatorPrivateApi.RegisterRequest.newBuilder()
+                        .setVmId(vmId)
+                        .putMetadata(NAMESPACE_KEY, NAMESPACE)
+                        .putMetadata(CLUSTER_ID_KEY, clusterId)
+                        .build()
+                );
+                return true;
+            } catch (StatusRuntimeException e) {
+                if (e.getStatus().getCode() == Status.Code.FAILED_PRECONDITION) {
+                    return false;
+                }
+                throw new RuntimeException(e);
+            }
+        }, TIMEOUT_SEC, TimeUnit.SECONDS);
+    }
+
 }

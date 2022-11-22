@@ -13,7 +13,7 @@ lzy-service:
     url: 'embedded-postgres'
     username: 'test'
     password: ''
-    min-pool-size: 1
+    min-pool-size: 3
     max-pool-size: 5
 
   storage:
