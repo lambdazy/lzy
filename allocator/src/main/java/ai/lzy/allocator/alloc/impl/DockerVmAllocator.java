@@ -4,7 +4,7 @@ import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.dao.VmDao;
+import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.model.db.TransactionHandle;

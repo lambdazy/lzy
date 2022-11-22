@@ -1,4 +1,4 @@
-package ai.lzy.allocator.dao;
+package ai.lzy.allocator.alloc.dao;
 
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.volume.VolumeClaim;

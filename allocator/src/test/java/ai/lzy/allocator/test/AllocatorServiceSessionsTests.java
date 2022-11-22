@@ -1,6 +1,6 @@
 package ai.lzy.allocator.test;
 
-import ai.lzy.allocator.dao.impl.SessionDaoImpl;
+import ai.lzy.allocator.alloc.dao.impl.SessionDaoImpl;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;

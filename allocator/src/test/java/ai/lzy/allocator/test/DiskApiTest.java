@@ -2,7 +2,7 @@ package ai.lzy.allocator.test;
 
 import ai.lzy.allocator.AllocatorMain;
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.dao.impl.AllocatorDataSource;
+import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.allocator.disk.Disk;
 import ai.lzy.allocator.disk.DiskManager;
 import ai.lzy.allocator.disk.DiskMeta;

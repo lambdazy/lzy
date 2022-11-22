@@ -1,4 +1,4 @@
-package ai.lzy.allocator.dao.impl;
+package ai.lzy.allocator.storage;
 
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.model.db.Storage;

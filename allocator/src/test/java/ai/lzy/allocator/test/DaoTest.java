@@ -1,8 +1,8 @@
 package ai.lzy.allocator.test;
 
-import ai.lzy.allocator.dao.SessionDao;
-import ai.lzy.allocator.dao.VmDao;
-import ai.lzy.allocator.dao.impl.AllocatorDataSource;
+import ai.lzy.allocator.alloc.dao.SessionDao;
+import ai.lzy.allocator.alloc.dao.VmDao;
+import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.allocator.disk.Disk;
 import ai.lzy.allocator.disk.DiskMeta;
 import ai.lzy.allocator.disk.DiskSpec;

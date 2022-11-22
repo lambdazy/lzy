@@ -1,6 +1,6 @@
 package ai.lzy.allocator.services;
 
-import ai.lzy.allocator.dao.impl.AllocatorDataSource;
+import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.allocator.disk.Disk;
 import ai.lzy.allocator.disk.DiskManager;
 import ai.lzy.allocator.disk.DiskMeta;
