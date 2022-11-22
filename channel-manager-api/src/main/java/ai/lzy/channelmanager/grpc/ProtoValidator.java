@@ -62,7 +62,7 @@ public class ProtoValidator {
         try {
             boolean isValid = true;
             isValid = isValid && isValid(request.getSlotInstance());
-            isValid = isValid && request.getSlotOrigin().getNumber() != 0;
+            isValid = isValid && request.getSlotOwner().getNumber() != 0;
             return isValid;
         } catch (NullPointerException e) {
             return false;

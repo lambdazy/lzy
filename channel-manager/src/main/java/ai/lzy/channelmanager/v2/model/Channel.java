@@ -28,12 +28,17 @@ public class Channel {
         this.lifeStatus = LifeStatus.ALIVE;
     }
 
-    public Channel(String id, ChannelSpec spec, String executionId, List<Endpoint> endpoints, List<Connection> connections, LifeStatus lifeStatus) {
+    public Channel(String id, ChannelSpec spec, String executionId, List<Endpoint> endpoints,
+                   List<Connection> connections, LifeStatus lifeStatus) {
         this.id = id;
         this.spec = spec;
         this.executionId = executionId;
-        this.senders = Senders.fromList(endpoints.stream().filter(e -> e.slotDirection() == Slot.Direction.OUTPUT).toList());
-        this.receivers = Receivers.fromList(endpoints.stream().filter(e -> e.slotDirection() == Slot.Direction.INPUT).toList());
+        this.senders = Senders.fromList(endpoints.stream()
+            .filter(e -> e.slotDirection() == Slot.Direction.OUTPUT)
+            .toList());
+        this.receivers = Receivers.fromList(endpoints.stream()
+            .filter(e -> e.slotDirection() == Slot.Direction.INPUT)
+            .toList());
         this.connections = connections;
         this.lifeStatus = lifeStatus;
     }

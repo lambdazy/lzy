@@ -4,7 +4,6 @@ import ai.lzy.channelmanager.channel.ChannelSpec;
 import ai.lzy.channelmanager.channel.DirectChannelSpec;
 import ai.lzy.model.DataScheme;
 import ai.lzy.v1.channel.v2.LCM;
-import ai.lzy.v1.channel.v2.LCMS;
 
 public class ProtoConverter {
 
@@ -13,10 +12,6 @@ public class ProtoConverter {
             channel.getChannelName(),
             ai.lzy.model.grpc.ProtoConverter.fromProto(channel.getScheme())
         );
-    }
-
-    public static Endpoint.SlotOwner fromProto(LCMS.BindRequest.SlotOrigin slotOrigin) {
-        return Endpoint.SlotOwner.valueOf(slotOrigin.name());
     }
 
     public static LCM.ChannelSpec toProto(ChannelSpec channelSpec) {

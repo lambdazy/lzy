@@ -40,7 +40,8 @@ public class InMemChannelStorage implements ChannelStorage {
     @Override
     public void insertBindingEndpoint(Endpoint endpoint, @Nullable TransactionHandle transaction) throws SQLException {
         if (endpoint.status() != Endpoint.LifeStatus.BINDING) {
-            throw new IllegalArgumentException("Expected " + Endpoint.LifeStatus.BINDING + " endpoint, actual status " + endpoint.status());
+            throw new IllegalArgumentException("Expected " + Endpoint.LifeStatus.BINDING + " endpoint, "
+                                               + "actual status " + endpoint.status());
         }
         channels.computeIfPresent(endpoint.channelId(), (id, ch) -> {
             final List<Endpoint> endpoints = ch.endpoints();
@@ -105,13 +106,14 @@ public class InMemChannelStorage implements ChannelStorage {
                                  @Nullable TransactionHandle transaction) throws SQLException
     {
         if (connection.status() != Connection.LifeStatus.CONNECTING) {
-            throw new IllegalArgumentException("Expected " + Connection.LifeStatus.CONNECTING + " connection, actual status " + connection.status());
+            throw new IllegalArgumentException("Expected " + Connection.LifeStatus.CONNECTING + " connection, "
+                                               + "actual status " + connection.status());
         }
         channels.computeIfPresent(channelId, (id, ch) -> {
             final List<Connection> connections = ch.connections();
             connections.add(connection);
             return new Channel(ch.id(), ch.spec(), ch.executionId(), ch.endpoints(), connections, ch.lifeStatus());
-        } );
+        });
     }
 
     @Override

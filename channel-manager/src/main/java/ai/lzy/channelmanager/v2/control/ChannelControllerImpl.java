@@ -224,7 +224,8 @@ public class ChannelControllerImpl implements ChannelController {
         }
 
         final Endpoint endpointToConnect;
-        final Endpoint sender, receiver;
+        final Endpoint sender;
+        final Endpoint receiver;
         switch (bindingEndpoint.slotDirection()) {
             case OUTPUT /* SENDER */ -> {
                 endpointToConnect = channel.findSenderToConnect(bindingEndpoint);
@@ -264,7 +265,8 @@ public class ChannelControllerImpl implements ChannelController {
             bindingEndpoint.uri(), connectedEndpoint.uri());
 
         final String channelId = bindingEndpoint.channelId();
-        final Endpoint sender, receiver;
+        final Endpoint sender;
+        final Endpoint receiver;
         switch (bindingEndpoint.slotDirection()) {
             case OUTPUT /* SENDER */ -> {
                 sender = bindingEndpoint;
