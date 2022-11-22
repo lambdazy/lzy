@@ -31,7 +31,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 
-import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
 @Singleton
@@ -46,11 +45,10 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
     private final GrainedLock lockManager;
 
     @Inject
-    public ChannelManagerService(GrainedLock lockManager, ChannelStorage channelStorage,
-                                 OperationDao operationDao, ChannelController channelController)
-    {
+    public ChannelManagerService(ChannelStorage channelStorage, OperationDao operationStorage,
+                                 ChannelController channelController, GrainedLock lockManager) {
         this.channelStorage = channelStorage;
-        this.operationStorage = operationDao;
+        this.operationStorage = operationStorage;
         this.channelController = channelController;
         this.lockManager = lockManager;
 
@@ -84,67 +82,89 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
 
         final Endpoint endpoint = Endpoint.fromProto(request.getSlotInstance(), request.getSlotOwner());
         try (final var guard = lockManager.withLock(channelId)) {
-            Channel channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
+            Channel channel = channelStorage.findChannel(channelId, Channel.LifeStatus.ALIVE, null);
             if (channel == null) {
-                // not found exception
+                String errorMessage = "Channel not found";
+                LOG.error(operationDescription + " failed, {}", errorMessage);
+                responseObserver.onError(Status.NOT_FOUND.withDescription(errorMessage).asException());
                 return;
             }
 
             if (endpoint.slotOwner() == Endpoint.SlotOwner.PORTAL) {
-                if (channel.existedSenders().portalEndpoint() != null || channel.existedReceivers().portalEndpoint() != null) {
-                    // invalid argument error
+                if (channel.existedSenders().portalEndpoint() != null
+                    || channel.existedReceivers().portalEndpoint() != null)
+                {
+                    String errorMessage = "Portal endpoint already bound to channel";
+                    LOG.error(operationDescription + " failed, {}", errorMessage);
+                    responseObserver.onError(Status.FAILED_PRECONDITION.withDescription(errorMessage).asException());
+                    return;
                 }
             }
             if (endpoint.slotOwner() == Endpoint.SlotOwner.WORKER && endpoint.slotDirection() == Slot.Direction.INPUT) {
                 if (channel.existedSenders().workerEndpoint() != null) {
-                    // invalid argument error
+                    String errorMessage = "Worker endpoint already bound as input slot to channel";
+                    LOG.error(operationDescription + " failed, {}", errorMessage);
+                    responseObserver.onError(Status.FAILED_PRECONDITION.withDescription(errorMessage).asException());
+                    return;
                 }
             }
 
-            withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.insertBindingEndpoint(endpoint, null));
+            withRetries(LOG, () -> channelStorage.insertBindingEndpoint(endpoint, null));
         } catch (AlreadyExistsException e) {
             LOG.error(operationDescription + " failed, {}", e.getMessage());
             responseObserver.onError(Status.ALREADY_EXISTS.withDescription(e.getMessage()).asException());
             return;
         } catch (NotFoundException e) {
-            LOG.error("Bind {} slot={} to channel={} failed, "
-                      + "{}", request.getSlotOwner(), slotUri, channelId, e.getMessage(), e);
+            LOG.error(operationDescription + " failed, {}", e.getMessage());
             responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asException());
             return;
         } catch (Exception e) {
-            LOG.error("Bind {} slot={} to channel={} failed, "
-                      + "got exception: {}", request.getSlotOwner(), slotUri, channelId, e.getMessage(), e);
+            LOG.error(operationDescription + " failed, got exception: {}", e.getMessage(), e);
             responseObserver.onError(Status.INTERNAL.withCause(e).asException());
             return;
         }
 
-        final Operation bindOperation = new Operation("ChannelManager", operationDescription, Any.pack(LCMS.BindMetadata.getDefaultInstance()));
+        final Operation operation = new Operation("ChannelManager", operationDescription,
+            Any.pack(LCMS.BindMetadata.getDefaultInstance()));
         try {
-            operationStorage.create(bindOperation, null);
+            withRetries(LOG, () -> operationStorage.create(operation, null));
         } catch (Exception e) {
             LOG.error(operationDescription + " failed, cannot create operation", e);
             responseObserver.onError(Status.INTERNAL.withCause(e).asException());
             return;
         }
 
-        responseObserver.onNext(bindOperation.toProto());
+        responseObserver.onNext(operation.toProto());
         responseObserver.onCompleted();
-        LOG.info(operationDescription + " responded, async operation started");
+        LOG.info(operationDescription + " responded, async operation scheduled, operationId={}", operation.id());
 
         longrunningExecutor.submit(() -> {
             try {
-                channelController.bind(endpoint);
-            } catch (CancellingChannelGraphStateException e) {
-                LOG.warn("[executeBind] operation {} cancelled, " + e.getMessage());
-                bindOperation.setError(Status.CANCELLED);
-                operationStorage.update(bindOperation);
-            } catch (Exception e) {
-                LOG.error("[executeBind] operation {} failed, " + e.getMessage());
-                // error op
-            }
+                LOG.info(operationDescription + " responded, async operation started, operationId={}", operation.id());
 
-            bindOperation.setResponse(Any.pack(LCMS.BindResponse.getDefaultInstance()));
-            operationStorage.update(bindOperation);
+                channelController.bind(endpoint);
+
+                try {
+                    withRetries(LOG, () -> operationStorage.updateResponse(operation.id(),
+                        Any.pack(LCMS.BindResponse.getDefaultInstance()).toByteArray(), null));
+                } catch (Exception e) {
+                    LOG.error("Cannot update operation", e);
+                    return;
+                }
+
+                LOG.info(operationDescription + " responded, async operation finished, operationId={}", operation.id());
+            } catch (CancellingChannelGraphStateException e) {
+                String errorMessage = operationDescription + " async operation " + operation.id()
+                                      + " cancelled according to the graph state: " + e.getMessage();
+                LOG.error(errorMessage);
+                failOperation(operation.id(), Status.CANCELLED, errorMessage);
+            } catch (Exception e) {
+                String errorMessage = operationDescription + " async operation " + operation.id()
+                                      + " failed: " + e.getMessage();
+                LOG.error(errorMessage);
+                failOperation(operation.id(), errorMessage);
+                // TODO
+            }
         });
     }
 
@@ -164,30 +184,31 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         try {
             endpoint = channelStorage.getEndpoint(slotUri, null);
         } catch (NotFoundException e) {
-            LOG.error("Unbind slot {} failed, {}",  slotUri, e.getMessage(), e);
+            LOG.error(operationDescription + " failed, {}", e.getMessage(), e);
             responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asException());
             return;
         } catch (Exception e) {
-            LOG.error("Unbind slot {} failed, got exception: {}", slotUri, e.getMessage(), e);
+            LOG.error(operationDescription + " failed, got exception: {}", e.getMessage(), e);
             responseObserver.onError(Status.INTERNAL.withCause(e).asException());
             return;
         }
 
         try (final var guard = lockManager.withLock(endpoint.channelId())) {
-            withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.markEndpointUnbinding(slotUri, null));
+            withRetries(LOG, () -> channelStorage.markEndpointUnbinding(slotUri, null));
         }  catch (NotFoundException e) {
-            LOG.error("Unbind slot {} failed, {}",  slotUri, e.getMessage(), e);
+            LOG.error(operationDescription + " failed, {}", e.getMessage(), e);
             responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asException());
             return;
         } catch (Exception e) {
-            LOG.error("Unbind slot {} failed, got exception: {}", slotUri, e.getMessage(), e);
+            LOG.error(operationDescription + " failed, got exception: {}", e.getMessage(), e);
             responseObserver.onError(Status.INTERNAL.withCause(e).asException());
             return;
         }
 
-        final Operation operation = new Operation("ChannelManager", operationDescription, Any.pack(LCMS.UnbindMetadata.getDefaultInstance()));
+        final Operation operation = new Operation("ChannelManager", operationDescription,
+            Any.pack(LCMS.UnbindMetadata.getDefaultInstance()));
         try {
-            operationStorage.create(operation, null);
+            withRetries(LOG, () -> operationStorage.create(operation, null));
         } catch (Exception e) {
             LOG.error(operationDescription + " failed, cannot create operation", e);
             responseObserver.onError(Status.INTERNAL.withCause(e).asException());
@@ -196,18 +217,60 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
 
         responseObserver.onNext(operation.toProto());
         responseObserver.onCompleted();
-        LOG.info(operationDescription + " responded, async operation started");
+        LOG.info(operationDescription + " responded, async operation scheduled, operationId={}", operation.id());
 
         longrunningExecutor.submit(() -> {
             try {
+                LOG.info(operationDescription + " responded, async operation started, operationId={}", operation.id());
+
                 switch (endpoint.slotDirection()) {
                     case OUTPUT /* SENDER */ -> channelController.unbindSender(endpoint);
                     case INPUT /* RECEIVER */ -> channelController.unbindReceiver(endpoint);
                 }
-            } catch (Exception e) {
 
+                try {
+                    withRetries(LOG, () -> operationStorage.updateResponse(operation.id(),
+                        Any.pack(LCMS.BindResponse.getDefaultInstance()).toByteArray(), null));
+                } catch (Exception e) {
+                    LOG.error("Cannot update operation", e);
+                    return;
+                }
+
+                LOG.info(operationDescription + " responded, async operation finished, operationId={}", operation.id());
+            } catch (CancellingChannelGraphStateException e) {
+                String errorMessage = operationDescription + " async operation " + operation.id()
+                                      + " cancelled according to the graph state: " + e.getMessage();
+                LOG.error(errorMessage);
+                failOperation(operation.id(), Status.CANCELLED, errorMessage);
+            } catch (Exception e) {
+                String errorMessage = operationDescription + " async operation " + operation.id()
+                                      + " failed: " + e.getMessage();
+                LOG.error(errorMessage);
+                failOperation(operation.id(), errorMessage);
+                // TODO
             }
         });
 
+    }
+
+    private void failOperation(String operationId, String message) {
+        failOperation(operationId, Status.INTERNAL, message);
+    }
+
+    private void failOperation(String operationId, Status opStatus, String message) {
+        var status = com.google.rpc.Status.newBuilder()
+            .setCode(opStatus.getCode().value())
+            .setMessage(message)
+            .build();
+        try {
+            var op = withRetries(LOG, () -> operationStorage.updateError(operationId, status.toByteArray(), null));
+            if (op == null) {
+                LOG.error("Cannot fail operation {} with reason {}: operation not found",
+                    operationId, message);
+            }
+        } catch (Exception ex) {
+            LOG.error("Cannot fail operation {} with reason {}: {}",
+                operationId, message, ex.getMessage(), ex);
+        }
     }
 }

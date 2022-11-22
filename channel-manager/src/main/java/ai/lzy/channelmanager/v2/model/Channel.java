@@ -50,18 +50,25 @@ public class Channel {
         return executionId;
     }
 
-    public List<Endpoint> existedSenders() {
-        return senders.asList().stream()
-            .filter(s -> s.status() == Endpoint.LifeStatus.BINDING || s.status() == Endpoint.LifeStatus.BOUND)
-            .collect(Collectors.toList());
+    public Senders senders() {
+        return senders;
     }
 
-    public List<Endpoint> existedReceivers() {
-        return receivers.asList().stream()
-            .filter(s -> s.status() == Endpoint.LifeStatus.BINDING || s.status() == Endpoint.LifeStatus.BOUND)
-            .collect(Collectors.toList());
+    public Receivers receivers() {
+        return receivers;
     }
 
+    public Senders existedSenders() {
+        return Senders.fromList(senders.asList().stream()
+            .filter(s -> s.status() == Endpoint.LifeStatus.BINDING || s.status() == Endpoint.LifeStatus.BOUND)
+            .toList());
+    }
+
+    public Receivers existedReceivers() {
+        return Receivers.fromList(receivers.asList().stream()
+            .filter(s -> s.status() == Endpoint.LifeStatus.BINDING || s.status() == Endpoint.LifeStatus.BOUND)
+            .toList());
+    }
 
     public List<Endpoint> endpoints() {
         final List<Endpoint> endpoints = new ArrayList<>();
@@ -166,6 +173,16 @@ public class Channel {
             return senders;
         }
 
+        @Nullable
+        public Endpoint workerEndpoint() {
+            return workerEndpoint;
+        }
+
+        @Nullable
+        public Endpoint portalEndpoint() {
+            return portalEndpoint;
+        }
+
     }
 
     public static class Receivers {
@@ -209,6 +226,15 @@ public class Channel {
             List<Endpoint> receivers = new ArrayList<>(workerEndpoints);
             if (portalEndpoint != null) receivers.add(portalEndpoint);
             return receivers;
+        }
+
+        public List<Endpoint> workerEndpoints() {
+            return workerEndpoints;
+        }
+
+        @Nullable
+        public Endpoint portalEndpoint() {
+            return portalEndpoint;
         }
 
     }

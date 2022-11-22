@@ -41,8 +41,7 @@ public interface ChannelStorage {
                         @Nullable TransactionHandle transaction) throws SQLException;
 
 
-    List<Channel> listChannels(String executionId, Channel.LifeStatus lifeStatus,
-                               @Nullable TransactionHandle transaction) throws SQLException;
+    List<Channel> listChannels(String executionId, @Nullable TransactionHandle transaction) throws SQLException;
 
     @Nullable
     Endpoint findEndpoint(String endpointUri, @Nullable TransactionHandle transaction) throws SQLException;

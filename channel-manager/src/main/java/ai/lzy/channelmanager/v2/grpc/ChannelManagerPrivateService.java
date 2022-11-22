@@ -1,6 +1,5 @@
 package ai.lzy.channelmanager.v2.grpc;
 
-import ai.lzy.channelmanager.grpc.ProtoConverter;
 import ai.lzy.channelmanager.grpc.ProtoValidator;
 import ai.lzy.channelmanager.lock.GrainedLock;
 import ai.lzy.channelmanager.v2.control.ChannelController;
@@ -10,9 +9,9 @@ import ai.lzy.channelmanager.v2.model.Channel;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.exceptions.AlreadyExistsException;
+import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.v1.channel.v2.LCM;
 import ai.lzy.v1.channel.v2.LCMPS;
-import ai.lzy.v1.channel.v2.LCMS;
 import ai.lzy.v1.channel.v2.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.longrunning.LongRunning;
 import com.google.protobuf.Any;
@@ -25,8 +24,16 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
 
-import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
+import static ai.lzy.channelmanager.grpc.ProtoConverter.fromProto;
+import static ai.lzy.channelmanager.grpc.ProtoConverter.toProto;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
 @Singleton
@@ -41,8 +48,25 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
     private final GrainedLock lockManager;
 
     @Inject
-    public ChannelManagerPrivateService(ChannelStorage channelStorage) {
+    public ChannelManagerPrivateService(ChannelStorage channelStorage, OperationDao operationStorage,
+                                        ChannelController channelController, GrainedLock lockManager) {
         this.channelStorage = channelStorage;
+        this.operationStorage = operationStorage;
+        this.channelController = channelController;
+        this.lockManager = lockManager;
+
+        this.longrunningExecutor = new ThreadPoolExecutor(10, 20, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
+            new ThreadFactory() {
+                private final AtomicInteger counter = new AtomicInteger(1);
+
+                @Override
+                public Thread newThread(@Nonnull Runnable r) {
+                    var th = new Thread(r, "lr-channel-manager-" + counter.getAndIncrement());
+                    th.setUncaughtExceptionHandler(
+                        (t, e) -> LOG.error("Unexpected exception in thread {}: {}", t.getName(), e.getMessage(), e));
+                    return th;
+                }
+            });
     }
 
     @Override
@@ -62,8 +86,8 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         final String channelId = "channel-" + executionId.replaceAll("[^a-zA-z0-9-]+", "-") + "-" + channelName;
 
         try (final var guard = lockManager.withLock(channelId)) {
-            withRetries(defaultRetryPolicy(), LOG, () ->
-                channelStorage.insertChannel(channelId, executionId, ProtoConverter.fromProto(channelSpec), null));
+            withRetries(LOG, () -> channelStorage.insertChannel(
+                channelId, executionId, fromProto(channelSpec), null));
         } catch (AlreadyExistsException e) {
             LOG.error(operationDescription + " failed, channel already exists");
             response.onError(Status.ALREADY_EXISTS.withDescription(e.getMessage()).asException());
@@ -92,7 +116,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         LOG.info(operationDescription);
 
         try (final var guard = lockManager.withLock(channelId)) {
-            withRetries(defaultRetryPolicy(), LOG, () -> channelStorage.markChannelDestroying(channelId, null));
+            withRetries(LOG, () -> channelStorage.markChannelDestroying(channelId, null));
         } catch (Exception e) {
             LOG.error(operationDescription + " failed, got exception: {}", e.getMessage(), e);
             response.onError(Status.INTERNAL.withCause(e).asException());
@@ -102,7 +126,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         final Operation operation = new Operation("ChannelManager", operationDescription,
             Any.pack(LCMPS.ChannelDestroyMetadata.getDefaultInstance()));
         try {
-            operationStorage.create(operation, null);
+            withRetries(LOG, () -> operationStorage.create(operation, null));
         } catch (Exception e) {
             LOG.error(operationDescription + " failed, cannot create operation", e);
             response.onError(Status.INTERNAL.withCause(e).asException());
@@ -111,22 +135,35 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
 
         response.onNext(operation.toProto());
         response.onCompleted();
-        LOG.info(operationDescription + " responded, async operation started");
+        LOG.info(operationDescription + " responded, async operation scheduled, operationId={}", operation.id());
 
         longrunningExecutor.submit(() -> {
             try {
-                channelController.destroy(channelId);
-            } catch (CancellingChannelGraphStateException e) {
-                LOG.warn("[executeBind] operation {} cancelled, " + e.getMessage());
-                bindOperation.setError(Status.CANCELLED);
-                operationStorage.update(bindOperation);
-            } catch (Exception e) {
-                LOG.error("[executeBind] operation {} failed, " + e.getMessage());
-                // error op
-            }
+                LOG.info(operationDescription + " async operation started, operationId={}", operation.id());
 
-            bindOperation.setResponse(Any.pack(LCMS.BindRequest.getDefaultInstance()));
-            operationStorage.update(bindOperation);
+                channelController.destroy(channelId);
+
+                try {
+                    withRetries(LOG, () -> operationStorage.updateResponse(operation.id(),
+                        Any.pack(LCMPS.ChannelDestroyResponse.getDefaultInstance()).toByteArray(), null));
+                } catch (Exception e) {
+                    LOG.error("Cannot update operation", e);
+                    return;
+                }
+
+                LOG.info(operationDescription + " async operation finished, operationId={}", operation.id());
+            } catch (CancellingChannelGraphStateException e) {
+                String errorMessage = operationDescription + " async operation " + operation.id()
+                                      + " cancelled according to the graph state: " + e.getMessage();
+                LOG.error(errorMessage);
+                failOperation(operation.id(), Status.CANCELLED, errorMessage);
+            } catch (Exception e) {
+                String errorMessage = operationDescription + " async operation " + operation.id()
+                                      + " failed: " + e.getMessage();
+                LOG.error(errorMessage);
+                failOperation(operation.id(), errorMessage);
+                // TODO
+            }
         });
     }
 
@@ -144,7 +181,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
 
         final List<Channel> channelsToDestroy;
         try {
-            channelsToDestroy = channelStorage.listChannels(executionId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
+            channelsToDestroy = channelStorage.listChannels(executionId, null);
         } catch (Exception e) {
             LOG.error(operationDescription + " failed, got exception: {}", e.getMessage(), e);
             response.onError(Status.INTERNAL.withCause(e).asException());
@@ -153,8 +190,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
 
         for (final Channel channel : channelsToDestroy) {
             try (final var guard = lockManager.withLock(channel.id())) {
-                withRetries(defaultRetryPolicy(), LOG, () ->
-                    channelStorage.markChannelDestroying(channel.id(), null));
+                withRetries(LOG, () -> channelStorage.markChannelDestroying(channel.id(), null));
             } catch (Exception e) {
                 LOG.error(operationDescription + " failed, got exception: {}", e.getMessage(), e);
                 response.onError(Status.INTERNAL.withCause(e).asException());
@@ -174,15 +210,36 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
 
         response.onNext(operation.toProto());
         response.onCompleted();
-        LOG.info(operationDescription + " responded, async operation started");
+        LOG.info(operationDescription + " responded, async operation scheduled, operationId={}", operation.id());
 
         longrunningExecutor.submit(() -> {
-            for (final Channel channel : channelsToDestroy) {
-                try {
-                    channelController.destroy(channel.id());
-                } catch (Exception e) {
+            try {
+                LOG.info(operationDescription + " async operation started, operationId={}", operation.id());
 
+                for (final Channel channel : channelsToDestroy) {
+                    channelController.destroy(channel.id());
                 }
+
+                try {
+                    withRetries(LOG, () -> operationStorage.updateResponse(operation.id(),
+                        Any.pack(LCMPS.ChannelDestroyResponse.getDefaultInstance()).toByteArray(), null));
+                } catch (Exception e) {
+                    LOG.error("Cannot update operation", e);
+                    return;
+                }
+
+                LOG.info(operationDescription + " async operation finished, operationId={}", operation.id());
+            } catch (CancellingChannelGraphStateException e) {
+                String errorMessage = operationDescription + " async operation " + operation.id()
+                                      + " cancelled according to the graph state: " + e.getMessage();
+                LOG.error(errorMessage);
+                failOperation(operation.id(), Status.CANCELLED, errorMessage);
+            } catch (Exception e) {
+                String errorMessage = operationDescription + " async operation " + operation.id()
+                                      + " failed: " + e.getMessage();
+                LOG.error(errorMessage);
+                failOperation(operation.id(), errorMessage);
+                // TODO
             }
         });
     }
@@ -202,7 +259,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         final String channelId = request.getChannelId();
         final Channel channel;
         try {
-            channel = channelStorage.findChannel(channelId, ChannelStorage.ChannelLifeStatus.ALIVE, null);
+            channel = channelStorage.findChannel(channelId, Channel.LifeStatus.ALIVE, null);
         } catch (Exception e) {
             LOG.error("Get status for channel {} failed, got exception: {}", channelId, e.getMessage(), e);
             responseObserver.onError(Status.INTERNAL.withCause(e).asException());
@@ -215,7 +272,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
             return;
         }
 
-        responseObserver.onNext(ProtoConverter.createChannelStatusResponse(channel));
+        responseObserver.onNext(createChannelStatusResponse(channel));
         LOG.info("Get status for channel {} done", channelId);
         responseObserver.onCompleted();
     }
@@ -235,7 +292,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         final String executionId = request.getExecutionId();
         List<Channel> channels;
         try {
-            channels = channelStorage.listChannels(executionId, ChannelStorage.ChannelLifeStatus.DESTROYING, null);
+            channels = channelStorage.listChannels(executionId, null);
         } catch (Exception e) {
             LOG.error("Get status for channels of execution {} failed, "
                       + "got exception: {}", executionId, e.getMessage(), e);
@@ -243,8 +300,78 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
             return;
         }
 
-        responseObserver.onNext(ProtoConverter.createChannelStatusAllResponse(channels));
+        List<Channel> aliveChannels = channels.stream()
+            .filter(ch -> ch.lifeStatus() == Channel.LifeStatus.ALIVE)
+            .collect(Collectors.toList());
+        responseObserver.onNext(createChannelStatusAllResponse(aliveChannels));
         LOG.info("Get status for channels of execution {} done", executionId);
         responseObserver.onCompleted();
+    }
+
+    private void failOperation(String operationId, String message) {
+        failOperation(operationId, Status.INTERNAL, message);
+    }
+
+    private void failOperation(String operationId, Status opStatus, String message) {
+        var status = com.google.rpc.Status.newBuilder()
+            .setCode(opStatus.getCode().value())
+            .setMessage(message)
+            .build();
+        try {
+            var op = withRetries(LOG, () -> operationStorage.updateError(operationId, status.toByteArray(), null));
+            if (op == null) {
+                LOG.error("Cannot fail operation {} with reason {}: operation not found",
+                    operationId, message);
+            }
+        } catch (Exception ex) {
+            LOG.error("Cannot fail operation {} with reason {}: {}",
+                operationId, message, ex.getMessage(), ex);
+        }
+    }
+
+    private LCMPS.ChannelStatusResponse createChannelStatusResponse(Channel channel) {
+        return LCMPS.ChannelStatusResponse.newBuilder()
+            .setStatus(LCMPS.ChannelStatus.newBuilder()
+                .setChannel(toChannelProto(channel))
+                .build())
+            .build();
+    }
+
+    private LCMPS.ChannelStatusAllResponse createChannelStatusAllResponse(List<Channel> channels) {
+        return LCMPS.ChannelStatusAllResponse.newBuilder()
+            .addAllStatuses(channels.stream()
+                .map(channel -> LCMPS.ChannelStatus.newBuilder()
+                    .setChannel(toChannelProto(channel))
+                    .build())
+                .collect(Collectors.toList()))
+            .build();
+    }
+
+    private LCM.Channel toChannelProto(Channel channel) {
+        Channel.Senders existedSenders = channel.existedSenders();
+        LCM.ChannelSenders.Builder sendersBuilder = LCM.ChannelSenders.newBuilder();
+        if (existedSenders.portalEndpoint() != null) {
+            sendersBuilder.setPortalSlot(ProtoConverter.toProto(existedSenders.portalEndpoint().slot()));
+        }
+        if (existedSenders.workerEndpoint() != null) {
+            sendersBuilder.setWorkerSlot(ProtoConverter.toProto(existedSenders.workerEndpoint().slot()));
+        }
+
+        Channel.Receivers existedReceivers = channel.existedReceivers();
+        LCM.ChannelReceivers.Builder receiversBuilder = LCM.ChannelReceivers.newBuilder();
+        if (existedReceivers.portalEndpoint() != null) {
+            sendersBuilder.setPortalSlot(ProtoConverter.toProto(existedReceivers.portalEndpoint().slot()));
+        }
+        receiversBuilder.addAllWorkerSlots(existedReceivers.workerEndpoints().stream()
+            .map(e -> ProtoConverter.toProto(e.slot()))
+            .toList());
+
+        return LCM.Channel.newBuilder()
+            .setChannelId(channel.id())
+            .setSpec(toProto(channel.spec()))
+            .setExecutionId(channel.executionId())
+            .setSenders(sendersBuilder.build())
+            .setReceivers(receiversBuilder.build())
+            .build();
     }
 }

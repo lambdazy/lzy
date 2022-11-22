@@ -33,7 +33,7 @@ public class SlotApiClientImpl implements SlotApiClient {
 
         if (!receiver.isValid()) {
             LOG.error("[connect] failed, receiver is invalid, sender={}, receiver={}", sender.uri(), receiver.uri());
-            // TODO
+            throw new RuntimeException("Invalid");
         }
         final var client = receiver.getSlotApiStub();
 
@@ -47,8 +47,7 @@ public class SlotApiClientImpl implements SlotApiClient {
         operation = waitOperationDone(operation, timeout);
         if (!operation.getDone()) {
             LOG.error("[connect] operation timeout, sender={}, receiver={}", sender.uri(), receiver.uri());
-            throw new OperationTimeoutException();
-            // TODO
+            throw new RuntimeException("Operation timeout");
         }
         if (operation.hasError()) {
             LOG.error("[connect] operation failed, sender={}, receiver={}", sender.uri(), receiver.uri());
@@ -63,8 +62,8 @@ public class SlotApiClientImpl implements SlotApiClient {
         LOG.debug("[disconnect], endpoint={}", endpoint.uri());
 
         if (!endpoint.isValid()) {
-            LOG.error("[connect] failed, endpoint is invalid, endpoint={}", endpoint.uri());
-            // TODO
+            LOG.warn("[disconnect] skipped, endpoint is invalid, endpoint={}", endpoint.uri());
+            return;
         }
         final var client = endpoint.getSlotApiStub();
 

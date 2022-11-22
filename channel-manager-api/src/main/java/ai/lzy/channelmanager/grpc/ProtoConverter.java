@@ -2,15 +2,9 @@ package ai.lzy.channelmanager.grpc;
 
 import ai.lzy.channelmanager.channel.ChannelSpec;
 import ai.lzy.channelmanager.channel.DirectChannelSpec;
-import ai.lzy.channelmanager.channel.v2.Channel;
-import ai.lzy.channelmanager.channel.v2.Endpoint;
 import ai.lzy.model.DataScheme;
 import ai.lzy.v1.channel.v2.LCM;
-import ai.lzy.v1.channel.v2.LCMPS;
 import ai.lzy.v1.channel.v2.LCMS;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 public class ProtoConverter {
 
@@ -25,15 +19,6 @@ public class ProtoConverter {
         return Endpoint.SlotOwner.valueOf(slotOrigin.name());
     }
 
-    public static LCM.Channel toProto(Channel channel) {
-        return LCM.Channel.newBuilder()
-            .setChannelId(channel.id())
-            .setSpec(toProto(channel.spec()))
-            .setExecutionId(channel.executionId())
-            .build();
-        // TODO src, dst
-    }
-
     public static LCM.ChannelSpec toProto(ChannelSpec channelSpec) {
         return LCM.ChannelSpec.newBuilder()
             .setChannelName(channelSpec.name())
@@ -41,23 +26,7 @@ public class ProtoConverter {
             .build();
     }
 
-    public static LCMPS.ChannelStatusResponse createChannelStatusResponse(Channel channel) {
-        return LCMPS.ChannelStatusResponse.newBuilder()
-            .setStatus(LCMPS.ChannelStatus.newBuilder()
-                .setChannel(ProtoConverter.toProto(channel))
-                .build())
-            .build();
-    }
 
-    public static LCMPS.ChannelStatusAllResponse createChannelStatusAllResponse(List<Channel> channels) {
-        return LCMPS.ChannelStatusAllResponse.newBuilder()
-            .addAllStatuses(channels.stream()
-                .map(channel -> LCMPS.ChannelStatus.newBuilder()
-                    .setChannel(ProtoConverter.toProto(channel))
-                    .build())
-                .collect(Collectors.toList()))
-            .build();
-    }
 
     public static ai.lzy.v1.channel.LCMPS.ChannelCreateRequest makeCreateDirectChannelCommand(String workflowId, String channelName) {
         return ai.lzy.v1.channel.LCMPS.ChannelCreateRequest.newBuilder()

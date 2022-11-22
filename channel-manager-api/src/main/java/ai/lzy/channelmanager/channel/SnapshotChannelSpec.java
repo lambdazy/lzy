@@ -11,4 +11,5 @@ public record SnapshotChannelSpec(
     String snapshotId,
     String entryId,
     URI whiteboardAddress
-) implements ChannelSpec { }
+) implements ChannelSpec
+{ }

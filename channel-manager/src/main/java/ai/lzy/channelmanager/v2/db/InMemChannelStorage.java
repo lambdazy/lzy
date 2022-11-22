@@ -173,12 +173,10 @@ public class InMemChannelStorage implements ChannelStorage {
     }
 
     @Override
-    public List<Channel> listChannels(String executionId, Channel.LifeStatus lifeStatus,
-                                      @Nullable TransactionHandle transaction) throws SQLException
+    public List<Channel> listChannels(String executionId, @Nullable TransactionHandle transaction) throws SQLException
     {
         return channels.values().stream()
             .filter(ch -> ch.executionId().equals(executionId))
-            .filter(ch -> ch.lifeStatus().equals(lifeStatus))
             .collect(Collectors.toList());
     }
 
