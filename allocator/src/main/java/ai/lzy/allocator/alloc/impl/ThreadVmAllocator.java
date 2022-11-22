@@ -61,7 +61,7 @@ public class ThreadVmAllocator implements VmAllocator {
     }
 
     @Override
-    public void allocate(Vm.Spec vm) {
+    public void allocate(Vm vm) {
         allocateWithSingleWorkload(vm.vmId(), vm.poolLabel(), vm.workloads().get(0));
     }
 

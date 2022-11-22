@@ -43,8 +43,8 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 
 @Singleton
 @Requires(beans = MetricReporter.class)
-public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
-    private static final Logger LOG = LogManager.getLogger(AllocatorPrivateApi.class);
+public class AllocatorPrivateService extends AllocatorPrivateImplBase {
+    private static final Logger LOG = LogManager.getLogger(AllocatorPrivateService.class);
 
     private final VmDao dao;
     private final OperationDao operations;
@@ -55,11 +55,11 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
     private final Metrics metrics = new Metrics();
     private final SubjectServiceClient subjectClient;
 
-    public AllocatorPrivateApi(VmDao dao, VmAllocator allocator, SessionDao sessions,
-                               AllocatorDataSource storage, ServiceConfig config,
-                               @Named("AllocatorOperationDao") OperationDao operationDao,
-                               @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
-                               @Named("AllocatorIamToken") RenewableJwt iamToken)
+    public AllocatorPrivateService(VmDao dao, VmAllocator allocator, SessionDao sessions,
+                                   AllocatorDataSource storage, ServiceConfig config,
+                                   @Named("AllocatorOperationDao") OperationDao operationDao,
+                                   @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
+                                   @Named("AllocatorIamToken") RenewableJwt iamToken)
     {
         this.dao = dao;
         this.allocator = allocator;
@@ -88,25 +88,25 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
 
                         vmRef[0] = vm;
 
-                        if (vm.status() == Vm.VmStatus.RUNNING) {
+                        if (vm.status() == Vm.Status.RUNNING) {
                             LOG.error("Vm {} has been already registered", vm);
                             metrics.alreadyRegistered.inc();
                             return Status.ALREADY_EXISTS;
                         }
 
-                        if (vm.status() == Vm.VmStatus.DEAD) {
+                        if (vm.status() == Vm.Status.DEAD) {
                             LOG.error("Vm {} is DEAD", vm);
                             return Status.INVALID_ARGUMENT.withDescription("VM is dead");
                         }
 
-                        if (vm.status() != Vm.VmStatus.CONNECTING) {
-                            LOG.error("Wrong status of vm while register, expected CONNECTING: {}", vm);
+                        if (vm.status() != Vm.Status.ALLOCATING) {
+                            LOG.error("Wrong status of vm while register, expected ALLOCATING: {}", vm);
                             return Status.FAILED_PRECONDITION;
                         }
 
-                        final var op = operations.get(vm.allocationOperationId(), transaction);
+                        final var op = operations.get(vm.allocOpId(), transaction);
                         if (op == null) {
-                            var opId = vm.allocationOperationId();
+                            var opId = vm.allocOpId();
                             LOG.error("Operation {} does not exist", opId);
                             return Status.NOT_FOUND.withDescription("Op %s not found".formatted(opId));
                         }
@@ -129,14 +129,8 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
                             return Status.NOT_FOUND.withDescription("Op not found");
                         }
 
-                        dao.update(
-                            vm.vmId(),
-                            new Vm.VmStateBuilder(vm.state())
-                                .setStatus(Vm.VmStatus.RUNNING)
-                                .setVmMeta(request.getMetadataMap())
-                                .setLastActivityTime(Instant.now().plus(config.getHeartbeatTimeout()))
-                                .build(),
-                            transaction);
+                        var activityDeadline = Instant.now().plus(config.getHeartbeatTimeout());
+                        dao.setVmRunning(vm.vmId(), request.getMetadataMap(), activityDeadline, transaction);
 
                         final List<AllocateResponse.VmEndpoint> hosts;
                         try {
@@ -162,7 +156,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
 
                         metrics.registered.inc();
                         metrics.allocationTime.observe(
-                            Duration.between(vm.allocationStartedAt(), Instant.now()).toSeconds());
+                            Duration.between(vm.allocateState().startedAt(), Instant.now()).toSeconds());
 
                         return Status.OK;
                     }
@@ -182,19 +176,19 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
 
             metrics.failed.inc();
 
-            responseObserver.onError(
-                Status.INTERNAL.withDescription("Error while registering vm %s: %s".formatted(vm, ex.getMessage()))
-                    .asException());
+            responseObserver.onError(Status.INTERNAL
+                .withDescription("Error while registering vm %s: %s".formatted(vm, ex.getMessage())).asException());
 
             // TODO: do it another thread, don't occupy grpc thread
             if (vm != null) {
                 LOG.info("Deallocating failed vm {}", vm);
 
-                if (vm.state().vmSubjectId() != null) {
+                var vmSubjId = vm.allocateState().vmSubjectId();
+                if (vmSubjId != null) {
                     try {
-                        subjectClient.removeSubject(new ai.lzy.iam.resources.subjects.Vm(vm.state().vmSubjectId()));
+                        subjectClient.removeSubject(new ai.lzy.iam.resources.subjects.Vm(vmSubjId));
                     } catch (Exception e) {
-                        LOG.error("Cannot remove VM subject {}: {}", vm.state().vmSubjectId(), e.getMessage(), e);
+                        LOG.error("Cannot remove VM subject {}: {}", vmSubjId, e.getMessage(), e);
                     }
                 }
 
@@ -227,7 +221,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
         }
 
 
-        if (!Set.of(Vm.VmStatus.RUNNING, Vm.VmStatus.IDLE).contains(vm.status())) {
+        if (!Set.of(Vm.Status.RUNNING, Vm.Status.IDLE).contains(vm.status())) {
             LOG.error("Wrong status of vm {} while receiving heartbeat: {}, expected RUNNING or IDLING",
                 vm.vmId(), vm.status());
             metrics.hbInvalidVm.inc();
@@ -239,7 +233,7 @@ public class AllocatorPrivateApi extends AllocatorPrivateImplBase {
             withRetries(
                 defaultRetryPolicy(),
                 LOG,
-                () -> dao.updateLastActivityTime(vm.vmId(), Instant.now().plus(config.getHeartbeatTimeout()))
+                () -> dao.setLastActivityTime(vm.vmId(), Instant.now().plus(config.getHeartbeatTimeout()))
             );
         } catch (Exception ex) {
             LOG.error("Cannot update VM {} last activity time: {}", vm, ex.getMessage(), ex);

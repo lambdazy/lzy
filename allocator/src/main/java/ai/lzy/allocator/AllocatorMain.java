@@ -4,8 +4,8 @@ import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.dao.VmDao;
 import ai.lzy.allocator.disk.DiskService;
-import ai.lzy.allocator.services.AllocatorApi;
-import ai.lzy.allocator.services.AllocatorPrivateApi;
+import ai.lzy.allocator.services.AllocatorPrivateService;
+import ai.lzy.allocator.services.AllocatorService;
 import ai.lzy.allocator.vmpool.VmPoolService;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
@@ -45,8 +45,8 @@ public class AllocatorMain {
     private final VmAllocator alloc;
     private final MetricReporter metricReporter;
 
-    public AllocatorMain(MetricReporter metricReporter, AllocatorApi allocator,
-                         AllocatorPrivateApi allocatorPrivate, DiskService diskService,
+    public AllocatorMain(MetricReporter metricReporter, AllocatorService allocator,
+                         AllocatorPrivateService allocatorPrivate, DiskService diskService,
                          ServiceConfig config, GarbageCollector gc, VmPoolService vmPool,
                          @Named("AllocatorOperationDao") OperationDao operationDao,
                          @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
@@ -101,6 +101,7 @@ public class AllocatorMain {
     }
 
     public void awaitTermination() throws InterruptedException {
+        LOG.info("Awaiting termination...");
         server.awaitTermination();
     }
 

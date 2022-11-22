@@ -17,10 +17,6 @@ public class VolumeRequest {
         this.volumeDescription = volumeDescription;
     }
 
-    public String name() {
-        return volumeDescription.name();
-    }
-
     public VolumeDescription volumeDescription() {
         return volumeDescription;
     }
@@ -54,9 +50,9 @@ public class VolumeRequest {
         @JsonSubTypes.Type(value = DiskVolumeDescription.class),
         @JsonSubTypes.Type(value = HostPathVolumeDescription.class),
         @JsonSubTypes.Type(value = NFSVolumeDescription.class)
-
     })
     public abstract static class VolumeDescription {
+        public abstract String id();
         public abstract String name();
     }
 

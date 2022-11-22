@@ -14,6 +14,8 @@ public interface SubjectServiceClient {
 
     SubjectServiceClient withToken(Supplier<Credentials> tokenSupplier);
 
+    SubjectServiceClient withIdempotencyKey(String idempotencyKey);
+
     Subject createSubject(AuthProvider authProvider, String providerSubjectId, SubjectType type,
                           SubjectCredentials... credentials) throws AuthException;
 

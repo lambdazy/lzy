@@ -23,7 +23,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class AllocatorApiSessionsTests extends AllocatorApiTestBase {
+public class AllocatorServiceSessionsTests extends AllocatorApiTestBase {
 
     @Before
     public void before() throws IOException {

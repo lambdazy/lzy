@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+
 public class SubjectServiceGrpcClient implements SubjectServiceClient {
     private static final Logger LOG = LogManager.getLogger(SubjectServiceGrpcClient.class);
 
@@ -41,13 +43,37 @@ public class SubjectServiceGrpcClient implements SubjectServiceClient {
         this.clientName = clientName;
         this.channel = channel;
         this.tokenSupplier = tokenSupplier;
-        this.subjectService = GrpcUtils.newBlockingClient(
+        this.subjectService = newBlockingClient(
             LzySubjectServiceGrpc.newBlockingStub(this.channel), clientName, () -> this.tokenSupplier.get().token());
+    }
+
+    public SubjectServiceGrpcClient(String clientName, Channel channel,
+                                    LzySubjectServiceGrpc.LzySubjectServiceBlockingStub subjectService,
+                                    Supplier<Credentials> tokenSupplier)
+    {
+        this.clientName = clientName;
+        this.channel = channel;
+        this.subjectService = subjectService;
+        this.tokenSupplier = tokenSupplier;
     }
 
     @Override
     public SubjectServiceGrpcClient withToken(Supplier<Credentials> tokenSupplier) {
         return new SubjectServiceGrpcClient(clientName, channel, tokenSupplier);
+    }
+
+    @Override
+    public SubjectServiceClient withIdempotencyKey(String idempotencyKey) {
+        return new SubjectServiceGrpcClient(
+            clientName,
+            channel,
+            GrpcUtils.withIdempotencyKey(
+                GrpcUtils.newBlockingClient(
+                    LzySubjectServiceGrpc.newBlockingStub(channel),
+                    clientName,
+                    () -> tokenSupplier.get().token()),
+                idempotencyKey),
+            tokenSupplier);
     }
 
     @Override

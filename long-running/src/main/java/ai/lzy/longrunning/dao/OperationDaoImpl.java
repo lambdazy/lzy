@@ -88,7 +88,6 @@ public class OperationDaoImpl implements OperationDao {
                 statement.setBoolean(7, operation.done());
 
                 var response = operation.response();
-
                 if (response != null) {
                     statement.setBytes(8, response.toByteArray());
                 } else {
@@ -96,7 +95,6 @@ public class OperationDaoImpl implements OperationDao {
                 }
 
                 var error = operation.error();
-
                 if (error != null) {
                     var status = Status.newBuilder().setCode(error.getCode().value());
                     String description = error.getDescription();

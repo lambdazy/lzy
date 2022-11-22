@@ -9,7 +9,7 @@ import jakarta.inject.Singleton;
 @Requires(property = "allocator.kuber-tunnel-allocator.enabled", value = "false", defaultValue = "false")
 public class DummyTunnelAllocator implements TunnelAllocator {
     @Override
-    public void allocateTunnel(Vm.Spec vmSpec) {
+    public String allocateTunnel(Vm.Spec vmSpec) {
         throw new UnsupportedOperationException(
             "ks8 tunnel allocator needs property allocator.kuber-tunnel-allocator.enabled=true"
         );
