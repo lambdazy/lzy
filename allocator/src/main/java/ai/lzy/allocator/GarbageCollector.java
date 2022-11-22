@@ -1,10 +1,10 @@
 package ai.lzy.allocator;
 
 import ai.lzy.allocator.alloc.VmAllocator;
-import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.alloc.dao.VmDao;
-import ai.lzy.allocator.storage.AllocatorDataSource;
+import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.model.Vm;
+import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.Storage;

@@ -1,11 +1,11 @@
 package ai.lzy.allocator;
 
 import ai.lzy.allocator.alloc.VmAllocator;
-import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.alloc.dao.VmDao;
-import ai.lzy.allocator.services.DiskService;
+import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.services.AllocatorPrivateService;
 import ai.lzy.allocator.services.AllocatorService;
+import ai.lzy.allocator.services.DiskService;
 import ai.lzy.allocator.services.VmPoolService;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
