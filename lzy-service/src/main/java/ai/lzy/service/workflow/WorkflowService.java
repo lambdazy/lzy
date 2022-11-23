@@ -21,6 +21,8 @@ import ai.lzy.service.data.PortalStatus;
 import ai.lzy.service.data.StorageType;
 import ai.lzy.service.data.dao.PortalDescription;
 import ai.lzy.service.data.dao.WorkflowDao;
+import ai.lzy.service.data.storage.LzyServiceStorage;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.AllocatorGrpc;
@@ -29,7 +31,6 @@ import ai.lzy.v1.VmPoolServiceApi;
 import ai.lzy.v1.VmPoolServiceGrpc;
 import ai.lzy.v1.channel.LCMPS;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
-import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub;
 import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
@@ -40,11 +41,14 @@ import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LWFS.*;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.Durations;
+import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.core.util.StringUtils;
 import jakarta.annotation.Nullable;
+import jakarta.inject.Named;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -64,8 +68,11 @@ import static ai.lzy.channelmanager.grpc.ProtoConverter.makeCreateDirectChannelC
 import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
+import static ai.lzy.service.LzyService.APP;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 
+@Singleton
 public class WorkflowService {
     public static boolean PEEK_RANDOM_PORTAL_PORTS = false;  // Only for tests
     private static final Logger LOG = LogManager.getLogger(WorkflowService.class);
@@ -95,16 +102,14 @@ public class WorkflowService {
     private final SubjectServiceGrpcClient subjectClient;
     private final AccessBindingServiceGrpcClient abClient;
 
-    private final Map<String, Queue<PortalSlotsListener>> listenersByExecution = new ConcurrentHashMap<>();
+    private final Map<String, Queue<PortalSlotsListener>> listeners2Execution = new ConcurrentHashMap<>();
 
-    public WorkflowService(LzyServiceConfig config, LzyChannelManagerPrivateBlockingStub channelManagerClient,
-                           AllocatorGrpc.AllocatorBlockingStub allocatorClient,
-                           LongRunningServiceGrpc.LongRunningServiceBlockingStub allocOperationService,
-                           SubjectServiceGrpcClient subjectClient, AccessBindingServiceGrpcClient abClient,
-                           LzyStorageServiceGrpc.LzyStorageServiceBlockingStub storageServiceClient,
-                           LongRunningServiceGrpc.LongRunningServiceBlockingStub storageOperationService,
-                           Storage storage, WorkflowDao workflowDao,
-                           VmPoolServiceGrpc.VmPoolServiceBlockingStub vmPoolClient)
+    public WorkflowService(LzyServiceConfig config, LzyServiceStorage storage, WorkflowDao workflowDao,
+                           @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
+                           @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
+                           @Named("StorageServiceChannel") ManagedChannel storageChannel,
+                           @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
+                           @Named("IamServiceChannel") ManagedChannel iamChannel)
     {
         allocationTimeout = config.getWaitAllocationTimeout();
         allocatorVmCacheTimeout = config.getAllocatorVmCacheTimeout();
@@ -114,20 +119,27 @@ public class WorkflowService {
         iamAddress = config.getIam().getAddress();
         whiteboardAddress = config.getWhiteboardAddress();
 
-        this.allocatorClient = allocatorClient;
-        this.allocOpService = allocOperationService;
+        this.allocatorClient = newBlockingClient(
+            AllocatorGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
+        this.vmPoolClient = newBlockingClient(
+            VmPoolServiceGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
+        this.allocOpService = newBlockingClient(
+            LongRunningServiceGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
 
-        this.storageServiceClient = storageServiceClient;
-        this.storageOpService = storageOperationService;
+        this.storageServiceClient = newBlockingClient(
+            LzyStorageServiceGrpc.newBlockingStub(storageChannel), APP, () -> internalUserCredentials.get().token());
+        this.storageOpService = newBlockingClient(
+            LongRunningServiceGrpc.newBlockingStub(storageChannel), APP, () -> internalUserCredentials.get().token());
 
-        this.channelManagerClient = channelManagerClient;
+        this.channelManagerClient = newBlockingClient(
+            LzyChannelManagerPrivateGrpc.newBlockingStub(channelManagerChannel), APP,
+            () -> internalUserCredentials.get().token());
 
-        this.subjectClient = subjectClient;
-        this.abClient = abClient;
+        this.subjectClient = new SubjectServiceGrpcClient(APP, iamChannel, internalUserCredentials::get);
+        this.abClient = new AccessBindingServiceGrpcClient(APP, iamChannel, internalUserCredentials::get);
 
         this.storage = storage;
         this.workflowDao = workflowDao;
-        this.vmPoolClient = vmPoolClient;
     }
 
     public void createWorkflow(CreateWorkflowRequest request, StreamObserver<CreateWorkflowResponse> response) {
@@ -223,9 +235,7 @@ public class WorkflowService {
             return;
         }
 
-        for (var listener : listenersByExecution.getOrDefault(request.getExecutionId(),
-            new ConcurrentLinkedQueue<>()))
-        {
+        for (var listener : listeners2Execution.getOrDefault(request.getExecutionId(), new ConcurrentLinkedQueue<>())) {
             listener.complete();
         }
 
@@ -565,7 +575,7 @@ public class WorkflowService {
             }
 
             var listener = new PortalSlotsListener(portalDesc.fsAddress(), portalDesc.portalId(), response);
-            listenersByExecution.computeIfAbsent(executionId, k -> new ConcurrentLinkedQueue<>()).add(listener);
+            listeners2Execution.computeIfAbsent(executionId, k -> new ConcurrentLinkedQueue<>()).add(listener);
 
         } catch (Exception e) {
             LOG.error("Error while reading std slots: ", e);

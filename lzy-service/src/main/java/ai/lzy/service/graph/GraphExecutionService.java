@@ -22,6 +22,8 @@ import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import jakarta.inject.Named;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -36,7 +38,9 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.service.LzyService.APP;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
+import static ai.lzy.v1.graph.GraphExecutorGrpc.newBlockingStub;
 
+@Singleton
 public class GraphExecutionService {
     private static final Logger LOG = LogManager.getLogger(GraphExecutionService.class);
 
@@ -52,20 +56,29 @@ public class GraphExecutionService {
 
     private final Map<String, ManagedChannel> portalChannelForExecution = new ConcurrentHashMap<>();
 
-    public GraphExecutionService(RenewableJwt internalUserCredentials,
-                                 WorkflowDao workflowDao, GraphDao graphDao, ExecutionDao executionDao,
-                                 VmPoolServiceGrpc.VmPoolServiceBlockingStub vmPoolClient,
-                                 GraphExecutorGrpc.GraphExecutorBlockingStub graphExecutorClient,
-                                 LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerClient)
+    public GraphExecutionService(GraphDao graphDao, WorkflowDao workflowDao, ExecutionDao executionDao,
+                                 @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
+                                 @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
+                                 @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
+                                 @Named("GraphExecutorServiceChannel") ManagedChannel graphExecutorChannel)
     {
         this.internalUserCredentials = internalUserCredentials;
 
         this.workflowDao = workflowDao;
         this.graphDao = graphDao;
 
-        this.graphExecutorClient = graphExecutorClient;
+        this.graphExecutorClient = newBlockingClient(
+            newBlockingStub(graphExecutorChannel), APP, () -> internalUserCredentials.get().token());
+
+        var vmPoolClient = newBlockingClient(
+            VmPoolServiceGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
 
         this.validator = new GraphValidator(executionDao, vmPoolClient);
+
+        var channelManagerClient = newBlockingClient(
+            LzyChannelManagerPrivateGrpc.newBlockingStub(channelManagerChannel), APP,
+            () -> internalUserCredentials.get().token());
+
         this.builder = new GraphBuilder(workflowDao, executionDao, channelManagerClient);
     }
 
@@ -141,12 +154,11 @@ public class GraphExecutionService {
             return;
         }
 
-
         try {
             withRetries(
                 defaultRetryPolicy(), LOG, () -> graphDao.save(new GraphDao.GraphDescription(
                     executeResponse.getStatus().getGraphId(), executionId, graphExecutionState.getPortalInputSlots()
-            )));
+                )));
         } catch (Exception e) {
             LOG.error("Cannot save portal slots", e);
             replyError.accept(Status.INTERNAL);
@@ -266,7 +278,7 @@ public class GraphExecutionService {
                 var allSynced = true;
                 var hasFailed = false;
 
-                for (var s: status.getSlotsList()) {
+                for (var s : status.getSlotsList()) {
                     if (s.getSnapshotStatus() == SnapshotSlotStatus.NOT_IN_SNAPSHOT) {
                         continue;
                     }

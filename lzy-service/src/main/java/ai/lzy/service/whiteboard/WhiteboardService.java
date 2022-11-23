@@ -1,28 +1,39 @@
 package ai.lzy.service.whiteboard;
 
 import ai.lzy.iam.grpc.context.AuthenticationContext;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.whiteboard.LWBPS;
 import ai.lzy.v1.whiteboard.LzyWhiteboardPrivateServiceGrpc;
 import ai.lzy.v1.workflow.LWFS.CreateWhiteboardRequest;
 import ai.lzy.v1.workflow.LWFS.CreateWhiteboardResponse;
 import ai.lzy.v1.workflow.LWFS.LinkWhiteboardRequest;
 import ai.lzy.v1.workflow.LWFS.LinkWhiteboardResponse;
+import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import jakarta.inject.Named;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import static ai.lzy.service.LzyService.APP;
 import static ai.lzy.service.whiteboard.ProtoConverter.newLWBPSCreateWhiteboardRequest;
 import static ai.lzy.service.whiteboard.ProtoConverter.newLWBPSLinkFieldRequest;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 
+@Singleton
 public class WhiteboardService {
     private static final Logger LOG = LogManager.getLogger(WhiteboardService.class);
 
     private final LzyWhiteboardPrivateServiceGrpc.LzyWhiteboardPrivateServiceBlockingStub client;
 
-    public WhiteboardService(LzyWhiteboardPrivateServiceGrpc.LzyWhiteboardPrivateServiceBlockingStub client) {
-        this.client = client;
+    public WhiteboardService(@Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
+                             @Named("WhiteboardServiceChannel") ManagedChannel whiteboardChannel)
+    {
+        this.client = newBlockingClient(
+            LzyWhiteboardPrivateServiceGrpc.newBlockingStub(whiteboardChannel), APP,
+            () -> internalUserCredentials.get().token());
     }
 
     public void createWhiteboard(CreateWhiteboardRequest request, StreamObserver<CreateWhiteboardResponse> response) {
