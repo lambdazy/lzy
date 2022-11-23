@@ -1,12 +1,9 @@
 package ai.lzy.allocator.test;
 
-import ai.lzy.allocator.alloc.impl.kuber.KuberLabels;
 import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
-import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
-import ai.lzy.test.TimeUtils;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
@@ -31,8 +28,6 @@ import org.junit.Test;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Map;
@@ -47,7 +42,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
 
-import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.*;
+import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.VM_POD_NAME_PREFIX;
 import static ai.lzy.allocator.test.Utils.waitOperation;
 import static ai.lzy.allocator.volume.KuberVolumeManager.KUBER_GB_NAME;
 import static ai.lzy.allocator.volume.KuberVolumeManager.VOLUME_CAPACITY_STORAGE_KEY;
@@ -56,16 +51,11 @@ import static ai.lzy.allocator.volume.Volume.AccessMode.READ_WRITE_ONCE;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static java.util.Objects.requireNonNull;
 
-public class AllocatorApiTest extends AllocatorApiTestBase {
+public class AllocatorServiceTest extends AllocatorApiTestBase {
 
     private static final int TIMEOUT_SEC = 300;
 
-    private static final String POD_PATH = "/api/v1/namespaces/%s/pods".formatted(NAMESPACE);
-    private static final String PERSISTENT_VOLUME_PATH = "/api/v1/persistentvolumes";
-    private static final String PERSISTENT_VOLUME_CLAIM_PATH = "/api/v1/namespaces/%s/persistentvolumeclaims"
-        .formatted(NAMESPACE);
     private static final String ZONE = "test-zone";
-    private static final ClusterRegistry.ClusterType CLUSTER_TYPE = ClusterRegistry.ClusterType.User;
 
 
     @Before
@@ -133,6 +123,7 @@ public class AllocatorApiTest extends AllocatorApiTestBase {
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
                 .setZone(ZONE)
+                .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                 .build());
         final VmAllocatorApi.AllocateMetadata allocateMetadata =
             operation.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
@@ -157,6 +148,7 @@ public class AllocatorApiTest extends AllocatorApiTestBase {
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
                 .setZone(ZONE)
+                .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                 .build());
 
         final String podName = future.get();
@@ -179,6 +171,7 @@ public class AllocatorApiTest extends AllocatorApiTestBase {
                     .setSessionId(sessionId)
                     .setPoolLabel("LABEL")
                     .setZone(ZONE)
+                    .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                     .build()),
             Status.INVALID_ARGUMENT);
     }
@@ -192,6 +185,7 @@ public class AllocatorApiTest extends AllocatorApiTestBase {
                     AllocateRequest.newBuilder()
                         .setSessionId(UUID.randomUUID().toString())
                         .setPoolLabel("S")
+                        .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                         .build()),
                 TIMEOUT_SEC
             );
@@ -220,6 +214,7 @@ public class AllocatorApiTest extends AllocatorApiTestBase {
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
                 .setZone(ZONE)
+                .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                 .build());
         Assert.assertFalse(allocOp.getDone());
         var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
@@ -274,6 +269,7 @@ public class AllocatorApiTest extends AllocatorApiTestBase {
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
                 .setZone(ZONE)
+                .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                 .build());
         Assert.assertTrue(allocOp.getDone());
 
@@ -307,6 +303,7 @@ public class AllocatorApiTest extends AllocatorApiTestBase {
                             .setSessionId(sessionId)
                             .setPoolLabel("S")
                             .setZone(ZONE)
+                            .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                             .build());
 
                     var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
@@ -349,7 +346,7 @@ public class AllocatorApiTest extends AllocatorApiTestBase {
                 kuberRemoveRequestLatch.countDown();
                 mockDeletePod(vm.podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
             },
-            HttpURLConnection.HTTP_INTERNAL_ERROR /* fail first remove request */));
+            HttpURLConnection.HTTP_INTERNAL_ERROR /* fail the first remove request */));
 
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
 
@@ -359,7 +356,7 @@ public class AllocatorApiTest extends AllocatorApiTestBase {
 
     @Test
     public void allocateFromCache() throws Exception {
-        var sessionId = createSession(Durations.fromSeconds(5000));
+        var sessionId = createSession(Durations.fromSeconds(10));
 
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
 
@@ -371,6 +368,7 @@ public class AllocatorApiTest extends AllocatorApiTestBase {
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
                 .setZone(ZONE)
+                .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                 .build());
         var allocateMetadataSecond = operationSecond.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
         operationSecond = waitOpSuccess(operationSecond);
@@ -423,6 +421,7 @@ public class AllocatorApiTest extends AllocatorApiTestBase {
                             .setSessionId(sessionId)
                             .setPoolLabel("S")
                             .setZone(ZONE)
+                            .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                             .build());
                     allocOp = waitOpSuccess(allocOp);
 
@@ -456,6 +455,7 @@ public class AllocatorApiTest extends AllocatorApiTestBase {
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
                 .setZone(ZONE)
+                .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                 .build());
         var allocateMetadata = allocate.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
 
@@ -490,6 +490,7 @@ public class AllocatorApiTest extends AllocatorApiTestBase {
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
                 .setZone(ZONE)
+                .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                 .build());
         var allocateMetadata = allocate.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
 
@@ -560,6 +561,7 @@ public class AllocatorApiTest extends AllocatorApiTestBase {
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
                 .setZone(ZONE)
+                .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                 .build());
         var allocateMetadata = allocate.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
 
@@ -721,26 +723,6 @@ public class AllocatorApiTest extends AllocatorApiTestBase {
         }
     }
 
-    private void mockGetPod(String podName) {
-        final Pod pod = new Pod();
-        pod.setMetadata(
-            new ObjectMetaBuilder()
-                .withName(podName)
-                .withLabels(
-                    Map.of(
-                        KuberLabels.LZY_VM_ID_LABEL, podName.substring(VM_POD_NAME_PREFIX.length())))
-                .build()
-        );
-        pod.setSpec(new PodSpecBuilder()
-            .withNodeName("node")
-            .build());
-        kubernetesServer.expect().get()
-            .withPath(POD_PATH + "?labelSelector=" +
-                URLEncoder.encode(KuberLabels.LZY_POD_NAME_LABEL + "=" + podName, StandardCharsets.UTF_8))
-            .andReturn(HttpURLConnection.HTTP_OK, new PodListBuilder().withItems(pod).build())
-            .always();
-    }
-
     private <T> Future<T> awaitResourceCreate(Class<T> resourceType, String resourcePath) {
         final var future = new CompletableFuture<T>();
         kubernetesServer.expect().post()
@@ -789,39 +771,5 @@ public class AllocatorApiTest extends AllocatorApiTestBase {
             }).once();
     }
 
-    private void registerVm(String vmId, String clusterId) {
-        TimeUtils.waitFlagUp(() -> {
-            try {
-                //noinspection ResultOfMethodCallIgnored
-                privateAllocatorBlockingStub.register(
-                    VmAllocatorPrivateApi.RegisterRequest.newBuilder()
-                        .setVmId(vmId)
-                        .putMetadata(NAMESPACE_KEY, NAMESPACE)
-                        .putMetadata(CLUSTER_ID_KEY, clusterId)
-                        .build()
-                );
-                return true;
-            } catch (StatusRuntimeException e) {
-                if (e.getStatus().getCode() == Status.Code.FAILED_PRECONDITION) {
-                    return false;
-                }
-                throw new RuntimeException(e);
-            }
-        }, TIMEOUT_SEC, TimeUnit.SECONDS);
-    }
 
-    private Operation waitOpSuccess(Operation operation) {
-        var updatedOperation = waitOperation(operationServiceApiBlockingStub, operation, TIMEOUT_SEC);
-        Assert.assertTrue(updatedOperation.hasResponse());
-        Assert.assertFalse(updatedOperation.hasError());
-        Assert.assertTrue(updatedOperation.getDone());
-        return updatedOperation;
-    }
-
-    private void waitOpError(Operation operation, Status expectedErrorStatus) {
-        var updatedOperation = waitOperation(operationServiceApiBlockingStub, operation, TIMEOUT_SEC);
-        Assert.assertFalse(updatedOperation.hasResponse());
-        Assert.assertTrue(updatedOperation.hasError());
-        Assert.assertEquals(expectedErrorStatus.getCode().value(), updatedOperation.getError().getCode());
-    }
 }

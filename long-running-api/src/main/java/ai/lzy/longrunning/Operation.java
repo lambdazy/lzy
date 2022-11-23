@@ -80,6 +80,10 @@ public class Operation {
         this.response = response;
     }
 
+    public void setResponse(Message response) {
+        setResponse(Any.pack(response));
+    }
+
     public void setError(Status error) {
         modifiedAt = Instant.now();
         done = true;
@@ -89,6 +93,10 @@ public class Operation {
     public void modifyMeta(Any meta) {
         modifiedAt = Instant.now();
         this.meta = meta;
+    }
+
+    public void modifyMeta(Message meta) {
+        modifyMeta(Any.pack(meta));
     }
 
     public LongRunning.Operation toProto() {

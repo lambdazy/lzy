@@ -3,8 +3,8 @@ allocator:
     url: 'embedded-postgres'
     username: 'test'
     password: ''
-    min-pool-size: 1
-    max-pool-size: 2
+    min-pool-size: 3
+    max-pool-size: 5
     enabled: true
 
   iam:
@@ -71,8 +71,8 @@ scheduler:
     url: 'embedded-postgres'
     username: 'test'
     password: ''
-    min-pool-size: 1
-    max-pool-size: 1
+    min-pool-size: 3
+    max-pool-size: 5
     enabled: true
 
   servant-processor:
@@ -120,8 +120,8 @@ graph-executor:
     url: 'embedded-postgres'
     username: 'test'
     password: ''
-    min-pool-size: 1
-    max-pool-size: 1
+    min-pool-size: 3
+    max-pool-size: 5
     enabled: true
 
   auth:
@@ -195,5 +195,5 @@ channel-manager:
     username: "test"
     password: ""
     enabled: true
-    min-pool-size: 1
+    min-pool-size: 3
     max-pool-size: 5

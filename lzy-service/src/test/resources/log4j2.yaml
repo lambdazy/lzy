@@ -16,10 +16,16 @@ Configuration:
 
     Logger:
       - name: GrpcServer
-        level: trace
+        level: warn
 
       - name: GrpcClient
-        level: trace
+        level: warn
 
       - name: io.zonky.test
+        level: warn
+
+      - name: ai.lzy.iam
+        level: warn
+
+      - name: org.flywaydb
         level: warn

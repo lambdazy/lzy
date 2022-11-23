@@ -1,6 +1,6 @@
 package ai.lzy.allocator.test;
 
-import ai.lzy.allocator.dao.impl.SessionDaoImpl;
+import ai.lzy.allocator.alloc.dao.impl.SessionDaoImpl;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
@@ -23,7 +23,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class AllocatorApiSessionsTests extends AllocatorApiTestBase {
+public class AllocatorServiceSessionsTests extends AllocatorApiTestBase {
 
     @Before
     public void before() throws IOException {
