@@ -147,64 +147,62 @@ public class DbSubjectService {
     private String insertSubject(AuthProvider authProvider, String providerSubjectId, SubjectType subjectType,
                                  String requestHash, String subjectId, Connection connect) throws SQLException
     {
-        var statement = connect.prepareStatement(QUERY_INSERT_SUBJECT_IF_NOT_EXISTS_AND_RETURN_STORED);
+        try (var upsertSt = connect.prepareStatement(QUERY_INSERT_SUBJECT_IF_NOT_EXISTS_AND_RETURN_STORED)) {
+            upsertSt.setString(1, subjectId);
+            upsertSt.setString(2, authProvider.name());
+            upsertSt.setString(3, providerSubjectId);
+            upsertSt.setString(4, accessTypeForNewUser(connect).toString());
+            upsertSt.setString(5, subjectType.name());
+            upsertSt.setString(6, requestHash);
 
-        statement.setString(1, subjectId);
-        statement.setString(2, authProvider.name());
-        statement.setString(3, providerSubjectId);
-        statement.setString(4, accessTypeForNewUser(connect).toString());
-        statement.setString(5, subjectType.name());
-        statement.setString(6, requestHash);
+            ResultSet rs = upsertSt.executeQuery();
 
-        ResultSet rs = statement.executeQuery();
+            if (rs.next()) {
+                var actualRequestHash = rs.getString("request_hash");
 
-        if (rs.next()) {
-            var actualRequestHash = rs.getString("request_hash");
+                // insert query may return tuple with null values if multiple concurrent queries occur
+                // in this case just select tuple directly
+                if (actualRequestHash == null) {
+                    try (var selectSt = connect.prepareStatement(QUERY_SELECT_SUBJECT)) {
+                        selectSt.setString(1, authProvider.name());
+                        selectSt.setString(2, providerSubjectId);
+                        rs = selectSt.executeQuery();
+                    }
+                }
 
-            // insert query may return tuple with null values if multiple concurrent queries occur
-            // in this case just select tuple directly
-            if (actualRequestHash == null) {
-                statement.close();
+                actualRequestHash = rs.getString("request_hash");
 
-                statement = connect.prepareStatement(QUERY_SELECT_SUBJECT);
+                if (!requestHash.equals(actualRequestHash)) {
+                    throw new AuthUniqueViolationException(String.format("Subject with auth_provider '%s' and " +
+                        "provider_user_id '%s' already exists", authProvider.name(), providerSubjectId));
+                }
 
-                statement.setString(1, authProvider.name());
-                statement.setString(2, providerSubjectId);
-
-                rs = statement.executeQuery();
+                return rs.getString("user_id");
+            } else {
+                throw new RuntimeException("Empty result set");
             }
-
-            actualRequestHash = rs.getString("request_hash");
-
-            if (!requestHash.equals(actualRequestHash)) {
-                throw new AuthUniqueViolationException(String.format("Subject with auth_provider '%s' and " +
-                    "provider_user_id '%s' already exists", authProvider.name(), providerSubjectId));
-            }
-
-            return rs.getString("user_id");
-        } else {
-            throw new RuntimeException("Empty result set");
         }
     }
 
     private void insertCredentials(String subjectId, List<SubjectCredentials> credentials, Connection conn)
         throws SQLException
     {
-        var addCredentialsSt = conn.prepareStatement(QUERY_INSERT_CREDENTIALS);
+        try (var insertSt = conn.prepareStatement(QUERY_INSERT_CREDENTIALS)) {
+            for (var creds : credentials) {
+                var expiredAtTimestamp = (creds.expiredAt() != null)
+                    ? Timestamp.from(creds.expiredAt().truncatedTo(ChronoUnit.SECONDS))
+                    : null;
 
-        for (var creds : credentials) {
-            var expiredAtTimestamp = (creds.expiredAt() != null)
-                ? Timestamp.from(creds.expiredAt().truncatedTo(ChronoUnit.SECONDS))
-                : null;
+                addCredentialsDataToStatement(insertSt, creds.name(), creds.value(), subjectId,
+                    creds.type().name(),
+                    expiredAtTimestamp);
 
-            addCredentialsDataToStatement(addCredentialsSt, creds.name(), creds.value(), subjectId, creds.type().name(),
-                expiredAtTimestamp);
+                insertSt.addBatch();
+                insertSt.clearParameters();
+            }
 
-            addCredentialsSt.addBatch();
-            addCredentialsSt.clearParameters();
+            insertSt.executeBatch();
         }
-
-        addCredentialsSt.executeBatch();
     }
 
     public void addCredentials(Subject subject, SubjectCredentials credentials) throws AuthException {
@@ -212,17 +210,17 @@ public class DbSubjectService {
             defaultRetryPolicy(),
             LOG,
             () -> {
-                try (var conn = storage.connect()) {
-                    var st = conn.prepareStatement(QUERY_INSERT_CREDENTIALS_IF_NOT_EXISTS_AND_RETURN_STORED);
-
+                try (var conn = storage.connect();
+                     var upsertSt = conn.prepareStatement(QUERY_INSERT_CREDENTIALS_IF_NOT_EXISTS_AND_RETURN_STORED))
+                {
                     var expiredAt = (credentials.expiredAt() != null)
                         ? Timestamp.from(credentials.expiredAt().truncatedTo(ChronoUnit.SECONDS))
                         : null;
 
-                    addCredentialsDataToStatement(st, credentials.name(), credentials.value(), subject.id(),
+                    addCredentialsDataToStatement(upsertSt, credentials.name(), credentials.value(), subject.id(),
                         credentials.type().name(), expiredAt);
 
-                    ResultSet rs = st.executeQuery();
+                    ResultSet rs = upsertSt.executeQuery();
 
                     if (rs.next()) {
                         var actualValue = rs.getString("value");
@@ -230,14 +228,11 @@ public class DbSubjectService {
                         // insert query may return tuple with null values if multiple concurrent queries occur
                         // in this case just select tuple directly
                         if (actualValue == null) {
-                            st.close();
-
-                            st = conn.prepareStatement(QUERY_SELECT_CREDENTIALS);
-
-                            st.setString(1, credentials.name());
-                            st.setString(2, subject.id());
-
-                            rs = st.executeQuery();
+                            try (var selectSt = conn.prepareStatement(QUERY_SELECT_CREDENTIALS)) {
+                                selectSt.setString(1, credentials.name());
+                                selectSt.setString(2, subject.id());
+                                rs = selectSt.executeQuery();
+                            }
                         }
 
                         actualValue = rs.getString("value");
