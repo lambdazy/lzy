@@ -34,6 +34,11 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 public class DbSubjectService {
     private static final Logger LOG = LogManager.getLogger(DbSubjectService.class);
 
+    public static final String QUERY_SELECT_SUBJECT = """
+        SELECT user_id, request_hash
+        FROM users
+        WHERE auth_provider = ? AND provider_user_id = ?""";
+
     public static final String QUERY_INSERT_SUBJECT_IF_NOT_EXISTS_AND_RETURN_STORED = """
         WITH
             row_to_insert (user_id, auth_provider, provider_user_id, access_type, user_type, request_hash)
@@ -59,6 +64,11 @@ public class DbSubjectService {
     private static final String QUERY_INSERT_CREDENTIALS = """
         INSERT INTO credentials (name, value, user_id, type, expired_at)
         VALUES (?, ?, ?, ?, ?)""";
+
+    private static final String QUERY_SELECT_CREDENTIALS = """
+        SELECT value, type, expired_at
+        FROM credentials
+        WHERE name = ? AND user_id = ?""";
 
     private static final String QUERY_INSERT_CREDENTIALS_IF_NOT_EXISTS_AND_RETURN_STORED = """
         WITH
@@ -146,16 +156,34 @@ public class DbSubjectService {
         statement.setString(6, requestHash);
 
         ResultSet rs = statement.executeQuery();
-        rs.next();
 
-        var actualRequestHash = rs.getString("request_hash");
+        if (rs.next()) {
+            var actualRequestHash = rs.getString("request_hash");
 
-        if (!requestHash.contentEquals(actualRequestHash)) {
-            throw new AuthUniqueViolationException(String.format("Subject with auth_provider '%s' and " +
-                "provider_user_id '%s' already exists", authProvider.name(), providerSubjectId));
+            // insert query may return tuple with null values if multiple concurrent queries occur
+            // in this case just select tuple directly
+            if (actualRequestHash == null) {
+                statement.close();
+
+                statement = connect.prepareStatement(QUERY_SELECT_SUBJECT);
+
+                statement.setString(1, authProvider.name());
+                statement.setString(2, providerSubjectId);
+
+                rs = statement.executeQuery();
+            }
+
+            actualRequestHash = rs.getString("request_hash");
+
+            if (!requestHash.contentEquals(actualRequestHash)) {
+                throw new AuthUniqueViolationException(String.format("Subject with auth_provider '%s' and " +
+                    "provider_user_id '%s' already exists", authProvider.name(), providerSubjectId));
+            }
+
+            return rs.getString("user_id");
+        } else {
+            throw new RuntimeException("Empty result set");
         }
-
-        return rs.getString("user_id");
     }
 
     private void insertCredentials(String subjectId, List<SubjectCredentials> credentials, Connection conn)
@@ -194,17 +222,35 @@ public class DbSubjectService {
                         credentials.type().name(), expiredAt);
 
                     ResultSet rs = st.executeQuery();
-                    rs.next();
 
-                    var actualValue = rs.getString("value");
-                    var actualType = CredentialsType.valueOf(rs.getString("type"));
-                    var actualExpiredAt = rs.getTimestamp("expired_at");
+                    if (rs.next()) {
+                        var actualValue = rs.getString("value");
 
-                    if (!credentials.value().contentEquals(actualValue) || credentials.type() != actualType
-                        || !Objects.equals(expiredAt, actualExpiredAt))
-                    {
-                        throw new AuthUniqueViolationException(String.format("Credentials name '%s' is already " +
-                            "used for another user '%s' credentials", credentials.name(), subject.id()));
+                        // insert query may return tuple with null values if multiple concurrent queries occur
+                        // in this case just select tuple directly
+                        if (actualValue == null) {
+                            st.close();
+
+                            st = conn.prepareStatement(QUERY_SELECT_CREDENTIALS);
+
+                            st.setString(1, credentials.name());
+                            st.setString(2, subject.id());
+
+                            rs = st.executeQuery();
+                        }
+
+                        actualValue = rs.getString("value");
+                        var actualType = CredentialsType.valueOf(rs.getString("type"));
+                        var actualExpiredAt = rs.getTimestamp("expired_at");
+
+                        if (!credentials.value().contentEquals(actualValue) || credentials.type() != actualType
+                            || !Objects.equals(expiredAt, actualExpiredAt))
+                        {
+                            throw new AuthUniqueViolationException(String.format("Credentials name '%s' is already " +
+                                "used for another user '%s' credentials", credentials.name(), subject.id()));
+                        }
+                    } else {
+                        throw new RuntimeException("Result set is empty");
                     }
                 }
             },
