@@ -1,5 +1,6 @@
 package ai.lzy.service.graph;
 
+import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.GraphDao;
@@ -48,6 +49,7 @@ public class GraphExecutionService {
 
     private final WorkflowDao workflowDao;
     private final GraphDao graphDao;
+    private final OperationDao operationDao;
 
     private final GraphExecutorGrpc.GraphExecutorBlockingStub graphExecutorClient;
 
@@ -57,6 +59,7 @@ public class GraphExecutionService {
     private final Map<String, ManagedChannel> portalChannelForExecution = new ConcurrentHashMap<>();
 
     public GraphExecutionService(GraphDao graphDao, WorkflowDao workflowDao, ExecutionDao executionDao,
+                                 @Named("LzyServiceOperationDao") OperationDao operationDao,
                                  @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
                                  @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
                                  @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
@@ -66,6 +69,7 @@ public class GraphExecutionService {
 
         this.workflowDao = workflowDao;
         this.graphDao = graphDao;
+        this.operationDao = operationDao;
 
         this.graphExecutorClient = newBlockingClient(
             newBlockingStub(graphExecutorChannel), APP, () -> internalUserCredentials.get().token());

@@ -57,7 +57,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
     @PreDestroy
     public void shutdown() {
-        LOG.info("Shutdown WorkflowService.");
+        LOG.info("Shutdown LzyService.");
         GrpcChannels.awaitTermination(allocatorServiceChannel, Duration.ofSeconds(10), getClass());
         GrpcChannels.awaitTermination(storageServiceChannel, Duration.ofSeconds(10), getClass());
         GrpcChannels.awaitTermination(channelManagerChannel, Duration.ofSeconds(10), getClass());

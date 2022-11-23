@@ -1,6 +1,9 @@
 package ai.lzy.service;
 
+import ai.lzy.longrunning.dao.OperationDao;
+import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.service.config.LzyServiceConfig;
+import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmPoolServiceGrpc;
@@ -14,6 +17,7 @@ import ai.lzy.v1.whiteboard.LzyWhiteboardPrivateServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
+import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 
@@ -73,5 +77,12 @@ public class BeanFactory {
     @Named("LzyServiceIamToken")
     public RenewableJwt renewableIamToken(LzyServiceConfig config) {
         return config.getIam().createRenewableToken();
+    }
+
+    @Singleton
+    @Requires(beans = LzyServiceStorage.class)
+    @Named("LzyServiceOperationDao")
+    public OperationDao operationDao(LzyServiceStorage storage) {
+        return new OperationDaoImpl(storage);
     }
 }

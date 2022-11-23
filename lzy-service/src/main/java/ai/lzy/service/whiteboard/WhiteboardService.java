@@ -1,6 +1,7 @@
 package ai.lzy.service.whiteboard;
 
 import ai.lzy.iam.grpc.context.AuthenticationContext;
+import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.whiteboard.LWBPS;
 import ai.lzy.v1.whiteboard.LzyWhiteboardPrivateServiceGrpc;
@@ -27,10 +28,13 @@ public class WhiteboardService {
     private static final Logger LOG = LogManager.getLogger(WhiteboardService.class);
 
     private final LzyWhiteboardPrivateServiceGrpc.LzyWhiteboardPrivateServiceBlockingStub client;
+    private final OperationDao operationDao;
 
     public WhiteboardService(@Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
+                             @Named("LzyServiceOperationDao") OperationDao operationDao,
                              @Named("WhiteboardServiceChannel") ManagedChannel whiteboardChannel)
     {
+        this.operationDao = operationDao;
         this.client = newBlockingClient(
             LzyWhiteboardPrivateServiceGrpc.newBlockingStub(whiteboardChannel), APP,
             () -> internalUserCredentials.get().token());
