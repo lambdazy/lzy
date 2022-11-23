@@ -31,11 +31,12 @@ public class DbAccessBindingClient {
 
     public Stream<AccessBinding> listAccessBindings(AuthResource resource) throws AuthException {
         List<AccessBinding> bindings = new ArrayList<>();
-        try (final PreparedStatement st = storage.connect()
-                .prepareStatement("SELECT * FROM user_resource_roles " + "WHERE resource_id = ? ")) {
+        try (var conn = storage.connect();
+             var selectSt = conn.prepareStatement("SELECT * FROM user_resource_roles WHERE resource_id = ? "))
+        {
             int parameterIndex = 0;
-            st.setString(++parameterIndex, resource.resourceId());
-            final ResultSet rs = st.executeQuery();
+            selectSt.setString(++parameterIndex, resource.resourceId());
+            final ResultSet rs = selectSt.executeQuery();
             while (rs.next()) {
                 bindings.add(toAccessBinding(ResourceBinding.fromResultSet(rs)));
             }
@@ -51,22 +52,24 @@ public class DbAccessBindingClient {
             for (AccessBinding ignored : accessBinding) {
                 query.append(insertQuery());
             }
-            final PreparedStatement st = connection.prepareStatement(query.toString());
-            int parameterIndex = 0;
-            for (AccessBinding binding : accessBinding) {
-                st.setString(++parameterIndex, binding.subject().id());
-                st.setString(++parameterIndex, resource.resourceId());
-                st.setString(++parameterIndex, resource.type());
-                st.setString(++parameterIndex, binding.role().value());
+            try (final PreparedStatement st = connection.prepareStatement(query.toString())) {
+                int parameterIndex = 0;
+                for (AccessBinding binding : accessBinding) {
+                    st.setString(++parameterIndex, binding.subject().id());
+                    st.setString(++parameterIndex, resource.resourceId());
+                    st.setString(++parameterIndex, resource.type());
+                    st.setString(++parameterIndex, binding.role().value());
+                }
+                st.executeUpdate();
             }
-            st.executeUpdate();
         } catch (SQLException e) {
             throw new AuthInternalException(e);
         }
     }
 
     public void updateAccessBindings(AuthResource resource, List<AccessBindingDelta> accessBindingDeltas)
-            throws AuthException {
+        throws AuthException
+    {
         try (final Connection connection = storage.connect()) {
             StringBuilder query = new StringBuilder();
             for (AccessBindingDelta binding : accessBindingDeltas) {
@@ -78,27 +81,27 @@ public class DbAccessBindingClient {
                     throw new RuntimeException("Unknown bindingDelta action:: " + binding.action());
                 }
             }
-            final PreparedStatement st = connection.prepareStatement(query.toString());
-            int parameterIndex = 0;
-            for (AccessBindingDelta binding : accessBindingDeltas) {
-                if (binding.action() == AccessBindingAction.ADD) {
-                    st.setString(++parameterIndex, binding.binding().subject().id());
-                    st.setString(++parameterIndex, resource.resourceId());
-                    st.setString(++parameterIndex, resource.type());
-                    st.setString(++parameterIndex, binding.binding().role().value());
-                } else if (binding.action() == AccessBindingAction.REMOVE) {
-                    st.setString(++parameterIndex, binding.binding().subject().id());
-                    st.setString(++parameterIndex, binding.binding().role().value());
-                    st.setString(++parameterIndex, resource.resourceId());
-                } else {
-                    throw new RuntimeException("Unknown bindingDelta action:: " + binding.action());
+            try (final PreparedStatement st = connection.prepareStatement(query.toString())) {
+                int parameterIndex = 0;
+                for (AccessBindingDelta binding : accessBindingDeltas) {
+                    if (binding.action() == AccessBindingAction.ADD) {
+                        st.setString(++parameterIndex, binding.binding().subject().id());
+                        st.setString(++parameterIndex, resource.resourceId());
+                        st.setString(++parameterIndex, resource.type());
+                        st.setString(++parameterIndex, binding.binding().role().value());
+                    } else if (binding.action() == AccessBindingAction.REMOVE) {
+                        st.setString(++parameterIndex, binding.binding().subject().id());
+                        st.setString(++parameterIndex, binding.binding().role().value());
+                        st.setString(++parameterIndex, resource.resourceId());
+                    } else {
+                        throw new RuntimeException("Unknown bindingDelta action:: " + binding.action());
+                    }
                 }
+                st.executeUpdate();
             }
-            st.executeUpdate();
         } catch (SQLException e) {
             throw new AuthInternalException(e);
         }
-
     }
 
     private AccessBinding toAccessBinding(ResourceBinding model) {
@@ -111,8 +114,8 @@ public class DbAccessBindingClient {
 
     private String insertQuery() {
         return "INSERT INTO user_resource_roles"
-                + " (user_id, resource_id, resource_type, role) values ("
-                + "?, ?, ?, ?"
-                + ") ON CONFLICT DO NOTHING; ";
+            + " (user_id, resource_id, resource_type, role) values ("
+            + "?, ?, ?, ?"
+            + ") ON CONFLICT DO NOTHING; ";
     }
 }

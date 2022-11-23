@@ -4,6 +4,7 @@ import ai.lzy.iam.configs.InternalUserConfig;
 import ai.lzy.iam.resources.Role;
 import ai.lzy.iam.resources.impl.Root;
 import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.utils.UserVerificationType;
 import ai.lzy.model.db.Transaction;
 import ai.lzy.model.db.exceptions.DaoException;
@@ -30,60 +31,70 @@ public class InternalUserInserter {
         try {
             LOG.info("Insert Internal user::{} with keyType::{}", config.userName(), config.credentialType());
             Transaction.execute(storage, connection -> {
-                var st = connection.prepareStatement("""
-                    INSERT INTO users (user_id, auth_provider, provider_user_id, access_type)
-                    VALUES (?, ?, ?, ?)
+                try (var upsertUserSt = connection.prepareStatement("""
+                    INSERT INTO users (user_id, auth_provider, provider_user_id, access_type, user_type, request_hash)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     ON CONFLICT DO NOTHING""");
-                st.setString(1, config.userName()); // TODO: random id?
-                st.setString(2, AuthProvider.INTERNAL.name());
-                st.setString(3, config.userName());
-                st.setString(4, UserVerificationType.ACCESS_ALLOWED.toString());
-                st.executeUpdate();
+                     var selectSt = connection.prepareStatement("""
+                         SELECT name, value, user_id, type
+                         FROM credentials
+                         WHERE name = ? AND user_id = ?
+                         FOR UPDATE""");
+                     var upsertRoleSt = connection.prepareStatement("""
+                         INSERT INTO user_resource_roles (user_id, resource_id, resource_type, role)
+                         VALUES (?, ?, ?, ?)
+                         ON CONFLICT DO NOTHING"""))
+                {
+                    upsertUserSt.setString(1, config.userName());
+                    upsertUserSt.setString(2, AuthProvider.INTERNAL.name());
+                    upsertUserSt.setString(3, config.userName());
+                    upsertUserSt.setString(4, UserVerificationType.ACCESS_ALLOWED.toString());
+                    upsertUserSt.setString(5, SubjectType.USER.name());
+                    upsertUserSt.setString(6, "internal-user-hash");
+                    upsertUserSt.executeUpdate();
 
-                // H2 doesn't support `INSERT ... ON CONFLICT DO UPDATE ...`,
-                // Postgres doesn't support (until PostgreSQL 15) `MERGE`,
-                // so do it manually...
-                st = connection.prepareStatement("""
-                    SELECT name, value, user_id, type
-                    FROM credentials
-                    WHERE name = ? AND user_id = ?
-                    FOR UPDATE""");
-                st.setString(1, config.credentialName());
-                st.setString(2, config.userName());
-                var rs = st.executeQuery();
-                if (rs.next()) {
-                    st = connection.prepareStatement("""
-                        UPDATE credentials
-                        SET value = ?, type = ?
-                        WHERE name = ? AND user_id = ?""");
-                    st.setString(1, config.credentialValue());
-                    st.setString(2, config.credentialType());
-                    st.setString(3, config.credentialName());
-                    st.setString(4, config.userName());
-                    st.executeUpdate();
-                } else {
-                    st = connection.prepareStatement("""                
-                        INSERT INTO credentials (name, value, user_id, type)
-                        VALUES (?, ?, ?, ?)
-                        ON CONFLICT DO NOTHING""");
-                    st.setString(1, config.credentialName());
-                    st.setString(2, config.credentialValue());
-                    st.setString(3, config.userName());
-                    st.setString(4, config.credentialType());
-                    st.executeUpdate();
+                    // H2 doesn't support `INSERT ... ON CONFLICT DO UPDATE ...`,
+                    // Postgres doesn't support (until PostgreSQL 15) `MERGE`,
+                    // so do it manually...
+                    ;
+                    selectSt.setString(1, config.credentialName());
+                    selectSt.setString(2, config.userName());
+                    var rs = selectSt.executeQuery();
+
+                    if (rs.next()) {
+                        try (var updateSt = connection.prepareStatement("""
+                            UPDATE credentials
+                            SET value = ?, type = ?
+                            WHERE name = ? AND user_id = ?"""))
+                        {
+                            updateSt.setString(1, config.credentialValue());
+                            updateSt.setString(2, config.credentialType());
+                            updateSt.setString(3, config.credentialName());
+                            updateSt.setString(4, config.userName());
+                            updateSt.executeUpdate();
+                        }
+                    } else {
+                        try (var insertCredsSt = connection.prepareStatement("""                
+                            INSERT INTO credentials (name, value, user_id, type)
+                            VALUES (?, ?, ?, ?)
+                            ON CONFLICT DO NOTHING"""))
+                        {
+                            insertCredsSt.setString(1, config.credentialName());
+                            insertCredsSt.setString(2, config.credentialValue());
+                            insertCredsSt.setString(3, config.userName());
+                            insertCredsSt.setString(4, config.credentialType());
+                            insertCredsSt.executeUpdate();
+                        }
+                    }
+
+                    upsertRoleSt.setString(1, config.userName());
+                    upsertRoleSt.setString(2, Root.INSTANCE.resourceId());
+                    upsertRoleSt.setString(3, Root.INSTANCE.type());
+                    upsertRoleSt.setString(4, Role.LZY_INTERNAL_USER.value());
+                    upsertRoleSt.executeUpdate();
+
+                    return true;
                 }
-
-                st = connection.prepareStatement("""
-                    INSERT INTO user_resource_roles (user_id, resource_id, resource_type, role)
-                    VALUES (?, ?, ?, ?)
-                    ON CONFLICT DO NOTHING""");
-                st.setString(1, config.userName());
-                st.setString(2, Root.INSTANCE.resourceId());
-                st.setString(3, Root.INSTANCE.type());
-                st.setString(4, Role.LZY_INTERNAL_USER.value());
-                st.executeUpdate();
-
-                return true;
             });
         } catch (DaoException e) {
             throw new RuntimeException(e);

@@ -8,6 +8,7 @@ import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.storage.impl.DbAccessClient;
 import ai.lzy.iam.storage.impl.DbSubjectService;
+import ai.lzy.iam.utils.IdempotencyUtils;
 import ai.lzy.iam.utils.ProtoConverter;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
@@ -51,7 +52,8 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
                     SubjectType.valueOf(request.getType()),
                     request.getCredentialsList().stream()
                         .map(ProtoConverter::to)
-                        .toList()
+                        .toList(),
+                    IdempotencyUtils.md5(request)
                 );
 
                 response.onNext(ProtoConverter.from(subject));
