@@ -46,7 +46,8 @@ public class DbSubjectService {
             attempt_to_insert AS
             (
                 INSERT INTO users (user_id, auth_provider, provider_user_id, access_type, user_type, request_hash)
-                SELECT * FROM row_to_insert
+                SELECT user_id, auth_provider, provider_user_id, access_type, user_type, request_hash 
+                FROM row_to_insert
                 ON CONFLICT (auth_provider, provider_user_id) DO NOTHING
                 RETURNING user_id, auth_provider, provider_user_id, access_type, user_type, request_hash
             )
@@ -131,7 +132,7 @@ public class DbSubjectService {
                     var actualSubjectId = insertSubject(authProvider, providerSubjectId, subjectType,
                         requestHash, subjectId, conn);
 
-                    if (subjectId.contentEquals(actualSubjectId)) {
+                    if (subjectId.equals(actualSubjectId)) {
                         insertCredentials(subjectId, credentials, conn);
                     }
 
@@ -175,7 +176,7 @@ public class DbSubjectService {
 
             actualRequestHash = rs.getString("request_hash");
 
-            if (!requestHash.contentEquals(actualRequestHash)) {
+            if (!requestHash.equals(actualRequestHash)) {
                 throw new AuthUniqueViolationException(String.format("Subject with auth_provider '%s' and " +
                     "provider_user_id '%s' already exists", authProvider.name(), providerSubjectId));
             }
@@ -243,7 +244,7 @@ public class DbSubjectService {
                         var actualType = CredentialsType.valueOf(rs.getString("type"));
                         var actualExpiredAt = rs.getTimestamp("expired_at");
 
-                        if (!credentials.value().contentEquals(actualValue) || credentials.type() != actualType
+                        if (!credentials.value().equals(actualValue) || credentials.type() != actualType
                             || !Objects.equals(expiredAt, actualExpiredAt))
                         {
                             throw new AuthUniqueViolationException(String.format("Credentials name '%s' is already " +
