@@ -194,18 +194,17 @@ public class DbSubjectService {
                         credentials.type().name(), expiredAt);
 
                     ResultSet rs = st.executeQuery();
+                    rs.next();
 
-                    if (rs.next()) {
-                        var actualValue = rs.getString("value");
-                        var actualType = CredentialsType.valueOf(rs.getString("type"));
-                        var actualExpiredAt = rs.getTimestamp("expired_at");
+                    var actualValue = rs.getString("value");
+                    var actualType = CredentialsType.valueOf(rs.getString("type"));
+                    var actualExpiredAt = rs.getTimestamp("expired_at");
 
-                        if (!credentials.value().contentEquals(actualValue) || credentials.type() != actualType
-                            || !Objects.equals(expiredAt, actualExpiredAt))
-                        {
-                            throw new AuthUniqueViolationException(String.format("Credentials name '%s' is already " +
-                                "used for another user '%s' credentials", credentials.name(), subject.id()));
-                        }
+                    if (!credentials.value().contentEquals(actualValue) || credentials.type() != actualType
+                        || !Objects.equals(expiredAt, actualExpiredAt))
+                    {
+                        throw new AuthUniqueViolationException(String.format("Credentials name '%s' is already " +
+                            "used for another user '%s' credentials", credentials.name(), subject.id()));
                     }
                 }
             },
@@ -393,12 +392,7 @@ public class DbSubjectService {
         st.setString(2, value);
         st.setString(3, subjectId);
         st.setString(4, type);
-
-        if (expiredAt != null) {
-            st.setTimestamp(5, expiredAt);
-        } else {
-            st.setNull(5, Types.TIMESTAMP);
-        }
+        st.setTimestamp(5, expiredAt);
     }
 
     private static Subject subjectWith(SubjectType type, String id) {

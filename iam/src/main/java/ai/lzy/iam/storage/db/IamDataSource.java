@@ -44,7 +44,10 @@ public class IamDataSource implements Storage {
     }
 
     @Override
-    public synchronized Connection connect() throws SQLException {
-        return dataSource.getConnection();
+    public Connection connect() throws SQLException {
+        var conn = dataSource.getConnection();
+        conn.setAutoCommit(true);
+        conn.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+        return conn;
     }
 }

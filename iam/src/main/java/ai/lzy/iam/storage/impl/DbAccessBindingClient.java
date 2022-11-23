@@ -31,9 +31,8 @@ public class DbAccessBindingClient {
 
     public Stream<AccessBinding> listAccessBindings(AuthResource resource) throws AuthException {
         List<AccessBinding> bindings = new ArrayList<>();
-        try (final PreparedStatement st = storage.connect()
-                .prepareStatement("SELECT * FROM user_resource_roles " + "WHERE resource_id = ? "))
-        {
+        try (var conn = storage.connect()) {
+            var st = conn.prepareStatement("SELECT * FROM user_resource_roles WHERE resource_id = ? ");
             int parameterIndex = 0;
             st.setString(++parameterIndex, resource.resourceId());
             final ResultSet rs = st.executeQuery();

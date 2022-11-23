@@ -16,6 +16,7 @@ import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.*;
+import org.junit.runners.MethodSorters;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -30,6 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static ai.lzy.iam.utils.IdempotencyUtils.md5;
 import static org.junit.Assert.*;
 
+@FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
     public static final Logger LOG = LogManager.getLogger(DbSubjectServiceTest.class);
 
@@ -197,22 +199,15 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
         final var failed = new AtomicBoolean(false);
 
         var dima = createSubject("Dima", SubjectType.USER);
-        var credentialsName1 = "Scotty-secure";
-        var credentialsName2 = "New-chapter";
+        var credentialsName = "Scotty-secure";
 
         for (int i = 0; i < N; ++i) {
-            final int index = i;
             executor.submit(() -> {
                 try {
                     readyLatch.countDown();
                     readyLatch.await();
 
-                    if (index % 2 == 0) {
-                        addCredentials(dima, credentialsName1);
-                    } else {
-                        addCredentials(dima, credentialsName2);
-                    }
-
+                    addCredentials(dima, credentialsName);
                 } catch (Exception e) {
                     failed.set(true);
                     e.printStackTrace(System.err);
@@ -227,15 +222,11 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
 
         assertFalse(failed.get());
 
-        var credentials1 = credentials(dima, credentialsName1);
-        var credentials2 = credentials(dima, credentialsName2);
+        var credentials1 = credentials(dima, credentialsName);
 
-        assertEquals(credentialsName1, credentials1.name());
+        assertEquals(credentialsName, credentials1.name());
         assertEquals("Value", credentials1.value());
         assertEquals(CredentialsType.PUBLIC_KEY, credentials1.type());
-        assertEquals(credentialsName2, credentials2.name());
-        assertEquals("Value", credentials2.value());
-        assertEquals(CredentialsType.PUBLIC_KEY, credentials2.type());
     }
 
     @Test

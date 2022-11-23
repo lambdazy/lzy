@@ -4,6 +4,7 @@ import ai.lzy.iam.configs.InternalUserConfig;
 import ai.lzy.iam.resources.Role;
 import ai.lzy.iam.resources.impl.Root;
 import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.utils.UserVerificationType;
 import ai.lzy.model.db.Transaction;
 import ai.lzy.model.db.exceptions.DaoException;
@@ -31,14 +32,15 @@ public class InternalUserInserter {
             LOG.info("Insert Internal user::{} with keyType::{}", config.userName(), config.credentialType());
             Transaction.execute(storage, connection -> {
                 var st = connection.prepareStatement("""
-                    INSERT INTO users (user_id, auth_provider, provider_user_id, access_type, request_hash)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO users (user_id, auth_provider, provider_user_id, access_type, user_type, request_hash)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     ON CONFLICT DO NOTHING""");
-                st.setString(1, config.userName()); // TODO: random id?
+                st.setString(1, config.userName());
                 st.setString(2, AuthProvider.INTERNAL.name());
                 st.setString(3, config.userName());
                 st.setString(4, UserVerificationType.ACCESS_ALLOWED.toString());
-                st.setString(5, "internal-user-hash");
+                st.setString(5, SubjectType.USER.name());
+                st.setString(6, "internal-user-hash");
                 st.executeUpdate();
 
                 // H2 doesn't support `INSERT ... ON CONFLICT DO UPDATE ...`,
