@@ -43,6 +43,7 @@ public class LzyServiceStorage implements Storage {
     public Connection connect() throws SQLException {
         var connection = dataSource.getConnection();
         connection.setAutoCommit(true);
+        connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
         return connection;
     }
 

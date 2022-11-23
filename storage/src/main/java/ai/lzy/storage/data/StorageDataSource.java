@@ -42,6 +42,7 @@ public class StorageDataSource implements Storage {
     public Connection connect() throws SQLException {
         var conn = dataSource.getConnection();
         conn.setAutoCommit(true);
+        conn.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
         return conn;
     }
 }
