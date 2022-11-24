@@ -1,5 +1,10 @@
 package ai.lzy.allocator.disk;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
+@JsonSerialize
+@JsonDeserialize
 public enum DiskType {
     HDD(1),
     SSD(2),

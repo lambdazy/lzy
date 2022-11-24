@@ -7,17 +7,11 @@ import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.alloc.impl.kuber.TunnelAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.disk.DiskStorage;
+import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.model.CachePolicy;
-import ai.lzy.allocator.model.Session;
-import ai.lzy.allocator.model.Vm;
-import ai.lzy.allocator.model.Workload;
+import ai.lzy.allocator.model.*;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.storage.AllocatorDataSource;
-import ai.lzy.allocator.volume.DiskVolumeDescription;
-import ai.lzy.allocator.volume.HostPathVolumeDescription;
-import ai.lzy.allocator.volume.NFSVolumeDescription;
-import ai.lzy.allocator.volume.VolumeRequest;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.AuthProvider;
@@ -56,13 +50,13 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import javax.annotation.PreDestroy;
 import javax.inject.Named;
 
-import static ai.lzy.allocator.volume.HostPathVolumeDescription.HostPathType;
+import static ai.lzy.allocator.model.HostPathVolumeDescription.HostPathType;
 import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
 import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -76,29 +70,29 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
     private final VmDao vmDao;
     private final OperationDao operationsDao;
-    private final DiskStorage diskStorage;
+    private final DiskDao diskDao;
     private final SessionDao sessionsDao;
     private final VmAllocator allocator;
     private final TunnelAllocator tunnelAllocator;
     private final ServiceConfig config;
     private final AllocatorDataSource storage;
-    private final ExecutorService executor;
+    private final ScheduledExecutorService executor;
     private final Metrics metrics = new Metrics();
     private final SubjectServiceGrpcClient subjectClient;
     private final AtomicInteger runningAllocations = new AtomicInteger(0);
 
     @Inject
     public AllocatorService(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
-                            SessionDao sessionsDao, DiskStorage diskStorage, VmAllocator allocator,
+                            SessionDao sessionsDao, DiskDao diskDao, VmAllocator allocator,
                             TunnelAllocator tunnelAllocator, ServiceConfig config, AllocatorDataSource storage,
-                            @Named("AllocatorExecutor") ExecutorService executor,
+                            @Named("AllocatorExecutor") ScheduledExecutorService executor,
                             @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
                             @Named("AllocatorIamToken") RenewableJwt iamToken)
     {
         this.vmDao = vmDao;
         this.operationsDao = operationsDao;
         this.sessionsDao = sessionsDao;
-        this.diskStorage = diskStorage;
+        this.diskDao = diskDao;
         this.allocator = allocator;
         this.tunnelAllocator = tunnelAllocator;
         this.config = config;
@@ -445,7 +439,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             final var descr = switch (volume.getVolumeTypeCase()) {
                 case DISK_VOLUME -> {
                     final var diskVolume = volume.getDiskVolume();
-                    final var disk = diskStorage.get(diskVolume.getDiskId(), transaction);
+                    final var disk = diskDao.get(diskVolume.getDiskId(), transaction);
                     if (disk == null) {
                         final String message = "Disk with id %s not found".formatted(diskVolume.getDiskId());
                         LOG.error(message);

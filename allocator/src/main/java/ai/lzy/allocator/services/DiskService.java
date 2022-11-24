@@ -3,16 +3,21 @@ package ai.lzy.allocator.services;
 import ai.lzy.allocator.disk.Disk;
 import ai.lzy.allocator.disk.DiskManager;
 import ai.lzy.allocator.disk.DiskMeta;
+import ai.lzy.allocator.disk.DiskOperation;
 import ai.lzy.allocator.disk.DiskSpec;
-import ai.lzy.allocator.disk.DiskStorage;
-import ai.lzy.allocator.disk.exceptions.NotFoundException;
+import ai.lzy.allocator.disk.dao.DiskDao;
+import ai.lzy.allocator.disk.dao.DiskOpDao;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.ProtoPrinter;
+import ai.lzy.v1.DiskApi;
 import ai.lzy.v1.DiskServiceApi;
+import ai.lzy.v1.DiskServiceApi.CloneDiskRequest;
+import ai.lzy.v1.DiskServiceApi.CreateDiskRequest;
+import ai.lzy.v1.DiskServiceApi.DeleteDiskRequest;
 import ai.lzy.v1.DiskServiceGrpc;
 import ai.lzy.v1.longrunning.LongRunning;
 import com.google.protobuf.Any;
@@ -25,7 +30,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
-import java.util.Objects;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.Nullable;
+import javax.annotation.PreDestroy;
 import javax.inject.Named;
 import javax.inject.Singleton;
 
@@ -40,21 +50,40 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
 
     private final DiskManager diskManager;
     private final OperationDao operationsDao;
-    private final DiskStorage diskStorage;
+    private final DiskDao diskDao;
+    private final DiskOpDao diskOpDao;
     private final AllocatorDataSource storage;
+    private final ScheduledExecutorService executor;
     private final Metrics metrics = new Metrics();
+    private final AtomicInteger runningRequests = new AtomicInteger(0);
 
-    public DiskService(DiskManager diskManager, DiskStorage diskStorage, AllocatorDataSource storage,
-                       @Named("AllocatorOperationDao") OperationDao operationDao)
+    public DiskService(DiskManager diskManager, DiskDao diskDao, DiskOpDao diskOpDao, AllocatorDataSource storage,
+                       @Named("AllocatorOperationDao") OperationDao operationDao,
+                       @Named("AllocatorExecutor") ScheduledExecutorService executor)
     {
         this.diskManager = diskManager;
-        this.diskStorage = diskStorage;
+        this.diskDao = diskDao;
+        this.diskOpDao = diskOpDao;
         this.storage = storage;
         this.operationsDao = operationDao;
+        this.executor = executor;
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        LOG.info("Shutdown DiskService, active requests: {}", runningRequests.get());
+    }
+
+    public Metrics getMetrics() {
+        return metrics;
     }
 
     @Override
-    public void createDisk(DiskServiceApi.CreateDiskRequest request, StreamObserver<LongRunning.Operation> response) {
+    public void createDisk(CreateDiskRequest request, StreamObserver<LongRunning.Operation> response) {
+        if (!validateRequest(request, response)) {
+            return;
+        }
+
         LOG.info("Create disk request {}", ProtoPrinter.safePrinter().shortDebugString(request));
 
         var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
@@ -62,14 +91,79 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
             return;
         }
 
-        final Operation createDiskOperation = Operation.create(
+        final var createDiskOperation = Operation.create(
             request.getUserId(),
-            "CreateDisk",
+            "CreateDisk: " +
+                (request.hasExistingDisk()
+                    ? "from " + request.getExistingDisk().getDiskId()
+                    : "new " + request.getDiskSpec()),
             idempotencyKey,
-            DiskServiceApi.CreateDiskMetadata.getDefaultInstance());
+            DiskServiceApi.CreateDiskMetadata.newBuilder().build());
+
+        final var startedAt = Instant.now();
+        final var deadline = startedAt.plus(Duration.ofHours(1));
 
         try {
-            withRetries(LOG, () -> operationsDao.create(createDiskOperation, null));
+            var diskOperation = withRetries(LOG, () -> {
+                try (var tx = TransactionHandle.create(storage)) {
+                    operationsDao.create(createDiskOperation, tx);
+
+                    var ctx = new DiskManager.OuterOperation(createDiskOperation.id(), startedAt, deadline);
+
+                    switch (request.getDiskDescriptionCase()) {
+                        case DISK_SPEC -> {
+                            var diskOp = diskManager.newCreateDiskOperation(
+                                ctx, DiskSpec.fromProto(request.getDiskSpec()), new DiskMeta(request.getUserId()));
+
+                            diskOpDao.createDiskOp(diskOp, tx);
+                            tx.commit();
+                            metrics.createDiskNewStart.inc();
+                            return diskOp;
+                        }
+
+                        case EXISTING_DISK -> {
+                            final String diskId = request.getExistingDisk().getDiskId();
+                            var disk = diskManager.get(diskId);
+                            if (disk == null) {
+                                LOG.error("Create disk failed, disk {} not found", diskId);
+
+                                var status = toProto(Status.NOT_FOUND);
+                                operationsDao.updateError(createDiskOperation.id(), status.toByteArray(), tx);
+
+                                tx.commit();
+                                metrics.createDiskError.inc();
+                                return null;
+                            }
+
+                            var meta = Any.pack(
+                                DiskServiceApi.CreateDiskMetadata.newBuilder()
+                                    .setDiskId(diskId)
+                                    .build());
+                            var resp = Any.pack(
+                                DiskServiceApi.CreateDiskResponse.newBuilder()
+                                    .setDisk(disk.toProto())
+                                    .build());
+
+                            createDiskOperation.modifyMeta(meta);
+                            createDiskOperation.setResponse(resp);
+
+                            operationsDao.updateMetaAndResponse(
+                                createDiskOperation.id(), meta.toByteArray(), resp.toByteArray(), tx);
+
+                            diskDao.insert(disk, tx);
+                            tx.commit();
+                            metrics.createDiskExisting.inc();
+                            return null;
+                        }
+                    }
+
+                    return null;
+                }
+            });
+
+            if (diskOperation != null) {
+                executor.submit(diskOperation.deferredAction());
+            }
         } catch (Exception e) {
             if (idempotencyKey != null &&
                 handleIdempotencyKeyConflict(idempotencyKey, e, operationsDao, response, LOG))
@@ -77,92 +171,22 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                 return;
             }
 
-            LOG.error("Cannot create \"create_disk_operation\" for owner {}: {}",
-                request.getUserId(), e.getMessage(), e);
+            LOG.error("Cannot create disk for owner {}: {}", request.getUserId(), e.getMessage(), e);
             response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
+            metrics.createDiskError.inc();
             return;
         }
+
         response.onNext(createDiskOperation.toProto());
         response.onCompleted();
-
-        // TODO: don't occupy grpc-thread
-        try {
-            withRetries(LOG, () -> {
-                try (var tx = TransactionHandle.create(storage)) {
-                    final Disk disk;
-                    if (request.hasDiskSpec()) {
-                        final Histogram.Timer timer = metrics.createNewDiskDuration.startTimer();
-                        disk = diskManager.create(
-                            DiskSpec.fromProto(request.getDiskSpec()),
-                            new DiskMeta(request.getUserId())
-                        );
-                        timer.close();
-                        diskStorage.insert(disk, tx);
-                        metrics.createDiskNew.inc();
-                    } else if (request.hasExistingDisk()) {
-                        final String diskId = request.getExistingDisk().getDiskId();
-                        disk = diskManager.get(diskId);
-                        if (disk == null) {
-                            var excMessage = "Disk with id " + diskId + " not found";
-
-                            var status = com.google.rpc.Status.newBuilder()
-                                .setCode(Status.NOT_FOUND.getCode().value())
-                                .setMessage(excMessage)
-                                .build();
-
-                            operationsDao.updateError(createDiskOperation.id(), status.toByteArray(), tx);
-
-                            tx.commit();
-                            metrics.createDiskError.inc();
-                            return;
-                        }
-                        diskStorage.insert(disk, tx);
-                        metrics.createDiskExisting.inc();
-                    } else {
-                        var excMessage = "Unknown disk spec type " + request.getDiskDescriptionCase();
-
-                        var status = com.google.rpc.Status.newBuilder()
-                            .setCode(Status.INVALID_ARGUMENT.getCode().value())
-                            .setMessage(excMessage)
-                            .build();
-
-                        operationsDao.updateError(createDiskOperation.id(), status.toByteArray(), tx);
-
-                        tx.commit();
-                        metrics.createDiskError.inc();
-                        return;
-                    }
-
-                    var metaBytes = Any.pack(
-                            DiskServiceApi.CreateDiskMetadata.newBuilder()
-                                .setDiskId(disk.id())
-                                .build())
-                        .toByteArray();
-
-                    var responseBytes = Any.pack(
-                            DiskServiceApi.CreateDiskResponse.newBuilder()
-                                .setDisk(disk.toProto())
-                                .build())
-                        .toByteArray();
-
-                    operationsDao.updateMetaAndResponse(createDiskOperation.id(), metaBytes, responseBytes, tx);
-
-                    tx.commit();
-                }
-            });
-        } catch (Exception e) {
-            var errorMessage = "Error while executing transaction for create disk operation_id=%s: %s"
-                .formatted(createDiskOperation.id(), e.getMessage());
-            LOG.error(errorMessage, e);
-            metrics.createDiskError.inc();
-
-            operationsDao.failOperation(createDiskOperation.id(),
-                toProto(Status.INTERNAL.withDescription(errorMessage)), LOG);
-        }
     }
 
     @Override
-    public void cloneDisk(DiskServiceApi.CloneDiskRequest request, StreamObserver<LongRunning.Operation> response) {
+    public void cloneDisk(CloneDiskRequest request, StreamObserver<LongRunning.Operation> response) {
+        if (!validateRequest(request, response)) {
+            return;
+        }
+
         LOG.info("Clone disk request {}", ProtoPrinter.safePrinter().shortDebugString(request));
 
         var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
@@ -170,14 +194,70 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
             return;
         }
 
-        final Operation cloneDiskOperation = Operation.create(
+        final var cloneDiskOperation = Operation.create(
             request.getUserId(),
             "CloneDisk",
             idempotencyKey,
-            DiskServiceApi.CloneDiskMetadata.getDefaultInstance());
+            DiskServiceApi.CloneDiskMetadata.newBuilder().build());
 
+        final var startedAt = Instant.now();
+        final var deadline = startedAt.plus(Duration.ofHours(1));
+
+        final Status error;
         try {
-            withRetries(LOG, () -> operationsDao.create(cloneDiskOperation, null));
+            error = withRetries(LOG, () -> {
+                try (var tx = TransactionHandle.create(storage)) {
+                    operationsDao.create(cloneDiskOperation, tx);
+
+                    final Disk origDisk;
+                    try {
+                        origDisk = getDisk(request.getDiskId(), tx);
+                    } catch (StatusException e) {
+                        LOG.error(e.getStatus().getDescription());
+                        operationsDao.updateError(cloneDiskOperation.id(), toProto(e.getStatus()).toByteArray(), tx);
+                        tx.commit();
+                        metrics.cloneDiskError.inc();
+                        return null;
+                    }
+
+                    if (origDisk == null) {
+                        var status = Status.NOT_FOUND.withDescription(
+                            "Unable to clone disk [operation_id=%s]. Disk %s not found."
+                                .formatted(cloneDiskOperation.id(), request.getDiskId()));
+                        LOG.error(status.getDescription());
+                        operationsDao.updateError(cloneDiskOperation.id(), toProto(status).toByteArray(), tx);
+                        tx.commit();
+                        metrics.cloneDiskError.inc();
+                        return null;
+                    }
+
+                    var ctx = new DiskManager.OuterOperation(cloneDiskOperation.id(), startedAt, deadline);
+
+                    final DiskOperation action;
+                    try {
+                        action = diskManager.newCloneDiskOperation(
+                            ctx, origDisk, DiskSpec.fromProto(request.getNewDiskSpec()),
+                            new DiskMeta(request.getUserId()));
+                    } catch (IllegalArgumentException e) {
+                        var status = Status.INVALID_ARGUMENT.withDescription(
+                            "Unable to clone disk [operation_id=%s]. %s"
+                                .formatted(cloneDiskOperation.id(), e.getMessage()));
+                        LOG.error(status.getDescription());
+                        operationsDao.updateError(cloneDiskOperation.id(), toProto(status).toByteArray(), tx);
+                        tx.commit();
+                        metrics.cloneDiskError.inc();
+                        return null;
+                    }
+
+                    tx.commit();
+                    metrics.cloneDiskStart.inc();
+
+                    if (action.deferredAction() != null) {
+                        executor.submit(action.deferredAction());
+                    }
+                    return null;
+                }
+            });
         } catch (Exception e) {
             if (idempotencyKey != null &&
                 handleIdempotencyKeyConflict(idempotencyKey, e, operationsDao, response, LOG))
@@ -185,105 +265,98 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                 return;
             }
 
-            LOG.error("Cannot create \"clone_disk_operation\" for owner {}: {}",
-                request.getUserId(), e.getMessage(), e);
+            LOG.error("Cannot create CloneDisk for owner {}: {}", request.getUserId(), e.getMessage(), e);
+            metrics.cloneDiskError.inc();
             response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
             return;
         }
-        response.onNext(cloneDiskOperation.toProto());
-        response.onCompleted();
 
-        // TODO: don't occupy grpc-thread
-        try {
-            withRetries(LOG,
-                () -> {
-                    try (var transaction = TransactionHandle.create(storage)) {
-                        try {
-                            final String existingDiskId = request.getDiskId();
-                            final Disk existingDisk = getDisk(existingDiskId, transaction);
-
-                            final Disk clonedDisk = diskManager.clone(
-                                existingDisk, DiskSpec.fromProto(request.getNewDiskSpec()),
-                                new DiskMeta(request.getUserId()));
-
-                            diskStorage.insert(clonedDisk, transaction);
-
-                            var metaBytes = Any.pack(DiskServiceApi.CloneDiskMetadata.newBuilder()
-                                .setDiskId(clonedDisk.id()).build()).toByteArray();
-                            var responseBytes = Any.pack(DiskServiceApi.CloneDiskResponse.newBuilder()
-                                .setDisk(clonedDisk.toProto()).build()).toByteArray();
-
-                            operationsDao.updateMetaAndResponse(cloneDiskOperation.id(), metaBytes, responseBytes,
-                                transaction);
-
-                            metrics.cloneDisk.inc();
-                        } catch (NotFoundException | IllegalArgumentException e) {
-                            var status = com.google.rpc.Status.newBuilder()
-                                .setCode(Status.INVALID_ARGUMENT.getCode().value())
-                                .setMessage("Unable to clone disk [operation_id=" + cloneDiskOperation.id() + "] "
-                                    + " Invalid argument; cause=" + e.getMessage())
-                                .build();
-                            operationsDao.updateError(cloneDiskOperation.id(), status.toByteArray(), transaction);
-                        } catch (StatusException e) {
-                            var status = com.google.rpc.Status.newBuilder()
-                                .setCode(e.getStatus().getCode().value())
-                                .setMessage(Objects.toString(e.getStatus().getDescription(), ""))
-                                .build();
-                            operationsDao.updateError(cloneDiskOperation.id(), status.toByteArray(), transaction);
-                        }
-
-                        transaction.commit();
-                    }
-                    return (Void) null;
-                }
-            );
-        } catch (Exception e) {
-            var errorMessage = "Error while executing transaction for clone disk operation_id=%s: %s"
-                .formatted(cloneDiskOperation.id(), e.getMessage());
-            LOG.error(errorMessage, e);
-
-            operationsDao.failOperation(cloneDiskOperation.id(),
-                toProto(Status.INTERNAL.withDescription(errorMessage)), LOG);
-
+        if (error == null) {
+            response.onNext(cloneDiskOperation.toProto());
+            response.onCompleted();
+        } else {
             metrics.cloneDiskError.inc();
+            response.onError(error.asException());
         }
     }
 
     @Override
-    public void deleteDisk(DiskServiceApi.DeleteDiskRequest request,
-                           StreamObserver<DiskServiceApi.DeleteDiskResponse> responseObserver)
-    {
+    public void deleteDisk(DeleteDiskRequest request, StreamObserver<LongRunning.Operation> response) {
         LOG.info("Delete disk request {}", ProtoPrinter.safePrinter().shortDebugString(request));
-        final String diskId = request.getDiskId();
-        try {
-            withRetries(LOG, () -> {
-                try (var transaction = TransactionHandle.create(storage)) {
-                    getDisk(diskId, transaction);
-                    responseObserver.onNext(DiskServiceApi.DeleteDiskResponse.getDefaultInstance());
-                    responseObserver.onCompleted();
 
-                    diskStorage.remove(diskId, transaction);
-                    diskManager.delete(diskId);
-                    transaction.commit();
-                } catch (NotFoundException e) {
-                    LOG.error("Disk with id={} not found for deletion exception={}", diskId, e.getMessage(), e);
-                    responseObserver.onError(Status.NOT_FOUND.asException());
-                } catch (StatusException e) {
-                    responseObserver.onError(e);
-                }
-                return null;
-            });
-        } catch (Exception e) {
-            LOG.error("Error while executing transaction for delete disk id={}: {}", diskId, e.getMessage(), e);
-            metrics.deleteDiskError.inc();
-            responseObserver.onError(Status.INTERNAL.withDescription("Error while deleting disk").asException());
+        var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+        if (idempotencyKey != null && loadExistingOp(operationsDao, idempotencyKey, response, LOG)) {
+            return;
         }
+
+        final var deleteDiskOperation = Operation.create(
+            "internal",
+            "DeleteDisk: " + request.getDiskId(),
+            idempotencyKey,
+            DiskServiceApi.DeleteDiskMetadata.newBuilder().build());
+
+        final var startedAt = Instant.now();
+        final var deadline = startedAt.plus(Duration.ofHours(1));
+
+        try {
+            var diskOperation = withRetries(LOG, () -> {
+                try (var tx = TransactionHandle.create(storage)) {
+                    operationsDao.create(deleteDiskOperation, tx);
+
+                    final Disk disk;
+                    try {
+                        disk = getDisk(request.getDiskId(), tx);
+                    } catch (StatusException e) {
+                        LOG.error(e.getStatus().getDescription());
+                        operationsDao.updateError(deleteDiskOperation.id(), toProto(e.getStatus()).toByteArray(), tx);
+                        tx.commit();
+                        metrics.deleteDiskError.inc();
+                        return null;
+                    }
+
+                    if (disk == null) {
+                        var status = Status.NOT_FOUND.withDescription(
+                            "Unable to delete disk [operation_id=%s]. Disk %s not found."
+                                .formatted(deleteDiskOperation.id(), request.getDiskId()));
+                        LOG.error(status.getDescription());
+                        operationsDao.updateError(deleteDiskOperation.id(), toProto(status).toByteArray(), tx);
+                        tx.commit();
+                        metrics.cloneDiskError.inc();
+                        return null;
+                    }
+
+                    var ctx = new DiskManager.OuterOperation(deleteDiskOperation.id(), startedAt, deadline);
+                    var diskOp = diskManager.newDeleteDiskOperation(ctx, request.getDiskId());
+                    diskOpDao.createDiskOp(diskOp, tx);
+
+                    tx.commit();
+                    return diskOp;
+                }
+            });
+
+            if (diskOperation != null) {
+                executor.submit(diskOperation.deferredAction());
+            }
+        } catch (Exception e) {
+            if (idempotencyKey != null &&
+                handleIdempotencyKeyConflict(idempotencyKey, e, operationsDao, response, LOG))
+            {
+                return;
+            }
+
+            LOG.error("Cannot delete disk {}: {}", request.getDiskId(), e.getMessage(), e);
+            response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
+            metrics.deleteDiskError.inc();
+            return;
+        }
+
+        response.onNext(deleteDiskOperation.toProto());
+        response.onCompleted();
     }
 
-    private Disk getDisk(String diskId, TransactionHandle transaction)
-        throws SQLException, NotFoundException, StatusException
-    {
-        final Disk dbDisk = diskStorage.get(diskId, transaction);
+    @Nullable
+    private Disk getDisk(String diskId, @Nullable TransactionHandle transaction) throws SQLException, StatusException {
+        final Disk dbDisk = diskDao.get(diskId, transaction);
         final Disk disk = diskManager.get(diskId);
         if (dbDisk != null && !dbDisk.equals(disk)) {
             LOG.error("The disk with id={} is in DB but already deleted/modified from manager (e.g. YCloud)", diskId);
@@ -291,44 +364,112 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                 .withDescription("Disk id=" + diskId + " has been modified outside of disk service")
                 .asException();
         }
-        if (dbDisk == null) {
-            throw new NotFoundException("Disk with id=" + diskId + " not found");
-        }
-        return disk;
+        return dbDisk != null ? disk : null;
     }
 
-    private static final class Metrics {
-        private final Counter createDiskExisting = Counter
+    private static boolean validateRequest(CreateDiskRequest request, StreamObserver<LongRunning.Operation> response) {
+        if (request.getUserId().isBlank()) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("user_id not set").asException());
+            return false;
+        }
+        switch (request.getDiskDescriptionCase()) {
+            case DISK_SPEC -> {
+                if (!validateDiskSpec(request.getDiskSpec(), response)) {
+                    return false;
+                }
+            }
+            case EXISTING_DISK -> {
+                if (request.getExistingDisk().getDiskId().isBlank()) {
+                    response.onError(Status.INVALID_ARGUMENT
+                        .withDescription("existing_disk.disk_id not set").asException());
+                    return false;
+                }
+            }
+            case DISKDESCRIPTION_NOT_SET -> {
+                response.onError(Status.INVALID_ARGUMENT.withDescription("disk_description not set").asException());
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean validateRequest(CloneDiskRequest request, StreamObserver<LongRunning.Operation> response) {
+        if (request.getUserId().isBlank()) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("user_id not set").asException());
+            return false;
+        }
+        if (request.getDiskId().isBlank()) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("disk_id not set").asException());
+            return false;
+        }
+        if (!validateDiskSpec(request.getNewDiskSpec(), response)) {
+            return false;
+        }
+        return true;
+    }
+
+    private static boolean validateDiskSpec(DiskApi.DiskSpec spec, StreamObserver<LongRunning.Operation> response) {
+        if (spec.getName().isBlank()) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("disk_spec.name not set").asException());
+            return false;
+        }
+        if (spec.getZoneId().isBlank()) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("disk_spec.zone_id not set").asException());
+            return false;
+        }
+        if (spec.getSizeGb() < 1) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("disk_spec.size_gb not set").asException());
+            return false;
+        }
+        if (spec.getType() == DiskApi.DiskType.DISK_TYPE_UNSPECIFIED) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("disk_spec.type not set").asException());
+            return false;
+        }
+        return true;
+    }
+
+    public static final class Metrics {
+        public final Counter createDiskExisting = Counter
             .build("create_disk_existing", "Create disk from existing cloud disk")
             .subsystem("allocator")
             .register();
 
-        private final Counter createDiskNew = Counter
-            .build("create_disk_new", "Create new disk")
+        public final Counter createDiskNewStart = Counter
+            .build("create_disk_new_start", "Create new disk (started requests)")
             .subsystem("allocator")
             .register();
 
-        private final Counter cloneDisk = Counter
-            .build("clone_disk", "Clone disk")
+        public final Counter createDiskNewFinish = Counter
+            .build("create_disk_new_finish", "Create new disk (finished requests)")
             .subsystem("allocator")
             .register();
 
-        private final Counter createDiskError = Counter
+        public final Counter cloneDiskStart = Counter
+            .build("clone_disk_start", "Clone disk (started requests)")
+            .subsystem("allocator")
+            .register();
+
+        public final Counter cloneDiskFinish = Counter
+            .build("clone_disk_finish", "Clone disk (finished requests)")
+            .subsystem("allocator")
+            .register();
+
+        public final Counter createDiskError = Counter
             .build("create_disk_error", "Disk creation errors")
             .subsystem("allocator")
             .register();
 
-        private final Counter cloneDiskError = Counter
+        public final Counter cloneDiskError = Counter
             .build("clone_disk_error", "Disk clone errors")
             .subsystem("allocator")
             .register();
 
-        private final Counter deleteDiskError = Counter
+        public final Counter deleteDiskError = Counter
             .build("delete_disk_error", "Disk deletion errors")
             .subsystem("allocator")
             .register();
 
-        private final Histogram createNewDiskDuration = Histogram
+        public final Histogram createNewDiskDuration = Histogram
             .build("create_new_disk_duration", "Create new disk duration (sec)")
             .subsystem("allocator")
             .buckets(0.001, 0.1, 0.25, 0.5, 1.0, 1.5, 2.0, 5.0, 10.0)

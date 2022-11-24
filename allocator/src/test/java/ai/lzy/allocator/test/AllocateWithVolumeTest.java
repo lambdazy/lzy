@@ -4,10 +4,7 @@ import ai.lzy.allocator.AllocatorMain;
 import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactoryImpl;
 import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.disk.Disk;
 import ai.lzy.allocator.disk.DiskManager;
-import ai.lzy.allocator.disk.DiskMeta;
-import ai.lzy.allocator.disk.exceptions.NotFoundException;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.allocator.volume.KuberVolumeManager;
 import ai.lzy.iam.test.BaseTestWithIam;
@@ -31,10 +28,8 @@ import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
-import org.junit.Test;
 import yandex.cloud.sdk.Zone;
 import yandex.cloud.sdk.auth.IamToken;
 
@@ -45,14 +40,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 
-import static ai.lzy.allocator.test.Utils.createTestDiskSpec;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
@@ -210,6 +201,7 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
         return execResult;
     }
 
+    /*
     @Test
     public void allocateTest() throws InvalidProtocolBufferException, NotFoundException {
         final Disk disk = diskManager.create(createTestDiskSpec(3), new DiskMeta("user-id"));
@@ -240,6 +232,7 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
             diskManager.delete(disk.id());
         }
     }
+     */
 
     private void waitVolumeDeletion(String volumeName) {
         TimeUtils.waitFlagUp(
@@ -260,6 +253,7 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
         );
     }
 
+    /*
     @Test
     public void bidirectionalMountTest()
         throws InvalidProtocolBufferException, NotFoundException, ExecutionException, InterruptedException
@@ -358,6 +352,7 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
             diskManager.delete(disk.id());
         }
     }
+     */
 
     private void registerVm(String vmId) {
         TimeUtils.waitFlagUp(() -> {

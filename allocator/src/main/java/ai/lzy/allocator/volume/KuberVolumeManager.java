@@ -2,6 +2,11 @@ package ai.lzy.allocator.volume;
 
 import ai.lzy.allocator.alloc.impl.kuber.KuberUtils;
 import ai.lzy.allocator.disk.exceptions.NotFoundException;
+import ai.lzy.allocator.model.DiskVolumeDescription;
+import ai.lzy.allocator.model.NFSVolumeDescription;
+import ai.lzy.allocator.model.Volume;
+import ai.lzy.allocator.model.VolumeClaim;
+import ai.lzy.allocator.model.VolumeRequest;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;

@@ -27,11 +27,7 @@ import yandex.cloud.sdk.auth.provider.CredentialProvider;
 
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import javax.inject.Named;
@@ -104,10 +100,10 @@ public class BeanFactory {
     @Singleton
     @Named("AllocatorExecutor")
     @Bean(preDestroy = "shutdown")
-    public ExecutorService executorService() {
+    public ScheduledExecutorService executorService() {
         final var logger = LogManager.getLogger("AllocatorExecutor");
 
-        return new ThreadPoolExecutor(5, 20, 5, TimeUnit.MINUTES, new LinkedBlockingQueue<>(), new ThreadFactory() {
+        var executor = new ScheduledThreadPoolExecutor(5, new ThreadFactory() {
             private final AtomicInteger counter = new AtomicInteger(1);
 
             @Override
@@ -133,5 +129,10 @@ public class BeanFactory {
                 }
             }
         };
+
+        executor.setKeepAliveTime(1, TimeUnit.MINUTES);
+        executor.setMaximumPoolSize(20);
+
+        return executor;
     }
 }
