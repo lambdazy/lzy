@@ -10,6 +10,7 @@ import ai.lzy.channelmanager.v2.model.Connection;
 import ai.lzy.channelmanager.v2.model.Endpoint;
 import ai.lzy.channelmanager.v2.slot.SlotApiClient;
 import ai.lzy.model.db.exceptions.NotFoundException;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -19,6 +20,7 @@ import javax.annotation.Nullable;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
 
+@Singleton
 public class ChannelControllerImpl implements ChannelController {
 
     private static final Logger LOG = LogManager.getLogger(ChannelControllerImpl.class);

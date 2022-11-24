@@ -4,7 +4,9 @@ import ai.lzy.channelmanager.channel.ChannelSpec;
 import ai.lzy.channelmanager.v2.model.Channel;
 import ai.lzy.channelmanager.v2.model.Connection;
 import ai.lzy.channelmanager.v2.model.Endpoint;
+import ai.lzy.channelmanager.v2.model.EndpointFactory;
 import ai.lzy.model.db.TransactionHandle;
+import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
 import java.util.List;
@@ -12,11 +14,16 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
+@Singleton
 public class InMemChannelStorage implements ChannelStorage {
 
     private final ConcurrentHashMap<String, Channel> channels = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, String> channelsByEndpoints = new ConcurrentHashMap<>();
+    private final EndpointFactory endpointFactory;
 
+    public InMemChannelStorage(EndpointFactory endpointFactory) {
+        this.endpointFactory = endpointFactory;
+    }
 
     @Override
     public void insertChannel(String channelId, String executionId, ChannelSpec channelSpec,
@@ -57,7 +64,7 @@ public class InMemChannelStorage implements ChannelStorage {
         channels.computeIfPresent(channelId, (id, ch) -> {
             final List<Endpoint> endpoints = ch.endpoints().stream().map(e -> {
                 if (endpointUri.equals(e.uri().toString()))
-                    return Endpoint.fromSlot(e.slot(), e.slotOwner(), Endpoint.LifeStatus.BOUND);
+                    return endpointFactory.createEndpoint(e.slot(), e.slotOwner(), Endpoint.LifeStatus.BOUND);
                 return e;
             }).toList();
             return new Channel(ch.id(), ch.spec(), ch.executionId(), endpoints, ch.connections(), ch.lifeStatus());
@@ -70,7 +77,7 @@ public class InMemChannelStorage implements ChannelStorage {
         channels.computeIfPresent(channelId, (id, ch) -> {
             final List<Endpoint> endpoints = ch.endpoints().stream().map(e -> {
                 if (endpointUri.equals(e.uri().toString()))
-                    return Endpoint.fromSlot(e.slot(), e.slotOwner(), Endpoint.LifeStatus.UNBINDING);
+                    return endpointFactory.createEndpoint(e.slot(), e.slotOwner(), Endpoint.LifeStatus.UNBINDING);
                 return e;
             }).toList();
             return new Channel(ch.id(), ch.spec(), ch.executionId(), endpoints, ch.connections(), ch.lifeStatus());
@@ -83,7 +90,7 @@ public class InMemChannelStorage implements ChannelStorage {
     {
         channels.computeIfPresent(channelId, (id, ch) -> {
             final List<Endpoint> endpoints = ch.endpoints().stream().map(e ->
-                Endpoint.fromSlot(e.slot(), e.slotOwner(), Endpoint.LifeStatus.UNBINDING)).toList();
+                endpointFactory.createEndpoint(e.slot(), e.slotOwner(), Endpoint.LifeStatus.UNBINDING)).toList();
             return new Channel(ch.id(), ch.spec(), ch.executionId(), endpoints, ch.connections(), ch.lifeStatus());
         });
     }

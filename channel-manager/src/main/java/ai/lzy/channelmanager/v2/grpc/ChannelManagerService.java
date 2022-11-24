@@ -7,6 +7,7 @@ import ai.lzy.channelmanager.v2.db.ChannelStorage;
 import ai.lzy.channelmanager.v2.exceptions.CancellingChannelGraphStateException;
 import ai.lzy.channelmanager.v2.model.Channel;
 import ai.lzy.channelmanager.v2.model.Endpoint;
+import ai.lzy.channelmanager.v2.model.EndpointFactory;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.exceptions.AlreadyExistsException;
@@ -43,14 +44,17 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
     private final ExecutorService longrunningExecutor;
     private final ChannelController channelController;
     private final GrainedLock lockManager;
+    private final EndpointFactory endpointFactory;
 
     @Inject
     public ChannelManagerService(ChannelStorage channelStorage, OperationDao operationStorage,
-                                 ChannelController channelController, GrainedLock lockManager) {
+                                 ChannelController channelController, GrainedLock lockManager,
+                                 EndpointFactory endpointFactory) {
         this.channelStorage = channelStorage;
         this.operationStorage = operationStorage;
         this.channelController = channelController;
         this.lockManager = lockManager;
+        this.endpointFactory = endpointFactory;
 
         this.longrunningExecutor = new ThreadPoolExecutor(10, 20, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
             new ThreadFactory() {
@@ -80,7 +84,8 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             .formatted(request.getSlotOwner(), slotUri, channelId);
         LOG.info(operationDescription);
 
-        final Endpoint endpoint = Endpoint.fromProto(request.getSlotInstance(), request.getSlotOwner());
+        final Endpoint endpoint = endpointFactory.createEndpoint(
+            request.getSlotInstance(), request.getSlotOwner(), Endpoint.LifeStatus.BINDING);
         try (final var guard = lockManager.withLock(channelId)) {
             Channel channel = channelStorage.findChannel(channelId, Channel.LifeStatus.ALIVE, null);
             if (channel == null) {

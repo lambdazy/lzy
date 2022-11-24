@@ -1,6 +1,5 @@
 channel-manager:
   address: 'localhost:8122'
-  whiteboard-address: 'localhost:8999'
   iam:
     address: 'localhost:8443'
     internal-user-name: "lzy-internal-user"

@@ -1,51 +1,39 @@
 package ai.lzy.channelmanager.v2.model;
 
-import ai.lzy.channelmanager.channel.SlotEndpoint;
-import ai.lzy.channelmanager.v2.grpc.SlotConnectionManager;
-import ai.lzy.model.grpc.ProtoConverter;
+import ai.lzy.channelmanager.v2.slot.SlotApiConnection;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
-import ai.lzy.v1.channel.v2.LCMS;
-import ai.lzy.v1.common.LMS;
-import ai.lzy.v1.slots.LzySlotsApiGrpc;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.net.URI;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import javax.annotation.Nullable;
 
 public class Endpoint {
 
-    private static final Logger LOG = LogManager.getLogger(Endpoint.class);
-    private static final Map<URI, Endpoint> ENDPOINTS_CACHE = new ConcurrentHashMap<>();
-    private static final SlotConnectionManager SLOT_CONNECTION_MANAGER = new SlotConnectionManager();
-
-    private final LzySlotsApiGrpc.LzySlotsApiBlockingStub slotApiStub;
+    private final SlotApiConnection slotApiConnection;
     private final SlotInstance slot;
     private final SlotOwner slotOwner;
     private final LifeStatus lifeStatus;
 
     private boolean invalidated;
+    private final Runnable onInvalidate;
 
-    private Endpoint(SlotInstance slot, SlotOwner slotOwner, LifeStatus lifeStatus) {
-        this.slotApiStub = SLOT_CONNECTION_MANAGER.getOrCreate(slot.uri());
+    Endpoint(SlotApiConnection slotApiConnection, SlotInstance slot, SlotOwner slotOwner,
+             LifeStatus lifeStatus, Runnable onInvalidate)
+    {
+        this.slotApiConnection = slotApiConnection;
         this.slotOwner = slotOwner;
         this.slot = slot;
         this.lifeStatus = lifeStatus;
         this.invalidated = false;
+        this.onInvalidate = onInvalidate;
     }
 
-    public static synchronized Endpoint fromSlot(SlotInstance slot, SlotOwner owner, LifeStatus lifeStatus) {
-        return ENDPOINTS_CACHE.computeIfAbsent(slot.uri(), uri -> new Endpoint(slot, owner, lifeStatus));
-    }
-
-    public static Endpoint fromProto(LMS.SlotInstance instance, LCMS.BindRequest.SlotOwner origin) {
-        return fromSlot(ProtoConverter.fromProto(instance), SlotOwner.fromProto(origin), LifeStatus.BINDING);
-    }
-
-    public LzySlotsApiGrpc.LzySlotsApiBlockingStub getSlotApiStub() {
-        return slotApiStub;
+    @Nullable
+    public SlotApiConnection getSlotApiConnection() {
+        if (invalidated) {
+            return null;
+        }
+        return slotApiConnection;
     }
 
     public URI uri() {
@@ -72,26 +60,14 @@ public class Endpoint {
         return lifeStatus;
     }
 
-    public boolean isValid() {
-        return !invalidated;
-    }
-
     public void invalidate() {
         invalidated = true;
-        SLOT_CONNECTION_MANAGER.shutdownConnection(slot.uri());
-        synchronized (SlotEndpoint.class) {
-            ENDPOINTS_CACHE.remove(slot.uri());
-        }
+        onInvalidate.run();
     }
 
     public enum SlotOwner {
         WORKER,
         PORTAL,
-        ;
-
-        public static SlotOwner fromProto(LCMS.BindRequest.SlotOwner origin) {
-            return SlotOwner.valueOf(origin.name());
-        }
     }
 
     public enum LifeStatus {

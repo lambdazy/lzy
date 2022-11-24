@@ -7,6 +7,7 @@ import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.slots.LSA;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -17,34 +18,31 @@ import java.util.concurrent.locks.LockSupport;
 
 import static ai.lzy.util.grpc.ProtoConverter.fromProto;
 
+@Singleton
 public class SlotApiClientImpl implements SlotApiClient {
 
     private static final Logger LOG = LogManager.getLogger(SlotApiClientImpl.class);
-
-    private final LongRunningServiceGrpc.LongRunningServiceBlockingStub operationServiceClient;
-
-    public SlotApiClientImpl(LongRunningServiceGrpc.LongRunningServiceBlockingStub operationServiceClient) {
-        this.operationServiceClient = operationServiceClient;
-    }
 
     @Override
     public void connect(Endpoint sender, Endpoint receiver, Duration timeout) {
         LOG.debug("[connect], sender={}, receiver={}", sender.uri(), receiver.uri());
 
-        if (!receiver.isValid()) {
+        SlotApiConnection receiverConnection = receiver.getSlotApiConnection();
+        if (receiverConnection == null) {
             LOG.error("[connect] failed, receiver is invalid, sender={}, receiver={}", sender.uri(), receiver.uri());
             throw new RuntimeException("Invalid");
         }
-        final var client = receiver.getSlotApiStub();
+        final var slotApiClient = receiverConnection.slotApiBlockingStub();
+        final var operationApiClient = receiverConnection.operationApiBlockingStub();
 
-        LongRunning.Operation operation = client.connectSlot(LSA.ConnectSlotRequest.newBuilder()
+        LongRunning.Operation operation = slotApiClient.connectSlot(LSA.ConnectSlotRequest.newBuilder()
             .setFrom(ProtoConverter.toProto(receiver.slot()))
             .setTo(ProtoConverter.toProto(sender.slot()))
             .build());
 
         LOG.debug("[connect] got operation, waiting response, sender={}, receiver={}", sender.uri(), receiver.uri());
 
-        operation = waitOperationDone(operation, timeout);
+        operation = waitOperationDone(operationApiClient, operation, timeout);
         if (!operation.getDone()) {
             LOG.error("[connect] operation timeout, sender={}, receiver={}", sender.uri(), receiver.uri());
             throw new RuntimeException("Operation timeout");
@@ -61,14 +59,15 @@ public class SlotApiClientImpl implements SlotApiClient {
     public void disconnect(Endpoint endpoint) {
         LOG.debug("[disconnect], endpoint={}", endpoint.uri());
 
-        if (!endpoint.isValid()) {
+        SlotApiConnection connection = endpoint.getSlotApiConnection();
+        if (connection == null) {
             LOG.warn("[disconnect] skipped, endpoint is invalid, endpoint={}", endpoint.uri());
             return;
         }
-        final var client = endpoint.getSlotApiStub();
 
+        final var slotApiClient = connection.slotApiBlockingStub();
         try {
-            client.disconnectSlot(LSA.DisconnectSlotRequest.newBuilder()
+            slotApiClient.disconnectSlot(LSA.DisconnectSlotRequest.newBuilder()
                 .setSlotInstance(ProtoConverter.toProto(endpoint.slot()))
                 .build());
         } catch (StatusRuntimeException e) {
@@ -86,14 +85,15 @@ public class SlotApiClientImpl implements SlotApiClient {
     public void destroy(Endpoint endpoint) {
         LOG.debug("[destroy], endpoint={}", endpoint.uri());
 
-        if (!endpoint.isValid()) {
+        SlotApiConnection connection = endpoint.getSlotApiConnection();
+        if (connection == null) {
             LOG.warn("[destroy] skipped, endpoint is invalid, endpoint={}", endpoint.uri());
             return;
         }
 
-        final var client = endpoint.getSlotApiStub();
+        final var slotApiClient = connection.slotApiBlockingStub();
         try {
-            client.destroySlot(LSA.DestroySlotRequest.newBuilder()
+            slotApiClient.destroySlot(LSA.DestroySlotRequest.newBuilder()
                 .setSlotInstance(ProtoConverter.toProto(endpoint.slot()))
                 .build());
         } catch (StatusRuntimeException e) {
@@ -107,13 +107,16 @@ public class SlotApiClientImpl implements SlotApiClient {
         LOG.debug("[destroy] done, endpoint={}", endpoint.uri());
     }
 
-    private LongRunning.Operation waitOperationDone(LongRunning.Operation operation, Duration timeout) {
+    private LongRunning.Operation waitOperationDone(
+        LongRunningServiceGrpc.LongRunningServiceBlockingStub operationApiClient,
+        LongRunning.Operation operation, Duration timeout)
+    {
         if (operation.getDone()) {
             return operation;
         }
         Instant waitingLimit = fromProto(operation.getCreatedAt()).plus(timeout);
         while (Instant.now().isBefore(waitingLimit)) {
-            operation = operationServiceClient.get(LongRunning.GetOperationRequest.newBuilder()
+            operation = operationApiClient.get(LongRunning.GetOperationRequest.newBuilder()
                 .setOperationId(operation.getId()).build());
             if (operation.getDone()) {
                 return operation;
