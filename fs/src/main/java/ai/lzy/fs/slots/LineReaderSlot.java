@@ -1,6 +1,13 @@
 package ai.lzy.fs.slots;
 
+import ai.lzy.fs.fs.LzyOutputSlot;
+import ai.lzy.model.GrpcConverter;
+import ai.lzy.model.slots.TextLinesOutSlot;
+import ai.lzy.v1.Operations;
 import com.google.protobuf.ByteString;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.LineNumberReader;
@@ -12,12 +19,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import ai.lzy.model.GrpcConverter;
-import ai.lzy.model.slots.TextLinesOutSlot;
-import ai.lzy.fs.fs.LzyOutputSlot;
-import ai.lzy.v1.Operations;
 
 public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
     private static final Logger LOG = LogManager.getLogger(LineReaderSlot.class);
@@ -82,7 +83,7 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
                     throw new NoSuchElementException();
                 }
                 try {
-                    LOG.debug("Send from slot {} some data", name());
+                    LOG.info("[{} slot]: {}", name(), line.toStringUtf8());
                     LineReaderSlot.this.offset += line.size();
                     return line;
                 } finally {
