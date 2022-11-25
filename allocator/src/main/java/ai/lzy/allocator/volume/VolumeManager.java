@@ -1,6 +1,9 @@
 package ai.lzy.allocator.volume;
 
 import ai.lzy.allocator.disk.exceptions.NotFoundException;
+import ai.lzy.allocator.model.Volume;
+import ai.lzy.allocator.model.VolumeClaim;
+import ai.lzy.allocator.model.VolumeRequest;
 
 import javax.annotation.Nullable;
 

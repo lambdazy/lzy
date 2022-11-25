@@ -43,11 +43,11 @@ import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
 
 import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.VM_POD_NAME_PREFIX;
+import static ai.lzy.allocator.model.Volume.AccessMode.READ_WRITE_ONCE;
 import static ai.lzy.allocator.test.Utils.waitOperation;
 import static ai.lzy.allocator.volume.KuberVolumeManager.KUBER_GB_NAME;
 import static ai.lzy.allocator.volume.KuberVolumeManager.VOLUME_CAPACITY_STORAGE_KEY;
 import static ai.lzy.allocator.volume.KuberVolumeManager.YCLOUD_DISK_DRIVER;
-import static ai.lzy.allocator.volume.Volume.AccessMode.READ_WRITE_ONCE;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static java.util.Objects.requireNonNull;
 

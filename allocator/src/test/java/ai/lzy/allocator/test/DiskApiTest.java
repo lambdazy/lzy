@@ -8,6 +8,7 @@ import ai.lzy.allocator.disk.DiskMeta;
 import ai.lzy.allocator.disk.DiskSpec;
 import ai.lzy.allocator.disk.DiskType;
 import ai.lzy.allocator.disk.exceptions.NotFoundException;
+import ai.lzy.allocator.disk.impl.mock.MockDiskManager;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.db.test.DatabaseTestUtils;
@@ -19,7 +20,6 @@ import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
@@ -207,7 +207,9 @@ public class DiskApiTest extends BaseTestWithIam {
 
     @Test
     public void createExistingDeleteTest() throws InvalidProtocolBufferException {
-        final Disk disk = diskManager.create(defaultDiskSpec, new DiskMeta(defaultUserName));
+        final Disk disk = new Disk("123", defaultDiskSpec, new DiskMeta(defaultUserName));
+        ((MockDiskManager) diskManager).put(disk);
+
         var createDiskOperation =
             diskService.createDisk(DiskServiceApi.CreateDiskRequest.newBuilder()
                 .setUserId(defaultUserName)
@@ -406,26 +408,24 @@ public class DiskApiTest extends BaseTestWithIam {
         cloneDiskOperation = waitOperation(operations, cloneDiskOperation, DEFAULT_TIMEOUT_SEC);
         Assert.assertTrue(cloneDiskOperation.hasError());
         Assert.assertFalse(cloneDiskOperation.hasResponse());
-        Assert.assertEquals(Status.INVALID_ARGUMENT.getCode().value(), cloneDiskOperation.getError().getCode());
+        Assert.assertEquals(Status.NOT_FOUND.getCode().value(), cloneDiskOperation.getError().getCode());
     }
 
     @Test
     public void deleteNonExistingDiskTest() {
-        try {
-            //noinspection ResultOfMethodCallIgnored
-            diskService.deleteDisk(DiskServiceApi.DeleteDiskRequest.newBuilder()
-                .setDiskId("unknown-disk-id")
-                .build());
-            Assert.fail();
-        } catch (StatusRuntimeException e) {
-            Assert.assertEquals(Status.NOT_FOUND.getCode(), e.getStatus().getCode());
-        }
+        var op = diskService.deleteDisk(DiskServiceApi.DeleteDiskRequest.newBuilder()
+            .setDiskId("unknown-disk-id")
+            .build());
+        op = waitOperation(operations, op, DEFAULT_TIMEOUT_SEC);
+        Assert.assertTrue(op.hasError());
+        Assert.assertFalse(op.hasResponse());
+        Assert.assertEquals(Status.NOT_FOUND.getCode().value(), op.getError().getCode());
     }
 
     @Test
     public void deleteOutsideOfDiskServiceCloneTest() throws InvalidProtocolBufferException, NotFoundException {
         final DiskApi.Disk disk = createDefaultDisk();
-        diskManager.delete(disk.getDiskId());
+        ((MockDiskManager) diskManager).delete(disk.getDiskId());
 
         final DiskSpec clonedDiskSpec = new DiskSpec("clonedDiskName", DiskType.HDD, 1, "ru-central1-a");
 
@@ -444,15 +444,15 @@ public class DiskApiTest extends BaseTestWithIam {
     @Test
     public void deleteOutsideOfDiskServiceDeleteTest() throws NotFoundException, InvalidProtocolBufferException {
         final DiskApi.Disk disk = createDefaultDisk();
-        diskManager.delete(disk.getDiskId());
+        ((MockDiskManager) diskManager).delete(disk.getDiskId());
 
-        try {
-            //noinspection ResultOfMethodCallIgnored
-            diskService.deleteDisk(DiskServiceApi.DeleteDiskRequest.newBuilder()
-                .setDiskId(disk.getDiskId()).build());
-        } catch (StatusRuntimeException e) {
-            Assert.assertEquals(Status.DATA_LOSS.getCode(), e.getStatus().getCode());
-        }
+        var op = diskService.deleteDisk(DiskServiceApi.DeleteDiskRequest.newBuilder()
+            .setDiskId(disk.getDiskId())
+            .build());
+        op = waitOperation(operations, op, DEFAULT_TIMEOUT_SEC);
+        Assert.assertTrue(op.hasError());
+        Assert.assertFalse(op.hasResponse());
+        Assert.assertEquals(Status.DATA_LOSS.getCode().value(), op.getError().getCode());
     }
 
     private void deleteDisk(DiskApi.Disk disk) {

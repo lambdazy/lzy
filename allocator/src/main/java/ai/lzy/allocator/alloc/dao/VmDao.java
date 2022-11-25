@@ -1,7 +1,7 @@
 package ai.lzy.allocator.alloc.dao;
 
 import ai.lzy.allocator.model.Vm;
-import ai.lzy.allocator.volume.VolumeClaim;
+import ai.lzy.allocator.model.VolumeClaim;
 import ai.lzy.model.db.TransactionHandle;
 import com.google.common.annotations.VisibleForTesting;
 

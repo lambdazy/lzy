@@ -1,5 +1,9 @@
-package ai.lzy.allocator.disk;
+package ai.lzy.allocator.disk.dao;
 
+import ai.lzy.allocator.disk.Disk;
+import ai.lzy.allocator.disk.DiskMeta;
+import ai.lzy.allocator.disk.DiskSpec;
+import ai.lzy.allocator.disk.DiskType;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Storage;
@@ -11,10 +15,12 @@ import org.apache.logging.log4j.Logger;
 import java.sql.SQLException;
 import javax.annotation.Nullable;
 
-public class DiskStorage {
-    private static final Logger LOG = LogManager.getLogger(DiskStorage.class);
+public class DiskDao {
+    private static final Logger LOG = LogManager.getLogger(DiskDao.class);
 
-    private static final String FIELDS = "id, name, type, size_gb, zone_id, user_id ";
+    private static final String FIELDS =
+        "id, name, type, size_gb, zone_id, user_id";
+
     private static final String QUERY_INSERT_DISK = """
         INSERT INTO disk (%s)
         VALUES (?, ?, ?, ?, ?, ?)""".formatted(FIELDS);
@@ -32,11 +38,11 @@ public class DiskStorage {
     private final Storage storage;
 
     @Inject
-    DiskStorage(AllocatorDataSource storage) {
+    public DiskDao(AllocatorDataSource storage) {
         this.storage = storage;
     }
 
-    public void insert(Disk disk, TransactionHandle transaction) throws SQLException {
+    public void insert(Disk disk, @Nullable TransactionHandle transaction) throws SQLException {
         LOG.info("Insert into storage disk=" + disk);
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(QUERY_INSERT_DISK)) {
@@ -53,7 +59,7 @@ public class DiskStorage {
     }
 
     @Nullable
-    public Disk get(String diskId, TransactionHandle transaction) throws SQLException {
+    public Disk get(String diskId, @Nullable TransactionHandle transaction) throws SQLException {
         LOG.info("Get from storage diskId=" + diskId);
         final Disk[] disk = {null};
         DbOperation.execute(transaction, storage, con -> {
@@ -78,7 +84,7 @@ public class DiskStorage {
         return disk[0];
     }
 
-    public void remove(String diskId, TransactionHandle transaction) throws SQLException {
+    public void remove(String diskId, @Nullable TransactionHandle transaction) throws SQLException {
         LOG.info("Remove from storage diskId=" + diskId);
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(QUERY_REMOVE_DISK)) {
@@ -87,5 +93,4 @@ public class DiskStorage {
             }
         });
     }
-
 }
