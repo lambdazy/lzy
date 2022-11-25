@@ -57,5 +57,4 @@ public class BeanFactory {
     {
         return new SubjectServiceGrpcClient(WhiteboardApp.APP, iamChannel, iamToken::get);
     }
-
 }
