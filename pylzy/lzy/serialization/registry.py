@@ -1,6 +1,6 @@
 from serialzy.registry import DefaultSerializerRegistry
 
-from lzy.serialization.file_serializer import FileSerializer
+from lzy.serialization.file import FileSerializer
 
 
 class LzySerializerRegistry(DefaultSerializerRegistry):

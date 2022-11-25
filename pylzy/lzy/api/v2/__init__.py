@@ -7,7 +7,7 @@ from lzy.api.v2.local.runtime import LocalRuntime
 from lzy.api.v2.provisioning import Provisioning
 from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
 from lzy.api.v2.runtime import Runtime
-from lzy.serialization.lzy_serializer_registry import LzySerializerRegistry
+from lzy.serialization.registry import LzySerializerRegistry
 from lzy.api.v2.snapshot import DefaultSnapshot
 from lzy.api.v2.utils.conda import generate_conda_yaml
 from lzy.api.v2.utils.env import generate_env, merge_envs
