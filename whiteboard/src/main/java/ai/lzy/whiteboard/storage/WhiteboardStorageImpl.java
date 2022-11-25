@@ -70,7 +70,8 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                     finalized_at = ?
                 WHERE whiteboard_id = ? AND field_name = ? AND finalized_at IS NULL
                 """)
-            ) {
+            )
+            {
                 String dataSchemeJson = objectMapper.writeValueAsString(ProtoConverter.toProto(field.schema()));
                 int index = 0;
                 st.setString(++index, field.status().name());
@@ -115,7 +116,8 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
         DbOperation.execute(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement(
                 "DELETE FROM whiteboards WHERE whiteboard_id = ?"
-            )) {
+            ))
+            {
                 int index = 0;
                 st.setString(++index, whiteboardId);
 
@@ -162,7 +164,8 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                 ) t ON wb.whiteboard_id = t.whiteboard_id
                 WHERE wb.whiteboard_id = ?
                 """)
-            ) {
+            )
+            {
                 int index = 0;
                 st.setString(++index, whiteboardId);
                 Stream<Whiteboard> whiteboards = parseWhiteboards(st.executeQuery());
@@ -271,7 +274,8 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                     whiteboard_status, namespace, created_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """)
-            ) {
+            )
+            {
                 int index = 0;
                 st.setString(++index, whiteboard.id());
                 st.setString(++index, whiteboard.name());
@@ -296,7 +300,8 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                     data_scheme, storage_uri
                 ) VALUES (?, ?, ?, ?, ?, ?)
                 """)
-            ) {
+            )
+            {
                 for (final Field field : fields) {
                     int index = 0;
                     st.setString(++index, whiteboardId);
@@ -329,7 +334,8 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                 SELECT ?, tags.t_name
                 FROM unnest(?) AS tags(t_name)
                 """)
-            ) {
+            )
+            {
                 int index = 0;
                 st.setString(++index, whiteboardId);
                 st.setArray(++index, sqlConnection.createArrayOf("text", tags.toArray()));
@@ -347,7 +353,8 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                     SET whiteboard_status = ?, finalized_at = ?
                     WHERE whiteboard_id = ? AND finalized_at is NULL
                     """)
-            ) {
+            )
+            {
                 int index = 0;
                 st.setString(++index, Whiteboard.Status.FINALIZED.name());
                 st.setTimestamp(++index, Timestamp.from(finalizedAt));
@@ -370,7 +377,8 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                     SET field_status = ?, finalized_at = ?
                     WHERE whiteboard_id = ? AND finalized_at is NULL
                     """)
-            ) {
+            )
+            {
                 int index = 0;
                 st.setString(++index, Field.Status.FINALIZED.name());
                 st.setTimestamp(++index, Timestamp.from(finalizedAt));
