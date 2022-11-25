@@ -1,8 +1,8 @@
 package ai.lzy.allocator.disk.dao;
 
 import ai.lzy.allocator.disk.DiskOperation;
+import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.model.db.DbOperation;
-import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -60,10 +60,10 @@ public class DiskOpDao {
         FROM disk_op
         WHERE deadline < NOW() AND NOT failed""";
 
-    private final Storage storage;
+    private final AllocatorDataSource storage;
 
     @Inject
-    public DiskOpDao(Storage storage) {
+    public DiskOpDao(AllocatorDataSource storage) {
         this.storage = storage;
     }
 
