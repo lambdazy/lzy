@@ -8,7 +8,6 @@ import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.v1.DiskServiceApi;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -26,25 +25,13 @@ import yandex.cloud.api.operation.OperationServiceGrpc;
 import yandex.cloud.api.operation.OperationServiceOuterClass;
 
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
 
-final class YcCloneDiskAction implements Runnable {
+final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
     private static final Logger LOG = LogManager.getLogger(YcCloneDiskAction.class);
 
-    private final String opId;
-    private YcCloneDiskState state;
-    private final AllocatorDataSource storage;
-    private final DiskDao diskDao;
-    private final DiskOpDao diskOpDao;
-    private final OperationDao operationsDao;
-    private final ScheduledExecutorService executor;
-    private final ObjectMapper objectMapper;
-    private final DiskServiceGrpc.DiskServiceBlockingStub ycDiskService;
-    private final SnapshotServiceGrpc.SnapshotServiceBlockingStub ycSnapshotService;
-    private final OperationServiceGrpc.OperationServiceBlockingStub ycOperationService;
     private boolean ycCreateSnapshotOpIdSaved;
     private boolean snapshotIdSaved;
     private boolean ycCreateDiskOpIdSaved;
@@ -58,17 +45,8 @@ final class YcCloneDiskAction implements Runnable {
                              SnapshotServiceGrpc.SnapshotServiceBlockingStub ycSnapshotService,
                              OperationServiceGrpc.OperationServiceBlockingStub ycOperationService)
     {
-        this.opId = opId;
-        this.state = state;
-        this.storage = storage;
-        this.diskDao = diskDao;
-        this.diskOpDao = diskOpDao;
-        this.operationsDao = operationsDao;
-        this.executor = executor;
-        this.objectMapper = objectMapper;
-        this.ycDiskService = ycDiskService;
-        this.ycSnapshotService = ycSnapshotService;
-        this.ycOperationService = ycOperationService;
+        super(opId, state, storage, diskDao, diskOpDao, operationsDao, executor, objectMapper, ycDiskService,
+            ycSnapshotService, ycOperationService);
         this.ycCreateSnapshotOpIdSaved = !state.ycCreateSnapshotOperationId().isEmpty();
         this.snapshotIdSaved = state.snapshotId() != null;
         this.ycCreateDiskOpIdSaved = !state.ycCreateDiskOperationId().isEmpty();
@@ -139,7 +117,7 @@ final class YcCloneDiskAction implements Runnable {
             } catch (StatusRuntimeException e) {
                 LOG.error("Error while creating YcCloneDisk::CreateSnapshot op {} state: [{}] {}. Reschedule...",
                     opId, e.getStatus().getCode(), e.getStatus().getDescription());
-                executor.schedule(this, 2, TimeUnit.SECONDS);
+                restart();
                 return;
             }
         }
@@ -150,12 +128,12 @@ final class YcCloneDiskAction implements Runnable {
         } catch (Exception e) {
             LOG.debug("Cannot save new state for YcCloneDisk::CreateSnapshot {}/{}, reschedule...",
                 opId, state.ycCreateSnapshotOperationId());
-            executor.schedule(this, 2, TimeUnit.SECONDS);
+            restart();
             return;
         }
 
         LOG.info("Wait YC at YcCloneDisk::CreateSnapshot {}/{}...", opId, state.ycCreateSnapshotOperationId());
-        executor.schedule(this, 2, TimeUnit.SECONDS);
+        restart();
     }
 
     private void waitSnapshot() {
@@ -175,14 +153,14 @@ final class YcCloneDiskAction implements Runnable {
                 LOG.error("Error while getting YcCloneDisk::CreateSnapshot op {}/{} state: [{}] {}. Reschedule...",
                     opId, state.ycCreateSnapshotOperationId(), e.getStatus().getCode(),
                     e.getStatus().getDescription());
-                executor.schedule(this, 2, TimeUnit.SECONDS);
+                restart();
                 return;
             }
 
             if (!ycGetSnapshotOp.getDone()) {
                 LOG.info("YcCloneDisk::CreateSnapshot {}/{} not completed yet, reschedule...",
                     opId, state.ycCreateSnapshotOperationId());
-                executor.schedule(this, 2, TimeUnit.SECONDS);
+                restart();
                 return;
             }
 
@@ -200,7 +178,7 @@ final class YcCloneDiskAction implements Runnable {
                 } catch (Exception e) {
                     LOG.error("Cannot complete failed YcCloneDisk::CreateSnapshot operation {}/{}: {}. Reschedule...",
                         opId, state.ycCreateSnapshotOperationId(), e.getMessage());
-                    executor.schedule(this, 2, TimeUnit.SECONDS);
+                    restart();
                     return;
                 }
 
@@ -232,7 +210,7 @@ final class YcCloneDiskAction implements Runnable {
                 } catch (Exception ex) {
                     LOG.error("Cannot complete failed YcCloneDisk::CreateSnapshot op {}/{}: {}. Reschedule...",
                         opId, state.ycCreateSnapshotOperationId(), e.getMessage());
-                    executor.schedule(this, 2, TimeUnit.SECONDS);
+                    restart();
                     return;
                 }
 
@@ -246,7 +224,7 @@ final class YcCloneDiskAction implements Runnable {
             } catch (Exception e) {
                 LOG.debug("Cannot save new state for YcCloneDisk::CreateSnapshot op {}/{} ({}), reschedule...",
                     opId, state.ycCreateSnapshotOperationId(), state.snapshotId());
-                executor.schedule(this, 2, TimeUnit.SECONDS);
+                restart();
             }
         }
     }
@@ -274,7 +252,7 @@ final class YcCloneDiskAction implements Runnable {
             } catch (StatusRuntimeException e) {
                 LOG.error("Error while running YcCloneDisk::CreateDisk op {} state: [{}] {}. Reschedule...",
                     opId, e.getStatus().getCode(), e.getStatus().getDescription());
-                executor.schedule(this, 2, TimeUnit.SECONDS);
+                restart();
                 return;
             }
         }
@@ -285,12 +263,12 @@ final class YcCloneDiskAction implements Runnable {
         } catch (Exception e) {
             LOG.debug("Cannot save new state for YcCloneDisk::CreateDisk {}/{}, reschedule...",
                 opId, state.ycCreateDiskOperationId());
-            executor.schedule(this, 2, TimeUnit.SECONDS);
+            restart();
             return;
         }
 
         LOG.info("Wait YC at YcCloneDisk::CreateDisk {}/{}...", opId, state.ycCreateDiskOperationId());
-        executor.schedule(this, 2, TimeUnit.SECONDS);
+        restart();
     }
 
     private void waitDisk() {
@@ -307,14 +285,14 @@ final class YcCloneDiskAction implements Runnable {
         } catch (StatusRuntimeException e) {
             LOG.error("Error while getting YcCloneDisk::CreateDisk operation {}/{} state: [{}] {}. Reschedule...",
                 opId, state.ycCreateDiskOperationId(), e.getStatus().getCode(), e.getStatus().getDescription());
-            executor.schedule(this, 2, TimeUnit.SECONDS);
+            restart();
             return;
         }
 
         if (!ycOp.getDone()) {
             LOG.debug("YcCloneDisk::CreateDisk {}/{} not completed yet, reschedule...",
                 opId, state.ycCreateDiskOperationId());
-            executor.schedule(this, 2, TimeUnit.SECONDS);
+            restart();
             return;
         }
 
@@ -345,7 +323,7 @@ final class YcCloneDiskAction implements Runnable {
                 } catch (Exception ex) {
                     LOG.error("Cannot complete failed YcCloneDisk::CreateSnapshot op {}/{}: {}. Reschedule...",
                         opId, state.ycCreateSnapshotOperationId(), e.getMessage());
-                    executor.schedule(this, 2, TimeUnit.SECONDS);
+                    restart();
                     return;
                 }
 
@@ -379,7 +357,7 @@ final class YcCloneDiskAction implements Runnable {
             } catch (Exception e) {
                 LOG.error("Cannot complete successful YcCloneDisk::CreateDisk operation {}/{}: {}. Reschedule...",
                     opId, state.ycCreateDiskOperationId(), e.getMessage());
-                executor.schedule(this, 2, TimeUnit.SECONDS);
+                restart();
                 return;
             }
 
@@ -405,7 +383,7 @@ final class YcCloneDiskAction implements Runnable {
         } catch (Exception e) {
             LOG.error("Cannot complete failed ycCreateDisk operation {}/{}: {}. Reschedule...",
                 opId, state.ycCreateDiskOperationId(), e.getMessage());
-            executor.schedule(this, 2, TimeUnit.SECONDS);
+            restart();
         }
     }
 
@@ -424,7 +402,7 @@ final class YcCloneDiskAction implements Runnable {
             } catch (StatusRuntimeException e) {
                 LOG.error("Error while creating YcCloneDisk::DeleteSnapshot op {} state: [{}] {}. Reschedule...",
                     opId, e.getStatus().getCode(), e.getStatus().getDescription());
-                executor.schedule(this, 2, TimeUnit.SECONDS);
+                restart();
                 return;
             }
         }
@@ -435,12 +413,12 @@ final class YcCloneDiskAction implements Runnable {
         } catch (Exception e) {
             LOG.debug("Cannot save new state for YcCloneDisk::DeleteSnapshot {}/{}, reschedule...",
                 opId, state.ycDeleteSnapshotOperationId());
-            executor.schedule(this, 2, TimeUnit.SECONDS);
+            restart();
             return;
         }
 
         LOG.info("Wait YC at YcCloneDisk::DeleteSnapshot {}/{}...", opId, state.ycDeleteSnapshotOperationId());
-        executor.schedule(this, 2, TimeUnit.SECONDS);
+        restart();
     }
 
     private void waitCleanup() {
@@ -459,14 +437,14 @@ final class YcCloneDiskAction implements Runnable {
             LOG.error("Error while getting YcCloneDisk::DeleteSnapshot op {}/{} state: [{}] {}. Reschedule...",
                 opId, state.ycDeleteSnapshotOperationId(), e.getStatus().getCode(),
                 e.getStatus().getDescription());
-            executor.schedule(this, 2, TimeUnit.SECONDS);
+            restart();
             return;
         }
 
         if (!ycOp.getDone()) {
             LOG.info("YcCloneDisk::DeleteSnapshot {}/{} not completed yet, reschedule...",
                 opId, state.ycDeleteSnapshotOperationId());
-            executor.schedule(this, 2, TimeUnit.SECONDS);
+            restart();
             return;
         }
 
@@ -478,7 +456,7 @@ final class YcCloneDiskAction implements Runnable {
             } catch (Exception e) {
                 LOG.error("Cannot complete failed YcCloneDisk::DeleteSnapshot operation {}/{}: {}. Reschedule...",
                     opId, state.ycDeleteSnapshotOperationId(), e.getMessage());
-                executor.schedule(this, 2, TimeUnit.SECONDS);
+                restart();
                 return;
             }
 
@@ -497,15 +475,7 @@ final class YcCloneDiskAction implements Runnable {
         } catch (Exception e) {
             LOG.debug("Cannot save new state for YcCloneDisk::DeleteSnapshot op {}/{} ({}), reschedule...",
                 opId, state.ycDeleteSnapshotOperationId(), state.snapshotId());
-            executor.schedule(this, 2, TimeUnit.SECONDS);
-        }
-    }
-
-    private String toJson(Object obj) {
-        try {
-            return objectMapper.writeValueAsString(obj);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+            restart();
         }
     }
 }

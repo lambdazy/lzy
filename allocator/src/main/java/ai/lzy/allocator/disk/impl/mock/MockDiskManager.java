@@ -211,4 +211,10 @@ public class MockDiskManager implements DiskManager {
                 }
             });
     }
+
+    @Override
+    public DiskOperation restoreDiskOperation(DiskOperation template) {
+        // TODO:
+        return template;
+    }
 }

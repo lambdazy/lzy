@@ -142,9 +142,41 @@ public class YcDiskManager implements DiskManager {
                 objectMapper, ycDiskService, ycOperationService));
     }
 
+    @Override
+    public DiskOperation restoreDiskOperation(DiskOperation template) {
+        return switch (template.diskOpType()) {
+            case CREATE -> {
+                var state = fromJson(template.state(), YcCreateDiskState.class);
+                var action = new YcCreateDiskAction(template.opId(), state, storage, diskDao, diskOpDao, operationsDao,
+                    executor, objectMapper, ycDiskService, ycOperationService);
+                yield template.withDeferredAction(action);
+            }
+            case CLONE -> {
+                var state = fromJson(template.state(), YcCloneDiskState.class);
+                var action = new YcCloneDiskAction(template.opId(), state, storage, diskDao, diskOpDao, operationsDao,
+                    executor, objectMapper, ycDiskService, ycSnapshotService, ycOperationService);
+                yield template.withDeferredAction(action);
+            }
+            case DELETE -> {
+                var state = fromJson(template.state(), YcDeleteDiskState.class);
+                var action = new YcDeleteDiskAction(template.opId(), state, storage, diskDao, diskOpDao, operationsDao,
+                    executor, objectMapper, ycDiskService, ycOperationService);
+                yield template.withDeferredAction(action);
+            }
+        };
+    }
+
     private String toJson(Object obj) {
         try {
             return objectMapper.writeValueAsString(obj);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private <T> T fromJson(String obj, Class<T> type) {
+        try {
+            return objectMapper.readValue(obj, type);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }

@@ -45,16 +45,19 @@ public class DiskOpDao {
 
     private static final String QUERY_GET_EXPIRED_DISK_OPS = """
         SELECT op_id, started_at, deadline, op_type::TEXT, state_json
+        FROM disk_op
         WHERE deadline >= NOW() AND NOT failed
         LIMIT ?""";
 
     private static final String QUERY_GET_FAILED_DISK_OPS = """
         SELECT op_id, started_at, deadline, op_type::TEXT, state_json, fail_reason
+        FROM disk_op
         WHERE failed
         LIMIT ?""";
 
     private static final String QUERY_GET_ACTIVE_DISK_OPS = """
         SELECT op_id, started_at, deadline, op_type::TEXT, state_json
+        FROM disk_op
         WHERE deadline < NOW() AND NOT failed""";
 
     private final Storage storage;

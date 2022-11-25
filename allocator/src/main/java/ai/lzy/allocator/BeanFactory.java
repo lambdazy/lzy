@@ -27,7 +27,10 @@ import yandex.cloud.sdk.auth.provider.CredentialProvider;
 
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.concurrent.*;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import javax.inject.Named;
@@ -60,8 +63,7 @@ public class BeanFactory {
 
     @Singleton
     public ObjectMapper mapper() {
-        var mapper = new ObjectMapper().registerModule(new JavaTimeModule());
-        return mapper;
+        return new ObjectMapper().registerModule(new JavaTimeModule());
     }
 
     @Bean(preDestroy = "shutdown")

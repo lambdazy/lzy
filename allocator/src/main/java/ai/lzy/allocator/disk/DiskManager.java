@@ -19,4 +19,6 @@ public interface DiskManager {
     DiskOperation newCloneDiskOperation(OuterOperation outerOp, Disk disk, DiskSpec newDiskSpec, DiskMeta newDiskMeta);
 
     DiskOperation newDeleteDiskOperation(OuterOperation outerOp, String diskId);
+
+    DiskOperation restoreDiskOperation(DiskOperation template);
 }

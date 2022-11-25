@@ -15,4 +15,8 @@ public record DiskOperation(
         CLONE,
         DELETE
     }
+
+    public DiskOperation withDeferredAction(Runnable deferredAction) {
+        return new DiskOperation(opId, startedAt, deadline, diskOpType, state, deferredAction);
+    }
 }

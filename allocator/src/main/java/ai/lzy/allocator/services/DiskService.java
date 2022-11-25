@@ -20,6 +20,7 @@ import ai.lzy.v1.DiskServiceApi.CreateDiskRequest;
 import ai.lzy.v1.DiskServiceApi.DeleteDiskRequest;
 import ai.lzy.v1.DiskServiceGrpc;
 import ai.lzy.v1.longrunning.LongRunning;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.Any;
 import io.grpc.Status;
 import io.grpc.StatusException;
@@ -32,8 +33,8 @@ import org.apache.logging.log4j.Logger;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 import javax.annotation.PreDestroy;
 import javax.inject.Named;
@@ -55,7 +56,6 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
     private final AllocatorDataSource storage;
     private final ScheduledExecutorService executor;
     private final Metrics metrics = new Metrics();
-    private final AtomicInteger runningRequests = new AtomicInteger(0);
 
     public DiskService(DiskManager diskManager, DiskDao diskDao, DiskOpDao diskOpDao, AllocatorDataSource storage,
                        @Named("AllocatorOperationDao") OperationDao operationDao,
@@ -67,11 +67,30 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
         this.storage = storage;
         this.operationsDao = operationDao;
         this.executor = executor;
+
+        restartActiveOperations();
     }
 
     @PreDestroy
     public void shutdown() {
-        LOG.info("Shutdown DiskService, active requests: {}", runningRequests.get());
+        LOG.info("Shutdown DiskService, active requests: ???");
+    }
+
+    @VisibleForTesting
+    public void restartActiveOperations() {
+        final List<DiskOperation> ops;
+        try {
+            ops = diskOpDao.getActiveDiskOps(null);
+        } catch (SQLException e) {
+            LOG.error("Cannot load active disk operations: {}", e.getMessage());
+            throw new RuntimeException(e);
+        }
+
+        for (var op : ops) {
+            LOG.info("Restore {}", op);
+            op = diskManager.restoreDiskOperation(op);
+            executor.submit(op.deferredAction());
+        }
     }
 
     public Metrics getMetrics() {
@@ -203,9 +222,8 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
         final var startedAt = Instant.now();
         final var deadline = startedAt.plus(Duration.ofHours(1));
 
-        final Status error;
         try {
-            error = withRetries(LOG, () -> {
+            var diskOperation = withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage)) {
                     operationsDao.create(cloneDiskOperation, tx);
 
@@ -252,12 +270,13 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                     tx.commit();
                     metrics.cloneDiskStart.inc();
 
-                    if (action.deferredAction() != null) {
-                        executor.submit(action.deferredAction());
-                    }
-                    return null;
+                    return action;
                 }
             });
+
+            if (diskOperation != null) {
+                executor.submit(diskOperation.deferredAction());
+            }
         } catch (Exception e) {
             if (idempotencyKey != null &&
                 handleIdempotencyKeyConflict(idempotencyKey, e, operationsDao, response, LOG))
@@ -271,13 +290,8 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
             return;
         }
 
-        if (error == null) {
-            response.onNext(cloneDiskOperation.toProto());
-            response.onCompleted();
-        } else {
-            metrics.cloneDiskError.inc();
-            response.onError(error.asException());
-        }
+        response.onNext(cloneDiskOperation.toProto());
+        response.onCompleted();
     }
 
     @Override

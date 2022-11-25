@@ -7,7 +7,6 @@ import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.v1.DiskServiceApi;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Any;
 import io.grpc.StatusRuntimeException;
@@ -20,23 +19,12 @@ import yandex.cloud.api.operation.OperationServiceGrpc;
 import yandex.cloud.api.operation.OperationServiceOuterClass;
 
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
 
-final class YcDeleteDiskAction implements Runnable {
+final class YcDeleteDiskAction extends YcDiskActionBase<YcDeleteDiskState> {
     private static final Logger LOG = LogManager.getLogger(YcDeleteDiskAction.class);
 
-    private final String opId;
-    private YcDeleteDiskState state;
-    private final AllocatorDataSource storage;
-    private final DiskDao diskDao;
-    private final DiskOpDao diskOpDao;
-    private final OperationDao operationsDao;
-    private final ScheduledExecutorService executor;
-    private final ObjectMapper objectMapper;
-    private final DiskServiceGrpc.DiskServiceBlockingStub ycDiskService;
-    private final OperationServiceGrpc.OperationServiceBlockingStub ycOperationService;
     private boolean ycOpIdSaved;
 
     public YcDeleteDiskAction(String opId, YcDeleteDiskState state, AllocatorDataSource storage, DiskDao diskDao,
@@ -44,16 +32,9 @@ final class YcDeleteDiskAction implements Runnable {
                               ObjectMapper objectMapper, DiskServiceGrpc.DiskServiceBlockingStub ycDiskService,
                               OperationServiceGrpc.OperationServiceBlockingStub ycOperationService)
     {
-        this.opId = opId;
-        this.state = state;
-        this.storage = storage;
-        this.diskDao = diskDao;
-        this.diskOpDao = diskOpDao;
-        this.operationsDao = operationsDao;
-        this.executor = executor;
-        this.objectMapper = objectMapper;
-        this.ycDiskService = ycDiskService;
-        this.ycOperationService = ycOperationService;
+        super(opId, state, storage, diskDao, diskOpDao, operationsDao, executor, objectMapper, ycDiskService,
+            null, ycOperationService);
+
         this.ycOpIdSaved = !state.ycOperationId().isEmpty();
     }
 
@@ -75,7 +56,7 @@ final class YcDeleteDiskAction implements Runnable {
                 } catch (StatusRuntimeException e) {
                     LOG.error("Error while running YcDeleteDisk op {} state: [{}] {}. Reschedule...",
                         opId, e.getStatus().getCode(), e.getStatus().getDescription());
-                    executor.schedule(this, 2, TimeUnit.SECONDS);
+                    restart();
                     return;
                 }
             }
@@ -85,12 +66,12 @@ final class YcDeleteDiskAction implements Runnable {
                 ycOpIdSaved = true;
             } catch (Exception e) {
                 LOG.debug("Cannot save new state for YcDeleteDisk {}/{}, reschedule...", opId, state.ycOperationId());
-                executor.schedule(this, 2, TimeUnit.SECONDS);
+                restart();
                 return;
             }
 
             LOG.info("Wait YC at YcDeleteDisk {}/{}...", opId, state.ycOperationId());
-            executor.schedule(this, 2, TimeUnit.SECONDS);
+            restart();
             return;
         }
 
@@ -105,13 +86,13 @@ final class YcDeleteDiskAction implements Runnable {
         } catch (StatusRuntimeException e) {
             LOG.error("Error while getting YcDeleteDisk operation {}/{} state: [{}] {}. Reschedule...",
                 opId, state.ycOperationId(), e.getStatus().getCode(), e.getStatus().getDescription());
-            executor.schedule(this, 2, TimeUnit.SECONDS);
+            restart();
             return;
         }
 
         if (!ycOp.getDone()) {
             LOG.debug("YcDeleteDisk {}/{} not completed yet, reschedule...", opId, state.ycOperationId());
-            executor.schedule(this, 2, TimeUnit.SECONDS);
+            restart();
             return;
         }
 
@@ -140,7 +121,7 @@ final class YcDeleteDiskAction implements Runnable {
             } catch (Exception e) {
                 LOG.error("Cannot complete successful YcDeleteDisk operation {}/{}: {}. Reschedule...",
                     opId, state.ycOperationId(), e.getMessage());
-                executor.schedule(this, 2, TimeUnit.SECONDS);
+                restart();
             }
             return;
         }
@@ -158,15 +139,7 @@ final class YcDeleteDiskAction implements Runnable {
         } catch (Exception e) {
             LOG.error("Cannot complete failed YcDeleteDisk operation {}/{}: {}. Reschedule...",
                 opId, state.ycOperationId(), e.getMessage());
-            executor.schedule(this, 2, TimeUnit.SECONDS);
-        }
-    }
-
-    private String toJson(Object obj) {
-        try {
-            return objectMapper.writeValueAsString(obj);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+            restart();
         }
     }
 }
