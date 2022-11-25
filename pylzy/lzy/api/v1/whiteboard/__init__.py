@@ -11,7 +11,7 @@ from lzy.api.v1.whiteboard.model import (
     WhiteboardApi,
     WhiteboardDescription,
 )
-from lzy.serialization.api import SerializerRegistry
+from serialzy.api import SerializerRegistry
 
 ALREADY_WRAPPED = "_already_wrapped_whiteboard"
 ALREADY_WRAPPED_READY = "_already_wrapped_ready_whiteboard"

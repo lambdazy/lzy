@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from lzy.serialization.hasher import DelegatingHasher
-from lzy.serialization.registry import DefaultSerializerRegistry
+from serialzy.registry import DefaultSerializerRegistry
 
 
 class A:

@@ -3,16 +3,16 @@ import os
 import uuid
 from typing import Any, BinaryIO, Callable, Dict, Type, Union
 
-from lzy.serialization.api import DefaultDataSchemaSerializer, StandardDataFormats, Schema
-from lzy.serialization.types import File
-from lzy.serialization.utils import cached_installed_packages
+from serialzy.api import StandardDataFormats, Schema
+from serialzy.base import DefaultSchemaSerializerByReference
+from lzy.types import File
 from lzy.version import __version__
 from packaging import version
 
 _LOG = logging.getLogger(__name__)
 
 
-class FileSerializer(DefaultDataSchemaSerializer):
+class FileSerializer(DefaultSchemaSerializerByReference):
     def serialize(self, obj: File, dest: BinaryIO) -> None:
         with obj.path.open("rb") as f:
             data = f.read(4096)
@@ -48,7 +48,7 @@ class FileSerializer(DefaultDataSchemaSerializer):
         typ = super().resolve(schema)
         if 'pylzy' not in schema.meta:
             _LOG.warning('No pylzy version in meta')
-        elif version.parse(schema.meta['pylzy']) > version.parse(cached_installed_packages["pylzy"]):
-            _LOG.warning(f'Installed version of pylzy {cached_installed_packages["pylzy"]} '
+        elif version.parse(schema.meta['pylzy']) > version.parse(__version__):
+            _LOG.warning(f'Installed version of pylzy {__version__} '
                          f'is older than used for serialization {schema.meta["pylzy"]}')
         return typ

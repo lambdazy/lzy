@@ -1,13 +1,13 @@
 import tempfile
 from unittest import TestCase
 
-from lzy.serialization.registry import DefaultSerializerRegistry
-from lzy.serialization.types import File
+from lzy.serialization.lzy_serializer_registry import LzySerializerRegistry
+from lzy.types import File
 
 
 class FileSerializationTests(TestCase):
     def setUp(self):
-        self.registry = DefaultSerializerRegistry()
+        self.registry = LzySerializerRegistry()
 
     def test_file_serializer(self):
         content = "test string"

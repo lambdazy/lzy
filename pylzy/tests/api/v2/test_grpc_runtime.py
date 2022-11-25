@@ -34,7 +34,7 @@ from ai.lzy.v1.workflow.workflow_service_pb2_grpc import (
     add_LzyWorkflowServiceServicer_to_server,
 )
 from lzy.api.v2 import Lzy, op, whiteboard
-from lzy.serialization.api import Schema
+from serialzy.api import Schema
 from lzy.utils.event_loop import LzyEventLoop
 from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
 from lzy.whiteboards.whiteboard import _ReadOnlyWhiteboard, WhiteboardRepository
@@ -42,8 +42,8 @@ from lzy.api.v2.snapshot import DefaultSnapshot
 import lzy.api.v2.startup as startup
 from lzy.api.v2.utils._pickle import pickle
 from lzy.proxy.result import Just
-from lzy.serialization.registry import DefaultSerializerRegistry
-from lzy.serialization.types import File
+from serialzy.registry import DefaultSerializerRegistry
+from lzy.types import File
 from lzy.storage import api as storage
 from lzy.storage.registry import DefaultStorageRegistry
 from lzy.whiteboards.whiteboard_declaration import WhiteboardInstanceMeta

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence
 
 from lzy.api.v2.workflow import WbRef
 from lzy.proxy.result import unwrap
-from lzy.serialization.api import Schema
+from serialzy.api import Schema
 from lzy.storage.api import StorageConfig
 
 if TYPE_CHECKING:

@@ -36,7 +36,8 @@ from lzy.api.v1.servant.servant_client import ServantClient
 from lzy.api.v1.signatures import CallSignature, FuncSignature
 from lzy.api.v1.utils import LzyExecutionException, is_lazy_proxy, resolve_if_proxy
 from lzy.api.v1.whiteboard.model import EntryIdGenerator, UUIDEntryIdGenerator
-from lzy.serialization.api import Hasher, SerializerRegistry
+from serialzy.api import SerializerRegistry
+from lzy.serialization.hasher import Hasher
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 

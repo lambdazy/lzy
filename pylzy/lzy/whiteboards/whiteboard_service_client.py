@@ -10,7 +10,7 @@ from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, TimeBounds, Storage,
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2 import GetRequest, GetResponse, ListResponse, ListRequest, \
     CreateWhiteboardRequest, CreateWhiteboardResponse, FinalizeWhiteboardRequest, LinkFieldRequest
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2_grpc import LzyWhiteboardServiceStub
-from lzy.serialization.api import Schema
+from serialzy.api import Schema
 from lzy.utils.grpc import build_channel, add_headers_interceptor
 from lzy.whiteboards.whiteboard_declaration import WhiteboardInstanceMeta, WhiteboardField
 

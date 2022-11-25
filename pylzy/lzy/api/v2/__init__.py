@@ -7,6 +7,7 @@ from lzy.api.v2.local.runtime import LocalRuntime
 from lzy.api.v2.provisioning import Provisioning
 from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
 from lzy.api.v2.runtime import Runtime
+from lzy.serialization.lzy_serializer_registry import LzySerializerRegistry
 from lzy.api.v2.snapshot import DefaultSnapshot
 from lzy.api.v2.utils.conda import generate_conda_yaml
 from lzy.api.v2.utils.env import generate_env, merge_envs
@@ -19,8 +20,7 @@ from lzy.api.v2.workflow import LzyWorkflow
 from lzy.proxy.result import Nothing
 from lzy.py_env.api import PyEnvProvider
 from lzy.py_env.py_env_provider import AutomaticPyEnvProvider
-from lzy.serialization.api import SerializerRegistry
-from lzy.serialization.registry import DefaultSerializerRegistry
+from serialzy.api import SerializerRegistry
 from lzy.storage.api import StorageRegistry
 from lzy.storage.registry import DefaultStorageRegistry
 
@@ -94,7 +94,7 @@ class Lzy:
         runtime: Runtime = GrpcRuntime(),
         py_env_provider: PyEnvProvider = AutomaticPyEnvProvider(),
         storage_registry: StorageRegistry = DefaultStorageRegistry(),
-        serializer_registry: SerializerRegistry = DefaultSerializerRegistry(),
+        serializer_registry: SerializerRegistry = LzySerializerRegistry(),
         whiteboard_repository: Optional[WhiteboardRepository] = None
     ):
         self.__env_provider = py_env_provider

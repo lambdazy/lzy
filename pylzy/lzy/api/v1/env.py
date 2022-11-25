@@ -46,9 +46,9 @@ from lzy.api.v1.whiteboard.model import (
     WhiteboardList,
 )
 from lzy.api.v2.utils.types import unwrap
-from lzy.serialization.api import SerializerRegistry
+from serialzy.api import SerializerRegistry
 from lzy.serialization.hasher import DelegatingHasher, Hasher
-from lzy.serialization.registry import DefaultSerializerRegistry
+from serialzy.registry import DefaultSerializerRegistry
 from lzy.storage.deprecated import StorageClient, from_credentials
 
 T = TypeVar("T")  # pylint: disable=invalid-name
