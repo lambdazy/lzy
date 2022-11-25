@@ -18,8 +18,16 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 public class GraphExecutionTest extends BaseTest {
 
@@ -95,7 +103,7 @@ public class GraphExecutionTest extends BaseTest {
                 .build());
 
         boolean graphIdIsBlank = executedGraph.getGraphId().isBlank();
-        Assert.assertFalse(graphIdIsBlank);
+        assertFalse(graphIdIsBlank);
     }
 
     @Test
@@ -187,7 +195,7 @@ public class GraphExecutionTest extends BaseTest {
                 .build());
 
         List.of(firstGraphExecution, secondGraphExecution, thirdGraphExecution)
-            .forEach(response -> Assert.assertFalse(response.getGraphId().isBlank()));
+            .forEach(response -> assertFalse(response.getGraphId().isBlank()));
     }
 
     @Test
@@ -348,7 +356,7 @@ public class GraphExecutionTest extends BaseTest {
                     .build()));
 
         boolean graphIdIsBlank = firstGraphExecution.getGraphId().isBlank();
-        Assert.assertFalse(graphIdIsBlank);
+        assertFalse(graphIdIsBlank);
 
         Assert.assertEquals(Status.INVALID_ARGUMENT.getCode(), thrown.getStatus().getCode());
     }
@@ -486,7 +494,7 @@ public class GraphExecutionTest extends BaseTest {
                     .build()));
 
         boolean graphIdIsBlank = firstGraphExecution.getGraphId().isBlank();
-        Assert.assertFalse(graphIdIsBlank);
+        assertFalse(graphIdIsBlank);
 
         Assert.assertEquals(Status.NOT_FOUND.getCode(), thrown.getStatus().getCode());
     }
@@ -562,5 +570,148 @@ public class GraphExecutionTest extends BaseTest {
                 .build()));
 
         Assert.assertEquals(Status.INVALID_ARGUMENT.getCode(), thrown.getStatus().getCode());
+    }
+
+    @Test
+    public void idempotentExecuteGraph() {
+        var workflowName = "workflow_1";
+        var createWorkflowResponse = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
+            .setWorkflowName(workflowName).build());
+
+        var executionId = createWorkflowResponse.getExecutionId();
+        var s3locator = createWorkflowResponse.getInternalSnapshotStorage();
+
+        var operations = List.of(
+            LWF.Operation.newBuilder()
+                .setName("first task prints string 'i-am-hacker' to variable")
+                .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_servant_1/a")
+                .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
+                    .setPath("/tmp/lzy_servant_1/a")
+                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
+                    .build())
+                .setPoolSpecName("s")
+                .build(),
+            LWF.Operation.newBuilder()
+                .setName("second task reads string 'i-am-hacker' from variable and prints it to another one")
+                .setCommand("/tmp/lzy_servant_2/sbin/cat /tmp/lzy_servant_2/a > /tmp/lzy_servant_2/b")
+                .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
+                    .setPath("/tmp/lzy_servant_2/a")
+                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
+                    .build())
+                .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
+                    .setPath("/tmp/lzy_servant_2/b")
+                    .setStorageUri(buildSlotUri("snapshot_b_1", s3locator))
+                    .build())
+                .setPoolSpecName("s")
+                .build()
+        );
+        var graph = LWF.Graph.newBuilder()
+            .setName("simple-graph")
+            .setZone("ru-central1-a")
+            .addAllOperations(operations)
+            .build();
+
+        var idempotencyKey = "idempotency-key";
+        var client = withIdempotencyKey(authorizedWorkflowClient, idempotencyKey);
+
+        LWFS.ExecuteGraphResponse firstResponse = client.executeGraph(
+            LWFS.ExecuteGraphRequest.newBuilder()
+                .setExecutionId(executionId)
+                .setGraph(graph)
+                .build());
+
+        LWFS.ExecuteGraphResponse secondResponse = client.executeGraph(
+            LWFS.ExecuteGraphRequest.newBuilder()
+                .setExecutionId(executionId)
+                .setGraph(graph)
+                .build());
+
+        boolean firstGraphId = firstResponse.getGraphId().isBlank();
+        boolean secondGraphId = secondResponse.getGraphId().isBlank();
+
+        assertFalse(firstGraphId);
+        assertFalse(secondGraphId);
+        assertEquals(firstResponse, secondResponse);
+    }
+
+    @Test
+    public void idempotentExecuteGraphConcurrent() throws InterruptedException {
+        var workflowName = "workflow_1";
+        var createWorkflowResponse = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
+            .setWorkflowName(workflowName).build());
+
+        var executionId = createWorkflowResponse.getExecutionId();
+        var s3locator = createWorkflowResponse.getInternalSnapshotStorage();
+
+        var operations = List.of(
+            LWF.Operation.newBuilder()
+                .setName("first task prints string 'i-am-hacker' to variable")
+                .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_servant_1/a")
+                .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
+                    .setPath("/tmp/lzy_servant_1/a")
+                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
+                    .build())
+                .setPoolSpecName("s")
+                .build(),
+            LWF.Operation.newBuilder()
+                .setName("second task reads string 'i-am-hacker' from variable and prints it to another one")
+                .setCommand("/tmp/lzy_servant_2/sbin/cat /tmp/lzy_servant_2/a > /tmp/lzy_servant_2/b")
+                .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
+                    .setPath("/tmp/lzy_servant_2/a")
+                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
+                    .build())
+                .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
+                    .setPath("/tmp/lzy_servant_2/b")
+                    .setStorageUri(buildSlotUri("snapshot_b_1", s3locator))
+                    .build())
+                .setPoolSpecName("s")
+                .build()
+        );
+        var graph = LWF.Graph.newBuilder()
+            .setName("simple-graph")
+            .setZone("ru-central1-a")
+            .addAllOperations(operations)
+            .build();
+
+        var idempotencyKey = "idempotency-key";
+        var client = withIdempotencyKey(authorizedWorkflowClient, idempotencyKey);
+
+        final int N = 10;
+        final var readyLatch = new CountDownLatch(N);
+        final var doneLatch = new CountDownLatch(N);
+        final var executor = Executors.newFixedThreadPool(N);
+        final var graphIds = new String[N];
+        final var failed = new AtomicBoolean(false);
+
+        for (int i = 0; i < N; ++i) {
+            final int index = i;
+            executor.submit(() -> {
+                try {
+                    readyLatch.countDown();
+                    readyLatch.await();
+
+                    LWFS.ExecuteGraphResponse response = client.executeGraph(
+                        LWFS.ExecuteGraphRequest.newBuilder()
+                            .setExecutionId(executionId)
+                            .setGraph(graph)
+                            .build());
+                    Assert.assertFalse(response.getGraphId().isBlank());
+
+                    graphIds[index] = response.getGraphId();
+                } catch (Exception e) {
+                    failed.set(true);
+                    e.printStackTrace(System.err);
+                } finally {
+                    doneLatch.countDown();
+                }
+            });
+        }
+
+        doneLatch.await();
+        executor.shutdown();
+
+        Assert.assertFalse(failed.get());
+        Assert.assertFalse(graphIds[0].isEmpty());
+        Assert.assertTrue(Arrays.stream(graphIds).allMatch(graphId -> graphId.equals(graphIds[0])));
     }
 }

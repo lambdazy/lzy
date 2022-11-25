@@ -1,5 +1,7 @@
 package ai.lzy.service.graph;
 
+import ai.lzy.longrunning.IdempotencyUtils;
+import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.service.data.dao.ExecutionDao;
@@ -19,6 +21,7 @@ import ai.lzy.v1.workflow.LWFS.ExecuteGraphRequest;
 import ai.lzy.v1.workflow.LWFS.ExecuteGraphResponse;
 import ai.lzy.v1.workflow.LWFS.StopGraphRequest;
 import ai.lzy.v1.workflow.LWFS.StopGraphResponse;
+import com.google.protobuf.Any;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -28,17 +31,21 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 
+import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
+import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOpResult;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.service.LzyService.APP;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
+import static ai.lzy.util.grpc.ProtoConverter.toProto;
 import static ai.lzy.v1.graph.GraphExecutorGrpc.newBlockingStub;
 
 @Singleton
@@ -86,22 +93,55 @@ public class GraphExecutionService {
         this.builder = new GraphBuilder(workflowDao, executionDao, channelManagerClient);
     }
 
-    public void executeGraph(ExecuteGraphRequest request, StreamObserver<ExecuteGraphResponse> response) {
+    public void executeGraph(ExecuteGraphRequest request, StreamObserver<ExecuteGraphResponse> responseObserver) {
+        var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+        if (idempotencyKey != null &&
+            loadExistingOpResult(operationDao, idempotencyKey, responseObserver, ExecuteGraphResponse.class,
+                Duration.ofMillis(100), Duration.ofSeconds(1), LOG))
+        {
+            return;
+        }
+
         var executionId = request.getExecutionId();
         var graphExecutionState = new GraphExecutionState(executionId);
 
-        LOG.debug("[executeGraph], validate dataflow graph, current state: " + graphExecutionState);
+        setWorkflowInfo(graphExecutionState);
 
         Consumer<Status> replyError = (status) -> {
             LOG.error("[executeGraph], fail: status={}, msg={}.", status,
                 status.getDescription() + ", graphExecutionState: " + graphExecutionState);
-            response.onError(status.asRuntimeException());
+            responseObserver.onError(status.asRuntimeException());
         };
-
-        setWorkflowInfo(graphExecutionState);
 
         if (graphExecutionState.isInvalid()) {
             replyError.accept(graphExecutionState.getErrorStatus());
+            return;
+        }
+
+        var userId = graphExecutionState.getUserId();
+        var workflowName = graphExecutionState.getWorkflowName();
+
+        LOG.info("Create execute graph operation for: { userId: {}, workflowName: {}, executionId: {} }", userId,
+            workflowName, executionId);
+
+        final var op = Operation.create(
+            userId,
+            "Execute graph: executionId='%s', workflowName='%s'".formatted(executionId, workflowName),
+            idempotencyKey,
+            null);
+
+        try {
+            withRetries(LOG, () -> operationDao.create(op, null));
+        } catch (Exception ex) {
+            if (idempotencyKey != null && handleIdempotencyKeyConflict(idempotencyKey, ex, operationDao,
+                responseObserver, ExecuteGraphResponse.class, Duration.ofMillis(100), Duration.ofSeconds(1), LOG))
+            {
+                return;
+            }
+
+            LOG.error("Cannot create execute graph operation for: { userId: {}, workflowName: {}, executionId: {} }" +
+                ", error: {}", userId, workflowName, executionId, ex.getMessage(), ex);
+            responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
             return;
         }
 
@@ -111,9 +151,12 @@ public class GraphExecutionService {
         graphExecutionState.setOperations(graph.getOperationsList());
         graphExecutionState.setDescriptions(graph.getDataDescriptionsList());
 
+        LOG.debug("[executeGraph], validate dataflow graph, current state: " + graphExecutionState);
+
         validator.validate(graphExecutionState);
 
         if (graphExecutionState.isInvalid()) {
+            operationDao.failOperation(op.id(), toProto(graphExecutionState.getErrorStatus()), LOG);
             replyError.accept(graphExecutionState.getErrorStatus());
             return;
         }
@@ -123,10 +166,12 @@ public class GraphExecutionService {
 
         LOG.debug("[executeGraph], building execution graph, current state: " + graphExecutionState);
 
-        ManagedChannel portalChannel = getOrCreatePortalChannel(executionId);
+        ManagedChannel portalChannel = getOrCreatePortalChannel(graphExecutionState.getExecutionId());
 
         if (portalChannel == null) {
-            replyError.accept(Status.INTERNAL.withDescription("Cannot build execution graph"));
+            var status = Status.INTERNAL.withDescription("Cannot build execution graph");
+            operationDao.failOperation(op.id(), toProto(status), LOG);
+            replyError.accept(status);
             return;
         }
 
@@ -136,6 +181,7 @@ public class GraphExecutionService {
         builder.build(graphExecutionState, portalClient);
 
         if (graphExecutionState.isInvalid()) {
+            operationDao.failOperation(op.id(), toProto(graphExecutionState.getErrorStatus()), LOG);
             replyError.accept(graphExecutionState.getErrorStatus());
             return;
         }
@@ -154,6 +200,7 @@ public class GraphExecutionService {
                 .build());
         } catch (StatusRuntimeException e) {
             var causeStatus = e.getStatus();
+            operationDao.failOperation(op.id(), toProto(causeStatus), LOG);
             replyError.accept(causeStatus.withDescription("Cannot execute graph: " + causeStatus.getDescription()));
             return;
         }
@@ -165,14 +212,32 @@ public class GraphExecutionService {
                 )));
         } catch (Exception e) {
             LOG.error("Cannot save portal slots", e);
-            replyError.accept(Status.INTERNAL);
+            var status = Status.INTERNAL.withDescription("Error while graph execution");
+            operationDao.failOperation(op.id(), toProto(status), LOG);
+            replyError.accept(status);
             return;
         }
 
         LOG.debug("[executeGraph], graph successfully executed, current state: " + graphExecutionState);
 
-        response.onNext(ExecuteGraphResponse.newBuilder().setGraphId(executeResponse.getStatus().getGraphId()).build());
-        response.onCompleted();
+        var response = ExecuteGraphResponse.newBuilder()
+            .setGraphId(executeResponse.getStatus().getGraphId())
+            .build();
+        var packedResponse = Any.pack(response);
+
+        try {
+            withRetries(LOG, () -> operationDao.updateResponse(op.id(), packedResponse.toByteArray(), null));
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            LOG.error("Error while executing transaction: {}", e.getMessage(), e);
+            var errorStatus = Status.INTERNAL.withDescription("Error while execute graph: " + e.getMessage());
+
+            operationDao.failOperation(op.id(), toProto(errorStatus), LOG);
+
+            responseObserver.onError(errorStatus.asRuntimeException());
+        }
     }
 
     @Nullable

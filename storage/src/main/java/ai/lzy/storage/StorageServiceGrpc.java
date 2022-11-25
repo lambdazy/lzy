@@ -55,13 +55,15 @@ public class StorageServiceGrpc extends LzyStorageServiceGrpc.LzyStorageServiceI
     public void createS3Bucket(LSS.CreateS3BucketRequest request,
                                StreamObserver<LongRunning.Operation> responseObserver)
     {
-        var userId = request.getUserId();
-        var bucketName = request.getBucket();
-
         var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
         if (idempotencyKey != null && loadExistingOp(operationDao, idempotencyKey, responseObserver, LOG)) {
             return;
         }
+
+        var userId = request.getUserId();
+        var bucketName = request.getBucket();
+
+        LOG.info("Create operation for bucket creation: { userId: {}, bucketName: {} }", userId, bucketName);
 
         final var op = Operation.create(
             userId,
