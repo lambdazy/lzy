@@ -1,7 +1,7 @@
 import logging
 import os
 import uuid
-from typing import Any, BinaryIO, Callable, Dict, Type, Union
+from typing import Any, BinaryIO, Callable, Dict, Type, Union, cast
 
 from serialzy.api import StandardDataFormats, Schema
 from serialzy.base import DefaultSchemaSerializerByReference
@@ -39,7 +39,7 @@ class FileSerializer(DefaultSchemaSerializerByReference):
         return True
 
     def data_format(self) -> str:
-        return StandardDataFormats.raw_file.name
+        return cast(str, StandardDataFormats.raw_file.name)
 
     def meta(self) -> Dict[str, str]:
         return {"pylzy": __version__}
@@ -51,4 +51,4 @@ class FileSerializer(DefaultSchemaSerializerByReference):
         elif version.parse(schema.meta['pylzy']) > version.parse(__version__):
             _LOG.warning(f'Installed version of pylzy {__version__} '
                          f'is older than used for serialization {schema.meta["pylzy"]}')
-        return typ
+        return cast(type, typ)
