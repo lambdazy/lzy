@@ -11,10 +11,8 @@ import javax.annotation.Nullable;
 public interface VmAllocator {
     /**
      * Start vm allocation
-     *
-     * @param vmSpec specify parameters for vm allocation
      */
-    void allocate(Vm.Spec vmSpec) throws InvalidConfigurationException;
+    void allocate(Vm vm) throws InvalidConfigurationException;
 
     /**
      * Idempotent operation to destroy vm

@@ -3,6 +3,7 @@ package ai.lzy.allocator.model;
 import ai.lzy.allocator.volume.VolumeMount;
 import ai.lzy.v1.VmAllocatorApi.AllocateRequest;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
@@ -14,11 +15,17 @@ import java.util.Map;
 @JsonSerialize
 @JsonDeserialize
 public record Workload(
+    @JsonInclude
     String name,
+    @JsonInclude
     String image,
+    @JsonInclude
     Map<String, String> env,
+    @JsonInclude
     List<String> args,
+    @JsonInclude
     Map<Integer, Integer> portBindings,
+    @JsonInclude
     List<VolumeMount> mounts
 ) {
     public static Workload fromProto(AllocateRequest.Workload workload) {
@@ -56,5 +63,12 @@ public record Workload(
                     VolumeMount.MountPropagation.valueOf(m.getMountPropagation().name())))
                 .toList()
         );
+    }
+
+    public Workload withEnv(String key, String value) {
+        final var env = new HashMap<>(this.env);
+        env.put(key, value);
+
+        return new Workload(name, image, env, args, portBindings, mounts);
     }
 }

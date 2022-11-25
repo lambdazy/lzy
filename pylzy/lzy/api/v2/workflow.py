@@ -19,7 +19,7 @@ from lzy.api.v2.env import Env
 from lzy.api.v2.provisioning import Provisioning
 from lzy.api.v2.snapshot import Snapshot
 from lzy.api.v2.utils.proxy_adapter import is_lzy_proxy, get_proxy_entry_id, lzy_proxy, materialized
-from lzy.api.v2.whiteboard_declaration import fetch_whiteboard_meta, WhiteboardField, WhiteboardInstanceMeta, \
+from lzy.whiteboards.whiteboard_declaration import fetch_whiteboard_meta, WhiteboardField, WhiteboardInstanceMeta, \
     WhiteboardDefaultDescription
 from lzy.py_env.api import PyEnv
 
@@ -68,6 +68,7 @@ class LzyWorkflow:
 
         self.__provisioning = provisioning
         self.__interactive = interactive
+        self.__whiteboards: List[str] = []
 
     @property
     def owner(self) -> "Lzy":
@@ -130,10 +131,18 @@ class LzyWorkflow:
 
     def __destroy(self):
         try:
-            LzyEventLoop.run_async(self.__owner.runtime.destroy())
+            LzyEventLoop.run_async(self.__stop())
         finally:
             type(self).instance = None
             self.__started = False
+
+    async def __stop(self):
+        await self.__owner.runtime.destroy()
+        wbs_to_finalize = []
+        while len(self.__whiteboards) > 0:
+            wb_id = self.__whiteboards.pop()
+            wbs_to_finalize.append(self.__owner.whiteboard_repository.client.finalize(wb_id))
+        await asyncio.gather(*wbs_to_finalize)
 
     async def __start(self):
         if self.__started:
@@ -193,13 +202,15 @@ class LzyWorkflow:
 
         await asyncio.gather(*data_to_load)
 
-        created_meta = await self.__owner.runtime.create_whiteboard(
+        created_meta = await self.__owner.whiteboard_repository.client.create_whiteboard(
             declaration_meta.namespace,
             declaration_meta.name,
             fields,
             self.snapshot.storage_name(),
             tags,
         )
+
+        self.__whiteboards.append(created_meta.id)
 
         wb = _WritableWhiteboard(typ, created_meta, self, defaults)
 
@@ -247,7 +258,7 @@ class _WritableWhiteboard:
             entry = self.__workflow.snapshot.get(entry_id)
 
             if materialized(value):
-                LzyEventLoop.run_async(self.__workflow.owner.runtime.link(
+                LzyEventLoop.run_async(self.__workflow.owner.whiteboard_repository.client.link(
                     whiteboard_id, key, entry.storage_url, entry.data_scheme
                 ))
             else:
@@ -256,7 +267,7 @@ class _WritableWhiteboard:
             entry = self.__workflow.snapshot.create_entry(type(value))
             LzyEventLoop.run_async(self.__workflow.snapshot.put_data(entry_id=entry.id, data=value))
             value = lzy_proxy(entry.id, type(value), self.__workflow, Just(value))
-            LzyEventLoop.run_async(self.__workflow.owner.runtime.link(
+            LzyEventLoop.run_async(self.__workflow.owner.whiteboard_repository.client.link(
                 whiteboard_id, key, entry.storage_url, entry.data_scheme
             ))
 

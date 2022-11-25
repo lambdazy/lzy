@@ -1,10 +1,12 @@
 import asyncio
 import dataclasses
+import datetime
 import logging
 import tempfile
+import uuid
 from concurrent import futures
 from io import BytesIO
-from typing import Iterator
+from typing import Iterator, Sequence, Optional, Iterable
 from unittest import TestCase
 
 import aioboto3
@@ -32,9 +34,10 @@ from ai.lzy.v1.workflow.workflow_service_pb2_grpc import (
     add_LzyWorkflowServiceServicer_to_server,
 )
 from lzy.api.v2 import Lzy, op, whiteboard
+from lzy.serialization.api import Schema
 from lzy.utils.event_loop import LzyEventLoop
 from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
-from lzy.whiteboards.whiteboard import _ReadOnlyWhiteboard
+from lzy.whiteboards.whiteboard import _ReadOnlyWhiteboard, WhiteboardRepository
 from lzy.api.v2.snapshot import DefaultSnapshot
 import lzy.api.v2.startup as startup
 from lzy.api.v2.utils._pickle import pickle
@@ -43,6 +46,8 @@ from lzy.serialization.registry import DefaultSerializerRegistry
 from lzy.serialization.types import File
 from lzy.storage import api as storage
 from lzy.storage.registry import DefaultStorageRegistry
+from lzy.whiteboards.whiteboard_declaration import WhiteboardInstanceMeta
+from lzy.whiteboards.whiteboard_service_client import WhiteboardServiceClient
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -65,7 +70,7 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
         return CreateWorkflowResponse(
             executionId="exec_id",
             internalSnapshotStorage=S3Locator(
-                bucket="",
+                bucket="bucket",
                 amazon=AmazonS3Endpoint(endpoint="", accessToken="", secretToken=""),
             ),
         )
@@ -121,14 +126,26 @@ class GrpcRuntimeTests(TestCase):
 
     def test_simple(self):
         runtime = GrpcRuntime("ArtoLord", "localhost:12345", self.__key_path)
-        lzy = Lzy(runtime=runtime)
+
+        storages = DefaultStorageRegistry()
+        serializers = DefaultSerializerRegistry()
+
+        lzy = Lzy(runtime=runtime, whiteboard_repository=WhiteboardRepository(
+            storages, serializers, WhiteboardClient()
+        ))
 
         with lzy.workflow("some_name"):
             self.assertIsNotNone(lzy.storage_registry.default_config())
 
     def test_error(self):
         runtime = GrpcRuntime("ArtoLord", "localhost:12345", self.__key_path)
-        lzy = Lzy(runtime=runtime)
+
+        storages = DefaultStorageRegistry()
+        serializers = DefaultSerializerRegistry()
+
+        lzy = Lzy(runtime=runtime, whiteboard_repository=WhiteboardRepository(
+            storages, serializers, WhiteboardClient()
+        ))
         self.mock.fail = True
         with self.assertRaises(expected_exception=Exception):
             with lzy.workflow("some_name"):
@@ -188,6 +205,26 @@ class Wb:
     a: int = 1
 
 
+class WhiteboardClient(WhiteboardServiceClient):
+    async def get(self, wb_id: str) -> Whiteboard:
+        pass
+
+    async def list(self, name: Optional[str] = None, tags: Sequence[str] = (),
+                   not_before: Optional[datetime.datetime] = None, not_after: Optional[datetime.datetime] = None) -> \
+    Iterable[Whiteboard]:
+        pass
+
+    async def create_whiteboard(self, namespace: str, name: str, fields: Sequence[WhiteboardField], storage_name: str,
+                                tags: Sequence[str]) -> WhiteboardInstanceMeta:
+        return WhiteboardInstanceMeta(str(uuid.uuid4()))
+
+    async def link(self, wb_id: str, field_name: str, url: str, data_scheme: Schema) -> None:
+        pass
+
+    async def finalize(self, whiteboard_id: str):
+        pass
+
+
 class SnapshotTests(TestCase):
     def setUp(self) -> None:
         self.service = ThreadedMotoServer(port=12345)
@@ -241,7 +278,11 @@ class SnapshotTests(TestCase):
         storages = DefaultStorageRegistry()
         storages.register_storage("storage", storage_config, True)
 
-        lzy = Lzy(storage_registry=storages, runtime=LocalRuntime())
+        serializers = DefaultSerializerRegistry()
+
+        lzy = Lzy(storage_registry=storages, runtime=LocalRuntime(), whiteboard_repository=WhiteboardRepository(
+            storages, serializers, WhiteboardClient()
+        ))
 
         with lzy.workflow("") as wf:
             l = a(41)
@@ -287,7 +328,11 @@ class SnapshotTests(TestCase):
         storages = DefaultStorageRegistry()
         storages.register_storage("storage", storage_config, True)
 
-        lzy = Lzy(storage_registry=storages, runtime=LocalRuntime())
+        serializers = DefaultSerializerRegistry()
+
+        lzy = Lzy(storage_registry=storages, runtime=LocalRuntime(), whiteboard_repository=WhiteboardRepository(
+            storages, serializers, WhiteboardClient()
+        ))
         with lzy.workflow("test") as wf:
             wb = wf.create_whiteboard(Wb)
             self.assertEqual(1, wb.a)

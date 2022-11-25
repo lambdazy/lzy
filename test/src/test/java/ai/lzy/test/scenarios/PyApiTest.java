@@ -8,7 +8,6 @@ import ai.lzy.test.impl.v2.PythonContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.List;
@@ -67,7 +66,6 @@ public class PyApiTest {
     }
 
     @Test
-    @Ignore
     public void testWhiteboards() {
         /* This scenario checks for:
                 1. Whiteboards/Views machinery

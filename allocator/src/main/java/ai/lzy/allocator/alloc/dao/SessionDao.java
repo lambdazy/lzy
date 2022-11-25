@@ -1,4 +1,4 @@
-package ai.lzy.allocator.dao;
+package ai.lzy.allocator.alloc.dao;
 
 import ai.lzy.allocator.model.Session;
 import ai.lzy.model.db.TransactionHandle;

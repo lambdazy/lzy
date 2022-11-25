@@ -302,7 +302,8 @@ public class Worker {
                 schedulerAgent.reportProgress(ServantProgress.newBuilder()
                     .setExecutionCompleted(ServantProgress.ExecutionCompleted.newBuilder()
                         .setRc(rc)
-                        .setDescription(rc == 0 ? "Success" : "Failure")  // TODO(artolord) add better description
+                        .setDescription(rc == 0 ? "Success" :  "Error while executing command on worker.\n" +
+                                "See your stdout/stderr to see more info")
                         .build())
                     .build());
                 schedulerAgent.reportIdle();

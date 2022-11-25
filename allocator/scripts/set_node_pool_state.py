@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 from dataclasses import dataclass
-
 from google.protobuf.field_mask_pb2 import FieldMask
 from yandex.cloud.k8s.v1.node_group_pb2 import *
 from yandex.cloud.k8s.v1.node_group_service_pb2 import *

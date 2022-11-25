@@ -1,5 +1,6 @@
 package ai.lzy.allocator.volume;
 
+import ai.lzy.allocator.alloc.impl.kuber.KuberUtils;
 import ai.lzy.allocator.disk.exceptions.NotFoundException;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -7,7 +8,9 @@ import io.fabric8.kubernetes.client.KubernetesClientException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -30,29 +33,40 @@ public class KuberVolumeManager implements VolumeManager {
         this.client = client;
     }
 
-    public static List<VolumeClaim> allocateVolumes(
-            KubernetesClient client, List<VolumeRequest.ResourceVolumeDescription> volumesRequest)
+    public static List<VolumeClaim> allocateVolumes(KubernetesClient client,
+                                                    List<VolumeRequest.ResourceVolumeDescription> volumesRequest)
     {
+        if (volumesRequest.isEmpty()) {
+            return List.of();
+        }
+
         LOG.info("Allocate volume " + volumesRequest.stream().map(Objects::toString).collect(Collectors.joining(", ")));
+
         final VolumeManager volumeManager = new KuberVolumeManager(client);
         return volumesRequest.stream()
-                .map(volumeRequest -> {
-                    final Volume volume;
-                    try {
-                        volume = volumeManager.create(volumeRequest);
-                    } catch (NotFoundException e) {
-                        throw new RuntimeException(e);
-                    }
-                    return volumeManager.createClaim(volume);
-                }).toList();
+            .map(volumeRequest -> {
+                final Volume volume;
+                try {
+                    volume = volumeManager.create(volumeRequest);
+                } catch (NotFoundException e) {
+                    LOG.error("Error while creating volume {}: {}", volumeRequest.id(), e.getMessage());
+                    throw new RuntimeException(e);
+                }
+                return volumeManager.createClaim(volume);
+            }).toList();
     }
 
     public static void freeVolumes(KubernetesClient client, List<VolumeClaim> volumeClaims) {
         LOG.info("Free volumes " + volumeClaims.stream().map(Objects::toString).collect(Collectors.joining(", ")));
+
         final VolumeManager volumeManager = new KuberVolumeManager(client);
         volumeClaims.forEach(volumeClaim -> {
-            volumeManager.deleteClaim(volumeClaim.name());
-            volumeManager.delete(volumeClaim.volumeName());
+            try {
+                volumeManager.deleteClaim(volumeClaim.name());
+                volumeManager.delete(volumeClaim.volumeName());
+            } catch (Exception e) {
+                LOG.error("Error while removing volume claim {}: {}", volumeClaim, e.getMessage(), e);
+            }
         });
     }
 
@@ -60,117 +74,125 @@ public class KuberVolumeManager implements VolumeManager {
     public Volume create(VolumeRequest.ResourceVolumeDescription resourceVolumeDescription) throws NotFoundException {
         final String diskId;
         final int diskSize;
-        final String volumeName;
         final String resourceName;
         final Volume.AccessMode accessMode;
         final PersistentVolume volume;
         final String storageClass;
+
+        final String volumeName = resourceVolumeDescription.id();
+
         if (resourceVolumeDescription instanceof DiskVolumeDescription diskVolumeDescription) {
             diskId = diskVolumeDescription.diskId();
             diskSize = diskVolumeDescription.sizeGb();
-            LOG.info("Creating persistent volume for disk=" + diskId);
-            volumeName = "volume-" + randomSuffix();
+
+            LOG.info("Creating persistent volume '{}' for disk {} of size {}Gi", volumeName, diskId, diskSize >> 30);
+
             accessMode = Volume.AccessMode.READ_WRITE_ONCE;
             resourceName = diskVolumeDescription.name();
             storageClass = EMPTY_STORAGE_CLASS_NAME;
             volume = new PersistentVolumeBuilder()
-                    .withNewMetadata()
+                .withNewMetadata()
                     .withName(volumeName)
-                    .withLabels(Collections.singletonMap(REQUESTED_VOLUME_NAME_LABEL, diskVolumeDescription.name()))
-                    .endMetadata()
-                    .withNewSpec()
-                    .addToCapacity(
-                            Collections.singletonMap("storage", new Quantity(diskSize + KUBER_GB_NAME)))
+                    .withLabels(Map.of(REQUESTED_VOLUME_NAME_LABEL, diskVolumeDescription.name()))
+                .endMetadata()
+                .withNewSpec()
+                    .addToCapacity(Map.of("storage", new Quantity(diskSize + KUBER_GB_NAME)))
                     .withAccessModes(accessMode.asString())
                     .withStorageClassName(storageClass)
                     .withPersistentVolumeReclaimPolicy("Retain")
                     .withCsi(new CSIPersistentVolumeSourceBuilder()
-                            .withDriver(YCLOUD_DISK_DRIVER)
-                            .withFsType("ext4")
-                            .withVolumeHandle(diskId)
-                            .build())
-                    .endSpec()
-                    .build();
+                        .withDriver(YCLOUD_DISK_DRIVER)
+                        .withFsType("ext4")
+                        .withVolumeHandle(diskId)
+                        .build())
+                .endSpec()
+                .build();
         } else if (resourceVolumeDescription instanceof NFSVolumeDescription nfsVolumeDescription) {
-            diskId = nfsVolumeDescription.volumeId();
+            diskId = volumeName; // NFS doesn't have real diskId, but it is required field for CSI
             diskSize = nfsVolumeDescription.capacity();
-            LOG.info("Creating persistent NFS volume for disk=" + diskId);
-            volumeName = "nfs-volume-" + randomSuffix();
+
+            LOG.info("Creating persistent NFS volume for disk=" + volumeName);
+
             accessMode = Volume.AccessMode.READ_WRITE_MANY;
             resourceName = nfsVolumeDescription.name();
             storageClass = NFS_STORAGE_CLASS_NAME;
             volume = new PersistentVolumeBuilder()
-                    .withNewMetadata()
+                .withNewMetadata()
                     .withName(volumeName)
-                    .withLabels(Collections.singletonMap(REQUESTED_VOLUME_NAME_LABEL, nfsVolumeDescription.name()))
-                    .endMetadata()
-                    .withNewSpec()
-                    .addToCapacity(
-                            Collections.singletonMap("storage", new Quantity(diskSize + KUBER_GB_NAME)))
+                    .withLabels(Map.of(REQUESTED_VOLUME_NAME_LABEL, nfsVolumeDescription.name()))
+                .endMetadata()
+                .withNewSpec()
+                    .addToCapacity(Map.of("storage", new Quantity(diskSize + KUBER_GB_NAME)))
                     .withAccessModes(accessMode.asString())
                     .withStorageClassName(storageClass)
                     .withMountOptions(nfsVolumeDescription.mountOptions())
                     .withCsi(new CSIPersistentVolumeSourceBuilder()
-                            .withDriver(NFS_DRIVER)
-                            .withVolumeHandle(diskId)
-                            .withVolumeAttributes(Map.of(
-                                    "server", nfsVolumeDescription.server(),
-                                    "share", nfsVolumeDescription.share()
-                            ))
-                            .build())
-                    .endSpec()
-                    .build();
-
+                        .withDriver(NFS_DRIVER)
+                        .withVolumeHandle(diskId)
+                        .withVolumeAttributes(Map.of(
+                            "server", nfsVolumeDescription.server(),
+                            "share", nfsVolumeDescription.share()))
+                        .build())
+                .endSpec()
+                .build();
         } else {
             LOG.error("Unknown Resource Volume:: {}", resourceVolumeDescription);
             throw new RuntimeException("Unknown Resource Volume " + resourceVolumeDescription.name());
         }
+
+        final var result = new Volume(volumeName, resourceName, diskId, diskSize, accessMode, storageClass);
+
         try {
             client.persistentVolumes().resource(volume).create();
             LOG.info("Successfully created persistent volume {} for disk={} ", volumeName, diskId);
-            return new Volume(volumeName, resourceName, diskId, diskSize, accessMode, storageClass);
+            return result;
         } catch (KubernetesClientException e) {
-            LOG.error("Could not create resource: {}", e.getMessage(), e);
+            if (KuberUtils.isResourceAlreadyExist(e)) {
+                LOG.warn("Volume {} already exists", result);
+                return result;
+            }
+
+            LOG.error("Could not create volume {}: {}", result, e.getMessage(), e);
             throw new RuntimeException(e);
         }
     }
 
-    private String randomSuffix() {
-        return UUID.randomUUID().toString();
-    }
-
-    private boolean pvcExists(String volumeName) {
-        return client.persistentVolumes().list().getItems().stream()
-                .anyMatch(v -> v.getMetadata().getLabels().get(REQUESTED_VOLUME_NAME_LABEL).equals(volumeName));
-    }
-
     @Override
     public VolumeClaim createClaim(Volume volume) {
+        final var claimName = "claim-" + volume.name();
+
+        LOG.info("Creating persistent volume claim {} for volume={}", claimName, volume);
+
+        final Volume.AccessMode accessMode = Volume.AccessMode.READ_WRITE_ONCE;
+
+        final PersistentVolumeClaim volumeClaim = new PersistentVolumeClaimBuilder()
+            .withNewMetadata()
+                .withName(claimName)
+                .withNamespace(DEFAULT_NAMESPACE)
+            .endMetadata()
+            .withNewSpec()
+                .withAccessModes(accessMode.asString())
+                .withVolumeName(volume.name())
+                .withStorageClassName(volume.storageClass())
+                .withResources(
+                    new ResourceRequirementsBuilder()
+                        .withRequests(Map.of(
+                            VOLUME_CAPACITY_STORAGE_KEY, Quantity.parse(volume.sizeGb() + KUBER_GB_NAME)))
+                        .build())
+            .endSpec()
+            .build();
+
         try {
-            LOG.info("Creating persistent volume claim for volume={}", volume);
-
-            final String claimName = "volume-claim-" + randomSuffix();
-            final Volume.AccessMode accessMode = Volume.AccessMode.READ_WRITE_ONCE;
-            final PersistentVolumeClaim volumeClaim = new PersistentVolumeClaimBuilder()
-                    .withNewMetadata().withName(claimName).withNamespace(DEFAULT_NAMESPACE).endMetadata()
-                    .withNewSpec()
-                    .withAccessModes(accessMode.asString())
-                    .withVolumeName(volume.name())
-                    .withStorageClassName(volume.storageClass())
-                    .withResources(
-                            new ResourceRequirementsBuilder()
-                                    .withRequests(Collections.singletonMap(
-                                            VOLUME_CAPACITY_STORAGE_KEY,
-                                            Quantity.parse(volume.sizeGb() + KUBER_GB_NAME)))
-                                    .build())
-                    .endSpec()
-                    .build();
-
-            final PersistentVolumeClaim createdClaim = client.persistentVolumeClaims().resource(volumeClaim).create();
-            final String claimId = createdClaim.getMetadata().getUid();
+            final var claim = client.persistentVolumeClaims().resource(volumeClaim).create();
+            final var claimId = claim.getMetadata().getUid();
             LOG.info("Successfully created persistent volume claim name={} claimId={}", claimName, claimId);
             return new VolumeClaim(claimName, volume);
         } catch (KubernetesClientException e) {
+            if (KuberUtils.isResourceAlreadyExist(e)) {
+                LOG.warn("Claim {} already exist", volumeClaim);
+                return new VolumeClaim(claimName, volume);
+            }
+
             LOG.error("Could not create resource: {}", e.getMessage(), e);
             throw new RuntimeException(e);
         }
@@ -192,15 +214,14 @@ public class KuberVolumeManager implements VolumeManager {
             assert accessModes.size() == 1;
 
             final Volume volume = new Volume(
-                    volumeName,
-                    persistentVolume.getMetadata().getLabels().get(REQUESTED_VOLUME_NAME_LABEL),
-                    persistentVolume.getSpec().getCsi().getVolumeHandle(),
-                    Integer.parseInt(
-                            persistentVolume.getSpec().getCapacity().get(VOLUME_CAPACITY_STORAGE_KEY).getAmount()
-                    ),
-                    Volume.AccessMode.fromString(accessModes.get(0)),
-                    persistentVolume.getSpec().getStorageClassName()
-            );
+                volumeName,
+                persistentVolume.getMetadata().getLabels().get(REQUESTED_VOLUME_NAME_LABEL),
+                persistentVolume.getSpec().getCsi().getVolumeHandle(),
+                Integer.parseInt(
+                    persistentVolume.getSpec().getCapacity().get(VOLUME_CAPACITY_STORAGE_KEY).getAmount()),
+                Volume.AccessMode.fromString(accessModes.get(0)),
+                persistentVolume.getSpec().getStorageClassName());
+
             LOG.info("Found volume={}", volume);
             return volume;
         } catch (KubernetesClientException e) {

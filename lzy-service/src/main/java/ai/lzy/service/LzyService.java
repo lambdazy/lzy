@@ -1,7 +1,6 @@
 package ai.lzy.service;
 
 import ai.lzy.service.graph.GraphExecutionService;
-import ai.lzy.service.whiteboard.WhiteboardService;
 import ai.lzy.service.workflow.WorkflowService;
 import ai.lzy.util.grpc.GrpcChannels;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
@@ -27,31 +26,26 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     private final ManagedChannel storageServiceChannel;
     private final ManagedChannel channelManagerChannel;
     private final ManagedChannel iamChannel;
-    private final ManagedChannel whiteboardChannel;
     private final ManagedChannel graphExecutorChannel;
 
     private final WorkflowService workflowService;
-    private final WhiteboardService whiteboardService;
     private final GraphExecutionService graphExecutionService;
 
-    public LzyService(WorkflowService workflowService, WhiteboardService whiteboardService,
+    public LzyService(WorkflowService workflowService,
                       GraphExecutionService graphExecutionService,
                       @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
                       @Named("StorageServiceChannel") ManagedChannel storageChannel,
                       @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
                       @Named("IamServiceChannel") ManagedChannel iamChannel,
-                      @Named("WhiteboardServiceChannel") ManagedChannel whiteboardChannel,
                       @Named("GraphExecutorServiceChannel") ManagedChannel graphExecutorChannel)
     {
         this.allocatorServiceChannel = allocatorChannel;
         this.storageServiceChannel = storageChannel;
         this.channelManagerChannel = channelManagerChannel;
         this.iamChannel = iamChannel;
-        this.whiteboardChannel = whiteboardChannel;
         this.graphExecutorChannel = graphExecutorChannel;
 
         this.workflowService = workflowService;
-        this.whiteboardService = whiteboardService;
         this.graphExecutionService = graphExecutionService;
     }
 
@@ -62,7 +56,6 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         GrpcChannels.awaitTermination(storageServiceChannel, Duration.ofSeconds(10), getClass());
         GrpcChannels.awaitTermination(channelManagerChannel, Duration.ofSeconds(10), getClass());
         GrpcChannels.awaitTermination(iamChannel, Duration.ofSeconds(10), getClass());
-        GrpcChannels.awaitTermination(whiteboardChannel, Duration.ofSeconds(10), getClass());
         GrpcChannels.awaitTermination(graphExecutorChannel, Duration.ofSeconds(10), getClass());
     }
 
@@ -94,18 +87,6 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     @Override
     public void stopGraph(StopGraphRequest request, StreamObserver<StopGraphResponse> responseObserver) {
         graphExecutionService.stopGraph(request, responseObserver);
-    }
-
-    @Override
-    public void createWhiteboard(CreateWhiteboardRequest request,
-                                 StreamObserver<CreateWhiteboardResponse> responseObserver)
-    {
-        whiteboardService.createWhiteboard(request, responseObserver);
-    }
-
-    @Override
-    public void linkWhiteboard(LinkWhiteboardRequest request, StreamObserver<LinkWhiteboardResponse> responseObserver) {
-        whiteboardService.linkWhiteboard(request, responseObserver);
     }
 
     @Override
