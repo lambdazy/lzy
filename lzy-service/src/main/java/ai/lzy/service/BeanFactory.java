@@ -13,7 +13,6 @@ import ai.lzy.v1.iam.LzyAccessBindingServiceGrpc;
 import ai.lzy.v1.iam.LzySubjectServiceGrpc;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
-import ai.lzy.v1.whiteboard.LzyWhiteboardPrivateServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
@@ -55,14 +54,6 @@ public class BeanFactory {
     public ManagedChannel iamChannel(LzyServiceConfig config) {
         return newGrpcChannel(config.getIam().getAddress(), LzySubjectServiceGrpc.SERVICE_NAME,
             LzyAccessBindingServiceGrpc.SERVICE_NAME);
-    }
-
-    @Bean(preDestroy = "shutdown")
-    @Singleton
-    @Named("WhiteboardServiceChannel")
-    public ManagedChannel whiteboardChannel(LzyServiceConfig config) {
-        return newGrpcChannel(config.getWhiteboardAddress(), LzyWhiteboardPrivateServiceGrpc.SERVICE_NAME,
-            LongRunningServiceGrpc.SERVICE_NAME);
     }
 
     @Bean(preDestroy = "shutdown")

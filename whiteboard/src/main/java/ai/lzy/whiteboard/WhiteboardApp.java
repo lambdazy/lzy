@@ -11,7 +11,6 @@ import ai.lzy.whiteboard.grpc.WhiteboardService;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
-import io.grpc.ServerInterceptors;
 import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.exceptions.NoSuchBeanException;

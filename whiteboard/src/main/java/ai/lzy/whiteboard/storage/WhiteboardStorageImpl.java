@@ -5,7 +5,6 @@ import ai.lzy.model.db.ProtoObjectMapper;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.NotFoundException;
-import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.v1.common.LMD;
 import ai.lzy.whiteboard.model.Field;
 import ai.lzy.whiteboard.model.LinkedField;
@@ -16,17 +15,16 @@ import jakarta.inject.Inject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
+import java.sql.*;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
+
+import static ai.lzy.model.grpc.ProtoConverter.fromProto;
+import static ai.lzy.model.grpc.ProtoConverter.toProto;
 
 public class WhiteboardStorageImpl implements WhiteboardStorage {
 
@@ -72,7 +70,7 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                 """)
             )
             {
-                String dataSchemeJson = objectMapper.writeValueAsString(ProtoConverter.toProto(field.schema()));
+                String dataSchemeJson = objectMapper.writeValueAsString(toProto(field.schema()));
                 int index = 0;
                 st.setString(++index, field.status().name());
                 st.setString(++index, dataSchemeJson);
@@ -181,7 +179,8 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
 
     @Override
     public Stream<Whiteboard> listWhiteboards(String userId, @Nullable String whiteboardName, List<String> tags,
-                                              @Nullable Instant createdAtLowerBound, @Nullable Instant createdAtUpperBound,
+                                              @Nullable Instant createdAtLowerBound,
+                                              @Nullable Instant createdAtUpperBound,
                                               @Nullable TransactionHandle transaction) throws SQLException
     {
         LOG.debug("Listing whiteboards (userId={})", userId);
@@ -252,7 +251,8 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                     GROUP BY whiteboard_id
                 ) t ON wb.whiteboard_id = t.whiteboard_id
                 """  + statementSuffix)
-            ) {
+            )
+            {
                 statementSuffixFiller.apply(sqlConnection, st);
                 whiteboards.addAll(parseWhiteboards(st.executeQuery()).toList());
             } catch (JsonProcessingException e) {
@@ -309,7 +309,7 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                     st.setString(++index, field.status().name());
                     st.setTimestamp(++index, null);
                     if (field instanceof LinkedField linked) {
-                        String dataSchemeJson = objectMapper.writeValueAsString(ProtoConverter.toProto(linked.schema()));
+                        String dataSchemeJson = objectMapper.writeValueAsString(toProto(linked.schema()));
                         st.setString(++index, dataSchemeJson);
                         st.setString(++index, linked.storageUri());
                     } else {
@@ -420,7 +420,7 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
             if (storageUri == null || dataSchemeJson == null) {
                 whiteboardsById.get(whiteboardId).fields().put(fieldName, new Field(fieldName, fieldStatus));
             } else {
-                final var dataScheme = ProtoConverter.fromProto(objectMapper.readValue(dataSchemeJson, LMD.DataScheme.class));
+                var dataScheme = fromProto(objectMapper.readValue(dataSchemeJson, LMD.DataScheme.class));
                 whiteboardsById.get(whiteboardId).fields().put(fieldName,
                     new LinkedField(fieldName, fieldStatus, storageUri, dataScheme));
             }

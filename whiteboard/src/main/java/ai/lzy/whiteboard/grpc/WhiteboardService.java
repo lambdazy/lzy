@@ -162,7 +162,8 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
                 accessManager.addAccess(userId, whiteboardId);
             } catch (Exception e) {
                 String errorMessage = "Failed to get access to whiteboard for user " + userId;
-                LOG.error("Create whiteboard {} failed, got exception: {}", request.getWhiteboardName(), errorMessage, e);
+                LOG.error("Create whiteboard {} failed, got exception: {}", request.getWhiteboardName(),
+                    errorMessage, e);
                 LOG.info("Undo creating whiteboard {}, id = {}", request.getWhiteboardName(), whiteboardId);
                 withRetries(defaultRetryPolicy(), LOG, () ->
                         whiteboardStorage.deleteWhiteboard(whiteboardId, null));
@@ -176,7 +177,8 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
             LOG.info("Create whiteboard {} done, id = {}", request.getWhiteboardName(), whiteboardId);
             responseObserver.onCompleted();
         } catch (IllegalArgumentException e) {
-            LOG.error("Create whiteboard {} failed, invalid argument: {}", request.getWhiteboardName(), e.getMessage(), e);
+            LOG.error("Create whiteboard {} failed, invalid argument: {}", request.getWhiteboardName(),
+                e.getMessage(), e);
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
         } catch (Exception e) {
             LOG.error("Create whiteboard {} failed, got exception: {}", request.getWhiteboardName(), e.getMessage(), e);
@@ -222,10 +224,12 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
 
                     final Field field = whiteboard.getField(fieldName);
                     if (field == null) {
-                        throw new NotFoundException("Field " + fieldName + " of whiteboard " + whiteboardId + " not found");
+                        throw new NotFoundException("Field " + fieldName + " of whiteboard " + whiteboardId +
+                            " not found");
                     }
                     if (field.status() == Field.Status.FINALIZED) {
-                        throw new IllegalArgumentException("Field " + fieldName + " of whiteboard " + whiteboardId + " already finalized");
+                        throw new IllegalArgumentException("Field " + fieldName + " of whiteboard " + whiteboardId +
+                            " already finalized");
                     }
                     if (field instanceof LinkedField oldLinkedField) {
                         LOG.info("Field {} of whiteboard {} has already linked with data [{}]. " +
