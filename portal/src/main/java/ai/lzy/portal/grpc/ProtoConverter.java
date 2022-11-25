@@ -9,11 +9,9 @@ import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.portal.LzyPortal;
 import ai.lzy.v1.portal.LzyPortalApi;
-import ai.lzy.v1.workflow.LWF.DataDescription.WhiteboardRef;
 
 import java.net.URI;
 import java.util.Optional;
-import javax.annotation.Nullable;
 
 import static ai.lzy.model.grpc.ProtoConverter.toProto;
 
@@ -23,19 +21,17 @@ public enum ProtoConverter {
     public static LzyPortal.PortalSlotDesc makePortalOutputSlot(String slotUri, String slotName,
                                                                 String channelId, LMS3.S3Locator s3Locator)
     {
-        return makePortalSlot(slotUri, slotName, channelId, LMS.Slot.Direction.OUTPUT, s3Locator, null);
+        return makePortalSlot(slotUri, slotName, channelId, LMS.Slot.Direction.OUTPUT, s3Locator);
     }
 
     public static LzyPortal.PortalSlotDesc makePortalInputSlot(String slotUri, String slotName,
-                                                               String channelId, LMS3.S3Locator s3Locator,
-                                                               @Nullable WhiteboardRef whiteboardRef)
+                                                               String channelId, LMS3.S3Locator s3Locator)
     {
-        return makePortalSlot(slotUri, slotName, channelId, LMS.Slot.Direction.INPUT, s3Locator, whiteboardRef);
+        return makePortalSlot(slotUri, slotName, channelId, LMS.Slot.Direction.INPUT, s3Locator);
     }
 
     public static LzyPortal.PortalSlotDesc makePortalSlot(String slotUri, String slotName, String channelId,
-                                                          LMS.Slot.Direction direction, LMS3.S3Locator s3Locator,
-                                                          @Nullable WhiteboardRef whiteboardRef)
+                                                          LMS.Slot.Direction direction, LMS3.S3Locator s3Locator)
     {
         var keyAndBucket = parseStorageUri(slotUri);
         var bucket = keyAndBucket[0];
@@ -46,12 +42,6 @@ public enum ProtoConverter {
                 .setKey(key)
                 .setBucket(bucket)
                 .setAmazon(s3Locator.getAmazon()));
-
-        if (whiteboardRef != null) {
-            snapshot.setWhiteboardRef(LzyPortal.PortalSlotDesc.Snapshot.WhiteboardRef.newBuilder()
-                .setWhiteboardId(whiteboardRef.getWhiteboardId())
-                .setFieldName(whiteboardRef.getFieldName()));
-        }
 
         return LzyPortal.PortalSlotDesc.newBuilder()
             .setSlot(LMS.Slot.newBuilder()

@@ -2,7 +2,6 @@ package ai.lzy.portal.mocks;
 
 import ai.lzy.channelmanager.grpc.ChannelManagerMock;
 import ai.lzy.util.grpc.GrpcUtils;
-import ai.lzy.whiteboard.WhiteboardPrivateApiMock;
 import io.grpc.Server;
 
 import java.io.IOException;
@@ -22,7 +21,6 @@ public class MocksServer {
             .addService(channelManagerMock.publicService)
             .addService(channelManagerMock.privateService)
             .addService(new AllocatorPrivateAPIMock())
-            .addService(new WhiteboardPrivateApiMock())
             .build();
     }
 

@@ -16,7 +16,7 @@ from lzy.api.v2.runtime import (
     ProgressStep,
     Runtime,
 )
-from lzy.api.v2.whiteboard_declaration import WhiteboardField, WhiteboardInstanceMeta
+from lzy.whiteboards.whiteboard_declaration import WhiteboardField, WhiteboardInstanceMeta
 
 
 class LocalRuntime(Runtime):
@@ -104,16 +104,3 @@ class LocalRuntime(Runtime):
 
     async def destroy(self) -> None:
         pass
-
-    async def link(self, wb_id: str, field_name: str, url: str, data_scheme: Schema) -> None:
-        pass
-
-    async def create_whiteboard(
-        self,
-        namespace: str,
-        name: str,
-        fields: Sequence[WhiteboardField],
-        storage_name: str,
-        tags: Sequence[str],
-    ) -> WhiteboardInstanceMeta:
-        return WhiteboardInstanceMeta(str(uuid.uuid4()))

@@ -44,12 +44,6 @@ message Operation {
 message DataDescription {
   string storageUri = 1;
   /* optional */ DataScheme dataScheme = 2;  // If not set, using plain scheme
-  /* optional */ WhiteboardRef whiteboardRef = 3;  // Whiteboard field to link data to
-
-  message WhiteboardRef {
-    string whiteboardId = 1;
-    string fieldName = 2;
-  }
 }
 
 message Graph {

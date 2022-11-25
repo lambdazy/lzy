@@ -67,7 +67,6 @@ public class PyApiTest {
     }
 
     @Test
-    @Ignore
     public void testWhiteboards() {
         /* This scenario checks for:
                 1. Whiteboards/Views machinery

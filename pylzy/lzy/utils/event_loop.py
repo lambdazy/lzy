@@ -1,7 +1,6 @@
 import asyncio
 from threading import Thread
-from typing import Optional, Awaitable, TypeVar
-
+from typing import Optional, Awaitable, TypeVar, Sequence
 
 T = TypeVar("T")
 
@@ -35,4 +34,12 @@ class LzyEventLoop:
             inst = cls()
             cls.instance = inst
         return asyncio.run_coroutine_threadsafe(fun, inst.__loop).result()
+
+    @classmethod
+    def gather(cls, *args: Awaitable[T]) -> Sequence[T]:
+        return cls.run_async(cls.__gather(*args))
+
+    @staticmethod
+    async def __gather(*args: Awaitable[T]) -> Sequence[T]:
+        return await asyncio.gather(*args)
 

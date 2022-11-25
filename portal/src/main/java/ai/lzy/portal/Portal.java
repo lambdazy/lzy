@@ -16,7 +16,6 @@ import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
-import ai.lzy.v1.whiteboard.LzyWhiteboardPrivateServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
@@ -59,15 +58,12 @@ public class Portal {
 
     private final ManagedChannel iamChannel;
     private final ManagedChannel channelsManagerChannel;
-    private final ManagedChannel whiteboardChannel;
 
     // services
     private final Server portalServer;
     private final Server slotsServer;
     private final PortalSlotsService portalSlotsService;
     private final AllocatorAgent allocatorAgent;
-
-    private final LzyWhiteboardPrivateServiceGrpc.LzyWhiteboardPrivateServiceBlockingStub whiteboardClient;
 
     private final RenewableJwt slotsJwt;
     private final Supplier<String> tokenFactory;
@@ -94,7 +90,6 @@ public class Portal {
 
         iamChannel = newGrpcChannel(config.getIamAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
         channelsManagerChannel = newGrpcChannel(config.getChannelManagerAddress(), LzyChannelManagerGrpc.SERVICE_NAME);
-        whiteboardChannel = newGrpcChannel(config.getWhiteboardAddress(), LzyWhiteboardPrivateServiceGrpc.SERVICE_NAME);
 
         var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
 
@@ -122,10 +117,7 @@ public class Portal {
             tokenFactory = () -> testOnlyToken;
         }
 
-        whiteboardClient = newBlockingClient(LzyWhiteboardPrivateServiceGrpc.newBlockingStub(whiteboardChannel), APP,
-            tokenFactory);
-
-        snapshots = new SnapshotProvider(whiteboardClient);
+        snapshots = new SnapshotProvider();
         portalId = config.getPortalId();
     }
 
@@ -177,7 +169,6 @@ public class Portal {
         LOG.info("Stopping portal");
         iamChannel.shutdown();
         channelsManagerChannel.shutdown();
-        whiteboardChannel.shutdown();
         portalServer.shutdown();
         portalSlotsService.shutdown();
         slotsServer.shutdown();
@@ -187,7 +178,6 @@ public class Portal {
     public void shutdownNow() {
         iamChannel.shutdownNow();
         channelsManagerChannel.shutdownNow();
-        whiteboardChannel.shutdownNow();
         portalServer.shutdownNow();
         portalSlotsService.shutdown();
         slotsServer.shutdownNow();
@@ -209,10 +199,6 @@ public class Portal {
 
     public SlotsManager getSlotManager() {
         return slotsManager;
-    }
-
-    public LzyWhiteboardPrivateServiceGrpc.LzyWhiteboardPrivateServiceBlockingStub getWhiteboardClient() {
-        return whiteboardClient;
     }
 
     public String getPortalId() {
