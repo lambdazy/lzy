@@ -26,7 +26,6 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-@SuppressWarnings("UnstableApiUsage")
 @Singleton
 public class WhiteboardApp {
     private static final Logger LOG = LogManager.getLogger(WhiteboardApp.class);

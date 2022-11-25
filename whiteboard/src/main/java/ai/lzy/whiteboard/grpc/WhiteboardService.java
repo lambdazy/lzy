@@ -6,7 +6,6 @@ import ai.lzy.v1.whiteboard.LWBS;
 import ai.lzy.v1.whiteboard.LzyWhiteboardServiceGrpc;
 import ai.lzy.whiteboard.access.AccessManager;
 import ai.lzy.whiteboard.model.Whiteboard;
-import ai.lzy.whiteboard.storage.WhiteboardDataSource;
 import ai.lzy.whiteboard.storage.WhiteboardStorage;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
@@ -26,15 +25,11 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
 
     private final AccessManager accessManager;
     private final WhiteboardStorage whiteboardStorage;
-    private final WhiteboardDataSource dataSource;
 
     @Inject
-    public WhiteboardService(AccessManager accessManager,
-                             WhiteboardStorage whiteboardStorage,
-                             WhiteboardDataSource dataSource) {
+    public WhiteboardService(AccessManager accessManager, WhiteboardStorage whiteboardStorage) {
         this.accessManager = accessManager;
         this.whiteboardStorage = whiteboardStorage;
-        this.dataSource = dataSource;
     }
 
     @Override
@@ -91,7 +86,8 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
             List<String> tags = request.getTagsList();
             @Nullable Instant createdAtLowerBound = null;
             if (request.hasCreatedTimeBounds() && request.getCreatedTimeBounds().hasFrom()) {
-                createdAtLowerBound = ai.lzy.util.grpc.ProtoConverter.fromProto(request.getCreatedTimeBounds().getFrom());
+                createdAtLowerBound =
+                    ai.lzy.util.grpc.ProtoConverter.fromProto(request.getCreatedTimeBounds().getFrom());
             }
             @Nullable Instant createdAtUpperBound = null;
             if (request.hasCreatedTimeBounds() && request.getCreatedTimeBounds().hasTo()) {
@@ -115,5 +111,4 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
             responseObserver.onError(Status.INTERNAL.withCause(e).asException());
         }
     }
-
 }
