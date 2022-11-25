@@ -70,7 +70,7 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
         return CreateWorkflowResponse(
             executionId="exec_id",
             internalSnapshotStorage=S3Locator(
-                bucket="",
+                bucket="bucket",
                 amazon=AmazonS3Endpoint(endpoint="", accessToken="", secretToken=""),
             ),
         )
