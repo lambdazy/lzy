@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 import "ai/lzy/v1/whiteboard/whiteboard.proto";
+import "ai/lzy/v1/common/data-scheme.proto";
 
 package ai.lzy.v1.whiteboard;
 
@@ -10,7 +11,12 @@ option java_package = "ai.lzy.v1.whiteboard";
 service LzyWhiteboardService {
   rpc Get (GetRequest) returns (GetResponse);
   rpc List (ListRequest) returns (ListResponse);
+  rpc CreateWhiteboard (CreateWhiteboardRequest) returns (CreateWhiteboardResponse);
+  rpc LinkField (LinkFieldRequest) returns (LinkFieldResponse);
+  rpc FinalizeWhiteboard (FinalizeWhiteboardRequest) returns (FinalizeWhiteboardResponse);
 }
+
+// =========== Get ============
 
 message GetRequest {
   string whiteboardId = 1;
@@ -20,6 +26,8 @@ message GetResponse {
   Whiteboard whiteboard = 1;
 }
 
+// =========== List ============
+
 message ListRequest {
   /* optional */ string name = 1;
   repeated string tags = 2;
@@ -28,4 +36,39 @@ message ListRequest {
 
 message ListResponse {
   repeated Whiteboard whiteboards = 1;
+}
+
+// =========== Create ============
+
+message CreateWhiteboardRequest {
+  string whiteboardName = 1;
+  repeated WhiteboardFieldInfo fields = 2;
+  Storage storage = 3;
+  repeated string tags = 4;
+  string namespace = 5;
+}
+
+message CreateWhiteboardResponse {
+  Whiteboard whiteboard = 1;
+}
+
+// =========== Link ============
+
+message LinkFieldRequest {
+  string whiteboardId = 1;
+  string fieldName = 2;
+  string storageUri = 3;
+  DataScheme scheme = 4;
+}
+
+message LinkFieldResponse {
+}
+
+// =========== Finalize ============
+
+message FinalizeWhiteboardRequest {
+  string whiteboardId = 1;
+}
+
+message FinalizeWhiteboardResponse {
 }
