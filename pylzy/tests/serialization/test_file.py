@@ -1,7 +1,7 @@
 import tempfile
 from unittest import TestCase
 
-from lzy.serialization.lzy_serializer_registry import LzySerializerRegistry
+from lzy.serialization.registry import LzySerializerRegistry
 from lzy.types import File
 
 
