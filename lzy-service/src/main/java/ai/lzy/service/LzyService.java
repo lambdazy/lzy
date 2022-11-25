@@ -8,7 +8,6 @@ import ai.lzy.service.data.dao.GraphDao;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.service.graph.GraphExecutionService;
-import ai.lzy.service.whiteboard.WhiteboardService;
 import ai.lzy.service.workflow.WorkflowService;
 import ai.lzy.util.grpc.GrpcChannels;
 import ai.lzy.v1.AllocatorGrpc;
@@ -18,7 +17,6 @@ import ai.lzy.v1.graph.GraphExecutorGrpc;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
-import ai.lzy.v1.whiteboard.LzyWhiteboardPrivateServiceGrpc;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
@@ -44,11 +42,9 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     private final ManagedChannel storageServiceChannel;
     private final ManagedChannel channelManagerChannel;
     private final ManagedChannel iamChannel;
-    private final ManagedChannel whiteboardChannel;
     private final ManagedChannel graphExecutorChannel;
 
     private final WorkflowService workflowService;
-    private final WhiteboardService whiteboardService;
     private final GraphExecutionService graphExecutionService;
 
     public LzyService(LzyServiceConfig config, LzyServiceStorage storage,
@@ -89,17 +85,12 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var subjectClient = new SubjectServiceGrpcClient(APP, iamChannel, creds::get);
         var abClient = new AccessBindingServiceGrpcClient(APP, iamChannel, creds::get);
 
-        whiteboardChannel = newGrpcChannel(config.getWhiteboardAddress(), LzyWhiteboardPrivateServiceGrpc.SERVICE_NAME);
-        var whiteboardClient = newBlockingClient(
-            LzyWhiteboardPrivateServiceGrpc.newBlockingStub(whiteboardChannel), APP, () -> creds.get().token());
-
         graphExecutorChannel = newGrpcChannel(config.getGraphExecutorAddress(), GraphExecutorGrpc.SERVICE_NAME);
         var graphExecutorClient = newBlockingClient(
             GraphExecutorGrpc.newBlockingStub(graphExecutorChannel), APP, () -> creds.get().token());
 
         workflowService = new WorkflowService(config, channelManagerClient, allocatorClient, allocOperationClient,
             subjectClient, abClient, storageServiceClient, storageOpClient, storage, workflowDao, vmPoolClient);
-        whiteboardService = new WhiteboardService(whiteboardClient);
         graphExecutionService = new GraphExecutionService(creds, workflowDao, graphDao, executionDao,
             vmPoolClient, graphExecutorClient, channelManagerClient);
     }
@@ -111,7 +102,6 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         GrpcChannels.awaitTermination(storageServiceChannel, Duration.ofSeconds(10), getClass());
         GrpcChannels.awaitTermination(channelManagerChannel, Duration.ofSeconds(10), getClass());
         GrpcChannels.awaitTermination(iamChannel, Duration.ofSeconds(10), getClass());
-        GrpcChannels.awaitTermination(whiteboardChannel, Duration.ofSeconds(10), getClass());
         GrpcChannels.awaitTermination(graphExecutorChannel, Duration.ofSeconds(10), getClass());
     }
 
@@ -143,18 +133,6 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     @Override
     public void stopGraph(StopGraphRequest request, StreamObserver<StopGraphResponse> responseObserver) {
         graphExecutionService.stopGraph(request, responseObserver);
-    }
-
-    @Override
-    public void createWhiteboard(CreateWhiteboardRequest request,
-                                 StreamObserver<CreateWhiteboardResponse> responseObserver)
-    {
-        whiteboardService.createWhiteboard(request, responseObserver);
-    }
-
-    @Override
-    public void linkWhiteboard(LinkWhiteboardRequest request, StreamObserver<LinkWhiteboardResponse> responseObserver) {
-        whiteboardService.linkWhiteboard(request, responseObserver);
     }
 
     @Override

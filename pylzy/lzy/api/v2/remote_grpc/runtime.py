@@ -44,13 +44,10 @@ from lzy.api.v2.runtime import (
     ProgressStep,
     Runtime,
 )
-from lzy.api.v2.whiteboard_declaration import WhiteboardField, WhiteboardInstanceMeta
 from lzy.api.v2.startup import ProcessingRequest
 from lzy.api.v2.utils._pickle import pickle
 from lzy.api.v2.utils.files import fileobj_hash, zipdir
 from lzy.api.v2.workflow import WbRef
-
-from ai.lzy.v1.workflow.workflow_pb2 import WhiteboardField as Wb
 
 
 LZY_ADDRESS_ENV = "LZY_ADDRESS_ENV"
@@ -96,7 +93,6 @@ class GrpcRuntime(Runtime):
 
         self.__std_slots_listener: Optional[Task] = None
         self.__running = False
-        self.__loaded_modules: Set[str] = set()
 
     async def start(self, workflow: LzyWorkflow):
         self.__running = True
@@ -127,6 +123,7 @@ class GrpcRuntime(Runtime):
         progress: Callable[[ProgressStep], None],
     ) -> None:
         assert self.__execution_id is not None
+        assert self.__workflow is not None
 
         client = await self.__get_client()
         pools = await client.get_pool_specs(self.__execution_id)
@@ -138,9 +135,8 @@ class GrpcRuntime(Runtime):
         urls = await self.__load_local_modules(modules)
 
         _LOG.info("Building graph")
-        print(links)
         graph = await asyncio.get_event_loop().run_in_executor(
-            None, self.__build_graph, calls, pools, zip(modules, urls), links
+            None, self.__build_graph, calls, pools, list(zip(modules, urls))
         )  # Running long op in threadpool
         _LOG.debug(f"Starting executing graph {graph}")
 
@@ -158,13 +154,30 @@ class GrpcRuntime(Runtime):
 
             if isinstance(status, Completed):
                 _LOG.info(f"Graph {graph_id} execution completed")
-                return
+                break
 
             if isinstance(status, Failed):
                 _LOG.info(f"Graph {graph_id} execution failed: {status.description}")
+                await asyncio.sleep(5)  # TODO(artolord) remove after sync with stdout/stderr
                 raise LzyExecutionException(
                     f"Failed executing graph {graph_id}: {status.description}"
                 )
+
+        data_to_link = []
+
+        for desc in graph.dataDescriptions:
+            link = links.pop(desc.storageUri, None)
+            if link is not None:
+                data_to_link.append(self.__workflow.owner.whiteboard_repository.client.link(
+                    link.whiteboard_id, link.field_name, desc.storageUri, Schema(
+                        data_format=desc.dataScheme.dataFormat,
+                        schema_format=desc.dataScheme.schemeFormat,
+                        schema_content=desc.dataScheme.schemeContent,
+                        meta=dict(**desc.dataScheme.metadata)
+                    )
+                ))
+
+        await asyncio.gather(*data_to_link)
 
     async def destroy(self):
         client = await self.__get_client()
@@ -193,51 +206,12 @@ class GrpcRuntime(Runtime):
             self.__workflow_client = None
             self.__running = False
 
-    async def create_whiteboard(
-        self,
-        namespace: str,
-        name: str,
-        fields: Sequence[WhiteboardField],
-        storage_name: str,
-        tags: Sequence[str],
-    ) -> WhiteboardInstanceMeta:
-
-        f = [
-            Wb(
-               name=field.name,
-               default=None if field.default is None else Wb.DefaultFieldDesc(
-                   uri=field.default.url,
-                   dataScheme=DataScheme(
-                       dataFormat=field.default.data_scheme.data_format,
-                       schemeFormat=field.default.data_scheme.schema_format,
-                       schemeContent=field.default.data_scheme.schema_content
-                       if field.default.data_scheme.schema_content else "",
-                       metadata=field.default.data_scheme.meta
-                   )
-               )
-            ) for field in fields
-        ]
-
-        client = await self.__get_client()
-        _LOG.info(f"Creating whiteboard {namespace}:{name}")
-        whiteboard_id = await client.create_whiteboard(namespace, name, f, storage_name, tags)
-        _LOG.info(f"Whiteboard created {namespace}:{name}")
-        return WhiteboardInstanceMeta(id=whiteboard_id)
-
-    async def link(self, wb_id: str, field_name: str, url: str, data_scheme: Schema) -> None:
-        client = await self.__get_client()
-        _LOG.info(f"Linking whiteboard field {wb_id}:{field_name} to {url}")
-        await client.link_whiteboard(whiteboard_id=wb_id, field_name=field_name, storage_uri=url, data_scheme=data_scheme)
-
     async def __load_local_modules(self, module_paths: Iterable[str]) -> Sequence[str]:
         """Returns sequence of urls"""
         assert self.__workflow is not None
 
         modules_uploaded = []
         for local_module in module_paths:
-
-            if os.path.basename(local_module) in self.__loaded_modules:
-                continue
 
             with tempfile.NamedTemporaryFile("rb") as archive:
                 if not os.path.isdir(local_module):
@@ -269,8 +243,6 @@ class GrpcRuntime(Runtime):
 
                 presigned_uri = await client.sign_storage_uri(url)
                 modules_uploaded.append(presigned_uri)
-
-            self.__loaded_modules.add(os.path.basename(local_module))
 
         return modules_uploaded
 
@@ -315,8 +287,7 @@ class GrpcRuntime(Runtime):
         self,
         calls: List[LzyCall],
         pools: Sequence[VmPoolSpec],
-        modules: Iterable[Tuple[str, str]],
-        links: Dict[str, WbRef]
+        modules: Sequence[Tuple[str, str]]
     ) -> Graph:
         assert self.__workflow is not None
 
@@ -386,16 +357,6 @@ class GrpcRuntime(Runtime):
                     )
                 )
 
-                res = links.pop(entry.storage_url, None)
-
-                wb_ref: Optional[DataDescription.WhiteboardRef] = None
-
-                if res is not None:
-                    wb_ref = DataDescription.WhiteboardRef(
-                        whiteboardId=res.whiteboard_id,
-                        fieldName=res.field_name
-                    )
-
                 data_descriptions[entry.storage_url] = DataDescription(
                     storageUri=entry.storage_url,
                     dataScheme=DataScheme(
@@ -406,7 +367,6 @@ class GrpcRuntime(Runtime):
                     )
                     if entry.data_scheme is not None
                     else None,
-                    whiteboardRef=wb_ref
                 )
                 ret_descriptions.append(slot_path)
 

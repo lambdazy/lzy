@@ -1,9 +1,12 @@
 import asyncio
+import dataclasses
 import datetime
 import os
 import tempfile
+import uuid
 from typing import List, Any, TypeVar, Optional, Union, Iterable, Dict, Sequence
 
+from lzy.proxy.automagic import is_proxy
 from lzy.proxy.result import Nothing
 
 from lzy.utils.event_loop import LzyEventLoop
@@ -70,11 +73,15 @@ class WhiteboardRepository:
             name, tags, not_before, not_after
         ))
         wbs_to_build = [self.__build_whiteboard(wb) for wb in wbs]
-        return list(LzyEventLoop.run_async(asyncio.gather(*wbs_to_build)))
+        return list(LzyEventLoop.gather(*wbs_to_build))
+
+    @property
+    def client(self) -> WhiteboardServiceClient:
+        return self.__client
 
     async def __build_whiteboard(self, wb: Whiteboard) -> Any:
 
-        if wb.status != Whiteboard.CREATED:
+        if wb.status != Whiteboard.FINALIZED:
             raise RuntimeError(f"Status of whiteboard with name {wb.name} is {wb.status}, but must be COMPLETED")
 
         return _ReadOnlyWhiteboard(self.__storage, self.__serializers, wb)
@@ -111,7 +118,7 @@ class _ReadOnlyWhiteboard:
             self.__fields[item] = var
             return var
 
-        return item
+        return var
 
     @property
     def whiteboard_id(self) -> str:

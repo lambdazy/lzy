@@ -2,7 +2,7 @@ package ai.lzy.whiteboard.grpc;
 
 import ai.lzy.v1.common.LMD;
 import ai.lzy.v1.whiteboard.LWB;
-import ai.lzy.v1.whiteboard.LWBPS;
+import ai.lzy.v1.whiteboard.LWBS;
 
 public class ProtoValidator {
 
@@ -36,10 +36,9 @@ public class ProtoValidator {
         }
     }
 
-    public static boolean isValid(LWBPS.CreateWhiteboardRequest request) {
+    public static boolean isValid(LWBS.CreateWhiteboardRequest request) {
         boolean isValid = true;
         try {
-            isValid = isValid && !request.getUserId().isBlank();
             isValid = isValid && !request.getWhiteboardName().isBlank();
             isValid = isValid && request.getFieldsCount() != 0;
             isValid = isValid && request.getFieldsList().stream().allMatch(ProtoValidator::isValid);
@@ -51,7 +50,7 @@ public class ProtoValidator {
         }
     }
 
-    public static boolean isValid(LWBPS.LinkFieldRequest request) {
+    public static boolean isValid(LWBS.LinkFieldRequest request) {
         try {
             boolean isValid = true;
             isValid = isValid && !request.getWhiteboardId().isBlank();

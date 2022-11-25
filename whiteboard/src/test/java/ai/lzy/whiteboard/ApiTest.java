@@ -20,9 +20,7 @@ import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.whiteboard.LWB;
-import ai.lzy.v1.whiteboard.LWBPS;
 import ai.lzy.v1.whiteboard.LWBS;
-import ai.lzy.v1.whiteboard.LzyWhiteboardPrivateServiceGrpc;
 import ai.lzy.v1.whiteboard.LzyWhiteboardServiceGrpc;
 import ai.lzy.whiteboard.grpc.ProtoConverter;
 import ai.lzy.whiteboard.model.Whiteboard;
@@ -64,12 +62,9 @@ public class ApiTest extends BaseTestWithIam {
     });
 
     private ApplicationContext context;
-    private User externalUser;
-    private User externalUser2;
     private LzyWhiteboardServiceGrpc.LzyWhiteboardServiceBlockingStub externalUserWhiteboardClient;
     private LzyWhiteboardServiceGrpc.LzyWhiteboardServiceBlockingStub externalUser2WhiteboardClient;
     private LzyWhiteboardServiceGrpc.LzyWhiteboardServiceBlockingStub whiteboardClient;
-    private LzyWhiteboardPrivateServiceGrpc.LzyWhiteboardPrivateServiceBlockingStub privateWhiteboardClient;
     private WhiteboardApp whiteboardApp;
     private ManagedChannel channel;
 
@@ -89,11 +84,11 @@ public class ApiTest extends BaseTestWithIam {
             .usePlaintext()
             .build();
         var credentials = config.getIam().createRenewableToken();
-        privateWhiteboardClient = LzyWhiteboardPrivateServiceGrpc.newBlockingStub(channel).withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> credentials.get().token()));
         whiteboardClient = LzyWhiteboardServiceGrpc.newBlockingStub(channel).withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> credentials.get().token()));
 
+        User externalUser;
+        User externalUser2;
         try (final var iamClient = new IamClient(config.getIam())) {
             externalUser = iamClient.createUser("wbUser");
             externalUser2 = iamClient.createUser("wbOtherUser");
@@ -129,27 +124,12 @@ public class ApiTest extends BaseTestWithIam {
 
     @Test
     public void testUnauthenticated() {
-        final var unauthorizedPrivateClient = LzyWhiteboardPrivateServiceGrpc.newBlockingStub(channel);
-        apiAccessTest(unauthorizedPrivateClient, Status.UNAUTHENTICATED);
-
         final var unauthorizedClient = LzyWhiteboardServiceGrpc.newBlockingStub(channel);
         apiAccessTest(unauthorizedClient, Status.UNAUTHENTICATED);
     }
 
     @Test
     public void testPermissionDenied() {
-        final var invalidCredsPrivateClient = LzyWhiteboardPrivateServiceGrpc.newBlockingStub(channel)
-            .withInterceptors(ClientHeaderInterceptor.header(
-                GrpcHeaders.AUTHORIZATION, JwtUtils.invalidCredentials("user", "GITHUB")::token
-            ));
-        apiAccessTest(invalidCredsPrivateClient, Status.PERMISSION_DENIED);
-
-        final var userCredsPrivateClient = LzyWhiteboardPrivateServiceGrpc.newBlockingStub(channel)
-            .withInterceptors(ClientHeaderInterceptor.header(
-                GrpcHeaders.AUTHORIZATION, externalUser.credentials::token
-            ));
-        apiAccessTest(userCredsPrivateClient, Status.PERMISSION_DENIED);
-
         final var invalidCredsClient = LzyWhiteboardServiceGrpc.newBlockingStub(channel)
             .withInterceptors(ClientHeaderInterceptor.header(
                 GrpcHeaders.AUTHORIZATION, JwtUtils.invalidCredentials("user", "GITHUB")::token
@@ -166,7 +146,7 @@ public class ApiTest extends BaseTestWithIam {
             Assert.assertEquals(e.getStatus().toString(), Status.Code.NOT_FOUND, e.getStatus().getCode());
         }
 
-        final var createdWhiteboard = privateWhiteboardClient
+        final var createdWhiteboard = externalUserWhiteboardClient
             .createWhiteboard(genCreateWhiteboardRequest()).getWhiteboard();
         final var getRequest = LWBS.GetRequest.newBuilder().setWhiteboardId(createdWhiteboard.getId()).build();
 
@@ -198,18 +178,18 @@ public class ApiTest extends BaseTestWithIam {
 
     @Test
     public void finalizeWhiteboard() {
-        final var createdWhiteboard = privateWhiteboardClient
+        final var createdWhiteboard = whiteboardClient
             .createWhiteboard(genCreateWhiteboardRequest()).getWhiteboard();
         final var getRequest = LWBS.GetRequest.newBuilder().setWhiteboardId(createdWhiteboard.getId()).build();
 
-        privateWhiteboardClient.linkField(LWBPS.LinkFieldRequest.newBuilder()
+        whiteboardClient.linkField(LWBS.LinkFieldRequest.newBuilder()
             .setWhiteboardId(createdWhiteboard.getId())
             .setFieldName("f1")
             .setStorageUri("s-uri-1")
             .setScheme(toProto(DataScheme.PLAIN))
             .build());
 
-        privateWhiteboardClient.linkField(LWBPS.LinkFieldRequest.newBuilder()
+        whiteboardClient.linkField(LWBS.LinkFieldRequest.newBuilder()
             .setWhiteboardId(createdWhiteboard.getId())
             .setFieldName("f4")
             .setStorageUri("s-uri-4")
@@ -226,7 +206,7 @@ public class ApiTest extends BaseTestWithIam {
             }
         });
 
-        privateWhiteboardClient.finalizeWhiteboard(LWBPS.FinalizeWhiteboardRequest.newBuilder()
+        whiteboardClient.finalizeWhiteboard(LWBS.FinalizeWhiteboardRequest.newBuilder()
             .setWhiteboardId(createdWhiteboard.getId())
             .build());
 
@@ -247,14 +227,14 @@ public class ApiTest extends BaseTestWithIam {
 
     @Test
     public void listWhiteboards() {
-        final var whiteboard1 = privateWhiteboardClient
-            .createWhiteboard(genCreateWhiteboardRequest(externalUser.id, "wb1", List.of("t1"))).getWhiteboard();
-        final var whiteboard2 = privateWhiteboardClient
-            .createWhiteboard(genCreateWhiteboardRequest(externalUser.id, "wb2", List.of("t2"))).getWhiteboard();
-        final var whiteboard3 = privateWhiteboardClient
-            .createWhiteboard(genCreateWhiteboardRequest(externalUser.id, "wb3", List.of("t1", "t2"))).getWhiteboard();
-        final var whiteboard4 = privateWhiteboardClient
-            .createWhiteboard(genCreateWhiteboardRequest(externalUser2.id, "wb", List.of("t1", "t2"))).getWhiteboard();
+        final var whiteboard1 = externalUserWhiteboardClient
+            .createWhiteboard(genCreateWhiteboardRequest("wb1", List.of("t1"))).getWhiteboard();
+        final var whiteboard2 = externalUserWhiteboardClient
+            .createWhiteboard(genCreateWhiteboardRequest("wb2", List.of("t2"))).getWhiteboard();
+        final var whiteboard3 = externalUserWhiteboardClient
+            .createWhiteboard(genCreateWhiteboardRequest("wb3", List.of("t1", "t2"))).getWhiteboard();
+        final var whiteboard4 = externalUser2WhiteboardClient
+            .createWhiteboard(genCreateWhiteboardRequest("wb", List.of("t1", "t2"))).getWhiteboard();
 
         var listResult = externalUserWhiteboardClient.list(LWBS.ListRequest.newBuilder().build());
         Assert.assertEquals(3, listResult.getWhiteboardsCount());
@@ -277,32 +257,27 @@ public class ApiTest extends BaseTestWithIam {
         Assert.assertEquals(2, listResult.getWhiteboardsCount());
     }
 
-    private void apiAccessTest(LzyWhiteboardPrivateServiceGrpc.LzyWhiteboardPrivateServiceBlockingStub client,
-                               Status expectedStatus)
-    {
-        try {
-            client.createWhiteboard(LWBPS.CreateWhiteboardRequest.getDefaultInstance());
-            Assert.fail();
-        } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
-        }
-        try {
-            client.linkField(LWBPS.LinkFieldRequest.getDefaultInstance());
-            Assert.fail();
-        } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
-        }
-        try {
-            client.finalizeWhiteboard(LWBPS.FinalizeWhiteboardRequest.getDefaultInstance());
-            Assert.fail();
-        } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
-        }
-    }
-
     private void apiAccessTest(LzyWhiteboardServiceGrpc.LzyWhiteboardServiceBlockingStub client,
                                Status expectedStatus)
     {
+        try {
+            client.createWhiteboard(LWBS.CreateWhiteboardRequest.getDefaultInstance());
+            Assert.fail();
+        } catch (StatusRuntimeException e) {
+            Assert.assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
+        }
+        try {
+            client.linkField(LWBS.LinkFieldRequest.getDefaultInstance());
+            Assert.fail();
+        } catch (StatusRuntimeException e) {
+            Assert.assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
+        }
+        try {
+            client.finalizeWhiteboard(LWBS.FinalizeWhiteboardRequest.getDefaultInstance());
+            Assert.fail();
+        } catch (StatusRuntimeException e) {
+            Assert.assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
+        }
         try {
             client.get(LWBS.GetRequest.getDefaultInstance());
             Assert.fail();
@@ -317,9 +292,8 @@ public class ApiTest extends BaseTestWithIam {
         }
     }
 
-    private LWBPS.CreateWhiteboardRequest genCreateWhiteboardRequest() {
-        return LWBPS.CreateWhiteboardRequest.newBuilder()
-            .setUserId(externalUser.id)
+    private LWBS.CreateWhiteboardRequest genCreateWhiteboardRequest() {
+        return LWBS.CreateWhiteboardRequest.newBuilder()
             .setWhiteboardName("wb-name")
             .addAllFields(List.of(
                 LWB.WhiteboardFieldInfo.newBuilder()
@@ -350,9 +324,8 @@ public class ApiTest extends BaseTestWithIam {
             .build();
     }
 
-    private LWBPS.CreateWhiteboardRequest genCreateWhiteboardRequest(String userId, String name, List<String> tags) {
-        return LWBPS.CreateWhiteboardRequest.newBuilder()
-            .setUserId(userId)
+    private LWBS.CreateWhiteboardRequest genCreateWhiteboardRequest(String name, List<String> tags) {
+        return LWBS.CreateWhiteboardRequest.newBuilder()
             .setWhiteboardName(name)
             .addAllFields(List.of(
                 LWB.WhiteboardFieldInfo.newBuilder()

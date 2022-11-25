@@ -13,7 +13,8 @@ from lzy.api.v2.utils.env import generate_env, merge_envs
 from lzy.api.v2.utils.packages import to_str_version
 from lzy.api.v2.utils.proxy_adapter import lzy_proxy
 from lzy.api.v2.utils.types import infer_call_signature, infer_return_type
-from lzy.api.v2.whiteboard_declaration import whiteboard_
+from lzy.whiteboards.whiteboard import WhiteboardRepository
+from lzy.whiteboards.whiteboard_declaration import whiteboard_
 from lzy.api.v2.workflow import LzyWorkflow
 from lzy.proxy.result import Nothing
 from lzy.py_env.api import PyEnvProvider
@@ -94,11 +95,14 @@ class Lzy:
         py_env_provider: PyEnvProvider = AutomaticPyEnvProvider(),
         storage_registry: StorageRegistry = DefaultStorageRegistry(),
         serializer_registry: SerializerRegistry = DefaultSerializerRegistry(),
+        whiteboard_repository: Optional[WhiteboardRepository] = None
     ):
         self.__env_provider = py_env_provider
         self.__runtime = runtime
         self.__serializer_registry = serializer_registry
         self.__storage_registry = storage_registry
+        self.__whiteboard_repository = whiteboard_repository if whiteboard_repository is not None \
+            else WhiteboardRepository.with_grpc_client(storage_registry, serializer_registry)
 
     @property
     def serializer(self) -> SerializerRegistry:
@@ -115,6 +119,10 @@ class Lzy:
     @property
     def storage_registry(self) -> StorageRegistry:
         return self.__storage_registry
+
+    @property
+    def whiteboard_repository(self) -> WhiteboardRepository:
+        return self.__whiteboard_repository
 
     def workflow(
         self,

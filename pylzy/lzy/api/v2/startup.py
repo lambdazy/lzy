@@ -72,11 +72,16 @@ def process_execution(
     output_paths: Sequence[str],
 ):
     log("Reading arguments...")
-    args = [read_data(path, typ, serializers) for typ, path in args_paths]
-    kwargs = {
-        name: read_data(path, typ, serializers)
-        for name, (typ, path) in kwargs_paths.items()
-    }
+
+    try:
+        args = [read_data(path, typ, serializers) for typ, path in args_paths]
+        kwargs = {
+            name: read_data(path, typ, serializers)
+            for name, (typ, path) in kwargs_paths.items()
+        }
+    except Exception as e:
+        log(f"Error while reading arguments: {e}")
+        raise e
 
     log(f"Executing operation with args <{args}> and kwargs <{kwargs}>")
     try:
@@ -86,11 +91,17 @@ def process_execution(
         raise e
 
     log("Writing arguments...")
-    if len(output_paths) == 1:
-        write_data(output_paths[0], res, serializers)
-        return
-    for path, data in zip(output_paths, res):
-        write_data(path, data, serializers)
+
+    try:
+        if len(output_paths) == 1:
+            write_data(output_paths[0], res, serializers)
+            return
+        for path, data in zip(output_paths, res):
+            write_data(path, data, serializers)
+    except Exception as e:
+        log("Error while writing result: {}", e)
+        raise e
+
     log("Execution completed")
 
 
@@ -108,7 +119,12 @@ def main(arg: str):
     if "LOCAL_MODULES" in os.environ:
         sys.path.append(os.environ["LOCAL_MODULES"])
 
-    req = unpickle(arg, ProcessingRequest)
+    try:
+        req = unpickle(arg, ProcessingRequest)
+    except Exception as e:
+        log(f"Error while unpickling request: {e}")
+        raise e
+
     process_execution(
         req.serializers, req.op, req.args_paths, req.kwargs_paths, req.output_paths
     )
