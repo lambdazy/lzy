@@ -20,6 +20,7 @@ import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
+import io.micronaut.http.annotation.Controller;
 import io.micronaut.runtime.Micronaut;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -118,8 +119,7 @@ public class AllocatorMain {
     public static void main(String[] args) throws IOException, InterruptedException {
         final var context = Micronaut.build(args)
             .banner(true)
-            .deduceEnvironment(true)
-            .eagerInitSingletons(true)
+            .eagerInitAnnotated(new Class[] {Controller.class})
             .mainClass(AllocatorMain.class)
             .defaultEnvironments("local")
             .start();
@@ -134,6 +134,5 @@ public class AllocatorMain {
             LOG.info("Stopping allocator service");
             main.stop();
         }));
-        main.awaitTermination();
     }
 }
