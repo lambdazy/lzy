@@ -9,11 +9,9 @@ import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.mockwebserver.utils.ResponseProvider;
 import okhttp3.Headers;
 import okhttp3.mockwebserver.RecordedRequest;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.*;
+import org.junit.rules.TestWatcher;
+import org.junit.runner.Description;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -28,6 +26,9 @@ import static java.util.Objects.requireNonNull;
 public class RestartAllocatorTest extends AllocatorApiTestBase {
 
     private static final String ZONE = "test-zone";
+
+    @Rule
+    public NoExitRule noExitRule = new NoExitRule();
 
     @Before
     public void before() throws IOException {
@@ -169,5 +170,19 @@ public class RestartAllocatorTest extends AllocatorApiTestBase {
 
         allocOp = waitOpSuccess(allocOp);
         Assert.assertEquals(vmId, allocOp.getResponse().unpack(VmAllocatorApi.AllocateResponse.class).getVmId());
+    }
+
+    public static class NoExitRule extends TestWatcher {
+        private SecurityManager sm;
+
+        @Override
+        protected void starting(Description description) {
+            sm = InjectedFailures.prepareForTests();
+        }
+
+        @Override
+        protected void finished(Description description) {
+            System.setSecurityManager(sm);
+        }
     }
 }
