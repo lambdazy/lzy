@@ -56,6 +56,6 @@ class FileSerializer(Serializer):
         return File
 
     def schema(self, typ: type) -> Schema:
-        if not isinstance(typ, File):
+        if typ != File:
             raise ValueError(f'Only {File} type is supported')
         return Schema(self.data_format(), StandardSchemaFormats.no_schema.name, meta=self.meta())
