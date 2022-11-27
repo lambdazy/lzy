@@ -13,4 +13,4 @@ protobuf>=3.19.0
 aioboto3==9.6.0
 jsonpickle>=2.2.0
 packaging>=21.3
-serialzy>=0.0.3
+serialzy>=0.0.4
