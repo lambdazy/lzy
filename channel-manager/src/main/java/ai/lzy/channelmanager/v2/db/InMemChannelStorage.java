@@ -35,8 +35,8 @@ public class InMemChannelStorage implements ChannelStorage {
     @Override
     public void markChannelDestroying(String channelId, @Nullable TransactionHandle transaction) throws SQLException {
         Channel channel = channels.get(channelId);
-        channels.computeIfPresent(channelId, (id, ch) -> new Channel(ch.id(), ch.spec(), ch.executionId(),
-            ch.endpoints(), ch.connections(), Channel.LifeStatus.DESTROYING));
+        channels.computeIfPresent(channelId, (id, ch) -> new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
+            ch.getEndpoints(), ch.getConnections(), Channel.LifeStatus.DESTROYING));
     }
 
     @Override
@@ -46,28 +46,28 @@ public class InMemChannelStorage implements ChannelStorage {
 
     @Override
     public void insertBindingEndpoint(Endpoint endpoint, @Nullable TransactionHandle transaction) throws SQLException {
-        if (endpoint.status() != Endpoint.LifeStatus.BINDING) {
+        if (endpoint.getStatus() != Endpoint.LifeStatus.BINDING) {
             throw new IllegalArgumentException("Expected " + Endpoint.LifeStatus.BINDING + " endpoint, "
-                                               + "actual status " + endpoint.status());
+                                               + "actual status " + endpoint.getStatus());
         }
-        channels.computeIfPresent(endpoint.channelId(), (id, ch) -> {
-            final List<Endpoint> endpoints = ch.endpoints();
+        channels.computeIfPresent(endpoint.getChannelId(), (id, ch) -> {
+            final List<Endpoint> endpoints = ch.getEndpoints();
             endpoints.add(endpoint);
-            return new Channel(ch.id(), ch.spec(), ch.executionId(), endpoints, ch.connections(), ch.lifeStatus());
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), endpoints, ch.getConnections(), ch.getLifeStatus());
         });
-        channelsByEndpoints.put(endpoint.uri().toString(), endpoint.channelId());
+        channelsByEndpoints.put(endpoint.getUri().toString(), endpoint.getChannelId());
     }
 
     @Override
     public void markEndpointBound(String endpointUri, @Nullable TransactionHandle transaction) throws SQLException {
         String channelId = channelsByEndpoints.get(endpointUri);
         channels.computeIfPresent(channelId, (id, ch) -> {
-            final List<Endpoint> endpoints = ch.endpoints().stream().map(e -> {
-                if (endpointUri.equals(e.uri().toString()))
-                    return endpointFactory.createEndpoint(e.slot(), e.slotOwner(), Endpoint.LifeStatus.BOUND);
+            final List<Endpoint> endpoints = ch.getEndpoints().stream().map(e -> {
+                if (endpointUri.equals(e.getUri().toString()))
+                    return endpointFactory.createEndpoint(e.getSlot(), e.getSlotOwner(), Endpoint.LifeStatus.BOUND);
                 return e;
             }).toList();
-            return new Channel(ch.id(), ch.spec(), ch.executionId(), endpoints, ch.connections(), ch.lifeStatus());
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), endpoints, ch.getConnections(), ch.getLifeStatus());
         });
     }
 
@@ -75,12 +75,12 @@ public class InMemChannelStorage implements ChannelStorage {
     public void markEndpointUnbinding(String endpointUri, @Nullable TransactionHandle transaction) throws SQLException {
         String channelId = channelsByEndpoints.get(endpointUri);
         channels.computeIfPresent(channelId, (id, ch) -> {
-            final List<Endpoint> endpoints = ch.endpoints().stream().map(e -> {
-                if (endpointUri.equals(e.uri().toString()))
-                    return endpointFactory.createEndpoint(e.slot(), e.slotOwner(), Endpoint.LifeStatus.UNBINDING);
+            final List<Endpoint> endpoints = ch.getEndpoints().stream().map(e -> {
+                if (endpointUri.equals(e.getUri().toString()))
+                    return endpointFactory.createEndpoint(e.getSlot(), e.getSlotOwner(), Endpoint.LifeStatus.UNBINDING);
                 return e;
             }).toList();
-            return new Channel(ch.id(), ch.spec(), ch.executionId(), endpoints, ch.connections(), ch.lifeStatus());
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), endpoints, ch.getConnections(), ch.getLifeStatus());
         });
     }
 
@@ -89,9 +89,9 @@ public class InMemChannelStorage implements ChannelStorage {
         throws SQLException
     {
         channels.computeIfPresent(channelId, (id, ch) -> {
-            final List<Endpoint> endpoints = ch.endpoints().stream().map(e ->
-                endpointFactory.createEndpoint(e.slot(), e.slotOwner(), Endpoint.LifeStatus.UNBINDING)).toList();
-            return new Channel(ch.id(), ch.spec(), ch.executionId(), endpoints, ch.connections(), ch.lifeStatus());
+            final List<Endpoint> endpoints = ch.getEndpoints().stream().map(e ->
+                endpointFactory.createEndpoint(e.getSlot(), e.getSlotOwner(), Endpoint.LifeStatus.UNBINDING)).toList();
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), endpoints, ch.getConnections(), ch.getLifeStatus());
         });
     }
 
@@ -101,10 +101,10 @@ public class InMemChannelStorage implements ChannelStorage {
     {
         String channelId = channelsByEndpoints.remove(endpointUri);
         channels.computeIfPresent(channelId, (id, ch) -> {
-            final List<Endpoint> endpoints = ch.endpoints().stream()
-                .filter(e -> !e.uri().toString().equals(endpointUri))
+            final List<Endpoint> endpoints = ch.getEndpoints().stream()
+                .filter(e -> !e.getUri().toString().equals(endpointUri))
                 .toList();
-            return new Channel(ch.id(), ch.spec(), ch.executionId(), endpoints, ch.connections(), ch.lifeStatus());
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), endpoints, ch.getConnections(), ch.getLifeStatus());
         });
     }
 
@@ -117,9 +117,9 @@ public class InMemChannelStorage implements ChannelStorage {
                                                + "actual status " + connection.status());
         }
         channels.computeIfPresent(channelId, (id, ch) -> {
-            final List<Connection> connections = ch.connections();
+            final List<Connection> connections = ch.getConnections();
             connections.add(connection);
-            return new Channel(ch.id(), ch.spec(), ch.executionId(), ch.endpoints(), connections, ch.lifeStatus());
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), ch.getEndpoints(), connections, ch.getLifeStatus());
         });
     }
 
@@ -128,12 +128,12 @@ public class InMemChannelStorage implements ChannelStorage {
                                     @Nullable TransactionHandle transaction) throws SQLException
     {
         channels.computeIfPresent(channelId, (id, ch) -> {
-            final List<Connection> connections = ch.connections().stream().map(c -> {
-                if (senderUri.equals(c.sender().uri().toString()) && receiverUri.equals(c.receiver().uri().toString()))
+            final List<Connection> connections = ch.getConnections().stream().map(c -> {
+                if (senderUri.equals(c.sender().getUri().toString()) && receiverUri.equals(c.receiver().getUri().toString()))
                     return new Connection(c.sender(), c.receiver(), Connection.LifeStatus.CONNECTED);
                 return c;
             }).toList();
-            return new Channel(ch.id(), ch.spec(), ch.executionId(), ch.endpoints(), connections, ch.lifeStatus());
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), ch.getEndpoints(), connections, ch.getLifeStatus());
         });
     }
 
@@ -142,12 +142,12 @@ public class InMemChannelStorage implements ChannelStorage {
                                             @Nullable TransactionHandle transaction) throws SQLException
     {
         channels.computeIfPresent(channelId, (id, ch) -> {
-            final List<Connection> connections = ch.connections().stream().map(c -> {
-                if (senderUri.equals(c.sender().uri().toString()) && receiverUri.equals(c.receiver().uri().toString()))
+            final List<Connection> connections = ch.getConnections().stream().map(c -> {
+                if (senderUri.equals(c.sender().getUri().toString()) && receiverUri.equals(c.receiver().getUri().toString()))
                     return new Connection(c.sender(), c.receiver(), Connection.LifeStatus.DISCONNECTING);
                 return c;
             }).toList();
-            return new Channel(ch.id(), ch.spec(), ch.executionId(), ch.endpoints(), connections, ch.lifeStatus());
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), ch.getEndpoints(), connections, ch.getLifeStatus());
         });
     }
 
@@ -156,10 +156,10 @@ public class InMemChannelStorage implements ChannelStorage {
                                          @Nullable TransactionHandle transaction) throws SQLException
     {
         channels.computeIfPresent(channelId, (id, ch) -> {
-            final List<Connection> connections = ch.connections().stream().filter(c ->
-                !(senderUri.equals(c.sender().uri().toString()) && receiverUri.equals(c.receiver().uri().toString()))
+            final List<Connection> connections = ch.getConnections().stream().filter(c ->
+                !(senderUri.equals(c.sender().getUri().toString()) && receiverUri.equals(c.receiver().getUri().toString()))
             ).toList();
-            return new Channel(ch.id(), ch.spec(), ch.executionId(), ch.endpoints(), connections, ch.lifeStatus());
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), ch.getEndpoints(), connections, ch.getLifeStatus());
         });
     }
 
@@ -175,7 +175,7 @@ public class InMemChannelStorage implements ChannelStorage {
         throws SQLException
     {
         final Channel channel = channels.get(channelId);
-        if (channel.lifeStatus().equals(lifeStatus)) {
+        if (channel.getLifeStatus().equals(lifeStatus)) {
             return channel;
         }
         return null;
@@ -185,7 +185,7 @@ public class InMemChannelStorage implements ChannelStorage {
     public List<Channel> listChannels(String executionId, @Nullable TransactionHandle transaction) throws SQLException
     {
         return channels.values().stream()
-            .filter(ch -> ch.executionId().equals(executionId))
+            .filter(ch -> ch.getExecutionId().equals(executionId))
             .collect(Collectors.toList());
     }
 
@@ -193,8 +193,8 @@ public class InMemChannelStorage implements ChannelStorage {
     @Override
     public Endpoint findEndpoint(String endpointUri, @Nullable TransactionHandle transaction) throws SQLException {
         String channelId = channelsByEndpoints.get(endpointUri);
-        return channels.get(channelId).endpoints().stream()
-            .filter(e -> e.uri().toString().equals(endpointUri))
+        return channels.get(channelId).getEndpoints().stream()
+            .filter(e -> e.getUri().toString().equals(endpointUri))
             .findFirst().orElse(null);
     }
 }

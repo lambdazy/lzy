@@ -36,27 +36,27 @@ public class Endpoint {
         return slotApiConnection;
     }
 
-    public URI uri() {
+    public URI getUri() {
         return slot.uri();
     }
 
-    public String channelId() {
+    public String getChannelId() {
         return slot.channelId();
     }
 
-    public SlotInstance slot() {
+    public SlotInstance getSlot() {
         return slot;
     }
 
-    public SlotOwner slotOwner() {
+    public SlotOwner getSlotOwner() {
         return slotOwner;
     }
 
-    public Slot.Direction slotDirection() {
+    public Slot.Direction getSlotDirection() {
         return slot.spec().direction();
     }
 
-    public LifeStatus status() {
+    public LifeStatus getStatus() {
         return lifeStatus;
     }
 

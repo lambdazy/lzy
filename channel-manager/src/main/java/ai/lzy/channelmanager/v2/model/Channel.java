@@ -34,48 +34,48 @@ public class Channel {
         this.spec = spec;
         this.executionId = executionId;
         this.senders = Senders.fromList(endpoints.stream()
-            .filter(e -> e.slotDirection() == Slot.Direction.OUTPUT)
+            .filter(e -> e.getSlotDirection() == Slot.Direction.OUTPUT)
             .toList());
         this.receivers = Receivers.fromList(endpoints.stream()
-            .filter(e -> e.slotDirection() == Slot.Direction.INPUT)
+            .filter(e -> e.getSlotDirection() == Slot.Direction.INPUT)
             .toList());
         this.connections = connections;
         this.lifeStatus = lifeStatus;
     }
 
-    public String id() {
+    public String getId() {
         return id;
     }
 
-    public ChannelSpec spec() {
+    public ChannelSpec getSpec() {
         return spec;
     }
 
-    public String executionId() {
+    public String getExecutionId() {
         return executionId;
     }
 
-    public Senders senders() {
+    public Senders getSenders() {
         return senders;
     }
 
-    public Receivers receivers() {
+    public Receivers getReceivers() {
         return receivers;
     }
 
-    public Senders existedSenders() {
+    public Senders getActiveSenders() {
         return Senders.fromList(senders.asList().stream()
-            .filter(s -> s.status() == Endpoint.LifeStatus.BINDING || s.status() == Endpoint.LifeStatus.BOUND)
+            .filter(s -> s.getStatus() == Endpoint.LifeStatus.BINDING || s.getStatus() == Endpoint.LifeStatus.BOUND)
             .toList());
     }
 
-    public Receivers existedReceivers() {
+    public Receivers getActiveReceivers() {
         return Receivers.fromList(receivers.asList().stream()
-            .filter(s -> s.status() == Endpoint.LifeStatus.BINDING || s.status() == Endpoint.LifeStatus.BOUND)
+            .filter(s -> s.getStatus() == Endpoint.LifeStatus.BINDING || s.getStatus() == Endpoint.LifeStatus.BOUND)
             .toList());
     }
 
-    public List<Endpoint> endpoints() {
+    public List<Endpoint> getEndpoints() {
         final List<Endpoint> endpoints = new ArrayList<>();
         endpoints.addAll(senders.asList());
         endpoints.addAll(receivers.asList());
@@ -83,36 +83,36 @@ public class Channel {
     }
 
     @Nullable
-    public Endpoint endpoint(URI endpointUri) {
-        return endpoints().stream()
-            .filter(e -> endpointUri.equals(e.uri()))
+    public Endpoint getEndpoint(URI endpointUri) {
+        return getEndpoints().stream()
+            .filter(e -> endpointUri.equals(e.getUri()))
             .findFirst().orElse(null);
     }
 
-    public List<Connection> connections() {
+    public List<Connection> getConnections() {
         return connections;
     }
 
     @Nullable
-    public Connection connection(URI senderUri, URI receiverUri) {
+    public Connection getConnection(URI senderUri, URI receiverUri) {
         return connections.stream()
-            .filter(c -> senderUri.equals(c.sender().uri()) && receiverUri.equals(c.receiver().uri()))
+            .filter(c -> senderUri.equals(c.sender().getUri()) && receiverUri.equals(c.receiver().getUri()))
             .findFirst().orElse(null);
     }
 
-    public List<Connection> connectionsOfEndpoint(URI endpointUri) {
+    public List<Connection> getConnectionsOfEndpoint(URI endpointUri) {
         return connections.stream()
-            .filter(c -> endpointUri.equals(c.sender().uri()) || endpointUri.equals(c.receiver().uri()))
+            .filter(c -> endpointUri.equals(c.sender().getUri()) || endpointUri.equals(c.receiver().getUri()))
             .collect(Collectors.toList());
     }
 
-    public LifeStatus lifeStatus() {
+    public LifeStatus getLifeStatus() {
         return lifeStatus;
     }
 
     @Nullable
     public Endpoint findSenderToConnect(Endpoint receiver) {
-        return switch (receiver.slotOwner()) {
+        return switch (receiver.getSlotOwner()) {
             case PORTAL -> senders.workerEndpoint;
             case WORKER -> senders.portalEndpoint == null ? senders.workerEndpoint : senders.portalEndpoint;
         };
@@ -120,9 +120,9 @@ public class Channel {
 
     public List<Endpoint> findReceiversToConnect(Endpoint sender) {
         List<Endpoint> endpoints = receivers.workerEndpoints.stream()
-            .filter(e -> connectionsOfEndpoint(e.uri()).isEmpty())
+            .filter(e -> getConnectionsOfEndpoint(e.getUri()).isEmpty())
             .collect(Collectors.toList());
-        if (!Endpoint.SlotOwner.PORTAL.equals(sender.slotOwner()) && receivers.portalEndpoint != null) {
+        if (!Endpoint.SlotOwner.PORTAL.equals(sender.getSlotOwner()) && receivers.portalEndpoint != null) {
             endpoints.add(receivers.portalEndpoint);
         }
         return endpoints;
@@ -150,10 +150,10 @@ public class Channel {
             Endpoint portalEndpoint = null;
             Endpoint workerEndpoint = null;
             for (final Endpoint sender : senders) {
-                if (sender.slotDirection() != Slot.Direction.OUTPUT) {
+                if (sender.getSlotDirection() != Slot.Direction.OUTPUT) {
                     throw new IllegalArgumentException("Wrong endpoint direction");
                 }
-                switch (sender.slotOwner()) {
+                switch (sender.getSlotOwner()) {
                     case PORTAL -> {
                         if (portalEndpoint != null) {
                             throw new IllegalArgumentException("Multiple portal endpoints");
@@ -211,10 +211,10 @@ public class Channel {
             Endpoint portalEndpoint = null;
             final List<Endpoint> workerEndpoints = new ArrayList<>();
             for (final Endpoint receiver : receivers) {
-                if (receiver.slotDirection() != Slot.Direction.INPUT) {
+                if (receiver.getSlotDirection() != Slot.Direction.INPUT) {
                     throw new IllegalArgumentException("Wrong endpoint direction");
                 }
-                switch (receiver.slotOwner()) {
+                switch (receiver.getSlotOwner()) {
                     case PORTAL -> {
                         if (portalEndpoint != null) {
                             throw new IllegalArgumentException("Multiple portal endpoints");

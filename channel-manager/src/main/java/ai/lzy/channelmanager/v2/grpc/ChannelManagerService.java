@@ -95,9 +95,9 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 return;
             }
 
-            if (endpoint.slotOwner() == Endpoint.SlotOwner.PORTAL) {
-                if (channel.existedSenders().portalEndpoint() != null
-                    || channel.existedReceivers().portalEndpoint() != null)
+            if (endpoint.getSlotOwner() == Endpoint.SlotOwner.PORTAL) {
+                if (channel.getActiveSenders().portalEndpoint() != null
+                    || channel.getActiveReceivers().portalEndpoint() != null)
                 {
                     String errorMessage = "Portal endpoint already bound to channel";
                     LOG.error(operationDescription + " failed, {}", errorMessage);
@@ -105,8 +105,8 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                     return;
                 }
             }
-            if (endpoint.slotOwner() == Endpoint.SlotOwner.WORKER && endpoint.slotDirection() == Slot.Direction.INPUT) {
-                if (channel.existedSenders().workerEndpoint() != null) {
+            if (endpoint.getSlotOwner() == Endpoint.SlotOwner.WORKER && endpoint.getSlotDirection() == Slot.Direction.INPUT) {
+                if (channel.getActiveSenders().workerEndpoint() != null) {
                     String errorMessage = "Worker endpoint already bound as input slot to channel";
                     LOG.error(operationDescription + " failed, {}", errorMessage);
                     responseObserver.onError(Status.FAILED_PRECONDITION.withDescription(errorMessage).asException());
@@ -198,7 +198,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             return;
         }
 
-        try (final var guard = lockManager.withLock(endpoint.channelId())) {
+        try (final var guard = lockManager.withLock(endpoint.getChannelId())) {
             withRetries(LOG, () -> channelStorage.markEndpointUnbinding(slotUri, null));
         }  catch (NotFoundException e) {
             LOG.error(operationDescription + " failed, {}", e.getMessage(), e);
@@ -228,7 +228,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             try {
                 LOG.info(operationDescription + " responded, async operation started, operationId={}", operation.id());
 
-                switch (endpoint.slotDirection()) {
+                switch (endpoint.getSlotDirection()) {
                     case OUTPUT /* SENDER */ -> channelController.unbindSender(endpoint);
                     case INPUT /* RECEIVER */ -> channelController.unbindReceiver(endpoint);
                 }

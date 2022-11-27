@@ -189,8 +189,8 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         }
 
         for (final Channel channel : channelsToDestroy) {
-            try (final var guard = lockManager.withLock(channel.id())) {
-                withRetries(LOG, () -> channelStorage.markChannelDestroying(channel.id(), null));
+            try (final var guard = lockManager.withLock(channel.getId())) {
+                withRetries(LOG, () -> channelStorage.markChannelDestroying(channel.getId(), null));
             } catch (Exception e) {
                 LOG.error(operationDescription + " failed, got exception: {}", e.getMessage(), e);
                 response.onError(Status.INTERNAL.withCause(e).asException());
@@ -217,7 +217,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
                 LOG.info(operationDescription + " async operation started, operationId={}", operation.id());
 
                 for (final Channel channel : channelsToDestroy) {
-                    channelController.destroy(channel.id());
+                    channelController.destroy(channel.getId());
                 }
 
                 try {
@@ -301,7 +301,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         }
 
         List<Channel> aliveChannels = channels.stream()
-            .filter(ch -> ch.lifeStatus() == Channel.LifeStatus.ALIVE)
+            .filter(ch -> ch.getLifeStatus() == Channel.LifeStatus.ALIVE)
             .collect(Collectors.toList());
         responseObserver.onNext(createChannelStatusAllResponse(aliveChannels));
         LOG.info("Get status for channels of execution {} done", executionId);
@@ -348,28 +348,28 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
     }
 
     private LCM.Channel toChannelProto(Channel channel) {
-        Channel.Senders existedSenders = channel.existedSenders();
+        Channel.Senders activeSenders = channel.getActiveSenders();
         LCM.ChannelSenders.Builder sendersBuilder = LCM.ChannelSenders.newBuilder();
-        if (existedSenders.portalEndpoint() != null) {
-            sendersBuilder.setPortalSlot(ProtoConverter.toProto(existedSenders.portalEndpoint().slot()));
+        if (activeSenders.portalEndpoint() != null) {
+            sendersBuilder.setPortalSlot(ProtoConverter.toProto(activeSenders.portalEndpoint().getSlot()));
         }
-        if (existedSenders.workerEndpoint() != null) {
-            sendersBuilder.setWorkerSlot(ProtoConverter.toProto(existedSenders.workerEndpoint().slot()));
+        if (activeSenders.workerEndpoint() != null) {
+            sendersBuilder.setWorkerSlot(ProtoConverter.toProto(activeSenders.workerEndpoint().getSlot()));
         }
 
-        Channel.Receivers existedReceivers = channel.existedReceivers();
+        Channel.Receivers activeReceivers = channel.getActiveReceivers();
         LCM.ChannelReceivers.Builder receiversBuilder = LCM.ChannelReceivers.newBuilder();
-        if (existedReceivers.portalEndpoint() != null) {
-            sendersBuilder.setPortalSlot(ProtoConverter.toProto(existedReceivers.portalEndpoint().slot()));
+        if (activeReceivers.portalEndpoint() != null) {
+            sendersBuilder.setPortalSlot(ProtoConverter.toProto(activeReceivers.portalEndpoint().getSlot()));
         }
-        receiversBuilder.addAllWorkerSlots(existedReceivers.workerEndpoints().stream()
-            .map(e -> ProtoConverter.toProto(e.slot()))
+        receiversBuilder.addAllWorkerSlots(activeReceivers.workerEndpoints().stream()
+            .map(e -> ProtoConverter.toProto(e.getSlot()))
             .toList());
 
         return LCM.Channel.newBuilder()
-            .setChannelId(channel.id())
-            .setSpec(toProto(channel.spec()))
-            .setExecutionId(channel.executionId())
+            .setChannelId(channel.getId())
+            .setSpec(toProto(channel.getSpec()))
+            .setExecutionId(channel.getExecutionId())
             .setSenders(sendersBuilder.build())
             .setReceivers(receiversBuilder.build())
             .build();
