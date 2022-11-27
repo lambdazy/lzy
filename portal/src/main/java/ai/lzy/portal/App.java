@@ -10,6 +10,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
+import java.util.Map;
 import java.util.Objects;
 
 @Requires
@@ -43,7 +44,12 @@ public class App {
     public static void execute(String[] args) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
         LOG.info("Executing portal application...");
 
-        var context = Micronaut.run(App.class, args);
+        var context = Micronaut.build(args)
+            .mainClass(App.class)
+            // XXX: tests workaround
+            .properties(Map.of("micronaut.server.port", "-1"))
+            .start();
+
         var config = context.getBean(PortalConfig.class);
 
         // TODO: ssokolvyak -- let's rename 'host' field in config in order to delegate
