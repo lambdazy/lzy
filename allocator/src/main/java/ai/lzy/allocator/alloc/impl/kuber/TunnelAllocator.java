@@ -5,7 +5,10 @@ import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
 
 public interface TunnelAllocator {
-    void allocateTunnel(Vm.Spec vmSpec) throws InvalidConfigurationException;
+    /**
+     * @return allocated Pon name
+     */
+    String allocateTunnel(Vm.Spec vmSpec) throws InvalidConfigurationException;
 
     Workload createRequestTunnelWorkload(String remoteV6, String poolLabel, String zone)
         throws InvalidConfigurationException;

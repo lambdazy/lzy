@@ -1,7 +1,7 @@
 package ai.lzy.allocator;
 
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.dao.impl.AllocatorDataSource;
+import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.metrics.DummyMetricReporter;
@@ -20,12 +20,19 @@ import io.micronaut.context.annotation.Requires;
 import io.prometheus.client.CollectorRegistry;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
 import yandex.cloud.sdk.ServiceFactory;
 import yandex.cloud.sdk.auth.Auth;
 import yandex.cloud.sdk.auth.provider.CredentialProvider;
 
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.Nonnull;
 import javax.inject.Named;
 
 @Factory
@@ -90,5 +97,44 @@ public class BeanFactory {
     @Named("AllocatorOperationDao")
     public OperationDao operationDao(AllocatorDataSource storage) {
         return new OperationDaoImpl(storage);
+    }
+
+    @Singleton
+    @Named("AllocatorExecutor")
+    @Bean(preDestroy = "shutdown")
+    public ScheduledExecutorService executorService() {
+        final var logger = LogManager.getLogger("AllocatorExecutor");
+
+        var executor = new ScheduledThreadPoolExecutor(5, new ThreadFactory() {
+            private final AtomicInteger counter = new AtomicInteger(1);
+
+            @Override
+            public Thread newThread(@Nonnull Runnable r) {
+                var th = new Thread(r, "executor-" + counter.getAndIncrement());
+                th.setUncaughtExceptionHandler(
+                    (t, e) -> logger.error("Unexpected exception in thread {}: {}", t.getName(), e.getMessage(), e));
+                return th;
+            }
+        }) {
+            @Override
+            public void shutdown() {
+                logger.info("Shutdown AllocatorExecutor service. Tasks in queue: {}, running tasks: {}.",
+                    getQueue().size(), getActiveCount());
+                super.shutdown();
+
+                try {
+                    //noinspection ResultOfMethodCallIgnored
+                    awaitTermination(1, TimeUnit.MINUTES);
+                } catch (InterruptedException e) {
+                    logger.error("Graceful termination interrupted, tasks in queue: {}, running tasks: {}.",
+                        getQueue().size(), getActiveCount());
+                }
+            }
+        };
+
+        executor.setKeepAliveTime(1, TimeUnit.MINUTES);
+        executor.setMaximumPoolSize(20);
+
+        return executor;
     }
 }

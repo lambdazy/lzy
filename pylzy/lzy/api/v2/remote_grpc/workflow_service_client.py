@@ -1,11 +1,10 @@
 from dataclasses import dataclass
 from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Tuple, Union
 
-from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
 from grpc.aio import Channel
 
 from ai.lzy.v1.common.s3_pb2 import S3Locator
-from ai.lzy.v1.workflow.workflow_pb2 import Graph, VmPoolSpec, WhiteboardField
+from ai.lzy.v1.workflow.workflow_pb2 import Graph, VmPoolSpec
 from ai.lzy.v1.workflow.workflow_service_pb2 import (
     AttachWorkflowRequest,
     CreateWorkflowRequest,
@@ -20,15 +19,11 @@ from ai.lzy.v1.workflow.workflow_service_pb2 import (
     GraphStatusResponse,
     ReadStdSlotsRequest,
     ReadStdSlotsResponse,
-    StopGraphRequest,
-    CreateWhiteboardRequest,
-    CreateWhiteboardResponse,
-    LinkWhiteboardRequest
+    StopGraphRequest
 )
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceStub
 from lzy.api.v2.remote_grpc.model import converter
 from lzy.api.v2.remote_grpc.model.converter.storage_creds import to
-from lzy.serialization.api import Schema
 from lzy.utils.grpc import add_headers_interceptor, build_channel
 from lzy.storage.api import AmazonCredentials, StorageConfig, StorageCredentials
 
@@ -117,12 +112,12 @@ class WorkflowServiceClient:
             else:
                 s = S3Locator(bucket=storage.bucket, azure=to(storage.credentials))
 
-        res = await self.__stub.CreateWorkflow(
+        res: CreateWorkflowResponse = await self.__stub.CreateWorkflow(
             CreateWorkflowRequest(workflowName=name, snapshotStorage=s)
         )
         exec_id = res.executionId
 
-        if res.internalSnapshotStorage is not None:
+        if res.internalSnapshotStorage is not None and res.internalSnapshotStorage.bucket != "":
             return exec_id, _create_storage_endpoint(res)
 
         return exec_id, None
@@ -207,35 +202,6 @@ class WorkflowServiceClient:
         )
 
         return pools.poolSpecs
-
-    async def create_whiteboard(
-            self,
-            namespace: str,
-            name: str,
-            fields: Sequence[WhiteboardField],
-            storage_name: str,
-            tags: Sequence[str]) -> str:
-        request = CreateWhiteboardRequest(name=name, namespace=namespace, storageName=storage_name, fields=fields)
-        request.tags.extend(tags)
-
-        whiteboard: CreateWhiteboardResponse = await self.__stub.CreateWhiteboard(request)
-
-        return whiteboard.whiteboardId
-
-    async def link_whiteboard(self, whiteboard_id: str, field_name: str, storage_uri: str, data_scheme: Schema):
-        await self.__stub.LinkWhiteboard(
-            LinkWhiteboardRequest(
-                whiteboardId=whiteboard_id,
-                fieldName=field_name,
-                storageUri=storage_uri,
-                dataScheme=DataScheme(
-                    dataFormat=data_scheme.data_format,
-                    schemeFormat=data_scheme.schema_format,
-                    schemeContent=data_scheme.schema_content if data_scheme.schema_content else "",
-                    metadata=data_scheme.meta
-                )
-            )
-        )
 
     async def stop(self):
         await self.__channel.close()

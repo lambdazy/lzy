@@ -6,6 +6,8 @@ from data import MessageClass, Test1, TestEnum
 from pure_protobuf.types import int32
 
 from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
+from lzy.serialization.registry import DefaultSerializerRegistry
+from lzy.storage.registry import DefaultStorageRegistry
 from lzy.whiteboards.whiteboard import WhiteboardRepository
 from wbs import (
     AnotherSimpleView,
@@ -86,8 +88,12 @@ def fun8(a: MessageClass) -> int:
 
 WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
 
-lzy = Lzy(runtime=GrpcRuntime())
-wb_repo = WhiteboardRepository.with_grpc_client(lzy.storage_registry, lzy.serializer)
+storage = DefaultStorageRegistry()
+serializer = DefaultSerializerRegistry()
+
+wb_repo = WhiteboardRepository.with_grpc_client(storage, serializer)
+
+lzy = Lzy(storage_registry=storage, serializer_registry=serializer, runtime=GrpcRuntime())
 
 with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
     wb = wf.create_whiteboard(SimpleWhiteboard, [simple_whiteboard_tag])
@@ -97,11 +103,11 @@ with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
 
 wb = wb_repo.get(wb_id)
 print(wb.a, wb.a)
-print("Len: " + str(len(wb.b)))
+print(f"Len: {len(wb.b)}")
 
 wb = wb_repo.get(wb_id)
 print(wb.a, wb.b)
-print("Len: " + str(len(wb.b)))
+print(f"Len: {len(wb.b)}")
 
 
 with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
@@ -116,18 +122,12 @@ with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
     wb.a = fun1()
     wb.b = fun2(wb.a)
 
-whiteboards = wb_repo.list(tags=[simple_whiteboard_tag, another_simple_whiteboard_tag])
-print("Number of whiteboard is " + str(len(whiteboards)))
-print("First whiteboard type is " + whiteboards[0].__class__.__name__)
-iteration = "Iterating over whiteboards with types "
-for whiteboard in whiteboards:
-    iteration += whiteboard.__class__.__name__ + " "
-print(iteration)
+whiteboards = wb_repo.list(tags=[simple_whiteboard_tag])
+print("Number of whiteboard with simple_whiteboard_tag is " + str(len(whiteboards)))
 
 current_datetime_local = datetime.now() - timedelta(days=1)
 next_day_datetime_local = current_datetime_local + timedelta(days=1)
 whiteboards = wb_repo.list(
-    tags=[simple_whiteboard_tag, another_simple_whiteboard_tag],
     not_before=current_datetime_local,
     not_after=next_day_datetime_local,
 )
@@ -136,7 +136,6 @@ print(
     + str(len(whiteboards))
 )
 whiteboards = wb_repo.list(
-    tags=[simple_whiteboard_tag, another_simple_whiteboard_tag],
     not_before=current_datetime_local,
 )
 print(
@@ -144,7 +143,6 @@ print(
     + str(len(whiteboards))
 )
 whiteboards = wb_repo.list(
-    tags=[simple_whiteboard_tag, another_simple_whiteboard_tag],
     not_after=next_day_datetime_local,
 )
 print(
@@ -152,7 +150,6 @@ print(
     + str(len(whiteboards))
 )
 whiteboards = wb_repo.list(
-    tags=[simple_whiteboard_tag, another_simple_whiteboard_tag],
     not_before=next_day_datetime_local
 )
 print(

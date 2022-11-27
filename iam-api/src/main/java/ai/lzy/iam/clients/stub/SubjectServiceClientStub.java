@@ -17,6 +17,11 @@ public class SubjectServiceClientStub implements SubjectServiceClient {
     }
 
     @Override
+    public SubjectServiceClient withIdempotencyKey(String idempotencyKey) {
+        return this;
+    }
+
+    @Override
     public Subject createSubject(AuthProvider authProvider, String providerSubjectId, SubjectType type,
                                  SubjectCredentials... credentials) throws AuthException
     {

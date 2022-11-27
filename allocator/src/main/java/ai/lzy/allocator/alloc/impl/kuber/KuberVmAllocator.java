@@ -1,12 +1,17 @@
 package ai.lzy.allocator.alloc.impl.kuber;
 
+import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.allocator.alloc.VmAllocator;
+import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.dao.VmDao;
+import ai.lzy.allocator.model.HostPathVolumeDescription;
 import ai.lzy.allocator.model.Vm;
+import ai.lzy.allocator.model.VolumeClaim;
+import ai.lzy.allocator.model.VolumeRequest;
+import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
-import ai.lzy.allocator.volume.*;
+import ai.lzy.allocator.volume.KuberVolumeManager;
 import ai.lzy.model.db.TransactionHandle;
 import io.fabric8.kubernetes.api.model.ListOptionsBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -15,16 +20,20 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import lombok.Lombok;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
+import static ai.lzy.allocator.alloc.impl.kuber.PodSpecBuilder.VM_POD_TEMPLATE_PATH;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
+import static java.util.Objects.requireNonNull;
 
 @Singleton
 @Requires(property = "allocator.kuber-allocator.enabled", value = "true")
@@ -38,100 +47,128 @@ public class KuberVmAllocator implements VmAllocator {
     public static final String VM_POD_NAME_PREFIX = "lzy-vm-";
     public static final String VM_POD_APP_LABEL_VALUE = "vm";
 
-    private final VmDao dao;
+    private final VmDao vmDao;
     private final ClusterRegistry poolRegistry;
     private final KuberClientFactory factory;
     private final ServiceConfig config;
 
     @Inject
-    public KuberVmAllocator(VmDao dao, ClusterRegistry poolRegistry, KuberClientFactory factory, ServiceConfig config) {
-        this.dao = dao;
+    public KuberVmAllocator(VmDao vmDao, ClusterRegistry poolRegistry, KuberClientFactory factory,
+                            ServiceConfig config)
+    {
+        this.vmDao = vmDao;
         this.poolRegistry = poolRegistry;
         this.factory = factory;
         this.config = config;
     }
 
     @Override
-    public void allocate(Vm.Spec vmSpec) throws InvalidConfigurationException {
-        final var cluster = poolRegistry.findCluster(
-                vmSpec.poolLabel(), vmSpec.zone(), ClusterRegistry.ClusterType.User);
+    public void allocate(Vm vm) throws InvalidConfigurationException {
+        var cluster = poolRegistry.findCluster(vm.poolLabel(), vm.zone(), ClusterRegistry.ClusterType.User);
         if (cluster == null) {
             throw new InvalidConfigurationException(
-                    "Cannot find pool for label " + vmSpec.poolLabel() + " and zone " + vmSpec.zone());
+                "Cannot find pool for label " + vm.poolLabel() + " and zone " + vm.zone());
         }
 
+        final var vmSpec = vm.spec();
+        var allocState = vm.allocateState();
+
         try (final var client = factory.build(cluster)) {
-            var podSpecBuilder = new PodSpecBuilder(
-                    vmSpec, client, config, PodSpecBuilder.VM_POD_TEMPLATE_PATH, VM_POD_NAME_PREFIX
-            );
+            var podSpecBuilder = new PodSpecBuilder(vmSpec, client, config, VM_POD_TEMPLATE_PATH, VM_POD_NAME_PREFIX);
 
             final String podName = podSpecBuilder.getPodName();
-            withRetries(
-                    defaultRetryPolicy(),
-                    LOG,
-                    () -> dao.saveAllocatorMeta(
-                            vmSpec.vmId(),
-                            Map.of(
-                                    NAMESPACE_KEY, NAMESPACE,
-                                    POD_NAME_KEY, podName,
-                                    CLUSTER_ID_KEY, cluster.clusterId()),
-                            null),
-                    RuntimeException::new);
 
-            final List<VolumeRequest.ResourceVolumeDescription> resourceVolumeDescriptions =
-                    vmSpec.volumeRequests().stream()
-                            .filter(volumeRequest -> volumeRequest.volumeDescription() instanceof DiskVolumeDescription
-                                    || volumeRequest.volumeDescription() instanceof NFSVolumeDescription)
-                            .map(volumeRequest ->
-                                    (VolumeRequest.ResourceVolumeDescription) volumeRequest.volumeDescription())
-                            .toList();
-            final List<VolumeClaim> volumeClaims =
-                    KuberVolumeManager.allocateVolumes(client, resourceVolumeDescriptions);
-            dao.setVolumeClaims(vmSpec.vmId(), volumeClaims, null);
+            if (allocState.allocatorMeta() == null) {
+                final var allocatorMeta = Map.of(
+                    NAMESPACE_KEY, NAMESPACE,
+                    POD_NAME_KEY, podName,
+                    CLUSTER_ID_KEY, cluster.clusterId());
+
+                withRetries(LOG, () -> vmDao.setAllocatorMeta(vmSpec.vmId(), allocatorMeta, null));
+
+                allocState = allocState.withAllocatorMeta(allocatorMeta);
+            } else {
+                LOG.info("Found exising allocator meta {} for VM {}", allocState.allocatorMeta(), vmSpec.vmId());
+                // TODO: validate existing meta
+            }
+
+            InjectedFailures.failAllocateVm5(vm);
+
+            if (allocState.volumeClaims() == null) {
+                final var resourceVolumes = vmSpec.volumeRequests().stream()
+                    .filter(request -> request.volumeDescription() instanceof VolumeRequest.ResourceVolumeDescription)
+                    .map(request -> (VolumeRequest.ResourceVolumeDescription) request.volumeDescription())
+                    .toList();
+
+                final var volumeClaims = KuberVolumeManager.allocateVolumes(client, resourceVolumes);
+
+                withRetries(LOG, () -> vmDao.setVolumeClaims(vmSpec.vmId(), volumeClaims, null));
+
+                allocState = allocState.withVolumeClaims(volumeClaims);
+            } else {
+                LOG.info("Found existing volumes claims for VM {}: {}",
+                    vmSpec.vmId(),
+                    allocState.volumeClaims().stream().map(VolumeClaim::name).collect(Collectors.joining(", ")));
+            }
+
+            InjectedFailures.failAllocateVm6(vm);
 
             // add k8s pod affinity to allocate vm pod on the node with the tunnel pod,
             // which must be allocated by TunnelAllocator#allocateTunnel method
             if (vmSpec.proxyV6Address() != null) {
                 podSpecBuilder = podSpecBuilder.withPodAffinity(
-                        KuberLabels.LZY_APP_LABEL, "In", KuberTunnelAllocator.TUNNEL_POD_APP_LABEL_VALUE
-                );
+                    KuberLabels.LZY_APP_LABEL, "In", KuberTunnelAllocator.TUNNEL_POD_APP_LABEL_VALUE);
+
+                InjectedFailures.failAllocateVm7(vm);
             }
 
+            final String vmOtt = allocState.vmOtt();
+
             final Pod vmPodSpec = podSpecBuilder
-                    .withWorkloads(vmSpec.initWorkloads(), true)
-                    .withWorkloads(vmSpec.workloads(), false)
-                    .withVolumes(volumeClaims)
-                    .withHostVolumes(vmSpec.volumeRequests().stream()
-                            .filter(v -> v.volumeDescription() instanceof HostPathVolumeDescription)
-                            .map(v -> (HostPathVolumeDescription) v.volumeDescription())
-                            .toList())
-                    // not to be allocated with another vm
-                    .withPodAntiAffinity(KuberLabels.LZY_APP_LABEL, "In", VM_POD_APP_LABEL_VALUE)
-                    // not to be allocated with pods from other session
-                    .withPodAntiAffinity(KuberLabels.LZY_POD_SESSION_ID_LABEL, "NotIn", vmSpec.sessionId())
-                    .build();
+                .withWorkloads(vmSpec.initWorkloads(), true)
+                .withWorkloads(
+                    vmSpec.workloads().stream()
+                        // we pass vmOtt to _all_ workloads, but only _one_ of them will use it
+                        .map(wl -> wl.withEnv(AllocatorAgent.VM_ALLOCATOR_OTT, vmOtt))
+                        .toList(),
+                    false)
+                .withVolumes(requireNonNull(allocState.volumeClaims()))
+                .withHostVolumes(vmSpec.volumeRequests().stream()
+                    .filter(v -> v.volumeDescription() instanceof HostPathVolumeDescription)
+                    .map(v -> (HostPathVolumeDescription) v.volumeDescription())
+                    .toList())
+                // not to be allocated with another vm
+                .withPodAntiAffinity(KuberLabels.LZY_APP_LABEL, "In", VM_POD_APP_LABEL_VALUE)
+                // not to be allocated with pods from other session
+                .withPodAntiAffinity(KuberLabels.LZY_POD_SESSION_ID_LABEL, "NotIn", vmSpec.sessionId())
+                .build();
 
             LOG.debug("Creating pod with podspec: {}", vmPodSpec);
 
             final Pod pod;
             try {
-                pod = client.pods()
-                        .inNamespace(NAMESPACE)
-                        .resource(vmPodSpec)
-                        .create();
+                pod = client.pods().inNamespace(NAMESPACE).resource(vmPodSpec).create();
             } catch (Exception e) {
+                if (KuberUtils.isResourceAlreadyExist(e)) {
+                    LOG.warn("Allocation request for VM {} already exist", vmSpec.vmId());
+                    return;
+                }
+
                 LOG.error("Failed to allocate vm pod: {}", e.getMessage(), e);
                 deallocate(vmSpec.vmId());
                 //TODO (tomato): add retries here if the error is caused due to temporal problems with kuber
                 throw new RuntimeException(
-                        "Failed to allocate vm (vmId: " + vmSpec.vmId() + ") pod: " + e.getMessage(), e
-                );
+                    "Failed to allocate vm (vmId: %s) pod: %s".formatted(vmSpec.vmId(), e.getMessage()), e);
             }
             LOG.debug("Created vm pod in Kuber: {}", pod);
+
+            InjectedFailures.failAllocateVm8(vm);
+        } catch (InjectedFailures.TerminateException e) {
+            throw Lombok.sneakyThrow(e);
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
-            throw new RuntimeException("Database error: " + e.getMessage(), e);
+            throw new RuntimeException("Allocation error: " + e.getMessage(), e);
         }
     }
 
@@ -188,7 +225,7 @@ public class KuberVmAllocator implements VmAllocator {
         var meta = withRetries(
                 defaultRetryPolicy(),
                 LOG,
-                () -> dao.getAllocatorMeta(vmId, null),
+                () -> vmDao.getAllocatorMeta(vmId, null),
                 ex -> new RuntimeException("Database error: " + ex.getMessage(), ex));
 
         if (meta == null) {
@@ -214,7 +251,7 @@ public class KuberVmAllocator implements VmAllocator {
             withRetries(
                     defaultRetryPolicy(),
                     LOG,
-                    () -> KuberVolumeManager.freeVolumes(client, dao.getVolumeClaims(vmId, null)),
+                    () -> KuberVolumeManager.freeVolumes(client, vmDao.getVolumeClaims(vmId, null)),
                     ex -> new RuntimeException("Database error: " + ex.getMessage(), ex));
         }
     }
@@ -226,7 +263,7 @@ public class KuberVmAllocator implements VmAllocator {
         final var meta = withRetries(
                 defaultRetryPolicy(),
                 LOG,
-                () -> dao.getAllocatorMeta(vmId, transaction),
+                () -> vmDao.getAllocatorMeta(vmId, transaction),
                 ex -> new RuntimeException("Database error: " + ex.getMessage(), ex));
 
         if (meta == null) {

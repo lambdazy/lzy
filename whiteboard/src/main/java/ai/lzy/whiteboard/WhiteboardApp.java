@@ -7,7 +7,6 @@ import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.GrpcHeadersServerInterceptor;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
 import ai.lzy.util.grpc.RequestIdInterceptor;
-import ai.lzy.whiteboard.grpc.WhiteboardPrivateService;
 import ai.lzy.whiteboard.grpc.WhiteboardService;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
@@ -36,7 +35,7 @@ public class WhiteboardApp {
     private final Server whiteboardServer;
 
     public WhiteboardApp(AppConfig config, @Named("WhiteboardIamGrpcChannel") ManagedChannel iamChannel,
-                         WhiteboardService whiteboardService, WhiteboardPrivateService whiteboardPrivateService)
+                         WhiteboardService whiteboardService)
     {
         final HostAndPort address = HostAndPort.fromString(config.getAddress());
         final var internalUserOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
@@ -50,7 +49,6 @@ public class WhiteboardApp {
             .intercept(RequestIdInterceptor.server())
             .intercept(GrpcHeadersServerInterceptor.create())
             .addService(whiteboardService)
-            .addService(ServerInterceptors.intercept(whiteboardPrivateService, internalUserOnly))
             .build();
     }
 

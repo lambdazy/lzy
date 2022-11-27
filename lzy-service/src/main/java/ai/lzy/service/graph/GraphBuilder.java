@@ -132,12 +132,9 @@ class GraphBuilder {
                 .getChannelId();
             var portalInputSlotName = Portal.PORTAL_SLOT_PREFIX + "_" + UUID.randomUUID();
             var dataDescription = slot2dataDescription.get(slotUri);
-            var whiteboardRef = Objects.nonNull(dataDescription) && dataDescription.hasWhiteboardRef() ?
-                dataDescription.getWhiteboardRef() : null;
 
             inputSlotNames.add(portalInputSlotName);
-            portalSlotToOpen.add(makePortalInputSlot(slotUri, portalInputSlotName, channelId, storageLocator,
-                whiteboardRef));
+            portalSlotToOpen.add(makePortalInputSlot(slotUri, portalInputSlotName, channelId, storageLocator));
 
             slotName2channelId.put(data.supplier(), channelId);
             if (data.consumers() != null) {

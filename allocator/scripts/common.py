@@ -1,11 +1,10 @@
-from typing import Type, Any
-
-import sys
 import logging
-from yaml import load, SafeLoader
-from marshmallow_dataclass import class_schema
 import os
+import sys
 import yandexcloud
+from marshmallow_dataclass import class_schema
+from typing import Type, Any
+from yaml import load, SafeLoader
 
 
 def strict_load_yaml(yaml: str, loaded_type: Type[Any]):

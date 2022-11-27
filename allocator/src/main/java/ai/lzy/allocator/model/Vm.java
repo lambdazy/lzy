@@ -1,186 +1,145 @@
 package ai.lzy.allocator.model;
 
-import ai.lzy.allocator.volume.VolumeClaim;
-import ai.lzy.allocator.volume.VolumeRequest;
-
 import java.net.Inet6Address;
 import java.time.Instant;
-import java.time.temporal.Temporal;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 
 public record Vm(
     Spec spec,
-    State state,
-    String allocationOperationId
+    Status status,
+    AllocateState allocateState,
+    @Nullable RunState runState
 ) {
+    public Vm(Spec spec, Status status, AllocateState allocateState) {
+        this(spec, status, allocateState, null);
+    }
+
     @Override
     public String toString() {
         return "<"
-            + "sessionId='"
-            + sessionId() + '\''
-            + ", vmId='" + vmId() + '\''
-            + ", poolLabel='" + poolLabel() + '\''
-            + ", state=" + status()
+            + "sessionId='" + spec.sessionId + '\''
+            + ", vmId='" + spec.vmId + '\''
+            + ", poolLabel='" + spec.poolLabel + '\''
+            + ", state=" + status
             + '>';
-    }
-
-    public Temporal allocationStartedAt() {
-        return spec.allocationStartedAt();
-    }
-
-    public List<VolumeRequest> volumeRequests() {
-        return Collections.unmodifiableList(spec.volumeRequests());
     }
 
     public record Spec(
         String vmId,
         String sessionId,
-        Instant allocationStartedAt,
-
         String poolLabel,
         String zone,
-
         List<Workload> initWorkloads,
         List<Workload> workloads,
         List<VolumeRequest> volumeRequests,
-
         @Nullable Inet6Address proxyV6Address
     ) {
         public Spec withVmId(String vmId) {
-            return new Spec(vmId, sessionId, allocationStartedAt, poolLabel, zone, initWorkloads, workloads,
-                volumeRequests, proxyV6Address);
+            return new Spec(vmId, sessionId, poolLabel, zone, initWorkloads, workloads, volumeRequests, proxyV6Address);
         }
     }
 
-    public record State(
-        VmStatus status,
-        @Nullable Instant lastActivityTime,
-        @Nullable Instant deadline,
-        @Nullable Instant allocationDeadline,
+    public record AllocateState(
+        String operationId,
+        Instant startedAt,
+        Instant deadline,
+        String vmOtt,
         @Nullable String vmSubjectId,
-        Map<String, String> vmMeta,
+        @Nullable String tunnelPodName,
+        @Nullable Map<String, String> allocatorMeta,
+        @Nullable List<VolumeClaim> volumeClaims
+    ) {
+        public AllocateState(String operationId, Instant startedAt, Instant deadline, String vmOtt) {
+            this(operationId, startedAt, deadline, vmOtt, null, null, null, null);
+        }
 
-        List<VolumeClaim> volumeClaims
+        public AllocateState withVmSubjId(String vmSubjId) {
+            return new AllocateState(operationId, startedAt, deadline, vmOtt, vmSubjId, tunnelPodName, allocatorMeta,
+                volumeClaims);
+        }
+
+        public AllocateState withTunnelPod(String tunnelPod) {
+            return new AllocateState(operationId, startedAt, deadline, vmOtt, vmSubjectId, tunnelPod, allocatorMeta,
+                volumeClaims);
+        }
+
+        public AllocateState withAllocatorMeta(Map<String, String> allocatorMeta) {
+            return new AllocateState(operationId, startedAt, deadline, vmOtt, vmSubjectId, tunnelPodName, allocatorMeta,
+                volumeClaims);
+        }
+
+        public AllocateState withVolumeClaims(List<VolumeClaim> volumeClaims) {
+            return new AllocateState(operationId, startedAt, deadline, vmOtt, vmSubjectId, tunnelPodName, allocatorMeta,
+                volumeClaims);
+        }
+    }
+
+    public record RunState(
+        @Nullable LinkedHashMap<String, String> vmMeta,
+        @Nullable Instant lastActivityTime,
+        @Nullable Instant deadline
     ) {}
 
-    public enum VmStatus {
-        // Vm created, but allocation not started yet
-        CREATED,
+    public enum Status {
+        // Vm spec saved, but allocation not started yet (internal state, not visible for user)
+        INIT,
         // Vm is allocating
-        CONNECTING,
-        // Vm is running, but not allocated for client
-        IDLE,
+        ALLOCATING,
         // Vm is running and client is holding control of it
         RUNNING,
+        // Vm is running, but not allocated for client
+        IDLE,
         // VM is going to be deleted (session removed)
         DELETING,
         DEAD
     }
 
-    public String sessionId() {
-        return spec.sessionId();
+    public String vmId() {
+        return spec.vmId;
     }
 
-    public String vmId() {
-        return spec.vmId();
+    public String sessionId() {
+        return spec.sessionId;
     }
 
     public String poolLabel() {
-        return spec.poolLabel();
+        return spec.poolLabel;
     }
 
     public String zone() {
-        return spec.zone();
+        return spec.zone;
+    }
+
+    public List<Workload> initWorkloads() {
+        return spec.initWorkloads;
     }
 
     public List<Workload> workloads() {
-        return spec.workloads();
+        return spec.workloads;
     }
 
-    public List<VolumeClaim> volumeClaims() {
-        return state.volumeClaims();
+    public List<VolumeRequest> volumeRequests() {
+        return spec.volumeRequests;
     }
 
-    public VmStatus status() {
-        return state.status();
+    @Nullable
+    public Inet6Address proxyV6Address() {
+        return spec.proxyV6Address;
     }
 
-    public Map<String, String> vmMeta() {
-        return state.vmMeta();
+    public String allocOpId() {
+        return allocateState.operationId;
     }
 
-    public static class VmStateBuilder {
-        private VmStatus vmStatus;
-        private Instant lastActivityTime;
-        private Instant deadline;
-        private Instant allocationDeadline;
-        private String vmSubjectId;
-        private Map<String, String> vmMeta;
-        private List<VolumeClaim> volumeClaims;
-
-        public VmStateBuilder() {}
-
-        public VmStateBuilder(State existingState) {
-            this.vmStatus = existingState.status;
-            if (existingState.vmMeta != null) {
-                this.vmMeta = new HashMap<>();
-                this.vmMeta.putAll(existingState.vmMeta);
-            }
-            this.lastActivityTime = existingState.lastActivityTime;
-            this.deadline = existingState.deadline;
-            this.allocationDeadline = existingState.allocationDeadline;
-            this.vmSubjectId = existingState.vmSubjectId;
-            if (existingState.volumeClaims != null) {
-                this.volumeClaims = new ArrayList<>();
-                this.volumeClaims.addAll(existingState.volumeClaims);
-            }
-        }
-
-        public VmStateBuilder setStatus(VmStatus vmStatus) {
-            this.vmStatus = vmStatus;
-            return this;
-        }
-
-        public VmStateBuilder setLastActivityTime(Instant lastActivityTime) {
-            this.lastActivityTime = lastActivityTime;
-            return this;
-        }
-
-        public VmStateBuilder setDeadline(Instant deadline) {
-            this.deadline = deadline;
-            return this;
-        }
-
-        public VmStateBuilder setAllocationDeadline(Instant allocationDeadline) {
-            this.allocationDeadline = allocationDeadline;
-            return this;
-        }
-
-        public VmStateBuilder setVmMeta(Map<String, String> vmMeta) {
-            this.vmMeta = new HashMap<>();
-            this.vmMeta.putAll(vmMeta);
-            return this;
-        }
-
-        public VmStateBuilder setVolumeClaims(List<VolumeClaim> volumeClaims) {
-            this.volumeClaims = new ArrayList<>();
-            this.volumeClaims.addAll(volumeClaims);
-            return this;
-        }
-
-        public VmStateBuilder setVmSubjectId(String vmSubjectId) {
-            this.vmSubjectId = vmSubjectId;
-            return this;
-        }
-
-        public State build() {
-            return new State(vmStatus, lastActivityTime, deadline, allocationDeadline, vmSubjectId, vmMeta,
-                volumeClaims);
-        }
+    public Vm withVmSubjId(String vmSubjId) {
+        return new Vm(spec, status, allocateState.withVmSubjId(vmSubjId), runState);
     }
+
+    public Vm withTunnelPod(String tunnelPod) {
+        return new Vm(spec, status, allocateState.withTunnelPod(tunnelPod), runState);
+    }
+
 }
