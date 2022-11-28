@@ -4,6 +4,7 @@ import ai.lzy.model.DataScheme;
 import ai.lzy.model.graph.AuxEnv;
 import ai.lzy.model.graph.BaseEnv;
 import ai.lzy.model.graph.Env;
+import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.operation.Operation;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.test.ApplicationContextRule;
@@ -14,7 +15,6 @@ import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.channel.LCM.ChannelSpec;
 import ai.lzy.v1.channel.LCM.DirectChannelType;
 import ai.lzy.v1.channel.LCMPS.ChannelCreateRequest;
-import ai.lzy.v1.common.LMD;
 import ai.lzy.v1.graph.GraphExecutor;
 import ai.lzy.v1.graph.GraphExecutor.ChannelDesc;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphExecuteRequest;
@@ -22,7 +22,9 @@ import ai.lzy.v1.graph.GraphExecutorApi.GraphStatusRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
-import org.junit.*;
+import org.junit.Assert;
+import org.junit.Rule;
+import org.junit.Test;
 import org.junit.rules.Timeout;
 
 import java.util.List;
@@ -91,6 +93,7 @@ public class SchedulerTest {
         GraphExecutor.GraphExecutionStatus status;
 
         do {
+            //noinspection BusyWait
             Thread.sleep(1000);
             status = graphExecutor.context().stub().status(GraphStatusRequest.newBuilder()
                 .setGraphId(g1)
@@ -111,10 +114,7 @@ public class SchedulerTest {
             .setChannelSpec(ChannelSpec.newBuilder()
                 .setChannelName(value)
                 .setDirect(DirectChannelType.newBuilder().build())
-                    .setContentType(LMD.DataScheme.newBuilder()
-                        .setDataFormat("plain")
-                        .setSchemeContent("text")
-                        .build())
+                    .setContentType(ProtoConverter.toProto(DataScheme.PLAIN))
                 .build())
             .build()).getChannelId();
     }
