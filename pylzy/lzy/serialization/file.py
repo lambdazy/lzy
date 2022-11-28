@@ -44,6 +44,8 @@ class FileSerializer(Serializer):
         return {"pylzy": __version__}
 
     def resolve(self, schema: Schema) -> Type:
+        if schema.data_format != StandardDataFormats.raw_file.name:
+            raise ValueError(f'Invalid data format {schema.data_format}')
         if schema.schema_format != StandardSchemaFormats.no_schema.name:
             raise ValueError(f'Invalid schema format {schema.schema_format}')
 
@@ -57,5 +59,5 @@ class FileSerializer(Serializer):
 
     def schema(self, typ: type) -> Schema:
         if typ != File:
-            raise ValueError(f'Only {File} type is supported')
+            raise ValueError(f'Invalid type {typ}')
         return Schema(self.data_format(), StandardSchemaFormats.no_schema.name, meta=self.meta())
