@@ -126,6 +126,7 @@ class LzyLocalOp(LzyOp):
             return
         self._materialization: T = self.signature.exec()
         self._materialized = True
+        self._executed = True
 
 
 class LzyRemoteOp(LzyOp):

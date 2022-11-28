@@ -1,4 +1,5 @@
 import inspect
+import logging
 import sys
 from types import ModuleType
 from typing import Any, Dict, Iterable, List, Tuple, Union
@@ -9,6 +10,7 @@ import yaml
 from importlib_metadata import packages_distributions  # type: ignore
 from stdlib_list import stdlib_list
 
+_LOG = logging.getLogger(__name__)
 
 # https://stackoverflow.com/a/1883251
 def get_base_prefix_compat():
@@ -143,7 +145,10 @@ def select_modules(
     all_local_modules = dict.fromkeys(parents)
     all_local_modules.update(dict.fromkeys(reversed(local_modules)))
 
-    def get_path(module: ModuleType) -> Union[List[str], str]:
+    def get_path(module: ModuleType) -> Union[List[str], str, None]:
+        if not hasattr(module, "__path__") and not hasattr(module, "__file__"):
+            return None
+
         if not hasattr(module, "__path__"):
             return str(module.__file__)
         else:
@@ -162,7 +167,10 @@ def select_modules(
     module_paths: List[str] = []
     for local_module in all_local_modules:
         path = get_path(local_module)
-        if type(path) == list:
+        if path is None:
+            _LOG.warning(f"No path for module: {local_module}")
+            continue
+        elif type(path) == list:
             for p in path:
                 append_to_module_paths(p, module_paths)  # type: ignore
         else:
