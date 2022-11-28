@@ -19,11 +19,38 @@ import io.micronaut.context.annotation.Factory;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.Nonnull;
 
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 @Factory
 public class BeanFactory {
+
+    @Singleton
+    @Named("LzyServiceServerExecutor")
+    public ExecutorService workersPool() {
+        return Executors.newFixedThreadPool(16,
+            new ThreadFactory() {
+                private static final Logger LOG = LogManager.getLogger(LzyService.class);
+
+                private final AtomicInteger counter = new AtomicInteger(1);
+
+                @Override
+                public Thread newThread(@Nonnull Runnable r) {
+                    var th = new Thread(r, "lzy-service-worker-" + counter.getAndIncrement());
+                    th.setUncaughtExceptionHandler(
+                        (t, e) -> LOG.error("Unexpected exception in thread {}: {}", t.getName(), e.getMessage(), e));
+                    return th;
+                }
+            });
+    }
 
     @Bean(preDestroy = "shutdown")
     @Singleton

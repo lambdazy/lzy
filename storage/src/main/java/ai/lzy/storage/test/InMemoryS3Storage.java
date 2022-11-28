@@ -2,7 +2,6 @@ package ai.lzy.storage.test;
 
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
-import ai.lzy.storage.BeanFactory;
 import ai.lzy.storage.StorageService;
 import ai.lzy.storage.config.StorageConfig;
 import ai.lzy.v1.common.LMS3;
@@ -41,7 +40,7 @@ public class InMemoryS3Storage implements StorageService {
     private final OperationDao operationDao;
 
     public InMemoryS3Storage(StorageConfig config, StorageConfig.S3Credentials.InMemoryS3Credentials s3Config,
-                             @Named(BeanFactory.DAO_NAME) OperationDao operationDao)
+                             @Named("StorageOperationDao") OperationDao operationDao)
     {
         var storageAddress = HostAndPort.fromString(config.getAddress());
         this.endpoint = "http://" + storageAddress.getHost() + ":" + s3Config.getPort();

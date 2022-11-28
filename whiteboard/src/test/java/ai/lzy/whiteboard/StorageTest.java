@@ -1,7 +1,6 @@
 package ai.lzy.whiteboard;
 
 import ai.lzy.model.DataScheme;
-import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.whiteboard.model.Field;
@@ -12,11 +11,7 @@ import ai.lzy.whiteboard.storage.WhiteboardStorage;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 
 import java.sql.SQLException;
 import java.time.Instant;
@@ -32,14 +27,12 @@ public class StorageTest {
     public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
 
     private WhiteboardStorage wbStorage;
-    private Storage dataSource;
     private ApplicationContext context;
 
     @Before
     public void setUp() {
         context = ApplicationContext.run(DatabaseTestUtils.preparePostgresConfig("whiteboard", db.getConnectionInfo()));
         wbStorage = context.getBean(WhiteboardStorage.class);
-        dataSource = context.getBean(WhiteboardDataSource.class);
     }
 
     @After

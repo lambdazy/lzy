@@ -227,9 +227,6 @@ public class GraphExecutionService {
 
         try {
             withRetries(LOG, () -> operationDao.updateResponse(op.id(), packedResponse.toByteArray(), null));
-
-            responseObserver.onNext(response);
-            responseObserver.onCompleted();
         } catch (Exception e) {
             LOG.error("Error while executing transaction: {}", e.getMessage(), e);
             var errorStatus = Status.INTERNAL.withDescription("Error while execute graph: " + e.getMessage());
@@ -238,6 +235,9 @@ public class GraphExecutionService {
 
             responseObserver.onError(errorStatus.asRuntimeException());
         }
+
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
     }
 
     @Nullable

@@ -13,13 +13,6 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import javax.annotation.Nonnull;
-
 import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
 import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -31,24 +24,9 @@ public class StorageServiceGrpc extends LzyStorageServiceGrpc.LzyStorageServiceI
     private final StorageService service;
     private final OperationDao operationDao;
 
-    private final ExecutorService workersPool;
-
-    public StorageServiceGrpc(StorageService service, @Named(BeanFactory.DAO_NAME) OperationDao operationDao) {
+    public StorageServiceGrpc(StorageService service, @Named("StorageOperationDao") OperationDao operationDao) {
         this.service = service;
         this.operationDao = operationDao;
-
-        this.workersPool = Executors.newFixedThreadPool(8,
-            new ThreadFactory() {
-                private final AtomicInteger counter = new AtomicInteger(1);
-
-                @Override
-                public Thread newThread(@Nonnull Runnable r) {
-                    var th = new Thread(r, "storage-service-worker-" + counter.getAndIncrement());
-                    th.setUncaughtExceptionHandler(
-                        (t, e) -> LOG.error("Unexpected exception in thread {}: {}", t.getName(), e.getMessage(), e));
-                    return th;
-                }
-            });
     }
 
     @Override
@@ -86,7 +64,7 @@ public class StorageServiceGrpc extends LzyStorageServiceGrpc.LzyStorageServiceI
             return;
         }
 
-        workersPool.submit(() -> service.processCreateBucketOperation(request, op, responseObserver));
+        service.processCreateBucketOperation(request, op, responseObserver);
     }
 
     @Override
@@ -101,17 +79,5 @@ public class StorageServiceGrpc extends LzyStorageServiceGrpc.LzyStorageServiceI
                                        StreamObserver<LSS.GetS3BucketCredentialsResponse> responseObserver)
     {
         service.getBucketCreds(request, responseObserver);
-    }
-
-    public void shutdown() {
-        workersPool.shutdown();
-    }
-
-    public void shutdownNow() {
-        workersPool.shutdownNow();
-    }
-
-    public boolean awaitTermination(long timeout, TimeUnit timeUnit) throws InterruptedException {
-        return workersPool.awaitTermination(timeout, timeUnit);
     }
 }

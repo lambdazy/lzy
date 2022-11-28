@@ -11,6 +11,7 @@ import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
+import ai.lzy.whiteboard.grpc.WhiteboardService;
 import ai.lzy.whiteboard.storage.WhiteboardDataSource;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.annotation.Bean;
@@ -18,9 +19,36 @@ import io.micronaut.context.annotation.Factory;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.Nonnull;
 
 @Factory
 public class BeanFactory {
+
+    @Singleton
+    @Named("WhiteboardServiceServerExecutor")
+    public ExecutorService workersPool() {
+        return Executors.newFixedThreadPool(16,
+            new ThreadFactory() {
+                private static final Logger LOG = LogManager.getLogger(WhiteboardService.class);
+
+                private final AtomicInteger counter = new AtomicInteger(1);
+
+                @Override
+                public Thread newThread(@Nonnull Runnable r) {
+                    var th = new Thread(r, "whiteboard-service-worker-" + counter.getAndIncrement());
+                    th.setUncaughtExceptionHandler(
+                        (t, e) -> LOG.error("Unexpected exception in thread {}: {}", t.getName(), e.getMessage(), e));
+                    return th;
+                }
+            });
+    }
 
     @Singleton
     @Named("WhiteboardIamToken")

@@ -10,8 +10,7 @@ import ai.lzy.util.grpc.GrpcHeadersServerInterceptor;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
 import ai.lzy.util.grpc.RequestIdInterceptor;
 import com.google.common.net.HostAndPort;
-import io.grpc.BindableService;
-import io.grpc.Server;
+import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.runtime.Micronaut;
 import jakarta.inject.Named;
@@ -21,25 +20,38 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 
 @Singleton
 public class App {
     private static final Logger LOG = LogManager.getLogger(App.class);
 
+    private final ExecutorService workersPool;
     private final Server server;
 
     public App(LzyServiceConfig config, LzyService lzyService,
-               @Named("LzyServiceOperationDao") OperationDao operationDao)
+               @Named("LzyServiceOperationDao") OperationDao operationDao,
+               @Named("LzyServiceServerExecutor") ExecutorService workersPool)
     {
         var authInterceptor = new AuthServerInterceptor(
             new AuthenticateServiceGrpcClient("LzyService", config.getIam().getAddress()));
 
         var operationService = new OperationService(operationDao);
 
+        this.workersPool = workersPool;
+
         server = createServer(
             HostAndPort.fromString(config.getAddress()),
             authInterceptor,
+            new ServerCallExecutorSupplier() {
+                @Override
+                public <ReqT, RespT> Executor getExecutor(ServerCall<ReqT, RespT> serverCall, Metadata metadata) {
+                    return workersPool;
+                }
+            },
             lzyService,
             operationService);
     }
@@ -51,19 +63,35 @@ public class App {
     public void shutdown(boolean force) {
         if (force) {
             server.shutdownNow();
+            workersPool.shutdownNow();
         } else {
             server.shutdown();
+            workersPool.shutdown();
         }
     }
 
     public void awaitTermination() throws InterruptedException {
         server.awaitTermination();
+        //noinspection ResultOfMethodCallIgnored
+        workersPool.awaitTermination(10, TimeUnit.SECONDS);
     }
 
     public static Server createServer(HostAndPort endpoint, AuthServerInterceptor authInterceptor,
                                       BindableService... services)
     {
-        NettyServerBuilder serverBuilder = NettyServerBuilder
+        return createServer(endpoint, authInterceptor, new ServerCallExecutorSupplier() {
+            @Nullable
+            @Override
+            public <ReqT, RespT> Executor getExecutor(ServerCall<ReqT, RespT> serverCall, Metadata metadata) {
+                return null;
+            }
+        }, services);
+    }
+
+    public static Server createServer(HostAndPort endpoint, AuthServerInterceptor authInterceptor,
+                                      ServerCallExecutorSupplier executorSupplier, BindableService... services)
+    {
+        var serverBuilder = NettyServerBuilder
             .forAddress(new InetSocketAddress(endpoint.getHost(), endpoint.getPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
@@ -76,7 +104,7 @@ public class App {
             serverBuilder.addService(service);
         }
 
-        return serverBuilder.build();
+        return serverBuilder.callExecutor(executorSupplier).build();
     }
 
     public static void main(String[] args) throws InterruptedException, IOException {

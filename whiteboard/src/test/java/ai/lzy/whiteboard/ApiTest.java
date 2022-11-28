@@ -23,13 +23,16 @@ import ai.lzy.v1.whiteboard.LWB;
 import ai.lzy.v1.whiteboard.LWBS;
 import ai.lzy.v1.whiteboard.LzyWhiteboardServiceGrpc;
 import ai.lzy.whiteboard.grpc.ProtoConverter;
+import ai.lzy.whiteboard.grpc.WhiteboardService;
 import ai.lzy.whiteboard.model.Whiteboard;
 import ai.lzy.whiteboard.storage.WhiteboardDataSource;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
+import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
+import io.micronaut.inject.qualifiers.Qualifiers;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.junit.*;
@@ -67,7 +70,7 @@ public class ApiTest extends BaseTestWithIam {
     private LzyWhiteboardServiceGrpc.LzyWhiteboardServiceBlockingStub externalUserWhiteboardClient;
     private LzyWhiteboardServiceGrpc.LzyWhiteboardServiceBlockingStub externalUser2WhiteboardClient;
     private LzyWhiteboardServiceGrpc.LzyWhiteboardServiceBlockingStub whiteboardClient;
-    private WhiteboardApp whiteboardApp;
+    private Server whiteboardServer;
     private ManagedChannel channel;
 
     @Before
@@ -75,14 +78,16 @@ public class ApiTest extends BaseTestWithIam {
         super.setUp(DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo()));
 
         context = ApplicationContext.run(DatabaseTestUtils.preparePostgresConfig("whiteboard", db.getConnectionInfo()));
-
-        whiteboardApp = context.getBean(WhiteboardApp.class);
-        whiteboardApp.start();
-
         final var config = context.getBean(AppConfig.class);
-        //noinspection UnstableApiUsage
+        var address = HostAndPort.fromString(config.getAddress());
+
+        var iamChannel = context.getBean(ManagedChannel.class, Qualifiers.byName("WhiteboardIamGrpcChannel"));
+
+        whiteboardServer = WhiteboardApp.createServer(address, iamChannel, context.getBean(WhiteboardService.class));
+        whiteboardServer.start();
+
         channel = ChannelBuilder
-            .forAddress(HostAndPort.fromString(config.getAddress()))
+            .forAddress(address)
             .usePlaintext()
             .build();
         var credentials = config.getIam().createRenewableToken();
@@ -105,9 +110,9 @@ public class ApiTest extends BaseTestWithIam {
 
     @After
     public void after() {
-        whiteboardApp.stop();
+        whiteboardServer.shutdown();
         try {
-            whiteboardApp.awaitTermination();
+            whiteboardServer.awaitTermination();
         } catch (InterruptedException ignored) {
             // ignored
         }
