@@ -1,4 +1,4 @@
-package ai.lzy.allocator.volume;
+package ai.lzy.allocator.model;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;

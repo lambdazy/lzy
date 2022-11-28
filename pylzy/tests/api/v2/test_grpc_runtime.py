@@ -34,7 +34,7 @@ from ai.lzy.v1.workflow.workflow_service_pb2_grpc import (
     add_LzyWorkflowServiceServicer_to_server,
 )
 from lzy.api.v2 import Lzy, op, whiteboard
-from lzy.serialization.api import Schema
+from serialzy.api import Schema
 from lzy.utils.event_loop import LzyEventLoop
 from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
 from lzy.whiteboards.whiteboard import _ReadOnlyWhiteboard, WhiteboardRepository
@@ -42,8 +42,8 @@ from lzy.api.v2.snapshot import DefaultSnapshot
 import lzy.api.v2.startup as startup
 from lzy.api.v2.utils._pickle import pickle
 from lzy.proxy.result import Just
-from lzy.serialization.registry import DefaultSerializerRegistry
-from lzy.serialization.types import File
+from lzy.serialization.registry import LzySerializerRegistry
+from lzy.types import File
 from lzy.storage import api as storage
 from lzy.storage.registry import DefaultStorageRegistry
 from lzy.whiteboards.whiteboard_declaration import WhiteboardInstanceMeta
@@ -128,7 +128,7 @@ class GrpcRuntimeTests(TestCase):
         runtime = GrpcRuntime("ArtoLord", "localhost:12345", self.__key_path)
 
         storages = DefaultStorageRegistry()
-        serializers = DefaultSerializerRegistry()
+        serializers = LzySerializerRegistry()
 
         lzy = Lzy(runtime=runtime, whiteboard_repository=WhiteboardRepository(
             storages, serializers, WhiteboardClient()
@@ -141,7 +141,7 @@ class GrpcRuntimeTests(TestCase):
         runtime = GrpcRuntime("ArtoLord", "localhost:12345", self.__key_path)
 
         storages = DefaultStorageRegistry()
-        serializers = DefaultSerializerRegistry()
+        serializers = LzySerializerRegistry()
 
         lzy = Lzy(runtime=runtime, whiteboard_repository=WhiteboardRepository(
             storages, serializers, WhiteboardClient()
@@ -165,7 +165,7 @@ class GrpcRuntimeTests(TestCase):
         file = File(data_file)
         with open(data_file, "w") as f:
             f.write("2")
-        ser = DefaultSerializerRegistry()
+        ser = LzySerializerRegistry()
 
         with open(arg_file, "wb") as arg, open(kwarg_file, "wb") as kwarg:
             ser.find_serializer_by_type(str).serialize("4", arg)
@@ -256,7 +256,7 @@ class SnapshotTests(TestCase):
         storages = DefaultStorageRegistry()
         storages.register_storage("storage", storage_config, True)
 
-        serializers = DefaultSerializerRegistry()
+        serializers = LzySerializerRegistry()
 
         snapshot = DefaultSnapshot(storages, serializers)
 
@@ -278,7 +278,7 @@ class SnapshotTests(TestCase):
         storages = DefaultStorageRegistry()
         storages.register_storage("storage", storage_config, True)
 
-        serializers = DefaultSerializerRegistry()
+        serializers = LzySerializerRegistry()
 
         lzy = Lzy(storage_registry=storages, runtime=LocalRuntime(), whiteboard_repository=WhiteboardRepository(
             storages, serializers, WhiteboardClient()
@@ -328,7 +328,7 @@ class SnapshotTests(TestCase):
         storages = DefaultStorageRegistry()
         storages.register_storage("storage", storage_config, True)
 
-        serializers = DefaultSerializerRegistry()
+        serializers = LzySerializerRegistry()
 
         lzy = Lzy(storage_registry=storages, runtime=LocalRuntime(), whiteboard_repository=WhiteboardRepository(
             storages, serializers, WhiteboardClient()
@@ -357,7 +357,7 @@ class SnapshotTests(TestCase):
 
         storages = DefaultStorageRegistry()
         storages.register_storage("storage", storage_config, True)
-        serializer = DefaultSerializerRegistry()
+        serializer = LzySerializerRegistry()
 
         snapshot = DefaultSnapshot(storages, serializer)
 

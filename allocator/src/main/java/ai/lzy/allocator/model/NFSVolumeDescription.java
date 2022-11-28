@@ -1,4 +1,4 @@
-package ai.lzy.allocator.volume;
+package ai.lzy.allocator.model;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonCreator;

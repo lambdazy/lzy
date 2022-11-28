@@ -1,8 +1,5 @@
 package ai.lzy.allocator.model;
 
-import ai.lzy.allocator.volume.VolumeClaim;
-import ai.lzy.allocator.volume.VolumeRequest;
-
 import java.net.Inet6Address;
 import java.time.Instant;
 import java.util.LinkedHashMap;

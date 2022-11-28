@@ -8,6 +8,7 @@ public class ProtoValidator {
     public static boolean isValid(LWB.WhiteboardFieldInfo fieldInfo) {
         boolean isValid = true;
         try {
+            //noinspection ConstantConditions
             isValid = isValid && !fieldInfo.getName().isBlank();
             switch (fieldInfo.getStateCase()) {
                 case NONESTATE -> {
@@ -27,8 +28,9 @@ public class ProtoValidator {
     public static boolean isValid(LMD.DataScheme dataScheme) {
         boolean isValid = true;
         try {
+            //noinspection ConstantConditions
             isValid = isValid && !dataScheme.getDataFormat().isBlank();
-            isValid = isValid && !dataScheme.getSchemeContent().isBlank();
+            isValid = isValid && !dataScheme.getSchemeFormat().isBlank();
             return isValid;
         } catch (NullPointerException e) {
             return false;

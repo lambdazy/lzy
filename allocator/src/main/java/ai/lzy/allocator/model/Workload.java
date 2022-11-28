@@ -1,6 +1,5 @@
 package ai.lzy.allocator.model;
 
-import ai.lzy.allocator.volume.VolumeMount;
 import ai.lzy.v1.VmAllocatorApi.AllocateRequest;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonInclude;

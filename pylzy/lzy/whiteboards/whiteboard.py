@@ -11,7 +11,7 @@ from lzy.proxy.result import Nothing
 
 from lzy.utils.event_loop import LzyEventLoop
 
-from lzy.serialization.api import SerializerRegistry, Schema
+from serialzy.api import SerializerRegistry, Schema
 from lzy.storage.api import StorageRegistry, AsyncStorageClient
 
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, WhiteboardField

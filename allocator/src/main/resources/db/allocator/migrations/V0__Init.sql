@@ -49,10 +49,10 @@ CREATE TABLE vm
     v6_proxy_address      TEXT      NULL,
 
 -- state
-  -- overall status
+    -- overall status
     status                TEXT      NOT NULL,
 
-  -- allocation progress
+    -- allocation progress
     allocation_op_id      TEXT      NOT NULL REFERENCES operation (id),
     allocation_started_at TIMESTAMP NOT NULL,
     allocation_deadline   TIMESTAMP NOT NULL,
@@ -62,7 +62,7 @@ CREATE TABLE vm
     allocator_meta_json   TEXT      NULL,
     volume_claims_json    TEXT      NULL,
 
-  -- vm run state
+    -- vm run state
     vm_meta_json          TEXT      NULL,
     last_activity_time    TIMESTAMP NULL,
     deadline              TIMESTAMP NULL
@@ -78,4 +78,20 @@ CREATE TABLE disk
     size_gb INTEGER NOT NULL,
     zone_id TEXT    NOT NULL,
     user_id TEXT    NOT NULL
+);
+
+CREATE TYPE disk_operation_type AS ENUM ('CREATE', 'CLONE', 'DELETE');
+
+CREATE TABLE disk_op
+(
+    op_id       TEXT                NOT NULL PRIMARY KEY,
+    started_at  TIMESTAMP           NOT NULL,
+    deadline    TIMESTAMP           NOT NULL,
+
+    op_type     disk_operation_type NOT NULL,
+    state_json  TEXT                NOT NULL, -- some operation specific state
+
+-- operation failed, rollback required
+    failed      BOOLEAN             NOT NULL DEFAULT FALSE,
+    fail_reason TEXT                NULL
 );

@@ -16,19 +16,10 @@ Configuration:
 
     Logger:
       - name: UserEventLogs
-        additivity: false
         level: error
-        AppenderRef:
-          ref: Console
 
       - name: "ai.lzy.model.utils.FreePortFinder"
-        additivity: false
         level: error
-        AppenderRef:
-          ref: Console
 
       - name: "ai.lzy.allocator"
-        additivity: false
         level: debug
-        AppenderRef:
-          ref: Console

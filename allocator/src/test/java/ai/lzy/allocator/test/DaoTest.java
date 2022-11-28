@@ -5,16 +5,10 @@ import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.disk.Disk;
 import ai.lzy.allocator.disk.DiskMeta;
 import ai.lzy.allocator.disk.DiskSpec;
-import ai.lzy.allocator.disk.DiskStorage;
 import ai.lzy.allocator.disk.DiskType;
-import ai.lzy.allocator.model.CachePolicy;
-import ai.lzy.allocator.model.Session;
-import ai.lzy.allocator.model.Vm;
-import ai.lzy.allocator.model.Workload;
+import ai.lzy.allocator.disk.dao.DiskDao;
+import ai.lzy.allocator.model.*;
 import ai.lzy.allocator.storage.AllocatorDataSource;
-import ai.lzy.allocator.volume.DiskVolumeDescription;
-import ai.lzy.allocator.volume.VolumeMount;
-import ai.lzy.allocator.volume.VolumeRequest;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.Storage;
@@ -49,7 +43,7 @@ public class DaoTest {
     private OperationDao opDao;
     private SessionDao sessionDao;
     private VmDao vmDao;
-    private DiskStorage diskStorage;
+    private DiskDao diskDao;
     private Storage storage;
     private ApplicationContext context;
 
@@ -61,7 +55,7 @@ public class DaoTest {
         opDao = context.getBean(OperationDao.class, Qualifiers.byName("AllocatorOperationDao"));
         sessionDao = context.getBean(SessionDao.class);
         vmDao = context.getBean(VmDao.class);
-        diskStorage = context.getBean(DiskStorage.class);
+        diskDao = context.getBean(DiskDao.class);
     }
 
     @After
@@ -239,13 +233,13 @@ public class DaoTest {
             new DiskSpec("disk-name", DiskType.HDD, 35, "ru-central1-a"),
             new DiskMeta("user-id")
         );
-        diskStorage.insert(disk, null);
+        diskDao.insert(disk, null);
 
-        final Disk getDisk = diskStorage.get(disk.id(), null);
+        final Disk getDisk = diskDao.get(disk.id(), null);
         Assert.assertEquals(disk, getDisk);
 
-        diskStorage.remove(disk.id(), null);
+        diskDao.remove(disk.id(), null);
 
-        Assert.assertNull(diskStorage.get(disk.id(), null));
+        Assert.assertNull(diskDao.get(disk.id(), null));
     }
 }

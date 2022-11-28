@@ -31,7 +31,7 @@ from lzy.api.v2.call import LzyCall
 from lzy.api.v2.workflow import LzyWorkflow
 from lzy.api.v2.provisioning import Provisioning
 from lzy.api.v2.exceptions import LzyExecutionException
-from lzy.serialization.api import Schema
+from serialzy.api import Schema
 from lzy.utils.grpc import build_token
 from lzy.api.v2.remote_grpc.workflow_service_client import (
     Completed,

@@ -2,10 +2,10 @@ package ai.lzy.allocator.alloc.dao.impl;
 
 import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.model.Vm;
+import ai.lzy.allocator.model.VolumeClaim;
+import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.allocator.storage.AllocatorDataSource;
-import ai.lzy.allocator.volume.VolumeClaim;
-import ai.lzy.allocator.volume.VolumeRequest;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;

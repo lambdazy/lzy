@@ -20,7 +20,7 @@ from lzy.api.v1.whiteboard.model import (
     WhiteboardStatus,
     get_bucket_from_url,
 )
-from lzy.serialization.api import SerializerRegistry
+from serialzy.api import SerializerRegistry
 from lzy.storage.api import StorageCredentials
 from lzy.storage.deprecated import StorageClient
 
