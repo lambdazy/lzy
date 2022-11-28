@@ -1,7 +1,7 @@
 # noinspection PyUnresolvedReferences
 from typing import cast
 
-from test_modules.level1.level2.level3.level3 import Level3  # type: ignore
+from modules_for_tests.level1.level2.level3.level3 import Level3  # type: ignore
 
 
 class Level2:

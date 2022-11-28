@@ -62,7 +62,7 @@ class ModulesSearchTests(TestCase):
         os.chdir(os.path.dirname(__file__))
         self._workflow = self._env.workflow(name=self._WORKFLOW_NAME)
         self._workflow._storage_client = self._storage_client
-        from test_modules.level1.level1 import Level1  # type: ignore
+        from modules_for_tests.level1.level1 import Level1  # type: ignore
 
         level1 = Level1()
         py_env = self._workflow.py_env({"level1": level1})
@@ -73,7 +73,7 @@ class ModulesSearchTests(TestCase):
                 handle.seek(0)
                 result[k] = handle.read()
         self.assertEqual(len(result), 1)
-        self.assertTrue("test_modules" in result)
+        self.assertTrue("modules_for_tests" in result)
 
     def test_py_env_modules_user_provided(self):
         os.chdir(os.path.dirname(__file__))
@@ -81,7 +81,7 @@ class ModulesSearchTests(TestCase):
             name=self._WORKFLOW_NAME, local_module_paths=["test_modules_2"]
         )
         self._workflow._storage_client = self._storage_client
-        from test_modules.level1.level1 import Level1  # type: ignore
+        from modules_for_tests.level1.level1 import Level1  # type: ignore
 
         level1 = Level1()
         py_env = self._workflow.py_env({"level1": level1})
