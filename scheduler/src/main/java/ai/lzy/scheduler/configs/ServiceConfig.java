@@ -1,6 +1,7 @@
 package ai.lzy.scheduler.configs;
 
 import ai.lzy.iam.config.IamClientConfiguration;
+import ai.lzy.model.db.DatabaseConfiguration;
 import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
 import lombok.Getter;
@@ -24,4 +25,7 @@ public class ServiceConfig {
 
     @ConfigurationBuilder("iam")
     private IamClientConfiguration iam = new IamClientConfiguration();
+
+    @ConfigurationBuilder("database")
+    private DatabaseConfiguration database = new DatabaseConfiguration();
 }

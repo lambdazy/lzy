@@ -1,6 +1,5 @@
 package ai.lzy.scheduler.test;
 
-import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.scheduler.BeanFactory;
@@ -36,7 +35,10 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.concurrent.*;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
@@ -49,6 +51,7 @@ public class IntegrationTest extends BaseTestWithIam {
     @Rule
     public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
 
+    private ApplicationContext context;
     private SchedulerApi api;
     private AllocatorMock allocator;
     private SchedulerGrpc.SchedulerBlockingStub stub;
@@ -60,16 +63,15 @@ public class IntegrationTest extends BaseTestWithIam {
     public void setUp() throws IOException {
         super.setUp(preparePostgresConfig("iam", iamDb.getConnectionInfo()));
 
-        final IamClientConfiguration auth;
-        try (var context = ApplicationContext.run(preparePostgresConfig("scheduler", db.getConnectionInfo()))) {
-            SchedulerApiImpl impl = context.getBean(SchedulerApiImpl.class);
-            PrivateSchedulerApiImpl privateApi = context.getBean(PrivateSchedulerApiImpl.class);
-            ServiceConfig config = context.getBean(ServiceConfig.class);
-            final var dao = context.getBean(ServantDao.class);
-            auth = config.getIam();
-            api = new SchedulerApi(impl, privateApi, config, new BeanFactory().iamChannel(config), dao);
-            allocator = context.getBean(AllocatorMock.class);
-        }
+        context = ApplicationContext.run(preparePostgresConfig("scheduler", db.getConnectionInfo()));
+
+        SchedulerApiImpl impl = context.getBean(SchedulerApiImpl.class);
+        PrivateSchedulerApiImpl privateApi = context.getBean(PrivateSchedulerApiImpl.class);
+        ServiceConfig config = context.getBean(ServiceConfig.class);
+        final var dao = context.getBean(ServantDao.class);
+        var auth = config.getIam();
+        api = new SchedulerApi(impl, privateApi, config, new BeanFactory().iamChannel(config), dao);
+        allocator = context.getBean(AllocatorMock.class);
 
         var credentials = auth.createRenewableToken();
 
@@ -89,6 +91,7 @@ public class IntegrationTest extends BaseTestWithIam {
         api.awaitTermination();
         GrpcChannels.awaitTermination(privateChan, Duration.ofSeconds(15), getClass());
         GrpcChannels.awaitTermination(chan, Duration.ofSeconds(15), getClass());
+        context.close();
     }
 
     @Test
