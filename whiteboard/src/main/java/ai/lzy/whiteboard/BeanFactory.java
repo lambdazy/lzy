@@ -6,12 +6,16 @@ import ai.lzy.iam.clients.SubjectServiceClient;
 import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
 import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
+import ai.lzy.longrunning.dao.OperationDao;
+import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
+import ai.lzy.whiteboard.storage.WhiteboardDataSource;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
+import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 
@@ -56,5 +60,12 @@ public class BeanFactory {
         @Named("WhiteboardIamToken") RenewableJwt iamToken)
     {
         return new SubjectServiceGrpcClient(WhiteboardApp.APP, iamChannel, iamToken::get);
+    }
+
+    @Singleton
+    @Requires(beans = WhiteboardDataSource.class)
+    @Named("WhiteboardOperationDao")
+    public OperationDao operationDao(WhiteboardDataSource dataSource) {
+        return new OperationDaoImpl(dataSource);
     }
 }

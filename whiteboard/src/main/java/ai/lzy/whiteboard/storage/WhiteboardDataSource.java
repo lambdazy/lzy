@@ -4,10 +4,7 @@ import ai.lzy.model.db.Storage;
 import ai.lzy.whiteboard.AppConfig;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
 import io.micronaut.context.annotation.Requires;
-import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.flywaydb.core.Flyway;
 
 import java.sql.Connection;
@@ -18,14 +15,11 @@ import java.sql.SQLException;
 @Requires(property = "whiteboard.database.username")
 @Requires(property = "whiteboard.database.password")
 public class WhiteboardDataSource implements Storage {
-
-    private static final Logger LOG = LogManager.getLogger(WhiteboardDataSource.class);
     private static final String VALIDATION_QUERY_SQL = "select 1";
     private static final String MIGRATIONS_LOCATION = "classpath:db/whiteboard/migrations";
 
     private final ComboPooledDataSource dataSource;
 
-    @Inject
     public WhiteboardDataSource(AppConfig config) {
         final var dbConfig = config.getDatabase();
         final ComboPooledDataSource dataSource = new ComboPooledDataSource();
@@ -40,7 +34,7 @@ public class WhiteboardDataSource implements Storage {
         dataSource.setTestConnectionOnCheckout(true);
         dataSource.setPreferredTestQuery(VALIDATION_QUERY_SQL);
 
-        Flyway flyway = Flyway.configure()
+        var flyway = Flyway.configure()
             .dataSource(dataSource)
             .locations(MIGRATIONS_LOCATION)
             .load();
@@ -49,7 +43,11 @@ public class WhiteboardDataSource implements Storage {
         this.dataSource = dataSource;
     }
 
+    @Override
     public Connection connect() throws SQLException {
-        return dataSource.getConnection();
+        var conn = dataSource.getConnection();
+        conn.setAutoCommit(true);
+        conn.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+        return conn;
     }
 }

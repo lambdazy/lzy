@@ -2,7 +2,6 @@ package ai.lzy.whiteboard.grpc;
 
 import ai.lzy.v1.common.LMD;
 import ai.lzy.v1.whiteboard.LWB;
-import ai.lzy.v1.whiteboard.LWBS;
 
 public class ProtoValidator {
 
@@ -35,32 +34,4 @@ public class ProtoValidator {
             return false;
         }
     }
-
-    public static boolean isValid(LWBS.CreateWhiteboardRequest request) {
-        boolean isValid = true;
-        try {
-            isValid = isValid && !request.getWhiteboardName().isBlank();
-            isValid = isValid && request.getFieldsCount() != 0;
-            isValid = isValid && request.getFieldsList().stream().allMatch(ProtoValidator::isValid);
-            isValid = isValid && !request.getNamespace().isBlank();
-            isValid = isValid && !request.getStorage().getName().isBlank();
-            return isValid;
-        } catch (NullPointerException e) {
-            return false;
-        }
-    }
-
-    public static boolean isValid(LWBS.LinkFieldRequest request) {
-        try {
-            boolean isValid = true;
-            isValid = isValid && !request.getWhiteboardId().isBlank();
-            isValid = isValid && !request.getFieldName().isBlank();
-            isValid = isValid && !request.getStorageUri().isBlank();
-            isValid = isValid && isValid(request.getScheme());
-            return isValid;
-        } catch (NullPointerException e) {
-            return false;
-        }
-    }
-
 }
