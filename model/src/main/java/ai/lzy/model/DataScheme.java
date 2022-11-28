@@ -8,5 +8,5 @@ public record DataScheme(
     String schemeContent,
     Map<String, String> metadata
 ) {
-    public static final DataScheme PLAIN = new DataScheme("plain", "", "text", Map.of());
+    public static final DataScheme PLAIN = new DataScheme("raw_file", "no_schema", "", Map.of());
 }

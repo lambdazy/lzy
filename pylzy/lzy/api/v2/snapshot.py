@@ -7,7 +7,7 @@ from io import BytesIO
 from typing import Any, Dict, Optional, Type, TypeVar, cast
 
 from lzy.proxy.result import Just, Nothing, Result
-from lzy.serialization.api import SerializerRegistry, Schema
+from serialzy.api import SerializerRegistry, Schema
 from lzy.storage.api import AsyncStorageClient, StorageRegistry
 
 
