@@ -1,6 +1,7 @@
 package ai.lzy.graph.config;
 
 import ai.lzy.iam.config.IamClientConfiguration;
+import ai.lzy.model.db.DatabaseConfiguration;
 import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
 import lombok.Getter;
@@ -16,6 +17,9 @@ public class ServiceConfig {
 
     @ConfigurationBuilder("auth")
     private IamClientConfiguration auth = new IamClientConfiguration();
+
+    @ConfigurationBuilder("database")
+    private DatabaseConfiguration database = new DatabaseConfiguration();
 
     @Getter
     @Setter
