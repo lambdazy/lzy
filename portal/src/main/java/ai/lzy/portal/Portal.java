@@ -3,6 +3,7 @@ package ai.lzy.portal;
 import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.fs.SlotsManager;
 import ai.lzy.fs.fs.LzyInputSlot;
+import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
@@ -33,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
@@ -77,6 +79,7 @@ public class Portal {
     private final String portalId;
 
     private CountDownLatch started;
+    private final AtomicBoolean finished = new AtomicBoolean(false);
 
     public Portal(PortalConfig config, AllocatorAgent agent, @Nullable String testOnlyToken)
         throws IOException, NoSuchAlgorithmException, InvalidKeySpecException
@@ -230,5 +233,17 @@ public class Portal {
 
     SnapshotProvider getSnapshots() {
         return snapshots;
+    }
+
+    public void finish() {
+        if (!finished.compareAndSet(false, true)) {
+            throw new IllegalStateException("Cannot finish already finished portal");
+        }
+
+        getSnapshots().getOutputSlots().forEach(LzySlot::close);
+        getSnapshots().getInputSlots().forEach(LzySlot::close);
+
+        getStdoutSlot().finish();
+        getStderrSlot().finish();
     }
 }

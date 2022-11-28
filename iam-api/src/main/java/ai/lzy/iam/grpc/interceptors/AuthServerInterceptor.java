@@ -90,7 +90,7 @@ public class AuthServerInterceptor implements ServerInterceptor {
             return this.closeCall(call, exceptionMapper.apply(new AuthUnauthenticatedException(iaException, "")));
         } catch (AuthException authException) {
             LOG.error("Auth error, status: {}, internal: {}",
-                authException.status(), authException.getInternalDetails());
+                authException.status(), authException.getInternalDetails(), authException);
             return this.closeCall(call, exceptionMapper.apply(authException));
         }
     }

@@ -28,6 +28,7 @@ import org.apache.logging.log4j.Logger;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 
@@ -186,7 +187,7 @@ public class GraphExecutionService {
         } catch (StatusRuntimeException e) {
             var causeStatus = e.getStatus();
             LOG.error("Cannot obtain graph status: { executionId: {}, graphId: {} }, error: {}",
-                executionId, graphId, causeStatus.getDescription());
+                executionId, graphId, causeStatus.getDescription(), e);
             response.onError(causeStatus.withDescription("Cannot obtain graph status: " + causeStatus.getDescription())
                 .asRuntimeException());
             return;

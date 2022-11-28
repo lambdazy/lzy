@@ -63,8 +63,10 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
             public boolean hasNext() {
                 try {
                     String line = reader.get().readLine();
-                    if (line == null)
+                    if (line == null) {
+                        LineReaderSlot.this.destroy();
                         return false;
+                    }
                     this.line = ByteString.copyFromUtf8(line + "\n");
                     return true;
                 } catch (IOException | InterruptedException | ExecutionException e) {

@@ -21,6 +21,7 @@ import ai.lzy.service.data.PortalStatus;
 import ai.lzy.service.data.StorageType;
 import ai.lzy.service.data.dao.PortalDescription;
 import ai.lzy.service.data.dao.WorkflowDao;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.AllocatorGrpc;
@@ -33,6 +34,8 @@ import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBl
 import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
+import ai.lzy.v1.portal.LzyPortalApi;
+import ai.lzy.v1.portal.LzyPortalGrpc;
 import ai.lzy.v1.storage.LSS;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import ai.lzy.v1.workflow.LWF;
@@ -57,6 +60,7 @@ import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -64,7 +68,8 @@ import static ai.lzy.channelmanager.grpc.ProtoConverter.makeCreateDirectChannelC
 import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
-import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
+import static ai.lzy.service.LzyService.APP;
+import static ai.lzy.util.grpc.GrpcUtils.*;
 
 public class WorkflowService {
     public static boolean PEEK_RANDOM_PORTAL_PORTS = false;  // Only for tests
@@ -96,6 +101,7 @@ public class WorkflowService {
     private final AccessBindingServiceGrpcClient abClient;
 
     private final Map<String, Queue<PortalSlotsListener>> listenersByExecution = new ConcurrentHashMap<>();
+    private final RenewableJwt interanalCreds;
 
     public WorkflowService(LzyServiceConfig config, LzyChannelManagerPrivateBlockingStub channelManagerClient,
                            AllocatorGrpc.AllocatorBlockingStub allocatorClient,
@@ -113,6 +119,7 @@ public class WorkflowService {
         channelManagerAddress = config.getChannelManagerAddress();
         iamAddress = config.getIam().getAddress();
         whiteboardAddress = config.getWhiteboardAddress();
+        interanalCreds = config.getIam().createRenewableToken();
 
         this.allocatorClient = allocatorClient;
         this.allocOpService = allocOperationService;
@@ -223,28 +230,28 @@ public class WorkflowService {
             return;
         }
 
-        for (var listener : listenersByExecution.getOrDefault(request.getExecutionId(),
-            new ConcurrentLinkedQueue<>()))
-        {
-            listener.complete();
-        }
+//        for (var listener : listenersByExecution.getOrDefault(request.getExecutionId(),
+//            new ConcurrentLinkedQueue<>()))
+//        {
+//            listener.complete();
+//        }
 
         // final String[] bucket = {null};
         // bucket[0] = retrieve from db
 
-        destroyPortal(request.getExecutionId());
+        finishPortal(request.getExecutionId());
 
-        try {
-            var session = withRetries(LOG, () -> workflowDao.getAllocatorSession(request.getExecutionId()));
-
-            if (session != null) {
-                //noinspection ResultOfMethodCallIgnored
-                allocatorClient.deleteSession(
-                    VmAllocatorApi.DeleteSessionRequest.newBuilder().setSessionId(session).build());
-            }
-        } catch (Exception e) {
-            LOG.error("Cannot destroy allocator session: ", e);
-        }
+//        try {
+//            var session = withRetries(LOG, () -> workflowDao.getAllocatorSession(request.getExecutionId()));
+//
+//            if (session != null) {
+//                //noinspection ResultOfMethodCallIgnored
+//                allocatorClient.deleteSession(
+//                    VmAllocatorApi.DeleteSessionRequest.newBuilder().setSessionId(session).build());
+//            }
+//        } catch (Exception e) {
+//            LOG.error("Cannot destroy allocator session: ", e);
+//        }
 
         try {
             withRetries(defaultRetryPolicy(), LOG, () -> {
@@ -266,9 +273,6 @@ public class WorkflowService {
 
         response.onNext(FinishWorkflowResponse.getDefaultInstance());
         response.onCompleted();
-
-        // TODO: add TTL instead of implicit delete
-        // safeDeleteTempStorageBucket(bucket[0]);
     }
 
     private void setStorage(CreateExecutionState state, CreateWorkflowRequest request) {
@@ -609,6 +613,28 @@ public class WorkflowService {
             LOG.error("Cannot destroy portal for execution <{}>. Please destroy it by yourself", executionId, e);
         }
 
+    }
+
+    private void finishPortal(String executionId) {
+        try {
+            var portalAddress = withRetries(LOG, () -> workflowDao.getPortalAddress(executionId));
+            if (portalAddress == null) {
+                LOG.error("Error while building portal channel");
+                return;
+            }
+
+            var portalChannel = newGrpcChannel(portalAddress, LzyPortalGrpc.SERVICE_NAME);
+
+            var portalClient = newBlockingClient(LzyPortalGrpc.newBlockingStub(portalChannel),
+                    APP, () -> interanalCreds.get().token());
+            var ignored = portalClient.finish(LzyPortalApi.FinishRequest.newBuilder().build());
+
+            portalChannel.shutdown();
+            portalChannel.awaitTermination(10, TimeUnit.SECONDS);
+
+        } catch (Exception e) {
+            LOG.error("Cannot finish portal for execution <{}>. Please destroy it by yourself", executionId, e);
+        }
     }
 
     public void getAvailablePools(GetAvailablePoolsRequest req, StreamObserver<GetAvailablePoolsResponse> response) {

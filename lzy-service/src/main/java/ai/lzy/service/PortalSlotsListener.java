@@ -47,21 +47,29 @@ public class PortalSlotsListener {
         slotsChannel = newGrpcChannel(portalAddress, LzySlotsApiGrpc.SERVICE_NAME);
         slotsApi = newBlockingClient(LzySlotsApiGrpc.newBlockingStub(slotsChannel), "PortalStdSlots", NO_AUTH_TOKEN);
 
-        outCall = createCall(PORTAL_OUT_SLOT_NAME, msg -> consumer.onNext(
-            LWFS.ReadStdSlotsResponse.newBuilder()
-                .setStdout(
-                    LWFS.ReadStdSlotsResponse.Data.newBuilder()
-                        .addData(msg.toStringUtf8())
-                        .build())
-                .build()));
+        outCall = createCall(PORTAL_OUT_SLOT_NAME, msg -> {
+            synchronized (consumer) {
+                consumer.onNext(
+                    LWFS.ReadStdSlotsResponse.newBuilder()
+                        .setStdout(
+                            LWFS.ReadStdSlotsResponse.Data.newBuilder()
+                                .addData(msg.toStringUtf8())
+                                .build())
+                        .build());
+            }
+        });
 
-        errCall = createCall(PORTAL_ERR_SLOT_NAME, msg -> consumer.onNext(
-            LWFS.ReadStdSlotsResponse.newBuilder()
-                .setStderr(
-                    LWFS.ReadStdSlotsResponse.Data.newBuilder()
-                        .addData(msg.toStringUtf8())
-                        .build())
-                .build()));
+        errCall = createCall(PORTAL_ERR_SLOT_NAME, msg -> {
+            synchronized (consumer) {
+                consumer.onNext(
+                    LWFS.ReadStdSlotsResponse.newBuilder()
+                        .setStderr(
+                            LWFS.ReadStdSlotsResponse.Data.newBuilder()
+                                .addData(msg.toStringUtf8())
+                                .build())
+                        .build());
+            }
+        });
     }
 
     public ClientCall<LSA.SlotDataRequest, LSA.SlotDataChunk> createCall(String slotName, Consumer<ByteString> cons) {
@@ -119,7 +127,7 @@ public class PortalSlotsListener {
 
     private void callClosed() {
         if (openedCalls.decrementAndGet() == 0) {
-            consumer.onCompleted();
+            complete();
             slotsChannel.shutdown();
             try {
                 slotsChannel.awaitTermination(10, TimeUnit.SECONDS);
@@ -136,7 +144,7 @@ public class PortalSlotsListener {
         errCall.cancel(issue, null);
     }
 
-    public void complete() {  // TODO(artolord) remove and wait for completion
+    private void complete() {
         LOG.info("Completing listener");
         consumer.onCompleted();
         outCall.cancel("Completed", null);
