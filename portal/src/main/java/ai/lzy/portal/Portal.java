@@ -235,6 +235,7 @@ public class Portal {
     }
 
     public void finish() {
+        LOG.info("Finishing portal with id <{}>", portalId);
         if (!finished.compareAndSet(false, true)) {
             throw new IllegalStateException("Cannot finish already finished portal");
         }
@@ -255,7 +256,15 @@ public class Portal {
             }
         }
 
-        getStdoutSlot().finish();
-        getStderrSlot().finish();
+        try {
+            getStdoutSlot().finish();
+        } catch (Exception e) {
+            LOG.error("Cannot finish stdout slot in portal with id <{}>: ", portalId, e);
+        }
+        try {
+            getStderrSlot().finish();
+        } catch (Exception e) {
+            LOG.error("Cannot finish stderr slot in portal with id <{}>: ", portalId, e);
+        }
     }
 }

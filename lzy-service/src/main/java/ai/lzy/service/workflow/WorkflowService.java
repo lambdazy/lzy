@@ -598,7 +598,7 @@ public class WorkflowService {
         try {
             var portalAddress = withRetries(LOG, () -> workflowDao.getPortalAddress(executionId));
             if (portalAddress == null) {
-                LOG.error("Error while building portal channel");
+                LOG.error("Error while building portal channel. Execution id: <{}>", executionId);
                 return;
             }
 
