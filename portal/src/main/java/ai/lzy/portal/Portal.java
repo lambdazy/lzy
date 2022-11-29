@@ -3,7 +3,6 @@ package ai.lzy.portal;
 import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.fs.SlotsManager;
 import ai.lzy.fs.fs.LzyInputSlot;
-import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;

@@ -230,28 +230,7 @@ public class WorkflowService {
             return;
         }
 
-//        for (var listener : listenersByExecution.getOrDefault(request.getExecutionId(),
-//            new ConcurrentLinkedQueue<>()))
-//        {
-//            listener.complete();
-//        }
-
-        // final String[] bucket = {null};
-        // bucket[0] = retrieve from db
-
         finishPortal(request.getExecutionId());
-
-//        try {
-//            var session = withRetries(LOG, () -> workflowDao.getAllocatorSession(request.getExecutionId()));
-//
-//            if (session != null) {
-//                //noinspection ResultOfMethodCallIgnored
-//                allocatorClient.deleteSession(
-//                    VmAllocatorApi.DeleteSessionRequest.newBuilder().setSessionId(session).build());
-//            }
-//        } catch (Exception e) {
-//            LOG.error("Cannot destroy allocator session: ", e);
-//        }
 
         try {
             withRetries(defaultRetryPolicy(), LOG, () -> {
