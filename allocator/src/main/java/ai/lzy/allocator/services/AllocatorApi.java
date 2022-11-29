@@ -58,7 +58,7 @@ import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
 @Singleton
-@Requires(beans = MetricReporter.class)
+@Requires(beans = MetricReporter.class, notEnv = "test")
 public class AllocatorApi extends AllocatorGrpc.AllocatorImplBase {
     private static final Logger LOG = LogManager.getLogger(AllocatorApi.class);
 

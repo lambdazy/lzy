@@ -25,11 +25,11 @@ import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import javax.annotation.Nullable;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -84,6 +84,7 @@ public class GraphExecutionService {
         setWorkflowInfo(graphExecutionState);
 
         if (graphExecutionState.isInvalid()) {
+            updateExecutionStatus(executionId, graphExecutionState.getErrorStatus().getDescription());
             replyError.accept(graphExecutionState.getErrorStatus());
             return;
         }
@@ -97,6 +98,7 @@ public class GraphExecutionService {
         validator.validate(graphExecutionState);
 
         if (graphExecutionState.isInvalid()) {
+            updateExecutionStatus(executionId, graphExecutionState.getErrorStatus().getDescription());
             replyError.accept(graphExecutionState.getErrorStatus());
             return;
         }
@@ -109,7 +111,9 @@ public class GraphExecutionService {
         ManagedChannel portalChannel = getOrCreatePortalChannel(executionId);
 
         if (portalChannel == null) {
-            replyError.accept(Status.INTERNAL.withDescription("Cannot build execution graph"));
+            var description = "Cannot build execution graph";
+            updateExecutionStatus(executionId, description);
+            replyError.accept(Status.INTERNAL.withDescription(description));
             return;
         }
 
@@ -119,6 +123,7 @@ public class GraphExecutionService {
         builder.build(graphExecutionState, portalClient);
 
         if (graphExecutionState.isInvalid()) {
+            updateExecutionStatus(executionId, graphExecutionState.getErrorStatus().getDescription());
             replyError.accept(graphExecutionState.getErrorStatus());
             return;
         }
@@ -137,6 +142,7 @@ public class GraphExecutionService {
                 .build());
         } catch (StatusRuntimeException e) {
             var causeStatus = e.getStatus();
+            updateExecutionStatus(executionId, causeStatus.getDescription());
             replyError.accept(causeStatus.withDescription("Cannot execute graph: " + causeStatus.getDescription()));
             return;
         }
@@ -149,7 +155,9 @@ public class GraphExecutionService {
             )));
         } catch (Exception e) {
             LOG.error("Cannot save portal slots", e);
-            replyError.accept(Status.INTERNAL);
+            Status status = Status.INTERNAL;
+            updateExecutionStatus(executionId, status.getDescription());
+            replyError.accept(status);
             return;
         }
 
@@ -157,6 +165,15 @@ public class GraphExecutionService {
 
         response.onNext(ExecuteGraphResponse.newBuilder().setGraphId(executeResponse.getStatus().getGraphId()).build());
         response.onCompleted();
+    }
+
+    private void updateExecutionStatus(String executionId, String errorMessage) {
+        try {
+            withRetries(defaultRetryPolicy(), LOG, () ->
+                workflowDao.setErrorExecutionStatus(executionId, errorMessage));
+        } catch (Exception e) {
+            LOG.error("[executeGraph] Got Exception during saving error status: " + e.getMessage(), e);
+        }
     }
 
     @Nullable

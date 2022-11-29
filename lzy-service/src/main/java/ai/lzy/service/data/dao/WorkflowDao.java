@@ -24,6 +24,20 @@ public interface WorkflowDao {
 
     boolean doesActiveExecutionExists(String userId, String workflowName, String executionId) throws SQLException;
 
+    default void setErrorExecutionStatus(String executionId, String error) throws SQLException {
+        setErrorExecutionStatus(executionId, error, null);
+    }
+
+    void setErrorExecutionStatus(String executionId, String error,
+                                 @Nullable TransactionHandle transaction) throws SQLException;
+
+    default void setDeadExecutionStatus(String executionId, Timestamp timestamp) throws SQLException {
+        setDeadExecutionStatus(executionId, timestamp, null);
+    }
+
+    void setDeadExecutionStatus(String executionId, Timestamp timestamp,
+                           @Nullable TransactionHandle transaction) throws SQLException;
+
     default void updateStatus(String executionId, PortalStatus portalStatus) throws SQLException {
         updateStatus(executionId, portalStatus, null);
     }
@@ -96,4 +110,6 @@ public interface WorkflowDao {
 
     @Nullable
     String getAllocatorSession(String executionId) throws SQLException;
+
+    List<String> listExpiredExecutions(int limit) throws SQLException;
 }

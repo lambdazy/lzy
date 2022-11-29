@@ -4,6 +4,7 @@ import ai.lzy.allocator.AllocatorMain;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
+import lombok.Getter;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -11,6 +12,7 @@ import java.sql.SQLException;
 import java.util.Map;
 
 public class BaseTestWithAllocator {
+    @Getter
     private ApplicationContext context;
     private AllocatorMain allocator;
 
@@ -22,7 +24,7 @@ public class BaseTestWithAllocator {
         var allocatorConfig = new YamlPropertySourceLoader()
             .read("allocator", new FileInputStream("../allocator/src/main/resources/application-test.yml"));
         allocatorConfig.putAll(overrides);
-        context = ApplicationContext.run(PropertySource.of(allocatorConfig));
+        context = ApplicationContext.run(PropertySource.of(allocatorConfig), "test");
         allocator = context.getBean(AllocatorMain.class);
         allocator.start();
     }

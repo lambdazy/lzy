@@ -6,6 +6,7 @@ import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.AlreadyExistsException;
 import ai.lzy.model.db.exceptions.NotFoundException;
+import ai.lzy.service.data.ExecutionStatus;
 import ai.lzy.service.data.PortalStatus;
 import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.v1.common.LMS3;
@@ -21,6 +22,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import javax.annotation.Nullable;
 
@@ -57,8 +60,19 @@ public class WorkflowDaoImpl implements WorkflowDao {
         WHERE user_id = ? AND workflow_name=? AND active_execution_id = ?""";
 
     private static final String QUERY_INSERT_EXECUTION = """
-        INSERT INTO workflow_executions (execution_id, created_at, storage, storage_bucket, storage_credentials)
-        VALUES (?, ?, cast(? as storage_type), ?, ?)""";
+        INSERT INTO workflow_executions (execution_id, created_at, storage, storage_bucket, 
+            storage_credentials, execution_status)
+        VALUES (?, ?, cast(? as storage_type), ?, ?, cast(? as execution_status))""";
+
+    private static final String QUERY_UPDATE_EXECUTION_STATUS_AND_ERROR = """
+        UPDATE workflow_executions
+        SET execution_status = cast(? as execution_status), finished_with_error = ?
+        WHERE execution_id = ?""";
+
+    private static final String QUERY_UPDATE_EXECUTION_STATUS_AND_TIME = """
+        UPDATE workflow_executions
+        SET execution_status = cast(? as execution_status), finished_at = ?
+        WHERE execution_id = ?""";
 
     private static final String QUERY_UPDATE_PORTAL_STATUS = """
         UPDATE workflow_executions
@@ -85,9 +99,14 @@ public class WorkflowDaoImpl implements WorkflowDao {
         SET portal = cast(? as portal_status), portal_vm_address = ?, portal_fs_address = ?
         WHERE execution_id = ?""";
 
-    public static final String QUERY_UPDATE_EXECUTION_FINISH_DATA = """
+    public static final String QUERY_GET_EXECUTION_FINISH_DATA = """
         SELECT execution_id, finished_at, finished_with_error
         FROM workflow_executions
+        WHERE execution_id = ?""";
+
+    public static final String QUERY_UPDATE_EXECUTION_FINISH_DATA = """
+        UPDATE workflow_executions
+        SET finished_at = ?, finished_with_error = ?, execution_status = cast(? as execution_status)
         WHERE execution_id = ?""";
 
     public static final String QUERY_GET_PORTAL_ADDRESS = """
@@ -116,7 +135,13 @@ public class WorkflowDaoImpl implements WorkflowDao {
           portal_stderr_channel_id,
           portal_id
         FROM workflow_executions
-        WHERE execution_id = ?""";
+        WHERE execution_id = ? AND portal_vm_address IS NOT NULL AND portal_fs_address IS NOT NULL""";
+
+    private static final String QUERY_LIST_EXPIRED_EXECUTIONS = """
+        SELECT execution_id
+        FROM workflow_executions
+        WHERE execution_status = 'ERROR' 
+        LIMIT ?""";
 
     private final Storage storage;
     private final ObjectMapper objectMapper;
@@ -159,6 +184,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
                     statement.setString(3, storageType.toUpperCase(Locale.ROOT));
                     statement.setString(4, storageData.getBucket());
                     statement.setString(5, objectMapper.writeValueAsString(storageData));
+                    statement.setString(6, "CREATED");
                     statement.executeUpdate();
                 } catch (JsonProcessingException e) {
                     throw new RuntimeException("Cannot dump values", e);
@@ -187,6 +213,34 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
             transaction.commit();
         }
+    }
+
+    @Override
+    public void setErrorExecutionStatus(String executionId, String error,
+                             @Nullable TransactionHandle transaction) throws SQLException
+    {
+        DbOperation.execute(transaction, storage, con -> {
+            try (var statement = con.prepareStatement(QUERY_UPDATE_EXECUTION_STATUS_AND_ERROR)) {
+                statement.setString(1, ExecutionStatus.ERROR.name());
+                statement.setString(2, error);
+                statement.setString(3, executionId);
+                statement.executeUpdate();
+            }
+        });
+    }
+
+    @Override
+    public void setDeadExecutionStatus(String executionId, Timestamp timestamp,
+                                        @Nullable TransactionHandle transaction) throws SQLException
+    {
+        DbOperation.execute(transaction, storage, con -> {
+            try (var statement = con.prepareStatement(QUERY_UPDATE_EXECUTION_STATUS_AND_TIME)) {
+                statement.setString(1, ExecutionStatus.DEAD.name());
+                statement.setTimestamp(2, timestamp);
+                statement.setString(3, executionId);
+                statement.executeUpdate();
+            }
+        });
     }
 
     @Override
@@ -286,7 +340,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
         throws SQLException
     {
         DbOperation.execute(transaction, storage, con -> {
-            var finishDataStmt = con.prepareStatement(QUERY_UPDATE_EXECUTION_FINISH_DATA + " FOR UPDATE",
+            var finishDataStmt = con.prepareStatement(QUERY_GET_EXECUTION_FINISH_DATA + " FOR UPDATE",
                 ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
             finishDataStmt.setString(1, executionId);
 
@@ -299,9 +353,14 @@ public class WorkflowDaoImpl implements WorkflowDao {
                     throw new RuntimeException("Already finished");
                 }
 
-                rs.updateTimestamp("finished_at", Timestamp.from(Instant.now()));
-                rs.updateString("finished_with_error", finishedWithError);
-                rs.updateRow();
+                try (var statement = con.prepareStatement(QUERY_UPDATE_EXECUTION_FINISH_DATA)) {
+                    statement.setTimestamp(1, Timestamp.from(Instant.now()));
+                    statement.setString(2, finishedWithError);
+                    statement.setString(3, ExecutionStatus.DEAD.name());
+                    statement.setString(4, executionId);
+
+                    statement.executeUpdate();
+                }
             } else {
                 LOG.warn("Attempt to finish unknown workflow '{}' ('{}')", executionId, workflowName);
                 throw new RuntimeException("Unknown workflow execution");
@@ -463,5 +522,22 @@ public class WorkflowDaoImpl implements WorkflowDao {
             }
         });
         return res[0];
+    }
+
+    @Override
+    public List<String> listExpiredExecutions(int limit) throws SQLException {
+        List<String> res = new ArrayList<>();
+
+        DbOperation.execute(null, storage, con -> {
+            try (var statement = con.prepareStatement(QUERY_LIST_EXPIRED_EXECUTIONS)) {
+                statement.setInt(1, limit);
+                ResultSet rs = statement.executeQuery();
+
+                while (rs.next()) {
+                    res.add(rs.getString(1));
+                }
+            }
+        });
+        return res;
     }
 }

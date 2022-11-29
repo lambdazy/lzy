@@ -150,6 +150,13 @@ public class WorkflowService {
         startPortal(creationState);
 
         if (creationState.isInvalid()) {
+            try {
+                withRetries(defaultRetryPolicy(), LOG, () ->
+                    workflowDao.setErrorExecutionStatus(creationState.getExecutionId(),
+                        creationState.getErrorStatus().getDescription()));
+            } catch (Exception e) {
+                LOG.error("[createWorkflow] Got Exception during saving error status: " + e.getMessage(), e);
+            }
             replyError.accept(creationState.getErrorStatus());
             return;
         }
@@ -227,7 +234,8 @@ public class WorkflowService {
             var session = withRetries(LOG, () -> workflowDao.getAllocatorSession(request.getExecutionId()));
 
             if (session != null) {
-                allocatorClient.deleteSession(VmAllocatorApi.DeleteSessionRequest.newBuilder().setSessionId(session).build());
+                allocatorClient.deleteSession(VmAllocatorApi.DeleteSessionRequest
+                    .newBuilder().setSessionId(session).build());
             }
         } catch (Exception e) {
             LOG.error("Cannot destroy allocator session: ", e);

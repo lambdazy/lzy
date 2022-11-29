@@ -4,9 +4,11 @@ import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.dao.ExecutionDao;
+import ai.lzy.service.data.dao.GcDao;
 import ai.lzy.service.data.dao.GraphDao;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.service.data.storage.LzyServiceStorage;
+import ai.lzy.service.gc.GarbageCollector;
 import ai.lzy.service.graph.GraphExecutionService;
 import ai.lzy.service.whiteboard.WhiteboardService;
 import ai.lzy.service.workflow.WorkflowService;
@@ -51,9 +53,11 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     private final WorkflowService workflowService;
     private final WhiteboardService whiteboardService;
     private final GraphExecutionService graphExecutionService;
+    private final GarbageCollector gc;
 
     public LzyService(LzyServiceConfig config, LzyServiceStorage storage,
-                      WorkflowDao workflowDao, ExecutionDao executionDao, GraphDao graphDao)
+                      WorkflowDao workflowDao, ExecutionDao executionDao,
+                      GraphDao graphDao, GcDao gcDao)
     {
         String channelManagerAddress = config.getChannelManagerAddress();
 
@@ -100,6 +104,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         whiteboardService = new WhiteboardService(whiteboardClient);
         graphExecutionService = new GraphExecutionService(creds, workflowDao, graphDao, executionDao,
             vmPoolClient, graphExecutorClient, channelManagerClient);
+
+        gc = new GarbageCollector(config, gcDao, workflowDao, storage, allocatorClient, channelManagerClient);
     }
 
     @PreDestroy
@@ -112,6 +118,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         GrpcChannels.awaitTermination(iamChannel, Duration.ofSeconds(10), getClass());
         GrpcChannels.awaitTermination(whiteboardChannel, Duration.ofSeconds(10), getClass());
         GrpcChannels.awaitTermination(graphExecutorChannel, Duration.ofSeconds(10), getClass());
+
+        gc.shutdown();
     }
 
     @Override
