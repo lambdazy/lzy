@@ -21,8 +21,6 @@ public class ProtoConverter {
             .build();
     }
 
-
-
     public static ai.lzy.v1.channel.LCMPS.ChannelCreateRequest makeCreateDirectChannelCommand(String workflowId, String channelName) {
         return ai.lzy.v1.channel.LCMPS.ChannelCreateRequest.newBuilder()
             .setExecutionId(workflowId)

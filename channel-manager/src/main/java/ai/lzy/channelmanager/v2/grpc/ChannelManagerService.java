@@ -105,7 +105,9 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                     return;
                 }
             }
-            if (endpoint.getSlotOwner() == Endpoint.SlotOwner.WORKER && endpoint.getSlotDirection() == Slot.Direction.INPUT) {
+            if (endpoint.getSlotOwner() == Endpoint.SlotOwner.WORKER
+                && endpoint.getSlotDirection() == Slot.Direction.INPUT)
+            {
                 if (channel.getActiveSenders().workerEndpoint() != null) {
                     String errorMessage = "Worker endpoint already bound as input slot to channel";
                     LOG.error(operationDescription + " failed, {}", errorMessage);
@@ -140,8 +142,8 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         }
 
         responseObserver.onNext(operation.toProto());
-        responseObserver.onCompleted();
         LOG.info(operationDescription + " responded, async operation scheduled, operationId={}", operation.id());
+        responseObserver.onCompleted();
 
         longrunningExecutor.submit(() -> {
             try {
@@ -221,8 +223,8 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         }
 
         responseObserver.onNext(operation.toProto());
-        responseObserver.onCompleted();
         LOG.info(operationDescription + " responded, async operation scheduled, operationId={}", operation.id());
+        responseObserver.onCompleted();
 
         longrunningExecutor.submit(() -> {
             try {

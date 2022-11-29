@@ -306,7 +306,8 @@ public class PortalTestBase {
     }
 
     protected void createChannel(String name) {
-        mocksServer.getChannelManagerMock().create(makeCreateDirectChannelCommand(UUID.randomUUID().toString(), name),
+        mocksServer.getChannelManagerMock().create(
+            makeCreateDirectChannelCommand(UUID.randomUUID().toString(), name),
             GrpcUtils.SuccessStreamObserver.wrap(
                 status -> System.out.println("Channel '" + name + "' created: " + JsonUtils.printSingleLine(status))));
     }

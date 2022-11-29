@@ -1,5 +1,6 @@
 channel-manager:
   address: 'localhost:8122'
+  stub-slot-api-address: 'localhost:8125'
   iam:
     address: 'localhost:8443'
     internal-user-name: "lzy-internal-user"

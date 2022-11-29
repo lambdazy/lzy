@@ -86,7 +86,7 @@ public class ProtoValidator {
             isValid = isValid && !channelSpec.getChannelName().isBlank();
             isValid = isValid && channelSpec.getTypeCase().getNumber() != 0;
             isValid = isValid && !channelSpec.getContentType().getDataFormat().isBlank();
-            isValid = isValid && !channelSpec.getContentType().getSchemeContent().isBlank();
+            isValid = isValid && !channelSpec.getContentType().getSchemeFormat().isBlank();
             return isValid;
         } catch (NullPointerException e) {
             return false;
@@ -98,7 +98,7 @@ public class ProtoValidator {
             boolean isValid = true;
             isValid = isValid && !channelSpec.getChannelName().isBlank();
             isValid = isValid && !channelSpec.getScheme().getDataFormat().isBlank();
-            isValid = isValid && !channelSpec.getScheme().getSchemeContent().isBlank();
+            isValid = isValid && !channelSpec.getScheme().getSchemeFormat().isBlank();
             return isValid;
         } catch (NullPointerException e) {
             return false;
@@ -112,8 +112,9 @@ public class ProtoValidator {
             isValid = isValid && !slotInstance.getSlotUri().isBlank();
             isValid = isValid && !slotInstance.getChannelId().isBlank();
             isValid = isValid && !slotInstance.getSlot().getName().isBlank();
+            isValid = isValid && slotInstance.getSlot().getDirection().getNumber() != 0;
             isValid = isValid && !slotInstance.getSlot().getContentType().getDataFormat().isBlank();
-            isValid = isValid && !slotInstance.getSlot().getContentType().getSchemeContent().isBlank();
+            isValid = isValid && !slotInstance.getSlot().getContentType().getSchemeFormat().isBlank();
             return isValid;
         } catch (NullPointerException e) {
             return false;

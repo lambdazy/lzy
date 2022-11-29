@@ -53,7 +53,8 @@ public class InMemChannelStorage implements ChannelStorage {
         channels.computeIfPresent(endpoint.getChannelId(), (id, ch) -> {
             final List<Endpoint> endpoints = ch.getEndpoints();
             endpoints.add(endpoint);
-            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), endpoints, ch.getConnections(), ch.getLifeStatus());
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
+                endpoints, ch.getConnections(), ch.getLifeStatus());
         });
         channelsByEndpoints.put(endpoint.getUri().toString(), endpoint.getChannelId());
     }
@@ -67,7 +68,8 @@ public class InMemChannelStorage implements ChannelStorage {
                     return endpointFactory.createEndpoint(e.getSlot(), e.getSlotOwner(), Endpoint.LifeStatus.BOUND);
                 return e;
             }).toList();
-            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), endpoints, ch.getConnections(), ch.getLifeStatus());
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
+                endpoints, ch.getConnections(), ch.getLifeStatus());
         });
     }
 
@@ -80,7 +82,8 @@ public class InMemChannelStorage implements ChannelStorage {
                     return endpointFactory.createEndpoint(e.getSlot(), e.getSlotOwner(), Endpoint.LifeStatus.UNBINDING);
                 return e;
             }).toList();
-            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), endpoints, ch.getConnections(), ch.getLifeStatus());
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
+                endpoints, ch.getConnections(), ch.getLifeStatus());
         });
     }
 
@@ -91,7 +94,8 @@ public class InMemChannelStorage implements ChannelStorage {
         channels.computeIfPresent(channelId, (id, ch) -> {
             final List<Endpoint> endpoints = ch.getEndpoints().stream().map(e ->
                 endpointFactory.createEndpoint(e.getSlot(), e.getSlotOwner(), Endpoint.LifeStatus.UNBINDING)).toList();
-            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), endpoints, ch.getConnections(), ch.getLifeStatus());
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
+                endpoints, ch.getConnections(), ch.getLifeStatus());
         });
     }
 
@@ -104,7 +108,8 @@ public class InMemChannelStorage implements ChannelStorage {
             final List<Endpoint> endpoints = ch.getEndpoints().stream()
                 .filter(e -> !e.getUri().toString().equals(endpointUri))
                 .toList();
-            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), endpoints, ch.getConnections(), ch.getLifeStatus());
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
+                endpoints, ch.getConnections(), ch.getLifeStatus());
         });
     }
 
@@ -119,7 +124,8 @@ public class InMemChannelStorage implements ChannelStorage {
         channels.computeIfPresent(channelId, (id, ch) -> {
             final List<Connection> connections = ch.getConnections();
             connections.add(connection);
-            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), ch.getEndpoints(), connections, ch.getLifeStatus());
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
+                ch.getEndpoints(), connections, ch.getLifeStatus());
         });
     }
 
@@ -129,11 +135,15 @@ public class InMemChannelStorage implements ChannelStorage {
     {
         channels.computeIfPresent(channelId, (id, ch) -> {
             final List<Connection> connections = ch.getConnections().stream().map(c -> {
-                if (senderUri.equals(c.sender().getUri().toString()) && receiverUri.equals(c.receiver().getUri().toString()))
+                if (senderUri.equals(c.sender().getUri().toString())
+                    && receiverUri.equals(c.receiver().getUri().toString()))
+                {
                     return new Connection(c.sender(), c.receiver(), Connection.LifeStatus.CONNECTED);
+                }
                 return c;
             }).toList();
-            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), ch.getEndpoints(), connections, ch.getLifeStatus());
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
+                ch.getEndpoints(), connections, ch.getLifeStatus());
         });
     }
 
@@ -143,11 +153,15 @@ public class InMemChannelStorage implements ChannelStorage {
     {
         channels.computeIfPresent(channelId, (id, ch) -> {
             final List<Connection> connections = ch.getConnections().stream().map(c -> {
-                if (senderUri.equals(c.sender().getUri().toString()) && receiverUri.equals(c.receiver().getUri().toString()))
+                if (senderUri.equals(c.sender().getUri().toString())
+                    && receiverUri.equals(c.receiver().getUri().toString()))
+                {
                     return new Connection(c.sender(), c.receiver(), Connection.LifeStatus.DISCONNECTING);
+                }
                 return c;
             }).toList();
-            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), ch.getEndpoints(), connections, ch.getLifeStatus());
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
+                ch.getEndpoints(), connections, ch.getLifeStatus());
         });
     }
 
@@ -157,9 +171,11 @@ public class InMemChannelStorage implements ChannelStorage {
     {
         channels.computeIfPresent(channelId, (id, ch) -> {
             final List<Connection> connections = ch.getConnections().stream().filter(c ->
-                !(senderUri.equals(c.sender().getUri().toString()) && receiverUri.equals(c.receiver().getUri().toString()))
+                !(senderUri.equals(c.sender().getUri().toString())
+                  && receiverUri.equals(c.receiver().getUri().toString()))
             ).toList();
-            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), ch.getEndpoints(), connections, ch.getLifeStatus());
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
+                ch.getEndpoints(), connections, ch.getLifeStatus());
         });
     }
 
@@ -175,6 +191,9 @@ public class InMemChannelStorage implements ChannelStorage {
         throws SQLException
     {
         final Channel channel = channels.get(channelId);
+        if (channel == null) {
+            return null;
+        }
         if (channel.getLifeStatus().equals(lifeStatus)) {
             return channel;
         }

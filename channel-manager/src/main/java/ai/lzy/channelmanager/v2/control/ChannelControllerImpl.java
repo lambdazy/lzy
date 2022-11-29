@@ -172,7 +172,7 @@ public class ChannelControllerImpl implements ChannelController {
                 throw new RuntimeException("Failed to find destroying channel in storage", e);
             }
             if (channel == null) {
-                LOG.info("[destroy] skipped, channel {} already removed", channelId);
+                LOG.info("[destroy] skipped, channel {} not found", channelId);
                 return;
             }
             try {
@@ -230,12 +230,12 @@ public class ChannelControllerImpl implements ChannelController {
         final Endpoint receiver;
         switch (bindingEndpoint.getSlotDirection()) {
             case OUTPUT /* SENDER */ -> {
-                endpointToConnect = channel.findSenderToConnect(bindingEndpoint);
+                endpointToConnect = channel.findReceiversToConnect(bindingEndpoint).stream().findFirst().orElse(null);
                 sender = bindingEndpoint;
                 receiver = endpointToConnect;
             }
             case INPUT /* RECEIVER */ -> {
-                endpointToConnect = channel.findReceiversToConnect(bindingEndpoint).stream().findFirst().orElse(null);
+                endpointToConnect = channel.findSenderToConnect(bindingEndpoint);
                 sender = endpointToConnect;
                 receiver = bindingEndpoint;
             }
@@ -279,7 +279,8 @@ public class ChannelControllerImpl implements ChannelController {
                 receiver = bindingEndpoint;
             }
             default -> throw new IllegalStateException(
-                "Endpoint " + bindingEndpoint.getUri() + " has unexpected direction" + bindingEndpoint.getSlotDirection());
+                "Endpoint " + bindingEndpoint.getUri()
+                + " has unexpected direction" + bindingEndpoint.getSlotDirection());
         }
 
         final Channel channel;
@@ -419,7 +420,9 @@ public class ChannelControllerImpl implements ChannelController {
 
         try {
             withRetries(LOG, () -> channelStorage.markConnectionDisconnecting(channelId,
-                connectionToBreak.sender().getUri().toString(), connectionToBreak.receiver().getUri().toString(), null));
+                connectionToBreak.sender().getUri().toString(),
+                connectionToBreak.receiver().getUri().toString(),
+                null));
         } catch (Exception e) {
             throw new RuntimeException("Failed to mark connection disconnecting in storage", e);
         }
@@ -461,7 +464,8 @@ public class ChannelControllerImpl implements ChannelController {
                 "Endpoint " + unbindingReceiver.getUri() + " has wrong lifeStatus " + actualStateEndpoint.getStatus());
         }
 
-        final Connection actualStateConnection = channel.getConnection(connectedSender.getUri(), unbindingReceiver.getUri());
+        final Connection actualStateConnection = channel.getConnection(
+            connectedSender.getUri(), unbindingReceiver.getUri());
         if (actualStateConnection == null) {
             LOG.warn("[removeConnection] skipped, connection already removed, unbindingReceiver={}, connectedSender={}",
                 unbindingReceiver.getUri(), connectedSender.getUri());
@@ -469,10 +473,11 @@ public class ChannelControllerImpl implements ChannelController {
         }
 
         if (actualStateConnection.status() != Connection.LifeStatus.DISCONNECTING) {
-            throw new IllegalChannelGraphStateException(channelId, "Connection "
-                                                                   + "(sender=" + actualStateConnection.sender().getUri() + ", "
-                                                                   + "receiver=" + actualStateConnection.receiver().getUri() + ") "
-                                                                   + "has wrong lifeStatus " + actualStateConnection.status());
+            throw new IllegalChannelGraphStateException(
+                channelId, "Connection "
+                           + "(sender=" + actualStateConnection.sender().getUri() + ", "
+                           + "receiver=" + actualStateConnection.receiver().getUri() + ") "
+                           + "has wrong lifeStatus " + actualStateConnection.status());
         }
 
         try {

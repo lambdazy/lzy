@@ -32,12 +32,15 @@ public class EndpointFactory {
                                    Endpoint.LifeStatus lifeStatus)
     {
         Endpoint endpoint = endpointsCache.get(slot.uri());
-        SlotApiConnection slotApiConnection = endpoint.getSlotApiConnection();
-        if (endpoint.getSlotApiConnection() != null) {
+        SlotApiConnection slotApiConnection;
+        if (endpoint != null && endpoint.getSlotApiConnection() != null) {
+            slotApiConnection = endpoint.getSlotApiConnection();
+        } else {
             slotApiConnection = slotConnectionManager.getOrCreateConnection(slot.uri());
         }
-        return endpointsCache.put(slot.uri(),
-            new Endpoint(slotApiConnection, slot, owner, lifeStatus, () -> removeEndpoint(slot.uri())));
+        endpoint = new Endpoint(slotApiConnection, slot, owner, lifeStatus, () -> removeEndpoint(slot.uri()));
+        endpointsCache.put(slot.uri(), endpoint);
+        return endpoint;
     }
 
     private void removeEndpoint(URI slotUri) {

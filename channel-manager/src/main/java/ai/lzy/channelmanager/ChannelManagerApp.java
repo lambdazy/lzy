@@ -4,6 +4,7 @@ import ai.lzy.channelmanager.v2.grpc.ChannelManagerPrivateService;
 import ai.lzy.channelmanager.v2.grpc.ChannelManagerService;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
+import ai.lzy.longrunning.OperationService;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
@@ -31,8 +32,11 @@ public class ChannelManagerApp {
 
     public ChannelManagerApp(ChannelManagerConfig config,
                              ChannelManagerService channelManagerService,
-                             ChannelManagerPrivateService channelManagerPrivateService)
+                             ChannelManagerPrivateService channelManagerPrivateService,
+                             OperationService operationService)
     {
+        LOG.info("Starting ChannelManager service with config: {}", config.toString());
+
         final var iamAddress = HostAndPort.fromString(config.getIam().getAddress());
         final var chanelManagerAddress = HostAndPort.fromString(config.getAddress());
 
@@ -42,6 +46,7 @@ public class ChannelManagerApp {
         channelManagerServer = newGrpcServer(chanelManagerAddress, authInterceptor)
             .addService(channelManagerService)
             .addService(channelManagerPrivateService)
+            .addService(operationService)
             .build();
     }
 

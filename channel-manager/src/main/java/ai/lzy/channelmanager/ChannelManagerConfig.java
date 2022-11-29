@@ -14,6 +14,7 @@ public final class ChannelManagerConfig {
     private String address;
     private String whiteboardAddress;
     private boolean stubIam = false;
+    private String stubSlotApiAddress = null;
     private int lockBucketsCount = 256;
 
     @ConfigurationBuilder("iam")
@@ -21,4 +22,16 @@ public final class ChannelManagerConfig {
 
     @ConfigurationBuilder("database")
     private final DatabaseConfiguration database = new DatabaseConfiguration();
+
+    @Override
+    public String toString() {
+        return "ChannelManagerConfig{" +
+               "address='" + address + '\'' +
+               ", stubIam=" + stubIam +
+               ", stubSlotApiAddress=" + stubSlotApiAddress +
+               ", lockBucketsCount=" + lockBucketsCount +
+               ", iam=" + iam +
+               ", database=" + database +
+               '}';
+    }
 }

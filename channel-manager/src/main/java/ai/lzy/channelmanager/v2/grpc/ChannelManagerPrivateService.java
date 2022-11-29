@@ -134,8 +134,8 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         }
 
         response.onNext(operation.toProto());
-        response.onCompleted();
         LOG.info(operationDescription + " responded, async operation scheduled, operationId={}", operation.id());
+        response.onCompleted();
 
         longrunningExecutor.submit(() -> {
             try {
@@ -209,8 +209,8 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         }
 
         response.onNext(operation.toProto());
-        response.onCompleted();
         LOG.info(operationDescription + " responded, async operation scheduled, operationId={}", operation.id());
+        response.onCompleted();
 
         longrunningExecutor.submit(() -> {
             try {
