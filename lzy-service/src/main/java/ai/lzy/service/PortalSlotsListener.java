@@ -48,7 +48,7 @@ public class PortalSlotsListener {
         slotsApi = newBlockingClient(LzySlotsApiGrpc.newBlockingStub(slotsChannel), "PortalStdSlots", NO_AUTH_TOKEN);
 
         outCall = createCall(PORTAL_OUT_SLOT_NAME, msg -> {
-            synchronized (consumer) {
+            synchronized (consumer) {  // Synchronized to prevent onNext from multiple calls
                 consumer.onNext(
                     LWFS.ReadStdSlotsResponse.newBuilder()
                         .setStdout(
@@ -60,7 +60,7 @@ public class PortalSlotsListener {
         });
 
         errCall = createCall(PORTAL_ERR_SLOT_NAME, msg -> {
-            synchronized (consumer) {  // Synchronized to prevent
+            synchronized (consumer) {  // Synchronized to prevent onNext from multiple calls
                 consumer.onNext(
                     LWFS.ReadStdSlotsResponse.newBuilder()
                         .setStderr(
