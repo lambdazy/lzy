@@ -42,8 +42,8 @@ public class BeanFactory {
 
     @Singleton
     @Requires(property = "allocator.yc-credentials.enabled", value = "true")
-    public ServiceFactory serviceFactory(
-        CredentialProvider credentialProvider, ServiceConfig.YcCredentialsConfig config)
+    public ServiceFactory serviceFactory(CredentialProvider credentialProvider,
+                                         ServiceConfig.YcCredentialsConfig config)
     {
         return ServiceFactory.builder()
             .credentialProvider(credentialProvider)
@@ -74,6 +74,7 @@ public class BeanFactory {
     }
 
     @Singleton
+    @Bean(preDestroy = "stop")
     @Requires(beans = ServiceConfig.MetricsConfig.class)
     public MetricReporter metricReporter(ServiceConfig.MetricsConfig config) {
         CollectorRegistry.defaultRegistry.clear();
