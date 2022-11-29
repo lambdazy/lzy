@@ -240,8 +240,21 @@ public class Portal {
             throw new IllegalStateException("Cannot finish already finished portal");
         }
 
-        getSnapshots().getOutputSlots().forEach(LzySlot::close);
-        getSnapshots().getInputSlots().forEach(LzySlot::close);
+        for (var slot: getSnapshots().getOutputSlots()) {
+            try {
+                slot.close();
+            } catch (Exception e) {
+                LOG.error("Cannot close slot <{}>:", slot.name(), e);
+            }
+        }
+
+        for (var slot: getSnapshots().getInputSlots()) {
+            try {
+                slot.close();
+            } catch (Exception e) {
+                LOG.error("Cannot close slot <{}>:", slot.name(), e);
+            }
+        }
 
         getStdoutSlot().finish();
         getStderrSlot().finish();

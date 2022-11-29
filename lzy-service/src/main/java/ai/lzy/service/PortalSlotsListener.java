@@ -60,7 +60,7 @@ public class PortalSlotsListener {
         });
 
         errCall = createCall(PORTAL_ERR_SLOT_NAME, msg -> {
-            synchronized (consumer) {
+            synchronized (consumer) {  // Synchronized to prevent
                 consumer.onNext(
                     LWFS.ReadStdSlotsResponse.newBuilder()
                         .setStderr(

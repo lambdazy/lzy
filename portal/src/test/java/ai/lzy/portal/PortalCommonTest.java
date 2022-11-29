@@ -37,8 +37,6 @@ public class PortalCommonTest extends PortalTestBase {
         // task_1 clean up
         System.out.println("-- cleanup task1 scenario --");
         destroyChannel("channel_1");
-        destroyChannel("task_1:stdout");
-        destroyChannel("task_1:stderr");
 
         Thread.sleep(Duration.ofSeconds(1).toMillis());
         System.out.println("\n----- PREPARE PORTAL FOR TASK 2 -----------------------------------------\n");
@@ -67,8 +65,6 @@ public class PortalCommonTest extends PortalTestBase {
         // task_2 clean up
         System.out.println("-- cleanup task2 scenario --");
         destroyChannel("channel_2");
-        destroyChannel("task_2:stdout");
-        destroyChannel("task_2:stderr");
 
         Assert.assertTrue(portalStdout.isEmpty());
         Assert.assertTrue(portalStderr.isEmpty());
@@ -105,11 +101,7 @@ public class PortalCommonTest extends PortalTestBase {
 
         System.out.println("-- cleanup tasks --");
         destroyChannel("channel_1");
-        destroyChannel("task_1:stdout");
-        destroyChannel("task_1:stderr");
         destroyChannel("channel_2");
-        destroyChannel("task_2:stdout");
-        destroyChannel("task_2:stderr");
 
         var expected = new HashSet<String>() {
             {
@@ -163,8 +155,6 @@ public class PortalCommonTest extends PortalTestBase {
         // task_1 clean up
         System.out.println("-- cleanup task1 scenario --");
         destroyChannel("channel_1");
-        destroyChannel("task_1:stdout");
-        destroyChannel("task_1:stderr");
 
         System.out.println("\n----- PREPARE PORTAL FOR TASK 2, TASK 3 -----------------------------------------\n");
 
@@ -209,13 +199,9 @@ public class PortalCommonTest extends PortalTestBase {
         // task_2 clean up
         System.out.println("-- cleanup task_2 scenario --");
         destroyChannel("channel_2");
-        destroyChannel("task_2:stdout");
-        destroyChannel("task_2:stderr");
 
         System.out.println("-- cleanup task_3 scenario --");
         destroyChannel("channel_3");
-        destroyChannel("task_3:stdout");
-        destroyChannel("task_3:stderr");
 
         Assert.assertTrue(portalStdout.isEmpty());
         Assert.assertTrue(portalStderr.isEmpty());
@@ -250,8 +236,6 @@ public class PortalCommonTest extends PortalTestBase {
         // task_1 clean up
         System.out.println("-- cleanup task1 scenario --");
         destroyChannel("channel_1");
-        destroyChannel("task_1:stdout");
-        destroyChannel("task_1:stderr");
 
         System.out.println("\n----- PREPARE PORTAL FOR TASK 2, TASK 3 -----------------------------------------\n");
 
@@ -288,13 +272,9 @@ public class PortalCommonTest extends PortalTestBase {
         // task_2 clean up
         System.out.println("-- cleanup task_2 scenario --");
         destroyChannel("channel_2");
-        destroyChannel("task_2:stdout");
-        destroyChannel("task_2:stderr");
 
         System.out.println("-- cleanup task_3 scenario --");
         destroyChannel("channel_3");
-        destroyChannel("task_3:stdout");
-        destroyChannel("task_3:stderr");
 
         var result2 = new String(Files.readAllBytes(tmpFile2.toPath()));
         var result3 = new String(Files.readAllBytes(tmpFile3.toPath()));
