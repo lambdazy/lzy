@@ -2,11 +2,11 @@ package ai.lzy.allocator.alloc.impl.kuber;
 
 import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.allocator.configs.ServiceConfig;
+import ai.lzy.allocator.model.HostPathVolumeDescription;
 import ai.lzy.allocator.model.Vm;
+import ai.lzy.allocator.model.Volume.AccessMode;
+import ai.lzy.allocator.model.VolumeClaim;
 import ai.lzy.allocator.model.Workload;
-import ai.lzy.allocator.volume.HostPathVolumeDescription;
-import ai.lzy.allocator.volume.Volume.AccessMode;
-import ai.lzy.allocator.volume.VolumeClaim;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.KubernetesClient;
 
@@ -35,8 +35,8 @@ public class PodSpecBuilder {
     private final List<PodAffinityTerm> podAffinityTerms = new ArrayList<>();
     private final List<PodAffinityTerm> podAntiAffinityTerms = new ArrayList<>();
 
-    public PodSpecBuilder(
-        Vm.Spec vmSpec, KubernetesClient client, ServiceConfig config, String templatePath, String podNamePrefix)
+    public PodSpecBuilder(Vm.Spec vmSpec, KubernetesClient client, ServiceConfig config, String templatePath,
+                          String podNamePrefix)
     {
         this.vmSpec = vmSpec;
         pod = loadPodTemplate(client, templatePath);
@@ -47,7 +47,9 @@ public class PodSpecBuilder {
         final String podName = podNamePrefix + vmId;
 
         // k8s pod name can only contain symbols [-a-z0-9]
-        pod.getMetadata().setName(podName.replaceAll("[^-a-z0-9]", "-"));
+        final var name = podName.replaceAll("[^-a-z0-9]", "-");
+        pod.getMetadata().setName(name);
+        pod.getMetadata().setUid(name); // TODO: required or not?
         var labels = pod.getMetadata().getLabels();
 
         Objects.requireNonNull(labels);
@@ -70,15 +72,10 @@ public class PodSpecBuilder {
     }
 
     private Pod loadPodTemplate(KubernetesClient client, String templatePath) {
-        try (final var stream = Objects.requireNonNull(getClass()
-            .getClassLoader()
-            .getResourceAsStream(templatePath)))
-        {
-            return client.pods()
-                .load(stream)
-                .get();
+        try (final var stream = Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream(templatePath))) {
+            return client.pods().load(stream).get();
         } catch (IOException e) {
-            throw new RuntimeException("Error while reading pod template", e);
+            throw new RuntimeException("Error while reading pod template " + templatePath, e);
         }
     }
 
@@ -190,7 +187,7 @@ public class PodSpecBuilder {
     public PodSpecBuilder withHostVolumes(List<HostPathVolumeDescription> volumeRequests) {
         for (var request : volumeRequests) {
             final var volume = new VolumeBuilder()
-                .withName(request.volumeId())
+                .withName(request.id())
                 .withHostPath(new HostPathVolumeSourceBuilder()
                     .withPath(request.path())
                     .withType(request.hostPathType().asString())

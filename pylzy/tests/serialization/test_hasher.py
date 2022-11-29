@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from lzy.serialization.hasher import DelegatingHasher
-from lzy.serialization.registry import DefaultSerializerRegistry
+from lzy.serialization.registry import LzySerializerRegistry
 
 
 class A:
@@ -11,7 +11,7 @@ class A:
 class HasherTests(TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.hasher = DelegatingHasher(DefaultSerializerRegistry())
+        cls.hasher = DelegatingHasher(LzySerializerRegistry())
 
     def test_simple_object(self):
         obj = "str"

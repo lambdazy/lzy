@@ -16,6 +16,7 @@ import java.time.Duration;
 public class LzyServiceConfig {
     private String address;
     private String allocatorAddress;
+    private Duration allocatorVmCacheTimeout = Duration.ofMinutes(20);
     private String whiteboardAddress;
     private String graphExecutorAddress;
     private String channelManagerAddress;

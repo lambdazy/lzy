@@ -37,7 +37,8 @@ public class LzyABSService extends LzyAccessBindingServiceGrpc.LzyAccessBindingS
 
     @Override
     public void listAccessBindings(ListAccessBindingsRequest request,
-                                   StreamObserver<ListAccessBindingsResponse> responseObserver) {
+                                   StreamObserver<ListAccessBindingsResponse> responseObserver)
+    {
         if (invalidAccess(ProtoConverter.to(request.getResource()), ResourceAccessType.VIEW)) {
             LOG.error("Resource::{} NOT_FOUND", request.getResource());
             responseObserver.onError(Status.NOT_FOUND.asException());
@@ -52,7 +53,8 @@ public class LzyABSService extends LzyAccessBindingServiceGrpc.LzyAccessBindingS
 
     @Override
     public void setAccessBindings(SetAccessBindingsRequest request,
-                                  StreamObserver<LABS.SetAccessBindingsResponse> responseObserver) {
+                                  StreamObserver<LABS.SetAccessBindingsResponse> responseObserver)
+    {
         if (invalidAccess(ProtoConverter.to(request.getResource()), ResourceAccessType.EDIT)) {
             LOG.error("Resource::{} NOT_FOUND", request.getResource());
             responseObserver.onError(Status.NOT_FOUND.asException());
@@ -65,7 +67,8 @@ public class LzyABSService extends LzyAccessBindingServiceGrpc.LzyAccessBindingS
 
     @Override
     public void updateAccessBindings(UpdateAccessBindingsRequest request,
-                                     StreamObserver<LABS.UpdateAccessBindingsResponse> responseObserver) {
+                                     StreamObserver<LABS.UpdateAccessBindingsResponse> responseObserver)
+    {
         if (invalidAccess(ProtoConverter.to(request.getResource()), ResourceAccessType.EDIT)) {
             LOG.error("Resource::{} NOT_FOUND", request.getResource());
             responseObserver.onError(Status.NOT_FOUND.asException());

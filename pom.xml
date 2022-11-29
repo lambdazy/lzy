@@ -22,6 +22,7 @@
         <module>iam-api</module>
         <module>jupyter-kernel</module>
         <module>kharon</module>
+        <module>long-running</module>
         <module>long-running-api</module>
         <module>lzy-service</module>
         <module>lzy-service-api</module>

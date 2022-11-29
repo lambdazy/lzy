@@ -1,8 +1,10 @@
 from pathlib import Path
 from typing import Dict, Optional, Sequence
 
+import yaml
+
 from lzy.api.v2.env import CondaEnv, DockerEnv, DockerPullPolicy, Env
-from lzy.api.v2.utils.conda import generate_conda_yaml
+from lzy.api.v2.utils.conda import generate_conda_yaml, merge_conda_env_yamls
 from lzy.py_env.api import PyEnv
 
 
@@ -46,4 +48,10 @@ def generate_env(
 
 def merge_envs(primary: Env, secondary: Env) -> Env:
     docker_env = primary.docker if primary.docker is not None else secondary.docker
-    return Env(primary.conda, primary.local_modules, docker_env)
+    conda_env = merge_conda_envs(primary.conda, secondary.conda)
+    modules = set(primary.local_modules).union(secondary.local_modules)
+    return Env(conda_env, list(modules), docker_env)
+
+
+def merge_conda_envs(primary: CondaEnv, secondary: CondaEnv) -> CondaEnv:
+    return CondaEnv(merge_conda_env_yamls([secondary.yaml, primary.yaml]))

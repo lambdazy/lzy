@@ -1,7 +1,11 @@
 package ai.lzy.allocator.disk;
 
 import ai.lzy.v1.DiskApi;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
+@JsonSerialize
+@JsonDeserialize
 public record DiskSpec(
     String name,
     DiskType type,

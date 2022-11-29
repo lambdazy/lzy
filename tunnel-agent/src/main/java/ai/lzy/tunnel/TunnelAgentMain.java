@@ -1,6 +1,5 @@
 package ai.lzy.tunnel;
 
-import ai.lzy.tunnel.config.TunnelAgentConfig;
 import ai.lzy.tunnel.service.LzyTunnelAgentService;
 import ai.lzy.util.grpc.ChannelBuilder;
 import com.google.common.net.HostAndPort;
@@ -9,27 +8,20 @@ import io.grpc.netty.NettyServerBuilder;
 import io.grpc.protobuf.services.ProtoReflectionService;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.exceptions.NoSuchBeanException;
-import jakarta.inject.Inject;
-import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-@Singleton
 public class TunnelAgentMain {
     private static final Logger LOG = LogManager.getLogger(TunnelAgentMain.class);
 
     private final Server server;
-    private final TunnelAgentConfig config;
+    private final HostAndPort address;
 
-    @Inject
-    public TunnelAgentMain(
-        LzyTunnelAgentService tunnelAgentService,
-        TunnelAgentConfig config
-    ) {
-        HostAndPort address = HostAndPort.fromString(config.address());
+    public TunnelAgentMain(LzyTunnelAgentService tunnelAgentService, String addr) {
+        this.address = HostAndPort.fromString(addr);
         this.server = NettyServerBuilder
             .forPort(address.getPort())
             .permitKeepAliveWithoutCalls(true)
@@ -37,11 +29,10 @@ public class TunnelAgentMain {
             .addService(tunnelAgentService)
             .addService(ProtoReflectionService.newInstance())
             .build();
-        this.config = config;
     }
 
     public void start() throws IOException {
-        LOG.info("Starting server on {}", config.address());
+        LOG.info("Starting server on {}", address);
         server.start();
     }
 
@@ -56,10 +47,11 @@ public class TunnelAgentMain {
     }
 
     public static void main(String[] args) throws InterruptedException, IOException {
-        final TunnelAgentMain tunnelAgent;
         try (ApplicationContext context = ApplicationContext.run()) {
             try {
-                tunnelAgent = context.getBean(TunnelAgentMain.class);
+                var tunnelAgent = new TunnelAgentMain(
+                    context.getBean(LzyTunnelAgentService.class),
+                    context.getProperty("tunnel-agent.address", String.class).get());
 
                 tunnelAgent.start();
                 Runtime.getRuntime().addShutdownHook(

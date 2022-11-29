@@ -132,6 +132,8 @@ public class Worker {
             throw new RuntimeException(e);
         }
 
+        // TODO: when should we start this agent?
+        //       we can share VM among _all_ workflows of user, so, workflowName is not a constant
         schedulerAgent = new SchedulerAgent(schedulerAddress, servantId, workflowName, schedulerHeartbeatPeriod,
                 apiPort, iamPrivateKey);
 
@@ -174,7 +176,11 @@ public class Worker {
                 parse.getOptionValue('m'), parse.getOptionValue("channel-manager"), parse.getOptionValue('h'),
                 parse.getOptionValue("iam-token"), parse.getOptionValue("allocator-token"));
 
-            worker.awaitTermination();
+            try {
+                worker.awaitTermination();
+            } catch (InterruptedException e) {
+                worker.stop();
+            }
             return 0;
         } catch (ParseException e) {
             LOG.error("Cannot correctly parse options", e);
@@ -296,7 +302,8 @@ public class Worker {
                 schedulerAgent.reportProgress(ServantProgress.newBuilder()
                     .setExecutionCompleted(ServantProgress.ExecutionCompleted.newBuilder()
                         .setRc(rc)
-                        .setDescription(rc == 0 ? "Success" : "Failure")  // TODO(artolord) add better description
+                        .setDescription(rc == 0 ? "Success" :  "Error while executing command on worker.\n" +
+                                "See your stdout/stderr to see more info")
                         .build())
                     .build());
                 schedulerAgent.reportIdle();

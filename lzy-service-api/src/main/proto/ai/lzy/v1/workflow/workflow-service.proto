@@ -4,6 +4,7 @@ package ai.lzy.v1.workflow;
 
 import "ai/lzy/v1/common/s3.proto";
 import "ai/lzy/v1/workflow/workflow.proto";
+import "ai/lzy/v1/common/data-scheme.proto";
 
 option java_outer_classname = "LWFS";
 option java_package = "ai.lzy.v1.workflow";
@@ -21,9 +22,6 @@ service LzyWorkflowService {
   rpc ReadStdSlots (ReadStdSlotsRequest) returns (stream ReadStdSlotsResponse);
 
   rpc GetAvailablePools (GetAvailablePoolsRequest) returns (GetAvailablePoolsResponse);
-
-  rpc CreateWhiteboard (CreateWhiteboardRequest) returns (CreateWhiteboardResponse);
-  rpc LinkWhiteboard (LinkWhiteboardRequest) returns (LinkWhiteboardResponse);
 }
 
 message CreateWorkflowRequest {
@@ -61,30 +59,6 @@ message DeleteWorkflowRequest {
 
 message DeleteWorkflowResponse {
 }
-
-// ================== CreateWhiteboard ===================
-
-message CreateWhiteboardRequest {
-  string name = 1;
-  string namespace = 2;
-  string storageName = 3;
-  repeated WhiteboardField fields = 4;
-  repeated string tags = 5;
-}
-
-message CreateWhiteboardResponse {
-  string whiteboardId = 1;
-}
-
-// =================== LinkWhiteboard ====================
-
-message LinkWhiteboardRequest {
-  string whiteboardId = 1;
-  string fieldName = 2;
-  string storageUri = 3;
-}
-
-message LinkWhiteboardResponse {}
 
 // ==================== ExecuteGraph =====================
 

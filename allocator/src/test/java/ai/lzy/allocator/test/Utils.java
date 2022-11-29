@@ -3,9 +3,12 @@ package ai.lzy.allocator.test;
 import ai.lzy.allocator.disk.DiskSpec;
 import ai.lzy.allocator.disk.DiskType;
 import ai.lzy.test.TimeUtils;
+import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunning.Operation;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc.LongRunningServiceBlockingStub;
+import com.google.protobuf.InvalidProtocolBufferException;
+import org.junit.Assert;
 import yandex.cloud.sdk.Zone;
 
 import java.util.UUID;
@@ -38,5 +41,16 @@ public class Utils {
         }, timeoutSeconds, TimeUnit.SECONDS);
         return service.get(
             LongRunning.GetOperationRequest.newBuilder().setOperationId(operation.getId()).build());
+    }
+
+    public static String extractSessionId(Operation createSessionOp) {
+        try {
+            var sid = createSessionOp.getResponse().unpack(VmAllocatorApi.CreateSessionResponse.class).getSessionId();
+            Assert.assertNotNull(sid);
+            Assert.assertFalse(sid.isBlank());
+            return sid;
+        } catch (InvalidProtocolBufferException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

@@ -1,16 +1,24 @@
 package ai.lzy.allocator.disk;
 
-import ai.lzy.allocator.disk.exceptions.NotFoundException;
-
+import java.time.Instant;
 import javax.annotation.Nullable;
 
 public interface DiskManager {
+
+    record OuterOperation(
+        String opId,
+        Instant startedAt,
+        Instant deadline
+    ) {}
+
     @Nullable
     Disk get(String id);
 
-    Disk create(DiskSpec spec, DiskMeta meta);
+    DiskOperation newCreateDiskOperation(OuterOperation outerOp, DiskSpec spec, DiskMeta meta);
 
-    Disk clone(Disk disk, DiskSpec cloneDiskSpec, DiskMeta clonedDiskMeta) throws NotFoundException;
+    DiskOperation newCloneDiskOperation(OuterOperation outerOp, Disk disk, DiskSpec newDiskSpec, DiskMeta newDiskMeta);
 
-    void delete(String diskId) throws NotFoundException;
+    DiskOperation newDeleteDiskOperation(OuterOperation outerOp, String diskId);
+
+    DiskOperation restoreDiskOperation(DiskOperation template);
 }

@@ -9,6 +9,7 @@ import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthInternalException;
 import ai.lzy.util.auth.exceptions.AuthNotFoundException;
+import ai.lzy.util.auth.exceptions.AuthUniqueViolationException;
 import com.google.common.annotations.VisibleForTesting;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
@@ -16,14 +17,11 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.sql.Types;
+import java.sql.*;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -36,6 +34,63 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 public class DbSubjectService {
     private static final Logger LOG = LogManager.getLogger(DbSubjectService.class);
 
+    public static final String QUERY_SELECT_SUBJECT = """
+        SELECT user_id, request_hash
+        FROM users
+        WHERE auth_provider = ? AND provider_user_id = ?""";
+
+    public static final String QUERY_INSERT_SUBJECT_IF_NOT_EXISTS_AND_RETURN_STORED = """
+        WITH
+            row_to_insert (user_id, auth_provider, provider_user_id, access_type, user_type, request_hash)
+            AS (VALUES (?, ?, ?, ?, ?, ?)),
+            attempt_to_insert AS
+            (
+                INSERT INTO users (user_id, auth_provider, provider_user_id, access_type, user_type, request_hash)
+                SELECT user_id, auth_provider, provider_user_id, access_type, user_type, request_hash 
+                FROM row_to_insert
+                ON CONFLICT (auth_provider, provider_user_id) DO NOTHING
+                RETURNING user_id, auth_provider, provider_user_id, access_type, user_type, request_hash
+            )
+        SELECT 
+            COALESCE(attempt_to_insert.user_id, users.user_id) AS user_id,
+            COALESCE(attempt_to_insert.request_hash, users.request_hash) AS request_hash
+        FROM row_to_insert
+        LEFT JOIN users
+        ON users.auth_provider = row_to_insert.auth_provider
+            AND users.provider_user_id = row_to_insert.provider_user_id
+        LEFT JOIN attempt_to_insert
+        ON attempt_to_insert.auth_provider = row_to_insert.auth_provider
+            AND attempt_to_insert.provider_user_id = row_to_insert.provider_user_id""";
+
+    private static final String QUERY_INSERT_CREDENTIALS = """
+        INSERT INTO credentials (name, value, user_id, type, expired_at)
+        VALUES (?, ?, ?, ?, ?)""";
+
+    private static final String QUERY_SELECT_CREDENTIALS = """
+        SELECT value, type, expired_at
+        FROM credentials
+        WHERE name = ? AND user_id = ?""";
+
+    private static final String QUERY_INSERT_CREDENTIALS_IF_NOT_EXISTS_AND_RETURN_STORED = """
+        WITH
+            row_to_insert (name, value, user_id, type, expired_at) AS (VALUES (?, ?, ?, ?, ?)),
+            attempt_to_insert AS
+            (
+                INSERT INTO credentials (name, value, user_id, type, expired_at)
+                SELECT name, value, user_id, type, CAST(expired_at as timestamp without time zone) FROM row_to_insert
+                ON CONFLICT (name, user_id) DO NOTHING
+                RETURNING name, value, user_id, type, expired_at
+            )
+        SELECT
+            COALESCE(attempt_to_insert.value, credentials.value) AS value,
+            COALESCE(attempt_to_insert.type, credentials.type) AS type,
+            COALESCE(attempt_to_insert.expired_at, credentials.expired_at) AS expired_at
+        FROM row_to_insert
+        LEFT JOIN credentials
+        ON credentials.name = row_to_insert.name AND credentials.user_id = row_to_insert.user_id
+        LEFT JOIN attempt_to_insert
+        ON attempt_to_insert.name = row_to_insert.name AND attempt_to_insert.user_id = row_to_insert.user_id""";
+
     @Inject
     private IamDataSource storage;
 
@@ -43,8 +98,7 @@ public class DbSubjectService {
     private ServiceConfig serviceConfig;
 
     public Subject createSubject(AuthProvider authProvider, String providerSubjectId, SubjectType subjectType,
-                                 List<SubjectCredentials> credentials)
-        throws AuthException
+                                 List<SubjectCredentials> credentials, String requestHash) throws AuthException
     {
         LOG.debug("Create subject {}/{}/{} with credentials [{}]", authProvider, providerSubjectId, subjectType,
             credentials.stream().map(Record::toString).collect(Collectors.joining(", ")));
@@ -60,75 +114,143 @@ public class DbSubjectService {
                 defaultRetryPolicy(),
                 LOG,
                 () -> {
-                    try (var connect = storage.connect();
-                         var st = connect.prepareStatement("""
-                            INSERT INTO users (user_id, auth_provider, provider_user_id, access_type, user_type)
-                            VALUES (?, ?, ?, ?, ?)"""))
-                    {
-                        int parameterIndex = 0;
-                        st.setString(++parameterIndex, subjectId);
-                        st.setString(++parameterIndex, authProvider.name());
-                        st.setString(++parameterIndex, providerSubjectId);
-                        st.setString(++parameterIndex, accessTypeForNewUser(connect).toString());
-                        st.setString(++parameterIndex, subjectType.name());
-                        st.executeUpdate();
+                    try (var conn = storage.connect()) {
+                        var actualSubjectId = insertSubject(authProvider, providerSubjectId, subjectType,
+                            requestHash, subjectId, conn);
 
-                        return switch (subjectType) {
-                            case USER -> new User(subjectId);
-                            case SERVANT -> new Servant(subjectId);
-                            case VM -> new Vm(subjectId);
-                        };
+                        return subjectWith(subjectType, actualSubjectId);
                     }
                 },
-                AuthInternalException::new);
+                DbSubjectService::wrapError);
         }
-
 
         return withRetries(
             defaultRetryPolicy(),
             LOG,
             () -> {
-                try (var tx = TransactionHandle.create(storage);
-                     var conn = tx.connect();
-                     var subjSt = conn.prepareStatement("""
-                            INSERT INTO users (user_id, auth_provider, provider_user_id, access_type, user_type)
-                            VALUES (?, ?, ?, ?, ?)""");
-                     var credsSt = conn.prepareStatement("""
-                            INSERT INTO credentials (name, value, user_id, type, expired_at)
-                            VALUES (?, ?, ?, ?, ?)"""))
-                {
-                    subjSt.setString(1, subjectId);
-                    subjSt.setString(2, authProvider.name());
-                    subjSt.setString(3, providerSubjectId);
-                    subjSt.setString(4, accessTypeForNewUser(conn).toString());
-                    subjSt.setString(5, subjectType.name());
-                    subjSt.executeUpdate();
+                try (var tx = TransactionHandle.create(storage); var conn = tx.connect()) {
+                    var actualSubjectId = insertSubject(authProvider, providerSubjectId, subjectType,
+                        requestHash, subjectId, conn);
 
-                    for (var creds : credentials) {
-                        credsSt.clearParameters();
-                        credsSt.setString(1, creds.name());
-                        credsSt.setString(2, creds.value());
-                        credsSt.setString(3, subjectId);
-                        credsSt.setString(4, creds.type().name());
-                        if (creds.expiredAt() != null) {
-                            credsSt.setTimestamp(5, Timestamp.from(creds.expiredAt().truncatedTo(ChronoUnit.SECONDS)));
-                        } else {
-                            credsSt.setNull(5, Types.TIMESTAMP);
-                        }
-                        credsSt.addBatch();
+                    if (subjectId.equals(actualSubjectId)) {
+                        insertCredentials(subjectId, credentials, conn);
                     }
-                    credsSt.executeBatch();
 
                     tx.commit();
 
-                    return switch (subjectType) {
-                        case USER -> new User(subjectId);
-                        case SERVANT -> new Servant(subjectId);
-                        case VM -> new Vm(subjectId);
-                    };
+                    return subjectWith(subjectType, actualSubjectId);
                 }
             },
-            AuthInternalException::new);
+            DbSubjectService::wrapError);
+    }
+
+    private String insertSubject(AuthProvider authProvider, String providerSubjectId, SubjectType subjectType,
+                                 String requestHash, String subjectId, Connection connect) throws SQLException
+    {
+        try (var upsertSt = connect.prepareStatement(QUERY_INSERT_SUBJECT_IF_NOT_EXISTS_AND_RETURN_STORED)) {
+            upsertSt.setString(1, subjectId);
+            upsertSt.setString(2, authProvider.name());
+            upsertSt.setString(3, providerSubjectId);
+            upsertSt.setString(4, accessTypeForNewUser(connect).toString());
+            upsertSt.setString(5, subjectType.name());
+            upsertSt.setString(6, requestHash);
+
+            ResultSet rs = upsertSt.executeQuery();
+
+            if (rs.next()) {
+                var actualRequestHash = rs.getString("request_hash");
+
+                // insert query may return tuple with null values if multiple concurrent queries occur
+                // in this case just select tuple directly
+                if (actualRequestHash == null) {
+                    try (var selectSt = connect.prepareStatement(QUERY_SELECT_SUBJECT)) {
+                        selectSt.setString(1, authProvider.name());
+                        selectSt.setString(2, providerSubjectId);
+                        rs = selectSt.executeQuery();
+                    }
+                }
+
+                actualRequestHash = rs.getString("request_hash");
+
+                if (!requestHash.equals(actualRequestHash)) {
+                    throw new AuthUniqueViolationException(String.format("Subject with auth_provider '%s' and " +
+                        "provider_user_id '%s' already exists", authProvider.name(), providerSubjectId));
+                }
+
+                return rs.getString("user_id");
+            } else {
+                throw new RuntimeException("Empty result set");
+            }
+        }
+    }
+
+    private void insertCredentials(String subjectId, List<SubjectCredentials> credentials, Connection conn)
+        throws SQLException
+    {
+        try (var insertSt = conn.prepareStatement(QUERY_INSERT_CREDENTIALS)) {
+            for (var creds : credentials) {
+                var expiredAtTimestamp = (creds.expiredAt() != null)
+                    ? Timestamp.from(creds.expiredAt().truncatedTo(ChronoUnit.SECONDS))
+                    : null;
+
+                addCredentialsDataToStatement(insertSt, creds.name(), creds.value(), subjectId,
+                    creds.type().name(),
+                    expiredAtTimestamp);
+
+                insertSt.addBatch();
+                insertSt.clearParameters();
+            }
+
+            insertSt.executeBatch();
+        }
+    }
+
+    public void addCredentials(Subject subject, SubjectCredentials credentials) throws AuthException {
+        withRetries(
+            defaultRetryPolicy(),
+            LOG,
+            () -> {
+                try (var conn = storage.connect();
+                     var upsertSt = conn.prepareStatement(QUERY_INSERT_CREDENTIALS_IF_NOT_EXISTS_AND_RETURN_STORED))
+                {
+                    var expiredAt = (credentials.expiredAt() != null)
+                        ? Timestamp.from(credentials.expiredAt().truncatedTo(ChronoUnit.SECONDS))
+                        : null;
+
+                    addCredentialsDataToStatement(upsertSt, credentials.name(), credentials.value(), subject.id(),
+                        credentials.type().name(), expiredAt);
+
+                    ResultSet rs = upsertSt.executeQuery();
+
+                    if (rs.next()) {
+                        var actualValue = rs.getString("value");
+
+                        // insert query may return tuple with null values if multiple concurrent queries occur
+                        // in this case just select tuple directly
+                        if (actualValue == null) {
+                            try (var selectSt = conn.prepareStatement(QUERY_SELECT_CREDENTIALS)) {
+                                selectSt.setString(1, credentials.name());
+                                selectSt.setString(2, subject.id());
+                                rs = selectSt.executeQuery();
+                            }
+                        }
+
+                        actualValue = rs.getString("value");
+                        var actualType = CredentialsType.valueOf(rs.getString("type"));
+                        var actualExpiredAt = rs.getTimestamp("expired_at");
+
+                        if (!credentials.value().equals(actualValue) || credentials.type() != actualType
+                            || !Objects.equals(expiredAt, actualExpiredAt))
+                        {
+                            throw new AuthUniqueViolationException(String.format("Credentials name '%s' is already " +
+                                "used for another user '%s' credentials", credentials.name(), subject.id()));
+                        }
+                    } else {
+                        throw new RuntimeException("Result set is empty");
+                    }
+                }
+            },
+            DbSubjectService::wrapError);
     }
 
     public Subject subject(String id) throws AuthException {
@@ -145,11 +267,7 @@ public class DbSubjectService {
                     ResultSet rs = st.executeQuery();
                     if (rs.next()) {
                         final SubjectType type = SubjectType.valueOf(rs.getString("user_type"));
-                        return switch (type) {
-                            case USER -> new User(id);
-                            case SERVANT -> new Servant(id);
-                            case VM -> new Vm(id);
-                        };
+                        return subjectWith(type, id);
                     }
 
                     throw new AuthNotFoundException("Subject:: " + id + " NOT_FOND");
@@ -175,34 +293,6 @@ public class DbSubjectService {
             AuthInternalException::new);
     }
 
-    public void addCredentials(Subject subject, SubjectCredentials credentials) throws AuthException {
-        withRetries(
-            defaultRetryPolicy(),
-            LOG,
-            () -> {
-                try (var connect = storage.connect();
-                     var st = connect.prepareStatement("""
-                        INSERT INTO credentials (name, value, user_id, type, expired_at)
-                        VALUES (?, ?, ?, ?, ?)"""))
-                {
-                    int parameterIndex = 0;
-                    st.setString(++parameterIndex, credentials.name());
-                    st.setString(++parameterIndex, credentials.value());
-                    st.setString(++parameterIndex, subject.id());
-                    st.setString(++parameterIndex, credentials.type().name());
-                    if (credentials.expiredAt() != null) {
-                        st.setTimestamp(++parameterIndex,
-                            Timestamp.from(credentials.expiredAt().truncatedTo(ChronoUnit.SECONDS)));
-                    } else {
-                        st.setNull(++parameterIndex, Types.TIMESTAMP);
-                    }
-
-                    st.executeUpdate();
-                }
-            },
-            AuthInternalException::new);
-    }
-
     public SubjectCredentials credentials(Subject subject, String name) throws AuthException {
         return withRetries(
             defaultRetryPolicy(),
@@ -210,9 +300,9 @@ public class DbSubjectService {
             () -> {
                 try (var connect = storage.connect();
                      var st = connect.prepareStatement("""
-                        SELECT name, value, type, expired_at
-                        FROM credentials
-                        WHERE user_id = ? AND name = ? AND (expired_at IS NULL OR expired_at > NOW())"""))
+                         SELECT name, value, type, expired_at
+                         FROM credentials
+                         WHERE user_id = ? AND name = ? AND (expired_at IS NULL OR expired_at > NOW())"""))
                 {
                     int parameterIndex = 0;
                     st.setString(++parameterIndex, subject.id());
@@ -240,9 +330,9 @@ public class DbSubjectService {
             () -> {
                 try (var connect = storage.connect();
                      var st = connect.prepareStatement("""
-                        SELECT name, value, type, expired_at
-                        FROM credentials
-                        WHERE user_id = ? AND (expired_at IS NULL OR expired_at > NOW())"""))
+                         SELECT name, value, type, expired_at
+                         FROM credentials
+                         WHERE user_id = ? AND (expired_at IS NULL OR expired_at > NOW())"""))
                 {
                     int parameterIndex = 0;
                     st.setString(++parameterIndex, subject.id());
@@ -290,9 +380,9 @@ public class DbSubjectService {
 
         try (var connect = storage.connect();
              var st = connect.prepareStatement("""
-                SELECT user_id
-                FROM users
-                WHERE auth_provider = ? AND provider_user_id = ? AND user_type = ?"""))
+                 SELECT user_id
+                 FROM users
+                 WHERE auth_provider = ? AND provider_user_id = ? AND user_type = ?"""))
         {
             st.setString(1, authProvider.name());
             st.setString(2, providerSubjectId);
@@ -301,11 +391,7 @@ public class DbSubjectService {
             ResultSet rs = st.executeQuery();
             if (rs.next()) {
                 var id = rs.getString("user_id");
-                return switch (subjectType) {
-                    case USER -> new User(id);
-                    case SERVANT -> new Servant(id);
-                    case VM -> new Vm(id);
-                };
+                return subjectWith(subjectType, id);
             }
 
             return null;
@@ -339,6 +425,24 @@ public class DbSubjectService {
                 }
             },
             DbSubjectService::wrapError);
+    }
+
+    private static void addCredentialsDataToStatement(PreparedStatement st, String name, String value, String subjectId,
+                                                      String type, Timestamp expiredAt) throws SQLException
+    {
+        st.setString(1, name);
+        st.setString(2, value);
+        st.setString(3, subjectId);
+        st.setString(4, type);
+        st.setTimestamp(5, expiredAt);
+    }
+
+    private static Subject subjectWith(SubjectType type, String id) {
+        return switch (type) {
+            case USER -> new User(id);
+            case SERVANT -> new Servant(id);
+            case VM -> new Vm(id);
+        };
     }
 
     private static AuthException wrapError(Exception ex) {

@@ -3,12 +3,19 @@ syntax = "proto3";
 package ai.lzy.v1.storage;
 
 import "ai/lzy/v1/common/s3.proto";
+import "ai/lzy/v1/long-running/operation.proto";
+import "ai/lzy/v1/long-running/option.proto";
 
 option java_outer_classname = "LSS";
 option java_package = "ai.lzy.v1.storage";
 
 service LzyStorageService {
-  rpc CreateS3Bucket (CreateS3BucketRequest) returns (CreateS3BucketResponse);
+  rpc CreateS3Bucket (CreateS3BucketRequest) returns (Operation) {
+    option (ai.lzy.v1.operation) = {
+      response: "CreateS3BucketResponse"
+    };
+  }
+
   rpc DeleteS3Bucket (DeleteS3BucketRequest) returns (DeleteS3BucketResponse);
 
   rpc GetS3BucketCredentials (GetS3BucketCredentialsRequest) returns (GetS3BucketCredentialsResponse);

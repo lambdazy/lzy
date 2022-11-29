@@ -1,25 +1,26 @@
 import inspect
-from typing import Any, Callable, Dict, Iterator, Optional, Sequence, TypeVar
+from typing import Any, Callable, Dict, Optional, Sequence, TypeVar
 
 from lzy.api.v2.call import LzyCall, wrap_call
 from lzy.api.v2.env import CondaEnv, DockerEnv, DockerPullPolicy, Env
 from lzy.api.v2.local.runtime import LocalRuntime
 from lzy.api.v2.provisioning import Provisioning
-from lzy.api.v2.query import Query
+from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
 from lzy.api.v2.runtime import Runtime
+from lzy.serialization.registry import LzySerializerRegistry
 from lzy.api.v2.snapshot import DefaultSnapshot
 from lzy.api.v2.utils.conda import generate_conda_yaml
 from lzy.api.v2.utils.env import generate_env, merge_envs
 from lzy.api.v2.utils.packages import to_str_version
 from lzy.api.v2.utils.proxy_adapter import lzy_proxy
 from lzy.api.v2.utils.types import infer_call_signature, infer_return_type
-from lzy.api.v2.whiteboard_declaration import whiteboard_
+from lzy.whiteboards.whiteboard import WhiteboardRepository
+from lzy.whiteboards.whiteboard_declaration import whiteboard_
 from lzy.api.v2.workflow import LzyWorkflow
 from lzy.proxy.result import Nothing
 from lzy.py_env.api import PyEnvProvider
 from lzy.py_env.py_env_provider import AutomaticPyEnvProvider
-from lzy.serialization.api import SerializerRegistry
-from lzy.serialization.registry import DefaultSerializerRegistry
+from serialzy.api import SerializerRegistry
 from lzy.storage.api import StorageRegistry
 from lzy.storage.registry import DefaultStorageRegistry
 
@@ -78,7 +79,7 @@ def op(
     return deco(func)
 
 
-def whiteboard(name: str):
+def whiteboard(name: str, namespace: str = None):
     def wrap(cls):
         return whiteboard_(cls, "default", name)
 
@@ -90,15 +91,18 @@ class Lzy:
     def __init__(
         self,
         *,
-        runtime: Runtime = LocalRuntime(),
+        runtime: Runtime = GrpcRuntime(),
         py_env_provider: PyEnvProvider = AutomaticPyEnvProvider(),
         storage_registry: StorageRegistry = DefaultStorageRegistry(),
-        serializer_registry: SerializerRegistry = DefaultSerializerRegistry(),
+        serializer_registry: SerializerRegistry = LzySerializerRegistry(),
+        whiteboard_repository: Optional[WhiteboardRepository] = None
     ):
         self.__env_provider = py_env_provider
         self.__runtime = runtime
         self.__serializer_registry = serializer_registry
         self.__storage_registry = storage_registry
+        self.__whiteboard_repository = whiteboard_repository if whiteboard_repository is not None \
+            else WhiteboardRepository.with_grpc_client(storage_registry, serializer_registry)
 
     @property
     def serializer(self) -> SerializerRegistry:
@@ -116,17 +120,9 @@ class Lzy:
     def storage_registry(self) -> StorageRegistry:
         return self.__storage_registry
 
-    def whiteboard(self, wid: str) -> Any:
-        # TODO: implement
-        pass
-
-    def whiteboards(self, query: Query) -> Iterator[Any]:
-        # TODO: implement
-        pass
-
-    # views(Iterator[Any], ViewType)
-    # whiteboards(T).views(ViewType)
-    # TODO: SQL for whiteboards?
+    @property
+    def whiteboard_repository(self) -> WhiteboardRepository:
+        return self.__whiteboard_repository
 
     def workflow(
         self,
@@ -175,9 +171,8 @@ class Lzy:
             interactive=interactive,
         )
 
-    # register cloud injections
-    # noinspection PyBroadException
-    try:
-        from lzy.injections import catboost_injection
-    except:
-        pass
+
+try:
+    from lzy.injections import catboost_injection
+except:
+    pass

@@ -1,19 +1,26 @@
 import asyncio
+import dataclasses
+import datetime
 import logging
 import tempfile
+import uuid
 from concurrent import futures
 from io import BytesIO
-from typing import Iterator
+from typing import Iterator, Sequence, Optional, Iterable
 from unittest import TestCase
 
 import aioboto3
 import grpc.aio
 import requests
 from Crypto.PublicKey import RSA
+from lzy.api.v2.local.runtime import LocalRuntime
+
+from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
 from grpc import StatusCode
 from moto.server import ThreadedMotoServer
 
 from ai.lzy.v1.common.s3_pb2 import AmazonS3Endpoint, S3Locator
+from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, WhiteboardField, WhiteboardFieldInfo, Storage
 from ai.lzy.v1.workflow.workflow_service_pb2 import (
     CreateWorkflowRequest,
     CreateWorkflowResponse,
@@ -26,16 +33,21 @@ from ai.lzy.v1.workflow.workflow_service_pb2_grpc import (
     LzyWorkflowServiceServicer,
     add_LzyWorkflowServiceServicer_to_server,
 )
-from lzy.api.v2 import Lzy, LzyWorkflow, op
+from lzy.api.v2 import Lzy, op, whiteboard
+from serialzy.api import Schema
+from lzy.utils.event_loop import LzyEventLoop
 from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
+from lzy.whiteboards.whiteboard import _ReadOnlyWhiteboard, WhiteboardRepository
 from lzy.api.v2.snapshot import DefaultSnapshot
 import lzy.api.v2.startup as startup
 from lzy.api.v2.utils._pickle import pickle
 from lzy.proxy.result import Just
-from lzy.serialization.registry import DefaultSerializerRegistry
-from lzy.serialization.types import File
+from lzy.serialization.registry import LzySerializerRegistry
+from lzy.types import File
 from lzy.storage import api as storage
 from lzy.storage.registry import DefaultStorageRegistry
+from lzy.whiteboards.whiteboard_declaration import WhiteboardInstanceMeta
+from lzy.whiteboards.whiteboard_service_client import WhiteboardServiceClient
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -58,7 +70,7 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
         return CreateWorkflowResponse(
             executionId="exec_id",
             internalSnapshotStorage=S3Locator(
-                bucket="",
+                bucket="bucket",
                 amazon=AmazonS3Endpoint(endpoint="", accessToken="", secretToken=""),
             ),
         )
@@ -114,16 +126,26 @@ class GrpcRuntimeTests(TestCase):
 
     def test_simple(self):
         runtime = GrpcRuntime("ArtoLord", "localhost:12345", self.__key_path)
-        lzy = Lzy(runtime=runtime)
+
+        storages = DefaultStorageRegistry()
+        serializers = LzySerializerRegistry()
+
+        lzy = Lzy(runtime=runtime, whiteboard_repository=WhiteboardRepository(
+            storages, serializers, WhiteboardClient()
+        ))
 
         with lzy.workflow("some_name"):
             self.assertIsNotNone(lzy.storage_registry.default_config())
 
-        self.assertIsNone(lzy.storage_registry.default_config())
-
     def test_error(self):
         runtime = GrpcRuntime("ArtoLord", "localhost:12345", self.__key_path)
-        lzy = Lzy(runtime=runtime)
+
+        storages = DefaultStorageRegistry()
+        serializers = LzySerializerRegistry()
+
+        lzy = Lzy(runtime=runtime, whiteboard_repository=WhiteboardRepository(
+            storages, serializers, WhiteboardClient()
+        ))
         self.mock.fail = True
         with self.assertRaises(expected_exception=Exception):
             with lzy.workflow("some_name"):
@@ -143,7 +165,7 @@ class GrpcRuntimeTests(TestCase):
         file = File(data_file)
         with open(data_file, "w") as f:
             f.write("2")
-        ser = DefaultSerializerRegistry()
+        ser = LzySerializerRegistry()
 
         with open(arg_file, "wb") as arg, open(kwarg_file, "wb") as kwarg:
             ser.find_serializer_by_type(str).serialize("4", arg)
@@ -174,6 +196,33 @@ def a(b: int) -> int:
 @op
 def c(d: int) -> str:
     return str(d)
+
+
+@dataclasses.dataclass
+@whiteboard("wb")
+class Wb:
+    b: str
+    a: int = 1
+
+
+class WhiteboardClient(WhiteboardServiceClient):
+    async def get(self, wb_id: str) -> Whiteboard:
+        pass
+
+    async def list(self, name: Optional[str] = None, tags: Sequence[str] = (),
+                   not_before: Optional[datetime.datetime] = None, not_after: Optional[datetime.datetime] = None) -> \
+    Iterable[Whiteboard]:
+        pass
+
+    async def create_whiteboard(self, namespace: str, name: str, fields: Sequence[WhiteboardField], storage_name: str,
+                                tags: Sequence[str]) -> WhiteboardInstanceMeta:
+        return WhiteboardInstanceMeta(str(uuid.uuid4()))
+
+    async def link(self, wb_id: str, field_name: str, url: str, data_scheme: Schema) -> None:
+        pass
+
+    async def finalize(self, whiteboard_id: str):
+        pass
 
 
 class SnapshotTests(TestCase):
@@ -207,7 +256,7 @@ class SnapshotTests(TestCase):
         storages = DefaultStorageRegistry()
         storages.register_storage("storage", storage_config, True)
 
-        serializers = DefaultSerializerRegistry()
+        serializers = LzySerializerRegistry()
 
         snapshot = DefaultSnapshot(storages, serializers)
 
@@ -229,7 +278,11 @@ class SnapshotTests(TestCase):
         storages = DefaultStorageRegistry()
         storages.register_storage("storage", storage_config, True)
 
-        lzy = Lzy(storage_registry=storages)
+        serializers = LzySerializerRegistry()
+
+        lzy = Lzy(storage_registry=storages, runtime=LocalRuntime(), whiteboard_repository=WhiteboardRepository(
+            storages, serializers, WhiteboardClient()
+        ))
 
         with lzy.workflow("") as wf:
             l = a(41)
@@ -263,3 +316,104 @@ class SnapshotTests(TestCase):
         response = requests.get(presigned_url, stream=True)
         data = next(iter(response.iter_content(16)))
         self.assertEqual(data, b"42")
+
+    def test_whiteboard(self):
+        storage_config = storage.StorageConfig(
+            bucket="bucket",
+            credentials=storage.AmazonCredentials(
+                self.endpoint_url, access_token="", secret_token=""
+            ),
+        )
+
+        storages = DefaultStorageRegistry()
+        storages.register_storage("storage", storage_config, True)
+
+        serializers = LzySerializerRegistry()
+
+        lzy = Lzy(storage_registry=storages, runtime=LocalRuntime(), whiteboard_repository=WhiteboardRepository(
+            storages, serializers, WhiteboardClient()
+        ))
+        with lzy.workflow("test") as wf:
+            wb = wf.create_whiteboard(Wb)
+            self.assertEqual(1, wb.a)
+            wb.b = "lol"
+            self.assertEqual("lol", wb.b)
+            wb.a = 2
+            self.assertEqual(2, wb.a)
+
+            with self.assertRaises(AttributeError):
+                wb.a = 3
+
+            with self.assertRaises(AttributeError):
+                wb.b = ""
+
+    def test_read_whiteboard(self):
+        storage_config = storage.StorageConfig(
+            bucket="bucket",
+            credentials=storage.AmazonCredentials(
+                self.endpoint_url, access_token="", secret_token=""
+            ),
+        )
+
+        storages = DefaultStorageRegistry()
+        storages.register_storage("storage", storage_config, True)
+        serializer = LzySerializerRegistry()
+
+        snapshot = DefaultSnapshot(storages, serializer)
+
+        e1 = snapshot.create_entry(str)
+        e2 = snapshot.create_entry(int)
+
+        LzyEventLoop.run_async(snapshot.put_data(e1.id, "42"))
+        LzyEventLoop.run_async(snapshot.put_data(e2.id, 42))
+
+        wb_desc = Whiteboard(
+            id="wb_id",
+            name="wb",
+            tags=["1", "2"],
+            namespace="namespace",
+            status=Whiteboard.Status.FINALIZED,
+            storage=Storage(
+                name="storage"
+            ),
+            fields=[
+                WhiteboardField(
+                    status=WhiteboardField.Status.FINALIZED,
+                    info=WhiteboardFieldInfo(
+                        name="a",
+                        linkedState=WhiteboardFieldInfo.LinkedField(
+                            scheme=DataScheme(
+                                dataFormat=e1.data_scheme.data_format,
+                                schemeFormat=e1.data_scheme.schema_format,
+                                schemeContent=e1.data_scheme.schema_content,
+                                metadata=e1.data_scheme.meta
+                            ),
+                            storageUri=e1.storage_url
+                        )
+                    )
+                ),
+                WhiteboardField(
+                    status=WhiteboardField.Status.FINALIZED,
+                    info=WhiteboardFieldInfo(
+                        name="b",
+                        linkedState=WhiteboardFieldInfo.LinkedField(
+                            scheme=DataScheme(
+                                dataFormat=e2.data_scheme.data_format,
+                                schemeFormat=e2.data_scheme.schema_format,
+                                schemeContent=e2.data_scheme.schema_content,
+                                metadata=e2.data_scheme.meta
+                            ),
+                            storageUri=e2.storage_url
+                        )
+                    )
+                )
+            ]
+        )
+
+        wb = _ReadOnlyWhiteboard(storage=storages, serializers=serializer, wb=wb_desc)
+
+        self.assertEqual("42", wb.a)
+        self.assertEqual(42, wb.b)
+
+        with self.assertRaises(AttributeError):
+            err = wb.c

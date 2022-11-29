@@ -91,7 +91,8 @@ public class LzyExecution {
 
     public int waitFor() {
         int rc = process.waitFor();
-        String resultDescription = (rc == 0) ? "Success" : "Failure";
+        String resultDescription = (rc == 0) ? "Success" : "Error while executing command on worker.\n" +
+            "See your stdout/stderr to see more info";
         LOG.info("Result description: " + resultDescription);
         progress(Servant.ServantProgress.newBuilder()
             .setExecuteStop(Servant.ExecutionConcluded.newBuilder()

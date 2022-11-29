@@ -17,24 +17,31 @@ public class VmPoolClient {
             return Collections.emptySet();
         }
 
-        List<VmPoolSpec> allUserPools = grpcClient.getVmPools(GetVmPoolsRequest.newBuilder()
-            .setWithSystemPools(false)
-            .setWithUserPools(true)
-            .build()).getUserPoolsList();
+        var allUserPools = grpcClient.getVmPools(
+            GetVmPoolsRequest.newBuilder()
+                .setWithSystemPools(false)
+                .setWithUserPools(true)
+                .build())
+            .getUserPoolsList();
 
         var requiredPools = new ArrayList<VmPoolSpec>(requiredPoolLabels.size());
         for (var label : requiredPoolLabels) {
             var found = allUserPools.stream()
-                .filter(pool -> label.contentEquals(pool.getLabel())).findAny();
+                .filter(pool -> label.equals(pool.getLabel()))
+                .findAny();
+
             if (found.isEmpty()) {
                 LOG.error("Cannot find pool with label: " + label);
                 return Collections.emptySet();
             }
+
             requiredPools.add(found.get());
         }
 
-        return requiredPools.stream().collect(
-            () -> new HashSet<>(requiredPools.get(0).getZonesList()),
-            (common, spec) -> common.retainAll(spec.getZonesList()), Collection::addAll);
+        return requiredPools.stream()
+            .collect(
+                () -> new HashSet<>(requiredPools.get(0).getZonesList()),
+                (common, spec) -> common.retainAll(spec.getZonesList()),
+                Collection::addAll);
     }
 }

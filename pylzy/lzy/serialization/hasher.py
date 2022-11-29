@@ -1,8 +1,23 @@
+import abc
 import hashlib
 from typing import Any
+from serialzy.api import SerializerRegistry
 
-from lzy.serialization.api import Hasher
-from lzy.serialization.registry import SerializerRegistry
+
+class Hasher(abc.ABC):
+    @abc.abstractmethod
+    def hash(self, data: Any) -> str:
+        """
+        :param data: object to hash
+        :return: hash result
+        """
+
+    @abc.abstractmethod
+    def can_hash(self, data: Any) -> bool:
+        """
+        :param data: object to hash
+        :return: True if object can be hashed, False otherwise
+        """
 
 
 class HashableFileLikeObj:

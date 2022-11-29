@@ -25,7 +25,12 @@ service DiskService {
     };
   }
 
-  rpc DeleteDisk (DeleteDiskRequest) returns (DeleteDiskResponse);
+  rpc DeleteDisk (DeleteDiskRequest) returns (Operation) {
+    option (ai.lzy.v1.operation) = {
+      metadata: "DeleteDiskMetadata"
+      response: "DeleteDiskResponse"
+    };
+  };
 }
 
 message CreateDiskRequest {

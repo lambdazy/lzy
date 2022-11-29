@@ -1,3 +1,7 @@
+micronaut:
+  server:
+    port: 8082
+
 allocator:
 
   service-clusters: []
@@ -21,8 +25,8 @@ allocator:
     url: ''
     username: 'test'
     password: ''
-    min-pool-size: 1
-    max-pool-size: 2
+    min-pool-size: 3
+    max-pool-size: 5
     enabled: false
 
   iam:

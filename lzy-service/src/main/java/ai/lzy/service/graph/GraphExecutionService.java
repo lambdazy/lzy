@@ -346,8 +346,10 @@ public class GraphExecutionService {
             state.setWorkflowName(withRetries(LOG, () -> workflowDao.getWorkflowName(state.getExecutionId())));
         } catch (NotFoundException e) {
             state.fail(Status.NOT_FOUND, "Cannot obtain workflow name for execution: " + e.getMessage());
+            return;
         } catch (Exception e) {
             state.fail(Status.INTERNAL, "Cannot obtain workflow name for execution: " + e.getMessage());
+            return;
         }
 
         try {

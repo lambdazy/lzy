@@ -3,6 +3,7 @@ lzy-service:
   # external-host: ''
 
   allocator-address: 'localhost:8799'
+  allocator-vm-cache-timeout: 21m
   graph-executor-address: 'localhost:8699'
   channel-manager-address: 'localhost:8122'
   whiteboard-address: 'localhost:8999'
@@ -14,11 +15,12 @@ lzy-service:
     url: 'embedded-postgres'
     username: 'test'
     password: ''
-    min-pool-size: 1
+    min-pool-size: 3
     max-pool-size: 5
 
   storage:
     address: 'localhost:7780'
+    bucket-creation-timeout: 10s
 
   iam:
     address: 'localhost:8443'

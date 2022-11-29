@@ -34,15 +34,15 @@ jobs:
           cd pylzy/
           ./scripts/run_tests.sh
          
-#      - name: 'upload coverage badge'
-#        uses: exuanbo/actions-deploy-gist@v1
-#        if: github.ref == 'refs/heads/master'
-#        with:
-#          token: ${{ secrets.GIST_SECRET }}
-#          gist_id: 0095e900fb0fcbe5575ddc3c717fb65b
-#          file_path: pylzy/coverage.svg
-#          file_type: binary
-#          gist_file_name: ${{ (github.head_ref || github.ref_name) }}-coverage.svg
+      - name: 'upload coverage badge'
+        uses: exuanbo/actions-deploy-gist@v1
+        if: github.ref == 'refs/heads/master'
+        with:
+          token: ${{ secrets.GIST_SECRET }}
+          gist_id: 0095e900fb0fcbe5575ddc3c717fb65b
+          file_path: pylzy/coverage.svg
+          file_type: binary
+          gist_file_name: ${{ (github.head_ref || github.ref_name) }}-coverage.svg
       
       - name: 'clean after python-test'
         run: |
@@ -147,10 +147,10 @@ jobs:
 #          ENV_IMAGE=$(deployment/latest-docker-image-on-branches.sh test-env $BRANCH master)
 #          cd test && mvn test -Dtest=DockerServantTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" -Dserver.baseEnvDefaultImage="$ENV_IMAGE" && cd ..
 #
-#      - name: 'PyApiTest'
-#        timeout-minutes: 30
-#        run: |
-#          cd test && mvn test -Dtest=PyApiTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+      - name: 'PyApiTest'
+        timeout-minutes: 10
+        run: |
+          cd test && mvn test -Dtest=PyApiTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'Clean docker files'
         run: |

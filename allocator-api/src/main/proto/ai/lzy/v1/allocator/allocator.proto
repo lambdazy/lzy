@@ -6,6 +6,8 @@ option java_outer_classname = "VmAllocatorApi";
 option java_package = "ai.lzy.v1";
 
 import "ai/lzy/v1/long-running/operation.proto";
+import "ai/lzy/v1/long-running/option.proto";
+import "ai/lzy/v1/validation/validation.proto";
 import "ai/lzy/v1/allocator/volume.proto";
 import "google/protobuf/duration.proto";
 
@@ -16,17 +18,22 @@ import "google/protobuf/duration.proto";
 service Allocator {
 
   // Create allocation session
-  rpc CreateSession (CreateSessionRequest) returns (CreateSessionResponse);
+  rpc CreateSession (CreateSessionRequest) returns (Operation) {
+    option (ai.lzy.v1.operation) = {
+      // metadata: null
+      response: "CreateSessionResponse"
+    };
+  }
 
   // Delete allocation session and all resources
   rpc DeleteSession (DeleteSessionRequest) returns (DeleteSessionResponse);
 
-  //
-  // Allocate vm with given spec
-  // metadata: AllocateMetadata
-  // response: AllocateResponse
-  //
-  rpc Allocate (AllocateRequest) returns (Operation);
+  rpc Allocate (AllocateRequest) returns (Operation) {
+    option (ai.lzy.v1.operation) = {
+      metadata: "AllocateMetadata"
+      response: "AllocateResponse"
+    };
+  }
 
   // Return control of vm to allocator
   rpc Free (FreeRequest) returns (FreeResponse);
@@ -40,7 +47,8 @@ message CachePolicy {
 
 message CreateSessionRequest {
   string owner = 1;
-  CachePolicy cache_policy = 2;
+  string description = 2;
+  CachePolicy cache_policy = 3;
 }
 message CreateSessionResponse {
   string session_id = 1;
@@ -61,7 +69,7 @@ message AllocateRequest {
     // image must contains allocator agent to notify allocator about lifecycle
     string image = 2;
 
-    map<string, string> env = 16;
+    map<string, string> env = 16 [(validation.sensitive) = true];
     repeated string args = 17;
     map<uint32, uint32> port_bindings = 18;  // host port: container port
 

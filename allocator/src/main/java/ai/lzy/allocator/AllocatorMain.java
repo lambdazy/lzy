@@ -1,16 +1,17 @@
 package ai.lzy.allocator;
 
 import ai.lzy.allocator.alloc.VmAllocator;
+import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.dao.VmDao;
-import ai.lzy.allocator.disk.DiskService;
-import ai.lzy.allocator.services.AllocatorApi;
-import ai.lzy.allocator.services.AllocatorPrivateApi;
-import ai.lzy.allocator.services.OperationApi;
-import ai.lzy.allocator.vmpool.VmPoolService;
+import ai.lzy.allocator.services.AllocatorPrivateService;
+import ai.lzy.allocator.services.AllocatorService;
+import ai.lzy.allocator.services.DiskService;
+import ai.lzy.allocator.services.VmPoolService;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
+import ai.lzy.longrunning.OperationService;
+import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.metrics.MetricsGrpcInterceptor;
 import ai.lzy.v1.AllocatorPrivateGrpc;
@@ -44,10 +45,12 @@ public class AllocatorMain {
     private final VmAllocator alloc;
     private final MetricReporter metricReporter;
 
-    public AllocatorMain(MetricReporter metricReporter, AllocatorApi allocator,
-                         AllocatorPrivateApi allocatorPrivate, DiskService diskService,
-                         OperationApi opApi, ServiceConfig config, GarbageCollector gc, VmPoolService vmPool,
-                         @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel, VmDao vmDao, VmAllocator alloc)
+    public AllocatorMain(MetricReporter metricReporter, AllocatorService allocator,
+                         AllocatorPrivateService allocatorPrivate, DiskService diskService,
+                         ServiceConfig config, GarbageCollector gc, VmPoolService vmPool,
+                         @Named("AllocatorOperationDao") OperationDao operationDao,
+                         @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
+                         VmDao vmDao, VmAllocator alloc)
     {
         this.config = config;
         this.gc = gc;
@@ -73,6 +76,8 @@ public class AllocatorMain {
 
         var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
 
+        var opApi = new OperationService(operationDao);
+
         builder.addService(ServerInterceptors.intercept(allocator, internalOnly));
         builder.addService(allocatorPrivate);
         builder.addService(ServerInterceptors.intercept(opApi, internalOnly));
@@ -96,6 +101,7 @@ public class AllocatorMain {
     }
 
     public void awaitTermination() throws InterruptedException {
+        LOG.info("Awaiting termination...");
         server.awaitTermination();
     }
 
@@ -112,8 +118,6 @@ public class AllocatorMain {
     public static void main(String[] args) throws IOException, InterruptedException {
         final var context = Micronaut.build(args)
             .banner(true)
-            .deduceEnvironment(true)
-            .eagerInitSingletons(true)
             .mainClass(AllocatorMain.class)
             .defaultEnvironments("local")
             .start();
@@ -128,6 +132,5 @@ public class AllocatorMain {
             LOG.info("Stopping allocator service");
             main.stop();
         }));
-        main.awaitTermination();
     }
 }

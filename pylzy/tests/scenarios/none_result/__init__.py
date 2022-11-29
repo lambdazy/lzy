@@ -1,6 +1,4 @@
-import uuid
-
-from lzy.api.v1 import LzyRemoteEnv, op
+from lzy.api.v2 import op, Lzy
 
 
 @op
@@ -8,9 +6,6 @@ def just_return_none() -> None:
     return None
 
 
-WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
-
-with LzyRemoteEnv().workflow(name=WORKFLOW_NAME):
+with Lzy().workflow(name="wf", interactive=False):
     res = just_return_none()
-
-print(res)
+    print(res)

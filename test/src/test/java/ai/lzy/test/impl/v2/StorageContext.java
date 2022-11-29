@@ -1,6 +1,6 @@
 package ai.lzy.test.impl.v2;
 
-import ai.lzy.storage.LzyStorage;
+import ai.lzy.storage.App;
 import ai.lzy.test.impl.Utils;
 import com.google.common.net.HostAndPort;
 import io.micronaut.context.ApplicationContext;
@@ -14,7 +14,7 @@ import java.util.Map;
 public class StorageContext {
     private final HostAndPort address = HostAndPort.fromParts("localhost", 15938);
     private final ApplicationContext ctx;
-    private final LzyStorage storage;
+    private final App storage;
 
     public StorageContext(IamContext iam) {
 
@@ -26,7 +26,7 @@ public class StorageContext {
         ));
 
         ctx = ApplicationContext.run(opts);
-        storage = new LzyStorage(ctx);
+        storage = new App(ctx);
         try {
             storage.start();
         } catch (IOException e) {

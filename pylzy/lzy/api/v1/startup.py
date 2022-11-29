@@ -12,11 +12,11 @@ from lzy.api.v1.servant.servant_client import ServantClient
 from lzy.api.v1.signatures import CallSignature, FuncSignature
 from lzy.api.v1.utils import lazy_proxy, unpickle
 from lzy.serialization.hasher import DelegatingHasher
-from lzy.serialization.registry import DefaultSerializerRegistry
+from lzy.serialization.registry import LzySerializerRegistry
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
-file_serializer = DefaultSerializerRegistry()
+file_serializer = LzySerializerRegistry()
 hasher = DelegatingHasher(file_serializer)
 
 

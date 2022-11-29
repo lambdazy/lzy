@@ -3,6 +3,7 @@ lzy-service:
   snapshot-address: 'localhost:8999'
   channel-manager-address: 'localhost:8122'
   allocator-address: 'localhost:8899'
+  allocator-vm-cache-timeout: 21m
   gc-period: 30s
   gc-leader-period: 30m
 
@@ -10,7 +11,7 @@ lzy-service:
     url: 'jdbc:postgresql://localhost:5432/lzy_workflows_db'
     username: 'lzy_user'
     password: 'q'
-    min-pool-size: 1
+    min-pool-size: 3
     max-pool-size: 5
 
   storage:

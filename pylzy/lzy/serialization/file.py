@@ -1,10 +1,14 @@
+import logging
 import os
 import uuid
-from typing import Any, BinaryIO, Callable, Dict, Type, Union
+from typing import Any, BinaryIO, Callable, Dict, Type, Union, cast
 
-from lzy.serialization.api import Serializer, StandardDataFormats
-from lzy.serialization.types import File
+from serialzy.api import StandardDataFormats, Schema, Serializer, StandardSchemaFormats
+from lzy.types import File
 from lzy.version import __version__
+from packaging import version
+
+_LOG = logging.getLogger(__name__)
 
 
 class FileSerializer(Serializer):
@@ -33,8 +37,27 @@ class FileSerializer(Serializer):
     def stable(self) -> bool:
         return True
 
-    def format(self) -> str:
-        return StandardDataFormats.raw_file.name
+    def data_format(self) -> str:
+        return cast(str, StandardDataFormats.raw_file.name)
 
     def meta(self) -> Dict[str, str]:
         return {"pylzy": __version__}
+
+    def resolve(self, schema: Schema) -> Type:
+        if schema.data_format != StandardDataFormats.raw_file.name:
+            raise ValueError(f'Invalid data format {schema.data_format}')
+        if schema.schema_format != StandardSchemaFormats.no_schema.name:
+            raise ValueError(f'Invalid schema format {schema.schema_format}')
+
+        if 'pylzy' not in schema.meta:
+            _LOG.warning('No pylzy version in meta')
+        elif version.parse(schema.meta['pylzy']) > version.parse(__version__):
+            _LOG.warning(f'Installed version of pylzy {__version__} '
+                         f'is older than used for serialization {schema.meta["pylzy"]}')
+
+        return File
+
+    def schema(self, typ: type) -> Schema:
+        if typ != File:
+            raise ValueError(f'Invalid type {typ}')
+        return Schema(self.data_format(), StandardSchemaFormats.no_schema.name, meta=self.meta())

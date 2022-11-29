@@ -3,7 +3,9 @@ import uuid
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence
 
+from lzy.api.v2.workflow import WbRef
 from lzy.proxy.result import unwrap
+from serialzy.api import Schema
 from lzy.storage.api import StorageConfig
 
 if TYPE_CHECKING:
@@ -13,9 +15,8 @@ from lzy.api.v2.call import LzyCall
 from lzy.api.v2.runtime import (
     ProgressStep,
     Runtime,
-    WhiteboardField,
-    WhiteboardInstanceMeta,
 )
+from lzy.whiteboards.whiteboard_declaration import WhiteboardField, WhiteboardInstanceMeta
 
 
 class LocalRuntime(Runtime):
@@ -31,6 +32,7 @@ class LocalRuntime(Runtime):
     async def exec(
         self,
         calls: List[LzyCall],
+        _: Dict[str, WbRef],
         progress: Callable[[ProgressStep], None],
     ):
         assert self.__workflow is not None
@@ -102,16 +104,3 @@ class LocalRuntime(Runtime):
 
     async def destroy(self) -> None:
         pass
-
-    async def link(self, wb_id: str, field_name: str, url: str) -> None:
-        pass
-
-    async def create_whiteboard(
-        self,
-        namespace: str,
-        name: str,
-        fields: Sequence[WhiteboardField],
-        storage_name: str,
-        tags: Sequence[str],
-    ) -> WhiteboardInstanceMeta:
-        return WhiteboardInstanceMeta(str(uuid.uuid4()))

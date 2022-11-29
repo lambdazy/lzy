@@ -1,9 +1,10 @@
 import uuid
 
 from base_module.base import Base
+from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
 from some_imported_file_2 import foo
 
-from lzy.api.v1 import LzyRemoteEnv, op
+from lzy.api.v2 import op, Lzy
 
 
 @op
@@ -15,9 +16,6 @@ def just_call_imported_stuff() -> str:
     return v1 + " " + v2
 
 
-WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
-
-with LzyRemoteEnv().workflow(name=WORKFLOW_NAME):
+with Lzy().workflow(name="wf", interactive=False):
     res = just_call_imported_stuff()
-
-print(res)
+    print(res)

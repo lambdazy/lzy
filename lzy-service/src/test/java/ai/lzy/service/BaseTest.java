@@ -18,7 +18,6 @@ import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
-import ai.lzy.whiteboard.WhiteboardPrivateApiMock;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
@@ -130,7 +129,6 @@ public class BaseTest {
             .intercept(GrpcLogsInterceptor.server())
             .intercept(RequestIdInterceptor.server(true))
             .intercept(GrpcHeadersServerInterceptor.create())
-            .addService(new WhiteboardPrivateApiMock())
             .build();
         whiteboardServer.start();
 
