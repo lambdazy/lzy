@@ -46,7 +46,7 @@ import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 public class BaseTest {
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
     private static final BaseTestWithStorage storageTestContext = new BaseTestWithStorage();
-    private static final BaseTestWithAllocator allocatorTestContext = new BaseTestWithAllocator();
+    protected static final BaseTestWithAllocator allocatorTestContext = new BaseTestWithAllocator();
 
     @Rule
     public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});

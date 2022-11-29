@@ -5,8 +5,13 @@ create type portal_status as enum (
     'REQUEST_VM', 'ALLOCATING_VM', 'VM_READY'
 );
 
+create type execution_status as enum (
+    'CREATED', 'DEAD', 'ERROR'
+);
+
 create table workflow_executions (
     execution_id text not null,
+    execution_status execution_status not null,
 
     allocator_session_id text,
 
@@ -66,4 +71,12 @@ create table graphs (
     portal_input_slots text[] not null,
     primary key (graph_id, execution_id),
     foreign key (execution_id) references workflow_executions(execution_id)
+);
+
+create table garbage_collectors (
+    id integer generated always as identity,
+    gc_instance_id text not null,
+    updated_at timestamp,
+    status text not null,
+    primary key (id)
 );
