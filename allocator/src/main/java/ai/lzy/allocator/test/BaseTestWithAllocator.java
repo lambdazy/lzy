@@ -24,7 +24,7 @@ public class BaseTestWithAllocator {
         var allocatorConfig = new YamlPropertySourceLoader()
             .read("allocator", new FileInputStream("../allocator/src/main/resources/application-test.yml"));
         allocatorConfig.putAll(overrides);
-        context = ApplicationContext.run(PropertySource.of(allocatorConfig), "test");
+        context = ApplicationContext.run(PropertySource.of(allocatorConfig), "test-mock");
         allocator = context.getBean(AllocatorMain.class);
         allocator.start();
     }
