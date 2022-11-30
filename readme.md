@@ -37,4 +37,6 @@ Development [guide](docs/development.md).
 
 ## Deployment
 
-Deployment [guide](docs/deployment.md).
+Deployment guide.
+* [Azure](docs/deployment_azure.md)
+* [YCloud](docs/deployment_ycloud.md)
