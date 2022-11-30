@@ -4,7 +4,6 @@ import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.TransactionHandle;
-import ai.lzy.storage.BeanFactory;
 import ai.lzy.storage.StorageService;
 import ai.lzy.storage.config.StorageConfig;
 import ai.lzy.storage.data.StorageDataSource;
@@ -52,7 +51,7 @@ public class YandexCloudS3Storage implements StorageService {
     private final OperationDao operationDao;
 
     public YandexCloudS3Storage(StorageConfig.S3Credentials.YcS3Credentials s3, StorageConfig.YcCredentials yc,
-                                StorageDataSource dataSource, @Named(BeanFactory.DAO_NAME) OperationDao operationDao)
+                                StorageDataSource dataSource, @Named("StorageOperationDao") OperationDao operationDao)
     {
         this.s3Creds = s3;
         this.ycCreds = yc;

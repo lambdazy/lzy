@@ -35,6 +35,7 @@ public interface OperationDao {
     Operation updateError(String id, byte[] error, @Nullable TransactionHandle transaction) throws SQLException;
 
     default void failOperation(String operationId, com.google.rpc.Status error, Logger log) {
+        log.info("Fail operation with error: { operationId: {}, errorStatus: {}}", operationId, error.getMessage());
         try {
             var op = withRetries(log, () -> updateError(operationId, error.toByteArray(), null));
             if (op == null) {

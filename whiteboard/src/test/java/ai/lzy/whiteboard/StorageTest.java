@@ -1,7 +1,6 @@
 package ai.lzy.whiteboard;
 
 import ai.lzy.model.DataScheme;
-import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.whiteboard.model.Field;
@@ -12,11 +11,7 @@ import ai.lzy.whiteboard.storage.WhiteboardStorage;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 
 import java.sql.SQLException;
 import java.time.Instant;
@@ -32,14 +27,12 @@ public class StorageTest {
     public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
 
     private WhiteboardStorage wbStorage;
-    private Storage dataSource;
     private ApplicationContext context;
 
     @Before
     public void setUp() {
         context = ApplicationContext.run(DatabaseTestUtils.preparePostgresConfig("whiteboard", db.getConnectionInfo()));
         wbStorage = context.getBean(WhiteboardStorage.class);
-        dataSource = context.getBean(WhiteboardDataSource.class);
     }
 
     @After
@@ -126,19 +119,19 @@ public class StorageTest {
         final var userId1 = "uid1";
         final var userId2 = "uid2";
 
-        final var wb1 = genWhiteboard("id1", "name1", Set.of("f"), Set.of("all","b","c","x"),
+        final var wb1 = genWhiteboard("id1", "name1", Set.of("f"), Set.of("all", "b", "c", "x"),
             Instant.parse("2022-09-01T12:00:00.00Z"));
         wbStorage.insertWhiteboard(userId1, wb1, null);
         wbStorage.updateField(wb1.id(), genLinkedFinalizedField("f"), wb1.createdAt().plusSeconds(30), null);
         wbStorage.finalizeWhiteboard(wb1.id(), wb1.createdAt().plusSeconds(60), null);
 
-        final var wb2 = genWhiteboard("id2", "name2", Set.of("g"), Set.of("all","b","d","y"),
+        final var wb2 = genWhiteboard("id2", "name2", Set.of("g"), Set.of("all", "b", "d", "y"),
             Instant.parse("2022-09-01T12:10:00.00Z"));
         wbStorage.insertWhiteboard(userId1, wb2, null);
         wbStorage.updateField(wb2.id(), genLinkedFinalizedField("g"), wb2.createdAt().plusSeconds(30), null);
         wbStorage.finalizeWhiteboard(wb2.id(), wb2.createdAt().plusSeconds(60), null);
 
-        final var wb3 = genWhiteboard("id3", "name3", Set.of("g", "h"), Set.of("all","c","d","z"),
+        final var wb3 = genWhiteboard("id3", "name3", Set.of("g", "h"), Set.of("all", "c", "d", "z"),
             Instant.parse("2022-09-01T12:20:00.00Z"));
         wbStorage.insertWhiteboard(userId1, wb3, null);
         wbStorage.updateField(wb3.id(), genLinkedFinalizedField("g"), wb3.createdAt().plusSeconds(30), null);
