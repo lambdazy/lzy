@@ -97,7 +97,7 @@ public class GraphExecutionService {
         var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
         if (idempotencyKey != null &&
             loadExistingOpResult(operationDao, idempotencyKey, responseObserver, ExecuteGraphResponse.class,
-                Duration.ofMillis(100), Duration.ofSeconds(1), LOG))
+                Duration.ofMillis(100), Duration.ofSeconds(5), LOG))
         {
             return;
         }
@@ -134,7 +134,7 @@ public class GraphExecutionService {
             withRetries(LOG, () -> operationDao.create(op, null));
         } catch (Exception ex) {
             if (idempotencyKey != null && handleIdempotencyKeyConflict(idempotencyKey, ex, operationDao,
-                responseObserver, ExecuteGraphResponse.class, Duration.ofMillis(100), Duration.ofSeconds(1), LOG))
+                responseObserver, ExecuteGraphResponse.class, Duration.ofMillis(100), Duration.ofSeconds(5), LOG))
             {
                 return;
             }
