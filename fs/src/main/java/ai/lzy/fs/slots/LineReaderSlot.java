@@ -8,15 +8,12 @@ import com.google.protobuf.ByteString;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.annotation.Nullable;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.LineNumberReader;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
-import java.util.Spliterator;
-import java.util.Spliterators;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -24,8 +21,12 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
     private static final Logger LOG = LogManager.getLogger(LineReaderSlot.class);
 
     private final String tid;
-    private final CompletableFuture<LineNumberReader> reader = new CompletableFuture<>();
     private long offset = 0;
+
+    // Optional here to set end of queue
+    private final BlockingQueue<Optional<String>> queue = new LinkedBlockingQueue<>();
+
+    private Thread thread = null;
 
     public LineReaderSlot(String tid, TextLinesOutSlot definition) {
         super(definition);
@@ -33,8 +34,27 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
         this.tid = tid;
     }
 
-    public void setStream(LineNumberReader lnr) {
-        this.reader.complete(lnr);
+    public synchronized void setStream(LineNumberReader lnr) {
+        if (thread != null) {
+            throw new IllegalStateException("Reader already set");
+        }
+        thread = new Thread(() -> {
+            while (true) {
+                try {
+                    var line = lnr.readLine();
+                    LOG.info("[{} slot]: {}", name(), line);
+                    queue.offer(Optional.ofNullable(line));
+                    if (line == null) {
+                        return;
+                    }
+                } catch (IOException e) {
+                    LOG.error("Error while reading data for slot <{}>: ", name(), e);
+                    queue.offer(Optional.empty());
+                    return;
+                }
+            }
+        });
+        thread.start();
     }
 
     @Override
@@ -49,9 +69,11 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
 
 
     @Override
-    public void close() {
+    public synchronized void close() {
         super.close();
-        reader.completeExceptionally(new RuntimeException("Force closed"));
+        if (thread != null) {
+            thread.interrupt();
+        }
     }
 
     @Override
@@ -65,12 +87,12 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
             @Override
             public boolean hasNext() {
                 try {
-                    String line = reader.get().readLine();
-                    if (line == null)
+                    var line = queue.take();
+                    if (line.isEmpty())
                         return false;
-                    this.line = ByteString.copyFromUtf8(line + "\n");
+                    this.line = ByteString.copyFromUtf8(line.get() + "\n");
                     return true;
-                } catch (IOException | InterruptedException | ExecutionException e) {
+                } catch (InterruptedException e) {
                     LOG.warn("Unable to read line from reader", e);
                     line = null;
                     return false;
@@ -83,7 +105,6 @@ public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
                     throw new NoSuchElementException();
                 }
                 try {
-                    LOG.info("[{} slot]: {}", name(), line.toStringUtf8());
                     LineReaderSlot.this.offset += line.size();
                     return line;
                 } finally {
