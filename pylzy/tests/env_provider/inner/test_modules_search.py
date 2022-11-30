@@ -1,7 +1,8 @@
 import os
 from unittest import TestCase
 
-from lzy.api.v1.pkg_info import select_modules
+from lzy.py_env.api import PyEnvProvider
+from lzy.py_env.py_env_provider import AutomaticPyEnvProvider
 
 from ..local_file import bar
 
@@ -9,10 +10,12 @@ from ..local_file import bar
 class ModulesSearchTests(TestCase):
     def test_modules_search_relative(self):
         # Arrange
+        provider: PyEnvProvider = AutomaticPyEnvProvider()
         bar_func = bar
 
         # Act
-        remote, local = select_modules({"bar_func": bar_func})
+        env = provider.provide({"bar_func": bar_func})
+        local = env.local_modules_path
 
         # Assert
         os.chdir(os.path.dirname(__file__))

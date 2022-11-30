@@ -1,4 +1,4 @@
-package ai.lzy.iam.grpc.service;
+package ai.lzy.iam.services;
 
 import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.iam.utils.ProtoConverter;

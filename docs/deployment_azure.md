@@ -9,7 +9,7 @@
 ### Steps
 
 1) create terraform module
-2) import [azure_common](deployment/tf/modules/azure_common) module
+2) import [azure_common](../deployment/tf/modules/azure_common) module
 3) az login
 4) create GitHub OAuth App
 5) generate client secret

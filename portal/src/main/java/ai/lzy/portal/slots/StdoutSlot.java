@@ -29,6 +29,7 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
     private final Map<String, String> slot2task = new HashMap<>();
     private final CircularFifoQueue<String> buffer = new CircularFifoQueue<>(1024);
     private final AtomicBoolean finished = new AtomicBoolean(false);
+    private final AtomicBoolean finishing = new AtomicBoolean(false);
 
     public StdoutSlot(String name, String portalTaskId, String channelId, URI slotUri) {
         super(new SlotInstance(new TextLinesOutSlot(name), portalTaskId, channelId, slotUri));
@@ -37,13 +38,16 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
         onState(LMS.SlotStatus.State.DESTROYED, () -> {
             finished.set(true);
             synchronized (StdoutSlot.this) {
-                StdoutSlot.this.notify();
+                StdoutSlot.this.notifyAll();
             }
         });
     }
 
     @Nonnull
     public synchronized LzySlot attach(SlotInstance slotInstance) throws CreateSlotException {
+        if (finished.get() || finishing.get()) {
+            throw new IllegalStateException("Cannot attach because of finished portal");
+        }
         final String taskId = slotInstance.taskId();
         if (task2slot.containsKey(taskId)) {
             throw new CreateSlotException("Slot " + slotInstance.name() + " from task "
@@ -57,7 +61,7 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
         var lzySlot = new StdoutInputSlot(slotInstance, this);
         task2slot.put(taskId, lzySlot);
 
-        notify();
+        notifyAll();
 
         return lzySlot;
     }
@@ -67,7 +71,11 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
         var taskId = slot2task.remove(slot);
         if (taskId != null) {
             task2slot.remove(taskId);
-            notify();
+            if (slot2task.isEmpty() && finishing.get()) {
+                LOG.info("Stdout slot <{}> is finished, completing stream", name());
+                finished.set(true);
+            }
+            notifyAll();
         }
     }
 
@@ -75,7 +83,7 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
         var taskId = slot2task.get(slot);
         if (taskId != null) {
             buffer.offer(taskId + "; " + line.toStringUtf8());
-            notify();
+            notifyAll();
         } else {
             LOG.error("Attempt to write stdout/stderr slot from unknown task, slot " + slot);
         }
@@ -143,6 +151,22 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
                     line = null;
                 }
             }
-        }, Spliterator.IMMUTABLE | Spliterator.ORDERED | Spliterator.DISTINCT), /* parallel */ false);
+        }, Spliterator.IMMUTABLE | Spliterator.ORDERED), /* parallel */ false);
+    }
+
+    public synchronized void finish() {
+        if (finishing.compareAndSet(false, true)) {
+            if (slot2task.isEmpty()) {
+                LOG.info("Stdout slot <{}> is finished, completing stream", name());
+                finished.set(true);
+                notifyAll();
+            }
+
+            for (var slot: task2slot.values()) {
+                if (slot.state().equals(LMS.SlotStatus.State.UNBOUND)) {
+                    slot.close();
+                }
+            }
+        }
     }
 }

@@ -42,8 +42,9 @@ public enum Role {
     ))
     ;
 
-    private final String value;
+    private static final Role[] ALL = Role.values();
 
+    private final String value;
     private final Set<AuthPermission> permissions;
 
     Role(String value, Set<AuthPermission> permissions) {
@@ -52,7 +53,7 @@ public enum Role {
     }
 
     public static Role of(String roleValue) {
-        for (var role : Role.values()) {
+        for (var role : ALL) {
             if (role.value().equals(roleValue)) {
                 return role;
             }
@@ -62,7 +63,7 @@ public enum Role {
 
     public static Stream<Role> rolesByPermission(AuthPermission permission) {
         List<Role> roles = new ArrayList<>();
-        for (final Role role : Role.values()) {
+        for (final Role role : ALL) {
             if (role.permissions().contains(permission)) {
                 roles.add(role);
             }

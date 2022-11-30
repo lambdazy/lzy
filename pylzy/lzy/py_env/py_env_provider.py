@@ -1,5 +1,5 @@
 import inspect
-import os
+import logging
 import sys
 from types import ModuleType
 from typing import Any, Dict, Iterable, List, Union, cast
@@ -14,6 +14,8 @@ from lzy.py_env.api import PyEnv, PyEnvProvider
 version = "3.9" if sys.version_info > (3, 9) else None
 STDLIB_LIST = stdlib_list(version)
 pypi_existence_cache: Dict[str, bool] = dict()
+
+_LOG = logging.getLogger(__name__)
 
 
 def all_installed_packages() -> Dict[str, str]:
@@ -54,7 +56,7 @@ class AutomaticPyEnvProvider(PyEnvProvider):
 
             # try to get module name
             name = module.__name__.split(".")[0]  # type: ignore
-            if name in STDLIB_LIST:
+            if name in STDLIB_LIST or name in sys.builtin_module_names:
                 return
 
             # and find it among installed ones
@@ -95,8 +97,10 @@ class AutomaticPyEnvProvider(PyEnvProvider):
         all_local_modules = dict.fromkeys(parents)
         all_local_modules.update(dict.fromkeys(reversed(local_modules)))
 
-        def get_path(module: ModuleType) -> Union[List[str], str]:
-            if not hasattr(module, "__path__"):
+        def get_path(module: ModuleType) -> Union[List[str], str, None]:
+            if not hasattr(module, "__path__") and not hasattr(module, "__file__"):
+                return None
+            elif not hasattr(module, "__path__"):
                 return str(module.__file__)
             else:
                 # case for namespace package
@@ -114,7 +118,10 @@ class AutomaticPyEnvProvider(PyEnvProvider):
         module_paths: List[str] = []
         for local_module in all_local_modules:
             path = get_path(local_module)
-            if type(path) == list:
+            if path is None:
+                _LOG.warning(f"No path for module: {local_module}")
+                continue
+            elif type(path) == list:
                 for p in path:
                     append_to_module_paths(p, module_paths)  # type: ignore
             else:
