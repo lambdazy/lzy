@@ -55,6 +55,8 @@ public final class IdempotencyUtils {
         log.info("Found existing op {} with idempotency key {}", opId, idempotencyKey.token());
 
         while (!op.done() && deadline - System.nanoTime() > 0L) {
+            LockSupport.parkNanos(loadAttemptDelay.toNanos());
+
             try {
                 op = withRetries(log, () -> operationsDao.get(opId, null));
             } catch (Exception e) {
@@ -63,8 +65,6 @@ public final class IdempotencyUtils {
                 response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
                 return true;
             }
-
-            LockSupport.parkNanos(loadAttemptDelay.toNanos());
         }
 
         if (!op.done()) {

@@ -2,61 +2,22 @@ package ai.lzy.service;
 
 import ai.lzy.service.graph.GraphExecutionService;
 import ai.lzy.service.workflow.WorkflowService;
-import ai.lzy.util.grpc.GrpcChannels;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
-import io.grpc.ManagedChannel;
 import io.grpc.stub.StreamObserver;
-import jakarta.annotation.PreDestroy;
-import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import java.time.Duration;
 
 import static ai.lzy.v1.workflow.LWFS.*;
 
 @Singleton
 public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBase {
-    private static final Logger LOG = LogManager.getLogger(LzyService.class);
-
     public static final String APP = "LzyService";
-
-    private final ManagedChannel allocatorServiceChannel;
-    private final ManagedChannel storageServiceChannel;
-    private final ManagedChannel channelManagerChannel;
-    private final ManagedChannel iamChannel;
-    private final ManagedChannel graphExecutorChannel;
 
     private final WorkflowService workflowService;
     private final GraphExecutionService graphExecutionService;
 
-    public LzyService(WorkflowService workflowService,
-                      GraphExecutionService graphExecutionService,
-                      @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
-                      @Named("StorageServiceChannel") ManagedChannel storageChannel,
-                      @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
-                      @Named("IamServiceChannel") ManagedChannel iamChannel,
-                      @Named("GraphExecutorServiceChannel") ManagedChannel graphExecutorChannel)
-    {
-        this.allocatorServiceChannel = allocatorChannel;
-        this.storageServiceChannel = storageChannel;
-        this.channelManagerChannel = channelManagerChannel;
-        this.iamChannel = iamChannel;
-        this.graphExecutorChannel = graphExecutorChannel;
-
+    public LzyService(WorkflowService workflowService, GraphExecutionService graphExecutionService) {
         this.workflowService = workflowService;
         this.graphExecutionService = graphExecutionService;
-    }
-
-    @PreDestroy
-    public void shutdown() {
-        LOG.info("Shutdown LzyService.");
-        GrpcChannels.awaitTermination(allocatorServiceChannel, Duration.ofSeconds(10), getClass());
-        GrpcChannels.awaitTermination(storageServiceChannel, Duration.ofSeconds(10), getClass());
-        GrpcChannels.awaitTermination(channelManagerChannel, Duration.ofSeconds(10), getClass());
-        GrpcChannels.awaitTermination(iamChannel, Duration.ofSeconds(10), getClass());
-        GrpcChannels.awaitTermination(graphExecutorChannel, Duration.ofSeconds(10), getClass());
     }
 
     @Override
