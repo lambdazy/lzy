@@ -1,8 +1,8 @@
 package ai.lzy.service.graph;
 
 import ai.lzy.graph.test.GraphExecutorMock;
-import ai.lzy.longrunning.test.IdempotencyUtilsTest.TestScenario;
 import ai.lzy.service.BaseTest;
+import ai.lzy.test.IdempotencyUtils.TestScenario;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.workflow.LWF;
@@ -135,7 +135,7 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
             errorCode -> assertEquals(Status.INVALID_ARGUMENT.getCode(), errorCode));
     }
 
-    TestScenario<LzyWorkflowServiceBlockingStub, Map.Entry<String, Graph>, Status.Code> duplicatedOutputSlotUriScenario() {
+    TestScenario<LzyWorkflowServiceBlockingStub, Map.Entry<String, Graph>, Status.Code> duplicatedSlotScenario() {
         return new TestScenario<>(authorizedWorkflowClient,
             stub -> {
                 LWFS.CreateWorkflowResponse workflow = createWorkflow(stub);

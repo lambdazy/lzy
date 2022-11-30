@@ -1,4 +1,4 @@
-package ai.lzy.longrunning.test;
+package ai.lzy.test;
 
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.AbstractBlockingStub;
@@ -14,7 +14,7 @@ import java.util.function.Function;
 
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 
-public enum IdempotencyUtilsTest {
+public enum IdempotencyUtils {
     ;
 
     public record TestScenario<S extends AbstractBlockingStub<S>, T, R>(

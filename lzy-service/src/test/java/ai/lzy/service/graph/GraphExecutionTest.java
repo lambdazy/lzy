@@ -9,7 +9,7 @@ import org.junit.Test;
 
 import java.util.List;
 
-import static ai.lzy.longrunning.test.IdempotencyUtilsTest.processSequentially;
+import static ai.lzy.test.IdempotencyUtils.processSequentially;
 import static org.junit.Assert.*;
 
 public class GraphExecutionTest extends AbstractGraphExecutionTest {
@@ -118,7 +118,7 @@ public class GraphExecutionTest extends AbstractGraphExecutionTest {
 
     @Test
     public void failedWithDuplicatedOutputSlotUris() {
-        processSequentially(duplicatedOutputSlotUriScenario());
+        processSequentially(duplicatedSlotScenario());
     }
 
     @Test

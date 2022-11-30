@@ -8,9 +8,9 @@ import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.test.BaseTestWithIam;
-import ai.lzy.longrunning.test.IdempotencyUtilsTest.TestScenario;
 import ai.lzy.model.DataScheme;
 import ai.lzy.model.db.test.DatabaseTestUtils;
+import ai.lzy.test.IdempotencyUtils.TestScenario;
 import ai.lzy.util.auth.credentials.CredentialsUtils;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.JwtUtils;
@@ -48,9 +48,9 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import static ai.lzy.longrunning.test.IdempotencyUtilsTest.processConcurrently;
-import static ai.lzy.longrunning.test.IdempotencyUtilsTest.processSequentially;
 import static ai.lzy.model.grpc.ProtoConverter.toProto;
+import static ai.lzy.test.IdempotencyUtils.processConcurrently;
+import static ai.lzy.test.IdempotencyUtils.processSequentially;
 import static ai.lzy.v1.whiteboard.LWB.WhiteboardFieldInfo.StateCase.LINKEDSTATE;
 import static ai.lzy.v1.whiteboard.LWB.WhiteboardFieldInfo.StateCase.NONESTATE;
 import static org.junit.Assert.assertEquals;
@@ -157,9 +157,8 @@ public class ApiTest extends BaseTestWithIam {
 
         assertEquals(LWB.Whiteboard.Status.CREATED, createdWhiteboard.getStatus());
         assertEquals(4, createdWhiteboard.getFieldsCount());
-        createdWhiteboard.getFieldsList().forEach(field -> {
-            assertEquals(LWB.WhiteboardField.Status.CREATED, field.getStatus());
-        });
+        createdWhiteboard.getFieldsList().forEach(field ->
+            assertEquals(LWB.WhiteboardField.Status.CREATED, field.getStatus()));
         final var fields = createdWhiteboard.getFieldsList().stream()
             .collect(Collectors.toMap(f -> f.getInfo().getName(), f -> f));
         assertEquals(NONESTATE, fields.get("f1").getInfo().getStateCase());
@@ -218,9 +217,8 @@ public class ApiTest extends BaseTestWithIam {
 
         whiteboard = whiteboardClient.get(getRequest).getWhiteboard();
         assertEquals(LWB.Whiteboard.Status.FINALIZED, whiteboard.getStatus());
-        whiteboard.getFieldsList().forEach(field -> {
-            assertEquals(LWB.WhiteboardField.Status.FINALIZED, field.getStatus());
-        });
+        whiteboard.getFieldsList().forEach(field ->
+            assertEquals(LWB.WhiteboardField.Status.FINALIZED, field.getStatus()));
 
         final var finalizedFields = whiteboard.getFieldsList().stream()
             .collect(Collectors.toMap(f -> f.getInfo().getName(), f -> f));
@@ -351,9 +349,8 @@ public class ApiTest extends BaseTestWithIam {
             },
             whiteboard -> {
                 assertEquals(LWB.Whiteboard.Status.FINALIZED, whiteboard.getStatus());
-                whiteboard.getFieldsList().forEach(field -> {
-                    assertEquals(LWB.WhiteboardField.Status.FINALIZED, field.getStatus());
-                });
+                whiteboard.getFieldsList().forEach(field ->
+                    assertEquals(LWB.WhiteboardField.Status.FINALIZED, field.getStatus()));
 
                 final var finalizedFields = whiteboard.getFieldsList().stream()
                     .collect(Collectors.toMap(f -> f.getInfo().getName(), f -> f));

@@ -2,7 +2,7 @@ package ai.lzy.service.graph;
 
 import org.junit.Test;
 
-import static ai.lzy.longrunning.test.IdempotencyUtilsTest.processConcurrently;
+import static ai.lzy.test.IdempotencyUtils.processConcurrently;
 
 public class ConcurrentGraphExecutionTest extends AbstractGraphExecutionTest {
 
@@ -18,7 +18,7 @@ public class ConcurrentGraphExecutionTest extends AbstractGraphExecutionTest {
 
     @Test
     public void failedWithDuplicatedOutputSlotUris() throws InterruptedException {
-        processConcurrently(duplicatedOutputSlotUriScenario());
+        processConcurrently(duplicatedSlotScenario());
     }
 
     @Test
