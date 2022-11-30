@@ -26,13 +26,35 @@ import java.util.stream.Stream;
 @Requires(beans = IamDataSource.class)
 public class DbAccessBindingClient {
 
+    private static final String QUERY_LIST_ACCESS_BINDINGS = """
+        SELECT *
+        FROM user_resource_roles
+        WHERE resource_id = ?;
+        """;
+
+    private static final String QUERY_DELETE_ACCESS_BINDING = """
+        DELETE FROM user_resource_roles
+        WHERE user_id = ? AND role = ? AND resource_id  = ?;
+        """;
+
+    private static final String QUERY_CREATE_ACCESS_BINDING = """
+        INSERT INTO user_resource_roles (user_id, resource_id, resource_type, role)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT DO NOTHING;
+        """;
+
+
+    private final IamDataSource storage;
+
     @Inject
-    private IamDataSource storage;
+    public DbAccessBindingClient(IamDataSource storage) {
+        this.storage = storage;
+    }
 
     public Stream<AccessBinding> listAccessBindings(AuthResource resource) throws AuthException {
         List<AccessBinding> bindings = new ArrayList<>();
         try (var conn = storage.connect();
-             var selectSt = conn.prepareStatement("SELECT * FROM user_resource_roles WHERE resource_id = ? "))
+             var selectSt = conn.prepareStatement(QUERY_LIST_ACCESS_BINDINGS))
         {
             int parameterIndex = 0;
             selectSt.setString(++parameterIndex, resource.resourceId());
@@ -50,7 +72,7 @@ public class DbAccessBindingClient {
         try (final Connection connection = storage.connect()) {
             StringBuilder query = new StringBuilder();
             for (AccessBinding ignored : accessBinding) {
-                query.append(insertQuery());
+                query.append(QUERY_CREATE_ACCESS_BINDING);
             }
             try (final PreparedStatement st = connection.prepareStatement(query.toString())) {
                 int parameterIndex = 0;
@@ -74,9 +96,9 @@ public class DbAccessBindingClient {
             StringBuilder query = new StringBuilder();
             for (AccessBindingDelta binding : accessBindingDeltas) {
                 if (binding.action() == AccessBindingAction.ADD) {
-                    query.append(insertQuery());
+                    query.append(QUERY_CREATE_ACCESS_BINDING);
                 } else if (binding.action() == AccessBindingAction.REMOVE) {
-                    query.append(deleteQuery());
+                    query.append(QUERY_DELETE_ACCESS_BINDING);
                 } else {
                     throw new RuntimeException("Unknown bindingDelta action:: " + binding.action());
                 }
@@ -106,16 +128,5 @@ public class DbAccessBindingClient {
 
     private AccessBinding toAccessBinding(ResourceBinding model) {
         return new AccessBinding(Role.of(model.role()), new User(model.userId()));
-    }
-
-    private String deleteQuery() {
-        return "DELETE from user_resource_roles" + " WHERE user_id = ?" + " AND role = ?" + " AND resource_id  = ?; ";
-    }
-
-    private String insertQuery() {
-        return "INSERT INTO user_resource_roles"
-            + " (user_id, resource_id, resource_type, role) values ("
-            + "?, ?, ?, ?"
-            + ") ON CONFLICT DO NOTHING; ";
     }
 }

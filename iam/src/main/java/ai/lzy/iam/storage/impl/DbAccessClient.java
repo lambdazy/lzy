@@ -16,45 +16,62 @@ import org.apache.logging.log4j.Logger;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.stream.Collectors;
 
 @Singleton
 @Requires(beans = IamDataSource.class)
 public class DbAccessClient {
     private static final Logger LOG = LogManager.getLogger(DbAccessClient.class);
 
+    private static final String QUERY_FIND_USER_ROLE_RESOURCE = """
+        SELECT user_id
+        FROM user_resource_roles
+        WHERE user_id = ? AND resource_id = ? AND role = ?
+        """;
+
+    private static final String QUERY_FIND_USER_RESOURCE = """
+        SELECT user_id
+        FROM user_resource_roles
+        WHERE user_id = ? AND resource_id = ?
+        """;
+
+    private static final String QUERY_FIND_USER_ROLES_RESOURCE = """
+        SELECT user_id
+        FROM user_resource_roles
+        WHERE user_id = ? AND resource_id = ? AND role IN (%s)
+        """;
+
+    private final IamDataSource storage;
+
     @Inject
-    private IamDataSource storage;
+    public DbAccessClient(IamDataSource storage) {
+        this.storage = storage;
+    }
 
     public boolean hasResourcePermission(Subject subject, String resourceId, AuthPermission permission)
             throws AuthException
     {
         if (Role.LZY_INTERNAL_USER.permissions().contains(permission)) {
-            try (var conn = storage.connect()) {
-                var st = conn.prepareStatement("""
-                    SELECT count(*) FROM user_resource_roles
-                    WHERE user_id = ? AND resource_id = ? AND role = ?""");
-
+            try (var conn = storage.connect();
+                 var st = conn.prepareStatement(QUERY_FIND_USER_ROLE_RESOURCE))
+            {
                 int parameterIndex = 0;
                 st.setString(++parameterIndex, subject.id());
                 st.setString(++parameterIndex, Root.INSTANCE.resourceId());
                 st.setString(++parameterIndex, Role.LZY_INTERNAL_USER.value());
                 final ResultSet rs = st.executeQuery();
                 if (rs.next()) {
-                    if (rs.getInt(1) > 0) {
-                        LOG.info("Internal access to resource::{}", resourceId);
-                        return true;
-                    }
+                    LOG.info("Internal access to resource::{}", resourceId);
+                    return true;
                 }
             } catch (SQLException e) {
                 throw new AuthInternalException(e);
             }
         }
 
-        try (var conn = storage.connect()) {
-            var st = conn.prepareStatement("""
-                SELECT user_id FROM user_resource_roles
-                WHERE user_id = ? AND resource_id = ?""");
-
+        try (var conn = storage.connect();
+             var st = conn.prepareStatement(QUERY_FIND_USER_RESOURCE))
+        {
             int parameterIndex = 0;
             st.setString(++parameterIndex, subject.id());
             st.setString(++parameterIndex, resourceId);
@@ -66,14 +83,18 @@ public class DbAccessClient {
             throw new AuthInternalException(e);
         }
 
-        try (var conn = storage.connect()) {
-            var st = conn.prepareStatement("""
-                SELECT user_id FROM user_resource_roles
-                WHERE user_id = ? AND resource_id = ? AND""" + queryByPermission(permission));
+        var roles = Role.rolesByPermission(permission).toList();
+        var rolesPlaceholder = roles.stream().map(x -> "?").collect(Collectors.joining(","));
 
+        try (var conn = storage.connect();
+             var st = conn.prepareStatement(QUERY_FIND_USER_ROLES_RESOURCE.formatted(rolesPlaceholder)))
+        {
             int parameterIndex = 0;
             st.setString(++parameterIndex, subject.id());
             st.setString(++parameterIndex, resourceId);
+            for (var role : roles) {
+                st.setString(++parameterIndex, role.value());
+            }
             final ResultSet rs = st.executeQuery();
             if (rs.next()) {
                 return true;
@@ -83,20 +104,5 @@ public class DbAccessClient {
         }
 
         return false;
-    }
-
-    private String queryByPermission(AuthPermission permission) {
-        StringBuilder query = new StringBuilder(" (");
-        final boolean[] first = {true};
-        Role.rolesByPermission(permission).forEach(r -> {
-            if (first[0]) {
-                query.append("role = '").append(r.value()).append("' ");
-                first[0] = false;
-            } else {
-                query.append("OR role = '").append(r.value()).append("' ");
-            }
-        });
-        query.append(");");
-        return query.toString();
     }
 }
