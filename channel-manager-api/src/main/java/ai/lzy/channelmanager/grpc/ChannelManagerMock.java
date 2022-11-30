@@ -252,6 +252,7 @@ public class ChannelManagerMock {
                     Endpoint inputEndpoint = channel.inputEndpoint.get();
                     if (inputEndpoint != null) {
                         inputEndpoint.destroy();
+                        channel.inputEndpoint.set(null);
                     }
                     response.onNext(LCMS.UnbindResponse.getDefaultInstance());
                 }
@@ -259,6 +260,7 @@ public class ChannelManagerMock {
                     var outputEndpoint = channel.outputEndpoint.get();
                     if (outputEndpoint != null) {
                         outputEndpoint.destroy();
+                        channel.outputEndpoint.set(null);
                     }
                     response.onNext(LCMS.UnbindResponse.getDefaultInstance());
                 }
