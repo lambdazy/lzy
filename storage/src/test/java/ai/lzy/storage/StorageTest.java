@@ -6,6 +6,7 @@ import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.longrunning.OperationService;
 import ai.lzy.longrunning.dao.OperationDao;
+import ai.lzy.longrunning.test.IdempotencyUtilsTest.TestScenario;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.storage.config.StorageConfig;
 import ai.lzy.test.TimeUtils;
@@ -19,6 +20,7 @@ import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.storage.LSS;
 import ai.lzy.v1.storage.LSS.CreateS3BucketResponse;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
+import ai.lzy.v1.storage.LzyStorageServiceGrpc.LzyStorageServiceBlockingStub;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
@@ -36,16 +38,16 @@ import org.junit.*;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
+import static ai.lzy.longrunning.test.IdempotencyUtilsTest.processConcurrently;
+import static ai.lzy.longrunning.test.IdempotencyUtilsTest.processSequentially;
 import static ai.lzy.storage.App.APP;
-import static ai.lzy.util.grpc.GrpcUtils.*;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.v1.longrunning.LongRunningServiceGrpc.newBlockingStub;
+import static org.junit.Assert.*;
 
 @SuppressWarnings("ResultOfMethodCallIgnored")
 public class StorageTest extends BaseTestWithIam {
@@ -62,8 +64,8 @@ public class StorageTest extends BaseTestWithIam {
 
     private ManagedChannel iamChannel;
 
-    private LzyStorageServiceGrpc.LzyStorageServiceBlockingStub unauthorizedStorageClient;
-    private LzyStorageServiceGrpc.LzyStorageServiceBlockingStub authorizedStorageClient;
+    private LzyStorageServiceBlockingStub unauthorizedStorageClient;
+    private LzyStorageServiceBlockingStub authorizedStorageClient;
 
     private LongRunningServiceGrpc.LongRunningServiceBlockingStub opClient;
 
@@ -198,9 +200,9 @@ public class StorageTest extends BaseTestWithIam {
         var resp = opClient.get(LongRunning.GetOperationRequest.newBuilder()
             .setOperationId(respOp.getId()).build()).getResponse().unpack(CreateS3BucketResponse.class);
 
-        Assert.assertTrue(resp.toString(), resp.hasAmazon());
-        Assert.assertTrue(resp.toString(), resp.getAmazon().getAccessToken().isEmpty());
-        Assert.assertTrue(resp.toString(), resp.getAmazon().getSecretToken().isEmpty());
+        assertTrue(resp.toString(), resp.hasAmazon());
+        assertTrue(resp.toString(), resp.getAmazon().getAccessToken().isEmpty());
+        assertTrue(resp.toString(), resp.getAmazon().getSecretToken().isEmpty());
 
         var s3 = AmazonS3ClientBuilder.standard()
             .withPathStyleAccessEnabled(true)
@@ -219,7 +221,7 @@ public class StorageTest extends BaseTestWithIam {
             .setUserId("test-user")
             .setBucket("bucket-1")
             .build());
-        Assert.assertTrue(credsResp.hasAmazon());
+        assertTrue(credsResp.hasAmazon());
         Assert.assertEquals(resp.getAmazon(), credsResp.getAmazon());
 
         authorizedStorageClient.deleteS3Bucket(LSS.DeleteS3BucketRequest.newBuilder()
@@ -236,95 +238,40 @@ public class StorageTest extends BaseTestWithIam {
     }
 
     @Test
-    public void idempotentCreateBucket() throws InvalidProtocolBufferException {
-        var userId = "some-valid-user-id";
-        var bucketName = "tmp-bucket-" + userId;
-
-        var idempotencyKey = "key-1";
-
-        LongRunning.Operation op1 = withIdempotencyKey(authorizedStorageClient, idempotencyKey)
-            .createS3Bucket(LSS.CreateS3BucketRequest.newBuilder()
-                .setUserId(userId)
-                .setBucket(bucketName)
-                .build());
-
-        op1 = awaitOperationDone(opClient, op1.getId(), Duration.ofSeconds(DEFAULT_TIMEOUT_SEC));
-
-        Assert.assertTrue(op1.getDone());
-        Assert.assertTrue(op1.hasResponse());
-        Assert.assertFalse(op1.hasError());
-
-        LongRunning.Operation op2 = withIdempotencyKey(authorizedStorageClient, idempotencyKey)
-            .createS3Bucket(LSS.CreateS3BucketRequest.newBuilder()
-                .setUserId(userId)
-                .setBucket(bucketName)
-                .build());
-
-        op2 = awaitOperationDone(opClient, op2.getId(), Duration.ofSeconds(DEFAULT_TIMEOUT_SEC));
-
-        Assert.assertTrue(op2.getDone());
-        Assert.assertTrue(op2.hasResponse());
-        Assert.assertFalse(op2.hasError());
-
-        var op1Res = op1.getResponse().unpack(CreateS3BucketResponse.class).getAmazon();
-        var op2Res = op2.getResponse().unpack(CreateS3BucketResponse.class).getAmazon();
-
-        Assert.assertEquals(op1.getId(), op2.getId());
-        Assert.assertEquals(op1Res.getEndpoint(), op2Res.getEndpoint());
-        Assert.assertEquals(op1Res.getAccessToken(), op2Res.getAccessToken());
-        Assert.assertEquals(op1Res.getSecretToken(), op2Res.getSecretToken());
+    public void idempotentCreateBucket() {
+        processSequentially(createBucketScenario());
     }
 
     @Test
     public void idempotentCreateBucketConcurrent() throws InterruptedException {
+        processConcurrently(createBucketScenario());
+    }
+
+    private TestScenario<LzyStorageServiceBlockingStub, Void, LongRunning.Operation> createBucketScenario() {
+        return new TestScenario<>(authorizedStorageClient,
+            stub -> null,
+            (stub, nothing) -> {
+                var op = createBucket(stub);
+                return awaitOperationDone(opClient, op.getId(), Duration.ofSeconds(DEFAULT_TIMEOUT_SEC));
+            },
+            op -> {
+                assertTrue(op.getDone());
+                assertTrue(op.hasResponse());
+                assertFalse(op.hasError());
+
+                try {
+                    assertTrue(op.getResponse().unpack(CreateS3BucketResponse.class).hasAmazon());
+                } catch (InvalidProtocolBufferException e) {
+                    fail(e.getMessage());
+                }
+            });
+    }
+
+    private static LongRunning.Operation createBucket(LzyStorageServiceBlockingStub client) {
         var userId = "some-valid-user-id";
         var bucketName = "tmp-bucket-" + userId;
 
-        var idempotencyKey = "key-1";
-
-        final int N = 10;
-        final var readyLatch = new CountDownLatch(N);
-        final var doneLatch = new CountDownLatch(N);
-        final var executor = Executors.newFixedThreadPool(N);
-        final var opIds = new String[N];
-        final var endpoints = new String[N];
-        final var failed = new AtomicBoolean(false);
-
-        for (int i = 0; i < N; ++i) {
-            final int index = i;
-            executor.submit(() -> {
-                try {
-                    readyLatch.countDown();
-                    readyLatch.await();
-
-                    var op = withIdempotencyKey(authorizedStorageClient, idempotencyKey)
-                        .createS3Bucket(LSS.CreateS3BucketRequest.newBuilder()
-                            .setUserId(userId)
-                            .setBucket(bucketName)
-                            .build());
-                    op = awaitOperationDone(opClient, op.getId(), Duration.ofSeconds(DEFAULT_TIMEOUT_SEC));
-                    Assert.assertFalse(op.getId().isEmpty());
-                    Assert.assertFalse(op.hasError());
-                    Assert.assertTrue(op.hasResponse());
-
-                    opIds[index] = op.getId();
-                    endpoints[index] = op.getResponse().unpack(CreateS3BucketResponse.class).getAmazon().getEndpoint();
-                } catch (Exception e) {
-                    failed.set(true);
-                    e.printStackTrace(System.err);
-                } finally {
-                    doneLatch.countDown();
-                }
-            });
-        }
-
-        doneLatch.await();
-        executor.shutdown();
-
-        Assert.assertFalse(failed.get());
-        Assert.assertFalse(opIds[0].isEmpty());
-        Assert.assertTrue(Arrays.stream(opIds).allMatch(opId -> opId.equals(opIds[0])));
-        Assert.assertFalse(endpoints[0].isEmpty());
-        Assert.assertTrue(Arrays.stream(endpoints).allMatch(endpoint -> endpoint.equals(endpoints[0])));
+        return client.createS3Bucket(LSS.CreateS3BucketRequest.newBuilder()
+            .setUserId(userId).setBucket(bucketName).build());
     }
 }

@@ -8,6 +8,7 @@ import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.test.BaseTestWithIam;
+import ai.lzy.longrunning.test.IdempotencyUtilsTest.TestScenario;
 import ai.lzy.model.DataScheme;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.util.auth.credentials.CredentialsUtils;
@@ -22,6 +23,7 @@ import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.whiteboard.LWB;
 import ai.lzy.v1.whiteboard.LWBS;
 import ai.lzy.v1.whiteboard.LzyWhiteboardServiceGrpc;
+import ai.lzy.v1.whiteboard.LzyWhiteboardServiceGrpc.LzyWhiteboardServiceBlockingStub;
 import ai.lzy.whiteboard.grpc.ProtoConverter;
 import ai.lzy.whiteboard.grpc.WhiteboardService;
 import ai.lzy.whiteboard.model.Whiteboard;
@@ -41,17 +43,14 @@ import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+import static ai.lzy.longrunning.test.IdempotencyUtilsTest.processConcurrently;
+import static ai.lzy.longrunning.test.IdempotencyUtilsTest.processSequentially;
 import static ai.lzy.model.grpc.ProtoConverter.toProto;
-import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static ai.lzy.v1.whiteboard.LWB.WhiteboardFieldInfo.StateCase.LINKEDSTATE;
 import static ai.lzy.v1.whiteboard.LWB.WhiteboardFieldInfo.StateCase.NONESTATE;
 import static org.junit.Assert.assertEquals;
@@ -67,9 +66,9 @@ public class ApiTest extends BaseTestWithIam {
     });
 
     private ApplicationContext context;
-    private LzyWhiteboardServiceGrpc.LzyWhiteboardServiceBlockingStub externalUserWhiteboardClient;
-    private LzyWhiteboardServiceGrpc.LzyWhiteboardServiceBlockingStub externalUser2WhiteboardClient;
-    private LzyWhiteboardServiceGrpc.LzyWhiteboardServiceBlockingStub whiteboardClient;
+    private LzyWhiteboardServiceBlockingStub externalUserWhiteboardClient;
+    private LzyWhiteboardServiceBlockingStub externalUser2WhiteboardClient;
+    private LzyWhiteboardServiceBlockingStub whiteboardClient;
     private Server whiteboardServer;
     private ManagedChannel channel;
 
@@ -266,251 +265,107 @@ public class ApiTest extends BaseTestWithIam {
 
     @Test
     public void createWhiteboardIdempotency() {
-        var idempotencyKey = "idempotency-key";
-
-        var createdWhiteboard1 = withIdempotencyKey(externalUserWhiteboardClient, idempotencyKey)
-            .createWhiteboard(genCreateWhiteboardRequest()).getWhiteboard();
-        var createdWhiteboard2 = withIdempotencyKey(externalUserWhiteboardClient, idempotencyKey)
-            .createWhiteboard(genCreateWhiteboardRequest()).getWhiteboard();
-
-        var fields1 = createdWhiteboard1.getFieldsList().stream()
-            .collect(Collectors.toMap(f -> f.getInfo().getName(), f -> f));
-        var fields2 = createdWhiteboard2.getFieldsList().stream()
-            .collect(Collectors.toMap(f -> f.getInfo().getName(), f -> f));
-
-        assertEquals(LWB.Whiteboard.Status.CREATED, createdWhiteboard1.getStatus());
-        assertEquals(4, createdWhiteboard1.getFieldsCount());
-        createdWhiteboard1.getFieldsList().forEach(field -> {
-            assertEquals(LWB.WhiteboardField.Status.CREATED, field.getStatus());
-        });
-        assertEquals(NONESTATE, fields1.get("f1").getInfo().getStateCase());
-        assertEquals(NONESTATE, fields1.get("f2").getInfo().getStateCase());
-        assertEquals(LINKEDSTATE, fields1.get("f3").getInfo().getStateCase());
-        assertEquals(LINKEDSTATE, fields1.get("f4").getInfo().getStateCase());
-
-        assertEquals(createdWhiteboard1.getStatus(), createdWhiteboard2.getStatus());
-        assertEquals(createdWhiteboard1.getFieldsCount(), createdWhiteboard2.getFieldsCount());
-        createdWhiteboard2.getFieldsList().forEach(field -> {
-            assertEquals(LWB.WhiteboardField.Status.CREATED, field.getStatus());
-        });
-        assertEquals(fields1.get("f1").getInfo().getStateCase(), fields2.get("f1").getInfo().getStateCase());
-        assertEquals(fields1.get("f2").getInfo().getStateCase(), fields2.get("f2").getInfo().getStateCase());
-        assertEquals(fields1.get("f3").getInfo().getStateCase(), fields2.get("f3").getInfo().getStateCase());
-        assertEquals(fields1.get("f4").getInfo().getStateCase(), fields2.get("f4").getInfo().getStateCase());
+        processSequentially(createWbScenario());
     }
 
     @Test
     public void linkWbFieldIdempotency() {
-        var idempotencyKey = "idempotency-key";
-        var idempotentClient = withIdempotencyKey(whiteboardClient, idempotencyKey);
-
-        var createdWhiteboard = whiteboardClient.createWhiteboard(genCreateWhiteboardRequest()).getWhiteboard();
-
-        idempotentClient.linkField(LWBS.LinkFieldRequest.newBuilder()
-            .setWhiteboardId(createdWhiteboard.getId())
-            .setFieldName("f1")
-            .setStorageUri("s-uri-1")
-            .setScheme(toProto(DataScheme.PLAIN))
-            .build());
-
-        idempotentClient.linkField(LWBS.LinkFieldRequest.newBuilder()
-            .setWhiteboardId(createdWhiteboard.getId())
-            .setFieldName("f1")
-            .setStorageUri("s-uri-1")
-            .setScheme(toProto(DataScheme.PLAIN))
-            .build());
-
-        var getRequest = LWBS.GetRequest.newBuilder().setWhiteboardId(createdWhiteboard.getId()).build();
-        var whiteboard = whiteboardClient.get(getRequest).getWhiteboard();
-        assertEquals(LWB.Whiteboard.Status.CREATED, whiteboard.getStatus());
-        whiteboard.getFieldsList().forEach(field -> {
-            if (field.getInfo().getName().equals("f1")) {
-                assertEquals(LWB.WhiteboardField.Status.FINALIZED, field.getStatus());
-            } else {
-                assertEquals(LWB.WhiteboardField.Status.CREATED, field.getStatus());
-            }
-        });
+        processSequentially(linkFieldScenario());
     }
 
     @Test
     public void finalizeWhiteboardIdempotency() {
-        var idempotencyKey = "idempotency-key";
-        var idempotentClient = withIdempotencyKey(whiteboardClient, idempotencyKey);
-
-        var createdWhiteboard = whiteboardClient.createWhiteboard(genCreateWhiteboardRequest()).getWhiteboard();
-
-        idempotentClient.finalizeWhiteboard(LWBS.FinalizeWhiteboardRequest.newBuilder()
-            .setWhiteboardId(createdWhiteboard.getId())
-            .build());
-
-        idempotentClient.finalizeWhiteboard(LWBS.FinalizeWhiteboardRequest.newBuilder()
-            .setWhiteboardId(createdWhiteboard.getId())
-            .build());
-
-        var getRequest = LWBS.GetRequest.newBuilder().setWhiteboardId(createdWhiteboard.getId()).build();
-        var whiteboard = whiteboardClient.get(getRequest).getWhiteboard();
-        assertEquals(LWB.Whiteboard.Status.FINALIZED, whiteboard.getStatus());
-        whiteboard.getFieldsList().forEach(field -> {
-            assertEquals(LWB.WhiteboardField.Status.FINALIZED, field.getStatus());
-        });
-
-        final var finalizedFields = whiteboard.getFieldsList().stream()
-            .collect(Collectors.toMap(f -> f.getInfo().getName(), f -> f));
-        assertEquals(NONESTATE, finalizedFields.get("f1").getInfo().getStateCase());
-        assertEquals(NONESTATE, finalizedFields.get("f2").getInfo().getStateCase());
-        assertEquals(LINKEDSTATE, finalizedFields.get("f3").getInfo().getStateCase());
-        assertEquals(LINKEDSTATE, finalizedFields.get("f4").getInfo().getStateCase());
-        assertEquals("s-uri-4-init", finalizedFields.get("f4").getInfo().getLinkedState().getStorageUri());
+        processSequentially(finalizeWbScenario());
     }
 
     @Test
     public void idempotentCreateWbConcurrent() throws InterruptedException {
-        var idempotencyKey = "idempotency-key";
-        var client = withIdempotencyKey(externalUserWhiteboardClient, idempotencyKey);
-
-        final int N = 10;
-        final var readyLatch = new CountDownLatch(N);
-        final var doneLatch = new CountDownLatch(N);
-        final var executor = Executors.newFixedThreadPool(N);
-        final var whiteboards = new LWB.Whiteboard[N];
-        final var failed = new AtomicBoolean(false);
-
-        for (int i = 0; i < N; ++i) {
-            final int index = i;
-            executor.submit(() -> {
-                try {
-                    readyLatch.countDown();
-                    readyLatch.await();
-
-                    var createdWhiteboard = client.createWhiteboard(genCreateWhiteboardRequest()).getWhiteboard();
-                    Assert.assertFalse(createdWhiteboard.getId().isBlank());
-
-                    whiteboards[index] = createdWhiteboard;
-                } catch (Exception e) {
-                    failed.set(true);
-                    e.printStackTrace(System.err);
-                } finally {
-                    doneLatch.countDown();
-                }
-            });
-        }
-
-        doneLatch.await();
-        executor.shutdown();
-
-        Assert.assertFalse(failed.get());
-        Assert.assertNotNull(whiteboards[0]);
-        Assert.assertTrue(Arrays.stream(whiteboards).allMatch(wb ->
-            wb.getStatus().equals(LWB.Whiteboard.Status.CREATED) && wb.getFieldsCount() == 4 &&
-                wb.getFieldsList().stream()
-                    .allMatch(field -> field.getStatus().equals(LWB.WhiteboardField.Status.CREATED))
-        ));
+        processConcurrently(createWbScenario());
     }
 
     @Test
     public void idempotentLinkWbFieldConcurrent() throws InterruptedException {
-        var idempotencyKey = "idempotency-key";
-        var client = withIdempotencyKey(externalUserWhiteboardClient, idempotencyKey);
-        var createdWhiteboard = externalUserWhiteboardClient.createWhiteboard(genCreateWhiteboardRequest())
-            .getWhiteboard();
-
-        final int N = 10;
-        final var readyLatch = new CountDownLatch(N);
-        final var doneLatch = new CountDownLatch(N);
-        final var executor = Executors.newFixedThreadPool(N);
-        final var failed = new AtomicBoolean(false);
-
-        for (int i = 0; i < N; ++i) {
-            executor.submit(() -> {
-                try {
-                    readyLatch.countDown();
-                    readyLatch.await();
-
-                    client.linkField(LWBS.LinkFieldRequest.newBuilder()
-                        .setWhiteboardId(createdWhiteboard.getId())
-                        .setFieldName("f1")
-                        .setStorageUri("s-uri-1")
-                        .setScheme(toProto(DataScheme.PLAIN))
-                        .build());
-                } catch (Exception e) {
-                    failed.set(true);
-                    e.printStackTrace(System.err);
-                } finally {
-                    doneLatch.countDown();
-                }
-            });
-        }
-
-        doneLatch.await();
-        executor.shutdown();
-
-        Assert.assertFalse(failed.get());
-
-        var getRequest = LWBS.GetRequest.newBuilder().setWhiteboardId(createdWhiteboard.getId()).build();
-        var whiteboard = whiteboardClient.get(getRequest).getWhiteboard();
-        assertEquals(LWB.Whiteboard.Status.CREATED, whiteboard.getStatus());
-        whiteboard.getFieldsList().forEach(field -> {
-            if (field.getInfo().getName().equals("f1")) {
-                assertEquals(LWB.WhiteboardField.Status.FINALIZED, field.getStatus());
-            } else {
-                assertEquals(LWB.WhiteboardField.Status.CREATED, field.getStatus());
-            }
-        });
+        processConcurrently(linkFieldScenario());
     }
 
     @Test
     public void idempotentFinalizeWbConcurrent() throws InterruptedException {
-        var idempotencyKey = "idempotency-key";
-        var client = withIdempotencyKey(externalUserWhiteboardClient, idempotencyKey);
-        var createdWhiteboard = externalUserWhiteboardClient.createWhiteboard(genCreateWhiteboardRequest())
-            .getWhiteboard();
-
-        final int N = 10;
-        final var readyLatch = new CountDownLatch(N);
-        final var doneLatch = new CountDownLatch(N);
-        final var executor = Executors.newFixedThreadPool(N);
-        final var failed = new AtomicBoolean(false);
-
-        for (int i = 0; i < N; ++i) {
-            executor.submit(() -> {
-                try {
-                    readyLatch.countDown();
-                    readyLatch.await();
-
-                    client.finalizeWhiteboard(LWBS.FinalizeWhiteboardRequest.newBuilder()
-                        .setWhiteboardId(createdWhiteboard.getId())
-                        .build());
-                } catch (Exception e) {
-                    failed.set(true);
-                    e.printStackTrace(System.err);
-                } finally {
-                    doneLatch.countDown();
-                }
-            });
-        }
-
-        doneLatch.await();
-        executor.shutdown();
-
-        Assert.assertFalse(failed.get());
-
-        var getRequest = LWBS.GetRequest.newBuilder().setWhiteboardId(createdWhiteboard.getId()).build();
-        var whiteboard = externalUserWhiteboardClient.get(getRequest).getWhiteboard();
-        assertEquals(LWB.Whiteboard.Status.FINALIZED, whiteboard.getStatus());
-        whiteboard.getFieldsList().forEach(field -> {
-            assertEquals(LWB.WhiteboardField.Status.FINALIZED, field.getStatus());
-        });
-
-        final var finalizedFields = whiteboard.getFieldsList().stream()
-            .collect(Collectors.toMap(f -> f.getInfo().getName(), f -> f));
-        assertEquals(NONESTATE, finalizedFields.get("f1").getInfo().getStateCase());
-        assertEquals(NONESTATE, finalizedFields.get("f2").getInfo().getStateCase());
-        assertEquals(LINKEDSTATE, finalizedFields.get("f3").getInfo().getStateCase());
-        assertEquals(LINKEDSTATE, finalizedFields.get("f4").getInfo().getStateCase());
-        assertEquals("s-uri-4-init", finalizedFields.get("f4").getInfo().getLinkedState().getStorageUri());
+        processConcurrently(finalizeWbScenario());
     }
 
-    private void apiAccessTest(LzyWhiteboardServiceGrpc.LzyWhiteboardServiceBlockingStub client,
+    private TestScenario<LzyWhiteboardServiceBlockingStub, Void, LWB.Whiteboard> createWbScenario() {
+        return new TestScenario<>(whiteboardClient,
+            stub -> null,
+            (stub, nothing) -> createWhiteboard(stub),
+            wb -> {
+                assertEquals(LWB.Whiteboard.Status.CREATED, wb.getStatus());
+                assertEquals(4, wb.getFieldsCount());
+                wb.getFieldsList().forEach(field ->
+                    assertEquals(LWB.WhiteboardField.Status.CREATED, field.getStatus()));
+
+                var fields = wb.getFieldsList().stream()
+                    .collect(Collectors.toMap(f -> f.getInfo().getName(), f -> f));
+
+                assertEquals(NONESTATE, fields.get("f1").getInfo().getStateCase());
+                assertEquals(NONESTATE, fields.get("f2").getInfo().getStateCase());
+                assertEquals(LINKEDSTATE, fields.get("f3").getInfo().getStateCase());
+                assertEquals(LINKEDSTATE, fields.get("f4").getInfo().getStateCase());
+            });
+    }
+
+    private TestScenario<LzyWhiteboardServiceBlockingStub, LWB.Whiteboard, LWB.Whiteboard> linkFieldScenario() {
+        return new TestScenario<>(whiteboardClient,
+            ApiTest::createWhiteboard,
+            (stub, wb) -> {
+                stub.linkField(LWBS.LinkFieldRequest.newBuilder()
+                    .setWhiteboardId(wb.getId())
+                    .setFieldName("f1")
+                    .setStorageUri("s-uri-1")
+                    .setScheme(toProto(DataScheme.PLAIN))
+                    .build());
+
+                var getRequest = LWBS.GetRequest.newBuilder().setWhiteboardId(wb.getId()).build();
+                return whiteboardClient.get(getRequest).getWhiteboard();
+            },
+            wb -> {
+                assertEquals(LWB.Whiteboard.Status.CREATED, wb.getStatus());
+                wb.getFieldsList().forEach(field -> {
+                    if (field.getInfo().getName().equals("f1")) {
+                        assertEquals(LWB.WhiteboardField.Status.FINALIZED, field.getStatus());
+                    } else {
+                        assertEquals(LWB.WhiteboardField.Status.CREATED, field.getStatus());
+                    }
+                });
+            });
+    }
+
+    private TestScenario<LzyWhiteboardServiceBlockingStub, LWB.Whiteboard, LWB.Whiteboard> finalizeWbScenario() {
+        return new TestScenario<>(whiteboardClient,
+            ApiTest::createWhiteboard,
+            (stub, input) -> {
+                stub.finalizeWhiteboard(LWBS.FinalizeWhiteboardRequest.newBuilder()
+                    .setWhiteboardId(input.getId())
+                    .build());
+                var getRequest = LWBS.GetRequest.newBuilder().setWhiteboardId(input.getId()).build();
+                return whiteboardClient.get(getRequest).getWhiteboard();
+            },
+            whiteboard -> {
+                assertEquals(LWB.Whiteboard.Status.FINALIZED, whiteboard.getStatus());
+                whiteboard.getFieldsList().forEach(field -> {
+                    assertEquals(LWB.WhiteboardField.Status.FINALIZED, field.getStatus());
+                });
+
+                final var finalizedFields = whiteboard.getFieldsList().stream()
+                    .collect(Collectors.toMap(f -> f.getInfo().getName(), f -> f));
+                assertEquals(NONESTATE, finalizedFields.get("f1").getInfo().getStateCase());
+                assertEquals(NONESTATE, finalizedFields.get("f2").getInfo().getStateCase());
+                assertEquals(LINKEDSTATE, finalizedFields.get("f3").getInfo().getStateCase());
+                assertEquals(LINKEDSTATE, finalizedFields.get("f4").getInfo().getStateCase());
+                assertEquals("s-uri-4-init", finalizedFields.get("f4").getInfo().getLinkedState().getStorageUri());
+            });
+    }
+
+    private void apiAccessTest(LzyWhiteboardServiceBlockingStub client,
                                Status expectedStatus)
     {
         try {
@@ -545,7 +400,11 @@ public class ApiTest extends BaseTestWithIam {
         }
     }
 
-    private LWBS.CreateWhiteboardRequest genCreateWhiteboardRequest() {
+    private static LWB.Whiteboard createWhiteboard(LzyWhiteboardServiceBlockingStub client) {
+        return client.createWhiteboard(genCreateWhiteboardRequest()).getWhiteboard();
+    }
+
+    private static LWBS.CreateWhiteboardRequest genCreateWhiteboardRequest() {
         return LWBS.CreateWhiteboardRequest.newBuilder()
             .setWhiteboardName("wb-name")
             .addAllFields(List.of(
@@ -577,7 +436,7 @@ public class ApiTest extends BaseTestWithIam {
             .build();
     }
 
-    private LWBS.CreateWhiteboardRequest genCreateWhiteboardRequest(String name, List<String> tags) {
+    private static LWBS.CreateWhiteboardRequest genCreateWhiteboardRequest(String name, List<String> tags) {
         return LWBS.CreateWhiteboardRequest.newBuilder()
             .setWhiteboardName(name)
             .addAllFields(List.of(

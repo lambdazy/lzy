@@ -75,11 +75,11 @@ public enum IdempotencyUtilsTest {
             throw new RuntimeException("Some of concurrent call was failed");
         }
 
-        asserting.accept(results.get(0));
-
         if (!results.stream().allMatch(result -> result.equals(results.get(0)))) {
             throw new RuntimeException("All concurrent calls must be equal");
         }
+
+        asserting.accept(results.get(0));
     }
 
     public static <S extends AbstractBlockingStub<S>, T, R> void processSequentially(TestScenario<S, T, R> scenario) {

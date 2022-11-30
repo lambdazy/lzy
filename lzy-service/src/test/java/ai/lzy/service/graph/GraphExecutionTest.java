@@ -143,7 +143,7 @@ public class GraphExecutionTest extends AbstractGraphExecutionTest {
 
     @Test
     public void failedWithAlreadyUsedSlotUri() {
-        LWFS.CreateWorkflowResponse workflow = createWorkflow();
+        LWFS.CreateWorkflowResponse workflow = createWorkflow(authorizedWorkflowClient);
         LMS3.S3Locator s3locator = workflow.getInternalSnapshotStorage();
 
         var firstOperation =
@@ -210,7 +210,7 @@ public class GraphExecutionTest extends AbstractGraphExecutionTest {
 
     @Test
     public void failedWithUnknownExecutionId() {
-        LWFS.CreateWorkflowResponse workflow = createWorkflow();
+        LWFS.CreateWorkflowResponse workflow = createWorkflow(authorizedWorkflowClient);
         LMS3.S3Locator s3locator = workflow.getInternalSnapshotStorage();
 
         var operations = List.of(
