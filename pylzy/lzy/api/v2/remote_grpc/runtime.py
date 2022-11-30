@@ -158,7 +158,6 @@ class GrpcRuntime(Runtime):
 
             if isinstance(status, Failed):
                 _LOG.info(f"Graph {graph_id} execution failed: {status.description}")
-                await asyncio.sleep(5)  # TODO(artolord) remove after sync with stdout/stderr
                 raise LzyExecutionException(
                     f"Failed executing graph {graph_id}: {status.description}"
                 )

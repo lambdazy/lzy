@@ -11,10 +11,7 @@ import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.portal.LzyPortal;
 import ai.lzy.v1.portal.LzyPortal.PortalSlotDesc;
 import ai.lzy.v1.portal.LzyPortalApi;
-import ai.lzy.v1.portal.LzyPortalApi.OpenSlotsRequest;
-import ai.lzy.v1.portal.LzyPortalApi.OpenSlotsResponse;
-import ai.lzy.v1.portal.LzyPortalApi.PortalStatusRequest;
-import ai.lzy.v1.portal.LzyPortalApi.PortalStatusResponse;
+import ai.lzy.v1.portal.LzyPortalApi.*;
 import ai.lzy.v1.portal.LzyPortalGrpc.LzyPortalImplBase;
 import com.google.protobuf.Empty;
 import io.grpc.Status;
@@ -159,6 +156,13 @@ class PortalApiImpl extends LzyPortalImplBase {
 
         response.onNext(OpenSlotsResponse.newBuilder().setSuccess(true).build());
         response.onCompleted();
+    }
+
+    @Override
+    public void finish(FinishRequest request, StreamObserver<FinishResponse> responseObserver) {
+        portal.finish();
+        responseObserver.onNext(FinishResponse.getDefaultInstance());
+        responseObserver.onCompleted();
     }
 
     private void waitPortalStarted() {

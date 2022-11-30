@@ -67,7 +67,7 @@ public record Operation(
             operation.getCommand(),
             operation.getSlotsList()
                 .stream()
-                .map(q -> ProtoConverter.fromProto(q))
+                .map(ProtoConverter::fromProto)
                 .toList(),
             operation.getDescription(),
             operation.getName(),
@@ -100,7 +100,7 @@ public record Operation(
         }
 
         if (stderr != null) {
-            builder.setStdout(LMO.Operation.StdSlotDesc.newBuilder()
+            builder.setStderr(LMO.Operation.StdSlotDesc.newBuilder()
                 .setChannelId(stderr.channelId)
                 .setName(stderr.slotName)
                 .build());
