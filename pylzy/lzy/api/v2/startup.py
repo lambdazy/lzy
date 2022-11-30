@@ -6,7 +6,7 @@ import sys
 import time
 from typing import Any, Callable, Mapping, Sequence, Tuple, Type, TypeVar, cast, Optional
 
-from lzy.serialization.api import SerializerRegistry
+from serialzy.api import SerializerRegistry
 
 import cloudpickle
 

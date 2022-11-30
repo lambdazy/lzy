@@ -86,8 +86,8 @@ class FsApiImpl extends LzyFsImplBase {
             return;
         }
 
-        LOG.error("Only snapshot is supported now");
-        response.onError(Status.UNIMPLEMENTED.asException());
+        LOG.error("Cannot find slot " + slotName);
+        response.onError(Status.NOT_FOUND.withDescription("Cannot find slot " + slotName).asException());
     }
 
     @Override
@@ -153,8 +153,8 @@ class FsApiImpl extends LzyFsImplBase {
             return;
         }
 
-        LOG.error("Only snapshot or stdout/stderr are supported now");
-        response.onError(Status.UNIMPLEMENTED.asException());
+        LOG.error("Cannot find slot <{}>", slotName);
+        response.onError(Status.NOT_FOUND.withDescription("Cannot find slot " + slotName).asException());
     }
 
     @Override
@@ -270,8 +270,8 @@ class FsApiImpl extends LzyFsImplBase {
             return;
         }
 
-        LOG.error("Only snapshot or stdout/stderr are supported now");
-        response.onError(Status.UNIMPLEMENTED.asException());
+        LOG.error("Cannot find slot " + slotName);
+        response.onError(Status.NOT_FOUND.withDescription("Cannot find slot " + slotName).asException());
     }
 
     @Override
@@ -318,7 +318,7 @@ class FsApiImpl extends LzyFsImplBase {
             return;
         }
 
-        LOG.error("Only snapshot or stdout/stderr are supported now");
-        response.onError(Status.UNIMPLEMENTED.asException());
+        LOG.error("Cannot find slot " + slotName);
+        response.onError(Status.NOT_FOUND.withDescription("Cannot find slot " + slotName).asException());
     }
 }

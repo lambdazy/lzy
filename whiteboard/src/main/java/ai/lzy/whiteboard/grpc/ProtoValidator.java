@@ -9,6 +9,7 @@ public class ProtoValidator {
     public static boolean isValid(LWB.WhiteboardFieldInfo fieldInfo) {
         boolean isValid = true;
         try {
+            //noinspection ConstantConditions
             isValid = isValid && !fieldInfo.getName().isBlank();
             switch (fieldInfo.getStateCase()) {
                 case NONESTATE -> {
@@ -28,8 +29,9 @@ public class ProtoValidator {
     public static boolean isValid(LMD.DataScheme dataScheme) {
         boolean isValid = true;
         try {
+            //noinspection ConstantConditions
             isValid = isValid && !dataScheme.getDataFormat().isBlank();
-            isValid = isValid && !dataScheme.getSchemeContent().isBlank();
+            isValid = isValid && !dataScheme.getSchemeFormat().isBlank();
             return isValid;
         } catch (NullPointerException e) {
             return false;
@@ -39,6 +41,7 @@ public class ProtoValidator {
     public static boolean isValid(LWBS.CreateWhiteboardRequest request) {
         boolean isValid = true;
         try {
+            //noinspection ConstantConditions
             isValid = isValid && !request.getWhiteboardName().isBlank();
             isValid = isValid && request.getFieldsCount() != 0;
             isValid = isValid && request.getFieldsList().stream().allMatch(ProtoValidator::isValid);
@@ -53,6 +56,7 @@ public class ProtoValidator {
     public static boolean isValid(LWBS.LinkFieldRequest request) {
         try {
             boolean isValid = true;
+            //noinspection ConstantConditions
             isValid = isValid && !request.getWhiteboardId().isBlank();
             isValid = isValid && !request.getFieldName().isBlank();
             isValid = isValid && !request.getStorageUri().isBlank();

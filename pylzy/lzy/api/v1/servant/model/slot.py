@@ -8,7 +8,7 @@ from typing import Dict, cast
 import cloudpickle
 from pure_protobuf.dataclasses_ import Message  # type: ignore
 
-from lzy.serialization.types import File
+from lzy.types import File
 
 
 def pickle_type(type_: type) -> str:

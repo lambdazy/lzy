@@ -118,8 +118,6 @@ public class AllocatorMain {
     public static void main(String[] args) throws IOException, InterruptedException {
         final var context = Micronaut.build(args)
             .banner(true)
-            .deduceEnvironment(true)
-            .eagerInitSingletons(true)
             .mainClass(AllocatorMain.class)
             .defaultEnvironments("local")
             .start();
@@ -134,6 +132,5 @@ public class AllocatorMain {
             LOG.info("Stopping allocator service");
             main.stop();
         }));
-        main.awaitTermination();
     }
 }

@@ -6,7 +6,7 @@ from data import MessageClass, Test1, TestEnum
 from pure_protobuf.types import int32
 
 from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
-from lzy.serialization.registry import DefaultSerializerRegistry
+from lzy.serialization.registry import LzySerializerRegistry
 from lzy.storage.registry import DefaultStorageRegistry
 from lzy.whiteboards.whiteboard import WhiteboardRepository
 from wbs import (
@@ -89,7 +89,7 @@ def fun8(a: MessageClass) -> int:
 WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
 
 storage = DefaultStorageRegistry()
-serializer = DefaultSerializerRegistry()
+serializer = LzySerializerRegistry()
 
 wb_repo = WhiteboardRepository.with_grpc_client(storage, serializer)
 

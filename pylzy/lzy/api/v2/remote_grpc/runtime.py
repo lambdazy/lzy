@@ -31,7 +31,7 @@ from lzy.api.v2.call import LzyCall
 from lzy.api.v2.workflow import LzyWorkflow
 from lzy.api.v2.provisioning import Provisioning
 from lzy.api.v2.exceptions import LzyExecutionException
-from lzy.serialization.api import Schema
+from serialzy.api import Schema
 from lzy.utils.grpc import build_token
 from lzy.api.v2.remote_grpc.workflow_service_client import (
     Completed,
@@ -158,7 +158,6 @@ class GrpcRuntime(Runtime):
 
             if isinstance(status, Failed):
                 _LOG.info(f"Graph {graph_id} execution failed: {status.description}")
-                await asyncio.sleep(5)  # TODO(artolord) remove after sync with stdout/stderr
                 raise LzyExecutionException(
                     f"Failed executing graph {graph_id}: {status.description}"
                 )

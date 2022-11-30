@@ -186,7 +186,7 @@ public class GraphExecutionService {
         } catch (StatusRuntimeException e) {
             var causeStatus = e.getStatus();
             LOG.error("Cannot obtain graph status: { executionId: {}, graphId: {} }, error: {}",
-                executionId, graphId, causeStatus.getDescription());
+                executionId, graphId, causeStatus.getDescription(), e);
             response.onError(causeStatus.withDescription("Cannot obtain graph status: " + causeStatus.getDescription())
                 .asRuntimeException());
             return;

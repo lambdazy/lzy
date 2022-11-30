@@ -12,6 +12,7 @@
 
     <properties>
         <exec.mainClass>ai.lzy.allocator.AllocatorMain</exec.mainClass>
+        <micronaut.runtime>netty</micronaut.runtime>
     </properties>
 
     <dependencies>
@@ -32,6 +33,7 @@
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
+            <!-- TODO: should depends on tunnel-allocator-api only -->
             <artifactId>tunnel-agent</artifactId>
             <version>1.0-SNAPSHOT</version>
             <scope>compile</scope>
@@ -115,6 +117,10 @@
         <dependency>
             <groupId>io.micronaut</groupId>
             <artifactId>micronaut-runtime</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micronaut</groupId>
+            <artifactId>micronaut-http-server-netty</artifactId>
         </dependency>
 
         <dependency>
