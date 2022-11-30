@@ -23,7 +23,6 @@ import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -42,6 +41,9 @@ import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class ChannelManagerTest {
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
@@ -114,37 +116,37 @@ public class ChannelManagerTest {
     public void testUnauthenticated() {
         try {
             unauthorizedPrivateClient.create(LCMPS.ChannelCreateRequest.newBuilder().build());
-            Assert.fail();
+            fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
         }
 
         try {
             unauthorizedPrivateClient.destroy(LCMPS.ChannelDestroyRequest.newBuilder().build());
-            Assert.fail();
+            fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
         }
 
         try {
             unauthorizedPrivateClient.destroyAll(LCMPS.ChannelDestroyAllRequest.newBuilder().build());
-            Assert.fail();
+            fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
         }
 
         try {
             unauthorizedPrivateClient.status(LCMPS.ChannelStatusRequest.newBuilder().build());
-            Assert.fail();
+            fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
         }
 
         try {
             unauthorizedPrivateClient.statusAll(LCMPS.ChannelStatusAllRequest.newBuilder().build());
-            Assert.fail();
+            fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
         }
         
         // TODO public client
@@ -155,13 +157,13 @@ public class ChannelManagerTest {
         try {
             authorizedPrivateClient.create(LCMPS.ChannelCreateRequest.newBuilder()
                     .setChannelSpec(LCM.ChannelSpec.newBuilder()
-                        .setChannelName("channel1")
+                        .setChannelName("ch")
                         .setScheme(ai.lzy.model.grpc.ProtoConverter.toProto(DataScheme.PLAIN))
                         .build())
                     .build());
-            Assert.fail();
+            fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
         }
     }
 
@@ -171,9 +173,9 @@ public class ChannelManagerTest {
             authorizedPrivateClient.create(LCMPS.ChannelCreateRequest.newBuilder()
                 .setExecutionId(UUID.randomUUID().toString())
                     .build());
-            Assert.fail();
+            fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
         }
     }
 
@@ -186,9 +188,9 @@ public class ChannelManagerTest {
                     .setScheme(ai.lzy.model.grpc.ProtoConverter.toProto(DataScheme.PLAIN))
                     .build())
                 .build());
-            Assert.fail();
+            fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
         }
     }
 
@@ -198,12 +200,12 @@ public class ChannelManagerTest {
             authorizedPrivateClient.create(LCMPS.ChannelCreateRequest.newBuilder()
                 .setExecutionId(UUID.randomUUID().toString())
                 .setChannelSpec(LCM.ChannelSpec.newBuilder()
-                    .setChannelName("channel1")
+                    .setChannelName("ch")
                     .build())
                 .build());
-            Assert.fail();
+            fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
         }
     }
 
@@ -213,13 +215,13 @@ public class ChannelManagerTest {
             authorizedPrivateClient.create(LCMPS.ChannelCreateRequest.newBuilder()
                     .setExecutionId(UUID.randomUUID().toString())
                     .setChannelSpec(LCM.ChannelSpec.newBuilder()
-                        .setChannelName("channel1")
+                        .setChannelName("ch")
                         .setScheme(LMD.DataScheme.newBuilder().setDataFormat("raw_type").build())
                         .build())
                     .build());
-            Assert.fail();
+            fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
         }
     }
 
@@ -229,13 +231,13 @@ public class ChannelManagerTest {
             authorizedPrivateClient.create(LCMPS.ChannelCreateRequest.newBuilder()
                     .setExecutionId(UUID.randomUUID().toString())
                     .setChannelSpec(LCM.ChannelSpec.newBuilder()
-                        .setChannelName("channel1")
+                        .setChannelName("ch")
                         .setScheme(LMD.DataScheme.newBuilder().setSchemeFormat("no_schema").build())
                         .build())
                     .build());
-            Assert.fail();
+            fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
         }
     }
 
@@ -246,7 +248,7 @@ public class ChannelManagerTest {
         final LCMPS.ChannelCreateResponse channelCreateResponse = authorizedPrivateClient.create(
             makeChannelCreateCommand(executionId, channelName));
         final String channelId = channelCreateResponse.getChannelId();
-        Assert.assertTrue(channelId.length() > 1);
+        assertTrue(channelId.length() > 1);
 
         final LCMPS.ChannelStatusResponse channelStatusResponse = authorizedPrivateClient.status(
             ChannelStatusRequest.newBuilder().setChannelId(channelCreateResponse.getChannelId()).build());
@@ -259,18 +261,18 @@ public class ChannelManagerTest {
                 .setReceivers(LCM.ChannelReceivers.getDefaultInstance())
                 .build())
             .build();
-        Assert.assertEquals(expectedChannelStatus, channelStatusResponse.getStatus());
+        assertEquals(expectedChannelStatus, channelStatusResponse.getStatus());
 
         LongRunning.Operation destroyOp = authorizedPrivateClient.destroy(
             makeChannelDestroyCommand(channelCreateResponse.getChannelId()));
         destroyOp = awaitOperationDone(authorizedOperationApiClient, destroyOp.getId(),
             Duration.of(10, ChronoUnit.SECONDS));
-        Assert.assertTrue(destroyOp.hasResponse());
+        assertTrue(destroyOp.hasResponse());
         try {
             authorizedPrivateClient.status(makeChannelStatusCommand(channelCreateResponse.getChannelId()));
-            Assert.fail();
+            fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.NOT_FOUND.getCode(), e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), Status.NOT_FOUND.getCode(), e.getStatus().getCode());
         }
     }
 
@@ -280,7 +282,7 @@ public class ChannelManagerTest {
         LongRunning.Operation destroyOp = authorizedPrivateClient.destroy(makeChannelDestroyCommand(channelId));
         destroyOp = awaitOperationDone(authorizedOperationApiClient, destroyOp.getId(),
             Duration.of(10, ChronoUnit.SECONDS));
-        Assert.assertTrue(destroyOp.hasResponse());
+        assertTrue(destroyOp.hasResponse());
     }
 
     @Test
@@ -293,24 +295,24 @@ public class ChannelManagerTest {
         final LCMPS.ChannelCreateResponse ch0Response = authorizedPrivateClient.create(
             makeChannelCreateCommand(UUID.randomUUID().toString(), "ch0"));
 
-        LongRunning.Operation destroyAllOp = authorizedPrivateClient.destroyAll(makeChannelDestroyAllCommand(executionId));
-        destroyAllOp = awaitOperationDone(authorizedOperationApiClient, destroyAllOp.getId(),
+        LongRunning.Operation destroyOp = authorizedPrivateClient.destroyAll(makeChannelDestroyAllCommand(executionId));
+        destroyOp = awaitOperationDone(authorizedOperationApiClient, destroyOp.getId(),
             Duration.of(10, ChronoUnit.SECONDS));
-        Assert.assertTrue(destroyAllOp.hasResponse());
+        assertTrue(destroyOp.hasResponse());
         try {
             authorizedPrivateClient.status(makeChannelStatusCommand(ch1Response.getChannelId()));
-            Assert.fail();
+            fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.NOT_FOUND.getCode(), e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), Status.NOT_FOUND.getCode(), e.getStatus().getCode());
         }
         try {
             authorizedPrivateClient.status(makeChannelStatusCommand(ch2Response.getChannelId()));
-            Assert.fail();
+            fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.NOT_FOUND.getCode(), e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), Status.NOT_FOUND.getCode(), e.getStatus().getCode());
         }
         final var status = authorizedPrivateClient.status(makeChannelStatusCommand(ch0Response.getChannelId()));
-        Assert.assertEquals(ch0Response.getChannelId(), status.getStatus().getChannel().getChannelId());
+        assertEquals(ch0Response.getChannelId(), status.getStatus().getChannel().getChannelId());
     }
 
     @Test
@@ -325,19 +327,73 @@ public class ChannelManagerTest {
         LongRunning.Operation bindOp = publicClient.bind(bindRequest);
         bindOp = awaitOperationDone(authorizedOperationApiClient, bindOp.getId(),
             Duration.of(10, ChronoUnit.SECONDS));
-        Assert.assertTrue(bindOp.hasResponse());
+        assertTrue(bindOp.hasResponse());
 
         var status = authorizedPrivateClient.status(makeChannelStatusCommand(chResponse.getChannelId()));
-        Assert.assertEquals(1, status.getStatus().getChannel().getReceivers().getWorkerSlotsCount());
+        assertEquals(1, status.getStatus().getChannel().getReceivers().getWorkerSlotsCount());
 
         final var unbindRequest = makeUnbindCommand(bindRequest.getSlotInstance().getSlotUri());
         LongRunning.Operation unbindOp = publicClient.unbind(unbindRequest);
         unbindOp = awaitOperationDone(authorizedOperationApiClient, unbindOp.getId(),
             Duration.of(10, ChronoUnit.SECONDS));
-        Assert.assertTrue(unbindOp.hasResponse());
+        assertTrue(unbindOp.hasResponse());
 
         status = authorizedPrivateClient.status(makeChannelStatusCommand(chResponse.getChannelId()));
-        Assert.assertEquals(0, status.getStatus().getChannel().getReceivers().getWorkerSlotsCount());
+        assertEquals(0, status.getStatus().getChannel().getReceivers().getWorkerSlotsCount());
+    }
+
+    @Test
+    public void testSecondWorker() {
+        final String executionId = UUID.randomUUID().toString();
+        final String channelName = "ch";
+        final LCMPS.ChannelCreateResponse chResponse = authorizedPrivateClient.create(
+            makeChannelCreateCommand(executionId, channelName));
+
+        final var bindOutputRequest = makeBindCommand(chResponse.getChannelId(), "worker_slot",
+            LMS.Slot.Direction.OUTPUT, LCMS.BindRequest.SlotOwner.WORKER);
+        LongRunning.Operation bindOutputOp = publicClient.bind(bindOutputRequest);
+        bindOutputOp = awaitOperationDone(authorizedOperationApiClient, bindOutputOp.getId(),
+            Duration.of(10, ChronoUnit.SECONDS));
+        assertTrue(bindOutputOp.hasResponse());
+
+        try {
+            publicClient.bind(makeBindCommand(chResponse.getChannelId(), "worker_slot_2_output",
+                LMS.Slot.Direction.OUTPUT, LCMS.BindRequest.SlotOwner.WORKER));
+            fail();
+        } catch (StatusRuntimeException e) {
+            assertEquals(e.getStatus().toString(), Status.FAILED_PRECONDITION.getCode(), e.getStatus().getCode());
+        }
+    }
+
+    @Test
+    public void testSecondPortal() {
+        final String executionId = UUID.randomUUID().toString();
+        final String channelName = "ch";
+        final LCMPS.ChannelCreateResponse chResponse = authorizedPrivateClient.create(
+            makeChannelCreateCommand(executionId, channelName));
+
+        final var bindOutputRequest = makeBindCommand(chResponse.getChannelId(), "portal_slot",
+            LMS.Slot.Direction.OUTPUT, LCMS.BindRequest.SlotOwner.PORTAL);
+        LongRunning.Operation bindOutputOp = publicClient.bind(bindOutputRequest);
+        bindOutputOp = awaitOperationDone(authorizedOperationApiClient, bindOutputOp.getId(),
+            Duration.of(10, ChronoUnit.SECONDS));
+        assertTrue(bindOutputOp.hasResponse());
+
+        try {
+            publicClient.bind(makeBindCommand(chResponse.getChannelId(), "portal_slot_2_input",
+                LMS.Slot.Direction.INPUT, LCMS.BindRequest.SlotOwner.PORTAL));
+            fail();
+        } catch (StatusRuntimeException e) {
+            assertEquals(e.getStatus().toString(), Status.FAILED_PRECONDITION.getCode(), e.getStatus().getCode());
+        }
+
+        try {
+            publicClient.bind(makeBindCommand(chResponse.getChannelId(), "portal_slot_2_output",
+                LMS.Slot.Direction.OUTPUT, LCMS.BindRequest.SlotOwner.PORTAL));
+            fail();
+        } catch (StatusRuntimeException e) {
+            assertEquals(e.getStatus().toString(), Status.FAILED_PRECONDITION.getCode(), e.getStatus().getCode());
+        }
     }
 
     private LCMPS.ChannelCreateRequest makeChannelCreateCommand(String executionId, String channelName) {
@@ -372,7 +428,9 @@ public class ChannelManagerTest {
             .build();
     }
 
-    private LCMS.BindRequest makeBindCommand(String channelId, String slotName, LMS.Slot.Direction slotDirection, LCMS.BindRequest.SlotOwner slotOwner) {
+    private LCMS.BindRequest makeBindCommand(String channelId, String slotName,
+                                             LMS.Slot.Direction slotDirection, LCMS.BindRequest.SlotOwner slotOwner)
+    {
         URI slotUri = URI.create("%s://%s:%d".formatted(LzyFs.scheme(),
             mockedSlotApiAddress.getHost(), mockedSlotApiAddress.getPort()
         )).resolve(Path.of("/", "tid", slotName).toString());

@@ -106,7 +106,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 }
             }
             if (endpoint.getSlotOwner() == Endpoint.SlotOwner.WORKER
-                && endpoint.getSlotDirection() == Slot.Direction.INPUT)
+                && endpoint.getSlotDirection() == Slot.Direction.OUTPUT)
             {
                 if (channel.getActiveSenders().workerEndpoint() != null) {
                     String errorMessage = "Worker endpoint already bound as input slot to channel";
