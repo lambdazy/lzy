@@ -6,7 +6,8 @@ import java.time.Duration;
 
 public interface SlotApiClient {
     
-    void connect(Endpoint sender, Endpoint receiver, Duration timeout);
+    String connectStart(Endpoint sender, Endpoint receiver);
+    void connectFinish(Endpoint sender, Endpoint receiver, Duration timeout, String operationId);
 
     void disconnect(Endpoint endpoint);
 

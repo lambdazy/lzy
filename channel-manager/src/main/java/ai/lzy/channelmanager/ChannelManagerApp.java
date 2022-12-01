@@ -61,6 +61,8 @@ public class ChannelManagerApp {
     public void start() throws IOException {
         channelManagerServer.start();
 
+        restoreActiveOperations();
+
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             LOG.info("Stopping ChannelManager service");
             stop();

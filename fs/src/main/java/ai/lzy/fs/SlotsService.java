@@ -147,7 +147,7 @@ public class SlotsService {
 
                 // TODO: use idempotency-token as operation-id (?)
 
-                var op = new Operation(
+                var op = Operation.create(
                     agentId,
                     "ConnectSlot: %s -> %s".formatted(fromSlot.shortDesc(), toSlot.shortDesc()),
                     Any.pack(LSA.ConnectSlotMetadata.getDefaultInstance())

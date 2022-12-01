@@ -1,7 +1,7 @@
 package ai.lzy.channelmanager.v2.control;
 
 import ai.lzy.channelmanager.lock.GrainedLock;
-import ai.lzy.channelmanager.v2.db.ChannelStorage;
+import ai.lzy.channelmanager.v2.db.ChannelDao;
 import ai.lzy.channelmanager.v2.exceptions.CancellingChannelGraphStateException;
 import ai.lzy.channelmanager.v2.exceptions.ChannelGraphStateException;
 import ai.lzy.channelmanager.v2.exceptions.IllegalChannelGraphStateException;
@@ -25,12 +25,12 @@ public class ChannelControllerImpl implements ChannelController {
 
     private static final Logger LOG = LogManager.getLogger(ChannelControllerImpl.class);
 
-    private final ChannelStorage channelStorage;
+    private final ChannelDao channelDao;
     private final GrainedLock lockManager;
     private final SlotApiClient slotApiClient;
 
-    public ChannelControllerImpl(ChannelStorage channelStorage, GrainedLock lockManager, SlotApiClient slotApiClient) {
-        this.channelStorage = channelStorage;
+    public ChannelControllerImpl(ChannelDao channelDao, GrainedLock lockManager, SlotApiClient slotApiClient) {
+        this.channelDao = channelDao;
         this.lockManager = lockManager;
         this.slotApiClient = slotApiClient;
     }
@@ -45,7 +45,7 @@ public class ChannelControllerImpl implements ChannelController {
                 endpointToConnect = findEndpointToConnect(endpoint);
                 if (endpointToConnect == null) {
                     try {
-                        withRetries(LOG, () -> channelStorage.markEndpointBound(endpoint.getUri().toString(), null));
+                        withRetries(LOG, () -> channelDao.markEndpointBound(endpoint.getUri().toString(), null));
                     } catch (Exception e) {
                         throw new RuntimeException("Failed to mark endpoint bound in storage");
                     }
@@ -62,7 +62,7 @@ public class ChannelControllerImpl implements ChannelController {
                           + " sender={}, receiver={}",
                     potentialConnection.sender().getUri(), potentialConnection.receiver().getUri());
                 try (final var guard = lockManager.withLock(channelId)) {
-                    withRetries(LOG, () -> channelStorage.removeEndpointConnection(
+                    withRetries(LOG, () -> channelDao.removeEndpointConnection(
                         channelId,
                         potentialConnection.sender().getUri().toString(),
                         potentialConnection.receiver().getUri().toString(),
@@ -115,7 +115,7 @@ public class ChannelControllerImpl implements ChannelController {
         sender.invalidate();
 
         try (final var guard = lockManager.withLock(channelId)) {
-            withRetries(LOG, () -> channelStorage.removeEndpointWithoutConnections(sender.getUri().toString(), null));
+            withRetries(LOG, () -> channelDao.removeEndpointWithoutConnections(sender.getUri().toString(), null));
         } catch (NotFoundException e) {
             LOG.info("[unbindSender] removing endpoint skipped, sender already removed, sender={}", sender.getUri());
         } catch (Exception e) {
@@ -133,7 +133,7 @@ public class ChannelControllerImpl implements ChannelController {
             if (connectionToBreak == null) {
                 try {
                     withRetries(LOG, () ->
-                        channelStorage.removeEndpointWithoutConnections(receiver.getUri().toString(), null));
+                        channelDao.removeEndpointWithoutConnections(receiver.getUri().toString(), null));
                 } catch (Exception e) {
                     throw new RuntimeException("Failed to remove endpoint in storage");
                 }
@@ -152,8 +152,9 @@ public class ChannelControllerImpl implements ChannelController {
             if (connectionRemoved) {
                 try {
                     withRetries(LOG, () ->
-                        channelStorage.removeEndpointWithoutConnections(receiver.getUri().toString(), null));
-                } catch (Exception e) {
+                        channelDao.removeEndpointWithoutConnections(receiver.getUri().toString(), null));
+                } /* TODO can retry scheduled execution in cases of sql exceptions */
+                catch (Exception e) {
                     throw new RuntimeException("Failed to remove endpoint in storage");
                 }
             }
@@ -166,17 +167,26 @@ public class ChannelControllerImpl implements ChannelController {
         final Channel channel;
         try (final var guard = lockManager.withLock(channelId)) {
             try {
-                channel = withRetries(LOG, () ->
-                    channelStorage.findChannel(channelId, Channel.LifeStatus.DESTROYING, null));
+                channel = withRetries(LOG, () -> channelDao.findChannel(channelId, null));
             } catch (Exception e) {
                 throw new RuntimeException("Failed to find destroying channel in storage", e);
             }
+
             if (channel == null) {
                 LOG.info("[destroy] skipped, channel {} not found", channelId);
                 return;
             }
+
+            if (channel.getLifeStatus() != Channel.LifeStatus.DESTROYING) {
+                try {
+                    withRetries(LOG, () -> channelDao.markChannelDestroying(channelId, null));
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to mark channel destroying in storage", e);
+                }
+            }
+
             try {
-                withRetries(LOG, () -> channelStorage.markAllEndpointsUnbinding(channelId, null));
+                withRetries(LOG, () -> channelDao.markAllEndpointsUnbinding(channelId, null));
             } catch (Exception e) {
                 throw new RuntimeException("Failed to mark channel endpoints unbinding in storage", e);
             }
@@ -191,7 +201,7 @@ public class ChannelControllerImpl implements ChannelController {
         }
 
         try (final var guard = lockManager.withLock(channelId)) {
-            withRetries(LOG, () -> channelStorage.removeChannel(channelId, null));
+            withRetries(LOG, () -> channelDao.removeChannel(channelId, null));
         } catch (NotFoundException e) {
             LOG.info("[destroy] removing channel skipped, channel {} already removed", channelId);
         } catch (Exception e) {
@@ -206,7 +216,7 @@ public class ChannelControllerImpl implements ChannelController {
         final String channelId = bindingEndpoint.getChannelId();
         final Channel channel;
         try {
-            channel = withRetries(LOG, () -> channelStorage.findChannel(channelId, Channel.LifeStatus.ALIVE, null));
+            channel = withRetries(LOG, () -> channelDao.findChannel(channelId, Channel.LifeStatus.ALIVE, null));
         } catch (Exception e) {
             throw new RuntimeException("Failed to find channel in storage", e);
         }
@@ -249,7 +259,7 @@ public class ChannelControllerImpl implements ChannelController {
         }
 
         try {
-            withRetries(LOG, () -> channelStorage.insertConnection(channelId, Connection.of(sender, receiver), null));
+            withRetries(LOG, () -> channelDao.insertConnection(channelId, Connection.of(sender, receiver), null));
         } catch (Exception e) {
             throw new RuntimeException("Failed to insert connection in storage", e);
         }
@@ -285,7 +295,7 @@ public class ChannelControllerImpl implements ChannelController {
 
         final Channel channel;
         try {
-            channel = withRetries(LOG, () -> channelStorage.findChannel(channelId, Channel.LifeStatus.ALIVE, null));
+            channel = withRetries(LOG, () -> channelDao.findChannel(channelId, Channel.LifeStatus.ALIVE, null));
         } catch (Exception e) {
             throw new RuntimeException("Failed to find channel in storage", e);
         }
@@ -314,7 +324,7 @@ public class ChannelControllerImpl implements ChannelController {
         }
 
         try {
-            withRetries(LOG, () -> channelStorage.markConnectionAlive(
+            withRetries(LOG, () -> channelDao.markConnectionAlive(
                 channelId, sender.getUri().toString(), receiver.getUri().toString(), null));
         } catch (Exception e) {
             throw new RuntimeException("Failed to save alive connection in storage", e);
@@ -333,7 +343,7 @@ public class ChannelControllerImpl implements ChannelController {
         final String channelId = unbindingSender.getChannelId();
         final Channel channel;
         try {
-            channel = withRetries(LOG, () -> channelStorage.findChannel(channelId, null));
+            channel = withRetries(LOG, () -> channelDao.findChannel(channelId, null));
         } catch (Exception e) {
             throw new RuntimeException("Failed to find channel in storage", e);
         }
@@ -367,7 +377,7 @@ public class ChannelControllerImpl implements ChannelController {
         }
 
         try {
-            withRetries(LOG, () -> channelStorage.markEndpointUnbinding(receiverToUnbind.getUri().toString(), null));
+            withRetries(LOG, () -> channelDao.markEndpointUnbinding(receiverToUnbind.getUri().toString(), null));
         } catch (Exception e) {
             throw new RuntimeException("Failed to mark endpoint unbinding in storage", e);
         }
@@ -385,7 +395,7 @@ public class ChannelControllerImpl implements ChannelController {
         final String channelId = unbindingReceiver.getChannelId();
         final Channel channel;
         try {
-            channel = withRetries(LOG, () -> channelStorage.findChannel(channelId, null));
+            channel = withRetries(LOG, () -> channelDao.findChannel(channelId, null));
         } catch (Exception e) {
             throw new RuntimeException("Failed to find channel in storage", e);
         }
@@ -419,7 +429,7 @@ public class ChannelControllerImpl implements ChannelController {
         }
 
         try {
-            withRetries(LOG, () -> channelStorage.markConnectionDisconnecting(channelId,
+            withRetries(LOG, () -> channelDao.markConnectionDisconnecting(channelId,
                 connectionToBreak.sender().getUri().toString(),
                 connectionToBreak.receiver().getUri().toString(),
                 null));
@@ -442,8 +452,9 @@ public class ChannelControllerImpl implements ChannelController {
         final String channelId = unbindingReceiver.getChannelId();
         final Channel channel;
         try {
-            channel = withRetries(LOG, () -> channelStorage.findChannel(channelId, null));
-        } catch (Exception e) {
+            channel = withRetries(LOG, () -> channelDao.findChannel(channelId, null));
+        } /**/
+        catch (Exception e) {
             throw new RuntimeException("Failed to find channel in storage", e);
         }
         if (channel == null) {
@@ -481,7 +492,7 @@ public class ChannelControllerImpl implements ChannelController {
         }
 
         try {
-            withRetries(LOG, () -> channelStorage.removeEndpointConnection(
+            withRetries(LOG, () -> channelDao.removeEndpointConnection(
                 channelId, connectedSender.getUri().toString(), unbindingReceiver.getUri().toString(), null));
         } catch (Exception e) {
             throw new RuntimeException("Failed to remove connection in storage");

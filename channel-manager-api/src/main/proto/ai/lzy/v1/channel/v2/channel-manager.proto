@@ -30,7 +30,7 @@ message BindRequest {
   SlotOwner slotOwner = 2;
 
   enum SlotOwner {
-    UNKNOWN = 0;
+    UNSPECIFIED = 0;
     WORKER = 1;
     PORTAL = 2;
   }

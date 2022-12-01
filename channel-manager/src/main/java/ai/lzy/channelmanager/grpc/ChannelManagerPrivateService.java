@@ -52,7 +52,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         try {
             final String executionId = request.getExecutionId();
             final LCM.ChannelSpec channelSpec = request.getChannelSpec();
-            if (executionId.isBlank() || !ProtoValidator.isValid(channelSpec)) {
+            if (executionId.isBlank() || !isValid(channelSpec)) {
                 String errorMessage = "Request shouldn't contain empty fields";
                 LOG.error("Create channel {} failed, invalid argument: {}",
                     request.getChannelSpec().getChannelName(), errorMessage);
@@ -300,6 +300,19 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
                     .build())
             .forEach(statusBuilder::addConnected);
         return statusBuilder.build();
+    }
+
+    private boolean isValid(ai.lzy.v1.channel.LCM.ChannelSpec channelSpec) {
+        try {
+            boolean isValid = true;
+            isValid = isValid && !channelSpec.getChannelName().isBlank();
+            isValid = isValid && channelSpec.getTypeCase().getNumber() != 0;
+            isValid = isValid && !channelSpec.getContentType().getDataFormat().isBlank();
+            isValid = isValid && !channelSpec.getContentType().getSchemeFormat().isBlank();
+            return isValid;
+        } catch (NullPointerException e) {
+            return false;
+        }
     }
 
 }

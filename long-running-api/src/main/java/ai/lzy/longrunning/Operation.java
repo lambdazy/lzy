@@ -53,9 +53,8 @@ public class Operation {
             meta != null ? Any.pack(meta) : null, now, false, null, null);
     }
 
-    public Operation(String owner, String description, @Nullable Any meta) {
-        this(UUID.randomUUID().toString(), owner, Instant.now(), description, null, meta, Instant.now(),
-            false, null, null);
+    public static Operation create(String createdBy, String description, @Nullable Any meta) {
+        return create(createdBy, description, null ,meta);
     }
 
     public Operation(String id, String createdBy, Instant createdAt, String description,

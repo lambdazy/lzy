@@ -6,6 +6,7 @@ import ai.lzy.channelmanager.v2.model.Connection;
 import ai.lzy.channelmanager.v2.model.Endpoint;
 import ai.lzy.channelmanager.v2.model.EndpointFactory;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.model.slot.SlotInstance;
 import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
@@ -15,13 +16,13 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 @Singleton
-public class InMemChannelStorage implements ChannelStorage {
+public class InMemChannelDao implements ChannelDao {
 
     private final ConcurrentHashMap<String, Channel> channels = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, String> channelsByEndpoints = new ConcurrentHashMap<>();
     private final EndpointFactory endpointFactory;
 
-    public InMemChannelStorage(EndpointFactory endpointFactory) {
+    public InMemChannelDao(EndpointFactory endpointFactory) {
         this.endpointFactory = endpointFactory;
     }
 
@@ -45,11 +46,10 @@ public class InMemChannelStorage implements ChannelStorage {
     }
 
     @Override
-    public void insertBindingEndpoint(Endpoint endpoint, @Nullable TransactionHandle transaction) throws SQLException {
-        if (endpoint.getStatus() != Endpoint.LifeStatus.BINDING) {
-            throw new IllegalArgumentException("Expected " + Endpoint.LifeStatus.BINDING + " endpoint, "
-                                               + "actual status " + endpoint.getStatus());
-        }
+    public void insertBindingEndpoint(SlotInstance slot, Endpoint.SlotOwner owner,
+                                      @Nullable TransactionHandle transaction) throws SQLException
+    {
+        Endpoint endpoint = endpointFactory.createEndpoint(slot, owner, Endpoint.LifeStatus.BINDING);
         channels.computeIfPresent(endpoint.getChannelId(), (id, ch) -> {
             final List<Endpoint> endpoints = ch.getEndpoints();
             endpoints.add(endpoint);

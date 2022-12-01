@@ -60,6 +60,13 @@ public class Endpoint {
         return lifeStatus;
     }
 
+    public boolean isActive() {
+        return switch (lifeStatus) {
+            case BINDING, BOUND -> true;
+            case UNBINDING -> false;
+        };
+    }
+
     public void invalidate() {
         invalidated = true;
         onInvalidate.run();

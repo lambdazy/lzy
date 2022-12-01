@@ -15,7 +15,7 @@ public class SlotConnectionManager {
 
     private static final Logger LOG = LogManager.getLogger(SlotConnectionManager.class);
 
-    private final Map<HostAndPort, SlotApiConnection> connectionMap;
+    private final Map<HostAndPort, SlotApiConnection> connectionMap; // TTL ???
     private final ChannelManagerConfig config;
 
     public SlotConnectionManager(ChannelManagerConfig config) {

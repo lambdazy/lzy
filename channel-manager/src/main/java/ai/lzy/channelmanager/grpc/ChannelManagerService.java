@@ -52,7 +52,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             attach.getSlotInstance().getSlot().getName(),
             attach.getSlotInstance().getChannelId());
 
-        if (!ProtoValidator.isValid(attach.getSlotInstance())) {
+        if (!ProtoValidator.validate(attach.getSlotInstance())) {
             String errorMessage = "Request shouldn't contain empty fields";
             LOG.error("Bind slot={} to channel={} failed, invalid argument: {}",
                 attach.getSlotInstance().getSlot().getName(),
@@ -125,7 +125,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             detach.getSlotInstance().getSlot(),
             detach.getSlotInstance().getChannelId());
 
-        if (!ProtoValidator.isValid(detach.getSlotInstance())) {
+        if (!ProtoValidator.validate(detach.getSlotInstance())) {
             String errorMessage = "Request shouldn't contain empty fields";
             LOG.error("Unbind slot={} to channel={} failed, invalid argument: {}",
                 detach.getSlotInstance().getSlot().getName(),
