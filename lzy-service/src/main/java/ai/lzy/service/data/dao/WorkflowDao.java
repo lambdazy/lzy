@@ -8,7 +8,6 @@ import ai.lzy.v1.common.LMS3;
 
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.util.List;
 import javax.annotation.Nullable;
 
 
@@ -23,13 +22,6 @@ public interface WorkflowDao {
                 @Nullable TransactionHandle transaction) throws AlreadyExistsException, SQLException;
 
     boolean doesActiveExecutionExists(String userId, String workflowName, String executionId) throws SQLException;
-
-    default void setErrorExecutionStatus(String executionId, String error) throws SQLException {
-        setErrorExecutionStatus(executionId, error, null);
-    }
-
-    void setErrorExecutionStatus(String executionId, String error,
-                                 @Nullable TransactionHandle transaction) throws SQLException;
 
     default void setDeadExecutionStatus(String executionId, Timestamp timestamp) throws SQLException {
         setDeadExecutionStatus(executionId, timestamp, null);
@@ -111,5 +103,5 @@ public interface WorkflowDao {
     @Nullable
     String getAllocatorSession(String executionId) throws SQLException;
 
-    List<String> listExpiredExecutions(int limit) throws SQLException;
+    String getExpiredExecution() throws SQLException;
 }

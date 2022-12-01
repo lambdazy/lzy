@@ -7,10 +7,9 @@ import java.sql.Timestamp;
 import javax.annotation.Nullable;
 
 public interface GcDao {
-    void insertNewGcSession(@Nullable TransactionHandle transaction, String id) throws SQLException;
+    void updateGC(String id, Timestamp now, Timestamp validUntil, @Nullable TransactionHandle transaction)
+        throws SQLException;
 
-    void updateStatus(@Nullable TransactionHandle transaction, String id) throws SQLException;
-
-    @Nullable
-    Timestamp getLastUpdated() throws SQLException;
+    void markGcValid(String id, Timestamp now, Timestamp validUntil, @Nullable TransactionHandle transaction)
+        throws SQLException;
 }

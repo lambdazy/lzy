@@ -6,7 +6,7 @@ create type portal_status as enum (
 );
 
 create type execution_status as enum (
-    'CREATED', 'DEAD', 'ERROR'
+    'RUN', 'COMPLETED', 'ERROR', 'CLEANED'
 );
 
 create table workflow_executions (
@@ -74,9 +74,8 @@ create table graphs (
 );
 
 create table garbage_collectors (
-    id integer generated always as identity,
     gc_instance_id text not null,
     updated_at timestamp,
-    status text not null,
-    primary key (id)
+    valid_until timestamp,
+    primary key (gc_instance_id)
 );

@@ -10,8 +10,6 @@ import org.apache.commons.collections4.SetUtils;
 import org.junit.*;
 
 import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -24,7 +22,6 @@ public class DaoTest {
 
     private WorkflowDao workflowDao;
     private ExecutionDao executionDao;
-    private GcDao gcDao;
 
     @Before
     public void setUp() {
@@ -33,7 +30,6 @@ public class DaoTest {
 
         workflowDao = lzyStorageCtx.getBean(WorkflowDaoImpl.class);
         executionDao = lzyStorageCtx.getBean(ExecutionDaoImpl.class);
-        gcDao = lzyStorageCtx.getBean(GcDaoImpl.class);
     }
 
     @Test
@@ -222,34 +218,6 @@ public class DaoTest {
         Assert.assertTrue(existingSlots.isEmpty());
         Assert.assertTrue(nonExistingSlots.isEmpty());
         Assert.assertTrue(existingChannels.isEmpty());
-    }
-
-    @Test
-    public void testLastUpdetedWithNoRecords() throws SQLException {
-        Timestamp lastUpdated = gcDao.getLastUpdated();
-
-        Assert.assertNull(lastUpdated);
-    }
-
-    @Test
-    public void testLastUpdetedWithOneRecords() throws SQLException {
-        gcDao.insertNewGcSession(null, "1");
-
-        Timestamp lastUpdated = gcDao.getLastUpdated();
-
-        Assert.assertNotNull(lastUpdated);
-    }
-
-    @Test
-    public void testUpdateGC() throws SQLException {
-        gcDao.insertNewGcSession(null, "1");
-        Timestamp beforeUpdate = Timestamp.from(Instant.now());
-        gcDao.updateStatus(null, "1");
-
-        Timestamp lastUpdated = gcDao.getLastUpdated();
-
-        Assert.assertNotNull(lastUpdated);
-        Assert.assertTrue(lastUpdated.after(beforeUpdate));
     }
 
     @After

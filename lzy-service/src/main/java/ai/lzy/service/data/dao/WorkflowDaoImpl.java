@@ -22,8 +22,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Locale;
 import javax.annotation.Nullable;
 
@@ -64,16 +62,6 @@ public class WorkflowDaoImpl implements WorkflowDao {
             storage_credentials, execution_status)
         VALUES (?, ?, cast(? as storage_type), ?, ?, cast(? as execution_status))""";
 
-    private static final String QUERY_UPDATE_EXECUTION_STATUS_AND_ERROR = """
-        UPDATE workflow_executions
-        SET execution_status = cast(? as execution_status), finished_with_error = ?
-        WHERE execution_id = ?""";
-
-    private static final String QUERY_UPDATE_EXECUTION_STATUS_AND_TIME = """
-        UPDATE workflow_executions
-        SET execution_status = cast(? as execution_status), finished_at = ?
-        WHERE execution_id = ?""";
-
     private static final String QUERY_UPDATE_PORTAL_STATUS = """
         UPDATE workflow_executions
         SET portal = cast(? as portal_status)
@@ -109,6 +97,11 @@ public class WorkflowDaoImpl implements WorkflowDao {
         SET finished_at = ?, finished_with_error = ?, execution_status = cast(? as execution_status)
         WHERE execution_id = ?""";
 
+    private static final String QUERY_UPDATE_CLEANED_EXECUTION = """
+        UPDATE workflow_executions
+        SET execution_status = cast(? as execution_status)
+        WHERE execution_id = ?""";
+
     public static final String QUERY_GET_PORTAL_ADDRESS = """
         SELECT portal_vm_address
         FROM workflow_executions
@@ -140,8 +133,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
     private static final String QUERY_LIST_EXPIRED_EXECUTIONS = """
         SELECT execution_id
         FROM workflow_executions
-        WHERE execution_status = 'ERROR' 
-        LIMIT ?""";
+        WHERE execution_status = 'ERROR'""";
 
     private final Storage storage;
     private final ObjectMapper objectMapper;
@@ -184,7 +176,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
                     statement.setString(3, storageType.toUpperCase(Locale.ROOT));
                     statement.setString(4, storageData.getBucket());
                     statement.setString(5, objectMapper.writeValueAsString(storageData));
-                    statement.setString(6, "CREATED");
+                    statement.setString(6, ExecutionStatus.RUN.name());
                     statement.executeUpdate();
                 } catch (JsonProcessingException e) {
                     throw new RuntimeException("Cannot dump values", e);
@@ -215,34 +207,6 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
             transaction.commit();
         }
-    }
-
-    @Override
-    public void setErrorExecutionStatus(String executionId, String error,
-                             @Nullable TransactionHandle transaction) throws SQLException
-    {
-        DbOperation.execute(transaction, storage, con -> {
-            try (var statement = con.prepareStatement(QUERY_UPDATE_EXECUTION_STATUS_AND_ERROR)) {
-                statement.setString(1, ExecutionStatus.ERROR.name());
-                statement.setString(2, error);
-                statement.setString(3, executionId);
-                statement.executeUpdate();
-            }
-        });
-    }
-
-    @Override
-    public void setDeadExecutionStatus(String executionId, Timestamp timestamp,
-                                        @Nullable TransactionHandle transaction) throws SQLException
-    {
-        DbOperation.execute(transaction, storage, con -> {
-            try (var statement = con.prepareStatement(QUERY_UPDATE_EXECUTION_STATUS_AND_TIME)) {
-                statement.setString(1, ExecutionStatus.DEAD.name());
-                statement.setTimestamp(2, timestamp);
-                statement.setString(3, executionId);
-                statement.executeUpdate();
-            }
-        });
     }
 
     @Override
@@ -355,10 +319,11 @@ public class WorkflowDaoImpl implements WorkflowDao {
                     throw new RuntimeException("Already finished");
                 }
 
+                var status = finishedWithError == null ? ExecutionStatus.COMPLETED : ExecutionStatus.ERROR;
                 try (var statement = con.prepareStatement(QUERY_UPDATE_EXECUTION_FINISH_DATA)) {
                     statement.setTimestamp(1, Timestamp.from(Instant.now()));
                     statement.setString(2, finishedWithError);
-                    statement.setString(3, ExecutionStatus.DEAD.name());
+                    statement.setString(3, status.name());
                     statement.setString(4, executionId);
 
                     statement.executeUpdate();
@@ -366,6 +331,19 @@ public class WorkflowDaoImpl implements WorkflowDao {
             } else {
                 LOG.warn("Attempt to finish unknown workflow '{}' ('{}')", executionId, workflowName);
                 throw new RuntimeException("Unknown workflow execution");
+            }
+        });
+    }
+
+    @Override
+    public void setDeadExecutionStatus(String executionId, Timestamp timestamp,
+                                       @Nullable TransactionHandle transaction) throws SQLException
+    {
+        DbOperation.execute(transaction, storage, con -> {
+            try (var statement = con.prepareStatement(QUERY_UPDATE_CLEANED_EXECUTION)) {
+                statement.setString(1, ExecutionStatus.CLEANED.name());
+                statement.setString(2, executionId);
+                statement.executeUpdate();
             }
         });
     }
@@ -526,19 +504,18 @@ public class WorkflowDaoImpl implements WorkflowDao {
     }
 
     @Override
-    public List<String> listExpiredExecutions(int limit) throws SQLException {
-        List<String> res = new ArrayList<>();
+    public String getExpiredExecution() throws SQLException {
+        String[] res = {null};
 
         DbOperation.execute(null, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_LIST_EXPIRED_EXECUTIONS)) {
-                statement.setInt(1, limit);
                 ResultSet rs = statement.executeQuery();
 
-                while (rs.next()) {
-                    res.add(rs.getString(1));
+                if (rs.next()) {
+                    res[0] = rs.getString(1);
                 }
             }
         });
-        return res;
+        return res[0];
     }
 }

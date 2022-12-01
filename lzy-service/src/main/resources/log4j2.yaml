@@ -1,10 +1,19 @@
 Configuration:
   status: warn
+  properties:
+    property:
+      name: filename
+      value: target/garbage_collector.log
 
   Appenders:
     Console:
       name: Console
       target: SYSTEM_OUT
+      PatternLayout:
+        Pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS}{UTC} [%t] %-5level %logger{36} %notEmpty{%X{subj} }%notEmpty{[rid=%X{rid}] }- %msg%n"
+    File:
+      name: File
+      fileName: ${filename}
       PatternLayout:
         Pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS}{UTC} [%t] %-5level %logger{36} %notEmpty{%X{subj} }%notEmpty{[rid=%X{rid}] }- %msg%n"
 
@@ -13,3 +22,10 @@ Configuration:
       level: debug
       AppenderRef:
         ref: Console
+
+    Logger:
+      - name: "ai.lzy.service.gc"
+        additivity: false
+        level: info
+        AppenderRef:
+          ref: File

@@ -95,10 +95,10 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
         workflowService = new WorkflowService(config, channelManagerClient, allocatorClient, allocOperationClient,
             subjectClient, abClient, storageServiceClient, storageOpClient, storage, workflowDao, vmPoolClient);
-        graphExecutionService = new GraphExecutionService(creds, workflowDao, graphDao, executionDao,
+        graphExecutionService = new GraphExecutionService(creds, storage, workflowDao, graphDao, executionDao,
             vmPoolClient, graphExecutorClient, channelManagerClient);
 
-        gc = new GarbageCollector(config, gcDao, workflowDao, storage, allocatorClient, channelManagerClient);
+        gc = new GarbageCollector(config, gcDao, workflowDao, allocatorClient, channelManagerClient);
     }
 
     @PreDestroy

@@ -27,7 +27,6 @@ import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmPoolServiceApi;
 import ai.lzy.v1.VmPoolServiceGrpc;
-import ai.lzy.v1.channel.LCMPS;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub;
 import ai.lzy.v1.common.LMS3;
@@ -160,9 +159,17 @@ public class WorkflowService {
 
         if (creationState.isInvalid()) {
             try {
-                withRetries(defaultRetryPolicy(), LOG, () ->
-                    workflowDao.setErrorExecutionStatus(creationState.getExecutionId(),
-                        creationState.getErrorStatus().getDescription()));
+                withRetries(defaultRetryPolicy(), LOG, () -> {
+                    try (var transaction = TransactionHandle.create(storage)) {
+                        workflowDao.updateFinishData(creationState.getWorkflowName(), creationState.getExecutionId(),
+                            Timestamp.from(Instant.now()), creationState.getErrorStatus().getDescription(),
+                            transaction);
+                        workflowDao.updateActiveExecution(creationState.getUserId(), creationState.getWorkflowName(),
+                            creationState.getExecutionId(), null, transaction);
+
+                        transaction.commit();
+                    }
+                });
             } catch (Exception e) {
                 LOG.error("[createWorkflow] Got Exception during saving error status: " + e.getMessage(), e);
             }
@@ -234,23 +241,6 @@ public class WorkflowService {
             new ConcurrentLinkedQueue<>()))
         {
             listener.complete();
-        }
-
-        // final String[] bucket = {null};
-        // bucket[0] = retrieve from db
-
-        destroyPortal(request.getExecutionId());
-
-        try {
-            var session = withRetries(LOG, () -> workflowDao.getAllocatorSession(request.getExecutionId()));
-
-            if (session != null) {
-                //noinspection ResultOfMethodCallIgnored
-                allocatorClient.deleteSession(
-                    VmAllocatorApi.DeleteSessionRequest.newBuilder().setSessionId(session).build());
-            }
-        } catch (Exception e) {
-            LOG.error("Cannot destroy allocator session: ", e);
         }
 
         try {
@@ -578,44 +568,6 @@ public class WorkflowService {
             LOG.error("Error while reading std slots: ", e);
             response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
         }
-    }
-
-    private void destroyPortal(String executionId) {
-        try {
-            var portalDesc = withRetries(LOG, () -> workflowDao.getPortalDescription(executionId));
-            if (portalDesc == null) {
-                return;  // No portal for execution
-            }
-
-            try {
-                //noinspection ResultOfMethodCallIgnored
-                channelManagerClient.destroy(LCMPS.ChannelDestroyRequest.newBuilder()
-                    .setChannelId(portalDesc.stderrChannelId())
-                    .build());
-            } catch (Exception e) {
-                LOG.error("Exception while destroying portal {} stderr channel {}",
-                    portalDesc.portalId(), portalDesc.stderrChannelId(), e);
-            }
-
-            try {
-                //noinspection ResultOfMethodCallIgnored
-                channelManagerClient.destroy(LCMPS.ChannelDestroyRequest.newBuilder()
-                    .setChannelId(portalDesc.stdoutChannelId())
-                    .build());
-            } catch (Exception e) {
-                LOG.error("Exception while destroying portal {} stdout channel {}",
-                    portalDesc.portalId(), portalDesc.stdoutChannelId(), e);
-            }
-
-            //noinspection ResultOfMethodCallIgnored
-            allocatorClient.free(VmAllocatorApi.FreeRequest.newBuilder()
-                .setVmId(portalDesc.vmId())
-                .build());
-
-        } catch (Exception e) {
-            LOG.error("Cannot destroy portal for execution <{}>. Please destroy it by yourself", executionId, e);
-        }
-
     }
 
     public void getAvailablePools(GetAvailablePoolsRequest req, StreamObserver<GetAvailablePoolsResponse> response) {
