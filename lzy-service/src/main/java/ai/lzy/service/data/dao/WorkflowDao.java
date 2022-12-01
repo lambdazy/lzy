@@ -23,11 +23,11 @@ public interface WorkflowDao {
 
     boolean doesActiveExecutionExists(String userId, String workflowName, String executionId) throws SQLException;
 
-    default void setDeadExecutionStatus(String executionId, Timestamp timestamp) throws SQLException {
-        setDeadExecutionStatus(executionId, timestamp, null);
+    default void setDeadExecutionStatus(String executionId) throws SQLException {
+        setDeadExecutionStatus(executionId, null);
     }
 
-    void setDeadExecutionStatus(String executionId, Timestamp timestamp,
+    void setDeadExecutionStatus(String executionId,
                            @Nullable TransactionHandle transaction) throws SQLException;
 
     default void updateStatus(String executionId, PortalStatus portalStatus) throws SQLException {

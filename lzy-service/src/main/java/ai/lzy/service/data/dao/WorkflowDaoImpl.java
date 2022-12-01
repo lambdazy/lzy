@@ -336,7 +336,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
     }
 
     @Override
-    public void setDeadExecutionStatus(String executionId, Timestamp timestamp,
+    public void setDeadExecutionStatus(String executionId,
                                        @Nullable TransactionHandle transaction) throws SQLException
     {
         DbOperation.execute(transaction, storage, con -> {

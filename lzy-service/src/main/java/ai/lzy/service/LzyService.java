@@ -1,6 +1,5 @@
 package ai.lzy.service;
 
-import ai.lzy.service.gc.GarbageCollector;
 import ai.lzy.service.graph.GraphExecutionService;
 import ai.lzy.service.workflow.WorkflowService;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
@@ -15,14 +14,10 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
     private final WorkflowService workflowService;
     private final GraphExecutionService graphExecutionService;
-    private final GarbageCollector gc;
 
-    public LzyService(WorkflowService workflowService,
-                      GraphExecutionService graphExecutionService,
-                      GarbageCollector gc) {
+    public LzyService(WorkflowService workflowService, GraphExecutionService graphExecutionService) {
         this.workflowService = workflowService;
         this.graphExecutionService = graphExecutionService;
-        this.gc = gc;
     }
 
     @Override

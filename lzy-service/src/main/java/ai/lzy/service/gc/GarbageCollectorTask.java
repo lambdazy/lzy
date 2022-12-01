@@ -10,8 +10,6 @@ import io.grpc.ManagedChannel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
 
@@ -82,8 +80,7 @@ public class GarbageCollectorTask extends TimerTask {
                 }
 
                 try {
-                    withRetries(defaultRetryPolicy(), LOG, () -> workflowDao.setDeadExecutionStatus(execution,
-                        Timestamp.from(Instant.now())));
+                    withRetries(defaultRetryPolicy(), LOG, () -> workflowDao.setDeadExecutionStatus(execution));
                     LOG.info("Execution {} is cleaned", execution);
                 } catch (Exception e) {
                     LOG.error("Cannot update execution status {}", execution, e);
