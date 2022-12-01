@@ -25,19 +25,19 @@ import javax.inject.Named;
 @Singleton
 @Requires(beans = MetricReporter.class, env = "test-mock")
 @Setter
-public class AllocatorMock extends AllocatorService {
+public class AllocatorSpy extends AllocatorService {
 
     private Runnable onCreateSession = () -> {};
     private Runnable onDeleteSession = () -> {};
     private Runnable onAllocate = () -> {};
     private Runnable onFree = () -> {};
 
-    public AllocatorMock(VmDao vmDao, @javax.inject.Named("AllocatorOperationDao") OperationDao operationsDao,
-                         SessionDao sessionsDao, DiskDao diskDao, VmAllocator allocator,
-                         TunnelAllocator tunnelAllocator, ServiceConfig config, AllocatorDataSource storage,
-                         @javax.inject.Named("AllocatorExecutor") ScheduledExecutorService executor,
-                         @javax.inject.Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
-                         @Named("AllocatorIamToken") RenewableJwt iamToken)
+    public AllocatorSpy(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
+                        SessionDao sessionsDao, DiskDao diskDao, VmAllocator allocator,
+                        TunnelAllocator tunnelAllocator, ServiceConfig config, AllocatorDataSource storage,
+                        @Named("AllocatorExecutor") ScheduledExecutorService executor,
+                        @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
+                        @Named("AllocatorIamToken") RenewableJwt iamToken)
     {
         super(vmDao, operationsDao, sessionsDao, diskDao, allocator,
             tunnelAllocator, config, storage, executor, iamChannel, iamToken);

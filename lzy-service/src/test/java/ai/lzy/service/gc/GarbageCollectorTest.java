@@ -1,10 +1,11 @@
 package ai.lzy.service.gc;
 
-import ai.lzy.allocator.test.AllocatorMock;
+import ai.lzy.allocator.test.AllocatorSpy;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.service.App;
 import ai.lzy.service.BaseTest;
 import ai.lzy.service.LzyService;
+import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;
 import com.google.common.net.HostAndPort;
@@ -58,11 +59,11 @@ public class GarbageCollectorTest extends BaseTest {
         final BlockingQueue<String> createSession = new LinkedBlockingQueue<>();
         final BlockingQueue<String> deleteSession = new LinkedBlockingQueue<>();
 
-        AllocatorMock allocatorMock = allocatorTestContext.getContext().getBean(AllocatorMock.class);
-        allocatorMock.setOnAllocate(() -> alloc.add(""));
-        allocatorMock.setOnFree(() -> free.add(""));
-        allocatorMock.setOnCreateSession(() -> createSession.add(""));
-        allocatorMock.setOnDeleteSession(() -> deleteSession.add(""));
+        AllocatorSpy allocatorSpy = allocatorTestContext.getContext().getBean(AllocatorSpy.class);
+        allocatorSpy.setOnAllocate(() -> alloc.add(""));
+        allocatorSpy.setOnFree(() -> free.add(""));
+        allocatorSpy.setOnCreateSession(() -> createSession.add(""));
+        allocatorSpy.setOnDeleteSession(() -> deleteSession.add(""));
 
 
         var workflowName = "workflow_" + numOfInstances;
@@ -77,7 +78,9 @@ public class GarbageCollectorTest extends BaseTest {
             .build();
 
         Assert.assertThrows(StatusRuntimeException.class, () ->
-            authorizedWorkflowClient.executeGraph(LWFS.ExecuteGraphRequest.newBuilder()
+            authorizedWorkflowClient
+                .withInterceptors(ClientHeaderInterceptor.idempotencyKey(() -> "idempotency-key"))
+                .executeGraph(LWFS.ExecuteGraphRequest.newBuilder()
                 .setExecutionId(executionId)
                 .setGraph(graph)
                 .build()));
@@ -115,14 +118,14 @@ public class GarbageCollectorTest extends BaseTest {
         final BlockingQueue<String> createSession = new LinkedBlockingQueue<>();
         final BlockingQueue<String> deleteSession = new LinkedBlockingQueue<>();
 
-        AllocatorMock allocatorMock = allocatorTestContext.getContext().getBean(AllocatorMock.class);
-        allocatorMock.setOnAllocate(() -> {
+        AllocatorSpy allocatorSpy = allocatorTestContext.getContext().getBean(AllocatorSpy.class);
+        allocatorSpy.setOnAllocate(() -> {
             alloc.add("");
             throw new RuntimeException();
         });
-        allocatorMock.setOnFree(() -> free.add(""));
-        allocatorMock.setOnCreateSession(() -> createSession.add(""));
-        allocatorMock.setOnDeleteSession(() -> deleteSession.add(""));
+        allocatorSpy.setOnFree(() -> free.add(""));
+        allocatorSpy.setOnCreateSession(() -> createSession.add(""));
+        allocatorSpy.setOnDeleteSession(() -> deleteSession.add(""));
 
 
         var workflowName = "workflow_" + numOfInstances;
@@ -163,14 +166,14 @@ public class GarbageCollectorTest extends BaseTest {
         final BlockingQueue<String> createSession = new LinkedBlockingQueue<>();
         final BlockingQueue<String> deleteSession = new LinkedBlockingQueue<>();
 
-        AllocatorMock allocatorMock = allocatorTestContext.getContext().getBean(AllocatorMock.class);
-        allocatorMock.setOnAllocate(() -> alloc.add(""));
-        allocatorMock.setOnFree(() -> free.add(""));
-        allocatorMock.setOnCreateSession(() -> {
+        AllocatorSpy allocatorSpy = allocatorTestContext.getContext().getBean(AllocatorSpy.class);
+        allocatorSpy.setOnAllocate(() -> alloc.add(""));
+        allocatorSpy.setOnFree(() -> free.add(""));
+        allocatorSpy.setOnCreateSession(() -> {
             createSession.add("");
             throw new RuntimeException();
         });
-        allocatorMock.setOnDeleteSession(() -> deleteSession.add(""));
+        allocatorSpy.setOnDeleteSession(() -> deleteSession.add(""));
 
         var workflowName = "workflow_" + numOfInstances;
 

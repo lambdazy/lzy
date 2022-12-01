@@ -23,12 +23,6 @@ public class GcDaoImpl implements GcDao {
         FROM garbage_collectors
         FOR UPDATE""";
 
-    private static final String QUERY_UPDATE_VALID_GC = """
-        SELECT updated_at, valid_until
-        FROM garbage_collectors
-        WHERE gc_instance_id = ?
-        FOR UPDATE""";
-
     private final Storage storage;
 
     public GcDaoImpl(LzyServiceStorage storage) {
@@ -50,7 +44,7 @@ public class GcDaoImpl implements GcDao {
                 }
 
                 rs.updateTimestamp("updated_at", now);
-                rs.updateTimestamp("valid_for", validUntil);
+                rs.updateTimestamp("valid_until", validUntil);
                 rs.updateString("gc_instance_id", id);
                 rs.updateRow();
             } else {
@@ -60,30 +54,6 @@ public class GcDaoImpl implements GcDao {
                     insertStatement.setTimestamp(3, validUntil);
                     insertStatement.executeUpdate();
                 }
-            }
-        });
-    }
-
-    @Override
-    public void markGcValid(String id, Timestamp now, Timestamp validUntil, @Nullable TransactionHandle transaction)
-        throws SQLException
-    {
-        DbOperation.execute(transaction, storage, con -> {
-            var statement = con.prepareStatement(QUERY_UPDATE_VALID_GC,
-                ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
-            statement.setString(1, id);
-
-            ResultSet rs = statement.executeQuery();
-            if (rs.next()) {
-                if (rs.getTimestamp("valid_until").after(now)) {
-                    throw new IllegalArgumentException("Already exists");
-                }
-
-                rs.updateTimestamp("updated_at", now);
-                rs.updateTimestamp("valid_for", validUntil);
-                rs.updateRow();
-            } else {
-                throw new IllegalStateException("Does not exist");
             }
         });
     }

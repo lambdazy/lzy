@@ -33,8 +33,6 @@ import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
-import ai.lzy.v1.portal.LzyPortalApi;
-import ai.lzy.v1.portal.LzyPortalGrpc;
 import ai.lzy.v1.storage.LSS;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import ai.lzy.v1.workflow.LWF;
@@ -62,7 +60,6 @@ import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -73,7 +70,6 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.service.LzyService.APP;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
-import static ai.lzy.util.grpc.GrpcUtils.*;
 
 @Singleton
 public class WorkflowService {
@@ -102,7 +98,6 @@ public class WorkflowService {
 
     private final VmPoolServiceGrpc.VmPoolServiceBlockingStub vmPoolClient;
 
-    private final RenewableJwt internalCreds;
     private final SubjectServiceGrpcClient subjectClient;
     private final AccessBindingServiceGrpcClient abClient;
 
@@ -122,7 +117,6 @@ public class WorkflowService {
         channelManagerAddress = config.getChannelManagerAddress();
         iamAddress = config.getIam().getAddress();
         whiteboardAddress = config.getWhiteboardAddress();
-        internalCreds = internalUserCredentials;
 
         this.allocatorClient = newBlockingClient(
             AllocatorGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
@@ -253,12 +247,6 @@ public class WorkflowService {
         if (StringUtils.isEmpty(request.getWorkflowName()) || StringUtils.isEmpty(request.getExecutionId())) {
             replyError.accept(Status.INVALID_ARGUMENT, "Empty 'workflowName' or 'executionId'");
             return;
-        }
-
-        for (var listener : listenersByExecution.getOrDefault(request.getExecutionId(),
-            new ConcurrentLinkedQueue<>()))
-        {
-            listener.complete();
         }
 
         try {

@@ -1,37 +1,43 @@
 package ai.lzy.service.gc;
 
 import ai.lzy.service.data.dao.WorkflowDao;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmAllocatorApi;
-import ai.lzy.v1.channel.LCMPS;
-import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
+import ai.lzy.v1.portal.LzyPortalApi;
+import ai.lzy.v1.portal.LzyPortalGrpc;
+import io.grpc.ManagedChannel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.TimerTask;
+import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
+import static ai.lzy.service.LzyService.APP;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 public class GarbageCollectorTask extends TimerTask {
     private static final Logger LOG = LogManager.getLogger(GarbageCollectorTask.class);
     private final String id;
     private final WorkflowDao workflowDao;
 
+    private final RenewableJwt internalCreds;
     private final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
-    private final LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerClient;
-
 
     public GarbageCollectorTask(String id, WorkflowDao workflowDao,
-                                AllocatorGrpc.AllocatorBlockingStub allocatorClient,
-                                LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerClient)
+                                RenewableJwt internalUserCredentials,
+                                ManagedChannel allocatorChannel)
     {
         this.id = id;
         this.workflowDao = workflowDao;
-        this.allocatorClient = allocatorClient;
-        this.channelManagerClient = channelManagerClient;
+        this.internalCreds = internalUserCredentials;
+        this.allocatorClient = newBlockingClient(
+            AllocatorGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
     }
 
     @Override
@@ -45,13 +51,16 @@ public class GarbageCollectorTask extends TimerTask {
                 try {
                     var portalDesc = withRetries(LOG, () -> workflowDao.getPortalDescription(execution));
                     if (portalDesc != null) {
-                        LOG.info("Cleaning portal {} for execution {}", portalDesc, execution);
-                        channelManagerClient.destroy(LCMPS.ChannelDestroyRequest.newBuilder()
-                            .setChannelId(portalDesc.stderrChannelId())
-                            .build());
-                        channelManagerClient.destroy(LCMPS.ChannelDestroyRequest.newBuilder()
-                            .setChannelId(portalDesc.stdoutChannelId())
-                            .build());
+                        var portalAddress = portalDesc.vmAddress();
+                        var portalChannel = newGrpcChannel(portalAddress, LzyPortalGrpc.SERVICE_NAME);
+
+                        var portalClient = newBlockingClient(LzyPortalGrpc.newBlockingStub(portalChannel),
+                            APP, () -> internalCreds.get().token());
+                        var ignored = portalClient.finish(LzyPortalApi.FinishRequest.newBuilder().build());
+
+                        portalChannel.shutdown();
+                        portalChannel.awaitTermination(10, TimeUnit.SECONDS);
+
                         allocatorClient.free(VmAllocatorApi.FreeRequest.newBuilder()
                             .setVmId(portalDesc.vmId())
                             .build());

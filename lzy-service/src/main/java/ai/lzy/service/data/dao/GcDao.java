@@ -9,7 +9,4 @@ import javax.annotation.Nullable;
 public interface GcDao {
     void updateGC(String id, Timestamp now, Timestamp validUntil, @Nullable TransactionHandle transaction)
         throws SQLException;
-
-    void markGcValid(String id, Timestamp now, Timestamp validUntil, @Nullable TransactionHandle transaction)
-        throws SQLException;
 }
