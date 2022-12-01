@@ -175,7 +175,7 @@ public class WorkflowService {
                     try (var transaction = TransactionHandle.create(storage)) {
                         workflowDao.updateFinishData(creationState.getWorkflowName(), creationState.getExecutionId(),
                             Timestamp.from(Instant.now()), creationState.getErrorStatus().getDescription(),
-                            transaction);
+                            creationState.getErrorStatus().getCode().value(), transaction);
                         workflowDao.updateActiveExecution(creationState.getUserId(), creationState.getWorkflowName(),
                             creationState.getExecutionId(), null, transaction);
 
@@ -253,7 +253,8 @@ public class WorkflowService {
             withRetries(defaultRetryPolicy(), LOG, () -> {
                 try (var transaction = TransactionHandle.create(storage)) {
                     workflowDao.updateFinishData(request.getWorkflowName(), request.getExecutionId(),
-                        Timestamp.from(Instant.now()), request.getReason(), transaction);
+                        Timestamp.from(Instant.now()), request.getReason(),
+                        Status.CANCELLED.getCode().value(), transaction);
                     workflowDao.updateActiveExecution(userId, request.getWorkflowName(), request.getExecutionId(),
                         null, transaction);
 

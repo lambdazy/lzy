@@ -13,6 +13,7 @@ import ai.lzy.v1.common.LMS3;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.net.HostAndPort;
+import io.grpc.Status;
 import io.micronaut.core.util.StringUtils;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -87,14 +88,18 @@ public class WorkflowDaoImpl implements WorkflowDao {
         SET portal = cast(? as portal_status), portal_vm_address = ?, portal_fs_address = ?
         WHERE execution_id = ?""";
 
+    public static final String QUERY_SELECT_EXECUTION_ERROR = """
+        SELECT finished_with_error, finished_error_code
+        FROM workflow_executions
+        WHERE execution_id = ?""";
     public static final String QUERY_GET_EXECUTION_FINISH_DATA = """
-        SELECT execution_id, finished_at, finished_with_error
+        SELECT execution_id, finished_at, finished_with_error, finished_error_code
         FROM workflow_executions
         WHERE execution_id = ?""";
 
     public static final String QUERY_UPDATE_EXECUTION_FINISH_DATA = """
         UPDATE workflow_executions
-        SET finished_at = ?, finished_with_error = ?, execution_status = cast(? as execution_status)
+        SET finished_at = ?, finished_with_error = ?, finished_error_code = ?, execution_status = cast(? as execution_status)
         WHERE execution_id = ?""";
 
     private static final String QUERY_UPDATE_CLEANED_EXECUTION = """
@@ -300,9 +305,34 @@ public class WorkflowDaoImpl implements WorkflowDao {
         });
     }
 
+    @Nullable
+    @Override
+    public Status getExecutionErrorStatus(String executionId, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
+        Status[] res = {null};
+
+        DbOperation.execute(null, storage, con -> {
+            try (var statement = con.prepareStatement(QUERY_SELECT_EXECUTION_ERROR)) {
+                statement.setString(1, executionId);
+                ResultSet rs = statement.executeQuery();
+
+                if (rs.next()) {
+                    var message = rs.getString(1);
+                    Integer code = rs.getObject(2, Integer.class);
+
+                    res[0] = message != null && code != null ?
+                        Status.fromCodeValue(code).withDescription(message) : null;
+                }
+            }
+        });
+        return res[0];
+    }
+
     @Override
     public void updateFinishData(String workflowName, String executionId, Timestamp finishedAt,
-                                 @Nullable String finishedWithError, @Nullable TransactionHandle transaction)
+                                 @Nullable String finishedWithError, @Nullable Integer finishedErrorCode,
+                                 @Nullable TransactionHandle transaction)
         throws SQLException
     {
         DbOperation.execute(transaction, storage, con -> {
@@ -321,10 +351,11 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
                 var status = finishedWithError == null ? ExecutionStatus.COMPLETED : ExecutionStatus.ERROR;
                 try (var statement = con.prepareStatement(QUERY_UPDATE_EXECUTION_FINISH_DATA)) {
-                    statement.setTimestamp(1, Timestamp.from(Instant.now()));
+                    statement.setTimestamp(1, finishedAt);
                     statement.setString(2, finishedWithError);
-                    statement.setString(3, status.name());
-                    statement.setString(4, executionId);
+                    statement.setObject(3, finishedErrorCode, java.sql.Types.INTEGER);
+                    statement.setString(4, status.name());
+                    statement.setString(5, executionId);
 
                     statement.executeUpdate();
                 }

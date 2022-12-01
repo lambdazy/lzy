@@ -18,6 +18,7 @@ create table workflow_executions (
     created_at timestamp not null,
     finished_at timestamp,
     finished_with_error text,  -- error message or null
+    finished_error_code integer, -- error code or null
 
     storage storage_type not null,
     storage_bucket text not null,

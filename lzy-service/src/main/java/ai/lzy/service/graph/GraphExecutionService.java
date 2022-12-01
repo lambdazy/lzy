@@ -120,9 +120,21 @@ public class GraphExecutionService {
             responseObserver.onError(status.asRuntimeException());
         };
 
+        try {
+            Status error = withRetries(LOG, () -> workflowDao.getExecutionErrorStatus(executionId, null));
+
+            if (error != null) {
+                LOG.error("[executeGraph], Execution {} already failed with error {}.", executionId, error);
+                replyError.accept(error);
+                return;
+            }
+        } catch (Exception e) {
+            LOG.error("[executeGraph], Can't check errors for execution {}.", executionId);
+        }
+
         if (graphExecutionState.isInvalid()) {
             updateExecutionStatus(graphExecutionState.getWorkflowName(), graphExecutionState.getUserId(),
-                executionId, graphExecutionState.getErrorStatus().getDescription());
+                executionId, graphExecutionState.getErrorStatus());
             replyError.accept(graphExecutionState.getErrorStatus());
             return;
         }
@@ -150,10 +162,11 @@ public class GraphExecutionService {
 
             LOG.error("Cannot create execute graph operation for: { userId: {}, workflowName: {}, executionId: {} }" +
                 ", error: {}", userId, workflowName, executionId, ex.getMessage(), ex);
+            var status = Status.INTERNAL.withDescription(ex.getMessage());
             updateExecutionStatus(graphExecutionState.getWorkflowName(), graphExecutionState.getUserId(),
-                executionId, ex.getMessage());
+                executionId, status);
 
-            responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
+            responseObserver.onError(status.asException());
             return;
         }
 
@@ -170,7 +183,7 @@ public class GraphExecutionService {
         if (graphExecutionState.isInvalid()) {
             operationDao.failOperation(op.id(), toProto(graphExecutionState.getErrorStatus()), LOG);
             updateExecutionStatus(graphExecutionState.getWorkflowName(), graphExecutionState.getUserId(),
-                executionId, graphExecutionState.getErrorStatus().getDescription());
+                executionId, graphExecutionState.getErrorStatus());
             replyError.accept(graphExecutionState.getErrorStatus());
             return;
         }
@@ -186,7 +199,7 @@ public class GraphExecutionService {
             var status = Status.INTERNAL.withDescription("Cannot build execution graph");
             operationDao.failOperation(op.id(), toProto(status), LOG);
             updateExecutionStatus(graphExecutionState.getWorkflowName(), graphExecutionState.getUserId(),
-                executionId, status.getDescription());
+                executionId, status);
             replyError.accept(status);
             return;
         }
@@ -199,7 +212,7 @@ public class GraphExecutionService {
         if (graphExecutionState.isInvalid()) {
             operationDao.failOperation(op.id(), toProto(graphExecutionState.getErrorStatus()), LOG);
             updateExecutionStatus(graphExecutionState.getWorkflowName(), graphExecutionState.getUserId(),
-                executionId, graphExecutionState.getErrorStatus().getDescription());
+                executionId, graphExecutionState.getErrorStatus());
             replyError.accept(graphExecutionState.getErrorStatus());
             return;
         }
@@ -220,7 +233,7 @@ public class GraphExecutionService {
             var causeStatus = e.getStatus();
             operationDao.failOperation(op.id(), toProto(causeStatus), LOG);
             updateExecutionStatus(graphExecutionState.getWorkflowName(), graphExecutionState.getUserId(),
-                executionId, causeStatus.getDescription());
+                executionId, causeStatus);
             replyError.accept(causeStatus.withDescription("Cannot execute graph: " + causeStatus.getDescription()));
             return;
         }
@@ -235,7 +248,7 @@ public class GraphExecutionService {
             var status = Status.INTERNAL.withDescription("Error while graph execution");
             operationDao.failOperation(op.id(), toProto(status), LOG);
             updateExecutionStatus(graphExecutionState.getWorkflowName(), graphExecutionState.getUserId(),
-                executionId, status.getDescription());
+                executionId, status);
             replyError.accept(status);
             return;
         }
@@ -262,12 +275,12 @@ public class GraphExecutionService {
         responseObserver.onCompleted();
     }
 
-    private void updateExecutionStatus(String workflowName, String userId, String executionId, String errorMessage) {
+    private void updateExecutionStatus(String workflowName, String userId, String executionId, Status status) {
         try {
             withRetries(defaultRetryPolicy(), LOG, () -> {
                 try (var transaction = TransactionHandle.create(storage)) {
                     workflowDao.updateFinishData(workflowName, executionId,
-                        Timestamp.from(Instant.now()), errorMessage, transaction);
+                        Timestamp.from(Instant.now()), status.getDescription(), status.getCode().value(), transaction);
                     workflowDao.updateActiveExecution(userId, workflowName, executionId, null, transaction);
 
                     transaction.commit();
