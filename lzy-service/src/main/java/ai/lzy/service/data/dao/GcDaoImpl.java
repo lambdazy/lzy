@@ -30,9 +30,11 @@ public class GcDaoImpl implements GcDao {
     }
 
     @Override
-    public void updateGC(String id, Timestamp now, Timestamp validUntil, @Nullable TransactionHandle transaction)
+    public boolean updateGC(String id, Timestamp now, Timestamp validUntil, @Nullable TransactionHandle transaction)
         throws SQLException
     {
+        boolean[] result = {true};
+
         DbOperation.execute(transaction, storage, con -> {
             var statement = con.prepareStatement(QUERY_UPDATE_LEADER_GC,
                 ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
@@ -40,7 +42,8 @@ public class GcDaoImpl implements GcDao {
             ResultSet rs = statement.executeQuery();
             if (rs.next()) {
                 if (rs.getTimestamp("valid_until").after(now)) {
-                    throw new IllegalArgumentException("Already exists");
+                    result[0] = false;
+                    return;
                 }
 
                 rs.updateTimestamp("updated_at", now);
@@ -56,5 +59,7 @@ public class GcDaoImpl implements GcDao {
                 }
             }
         });
+
+        return result[0];
     }
 }

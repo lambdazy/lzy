@@ -2,7 +2,7 @@ Configuration:
   status: warn
   properties:
     property:
-      name: filename
+      name: gc_filename
       value: target/garbage_collector.log
 
   Appenders:
@@ -13,9 +13,9 @@ Configuration:
         Pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS}{UTC} [%t] %-5level %logger{36} %notEmpty{%X{subj} }%notEmpty{[rid=%X{rid}] }- %msg%n"
     File:
       name: File
-      fileName: ${filename}
+      fileName: ${gc_filename}
       PatternLayout:
-        Pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS}{UTC} [%t] %-5level %logger{36} %notEmpty{%X{subj} }%notEmpty{[rid=%X{rid}] }- %msg%n"
+        Pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS}{UTC} [%t] %-5level %logger{36} }- %msg%n"
 
   Loggers:
     Root:

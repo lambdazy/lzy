@@ -7,6 +7,6 @@ import java.sql.Timestamp;
 import javax.annotation.Nullable;
 
 public interface GcDao {
-    void updateGC(String id, Timestamp now, Timestamp validUntil, @Nullable TransactionHandle transaction)
+    boolean updateGC(String id, Timestamp now, Timestamp validUntil, @Nullable TransactionHandle transaction)
         throws SQLException;
 }

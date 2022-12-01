@@ -1,6 +1,6 @@
 package ai.lzy.service.gc;
 
-import ai.lzy.allocator.test.AllocatorSpy;
+import ai.lzy.allocator.test.AllocatorProxy;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.service.App;
 import ai.lzy.service.BaseTest;
@@ -59,11 +59,11 @@ public class GarbageCollectorTest extends BaseTest {
         final BlockingQueue<String> createSession = new LinkedBlockingQueue<>();
         final BlockingQueue<String> deleteSession = new LinkedBlockingQueue<>();
 
-        AllocatorSpy allocatorSpy = allocatorTestContext.getContext().getBean(AllocatorSpy.class);
-        allocatorSpy.setOnAllocate(() -> alloc.add(""));
-        allocatorSpy.setOnFree(() -> free.add(""));
-        allocatorSpy.setOnCreateSession(() -> createSession.add(""));
-        allocatorSpy.setOnDeleteSession(() -> deleteSession.add(""));
+        AllocatorProxy allocatorProxy = allocatorTestContext.getContext().getBean(AllocatorProxy.class);
+        allocatorProxy.setOnAllocate(() -> alloc.add(""));
+        allocatorProxy.setOnFree(() -> free.add(""));
+        allocatorProxy.setOnCreateSession(() -> createSession.add(""));
+        allocatorProxy.setOnDeleteSession(() -> deleteSession.add(""));
 
 
         var workflowName = "workflow_" + numOfInstances;
@@ -118,14 +118,14 @@ public class GarbageCollectorTest extends BaseTest {
         final BlockingQueue<String> createSession = new LinkedBlockingQueue<>();
         final BlockingQueue<String> deleteSession = new LinkedBlockingQueue<>();
 
-        AllocatorSpy allocatorSpy = allocatorTestContext.getContext().getBean(AllocatorSpy.class);
-        allocatorSpy.setOnAllocate(() -> {
+        AllocatorProxy allocatorProxy = allocatorTestContext.getContext().getBean(AllocatorProxy.class);
+        allocatorProxy.setOnAllocate(() -> {
             alloc.add("");
             throw new RuntimeException();
         });
-        allocatorSpy.setOnFree(() -> free.add(""));
-        allocatorSpy.setOnCreateSession(() -> createSession.add(""));
-        allocatorSpy.setOnDeleteSession(() -> deleteSession.add(""));
+        allocatorProxy.setOnFree(() -> free.add(""));
+        allocatorProxy.setOnCreateSession(() -> createSession.add(""));
+        allocatorProxy.setOnDeleteSession(() -> deleteSession.add(""));
 
 
         var workflowName = "workflow_" + numOfInstances;
@@ -166,14 +166,14 @@ public class GarbageCollectorTest extends BaseTest {
         final BlockingQueue<String> createSession = new LinkedBlockingQueue<>();
         final BlockingQueue<String> deleteSession = new LinkedBlockingQueue<>();
 
-        AllocatorSpy allocatorSpy = allocatorTestContext.getContext().getBean(AllocatorSpy.class);
-        allocatorSpy.setOnAllocate(() -> alloc.add(""));
-        allocatorSpy.setOnFree(() -> free.add(""));
-        allocatorSpy.setOnCreateSession(() -> {
+        AllocatorProxy allocatorProxy = allocatorTestContext.getContext().getBean(AllocatorProxy.class);
+        allocatorProxy.setOnAllocate(() -> alloc.add(""));
+        allocatorProxy.setOnFree(() -> free.add(""));
+        allocatorProxy.setOnCreateSession(() -> {
             createSession.add("");
             throw new RuntimeException();
         });
-        allocatorSpy.setOnDeleteSession(() -> deleteSession.add(""));
+        allocatorProxy.setOnDeleteSession(() -> deleteSession.add(""));
 
         var workflowName = "workflow_" + numOfInstances;
 

@@ -25,19 +25,19 @@ import javax.inject.Named;
 @Singleton
 @Requires(beans = MetricReporter.class, env = "test-mock")
 @Setter
-public class AllocatorSpy extends AllocatorService {
+public class AllocatorProxy extends AllocatorService {
 
-    private Runnable onCreateSession = () -> {};
-    private Runnable onDeleteSession = () -> {};
-    private Runnable onAllocate = () -> {};
-    private Runnable onFree = () -> {};
+    private volatile Runnable onCreateSession = () -> {};
+    private volatile Runnable onDeleteSession = () -> {};
+    private volatile Runnable onAllocate = () -> {};
+    private volatile Runnable onFree = () -> {};
 
-    public AllocatorSpy(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
-                        SessionDao sessionsDao, DiskDao diskDao, VmAllocator allocator,
-                        TunnelAllocator tunnelAllocator, ServiceConfig config, AllocatorDataSource storage,
-                        @Named("AllocatorExecutor") ScheduledExecutorService executor,
-                        @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
-                        @Named("AllocatorIamToken") RenewableJwt iamToken)
+    public AllocatorProxy(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
+                          SessionDao sessionsDao, DiskDao diskDao, VmAllocator allocator,
+                          TunnelAllocator tunnelAllocator, ServiceConfig config, AllocatorDataSource storage,
+                          @Named("AllocatorExecutor") ScheduledExecutorService executor,
+                          @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
+                          @Named("AllocatorIamToken") RenewableJwt iamToken)
     {
         super(vmDao, operationsDao, sessionsDao, diskDao, allocator,
             tunnelAllocator, config, storage, executor, iamChannel, iamToken);

@@ -54,24 +54,30 @@ public class GarbageCollector extends TimerTask {
 
     @Override
     public void run() {
+        Timestamp now = Timestamp.from(Instant.now());
+        Timestamp validUntil = Timestamp.from(now.toInstant()
+            .plusMillis(config.getGcLeaderPeriod().toMillis() / 2));
+
         try {
-            Timestamp now = Timestamp.from(Instant.now());
-            Timestamp validUntil = Timestamp.from(now.toInstant()
-                .plusMillis(config.getGcLeaderPeriod().toMillis() / 2));
-            gcDao.updateGC(id, now, validUntil, null);
-
-            LOG.debug("GC {} became leader", id);
-
-            long taskPeriod = config.getGcPeriod().toMillis();
-            taskTimer = new Timer("gc-workflow-task-timer", true);
-            taskTimer.scheduleAtFixedRate(new GarbageCollectorTask(id, workflowDao, internalCreds,
-                allocatorChannel), taskPeriod, taskPeriod);
-            long markPeriod = config.getGcLeaderPeriod().toMillis() / 2;
-            taskTimer.scheduleAtFixedRate(new MarkGcValid(config.getGcLeaderPeriod()), markPeriod, markPeriod);
+            if (!gcDao.updateGC(id, now, validUntil, null)) {
+                LOG.debug("GC {} can't become leader", id);
+                clearTasks();
+                return;
+            }
         } catch (Exception e) {
             LOG.debug("GC {} can't become leader", id);
             clearTasks();
+            return;
         }
+
+        LOG.debug("GC {} became leader", id);
+
+        long taskPeriod = config.getGcPeriod().toMillis();
+        taskTimer = new Timer("gc-workflow-task-timer", true);
+        taskTimer.scheduleAtFixedRate(new GarbageCollectorTask(id, workflowDao, internalCreds,
+            allocatorChannel), taskPeriod, taskPeriod);
+        long markPeriod = config.getGcLeaderPeriod().toMillis() / 2;
+        taskTimer.scheduleAtFixedRate(new MarkGcValid(config.getGcLeaderPeriod()), markPeriod, markPeriod);
     }
 
     @PreDestroy
@@ -97,13 +103,13 @@ public class GarbageCollector extends TimerTask {
 
         @Override
         public void run() {
-            try {
-                Timestamp now = Timestamp.from(Instant.now());
-                Timestamp validUntil = Timestamp.from(now.toInstant().plusMillis(validPeriod.toMillis()));
+            Timestamp now = Timestamp.from(Instant.now());
+            Timestamp validUntil = Timestamp.from(now.toInstant().plusMillis(validPeriod.toMillis()));
 
-                gcDao.updateGC(id, now, validUntil, null);
-            } catch (IllegalArgumentException e) {
-                LOG.debug("GC {} already valid", id);
+            try {
+                if (!gcDao.updateGC(id, now, validUntil, null)) {
+                    LOG.debug("GC {} already valid", id);
+                }
             } catch (Exception e) {
                 LOG.info("GC {} can not update leadership", id, e);
                 clearTasks();

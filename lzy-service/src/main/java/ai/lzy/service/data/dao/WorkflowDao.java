@@ -28,7 +28,7 @@ public interface WorkflowDao {
     }
 
     void setDeadExecutionStatus(String executionId,
-                           @Nullable TransactionHandle transaction) throws SQLException;
+                                @Nullable TransactionHandle transaction) throws SQLException;
 
     default void updateStatus(String executionId, PortalStatus portalStatus) throws SQLException {
         updateStatus(executionId, portalStatus, null);
