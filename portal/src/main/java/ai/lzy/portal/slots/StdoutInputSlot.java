@@ -23,7 +23,8 @@ public class StdoutInputSlot extends LzyInputSlotBase {
     }
 
     @Override
-    public void connect(URI slotUri, Stream<ByteString> dataProvider) {
+    public synchronized void connect(URI slotUri, Stream<ByteString> dataProvider) {
+        state(LMS.SlotStatus.State.PREPARING);
         super.connect(slotUri, dataProvider);
         LOG.info("Attempt to connect to " + slotUri + " slot " + this);
 
@@ -43,6 +44,11 @@ public class StdoutInputSlot extends LzyInputSlotBase {
     public synchronized void destroy() {
         super.destroy();
         stdoutSlot.detach(name());
+    }
+
+    @Override
+    protected void onFinish() {
+        close();
     }
 
     @Override

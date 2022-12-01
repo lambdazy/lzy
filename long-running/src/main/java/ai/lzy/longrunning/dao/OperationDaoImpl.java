@@ -58,7 +58,6 @@ public class OperationDaoImpl implements OperationDao {
         SET (error, done, modified_at) = (?, ?, ?)
         WHERE id = ?""";
 
-
     private final Storage storage;
 
     public OperationDaoImpl(Storage storage) {

@@ -250,8 +250,8 @@ public class PortalSlotsService {
             }
 
             LOG.error("Only snapshot or stdout/stderr are supported now, got {}", slotInstance);
-            response.onError(Status.INVALID_ARGUMENT
-                .withDescription("Only snapshot or stdout/stderr are supported now").asException());
+            response.onError(Status.NOT_FOUND
+                .withDescription("Cannot find slot " + slotName).asException());
         }
 
         @Override
@@ -366,8 +366,8 @@ public class PortalSlotsService {
             }
 
             LOG.error("Only snapshot or stdout/stderr are supported now, got {}", slotInstance);
-            response.onError(Status.INVALID_ARGUMENT
-                .withDescription("Only snapshot or stdout/stderr are supported now").asException());
+            response.onError(Status.NOT_FOUND
+                .withDescription("Cannot find slot " + slotName).asException());
         }
 
         @Override

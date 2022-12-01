@@ -38,7 +38,7 @@ public abstract class AuthException extends RuntimeException {
             case NOT_FOUND -> new AuthNotFoundException(e.getMessage());
             case INTERNAL -> new AuthInternalException(e.getMessage());
             case UNAUTHENTICATED -> new AuthUnauthenticatedException(e.getMessage());
-            case UNAVAILABLE -> new AuthUnavailableException(e.getMessage());
+            case UNAVAILABLE, CANCELLED -> new AuthUnavailableException(e.getMessage());
             default -> throw new IllegalStateException("Unexpected value: " + e.getStatus());
         };
     }

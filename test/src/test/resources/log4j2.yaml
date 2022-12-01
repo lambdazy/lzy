@@ -20,11 +20,14 @@ Configuration:
       - name: "ai.lzy.portal"
         level: info
 
+      - name: "ai.lzy.service"
+        level: info
+
       - name: "ai.lzy.allocator"
         level: info
 
       - name: "ai.lzy.graph"
-        level: error
+        level: info
 
       - name: "ai.lzy.servant"
         level: info

@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
@@ -77,6 +78,7 @@ public class Portal {
     private final String portalId;
 
     private CountDownLatch started;
+    private final AtomicBoolean finished = new AtomicBoolean(false);
 
     public Portal(PortalConfig config, AllocatorAgent agent, @Nullable String testOnlyToken)
         throws IOException, NoSuchAlgorithmException, InvalidKeySpecException
@@ -230,5 +232,39 @@ public class Portal {
 
     SnapshotProvider getSnapshots() {
         return snapshots;
+    }
+
+    public void finish() {
+        LOG.info("Finishing portal with id <{}>", portalId);
+        if (!finished.compareAndSet(false, true)) {
+            throw new IllegalStateException("Cannot finish already finished portal");
+        }
+
+        for (var slot: getSnapshots().getOutputSlots()) {
+            try {
+                slot.close();
+            } catch (Exception e) {
+                LOG.error("Cannot close slot <{}>:", slot.name(), e);
+            }
+        }
+
+        for (var slot: getSnapshots().getInputSlots()) {
+            try {
+                slot.close();
+            } catch (Exception e) {
+                LOG.error("Cannot close slot <{}>:", slot.name(), e);
+            }
+        }
+
+        try {
+            getStdoutSlot().finish();
+        } catch (Exception e) {
+            LOG.error("Cannot finish stdout slot in portal with id <{}>: ", portalId, e);
+        }
+        try {
+            getStderrSlot().finish();
+        } catch (Exception e) {
+            LOG.error("Cannot finish stderr slot in portal with id <{}>: ", portalId, e);
+        }
     }
 }

@@ -14,6 +14,7 @@ service LzyPortal {
   rpc Stop (google.protobuf.Empty) returns (google.protobuf.Empty);
   rpc Status (PortalStatusRequest) returns (PortalStatusResponse);
   rpc OpenSlots (OpenSlotsRequest) returns (OpenSlotsResponse);
+  rpc Finish (FinishRequest) returns (FinishResponse);
 }
 
 message PortalSlotStatus {
@@ -47,3 +48,9 @@ message OpenSlotsResponse {
   bool success = 1;
   string description = 2;
 }
+
+
+// ================ Finish ==================
+
+message FinishRequest {}
+message FinishResponse {}

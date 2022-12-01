@@ -1,101 +1,22 @@
 package ai.lzy.service.graph;
 
-import ai.lzy.graph.test.GraphExecutorMock;
-import ai.lzy.service.BaseTest;
-import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;
-import com.google.common.net.HostAndPort;
-import io.grpc.Server;
-import io.grpc.ServerInterceptors;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.grpc.netty.NettyServerBuilder;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
-public class GraphExecutionTest extends BaseTest {
+import static ai.lzy.test.IdempotencyUtils.processSequentially;
+import static org.junit.Assert.*;
 
-    private Server graphExecutorServer;
-
-    @Override
-    @Before
-    public void setUp() throws IOException, InterruptedException {
-        super.setUp();
-
-        var graphExecutorAddress = HostAndPort.fromString(config.getGraphExecutorAddress());
-
-        graphExecutorMock = new GraphExecutorMock();
-        graphExecutorServer = NettyServerBuilder
-            .forAddress(new InetSocketAddress(graphExecutorAddress.getHost(), graphExecutorAddress.getPort()))
-            .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .addService(ServerInterceptors.intercept(graphExecutorMock, authInterceptor))
-            .build();
-        graphExecutorServer.start();
-    }
-
-    @Override
-    @After
-    public void tearDown() throws java.sql.SQLException, InterruptedException {
-        super.tearDown();
-        graphExecutorServer.shutdown();
-    }
+public class GraphExecutionTest extends AbstractGraphExecutionTest {
 
     @Test
     public void executeSimpleGraph() {
-        var workflowName = "workflow_1";
-        var createWorkflowResponse = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
-            .setWorkflowName(workflowName).build());
-
-        var executionId = createWorkflowResponse.getExecutionId();
-        var s3locator = createWorkflowResponse.getInternalSnapshotStorage();
-
-        var operations = List.of(
-            LWF.Operation.newBuilder()
-                .setName("first task prints string 'i-am-hacker' to variable")
-                .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_servant_1/a")
-                .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
-                    .setPath("/tmp/lzy_servant_1/a")
-                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
-                    .build())
-                .setPoolSpecName("s")
-                .build(),
-            LWF.Operation.newBuilder()
-                .setName("second task reads string 'i-am-hacker' from variable and prints it to another one")
-                .setCommand("/tmp/lzy_servant_2/sbin/cat /tmp/lzy_servant_2/a > /tmp/lzy_servant_2/b")
-                .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
-                    .setPath("/tmp/lzy_servant_2/a")
-                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
-                    .build())
-                .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
-                    .setPath("/tmp/lzy_servant_2/b")
-                    .setStorageUri(buildSlotUri("snapshot_b_1", s3locator))
-                    .build())
-                .setPoolSpecName("s")
-                .build()
-        );
-        var graph = LWF.Graph.newBuilder()
-            .setName("simple-graph")
-            .setZone("ru-central1-a")
-            .addAllOperations(operations)
-            .build();
-
-        LWFS.ExecuteGraphResponse executedGraph = authorizedWorkflowClient.executeGraph(
-            LWFS.ExecuteGraphRequest.newBuilder()
-                .setExecutionId(executionId)
-                .setGraph(graph)
-                .build());
-
-        boolean graphIdIsBlank = executedGraph.getGraphId().isBlank();
-        Assert.assertFalse(graphIdIsBlank);
+        processSequentially(executeSimpleGraphScenario());
     }
 
     @Test
@@ -187,111 +108,43 @@ public class GraphExecutionTest extends BaseTest {
                 .build());
 
         List.of(firstGraphExecution, secondGraphExecution, thirdGraphExecution)
-            .forEach(response -> Assert.assertFalse(response.getGraphId().isBlank()));
-    }
-
-    @Test
-    public void failedWithUnknownExecutionId() {
-        var workflowName = "workflow_1";
-        var createWorkflowResponse = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
-            .setWorkflowName(workflowName).build());
-
-        var executionId = createWorkflowResponse.getExecutionId();
-        var s3locator = createWorkflowResponse.getInternalSnapshotStorage();
-
-        var invalidExecutionId = executionId + "_invalid_prefix";
-
-        var operations = List.of(
-            LWF.Operation.newBuilder()
-                .setName("first task prints string 'i-am-hacker' to variable")
-                .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_servant_1/a")
-                .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
-                    .setPath("/tmp/lzy_servant_1/a")
-                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
-                    .build())
-                .setPoolSpecName("s")
-                .build());
-        var graph = LWF.Graph.newBuilder()
-            .setName("simple-graph")
-            .setZone("ru-central1-a")
-            .addAllOperations(operations)
-            .build();
-
-        //noinspection ResultOfMethodCallIgnored
-        var thrown = Assert.assertThrows(StatusRuntimeException.class, () ->
-            authorizedWorkflowClient.executeGraph(LWFS.ExecuteGraphRequest.newBuilder()
-                .setExecutionId(invalidExecutionId)
-                .setGraph(graph)
-                .build()));
-
-        Assert.assertEquals(Status.NOT_FOUND.getCode(), thrown.getStatus().getCode());
+            .forEach(response -> assertFalse(response.getGraphId().isBlank()));
     }
 
     @Test
     public void failedWithEmptyGraph() {
-        var workflowName = "workflow_1";
-        var executionId = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
-            .setWorkflowName(workflowName).build()).getExecutionId();
-
-        var graph = LWF.Graph.newBuilder()
-            .setName("simple-graph")
-            .build();
-
-        //noinspection ResultOfMethodCallIgnored
-        var thrown = Assert.assertThrows(StatusRuntimeException.class, () ->
-            authorizedWorkflowClient.executeGraph(LWFS.ExecuteGraphRequest.newBuilder()
-                .setExecutionId(executionId)
-                .setGraph(graph)
-                .build()));
-
-        Assert.assertEquals(Status.INVALID_ARGUMENT.getCode(), thrown.getStatus().getCode());
+        processSequentially(emptyGraphScenario());
     }
 
     @Test
     public void failedWithDuplicatedOutputSlotUris() {
-        var workflowName = "workflow_1";
-        var createWorkflowResponse = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
-            .setWorkflowName(workflowName).build());
+        processSequentially(duplicatedSlotScenario());
+    }
 
-        var executionId = createWorkflowResponse.getExecutionId();
-        var s3locator = createWorkflowResponse.getInternalSnapshotStorage();
+    @Test
+    public void failedWithCyclicDataflowGraph() {
+        processSequentially(cyclicDataflowGraphScenario());
+    }
 
-        var operation =
-            LWF.Operation.newBuilder()
-                .setName("prints strings to variables")
-                .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_servant_1/a && echo 'hello' > /tmp/lzy_servant_1/b")
-                .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
-                    .setPath("/tmp/lzy_servant_1/a")
-                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
-                    .build())
-                .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
-                    .setPath("/tmp/lzy_servant_1/b")
-                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator)))
-                .setPoolSpecName("s")
-                .build();
-        var graph = LWF.Graph.newBuilder()
-            .setName("simple-graph")
-            .addOperations(operation)
-            .build();
+    @Test
+    public void failedWithUnknownInputSlotUri() {
+        processSequentially(unknownInputSlotUriScenario());
+    }
 
-        //noinspection ResultOfMethodCallIgnored
-        var thrown = Assert.assertThrows(StatusRuntimeException.class, () ->
-            authorizedWorkflowClient.executeGraph(LWFS.ExecuteGraphRequest.newBuilder()
-                .setExecutionId(executionId)
-                .setGraph(graph)
-                .build()));
+    @Test
+    public void failedWithoutSuitableZone() {
+        processSequentially(withoutSuitableZoneScenario());
+    }
 
-        Assert.assertEquals(Status.INVALID_ARGUMENT.getCode(), thrown.getStatus().getCode());
+    @Test
+    public void failedWithNonSuitableZone() {
+        processSequentially(nonSuitableZoneScenario());
     }
 
     @Test
     public void failedWithAlreadyUsedSlotUri() {
-        var workflowName = "workflow_1";
-        var createWorkflowResponse = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
-            .setWorkflowName(workflowName).build());
-
-        var executionId = createWorkflowResponse.getExecutionId();
-        var s3locator = createWorkflowResponse.getInternalSnapshotStorage();
+        LWFS.CreateWorkflowResponse workflow = createWorkflow(authorizedWorkflowClient);
+        LMS3.S3Locator s3locator = workflow.getInternalSnapshotStorage();
 
         var firstOperation =
             LWF.Operation.newBuilder()
@@ -333,234 +186,60 @@ public class GraphExecutionTest extends BaseTest {
             .addOperations(secondOperation)
             .build();
 
-        LWFS.ExecuteGraphResponse firstGraphExecution = authorizedWorkflowClient.executeGraph(
-            LWFS.ExecuteGraphRequest.newBuilder()
-                .setExecutionId(executionId)
-                .setGraph(firstGraph)
-                .build());
+        var executionId = workflow.getExecutionId();
 
-        //noinspection ResultOfMethodCallIgnored
-        var thrown = Assert.assertThrows(StatusRuntimeException.class, () ->
+        var firstGraphId =
             authorizedWorkflowClient.executeGraph(
                 LWFS.ExecuteGraphRequest.newBuilder()
                     .setExecutionId(executionId)
-                    .setGraph(secondGraph)
-                    .build()));
+                    .setGraph(firstGraph)
+                    .build()).getGraphId();
+        var errorCode = assertThrows(StatusRuntimeException.class,
+            () -> {
+                //noinspection ResultOfMethodCallIgnored
+                authorizedWorkflowClient.executeGraph(
+                    LWFS.ExecuteGraphRequest.newBuilder()
+                        .setExecutionId(executionId)
+                        .setGraph(secondGraph)
+                        .build());
+            }).getStatus().getCode();
 
-        boolean graphIdIsBlank = firstGraphExecution.getGraphId().isBlank();
-        Assert.assertFalse(graphIdIsBlank);
-
-        Assert.assertEquals(Status.INVALID_ARGUMENT.getCode(), thrown.getStatus().getCode());
+        assertFalse(firstGraphId.isBlank());
+        assertEquals(Status.INVALID_ARGUMENT.getCode(), errorCode);
     }
 
     @Test
-    public void failedWithCyclicDataflowGraph() {
-        var workflowName = "workflow_1";
-        var createWorkflowResponse = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
-            .setWorkflowName(workflowName).build());
+    public void failedWithUnknownExecutionId() {
+        LWFS.CreateWorkflowResponse workflow = createWorkflow(authorizedWorkflowClient);
+        LMS3.S3Locator s3locator = workflow.getInternalSnapshotStorage();
 
-        var executionId = createWorkflowResponse.getExecutionId();
-        var s3locator = createWorkflowResponse.getInternalSnapshotStorage();
-
-        var operationsWithCycleDependency = List.of(
+        var operations = List.of(
             LWF.Operation.newBuilder()
-                .setName("first operation")
-                .setCommand("echo '42' > /tmp/lzy_servant_1/a && " +
-                    "/tmp/lzy_servant_1/sbin/cat /tmp/lzy_servant_1/c > /tmp/lzy_servant_1/b")
-                .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
-                    .setPath("/tmp/lzy_servant_1/c")
-                    .setStorageUri(buildSlotUri("snapshot_c_1", s3locator))
-                    .build())
-                .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
-                    .setPath("/tmp/lzy_servant_1/a")
-                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
-                    .build())
-                .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
-                    .setPath("/tmp/lzy_servant_1/b")
-                    .setStorageUri(buildSlotUri("snapshot_b_1", s3locator))
-                    .build())
-                .setPoolSpecName("s")
-                .build(),
-            LWF.Operation.newBuilder()
-                .setName("second operation")
-                .setCommand("/tmp/lzy_servant_2/sbin/cat /tmp/lzy_servant_2/a > /tmp/lzy_servant_2/d &&" +
-                    " /tmp/lzy_servant_2/sbin/cat /tmp/lzy_servant_2/d > /tmp/lzy_servant_2/c")
-                .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
-                    .setPath("/tmp/lzy_servant_2/a")
-                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
-                    .build())
-                .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
-                    .setPath("/tmp/lzy_servant_2/d")
-                    .setStorageUri(buildSlotUri("snapshot_d_1", s3locator))
-                    .build())
-                .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
-                    .setPath("/tmp/lzy_servant_2/c")
-                    .setStorageUri(buildSlotUri("snapshot_c_1", s3locator))
-                    .build())
-                .setPoolSpecName("s")
-                .build());
-
-        var graph = LWF.Graph.newBuilder()
-            .setName("simple-graph")
-            .addAllOperations(operationsWithCycleDependency)
-            .build();
-
-        //noinspection ResultOfMethodCallIgnored
-        var thrown = Assert.assertThrows(StatusRuntimeException.class, () ->
-            authorizedWorkflowClient.executeGraph(
-                LWFS.ExecuteGraphRequest.newBuilder()
-                    .setExecutionId(executionId)
-                    .setGraph(graph)
-                    .build()));
-
-        Assert.assertEquals(Status.INVALID_ARGUMENT.getCode(), thrown.getStatus().getCode());
-    }
-
-    @Test
-    public void failedWithUnknownInputSlotUri() {
-        var workflowName = "workflow_1";
-        var createWorkflowResponse = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
-            .setWorkflowName(workflowName).build());
-
-        var executionId = createWorkflowResponse.getExecutionId();
-        var s3locator = createWorkflowResponse.getInternalSnapshotStorage();
-
-        var firstOperation =
-            LWF.Operation.newBuilder()
-                .setName("prints string to variable")
+                .setName("first task prints string 'i-am-hacker' to variable")
                 .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_servant_1/a")
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_servant_1/a")
                     .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
                     .build())
                 .setPoolSpecName("s")
-                .build();
-        var firstGraph = LWF.Graph.newBuilder()
-            .setName("simple-graph-1")
-            .addOperations(firstOperation)
-            .build();
-
-        var unknownStorageUri = buildSlotUri("snapshot_c_1", s3locator);
-
-        var secondOperation =
-            LWF.Operation.newBuilder()
-                .setName("prints strings to variables")
-                .setCommand("/tmp/lzy_servant_2/sbin/cat /tmp/lzy_servant_2/c > /tmp/lzy_servant_2/b && " +
-                    "/tmp/lzy_servant_2/sbin/cat /tmp/lzy_servant_2/a > /tmp/lzy_servant_2/d")
-                .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
-                    .setPath("/tmp/lzy_servant_2/a")
-                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
-                    .build())
-                .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
-                    .setPath("/tmp/lzy_servant_2/c")
-                    .setStorageUri(unknownStorageUri)
-                    .build())
-                .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
-                    .setPath("/tmp/lzy_servant_2/b")
-                    .setStorageUri(buildSlotUri("snapshot_b_1", s3locator))
-                    .build())
-                .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
-                    .setPath("/tmp/lzy_servant_2/d")
-                    .setStorageUri(buildSlotUri("snapshot_d_1", s3locator))
-                    .build())
-                .setPoolSpecName("s")
-                .build();
-
-        var secondGraph = LWF.Graph.newBuilder()
-            .setName("simple-graph-2")
-            .addOperations(secondOperation)
-            .build();
-
-        LWFS.ExecuteGraphResponse firstGraphExecution = authorizedWorkflowClient.executeGraph(
-            LWFS.ExecuteGraphRequest.newBuilder()
-                .setExecutionId(executionId)
-                .setGraph(firstGraph)
                 .build());
-
-        //noinspection ResultOfMethodCallIgnored
-        var thrown = Assert.assertThrows(StatusRuntimeException.class, () ->
-            authorizedWorkflowClient.executeGraph(
-                LWFS.ExecuteGraphRequest.newBuilder()
-                    .setExecutionId(executionId)
-                    .setGraph(secondGraph)
-                    .build()));
-
-        boolean graphIdIsBlank = firstGraphExecution.getGraphId().isBlank();
-        Assert.assertFalse(graphIdIsBlank);
-
-        Assert.assertEquals(Status.NOT_FOUND.getCode(), thrown.getStatus().getCode());
-    }
-
-    @Test
-    public void failedWithoutSuitableZone() {
-        var workflowName = "workflow_1";
-        var createWorkflowResponse = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
-            .setWorkflowName(workflowName).build());
-
-        var executionId = createWorkflowResponse.getExecutionId();
-        var s3locator = createWorkflowResponse.getInternalSnapshotStorage();
-
-        var operation =
-            LWF.Operation.newBuilder()
-                .setName("prints string to variable")
-                .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_servant_1/a")
-                .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
-                    .setPath("/tmp/lzy_servant_1/a")
-                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
-                    .build())
-                .setPoolSpecName("m")
-                .build();
-        var graph = LWF.Graph.newBuilder()
-            .setName("simple-graph")
-            .addOperations(operation)
-            .build();
-
-        //noinspection ResultOfMethodCallIgnored
-        var thrown = Assert.assertThrows(StatusRuntimeException.class, () ->
-            authorizedWorkflowClient.executeGraph(LWFS.ExecuteGraphRequest.newBuilder()
-                .setExecutionId(executionId)
-                .setGraph(graph)
-                .build()));
-
-        Assert.assertEquals(Status.INVALID_ARGUMENT.getCode(), thrown.getStatus().getCode());
-    }
-
-    @Test
-    public void failedWithNonSuitableZone() {
-        var workflowName = "workflow_1";
-        var createWorkflowResponse = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
-            .setWorkflowName(workflowName).build());
-
-        var executionId = createWorkflowResponse.getExecutionId();
-        var s3locator = createWorkflowResponse.getInternalSnapshotStorage();
-
-        var operation =
-            LWF.Operation.newBuilder()
-                .setName("prints strings to variables")
-                .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_servant_1/a && echo 'hello' > /tmp/lzy_servant_1/b")
-                .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
-                    .setPath("/tmp/lzy_servant_1/a")
-                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
-                    .build())
-                .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
-                    .setPath("/tmp/lzy_servant_1/b")
-                    .setStorageUri(buildSlotUri("snapshot_b_1", s3locator)))
-                .setPoolSpecName("l")
-                .build();
-
         var graph = LWF.Graph.newBuilder()
             .setName("simple-graph")
             .setZone("ru-central1-a")
-            .addOperations(operation)
+            .addAllOperations(operations)
             .build();
 
-        //noinspection ResultOfMethodCallIgnored
-        var thrown = Assert.assertThrows(StatusRuntimeException.class, () ->
-            authorizedWorkflowClient.executeGraph(LWFS.ExecuteGraphRequest.newBuilder()
-                .setExecutionId(executionId)
-                .setGraph(graph)
-                .build()));
+        var executionId = workflow.getExecutionId();
+        var invalidExecutionId = executionId + "_invalid_prefix";
 
-        Assert.assertEquals(Status.INVALID_ARGUMENT.getCode(), thrown.getStatus().getCode());
+        var thrown = assertThrows(StatusRuntimeException.class, () -> {
+            //noinspection ResultOfMethodCallIgnored
+            authorizedWorkflowClient.executeGraph(LWFS.ExecuteGraphRequest.newBuilder()
+                .setExecutionId(invalidExecutionId)
+                .setGraph(graph)
+                .build());
+        });
+
+        assertEquals(Status.NOT_FOUND.getCode(), thrown.getStatus().getCode());
     }
 }

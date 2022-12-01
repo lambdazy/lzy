@@ -73,6 +73,28 @@ create table graphs (
     foreign key (execution_id) references workflow_executions(execution_id)
 );
 
+CREATE TABLE operation
+(
+    id              TEXT      NOT NULL PRIMARY KEY,
+    meta            BYTEA     NULL,
+    created_by      TEXT      NOT NULL,
+    created_at      TIMESTAMP NOT NULL,
+    modified_at     TIMESTAMP NOT NULL,
+    description     TEXT      NOT NULL,
+    done            bool      NOT NULL,
+
+    response        BYTEA     NULL,
+    error           BYTEA     NULL,
+
+    idempotency_key TEXT      NULL,
+    request_hash    TEXT      NULL,
+
+    CHECK (((idempotency_key IS NOT NULL) AND (request_hash IS NOT NULL)) OR
+           ((idempotency_key IS NULL) AND (request_hash IS NULL)))
+);
+
+CREATE UNIQUE INDEX idempotency_key_to_operation_index ON operation (idempotency_key);
+
 create table garbage_collectors (
     gc_instance_id text not null,
     updated_at timestamp,
