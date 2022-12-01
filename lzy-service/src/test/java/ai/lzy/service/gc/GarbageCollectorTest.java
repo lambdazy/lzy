@@ -30,6 +30,7 @@ import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
 
 public class GarbageCollectorTest extends BaseTest {
     private final List<Server> lzyServers = new ArrayList<>();
+    private final List<ApplicationContext> lzyContexts = new ArrayList<>();
 
     @Rule
     public Timeout globalTimeout = Timeout.seconds(30);
@@ -188,16 +189,18 @@ public class GarbageCollectorTest extends BaseTest {
 
     @After
     public void tearDown() throws SQLException, InterruptedException {
+        super.tearDown();
         lzyServers.forEach(s -> {
             try {
-                s.shutdown();
+                s.shutdownNow();
                 s.awaitTermination();
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
         });
         lzyServers.clear();
-        super.tearDown();
+        lzyContexts.forEach(ApplicationContext::stop);
+        lzyContexts.clear();
     }
 
     private void startAnotherInstance() throws IOException {
@@ -208,6 +211,7 @@ public class GarbageCollectorTest extends BaseTest {
         var lzyServer = App.createServer(workflowAddress, authInterceptor, context2.getBean(LzyService.class));
 
         lzyServers.add(lzyServer);
+        lzyContexts.add(context2);
 
         lzyServer.start();
     }

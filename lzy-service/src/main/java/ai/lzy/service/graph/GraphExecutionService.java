@@ -112,27 +112,23 @@ public class GraphExecutionService {
         var executionId = request.getExecutionId();
         var graphExecutionState = new GraphExecutionState(executionId);
 
-        setWorkflowInfo(graphExecutionState);
-
         Consumer<Status> replyError = (status) -> {
             LOG.error("[executeGraph], fail: status={}, msg={}.", status,
                 status.getDescription() + ", graphExecutionState: " + graphExecutionState);
             responseObserver.onError(status.asRuntimeException());
         };
 
-        try {
-            Status error = withRetries(LOG, () -> workflowDao.getExecutionErrorStatus(executionId, null));
-
-            if (error != null) {
-                LOG.error("[executeGraph], Execution {} already failed with error {}.", executionId, error);
-                replyError.accept(error);
-                return;
-            }
-        } catch (Exception e) {
-            LOG.error("[executeGraph], Can't check errors for execution {}.", executionId);
+        if (!checkExecutionStatus(executionId, replyError)) {
+            return;
         }
 
+        setWorkflowInfo(graphExecutionState);
+
         if (graphExecutionState.isInvalid()) {
+            if (!checkExecutionStatus(executionId, replyError)) {
+                return;
+            }
+
             updateExecutionStatus(graphExecutionState.getWorkflowName(), graphExecutionState.getUserId(),
                 executionId, graphExecutionState.getErrorStatus());
             replyError.accept(graphExecutionState.getErrorStatus());
@@ -157,6 +153,9 @@ public class GraphExecutionService {
             if (idempotencyKey != null && handleIdempotencyKeyConflict(idempotencyKey, ex, operationDao,
                 responseObserver, ExecuteGraphResponse.class, Duration.ofMillis(100), Duration.ofSeconds(5), LOG))
             {
+                return;
+            }
+            if (!checkExecutionStatus(executionId, replyError)) {
                 return;
             }
 
@@ -289,6 +288,21 @@ public class GraphExecutionService {
         } catch (Exception e) {
             LOG.error("[executeGraph] Got Exception during saving error status: " + e.getMessage(), e);
         }
+    }
+
+    private boolean checkExecutionStatus(String executionId, Consumer<Status> replyError) {
+        try {
+            Status error = withRetries(LOG, () -> workflowDao.getExecutionErrorStatus(executionId, null));
+
+            if (error != null) {
+                LOG.error("[executeGraph], Execution {} already failed with error {}.", executionId, error);
+                replyError.accept(error);
+                return false;
+            }
+        } catch (Exception e) {
+            LOG.error("[executeGraph], Can't check errors for execution {}.", executionId);
+        }
+        return true;
     }
 
     @Nullable
