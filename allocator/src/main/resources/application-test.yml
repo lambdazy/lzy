@@ -1,4 +1,6 @@
 allocator:
+  instance-id: ${random.uuid}
+
   address: 'localhost:8799'
 
   gc-period: 2s
