@@ -1,5 +1,6 @@
 package ai.lzy.allocator.disk.impl.mock;
 
+import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.Disk;
 import ai.lzy.allocator.disk.DiskManager;
 import ai.lzy.allocator.disk.DiskMeta;
@@ -35,6 +36,7 @@ import static ai.lzy.util.grpc.ProtoConverter.toProto;
 public class MockDiskManager implements DiskManager {
     private static final Logger LOG = LogManager.getLogger(MockDiskManager.class);
 
+    private final String instanceId;
     private final AllocatorDataSource storage;
     private final DiskDao diskDao;
     private final DiskOpDao diskOpDao;
@@ -42,9 +44,10 @@ public class MockDiskManager implements DiskManager {
     private final Map<String, Disk> disks = new ConcurrentHashMap<>();
 
     @Inject
-    public MockDiskManager(AllocatorDataSource storage, DiskDao diskDao, DiskOpDao diskOpDao,
+    public MockDiskManager(ServiceConfig config, AllocatorDataSource storage, DiskDao diskDao, DiskOpDao diskOpDao,
                            OperationDao operationsDao)
     {
+        this.instanceId = config.getInstanceId();
         this.storage = storage;
         this.diskDao = diskDao;
         this.diskOpDao = diskOpDao;
@@ -80,6 +83,7 @@ public class MockDiskManager implements DiskManager {
             outerOp.opId(),
             outerOp.startedAt(),
             outerOp.deadline(),
+            instanceId,
             DiskOperation.Type.CREATE,
             "",
             () -> {
@@ -133,6 +137,7 @@ public class MockDiskManager implements DiskManager {
             outerOp.opId(),
             outerOp.startedAt(),
             outerOp.deadline(),
+            instanceId,
             DiskOperation.Type.CLONE,
             "",
             () -> {
@@ -186,6 +191,7 @@ public class MockDiskManager implements DiskManager {
             outerOp.opId(),
             outerOp.startedAt(),
             outerOp.deadline(),
+            instanceId,
             DiskOperation.Type.DELETE,
             "",
             () -> {
