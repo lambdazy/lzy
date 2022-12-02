@@ -26,6 +26,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.inject.Singleton;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -45,7 +46,7 @@ public class MockDiskManager implements DiskManager {
 
     @Inject
     public MockDiskManager(ServiceConfig config, AllocatorDataSource storage, DiskDao diskDao, DiskOpDao diskOpDao,
-                           OperationDao operationsDao)
+                           @Named("AllocatorOperationDao") OperationDao operationsDao)
     {
         this.instanceId = config.getInstanceId();
         this.storage = storage;

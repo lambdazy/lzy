@@ -10,6 +10,7 @@ import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.DataScheme;
 import ai.lzy.model.db.test.DatabaseTestUtils;
+import ai.lzy.test.IdempotencyUtils.TestScenario;
 import ai.lzy.util.auth.credentials.CredentialsUtils;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.JwtUtils;
@@ -22,21 +23,21 @@ import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.whiteboard.LWB;
 import ai.lzy.v1.whiteboard.LWBS;
 import ai.lzy.v1.whiteboard.LzyWhiteboardServiceGrpc;
+import ai.lzy.v1.whiteboard.LzyWhiteboardServiceGrpc.LzyWhiteboardServiceBlockingStub;
 import ai.lzy.whiteboard.grpc.ProtoConverter;
+import ai.lzy.whiteboard.grpc.WhiteboardService;
 import ai.lzy.whiteboard.model.Whiteboard;
 import ai.lzy.whiteboard.storage.WhiteboardDataSource;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
+import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
+import io.micronaut.inject.qualifiers.Qualifiers;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
@@ -48,8 +49,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static ai.lzy.model.grpc.ProtoConverter.toProto;
+import static ai.lzy.test.IdempotencyUtils.processConcurrently;
+import static ai.lzy.test.IdempotencyUtils.processSequentially;
 import static ai.lzy.v1.whiteboard.LWB.WhiteboardFieldInfo.StateCase.LINKEDSTATE;
 import static ai.lzy.v1.whiteboard.LWB.WhiteboardFieldInfo.StateCase.NONESTATE;
+import static org.junit.Assert.assertEquals;
 
 @SuppressWarnings("ResultOfMethodCallIgnored")
 public class ApiTest extends BaseTestWithIam {
@@ -62,10 +66,10 @@ public class ApiTest extends BaseTestWithIam {
     });
 
     private ApplicationContext context;
-    private LzyWhiteboardServiceGrpc.LzyWhiteboardServiceBlockingStub externalUserWhiteboardClient;
-    private LzyWhiteboardServiceGrpc.LzyWhiteboardServiceBlockingStub externalUser2WhiteboardClient;
-    private LzyWhiteboardServiceGrpc.LzyWhiteboardServiceBlockingStub whiteboardClient;
-    private WhiteboardApp whiteboardApp;
+    private LzyWhiteboardServiceBlockingStub externalUserWhiteboardClient;
+    private LzyWhiteboardServiceBlockingStub externalUser2WhiteboardClient;
+    private LzyWhiteboardServiceBlockingStub whiteboardClient;
+    private Server whiteboardServer;
     private ManagedChannel channel;
 
     @Before
@@ -73,14 +77,16 @@ public class ApiTest extends BaseTestWithIam {
         super.setUp(DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo()));
 
         context = ApplicationContext.run(DatabaseTestUtils.preparePostgresConfig("whiteboard", db.getConnectionInfo()));
-
-        whiteboardApp = context.getBean(WhiteboardApp.class);
-        whiteboardApp.start();
-
         final var config = context.getBean(AppConfig.class);
-        //noinspection UnstableApiUsage
+        var address = HostAndPort.fromString(config.getAddress());
+
+        var iamChannel = context.getBean(ManagedChannel.class, Qualifiers.byName("WhiteboardIamGrpcChannel"));
+
+        whiteboardServer = WhiteboardApp.createServer(address, iamChannel, context.getBean(WhiteboardService.class));
+        whiteboardServer.start();
+
         channel = ChannelBuilder
-            .forAddress(HostAndPort.fromString(config.getAddress()))
+            .forAddress(address)
             .usePlaintext()
             .build();
         var credentials = config.getIam().createRenewableToken();
@@ -103,9 +109,9 @@ public class ApiTest extends BaseTestWithIam {
 
     @After
     public void after() {
-        whiteboardApp.stop();
+        whiteboardServer.shutdown();
         try {
-            whiteboardApp.awaitTermination();
+            whiteboardServer.awaitTermination();
         } catch (InterruptedException ignored) {
             // ignored
         }
@@ -143,36 +149,35 @@ public class ApiTest extends BaseTestWithIam {
             externalUserWhiteboardClient.get(LWBS.GetRequest.newBuilder().setWhiteboardId("some_wb_id").build());
             Assert.fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.Code.NOT_FOUND, e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), Status.Code.NOT_FOUND, e.getStatus().getCode());
         }
 
         final var createdWhiteboard = externalUserWhiteboardClient
             .createWhiteboard(genCreateWhiteboardRequest()).getWhiteboard();
-        final var getRequest = LWBS.GetRequest.newBuilder().setWhiteboardId(createdWhiteboard.getId()).build();
 
-        Assert.assertEquals(LWB.Whiteboard.Status.CREATED, createdWhiteboard.getStatus());
-        Assert.assertEquals(4, createdWhiteboard.getFieldsCount());
-        createdWhiteboard.getFieldsList().forEach(field -> {
-            Assert.assertEquals(LWB.WhiteboardField.Status.CREATED, field.getStatus());
-        });
+        assertEquals(LWB.Whiteboard.Status.CREATED, createdWhiteboard.getStatus());
+        assertEquals(4, createdWhiteboard.getFieldsCount());
+        createdWhiteboard.getFieldsList().forEach(field ->
+            assertEquals(LWB.WhiteboardField.Status.CREATED, field.getStatus()));
         final var fields = createdWhiteboard.getFieldsList().stream()
             .collect(Collectors.toMap(f -> f.getInfo().getName(), f -> f));
-        Assert.assertEquals(NONESTATE, fields.get("f1").getInfo().getStateCase());
-        Assert.assertEquals(NONESTATE, fields.get("f2").getInfo().getStateCase());
-        Assert.assertEquals(LINKEDSTATE, fields.get("f3").getInfo().getStateCase());
-        Assert.assertEquals(LINKEDSTATE, fields.get("f4").getInfo().getStateCase());
+        assertEquals(NONESTATE, fields.get("f1").getInfo().getStateCase());
+        assertEquals(NONESTATE, fields.get("f2").getInfo().getStateCase());
+        assertEquals(LINKEDSTATE, fields.get("f3").getInfo().getStateCase());
+        assertEquals(LINKEDSTATE, fields.get("f4").getInfo().getStateCase());
 
+        final var getRequest = LWBS.GetRequest.newBuilder().setWhiteboardId(createdWhiteboard.getId()).build();
         final var getResponse = whiteboardClient.get(getRequest);
-        Assert.assertEquals(createdWhiteboard, getResponse.getWhiteboard());
+        assertEquals(createdWhiteboard, getResponse.getWhiteboard());
 
         final var getUserResponse = externalUserWhiteboardClient.get(getRequest);
-        Assert.assertEquals(createdWhiteboard, getUserResponse.getWhiteboard());
+        assertEquals(createdWhiteboard, getUserResponse.getWhiteboard());
 
         try {
             externalUser2WhiteboardClient.get(getRequest);
             Assert.fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.Code.NOT_FOUND, e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), Status.Code.NOT_FOUND, e.getStatus().getCode());
         }
     }
 
@@ -197,12 +202,12 @@ public class ApiTest extends BaseTestWithIam {
             .build());
 
         var whiteboard = whiteboardClient.get(getRequest).getWhiteboard();
-        Assert.assertEquals(LWB.Whiteboard.Status.CREATED, whiteboard.getStatus());
+        assertEquals(LWB.Whiteboard.Status.CREATED, whiteboard.getStatus());
         whiteboard.getFieldsList().forEach(field -> {
             if (field.getInfo().getName().equals("f1") || field.getInfo().getName().equals("f4")) {
-                Assert.assertEquals(LWB.WhiteboardField.Status.FINALIZED, field.getStatus());
+                assertEquals(LWB.WhiteboardField.Status.FINALIZED, field.getStatus());
             } else {
-                Assert.assertEquals(LWB.WhiteboardField.Status.CREATED, field.getStatus());
+                assertEquals(LWB.WhiteboardField.Status.CREATED, field.getStatus());
             }
         });
 
@@ -211,18 +216,17 @@ public class ApiTest extends BaseTestWithIam {
             .build());
 
         whiteboard = whiteboardClient.get(getRequest).getWhiteboard();
-        Assert.assertEquals(LWB.Whiteboard.Status.FINALIZED, whiteboard.getStatus());
-        whiteboard.getFieldsList().forEach(field -> {
-            Assert.assertEquals(LWB.WhiteboardField.Status.FINALIZED, field.getStatus());
-        });
+        assertEquals(LWB.Whiteboard.Status.FINALIZED, whiteboard.getStatus());
+        whiteboard.getFieldsList().forEach(field ->
+            assertEquals(LWB.WhiteboardField.Status.FINALIZED, field.getStatus()));
 
         final var finalizedFields = whiteboard.getFieldsList().stream()
             .collect(Collectors.toMap(f -> f.getInfo().getName(), f -> f));
-        Assert.assertEquals(LINKEDSTATE, finalizedFields.get("f1").getInfo().getStateCase());
-        Assert.assertEquals(NONESTATE, finalizedFields.get("f2").getInfo().getStateCase());
-        Assert.assertEquals(LINKEDSTATE, finalizedFields.get("f3").getInfo().getStateCase());
-        Assert.assertEquals(LINKEDSTATE, finalizedFields.get("f4").getInfo().getStateCase());
-        Assert.assertEquals("s-uri-4", finalizedFields.get("f4").getInfo().getLinkedState().getStorageUri());
+        assertEquals(LINKEDSTATE, finalizedFields.get("f1").getInfo().getStateCase());
+        assertEquals(NONESTATE, finalizedFields.get("f2").getInfo().getStateCase());
+        assertEquals(LINKEDSTATE, finalizedFields.get("f3").getInfo().getStateCase());
+        assertEquals(LINKEDSTATE, finalizedFields.get("f4").getInfo().getStateCase());
+        assertEquals("s-uri-4", finalizedFields.get("f4").getInfo().getLinkedState().getStorageUri());
     }
 
     @Test
@@ -237,62 +241,167 @@ public class ApiTest extends BaseTestWithIam {
             .createWhiteboard(genCreateWhiteboardRequest("wb", List.of("t1", "t2"))).getWhiteboard();
 
         var listResult = externalUserWhiteboardClient.list(LWBS.ListRequest.newBuilder().build());
-        Assert.assertEquals(3, listResult.getWhiteboardsCount());
+        assertEquals(3, listResult.getWhiteboardsCount());
 
         listResult = externalUser2WhiteboardClient.list(LWBS.ListRequest.newBuilder().build());
-        Assert.assertEquals(1, listResult.getWhiteboardsCount());
-        Assert.assertEquals(whiteboard4, listResult.getWhiteboards(0));
+        assertEquals(1, listResult.getWhiteboardsCount());
+        assertEquals(whiteboard4, listResult.getWhiteboards(0));
 
         listResult = externalUserWhiteboardClient.list(LWBS.ListRequest.newBuilder()
             .addAllTags(List.of("t1", "t2")).build());
-        Assert.assertEquals(1, listResult.getWhiteboardsCount());
-        Assert.assertEquals(whiteboard3, listResult.getWhiteboards(0));
+        assertEquals(1, listResult.getWhiteboardsCount());
+        assertEquals(whiteboard3, listResult.getWhiteboards(0));
 
         listResult = externalUserWhiteboardClient.list(LWBS.ListRequest.newBuilder().setName("wb1").build());
-        Assert.assertEquals(1, listResult.getWhiteboardsCount());
-        Assert.assertEquals(whiteboard1, listResult.getWhiteboards(0));
+        assertEquals(1, listResult.getWhiteboardsCount());
+        assertEquals(whiteboard1, listResult.getWhiteboards(0));
 
         listResult = externalUserWhiteboardClient.list(LWBS.ListRequest.newBuilder()
             .setCreatedTimeBounds(LWB.TimeBounds.newBuilder().setTo(whiteboard2.getCreatedAt()).build()).build());
-        Assert.assertEquals(2, listResult.getWhiteboardsCount());
+        assertEquals(2, listResult.getWhiteboardsCount());
     }
 
-    private void apiAccessTest(LzyWhiteboardServiceGrpc.LzyWhiteboardServiceBlockingStub client,
+    @Test
+    public void createWhiteboardIdempotency() {
+        processSequentially(createWbScenario());
+    }
+
+    @Test
+    public void linkWbFieldIdempotency() {
+        processSequentially(linkFieldScenario());
+    }
+
+    @Test
+    public void finalizeWhiteboardIdempotency() {
+        processSequentially(finalizeWbScenario());
+    }
+
+    @Test
+    public void idempotentCreateWbConcurrent() throws InterruptedException {
+        processConcurrently(createWbScenario());
+    }
+
+    @Test
+    public void idempotentLinkWbFieldConcurrent() throws InterruptedException {
+        processConcurrently(linkFieldScenario());
+    }
+
+    @Test
+    public void idempotentFinalizeWbConcurrent() throws InterruptedException {
+        processConcurrently(finalizeWbScenario());
+    }
+
+    private TestScenario<LzyWhiteboardServiceBlockingStub, Void, LWB.Whiteboard> createWbScenario() {
+        return new TestScenario<>(whiteboardClient,
+            stub -> null,
+            (stub, nothing) -> createWhiteboard(stub),
+            wb -> {
+                assertEquals(LWB.Whiteboard.Status.CREATED, wb.getStatus());
+                assertEquals(4, wb.getFieldsCount());
+                wb.getFieldsList().forEach(field ->
+                    assertEquals(LWB.WhiteboardField.Status.CREATED, field.getStatus()));
+
+                var fields = wb.getFieldsList().stream()
+                    .collect(Collectors.toMap(f -> f.getInfo().getName(), f -> f));
+
+                assertEquals(NONESTATE, fields.get("f1").getInfo().getStateCase());
+                assertEquals(NONESTATE, fields.get("f2").getInfo().getStateCase());
+                assertEquals(LINKEDSTATE, fields.get("f3").getInfo().getStateCase());
+                assertEquals(LINKEDSTATE, fields.get("f4").getInfo().getStateCase());
+            });
+    }
+
+    private TestScenario<LzyWhiteboardServiceBlockingStub, LWB.Whiteboard, LWB.Whiteboard> linkFieldScenario() {
+        return new TestScenario<>(whiteboardClient,
+            ApiTest::createWhiteboard,
+            (stub, wb) -> {
+                stub.linkField(LWBS.LinkFieldRequest.newBuilder()
+                    .setWhiteboardId(wb.getId())
+                    .setFieldName("f1")
+                    .setStorageUri("s-uri-1")
+                    .setScheme(toProto(DataScheme.PLAIN))
+                    .build());
+
+                var getRequest = LWBS.GetRequest.newBuilder().setWhiteboardId(wb.getId()).build();
+                return whiteboardClient.get(getRequest).getWhiteboard();
+            },
+            wb -> {
+                assertEquals(LWB.Whiteboard.Status.CREATED, wb.getStatus());
+                wb.getFieldsList().forEach(field -> {
+                    if (field.getInfo().getName().equals("f1")) {
+                        assertEquals(LWB.WhiteboardField.Status.FINALIZED, field.getStatus());
+                    } else {
+                        assertEquals(LWB.WhiteboardField.Status.CREATED, field.getStatus());
+                    }
+                });
+            });
+    }
+
+    private TestScenario<LzyWhiteboardServiceBlockingStub, LWB.Whiteboard, LWB.Whiteboard> finalizeWbScenario() {
+        return new TestScenario<>(whiteboardClient,
+            ApiTest::createWhiteboard,
+            (stub, input) -> {
+                stub.finalizeWhiteboard(LWBS.FinalizeWhiteboardRequest.newBuilder()
+                    .setWhiteboardId(input.getId())
+                    .build());
+                var getRequest = LWBS.GetRequest.newBuilder().setWhiteboardId(input.getId()).build();
+                return whiteboardClient.get(getRequest).getWhiteboard();
+            },
+            whiteboard -> {
+                assertEquals(LWB.Whiteboard.Status.FINALIZED, whiteboard.getStatus());
+                whiteboard.getFieldsList().forEach(field ->
+                    assertEquals(LWB.WhiteboardField.Status.FINALIZED, field.getStatus()));
+
+                final var finalizedFields = whiteboard.getFieldsList().stream()
+                    .collect(Collectors.toMap(f -> f.getInfo().getName(), f -> f));
+                assertEquals(NONESTATE, finalizedFields.get("f1").getInfo().getStateCase());
+                assertEquals(NONESTATE, finalizedFields.get("f2").getInfo().getStateCase());
+                assertEquals(LINKEDSTATE, finalizedFields.get("f3").getInfo().getStateCase());
+                assertEquals(LINKEDSTATE, finalizedFields.get("f4").getInfo().getStateCase());
+                assertEquals("s-uri-4-init", finalizedFields.get("f4").getInfo().getLinkedState().getStorageUri());
+            });
+    }
+
+    private void apiAccessTest(LzyWhiteboardServiceBlockingStub client,
                                Status expectedStatus)
     {
         try {
             client.createWhiteboard(LWBS.CreateWhiteboardRequest.getDefaultInstance());
             Assert.fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
         }
         try {
             client.linkField(LWBS.LinkFieldRequest.getDefaultInstance());
             Assert.fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
         }
         try {
             client.finalizeWhiteboard(LWBS.FinalizeWhiteboardRequest.getDefaultInstance());
             Assert.fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
         }
         try {
             client.get(LWBS.GetRequest.getDefaultInstance());
             Assert.fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
         }
         try {
             client.list(LWBS.ListRequest.getDefaultInstance());
             Assert.fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
         }
     }
 
-    private LWBS.CreateWhiteboardRequest genCreateWhiteboardRequest() {
+    private static LWB.Whiteboard createWhiteboard(LzyWhiteboardServiceBlockingStub client) {
+        return client.createWhiteboard(genCreateWhiteboardRequest()).getWhiteboard();
+    }
+
+    private static LWBS.CreateWhiteboardRequest genCreateWhiteboardRequest() {
         return LWBS.CreateWhiteboardRequest.newBuilder()
             .setWhiteboardName("wb-name")
             .addAllFields(List.of(
@@ -324,7 +433,7 @@ public class ApiTest extends BaseTestWithIam {
             .build();
     }
 
-    private LWBS.CreateWhiteboardRequest genCreateWhiteboardRequest(String name, List<String> tags) {
+    private static LWBS.CreateWhiteboardRequest genCreateWhiteboardRequest(String name, List<String> tags) {
         return LWBS.CreateWhiteboardRequest.newBuilder()
             .setWhiteboardName(name)
             .addAllFields(List.of(
