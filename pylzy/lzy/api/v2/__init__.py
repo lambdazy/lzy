@@ -93,6 +93,18 @@ def whiteboard(name: str, *, namespace: str = "default"):
     return wrap
 
 
+def lzy_auth(*, user: str, key_path: str, endpoint: Optional[str] = None,
+             whiteboards_endpoint: Optional[str] = None) -> None:
+    os.environ[USER_ENV] = user
+    os.environ[WB_USER_ENV] = user
+    os.environ[KEY_PATH_ENV] = key_path
+    os.environ[WB_KEY_PATH_ENV] = key_path
+    if endpoint is not None:
+        os.environ[ENDPOINT_ENV] = endpoint
+    if whiteboards_endpoint is not None:
+        os.environ[WB_ENDPOINT_ENV] = whiteboards_endpoint
+
+
 class Lzy:
     # noinspection PyShadowingNames
     def __init__(
@@ -113,14 +125,7 @@ class Lzy:
     @staticmethod
     def auth(*, user: str, key_path: str, endpoint: Optional[str] = None,
              whiteboards_endpoint: Optional[str] = None) -> None:
-        os.environ[USER_ENV] = user
-        os.environ[WB_USER_ENV] = user
-        os.environ[KEY_PATH_ENV] = key_path
-        os.environ[WB_KEY_PATH_ENV] = key_path
-        if endpoint is not None:
-            os.environ[ENDPOINT_ENV] = endpoint
-        if whiteboards_endpoint is not None:
-            os.environ[WB_ENDPOINT_ENV] = whiteboards_endpoint
+        lzy_auth(user=user, key_path=key_path, endpoint=endpoint, whiteboards_endpoint=whiteboards_endpoint)
 
     @property
     def serializer(self) -> SerializerRegistry:
