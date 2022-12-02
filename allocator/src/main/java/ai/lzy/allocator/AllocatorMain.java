@@ -28,6 +28,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.Objects;
 import java.util.Properties;
 import javax.inject.Named;
 
@@ -59,7 +60,7 @@ public class AllocatorMain {
         this.alloc = alloc;
         this.metricReporter = metricReporter;
 
-        LOG.info("Starting {} with id {}", APP, config.getInstanceId());
+        LOG.info("Starting {} with id {}", APP, Objects.requireNonNull(config.getInstanceId()));
 
         LOG.info("""
                 io.netty.eventLoopThreads={}
