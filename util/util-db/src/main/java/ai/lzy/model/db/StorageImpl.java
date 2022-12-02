@@ -43,4 +43,8 @@ public abstract class StorageImpl implements Storage {
     public final void close() {
         dataSource.close();
     }
+
+    protected int isolationLevel() {
+        return Connection.TRANSACTION_REPEATABLE_READ;
+    }
 }
