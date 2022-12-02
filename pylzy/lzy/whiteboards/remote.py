@@ -31,8 +31,8 @@ class RemoteWhiteboardClient(WhiteboardClient):
             return
         self.__is_started = True
 
-        user = os.getenv(WB_USER_ENV),
-        key_path = os.getenv(WB_KEY_PATH_ENV),
+        user = os.getenv(WB_USER_ENV)
+        key_path = os.getenv(WB_KEY_PATH_ENV)
         endpoint: str = os.getenv(WB_ENDPOINT_ENV, "api.lzy.ai:8899")
 
         if user is None:
