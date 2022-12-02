@@ -1,12 +1,12 @@
 package ai.lzy.channelmanager.grpc;
 
-import ai.lzy.channelmanager.ChannelManagerConfig;
 import ai.lzy.channelmanager.channel.Channel;
 import ai.lzy.channelmanager.channel.ChannelSpec;
 import ai.lzy.channelmanager.channel.DirectChannelSpec;
 import ai.lzy.channelmanager.channel.SnapshotChannelSpec;
 import ai.lzy.channelmanager.db.ChannelStorage;
 import ai.lzy.channelmanager.lock.GrainedLock;
+import ai.lzy.channelmanager.v2.config.ChannelManagerConfig;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.v1.channel.LCM;
 import ai.lzy.v1.channel.LCMPS;

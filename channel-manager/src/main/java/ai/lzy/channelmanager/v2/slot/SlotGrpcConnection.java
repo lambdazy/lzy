@@ -12,14 +12,13 @@ import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 @Singleton
-public class SlotApiConnection {
+public class SlotGrpcConnection {
 
     private final ManagedChannel channel;
     private final LzySlotsApiGrpc.LzySlotsApiBlockingStub slotApiBlockingStub;
     private final LongRunningServiceGrpc.LongRunningServiceBlockingStub operationApiBlockingStub;
-    private int numReferences = 1;
 
-    SlotApiConnection(RenewableJwt credentials, HostAndPort address) {
+    SlotGrpcConnection(RenewableJwt credentials, HostAndPort address) {
         this.channel = newGrpcChannel(address, LzySlotsApiGrpc.SERVICE_NAME);
         this.slotApiBlockingStub = newBlockingClient(
             LzySlotsApiGrpc.newBlockingStub(channel), APP, () -> credentials.get().token());
@@ -37,14 +36,6 @@ public class SlotApiConnection {
 
     void shutdown() {
         channel.shutdown();
-    }
-
-    int increaseCounter() {
-        return ++numReferences;
-    }
-
-    int decreaseCounter() {
-        return --numReferences;
     }
 
 }

@@ -45,6 +45,7 @@ public enum DbHelper {
         for (int attempt = 1; ; ++attempt) {
             if (delay > 0) {
                 try {
+
                     Thread.sleep(delay);
                 } catch (InterruptedException e) {
                     throw error.fail(e);

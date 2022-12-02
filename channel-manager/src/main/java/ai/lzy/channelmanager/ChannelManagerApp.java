@@ -1,5 +1,6 @@
 package ai.lzy.channelmanager;
 
+import ai.lzy.channelmanager.v2.config.ChannelManagerConfig;
 import ai.lzy.channelmanager.v2.grpc.ChannelManagerPrivateService;
 import ai.lzy.channelmanager.v2.grpc.ChannelManagerService;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;

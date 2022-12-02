@@ -1,6 +1,6 @@
 package ai.lzy.channelmanager.db;
 
-import ai.lzy.channelmanager.ChannelManagerConfig;
+import ai.lzy.channelmanager.v2.config.ChannelManagerConfig;
 import ai.lzy.model.db.StorageImpl;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;

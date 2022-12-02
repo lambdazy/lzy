@@ -1,320 +1,256 @@
 package ai.lzy.channelmanager.v2.operation.action;
 
+import ai.lzy.channelmanager.db.ChannelManagerDataSource;
 import ai.lzy.channelmanager.lock.GrainedLock;
 import ai.lzy.channelmanager.v2.control.ChannelController;
 import ai.lzy.channelmanager.v2.db.ChannelDao;
 import ai.lzy.channelmanager.v2.exceptions.CancellingChannelGraphStateException;
-import ai.lzy.channelmanager.v2.model.Channel;
 import ai.lzy.channelmanager.v2.model.Connection;
 import ai.lzy.channelmanager.v2.model.Endpoint;
 import ai.lzy.channelmanager.v2.operation.ChannelOperationDao;
 import ai.lzy.channelmanager.v2.operation.state.BindActionState;
 import ai.lzy.channelmanager.v2.slot.SlotApiClient;
+import ai.lzy.channelmanager.v2.slot.SlotConnectionManager;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.v1.channel.v2.LCMS;
-import com.fasterxml.jackson.core.JsonProcessingException;
+import ai.lzy.v1.longrunning.LongRunning;
+import ai.lzy.v1.slots.LSA;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Any;
 import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.time.Duration;
-import javax.annotation.Nullable;
-
 import static ai.lzy.model.db.DbHelper.withRetries;
-import static ai.lzy.util.grpc.ProtoConverter.toProto;
 
-public class BindAction implements ChannelAction {
+public class BindAction extends ChannelAction {
 
     private static final Logger LOG = LogManager.getLogger(BindAction.class);
 
-    private final String operationId;
-    private final BindActionState state;
-    private final ChannelDao channelDao;
-    private final OperationDao operationDao;
-    private final GrainedLock lockManager;
-    private final SlotApiClient slotApiClient;
-    private final ChannelOperationDao channelOperationDao;
-    private final ChannelController channelController;
+    private BindActionState localState;
+    private BindActionState state;
 
-    public BindAction(BindActionState state, ChannelDao channelDao, OperationDao operationDao,
-                      ChannelOperationDao channelOperationDao, ChannelController channelController)
+    public BindAction(ObjectMapper objectMapper, String operationId, ChannelManagerDataSource storage,
+                      ChannelDao channelDao, OperationDao operationDao, ChannelOperationDao channelOperationDao,
+                      SlotApiClient slotApiClient, ChannelController channelController, GrainedLock lockManager,
+                      SlotConnectionManager slotConnectionManager, BindActionState state)
     {
+        super(objectMapper, operationId, storage, channelDao, operationDao, channelOperationDao, slotApiClient,
+            channelController, slotConnectionManager, lockManager);
         this.state = state;
-        this.channelDao = channelDao;
-        this.operationDao = operationDao;
-        this.channelOperationDao = channelOperationDao;
-        this.channelController = channelController;
+        this.localState = BindActionState.copyOf(state);
     }
 
     @Override
     public void run() {
+        LOG.info("Async operation (operationId={}) resumed, channelId={}", operationId, state.channelId());
 
         try {
-            final Endpoint endpoint = withRetries(LOG, () -> channelDao.findEndpoint(state.endpointUri(), null));
+            final Endpoint bindingEndpoint = withRetries(LOG, () -> channelDao.findEndpoint(state.endpointUri(), null));
 
-            if (endpoint == null) {
-                cancelOperation();
+            if (bindingEndpoint == null) {
+                String errorMessage = "Async operation (operationId=" + operationId + ") cancelled,"
+                                      + " endpoint " + state.endpointUri()
+                                      + " of channel " + state.channelId() + " not found";
+                LOG.error(errorMessage);
+                this.failOperation(Status.CANCELLED.withDescription(errorMessage));
                 return;
             }
 
             while (true) {
-                String connectingEndpointUri = state.connectingEndpointUri();
+                final Endpoint restoredEndpoint;
+                if (state.connectingEndpointUri() == null) {
+                    restoredEndpoint = null;
+                } else {
+                    restoredEndpoint = withRetries(LOG, () ->
+                        channelDao.findEndpoint(state.connectingEndpointUri(), null));
 
-                final Endpoint endpointToConnect;
-                if (connectingEndpointUri == null) {
+                    if (restoredEndpoint == null) {
+                        LOG.warn("Failed to restore connecting endpoint {}, not found", state.connectingEndpointUri());
+                    }
+                }
+
+                final Endpoint connectingEndpoint;
+                if (restoredEndpoint != null) {
+                    connectingEndpoint = restoredEndpoint;
+                    LOG.info("Async operation (operationId={}): restored connecting endpoint {}",
+                        operationId, connectingEndpoint.getUri());
+                } else {
+                    localState.reset();
+                    withRetries(LOG, () -> channelOperationDao.update(operationId, toJson(localState), null));
+                    state = BindActionState.copyOf(localState);
+
                     try (final var guard = lockManager.withLock(state.channelId())) {
-                        endpointToConnect = findEndpointToConnect(endpoint);
-                        if (endpointToConnect == null) {
+                        connectingEndpoint = channelController.findEndpointToConnect(bindingEndpoint);
+                        if (connectingEndpoint == null) {
+                            try {
+                                withRetries(LOG, () -> {
+                                    try (var tx = TransactionHandle.create(storage)) {
+                                        channelOperationDao.delete(operationId, tx);
+                                        operationDao.updateResponse(operationId,
+                                            Any.pack(LCMS.BindResponse.getDefaultInstance()).toByteArray(), tx);
+                                        channelDao.markEndpointBound(state.endpointUri(), tx);
+                                        tx.commit();
+                                    }
+                                });
+                                LOG.info("Async operation (operationId={}) finished", operationId);
+                                return;
+                            } catch (Exception e) {
+                                String errorMessage = "Failed to mark endpoint " + state.endpointUri() + " bound"
+                                                      + "got exception: " + e.getMessage();
+                                throw new RuntimeException(errorMessage);
+                            }
+                        }
+
+                        LOG.info("Async operation (operationId={}): found connecting endpoint {}",
+                            operationId, connectingEndpoint.getUri());
+                        localState = BindActionState.copyOf(state);
+                        localState.setConnectingEndpointUri(connectingEndpoint.getUri().toString());
+                        try {
                             withRetries(LOG, () -> {
                                 try (var tx = TransactionHandle.create(storage)) {
-                                    channelOperationDao.delete(operationId, tx);
-                                    final var response = Any.pack(LCMS.BindResponse.getDefaultInstance()).toByteArray();
-                                    operationDao.updateResponse(operationId, response, tx);
-                                    channelDao.markEndpointBound(endpoint.getUri().toString(), null);
-                                } catch (Exception e) {
-                                    throw new RuntimeException("Failed to mark endpoint bound in storage");
+                                    channelOperationDao.update(operationId, toJson(localState), tx);
+                                    channelDao.insertConnection(state.channelId(),
+                                        Connection.of(bindingEndpoint, connectingEndpoint), tx);
+                                    tx.commit();
                                 }
                             });
-                            return;
+                            state = BindActionState.copyOf(localState);
+                        } catch (Exception e) {
+                            String errorMessage = "Failed to insert connection "
+                                                  + "(endpointToConnect= " + state.endpointUri() + ")"
+                                                  + "got exception: " + e.getMessage();
+                            throw new RuntimeException(errorMessage);
                         }
                     }
-                } else {
-                    endpointToConnect = withRetries(LOG, () -> channelDao.findEndpoint(connectingEndpointUri, null));
-                    if (endpointToConnect == null) {
+                }
+
+                final Connection potentialConnection = Connection.of(bindingEndpoint, connectingEndpoint);
+                final var sender = potentialConnection.sender();
+                final var receiver = potentialConnection.receiver();
+
+                if (state.connectOperationId() == null) {
+                    if (localState.connectOperationId() == null) {
+                        final var request = LSA.ConnectSlotRequest.newBuilder()
+                            .setFrom(ProtoConverter.toProto(receiver.getSlot()))
+                            .setTo(ProtoConverter.toProto(sender.getSlot()))
+                            .build();
+
+                        final var slotApi =
+                            slotConnectionManager.getConnection(receiver.getUri()).slotApiBlockingStub();
+                        try {
+                            final LongRunning.Operation connectSlotOperation = slotApi.connectSlot(request);
+                            localState = BindActionState.copyOf(state);
+                            localState.setConnectOperationId(connectSlotOperation.getId());
+                        } catch (StatusRuntimeException e) {
+                            LOG.error("Async operation (operationId={}): "
+                                      + "connectSlot failed with code {}: {}. Restart action",
+                                operationId, e.getStatus().getCode(), e.getStatus().getDescription());
+                            restart();
+                            return;
+                        }
+
+                        LOG.info("Async operation (operationId={}): sent connectSlot request, connectOperationId={}",
+                            operationId, localState.connectOperationId());
+                    }
+
+                    try {
+                        withRetries(LOG, () -> channelOperationDao.update(operationId, toJson(localState), null));
+                        state = BindActionState.copyOf(localState);
+                    } catch (Exception e) {
+                        LOG.error("Async operation (operationId={}): Cannot save state with connectOperationId={}. "
+                                   + "Restart action", operationId, localState.connectOperationId());
+                        restart();
+                        return;
+                    }
+                }
+
+                LOG.info("Async operation (operationId={}): check connectSlot status, connectOperationId={}",
+                    operationId, state.connectOperationId());
+
+                final var operationApi = slotConnectionManager.getConnection(receiver.getUri()).operationApiBlockingStub();
+                final LongRunning.Operation connectSlotOperation;
+                try {
+                    connectSlotOperation = operationApi.get(LongRunning.GetOperationRequest.newBuilder()
+                        .setOperationId(state.connectOperationId())
+                        .build());
+                } catch (StatusRuntimeException e) {
+                    LOG.error("Async operation (operationId={}): check connectSlot status with connectOperationId={}"
+                              + " failed with code {}: {}. Restart action", operationId, state.connectOperationId(),
+                        e.getStatus().getCode(), e.getStatus().getDescription());
+                    restart();
+                    return;
+                }
+
+                if (!connectSlotOperation.getDone()) {
+                    LOG.info("Async operation (operationId={}): connectSlot operation with connectOperationId={}"
+                              + " not completed yet. Restart action", operationId, state.connectOperationId());
+                    restart();
+                    return;
+                }
+
+                if (!connectSlotOperation.hasResponse()) {
+                    String errorMessage = "connectSlot operation with connectOperationId=" + state.connectOperationId()
+                                          + " failed: " + connectSlotOperation.getError();
+                    throw new RuntimeException(errorMessage);
+                }
+
+                try (final var guard = lockManager.withLock(state.channelId())) {
+                    boolean needToSave = channelController.checkForSavingConnection(bindingEndpoint, connectingEndpoint);
+                    if (needToSave) {
+                        localState.reset();
+                        try {
+                            withRetries(LOG, () -> {
+                                try (var tx = TransactionHandle.create(storage)) {
+                                    channelOperationDao.update(operationId, toJson(localState), tx);
+                                    channelDao.markConnectionAlive(
+                                        state.channelId(),
+                                        potentialConnection.sender().getUri().toString(),
+                                        potentialConnection.receiver().getUri().toString(),
+                                        tx);
+                                }
+                            });
+                            state = BindActionState.copyOf(localState);
+                            LOG.info("Async operation (operationId={}): connection saved, "
+                                     + "bindingEndpoint={}, connectingEndpoint={}",
+                                operationId, bindingEndpoint.getUri(), connectingEndpoint.getUri());
+                        } catch (Exception e) {
+                            throw new RuntimeException("Failed to save alive connection in storage", e);
+                        }
+                    } else {
+                        LOG.info("Async operation (operationId={}): skip saving connection, disconnecting endpoints, "
+                                 + "sender={}, receiver={}", operationId,
+                            potentialConnection.sender().getUri(), potentialConnection.receiver().getUri());
+                        slotApiClient.disconnect(potentialConnection.receiver());
                         state.reset();
                         withRetries(LOG, () -> channelOperationDao.update(operationId, toJson(state), null));
-                        continue;
                     }
-                }
-
-                final Connection potentialConnection = Connection.of(endpoint, endpointToConnect);
-
-                try {
-                    String connectOpId = state.connectOperationId();
-                    if (connectOpId == null) {
-                        connectOpId = slotApiClient.connectStart(
-                            potentialConnection.sender(),
-                            potentialConnection.receiver());
-
-                        state.setConnectOperationId(connectOpId);
-                        withRetries(LOG, () -> channelOperationDao.update(operationId, toJson(state), null));
-                    }
-
-                    slotApiClient.connectFinish(potentialConnection.sender(), potentialConnection.receiver(),
-                        Duration.ofSeconds(10), connectOpId);
-
-                } catch (Exception e) {
-                    state.reset();
-                    withRetries(LOG, () -> channelOperationDao.update(operationId, toJson(state), null));
-                    // remove connection
-                }
-
-                boolean connectionSaved;
-                try (final var guard = lockManager.withLock(endpoint.getChannelId())) {
-                    connectionSaved = saveConnection(endpoint, endpointToConnect);
                 } catch (CancellingChannelGraphStateException e) {
-                    LOG.info("[bind] disconnecting endpoints after CancellingException, sender={}, receiver={}",
+                    LOG.info("Async operation (operationId={}): saving connection failed, disconnecting endpoints, "
+                             + " sender={}, receiver={}", operationId,
                         potentialConnection.sender().getUri(), potentialConnection.receiver().getUri());
                     slotApiClient.disconnect(potentialConnection.receiver());
+                    state.reset();
+                    withRetries(LOG, () -> channelOperationDao.update(operationId, toJson(state), null));
                     throw e;
                 }
 
-                if (!connectionSaved) {
-                    LOG.info("[bind] disconnecting endpoints after saving connection fail, sender={}, receiver={}",
-                        potentialConnection.sender().getUri(), potentialConnection.receiver().getUri());
-                    slotApiClient.disconnect(potentialConnection.receiver());
-                }
-
             }
 
-
-
-
-
-        } catch (Exception e) {
-            String errorMessage = operationDescription + " async operation " + operation.id()
-                                  + " failed: " + e.getMessage();
-            LOG.error(errorMessage);
-            operationDao.failOperation(operation.id(),
-                toProto(Status.INTERNAL.withDescription(errorMessage)), LOG);
-            // TODO
-        }
-
-
-
-        try {
-            LOG.info(operationDescription + " responded, async operation started, operationId={}", operation.id());
-
-            final Endpoint endpoint = channelDao.findEndpoint(slotUri, null);
-
-
-            channelController.bind(endpoint);
-
-            try {
-                withRetries(LOG, () -> operationDao.updateResponse(operation.id(),
-                    Any.pack(LCMS.BindResponse.getDefaultInstance()).toByteArray(), null));
-            } catch (Exception e) {
-                LOG.error("Cannot update operation", e);
-                return;
-            }
-
-            LOG.info(operationDescription + " responded, async operation finished, operationId={}", operation.id());
         } catch (CancellingChannelGraphStateException e) {
-            String errorMessage = operationDescription + " async operation " + operation.id()
-                                  + " cancelled according to the graph state: " + e.getMessage();
+            String errorMessage = "Async operation (operationId=" + operationId + ") cancelled "
+                                  + "due to the graph state: " + e.getMessage();
             LOG.error(errorMessage);
-            operationDao.failOperation(operation.id(),
-                toProto(Status.CANCELLED.withDescription(errorMessage)), LOG);
+            this.failOperation(Status.CANCELLED.withDescription(errorMessage));
         } catch (Exception e) {
-            String errorMessage = operationDescription + " async operation " + operation.id()
-                                  + " failed: " + e.getMessage();
+            String errorMessage = "Async operation (operationId=" + operationId + ") failed: " + e.getMessage();
             LOG.error(errorMessage);
-            operationDao.failOperation(operation.id(),
-                toProto(Status.INTERNAL.withDescription(errorMessage)), LOG);
-            // TODO
+            this.failOperation(Status.INTERNAL.withDescription(errorMessage));
         }
 
     }
 
-    @Nullable
-    private Endpoint findEndpointToConnect(Endpoint bindingEndpoint) throws CancellingChannelGraphStateException {
-        LOG.debug("[findEndpointToConnect], bindingEndpoint={}", bindingEndpoint.getUri());
-
-        final String channelId = bindingEndpoint.getChannelId();
-        final Channel channel;
-        try {
-            channel = withRetries(LOG, () -> channelDao.findChannel(channelId, Channel.LifeStatus.ALIVE, null));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to find channel in storage", e);
-        }
-        if (channel == null) {
-            throw new CancellingChannelGraphStateException(channelId, "Channel not found");
-        }
-
-        final Endpoint actualStateEndpoint = channel.getEndpoint(bindingEndpoint.getUri());
-        if (actualStateEndpoint == null) {
-            throw new CancellingChannelGraphStateException(channelId,
-                "Endpoint " + bindingEndpoint.getUri() + " not found");
-        }
-
-        if (actualStateEndpoint.getStatus() != Endpoint.LifeStatus.BINDING) {
-            throw new CancellingChannelGraphStateException(channelId,
-                "Endpoint " + bindingEndpoint.getUri() + " has wrong lifeStatus " + actualStateEndpoint.getStatus());
-        }
-
-        final Endpoint endpointToConnect = switch (bindingEndpoint.getSlotDirection()) {
-            case OUTPUT /* SENDER */ ->
-                channel.findReceiversToConnect(bindingEndpoint).stream().findFirst().orElse(null);
-            case INPUT /*RECEIVER */ ->
-                channel.findSenderToConnect(bindingEndpoint);
-        };
-
-        if (endpointToConnect == null) {
-            LOG.debug("[findEndpointToConnect] done, nothing to connect, bindingEndpoint={}", bindingEndpoint.getUri());
-            return null;
-        }
-
-        try {
-            state.setConnectingEndpointUri(endpointToConnect.getUri().toString());
-            withRetries(LOG, () -> {
-                try (var tx = TransactionHandle.create(storage)) {
-                    channelOperationDao.update(operationId, toJson(state), tx);
-                    channelDao.insertConnection(state.channelId(),
-                        Connection.of(bindingEndpoint, endpointToConnect), tx);
-                }
-            });
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to insert connection in storage", e);
-        }
-
-        LOG.debug("[findEndpointToConnect] done, bindingEndpoint={}, found endpointToConnect={}",
-            bindingEndpoint.getUri(), endpointToConnect.getUri());
-        return endpointToConnect;
-    }
-
-    private boolean saveConnection(Endpoint bindingEndpoint, Endpoint connectedEndpoint)
-        throws CancellingChannelGraphStateException
-    {
-        LOG.debug("[saveConnection], bindingEndpoint={}, connectedEndpoint={}",
-            bindingEndpoint.getUri(), connectedEndpoint.getUri());
-
-        final String channelId = bindingEndpoint.getChannelId();
-        final Endpoint sender;
-        final Endpoint receiver;
-        switch (bindingEndpoint.getSlotDirection()) {
-            case OUTPUT /* SENDER */ -> {
-                sender = bindingEndpoint;
-                receiver = connectedEndpoint;
-            }
-            case INPUT /* RECEIVER */ -> {
-                sender = connectedEndpoint;
-                receiver = bindingEndpoint;
-            }
-            default -> throw new IllegalStateException(
-                "Endpoint " + bindingEndpoint.getUri()
-                + " has unexpected direction" + bindingEndpoint.getSlotDirection());
-        }
-
-        final Channel channel;
-        try {
-            channel = withRetries(LOG, () -> channelDao.findChannel(channelId, Channel.LifeStatus.ALIVE, null));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to find channel in storage", e);
-        }
-        if (channel == null) {
-            throw new CancellingChannelGraphStateException(channelId, "Channel not found");
-        }
-
-        final Endpoint actualStateEndpoint = channel.getEndpoint(bindingEndpoint.getUri());
-        if (actualStateEndpoint == null) {
-            throw new CancellingChannelGraphStateException(channelId,
-                "Endpoint " + bindingEndpoint.getUri() + " not found");
-        }
-
-        if (actualStateEndpoint.getStatus() != Endpoint.LifeStatus.BINDING) {
-            throw new CancellingChannelGraphStateException(channelId,
-                "Endpoint " + bindingEndpoint.getUri() + " has wrong lifeStatus " + actualStateEndpoint.getStatus());
-        }
-
-        final Connection actualStateConnection = channel.getConnection(sender.getUri(), receiver.getUri());
-        if (actualStateConnection == null || actualStateConnection.status() != Connection.LifeStatus.CONNECTING) {
-            String connectionStatus = actualStateConnection == null ? "null" : actualStateConnection.status().name();
-            LOG.warn("[saveConnection] skipped, unexpected connection status {}, "
-                     + "bindingEndpoint={}, connectedEndpoint={}",
-                connectionStatus, bindingEndpoint.getUri(), connectedEndpoint.getUri());
-            return false;
-        }
-
-        try {
-            state.reset();
-            withRetries(LOG, () -> {
-                try (var tx = TransactionHandle.create(storage)) {
-                    channelOperationDao.update(operationId, toJson(state), tx);
-                    channelDao.markConnectionAlive(channelId,
-                        sender.getUri().toString(), receiver.getUri().toString(), tx);
-                }
-            });
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to save alive connection in storage", e);
-        }
-
-        LOG.debug("[saveConnection] done, bindingEndpoint={}, connectedEndpoint={}",
-            bindingEndpoint.getUri().toString(), connectedEndpoint.getUri().toString());
-
-        return true;
-    }
-
-    private void cancelOperation() {
-
-    }
-
-    protected final String toJson(Object obj) {
-        try {
-            return objectMapper.writeValueAsString(obj);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
-    }
 }

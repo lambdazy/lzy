@@ -1,61 +1,55 @@
 package ai.lzy.channelmanager.v2.slot;
 
-import ai.lzy.channelmanager.ChannelManagerConfig;
+import ai.lzy.channelmanager.v2.config.ChannelManagerConfig;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import com.google.common.cache.RemovalNotification;
 import com.google.common.net.HostAndPort;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.net.URI;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 @Singleton
 public class SlotConnectionManager {
 
     private static final Logger LOG = LogManager.getLogger(SlotConnectionManager.class);
 
-    private final Map<HostAndPort, SlotApiConnection> connectionMap; // TTL ???
+    private final LoadingCache<HostAndPort, SlotGrpcConnection> connections;
     private final ChannelManagerConfig config;
 
     public SlotConnectionManager(ChannelManagerConfig config) {
-        this.connectionMap = new ConcurrentHashMap<>();
         this.config = config;
+        this.connections = CacheBuilder.newBuilder()
+            .expireAfterAccess(config.getConnections().getCacheTTLSeconds(), TimeUnit.SECONDS)
+            .concurrencyLevel(config.getConnections().getCacheConcurrencyLevel())
+            .removalListener(this::onRemove)
+            .build(CacheLoader.from(this::onLoad));
     }
 
-    public synchronized SlotApiConnection getOrCreateConnection(URI uri) {
-        LOG.debug("[getOrCreateConnection], uri={}", uri);
+    public SlotGrpcConnection getConnection(URI uri) {
         final HostAndPort address = HostAndPort.fromParts(uri.getHost(), uri.getPort());
-        int refCount;
-        if (connectionMap.containsKey(address)) {
-            final SlotApiConnection connection = connectionMap.get(address);
-            refCount = connection.increaseCounter();
-            LOG.debug("[getOrCreateConnection] found, {} references, uri={},", refCount, uri);
-            return connection;
-        }
+        return connections.getUnchecked(address);
+    }
 
-        final SlotApiConnection connection = new SlotApiConnection(config.getIam().createRenewableToken(), address);
-        connectionMap.put(address, connection);
-        refCount = 1;
-        LOG.debug("[getOrCreateConnection] created, {} references, uri={}", refCount, uri);
+    private SlotGrpcConnection onLoad(HostAndPort address) {
+        final var connection = new SlotGrpcConnection(config.getIam().createRenewableToken(), address);
+        LOG.debug("Connection created, address={}", address);
         return connection;
     }
 
-    public synchronized void shutdownConnection(URI uri) {
-        LOG.debug("[shutdownConnection], uri={}", uri);
-        final HostAndPort address = HostAndPort.fromParts(uri.getHost(), uri.getPort());
-        if (!connectionMap.containsKey(address)) {
-            LOG.warn("[shutdownConnection] skipped, connection doesn't exist, uri={}", uri);
+    private void onRemove(RemovalNotification<HostAndPort, SlotGrpcConnection> removalNotification) {
+        HostAndPort address = removalNotification.getKey();
+        SlotGrpcConnection connection = removalNotification.getValue();
+        if (connection == null) {
+            LOG.warn("Connection with address {} not found, cannot shutdown", removalNotification.getKey());
             return;
         }
-        final SlotApiConnection connection = connectionMap.get(address);
-        int refCount = connection.decreaseCounter();
-        if (refCount == 0) {
-            LOG.debug("[shutdownConnection] connection removed, {} references left, uri={}", refCount, uri);
-            connection.shutdown();
-            connectionMap.remove(address);
-        }
-        LOG.debug("[shutdownConnection] done, {} references left, uri={}", refCount, uri);
+        LOG.debug("Connection with address {} remove and shutdown: {}", address, removalNotification.getCause());
+        connection.shutdown();
     }
 
 }

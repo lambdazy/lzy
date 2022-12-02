@@ -3,18 +3,15 @@ package ai.lzy.channelmanager.v2.control;
 import ai.lzy.channelmanager.lock.GrainedLock;
 import ai.lzy.channelmanager.v2.db.ChannelDao;
 import ai.lzy.channelmanager.v2.exceptions.CancellingChannelGraphStateException;
-import ai.lzy.channelmanager.v2.exceptions.ChannelGraphStateException;
 import ai.lzy.channelmanager.v2.exceptions.IllegalChannelGraphStateException;
 import ai.lzy.channelmanager.v2.model.Channel;
 import ai.lzy.channelmanager.v2.model.Connection;
 import ai.lzy.channelmanager.v2.model.Endpoint;
 import ai.lzy.channelmanager.v2.slot.SlotApiClient;
-import ai.lzy.model.db.exceptions.NotFoundException;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.time.Duration;
 import java.util.List;
 import javax.annotation.Nullable;
 
@@ -36,181 +33,8 @@ public class ChannelControllerImpl implements ChannelController {
     }
 
     @Override
-    public void bind(Endpoint endpoint) throws ChannelGraphStateException {
-        final String channelId = endpoint.getChannelId();
-        while (true) {
-            final Endpoint endpointToConnect;
-
-            try (final var guard = lockManager.withLock(channelId)) {
-                endpointToConnect = findEndpointToConnect(endpoint);
-                if (endpointToConnect == null) {
-                    try {
-                        withRetries(LOG, () -> channelDao.markEndpointBound(endpoint.getUri().toString(), null));
-                    } catch (Exception e) {
-                        throw new RuntimeException("Failed to mark endpoint bound in storage");
-                    }
-                    return;
-                }
-            }
-
-            Connection potentialConnection = Connection.of(endpoint, endpointToConnect);
-            try {
-                slotApiClient.connect(potentialConnection.sender(), potentialConnection.receiver(),
-                    Duration.ofSeconds(10));
-            } catch (Exception e) {
-                LOG.debug("[bind] removing connection from storage after failed connection attempt,"
-                          + " sender={}, receiver={}",
-                    potentialConnection.sender().getUri(), potentialConnection.receiver().getUri());
-                try (final var guard = lockManager.withLock(channelId)) {
-                    withRetries(LOG, () -> channelDao.removeEndpointConnection(
-                        channelId,
-                        potentialConnection.sender().getUri().toString(),
-                        potentialConnection.receiver().getUri().toString(),
-                        null));
-                } catch (Exception ex) {
-                    throw new RuntimeException("Failed to remove connection in storage");
-                }
-                throw e;
-            }
-
-            boolean connectionSaved;
-            try (final var guard = lockManager.withLock(endpoint.getChannelId())) {
-                connectionSaved = saveConnection(endpoint, endpointToConnect);
-            } catch (CancellingChannelGraphStateException e) {
-                LOG.info("[bind] disconnecting endpoints after CancellingException, sender={}, receiver={}",
-                    potentialConnection.sender().getUri(), potentialConnection.receiver().getUri());
-                slotApiClient.disconnect(potentialConnection.receiver());
-                throw e;
-            }
-
-            if (!connectionSaved) {
-                LOG.info("[bind] disconnecting endpoints after saving connection fail, sender={}, receiver={}",
-                    potentialConnection.sender().getUri(), potentialConnection.receiver().getUri());
-                slotApiClient.disconnect(potentialConnection.receiver());
-            }
-        }
-    }
-
-    @Override
-    public void unbindSender(Endpoint sender) throws ChannelGraphStateException {
-        final String channelId = sender.getChannelId();
-        while (true) {
-            final Endpoint receiverToUnbind;
-            try (final var guard = lockManager.withLock(sender.getChannelId())) {
-                receiverToUnbind = findReceiverToUnbind(sender);
-                if (receiverToUnbind == null) {
-                    break;
-                }
-            }
-
-            LOG.warn("[unbindSender], found bound receiver, need force unbind, sender={}, receiver={}",
-                sender.getUri(), receiverToUnbind.getUri());
-            unbindReceiver(receiverToUnbind);
-        }
-
-        slotApiClient.disconnect(sender);
-
-        // TODO (lindvv): maybe should suspend, so shouldn't destroy, fix after slots refactoring
-        slotApiClient.destroy(sender);
-        sender.invalidate();
-
-        try (final var guard = lockManager.withLock(channelId)) {
-            withRetries(LOG, () -> channelDao.removeEndpointWithoutConnections(sender.getUri().toString(), null));
-        } catch (NotFoundException e) {
-            LOG.info("[unbindSender] removing endpoint skipped, sender already removed, sender={}", sender.getUri());
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to remove endpoint in storage");
-        }
-    }
-
-    @Override
-    public void unbindReceiver(Endpoint receiver) throws ChannelGraphStateException {
-        final String channelId = receiver.getChannelId();
-
-        final Connection connectionToBreak;
-        try (final var guard = lockManager.withLock(channelId)) {
-            connectionToBreak = findConnectionToBreak(receiver);
-            if (connectionToBreak == null) {
-                try {
-                    withRetries(LOG, () ->
-                        channelDao.removeEndpointWithoutConnections(receiver.getUri().toString(), null));
-                } catch (Exception e) {
-                    throw new RuntimeException("Failed to remove endpoint in storage");
-                }
-                return;
-            }
-        }
-
-        slotApiClient.disconnect(receiver);
-
-        // TODO (lindvv): maybe should suspend, so shouldn't destroy, fix after slots refactoring
-        slotApiClient.destroy(receiver);
-        receiver.invalidate();
-
-        try (final var guard = lockManager.withLock(channelId)) {
-            boolean connectionRemoved = removeConnection(connectionToBreak.receiver(), connectionToBreak.sender());
-            if (connectionRemoved) {
-                try {
-                    withRetries(LOG, () ->
-                        channelDao.removeEndpointWithoutConnections(receiver.getUri().toString(), null));
-                } /* TODO can retry scheduled execution in cases of sql exceptions */
-                catch (Exception e) {
-                    throw new RuntimeException("Failed to remove endpoint in storage");
-                }
-            }
-        }
-
-    }
-
-    @Override
-    public void destroy(String channelId) throws ChannelGraphStateException {
-        final Channel channel;
-        try (final var guard = lockManager.withLock(channelId)) {
-            try {
-                channel = withRetries(LOG, () -> channelDao.findChannel(channelId, null));
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to find destroying channel in storage", e);
-            }
-
-            if (channel == null) {
-                LOG.info("[destroy] skipped, channel {} not found", channelId);
-                return;
-            }
-
-            if (channel.getLifeStatus() != Channel.LifeStatus.DESTROYING) {
-                try {
-                    withRetries(LOG, () -> channelDao.markChannelDestroying(channelId, null));
-                } catch (Exception e) {
-                    throw new RuntimeException("Failed to mark channel destroying in storage", e);
-                }
-            }
-
-            try {
-                withRetries(LOG, () -> channelDao.markAllEndpointsUnbinding(channelId, null));
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to mark channel endpoints unbinding in storage", e);
-            }
-        }
-
-        for (Endpoint receiver : channel.getActiveReceivers().asList()) {
-            unbindReceiver(receiver);
-        }
-
-        for (Endpoint sender : channel.getActiveSenders().asList()) {
-            unbindSender(sender);
-        }
-
-        try (final var guard = lockManager.withLock(channelId)) {
-            withRetries(LOG, () -> channelDao.removeChannel(channelId, null));
-        } catch (NotFoundException e) {
-            LOG.info("[destroy] removing channel skipped, channel {} already removed", channelId);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to remove channel in storage", e);
-        }
-    }
-
     @Nullable
-    private Endpoint findEndpointToConnect(Endpoint bindingEndpoint) throws CancellingChannelGraphStateException {
+    public Endpoint findEndpointToConnect(Endpoint bindingEndpoint) throws CancellingChannelGraphStateException {
         LOG.debug("[findEndpointToConnect], bindingEndpoint={}", bindingEndpoint.getUri());
 
         final String channelId = bindingEndpoint.getChannelId();
@@ -235,45 +59,28 @@ public class ChannelControllerImpl implements ChannelController {
                 "Endpoint " + bindingEndpoint.getUri() + " has wrong lifeStatus " + actualStateEndpoint.getStatus());
         }
 
-        final Endpoint endpointToConnect;
-        final Endpoint sender;
-        final Endpoint receiver;
-        switch (bindingEndpoint.getSlotDirection()) {
-            case OUTPUT /* SENDER */ -> {
-                endpointToConnect = channel.findReceiversToConnect(bindingEndpoint).stream().findFirst().orElse(null);
-                sender = bindingEndpoint;
-                receiver = endpointToConnect;
-            }
-            case INPUT /* RECEIVER */ -> {
-                endpointToConnect = channel.findSenderToConnect(bindingEndpoint);
-                sender = endpointToConnect;
-                receiver = bindingEndpoint;
-            }
-            default -> throw new IllegalStateException(
-                "Endpoint " + bindingEndpoint.getUri() + " has unexpected direction");
-        }
+        final Endpoint endpointToConnect = switch (bindingEndpoint.getSlotDirection()) {
+            case OUTPUT /* SENDER */ ->
+                channel.findReceiversToConnect(bindingEndpoint).stream().findFirst().orElse(null);
+            case INPUT /*RECEIVER */ ->
+                channel.findSenderToConnect(bindingEndpoint);
+        };
 
         if (endpointToConnect == null) {
             LOG.debug("[findEndpointToConnect] done, nothing to connect, bindingEndpoint={}", bindingEndpoint.getUri());
             return null;
         }
 
-        try {
-            withRetries(LOG, () -> channelDao.insertConnection(channelId, Connection.of(sender, receiver), null));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to insert connection in storage", e);
-        }
-
         LOG.debug("[findEndpointToConnect] done, bindingEndpoint={}, found endpointToConnect={}",
             bindingEndpoint.getUri(), endpointToConnect.getUri());
-
         return endpointToConnect;
     }
 
-    private boolean saveConnection(Endpoint bindingEndpoint, Endpoint connectedEndpoint)
+    @Override
+    public boolean checkForSavingConnection(Endpoint bindingEndpoint, Endpoint connectedEndpoint)
         throws CancellingChannelGraphStateException
     {
-        LOG.debug("[saveConnection], bindingEndpoint={}, connectedEndpoint={}",
+        LOG.debug("[checkForSavingConnection], bindingEndpoint={}, connectedEndpoint={}",
             bindingEndpoint.getUri(), connectedEndpoint.getUri());
 
         final String channelId = bindingEndpoint.getChannelId();
@@ -317,27 +124,18 @@ public class ChannelControllerImpl implements ChannelController {
         final Connection actualStateConnection = channel.getConnection(sender.getUri(), receiver.getUri());
         if (actualStateConnection == null || actualStateConnection.status() != Connection.LifeStatus.CONNECTING) {
             String connectionStatus = actualStateConnection == null ? "null" : actualStateConnection.status().name();
-            LOG.warn("[saveConnection] skipped, unexpected connection status {}, "
-                      + "bindingEndpoint={}, connectedEndpoint={}",
+            LOG.warn("[checkForSavingConnection] failed, unexpected connection status {}, "
+                     + "bindingEndpoint={}, connectedEndpoint={}",
                 connectionStatus, bindingEndpoint.getUri(), connectedEndpoint.getUri());
             return false;
         }
 
-        try {
-            withRetries(LOG, () -> channelDao.markConnectionAlive(
-                channelId, sender.getUri().toString(), receiver.getUri().toString(), null));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to save alive connection in storage", e);
-        }
-
-        LOG.debug("[saveConnection] done, bindingEndpoint={}, connectedEndpoint={}",
-            bindingEndpoint.getUri().toString(), connectedEndpoint.getUri().toString());
-
         return true;
     }
 
+    @Override
     @Nullable
-    private Endpoint findReceiverToUnbind(Endpoint unbindingSender) throws IllegalChannelGraphStateException {
+    public Endpoint findReceiverToUnbind(Endpoint unbindingSender) throws IllegalChannelGraphStateException {
         LOG.debug("[findReceiverToUnbind], unbindingSender={}", unbindingSender.getUri());
 
         final String channelId = unbindingSender.getChannelId();
@@ -388,8 +186,9 @@ public class ChannelControllerImpl implements ChannelController {
         return receiverToUnbind;
     }
 
+    @Override
     @Nullable
-    private Connection findConnectionToBreak(Endpoint unbindingReceiver) throws IllegalChannelGraphStateException {
+    public Connection findConnectionToBreak(Endpoint unbindingReceiver) throws IllegalChannelGraphStateException {
         LOG.debug("[findConnectionToBreak], unbindingReceiver={}", unbindingReceiver.getUri());
 
         final String channelId = unbindingReceiver.getChannelId();
@@ -443,7 +242,8 @@ public class ChannelControllerImpl implements ChannelController {
         return connectionToBreak;
     }
 
-    private boolean removeConnection(Endpoint unbindingReceiver, Endpoint connectedSender)
+    @Override
+    public boolean checkForRemovingConnection(Endpoint unbindingReceiver, Endpoint connectedSender)
         throws IllegalChannelGraphStateException
     {
         LOG.debug("[removeConnection], unbindingReceiver={}, connectedSender={}",

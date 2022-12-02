@@ -10,8 +10,6 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.time.Duration;
-
 import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 
 @Singleton
@@ -20,10 +18,10 @@ public class SlotApiClientImpl implements SlotApiClient {
     private static final Logger LOG = LogManager.getLogger(SlotApiClientImpl.class);
 
     @Override
-    public void connect(Endpoint sender, Endpoint receiver, Duration timeout) {
+    public LongRunning.Operation connect(Endpoint sender, Endpoint receiver) {
         LOG.debug("[connect], sender={}, receiver={}", sender.getUri(), receiver.getUri());
 
-        SlotApiConnection receiverConnection = receiver.getSlotApiConnection();
+        SlotGrpcConnection receiverConnection = receiver.getSlotApiConnection();
         if (receiverConnection == null) {
             LOG.error("[connect] failed, receiver is invalid, sender={}, receiver={}",
                 sender.getUri(), receiver.getUri());
@@ -40,6 +38,9 @@ public class SlotApiClientImpl implements SlotApiClient {
         LOG.debug("[connect] got operation, waiting response, sender={}, receiver={}",
             sender.getUri(), receiver.getUri());
 
+        return operation;
+    }
+    {
         operation = awaitOperationDone(operationApiClient, operation.getId(), timeout);
         if (!operation.getDone()) {
             LOG.error("[connect] operation timeout, sender={}, receiver={}", sender.getUri(), receiver.getUri());
@@ -57,7 +58,7 @@ public class SlotApiClientImpl implements SlotApiClient {
     public void disconnect(Endpoint endpoint) {
         LOG.debug("[disconnect], endpoint={}", endpoint.getUri());
 
-        SlotApiConnection connection = endpoint.getSlotApiConnection();
+        SlotGrpcConnection connection = endpoint.getSlotApiConnection();
         if (connection == null) {
             LOG.warn("[disconnect] skipped, endpoint is invalid, endpoint={}", endpoint.getUri());
             return;
@@ -83,7 +84,7 @@ public class SlotApiClientImpl implements SlotApiClient {
     public void destroy(Endpoint endpoint) {
         LOG.debug("[destroy], endpoint={}", endpoint.getUri());
 
-        SlotApiConnection connection = endpoint.getSlotApiConnection();
+        SlotGrpcConnection connection = endpoint.getSlotApiConnection();
         if (connection == null) {
             LOG.warn("[destroy] skipped, endpoint is invalid, endpoint={}", endpoint.getUri());
             return;

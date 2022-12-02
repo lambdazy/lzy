@@ -47,4 +47,8 @@ public interface ChannelDao {
     @Nullable
     Endpoint findEndpoint(String endpointUri, @Nullable TransactionHandle transaction) throws SQLException;
 
+    interface UpdateRequest {
+        void run(TransactionHandle tx) throws SQLException;
+    }
+
 }

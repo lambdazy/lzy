@@ -21,6 +21,12 @@ public class BindActionState {
         this.connectOperationId = connectOperationId;
     }
 
+    public static BindActionState copyOf(BindActionState other) {
+        return new BindActionState(other.channelId, other.endpointUri,
+            other.connectingEndpointUri(),
+            other.connectOperationId());
+    }
+
     public String channelId() {
         return channelId;
     }

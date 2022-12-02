@@ -1,4 +1,4 @@
-package ai.lzy.channelmanager;
+package ai.lzy.channelmanager.v2.config;
 
 import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.model.db.DatabaseConfiguration;
@@ -23,6 +23,9 @@ public final class ChannelManagerConfig {
     @ConfigurationBuilder("database")
     private final DatabaseConfiguration database = new DatabaseConfiguration();
 
+    @ConfigurationBuilder("connections")
+    private final ConnectionManagerConfig connections = new ConnectionManagerConfig();
+
     @Override
     public String toString() {
         return "ChannelManagerConfig{" +
@@ -32,6 +35,7 @@ public final class ChannelManagerConfig {
                ", lockBucketsCount=" + lockBucketsCount +
                ", iam=" + iam +
                ", database=" + database +
+               ", connections=" + connections +
                '}';
     }
 }
