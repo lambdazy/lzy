@@ -71,7 +71,8 @@ public class GraphExecutionService {
     private final Map<String, ManagedChannel> portalChannelForExecution = new ConcurrentHashMap<>();
 
     public GraphExecutionService(GraphDao graphDao, WorkflowDao workflowDao,
-                                 ExecutionDao executionDao, Storage storage,
+                                 ExecutionDao executionDao,
+                                 @Named("LzyServiceStorage") Storage storage,
                                  @Named("LzyServiceOperationDao") OperationDao operationDao,
                                  @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
                                  @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
