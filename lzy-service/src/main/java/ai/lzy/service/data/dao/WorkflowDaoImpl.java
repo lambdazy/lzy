@@ -99,7 +99,8 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
     public static final String QUERY_UPDATE_EXECUTION_FINISH_DATA = """
         UPDATE workflow_executions
-        SET finished_at = ?, finished_with_error = ?, finished_error_code = ?, execution_status = cast(? as execution_status)
+        SET finished_at = ?, finished_with_error = ?, finished_error_code = ?,
+        execution_status = cast(? as execution_status)
         WHERE execution_id = ?""";
 
     private static final String QUERY_UPDATE_CLEANED_EXECUTION = """
