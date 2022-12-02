@@ -1,85 +1,66 @@
 import datetime
-from abc import ABC, abstractmethod
-from typing import Iterable, Optional, Sequence
+import os
+from typing import Iterable, Optional, Sequence, cast
 
+# noinspection PyPackageRequirements
 from google.protobuf.timestamp_pb2 import Timestamp
-from grpc.aio import Channel
+# noinspection PyPackageRequirements
+from serialzy.api import Schema
 
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, TimeBounds, Storage, WhiteboardFieldInfo
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2 import GetRequest, GetResponse, ListResponse, ListRequest, \
     CreateWhiteboardRequest, CreateWhiteboardResponse, FinalizeWhiteboardRequest, LinkFieldRequest
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2_grpc import LzyWhiteboardServiceStub
-from serialzy.api import Schema
-from lzy.utils.grpc import build_channel, add_headers_interceptor
-from lzy.whiteboards.whiteboard_declaration import WhiteboardInstanceMeta, WhiteboardField
+from lzy.utils.grpc import build_channel, add_headers_interceptor, build_token
+from lzy.whiteboards.api import WhiteboardClient, WhiteboardField, WhiteboardInstanceMeta
+
+WB_USER_ENV = "LZY_USER"
+WB_KEY_PATH_ENV = "LZY_KEY_PATH"
+WB_ENDPOINT_ENV = "LZY_WHITEBOARD_ENDPOINT"
 
 
-class WhiteboardServiceClient(ABC):
-    @abstractmethod
-    async def get(self, wb_id: str) -> Whiteboard:
-        pass
+class RemoteWhiteboardClient(WhiteboardClient):
+    def __init__(self):
+        self.__channel = None
+        self.__stub = None
+        self.__is_started = False
 
-    @abstractmethod
-    async def list(
-        self,
-        name: Optional[str] = None,
-        tags: Sequence[str] = (),
-        not_before: Optional[datetime.datetime] = None,
-        not_after: Optional[datetime.datetime] = None
-    ) -> Iterable[Whiteboard]:
-        pass
+    def __start(self) -> None:
+        if self.__is_started:
+            return
+        self.__is_started = True
 
-    @abstractmethod
-    async def create_whiteboard(
-        self,
-        namespace: str,
-        name: str,
-        fields: Sequence[WhiteboardField],
-        storage_name: str,
-        tags: Sequence[str],
-    ) -> WhiteboardInstanceMeta:
-        pass
+        user = os.getenv(WB_USER_ENV),
+        key_path = os.getenv(WB_KEY_PATH_ENV),
+        endpoint: str = os.getenv(WB_ENDPOINT_ENV, "api.lzy.ai:8899")
 
-    @abstractmethod
-    async def link(self, wb_id: str, field_name: str, url: str, data_scheme: Schema) -> None:
-        pass
+        if user is None:
+            raise ValueError(f"User must be specified by env variable {WB_USER_ENV} or `user` argument")
+        if key_path is None:
+            raise ValueError(f"Key path must be specified by env variable {WB_KEY_PATH_ENV} or `key_path` argument")
 
-    @abstractmethod
-    async def finalize(
-        self,
-        whiteboard_id: str
-    ):
-        pass
-
-
-class GrpcWhiteboardServiceClient(WhiteboardServiceClient):
-    @staticmethod
-    async def create(address: str, token: str) -> "GrpcWhiteboardServiceClient":
-        channel = build_channel(
-            address, interceptors=add_headers_interceptor({"authorization": f"Bearer {token}"})
+        token = build_token(cast(str, user), cast(str, key_path))
+        self.__channel = build_channel(
+            endpoint, interceptors=add_headers_interceptor({"authorization": f"Bearer {token}"})
         )
-        await channel.channel_ready()
-        stub = LzyWhiteboardServiceStub(channel)
-        return GrpcWhiteboardServiceClient(stub, channel)
-
-    def __init__(self, stub: LzyWhiteboardServiceStub, channel: Channel):
-        self.__stub = stub
-        self.__channel = channel
+        self.__stub = LzyWhiteboardServiceStub(self.__channel)
 
     async def get(self, wb_id: str) -> Whiteboard:
+        self.__start()
         resp: GetResponse = await self.__stub.Get(GetRequest(
             whiteboardId=wb_id
         ))
         return resp.whiteboard
 
     async def list(
-        self,
-        name: Optional[str] = None,
-        tags: Sequence[str] = (),
-        not_before: Optional[datetime.datetime] = None,
-        not_after: Optional[datetime.datetime] = None
+            self,
+            name: Optional[str] = None,
+            tags: Sequence[str] = (),
+            not_before: Optional[datetime.datetime] = None,
+            not_after: Optional[datetime.datetime] = None
     ) -> Iterable[Whiteboard]:
+        self.__start()
         if not_before is not None:
             from_ = Timestamp()
             from_.FromDatetime(not_before)
@@ -105,14 +86,14 @@ class GrpcWhiteboardServiceClient(WhiteboardServiceClient):
         return resp.whiteboards
 
     async def create_whiteboard(
-        self,
-        namespace: str,
-        name: str,
-        fields: Sequence[WhiteboardField],
-        storage_name: str,
-        tags: Sequence[str],
+            self,
+            namespace: str,
+            name: str,
+            fields: Sequence[WhiteboardField],
+            storage_name: str,
+            tags: Sequence[str],
     ) -> WhiteboardInstanceMeta:
-
+        self.__start()
         res: CreateWhiteboardResponse = await self.__stub.CreateWhiteboard(
             CreateWhiteboardRequest(
                 whiteboardName=name,
@@ -138,6 +119,7 @@ class GrpcWhiteboardServiceClient(WhiteboardServiceClient):
         return WhiteboardInstanceMeta(res.whiteboard.id)
 
     async def link(self, wb_id: str, field_name: str, url: str, data_scheme: Schema) -> None:
+        self.__start()
         await self.__stub.LinkField(
             LinkFieldRequest(
                 whiteboardId=wb_id,
@@ -148,9 +130,10 @@ class GrpcWhiteboardServiceClient(WhiteboardServiceClient):
         )
 
     async def finalize(
-        self,
-        whiteboard_id: str
+            self,
+            whiteboard_id: str
     ):
+        self.__start()
         await self.__stub.FinalizeWhiteboard(
             FinalizeWhiteboardRequest(
                 whiteboardId=whiteboard_id

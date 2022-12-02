@@ -1,11 +1,10 @@
 import dataclasses
 
-from lzy.whiteboards.whiteboard import WhiteboardRepository
-
 from lzy.api.v2 import op, whiteboard, Lzy
 from lzy.types import File
 
 
+# noinspection PyShadowingNames
 @op
 def a(f1: File) -> (File, File, File):
     with f1.open("a") as fl:
@@ -60,8 +59,7 @@ if __name__ == "__main__":
         i, s = b()
         print(f"{i}, {s}")
 
-    wb_repo = WhiteboardRepository.with_grpc_client(lzy.storage_registry, lzy.serializer)
-    wb = wb_repo.get(wb_id)
+    wb = lzy.whiteboard(wb_id)
     with wb.f2.open("r") as f:
         for line in f.readlines():
             print(f"wb: {line}")

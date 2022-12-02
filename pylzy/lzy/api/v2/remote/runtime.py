@@ -33,7 +33,7 @@ from lzy.api.v2.provisioning import Provisioning
 from lzy.api.v2.exceptions import LzyExecutionException
 from serialzy.api import Schema
 from lzy.utils.grpc import build_token
-from lzy.api.v2.remote_grpc.workflow_service_client import (
+from lzy.api.v2.remote.workflow_service_client import (
     Completed,
     Executing,
     Failed,
@@ -45,13 +45,14 @@ from lzy.api.v2.runtime import (
     Runtime,
 )
 from lzy.api.v2.startup import ProcessingRequest
-from lzy.api.v2.utils._pickle import pickle
+from lzy.api.v2.utils.pickle import pickle
 from lzy.api.v2.utils.files import fileobj_hash, zipdir
 from lzy.api.v2.workflow import WbRef
 
-
-LZY_ADDRESS_ENV = "LZY_ADDRESS_ENV"
 FETCH_STATUS_PERIOD_SEC = float(os.getenv("FETCH_STATUS_PERIOD_SEC", "10"))
+KEY_PATH_ENV = "LZY_KEY_PATH"
+USER_ENV = "LZY_USER"
+ENDPOINT_ENV = "LZY_ENDPOINT"
 
 _LOG = logging.getLogger(__name__)
 
@@ -72,21 +73,8 @@ def wrap_error(message: str = "Something went wrong"):
     return decorator
 
 
-class GrpcRuntime(Runtime):
-    def __init__(
-        self,
-        username: Optional[str] = None,
-        address: Optional[str] = None,
-        key_path: Optional[str] = None,
-    ):
-        self.__username = username
-        self.__workflow_address = (
-            address
-            if address is not None
-            else os.getenv(LZY_ADDRESS_ENV, "api.lzy.ai:8899")
-        )
-        self.__key_path = key_path
-
+class RemoteRuntime(Runtime):
+    def __init__(self):
         self.__workflow_client: Optional[WorkflowServiceClient] = None
         self.__workflow: Optional[LzyWorkflow] = None
         self.__execution_id: Optional[str] = None
@@ -117,10 +105,10 @@ class GrpcRuntime(Runtime):
         )
 
     async def exec(
-        self,
-        calls: List[LzyCall],
-        links: Dict[str, WbRef],
-        progress: Callable[[ProgressStep], None],
+            self,
+            calls: List[LzyCall],
+            links: Dict[str, WbRef],
+            progress: Callable[[ProgressStep], None],
     ) -> None:
         assert self.__execution_id is not None
         assert self.__workflow is not None
@@ -167,7 +155,7 @@ class GrpcRuntime(Runtime):
         for desc in graph.dataDescriptions:
             link = links.pop(desc.storageUri, None)
             if link is not None:
-                data_to_link.append(self.__workflow.owner.whiteboard_repository.client.link(
+                data_to_link.append(self.__workflow.owner.whiteboard_client.link(
                     link.whiteboard_id, link.field_name, desc.storageUri, Schema(
                         data_format=desc.dataScheme.dataFormat,
                         schema_format=desc.dataScheme.schemeFormat,
@@ -247,30 +235,36 @@ class GrpcRuntime(Runtime):
 
     @staticmethod
     def __resolve_pool(
-        provisioning: Provisioning, pool_specs: Sequence[VmPoolSpec]
+            provisioning: Provisioning, pool_specs: Sequence[VmPoolSpec]
     ) -> Optional[VmPoolSpec]:
         assert (
-            provisioning.cpu_type is not None
-            and provisioning.cpu_count is not None
-            and provisioning.gpu_type is not None
-            and provisioning.gpu_count is not None
-            and provisioning.ram_size_gb is not None
+                provisioning.cpu_type is not None
+                and provisioning.cpu_count is not None
+                and provisioning.gpu_type is not None
+                and provisioning.gpu_count is not None
+                and provisioning.ram_size_gb is not None
         )
         for spec in pool_specs:
             if (
-                provisioning.cpu_type == spec.cpuType
-                and provisioning.cpu_count <= spec.cpuCount
-                and provisioning.gpu_type == spec.gpuType
-                and provisioning.gpu_count <= spec.gpuCount
-                and provisioning.ram_size_gb <= spec.ramGb
+                    provisioning.cpu_type == spec.cpuType
+                    and provisioning.cpu_count <= spec.cpuCount
+                    and provisioning.gpu_type == spec.gpuType
+                    and provisioning.gpu_count <= spec.gpuCount
+                    and provisioning.ram_size_gb <= spec.ramGb
             ):
                 return spec
         return None
 
     async def __get_client(self):
         if self.__workflow_client is None:
+            user = os.getenv(USER_ENV)
+            key_path = os.getenv(KEY_PATH_ENV)
+            if user is None:
+                raise ValueError(f"User must be specified by env variable {USER_ENV} or `user` argument")
+            if key_path is None:
+                raise ValueError(f"Key path must be specified by env variable {KEY_PATH_ENV} or `key_path` argument")
             self.__workflow_client = await WorkflowServiceClient.create(
-                self.__workflow_address, build_token(self.__username, self.__key_path)
+                os.getenv(ENDPOINT_ENV, "api.lzy.ai:8899"), build_token(user, key_path)
             )
         return self.__workflow_client
 
@@ -283,10 +277,10 @@ class GrpcRuntime(Runtime):
                 print(data.data, file=sys.stderr)
 
     def __build_graph(
-        self,
-        calls: List[LzyCall],
-        pools: Sequence[VmPoolSpec],
-        modules: Sequence[Tuple[str, str]]
+            self,
+            calls: List[LzyCall],
+            pools: Sequence[VmPoolSpec],
+            modules: Sequence[Tuple[str, str]]
     ) -> Graph:
         assert self.__workflow is not None
 

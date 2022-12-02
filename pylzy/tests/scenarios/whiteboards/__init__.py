@@ -2,13 +2,10 @@ import uuid
 from datetime import datetime, timedelta
 from typing import List, Optional
 
-from data import MessageClass, Test1, TestEnum
 from pure_protobuf.types import int32
 
-from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
-from lzy.serialization.registry import LzySerializerRegistry
-from lzy.storage.registry import DefaultStorageRegistry
-from lzy.whiteboards.whiteboard import WhiteboardRepository
+from data import MessageClass, Test1, TestEnum
+from lzy.api.v2 import Lzy, op
 from wbs import (
     AnotherSimpleView,
     AnotherSimpleWhiteboard,
@@ -21,8 +18,6 @@ from wbs import (
     WhiteboardWithTwoLzyMessageFields, simple_whiteboard_tag, another_simple_whiteboard_tag, lzy_message_fields_tag,
     default_whiteboard_tag,
 )
-
-from lzy.api.v2 import Lzy, op
 
 """
 This scenario contains:
@@ -88,46 +83,41 @@ def fun8(a: MessageClass) -> int:
 
 WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
 
-storage = DefaultStorageRegistry()
-serializer = LzySerializerRegistry()
-
-wb_repo = WhiteboardRepository.with_grpc_client(storage, serializer)
-
-lzy = Lzy(storage_registry=storage, serializer_registry=serializer, runtime=GrpcRuntime())
+lzy = Lzy()
 
 with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
-    wb = wf.create_whiteboard(SimpleWhiteboard, [simple_whiteboard_tag])
+    wb = wf.create_whiteboard(SimpleWhiteboard, tags=[simple_whiteboard_tag])
     wb.a = fun1()
     wb.b = fun2(42)
     wb_id = wb.whiteboard_id
 
-wb = wb_repo.get(wb_id)
+wb = lzy.whiteboard(wb_id)
 print(wb.a, wb.a)
 print(f"Len: {len(wb.b)}")
 
-wb = wb_repo.get(wb_id)
+wb = lzy.whiteboard(wb_id)
 print(wb.a, wb.b)
 print(f"Len: {len(wb.b)}")
 
 
 with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
-    wb = wf.create_whiteboard(AnotherSimpleWhiteboard, [another_simple_whiteboard_tag])
+    wb = wf.create_whiteboard(AnotherSimpleWhiteboard, tags=[another_simple_whiteboard_tag])
     wb.a = fun3(3)
     wb.b = fun4(3)
     wb.c = fun5(4)
 
 
 with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
-    wb = wf.create_whiteboard(OneMoreSimpleWhiteboard, [simple_whiteboard_tag])
+    wb = wf.create_whiteboard(OneMoreSimpleWhiteboard, tags=[simple_whiteboard_tag])
     wb.a = fun1()
     wb.b = fun2(wb.a)
 
-whiteboards = wb_repo.list(tags=[simple_whiteboard_tag])
+whiteboards = lzy.whiteboards(tags=[simple_whiteboard_tag])
 print("Number of whiteboard with simple_whiteboard_tag is " + str(len(whiteboards)))
 
 current_datetime_local = datetime.now() - timedelta(days=1)
 next_day_datetime_local = current_datetime_local + timedelta(days=1)
-whiteboards = wb_repo.list(
+whiteboards = lzy.whiteboards(
     not_before=current_datetime_local,
     not_after=next_day_datetime_local,
 )
@@ -135,21 +125,21 @@ print(
     "Number of whiteboard when date lower and upper bounds are specified is "
     + str(len(whiteboards))
 )
-whiteboards = wb_repo.list(
+whiteboards = lzy.whiteboards(
     not_before=current_datetime_local,
 )
 print(
     "Number of whiteboard when date lower bound is specified is "
     + str(len(whiteboards))
 )
-whiteboards = wb_repo.list(
+whiteboards = lzy.whiteboards(
     not_after=next_day_datetime_local,
 )
 print(
     "Number of whiteboard when date upper bounds is specified is "
     + str(len(whiteboards))
 )
-whiteboards = wb_repo.list(
+whiteboards = lzy.whiteboards(
     not_before=next_day_datetime_local
 )
 print(
@@ -163,7 +153,7 @@ with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
     wb.b = fun8(wb.a)
     wb_id = wb.whiteboard_id
 
-wb = wb_repo.get(wb_id)
+wb = lzy.whiteboard(wb_id)
 print("string_field value in WhiteboardWithLzyMessageFields is " + wb.a.string_field)
 print("int_field value in WhiteboardWithLzyMessageFields is " + str(wb.a.int_field))
 print(
@@ -181,7 +171,7 @@ print("enum_field value in WhiteboardWithLzyMessageFields is " + str(wb.a.enum_f
 print("non lzy message int field in WhiteboardWithLzyMessageFields is " + str(wb.b))
 
 
-wb = wb_repo.get(wb_id)
+wb = lzy.whiteboard(wb_id)
 print("string_field value in WhiteboardWithOneLzyMessageField is " + wb.a.string_field)
 print("int_field value in WhiteboardWithOneLzyMessageField is " + str(wb.a.int_field))
 
@@ -195,7 +185,7 @@ with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
     wb.b = fun2(fun1())
     wb_id = wb.whiteboard_id
 
-wb = wb_repo.get(wb_id)
+wb = lzy.whiteboard(wb_id)
 print(
     f"Value a in DefaultWhiteboard is {wb.a}, b length is {len(wb.b)}, c is {wb.c}, d is {wb.d}"
 )
@@ -212,7 +202,7 @@ with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
     )
     wb_id = wb.whiteboard_id
 
-wb = wb_repo.get(wb_id)
+wb = lzy.whiteboard(wb_id)
 print(
     f"Value a.string_field in WhiteboardWithOneLzyMessageField is {wb.a.string_field}"
 )

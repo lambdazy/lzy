@@ -10,15 +10,19 @@ from typing import Iterator, Sequence, Optional, Iterable
 from unittest import TestCase
 
 import aioboto3
+# noinspection PyPackageRequirements
 import grpc.aio
 import requests
+# noinspection PyPackageRequirements
 from Crypto.PublicKey import RSA
-from lzy.api.v2.local.runtime import LocalRuntime
-
-from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
+# noinspection PyPackageRequirements
 from grpc import StatusCode
+# noinspection PyPackageRequirements
 from moto.server import ThreadedMotoServer
+from serialzy.api import Schema
 
+import lzy.api.v2.startup as startup
+from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
 from ai.lzy.v1.common.s3_pb2 import AmazonS3Endpoint, S3Locator
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, WhiteboardField, WhiteboardFieldInfo, Storage
 from ai.lzy.v1.workflow.workflow_service_pb2 import (
@@ -33,21 +37,18 @@ from ai.lzy.v1.workflow.workflow_service_pb2_grpc import (
     LzyWorkflowServiceServicer,
     add_LzyWorkflowServiceServicer_to_server,
 )
-from lzy.api.v2 import Lzy, op, whiteboard
-from serialzy.api import Schema
-from lzy.utils.event_loop import LzyEventLoop
-from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
-from lzy.whiteboards.whiteboard import _ReadOnlyWhiteboard, WhiteboardRepository
+from lzy.api.v2 import Lzy, op, whiteboard, ReadOnlyWhiteboard
+from lzy.api.v2.local.runtime import LocalRuntime
 from lzy.api.v2.snapshot import DefaultSnapshot
-import lzy.api.v2.startup as startup
-from lzy.api.v2.utils._pickle import pickle
+from lzy.api.v2.utils.pickle import pickle
 from lzy.proxy.result import Just
 from lzy.serialization.registry import LzySerializerRegistry
-from lzy.types import File
 from lzy.storage import api as storage
 from lzy.storage.registry import DefaultStorageRegistry
-from lzy.whiteboards.whiteboard_declaration import WhiteboardInstanceMeta
-from lzy.whiteboards.whiteboard_service_client import WhiteboardServiceClient
+from lzy.types import File
+from lzy.utils.event_loop import LzyEventLoop
+from lzy.whiteboards.api import WhiteboardClient
+from lzy.whiteboards.api import WhiteboardInstanceMeta
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -59,7 +60,7 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
         self.fail = False
 
     def CreateWorkflow(
-        self, request: CreateWorkflowRequest, context: grpc.ServicerContext
+            self, request: CreateWorkflowRequest, context: grpc.ServicerContext
     ) -> CreateWorkflowResponse:
         LOG.info(f"Creating wf {request}")
 
@@ -76,7 +77,7 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
         )
 
     def FinishWorkflow(
-        self, request: FinishWorkflowRequest, context: grpc.ServicerContext
+            self, request: FinishWorkflowRequest, context: grpc.ServicerContext
     ) -> FinishWorkflowResponse:
         LOG.info(f"Finishing workflow {request}")
 
@@ -89,7 +90,7 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
         return FinishWorkflowResponse()
 
     def ReadStdSlots(
-        self, request: ReadStdSlotsRequest, context: grpc.ServicerContext
+            self, request: ReadStdSlotsRequest, context: grpc.ServicerContext
     ) -> Iterator[ReadStdSlotsResponse]:
         LOG.info(f"Registered listener")
 
@@ -125,27 +126,16 @@ class GrpcRuntimeTests(TestCase):
         self.server.wait_for_termination()
 
     def test_simple(self):
-        runtime = GrpcRuntime("ArtoLord", "localhost:12345", self.__key_path)
-
-        storages = DefaultStorageRegistry()
-        serializers = LzySerializerRegistry()
-
-        lzy = Lzy(runtime=runtime, whiteboard_repository=WhiteboardRepository(
-            storages, serializers, WhiteboardClient()
-        ))
+        lzy = Lzy(whiteboard_client=WhiteboardClientForTest())
+        lzy.auth(user="ArtoLord", key_path=self.__key_path, endpoint="localhost:12345")
 
         with lzy.workflow("some_name"):
             self.assertIsNotNone(lzy.storage_registry.default_config())
 
     def test_error(self):
-        runtime = GrpcRuntime("ArtoLord", "localhost:12345", self.__key_path)
+        lzy = Lzy(whiteboard_client=WhiteboardClientForTest())
+        lzy.auth(user="ArtoLord", key_path=self.__key_path, endpoint="localhost:12345")
 
-        storages = DefaultStorageRegistry()
-        serializers = LzySerializerRegistry()
-
-        lzy = Lzy(runtime=runtime, whiteboard_repository=WhiteboardRepository(
-            storages, serializers, WhiteboardClient()
-        ))
         self.mock.fail = True
         with self.assertRaises(expected_exception=Exception):
             with lzy.workflow("some_name"):
@@ -153,7 +143,9 @@ class GrpcRuntimeTests(TestCase):
         self.assertIsNone(lzy.storage_registry.default_config())
 
     def test_startup(self):
+        # noinspection PyShadowingNames
         def test(a: str, *, b: File) -> str:
+            # noinspection PyShadowingNames
             with b.open("r") as f:
                 return a + f.readline()
 
@@ -205,13 +197,13 @@ class Wb:
     a: int = 1
 
 
-class WhiteboardClient(WhiteboardServiceClient):
+class WhiteboardClientForTest(WhiteboardClient):
     async def get(self, wb_id: str) -> Whiteboard:
         pass
 
     async def list(self, name: Optional[str] = None, tags: Sequence[str] = (),
                    not_before: Optional[datetime.datetime] = None, not_after: Optional[datetime.datetime] = None) -> \
-    Iterable[Whiteboard]:
+            Iterable[Whiteboard]:
         pass
 
     async def create_whiteboard(self, namespace: str, name: str, fields: Sequence[WhiteboardField], storage_name: str,
@@ -237,15 +229,14 @@ class SnapshotTests(TestCase):
 
     async def _create_bucket(self) -> None:
         async with aioboto3.Session().client(
-            "s3",
-            aws_access_key_id="aaa",
-            aws_secret_access_key="aaa",
-            endpoint_url=self.endpoint_url,
+                "s3",
+                aws_access_key_id="aaa",
+                aws_secret_access_key="aaa",
+                endpoint_url=self.endpoint_url,
         ) as s3:
             await s3.create_bucket(Bucket="bucket")
 
     def test_simple(self):
-
         storage_config = storage.StorageConfig(
             bucket="bucket",
             credentials=storage.AmazonCredentials(
@@ -274,15 +265,8 @@ class SnapshotTests(TestCase):
                 self.endpoint_url, access_token="", secret_token=""
             ),
         )
-
-        storages = DefaultStorageRegistry()
-        storages.register_storage("storage", storage_config, True)
-
-        serializers = LzySerializerRegistry()
-
-        lzy = Lzy(storage_registry=storages, runtime=LocalRuntime(), whiteboard_repository=WhiteboardRepository(
-            storages, serializers, WhiteboardClient()
-        ))
+        lzy = Lzy(runtime=LocalRuntime(), whiteboard_client=WhiteboardClientForTest())
+        lzy.storage_registry.register_storage("storage", storage_config, True)
 
         with lzy.workflow("") as wf:
             l = a(41)
@@ -324,15 +308,8 @@ class SnapshotTests(TestCase):
                 self.endpoint_url, access_token="", secret_token=""
             ),
         )
-
-        storages = DefaultStorageRegistry()
-        storages.register_storage("storage", storage_config, True)
-
-        serializers = LzySerializerRegistry()
-
-        lzy = Lzy(storage_registry=storages, runtime=LocalRuntime(), whiteboard_repository=WhiteboardRepository(
-            storages, serializers, WhiteboardClient()
-        ))
+        lzy = Lzy(runtime=LocalRuntime(), whiteboard_client=WhiteboardClientForTest())
+        lzy.storage_registry.register_storage("storage", storage_config, True)
         with lzy.workflow("test") as wf:
             wb = wf.create_whiteboard(Wb)
             self.assertEqual(1, wb.a)
@@ -410,10 +387,11 @@ class SnapshotTests(TestCase):
             ]
         )
 
-        wb = _ReadOnlyWhiteboard(storage=storages, serializers=serializer, wb=wb_desc)
+        wb = ReadOnlyWhiteboard(storage_registry=storages, serializer_registry=serializer, wb=wb_desc)
 
         self.assertEqual("42", wb.a)
         self.assertEqual(42, wb.b)
 
         with self.assertRaises(AttributeError):
+            # noinspection PyUnusedLocal
             err = wb.c
