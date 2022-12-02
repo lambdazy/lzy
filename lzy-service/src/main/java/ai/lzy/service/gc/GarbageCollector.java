@@ -21,8 +21,8 @@ import java.util.UUID;
 @Singleton
 public class GarbageCollector extends TimerTask {
     private static final Logger LOG = LogManager.getLogger(GarbageCollector.class);
-    private static final long MIN_JITTER_PERIOD = 500;
-    private static final long MAX_JITTER_PERIOD = 1000;
+    private static final long MIN_JITTER_PERIOD = 10;
+    private static final long MAX_JITTER_PERIOD = 100;
     private final LzyServiceConfig config;
     private final GcDao gcDao;
     private final WorkflowDao workflowDao;
@@ -56,16 +56,16 @@ public class GarbageCollector extends TimerTask {
     public void run() {
         Timestamp now = Timestamp.from(Instant.now());
         Timestamp validUntil = Timestamp.from(now.toInstant()
-            .plusMillis(config.getGcLeaderPeriod().toMillis() / 2));
+            .plusMillis(config.getGcLeaderPeriod().toMillis()));
 
         try {
             if (!gcDao.updateGC(id, now, validUntil, null)) {
-                LOG.info("GC {} can't become leader", id);
+                LOG.debug("GC {} can't become leader", id);
                 clearTasks();
                 return;
             }
         } catch (Exception e) {
-            LOG.info("GC {} can't become leader", id);
+            LOG.debug("GC {} can't become leader", id);
             clearTasks();
             return;
         }
@@ -107,8 +107,9 @@ public class GarbageCollector extends TimerTask {
             Timestamp validUntil = Timestamp.from(now.toInstant().plusMillis(validPeriod.toMillis()));
 
             try {
-                if (!gcDao.updateGC(id, now, validUntil, null)) {
-                    LOG.info("GC {} already valid", id);
+                if (!gcDao.markGCValid(id, now, validUntil, null)) {
+                    LOG.info("GC {} is not valid", id);
+                    clearTasks();
                 }
             } catch (Exception e) {
                 LOG.info("GC {} can not update leadership", id, e);

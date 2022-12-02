@@ -62,4 +62,31 @@ public class GcDaoImpl implements GcDao {
 
         return result[0];
     }
+
+    @Override
+    public boolean markGCValid(String id, Timestamp now, Timestamp validUntil, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
+        boolean[] result = {false};
+
+        DbOperation.execute(transaction, storage, con -> {
+            var statement = con.prepareStatement(QUERY_UPDATE_LEADER_GC,
+                ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
+
+            ResultSet rs = statement.executeQuery();
+            if (rs.next()) {
+                if (rs.getTimestamp("valid_until").before(now)) {
+                    return;
+                }
+
+                rs.updateTimestamp("updated_at", now);
+                rs.updateTimestamp("valid_until", validUntil);
+                rs.updateString("gc_instance_id", id);
+                rs.updateRow();
+                result[0] = true;
+            }
+        });
+
+        return result[0];
+    }
 }
