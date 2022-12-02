@@ -189,7 +189,7 @@ public class DaoTest {
             List.of(wl1),
             List.of(volumeRequest),
             null);
-        final var vm = vmDao.create(vmSpec, allocOp.id(), now(), now().plus(Duration.ofDays(1)), "ott", null);
+        final var vm = vmDao.create(vmSpec, allocOp.id(), now(), now().plus(Duration.ofDays(1)), "ott", "x", null);
 
         final var vm1 = vmDao.get(vm.vmId(), null);
         Assert.assertNotNull(vm1);

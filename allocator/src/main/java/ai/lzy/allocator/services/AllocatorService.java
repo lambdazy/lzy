@@ -106,9 +106,9 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     private void restoreRunningAllocations() {
         // pure man restore
         try {
-            var vms = vmDao.loadNotCompletedVms(null);
+            var vms = vmDao.loadNotCompletedVms(config.getInstanceId(), null);
             if (!vms.isEmpty()) {
-                LOG.warn("Found {} not completed allocations", vms.size());
+                LOG.warn("Found {} not completed allocations on allocator {}", vms.size(), config.getInstanceId());
 
                 vms.forEach(vm -> executor.submit(new AllocateVmAction(vm, true)));
             } else {
@@ -332,7 +332,8 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                     final var vmOtt = UUID.randomUUID().toString();
 
                     operationsDao.create(op, tx);
-                    final var newVm = vmDao.create(vmSpec, op.id(), startedAt, allocDeadline, vmOtt, tx);
+                    final var newVm = vmDao.create(vmSpec, op.id(), startedAt, allocDeadline, vmOtt,
+                        config.getInstanceId(), tx);
 
                     var meta = Any.pack(AllocateMetadata.newBuilder()
                         .setVmId(newVm.vmId())

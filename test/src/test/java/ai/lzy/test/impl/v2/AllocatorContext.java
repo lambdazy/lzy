@@ -30,6 +30,7 @@ public class AllocatorContext {
         this.address = HostAndPort.fromParts("localhost", port);
         final var opts = Utils.createModuleDatabase("allocator");
         opts.putAll(new HashMap<String, Object>(Map.of(
+            "allocator.instance-id", "xxx",
             "allocator.iam.address", iam.address(),
             "allocator.address", address.toString(),
             "allocator.kuber-allocator.enabled", "false",

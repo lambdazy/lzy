@@ -3,6 +3,7 @@ package ai.lzy.allocator;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.configs.ServiceConfig;
+import ai.lzy.allocator.gc.GarbageCollector;
 import ai.lzy.allocator.services.AllocatorPrivateService;
 import ai.lzy.allocator.services.AllocatorService;
 import ai.lzy.allocator.services.DiskService;
@@ -27,6 +28,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.Objects;
 import java.util.Properties;
 import javax.inject.Named;
 
@@ -57,6 +59,8 @@ public class AllocatorMain {
         this.vmDao = vmDao;
         this.alloc = alloc;
         this.metricReporter = metricReporter;
+
+        LOG.info("Starting {} with id {}", APP, Objects.requireNonNull(config.getInstanceId()));
 
         LOG.info("""
                 io.netty.eventLoopThreads={}
