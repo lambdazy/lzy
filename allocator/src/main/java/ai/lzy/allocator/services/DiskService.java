@@ -1,5 +1,6 @@
 package ai.lzy.allocator.services;
 
+import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.Disk;
 import ai.lzy.allocator.disk.DiskManager;
 import ai.lzy.allocator.disk.DiskMeta;
@@ -49,6 +50,7 @@ import static ai.lzy.util.grpc.ProtoConverter.toProto;
 public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
     private static final Logger LOG = LogManager.getLogger(DiskService.class);
 
+    private final ServiceConfig config;
     private final DiskManager diskManager;
     private final OperationDao operationsDao;
     private final DiskDao diskDao;
@@ -57,10 +59,11 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
     private final ScheduledExecutorService executor;
     private final Metrics metrics = new Metrics();
 
-    public DiskService(DiskManager diskManager, DiskDao diskDao, DiskOpDao diskOpDao, AllocatorDataSource storage,
-                       @Named("AllocatorOperationDao") OperationDao operationDao,
+    public DiskService(ServiceConfig config, DiskManager diskManager, DiskDao diskDao, DiskOpDao diskOpDao,
+                       AllocatorDataSource storage, @Named("AllocatorOperationDao") OperationDao operationDao,
                        @Named("AllocatorExecutor") ScheduledExecutorService executor)
     {
+        this.config = config;
         this.diskManager = diskManager;
         this.diskDao = diskDao;
         this.diskOpDao = diskOpDao;
@@ -80,12 +83,17 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
     public void restartActiveOperations() {
         final List<DiskOperation> ops;
         try {
-            ops = diskOpDao.getActiveDiskOps(null);
+            ops = diskOpDao.getActiveDiskOps(config.getInstanceId(), null);
         } catch (SQLException e) {
             LOG.error("Cannot load active disk operations: {}", e.getMessage());
             throw new RuntimeException(e);
         }
 
+        if (ops.isEmpty()) {
+            return;
+        }
+
+        LOG.warn("Found {} not completed disk operations on allocator {}", ops.size(), config.getInstanceId());
         for (var op : ops) {
             LOG.info("Restore {}", op);
             op = diskManager.restoreDiskOperation(op);

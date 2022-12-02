@@ -56,6 +56,7 @@ CREATE TABLE vm
     allocation_op_id      TEXT      NOT NULL REFERENCES operation (id),
     allocation_started_at TIMESTAMP NOT NULL,
     allocation_deadline   TIMESTAMP NOT NULL,
+    owner_instance        TEXT      NOT NULL, -- instance_id which serves this operation
     vm_ott                TEXT      NOT NULL,
     vm_subject_id         TEXT      NULL,
     tunnel_pod_name       TEXT      NULL,
@@ -84,14 +85,15 @@ CREATE TYPE disk_operation_type AS ENUM ('CREATE', 'CLONE', 'DELETE');
 
 CREATE TABLE disk_op
 (
-    op_id       TEXT                NOT NULL PRIMARY KEY,
-    started_at  TIMESTAMP           NOT NULL,
-    deadline    TIMESTAMP           NOT NULL,
+    op_id          TEXT                NOT NULL PRIMARY KEY,
+    started_at     TIMESTAMP           NOT NULL,
+    deadline       TIMESTAMP           NOT NULL,
+    owner_instance TEXT                NOT NULL, -- instance_id which serves this operation
 
-    op_type     disk_operation_type NOT NULL,
-    state_json  TEXT                NOT NULL, -- some operation specific state
+    op_type        disk_operation_type NOT NULL,
+    state_json     TEXT                NOT NULL, -- some operation specific state
 
 -- operation failed, rollback required
-    failed      BOOLEAN             NOT NULL DEFAULT FALSE,
-    fail_reason TEXT                NULL
+    failed         BOOLEAN             NOT NULL DEFAULT FALSE,
+    fail_reason    TEXT                NULL
 );

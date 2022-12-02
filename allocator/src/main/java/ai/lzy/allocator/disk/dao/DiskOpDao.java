@@ -21,8 +21,8 @@ public class DiskOpDao {
     private static final Logger LOG = LogManager.getLogger(DiskOpDao.class);
 
     private static final String QUERY_CREATE_DISK_OP = """
-        INSERT INTO disk_op (op_id, started_at, deadline, op_type, state_json)
-        VALUES (?, ?, ?, ?::disk_operation_type, ?)""";
+        INSERT INTO disk_op (op_id, started_at, deadline, owner_instance, op_type, state_json)
+        VALUES (?, ?, ?, ?, ?::disk_operation_type, ?)""";
 
     private static final String QUERY_UPDATE_DISK_OP = """
         UPDATE disk_op
@@ -58,7 +58,7 @@ public class DiskOpDao {
     private static final String QUERY_GET_ACTIVE_DISK_OPS = """
         SELECT op_id, started_at, deadline, op_type::TEXT, state_json
         FROM disk_op
-        WHERE deadline < NOW() AND NOT failed""";
+        WHERE owner_instance = ? AND deadline < NOW() AND NOT failed""";
 
     private final AllocatorDataSource storage;
 
@@ -73,8 +73,9 @@ public class DiskOpDao {
                 st.setString(1, diskOp.opId());
                 st.setTimestamp(2, Timestamp.from(diskOp.startedAt().truncatedTo(ChronoUnit.SECONDS)));
                 st.setTimestamp(3, Timestamp.from(diskOp.deadline().truncatedTo(ChronoUnit.SECONDS)));
-                st.setString(4, diskOp.diskOpType().name());
-                st.setString(5, diskOp.state());
+                st.setString(4, diskOp.ownerInstanceId());
+                st.setString(5, diskOp.diskOpType().name());
+                st.setString(6, diskOp.state());
                 st.executeUpdate();
             }
         });
@@ -140,10 +141,13 @@ public class DiskOpDao {
         return ops;
     }
 
-    public List<DiskOperation> getActiveDiskOps(@Nullable TransactionHandle tx) throws SQLException {
+    public List<DiskOperation> getActiveDiskOps(String ownerInstanceId, @Nullable TransactionHandle tx)
+        throws SQLException
+    {
         final List<DiskOperation> ops = new ArrayList<>();
         DbOperation.execute(tx, storage, conn -> {
             try (var st = conn.prepareStatement(QUERY_GET_ACTIVE_DISK_OPS)) {
+                st.setString(1, ownerInstanceId);
                 var rs = st.executeQuery();
                 while (rs.next()) {
                     ops.add(readDiskOp(rs));
@@ -159,8 +163,9 @@ public class DiskOpDao {
             rs.getString(1),
             rs.getTimestamp(2).toInstant(),
             rs.getTimestamp(3).toInstant(),
-            DiskOperation.Type.valueOf(rs.getString(4)),
-            rs.getString(5),
+            rs.getString(4),
+            DiskOperation.Type.valueOf(rs.getString(5)),
+            rs.getString(6),
             null);
     }
 }
