@@ -24,7 +24,7 @@ public class QueueEventDaoImpl implements QueueEventDao {
     }
 
     @Override
-    public void add(QueueEvent.Type type, String workflowId, String graphId, String description) throws DaoException {
+    public void add(QueueEvent.Type type, String workflowId, String graphId, String description) throws SQLException {
         try (var con = storage.connect();
              var st = con.prepareStatement("""
                 INSERT INTO queue_event (
@@ -43,8 +43,6 @@ public class QueueEventDaoImpl implements QueueEventDao {
             st.setBoolean(5, false);
             st.setString(6, event.description());
             st.execute();
-        } catch (SQLException e) {
-            throw new DaoException(e);
         }
     }
 
