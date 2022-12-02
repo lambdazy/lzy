@@ -60,17 +60,17 @@ public class GarbageCollector extends TimerTask {
 
         try {
             if (!gcDao.updateGC(id, now, validUntil, null)) {
-                LOG.debug("GC {} can't become leader", id);
+                LOG.info("GC {} can't become leader", id);
                 clearTasks();
                 return;
             }
         } catch (Exception e) {
-            LOG.debug("GC {} can't become leader", id);
+            LOG.info("GC {} can't become leader", id);
             clearTasks();
             return;
         }
 
-        LOG.debug("GC {} became leader", id);
+        LOG.info("GC {} became leader", id);
 
         long taskPeriod = config.getGcPeriod().toMillis();
         taskTimer = new Timer("gc-workflow-task-timer", true);
@@ -108,7 +108,7 @@ public class GarbageCollector extends TimerTask {
 
             try {
                 if (!gcDao.updateGC(id, now, validUntil, null)) {
-                    LOG.debug("GC {} already valid", id);
+                    LOG.info("GC {} already valid", id);
                 }
             } catch (Exception e) {
                 LOG.info("GC {} can not update leadership", id, e);

@@ -43,7 +43,7 @@ public class GarbageCollectorTask extends TimerTask {
         try {
             String expiredExecution = workflowDao.getExpiredExecution();
             while (expiredExecution != null) {
-                LOG.info("Execution {} is expired", expiredExecution);
+                LOG.info("Execution {} is expired, GC {}", expiredExecution, id);
                 final var execution = expiredExecution;
 
                 try {
@@ -81,7 +81,7 @@ public class GarbageCollectorTask extends TimerTask {
 
                 try {
                     withRetries(defaultRetryPolicy(), LOG, () -> workflowDao.setDeadExecutionStatus(execution));
-                    LOG.info("Execution {} is cleaned", execution);
+                    LOG.info("Execution {} is cleaned, GC {}", execution, id);
                 } catch (Exception e) {
                     LOG.error("Cannot update execution status {}", execution, e);
                 }
