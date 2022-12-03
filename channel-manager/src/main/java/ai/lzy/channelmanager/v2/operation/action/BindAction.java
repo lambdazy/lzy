@@ -97,12 +97,12 @@ public class BindAction extends ChannelAction {
                                     }
                                 });
                                 LOG.info("Async operation (operationId={}) finished", operationId);
-                                return;
                             } catch (Exception e) {
-                                String errorMessage = "Failed to mark endpoint " + state.endpointUri() + " bound"
-                                                      + "got exception: " + e.getMessage();
-                                throw new RuntimeException(errorMessage);
+                                LOG.error("Async operation (operationId={}): failed to finish: {}. Restart action",
+                                    operationId, e.getMessage());
+                                scheduleRestart();
                             }
+                            return;
                         }
 
                         LOG.info("Async operation (operationId={}): found connecting endpoint {}",
@@ -149,7 +149,7 @@ public class BindAction extends ChannelAction {
                             LOG.error("Async operation (operationId={}): "
                                       + "connectSlot failed with code {}: {}. Restart action",
                                 operationId, e.getStatus().getCode(), e.getStatus().getDescription());
-                            restart();
+                            scheduleRestart();
                             return;
                         }
 
@@ -163,7 +163,7 @@ public class BindAction extends ChannelAction {
                     } catch (Exception e) {
                         LOG.error("Async operation (operationId={}): Cannot save state with connectOperationId={}. "
                                    + "Restart action", operationId, localState.connectOperationId());
-                        restart();
+                        scheduleRestart();
                         return;
                     }
                 }
@@ -181,14 +181,14 @@ public class BindAction extends ChannelAction {
                     LOG.error("Async operation (operationId={}): check connectSlot status with connectOperationId={}"
                               + " failed with code {}: {}. Restart action", operationId, state.connectOperationId(),
                         e.getStatus().getCode(), e.getStatus().getDescription());
-                    restart();
+                    scheduleRestart();
                     return;
                 }
 
                 if (!connectSlotOperation.getDone()) {
                     LOG.info("Async operation (operationId={}): connectSlot operation with connectOperationId={}"
                               + " not completed yet. Restart action", operationId, state.connectOperationId());
-                    restart();
+                    scheduleRestart();
                     return;
                 }
 
@@ -211,6 +211,7 @@ public class BindAction extends ChannelAction {
                                         potentialConnection.sender().getUri().toString(),
                                         potentialConnection.receiver().getUri().toString(),
                                         tx);
+                                    tx.commit();
                                 }
                             });
                             state = BindActionState.copyOf(localState);

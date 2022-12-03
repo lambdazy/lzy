@@ -100,7 +100,7 @@ public class InMemChannelDao implements ChannelDao {
     }
 
     @Override
-    public void removeEndpointWithoutConnections(String endpointUri, @Nullable TransactionHandle transaction)
+    public void removeEndpoint(String endpointUri, @Nullable TransactionHandle transaction)
         throws SQLException
     {
         String channelId = channelsByEndpoints.remove(endpointUri);
@@ -166,8 +166,8 @@ public class InMemChannelDao implements ChannelDao {
     }
 
     @Override
-    public void removeEndpointConnection(String channelId, String senderUri, String receiverUri,
-                                         @Nullable TransactionHandle transaction) throws SQLException
+    public void removeConnection(String channelId, String senderUri, String receiverUri,
+                                 @Nullable TransactionHandle transaction) throws SQLException
     {
         channels.computeIfPresent(channelId, (id, ch) -> {
             final List<Connection> connections = ch.getConnections().stream().filter(c ->

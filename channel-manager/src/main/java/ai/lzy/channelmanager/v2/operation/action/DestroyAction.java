@@ -1,68 +1,142 @@
 package ai.lzy.channelmanager.v2.operation.action;
 
+import ai.lzy.channelmanager.db.ChannelManagerDataSource;
+import ai.lzy.channelmanager.lock.GrainedLock;
 import ai.lzy.channelmanager.v2.control.ChannelController;
 import ai.lzy.channelmanager.v2.db.ChannelDao;
+import ai.lzy.channelmanager.v2.exceptions.ChannelGraphStateException;
+import ai.lzy.channelmanager.v2.model.Channel;
+import ai.lzy.channelmanager.v2.model.Endpoint;
 import ai.lzy.channelmanager.v2.operation.ChannelOperationDao;
 import ai.lzy.channelmanager.v2.operation.state.DestroyActionState;
+import ai.lzy.channelmanager.v2.slot.SlotApiClient;
+import ai.lzy.channelmanager.v2.slot.SlotConnectionManager;
 import ai.lzy.longrunning.dao.OperationDao;
+import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.v1.channel.v2.LCMPS;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Any;
+import io.grpc.Status;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
 
-public class DestroyAction implements ChannelAction {
+public class DestroyAction extends ChannelAction {
 
-    private final String operationId;
+    private static final Logger LOG = LogManager.getLogger(DestroyAction.class);
+
     private final DestroyActionState state;
-    private final ChannelDao channelDao;
-    private final OperationDao operationDao;
-    private final ChannelOperationDao channelOperationDao;
-    private final ChannelController channelController;
 
-    public DestroyAction(DestroyActionState state, ChannelDao channelDao, OperationDao operationDao,
-                         ChannelOperationDao channelOperationDao, ChannelController channelController)
+
+    protected DestroyAction(ObjectMapper objectMapper, String operationId, ChannelManagerDataSource storage,
+                            ChannelDao channelDao, OperationDao operationDao, ChannelOperationDao channelOperationDao,
+                            SlotApiClient slotApiClient, ChannelController channelController, GrainedLock lockManager,
+                            SlotConnectionManager slotConnectionManager, DestroyActionState state)
     {
+        super(objectMapper, operationId, storage, channelDao, operationDao, channelOperationDao, slotApiClient,
+            channelController, slotConnectionManager, lockManager);
         this.state = state;
-        this.channelDao = channelDao;
-        this.operationDao = operationDao;
-        this.channelOperationDao = channelOperationDao;
-        this.channelController = channelController;
     }
 
     @Override
     public void run() {
-        String channelId = state.toDestroyChannels().stream().findFirst().orElse(null);
-        if (channelId == null) {
-            withRetries(LOG, () -> operationDao.updateResponse(operationId,
-                Any.pack(LCMPS.ChannelDestroyResponse.getDefaultInstance()).toByteArray(), null));
-            // update op state in dao, set op done
-            LOG.info(operationDescription + " async operation (operationId={}) finished", operation.id());
-            return;
-        }
-        LOG.info(operationDescription + " async operation (operationId={}) resumed, channelId={}", channelId);
+        LOG.info("Async operation (operationId={}) resumed", operationId);
 
-        try {
-            channelController.destroy(channelId);
+        while (true) {
+            String channelId = state.toDestroyChannels().stream().findFirst().orElse(null);
 
-            state.setDestroyed(channelId);
-
-
-            // update chop state in dao
-            try {
-
-            } catch (Exception e) {
-                LOG.error("Cannot update operation", e);
+            if (channelId == null) {
+                try {
+                    withRetries(LOG, () -> {
+                        try (var tx = TransactionHandle.create(storage)) {
+                            channelOperationDao.delete(operationId, tx);
+                            operationDao.updateResponse(operationId,
+                                Any.pack(LCMPS.ChannelDestroyResponse.getDefaultInstance()).toByteArray(), tx);
+                            tx.commit();
+                        }
+                    });
+                    LOG.info("Async operation (operationId={}) finished", operationId);
+                } catch (Exception e) {
+                    LOG.error("Async operation (operationId={}): failed to finish: {}. Restart action",
+                        operationId, e.getMessage());
+                    scheduleRestart();
+                }
                 return;
             }
 
-        } catch (Exception e) {
-            String errorMessage = operationDescription + " async operation (operationId=" + operation.id()
-                                  + ") failed: " + e.getMessage();
-            LOG.error(errorMessage);
-            failOperation(operation.id(), errorMessage);
-            // TODO
+            LOG.info("Async operation (operationId={}): going to destroy channel {}", operationId, channelId);
+
+            try {
+                this.destroyChannel(channelId);
+
+                state.setDestroyed(channelId);
+                try {
+                    withRetries(LOG, () -> {
+                        try (var tx = TransactionHandle.create(storage)) {
+                            channelOperationDao.update(operationId, toJson(state), tx);
+                            channelDao.removeChannel(channelId, tx);
+                            tx.commit();
+                        }
+                    });
+                    LOG.info("Async operation (operationId={}): channel {} destroyed", operationId, channelId);
+                } catch (Exception e) {
+                    state.unsetDestroyed(channelId);
+                    LOG.error("Async operation (operationId={}): failed mark channel {} destroyed: {}. Try later",
+                        operationId, channelId, e.getMessage());
+                }
+
+            } catch (Exception e) {
+                String errorMessage = "Async operation (operationId=" + operationId + ") failed: " + e.getMessage();
+                LOG.error(errorMessage);
+                this.failOperation(Status.INTERNAL.withDescription(errorMessage));
+            }
+
+        }
+    }
+
+    private void destroyChannel(String channelId) throws ChannelGraphStateException {
+        Channel channel;
+        try (final var guard = lockManager.withLock(channelId)) {
+            try {
+                channel = withRetries(LOG, () -> channelDao.findChannel(channelId, null));
+            } catch (Exception e) {
+                String errorMessage = "Failed to find channel " + channelId + ","
+                                      + " got exception: " + e.getMessage();
+                throw new RuntimeException(errorMessage);
+            }
+
+            if (channel == null) {
+                LOG.info("Async operation (operationId={}): channel {} not found", operationId, channelId);
+                return;
+            }
+
+            if (channel.getLifeStatus() != Channel.LifeStatus.DESTROYING) {
+                try {
+                    withRetries(LOG, () -> channelDao.markChannelDestroying(channelId, null));
+                } catch (Exception e) {
+                    String errorMessage = "Failed to mark channel " + channelId + " destroying,"
+                                          + " got exception: " + e.getMessage();
+                    throw new RuntimeException(errorMessage);
+                }
+            }
+
+            try {
+                withRetries(LOG, () -> channelDao.markAllEndpointsUnbinding(channelId, null));
+            } catch (Exception e) {
+                String errorMessage = "Failed to mark endpoints of channel " + channelId + " unbinding,"
+                                      + " got exception: " + e.getMessage();
+                throw new RuntimeException(errorMessage);
+            }
         }
 
-        restart();
+        for (Endpoint receiver : channel.getActiveReceivers().asList()) {
+            this.unbindReceiver(receiver);
+        }
+
+        for (Endpoint sender : channel.getActiveSenders().asList()) {
+            this.unbindSender(sender);
+        }
+
     }
 }

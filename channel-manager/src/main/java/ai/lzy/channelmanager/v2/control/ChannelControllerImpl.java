@@ -73,6 +73,7 @@ public class ChannelControllerImpl implements ChannelController {
 
         LOG.debug("[findEndpointToConnect] done, bindingEndpoint={}, found endpointToConnect={}",
             bindingEndpoint.getUri(), endpointToConnect.getUri());
+
         return endpointToConnect;
     }
 
@@ -130,6 +131,9 @@ public class ChannelControllerImpl implements ChannelController {
             return false;
         }
 
+        LOG.debug("[checkForSavingConnection] ok, bindingEndpoint={}, connectedEndpoint={}",
+            bindingEndpoint.getUri(), connectedEndpoint.getUri());
+
         return true;
     }
 
@@ -174,13 +178,7 @@ public class ChannelControllerImpl implements ChannelController {
             return null;
         }
 
-        try {
-            withRetries(LOG, () -> channelDao.markEndpointUnbinding(receiverToUnbind.getUri().toString(), null));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to mark endpoint unbinding in storage", e);
-        }
-
-        LOG.debug("[findReceiverToUnbind] done, unbindingSender={}, found receiverToUnbind={}",
+        LOG.debug("[findReceiverToUnbind] done, unbindingSender={}, foundReceiver={}",
             unbindingSender.getUri(), receiverToUnbind.getUri());
 
         return receiverToUnbind;
@@ -227,81 +225,10 @@ public class ChannelControllerImpl implements ChannelController {
             return null;
         }
 
-        try {
-            withRetries(LOG, () -> channelDao.markConnectionDisconnecting(channelId,
-                connectionToBreak.sender().getUri().toString(),
-                connectionToBreak.receiver().getUri().toString(),
-                null));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to mark connection disconnecting in storage", e);
-        }
-
         LOG.debug("[findConnectionToBreak] done, connection found, unbindingReceiver={}, foundConnectedSender={}",
             unbindingReceiver.getUri(), connectionToBreak.sender().getUri());
 
         return connectionToBreak;
-    }
-
-    @Override
-    public boolean checkForRemovingConnection(Endpoint unbindingReceiver, Endpoint connectedSender)
-        throws IllegalChannelGraphStateException
-    {
-        LOG.debug("[removeConnection], unbindingReceiver={}, connectedSender={}",
-            unbindingReceiver.getUri(), connectedSender.getUri());
-
-        final String channelId = unbindingReceiver.getChannelId();
-        final Channel channel;
-        try {
-            channel = withRetries(LOG, () -> channelDao.findChannel(channelId, null));
-        } /**/
-        catch (Exception e) {
-            throw new RuntimeException("Failed to find channel in storage", e);
-        }
-        if (channel == null) {
-            LOG.warn("[removeConnection] skipped, channel already removed, unbindingReceiver={}, connectedSender={}",
-                unbindingReceiver.getUri(), connectedSender.getUri());
-            return false;
-        }
-
-        final Endpoint actualStateEndpoint = channel.getEndpoint(unbindingReceiver.getUri());
-        if (actualStateEndpoint == null) {
-            LOG.warn("[removeConnection] skipped, receiver already removed, unbindingReceiver={}, connectedSender={}",
-                unbindingReceiver.getUri(), connectedSender.getUri());
-            return false;
-        }
-
-        if (actualStateEndpoint.getStatus() != Endpoint.LifeStatus.UNBINDING) {
-            throw new IllegalChannelGraphStateException(channelId,
-                "Endpoint " + unbindingReceiver.getUri() + " has wrong lifeStatus " + actualStateEndpoint.getStatus());
-        }
-
-        final Connection actualStateConnection = channel.getConnection(
-            connectedSender.getUri(), unbindingReceiver.getUri());
-        if (actualStateConnection == null) {
-            LOG.warn("[removeConnection] skipped, connection already removed, unbindingReceiver={}, connectedSender={}",
-                unbindingReceiver.getUri(), connectedSender.getUri());
-            return true;
-        }
-
-        if (actualStateConnection.status() != Connection.LifeStatus.DISCONNECTING) {
-            throw new IllegalChannelGraphStateException(
-                channelId, "Connection "
-                           + "(sender=" + actualStateConnection.sender().getUri() + ", "
-                           + "receiver=" + actualStateConnection.receiver().getUri() + ") "
-                           + "has wrong lifeStatus " + actualStateConnection.status());
-        }
-
-        try {
-            withRetries(LOG, () -> channelDao.removeEndpointConnection(
-                channelId, connectedSender.getUri().toString(), unbindingReceiver.getUri().toString(), null));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to remove connection in storage");
-        }
-
-        LOG.debug("[removeConnection] done, unbindingReceiver={}, connectedSender={}",
-            unbindingReceiver.getUri(), connectedSender.getUri());
-
-        return true;
     }
 
 }

@@ -6,9 +6,14 @@ public record DestroyActionState(
     HashSet<String> toDestroyChannels,
     HashSet<String> destroyedChannels
 ) {
-    public DestroyActionState setDestroyed(String channelId) {
+    public void setDestroyed(String channelId) {
         toDestroyChannels.remove(channelId);
         destroyedChannels.add(channelId);
-        return this;
     }
+
+    public void unsetDestroyed(String channelId) {
+        destroyedChannels.remove(channelId);
+        toDestroyChannels.add(channelId);
+    }
+
 }

@@ -15,11 +15,9 @@ public interface ChannelController {
         throws CancellingChannelGraphStateException;
 
     @Nullable
-    Connection findConnectionToBreak(Endpoint unbindingReceiver) throws IllegalChannelGraphStateException;
-    boolean checkForRemovingConnection(Endpoint unbindingReceiver, Endpoint connectedSender)
-        throws IllegalChannelGraphStateException;
+    Endpoint findReceiverToUnbind(Endpoint unbindingSender) throws IllegalChannelGraphStateException;
 
     @Nullable
-    Endpoint findReceiverToUnbind(Endpoint unbindingSender) throws IllegalChannelGraphStateException;
+    Connection findConnectionToBreak(Endpoint unbindingReceiver) throws IllegalChannelGraphStateException;
 
 }

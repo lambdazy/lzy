@@ -12,14 +12,14 @@ import ai.lzy.channelmanager.v2.slot.SlotApiClient;
 import ai.lzy.channelmanager.v2.slot.SlotConnectionManager;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
-import ai.lzy.model.db.exceptions.NotFoundException;
+import ai.lzy.model.grpc.ProtoConverter;
+import ai.lzy.v1.slots.LSA;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import javax.annotation.Nullable;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
@@ -58,102 +58,178 @@ public abstract class ChannelAction implements Runnable {
     }
 
     protected void unbindSender(Endpoint sender) throws ChannelGraphStateException {
+        LOG.info("Async operation (operationId={}): unbind sender {}", operationId, sender.getUri());
+
         final String channelId = sender.getChannelId();
         while (true) {
             final Endpoint receiverToUnbind;
             try (final var guard = lockManager.withLock(sender.getChannelId())) {
                 receiverToUnbind = channelController.findReceiverToUnbind(sender);
                 if (receiverToUnbind == null) {
+                    LOG.info("Async operation (operationId={}): bound receivers not found, unbindingSender={}",
+                        operationId, sender.getUri());
                     break;
+                } else {
+                    try {
+                        withRetries(LOG, () ->
+                            channelDao.markEndpointUnbinding(receiverToUnbind.getUri().toString(), null));
+                    } catch (Exception e) {
+                        String errorMessage = "Failed to mark receiver " + receiverToUnbind.getUri() + " unbinding,"
+                                              + " got exception: " + e.getMessage();
+                        throw new RuntimeException(errorMessage);
+                    }
                 }
             }
 
-            LOG.warn("[unbindSender], found bound receiver, need force unbind, sender={}, receiver={}",
-                sender.getUri(), receiverToUnbind.getUri());
+            LOG.info("Async operation (operationId={}): found bound receiver {}, need force unbind, unbindingSender={}",
+                operationId, receiverToUnbind.getUri(), sender.getUri());
             unbindReceiver(receiverToUnbind);
         }
 
-        slotApiClient.disconnect(sender);
+        final var slotApi = slotConnectionManager.getConnection(sender.getUri()).slotApiBlockingStub();
+        try {
+            final var request = LSA.DisconnectSlotRequest.newBuilder()
+                .setSlotInstance(ProtoConverter.toProto(sender.getSlot()))
+                .build();
+
+            slotApi.disconnectSlot(request);
+        } catch (StatusRuntimeException e) {
+            if (Status.NOT_FOUND.equals(e.getStatus())) {
+                LOG.info("Async operation (operationId={}): disconnectSlot request failed, slot not found. "
+                         + "Continue action", operationId);
+                return;
+            } else {
+                LOG.error("Async operation (operationId={}): disconnectSlot request failed"
+                          + " with code {}: {}. Restart action",
+                    operationId, e.getStatus().getCode(), e.getStatus().getDescription());
+                scheduleRestart();
+                return;
+            }
+        }
+        LOG.info("Async operation (operationId={}): sent disconnectSlot request", operationId);
 
         // TODO (lindvv): maybe should suspend, so shouldn't destroy, fix after slots refactoring
-        slotApiClient.destroy(sender);
-        sender.invalidate();
+        try {
+            final var request = LSA.DestroySlotRequest.newBuilder()
+                .setSlotInstance(ProtoConverter.toProto(sender.getSlot()))
+                .build();
+
+            slotApi.destroySlot(request);
+        } catch (StatusRuntimeException e) {
+            if (Status.NOT_FOUND.equals(e.getStatus())) {
+                LOG.info("Async operation (operationId={}): destroySlot request failed, slot not found. "
+                         + "Continue action", operationId);
+                return;
+            } else {
+                LOG.error("Async operation (operationId={}): destroySlot request failed"
+                          + " with code {}: {}. Restart action",
+                    operationId, e.getStatus().getCode(), e.getStatus().getDescription());
+                scheduleRestart();
+                return;
+            }
+        }
+        LOG.info("Async operation (operationId={}): sent destroySlot request", operationId);
 
         try (final var guard = lockManager.withLock(channelId)) {
-            withRetries(LOG, () -> channelDao.removeEndpointWithoutConnections(sender.getUri().toString(), null));
-        } catch (NotFoundException e) {
-            LOG.info("[unbindSender] removing endpoint skipped, sender already removed, sender={}", sender.getUri());
+            withRetries(LOG, () -> channelDao.removeEndpoint(sender.getUri().toString(), null));
+            LOG.info("Async operation (operationId={}): sender removed,"
+                     + " unbindingSender={}", operationId, sender.getUri());
         } catch (Exception e) {
-            throw new RuntimeException("Failed to remove endpoint in storage");
+            String errorMessage = "Failed to remove sender " + sender.getUri() + ", got exception: " + e.getMessage();
+            throw new RuntimeException(errorMessage);
         }
     }
 
     protected void unbindReceiver(Endpoint receiver) throws ChannelGraphStateException {
+        LOG.info("Async operation (operationId={}): unbind receiver {}", operationId, receiver.getUri());
+
         final String channelId = receiver.getChannelId();
 
-        final Connection connectionToBreak;
+        final Endpoint sender;
         try (final var guard = lockManager.withLock(channelId)) {
-            connectionToBreak = channelController.findConnectionToBreak(receiver);
+            final Connection connectionToBreak = channelController.findConnectionToBreak(receiver);
             if (connectionToBreak == null) {
                 try {
                     withRetries(LOG, () ->
-                        channelDao.removeEndpointWithoutConnections(receiver.getUri().toString(), null));
+                        channelDao.removeEndpoint(receiver.getUri().toString(), null));
+                    LOG.info("Async operation (operationId={}): receiver removed, unbindingReceiver={}",
+                        operationId, receiver.getUri());
                 } catch (Exception e) {
-                    throw new RuntimeException("Failed to remove endpoint in storage");
+                    String errorMessage = "Failed to remove receiver " + receiver.getUri() + ","
+                                          + " got exception: " + e.getMessage();
+                    throw new RuntimeException(errorMessage);
                 }
+                return;
+            } else {
+                sender = connectionToBreak.sender();
+                try {
+                    withRetries(LOG, () -> channelDao.markConnectionDisconnecting(channelId,
+                        sender.getUri().toString(), receiver.getUri().toString(), null));
+                    LOG.info("Async operation (operationId={}): marked connection disconnecting,"
+                             + " unbindingReceiver={}, sender={}", operationId, receiver.getUri(), sender.getUri());
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to mark connection disconnecting in storage", e);
+                }
+            }
+        }
+
+        final var slotApi = slotConnectionManager.getConnection(receiver.getUri()).slotApiBlockingStub();
+        try {
+            final var request = LSA.DisconnectSlotRequest.newBuilder()
+                .setSlotInstance(ProtoConverter.toProto(receiver.getSlot()))
+                .build();
+
+            slotApi.disconnectSlot(request);
+        } catch (StatusRuntimeException e) {
+            if (Status.NOT_FOUND.equals(e.getStatus())) {
+                LOG.info("Async operation (operationId={}): disconnectSlot request failed, slot not found. "
+                         + "Continue action", operationId);
+                return;
+            } else {
+                LOG.error("Async operation (operationId={}): disconnectSlot request failed"
+                          + " with code {}: {}. Restart action",
+                    operationId, e.getStatus().getCode(), e.getStatus().getDescription());
+                scheduleRestart();
                 return;
             }
         }
-
-        slotApiClient.disconnect(receiver);
+        LOG.info("Async operation (operationId={}): sent disconnectSlot request", operationId);
 
         // TODO (lindvv): maybe should suspend, so shouldn't destroy, fix after slots refactoring
-        slotApiClient.destroy(receiver);
-        receiver.invalidate();
+        try {
+            final var request = LSA.DestroySlotRequest.newBuilder()
+                .setSlotInstance(ProtoConverter.toProto(receiver.getSlot()))
+                .build();
+
+            slotApi.destroySlot(request);
+        } catch (StatusRuntimeException e) {
+            if (Status.NOT_FOUND.equals(e.getStatus())) {
+                LOG.info("Async operation (operationId={}): destroySlot request failed, slot not found. "
+                         + "Continue action", operationId);
+                return;
+            } else {
+                LOG.error("Async operation (operationId={}): destroySlot request failed"
+                          + " with code {}: {}. Restart action",
+                    operationId, e.getStatus().getCode(), e.getStatus().getDescription());
+                scheduleRestart();
+                return;
+            }
+        }
+        LOG.info("Async operation (operationId={}): sent destroySlot request", operationId);
 
         try (final var guard = lockManager.withLock(channelId)) {
-            boolean connectionRemoved = channelController.removeConnection(connectionToBreak.receiver(), connectionToBreak.sender());
-            if (connectionRemoved) {
-                try {
-                    withRetries(LOG, () ->
-                        channelDao.removeEndpointWithoutConnections(receiver.getUri().toString(), null));
-                } /* TODO can retry scheduled execution in cases of sql exceptions */
-                catch (Exception e) {
-                    throw new RuntimeException("Failed to remove endpoint in storage");
+            withRetries(LOG, () -> {
+                try (var tx = TransactionHandle.create(storage)) {
+                    channelDao.removeConnection(channelId, sender.getUri().toString(), receiver.getUri().toString(), tx);
+                    channelDao.removeEndpoint(receiver.getUri().toString(), tx);
+                    tx.commit();
                 }
-            }
+            });
+        } catch (Exception e) {
+            String errorMessage = "Failed to remove receiver " + receiver.getUri() + " with connection,"
+                                  + " got exception: " + e.getMessage();
+            throw new RuntimeException(errorMessage);
         }
-
-    }
-
-    protected void updateChannelOperation(String channelId, String stateJson,
-                                          @Nullable ChannelDao.UpdateRequest update) throws Exception
-    {
-        if (update == null) {
-            withRetries(LOG, () -> channelOperationDao.update(operationId, stateJson, null));
-            return;
-        }
-        withRetries(LOG, () -> {
-            try (final var tx = TransactionHandle.create(storage)) {
-                update.run(tx);
-                channelOperationDao.update(operationId, stateJson, tx);
-                tx.commit();
-            }
-        });
-    }
-
-    protected updateChannelOperation(String channelId, String stateJson, @Nullable ChannelDao.UpdateRequest update) {
-
-        withRetries(LOG, () -> {
-            try (var tx = TransactionHandle.create(storage)) {
-                channelDao.removeEndpointConnection(
-                    state.channelId(),
-                    potentialConnection.sender().getUri().toString(),
-                    potentialConnection.receiver().getUri().toString(),
-                    tx);
-                channelOperationDao.update(operationId, stateJson, tx);
-            }
-        });
     }
 
     protected void failOperation(Status status) {
@@ -185,6 +261,6 @@ public abstract class ChannelAction implements Runnable {
         }
     }
 
-    protected void restart();
+    protected void scheduleRestart();
 
 }

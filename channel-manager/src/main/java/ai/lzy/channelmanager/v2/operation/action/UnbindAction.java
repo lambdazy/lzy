@@ -1,69 +1,95 @@
 package ai.lzy.channelmanager.v2.operation.action;
 
+import ai.lzy.channelmanager.db.ChannelManagerDataSource;
+import ai.lzy.channelmanager.lock.GrainedLock;
 import ai.lzy.channelmanager.v2.control.ChannelController;
 import ai.lzy.channelmanager.v2.db.ChannelDao;
-import ai.lzy.channelmanager.v2.exceptions.CancellingChannelGraphStateException;
+import ai.lzy.channelmanager.v2.model.Endpoint;
 import ai.lzy.channelmanager.v2.operation.ChannelOperationDao;
 import ai.lzy.channelmanager.v2.operation.state.UnbindActionState;
+import ai.lzy.channelmanager.v2.slot.SlotApiClient;
+import ai.lzy.channelmanager.v2.slot.SlotConnectionManager;
 import ai.lzy.longrunning.dao.OperationDao;
+import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.v1.channel.v2.LCMS;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Any;
 import io.grpc.Status;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
-import static ai.lzy.util.grpc.ProtoConverter.toProto;
 
-public class UnbindAction implements ChannelAction {
+public class UnbindAction extends ChannelAction {
+
+    private static final Logger LOG = LogManager.getLogger(UnbindAction.class);
 
     private final UnbindActionState state;
-    private final ChannelDao channelDao;
-    private final OperationDao operationDao;
-    private final ChannelOperationDao channelOperationDao;
-    private final ChannelController channelController;
 
-    public UnbindAction(UnbindActionState state, ChannelDao channelDao, OperationDao operationDao,
-                        ChannelOperationDao channelOperationDao, ChannelController channelController)
+    protected UnbindAction(ObjectMapper objectMapper, String operationId, ChannelManagerDataSource storage,
+                           ChannelDao channelDao, OperationDao operationDao, ChannelOperationDao channelOperationDao,
+                           SlotApiClient slotApiClient, ChannelController channelController, GrainedLock lockManager,
+                           SlotConnectionManager slotConnectionManager, UnbindActionState state)
     {
+        super(objectMapper, operationId, storage, channelDao, operationDao, channelOperationDao, slotApiClient,
+            channelController, slotConnectionManager, lockManager);
         this.state = state;
-        this.channelDao = channelDao;
-        this.operationDao = operationDao;
-        this.channelOperationDao = channelOperationDao;
-        this.channelController = channelController;
     }
 
     @Override
     public void run() {
+        LOG.info("Async operation (operationId={}) resumed, channelId={}", operationId, state.channelId());
+
         try {
-            LOG.info(operationDescription + " responded, async operation started, operationId={}", operation.id());
+            final Endpoint unbindingEndpoint = withRetries(LOG, () -> channelDao.findEndpoint(state.endpointUri(), null));
 
-            switch (endpoint.getSlotDirection()) {
-                case OUTPUT /* SENDER */ -> channelController.unbindSender(endpoint);
-                case INPUT /* RECEIVER */ -> channelController.unbindReceiver(endpoint);
-            }
-
-            try {
-                withRetries(LOG, () -> operationDao.updateResponse(operation.id(),
-                    Any.pack(LCMS.BindResponse.getDefaultInstance()).toByteArray(), null));
-            } catch (Exception e) {
-                LOG.error("Cannot update operation", e);
+            if (unbindingEndpoint == null) {
+                try {
+                    withRetries(LOG, () -> {
+                        try (var tx = TransactionHandle.create(storage)) {
+                            channelOperationDao.delete(operationId, tx);
+                            operationDao.updateResponse(operationId,
+                                Any.pack(LCMS.UnbindResponse.getDefaultInstance()).toByteArray(), tx);
+                            tx.commit();
+                        }
+                    });
+                    LOG.info("Async operation (operationId={}) force finished, endpoint {} of channel {} not found",
+                        operationId, state.endpointUri(), state.channelId());
+                } catch (Exception e) {
+                    LOG.error("Async operation (operationId={}): failed to finish: {}. Restart action",
+                        operationId, e.getMessage());
+                    scheduleRestart();
+                }
                 return;
             }
 
-            LOG.info(operationDescription + " responded, async operation finished, operationId={}", operation.id());
-        } catch (CancellingChannelGraphStateException e) {
-            String errorMessage = operationDescription + " async operation " + operation.id()
-                                  + " cancelled according to the graph state: " + e.getMessage();
-            LOG.error(errorMessage);
-            operationDao.failOperation(operation.id(),
-                toProto(Status.CANCELLED.withDescription(errorMessage)), LOG);
-        } catch (Exception e) {
-            String errorMessage = operationDescription + " async operation " + operation.id()
-                                  + " failed: " + e.getMessage();
-            LOG.error(errorMessage);
-            operationDao.failOperation(operation.id(),
-                toProto(Status.INTERNAL.withDescription(errorMessage)), LOG);
-            // TODO
-        }
 
+            switch (unbindingEndpoint.getSlotDirection()) {
+                case OUTPUT /* SENDER */ -> this.unbindSender(unbindingEndpoint);
+                case INPUT /* RECEIVER */ -> this.unbindReceiver(unbindingEndpoint);
+            }
+
+            try {
+                withRetries(LOG, () -> {
+                    try (var tx = TransactionHandle.create(storage)) {
+                        channelOperationDao.delete(operationId, tx);
+                        operationDao.updateResponse(operationId,
+                            Any.pack(LCMS.UnbindResponse.getDefaultInstance()).toByteArray(), tx);
+                        tx.commit();
+                    }
+                });
+                LOG.info("Async operation (operationId={}) finished", operationId);
+            } catch (Exception e) {
+                LOG.error("Async operation (operationId={}): failed to finish: {}. Restart action",
+                    operationId, e.getMessage());
+                scheduleRestart();
+            }
+
+        } catch (Exception e) {
+            String errorMessage = "Async operation (operationId=" + operationId + ") failed: " + e.getMessage();
+            LOG.error(errorMessage);
+            this.failOperation(Status.INTERNAL.withDescription(errorMessage));
+        }
     }
+
 }

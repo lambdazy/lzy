@@ -23,8 +23,7 @@ public interface ChannelDao {
     void markEndpointBound(String endpointUri, @Nullable TransactionHandle transaction) throws SQLException;
     void markEndpointUnbinding(String endpointUri, @Nullable TransactionHandle transaction) throws SQLException;
     void markAllEndpointsUnbinding(String channelId, @Nullable TransactionHandle transaction) throws SQLException;
-    void removeEndpointWithoutConnections(String endpointUri,
-                                          @Nullable TransactionHandle transaction) throws SQLException;
+    void removeEndpoint(String endpointUri, @Nullable TransactionHandle transaction) throws SQLException;
 
     void insertConnection(String channelId, Connection connection,
                           @Nullable TransactionHandle transaction) throws SQLException;
@@ -32,8 +31,8 @@ public interface ChannelDao {
                              @Nullable TransactionHandle transaction) throws SQLException;
     void markConnectionDisconnecting(String channelId, String senderUri, String receiverUri,
                                      @Nullable TransactionHandle transaction) throws SQLException;
-    void removeEndpointConnection(String channelId, String senderUri, String receiverUri,
-                                  @Nullable TransactionHandle transaction) throws SQLException;
+    void removeConnection(String channelId, String senderUri, String receiverUri,
+                          @Nullable TransactionHandle transaction) throws SQLException;
 
     @Nullable
     Channel findChannel(String channelId, @Nullable TransactionHandle transaction) throws SQLException;
