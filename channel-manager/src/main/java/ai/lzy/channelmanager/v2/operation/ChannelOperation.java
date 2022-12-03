@@ -7,7 +7,7 @@ public record ChannelOperation(
     Instant startedAt,
     Instant deadline,
     Type type,
-    String metadataJson
+    String stateJson
 ) {
     public enum Type {
         BIND,

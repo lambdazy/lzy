@@ -27,7 +27,7 @@ CREATE TABLE channel_operation
     deadline    TIMESTAMP               NOT NULL,
 
     op_type     channel_operation_type  NOT NULL,
-    meta_json   TEXT                    NOT NULL, -- some operation specific data
+    state_json  TEXT                    NOT NULL, -- some operation specific data
 
 -- operation failed, rollback required
     failed      BOOLEAN                 NOT NULL DEFAULT FALSE,

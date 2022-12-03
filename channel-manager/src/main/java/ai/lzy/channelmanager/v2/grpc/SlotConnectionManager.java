@@ -1,4 +1,4 @@
-package ai.lzy.channelmanager.v2.slot;
+package ai.lzy.channelmanager.v2.grpc;
 
 import ai.lzy.channelmanager.v2.config.ChannelManagerConfig;
 import com.google.common.cache.CacheBuilder;

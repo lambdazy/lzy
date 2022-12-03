@@ -3,14 +3,13 @@ package ai.lzy.channelmanager.v2.operation.action;
 import ai.lzy.channelmanager.db.ChannelManagerDataSource;
 import ai.lzy.channelmanager.lock.GrainedLock;
 import ai.lzy.channelmanager.v2.control.ChannelController;
-import ai.lzy.channelmanager.v2.db.ChannelDao;
+import ai.lzy.channelmanager.v2.dao.ChannelDao;
+import ai.lzy.channelmanager.v2.dao.ChannelOperationDao;
 import ai.lzy.channelmanager.v2.exceptions.ChannelGraphStateException;
+import ai.lzy.channelmanager.v2.grpc.SlotConnectionManager;
 import ai.lzy.channelmanager.v2.model.Channel;
 import ai.lzy.channelmanager.v2.model.Endpoint;
-import ai.lzy.channelmanager.v2.operation.ChannelOperationDao;
 import ai.lzy.channelmanager.v2.operation.state.DestroyActionState;
-import ai.lzy.channelmanager.v2.slot.SlotApiClient;
-import ai.lzy.channelmanager.v2.slot.SlotConnectionManager;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.v1.channel.v2.LCMPS;
@@ -28,13 +27,13 @@ public class DestroyAction extends ChannelAction {
 
     private final DestroyActionState state;
 
-
-    protected DestroyAction(ObjectMapper objectMapper, String operationId, ChannelManagerDataSource storage,
+    public DestroyAction(String operationId, DestroyActionState state,
+                            ObjectMapper objectMapper, ChannelManagerDataSource storage,
                             ChannelDao channelDao, OperationDao operationDao, ChannelOperationDao channelOperationDao,
-                            SlotApiClient slotApiClient, ChannelController channelController, GrainedLock lockManager,
-                            SlotConnectionManager slotConnectionManager, DestroyActionState state)
+                            ChannelController channelController,
+                            SlotConnectionManager slotConnectionManager, GrainedLock lockManager)
     {
-        super(objectMapper, operationId, storage, channelDao, operationDao, channelOperationDao, slotApiClient,
+        super(objectMapper, operationId, storage, channelDao, operationDao, channelOperationDao,
             channelController, slotConnectionManager, lockManager);
         this.state = state;
     }

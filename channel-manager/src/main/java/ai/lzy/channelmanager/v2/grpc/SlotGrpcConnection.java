@@ -1,4 +1,4 @@
-package ai.lzy.channelmanager.v2.slot;
+package ai.lzy.channelmanager.v2.grpc;
 
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;

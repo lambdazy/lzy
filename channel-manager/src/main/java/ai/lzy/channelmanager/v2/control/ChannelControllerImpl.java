@@ -1,54 +1,36 @@
 package ai.lzy.channelmanager.v2.control;
 
-import ai.lzy.channelmanager.lock.GrainedLock;
-import ai.lzy.channelmanager.v2.db.ChannelDao;
 import ai.lzy.channelmanager.v2.exceptions.CancellingChannelGraphStateException;
 import ai.lzy.channelmanager.v2.exceptions.IllegalChannelGraphStateException;
 import ai.lzy.channelmanager.v2.model.Channel;
 import ai.lzy.channelmanager.v2.model.Connection;
 import ai.lzy.channelmanager.v2.model.Endpoint;
-import ai.lzy.channelmanager.v2.slot.SlotApiClient;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.List;
 import javax.annotation.Nullable;
-
-import static ai.lzy.model.db.DbHelper.withRetries;
 
 @Singleton
 public class ChannelControllerImpl implements ChannelController {
 
     private static final Logger LOG = LogManager.getLogger(ChannelControllerImpl.class);
 
-    private final ChannelDao channelDao;
-    private final GrainedLock lockManager;
-    private final SlotApiClient slotApiClient;
-
-    public ChannelControllerImpl(ChannelDao channelDao, GrainedLock lockManager, SlotApiClient slotApiClient) {
-        this.channelDao = channelDao;
-        this.lockManager = lockManager;
-        this.slotApiClient = slotApiClient;
-    }
-
     @Override
     @Nullable
-    public Endpoint findEndpointToConnect(Endpoint bindingEndpoint) throws CancellingChannelGraphStateException {
+    public Endpoint findEndpointToConnect(Channel actualChannel, Endpoint bindingEndpoint)
+        throws CancellingChannelGraphStateException
+    {
         LOG.debug("[findEndpointToConnect], bindingEndpoint={}", bindingEndpoint.getUri());
 
-        final String channelId = bindingEndpoint.getChannelId();
-        final Channel channel;
-        try {
-            channel = withRetries(LOG, () -> channelDao.findChannel(channelId, Channel.LifeStatus.ALIVE, null));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to find channel in storage", e);
-        }
-        if (channel == null) {
-            throw new CancellingChannelGraphStateException(channelId, "Channel not found");
+        String channelId = actualChannel.getId();
+
+        if (actualChannel.getLifeStatus() != Channel.LifeStatus.ALIVE) {
+            throw new CancellingChannelGraphStateException(channelId,
+                "Channel " + channelId + " has wrong lifeStatus " + actualChannel.getLifeStatus());
         }
 
-        final Endpoint actualStateEndpoint = channel.getEndpoint(bindingEndpoint.getUri());
+        final Endpoint actualStateEndpoint = actualChannel.getEndpoint(bindingEndpoint.getUri());
         if (actualStateEndpoint == null) {
             throw new CancellingChannelGraphStateException(channelId,
                 "Endpoint " + bindingEndpoint.getUri() + " not found");
@@ -61,9 +43,9 @@ public class ChannelControllerImpl implements ChannelController {
 
         final Endpoint endpointToConnect = switch (bindingEndpoint.getSlotDirection()) {
             case OUTPUT /* SENDER */ ->
-                channel.findReceiversToConnect(bindingEndpoint).stream().findFirst().orElse(null);
+                actualChannel.findReceiversToConnect(bindingEndpoint).stream().findFirst().orElse(null);
             case INPUT /*RECEIVER */ ->
-                channel.findSenderToConnect(bindingEndpoint);
+                actualChannel.findSenderToConnect(bindingEndpoint);
         };
 
         if (endpointToConnect == null) {
@@ -71,47 +53,29 @@ public class ChannelControllerImpl implements ChannelController {
             return null;
         }
 
-        LOG.debug("[findEndpointToConnect] done, bindingEndpoint={}, found endpointToConnect={}",
-            bindingEndpoint.getUri(), endpointToConnect.getUri());
+        LOG.debug("[findEndpointToConnect] done, found endpointToConnect={}, bindingEndpoint={}",
+            endpointToConnect.getUri(), bindingEndpoint.getUri());
 
         return endpointToConnect;
     }
 
     @Override
-    public boolean checkForSavingConnection(Endpoint bindingEndpoint, Endpoint connectedEndpoint)
+    public boolean checkChannelForSavingConnection(Channel actualChannel, Endpoint bindingEndpoint, Endpoint connectedEndpoint)
         throws CancellingChannelGraphStateException
     {
         LOG.debug("[checkForSavingConnection], bindingEndpoint={}, connectedEndpoint={}",
             bindingEndpoint.getUri(), connectedEndpoint.getUri());
 
-        final String channelId = bindingEndpoint.getChannelId();
-        final Endpoint sender;
-        final Endpoint receiver;
-        switch (bindingEndpoint.getSlotDirection()) {
-            case OUTPUT /* SENDER */ -> {
-                sender = bindingEndpoint;
-                receiver = connectedEndpoint;
-            }
-            case INPUT /* RECEIVER */ -> {
-                sender = connectedEndpoint;
-                receiver = bindingEndpoint;
-            }
-            default -> throw new IllegalStateException(
-                "Endpoint " + bindingEndpoint.getUri()
-                + " has unexpected direction" + bindingEndpoint.getSlotDirection());
-        }
+        String channelId = actualChannel.getId();
+        Connection connection = Connection.of(bindingEndpoint, connectedEndpoint);
+        final Endpoint sender = connection.sender();
+        final Endpoint receiver = connection.receiver();
 
-        final Channel channel;
-        try {
-            channel = withRetries(LOG, () -> channelDao.findChannel(channelId, Channel.LifeStatus.ALIVE, null));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to find channel in storage", e);
+        if (actualChannel.getLifeStatus() != Channel.LifeStatus.ALIVE) {
+            throw new CancellingChannelGraphStateException(channelId,
+                "Channel " + channelId + " has wrong lifeStatus " + actualChannel.getLifeStatus());
         }
-        if (channel == null) {
-            throw new CancellingChannelGraphStateException(channelId, "Channel not found");
-        }
-
-        final Endpoint actualStateEndpoint = channel.getEndpoint(bindingEndpoint.getUri());
+        final Endpoint actualStateEndpoint = actualChannel.getEndpoint(bindingEndpoint.getUri());
         if (actualStateEndpoint == null) {
             throw new CancellingChannelGraphStateException(channelId,
                 "Endpoint " + bindingEndpoint.getUri() + " not found");
@@ -122,7 +86,8 @@ public class ChannelControllerImpl implements ChannelController {
                 "Endpoint " + bindingEndpoint.getUri() + " has wrong lifeStatus " + actualStateEndpoint.getStatus());
         }
 
-        final Connection actualStateConnection = channel.getConnection(sender.getUri(), receiver.getUri());
+        final Connection actualStateConnection = actualChannel.getConnection(sender.getUri(), receiver.getUri());
+
         if (actualStateConnection == null || actualStateConnection.status() != Connection.LifeStatus.CONNECTING) {
             String connectionStatus = actualStateConnection == null ? "null" : actualStateConnection.status().name();
             LOG.warn("[checkForSavingConnection] failed, unexpected connection status {}, "
@@ -139,23 +104,14 @@ public class ChannelControllerImpl implements ChannelController {
 
     @Override
     @Nullable
-    public Endpoint findReceiverToUnbind(Endpoint unbindingSender) throws IllegalChannelGraphStateException {
+    public Endpoint findReceiverToUnbind(Channel actualChannel, Endpoint unbindingSender)
+        throws IllegalChannelGraphStateException
+    {
         LOG.debug("[findReceiverToUnbind], unbindingSender={}", unbindingSender.getUri());
 
         final String channelId = unbindingSender.getChannelId();
-        final Channel channel;
-        try {
-            channel = withRetries(LOG, () -> channelDao.findChannel(channelId, null));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to find channel in storage", e);
-        }
-        if (channel == null) {
-            LOG.warn("[findReceiverToUnbind] skipped, channel already removed, unbindingSender={}",
-                unbindingSender.getUri());
-            return null;
-        }
 
-        final Endpoint actualStateEndpoint = channel.getEndpoint(unbindingSender.getUri());
+        final Endpoint actualStateEndpoint = actualChannel.getEndpoint(unbindingSender.getUri());
         if (actualStateEndpoint == null) {
             LOG.warn("[findReceiverToUnbind] skipped, sender already removed, unbindingSender={}",
                 unbindingSender.getUri());
@@ -167,8 +123,8 @@ public class ChannelControllerImpl implements ChannelController {
                 "Endpoint " + unbindingSender.getUri() + " has wrong lifeStatus " + actualStateEndpoint.getStatus());
         }
 
-        final List<Connection> actualStateConnections = channel.getConnectionsOfEndpoint(unbindingSender.getUri());
-        final Endpoint receiverToUnbind = actualStateConnections.stream()
+        final Endpoint receiverToUnbind = actualChannel.getConnectionsOfEndpoint(unbindingSender.getUri())
+            .stream()
             .filter(conn -> conn.status() == Connection.LifeStatus.CONNECTED)
             .map(Connection::receiver)
             .findFirst().orElse(null);
@@ -186,23 +142,14 @@ public class ChannelControllerImpl implements ChannelController {
 
     @Override
     @Nullable
-    public Connection findConnectionToBreak(Endpoint unbindingReceiver) throws IllegalChannelGraphStateException {
+    public Connection findConnectionToBreak(Channel actualChannel, Endpoint unbindingReceiver)
+        throws IllegalChannelGraphStateException
+    {
         LOG.debug("[findConnectionToBreak], unbindingReceiver={}", unbindingReceiver.getUri());
 
-        final String channelId = unbindingReceiver.getChannelId();
-        final Channel channel;
-        try {
-            channel = withRetries(LOG, () -> channelDao.findChannel(channelId, null));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to find channel in storage", e);
-        }
-        if (channel == null) {
-            LOG.warn("[findConnectionToBreak] skipped, channel already removed, unbindingReceiver={}",
-                unbindingReceiver.getUri());
-            return null;
-        }
+        String channelId = actualChannel.getId();
 
-        final Endpoint actualStateEndpoint = channel.getEndpoint(unbindingReceiver.getUri());
+        final Endpoint actualStateEndpoint = actualChannel.getEndpoint(unbindingReceiver.getUri());
         if (actualStateEndpoint == null) {
             LOG.warn("[findConnectionToBreak] skipped, receiver already removed, unbindingReceiver={}",
                 unbindingReceiver.getUri());
@@ -214,8 +161,8 @@ public class ChannelControllerImpl implements ChannelController {
                 "Endpoint " + unbindingReceiver.getUri() + " has wrong lifeStatus " + actualStateEndpoint.getStatus());
         }
 
-        final List<Connection> actualStateConnections = channel.getConnectionsOfEndpoint(unbindingReceiver.getUri());
-        final Connection connectionToBreak = actualStateConnections.stream()
+        final Connection connectionToBreak = actualChannel.getConnectionsOfEndpoint(unbindingReceiver.getUri())
+            .stream()
             .filter(it -> it.status() == Connection.LifeStatus.DISCONNECTING)
             .findFirst().orElse(null);
 

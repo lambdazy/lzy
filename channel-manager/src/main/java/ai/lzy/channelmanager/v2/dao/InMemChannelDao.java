@@ -1,10 +1,9 @@
-package ai.lzy.channelmanager.v2.db;
+package ai.lzy.channelmanager.v2.dao;
 
 import ai.lzy.channelmanager.channel.ChannelSpec;
 import ai.lzy.channelmanager.v2.model.Channel;
 import ai.lzy.channelmanager.v2.model.Connection;
 import ai.lzy.channelmanager.v2.model.Endpoint;
-import ai.lzy.channelmanager.v2.model.EndpointFactory;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.slot.SlotInstance;
 import jakarta.inject.Singleton;
@@ -20,11 +19,6 @@ public class InMemChannelDao implements ChannelDao {
 
     private final ConcurrentHashMap<String, Channel> channels = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, String> channelsByEndpoints = new ConcurrentHashMap<>();
-    private final EndpointFactory endpointFactory;
-
-    public InMemChannelDao(EndpointFactory endpointFactory) {
-        this.endpointFactory = endpointFactory;
-    }
 
     @Override
     public void insertChannel(String channelId, String executionId, ChannelSpec channelSpec,
@@ -49,7 +43,7 @@ public class InMemChannelDao implements ChannelDao {
     public void insertBindingEndpoint(SlotInstance slot, Endpoint.SlotOwner owner,
                                       @Nullable TransactionHandle transaction) throws SQLException
     {
-        Endpoint endpoint = endpointFactory.createEndpoint(slot, owner, Endpoint.LifeStatus.BINDING);
+        Endpoint endpoint = new Endpoint(slot, owner, Endpoint.LifeStatus.BINDING);
         channels.computeIfPresent(endpoint.getChannelId(), (id, ch) -> {
             final List<Endpoint> endpoints = ch.getEndpoints();
             endpoints.add(endpoint);
@@ -65,7 +59,7 @@ public class InMemChannelDao implements ChannelDao {
         channels.computeIfPresent(channelId, (id, ch) -> {
             final List<Endpoint> endpoints = ch.getEndpoints().stream().map(e -> {
                 if (endpointUri.equals(e.getUri().toString()))
-                    return endpointFactory.createEndpoint(e.getSlot(), e.getSlotOwner(), Endpoint.LifeStatus.BOUND);
+                    return new Endpoint(e.getSlot(), e.getSlotOwner(), Endpoint.LifeStatus.BOUND);
                 return e;
             }).toList();
             return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
@@ -79,7 +73,7 @@ public class InMemChannelDao implements ChannelDao {
         channels.computeIfPresent(channelId, (id, ch) -> {
             final List<Endpoint> endpoints = ch.getEndpoints().stream().map(e -> {
                 if (endpointUri.equals(e.getUri().toString()))
-                    return endpointFactory.createEndpoint(e.getSlot(), e.getSlotOwner(), Endpoint.LifeStatus.UNBINDING);
+                    return new Endpoint(e.getSlot(), e.getSlotOwner(), Endpoint.LifeStatus.UNBINDING);
                 return e;
             }).toList();
             return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
@@ -93,7 +87,7 @@ public class InMemChannelDao implements ChannelDao {
     {
         channels.computeIfPresent(channelId, (id, ch) -> {
             final List<Endpoint> endpoints = ch.getEndpoints().stream().map(e ->
-                endpointFactory.createEndpoint(e.getSlot(), e.getSlotOwner(), Endpoint.LifeStatus.UNBINDING)).toList();
+                new Endpoint(e.getSlot(), e.getSlotOwner(), Endpoint.LifeStatus.UNBINDING)).toList();
             return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
                 endpoints, ch.getConnections(), ch.getLifeStatus());
         });

@@ -1,4 +1,4 @@
-package ai.lzy.channelmanager.v2.db;
+package ai.lzy.channelmanager.v2.dao;
 
 import ai.lzy.channelmanager.channel.ChannelSpec;
 import ai.lzy.channelmanager.v2.model.Channel;

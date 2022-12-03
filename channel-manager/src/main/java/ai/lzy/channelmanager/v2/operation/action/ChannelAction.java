@@ -3,13 +3,13 @@ package ai.lzy.channelmanager.v2.operation.action;
 import ai.lzy.channelmanager.db.ChannelManagerDataSource;
 import ai.lzy.channelmanager.lock.GrainedLock;
 import ai.lzy.channelmanager.v2.control.ChannelController;
-import ai.lzy.channelmanager.v2.db.ChannelDao;
+import ai.lzy.channelmanager.v2.dao.ChannelDao;
+import ai.lzy.channelmanager.v2.dao.ChannelOperationDao;
 import ai.lzy.channelmanager.v2.exceptions.ChannelGraphStateException;
+import ai.lzy.channelmanager.v2.grpc.SlotConnectionManager;
+import ai.lzy.channelmanager.v2.model.Channel;
 import ai.lzy.channelmanager.v2.model.Connection;
 import ai.lzy.channelmanager.v2.model.Endpoint;
-import ai.lzy.channelmanager.v2.operation.ChannelOperationDao;
-import ai.lzy.channelmanager.v2.slot.SlotApiClient;
-import ai.lzy.channelmanager.v2.slot.SlotConnectionManager;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.grpc.ProtoConverter;
@@ -35,14 +35,15 @@ public abstract class ChannelAction implements Runnable {
     protected final ChannelDao channelDao;
     protected final OperationDao operationDao;
     protected final ChannelOperationDao channelOperationDao;
-    protected final SlotApiClient slotApiClient;
     protected final ChannelController channelController;
     protected final SlotConnectionManager slotConnectionManager;
     protected final GrainedLock lockManager;
 
+    protected boolean operationStopped = false;
+
     protected ChannelAction(ObjectMapper objectMapper, String operationId, ChannelManagerDataSource storage,
                             ChannelDao channelDao, OperationDao operationDao, ChannelOperationDao channelOperationDao,
-                            SlotApiClient slotApiClient, ChannelController channelController,
+                            ChannelController channelController,
                             SlotConnectionManager slotConnectionManager, GrainedLock lockManager)
     {
         this.objectMapper = objectMapper;
@@ -51,10 +52,44 @@ public abstract class ChannelAction implements Runnable {
         this.channelDao = channelDao;
         this.operationDao = operationDao;
         this.channelOperationDao = channelOperationDao;
-        this.slotApiClient = slotApiClient;
         this.channelController = channelController;
         this.slotConnectionManager = slotConnectionManager;
         this.lockManager = lockManager;
+    }
+
+    protected void scheduleRestart() {
+        operationStopped = true;
+        // TODO
+    }
+
+    protected void failOperation(Status status) {
+        operationStopped = true;
+        try {
+            withRetries(LOG, () -> {
+                try (var tx = TransactionHandle.create(storage)) {
+                    channelOperationDao.fail(operationId, status.getDescription(), tx);
+                    var operation = operationDao.updateError(operationId, toProto(status).toByteArray(), tx);
+                    if (operation == null) {
+                        LOG.error("Cannot fail operation {} with reason {}: operation not found",
+                            operationId, status.getDescription());
+                    } else {
+                        tx.commit();
+                    }
+                }
+            });
+        } catch (Exception ex) {
+            LOG.error("Cannot fail operation {} with reason {}: {}",
+                operationId, status.getDescription(), ex.getMessage());
+        }
+        // TODO if internal
+    }
+
+    protected String toJson(Object obj) {
+        try {
+            return objectMapper.writeValueAsString(obj);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     protected void unbindSender(Endpoint sender) throws ChannelGraphStateException {
@@ -64,7 +99,23 @@ public abstract class ChannelAction implements Runnable {
         while (true) {
             final Endpoint receiverToUnbind;
             try (final var guard = lockManager.withLock(sender.getChannelId())) {
-                receiverToUnbind = channelController.findReceiverToUnbind(sender);
+                final Channel channel;
+                try {
+                    channel = withRetries(LOG, () -> channelDao.findChannel(sender.getChannelId(), null));
+                } catch (Exception e) {
+                    String errorMessage = "Failed to find channel" + sender.getChannelId()
+                                          + " got exception: " + e.getMessage();
+                    throw new RuntimeException(errorMessage);
+                }
+                if (channel == null) {
+                    String errorMessage = "Async operation (operationId=" + operationId + ") cancelled,"
+                                          + " channel " + sender.getChannelId() + " not found";
+                    LOG.error(errorMessage);
+                    this.failOperation(Status.CANCELLED.withDescription(errorMessage));
+                    return;
+                }
+
+                receiverToUnbind = channelController.findReceiverToUnbind(channel, sender);
                 if (receiverToUnbind == null) {
                     LOG.info("Async operation (operationId={}): bound receivers not found, unbindingSender={}",
                         operationId, sender.getUri());
@@ -83,52 +134,23 @@ public abstract class ChannelAction implements Runnable {
 
             LOG.info("Async operation (operationId={}): found bound receiver {}, need force unbind, unbindingSender={}",
                 operationId, receiverToUnbind.getUri(), sender.getUri());
-            unbindReceiver(receiverToUnbind);
-        }
 
-        final var slotApi = slotConnectionManager.getConnection(sender.getUri()).slotApiBlockingStub();
-        try {
-            final var request = LSA.DisconnectSlotRequest.newBuilder()
-                .setSlotInstance(ProtoConverter.toProto(sender.getSlot()))
-                .build();
-
-            slotApi.disconnectSlot(request);
-        } catch (StatusRuntimeException e) {
-            if (Status.NOT_FOUND.equals(e.getStatus())) {
-                LOG.info("Async operation (operationId={}): disconnectSlot request failed, slot not found. "
-                         + "Continue action", operationId);
-                return;
-            } else {
-                LOG.error("Async operation (operationId={}): disconnectSlot request failed"
-                          + " with code {}: {}. Restart action",
-                    operationId, e.getStatus().getCode(), e.getStatus().getDescription());
-                scheduleRestart();
+            this.unbindReceiver(receiverToUnbind);
+            if (operationStopped) {
                 return;
             }
         }
-        LOG.info("Async operation (operationId={}): sent disconnectSlot request", operationId);
+
+        disconnect(sender);
+        if (operationStopped) {
+            return;
+        }
 
         // TODO (lindvv): maybe should suspend, so shouldn't destroy, fix after slots refactoring
-        try {
-            final var request = LSA.DestroySlotRequest.newBuilder()
-                .setSlotInstance(ProtoConverter.toProto(sender.getSlot()))
-                .build();
-
-            slotApi.destroySlot(request);
-        } catch (StatusRuntimeException e) {
-            if (Status.NOT_FOUND.equals(e.getStatus())) {
-                LOG.info("Async operation (operationId={}): destroySlot request failed, slot not found. "
-                         + "Continue action", operationId);
-                return;
-            } else {
-                LOG.error("Async operation (operationId={}): destroySlot request failed"
-                          + " with code {}: {}. Restart action",
-                    operationId, e.getStatus().getCode(), e.getStatus().getDescription());
-                scheduleRestart();
-                return;
-            }
+        destroySlot(sender);
+        if (operationStopped) {
+            return;
         }
-        LOG.info("Async operation (operationId={}): sent destroySlot request", operationId);
 
         try (final var guard = lockManager.withLock(channelId)) {
             withRetries(LOG, () -> channelDao.removeEndpoint(sender.getUri().toString(), null));
@@ -147,7 +169,23 @@ public abstract class ChannelAction implements Runnable {
 
         final Endpoint sender;
         try (final var guard = lockManager.withLock(channelId)) {
-            final Connection connectionToBreak = channelController.findConnectionToBreak(receiver);
+            final Channel channel;
+            try {
+                channel = withRetries(LOG, () -> channelDao.findChannel(receiver.getChannelId(), null));
+            } catch (Exception e) {
+                String errorMessage = "Failed to find channel" + receiver.getChannelId()
+                                      + " got exception: " + e.getMessage();
+                throw new RuntimeException(errorMessage);
+            }
+            if (channel == null) {
+                String errorMessage = "Async operation (operationId=" + operationId + ") cancelled,"
+                                      + " channel " + receiver.getChannelId() + " not found";
+                LOG.error(errorMessage);
+                this.failOperation(Status.CANCELLED.withDescription(errorMessage));
+                return;
+            }
+
+            final Connection connectionToBreak = channelController.findConnectionToBreak(, receiver);
             if (connectionToBreak == null) {
                 try {
                     withRetries(LOG, () ->
@@ -173,10 +211,39 @@ public abstract class ChannelAction implements Runnable {
             }
         }
 
-        final var slotApi = slotConnectionManager.getConnection(receiver.getUri()).slotApiBlockingStub();
+        disconnect(receiver);
+        if (operationStopped) {
+            return;
+        }
+
+        // TODO (lindvv): maybe should suspend, so shouldn't destroy, fix after slots refactoring
+        destroySlot(receiver);
+        if (operationStopped) {
+            return;
+        }
+
+        try (final var guard = lockManager.withLock(channelId)) {
+            withRetries(LOG, () -> {
+                try (var tx = TransactionHandle.create(storage)) {
+                    channelDao.removeConnection(channelId, sender.getUri().toString(), receiver.getUri().toString(), tx);
+                    channelDao.removeEndpoint(receiver.getUri().toString(), tx);
+                    tx.commit();
+                }
+            });
+            LOG.info("Async operation (operationId={}): receiver removed,"
+                     + " unbindingReceiver={}", operationId, receiver.getUri());
+        } catch (Exception e) {
+            String errorMessage = "Failed to remove receiver " + receiver.getUri() + " with connection,"
+                                  + " got exception: " + e.getMessage();
+            throw new RuntimeException(errorMessage);
+        }
+    }
+
+    protected void disconnect(Endpoint endpoint) {
+        final var slotApi = slotConnectionManager.getConnection(endpoint.getUri()).slotApiBlockingStub();
         try {
             final var request = LSA.DisconnectSlotRequest.newBuilder()
-                .setSlotInstance(ProtoConverter.toProto(receiver.getSlot()))
+                .setSlotInstance(ProtoConverter.toProto(endpoint.getSlot()))
                 .build();
 
             slotApi.disconnectSlot(request);
@@ -194,11 +261,13 @@ public abstract class ChannelAction implements Runnable {
             }
         }
         LOG.info("Async operation (operationId={}): sent disconnectSlot request", operationId);
+    }
 
-        // TODO (lindvv): maybe should suspend, so shouldn't destroy, fix after slots refactoring
+    protected void destroySlot(Endpoint endpoint) {
+        final var slotApi = slotConnectionManager.getConnection(endpoint.getUri()).slotApiBlockingStub();
         try {
             final var request = LSA.DestroySlotRequest.newBuilder()
-                .setSlotInstance(ProtoConverter.toProto(receiver.getSlot()))
+                .setSlotInstance(ProtoConverter.toProto(endpoint.getSlot()))
                 .build();
 
             slotApi.destroySlot(request);
@@ -216,51 +285,6 @@ public abstract class ChannelAction implements Runnable {
             }
         }
         LOG.info("Async operation (operationId={}): sent destroySlot request", operationId);
-
-        try (final var guard = lockManager.withLock(channelId)) {
-            withRetries(LOG, () -> {
-                try (var tx = TransactionHandle.create(storage)) {
-                    channelDao.removeConnection(channelId, sender.getUri().toString(), receiver.getUri().toString(), tx);
-                    channelDao.removeEndpoint(receiver.getUri().toString(), tx);
-                    tx.commit();
-                }
-            });
-        } catch (Exception e) {
-            String errorMessage = "Failed to remove receiver " + receiver.getUri() + " with connection,"
-                                  + " got exception: " + e.getMessage();
-            throw new RuntimeException(errorMessage);
-        }
     }
-
-    protected void failOperation(Status status) {
-        try {
-            withRetries(LOG, () -> {
-                try (var tx = TransactionHandle.create(storage)) {
-                    channelOperationDao.delete(operationId, tx);
-                    var operation = operationDao.updateError(operationId, toProto(status).toByteArray(), tx);
-                    if (operation == null) {
-                        LOG.error("Cannot fail operation {} with reason {}: operation not found",
-                            operationId, status.getDescription());
-                    } else {
-                        tx.commit();
-                    }
-                }
-            });
-        } catch (Exception ex) {
-            LOG.error("Cannot fail operation {} with reason {}: {}",
-                operationId, status.getDescription(), ex.getMessage());
-        }
-        // TODO if internal
-    }
-
-    protected String toJson(Object obj) {
-        try {
-            return objectMapper.writeValueAsString(obj);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    protected void scheduleRestart();
 
 }
