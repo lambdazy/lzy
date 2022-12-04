@@ -23,6 +23,8 @@ class WhiteboardField:
 @dataclass
 class WhiteboardInstanceMeta:
     id: str
+    name: str
+    tags: Sequence[str]
 
 
 class WhiteboardClient(ABC):

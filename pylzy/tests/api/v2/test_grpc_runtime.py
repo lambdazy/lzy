@@ -208,7 +208,7 @@ class WhiteboardClientForTest(WhiteboardClient):
 
     async def create_whiteboard(self, namespace: str, name: str, fields: Sequence[WhiteboardField], storage_name: str,
                                 tags: Sequence[str]) -> WhiteboardInstanceMeta:
-        return WhiteboardInstanceMeta(str(uuid.uuid4()))
+        return WhiteboardInstanceMeta(str(uuid.uuid4()), name, tags)
 
     async def link(self, wb_id: str, field_name: str, url: str, data_scheme: Schema) -> None:
         pass

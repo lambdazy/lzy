@@ -102,15 +102,15 @@ class ReadOnlyWhiteboard:
         return var
 
     @property
-    def whiteboard_id(self) -> str:
+    def id(self) -> str:
         return self.__wb.id
 
     @property
-    def whiteboard_name(self) -> str:
+    def name(self) -> str:
         return self.__wb.name
 
     @property
-    def whiteboard_tags(self) -> Iterable[str]:
+    def tags(self) -> Iterable[str]:
         return self.__wb.tags
 
     async def __read_data(self, field: WhiteboardField, client: AsyncStorageClient) -> Any:
@@ -206,5 +206,13 @@ class WritableWhiteboard:
         return self.__fields[item]
 
     @property
-    def whiteboard_id(self) -> str:
+    def id(self) -> str:
         return self.__whiteboard_meta.id
+
+    @property
+    def name(self) -> str:
+        return self.__whiteboard_meta.name
+
+    @property
+    def tags(self) -> Iterable[str]:
+        return self.__whiteboard_meta.tags

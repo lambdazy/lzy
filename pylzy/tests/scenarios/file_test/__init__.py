@@ -54,7 +54,7 @@ if __name__ == "__main__":
 
         file_wb.f2 = f2
         file_wb.f3 = f3
-        wb_id = file_wb.whiteboard_id
+        wb_id = file_wb.id
 
         i, s = b()
         print(f"{i}, {s}")

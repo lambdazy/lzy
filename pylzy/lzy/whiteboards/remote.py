@@ -116,7 +116,7 @@ class RemoteWhiteboardClient(WhiteboardClient):
             )
         )
 
-        return WhiteboardInstanceMeta(res.whiteboard.id)
+        return WhiteboardInstanceMeta(res.whiteboard.id, name, tags)
 
     async def link(self, wb_id: str, field_name: str, url: str, data_scheme: Schema) -> None:
         self.__start()

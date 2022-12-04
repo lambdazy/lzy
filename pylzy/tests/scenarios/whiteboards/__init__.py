@@ -89,7 +89,7 @@ with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
     wb = wf.create_whiteboard(SimpleWhiteboard, tags=[simple_whiteboard_tag])
     wb.a = fun1()
     wb.b = fun2(42)
-    wb_id = wb.whiteboard_id
+    wb_id = wb.id
 
 wb = lzy.whiteboard(wb_id)
 print(wb.a, wb.a)
@@ -151,7 +151,7 @@ with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
     wb = wf.create_whiteboard(WhiteboardWithLzyMessageFields, tags=[lzy_message_fields_tag])
     wb.a = fun6(fun7())
     wb.b = fun8(wb.a)
-    wb_id = wb.whiteboard_id
+    wb_id = wb.id
 
 wb = lzy.whiteboard(wb_id)
 print("string_field value in WhiteboardWithLzyMessageFields is " + wb.a.string_field)
@@ -183,7 +183,7 @@ with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
     wb = wf.create_whiteboard(DefaultWhiteboard, tags=[default_whiteboard_tag])
     wb.a = 7
     wb.b = fun2(fun1())
-    wb_id = wb.whiteboard_id
+    wb_id = wb.id
 
 wb = lzy.whiteboard(wb_id)
 print(
@@ -200,7 +200,7 @@ with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
         Test1(int32(5)),
         TestEnum.FOO,
     )
-    wb_id = wb.whiteboard_id
+    wb_id = wb.id
 
 wb = lzy.whiteboard(wb_id)
 print(
