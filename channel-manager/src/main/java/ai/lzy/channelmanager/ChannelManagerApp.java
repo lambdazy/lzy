@@ -3,13 +3,16 @@ package ai.lzy.channelmanager;
 import ai.lzy.channelmanager.v2.config.ChannelManagerConfig;
 import ai.lzy.channelmanager.v2.grpc.ChannelManagerPrivateService;
 import ai.lzy.channelmanager.v2.grpc.ChannelManagerService;
+import ai.lzy.channelmanager.v2.operation.ChannelOperationManager;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
+import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.longrunning.OperationService;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
+import io.grpc.ServerInterceptors;
 import io.micronaut.runtime.Micronaut;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -31,10 +34,13 @@ public class ChannelManagerApp {
     private final Server channelManagerServer;
     private final ManagedChannel iamChannel;
 
+    private final ChannelOperationManager channelOperationManager;
+
     public ChannelManagerApp(ChannelManagerConfig config,
                              ChannelManagerService channelManagerService,
                              ChannelManagerPrivateService channelManagerPrivateService,
-                             OperationService operationService)
+                             OperationService operationService,
+                             ChannelOperationManager channelOperationManager)
     {
         LOG.info("Starting ChannelManager service with config: {}", config.toString());
 
@@ -44,11 +50,15 @@ public class ChannelManagerApp {
         iamChannel = newGrpcChannel(iamAddress, LzyAuthenticateServiceGrpc.SERVICE_NAME);
         final var authInterceptor = new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel));
 
+        var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
+
         channelManagerServer = newGrpcServer(chanelManagerAddress, authInterceptor)
             .addService(channelManagerService)
-            .addService(channelManagerPrivateService)
+            .addService(ServerInterceptors.intercept(channelManagerPrivateService, internalOnly))
             .addService(operationService)
             .build();
+
+        this.channelOperationManager = channelOperationManager;
     }
 
     public static void main(String[] args) throws InterruptedException, IOException {
@@ -62,7 +72,7 @@ public class ChannelManagerApp {
     public void start() throws IOException {
         channelManagerServer.start();
 
-        restoreActiveOperations();
+        channelOperationManager.restoreActiveOperations();
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             LOG.info("Stopping ChannelManager service");

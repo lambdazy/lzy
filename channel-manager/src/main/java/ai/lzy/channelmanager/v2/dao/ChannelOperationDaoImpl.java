@@ -4,12 +4,17 @@ import ai.lzy.channelmanager.db.ChannelManagerDataSource;
 import ai.lzy.channelmanager.v2.operation.ChannelOperation;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.TransactionHandle;
+import jakarta.inject.Singleton;
 
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 import javax.annotation.Nullable;
 
+@Singleton
 public class ChannelOperationDaoImpl implements ChannelOperationDao {
 
     private static final String QUERY_CREATE_OP = """
@@ -29,6 +34,17 @@ public class ChannelOperationDaoImpl implements ChannelOperationDao {
         UPDATE channel_operation
         SET failed = TRUE, fail_reason = ?
         WHERE op_id = ?""";
+
+    private static final String QUERY_GET_OP = """
+        SELECT started_at, deadline, op_type::TEXT, state_json
+        FROM channel_operation
+        WHERE op_id = ? AND NOT failed""";
+
+
+    private static final String QUERY_GET_ACTIVE_OPS = """
+        SELECT op_id, started_at, deadline, op_type::TEXT, state_json
+        FROM channel_operation
+        WHERE deadline < NOW() AND NOT failed""";
 
     private final ChannelManagerDataSource storage;
 
@@ -85,4 +101,44 @@ public class ChannelOperationDaoImpl implements ChannelOperationDao {
             }
         });
     }
+
+    @Override
+    public ChannelOperation get(String operationId, @Nullable TransactionHandle tx) throws SQLException {
+        return DbOperation.execute(tx, storage, conn -> {
+            try (var st = conn.prepareStatement(QUERY_GET_OP)) {
+                st.setString(1, operationId);
+
+                var rs = st.executeQuery();
+                if (rs.next()) {
+                    return parseOperation(rs);
+                }
+
+                return null;
+            }
+        });
+    }
+
+    @Override
+    public List<ChannelOperation> getActiveOperations(@Nullable TransactionHandle tx) throws SQLException {
+        final List<ChannelOperation> operations = new ArrayList<>();
+        DbOperation.execute(tx, storage, conn -> {
+            try (var st = conn.prepareStatement(QUERY_GET_ACTIVE_OPS)) {
+                var rs = st.executeQuery();
+                while (rs.next()) {
+                    operations.add(parseOperation(rs));
+                }
+            }
+        });
+        return operations;
+    }
+
+    private ChannelOperation parseOperation(ResultSet rs) throws SQLException {
+        return new ChannelOperation(
+            rs.getString(1),
+            rs.getTimestamp(2).toInstant(),
+            rs.getTimestamp(3).toInstant(),
+            ChannelOperation.Type.valueOf(rs.getString(4)),
+            rs.getString(5));
+    }
+
 }

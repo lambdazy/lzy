@@ -22,14 +22,14 @@ CREATE TYPE channel_operation_type AS ENUM ('BIND', 'UNBIND', 'DESTROY');
 
 CREATE TABLE channel_operation
 (
-    op_id       TEXT                    NOT NULL PRIMARY KEY,
-    started_at  TIMESTAMP               NOT NULL,
-    deadline    TIMESTAMP               NOT NULL,
+    op_id       TEXT                   NOT NULL PRIMARY KEY,
+    started_at  TIMESTAMP              NOT NULL,
+    deadline    TIMESTAMP              NOT NULL,
 
-    op_type     channel_operation_type  NOT NULL,
-    state_json  TEXT                    NOT NULL, -- some operation specific data
+    op_type     channel_operation_type NOT NULL,
+    state_json  TEXT                   NOT NULL, -- some operation specific data
 
 -- operation failed, rollback required
-    failed      BOOLEAN                 NOT NULL DEFAULT FALSE,
-    fail_reason TEXT                    NULL
+    failed      BOOLEAN                NOT NULL DEFAULT FALSE,
+    fail_reason TEXT                   NULL
 );

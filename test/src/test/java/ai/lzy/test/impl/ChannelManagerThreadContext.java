@@ -70,7 +70,7 @@ public class ChannelManagerThreadContext implements LzyChannelManagerContext {
         try {
             context = ApplicationContext.run(PropertySource.of(props));
 
-            channelManagerApp = new ChannelManagerApp(context);
+            channelManagerApp = context.getBean(ChannelManagerApp.class);
             channelManagerApp.start();
 
             channel = ChannelBuilder

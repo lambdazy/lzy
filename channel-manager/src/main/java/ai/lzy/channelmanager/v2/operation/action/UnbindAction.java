@@ -7,6 +7,7 @@ import ai.lzy.channelmanager.v2.dao.ChannelDao;
 import ai.lzy.channelmanager.v2.dao.ChannelOperationDao;
 import ai.lzy.channelmanager.v2.grpc.SlotConnectionManager;
 import ai.lzy.channelmanager.v2.model.Endpoint;
+import ai.lzy.channelmanager.v2.operation.ChannelOperationExecutor;
 import ai.lzy.channelmanager.v2.operation.state.UnbindActionState;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
@@ -28,12 +29,12 @@ public class UnbindAction extends ChannelAction {
     private final UnbindActionState state;
 
     public UnbindAction(String operationId, UnbindActionState state,
-                           ObjectMapper objectMapper, ChannelManagerDataSource storage,
-                           ChannelDao channelDao, OperationDao operationDao, ChannelOperationDao channelOperationDao,
-                           ChannelController channelController,
-                           SlotConnectionManager slotConnectionManager, GrainedLock lockManager)
+                        ObjectMapper objectMapper, ChannelOperationExecutor executor,
+                        ChannelManagerDataSource storage, ChannelDao channelDao, OperationDao operationDao,
+                        ChannelOperationDao channelOperationDao, ChannelController channelController,
+                        SlotConnectionManager slotConnectionManager, GrainedLock lockManager)
     {
-        super(objectMapper, operationId, storage, channelDao, operationDao, channelOperationDao,
+        super(operationId, objectMapper, executor, storage, channelDao, operationDao, channelOperationDao,
             channelController, slotConnectionManager, lockManager);
         this.state = state;
     }
@@ -43,7 +44,8 @@ public class UnbindAction extends ChannelAction {
         LOG.info("Async operation (operationId={}) resumed, channelId={}", operationId, state.channelId());
 
         try {
-            final Endpoint unbindingEndpoint = withRetries(LOG, () -> channelDao.findEndpoint(state.endpointUri(), null));
+            final Endpoint unbindingEndpoint =
+                withRetries(LOG, () -> channelDao.findEndpoint(state.endpointUri(), null));
 
             if (unbindingEndpoint == null) {
                 finishOperation();

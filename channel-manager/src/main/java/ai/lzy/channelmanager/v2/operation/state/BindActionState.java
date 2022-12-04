@@ -1,7 +1,16 @@
 package ai.lzy.channelmanager.v2.operation.state;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
 import javax.annotation.Nullable;
 
+@JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
+@JsonSerialize
+@JsonDeserialize
 public class BindActionState {
     private final String channelId;
     private final String endpointUri;
@@ -11,9 +20,11 @@ public class BindActionState {
     @Nullable
     private String connectOperationId;
 
-    public BindActionState(String channelId, String endpointUri,
-                           @Nullable String connectingEndpointUri,
-                           @Nullable String connectOperationId)
+    @JsonCreator
+    public BindActionState(@JsonProperty("channelId") String channelId,
+                           @JsonProperty("endpointUri") String endpointUri,
+                           @JsonProperty("connectingEndpointUri") @Nullable String connectingEndpointUri,
+                           @JsonProperty("connectOperationId") @Nullable String connectOperationId)
     {
         this.channelId = channelId;
         this.endpointUri = endpointUri;

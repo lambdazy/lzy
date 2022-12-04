@@ -10,6 +10,7 @@ import ai.lzy.channelmanager.v2.grpc.SlotConnectionManager;
 import ai.lzy.channelmanager.v2.model.Channel;
 import ai.lzy.channelmanager.v2.model.Connection;
 import ai.lzy.channelmanager.v2.model.Endpoint;
+import ai.lzy.channelmanager.v2.operation.ChannelOperationExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.grpc.ProtoConverter;
@@ -21,6 +22,8 @@ import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.concurrent.TimeUnit;
+
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
 
@@ -29,6 +32,7 @@ public abstract class ChannelAction implements Runnable {
     private static final Logger LOG = LogManager.getLogger(ChannelAction.class);
 
     private final ObjectMapper objectMapper;
+    private final ChannelOperationExecutor executor;
 
     protected final String operationId;
     protected final ChannelManagerDataSource storage;
@@ -41,13 +45,14 @@ public abstract class ChannelAction implements Runnable {
 
     protected boolean operationStopped = false;
 
-    protected ChannelAction(ObjectMapper objectMapper, String operationId, ChannelManagerDataSource storage,
-                            ChannelDao channelDao, OperationDao operationDao, ChannelOperationDao channelOperationDao,
-                            ChannelController channelController,
+    protected ChannelAction(String operationId, ObjectMapper objectMapper, ChannelOperationExecutor executor,
+                            ChannelManagerDataSource storage, ChannelDao channelDao, OperationDao operationDao,
+                            ChannelOperationDao channelOperationDao, ChannelController channelController,
                             SlotConnectionManager slotConnectionManager, GrainedLock lockManager)
     {
-        this.objectMapper = objectMapper;
         this.operationId = operationId;
+        this.objectMapper = objectMapper;
+        this.executor = executor;
         this.storage = storage;
         this.channelDao = channelDao;
         this.operationDao = operationDao;
@@ -59,7 +64,7 @@ public abstract class ChannelAction implements Runnable {
 
     protected void scheduleRestart() {
         operationStopped = true;
-        // TODO
+        executor.schedule(this, 1, TimeUnit.SECONDS);
     }
 
     protected void failOperation(Status status) {
@@ -185,7 +190,7 @@ public abstract class ChannelAction implements Runnable {
                 return;
             }
 
-            final Connection connectionToBreak = channelController.findConnectionToBreak(, receiver);
+            final Connection connectionToBreak = channelController.findConnectionToBreak(channel, receiver);
             if (connectionToBreak == null) {
                 try {
                     withRetries(LOG, () ->
@@ -225,7 +230,10 @@ public abstract class ChannelAction implements Runnable {
         try (final var guard = lockManager.withLock(channelId)) {
             withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage)) {
-                    channelDao.removeConnection(channelId, sender.getUri().toString(), receiver.getUri().toString(), tx);
+                    channelDao.removeConnection(channelId,
+                        sender.getUri().toString(),
+                        receiver.getUri().toString(),
+                        tx);
                     channelDao.removeEndpoint(receiver.getUri().toString(), tx);
                     tx.commit();
                 }

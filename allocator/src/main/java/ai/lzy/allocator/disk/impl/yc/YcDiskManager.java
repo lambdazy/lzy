@@ -6,6 +6,7 @@ import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.disk.dao.DiskOpDao;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.longrunning.dao.OperationDao;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -165,5 +166,20 @@ public class YcDiskManager implements DiskManager {
         };
     }
 
+    private String toJson(Object obj) {
+        try {
+            return objectMapper.writeValueAsString(obj);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private <T> T fromJson(String obj, Class<T> type) {
+        try {
+            return objectMapper.readValue(obj, type);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
 }

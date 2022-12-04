@@ -60,7 +60,8 @@ public class ChannelControllerImpl implements ChannelController {
     }
 
     @Override
-    public boolean checkChannelForSavingConnection(Channel actualChannel, Endpoint bindingEndpoint, Endpoint connectedEndpoint)
+    public boolean checkChannelForSavingConnection(Channel actualChannel, Endpoint bindingEndpoint,
+                                                   Endpoint connectedEndpoint)
         throws CancellingChannelGraphStateException
     {
         LOG.debug("[checkForSavingConnection], bindingEndpoint={}, connectedEndpoint={}",

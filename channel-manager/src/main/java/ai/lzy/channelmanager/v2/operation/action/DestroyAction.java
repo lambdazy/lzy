@@ -9,6 +9,7 @@ import ai.lzy.channelmanager.v2.exceptions.ChannelGraphStateException;
 import ai.lzy.channelmanager.v2.grpc.SlotConnectionManager;
 import ai.lzy.channelmanager.v2.model.Channel;
 import ai.lzy.channelmanager.v2.model.Endpoint;
+import ai.lzy.channelmanager.v2.operation.ChannelOperationExecutor;
 import ai.lzy.channelmanager.v2.operation.state.DestroyActionState;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
@@ -28,12 +29,12 @@ public class DestroyAction extends ChannelAction {
     private final DestroyActionState state;
 
     public DestroyAction(String operationId, DestroyActionState state,
-                            ObjectMapper objectMapper, ChannelManagerDataSource storage,
-                            ChannelDao channelDao, OperationDao operationDao, ChannelOperationDao channelOperationDao,
-                            ChannelController channelController,
-                            SlotConnectionManager slotConnectionManager, GrainedLock lockManager)
+                         ObjectMapper objectMapper, ChannelOperationExecutor executor,
+                         ChannelManagerDataSource storage, ChannelDao channelDao, OperationDao operationDao,
+                         ChannelOperationDao channelOperationDao, ChannelController channelController,
+                         SlotConnectionManager slotConnectionManager, GrainedLock lockManager)
     {
-        super(objectMapper, operationId, storage, channelDao, operationDao, channelOperationDao,
+        super(operationId, objectMapper, executor, storage, channelDao, operationDao, channelOperationDao,
             channelController, slotConnectionManager, lockManager);
         this.state = state;
     }

@@ -8,6 +8,7 @@ import ai.lzy.channelmanager.v2.dao.ChannelOperationDao;
 import ai.lzy.channelmanager.v2.model.Channel;
 import ai.lzy.channelmanager.v2.model.Endpoint;
 import ai.lzy.channelmanager.v2.operation.ChannelOperation;
+import ai.lzy.channelmanager.v2.operation.ChannelOperationExecutor;
 import ai.lzy.channelmanager.v2.operation.ChannelOperationManager;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
@@ -21,13 +22,11 @@ import com.google.protobuf.Any;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.time.Instant;
-import java.util.concurrent.ScheduledExecutorService;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
 
@@ -41,14 +40,14 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
     private final ChannelOperationDao channelOperationDao;
     private final ChannelManagerDataSource storage;
     private final ChannelOperationManager channelOperationManager;
-    private final ScheduledExecutorService executor;
+    private final ChannelOperationExecutor executor;
     private final GrainedLock lockManager;
 
     @Inject
     public ChannelManagerService(ChannelDao channelDao, OperationDao operationDao,
                                  ChannelOperationDao channelOperationDao, ChannelManagerDataSource storage,
                                  ChannelOperationManager channelOperationManager, GrainedLock lockManager,
-                                 @Named("ChannelManagerExecutor") ScheduledExecutorService executor)
+                                 ChannelOperationExecutor executor)
     {
         this.channelDao = channelDao;
         this.operationDao = operationDao;
@@ -57,18 +56,6 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         this.channelOperationManager = channelOperationManager;
         this.executor = executor;
         this.lockManager = lockManager;
-
-        restoreActiveOperations();
-    }
-
-    private void restoreActiveOperations() {
-        LOG.info("Restore operations");
-        try {
-
-        } catch (Exception e) {
-
-        }
-        LOG.info("Restore operations done");
     }
 
     @Override
@@ -94,10 +81,11 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             return;
         }
 
-        final Status preconditionsStatus = checkBindPreconditions(request, channel);
+        Status preconditionsStatus = checkBindPreconditions(request, channel);
         if (!preconditionsStatus.isOk()) {
             LOG.error(operationDescription + " failed, {}", preconditionsStatus.getDescription());
             response.onError(preconditionsStatus.asException());
+            return;
         }
 
         final Operation operation = Operation.create(
@@ -112,16 +100,16 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         final var slotInstance = ProtoConverter.fromProto(request.getSlotInstance());
         final var slotOwner = fromProto(request.getSlotOwner());
         try {
-            withRetries(LOG, () -> {
+            preconditionsStatus = withRetries(LOG, () -> {
                 try (final var tx = TransactionHandle.create(storage)) {
+                    final Status preconditionsActualStatus;
+
                     try (final var guard = lockManager.withLock(channelId)) {
                         final Channel actualChannel = channelDao.findChannel(channelId, Channel.LifeStatus.ALIVE, tx);
 
-                        final Status preconditionsActualStatus = checkBindPreconditions(request, actualChannel);
+                        preconditionsActualStatus = checkBindPreconditions(request, actualChannel);
                         if (!preconditionsActualStatus.isOk()) {
-                            LOG.error(operationDescription + " failed, {}", preconditionsActualStatus.getDescription());
-                            response.onError(preconditionsActualStatus.asException());
-                            return;
+                            return preconditionsActualStatus;
                         }
 
                         channelDao.insertBindingEndpoint(slotInstance, slotOwner, tx);
@@ -129,8 +117,14 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                     channelOperationDao.create(channelOperation, tx);
                     operationDao.create(operation, tx);
                     tx.commit();
+                    return preconditionsActualStatus;
                 }
             });
+            if (!preconditionsStatus.isOk()) {
+                LOG.error(operationDescription + " failed, {}", preconditionsStatus.getDescription());
+                response.onError(preconditionsStatus.asException());
+                return;
+            }
         } catch (Exception e) {
             LOG.error(operationDescription + " failed, cannot create operation, got exception: {}", e.getMessage(), e);
             response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
@@ -184,16 +178,16 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         );
 
         try {
-            withRetries(LOG, () -> {
+            final Status preconditionsStatus = withRetries(LOG, () -> {
                 try (final var tx = TransactionHandle.create(storage)) {
+                    final Status preconditionsActualStatus;
+
                     try (final var guard = lockManager.withLock(channelId)) {
                         final Channel actualChannel = channelDao.findChannel(channelId, Channel.LifeStatus.ALIVE, tx);
 
-                        final Status preconditionsActualStatus = checkUnbindPreconditions(request, actualChannel);
+                        preconditionsActualStatus = checkUnbindPreconditions(request, actualChannel);
                         if (!preconditionsActualStatus.isOk()) {
-                            LOG.error(operationDescription + " failed, {}", preconditionsActualStatus.getDescription());
-                            response.onError(preconditionsActualStatus.asException());
-                            return;
+                            return preconditionsActualStatus;
                         }
 
                         channelDao.markEndpointUnbinding(slotUri, tx);
@@ -201,8 +195,14 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                     channelOperationDao.create(channelOperation, tx);
                     operationDao.create(operation, tx);
                     tx.commit();
+                    return preconditionsActualStatus;
                 }
             });
+            if (!preconditionsStatus.isOk()) {
+                LOG.error(operationDescription + " failed, {}", preconditionsStatus.getDescription());
+                response.onError(preconditionsStatus.asException());
+                return;
+            }
         } catch (Exception e) {
             LOG.error(operationDescription + " failed, cannot create operation, got exception: {}", e.getMessage(), e);
             response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
@@ -226,7 +226,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 Endpoint activeSenderPortalEndpoint = channel.getActiveSenders().portalEndpoint();
                 Endpoint activeReceiverPortalEndpoint = channel.getActiveReceivers().portalEndpoint();
                 if (activeSenderPortalEndpoint != null || activeReceiverPortalEndpoint != null) {
-                    String errorMessage = "Portal endpoint already bound to channel";
+                    String errorMessage = "PORTAL endpoint already bound to channel";
                     return Status.FAILED_PRECONDITION.withDescription(errorMessage);
                 }
             }
@@ -234,7 +234,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 Endpoint activeSenderWorkerEndpoint = channel.getActiveSenders().workerEndpoint();
                 LMS.Slot.Direction newEndpointDirection = request.getSlotInstance().getSlot().getDirection();
                 if (newEndpointDirection == LMS.Slot.Direction.OUTPUT && activeSenderWorkerEndpoint != null) {
-                    String errorMessage = "Worker endpoint already bound as input slot to channel";
+                    String errorMessage = "WORKER endpoint already bound as input slot to channel";
                     return Status.FAILED_PRECONDITION.withDescription(errorMessage);
                 }
             }
@@ -253,8 +253,8 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             .filter(Endpoint::isActive)
             .findFirst().orElse(null);
 
-        if (activeEndpoint != null) {
-            String errorMessage = "Endpoint not found";
+        if (activeEndpoint == null) {
+            String errorMessage = "Endpoint " + request.getSlotUri() + " not found";
             return Status.NOT_FOUND.withDescription(errorMessage);
         }
 

@@ -29,7 +29,8 @@ public class Channel {
     }
 
     public Channel(String id, ChannelSpec spec, String executionId, List<Endpoint> endpoints,
-                   List<Connection> connections, LifeStatus lifeStatus) {
+                   List<Connection> connections, LifeStatus lifeStatus)
+    {
         this.id = id;
         this.spec = spec;
         this.executionId = executionId;
@@ -173,8 +174,12 @@ public class Channel {
 
         public List<Endpoint> asList() {
             List<Endpoint> senders = new ArrayList<>();
-            if (workerEndpoint != null) senders.add(workerEndpoint);
-            if (portalEndpoint != null) senders.add(portalEndpoint);
+            if (workerEndpoint != null) {
+                senders.add(workerEndpoint);
+            }
+            if (portalEndpoint != null) {
+                senders.add(portalEndpoint);
+            }
             return senders;
         }
 
@@ -229,7 +234,9 @@ public class Channel {
 
         public List<Endpoint> asList() {
             List<Endpoint> receivers = new ArrayList<>(workerEndpoints);
-            if (portalEndpoint != null) receivers.add(portalEndpoint);
+            if (portalEndpoint != null) {
+                receivers.add(portalEndpoint);
+            }
             return receivers;
         }
 

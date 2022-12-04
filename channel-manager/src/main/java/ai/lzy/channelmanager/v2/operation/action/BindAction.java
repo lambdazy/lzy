@@ -10,6 +10,7 @@ import ai.lzy.channelmanager.v2.grpc.SlotConnectionManager;
 import ai.lzy.channelmanager.v2.model.Channel;
 import ai.lzy.channelmanager.v2.model.Connection;
 import ai.lzy.channelmanager.v2.model.Endpoint;
+import ai.lzy.channelmanager.v2.operation.ChannelOperationExecutor;
 import ai.lzy.channelmanager.v2.operation.state.BindActionState;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
@@ -37,12 +38,12 @@ public class BindAction extends ChannelAction {
     private BindActionState state;
 
     public BindAction(String operationId, BindActionState state,
-                      ObjectMapper objectMapper, ChannelManagerDataSource storage,
-                      ChannelDao channelDao, OperationDao operationDao, ChannelOperationDao channelOperationDao,
-                      ChannelController channelController,
+                      ObjectMapper objectMapper, ChannelOperationExecutor executor,
+                      ChannelManagerDataSource storage, ChannelDao channelDao, OperationDao operationDao,
+                      ChannelOperationDao channelOperationDao, ChannelController channelController,
                       SlotConnectionManager slotConnectionManager, GrainedLock lockManager)
     {
-        super(objectMapper, operationId, storage, channelDao, operationDao, channelOperationDao,
+        super(operationId, objectMapper, executor, storage, channelDao, operationDao, channelOperationDao,
             channelController, slotConnectionManager, lockManager);
         this.state = state;
         this.localState = BindActionState.copyOf(state);
@@ -177,8 +178,8 @@ public class BindAction extends ChannelAction {
                 return;
             }
 
-            boolean needToSave = channelController.checkChannelForSavingConnection
-                (channel, bindingEndpoint, connectedEndpoint);
+            boolean needToSave = channelController.checkChannelForSavingConnection(
+                channel, bindingEndpoint, connectedEndpoint);
 
             if (needToSave) {
                 localState.reset();

@@ -7,6 +7,7 @@ import ai.lzy.channelmanager.v2.dao.ChannelDao;
 import ai.lzy.channelmanager.v2.dao.ChannelOperationDao;
 import ai.lzy.channelmanager.v2.model.Channel;
 import ai.lzy.channelmanager.v2.operation.ChannelOperation;
+import ai.lzy.channelmanager.v2.operation.ChannelOperationExecutor;
 import ai.lzy.channelmanager.v2.operation.ChannelOperationManager;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
@@ -21,14 +22,12 @@ import com.google.protobuf.Any;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
 import static ai.lzy.channelmanager.grpc.ProtoConverter.fromProto;
@@ -45,14 +44,14 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
     private final ChannelOperationDao channelOperationDao;
     private final ChannelManagerDataSource storage;
     private final ChannelOperationManager channelOperationManager;
-    private final ScheduledExecutorService executor;
+    private final ChannelOperationExecutor executor;
     private final GrainedLock lockManager;
 
     @Inject
     public ChannelManagerPrivateService(ChannelDao channelDao, OperationDao operationDao,
                                         ChannelOperationDao channelOperationDao, ChannelManagerDataSource storage,
                                         ChannelOperationManager channelOperationManager, GrainedLock lockManager,
-                                        @Named("ChannelManagerExecutor") ScheduledExecutorService executor)
+                                        ChannelOperationExecutor executor)
     {
         this.channelDao = channelDao;
         this.operationDao = operationDao;

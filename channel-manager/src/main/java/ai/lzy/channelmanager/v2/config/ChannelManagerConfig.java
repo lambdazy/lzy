@@ -16,6 +16,7 @@ public final class ChannelManagerConfig {
     private boolean stubIam = false;
     private String stubSlotApiAddress = null;
     private int lockBucketsCount = 256;
+    private int executorThreadsCount = 5;
 
     @ConfigurationBuilder("iam")
     private final IamClientConfiguration iam = new IamClientConfiguration();
@@ -33,6 +34,7 @@ public final class ChannelManagerConfig {
                ", stubIam=" + stubIam +
                ", stubSlotApiAddress=" + stubSlotApiAddress +
                ", lockBucketsCount=" + lockBucketsCount +
+               ", executorThreadsCount=" + executorThreadsCount +
                ", iam=" + iam +
                ", database=" + database +
                ", connections=" + connections +

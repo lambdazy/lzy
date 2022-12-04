@@ -86,7 +86,8 @@ public class ChannelManagerTest {
         authorizedPrivateClient = newBlockingClient(
             unauthorizedPrivateClient, "AuthPrivateTest", () -> internalUserCredentials.get().token());
 
-        publicClient = newBlockingClient(LzyChannelManagerGrpc.newBlockingStub(channel), "NoAuthTest", () -> internalUserCredentials.get().token()); // TODO not internal
+        publicClient = newBlockingClient(LzyChannelManagerGrpc.newBlockingStub(channel), "NoAuthTest",
+            () -> internalUserCredentials.get().token()); // TODO not internal
 
         authorizedOperationApiClient = newBlockingClient(
             LongRunningServiceGrpc.newBlockingStub(channel), "OpTest", () -> internalUserCredentials.get().token());
@@ -149,19 +150,19 @@ public class ChannelManagerTest {
         } catch (StatusRuntimeException e) {
             assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
         }
-        
+
         // TODO public client
     }
-    
+
     @Test
     public void testCreateEmptyWorkflow() {
         try {
             authorizedPrivateClient.create(LCMPS.ChannelCreateRequest.newBuilder()
-                    .setChannelSpec(LCM.ChannelSpec.newBuilder()
-                        .setChannelName("ch")
-                        .setScheme(ai.lzy.model.grpc.ProtoConverter.toProto(DataScheme.PLAIN))
-                        .build())
-                    .build());
+                .setChannelSpec(LCM.ChannelSpec.newBuilder()
+                    .setChannelName("ch")
+                    .setScheme(ai.lzy.model.grpc.ProtoConverter.toProto(DataScheme.PLAIN))
+                    .build())
+                .build());
             fail();
         } catch (StatusRuntimeException e) {
             assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
@@ -173,7 +174,7 @@ public class ChannelManagerTest {
         try {
             authorizedPrivateClient.create(LCMPS.ChannelCreateRequest.newBuilder()
                 .setExecutionId(UUID.randomUUID().toString())
-                    .build());
+                .build());
             fail();
         } catch (StatusRuntimeException e) {
             assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
@@ -214,12 +215,12 @@ public class ChannelManagerTest {
     public void testCreateEmptySchemeSchemeFormat() {
         try {
             authorizedPrivateClient.create(LCMPS.ChannelCreateRequest.newBuilder()
-                    .setExecutionId(UUID.randomUUID().toString())
-                    .setChannelSpec(LCM.ChannelSpec.newBuilder()
-                        .setChannelName("ch")
-                        .setScheme(LMD.DataScheme.newBuilder().setDataFormat("raw_type").build())
-                        .build())
-                    .build());
+                .setExecutionId(UUID.randomUUID().toString())
+                .setChannelSpec(LCM.ChannelSpec.newBuilder()
+                    .setChannelName("ch")
+                    .setScheme(LMD.DataScheme.newBuilder().setDataFormat("raw_type").build())
+                    .build())
+                .build());
             fail();
         } catch (StatusRuntimeException e) {
             assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());
@@ -230,12 +231,12 @@ public class ChannelManagerTest {
     public void testCreateEmptySchemeDataFormat() {
         try {
             authorizedPrivateClient.create(LCMPS.ChannelCreateRequest.newBuilder()
-                    .setExecutionId(UUID.randomUUID().toString())
-                    .setChannelSpec(LCM.ChannelSpec.newBuilder()
-                        .setChannelName("ch")
-                        .setScheme(LMD.DataScheme.newBuilder().setSchemeFormat("no_schema").build())
-                        .build())
-                    .build());
+                .setExecutionId(UUID.randomUUID().toString())
+                .setChannelSpec(LCM.ChannelSpec.newBuilder()
+                    .setChannelName("ch")
+                    .setScheme(LMD.DataScheme.newBuilder().setSchemeFormat("no_schema").build())
+                    .build())
+                .build());
             fail();
         } catch (StatusRuntimeException e) {
             assertEquals(e.getStatus().toString(), Status.INVALID_ARGUMENT.getCode(), e.getStatus().getCode());

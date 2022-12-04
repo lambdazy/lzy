@@ -58,8 +58,9 @@ public class InMemChannelDao implements ChannelDao {
         String channelId = channelsByEndpoints.get(endpointUri);
         channels.computeIfPresent(channelId, (id, ch) -> {
             final List<Endpoint> endpoints = ch.getEndpoints().stream().map(e -> {
-                if (endpointUri.equals(e.getUri().toString()))
+                if (endpointUri.equals(e.getUri().toString())) {
                     return new Endpoint(e.getSlot(), e.getSlotOwner(), Endpoint.LifeStatus.BOUND);
+                }
                 return e;
             }).toList();
             return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
@@ -72,8 +73,9 @@ public class InMemChannelDao implements ChannelDao {
         String channelId = channelsByEndpoints.get(endpointUri);
         channels.computeIfPresent(channelId, (id, ch) -> {
             final List<Endpoint> endpoints = ch.getEndpoints().stream().map(e -> {
-                if (endpointUri.equals(e.getUri().toString()))
+                if (endpointUri.equals(e.getUri().toString())) {
                     return new Endpoint(e.getSlot(), e.getSlotOwner(), Endpoint.LifeStatus.UNBINDING);
+                }
                 return e;
             }).toList();
             return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
