@@ -10,6 +10,7 @@ import java.util.function.Function;
 
 public class InjectedFailures {
 
+    public static final AtomicReference<Function<Vm, Throwable>> FAIL_ALLOCATE_VM_0 = new AtomicReference<>(null);
     public static final AtomicReference<Function<Vm, Throwable>> FAIL_ALLOCATE_VM_1 = new AtomicReference<>(null);
     public static final AtomicReference<Function<Vm, Throwable>> FAIL_ALLOCATE_VM_2 = new AtomicReference<>(null);
     public static final AtomicReference<Function<Vm, Throwable>> FAIL_ALLOCATE_VM_3 = new AtomicReference<>(null);
@@ -20,6 +21,7 @@ public class InjectedFailures {
     public static final AtomicReference<Function<Vm, Throwable>> FAIL_ALLOCATE_VM_8 = new AtomicReference<>(null);
 
     public static final List<AtomicReference<Function<Vm, Throwable>>> FAIL_ALLOCATE_VMS = List.of(
+        FAIL_ALLOCATE_VM_0,
         FAIL_ALLOCATE_VM_1, FAIL_ALLOCATE_VM_2, FAIL_ALLOCATE_VM_3, FAIL_ALLOCATE_VM_4,
         FAIL_ALLOCATE_VM_5, FAIL_ALLOCATE_VM_6, FAIL_ALLOCATE_VM_7, FAIL_ALLOCATE_VM_8
     );
@@ -49,6 +51,10 @@ public class InjectedFailures {
         });
 
         return sm;
+    }
+
+    public static void failAllocateVm0(Vm vm) {
+        failAllocateVmImpl(FAIL_ALLOCATE_VM_0, vm);
     }
 
     public static void failAllocateVm1(Vm vm) {
