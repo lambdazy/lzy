@@ -44,14 +44,11 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
 import static ai.lzy.channelmanager.grpc.ProtoConverter.makeCreateDirectChannelCommand;
 import static ai.lzy.channelmanager.grpc.ProtoConverter.makeDestroyChannelCommand;
-import static ai.lzy.util.grpc.GrpcUtils.NO_AUTH_TOKEN;
-import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
-import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
+import static ai.lzy.util.grpc.GrpcUtils.*;
 
 public class PortalTestBase {
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
@@ -64,10 +61,11 @@ public class PortalTestBase {
     private final ApplicationContext context = ApplicationContext.run("test");
     private PortalConfig config;
 
+    private App portal;
+
     protected MocksServer mocksServer;
 
     private Map<String, Worker> workers;
-    private Portal portal;
 
     private static final int S3_PORT = 8001;
     protected static final String S3_ADDRESS = "http://localhost:" + S3_PORT;
@@ -82,7 +80,7 @@ public class PortalTestBase {
     private LzySlotsApiGrpc.LzySlotsApiBlockingStub portalSlotsClient;
 
     @Before
-    public void before() throws IOException {
+    public void before() throws IOException, AllocatorAgent.RegisterException {
         System.err.println("---> " + ForkJoinPool.commonPool().getParallelism());
 
         var iamDbConfig = DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo());
@@ -109,13 +107,19 @@ public class PortalTestBase {
 
     @After
     public void after() throws InterruptedException {
-        shutdownAndAwaitTerminationPortal();
+        destroyChannel("portal:stdout");
+        destroyChannel("portal:stderr");
+
+        portalApiChannel.shutdown();
+        portalSlotsChannel.shutdown();
+
         stopS3();
 
         mocksServer.stop();
         mocksServer = null;
         workers = null;
 
+        portal.stop();
         iamTestContext.after();
     }
 
@@ -137,19 +141,12 @@ public class PortalTestBase {
         }
     }
 
-    private void startPortal() {
+    private void startPortal() throws IOException, AllocatorAgent.RegisterException {
         createChannel("portal:stdout");
         createChannel("portal:stderr");
 
-        try {
-            var agent = new AllocatorAgent("portal_token", "portal_vm", config.getAllocatorAddress(),
-                Duration.ofSeconds(5));
-
-            portal = new Portal(config, agent, "portal_token");
-            portal.start();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        portal = new App(context);
+        portal.start();
 
         var internalUserCredentials = iamTestContext.getClientConfig().createRenewableToken();
 
@@ -167,29 +164,6 @@ public class PortalTestBase {
             LzySlotsApiGrpc.newBlockingStub(portalSlotsChannel),
             "Test",
             NO_AUTH_TOKEN); // TODO: Auth
-    }
-
-    private void shutdownAndAwaitTerminationPortal() {
-        destroyChannel("portal:stdout");
-        destroyChannel("portal:stderr");
-
-        portal.shutdown();
-        portalApiChannel.shutdown();
-        portalSlotsChannel.shutdown();
-
-        try {
-            if (!portal.awaitTermination(60, TimeUnit.SECONDS)) {
-                portal.shutdownNow();
-                if (!portal.awaitTermination(60, TimeUnit.SECONDS)) {
-                    LOG.error("Portal did not terminate");
-                }
-            }
-        } catch (InterruptedException e) {
-            portal.shutdownNow();
-        } finally {
-            portalApiChannel.shutdownNow();
-            portalSlotsChannel.shutdownNow();
-        }
     }
 
     protected String prepareTask(int taskNum, boolean newWorker, boolean isInput, String snapshotId) {

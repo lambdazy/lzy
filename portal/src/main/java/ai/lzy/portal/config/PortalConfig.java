@@ -28,4 +28,15 @@ public class PortalConfig {
     private String vmId;
     private String allocatorAddress;
     private Duration allocatorHeartbeatPeriod;
+
+    public String toSafeString() {
+        return "{ " + "portalId: " + portalId +
+            "host: " + host +
+            "portalPort: " + portalApiPort +
+            "slotsPort: " + slotsApiPort +
+            "stdoutChannelId: " + stdoutChannelId +
+            "stderrChannelId: " + stderrChannelId +
+            "vmId: " + vmId +
+            " }";
+    }
 }

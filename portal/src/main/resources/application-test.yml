@@ -1,12 +1,14 @@
 portal:
   portal-id: "portal"
-  portal-api-port: 7001
   host: "localhost"
-  iam-token: "token_${portal.portal-id}"
+  portal-api-port: 7001
+  slots-api-port: 7002
   stdout-channel-id: "${portal.portal-id}:stdout"
   stderr-channel-id: "${portal.portal-id}:stderr"
-  slots-api-port: 7002
   channel-manager-address: "localhost:8122"
-  iam-address: "localhost:8443"
-  allocator-address: "localhost:8799"
   whiteboard-address: "localhost:8999"
+  iam-address: "localhost:8443"
+  allocator-token: "token_${portal.portal-id}"
+  vm-id: "portal-vm"
+  allocator-address: "localhost:8799"
+  allocator-heartbeat-period: 10m

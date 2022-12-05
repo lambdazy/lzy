@@ -35,6 +35,16 @@ public class Operation {
     @Nullable
     private Status error;
 
+    public static Operation createFailed(String id, String createdBy, String description,
+                                         @Nullable IdempotencyKey idempotencyKey, @Nullable Message meta,
+                                         Status error)
+    {
+        Objects.requireNonNull(error);
+        var now = Instant.now();
+        return new Operation(id, createdBy, now, description, idempotencyKey,
+            meta != null ? Any.pack(meta) : null, now, true, null, error);
+    }
+
     public static Operation createCompleted(String id, String createdBy, String description,
                                             @Nullable IdempotencyKey idempotencyKey, @Nullable Message meta,
                                             Message response)
@@ -100,7 +110,7 @@ public class Operation {
     }
 
     public LongRunning.Operation toProto() {
-        final var builder =  LongRunning.Operation.newBuilder()
+        final var builder = LongRunning.Operation.newBuilder()
             .setId(id)
             .setCreatedBy(createdBy)
             .setCreatedAt(toProto(createdAt))
