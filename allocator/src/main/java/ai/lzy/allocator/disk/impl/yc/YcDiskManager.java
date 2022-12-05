@@ -37,6 +37,7 @@ public class YcDiskManager implements DiskManager {
     static final int GB_SHIFT = 30;
     static final String USER_ID_LABEL = "user-id";
 
+    private final String instanceId;
     private final String folderId;
     private final AllocatorDataSource storage;
     private final DiskDao diskDao;
@@ -49,11 +50,12 @@ public class YcDiskManager implements DiskManager {
     private final OperationServiceBlockingStub ycOperationService;
 
     @Inject
-    public YcDiskManager(ServiceConfig.DiskManagerConfig config, AllocatorDataSource storage, DiskDao diskDao,
-                         DiskOpDao diskOpDao, OperationDao operationsDao, ObjectMapper objectMapper,
+    public YcDiskManager(ServiceConfig config, ServiceConfig.DiskManagerConfig diskConfig, AllocatorDataSource storage,
+                         DiskDao diskDao, DiskOpDao diskOpDao, OperationDao operationsDao, ObjectMapper objectMapper,
                          ServiceFactory serviceFactory, @Named("AllocatorExecutor") ScheduledExecutorService executor)
     {
-        this.folderId = config.getFolderId();
+        this.instanceId = config.getInstanceId();
+        this.folderId = diskConfig.getFolderId();
         this.storage = storage;
         this.diskDao = diskDao;
         this.diskOpDao = diskOpDao;
@@ -104,6 +106,7 @@ public class YcDiskManager implements DiskManager {
             outerOp.opId(),
             outerOp.startedAt(),
             outerOp.deadline(),
+            instanceId,
             DiskOperation.Type.CREATE,
             toJson(state),
             new YcCreateDiskAction(outerOp.opId(), state, storage, diskDao, diskOpDao, operationsDao, executor,
@@ -123,6 +126,7 @@ public class YcDiskManager implements DiskManager {
             outerOp.opId(),
             outerOp.startedAt(),
             outerOp.deadline(),
+            instanceId,
             DiskOperation.Type.CLONE,
             toJson(state),
             new YcCloneDiskAction(outerOp.opId(), state, storage, diskDao, diskOpDao, operationsDao, executor,
@@ -136,6 +140,7 @@ public class YcDiskManager implements DiskManager {
             outerOp.opId(),
             outerOp.startedAt(),
             outerOp.deadline(),
+            instanceId,
             DiskOperation.Type.DELETE,
             toJson(state),
             new YcDeleteDiskAction(outerOp.opId(), state, storage, diskDao, diskOpDao, operationsDao, executor,

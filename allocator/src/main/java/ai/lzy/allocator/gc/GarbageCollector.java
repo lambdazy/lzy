@@ -1,5 +1,6 @@
-package ai.lzy.allocator;
+package ai.lzy.allocator.gc;
 
+import ai.lzy.allocator.AllocatorMain;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.configs.ServiceConfig;

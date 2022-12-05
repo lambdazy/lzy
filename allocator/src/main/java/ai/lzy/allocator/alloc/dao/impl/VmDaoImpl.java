@@ -34,7 +34,7 @@ public class VmDaoImpl implements VmDao {
     private static final String STATUS_FIELDS = "status";
 
     private static final String ALLOCATION_START_FIELDS =
-        "allocation_op_id, allocation_started_at, allocation_deadline, vm_ott";
+        "allocation_op_id, allocation_started_at, allocation_deadline, owner_instance, vm_ott";
 
     private static final String ALLOCATION_FIELDS =
         ALLOCATION_START_FIELDS + ", vm_subject_id, tunnel_pod_name, allocator_meta_json, volume_claims_json";
@@ -43,18 +43,17 @@ public class VmDaoImpl implements VmDao {
         "vm_meta_json, last_activity_time, deadline";
 
     private static final String ALL_FIELDS =
-        String.join(", ", SPEC_FIELDS, STATUS_FIELDS, ALLOCATION_FIELDS, RUN_FIELDS);
-
+        "%s, %s, %s, %s".formatted(SPEC_FIELDS, STATUS_FIELDS, ALLOCATION_FIELDS, RUN_FIELDS);
 
     private static final String QUERY_LOAD_NOT_COMPLETED_VMS = """
         SELECT vm.%s
         FROM vm JOIN operation o ON vm.allocation_op_id = o.id
-        WHERE o.done = FALSE AND allocation_deadline > NOW()
+        WHERE o.done = FALSE AND allocation_deadline > NOW() AND owner_instance = ?
         """.formatted(ALL_FIELDS);
 
     private static final String QUERY_CREATE_VM = """
         INSERT INTO vm (%s, %s, %s)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """.formatted(SPEC_FIELDS, STATUS_FIELDS, ALLOCATION_START_FIELDS);
 
     private static final String QUERY_UPDATE_VM_ACTIVITY = """
@@ -165,7 +164,7 @@ public class VmDaoImpl implements VmDao {
 
     @Override
     public Vm create(Vm.Spec vmSpec, String opId, Instant startedAt, Instant opDeadline, String vmOtt,
-                         @Nullable TransactionHandle transaction) throws SQLException
+                     String allocatorId, @Nullable TransactionHandle transaction) throws SQLException
     {
         final var vmId = "vm-" + UUID.randomUUID();
 
@@ -188,7 +187,8 @@ public class VmDaoImpl implements VmDao {
                 s.setString(10, opId);
                 s.setTimestamp(11, Timestamp.from(startedAt));
                 s.setTimestamp(12, Timestamp.from(opDeadline));
-                s.setString(13, vmOtt);
+                s.setString(13, allocatorId);
+                s.setString(14, vmOtt);
 
                 int ret = s.executeUpdate();
                 assert ret == 1;
@@ -198,7 +198,7 @@ public class VmDaoImpl implements VmDao {
         });
 
         return new Vm(vmSpec.withVmId(vmId), Vm.Status.ALLOCATING,
-            new Vm.AllocateState(opId, startedAt, opDeadline, vmOtt));
+            new Vm.AllocateState(opId, startedAt, opDeadline, allocatorId, vmOtt));
     }
 
     @Override
@@ -403,8 +403,7 @@ public class VmDaoImpl implements VmDao {
                 if (dumpedMeta == null) {
                     meta.set(null);
                 } else {
-                    meta.set(objectMapper.readValue(res.getString(1), new TypeReference<>() {
-                    }));
+                    meta.set(objectMapper.readValue(res.getString(1), new TypeReference<>() {}));
                 }
             } catch (JsonProcessingException e) {
                 throw new RuntimeException("Cannot dump values", e);
@@ -443,8 +442,7 @@ public class VmDaoImpl implements VmDao {
                 if (dumpedVolumeClaims == null) {
                     volumeClaims.set(null);
                 } else {
-                    volumeClaims.set(objectMapper.readValue(dumpedVolumeClaims, new TypeReference<>() {
-                    }));
+                    volumeClaims.set(objectMapper.readValue(dumpedVolumeClaims, new TypeReference<>() {}));
                 }
             } catch (JsonProcessingException e) {
                 throw new RuntimeException("Cannot read volume json from db", e);
@@ -480,13 +478,18 @@ public class VmDaoImpl implements VmDao {
     }
 
     @Override
-    public List<Vm> loadNotCompletedVms(@Nullable TransactionHandle transaction) throws SQLException {
+    public List<Vm> loadNotCompletedVms(String allocatorId, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
         final List<Vm> vms = new ArrayList<>();
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(QUERY_LOAD_NOT_COMPLETED_VMS)) {
+                s.setString(1, allocatorId);
                 final var res = s.executeQuery();
                 while (res.next()) {
-                    vms.add(readVm(res));
+                    var vm = readVm(res);
+                    assert allocatorId.equals(vm.allocateState().ownerId());
+                    vms.add(vm);
                 }
             } catch (JsonProcessingException e) {
                 throw new RuntimeException("Cannot read vm", e);
@@ -512,15 +515,18 @@ public class VmDaoImpl implements VmDao {
     }
 
     private Vm readVm(ResultSet rs) throws SQLException, JsonProcessingException {
+        int idx = 0;
+
         // spec
-        final var id = rs.getString(1);
-        final var sessionId = rs.getString(2);
-        final var poolLabel = rs.getString(3);
-        final var zone = rs.getString(4);
-        final var initWorkloads = objectMapper.readValue(rs.getString(5), new TypeReference<List<Workload>>() {});
-        final var workloads = objectMapper.readValue(rs.getString(6), new TypeReference<List<Workload>>() {});
-        final var volumeRequests = objectMapper.readValue(rs.getString(7), new TypeReference<List<VolumeRequest>>() {});
-        final var v6ProxyAddress = Optional.ofNullable(rs.getString(8))
+        final var id = rs.getString(++idx);
+        final var sessionId = rs.getString(++idx);
+        final var poolLabel = rs.getString(++idx);
+        final var zone = rs.getString(++idx);
+        final var initWorkloads = objectMapper.readValue(rs.getString(++idx), new TypeReference<List<Workload>>() {});
+        final var workloads = objectMapper.readValue(rs.getString(++idx), new TypeReference<List<Workload>>() {});
+        final var volumeRequests = objectMapper.readValue(rs.getString(++idx),
+            new TypeReference<List<VolumeRequest>>() {});
+        final var v6ProxyAddress = Optional.ofNullable(rs.getString(++idx))
             .map(x -> {
                 try {
                     return (Inet6Address) Inet6Address.getByName(x);
@@ -531,16 +537,17 @@ public class VmDaoImpl implements VmDao {
             .orElse(null);
 
         // status
-        final var vmStatus = Vm.Status.valueOf(rs.getString(9));
+        final var vmStatus = Vm.Status.valueOf(rs.getString(++idx));
 
         // allocate state
-        final var allocationOpId = rs.getString(10);
-        final var allocationStartedAt = rs.getTimestamp(11).toInstant();
-        final var allocationDeadline = rs.getTimestamp(12).toInstant();
-        final var vmOtt = rs.getString(13);
-        final var vmSubjectId = rs.getString(14);
-        final var tunnelPodName = rs.getString(15);
-        final var allocatorMeta = Optional.ofNullable(rs.getString(16))
+        final var allocationOpId = rs.getString(++idx);
+        final var allocationStartedAt = rs.getTimestamp(++idx).toInstant();
+        final var allocationDeadline = rs.getTimestamp(++idx).toInstant();
+        final var allocationOwner = rs.getString(++idx);
+        final var vmOtt = rs.getString(++idx);
+        final var vmSubjectId = rs.getString(++idx);
+        final var tunnelPodName = rs.getString(++idx);
+        final var allocatorMeta = Optional.ofNullable(rs.getString(++idx))
             .map(x -> {
                 try {
                     return objectMapper.readValue(x, new TypeReference<LinkedHashMap<String, String>>() {});
@@ -549,7 +556,7 @@ public class VmDaoImpl implements VmDao {
                 }
             })
             .orElse(null);
-        final var volumeClaims = Optional.ofNullable(rs.getString(17))
+        final var volumeClaims = Optional.ofNullable(rs.getString(++idx))
             .map(x -> {
                 try {
                     return objectMapper.readValue(x, new TypeReference<List<VolumeClaim>>() {});
@@ -560,7 +567,7 @@ public class VmDaoImpl implements VmDao {
             .orElse(null);
 
         // run state
-        final var vmMeta = Optional.ofNullable(rs.getString(18))
+        final var vmMeta = Optional.ofNullable(rs.getString(++idx))
             .map(x -> {
                 try {
                     return objectMapper.readValue(x, new TypeReference<LinkedHashMap<String, String>>() {});
@@ -569,14 +576,14 @@ public class VmDaoImpl implements VmDao {
                 }
             })
             .orElse(null);
-        final var lastActivityTime = Optional.ofNullable(rs.getTimestamp(19)).map(Timestamp::toInstant).orElse(null);
-        final var deadline = Optional.ofNullable(rs.getTimestamp(20)).map(Timestamp::toInstant).orElse(null);
+        final var lastActivityTime = Optional.ofNullable(rs.getTimestamp(++idx)).map(Timestamp::toInstant).orElse(null);
+        final var deadline = Optional.ofNullable(rs.getTimestamp(++idx)).map(Timestamp::toInstant).orElse(null);
 
         return new Vm(
             new Vm.Spec(id, sessionId, poolLabel, zone, initWorkloads, workloads, volumeRequests, v6ProxyAddress),
             vmStatus,
-            new Vm.AllocateState(allocationOpId, allocationStartedAt, allocationDeadline, vmOtt, vmSubjectId,
-                tunnelPodName, allocatorMeta, volumeClaims),
+            new Vm.AllocateState(allocationOpId, allocationStartedAt, allocationDeadline, allocationOwner, vmOtt,
+                vmSubjectId, tunnelPodName, allocatorMeta, volumeClaims),
             vmMeta != null ? new Vm.RunState(vmMeta, lastActivityTime, deadline) : null
         );
     }

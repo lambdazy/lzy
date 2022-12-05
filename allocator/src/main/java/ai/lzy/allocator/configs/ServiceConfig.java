@@ -16,6 +16,7 @@ import java.util.List;
 @Setter
 @ConfigurationProperties("allocator")
 public class ServiceConfig {
+    private String instanceId;
     private String address;
     private Duration gcPeriod;
     private Duration allocationTimeout;

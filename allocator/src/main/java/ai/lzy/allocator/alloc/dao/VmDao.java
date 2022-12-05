@@ -17,7 +17,7 @@ public interface VmDao {
     Vm get(String vmId, TransactionHandle transaction) throws SQLException;
 
 
-    Vm create(Vm.Spec vmSpec, String opId, Instant startedAt, Instant opDeadline, String vmOtt,
+    Vm create(Vm.Spec vmSpec, String opId, Instant startedAt, Instant opDeadline, String vmOtt, String allocatorId,
               @Nullable TransactionHandle tx) throws SQLException;
 
     void delete(String sessionId) throws SQLException;
@@ -65,5 +65,5 @@ public interface VmDao {
 
     List<VolumeClaim> getVolumeClaims(String vmId, @Nullable TransactionHandle transaction) throws SQLException;
 
-    List<Vm> loadNotCompletedVms(@Nullable TransactionHandle transaction) throws SQLException;
+    List<Vm> loadNotCompletedVms(String allocatorId, @Nullable TransactionHandle transaction) throws SQLException;
 }

@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Tuple, Union
 
+# noinspection PyPackageRequirements
 from grpc.aio import Channel
 
 from ai.lzy.v1.common.s3_pb2 import S3Locator
@@ -22,8 +23,8 @@ from ai.lzy.v1.workflow.workflow_service_pb2 import (
     StopGraphRequest
 )
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceStub
-from lzy.api.v2.remote_grpc.model import converter
-from lzy.api.v2.remote_grpc.model.converter.storage_creds import to
+from lzy.api.v2.remote.model import converter
+from lzy.api.v2.remote.model.converter.storage_creds import to
 from lzy.utils.grpc import add_headers_interceptor, build_channel
 from lzy.storage.api import AmazonCredentials, StorageConfig, StorageCredentials
 

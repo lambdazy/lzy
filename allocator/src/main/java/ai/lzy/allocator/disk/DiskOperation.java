@@ -6,6 +6,7 @@ public record DiskOperation(
     String opId,
     Instant startedAt,
     Instant deadline,
+    String ownerInstanceId,
     Type diskOpType,
     String state,
     Runnable deferredAction
@@ -17,6 +18,6 @@ public record DiskOperation(
     }
 
     public DiskOperation withDeferredAction(Runnable deferredAction) {
-        return new DiskOperation(opId, startedAt, deadline, diskOpType, state, deferredAction);
+        return new DiskOperation(opId, startedAt, deadline, ownerInstanceId, diskOpType, state, deferredAction);
     }
 }

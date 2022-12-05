@@ -17,9 +17,8 @@ def fit(self, *args, provisioning: Provisioning = Provisioning.default(), **kwar
             self._init_params["devices"] = None
 
         @op
-        def train(
-            model: CatBoostClassifier, x, *fit_args, **fit_kwargs
-        ) -> CatBoostClassifier:
+        def train(model: CatBoostClassifier, x, *fit_args, **fit_kwargs) -> CatBoostClassifier:
+            # noinspection PyUnresolvedReferences
             model.original_fit(x, *fit_args, **fit_kwargs)
             return model
 

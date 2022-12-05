@@ -46,34 +46,35 @@ public record Vm(
         String operationId,
         Instant startedAt,
         Instant deadline,
+        String ownerId,
         String vmOtt,
         @Nullable String vmSubjectId,
         @Nullable String tunnelPodName,
         @Nullable Map<String, String> allocatorMeta,
         @Nullable List<VolumeClaim> volumeClaims
     ) {
-        public AllocateState(String operationId, Instant startedAt, Instant deadline, String vmOtt) {
-            this(operationId, startedAt, deadline, vmOtt, null, null, null, null);
+        public AllocateState(String operationId, Instant startedAt, Instant deadline, String ownerId, String vmOtt) {
+            this(operationId, startedAt, deadline, ownerId, vmOtt, null, null, null, null);
         }
 
         public AllocateState withVmSubjId(String vmSubjId) {
-            return new AllocateState(operationId, startedAt, deadline, vmOtt, vmSubjId, tunnelPodName, allocatorMeta,
-                volumeClaims);
+            return new AllocateState(operationId, startedAt, deadline, ownerId, vmOtt, vmSubjId, tunnelPodName,
+                allocatorMeta, volumeClaims);
         }
 
         public AllocateState withTunnelPod(String tunnelPod) {
-            return new AllocateState(operationId, startedAt, deadline, vmOtt, vmSubjectId, tunnelPod, allocatorMeta,
-                volumeClaims);
+            return new AllocateState(operationId, startedAt, deadline, ownerId, vmOtt, vmSubjectId, tunnelPod,
+                allocatorMeta, volumeClaims);
         }
 
         public AllocateState withAllocatorMeta(Map<String, String> allocatorMeta) {
-            return new AllocateState(operationId, startedAt, deadline, vmOtt, vmSubjectId, tunnelPodName, allocatorMeta,
-                volumeClaims);
+            return new AllocateState(operationId, startedAt, deadline, ownerId, vmOtt, vmSubjectId, tunnelPodName,
+                allocatorMeta, volumeClaims);
         }
 
         public AllocateState withVolumeClaims(List<VolumeClaim> volumeClaims) {
-            return new AllocateState(operationId, startedAt, deadline, vmOtt, vmSubjectId, tunnelPodName, allocatorMeta,
-                volumeClaims);
+            return new AllocateState(operationId, startedAt, deadline, ownerId, vmOtt, vmSubjectId, tunnelPodName,
+                allocatorMeta, volumeClaims);
         }
     }
 

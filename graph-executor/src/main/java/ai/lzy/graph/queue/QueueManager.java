@@ -24,6 +24,7 @@ import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static ai.lzy.model.db.DbHelper.withRetries;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 @Singleton
@@ -99,9 +100,11 @@ public class QueueManager extends Thread {
 
         final GraphExecutionState state;
         try {
+            // TODO: add tx
             state = dao.create(workflowId, workflowName, userId, graph);
-            eventDao.add(QueueEvent.Type.START, state.workflowId(), state.id(), "Starting graph");
-        } catch (DaoException e) {
+            withRetries(LOG, () ->
+                eventDao.add(QueueEvent.Type.START, state.workflowId(), state.id(), "Starting graph"));
+        } catch (Exception e) {
             LOG.error("Error while adding start graph event from workflow <{}>", workflowId, e);
             throw io.grpc.Status.INTERNAL.withDescription("Error while starting graph").asException();
         }
@@ -123,8 +126,8 @@ public class QueueManager extends Thread {
             if (Set.of(Status.FAILED, Status.COMPLETED).contains(state.status())) {
                 return state;
             }
-            eventDao.add(QueueEvent.Type.STOP, state.workflowId(), state.id(), description);
-        } catch (DaoException e) {
+            withRetries(LOG, () -> eventDao.add(QueueEvent.Type.STOP, state.workflowId(), state.id(), description));
+        } catch (Exception e) {
             LOG.error("Error while adding graph {} stop event from workflow {}", graphId, workflowId, e);
             throw io.grpc.Status.INTERNAL.withDescription("Error while stopping graph").asException();
         }
