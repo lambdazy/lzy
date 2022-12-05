@@ -219,6 +219,10 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         assert nodeGroups.getNextPageToken().isEmpty();
 
         for (var nodeGroup : nodeGroups.getNodeGroupsList()) {
+            if (!clusterId.equals(nodeGroup.getClusterId())) {
+                continue;
+            }
+
             if (nodeGroup.getStatus() != NodeGroup.Status.RUNNING) {
                 LOG.info("Skip node group {} ({}) in state {}",
                     nodeGroup.getId(), nodeGroup.getName(), nodeGroup.getStatus());

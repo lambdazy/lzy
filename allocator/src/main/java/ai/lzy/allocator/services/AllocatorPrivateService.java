@@ -15,6 +15,7 @@ import ai.lzy.metrics.MetricReporter;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.auth.credentials.RenewableJwt;
+import ai.lzy.util.grpc.ProtoPrinter;
 import ai.lzy.v1.AllocatorPrivateGrpc.AllocatorPrivateImplBase;
 import ai.lzy.v1.VmAllocatorApi.AllocateResponse;
 import ai.lzy.v1.VmAllocatorPrivateApi.HeartbeatRequest;
@@ -72,6 +73,8 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
 
     @Override
     public void register(RegisterRequest request, StreamObserver<RegisterResponse> responseObserver) {
+        LOG.info("RegisterVM: {}", ProtoPrinter.safePrinter().shortDebugString(request));
+
         final Vm[] vmRef = {null};
         try {
             var status = withRetries(
@@ -163,6 +166,8 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                 });
 
             if (status.isOk()) {
+                LOG.info("Vm {} registered", request.getVmId());
+
                 responseObserver.onNext(RegisterResponse.getDefaultInstance());
                 responseObserver.onCompleted();
             } else {

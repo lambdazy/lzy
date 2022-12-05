@@ -121,6 +121,8 @@ public class BeanFactory {
             public void shutdown() {
                 logger.info("Shutdown AllocatorExecutor service. Tasks in queue: {}, running tasks: {}.",
                     getQueue().size(), getActiveCount());
+
+                // TODO: wait for all operations to be done
                 super.shutdown();
 
                 try {

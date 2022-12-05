@@ -26,7 +26,7 @@ public class StorageContext {
         ));
 
         ctx = ApplicationContext.run(opts);
-        storage = new App(ctx);
+        storage = ctx.getBean(App.class);
         try {
             storage.start();
         } catch (IOException e) {

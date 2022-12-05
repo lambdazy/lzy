@@ -42,3 +42,25 @@ CREATE TABLE IF NOT EXISTS whiteboard_fields
         FOREIGN KEY (whiteboard_id) REFERENCES whiteboards (whiteboard_id)
             ON DELETE CASCADE
 );
+
+CREATE TABLE operation
+(
+    id              TEXT      NOT NULL PRIMARY KEY,
+    meta            BYTEA     NULL,
+    created_by      TEXT      NOT NULL,
+    created_at      TIMESTAMP NOT NULL,
+    modified_at     TIMESTAMP NOT NULL,
+    description     TEXT      NOT NULL,
+    done            bool      NOT NULL,
+
+    response        BYTEA     NULL,
+    error           BYTEA     NULL,
+
+    idempotency_key TEXT      NULL,
+    request_hash    TEXT      NULL,
+
+    CHECK (((idempotency_key IS NOT NULL) AND (request_hash IS NOT NULL)) OR
+           ((idempotency_key IS NULL) AND (request_hash IS NULL)))
+);
+
+CREATE UNIQUE INDEX idempotency_key_to_operation_index ON operation (idempotency_key);

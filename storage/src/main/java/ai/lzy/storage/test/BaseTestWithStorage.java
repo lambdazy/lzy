@@ -23,7 +23,7 @@ public class BaseTestWithStorage {
             .read("storage", new FileInputStream("../storage/src/main/resources/application-test.yml"));
         storageConfig.putAll(overrides);
         context = ApplicationContext.run(PropertySource.of(storageConfig));
-        storage = new App(context);
+        storage = context.getBean(App.class);
         storage.start();
     }
 

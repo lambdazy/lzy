@@ -1,10 +1,6 @@
-import uuid
-
 from base_module.base import Base
-from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
-from some_imported_file_2 import foo
-
 from lzy.api.v2 import op, Lzy
+from some_imported_file_2 import foo
 
 
 @op
