@@ -1,5 +1,4 @@
 from lzy.api.v2 import op, Lzy
-from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
 
 
 @op
@@ -15,10 +14,9 @@ def b(s1: int, s2: int) -> str:
 
 
 def run():
-
-    l = Lzy(runtime=GrpcRuntime("lzy-internal-user", "localhost:13579", "/tmp/key"))
-
-    with l.workflow("test", interactive=False):
+    lzy = Lzy()
+    lzy.auth(user="lzy-internal-user", key_path="/tmp/key", endpoint="localhost:13579")
+    with lzy.workflow("test", interactive=False):
         s1 = a(21)
         s2 = a(21)
         ret = b(s1, s2)

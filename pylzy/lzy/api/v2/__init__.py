@@ -1,28 +1,34 @@
+import datetime
 import inspect
-from typing import Any, Callable, Dict, Optional, Sequence, TypeVar
+import os
+from typing import Any, Callable, Dict, Optional, Sequence, TypeVar, Iterable
 
+from serialzy.api import SerializerRegistry
+
+from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard
 from lzy.api.v2.call import LzyCall, wrap_call
 from lzy.api.v2.env import CondaEnv, DockerEnv, DockerPullPolicy, Env
 from lzy.api.v2.local.runtime import LocalRuntime
 from lzy.api.v2.provisioning import Provisioning
-from lzy.api.v2.remote_grpc.runtime import GrpcRuntime
+from lzy.api.v2.remote.runtime import RemoteRuntime, USER_ENV, KEY_PATH_ENV, ENDPOINT_ENV
 from lzy.api.v2.runtime import Runtime
-from lzy.serialization.registry import LzySerializerRegistry
 from lzy.api.v2.snapshot import DefaultSnapshot
 from lzy.api.v2.utils.conda import generate_conda_yaml
 from lzy.api.v2.utils.env import generate_env, merge_envs
 from lzy.api.v2.utils.packages import to_str_version
 from lzy.api.v2.utils.proxy_adapter import lzy_proxy
 from lzy.api.v2.utils.types import infer_call_signature, infer_return_type
-from lzy.whiteboards.whiteboard import WhiteboardRepository
-from lzy.whiteboards.whiteboard_declaration import whiteboard_
+from lzy.api.v2.whiteboards import whiteboard_, ReadOnlyWhiteboard
 from lzy.api.v2.workflow import LzyWorkflow
 from lzy.proxy.result import Nothing
 from lzy.py_env.api import PyEnvProvider
 from lzy.py_env.py_env_provider import AutomaticPyEnvProvider
-from serialzy.api import SerializerRegistry
+from lzy.serialization.registry import LzySerializerRegistry
 from lzy.storage.api import StorageRegistry
 from lzy.storage.registry import DefaultStorageRegistry
+from lzy.utils.event_loop import LzyEventLoop
+from lzy.whiteboards.api import WhiteboardClient
+from lzy.whiteboards.remote import RemoteWhiteboardClient, WB_USER_ENV, WB_KEY_PATH_ENV, WB_ENDPOINT_ENV
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -33,23 +39,24 @@ FuncT = TypeVar(
 
 
 # pylint: disable=[invalid-name]
+# noinspection PyShadowingNames
 def op(
-    func: Optional[FuncT] = None,
-    *,
-    output_types: Optional[Sequence[type]] = None,
-    python_version: Optional[str] = None,
-    libraries: Optional[Dict[str, str]] = None,
-    conda_yaml_path: Optional[str] = None,
-    docker_image: Optional[str] = None,
-    docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
-    local_modules_path: Optional[Sequence[str]] = None,
-    provisioning_: Provisioning = Provisioning(),
-    cpu_type: Optional[str] = None,
-    cpu_count: Optional[int] = None,
-    gpu_type: Optional[str] = None,
-    gpu_count: Optional[int] = None,
-    ram_size_gb: Optional[int] = None,
-    env: Optional[Env] = None,
+        func: Optional[FuncT] = None,
+        *,
+        output_types: Optional[Sequence[type]] = None,
+        python_version: Optional[str] = None,
+        libraries: Optional[Dict[str, str]] = None,
+        conda_yaml_path: Optional[str] = None,
+        docker_image: Optional[str] = None,
+        docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
+        local_modules_path: Optional[Sequence[str]] = None,
+        provisioning_: Provisioning = Provisioning(),
+        cpu_type: Optional[str] = None,
+        cpu_count: Optional[int] = None,
+        gpu_type: Optional[str] = None,
+        gpu_count: Optional[int] = None,
+        ram_size_gb: Optional[int] = None,
+        env: Optional[Env] = None,
 ):
     def deco(f):
         """
@@ -79,30 +86,46 @@ def op(
     return deco(func)
 
 
-def whiteboard(name: str, namespace: str = None):
+def whiteboard(name: str, *, namespace: str = "default"):
     def wrap(cls):
-        return whiteboard_(cls, "default", name)
+        return whiteboard_(cls, namespace, name)
 
     return wrap
+
+
+def lzy_auth(*, user: str, key_path: str, endpoint: Optional[str] = None,
+             whiteboards_endpoint: Optional[str] = None) -> None:
+    os.environ[USER_ENV] = user
+    os.environ[WB_USER_ENV] = user
+    os.environ[KEY_PATH_ENV] = key_path
+    os.environ[WB_KEY_PATH_ENV] = key_path
+    if endpoint is not None:
+        os.environ[ENDPOINT_ENV] = endpoint
+    if whiteboards_endpoint is not None:
+        os.environ[WB_ENDPOINT_ENV] = whiteboards_endpoint
 
 
 class Lzy:
     # noinspection PyShadowingNames
     def __init__(
-        self,
-        *,
-        runtime: Runtime = GrpcRuntime(),
-        py_env_provider: PyEnvProvider = AutomaticPyEnvProvider(),
-        storage_registry: StorageRegistry = DefaultStorageRegistry(),
-        serializer_registry: SerializerRegistry = LzySerializerRegistry(),
-        whiteboard_repository: Optional[WhiteboardRepository] = None
+            self,
+            *,
+            runtime: Runtime = RemoteRuntime(),
+            whiteboard_client: WhiteboardClient = RemoteWhiteboardClient(),
+            py_env_provider: PyEnvProvider = AutomaticPyEnvProvider(),
+            storage_registry: StorageRegistry = DefaultStorageRegistry(),
+            serializer_registry: SerializerRegistry = LzySerializerRegistry()
     ):
         self.__env_provider = py_env_provider
-        self.__runtime = runtime
+        self.__whiteboard_client = whiteboard_client
         self.__serializer_registry = serializer_registry
         self.__storage_registry = storage_registry
-        self.__whiteboard_repository = whiteboard_repository if whiteboard_repository is not None \
-            else WhiteboardRepository.with_grpc_client(storage_registry, serializer_registry)
+        self.__runtime = runtime
+
+    @staticmethod
+    def auth(*, user: str, key_path: str, endpoint: Optional[str] = None,
+             whiteboards_endpoint: Optional[str] = None) -> None:
+        lzy_auth(user=user, key_path=key_path, endpoint=endpoint, whiteboards_endpoint=whiteboards_endpoint)
 
     @property
     def serializer(self) -> SerializerRegistry:
@@ -121,28 +144,29 @@ class Lzy:
         return self.__storage_registry
 
     @property
-    def whiteboard_repository(self) -> WhiteboardRepository:
-        return self.__whiteboard_repository
+    def whiteboard_client(self) -> WhiteboardClient:
+        return self.__whiteboard_client
 
+    # noinspection PyShadowingNames
     def workflow(
-        self,
-        name: str,
-        *,
-        eager: bool = False,
-        python_version: Optional[str] = None,
-        libraries: Optional[Dict[str, str]] = None,
-        conda_yaml_path: Optional[str] = None,
-        docker_image: Optional[str] = None,
-        docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
-        local_modules_path: Optional[Sequence[str]] = None,
-        provisioning: Provisioning = Provisioning.default(),
-        interactive: bool = True,
-        cpu_type: Optional[str] = None,
-        cpu_count: Optional[int] = None,
-        gpu_type: Optional[str] = None,
-        gpu_count: Optional[int] = None,
-        ram_size_gb: Optional[int] = None,
-        env: Optional[Env] = None,
+            self,
+            name: str,
+            *,
+            eager: bool = False,
+            python_version: Optional[str] = None,
+            libraries: Optional[Dict[str, str]] = None,
+            conda_yaml_path: Optional[str] = None,
+            docker_image: Optional[str] = None,
+            docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
+            local_modules_path: Optional[Sequence[str]] = None,
+            provisioning: Provisioning = Provisioning.default(),
+            interactive: bool = True,
+            cpu_type: Optional[str] = None,
+            cpu_count: Optional[int] = None,
+            gpu_type: Optional[str] = None,
+            gpu_count: Optional[int] = None,
+            ram_size_gb: Optional[int] = None,
+            env: Optional[Env] = None,
     ) -> LzyWorkflow:
         namespace = inspect.stack()[1].frame.f_globals
         if env is None:
@@ -171,7 +195,30 @@ class Lzy:
             interactive=interactive,
         )
 
+    def whiteboard(self, wb_id: str) -> Any:
+        wb: Whiteboard = LzyEventLoop.run_async(self.__whiteboard_client.get(wb_id))
+        return LzyEventLoop.run_async(self.__build_whiteboard(wb))
 
+    def whiteboards(self, *,
+                    name: Optional[str] = None,
+                    tags: Sequence[str] = (),
+                    not_before: Optional[datetime.datetime] = None,
+                    not_after: Optional[datetime.datetime] = None):
+        wbs: Iterable[Whiteboard] = LzyEventLoop.run_async(self.__whiteboard_client.list(
+            name, tags, not_before, not_after
+        ))
+        wbs_to_build = [self.__build_whiteboard(wb) for wb in wbs]
+        return list(LzyEventLoop.gather(*wbs_to_build))
+
+    async def __build_whiteboard(self, wb: Whiteboard) -> Any:
+
+        if wb.status != Whiteboard.FINALIZED:
+            raise RuntimeError(f"Status of whiteboard with name {wb.name} is {wb.status}, but must be COMPLETED")
+
+        return ReadOnlyWhiteboard(self.__storage_registry, self.__serializer_registry, wb)
+
+
+# noinspection PyBroadException
 try:
     from lzy.injections import catboost_injection
 except:
