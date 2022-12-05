@@ -42,6 +42,7 @@ public class UnbindAction extends ChannelAction {
     @Override
     public void run() {
         LOG.info("Async operation (operationId={}) resumed, channelId={}", operationId, state.channelId());
+        operationStopped = false;
 
         try {
             final Endpoint unbindingEndpoint =
@@ -82,7 +83,7 @@ public class UnbindAction extends ChannelAction {
             LOG.info("Async operation (operationId={}) finished", operationId);
             operationStopped = true;
         } catch (SQLException e) {
-            LOG.error("Async operation (operationId={}): failed to finish: {}. Restart action",
+            LOG.error("Async operation (operationId={}): failed to finish: {}. Schedule restart action",
                 operationId, e.getMessage());
             scheduleRestart();
         }

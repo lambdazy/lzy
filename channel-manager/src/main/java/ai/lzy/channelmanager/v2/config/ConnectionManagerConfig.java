@@ -3,22 +3,22 @@ package ai.lzy.channelmanager.v2.config;
 public class ConnectionManagerConfig {
 
     private int cacheConcurrencyLevel;
-    private int cacheTTLSeconds;
+    private int cacheTtlSeconds;
 
     public int getCacheConcurrencyLevel() {
         return cacheConcurrencyLevel;
     }
 
-    public int getCacheTTLSeconds() {
-        return cacheTTLSeconds;
+    public int getCacheTtlSeconds() {
+        return cacheTtlSeconds;
     }
 
     public void setCacheConcurrencyLevel(int cacheConcurrencyLevel) {
         this.cacheConcurrencyLevel = cacheConcurrencyLevel;
     }
 
-    public void setCacheTTLSeconds(int cacheTTLSeconds) {
-        this.cacheTTLSeconds = cacheTTLSeconds;
+    public void setCacheTtlSeconds(int cacheTtlSeconds) {
+        this.cacheTtlSeconds = cacheTtlSeconds;
     }
 
 
@@ -26,7 +26,7 @@ public class ConnectionManagerConfig {
     public String toString() {
         return "ConnectionManagerConfig{" +
                "cacheConcurrencyLevel='" + cacheConcurrencyLevel + '\'' +
-               ", cacheTTLSeconds='" + cacheTTLSeconds + '\'' +
+               ", cacheTTLSeconds='" + cacheTtlSeconds + '\'' +
                '}';
     }
 }

@@ -3,6 +3,7 @@ package ai.lzy.channelmanager;
 import ai.lzy.channelmanager.db.ChannelManagerDataSource;
 import ai.lzy.channelmanager.v2.config.ChannelManagerConfig;
 import ai.lzy.iam.test.BaseTestWithIam;
+import ai.lzy.longrunning.OperationUtils;
 import ai.lzy.model.DataScheme;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.v1.channel.v2.LCM;
@@ -298,9 +299,8 @@ public class ChannelManagerTest {
             makeChannelCreateCommand(UUID.randomUUID().toString(), "ch0"));
 
         LongRunning.Operation destroyOp = authorizedPrivateClient.destroyAll(makeChannelDestroyAllCommand(executionId));
-        destroyOp = awaitOperationDone(authorizedOperationApiClient, destroyOp.getId(),
-            Duration.of(10, ChronoUnit.SECONDS));
-        assertTrue(destroyOp.hasResponse());
+        awaitOperationResponse(destroyOp.getId());
+
         try {
             authorizedPrivateClient.status(makeChannelStatusCommand(ch1Response.getChannelId()));
             fail();
@@ -318,30 +318,95 @@ public class ChannelManagerTest {
     }
 
     @Test
-    public void testBindUnbindSingle() {
+    public void testOneSenderOneReceiver() {
         final String executionId = UUID.randomUUID().toString();
         final String channelName = "ch";
         final LCMPS.ChannelCreateResponse chResponse = authorizedPrivateClient.create(
             makeChannelCreateCommand(executionId, channelName));
 
-        final var bindRequest = makeBindCommand(chResponse.getChannelId(), "slot",
+        LCMS.BindRequest bindRequest = makeBindCommand(chResponse.getChannelId(), "inSlot",
             LMS.Slot.Direction.INPUT, LCMS.BindRequest.SlotOwner.WORKER);
         LongRunning.Operation bindOp = publicClient.bind(bindRequest);
-        bindOp = awaitOperationDone(authorizedOperationApiClient, bindOp.getId(),
-            Duration.of(10, ChronoUnit.SECONDS));
-        assertTrue(bindOp.hasResponse());
+        String inputSlotUri = bindRequest.getSlotInstance().getSlotUri();
+
+        bindRequest = makeBindCommand(chResponse.getChannelId(), "outSlot",
+            LMS.Slot.Direction.OUTPUT, LCMS.BindRequest.SlotOwner.WORKER);
+        LongRunning.Operation binOpSender = publicClient.bind(bindRequest);
+        String outputSlotUri = bindRequest.getSlotInstance().getSlotUri();
+
+        awaitOperationResponse(bindOp.getId());
+        awaitOperationResponse(binOpSender.getId());
 
         var status = authorizedPrivateClient.status(makeChannelStatusCommand(chResponse.getChannelId()));
-        assertEquals(1, status.getStatus().getChannel().getReceivers().getWorkerSlotsCount());
+        assertChannelShape(0, 1, 0, 1, status.getStatus().getChannel());
 
-        final var unbindRequest = makeUnbindCommand(bindRequest.getSlotInstance().getSlotUri());
-        LongRunning.Operation unbindOp = publicClient.unbind(unbindRequest);
-        unbindOp = awaitOperationDone(authorizedOperationApiClient, unbindOp.getId(),
-            Duration.of(10, ChronoUnit.SECONDS));
-        assertTrue(unbindOp.hasResponse());
+        LongRunning.Operation unbindOp = publicClient.unbind(makeUnbindCommand(inputSlotUri));
+        awaitOperationResponse(unbindOp.getId());
 
         status = authorizedPrivateClient.status(makeChannelStatusCommand(chResponse.getChannelId()));
-        assertEquals(0, status.getStatus().getChannel().getReceivers().getWorkerSlotsCount());
+        assertChannelShape(0, 1, 0, 0, status.getStatus().getChannel());
+
+        LongRunning.Operation unbindOpSender = publicClient.unbind(makeUnbindCommand(outputSlotUri));
+        awaitOperationResponse(unbindOpSender.getId());
+
+        status = authorizedPrivateClient.status(makeChannelStatusCommand(chResponse.getChannelId()));
+        assertChannelShape(0, 0, 0, 0, status.getStatus().getChannel());
+    }
+
+    @Test
+    public void testOneSenderManyReceivers() {
+        final String executionId = UUID.randomUUID().toString();
+        final String channelName = "ch";
+        final LCMPS.ChannelCreateResponse chResponse = authorizedPrivateClient.create(
+            makeChannelCreateCommand(executionId, channelName));
+
+        LCMS.BindRequest bindRequest = makeBindCommand(chResponse.getChannelId(), "inSlot1",
+            LMS.Slot.Direction.INPUT, LCMS.BindRequest.SlotOwner.WORKER);
+        LongRunning.Operation bindOp1 = publicClient.bind(bindRequest);
+        String inputSlot1Uri = bindRequest.getSlotInstance().getSlotUri();
+
+        bindRequest = makeBindCommand(chResponse.getChannelId(), "inSlot2",
+            LMS.Slot.Direction.INPUT, LCMS.BindRequest.SlotOwner.WORKER);
+        LongRunning.Operation bindOp2 = publicClient.bind(bindRequest);
+        String inputSlot2Uri = bindRequest.getSlotInstance().getSlotUri();
+
+        bindRequest = makeBindCommand(chResponse.getChannelId(), "inSlotP",
+            LMS.Slot.Direction.INPUT, LCMS.BindRequest.SlotOwner.PORTAL);
+        LongRunning.Operation bindOpP = publicClient.bind(bindRequest);
+        String inputSlotPUri = bindRequest.getSlotInstance().getSlotUri();
+
+        bindRequest = makeBindCommand(chResponse.getChannelId(), "outSlot",
+            LMS.Slot.Direction.OUTPUT, LCMS.BindRequest.SlotOwner.WORKER);
+        LongRunning.Operation bindOpSender = publicClient.bind(bindRequest);
+        String outputSlotUri = bindRequest.getSlotInstance().getSlotUri();
+
+        bindRequest = makeBindCommand(chResponse.getChannelId(), "inSlot3",
+            LMS.Slot.Direction.INPUT, LCMS.BindRequest.SlotOwner.WORKER);
+        LongRunning.Operation bindOp3 = publicClient.bind(bindRequest);
+        String inputSlot3Uri = bindRequest.getSlotInstance().getSlotUri();
+
+        awaitOperationResponse(bindOp1.getId());
+        awaitOperationResponse(bindOp2.getId());
+        awaitOperationResponse(bindOp3.getId());
+        awaitOperationResponse(bindOpP.getId());
+        awaitOperationResponse(bindOpSender.getId());
+
+        var status = authorizedPrivateClient.status(makeChannelStatusCommand(chResponse.getChannelId()));
+        assertChannelShape(0, 1, 1, 3, status.getStatus().getChannel());
+
+        LongRunning.Operation unbindOp3 = publicClient.unbind(makeUnbindCommand(inputSlot3Uri));
+        LongRunning.Operation unbindOpP = publicClient.unbind(makeUnbindCommand(inputSlotPUri));
+        awaitOperationResponse(unbindOp3.getId());
+        awaitOperationResponse(unbindOpP.getId());
+
+        status = authorizedPrivateClient.status(makeChannelStatusCommand(chResponse.getChannelId()));
+        assertChannelShape(0, 1, 0, 2, status.getStatus().getChannel());
+
+        LongRunning.Operation unbindOpSender = publicClient.unbind(makeUnbindCommand(outputSlotUri));
+        awaitOperationResponse(unbindOpSender.getId());
+
+        status = authorizedPrivateClient.status(makeChannelStatusCommand(chResponse.getChannelId()));
+        assertChannelShape(0, 0, 0, 0, status.getStatus().getChannel());
     }
 
     @Test
@@ -354,9 +419,7 @@ public class ChannelManagerTest {
         final var bindOutputRequest = makeBindCommand(chResponse.getChannelId(), "worker_slot",
             LMS.Slot.Direction.OUTPUT, LCMS.BindRequest.SlotOwner.WORKER);
         LongRunning.Operation bindOutputOp = publicClient.bind(bindOutputRequest);
-        bindOutputOp = awaitOperationDone(authorizedOperationApiClient, bindOutputOp.getId(),
-            Duration.of(10, ChronoUnit.SECONDS));
-        assertTrue(bindOutputOp.hasResponse());
+        awaitOperationResponse(bindOutputOp.getId());
 
         try {
             publicClient.bind(makeBindCommand(chResponse.getChannelId(), "worker_slot_2_output",
@@ -377,9 +440,7 @@ public class ChannelManagerTest {
         final var bindOutputRequest = makeBindCommand(chResponse.getChannelId(), "portal_slot",
             LMS.Slot.Direction.OUTPUT, LCMS.BindRequest.SlotOwner.PORTAL);
         LongRunning.Operation bindOutputOp = publicClient.bind(bindOutputRequest);
-        bindOutputOp = awaitOperationDone(authorizedOperationApiClient, bindOutputOp.getId(),
-            Duration.of(10, ChronoUnit.SECONDS));
-        assertTrue(bindOutputOp.hasResponse());
+        awaitOperationResponse(bindOutputOp.getId());
 
         try {
             publicClient.bind(makeBindCommand(chResponse.getChannelId(), "portal_slot_2_input",
@@ -456,6 +517,27 @@ public class ChannelManagerTest {
         return LCMS.UnbindRequest.newBuilder()
             .setSlotUri(slotUri)
             .build();
+    }
+
+    private LongRunning.Operation awaitOperationResponse(String operationId) {
+       LongRunning.Operation operation =  OperationUtils.awaitOperationDone(
+            authorizedOperationApiClient, operationId, Duration.of(10, ChronoUnit.SECONDS));
+        assertTrue(operation.hasResponse());
+        return operation;
+    }
+
+    private void assertChannelShape(int expectedPortalSenders, int expectedWorkerSenders,
+                                    int expectedPortalReceivers, int expectedWorkerReceivers,
+                                    LCM.Channel actualChannel)
+    {
+        assertEquals("Expected " + expectedPortalSenders + " PORTAL senders",
+            expectedPortalSenders, actualChannel.getSenders().hasPortalSlot() ? 1 : 0);
+        assertEquals("Expected " + expectedWorkerSenders + " WORKER senders",
+            expectedWorkerSenders, actualChannel.getSenders().hasWorkerSlot() ? 1 : 0);
+        assertEquals("Expected " + expectedPortalReceivers + " PORTAL receivers",
+            expectedPortalReceivers, actualChannel.getReceivers().hasPortalSlot() ? 1 : 0);
+        assertEquals("Expected " + expectedWorkerReceivers + " WORKER receivers",
+            expectedWorkerReceivers, actualChannel.getReceivers().getWorkerSlotsCount());
     }
 
 }

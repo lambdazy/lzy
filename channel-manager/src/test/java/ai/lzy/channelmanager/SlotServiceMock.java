@@ -50,6 +50,7 @@ public class SlotServiceMock {
             Operation op = Operation.create(this.getClass().getSimpleName(),
                 "connectSlot from " + request.getFrom() + " to " + request.getTo(), null, null);
             operations.put(op.id(), op);
+            responseObserver.onNext(op.toProto());
             responseObserver.onCompleted();
             LockSupport.parkNanos(OPERATION_DURATION.toNanos());
             op.setResponse(Any.pack(LSA.ConnectSlotResponse.getDefaultInstance()));

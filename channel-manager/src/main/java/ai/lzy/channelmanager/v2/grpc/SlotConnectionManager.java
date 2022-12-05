@@ -24,7 +24,7 @@ public class SlotConnectionManager {
     public SlotConnectionManager(ChannelManagerConfig config) {
         this.config = config;
         this.connections = CacheBuilder.newBuilder()
-            .expireAfterAccess(config.getConnections().getCacheTTLSeconds(), TimeUnit.SECONDS)
+            .expireAfterAccess(config.getConnections().getCacheTtlSeconds(), TimeUnit.SECONDS)
             .concurrencyLevel(config.getConnections().getCacheConcurrencyLevel())
             .removalListener(this::onRemove)
             .build(CacheLoader.from(this::onLoad));

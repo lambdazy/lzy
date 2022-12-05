@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
+import static ai.lzy.channelmanager.v2.model.Endpoint.SlotOwner.PORTAL;
+
 public class Channel {
     private final String id;
     private final ChannelSpec spec;
@@ -113,6 +115,9 @@ public class Channel {
 
     @Nullable
     public Endpoint findSenderToConnect(Endpoint receiver) {
+        if (!getConnectionsOfEndpoint(receiver.getUri()).isEmpty()) {
+            return null;
+        }
         return switch (receiver.getSlotOwner()) {
             case PORTAL -> senders.workerEndpoint;
             case WORKER -> senders.portalEndpoint == null ? senders.workerEndpoint : senders.portalEndpoint;
@@ -120,13 +125,10 @@ public class Channel {
     }
 
     public List<Endpoint> findReceiversToConnect(Endpoint sender) {
-        List<Endpoint> endpoints = receivers.workerEndpoints.stream()
-            .filter(e -> getConnectionsOfEndpoint(e.getUri()).isEmpty())
+        return receivers.asList().stream()
+            .filter(receiver -> getConnectionsOfEndpoint(receiver.getUri()).isEmpty())
+            .filter(receiver -> !(sender.getSlotOwner() == PORTAL && receiver.getSlotOwner() == PORTAL))
             .collect(Collectors.toList());
-        if (!Endpoint.SlotOwner.PORTAL.equals(sender.getSlotOwner()) && receivers.portalEndpoint != null) {
-            endpoints.add(receivers.portalEndpoint);
-        }
-        return endpoints;
     }
 
     public static class Senders {

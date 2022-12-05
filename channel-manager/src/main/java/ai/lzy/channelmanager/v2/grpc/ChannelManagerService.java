@@ -70,8 +70,8 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
 
         final String slotUri = request.getSlotInstance().getSlotUri();
         final String channelId = request.getSlotInstance().getChannelId();
-        String operationDescription = "Bind %s slot %s to channel %s"
-            .formatted(request.getSlotOwner(), slotUri, channelId);
+        String operationDescription = "Bind %s %s slot %s to channel %s"
+            .formatted(request.getSlotOwner(), request.getSlotInstance().getSlot().getDirection(), slotUri, channelId);
         LOG.info(operationDescription + " started");
 
         final Channel channel;

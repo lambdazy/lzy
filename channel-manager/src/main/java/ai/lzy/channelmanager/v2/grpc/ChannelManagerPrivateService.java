@@ -295,7 +295,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         Channel.Receivers activeReceivers = channel.getActiveReceivers();
         LCM.ChannelReceivers.Builder receiversBuilder = LCM.ChannelReceivers.newBuilder();
         if (activeReceivers.portalEndpoint() != null) {
-            sendersBuilder.setPortalSlot(ProtoConverter.toProto(activeReceivers.portalEndpoint().getSlot()));
+            receiversBuilder.setPortalSlot(ProtoConverter.toProto(activeReceivers.portalEndpoint().getSlot()));
         }
         receiversBuilder.addAllWorkerSlots(activeReceivers.workerEndpoints().stream()
             .map(e -> ProtoConverter.toProto(e.getSlot()))

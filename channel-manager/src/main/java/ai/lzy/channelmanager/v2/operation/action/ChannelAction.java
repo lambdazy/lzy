@@ -262,7 +262,7 @@ public abstract class ChannelAction implements Runnable {
                 return;
             } else {
                 LOG.error("Async operation (operationId={}): disconnectSlot request failed"
-                          + " with code {}: {}. Restart action",
+                          + " with code {}: {}. Schedule restart action",
                     operationId, e.getStatus().getCode(), e.getStatus().getDescription());
                 scheduleRestart();
                 return;
@@ -286,7 +286,7 @@ public abstract class ChannelAction implements Runnable {
                 return;
             } else {
                 LOG.error("Async operation (operationId={}): destroySlot request failed"
-                          + " with code {}: {}. Restart action",
+                          + " with code {}: {}. Schedule restart action",
                     operationId, e.getStatus().getCode(), e.getStatus().getDescription());
                 scheduleRestart();
                 return;

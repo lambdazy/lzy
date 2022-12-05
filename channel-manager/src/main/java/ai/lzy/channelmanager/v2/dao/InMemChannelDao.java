@@ -9,6 +9,7 @@ import ai.lzy.model.slot.SlotInstance;
 import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -118,7 +119,7 @@ public class InMemChannelDao implements ChannelDao {
                                                + "actual status " + connection.status());
         }
         channels.computeIfPresent(channelId, (id, ch) -> {
-            final List<Connection> connections = ch.getConnections();
+            final List<Connection> connections = new ArrayList<>(ch.getConnections());
             connections.add(connection);
             return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
                 ch.getEndpoints(), connections, ch.getLifeStatus());

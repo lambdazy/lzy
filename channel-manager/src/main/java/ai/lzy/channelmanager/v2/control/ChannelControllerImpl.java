@@ -126,7 +126,6 @@ public class ChannelControllerImpl implements ChannelController {
 
         final Endpoint receiverToUnbind = actualChannel.getConnectionsOfEndpoint(unbindingSender.getUri())
             .stream()
-            .filter(conn -> conn.status() == Connection.LifeStatus.CONNECTED)
             .map(Connection::receiver)
             .findFirst().orElse(null);
 
@@ -164,7 +163,6 @@ public class ChannelControllerImpl implements ChannelController {
 
         final Connection connectionToBreak = actualChannel.getConnectionsOfEndpoint(unbindingReceiver.getUri())
             .stream()
-            .filter(it -> it.status() == Connection.LifeStatus.DISCONNECTING)
             .findFirst().orElse(null);
 
         if (connectionToBreak == null) {

@@ -42,6 +42,7 @@ public class DestroyAction extends ChannelAction {
     @Override
     public void run() {
         LOG.info("Async operation (operationId={}) resumed", operationId);
+        operationStopped = false;
 
         while (true) {
             String channelId = state.toDestroyChannels().stream().findFirst().orElse(null);
@@ -58,7 +59,7 @@ public class DestroyAction extends ChannelAction {
                     });
                     LOG.info("Async operation (operationId={}) finished", operationId);
                 } catch (Exception e) {
-                    LOG.error("Async operation (operationId={}): failed to finish: {}. Restart action",
+                    LOG.error("Async operation (operationId={}): failed to finish: {}. Schedule restart action",
                         operationId, e.getMessage());
                     scheduleRestart();
                 }
