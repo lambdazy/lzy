@@ -22,6 +22,7 @@ import com.google.protobuf.Any;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -44,7 +45,8 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
     private final GrainedLock lockManager;
 
     @Inject
-    public ChannelManagerService(ChannelDao channelDao, OperationDao operationDao,
+    public ChannelManagerService(ChannelDao channelDao,
+                                 @Named("ChannelManagerOperationDao") OperationDao operationDao,
                                  ChannelOperationDao channelOperationDao, ChannelManagerDataSource storage,
                                  ChannelOperationManager channelOperationManager, GrainedLock lockManager,
                                  ChannelOperationExecutor executor)

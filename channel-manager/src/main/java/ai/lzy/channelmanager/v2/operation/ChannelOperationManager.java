@@ -17,6 +17,7 @@ import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.ProtoObjectMapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -42,7 +43,8 @@ public class ChannelOperationManager {
 
     public ChannelOperationManager(ChannelOperationExecutor executor,
                                    ChannelManagerDataSource storage, ChannelDao channelDao,
-                                   OperationDao operationDao, ChannelOperationDao channelOperationDao,
+                                   @Named("ChannelManagerOperationDao") OperationDao operationDao,
+                                   ChannelOperationDao channelOperationDao,
                                    ChannelController channelController,
                                    SlotConnectionManager slotConnectionManager, GrainedLock lockManager)
     {

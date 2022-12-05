@@ -50,8 +50,9 @@ public class YcDiskManager implements DiskManager {
 
     @Inject
     public YcDiskManager(ServiceConfig.DiskManagerConfig config, AllocatorDataSource storage, DiskDao diskDao,
-                         DiskOpDao diskOpDao, OperationDao operationsDao, ObjectMapper objectMapper,
-                         ServiceFactory serviceFactory, @Named("AllocatorExecutor") ScheduledExecutorService executor)
+                         DiskOpDao diskOpDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
+                         ObjectMapper objectMapper, ServiceFactory serviceFactory,
+                         @Named("AllocatorExecutor") ScheduledExecutorService executor)
     {
         this.folderId = config.getFolderId();
         this.storage = storage;

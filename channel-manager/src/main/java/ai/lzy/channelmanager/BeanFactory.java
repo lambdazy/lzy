@@ -7,6 +7,7 @@ import ai.lzy.longrunning.OperationService;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.longrunning.dao.OperationDaoImpl;
 import io.micronaut.context.annotation.Factory;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 
 @Factory
@@ -18,12 +19,15 @@ public class BeanFactory {
     }
 
     @Singleton
+    @Named("ChannelManagerOperationDao")
     public OperationDao operationDao(ChannelManagerDataSource dataSource) {
         return new OperationDaoImpl(dataSource);
     }
 
     @Singleton
-    public OperationService operationService(OperationDao operationDao) {
+    public OperationService operationService(
+        @Named("ChannelManagerOperationDao") OperationDao operationDao)
+    {
         return new OperationService(operationDao);
     }
 
