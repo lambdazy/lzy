@@ -413,6 +413,10 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         vmDao.release(vm.vmId(), cacheDeadline[0], tx);
 
                         tx.commit();
+
+                        LOG.info("VM {} released to session {} cache until {}",
+                            vm.vmId(), vm.sessionId(), cacheDeadline[0]);
+
                         return Status.OK;
                     }
                 });
@@ -423,7 +427,6 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         }
 
         if (Status.Code.OK.equals(status.getCode())) {
-            LOG.info("VM {} released to cache until {}", request.getVmId(), cacheDeadline[0]);
             responseObserver.onNext(FreeResponse.getDefaultInstance());
             responseObserver.onCompleted();
         } else {
