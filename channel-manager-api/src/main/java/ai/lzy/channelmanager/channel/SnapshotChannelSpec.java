@@ -4,6 +4,7 @@ import ai.lzy.model.DataScheme;
 
 import java.net.URI;
 
+@Deprecated
 public record SnapshotChannelSpec(
     String userId,
     String name,
@@ -11,5 +12,4 @@ public record SnapshotChannelSpec(
     String snapshotId,
     String entryId,
     URI whiteboardAddress
-) implements ChannelSpec
-{ }
+) implements ChannelSpec { }

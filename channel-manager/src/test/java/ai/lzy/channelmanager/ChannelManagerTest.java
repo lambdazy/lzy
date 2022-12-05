@@ -520,7 +520,7 @@ public class ChannelManagerTest {
     }
 
     private LongRunning.Operation awaitOperationResponse(String operationId) {
-       LongRunning.Operation operation =  OperationUtils.awaitOperationDone(
+        LongRunning.Operation operation = OperationUtils.awaitOperationDone(
             authorizedOperationApiClient, operationId, Duration.of(10, ChronoUnit.SECONDS));
         assertTrue(operation.hasResponse());
         return operation;

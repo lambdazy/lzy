@@ -176,8 +176,7 @@ class GraphBuilder {
                 var slotUri = data.slotUri();
                 var portalOutputSlotName = Portal.PORTAL_SLOT_PREFIX + "_" + UUID.randomUUID();
                 var channelId = channelManagerClient
-                    .create(
-                        makeCreateDirectChannelCommand(executionId, "portal_channel_" + slotUri))
+                    .create(makeCreateDirectChannelCommand(executionId, "portal_channel_" + slotUri))
                     .getChannelId();
 
                 newChannels.put(slotUri, channelId);
