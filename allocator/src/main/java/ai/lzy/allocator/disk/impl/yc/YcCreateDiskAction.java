@@ -83,12 +83,29 @@ final class YcCreateDiskAction extends YcDiskActionBase<YcCreateDiskState> {
 
                     state = state.withYcOperationId(ycCreateDiskOperation.getId());
                 } catch (StatusRuntimeException e) {
-                    // TODO: ALREADY_EXIST?
-                    metrics().createDiskRetryableError.inc();
-                    LOG.error("Error while running YcCreateDisk op {} state: [{}] {}. Reschedule...",
-                        opId(), e.getStatus().getCode(), e.getStatus().getDescription());
-                    restart();
-                    return;
+                    if (e.getStatus().getCode() == Status.Code.ALREADY_EXISTS) {
+                        LOG.warn("YcCreateDisk {}/{}, disk {} already exist", opId(),
+                            state.ycOperationId(), state.spec().name());
+                    } else {
+                        LOG.error("Error while running YcCreateDisk op {} state: [{}] {}",
+                            opId(), e.getStatus().getCode(), e.getStatus().getDescription());
+                        try {
+                            withRetries(LOG, () -> {
+                                try (var tx = TransactionHandle.create(storage())) {
+                                    operationsDao().failOperation(opId(), toProto(e.getStatus()), tx, LOG);
+                                    diskOpDao().deleteDiskOp(opId(), tx);
+                                    tx.commit();
+                                }
+                            });
+
+                            metrics().createDiskError.inc();
+                        } catch (Exception ex) {
+                            LOG.error("Cannot fail YcCreateDisk op {}/{}: {}", opId(),
+                                state.ycOperationId(), e.getMessage());
+                            restart();
+                        }
+                        return;
+                    }
                 }
             }
 
