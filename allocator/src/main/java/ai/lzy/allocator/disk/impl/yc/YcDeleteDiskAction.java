@@ -13,6 +13,7 @@ import yandex.cloud.api.operation.OperationOuterClass;
 import yandex.cloud.api.operation.OperationServiceOuterClass;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
+import static ai.lzy.util.grpc.ProtoConverter.toProto;
 
 final class YcDeleteDiskAction extends YcDiskActionBase<YcDeleteDiskState> {
     private static final Logger LOG = LogManager.getLogger(YcDeleteDiskAction.class);
@@ -43,7 +44,23 @@ final class YcDeleteDiskAction extends YcDiskActionBase<YcDeleteDiskState> {
                 } catch (StatusRuntimeException e) {
                     LOG.error("Error while running YcDeleteDisk op {} state: [{}] {}. Reschedule...",
                         opId(), e.getStatus().getCode(), e.getStatus().getDescription());
-                    restart();
+
+                    try {
+                        withRetries(LOG, () -> {
+                            try (var tx = TransactionHandle.create(storage())) {
+                                operationsDao().failOperation(opId(), toProto(e.getStatus()), tx, LOG);
+                                diskOpDao().deleteDiskOp(opId(), tx);
+                                tx.commit();
+                            }
+                        });
+
+                        metrics().cloneDiskError.inc();
+                    } catch (Exception ex) {
+                        metrics().cloneDiskRetryableError.inc();
+                        LOG.error("Error while failing YcDeleteDisk op {}: {}. Reschedule...", opId(), e.getMessage());
+                        restart();
+                    }
+
                     return;
                 }
             }
