@@ -1,6 +1,7 @@
 package ai.lzy.allocator.services;
 
 import ai.lzy.allocator.AllocatorMain;
+import ai.lzy.allocator.AllocatorMetrics;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.alloc.dao.SessionDao;
 import ai.lzy.allocator.alloc.dao.VmDao;
@@ -35,8 +36,6 @@ import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
-import io.prometheus.client.Counter;
-import io.prometheus.client.Histogram;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -77,7 +76,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     private final ServiceConfig config;
     private final AllocatorDataSource storage;
     private final ScheduledExecutorService executor;
-    private final Metrics metrics = new Metrics();
+    private final AllocatorMetrics metrics;
     private final SubjectServiceGrpcClient subjectClient;
     private final AtomicInteger runningAllocations = new AtomicInteger(0);
 
@@ -85,7 +84,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     public AllocatorService(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
                             SessionDao sessionsDao, DiskDao diskDao, VmAllocator allocator,
                             TunnelAllocator tunnelAllocator, ServiceConfig config, AllocatorDataSource storage,
-                            @Named("AllocatorExecutor") ScheduledExecutorService executor,
+                            AllocatorMetrics metrics, @Named("AllocatorExecutor") ScheduledExecutorService executor,
                             @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
                             @Named("AllocatorIamToken") RenewableJwt iamToken)
     {
@@ -97,6 +96,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         this.tunnelAllocator = tunnelAllocator;
         this.config = config;
         this.storage = storage;
+        this.metrics = metrics;
         this.executor = executor;
         this.subjectClient = new SubjectServiceGrpcClient(AllocatorMain.APP, iamChannel, iamToken::get);
 
@@ -177,10 +177,14 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 return;
             }
 
+            metrics.createSessionError.inc();
+
             LOG.error("Cannot create session: {}", ex.getMessage(), ex);
             responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
             return;
         }
+
+        metrics.activeSessions.inc();
 
         responseObserver.onNext(op.toProto());
         responseObserver.onCompleted();
@@ -192,16 +196,28 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             return;
         }
 
+        boolean success;
         try {
-            withRetries(LOG, () -> {
-                sessionsDao.delete(request.getSessionId(), null);
-                vmDao.delete(request.getSessionId());
+            success = withRetries(LOG, () -> {
+                try (var tx = TransactionHandle.create(storage)) {
+                    var ok = sessionsDao.delete(request.getSessionId(), tx);
+                    if (ok) {
+                        vmDao.delete(request.getSessionId(), tx);
+                    }
+                    tx.commit();
+                    return ok;
+                }
             });
         } catch (Exception ex) {
+            metrics.deleteSessionError.inc();
             LOG.error("Error while executing `deleteSession` request, sessionId={}: {}",
                 request.getSessionId(), ex.getMessage(), ex);
             responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
             return;
+        }
+
+        if (success) {
+            metrics.activeSessions.dec();
         }
 
         responseObserver.onNext(DeleteSessionResponse.getDefaultInstance());
@@ -275,6 +291,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                     request.getProxyV6Address(), request.getPoolLabel(), request.getZone());
                 initWorkloads.add(tunnelWl);
             } catch (InvalidConfigurationException e) {
+                metrics.allocationError.inc();
                 LOG.error("Error while allocating tunnel for {}: {}", proxyV6Address, e.getMessage(), e);
                 responseObserver.onError(Status.INVALID_ARGUMENT
                     .withDescription("Cannot allocate tunnel for proxy %s: %s"
@@ -320,7 +337,10 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         operationsDao.create(op, tx);
 
                         tx.commit();
-                        metrics.allocateVmExisting.inc();
+
+                        metrics.allocateVmFromCache.inc();
+                        metrics.allocateFromCacheDuration.observe(
+                            Duration.between(startedAt, Instant.now()).getSeconds());
 
                         responseObserver.onNext(op.toProto());
                         responseObserver.onCompleted();
@@ -343,6 +363,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                     operationsDao.updateMeta(op.id(), meta.toByteArray(), tx);
 
                     tx.commit();
+
                     metrics.allocateVmNew.inc();
 
                     responseObserver.onNext(op.toProto());
@@ -561,8 +582,6 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 InjectedFailures.failAllocateVm3(vm);
 
                 try {
-                    var timer = metrics.allocateDuration.startTimer();
-
                     if (vm.proxyV6Address() != null) {
                         if (vm.allocateState().tunnelPodName() == null) {
                             var tunnelPodName = tunnelAllocator.allocateTunnel(vm.spec());
@@ -577,8 +596,6 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                     }
 
                     allocator.allocate(vm);
-
-                    timer.close();
                 } catch (InvalidConfigurationException e) {
                     LOG.error("Error while allocating: {}", e.getMessage(), e);
                     metrics.allocationError.inc();
@@ -597,28 +614,5 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 runningAllocations.getAndDecrement();
             }
         }
-    }
-
-    private static final class Metrics {
-        private final Counter allocateVmExisting = Counter
-            .build("allocate_vm_existing", "Allocate VM from cache")
-            .subsystem("allocator")
-            .register();
-
-        private final Counter allocateVmNew = Counter
-            .build("allocate_vm_new", "Allocate new VM")
-            .subsystem("allocator")
-            .register();
-
-        private final Counter allocationError = Counter
-            .build("allocate_error", "Allocation errors")
-            .subsystem("allocator")
-            .register();
-
-        private final Histogram allocateDuration = Histogram
-            .build("allocate_time", "Allocate duration (sec)")
-            .subsystem("allocator")
-            .buckets(0.001, 0.1, 0.25, 0.5, 1.0, 1.5, 2.0, 5.0, 10.0)
-            .register();
     }
 }
