@@ -15,8 +15,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.net.URI;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
