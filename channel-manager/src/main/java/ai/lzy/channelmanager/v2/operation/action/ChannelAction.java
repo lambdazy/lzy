@@ -140,10 +140,14 @@ public abstract class ChannelAction implements Runnable {
             LOG.info("Async operation (operationId={}): found bound receiver {}, need force unbind, unbindingSender={}",
                 operationId, receiverToUnbind.getUri(), sender.getUri());
 
+            // TODO test on failure
+
             this.unbindReceiver(receiverToUnbind);
             if (operationStopped) {
                 return;
             }
+
+            // TODO test on failure
         }
 
         disconnect(sender);
@@ -156,6 +160,8 @@ public abstract class ChannelAction implements Runnable {
         if (operationStopped) {
             return;
         }
+
+        // TODO test on failure
 
         try (final var guard = lockManager.withLock(channelId)) {
             withRetries(LOG, () -> channelDao.removeEndpoint(sender.getUri().toString(), null));
@@ -216,6 +222,8 @@ public abstract class ChannelAction implements Runnable {
             }
         }
 
+        // TODO test on failure
+
         disconnect(receiver);
         if (operationStopped) {
             return;
@@ -226,6 +234,8 @@ public abstract class ChannelAction implements Runnable {
         if (operationStopped) {
             return;
         }
+
+        // TODO test on failure
 
         try (final var guard = lockManager.withLock(channelId)) {
             withRetries(LOG, () -> {

@@ -68,6 +68,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
     public void create(LCMPS.ChannelCreateRequest request, StreamObserver<LCMPS.ChannelCreateResponse> response) {
         final var validationResult = ProtoValidator.validate(request);
         if (!validationResult.isOk()) {
+            LOG.error("ChannelCreateRequest failed: {}", validationResult.description());
             response.onError(Status.INVALID_ARGUMENT.withDescription(validationResult.description()).asException());
             return;
         }
@@ -101,6 +102,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
     public void destroy(LCMPS.ChannelDestroyRequest request, StreamObserver<LongRunning.Operation> response) {
         final var validationResult = ProtoValidator.validate(request);
         if (!validationResult.isOk()) {
+            LOG.error("ChannelDestroyRequest failed: {}", validationResult.description());
             response.onError(Status.INVALID_ARGUMENT.withDescription(validationResult.description()).asException());
             return;
         }
@@ -135,9 +137,13 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
             return;
         }
 
+        // TODO test on failure after adding idempotency token
+
         response.onNext(operation.toProto());
         LOG.info(operationDescription + " responded, async operation scheduled, operationId={}", operation.id());
         response.onCompleted();
+
+        // TODO test on failure
 
         executor.submit(channelOperationManager.getAction(channelOperation));
     }
@@ -146,6 +152,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
     public void destroyAll(LCMPS.ChannelDestroyAllRequest request, StreamObserver<LongRunning.Operation> response) {
         final var validationResult = ProtoValidator.validate(request);
         if (!validationResult.isOk()) {
+            LOG.error("ChannelDestroyAllRequest failed: {}", validationResult.description());
             response.onError(Status.INVALID_ARGUMENT.withDescription(validationResult.description()).asException());
             return;
         }
@@ -195,9 +202,13 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
             return;
         }
 
+        // TODO test on failure after adding idempotency token
+
         response.onNext(operation.toProto());
         LOG.info(operationDescription + " responded, async operation scheduled, operationId={}", operation.id());
         response.onCompleted();
+
+        // TODO test on failure
 
         executor.submit(channelOperationManager.getAction(channelOperation));
     }
@@ -206,6 +217,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
     public void status(LCMPS.ChannelStatusRequest request, StreamObserver<LCMPS.ChannelStatusResponse> response) {
         final var validationResult = ProtoValidator.validate(request);
         if (!validationResult.isOk()) {
+            LOG.error("ChannelStatusRequest failed: {}", validationResult.description());
             response.onError(Status.INVALID_ARGUMENT.withDescription(validationResult.description()).asException());
             return;
         }
@@ -239,6 +251,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
     {
         final var validationResult = ProtoValidator.validate(request);
         if (!validationResult.isOk()) {
+            LOG.error("ChannelStatusAllRequest failed: {}", validationResult.description());
             response.onError(Status.INVALID_ARGUMENT.withDescription(validationResult.description()).asException());
             return;
         }

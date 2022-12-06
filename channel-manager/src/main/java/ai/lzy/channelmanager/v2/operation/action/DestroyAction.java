@@ -71,6 +71,8 @@ public class DestroyAction extends ChannelAction {
             try {
                 this.destroyChannel(channelId);
 
+                // TODO test on failure
+
                 state.setDestroyed(channelId);
                 try {
                     withRetries(LOG, () -> {
@@ -86,6 +88,8 @@ public class DestroyAction extends ChannelAction {
                     LOG.error("Async operation (operationId={}): failed mark channel {} destroyed: {}. Try later",
                         operationId, channelId, e.getMessage());
                 }
+
+                // TODO test on failure
 
             } catch (Exception e) {
                 String errorMessage = "Async operation (operationId=" + operationId + ") failed: " + e.getMessage();

@@ -88,7 +88,7 @@ public class ProtoValidator {
     public static ValidationVerdict validate(LCM.ChannelSpec channelSpec) {
         try {
             if (channelSpec.getChannelName().isBlank()) {
-                return ValidationVerdict.fail("channelSpec.chanelName is blank");
+                return ValidationVerdict.fail("channelSpec.channelName is blank");
             }
             return validate(channelSpec.getScheme());
         } catch (NullPointerException e) {

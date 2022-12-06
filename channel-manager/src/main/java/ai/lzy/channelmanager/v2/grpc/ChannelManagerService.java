@@ -64,6 +64,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
     public void bind(LCMS.BindRequest request, StreamObserver<LongRunning.Operation> response) {
         final var validationResult = ProtoValidator.validate(request);
         if (!validationResult.isOk()) {
+            LOG.error("BindRequest failed: {}", validationResult.description());
             response.onError(Status.INVALID_ARGUMENT.withDescription(validationResult.description()).asException());
             return;
         }
@@ -133,9 +134,13 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             return;
         }
 
+        // TODO test on failure after adding idempotency token
+
         response.onNext(operation.toProto());
         LOG.info(operationDescription + " responded, async operation scheduled, operationId={}", operation.id());
         response.onCompleted();
+
+        // TODO test on failure
 
         executor.submit(channelOperationManager.getAction(channelOperation));
     }
@@ -144,6 +149,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
     public void unbind(LCMS.UnbindRequest request, StreamObserver<LongRunning.Operation> response) {
         final var validationResult = ProtoValidator.validate(request);
         if (!validationResult.isOk()) {
+            LOG.error("UnbindRequest failed: {}", validationResult.description());
             response.onError(Status.INVALID_ARGUMENT.withDescription(validationResult.description()).asException());
             return;
         }
@@ -211,9 +217,13 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             return;
         }
 
+        // TODO test on failure after adding idempotency token
+
         response.onNext(operation.toProto());
         LOG.info(operationDescription + " responded, async operation scheduled, operationId={}", operation.id());
         response.onCompleted();
+
+        // TODO test on failure
 
         executor.submit(channelOperationManager.getAction(channelOperation));
     }

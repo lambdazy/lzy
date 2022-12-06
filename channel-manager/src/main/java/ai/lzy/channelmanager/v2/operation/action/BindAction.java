@@ -55,7 +55,6 @@ public class BindAction extends ChannelAction {
         operationStopped = false;
 
         try {
-
             final Endpoint bindingEndpoint = withRetries(LOG, () -> channelDao.findEndpoint(state.endpointUri(), null));
 
             if (bindingEndpoint == null) {
@@ -73,6 +72,8 @@ public class BindAction extends ChannelAction {
                     return;
                 }
 
+                // TODO test on failure
+
                 final Connection potentialConnection = Connection.of(bindingEndpoint, connectingEndpoint);
                 final var sender = potentialConnection.sender();
                 final var receiver = potentialConnection.receiver();
@@ -81,6 +82,8 @@ public class BindAction extends ChannelAction {
                 if (operationStopped) {
                     return;
                 }
+
+                // TODO test on failure
 
                 final var connectSlotOperation = awaitConnectOperationDone(sender, receiver);
                 if (operationStopped || connectSlotOperation == null) {
@@ -93,10 +96,14 @@ public class BindAction extends ChannelAction {
                     throw new RuntimeException(errorMessage);
                 }
 
+                // TODO test on failure
+
                 saveConnection(bindingEndpoint, connectingEndpoint);
                 if (operationStopped) {
                     return;
                 }
+
+                // TODO test on failure
             }
 
         } catch (CancellingChannelGraphStateException e) {
@@ -264,6 +271,8 @@ public class BindAction extends ChannelAction {
                 LOG.info("Async operation (operationId={}): sent connectSlot request, connectOperationId={}",
                     operationId, localState.connectOperationId());
             }
+
+            // TODO test on failure after adding idempotency token on connectSlot request
 
             try {
                 withRetries(LOG, () -> channelOperationDao.update(operationId, toJson(localState), null));
