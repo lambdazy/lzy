@@ -50,9 +50,11 @@ public class YcDiskManager implements DiskManager {
     private final OperationServiceBlockingStub ycOperationService;
 
     @Inject
-    public YcDiskManager(ServiceConfig config, ServiceConfig.DiskManagerConfig diskConfig, AllocatorDataSource storage,
-                         DiskDao diskDao, DiskOpDao diskOpDao, OperationDao operationsDao, ObjectMapper objectMapper,
-                         ServiceFactory serviceFactory, @Named("AllocatorExecutor") ScheduledExecutorService executor)
+    public YcDiskManager(ServiceConfig config, ServiceConfig.DiskManagerConfig diskConfig,
+                         AllocatorDataSource storage, DiskDao diskDao, DiskOpDao diskOpDao,
+                         @Named("AllocatorOperationDao") OperationDao operationsDao,
+                         ObjectMapper objectMapper, ServiceFactory serviceFactory,
+                         @Named("AllocatorExecutor") ScheduledExecutorService executor)
     {
         this.instanceId = config.getInstanceId();
         this.folderId = diskConfig.getFolderId();

@@ -56,4 +56,15 @@ public class DatabaseConfiguration {
         this.enabled = enabled;
         return this;
     }
+
+    @Override
+    public String toString() {
+        return "DatabaseConfiguration{" +
+               "url='" + url + '\'' +
+               ", username='" + username + '\'' +
+               ", minPoolSize=" + minPoolSize +
+               ", maxPoolSize=" + maxPoolSize +
+               ", enabled=" + enabled +
+               '}';
+    }
 }
