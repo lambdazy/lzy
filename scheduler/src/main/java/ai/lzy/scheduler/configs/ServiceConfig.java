@@ -7,6 +7,7 @@ import io.micronaut.context.annotation.ConfigurationProperties;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @Getter
@@ -15,7 +16,7 @@ import java.util.Map;
 public class ServiceConfig {
     private int port;
     private int maxServantsPerWorkflow;
-    private Map<String, Integer> provisioningLimits;
+    private Map<String, Integer> provisioningLimits = new HashMap<>();
     private Integer defaultProvisioningLimit;
     private String schedulerAddress;
     private String channelManagerAddress;

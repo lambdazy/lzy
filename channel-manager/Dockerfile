@@ -1,6 +1,6 @@
-FROM findepi/graalvm:java17-all
+FROM amazoncorretto:17
 
-COPY target/channel-manager-1.0-SNAPSHOT-jar-with-dependencies.jar app/app.jar
+COPY target/channel-manager-1.0-SNAPSHOT.jar app/app.jar
 COPY src/main/resources/ app/resources
 RUN chmod -R 700 app/resources
 

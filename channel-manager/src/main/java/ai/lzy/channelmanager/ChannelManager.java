@@ -30,32 +30,12 @@ public class ChannelManager {
 
     public static final String APP = "LzyChannelManager";
 
-    static {
-        options.addRequiredOption("p", "port", true, "gRPC port setting");
-        options.addRequiredOption("w", "lzy-whiteboard-address", true, "Lzy whiteboard address [host:port]");
-    }
-
     private final Server channelManagerServer;
     private final ManagedChannel iamChannel;
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        final CommandLineParser cliParser = new DefaultParser();
-        final HelpFormatter cliHelp = new HelpFormatter();
-        CommandLine parse = null;
-        try {
-            parse = cliParser.parse(options, args);
-        } catch (ParseException e) {
-            System.out.println(e.getMessage());
-            cliHelp.printHelp("channel-manager", options);
-            System.exit(-1);
-        }
-        final URI address = URI.create(parse.getOptionValue('a', "localhost:8122"));
-        final URI whiteboardAddress = URI.create(parse.getOptionValue('w', "http://localhost:8999"));
 
-        try (ApplicationContext context = ApplicationContext.run(Map.of(
-            "channel-manager.address", address,
-            "channel-manager.whiteboard-address", whiteboardAddress.toString()
-        )))
+        try (ApplicationContext context = ApplicationContext.run())
         {
             final ChannelManager channelManager = new ChannelManager(context);
             channelManager.start();

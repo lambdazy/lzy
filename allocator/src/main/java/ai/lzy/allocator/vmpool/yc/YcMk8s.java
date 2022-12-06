@@ -228,6 +228,9 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
                     nodeGroup.getId(), nodeGroup.getName(), nodeGroup.getStatus());
                 continue;
             }
+            if (!nodeGroup.getClusterId().equals(clusterId)) {
+                continue;
+            }
 
             var label = nodeGroup.getNodeLabelsMap().get(KuberLabels.NODE_POOL_LABEL);
             var zone = nodeGroup.getNodeLabelsMap().get(KuberLabels.NODE_POOL_AZ_LABEL);

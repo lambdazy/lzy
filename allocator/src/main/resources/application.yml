@@ -7,8 +7,7 @@ allocator:
 
   service-clusters: []
 
-  user-clusters:
-    - 'some-cluster'
+  user-clusters: []
 
   address: 'localhost:1234'
   gc-period: 30s

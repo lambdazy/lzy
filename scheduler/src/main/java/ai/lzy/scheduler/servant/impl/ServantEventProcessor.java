@@ -118,7 +118,7 @@ public class ServantEventProcessor extends Thread {
         try {
             newState = processEvent(currentState, event);
         } catch (Exception e) {
-            LOG.error("Error while processing event {}", event, e);
+            LOG.error("Error while processing event {}.\n Current state: {}", event, currentState, e);
             newState = destroy(currentState, event);
         }
         try {
