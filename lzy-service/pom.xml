@@ -11,6 +11,7 @@
     <artifactId>lzy-service</artifactId>
 
     <properties>
+        <exec.mainClass>ai.lzy.service.App</exec.mainClass>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
     </properties>

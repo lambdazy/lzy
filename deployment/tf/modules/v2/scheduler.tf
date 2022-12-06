@@ -2,7 +2,7 @@ locals {
   scheduler-labels   = {
     app                         = "scheduler"
     "app.kubernetes.io/name"    = "scheduler"
-    "app.kubernetes.io/part-of" = "lzy"
+    "app.kubernetes.io/part-of" = "graph-executor"
     "lzy.ai/app"                = "scheduler"
   }
   scheduler-port     = 8765

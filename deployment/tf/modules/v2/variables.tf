@@ -17,6 +17,10 @@ variable "channel-manager-image" {
   type = string
 }
 
+variable "graph-image" {
+  type = string
+}
+
 variable "scheduler-image" {
   type = string
 }
@@ -72,4 +76,8 @@ variable "max-servants-per-workflow" {
 
 variable "worker-limits-by-labels" {
   type = map(number)
+}
+
+variable "storage-image" {
+  type = string
 }

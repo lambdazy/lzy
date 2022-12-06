@@ -1,0 +1,152 @@
+locals {
+  graph-labels   = {
+    app                         = "graph"
+    "app.kubernetes.io/name"    = "graph"
+    "app.kubernetes.io/part-of" = "graph-executor"
+    "lzy.ai/app"                = "graph"
+  }
+  graph-port     = 8122
+  graph-k8s-name = "graph"
+  graph-image = var.graph-image
+}
+
+resource "kubernetes_deployment" "graph-executor" {
+  metadata {
+    name   = local.graph-k8s-name
+    labels = local.graph-labels
+  }
+  spec {
+    strategy {
+      type = "Recreate"
+    }
+    selector {
+      match_labels = local.graph-labels
+    }
+    template {
+      metadata {
+        name   = local.graph-k8s-name
+        labels = local.graph-labels
+      }
+      spec {
+        container {
+          name              = local.graph-k8s-name
+          image             = local.graph-image
+          image_pull_policy = "Always"
+          port {
+            container_port = local.graph-port
+            host_port      = local.graph-port
+          }
+
+          env {
+            name = "GRAPH_EXECUTOR_PORT"
+            value = local.graph-port
+          }
+
+          env {
+            name = "GRAPH_EXECUTOR_SCHEDULER_PORT"
+            value = local.scheduler-port
+          }
+
+          env {
+            name = "GRAPH_EXECUTOR_SCHEDULER_HOST"
+            value = kubernetes_service.scheduler_service.status[0].load_balancer[0].ingress[0]["ip"]
+          }
+
+          env {
+            name = "GRAPH_EXECUTOR_EXECUTORS_COUNT"
+            value = 10
+          }
+
+          env {
+            name  = "GRAPH_EXECUTOR_DATABASE_USERNAME"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.db_secret["graph-executor"].metadata[0].name
+                key = "username"
+              }
+            }
+          }
+          env {
+            name  = "GRAPH_EXECUTOR_DATABASE_PASSWORD"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.db_secret["graph-executor"].metadata[0].name
+                key = "password"
+              }
+            }
+          }
+
+          env {
+            name  = "GRAPH_EXECUTOR_DATABASE_URL"
+            value = "jdbc:postgresql://${yandex_mdb_postgresql_cluster.lzy_postgresql_cluster.host[0].fqdn}:6432/graph-executor"
+          }
+
+          env {
+            name  = "GRAPH_EXECUTOR_DATABASE_ENABLED"
+            value = "true"
+          }
+          env {
+            name = "GRAPH_EXECUTOR_AUTH_ADDRESS"
+            value = "${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
+          }
+          env {
+            name = "GRAPH_EXECUTOR_AUTH_INTERNAL_USER_NAME"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.iam_internal_user_data.metadata[0].name
+                key = "username"
+              }
+            }
+          }
+          env {
+            name = "GRAPH_EXECUTOR_AUTH_INTERNAL_USER_PRIVATE_KEY"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.iam_internal_user_data.metadata[0].name
+                key = "key"
+              }
+            }
+          }
+        }
+        node_selector = {
+          type = "lzy"
+        }
+        affinity {
+          pod_anti_affinity {
+            required_during_scheduling_ignored_during_execution {
+              label_selector {
+                match_expressions {
+                  key      = "app.kubernetes.io/part-of"
+                  operator = "In"
+                  values   = ["lzy"]
+                }
+              }
+              topology_key = "kubernetes.io/hostname"
+            }
+          }
+        }
+        dns_policy    = "ClusterFirstWithHostNet"
+        host_network  = true
+      }
+    }
+  }
+}
+
+resource "kubernetes_service" "graph_executor_service" {
+  metadata {
+    name   = "${local.graph-k8s-name}-load-balancer"
+    labels = local.graph-labels
+    annotations = {
+      "yandex.cloud/load-balancer-type": "internal"
+      "yandex.cloud/subnet-id": yandex_vpc_subnet.custom-subnet.id
+    }
+  }
+  spec {
+    selector = local.graph-labels
+    port {
+      port = local.graph-port
+      target_port = local.graph-port
+    }
+    type = "LoadBalancer"
+  }
+}

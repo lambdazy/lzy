@@ -68,3 +68,14 @@ resource "yandex_iam_service_account_key" "allocator-sa-key" {
   description        = "key for allocator"
   key_algorithm      = "RSA_4096"
 }
+
+resource "yandex_iam_service_account_key" "admin-sa-key" {
+  service_account_id = yandex_iam_service_account.admin-sa.id
+  description        = "key for storage"
+  key_algorithm      = "RSA_4096"
+}
+
+resource "yandex_iam_service_account_static_access_key" "admin-sa-static-key" {
+  service_account_id = yandex_iam_service_account.admin-sa.id
+  description        = "static key for storage"
+}
