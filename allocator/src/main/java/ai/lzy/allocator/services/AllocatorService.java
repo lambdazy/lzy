@@ -1,7 +1,7 @@
 package ai.lzy.allocator.services;
 
 import ai.lzy.allocator.AllocatorMain;
-import ai.lzy.allocator.AllocatorMetrics;
+import ai.lzy.allocator.alloc.AllocatorMetrics;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.alloc.dao.SessionDao;
 import ai.lzy.allocator.alloc.dao.VmDao;

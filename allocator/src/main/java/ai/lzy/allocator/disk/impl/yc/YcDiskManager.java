@@ -44,6 +44,7 @@ public class YcDiskManager implements DiskManager {
     private final DiskOpDao diskOpDao;
     private final OperationDao operationsDao;
     private final ObjectMapper objectMapper;
+    private final DiskMetrics metrics;
     private final ScheduledExecutorService executor;
     private final DiskServiceBlockingStub ycDiskService;
     private final SnapshotServiceBlockingStub ycSnapshotService;
@@ -52,7 +53,8 @@ public class YcDiskManager implements DiskManager {
     @Inject
     public YcDiskManager(ServiceConfig config, ServiceConfig.DiskManagerConfig diskConfig, AllocatorDataSource storage,
                          DiskDao diskDao, DiskOpDao diskOpDao, OperationDao operationsDao, ObjectMapper objectMapper,
-                         ServiceFactory serviceFactory, @Named("AllocatorExecutor") ScheduledExecutorService executor)
+                         DiskMetrics metrics, ServiceFactory serviceFactory,
+                         @Named("AllocatorExecutor") ScheduledExecutorService executor)
     {
         this.instanceId = config.getInstanceId();
         this.folderId = diskConfig.getFolderId();
@@ -61,6 +63,7 @@ public class YcDiskManager implements DiskManager {
         this.diskOpDao = diskOpDao;
         this.operationsDao = operationsDao;
         this.objectMapper = objectMapper;
+        this.metrics = metrics;
         this.executor = executor;
 
         ycDiskService = serviceFactory.create(DiskServiceBlockingStub.class,
@@ -109,8 +112,7 @@ public class YcDiskManager implements DiskManager {
             instanceId,
             DiskOperation.Type.CREATE,
             toJson(state),
-            new YcCreateDiskAction(outerOp.opId(), state, storage, diskDao, diskOpDao, operationsDao, executor,
-                objectMapper, ycDiskService, ycOperationService));
+            new YcCreateDiskAction(outerOp, state, this));
     }
 
     @Override
@@ -129,8 +131,7 @@ public class YcDiskManager implements DiskManager {
             instanceId,
             DiskOperation.Type.CLONE,
             toJson(state),
-            new YcCloneDiskAction(outerOp.opId(), state, storage, diskDao, diskOpDao, operationsDao, executor,
-                objectMapper, ycDiskService, ycSnapshotService, ycOperationService));
+            new YcCloneDiskAction(outerOp, state, this));
     }
 
     @Override
@@ -143,32 +144,69 @@ public class YcDiskManager implements DiskManager {
             instanceId,
             DiskOperation.Type.DELETE,
             toJson(state),
-            new YcDeleteDiskAction(outerOp.opId(), state, storage, diskDao, diskOpDao, operationsDao, executor,
-                objectMapper, ycDiskService, ycOperationService));
+            new YcDeleteDiskAction(outerOp, state, this));
     }
 
     @Override
     public DiskOperation restoreDiskOperation(DiskOperation template) {
+        var outerOp = new DiskManager.OuterOperation(template.opId(), template.startedAt(), template.deadline());
         return switch (template.diskOpType()) {
             case CREATE -> {
                 var state = fromJson(template.state(), YcCreateDiskState.class);
-                var action = new YcCreateDiskAction(template.opId(), state, storage, diskDao, diskOpDao, operationsDao,
-                    executor, objectMapper, ycDiskService, ycOperationService);
+                var action = new YcCreateDiskAction(outerOp, state, this);
                 yield template.withDeferredAction(action);
             }
             case CLONE -> {
                 var state = fromJson(template.state(), YcCloneDiskState.class);
-                var action = new YcCloneDiskAction(template.opId(), state, storage, diskDao, diskOpDao, operationsDao,
-                    executor, objectMapper, ycDiskService, ycSnapshotService, ycOperationService);
+                var action = new YcCloneDiskAction(outerOp, state, this);
                 yield template.withDeferredAction(action);
             }
             case DELETE -> {
                 var state = fromJson(template.state(), YcDeleteDiskState.class);
-                var action = new YcDeleteDiskAction(template.opId(), state, storage, diskDao, diskOpDao, operationsDao,
-                    executor, objectMapper, ycDiskService, ycOperationService);
+                var action = new YcDeleteDiskAction(outerOp, state, this);
                 yield template.withDeferredAction(action);
             }
         };
+    }
+
+    AllocatorDataSource storage() {
+        return storage;
+    }
+
+    DiskDao diskDao() {
+        return diskDao;
+    }
+
+    DiskOpDao diskOpDao() {
+        return diskOpDao;
+    }
+
+    OperationDao operationsDao() {
+        return operationsDao;
+    }
+
+    ObjectMapper objectMapper() {
+        return objectMapper;
+    }
+
+    DiskMetrics metrics() {
+        return metrics;
+    }
+
+    ScheduledExecutorService executor() {
+        return executor;
+    }
+
+    DiskServiceBlockingStub ycDiskService() {
+        return ycDiskService;
+    }
+
+    SnapshotServiceBlockingStub ycSnapshotService() {
+        return ycSnapshotService;
+    }
+
+    OperationServiceBlockingStub ycOperationService() {
+        return ycOperationService;
     }
 
     private String toJson(Object obj) {

@@ -1,4 +1,4 @@
-package ai.lzy.allocator;
+package ai.lzy.allocator.alloc;
 
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
