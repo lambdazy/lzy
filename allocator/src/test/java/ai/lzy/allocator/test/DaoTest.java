@@ -129,7 +129,7 @@ public class DaoTest {
         final var op1 = opDao.get(op.id(), null);
         Assert.assertNull(op1);
 
-        op = new Operation("test", "Some op", Any.pack(meta));
+        op = Operation.create("test", "Some op", Any.pack(meta));
         try (final var tx = TransactionHandle.create(storage)) {
             opDao.create(op, tx);
             tx.commit();
