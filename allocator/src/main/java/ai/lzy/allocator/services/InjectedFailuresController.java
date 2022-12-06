@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static ai.lzy.allocator.model.debug.InjectedFailures.FAIL_ALLOCATE_VMS;
+import static ai.lzy.allocator.model.debug.InjectedFailures.FAIL_CLONE_DISK;
 import static ai.lzy.allocator.model.debug.InjectedFailures.FAIL_CREATE_DISK;
 
 @Controller(value = "/debug/inject-failure", consumes = MediaType.ALL, produces = MediaType.TEXT_PLAIN)
@@ -20,6 +21,7 @@ public class InjectedFailuresController {
 
     private static final String ALLOCATE_VM = "/allocate-vm";
     private static final String CREATE_DISK = "/create-disk";
+    private static final String CLONE_DISK = "/clone-disk";
 
     @Get(ALLOCATE_VM)
     public String listAllocateVmFailures() {
@@ -51,6 +53,20 @@ public class InjectedFailuresController {
         return deleteImpl(Integer.parseInt(body), FAIL_CREATE_DISK);
     }
 
+    @Get(CLONE_DISK)
+    public String listCloneDiskFailures() {
+        return listImpl("CloneDisk", FAIL_CLONE_DISK);
+    }
+
+    @Post(CLONE_DISK)
+    public HttpResponse<String> injectCloneDiskFailure(@Body String body) {
+        return setImpl(Integer.parseInt(body), FAIL_CLONE_DISK, InjectedFailures.TerminateProcess::new);
+    }
+
+    @Delete(CLONE_DISK)
+    public HttpResponse<String> removeCloneDiskFailure(@Body String body) {
+        return deleteImpl(Integer.parseInt(body), FAIL_CLONE_DISK);
+    }
 
     private static <T> String listImpl(String name, List<AtomicReference<T>> list) {
         var sb = new StringBuilder();
