@@ -5,14 +5,20 @@ create type portal_status as enum (
     'REQUEST_VM', 'ALLOCATING_VM', 'VM_READY'
 );
 
+create type execution_status as enum (
+    'RUN', 'COMPLETED', 'ERROR', 'CLEANED'
+);
+
 create table workflow_executions (
     execution_id text not null,
+    execution_status execution_status not null,
 
     allocator_session_id text,
 
     created_at timestamp not null,
     finished_at timestamp,
     finished_with_error text,  -- error message or null
+    finished_error_code integer, -- error code or null
 
     storage storage_type not null,
     storage_bucket text not null,
@@ -31,6 +37,9 @@ create table workflow_executions (
     primary key (execution_id),
     check (finished_at >= created_at)
 );
+
+CREATE UNIQUE INDEX expired_workflow_executions_index ON workflow_executions (execution_status)
+WHERE execution_status = cast('ERROR' as execution_status);
 
 create table workflows (
     user_id text not null,
@@ -89,3 +98,10 @@ CREATE TABLE operation
 );
 
 CREATE UNIQUE INDEX idempotency_key_to_operation_index ON operation (idempotency_key);
+
+create table garbage_collectors (
+    gc_instance_id text not null,
+    updated_at timestamp,
+    valid_until timestamp,
+    primary key (gc_instance_id)
+);

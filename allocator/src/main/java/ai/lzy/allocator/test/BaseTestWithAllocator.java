@@ -22,7 +22,7 @@ public class BaseTestWithAllocator {
         var allocatorConfig = new YamlPropertySourceLoader()
             .read("allocator", new FileInputStream("../allocator/src/main/resources/application-test.yml"));
         allocatorConfig.putAll(overrides);
-        context = ApplicationContext.run(PropertySource.of(allocatorConfig));
+        context = ApplicationContext.run(PropertySource.of(allocatorConfig), "test-mock");
         allocator = context.getBean(AllocatorMain.class);
         allocator.start();
     }
@@ -32,5 +32,9 @@ public class BaseTestWithAllocator {
         allocator.stop();
         allocator.awaitTermination();
         context.stop();
+    }
+
+    public ApplicationContext getContext() {
+        return context;
     }
 }
