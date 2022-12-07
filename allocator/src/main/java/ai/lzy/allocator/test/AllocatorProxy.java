@@ -1,5 +1,6 @@
 package ai.lzy.allocator.test;
 
+import ai.lzy.allocator.alloc.AllocatorMetrics;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.alloc.dao.SessionDao;
 import ai.lzy.allocator.alloc.dao.VmDao;
@@ -35,12 +36,13 @@ public class AllocatorProxy extends AllocatorService {
     public AllocatorProxy(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
                           SessionDao sessionsDao, DiskDao diskDao, VmAllocator allocator,
                           TunnelAllocator tunnelAllocator, ServiceConfig config, AllocatorDataSource storage,
+                          AllocatorMetrics metrics,
                           @Named("AllocatorExecutor") ScheduledExecutorService executor,
                           @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
                           @Named("AllocatorIamToken") RenewableJwt iamToken)
     {
         super(vmDao, operationsDao, sessionsDao, diskDao, allocator,
-            tunnelAllocator, config, storage, executor, iamChannel, iamToken);
+            tunnelAllocator, config, storage, metrics, executor, iamChannel, iamToken);
     }
 
     @Override
