@@ -34,7 +34,7 @@ public class DiskOpDao {
         WHERE op_id = ?""";
 
     private static final String QUERY_GET_DISK_OP = """
-        SELECT started_at, deadline, op_type::TEXT, state_json
+        SELECT started_at, deadline, owner_instance, op_type::TEXT, state_json
         FROM disk_op
         WHERE op_id = ? AND NOT failed""";
 
@@ -44,19 +44,19 @@ public class DiskOpDao {
         WHERE op_id = ?""";
 
     private static final String QUERY_GET_EXPIRED_DISK_OPS = """
-        SELECT op_id, started_at, deadline, op_type::TEXT, state_json
+        SELECT op_id, started_at, deadline, owner_instance, op_type::TEXT, state_json
         FROM disk_op
         WHERE deadline >= NOW() AND NOT failed
         LIMIT ?""";
 
     private static final String QUERY_GET_FAILED_DISK_OPS = """
-        SELECT op_id, started_at, deadline, op_type::TEXT, state_json, fail_reason
+        SELECT op_id, started_at, deadline, owner_instance, op_type::TEXT, state_json, fail_reason
         FROM disk_op
         WHERE failed
         LIMIT ?""";
 
     private static final String QUERY_GET_ACTIVE_DISK_OPS = """
-        SELECT op_id, started_at, deadline, op_type::TEXT, state_json
+        SELECT op_id, started_at, deadline, owner_instance, op_type::TEXT, state_json
         FROM disk_op
         WHERE owner_instance = ? AND deadline < NOW() AND NOT failed""";
 
