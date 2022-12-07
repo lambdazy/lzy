@@ -8,6 +8,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -46,7 +47,7 @@ public class DiskOpDao {
     private static final String QUERY_GET_EXPIRED_DISK_OPS = """
         SELECT op_id, started_at, deadline, owner_instance, op_type::TEXT, state_json
         FROM disk_op
-        WHERE deadline >= NOW() AND NOT failed
+        WHERE deadline <= NOW() AND NOT failed
         LIMIT ?""";
 
     private static final String QUERY_GET_FAILED_DISK_OPS = """
@@ -58,7 +59,7 @@ public class DiskOpDao {
     private static final String QUERY_GET_ACTIVE_DISK_OPS = """
         SELECT op_id, started_at, deadline, owner_instance, op_type::TEXT, state_json
         FROM disk_op
-        WHERE owner_instance = ? AND deadline < NOW() AND NOT failed""";
+        WHERE owner_instance = ? AND deadline > NOW() AND NOT failed""";
 
     private final AllocatorDataSource storage;
 
