@@ -26,7 +26,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-public class ChannelManagerTest extends ChannelManagerApiBaseTest {
+public class ChannelManagerApiTest extends ChannelManagerBaseApiTest {
 
     @Before
     public void before() throws IOException, InterruptedException {

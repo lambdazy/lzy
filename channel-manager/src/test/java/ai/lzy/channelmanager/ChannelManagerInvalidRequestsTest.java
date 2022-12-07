@@ -26,7 +26,7 @@ import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-public class ChannelManagerApiInvalidRequestsTest extends ChannelManagerApiBaseTest {
+public class ChannelManagerInvalidRequestsTest extends ChannelManagerBaseApiTest {
 
     protected LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub unauthorizedPrivateClient;
     protected LzyChannelManagerGrpc.LzyChannelManagerBlockingStub unauthorizedPublicClient;

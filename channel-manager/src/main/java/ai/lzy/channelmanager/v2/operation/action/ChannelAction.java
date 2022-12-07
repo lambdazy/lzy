@@ -5,6 +5,7 @@ import ai.lzy.channelmanager.lock.GrainedLock;
 import ai.lzy.channelmanager.v2.control.ChannelController;
 import ai.lzy.channelmanager.v2.dao.ChannelDao;
 import ai.lzy.channelmanager.v2.dao.ChannelOperationDao;
+import ai.lzy.channelmanager.v2.debug.InjectedFailures;
 import ai.lzy.channelmanager.v2.exceptions.ChannelGraphStateException;
 import ai.lzy.channelmanager.v2.grpc.SlotConnectionManager;
 import ai.lzy.channelmanager.v2.model.Channel;
@@ -113,10 +114,8 @@ public abstract class ChannelAction implements Runnable {
                     throw new RuntimeException(errorMessage);
                 }
                 if (channel == null) {
-                    String errorMessage = "Async operation (operationId=" + operationId + ") cancelled,"
-                                          + " channel " + sender.getChannelId() + " not found";
-                    LOG.error(errorMessage);
-                    this.failOperation(Status.CANCELLED.withDescription(errorMessage));
+                    LOG.info("Async operation (operationId=" + operationId + ") skipped,"
+                                          + " channel " + sender.getChannelId() + " not found");
                     return;
                 }
 
@@ -140,14 +139,14 @@ public abstract class ChannelAction implements Runnable {
             LOG.info("Async operation (operationId={}): found bound receiver {}, need force unbind, unbindingSender={}",
                 operationId, receiverToUnbind.getUri(), sender.getUri());
 
-            // TODO test on failure
+            InjectedFailures.fail6();
 
             this.unbindReceiver(receiverToUnbind);
             if (operationStopped) {
                 return;
             }
 
-            // TODO test on failure
+            InjectedFailures.fail7();
         }
 
         disconnect(sender);
@@ -161,11 +160,11 @@ public abstract class ChannelAction implements Runnable {
             return;
         }
 
-        // TODO test on failure
+        InjectedFailures.fail8();
 
         try (final var guard = lockManager.withLock(channelId)) {
             withRetries(LOG, () -> channelDao.removeEndpoint(sender.getUri().toString(), null));
-            LOG.info("Async operation (operationId={}): sender removed,"
+            LOG.info("Async operation (operationId={}): sender unbound,"
                      + " unbindingSender={}", operationId, sender.getUri());
         } catch (Exception e) {
             String errorMessage = "Failed to remove sender " + sender.getUri() + ", got exception: " + e.getMessage();
@@ -189,10 +188,8 @@ public abstract class ChannelAction implements Runnable {
                 throw new RuntimeException(errorMessage);
             }
             if (channel == null) {
-                String errorMessage = "Async operation (operationId=" + operationId + ") cancelled,"
-                                      + " channel " + receiver.getChannelId() + " not found";
-                LOG.error(errorMessage);
-                this.failOperation(Status.CANCELLED.withDescription(errorMessage));
+                LOG.info("Async operation (operationId=" + operationId + ") skipped,"
+                         + " channel " + receiver.getChannelId() + " not found");
                 return;
             }
 
@@ -201,7 +198,7 @@ public abstract class ChannelAction implements Runnable {
                 try {
                     withRetries(LOG, () ->
                         channelDao.removeEndpoint(receiver.getUri().toString(), null));
-                    LOG.info("Async operation (operationId={}): receiver removed, unbindingReceiver={}",
+                    LOG.info("Async operation (operationId={}): receiver unbound, unbindingReceiver={}",
                         operationId, receiver.getUri());
                 } catch (Exception e) {
                     String errorMessage = "Failed to remove receiver " + receiver.getUri() + ","
@@ -222,7 +219,7 @@ public abstract class ChannelAction implements Runnable {
             }
         }
 
-        // TODO test on failure
+        InjectedFailures.fail4();
 
         disconnect(receiver);
         if (operationStopped) {
@@ -235,7 +232,7 @@ public abstract class ChannelAction implements Runnable {
             return;
         }
 
-        // TODO test on failure
+        InjectedFailures.fail5();
 
         try (final var guard = lockManager.withLock(channelId)) {
             withRetries(LOG, () -> {

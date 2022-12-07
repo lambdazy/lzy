@@ -2,6 +2,7 @@ package ai.lzy.channelmanager;
 
 import ai.lzy.channelmanager.db.ChannelManagerDataSource;
 import ai.lzy.channelmanager.v2.config.ChannelManagerConfig;
+import ai.lzy.channelmanager.v2.operation.ChannelOperationManager;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.longrunning.OperationUtils;
 import ai.lzy.model.DataScheme;
@@ -33,7 +34,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.model.UriScheme.LzyFs;
@@ -44,7 +44,7 @@ import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-public class ChannelManagerApiBaseTest {
+public class ChannelManagerBaseApiTest {
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
 
     @Rule
@@ -105,7 +105,7 @@ public class ChannelManagerApiBaseTest {
         mockedSlotApiServer.shutdown();
         mockedSlotApiServer.awaitTermination();
         channel.shutdown();
-        channel.awaitTermination(60, TimeUnit.SECONDS);
+        channel.awaitTermination(10, TimeUnit.SECONDS);
         DatabaseTestUtils.cleanup(context.getBean(ChannelManagerDataSource.class));
         context.close();
     }
@@ -145,9 +145,15 @@ public class ChannelManagerApiBaseTest {
     protected BindRequest makeBindCommand(String channelId, String slotName,
                                           LMS.Slot.Direction slotDirection, BindRequest.SlotOwner slotOwner)
     {
+        return makeBindCommand(channelId, "tid", slotName, slotDirection, slotOwner);
+    }
+
+    protected BindRequest makeBindCommand(String channelId, String taskId, String slotName,
+                                          LMS.Slot.Direction slotDirection, BindRequest.SlotOwner slotOwner)
+    {
         URI slotUri = URI.create("%s://%s:%d".formatted(LzyFs.scheme(),
             mockedSlotApiAddress.getHost(), mockedSlotApiAddress.getPort()
-        )).resolve(Path.of("/", "tid", slotName).toString());
+        )).resolve(Path.of("/", taskId, slotName).toString());
 
         return BindRequest.newBuilder()
             .setSlotInstance(LMS.SlotInstance.newBuilder()
@@ -173,7 +179,7 @@ public class ChannelManagerApiBaseTest {
 
     protected LongRunning.Operation awaitOperationResponse(String operationId) {
         LongRunning.Operation operation = OperationUtils.awaitOperationDone(
-            operationApiClient, operationId, Duration.of(10, ChronoUnit.SECONDS));
+            operationApiClient, operationId, Duration.ofSeconds(10));
         assertTrue(operation.hasResponse());
         return operation;
     }
@@ -190,6 +196,11 @@ public class ChannelManagerApiBaseTest {
             expectedPortalReceivers, actualChannel.getReceivers().hasPortalSlot() ? 1 : 0);
         assertEquals("Expected " + expectedWorkerReceivers + " WORKER receivers",
             expectedWorkerReceivers, actualChannel.getReceivers().getWorkerSlotsCount());
+    }
+
+    protected void restoreActiveOperations() {
+        var manager = context.getBean(ChannelOperationManager.class);
+        manager.restoreActiveOperations();
     }
 
 }

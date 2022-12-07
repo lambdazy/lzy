@@ -99,6 +99,7 @@ public class ChannelOperationManager {
 
     public void restoreActiveOperations() {
         final List<ChannelOperation> operations;
+        LOG.info("");
         LOG.info("Restore active operations");
         try {
             operations = channelOperationDao.getActiveOperations(null);
@@ -110,7 +111,7 @@ public class ChannelOperationManager {
         int restored = 0;
         for (final ChannelOperation operation : operations) {
             executor.submit(getAction(operation));
-            LOG.info("Restore active operations: operation {} submitted", operation.id());
+            LOG.info("Restore active operations: operation {} scheduled", operation.id());
             restored++;
         }
 

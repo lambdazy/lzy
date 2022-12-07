@@ -5,6 +5,7 @@ import ai.lzy.channelmanager.lock.GrainedLock;
 import ai.lzy.channelmanager.v2.control.ChannelController;
 import ai.lzy.channelmanager.v2.dao.ChannelDao;
 import ai.lzy.channelmanager.v2.dao.ChannelOperationDao;
+import ai.lzy.channelmanager.v2.debug.InjectedFailures;
 import ai.lzy.channelmanager.v2.exceptions.ChannelGraphStateException;
 import ai.lzy.channelmanager.v2.grpc.SlotConnectionManager;
 import ai.lzy.channelmanager.v2.model.Channel;
@@ -41,7 +42,9 @@ public class DestroyAction extends ChannelAction {
 
     @Override
     public void run() {
-        LOG.info("Async operation (operationId={}) resumed", operationId);
+        LOG.info("Async operation (operationId={}) resumed. channelsToDestroy:{} {}, already destroyed:{} {}",
+            operationId, state.toDestroyChannels().size(), state.toDestroyChannels(),
+            state.destroyedChannels().size(), state.destroyedChannels());
         operationStopped = false;
 
         while (true) {
@@ -71,7 +74,7 @@ public class DestroyAction extends ChannelAction {
             try {
                 this.destroyChannel(channelId);
 
-                // TODO test on failure
+                InjectedFailures.fail9();
 
                 state.setDestroyed(channelId);
                 try {
@@ -89,14 +92,15 @@ public class DestroyAction extends ChannelAction {
                         operationId, channelId, e.getMessage());
                 }
 
-                // TODO test on failure
+                InjectedFailures.fail10();
 
+            } catch (InjectedFailures.InjectedException e) {
+                throw e;
             } catch (Exception e) {
                 String errorMessage = "Async operation (operationId=" + operationId + ") failed: " + e.getMessage();
                 LOG.error(errorMessage);
                 this.failOperation(Status.INTERNAL.withDescription(errorMessage));
             }
-
         }
     }
 
@@ -135,13 +139,13 @@ public class DestroyAction extends ChannelAction {
             }
         }
 
-        for (Endpoint receiver : channel.getActiveReceivers().asList()) {
+        for (Endpoint receiver : channel.getReceivers().asList()) {
             this.unbindReceiver(receiver);
         }
 
-        for (Endpoint sender : channel.getActiveSenders().asList()) {
+        for (Endpoint sender : channel.getSenders().asList()) {
             this.unbindSender(sender);
         }
-
     }
+
 }

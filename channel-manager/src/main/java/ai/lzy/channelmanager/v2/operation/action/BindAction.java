@@ -5,6 +5,7 @@ import ai.lzy.channelmanager.lock.GrainedLock;
 import ai.lzy.channelmanager.v2.control.ChannelController;
 import ai.lzy.channelmanager.v2.dao.ChannelDao;
 import ai.lzy.channelmanager.v2.dao.ChannelOperationDao;
+import ai.lzy.channelmanager.v2.debug.InjectedFailures;
 import ai.lzy.channelmanager.v2.exceptions.CancellingChannelGraphStateException;
 import ai.lzy.channelmanager.v2.grpc.SlotConnectionManager;
 import ai.lzy.channelmanager.v2.model.Channel;
@@ -72,7 +73,7 @@ public class BindAction extends ChannelAction {
                     return;
                 }
 
-                // TODO test on failure
+                InjectedFailures.fail0();
 
                 final Connection potentialConnection = Connection.of(bindingEndpoint, connectingEndpoint);
                 final var sender = potentialConnection.sender();
@@ -83,7 +84,7 @@ public class BindAction extends ChannelAction {
                     return;
                 }
 
-                // TODO test on failure
+                InjectedFailures.fail1();
 
                 final var connectSlotOperation = awaitConnectOperationDone(sender, receiver);
                 if (operationStopped || connectSlotOperation == null) {
@@ -96,16 +97,18 @@ public class BindAction extends ChannelAction {
                     throw new RuntimeException(errorMessage);
                 }
 
-                // TODO test on failure
+                InjectedFailures.fail2();
 
                 saveConnection(bindingEndpoint, connectingEndpoint);
                 if (operationStopped) {
                     return;
                 }
 
-                // TODO test on failure
+                InjectedFailures.fail3();
             }
 
+        } catch (InjectedFailures.InjectedException e) {
+            throw e;
         } catch (CancellingChannelGraphStateException e) {
             String errorMessage = "Async operation (operationId=" + operationId + ") cancelled "
                                   + "due to the graph state: " + e.getMessage();

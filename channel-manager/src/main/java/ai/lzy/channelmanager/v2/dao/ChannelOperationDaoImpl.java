@@ -44,7 +44,7 @@ public class ChannelOperationDaoImpl implements ChannelOperationDao {
     private static final String QUERY_GET_ACTIVE_OPS = """
         SELECT op_id, started_at, deadline, op_type::TEXT, state_json
         FROM channel_operation
-        WHERE deadline < NOW() AND NOT failed""";
+        WHERE NOW() < deadline AND NOT failed""";
 
     private final ChannelManagerDataSource storage;
 

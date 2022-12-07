@@ -5,6 +5,7 @@ import ai.lzy.channelmanager.lock.GrainedLock;
 import ai.lzy.channelmanager.v2.control.ChannelController;
 import ai.lzy.channelmanager.v2.dao.ChannelDao;
 import ai.lzy.channelmanager.v2.dao.ChannelOperationDao;
+import ai.lzy.channelmanager.v2.debug.InjectedFailures;
 import ai.lzy.channelmanager.v2.grpc.SlotConnectionManager;
 import ai.lzy.channelmanager.v2.model.Endpoint;
 import ai.lzy.channelmanager.v2.operation.ChannelOperationExecutor;
@@ -63,6 +64,8 @@ public class UnbindAction extends ChannelAction {
 
             finishOperation();
 
+        } catch (InjectedFailures.InjectedException e) {
+            throw e;
         } catch (Exception e) {
             String errorMessage = "Async operation (operationId=" + operationId + ") failed: " + e.getMessage();
             LOG.error(errorMessage);

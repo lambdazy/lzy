@@ -5,6 +5,7 @@ import ai.lzy.channelmanager.grpc.ProtoValidator;
 import ai.lzy.channelmanager.lock.GrainedLock;
 import ai.lzy.channelmanager.v2.dao.ChannelDao;
 import ai.lzy.channelmanager.v2.dao.ChannelOperationDao;
+import ai.lzy.channelmanager.v2.debug.InjectedFailures;
 import ai.lzy.channelmanager.v2.model.Channel;
 import ai.lzy.channelmanager.v2.model.Endpoint;
 import ai.lzy.channelmanager.v2.operation.ChannelOperation;
@@ -140,7 +141,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         LOG.info(operationDescription + " responded, async operation scheduled, operationId={}", operation.id());
         response.onCompleted();
 
-        // TODO test on failure
+        InjectedFailures.fail11();
 
         executor.submit(channelOperationManager.getAction(channelOperation));
     }
@@ -223,7 +224,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         LOG.info(operationDescription + " responded, async operation scheduled, operationId={}", operation.id());
         response.onCompleted();
 
-        // TODO test on failure
+        InjectedFailures.fail12();
 
         executor.submit(channelOperationManager.getAction(channelOperation));
     }
