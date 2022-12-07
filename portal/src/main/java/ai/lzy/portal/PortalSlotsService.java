@@ -106,7 +106,7 @@ public class PortalSlotsService {
 
             Consumer<LzyInputSlot> startConnect = inputSlot -> {
                 try {
-                    var op = new Operation(
+                    var op = Operation.create(
                         portal.getPortalId(),
                         "ConnectSlot: %s -> %s".formatted(from.shortDesc(), to.shortDesc()),
                         Any.pack(LSA.ConnectSlotMetadata.getDefaultInstance())

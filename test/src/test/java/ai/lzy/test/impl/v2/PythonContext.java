@@ -55,10 +55,10 @@ public class PythonContext {
             AuthProvider.GITHUB, "test", SubjectType.USER, SubjectCredentials.publicKey("test", keys.publicKey()));
 
         envs = Map.of(
-            "LZY_ADDRESS_ENV", workflow.address().toString(),
+            "LZY_ENDPOINT", workflow.address().toString(),
             "LZY_KEY_PATH", file.toAbsolutePath().toString(),
-            "LZY_USERNAME", "test",
-            "LZY_WHITEBOARD_ADDRESS", whiteboard.publicAddress().toString(),
+            "LZY_USER", "test",
+            "LZY_WHITEBOARD_ENDPOINT", whiteboard.publicAddress().toString(),
             "FETCH_STATUS_PERIOD_SEC", "0"
         );
     }

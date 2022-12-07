@@ -13,5 +13,5 @@ public interface SessionDao {
     @Nullable
     Session get(String sessionId, @Nullable TransactionHandle transaction) throws SQLException;
 
-    void delete(String sessionId, @Nullable TransactionHandle transaction) throws SQLException;
+    boolean delete(String sessionId, @Nullable TransactionHandle transaction) throws SQLException;
 }

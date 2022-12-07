@@ -5,12 +5,21 @@ import java.sql.SQLException;
 import javax.annotation.Nullable;
 
 public interface DbOperation {
-    void execute(Connection connection) throws SQLException;
+    static void execute(@Nullable TransactionHandle transaction, Storage storage, DbRunnable op)
+        throws SQLException
+    {
+        execute(transaction, storage, (con) -> {
+            op.execute(con);
+            return null;
+        });
+    }
 
-    static void execute(@Nullable TransactionHandle transaction, Storage storage, DbOperation op) throws SQLException {
+    static <T> T execute(@Nullable TransactionHandle transaction, Storage storage, DbSupplier<T> op)
+        throws SQLException
+    {
         var con = transaction == null ? storage.connect() : transaction.connect();
         try {
-            op.execute(con);
+            return op.execute(con);
         } finally {
             if (transaction == null && con != null) {
                 try {
@@ -21,4 +30,13 @@ public interface DbOperation {
             }
         }
     }
+
+    interface DbRunnable {
+        void execute(Connection connection) throws SQLException;
+    }
+
+    interface DbSupplier<T> {
+        T execute(Connection connection) throws SQLException;
+    }
+
 }

@@ -8,32 +8,25 @@ from typing import (
     Optional,
     Sequence,
     Type,
-    TypeVar, Set, cast, Mapping,
-)
+    TypeVar, cast, )
 
-from lzy.api.v2.exceptions import LzyExecutionException
-from lzy.utils.event_loop import LzyEventLoop
-from lzy.proxy.result import Just
+from lzy.whiteboards.api import WhiteboardField, WhiteboardDefaultDescription
 
 from lzy.api.v2.env import Env
+from lzy.api.v2.exceptions import LzyExecutionException
 from lzy.api.v2.provisioning import Provisioning
 from lzy.api.v2.snapshot import Snapshot
-from lzy.api.v2.utils.proxy_adapter import is_lzy_proxy, get_proxy_entry_id, lzy_proxy, materialized
-from lzy.whiteboards.whiteboard_declaration import fetch_whiteboard_meta, WhiteboardField, WhiteboardInstanceMeta, \
-    WhiteboardDefaultDescription
+from lzy.api.v2.utils.proxy_adapter import is_lzy_proxy, lzy_proxy
+from lzy.api.v2.whiteboards import WritableWhiteboard, fetch_whiteboard_meta, WbRef
+from lzy.proxy.result import Just
 from lzy.py_env.api import PyEnv
+from lzy.utils.event_loop import LzyEventLoop
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 if TYPE_CHECKING:
     from lzy.api.v2 import Lzy
     from lzy.api.v2.call import LzyCall
-
-
-@dataclasses.dataclass
-class WbRef:
-    whiteboard_id: str
-    field_name: str
 
 
 class LzyWorkflow:
@@ -44,16 +37,16 @@ class LzyWorkflow:
         return cls.instance
 
     def __init__(
-        self,
-        name: str,
-        owner: "Lzy",
-        namespace: Dict[str, Any],
-        snapshot: Snapshot,
-        env: Env,
-        *,
-        eager: bool = False,
-        provisioning: Provisioning = Provisioning.default(),
-        interactive: bool = True,
+            self,
+            name: str,
+            owner: "Lzy",
+            namespace: Dict[str, Any],
+            snapshot: Snapshot,
+            env: Env,
+            *,
+            eager: bool = False,
+            provisioning: Provisioning = Provisioning.default(),
+            interactive: bool = True,
     ):
         self.__snapshot = snapshot
         self.__name = name
@@ -103,13 +96,13 @@ class LzyWorkflow:
         if self.__eager:
             self.barrier()
 
-    def _add_whiteboard_link(self, storage_uri: str, ref: WbRef):
+    def add_whiteboard_link(self, storage_uri: str, ref: WbRef):
         self.__whiteboards_links[storage_uri] = ref
 
     def barrier(self):
         LzyEventLoop.run_async(self._barrier())
 
-    def create_whiteboard(self, typ: Type[T], tags: Sequence = ()) -> T:
+    def create_whiteboard(self, typ: Type[T], *, tags: Sequence = ()) -> T:
         return LzyEventLoop.run_async(self.__create_whiteboard(typ, tags))
 
     def __enter__(self) -> "LzyWorkflow":
@@ -141,7 +134,7 @@ class LzyWorkflow:
         wbs_to_finalize = []
         while len(self.__whiteboards) > 0:
             wb_id = self.__whiteboards.pop()
-            wbs_to_finalize.append(self.__owner.whiteboard_repository.client.finalize(wb_id))
+            wbs_to_finalize.append(self.__owner.whiteboard_client.finalize(wb_id))
         await asyncio.gather(*wbs_to_finalize)
 
     async def __start(self):
@@ -202,7 +195,7 @@ class LzyWorkflow:
 
         await asyncio.gather(*data_to_load)
 
-        created_meta = await self.__owner.whiteboard_repository.client.create_whiteboard(
+        created_meta = await self.__owner.whiteboard_client.create_whiteboard(
             declaration_meta.namespace,
             declaration_meta.name,
             fields,
@@ -211,76 +204,5 @@ class LzyWorkflow:
         )
 
         self.__whiteboards.append(created_meta.id)
-
-        wb = _WritableWhiteboard(typ, created_meta, self, defaults)
-
+        wb = WritableWhiteboard(typ, created_meta, self, defaults)
         return cast(T, wb)
-
-
-class _WritableWhiteboard:
-    __internal_fields = {
-        "_WritableWhiteboard__fields_dict", "_WritableWhiteboard__fields_assigned",
-        "_WritableWhiteboard__whiteboard_meta", "_WritableWhiteboard__workflow", "_WritableWhiteboard__fields",
-    }
-
-    def __init__(
-            self,
-            instance: Any,
-            whiteboard_meta: "WhiteboardInstanceMeta",
-            wf: LzyWorkflow,
-            fields: Mapping[str, Any]
-    ):
-        self.__fields_dict: Dict[str, dataclasses.Field] = {
-            field.name: field for field in dataclasses.fields(instance)
-        }
-
-        self.__fields_assigned: Set[str] = set()
-        self.__whiteboard_meta = whiteboard_meta
-        self.__workflow = wf
-        self.__fields: Dict[str, Any] = {}
-        self.__fields.update(fields)
-
-    def __setattr__(self, key: str, value: Any):
-        if key in _WritableWhiteboard.__internal_fields:  # To complete constructor
-            super(_WritableWhiteboard, self).__setattr__(key, value)
-            return
-
-        if key not in self.__fields_dict:
-            raise AttributeError(f"No such attribute: {key}")
-
-        if key in self.__fields_assigned:
-            raise AttributeError("Whiteboard field can be assigned only once")
-
-        whiteboard_id = self.__whiteboard_meta.id
-
-        if is_lzy_proxy(value):
-            entry_id = get_proxy_entry_id(value)
-            entry = self.__workflow.snapshot.get(entry_id)
-
-            if materialized(value):
-                LzyEventLoop.run_async(self.__workflow.owner.whiteboard_repository.client.link(
-                    whiteboard_id, key, entry.storage_url, entry.data_scheme
-                ))
-            else:
-                self.__workflow._add_whiteboard_link(entry.storage_url, WbRef(whiteboard_id, key))
-        else:
-            entry = self.__workflow.snapshot.create_entry(type(value))
-            LzyEventLoop.run_async(self.__workflow.snapshot.put_data(entry_id=entry.id, data=value))
-            value = lzy_proxy(entry.id, type(value), self.__workflow, Just(value))
-            LzyEventLoop.run_async(self.__workflow.owner.whiteboard_repository.client.link(
-                whiteboard_id, key, entry.storage_url, entry.data_scheme
-            ))
-
-        self.__fields_assigned.add(key)
-
-        self.__fields[key] = value
-
-    def __getattr__(self, item: str) -> Any:
-        if item not in self.__fields:
-            raise AttributeError(f"Whiteboard has no field {item}")
-        return self.__fields[item]
-
-    @property
-    def whiteboard_id(self) -> str:
-        return self.__whiteboard_meta.id
-
