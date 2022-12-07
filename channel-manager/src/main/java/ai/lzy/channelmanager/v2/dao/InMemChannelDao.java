@@ -101,17 +101,13 @@ public class InMemChannelDao implements ChannelDao {
         throws SQLException
     {
         String channelId = channelsByEndpoints.remove(endpointUri);
-        try {
-            channels.computeIfPresent(channelId, (id, ch) -> {
-                final List<Endpoint> endpoints = ch.getEndpoints().stream()
-                    .filter(e -> !e.getUri().toString().equals(endpointUri))
-                    .toList();
-                return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
-                    endpoints, ch.getConnections(), ch.getLifeStatus());
-            });
-        } catch (Exception e) {
-            String le="e'e";
-        }
+        channels.computeIfPresent(channelId, (id, ch) -> {
+            final List<Endpoint> endpoints = ch.getEndpoints().stream()
+                .filter(e -> !e.getUri().toString().equals(endpointUri))
+                .toList();
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
+                endpoints, ch.getConnections(), ch.getLifeStatus());
+        });
     }
 
     @Override

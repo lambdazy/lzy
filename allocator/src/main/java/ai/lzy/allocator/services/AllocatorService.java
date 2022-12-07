@@ -122,8 +122,6 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     @PreDestroy
     public void shutdown() {
         LOG.info("Shutdown AllocatorService, active allocations: {}", runningAllocations.get());
-        // Need to cleanup scheduled tasks???
-        // executor.shutdown();
     }
 
     @VisibleForTesting
