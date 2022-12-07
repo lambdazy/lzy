@@ -66,8 +66,9 @@ public class GarbageCollectorTask extends TimerTask {
         if (portalDesc != null && portalDesc.vmAddress() != null) {
             try {
                 var portalAddress = portalDesc.vmAddress();
-                var portalChannel = newGrpcChannel(portalAddress, LzyPortalGrpc.SERVICE_NAME);
+                LOG.info("Finishing portal {} for execution {}", portalAddress, execution);
 
+                var portalChannel = newGrpcChannel(portalAddress, LzyPortalGrpc.SERVICE_NAME);
                 var portalClient = newBlockingClient(LzyPortalGrpc.newBlockingStub(portalChannel),
                     APP, () -> internalCreds.get().token());
                 var ignored = portalClient.finish(LzyPortalApi.FinishRequest.newBuilder().build());
@@ -76,6 +77,8 @@ public class GarbageCollectorTask extends TimerTask {
                 portalChannel.awaitTermination(10, TimeUnit.SECONDS);
 
                 workflowDao.updateAllocatedVmAddress(execution, null, null);
+
+                LOG.info("Portal {} finished for execution {}", portalAddress, execution);
             } catch (Exception e) {
                 LOG.error("Cannot clean portal for execution {}", execution, e);
                 return;
@@ -84,11 +87,15 @@ public class GarbageCollectorTask extends TimerTask {
 
         if (portalDesc != null && portalDesc.vmId() != null) {
             try {
+                LOG.info("Freeing vm {} for execution {}", portalDesc.vmId(), execution);
+
                 allocatorClient.free(VmAllocatorApi.FreeRequest.newBuilder()
                     .setVmId(portalDesc.vmId())
                     .build());
 
                 workflowDao.updateAllocateOperationData(execution, null, null);
+
+                LOG.info("VM cleaned {} for execution {}", portalDesc.vmId(), execution);
             } catch (Exception e) {
                 LOG.error("Cannot free VM for execution {}", execution, e);
                 return;
@@ -104,6 +111,7 @@ public class GarbageCollectorTask extends TimerTask {
                     .build());
 
                 workflowDao.updateAllocatorSession(execution, null, null);
+                LOG.info("Allocator session {} cleaned for execution {}", session, execution);
             }
         } catch (Exception e) {
             LOG.error("Cannot clean allocator session for execution {}", execution, e);
