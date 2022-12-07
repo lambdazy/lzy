@@ -253,6 +253,17 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             }
         }
 
+        final Endpoint activeEndpoint = channel.getEndpoints().stream()
+            .filter(e -> e.getUri().toString().equals(request.getSlotInstance().getSlotUri()))
+            .filter(Endpoint::isActive)
+            .findFirst().orElse(null);
+
+        if (activeEndpoint != null) {
+            String errorMessage = "Endpoint " + request.getSlotInstance().getSlotUri() + " already exists";
+            return Status.ALREADY_EXISTS.withDescription(errorMessage);
+        }
+
+
         return Status.OK;
     }
 

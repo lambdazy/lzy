@@ -1,22 +1,17 @@
 package ai.lzy.channelmanager;
 
 import ai.lzy.channelmanager.v2.debug.InjectedFailures;
-import ai.lzy.v1.channel.v2.LCM;
 import ai.lzy.v1.channel.v2.LCMS.BindRequest;
 import ai.lzy.v1.common.LMS;
-import ai.lzy.v1.longrunning.LongRunning;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 public class ChannelManagerRestartTest extends ChannelManagerBaseApiTest {
@@ -146,51 +141,6 @@ public class ChannelManagerRestartTest extends ChannelManagerBaseApiTest {
         skipAndRestoreOperation(op.getId(), 3);
 
         awaitOperationResponse(op.getId());
-    }
-
-    private LCM.Channel prepareChannelOfShape(String executionId, String channelName,
-                                              int expectedPortalSenders, int expectedWorkerSenders,
-                                              int expectedPortalReceivers, int expectedWorkerReceivers)
-    {
-        var channelCreateResponse = privateClient.create(makeChannelCreateCommand(executionId, channelName));
-        String channelId = channelCreateResponse.getChannelId();
-
-        List<LongRunning.Operation> operations = new ArrayList<>();
-        if (expectedPortalReceivers != 0) {
-            assertEquals(1, expectedPortalReceivers);
-            var op = publicClient.bind(makeBindCommand(channelId, "tid-" + channelName, "inSlotP",
-                LMS.Slot.Direction.INPUT, BindRequest.SlotOwner.PORTAL));
-            operations.add(op);
-        }
-        if (expectedWorkerReceivers != 0) {
-            for (int i = 1; i <= expectedWorkerReceivers; ++i) {
-                var op = publicClient.bind(makeBindCommand(channelId, "tid-" + channelName, "inSlotW" + i,
-                    LMS.Slot.Direction.INPUT, BindRequest.SlotOwner.WORKER));
-                operations.add(op);
-            }
-        }
-        if (expectedPortalSenders != 0) {
-            assertEquals(1, expectedPortalSenders);
-            var op = publicClient.bind(makeBindCommand(channelId, "tid-" + channelName, "outSlotP",
-                LMS.Slot.Direction.OUTPUT, BindRequest.SlotOwner.PORTAL));
-            operations.add(op);
-        }
-        if (expectedWorkerSenders != 0) {
-            assertEquals(1, expectedWorkerSenders);
-            var op = publicClient.bind(makeBindCommand(channelId, "tid-" + channelName, "outSlotW",
-                LMS.Slot.Direction.OUTPUT, BindRequest.SlotOwner.WORKER));
-            operations.add(op);
-        }
-
-        operations.forEach(op -> awaitOperationResponse(op.getId()));
-
-        var status = privateClient.status(makeChannelStatusCommand(channelId));
-        assertChannelShape(
-            expectedPortalSenders, expectedWorkerSenders,
-            expectedPortalReceivers, expectedWorkerReceivers,
-            status.getStatus().getChannel());
-
-        return status.getStatus().getChannel();
     }
 
     private void skipAndRestoreOperation(String operationId, int skipTimes) {

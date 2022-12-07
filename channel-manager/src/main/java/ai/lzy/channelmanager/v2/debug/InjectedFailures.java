@@ -8,8 +8,18 @@ public class InjectedFailures {
     private static final AtomicInteger[] FAILURE_MARKERS = new AtomicInteger[FAILURE_MARKERS_COUNT];
 
     static {
+        clear();
+    }
+
+    public static void clear() {
         for (int i = 0; i < FAILURE_MARKERS_COUNT; ++i) {
             FAILURE_MARKERS[i] = new AtomicInteger(0);
+        }
+    }
+
+    public static void assertClean() {
+        for (int i = 0; i < FAILURE_MARKERS_COUNT; ++i) {
+            assert FAILURE_MARKERS[i].get() == 0 : "Marker " + i + " isn't clean";
         }
     }
 

@@ -5,6 +5,7 @@ import ai.lzy.channelmanager.v2.model.Channel;
 import ai.lzy.channelmanager.v2.model.Connection;
 import ai.lzy.channelmanager.v2.model.Endpoint;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.model.db.exceptions.AlreadyExistsException;
 import ai.lzy.model.slot.SlotInstance;
 import jakarta.inject.Singleton;
 
@@ -25,6 +26,10 @@ public class InMemChannelDao implements ChannelDao {
     public void insertChannel(String channelId, String executionId, ChannelSpec channelSpec,
                               @Nullable TransactionHandle transaction) throws SQLException
     {
+        if (channels.get(channelId) != null) {
+            throw new AlreadyExistsException("Channel " + channelId + " already exists");
+        }
+
         channels.put(channelId, new Channel(channelId, channelSpec, executionId));
     }
 
@@ -208,9 +213,13 @@ public class InMemChannelDao implements ChannelDao {
     @Nullable
     @Override
     public Endpoint findEndpoint(String endpointUri, @Nullable TransactionHandle transaction) throws SQLException {
+        if (!channelsByEndpoints.containsKey(endpointUri)) {
+            return null;
+        }
         String channelId = channelsByEndpoints.get(endpointUri);
         return channels.get(channelId).getEndpoints().stream()
             .filter(e -> e.getUri().toString().equals(endpointUri))
             .findFirst().orElse(null);
     }
+
 }

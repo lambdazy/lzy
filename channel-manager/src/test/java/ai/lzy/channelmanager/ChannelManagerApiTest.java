@@ -1,5 +1,6 @@
 package ai.lzy.channelmanager;
 
+import ai.lzy.channelmanager.v2.debug.InjectedFailures;
 import ai.lzy.v1.channel.v2.LCM.Channel;
 import ai.lzy.v1.channel.v2.LCM.ChannelReceivers;
 import ai.lzy.v1.channel.v2.LCM.ChannelSenders;
@@ -18,8 +19,8 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import java.util.UUID;
+import java.util.concurrent.locks.LockSupport;
 
 import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static org.junit.Assert.assertEquals;
@@ -72,41 +73,99 @@ public class ChannelManagerApiTest extends ChannelManagerBaseApiTest {
     }
 
     @Test
-    public void testDestroyNonexistentChannel() {
-        final String channelId = UUID.randomUUID().toString();
-        LongRunning.Operation destroyOp = privateClient.destroy(makeChannelDestroyCommand(channelId));
-        destroyOp = awaitOperationDone(operationApiClient, destroyOp.getId(),
-            Duration.of(10, ChronoUnit.SECONDS));
-        assertTrue(destroyOp.hasResponse());
+    public void testCreateTwice() {
+        final String executionId = UUID.randomUUID().toString();
+        final String channelName = "ch1";
+        final var createCmd = makeChannelCreateCommand(executionId, channelName);
+        privateClient.create(createCmd);
+        try {
+            privateClient.create(createCmd);
+            fail();
+        } catch (StatusRuntimeException e) {
+            assertEquals(e.getStatus().toString(), Status.ALREADY_EXISTS.getCode(), e.getStatus().getCode());
+        }
+    }
+
+    @Test
+    public void testBindTwice() {
+        final String executionId = UUID.randomUUID().toString();
+        final String channelName = "ch1";
+        var createResponse = privateClient.create(makeChannelCreateCommand(executionId, channelName));
+        final String channelId = createResponse.getChannelId();
+
+        final var bindCmd = makeBindCommand(channelId, "inSlotW",
+            LMS.Slot.Direction.INPUT, BindRequest.SlotOwner.WORKER);
+
+        publicClient.bind(bindCmd);
+        try {
+            publicClient.bind(bindCmd);
+            fail();
+        } catch (StatusRuntimeException e) {
+            assertEquals(e.getStatus().toString(), Status.ALREADY_EXISTS.getCode(), e.getStatus().getCode());
+        }
+    }
+
+    @Test
+    public void testUnbindTwice() {
+        final String executionId = UUID.randomUUID().toString();
+        final String channelName = "ch1";
+        var createResponse = privateClient.create(makeChannelCreateCommand(executionId, channelName));
+        final String channelId = createResponse.getChannelId();
+
+        final var bindCmd = makeBindCommand(channelId, "inSlotW",
+            LMS.Slot.Direction.INPUT, BindRequest.SlotOwner.WORKER);
+        var op = publicClient.bind(bindCmd);
+        awaitOperationResponse(op.getId());
+
+        final var unbindCmd = makeUnbindCommand(bindCmd.getSlotInstance().getSlotUri());
+        publicClient.unbind(unbindCmd);
+        try {
+            publicClient.unbind(unbindCmd);
+            fail();
+        } catch (StatusRuntimeException e) {
+            assertEquals(e.getStatus().toString(), Status.NOT_FOUND.getCode(), e.getStatus().getCode());
+        }
+
+    }
+
+    @Test
+    public void testDestroyTwice() {
+        final String executionId = UUID.randomUUID().toString();
+        final String channelName = "ch1";
+        var createResponse = privateClient.create(makeChannelCreateCommand(executionId, channelName));
+        final String channelId = createResponse.getChannelId();
+
+        var op1 = privateClient.destroy(makeChannelDestroyCommand(channelId));
+        var op2 = privateClient.destroy(makeChannelDestroyCommand(channelId));
+
+        awaitOperationResponse(op1.getId());
+        awaitOperationResponse(op2.getId());
     }
 
     @Test
     public void testDestroyAll() {
         final String executionId = UUID.randomUUID().toString();
-        final ChannelCreateResponse ch1Response = privateClient.create(
-            makeChannelCreateCommand(executionId, "ch1"));
-        final ChannelCreateResponse ch2Response = privateClient.create(
-            makeChannelCreateCommand(executionId, "ch2"));
-        final ChannelCreateResponse ch0Response = privateClient.create(
-            makeChannelCreateCommand(UUID.randomUUID().toString(), "ch0"));
+        var channel1 = prepareChannelOfShape(executionId, "ch1", 0, 1, 0, 1);
+        var channel2 = prepareChannelOfShape(executionId, "ch2", 0, 1, 1, 0);
+        var channel3 = prepareChannelOfShape(executionId, "ch3", 1, 0, 0, 1);
+
+        var channel = prepareChannelOfShape(UUID.randomUUID().toString(), "ch", 0, 1, 0, 1);
 
         LongRunning.Operation destroyOp = privateClient.destroyAll(makeChannelDestroyAllCommand(executionId));
         awaitOperationResponse(destroyOp.getId());
 
         try {
-            privateClient.status(makeChannelStatusCommand(ch1Response.getChannelId()));
+            privateClient.status(makeChannelStatusCommand(channel1.getChannelId()));
             fail();
         } catch (StatusRuntimeException e) {
             assertEquals(e.getStatus().toString(), Status.NOT_FOUND.getCode(), e.getStatus().getCode());
         }
-        try {
-            privateClient.status(makeChannelStatusCommand(ch2Response.getChannelId()));
-            fail();
-        } catch (StatusRuntimeException e) {
-            assertEquals(e.getStatus().toString(), Status.NOT_FOUND.getCode(), e.getStatus().getCode());
-        }
-        final var status = privateClient.status(makeChannelStatusCommand(ch0Response.getChannelId()));
-        assertEquals(ch0Response.getChannelId(), status.getStatus().getChannel().getChannelId());
+
+        final var status = privateClient.status(makeChannelStatusCommand(channel.getChannelId()));
+        assertEquals(channel.getChannelId(), status.getStatus().getChannel().getChannelId());
+
+        var statusAll = privateClient.statusAll(makeChannelStatusAllCommand(executionId));
+        assertEquals(0, statusAll.getStatusesList().size());
     }
 
     @Test
@@ -249,6 +308,103 @@ public class ChannelManagerApiTest extends ChannelManagerBaseApiTest {
         } catch (StatusRuntimeException e) {
             assertEquals(e.getStatus().toString(), Status.FAILED_PRECONDITION.getCode(), e.getStatus().getCode());
         }
+    }
+
+    @Test
+    public void unbindThisWhileBind() {
+        final String executionId = UUID.randomUUID().toString();
+        final String channelName = "ch";
+        var createResponse = privateClient.create(makeChannelCreateCommand(executionId, channelName));
+        final String channelId = createResponse.getChannelId();
+
+        BindRequest bindRequest = makeBindCommand(channelId, "inSlot",
+            LMS.Slot.Direction.INPUT, BindRequest.SlotOwner.WORKER);
+        var bindOp = publicClient.bind(bindRequest);
+        String inputSlotUri = bindRequest.getSlotInstance().getSlotUri();
+
+        awaitOperationResponse(bindOp.getId());
+
+        InjectedFailures.setFailure(1, 1);
+
+        BindRequest bindRequestSender = makeBindCommand(channelId, "outSlot",
+            LMS.Slot.Direction.OUTPUT, BindRequest.SlotOwner.WORKER);
+        var bindOpSender = publicClient.bind(bindRequestSender);
+        String outputSlotUri = bindRequestSender.getSlotInstance().getSlotUri();
+
+        LockSupport.parkNanos(Duration.ofMillis(300).toNanos());
+
+        var unbindOp = publicClient.unbind(makeUnbindCommand(outputSlotUri));
+        awaitOperationResponse(unbindOp.getId());
+
+        restoreActiveOperations();
+
+        bindOpSender = awaitOperationDone(operationApiClient, bindOpSender.getId(), Duration.ofSeconds(10));
+        assertEquals(bindOpSender.getError().toString(),
+            Status.CANCELLED.getCode().value(), bindOpSender.getError().getCode());
+    }
+
+    @Test
+    public void unbindConnectedWhileBind() {
+        final String executionId = UUID.randomUUID().toString();
+        final String channelName = "ch";
+        var createResponse = privateClient.create(makeChannelCreateCommand(executionId, channelName));
+        final String channelId = createResponse.getChannelId();
+
+        BindRequest bindRequest = makeBindCommand(channelId, "inSlot",
+            LMS.Slot.Direction.INPUT, BindRequest.SlotOwner.WORKER);
+        var bindOp = publicClient.bind(bindRequest);
+        String inputSlotUri = bindRequest.getSlotInstance().getSlotUri();
+
+        awaitOperationResponse(bindOp.getId());
+
+        InjectedFailures.setFailure(1, 1);
+
+        BindRequest bindRequestSender = makeBindCommand(channelId, "outSlot",
+            LMS.Slot.Direction.OUTPUT, BindRequest.SlotOwner.WORKER);
+        var bindOpSender = publicClient.bind(bindRequestSender);
+        String outputSlotUri = bindRequestSender.getSlotInstance().getSlotUri();
+
+        LockSupport.parkNanos(Duration.ofMillis(300).toNanos());
+
+        var unbindOp = publicClient.unbind(makeUnbindCommand(inputSlotUri));
+        awaitOperationResponse(unbindOp.getId());
+
+        restoreActiveOperations();
+
+        awaitOperationResponse(bindOpSender.getId());
+    }
+
+    @Test
+    public void destroyChannelWhileBind() {
+        final String executionId = UUID.randomUUID().toString();
+        final String channelName = "ch";
+        var createResponse = privateClient.create(makeChannelCreateCommand(executionId, channelName));
+        final String channelId = createResponse.getChannelId();
+
+        BindRequest bindRequest = makeBindCommand(channelId, "inSlot",
+            LMS.Slot.Direction.INPUT, BindRequest.SlotOwner.WORKER);
+        var bindOp = publicClient.bind(bindRequest);
+        String inputSlotUri = bindRequest.getSlotInstance().getSlotUri();
+
+        awaitOperationResponse(bindOp.getId());
+
+        InjectedFailures.setFailure(1, 1);
+
+        BindRequest bindRequestSender = makeBindCommand(channelId, "outSlot",
+            LMS.Slot.Direction.OUTPUT, BindRequest.SlotOwner.WORKER);
+        var bindOpSender = publicClient.bind(bindRequestSender);
+        String outputSlotUri = bindRequestSender.getSlotInstance().getSlotUri();
+
+        LockSupport.parkNanos(Duration.ofMillis(300).toNanos());
+
+        var destroyOp = privateClient.destroy(makeChannelDestroyCommand(channelId));
+        awaitOperationResponse(destroyOp.getId());
+
+        restoreActiveOperations();
+
+        bindOpSender = awaitOperationDone(operationApiClient, bindOpSender.getId(), Duration.ofSeconds(10));
+        assertEquals(bindOpSender.getError().toString(),
+            Status.CANCELLED.getCode().value(), bindOpSender.getError().getCode());
     }
 
 }
