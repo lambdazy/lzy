@@ -134,12 +134,13 @@ public class WorkflowDaoImpl implements WorkflowDao {
           portal_stderr_channel_id,
           portal_id
         FROM workflow_executions
-        WHERE execution_id = ? AND portal_vm_address IS NOT NULL AND portal_fs_address IS NOT NULL""";
+        WHERE execution_id = ?""";
 
     private static final String QUERY_LIST_EXPIRED_EXECUTIONS = """
         SELECT execution_id
         FROM workflow_executions
-        WHERE execution_status = 'ERROR'""";
+        WHERE execution_status = 'ERROR'
+        LIMIT 1""";
 
     private final Storage storage;
     private final ObjectMapper objectMapper;
@@ -308,7 +309,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
     @Nullable
     @Override
-    public Status getExecutionErrorStatus(String executionId, @Nullable TransactionHandle transaction)
+    public Status getExecutionErrorStatus(String executionId)
         throws SQLException
     {
         Status[] res = {null};
@@ -504,8 +505,10 @@ public class WorkflowDaoImpl implements WorkflowDao {
                 if (rs.next()) {
                     var status = PortalDescription.PortalStatus.valueOf(rs.getString(1));
                     var vmId = rs.getString(2);
-                    var vmAddress = HostAndPort.fromString(rs.getString(3));
-                    var fsAddress = HostAndPort.fromString(rs.getString(4));
+                    var vmAddress = rs.getString(3) == null ? null :
+                        HostAndPort.fromString(rs.getString(3));
+                    var fsAddress = rs.getString(4) == null ? null :
+                        HostAndPort.fromString(rs.getString(4));
                     var stdoutChannelId = rs.getString(5);
                     var stderrChannelId = rs.getString(6);
                     var portalId = rs.getString(7);

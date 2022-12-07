@@ -71,8 +71,7 @@ public interface WorkflowDao {
         throws SQLException;
 
     @Nullable
-    Status getExecutionErrorStatus(String executionId, @Nullable TransactionHandle transaction)
-        throws SQLException;
+    Status getExecutionErrorStatus(String executionId) throws SQLException;
 
     void updateFinishData(String workflowName, String executionId, Timestamp finishedAt,
                           @Nullable String finishedWithError, @Nullable Integer finishedErrorCode,

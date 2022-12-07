@@ -1,5 +1,6 @@
 package ai.lzy.service.gc;
 
+import ai.lzy.service.data.dao.PortalDescription;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.AllocatorGrpc;
@@ -43,53 +44,77 @@ public class GarbageCollectorTask extends TimerTask {
         try {
             String expiredExecution = workflowDao.getExpiredExecution();
             while (expiredExecution != null) {
-                LOG.info("Execution {} is expired, GC {}", expiredExecution, id);
-                final var execution = expiredExecution;
-
-                try {
-                    var portalDesc = withRetries(LOG, () -> workflowDao.getPortalDescription(execution));
-                    if (portalDesc != null) {
-                        var portalAddress = portalDesc.vmAddress();
-                        var portalChannel = newGrpcChannel(portalAddress, LzyPortalGrpc.SERVICE_NAME);
-
-                        var portalClient = newBlockingClient(LzyPortalGrpc.newBlockingStub(portalChannel),
-                            APP, () -> internalCreds.get().token());
-                        var ignored = portalClient.finish(LzyPortalApi.FinishRequest.newBuilder().build());
-
-                        portalChannel.shutdown();
-                        portalChannel.awaitTermination(10, TimeUnit.SECONDS);
-
-                        allocatorClient.free(VmAllocatorApi.FreeRequest.newBuilder()
-                            .setVmId(portalDesc.vmId())
-                            .build());
-                    }
-                } catch (Exception e) {
-                    LOG.error("Cannot clean portal for execution {}", execution, e);
-                }
-
-                try {
-                    var session = withRetries(LOG, () -> workflowDao.getAllocatorSession(execution));
-                    if (session != null) {
-                        LOG.info("Cleaning allocator session {} for execution {}", session, execution);
-                        allocatorClient.deleteSession(VmAllocatorApi.DeleteSessionRequest.newBuilder()
-                            .setSessionId(session)
-                            .build());
-                    }
-                } catch (Exception e) {
-                    LOG.error("Cannot clean allocator session for execution {}", execution, e);
-                }
-
-                try {
-                    withRetries(defaultRetryPolicy(), LOG, () -> workflowDao.setDeadExecutionStatus(execution));
-                    LOG.info("Execution {} is cleaned, GC {}", execution, id);
-                } catch (Exception e) {
-                    LOG.error("Cannot update execution status {}", execution, e);
-                }
-
+                cleanWorkflow(expiredExecution);
                 expiredExecution = workflowDao.getExpiredExecution();
             }
         } catch (Exception e) {
             LOG.error("Got error during GC {} task", id, e);
+        }
+    }
+
+    private void cleanWorkflow(String execution) {
+        LOG.info("Execution {} is expired, GC {}", execution, id);
+
+        PortalDescription portalDesc;
+        try {
+            portalDesc = withRetries(LOG, () -> workflowDao.getPortalDescription(execution));
+        } catch (Exception e) {
+            LOG.error("Cannot get portal for execution {}", execution, e);
+            return;
+        }
+
+        if (portalDesc != null && portalDesc.vmAddress() != null) {
+            try {
+                var portalAddress = portalDesc.vmAddress();
+                var portalChannel = newGrpcChannel(portalAddress, LzyPortalGrpc.SERVICE_NAME);
+
+                var portalClient = newBlockingClient(LzyPortalGrpc.newBlockingStub(portalChannel),
+                    APP, () -> internalCreds.get().token());
+                var ignored = portalClient.finish(LzyPortalApi.FinishRequest.newBuilder().build());
+
+                portalChannel.shutdown();
+                portalChannel.awaitTermination(10, TimeUnit.SECONDS);
+
+                workflowDao.updateAllocatedVmAddress(execution, null, null);
+            } catch (Exception e) {
+                LOG.error("Cannot clean portal for execution {}", execution, e);
+                return;
+            }
+        }
+
+        if (portalDesc != null && portalDesc.vmId() != null) {
+            try {
+                allocatorClient.free(VmAllocatorApi.FreeRequest.newBuilder()
+                    .setVmId(portalDesc.vmId())
+                    .build());
+
+                workflowDao.updateAllocateOperationData(execution, null, null);
+            } catch (Exception e) {
+                LOG.error("Cannot free VM for execution {}", execution, e);
+                return;
+            }
+        }
+
+        try {
+            var session = withRetries(LOG, () -> workflowDao.getAllocatorSession(execution));
+            if (session != null) {
+                LOG.info("Cleaning allocator session {} for execution {}", session, execution);
+                allocatorClient.deleteSession(VmAllocatorApi.DeleteSessionRequest.newBuilder()
+                    .setSessionId(session)
+                    .build());
+
+                workflowDao.updateAllocatorSession(execution, null, null);
+            }
+        } catch (Exception e) {
+            LOG.error("Cannot clean allocator session for execution {}", execution, e);
+            return;
+        }
+
+        try {
+            withRetries(defaultRetryPolicy(), LOG, () -> workflowDao.setDeadExecutionStatus(execution));
+            LOG.info("Execution {} is cleaned, GC {}", execution, id);
+        } catch (Exception e) {
+            LOG.error("Cannot update execution status {}", execution, e);
         }
     }
 }

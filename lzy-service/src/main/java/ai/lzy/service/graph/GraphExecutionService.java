@@ -123,21 +123,8 @@ public class GraphExecutionService {
             return;
         }
 
-        setWorkflowInfo(graphExecutionState);
-
-        if (graphExecutionState.isInvalid()) {
-            if (!checkExecutionStatus(executionId, replyError)) {
-                return;
-            }
-
-            updateExecutionStatus(graphExecutionState.getWorkflowName(), graphExecutionState.getUserId(),
-                executionId, graphExecutionState.getErrorStatus());
-            replyError.accept(graphExecutionState.getErrorStatus());
-            return;
-        }
-
-        var userId = graphExecutionState.getUserId();
-        var workflowName = graphExecutionState.getWorkflowName();
+        var userId = "userId";
+        var workflowName = "workflowName";
 
         LOG.info("Create execute graph operation for: { userId: {}, workflowName: {}, executionId: {} }", userId,
             workflowName, executionId);
@@ -167,6 +154,16 @@ public class GraphExecutionService {
                 executionId, status);
 
             responseObserver.onError(status.asException());
+            return;
+        }
+
+        setWorkflowInfo(graphExecutionState);
+
+        if (graphExecutionState.isInvalid()) {
+            operationDao.failOperation(op.id(), toProto(graphExecutionState.getErrorStatus()), LOG);
+            updateExecutionStatus(graphExecutionState.getWorkflowName(), graphExecutionState.getUserId(),
+                executionId, graphExecutionState.getErrorStatus());
+            replyError.accept(graphExecutionState.getErrorStatus());
             return;
         }
 
@@ -293,7 +290,7 @@ public class GraphExecutionService {
 
     private boolean checkExecutionStatus(String executionId, Consumer<Status> replyError) {
         try {
-            Status error = withRetries(LOG, () -> workflowDao.getExecutionErrorStatus(executionId, null));
+            Status error = withRetries(LOG, () -> workflowDao.getExecutionErrorStatus(executionId));
 
             if (error != null) {
                 LOG.error("[executeGraph], Execution {} already failed with error {}.", executionId, error);
