@@ -229,7 +229,8 @@ public class KuberVmAllocator implements VmAllocator {
                 ex -> new RuntimeException("Database error: " + ex.getMessage(), ex));
 
         if (meta == null) {
-            throw new RuntimeException("Cannot get allocator metadata for vmId " + vmId);
+            LOG.warn("Cannot get allocator metadata for vmId {}", vmId);
+            return;
         }
 
         final var clusterId = meta.get(CLUSTER_ID_KEY);

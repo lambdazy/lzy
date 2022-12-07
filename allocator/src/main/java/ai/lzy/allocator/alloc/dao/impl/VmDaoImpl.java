@@ -256,13 +256,13 @@ public class VmDaoImpl implements VmDao {
     }
 
     @Override
-    public void delete(String sessionId) throws SQLException {
-        try (var conn = storage.connect();
-             var st = conn.prepareStatement(QUERY_DELETE_SESSION_VMS))
-        {
-            st.setString(1, sessionId);
-            st.execute();
-        }
+    public void delete(String sessionId, @Nullable TransactionHandle tx) throws SQLException {
+        DbOperation.execute(tx, storage, conn -> {
+            try (var st = conn.prepareStatement(QUERY_DELETE_SESSION_VMS)) {
+                st.setString(1, sessionId);
+                st.execute();
+            }
+        });
     }
 
     @Override

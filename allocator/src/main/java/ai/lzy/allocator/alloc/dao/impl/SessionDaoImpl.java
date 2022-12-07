@@ -88,10 +88,12 @@ public class SessionDaoImpl implements SessionDao {
     }
 
     @Override
-    public void delete(String sessionId, @Nullable TransactionHandle transaction) throws SQLException {
+    public boolean delete(String sessionId, @Nullable TransactionHandle transaction) throws SQLException {
         LOG.debug("Delete session {} in tx {}", sessionId, transaction);
 
         throwInjectedError();
+
+        final boolean[] ret = {false};
 
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement("""
@@ -100,9 +102,11 @@ public class SessionDaoImpl implements SessionDao {
                 WHERE id = ? AND deleted_at IS NULL"""))
             {
                 s.setString(1, sessionId);
-                s.execute();
+                ret[0] = s.executeUpdate() > 0;
             }
         });
+
+        return ret[0];
     }
 
     @VisibleForTesting

@@ -20,7 +20,7 @@ public interface VmDao {
     Vm create(Vm.Spec vmSpec, String opId, Instant startedAt, Instant opDeadline, String vmOtt, String allocatorId,
               @Nullable TransactionHandle tx) throws SQLException;
 
-    void delete(String sessionId) throws SQLException;
+    void delete(String sessionId, @Nullable TransactionHandle tx) throws SQLException;
 
 
     /**
