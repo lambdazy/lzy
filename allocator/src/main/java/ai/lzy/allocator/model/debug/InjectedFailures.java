@@ -130,7 +130,8 @@ public class InjectedFailures {
         if (th != null) {
             ref.set(null);
             if (th instanceof TerminateProcess) {
-                System.exit(42);
+                Runtime.getRuntime().halt(42);
+                // System.exit(42);
             }
             throw Lombok.sneakyThrow(th);
         }
@@ -145,7 +146,8 @@ public class InjectedFailures {
         if (th != null) {
             ref.set(null);
             if (th instanceof TerminateProcess) {
-                System.exit(42);
+                Runtime.getRuntime().halt(42);
+                // System.exit(42);
             }
             throw Lombok.sneakyThrow(th);
         }
