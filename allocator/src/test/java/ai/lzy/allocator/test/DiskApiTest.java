@@ -20,6 +20,7 @@ import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
+import io.grpc.StatusException;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
@@ -181,7 +182,7 @@ public class DiskApiTest extends BaseTestWithIam {
     }
 
     @Test
-    public void createDeleteTest() throws InvalidProtocolBufferException {
+    public void createDeleteTest() throws Exception {
         var createDiskOperation =
             diskService.createDisk(DiskServiceApi.CreateDiskRequest.newBuilder()
                 .setUserId(defaultUserName)
@@ -206,7 +207,7 @@ public class DiskApiTest extends BaseTestWithIam {
     }
 
     @Test
-    public void createExistingDeleteTest() throws InvalidProtocolBufferException {
+    public void createExistingDeleteTest() throws Exception {
         final Disk disk = new Disk("123", defaultDiskSpec, new DiskMeta(defaultUserName));
         ((MockDiskManager) diskManager).put(disk);
 
@@ -251,7 +252,7 @@ public class DiskApiTest extends BaseTestWithIam {
     }
 
     @Test
-    public void cloneDiskTest() throws InvalidProtocolBufferException {
+    public void cloneDiskTest() throws Exception {
         final DiskApi.Disk disk = createDefaultDisk();
 
         final DiskSpec clonedDiskSpec = new DiskSpec("clonedDiskName", DiskType.HDD, 4, "ru-central1-a");
@@ -375,7 +376,7 @@ public class DiskApiTest extends BaseTestWithIam {
     }
 
     @Test
-    public void cloneWithDowngradeOfDiskSizeTest() throws InvalidProtocolBufferException {
+    public void cloneWithDowngradeOfDiskSizeTest() throws Exception {
         final DiskApi.Disk disk = createDefaultDisk();
         final DiskSpec clonedDiskSpec = new DiskSpec("clonedDiskName", DiskType.HDD, 1, "ru-central1-a");
 
@@ -462,9 +463,15 @@ public class DiskApiTest extends BaseTestWithIam {
             .build());
     }
 
-    private boolean waitDiskDeletion(DiskApi.Disk disk) {
+    private boolean waitDiskDeletion(DiskApi.Disk disk)  {
         return TimeUtils.waitFlagUp(
-            () -> diskManager.get(disk.getDiskId()) == null,
+            () -> {
+                try {
+                    return diskManager.get(disk.getDiskId()) == null;
+                } catch (StatusException e) {
+                    throw e.getStatus().asRuntimeException();
+                }
+            },
             5, TimeUnit.SECONDS);
     }
 

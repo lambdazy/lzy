@@ -48,6 +48,11 @@ public class DiskMetrics {
         .subsystem(ALLOCATOR)
         .register();
 
+    public final Counter createDiskAlreadyExists = Counter
+        .build("create_disk_already_exists", "Disk already exists")
+        .subsystem(ALLOCATOR)
+        .register();
+
 
     // CLONE DISK
 

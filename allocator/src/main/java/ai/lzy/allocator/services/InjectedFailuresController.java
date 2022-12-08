@@ -77,7 +77,7 @@ public class InjectedFailuresController {
     }
 
     private static <T> HttpResponse<String> setImpl(int n, List<AtomicReference<T>> list, T value) {
-        if (n > 0 && n < list.size()) {
+        if (n >= 0 && n < list.size()) {
             list.get(n).set(value);
             return HttpResponse.ok("Ok");
         }
@@ -85,7 +85,7 @@ public class InjectedFailuresController {
     }
 
     private static <T> HttpResponse<String> deleteImpl(int n, List<AtomicReference<T>> list) {
-        if (n > 0 && n < list.size()) {
+        if (n >= 0 && n < list.size()) {
             list.get(n).set(null);
             return HttpResponse.ok("Ok");
         }

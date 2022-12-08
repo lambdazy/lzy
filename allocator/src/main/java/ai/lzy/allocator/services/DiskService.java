@@ -86,10 +86,11 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
         }
 
         if (ops.isEmpty()) {
+            LOG.info("No active disk ops found for allocator instance '{}'", config.getInstanceId());
             return;
         }
 
-        LOG.warn("Found {} not completed disk operations on allocator {}", ops.size(), config.getInstanceId());
+        LOG.warn("Found {} not completed disk operations on allocator '{}'", ops.size(), config.getInstanceId());
         for (var op : ops) {
             LOG.info("Restore {}", op);
             op = diskManager.restoreDiskOperation(op);
@@ -142,7 +143,12 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
 
                         case EXISTING_DISK -> {
                             final String diskId = request.getExistingDisk().getDiskId();
-                            var disk = diskManager.get(diskId);
+                            Disk disk;
+                            try {
+                                disk = diskManager.get(diskId);
+                            } catch (StatusException e) {
+                                throw e.getStatus().asRuntimeException();
+                            }
                             if (disk == null) {
                                 LOG.error("Create disk failed, disk {} not found", diskId);
 
