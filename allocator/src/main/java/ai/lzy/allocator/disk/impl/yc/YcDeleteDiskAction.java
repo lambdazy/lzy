@@ -1,6 +1,7 @@
 package ai.lzy.allocator.disk.impl.yc;
 
 import ai.lzy.allocator.disk.DiskManager;
+import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.v1.DiskServiceApi;
@@ -68,6 +69,8 @@ final class YcDeleteDiskAction extends YcDiskActionBase<YcDeleteDiskState> {
                 }
             }
 
+            InjectedFailures.failDeleteDisk1();
+
             try {
                 withRetries(LOG, () -> diskOpDao().updateDiskOp(opId(), toJson(state), null));
                 ycOpIdSaved = true;
@@ -77,6 +80,8 @@ final class YcDeleteDiskAction extends YcDiskActionBase<YcDeleteDiskState> {
                 restart();
                 return;
             }
+
+            InjectedFailures.failDeleteDisk2();
 
             LOG.info("Wait YC at YcDeleteDisk {}/{}...", opId(), state.ycOperationId());
             restart();

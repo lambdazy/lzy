@@ -358,6 +358,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
             });
 
             if (diskOperation != null) {
+                InjectedFailures.failDeleteDisk0();
                 executor.submit(diskOperation.deferredAction());
             }
         } catch (Exception e) {

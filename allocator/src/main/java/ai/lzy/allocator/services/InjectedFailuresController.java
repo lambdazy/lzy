@@ -12,15 +12,14 @@ import io.micronaut.http.annotation.Post;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static ai.lzy.allocator.model.debug.InjectedFailures.FAIL_ALLOCATE_VMS;
-import static ai.lzy.allocator.model.debug.InjectedFailures.FAIL_CLONE_DISK;
-import static ai.lzy.allocator.model.debug.InjectedFailures.FAIL_CREATE_DISK;
+import static ai.lzy.allocator.model.debug.InjectedFailures.*;
 
 @Controller(value = "/debug/inject-failure", consumes = MediaType.ALL, produces = MediaType.TEXT_PLAIN)
 public class InjectedFailuresController {
 
     private static final String ALLOCATE_VM = "/allocate-vm";
     private static final String CREATE_DISK = "/create-disk";
+    private static final String DELETE_DISK = "/delete-disk";
     private static final String CLONE_DISK = "/clone-disk";
 
     @Get(ALLOCATE_VM)
@@ -51,6 +50,21 @@ public class InjectedFailuresController {
     @Delete(CREATE_DISK)
     public HttpResponse<String> removeCreateDiskFailure(@Body String body) {
         return deleteImpl(Integer.parseInt(body), FAIL_CREATE_DISK);
+    }
+
+    @Get(DELETE_DISK)
+    public String listDeleteDiskFailures() {
+        return listImpl("DeleteDisk", FAIL_DELETE_DISK);
+    }
+
+    @Post(DELETE_DISK)
+    public HttpResponse<String> injectDeleteDiskFailure(@Body String body) {
+        return setImpl(Integer.parseInt(body), FAIL_DELETE_DISK, InjectedFailures.TerminateProcess::new);
+    }
+
+    @Delete(DELETE_DISK)
+    public HttpResponse<String> removeDeleteDiskFailure(@Body String body) {
+        return deleteImpl(Integer.parseInt(body), FAIL_DELETE_DISK);
     }
 
     @Get(CLONE_DISK)
