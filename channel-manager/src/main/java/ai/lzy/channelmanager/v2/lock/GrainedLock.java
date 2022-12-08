@@ -1,4 +1,4 @@
-package ai.lzy.channelmanager.lock;
+package ai.lzy.channelmanager.v2.lock;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

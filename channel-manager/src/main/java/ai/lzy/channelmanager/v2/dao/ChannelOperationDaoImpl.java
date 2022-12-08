@@ -1,6 +1,5 @@
 package ai.lzy.channelmanager.v2.dao;
 
-import ai.lzy.channelmanager.db.ChannelManagerDataSource;
 import ai.lzy.channelmanager.v2.operation.ChannelOperation;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.TransactionHandle;

@@ -1,7 +1,8 @@
 package ai.lzy.channelmanager;
 
-import ai.lzy.channelmanager.db.ChannelManagerDataSource;
+import ai.lzy.channelmanager.v2.ChannelManagerApp;
 import ai.lzy.channelmanager.v2.config.ChannelManagerConfig;
+import ai.lzy.channelmanager.v2.dao.ChannelManagerDataSource;
 import ai.lzy.channelmanager.v2.debug.InjectedFailures;
 import ai.lzy.channelmanager.v2.operation.ChannelOperationManager;
 import ai.lzy.iam.test.BaseTestWithIam;

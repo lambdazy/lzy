@@ -3,6 +3,7 @@ package ai.lzy.channelmanager.db;
 import ai.lzy.channelmanager.channel.*;
 import ai.lzy.channelmanager.control.DirectChannelController;
 import ai.lzy.channelmanager.control.SnapshotChannelController;
+import ai.lzy.channelmanager.v2.dao.ChannelManagerDataSource;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.ProtoObjectMapper;
 import ai.lzy.model.db.TransactionHandle;

@@ -1,4 +1,4 @@
-package ai.lzy.channelmanager;
+package ai.lzy.channelmanager.v2;
 
 import ai.lzy.channelmanager.v2.config.ChannelManagerConfig;
 import ai.lzy.channelmanager.v2.grpc.ChannelManagerPrivateService;

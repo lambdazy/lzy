@@ -1,7 +1,7 @@
 package ai.lzy.test.impl;
 
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.channelmanager.ChannelManagerApp;
+import ai.lzy.channelmanager.ChannelManagerAppOld;
 import ai.lzy.test.LzyChannelManagerContext;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
@@ -26,7 +26,7 @@ public class ChannelManagerThreadContext implements LzyChannelManagerContext {
 
     private final String whiteboardAddress;
     private final HostAndPort iamAddress;
-    private ChannelManagerApp channelManagerApp;
+    private ChannelManagerAppOld channelManager;
     private LzyChannelManagerGrpc.LzyChannelManagerBlockingStub client;
     private LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub privateClient;
     private ManagedChannel channel;
@@ -70,8 +70,8 @@ public class ChannelManagerThreadContext implements LzyChannelManagerContext {
         try {
             context = ApplicationContext.run(PropertySource.of(props));
 
-            channelManagerApp = context.getBean(ChannelManagerApp.class);
-            channelManagerApp.start();
+            channelManager = new ChannelManagerAppOld(context);
+            channelManager.start();
 
             channel = ChannelBuilder
                 .forAddress("localhost", Config.PORT)
@@ -98,8 +98,8 @@ public class ChannelManagerThreadContext implements LzyChannelManagerContext {
         channel.shutdown();
         try {
             channel.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
-            channelManagerApp.stop();
-            channelManagerApp.awaitTermination();
+            channelManager.stop();
+            channelManager.awaitTermination();
             context.close();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);

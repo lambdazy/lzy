@@ -1,4 +1,4 @@
-package ai.lzy.channelmanager.db;
+package ai.lzy.channelmanager.v2.dao;
 
 import ai.lzy.channelmanager.v2.config.ChannelManagerConfig;
 import ai.lzy.model.db.StorageImpl;

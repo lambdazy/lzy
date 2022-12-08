@@ -7,7 +7,7 @@ import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import jakarta.inject.Singleton;
 
-import static ai.lzy.channelmanager.ChannelManagerApp.APP;
+import static ai.lzy.channelmanager.v2.ChannelManagerApp.APP;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 

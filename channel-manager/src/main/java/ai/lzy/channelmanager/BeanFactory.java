@@ -1,8 +1,8 @@
 package ai.lzy.channelmanager;
 
-import ai.lzy.channelmanager.db.ChannelManagerDataSource;
-import ai.lzy.channelmanager.lock.GrainedLock;
 import ai.lzy.channelmanager.v2.config.ChannelManagerConfig;
+import ai.lzy.channelmanager.v2.dao.ChannelManagerDataSource;
+import ai.lzy.channelmanager.v2.lock.GrainedLock;
 import ai.lzy.longrunning.OperationService;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.longrunning.dao.OperationDaoImpl;
@@ -25,8 +25,7 @@ public class BeanFactory {
     }
 
     @Singleton
-    public OperationService operationService(
-        @Named("ChannelManagerOperationDao") OperationDao operationDao)
+    public OperationService operationService(@Named("ChannelManagerOperationDao") OperationDao operationDao)
     {
         return new OperationService(operationDao);
     }
