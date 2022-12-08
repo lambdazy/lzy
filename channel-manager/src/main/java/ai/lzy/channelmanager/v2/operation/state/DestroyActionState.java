@@ -3,6 +3,7 @@ package ai.lzy.channelmanager.v2.operation.state;
 import java.util.HashSet;
 
 public record DestroyActionState(
+    String executionId,
     HashSet<String> toDestroyChannels,
     HashSet<String> destroyedChannels
 ) {

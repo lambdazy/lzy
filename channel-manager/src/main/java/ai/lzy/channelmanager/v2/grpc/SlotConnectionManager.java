@@ -1,11 +1,13 @@
 package ai.lzy.channelmanager.v2.grpc;
 
 import ai.lzy.channelmanager.v2.config.ChannelManagerConfig;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalNotification;
 import com.google.common.net.HostAndPort;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -19,15 +21,17 @@ public class SlotConnectionManager {
     private static final Logger LOG = LogManager.getLogger(SlotConnectionManager.class);
 
     private final LoadingCache<HostAndPort, SlotGrpcConnection> connections;
-    private final ChannelManagerConfig config;
+    private final RenewableJwt iamToken;
 
-    public SlotConnectionManager(ChannelManagerConfig config) {
-        this.config = config;
+    public SlotConnectionManager(ChannelManagerConfig config,
+                                 @Named("ChannelManagerIamToken") RenewableJwt iamToken)
+    {
         this.connections = CacheBuilder.newBuilder()
             .expireAfterAccess(config.getConnections().getCacheTtlSeconds(), TimeUnit.SECONDS)
             .concurrencyLevel(config.getConnections().getCacheConcurrencyLevel())
             .removalListener(this::onRemove)
             .build(CacheLoader.from(this::onLoad));
+        this.iamToken = iamToken;
     }
 
     public SlotGrpcConnection getConnection(URI uri) {
@@ -36,7 +40,7 @@ public class SlotConnectionManager {
     }
 
     private SlotGrpcConnection onLoad(HostAndPort address) {
-        final var connection = new SlotGrpcConnection(config.getIam().createRenewableToken(), address);
+        final var connection = new SlotGrpcConnection(iamToken, address);
         LOG.debug("Connection created, address={}", address);
         return connection;
     }

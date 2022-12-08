@@ -98,7 +98,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         Instant startedAt = Instant.now();
         Instant deadline = startedAt.plusSeconds(30);
         final ChannelOperation channelOperation = channelOperationManager.newBindOperation(
-            operation.id(), startedAt, deadline, channelId, slotUri
+            operation.id(), startedAt, deadline, channel.getExecutionId(), channelId, slotUri
         );
 
         final var slotInstance = ProtoConverter.fromProto(request.getSlotInstance());
@@ -160,22 +160,30 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
 
         final String slotUri = request.getSlotUri();
         final Endpoint endpoint;
+        final Channel channel;
         try {
-            endpoint = channelDao.findEndpoint(slotUri, null);
+            endpoint = withRetries(LOG, () -> channelDao.findEndpoint(slotUri, null));
+            if (endpoint == null) {
+                String errorMessage = "Endpoint " + slotUri + " not found";
+                LOG.error(operationDescription + " failed, {}", errorMessage);
+                response.onError(Status.NOT_FOUND.withDescription(errorMessage).asException());
+                return;
+            }
+
+            channel = withRetries(LOG, () -> channelDao.findChannel(endpoint.getChannelId(), null));
+            if (channel == null) {
+                String errorMessage = "Channel " + endpoint.getChannelId() + " not found";
+                LOG.error(operationDescription + " failed, {}", errorMessage);
+                response.onError(Status.NOT_FOUND.withDescription(errorMessage).asException());
+                return;
+            }
         } catch (Exception e) {
             LOG.error(operationDescription + " failed, got exception: {}", e.getMessage(), e);
             response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
             return;
         }
 
-        if (endpoint == null) {
-            String errorMessage = "Endpoint not found";
-            LOG.error(operationDescription + " failed, {}", errorMessage);
-            response.onError(Status.NOT_FOUND.withDescription(errorMessage).asException());
-            return;
-        }
-
-        final String channelId = endpoint.getChannelId();
+        final String channelId = channel.getId();
 
         final Operation operation = Operation.create(
             "ChannelManager", operationDescription, Any.pack(LCMS.UnbindMetadata.getDefaultInstance()));
@@ -183,7 +191,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         Instant startedAt = Instant.now();
         Instant deadline = startedAt.plusSeconds(30);
         final ChannelOperation channelOperation = channelOperationManager.newUnbindOperation(
-            operation.id(), startedAt, deadline, channelId, slotUri
+            operation.id(), startedAt, deadline, channel.getExecutionId(), channelId, slotUri
         );
 
         try {

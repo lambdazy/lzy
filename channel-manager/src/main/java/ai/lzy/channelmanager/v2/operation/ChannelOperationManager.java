@@ -15,8 +15,11 @@ import ai.lzy.channelmanager.v2.operation.state.DestroyActionState;
 import ai.lzy.channelmanager.v2.operation.state.UnbindActionState;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.ProtoObjectMapper;
+import ai.lzy.util.auth.credentials.RenewableJwt;
+import ai.lzy.v1.workflow.LzyWorkflowPrivateServiceGrpc;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.grpc.ManagedChannel;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -25,6 +28,9 @@ import org.apache.logging.log4j.Logger;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
+
+import static ai.lzy.channelmanager.v2.ChannelManagerApp.APP;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 
 @Singleton
 public class ChannelOperationManager {
@@ -40,12 +46,14 @@ public class ChannelOperationManager {
     private final ChannelController channelController;
     private final SlotConnectionManager slotConnectionManager;
     private final GrainedLock lockManager;
+    private final LzyWorkflowPrivateServiceGrpc.LzyWorkflowPrivateServiceBlockingStub workflowPrivateApi;
 
-    public ChannelOperationManager(ChannelOperationExecutor executor,
+    public ChannelOperationManager(@Named("ChannelManagerWorkflowGrpcChannel") ManagedChannel workflowGrpcChannel,
+                                   @Named("ChannelManagerIamToken") RenewableJwt internalUserCredentials,
+                                   ChannelOperationExecutor executor,
                                    ChannelManagerDataSource storage, ChannelDao channelDao,
                                    @Named("ChannelManagerOperationDao") OperationDao operationDao,
-                                   ChannelOperationDao channelOperationDao,
-                                   ChannelController channelController,
+                                   ChannelOperationDao channelOperationDao, ChannelController channelController,
                                    SlotConnectionManager slotConnectionManager, GrainedLock lockManager)
     {
         this.objectMapper = new ProtoObjectMapper();
@@ -57,27 +65,31 @@ public class ChannelOperationManager {
         this.channelController = channelController;
         this.slotConnectionManager = slotConnectionManager;
         this.lockManager = lockManager;
+
+        this.workflowPrivateApi = newBlockingClient(
+            LzyWorkflowPrivateServiceGrpc.newBlockingStub(workflowGrpcChannel),
+            APP, () -> internalUserCredentials.get().token());
     }
 
     public ChannelOperation newBindOperation(String operationId, Instant startedAt, Instant deadline,
-                                             String channelId, String endpointUri)
+                                             String executionId, String channelId, String endpointUri)
     {
         return new ChannelOperation(operationId, startedAt, deadline, ChannelOperation.Type.BIND,
-            toJson(new BindActionState(channelId, endpointUri, null, null)));
+            toJson(new BindActionState(executionId, channelId, endpointUri, null, null)));
     }
 
     public ChannelOperation newUnbindOperation(String operationId, Instant startedAt, Instant deadline,
-                                               String channelId, String endpointUri)
+                                               String executionId, String channelId, String endpointUri)
     {
         return new ChannelOperation(operationId, startedAt, deadline, ChannelOperation.Type.UNBIND,
-            toJson(new UnbindActionState(channelId, endpointUri)));
+            toJson(new UnbindActionState(executionId, channelId, endpointUri)));
     }
 
     public ChannelOperation newDestroyOperation(String operationId, Instant startedAt, Instant deadline,
-                                                List<String> channelsToDestroy)
+                                                String executionId, List<String> channelsToDestroy)
     {
         return new ChannelOperation(operationId, startedAt, deadline, ChannelOperation.Type.DESTROY,
-            toJson(new DestroyActionState(new HashSet<>(channelsToDestroy), new HashSet<>())));
+            toJson(new DestroyActionState(executionId, new HashSet<>(channelsToDestroy), new HashSet<>())));
     }
 
     public ChannelAction getAction(ChannelOperation operation) {
@@ -85,15 +97,15 @@ public class ChannelOperationManager {
             case BIND -> new BindAction(operation.id(),
                 fromJson(operation.stateJson(), BindActionState.class),
                 objectMapper, executor, storage, channelDao, operationDao, channelOperationDao,
-                channelController, slotConnectionManager, lockManager);
+                channelController, slotConnectionManager, lockManager, workflowPrivateApi);
             case UNBIND -> new UnbindAction(operation.id(),
                 fromJson(operation.stateJson(), UnbindActionState.class),
                 objectMapper, executor, storage, channelDao, operationDao, channelOperationDao,
-                channelController, slotConnectionManager, lockManager);
+                channelController, slotConnectionManager, lockManager, workflowPrivateApi);
             case DESTROY -> new DestroyAction(operation.id(),
                 fromJson(operation.stateJson(), DestroyActionState.class),
                 objectMapper, executor, storage, channelDao, operationDao, channelOperationDao,
-                channelController, slotConnectionManager, lockManager);
+                channelController, slotConnectionManager, lockManager, workflowPrivateApi);
         };
     }
 

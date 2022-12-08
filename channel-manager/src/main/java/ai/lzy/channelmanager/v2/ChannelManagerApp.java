@@ -8,12 +8,12 @@ import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.longrunning.OperationService;
-import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
 import io.micronaut.runtime.Micronaut;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -21,7 +21,6 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 
 @Singleton
@@ -37,6 +36,7 @@ public class ChannelManagerApp {
     private final ChannelOperationManager channelOperationManager;
 
     public ChannelManagerApp(ChannelManagerConfig config,
+                             @Named("ChannelManagerIamGrpcChannel") ManagedChannel iamChannel,
                              ChannelManagerService channelManagerService,
                              ChannelManagerPrivateService channelManagerPrivateService,
                              OperationService operationService,
@@ -44,15 +44,14 @@ public class ChannelManagerApp {
     {
         LOG.info("Starting ChannelManager service with config: {}", config.toString());
 
-        final var iamAddress = HostAndPort.fromString(config.getIam().getAddress());
+        this.iamChannel = iamChannel;
+
+        final var authInterceptor = new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel));
         final var chanelManagerAddress = HostAndPort.fromString(config.getAddress());
 
-        iamChannel = newGrpcChannel(iamAddress, LzyAuthenticateServiceGrpc.SERVICE_NAME);
-        final var authInterceptor = new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel));
+        final var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
 
-        var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
-
-        channelManagerServer = newGrpcServer(chanelManagerAddress, authInterceptor)
+        this.channelManagerServer = newGrpcServer(chanelManagerAddress, authInterceptor)
             .addService(channelManagerService)
             .addService(ServerInterceptors.intercept(channelManagerPrivateService, internalOnly))
             .addService(operationService)

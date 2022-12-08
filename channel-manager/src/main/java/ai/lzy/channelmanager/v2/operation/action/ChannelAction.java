@@ -16,6 +16,8 @@ import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.v1.slots.LSA;
+import ai.lzy.v1.workflow.LWFPS;
+import ai.lzy.v1.workflow.LzyWorkflowPrivateServiceGrpc;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.grpc.Status;
@@ -34,6 +36,7 @@ public abstract class ChannelAction implements Runnable {
 
     private final ObjectMapper objectMapper;
     private final ChannelOperationExecutor executor;
+    private final LzyWorkflowPrivateServiceGrpc.LzyWorkflowPrivateServiceBlockingStub workflowPrivateApi;
 
     protected final String operationId;
     protected final ChannelManagerDataSource storage;
@@ -49,10 +52,12 @@ public abstract class ChannelAction implements Runnable {
     protected ChannelAction(String operationId, ObjectMapper objectMapper, ChannelOperationExecutor executor,
                             ChannelManagerDataSource storage, ChannelDao channelDao, OperationDao operationDao,
                             ChannelOperationDao channelOperationDao, ChannelController channelController,
-                            SlotConnectionManager slotConnectionManager, GrainedLock lockManager)
+                            SlotConnectionManager slotConnectionManager, GrainedLock lockManager,
+                            LzyWorkflowPrivateServiceGrpc.LzyWorkflowPrivateServiceBlockingStub workflowPrivateApi)
     {
         this.operationId = operationId;
         this.objectMapper = objectMapper;
+        this.workflowPrivateApi = workflowPrivateApi;
         this.executor = executor;
         this.storage = storage;
         this.channelDao = channelDao;
@@ -68,7 +73,7 @@ public abstract class ChannelAction implements Runnable {
         executor.schedule(this, 1, TimeUnit.SECONDS);
     }
 
-    protected void failOperation(Status status) {
+    protected void failOperation(String executionId, Status status) {
         operationStopped = true;
         try {
             withRetries(LOG, () -> {
@@ -87,7 +92,17 @@ public abstract class ChannelAction implements Runnable {
             LOG.error("Cannot fail operation {} with reason {}: {}",
                 operationId, status.getDescription(), ex.getMessage());
         }
-        // TODO if internal
+
+        try {
+            workflowPrivateApi.stopWorkflow(LWFPS.StopWorkflowRequest.newBuilder()
+                .setExecutionId(executionId)
+                .setReason(status.getDescription())
+                .build());
+            LOG.info("Sent request stopWorkflow {} about failed operation {}", executionId, operationId);
+        } catch (Exception e) {
+            LOG.error("Cannot send request stopWorkflow {} about failed operation {}, got exception: {}",
+                executionId, operationId, e.getMessage());
+        }
     }
 
     protected String toJson(Object obj) {
@@ -196,8 +211,7 @@ public abstract class ChannelAction implements Runnable {
             final Connection connectionToBreak = channelController.findConnectionToBreak(channel, receiver);
             if (connectionToBreak == null) {
                 try {
-                    withRetries(LOG, () ->
-                        channelDao.removeEndpoint(receiver.getUri().toString(), null));
+                    withRetries(LOG, () -> channelDao.removeEndpoint(receiver.getUri().toString(), null));
                     LOG.info("Async operation (operationId={}): receiver unbound, unbindingReceiver={}",
                         operationId, receiver.getUri());
                 } catch (Exception e) {

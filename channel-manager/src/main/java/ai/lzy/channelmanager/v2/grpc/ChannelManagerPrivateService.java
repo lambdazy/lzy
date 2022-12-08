@@ -112,13 +112,40 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         String operationDescription = "Destroy channel " + channelId;
         LOG.info(operationDescription);
 
+        final Channel channel;
+        try {
+            channel = withRetries(LOG, () -> channelDao.findChannel(channelId, null));
+        } catch (Exception e) {
+            LOG.error(operationDescription + " failed, got exception: {}", e.getMessage(), e);
+            response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
+            return;
+        }
+
         final Operation operation = Operation.create("ChannelManager", operationDescription,
             Any.pack(LCMPS.ChannelDestroyMetadata.getDefaultInstance()));
+
+        if (channel == null) {
+            LOG.warn(operationDescription + " skipped, channel not found");
+
+            operation.setResponse(Any.pack(LCMPS.ChannelDestroyResponse.getDefaultInstance()));
+            try {
+                withRetries(LOG, () -> operationDao.create(operation, null));
+            } catch (Exception e) {
+                LOG.error(operationDescription + " failed, cannot create operation, "
+                          + "got exception: {}", e.getMessage(), e);
+                response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
+                return;
+            }
+
+            response.onNext(operation.toProto());
+            response.onCompleted();
+            return;
+        }
 
         Instant startedAt = Instant.now();
         Instant deadline = startedAt.plusSeconds(30);
         final ChannelOperation channelOperation = channelOperationManager.newDestroyOperation(
-            operation.id(), startedAt, deadline, List.of(channelId)
+            operation.id(), startedAt, deadline, channel.getExecutionId(), List.of(channelId)
         );
 
         try {
@@ -164,7 +191,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
 
         final List<String> channelsToDestroy;
         try {
-            final List<Channel> channels = channelDao.listChannels(executionId, null);
+            final List<Channel> channels = withRetries(LOG, () -> channelDao.listChannels(executionId, null));
             channelsToDestroy = channels.stream().map(Channel::getId).collect(Collectors.toList());
         } catch (Exception e) {
             LOG.error(operationDescription + " failed, got exception: {}", e.getMessage(), e);
@@ -178,7 +205,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         Instant startedAt = Instant.now();
         Instant deadline = startedAt.plusSeconds(30);
         final ChannelOperation channelOperation = channelOperationManager.newDestroyOperation(
-            operation.id(), startedAt, deadline, channelsToDestroy
+            operation.id(), startedAt, deadline, executionId, channelsToDestroy
         );
 
         try {
@@ -262,7 +289,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         final String executionId = request.getExecutionId();
         List<Channel> channels;
         try {
-            channels = channelDao.listChannels(executionId, null);
+            channels = withRetries(LOG, () -> channelDao.listChannels(executionId, null));
         } catch (Exception e) {
             LOG.error("Get status for channels of execution {} failed, "
                       + "got exception: {}", executionId, e.getMessage(), e);

@@ -13,6 +13,7 @@ import ai.lzy.channelmanager.v2.operation.state.UnbindActionState;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.v1.channel.v2.LCMS;
+import ai.lzy.v1.workflow.LzyWorkflowPrivateServiceGrpc;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Any;
 import io.grpc.Status;
@@ -33,10 +34,11 @@ public class UnbindAction extends ChannelAction {
                         ObjectMapper objectMapper, ChannelOperationExecutor executor,
                         ChannelManagerDataSource storage, ChannelDao channelDao, OperationDao operationDao,
                         ChannelOperationDao channelOperationDao, ChannelController channelController,
-                        SlotConnectionManager slotConnectionManager, GrainedLock lockManager)
+                        SlotConnectionManager slotConnectionManager, GrainedLock lockManager,
+                        LzyWorkflowPrivateServiceGrpc.LzyWorkflowPrivateServiceBlockingStub workflowPrivateApi)
     {
         super(operationId, objectMapper, executor, storage, channelDao, operationDao, channelOperationDao,
-            channelController, slotConnectionManager, lockManager);
+            channelController, slotConnectionManager, lockManager, workflowPrivateApi);
         this.state = state;
     }
 
@@ -69,7 +71,7 @@ public class UnbindAction extends ChannelAction {
         } catch (Exception e) {
             String errorMessage = "Async operation (operationId=" + operationId + ") failed: " + e.getMessage();
             LOG.error(errorMessage);
-            this.failOperation(Status.INTERNAL.withDescription(errorMessage));
+            this.failOperation(state.executionId(), Status.INTERNAL.withDescription(errorMessage));
         }
     }
 

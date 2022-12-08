@@ -12,6 +12,7 @@ import javax.annotation.Nullable;
 @JsonSerialize
 @JsonDeserialize
 public class BindActionState {
+    private final String executionId;
     private final String channelId;
     private final String endpointUri;
 
@@ -21,11 +22,13 @@ public class BindActionState {
     private String connectOperationId;
 
     @JsonCreator
-    public BindActionState(@JsonProperty("channelId") String channelId,
+    public BindActionState(@JsonProperty("executionId") String executionId,
+                           @JsonProperty("channelId") String channelId,
                            @JsonProperty("endpointUri") String endpointUri,
                            @JsonProperty("connectingEndpointUri") @Nullable String connectingEndpointUri,
                            @JsonProperty("connectOperationId") @Nullable String connectOperationId)
     {
+        this.executionId = executionId;
         this.channelId = channelId;
         this.endpointUri = endpointUri;
         this.connectingEndpointUri = connectingEndpointUri;
@@ -33,9 +36,12 @@ public class BindActionState {
     }
 
     public static BindActionState copyOf(BindActionState other) {
-        return new BindActionState(other.channelId, other.endpointUri,
-            other.connectingEndpointUri(),
-            other.connectOperationId());
+        return new BindActionState(other.executionId, other.channelId, other.endpointUri,
+            other.connectingEndpointUri(), other.connectOperationId());
+    }
+
+    public String executionId() {
+        return executionId;
     }
 
     public String channelId() {

@@ -14,6 +14,7 @@ public final class ChannelManagerConfig {
     private String address;
     private String whiteboardAddress;
     private boolean stubIam = false;
+    private String lzyServiceAddress;
     private String stubSlotApiAddress = null;
     private int lockBucketsCount = 256;
     private int executorThreadsCount = 5;
@@ -32,6 +33,7 @@ public final class ChannelManagerConfig {
         return "ChannelManagerConfig{" +
                "address='" + address + '\'' +
                ", stubIam=" + stubIam +
+               ", lzyServiceAddress=" + lzyServiceAddress +
                ", stubSlotApiAddress=" + stubSlotApiAddress +
                ", lockBucketsCount=" + lockBucketsCount +
                ", executorThreadsCount=" + executorThreadsCount +

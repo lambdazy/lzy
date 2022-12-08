@@ -19,6 +19,7 @@ import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.v1.channel.v2.LCMS;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.slots.LSA;
+import ai.lzy.v1.workflow.LzyWorkflowPrivateServiceGrpc;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Any;
 import io.grpc.Status;
@@ -42,10 +43,11 @@ public class BindAction extends ChannelAction {
                       ObjectMapper objectMapper, ChannelOperationExecutor executor,
                       ChannelManagerDataSource storage, ChannelDao channelDao, OperationDao operationDao,
                       ChannelOperationDao channelOperationDao, ChannelController channelController,
-                      SlotConnectionManager slotConnectionManager, GrainedLock lockManager)
+                      SlotConnectionManager slotConnectionManager, GrainedLock lockManager,
+                      LzyWorkflowPrivateServiceGrpc.LzyWorkflowPrivateServiceBlockingStub workflowPrivateApi)
     {
         super(operationId, objectMapper, executor, storage, channelDao, operationDao, channelOperationDao,
-            channelController, slotConnectionManager, lockManager);
+            channelController, slotConnectionManager, lockManager, workflowPrivateApi);
         this.state = state;
         this.localState = BindActionState.copyOf(state);
     }
@@ -63,7 +65,7 @@ public class BindAction extends ChannelAction {
                                       + " endpoint " + state.endpointUri()
                                       + " of channel " + state.channelId() + " not found";
                 LOG.error(errorMessage);
-                this.failOperation(Status.CANCELLED.withDescription(errorMessage));
+                this.failOperation(state.executionId(), Status.CANCELLED.withDescription(errorMessage));
                 return;
             }
 
@@ -113,11 +115,11 @@ public class BindAction extends ChannelAction {
             String errorMessage = "Async operation (operationId=" + operationId + ") cancelled "
                                   + "due to the graph state: " + e.getMessage();
             LOG.error(errorMessage);
-            this.failOperation(Status.CANCELLED.withDescription(errorMessage));
+            this.failOperation(state.executionId(), Status.CANCELLED.withDescription(errorMessage));
         } catch (Exception e) {
             String errorMessage = "Async operation (operationId=" + operationId + ") failed: " + e.getMessage();
             LOG.error(errorMessage);
-            this.failOperation(Status.INTERNAL.withDescription(errorMessage));
+            this.failOperation(state.executionId(), Status.INTERNAL.withDescription(errorMessage));
         }
 
     }
@@ -148,7 +150,7 @@ public class BindAction extends ChannelAction {
                 String errorMessage = "Async operation (operationId=" + operationId + ") cancelled,"
                                       + " channel " + state.channelId() + " not found";
                 LOG.error(errorMessage);
-                this.failOperation(Status.CANCELLED.withDescription(errorMessage));
+                this.failOperation(state.executionId(), Status.CANCELLED.withDescription(errorMessage));
                 return null;
             }
 
@@ -185,7 +187,7 @@ public class BindAction extends ChannelAction {
                 String errorMessage = "Async operation (operationId=" + operationId + ") cancelled,"
                                       + " channel " + state.channelId() + " not found";
                 LOG.error(errorMessage);
-                this.failOperation(Status.CANCELLED.withDescription(errorMessage));
+                this.failOperation(state.executionId(), Status.CANCELLED.withDescription(errorMessage));
                 return;
             }
 
