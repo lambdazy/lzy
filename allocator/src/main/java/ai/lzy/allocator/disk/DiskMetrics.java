@@ -105,6 +105,11 @@ public class DiskMetrics {
         .subsystem(ALLOCATOR)
         .register();
 
+    public final Counter deleteDiskRetryableError = Counter
+        .build("delete_disk_retryable_error", "Disk deletion errors (retryable)")
+        .subsystem(ALLOCATOR)
+        .register();
+
     public final Histogram deleteDiskDuration = Histogram
         .build("delete_disk_duration", "Delete disk duration (sec)")
         .subsystem(ALLOCATOR)
