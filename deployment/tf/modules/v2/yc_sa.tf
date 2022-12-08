@@ -38,6 +38,16 @@ resource "yandex_resourcemanager_folder_iam_binding" "admin" {
   ]
 }
 
+resource "yandex_resourcemanager_folder_iam_binding" "s3-admin" {
+  folder_id = var.folder_id
+
+  role = "storage.admin"
+
+  members = [
+    "serviceAccount:${yandex_iam_service_account.admin-sa.id}",
+  ]
+}
+
 resource "yandex_iam_service_account" "allocator-sa" {
   name        = "k8s-sa"
   description = "service account to manage Lzy K8s"
@@ -57,6 +67,16 @@ resource "yandex_resourcemanager_folder_iam_binding" "allocator-cluster-admin" {
   folder_id = var.folder_id
 
   role = "k8s.cluster-api.cluster-admin"
+
+  members = [
+    "serviceAccount:${yandex_iam_service_account.allocator-sa.id}",
+  ]
+}
+
+resource "yandex_resourcemanager_folder_iam_binding" "allocator-compute-admin" {
+  folder_id = var.folder_id
+
+  role = "compute.admin"
 
   members = [
     "serviceAccount:${yandex_iam_service_account.allocator-sa.id}",

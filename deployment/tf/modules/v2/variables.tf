@@ -81,3 +81,7 @@ variable "worker-limits-by-labels" {
 variable "storage-image" {
   type = string
 }
+
+variable "whiteboard-image" {
+  type = string
+}

@@ -270,7 +270,7 @@ public class ServantEventProcessor extends Thread {
             }
 
             case IDLE_HEARTBEAT -> {
-                assertStatus(currentState, event, Status.IDLE, Status.RUNNING);
+                assertStatus(currentState, event, Status.IDLE, Status.RUNNING, Status.CONFIGURING);
                 eventDao.removeAllByTypes(currentState.id(), Type.IDLE_HEARTBEAT_TIMEOUT);
                 queue.put(ServantEvent
                     .fromState(currentState, Type.IDLE_HEARTBEAT_TIMEOUT)

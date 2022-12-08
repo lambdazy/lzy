@@ -4,7 +4,7 @@ from typing import Optional
 
 
 class CpuType(Enum):
-    ICE_LAKE = "Intel Ice Lake"
+    ICE_LAKE = "standard-v3"
     CASCADE_LAKE = "Intel Cascade Lake"
     BROADWELL = "Intel Broadwell"
     AMD_EPYC = "AMD EPYC™"

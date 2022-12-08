@@ -3,7 +3,7 @@ FROM amazoncorretto:17
 COPY target/scheduler-1.0-SNAPSHOT.jar app/app.jar
 COPY src/main/resources/ app/resources
 RUN chmod -R 700 app/resources
-RUN yum -y install openssl
+RUN yum -y install openssl && yum -y clean all  && rm -rf /var/cache
 
 
 ENTRYPOINT ["java", \

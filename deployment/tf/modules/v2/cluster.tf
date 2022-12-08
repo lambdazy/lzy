@@ -57,6 +57,50 @@ resource "yandex_kubernetes_node_group" "services" {
   }
 }
 
+resource "yandex_kubernetes_node_group" "portals" {
+  cluster_id  = yandex_kubernetes_cluster.main.id
+  name        = "portals"
+  description = "Nodegroup for lzy portals"
+  node_labels = {
+    "lzy.ai/node-pool-id" = "portals1"
+    "lzy.ai/node-pool-label" = "portals"
+    "lzy.ai/node-pool-kind" = "CPU"
+    "lzy.ai/node-pool-az" = "default"
+    "lzy.ai/node-pool-state" = "ACTIVE"
+  }
+
+  instance_template {
+    platform_id = "standard-v2"
+
+    network_interface {
+      subnet_ids         = [yandex_vpc_subnet.custom-subnet.id]
+      ipv4               = true
+    }
+
+    resources {
+      memory = 2
+      cores  = 2
+    }
+
+    boot_disk {
+      type = "network-hdd"
+      size = 64
+    }
+
+    scheduling_policy {
+      preemptible = false
+    }
+  }
+
+  scale_policy {
+    auto_scale {
+      initial = 2
+      max     = 10
+      min     = 2
+    }
+  }
+}
+
 provider "kubernetes" {
   host                   = yandex_kubernetes_cluster.main.master.0.external_v4_endpoint
   cluster_ca_certificate = yandex_kubernetes_cluster.main.master.0.cluster_ca_certificate

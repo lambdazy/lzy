@@ -149,6 +149,17 @@ resource "kubernetes_deployment" "allocator" {
             name = "ALLOCATOR_GC_PERIOD"
             value = "1m"
           }
+
+          env {
+            name  = "ALLOCATOR_DISK_MANAGER_FOLDER_ID"
+            value = var.folder_id
+          }
+
+          env {
+            name  = "ALLOCATOR_DISK_MANAGER_DEFAULT_OPERATION_TIMEOUT"
+            value = "5m"
+          }
+
           volume_mount {
             name       = "sa-key"
             mount_path = "/tmp/sa-key/"

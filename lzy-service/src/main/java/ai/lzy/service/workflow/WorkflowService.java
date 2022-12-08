@@ -276,7 +276,7 @@ public class WorkflowService {
 
                 LOG.info("Creating new temp storage bucket '{}' for user '{}'", bucketName, state.getUserId());
 
-                LongRunning.Operation createOp = withIdempotencyKey(storageServiceClient, state.getUserId())
+                LongRunning.Operation createOp = withIdempotencyKey(storageServiceClient, UUID.randomUUID().toString())
                     .createS3Bucket(LSS.CreateS3BucketRequest.newBuilder()
                         .setUserId(state.getUserId())
                         .setBucket(bucketName)
@@ -531,11 +531,11 @@ public class WorkflowService {
             VmAllocatorApi.AllocateRequest.newBuilder()
                 .setSessionId(sessionId)
                 .setPoolLabel("portals")
-                .setZone("default") // TODO: ???
+                .setZone("default")
                 .addWorkload(
                     VmAllocatorApi.AllocateRequest.Workload.newBuilder()
                         .setName("portal")
-                        //.setImage(portalConfig.getPortalImage())
+                        .setImage(startupPortalConfig.getDockerImage())
                         .addAllArgs(args)
                         .putEnv(portalEnvPKEY, privateKey)
                         .putAllPortBindings(ports)
