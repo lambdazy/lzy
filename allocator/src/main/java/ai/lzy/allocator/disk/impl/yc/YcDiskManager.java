@@ -9,6 +9,7 @@ import ai.lzy.longrunning.dao.OperationDao;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.grpc.Status;
+import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
@@ -36,6 +37,7 @@ public class YcDiskManager implements DiskManager {
     private static final Logger LOG = LogManager.getLogger(YcDiskManager.class);
     static final int GB_SHIFT = 30;
     static final String USER_ID_LABEL = "user-id";
+    static final String LZY_OP_LABEL = "lzy-op-id";
 
     private final String instanceId;
     private final String folderId;
@@ -52,8 +54,9 @@ public class YcDiskManager implements DiskManager {
 
     @Inject
     public YcDiskManager(ServiceConfig config, ServiceConfig.DiskManagerConfig diskConfig, AllocatorDataSource storage,
-                         ObjectMapper objectMapper, DiskMetrics metrics, DiskDao diskDao, DiskOpDao diskOpDao,
-                         ServiceFactory serviceFactory, @Named("AllocatorOperationDao") OperationDao operationsDao,
+                         @Named("AllocatorObjectMapper") ObjectMapper objectMapper, DiskMetrics metrics,
+                         DiskDao diskDao, DiskOpDao diskOpDao, ServiceFactory serviceFactory,
+                         @Named("AllocatorOperationDao") OperationDao operationsDao,
                          @Named("AllocatorExecutor") ScheduledExecutorService executor)
     {
         this.instanceId = config.getInstanceId();
@@ -76,7 +79,7 @@ public class YcDiskManager implements DiskManager {
 
     @Nullable
     @Override
-    public Disk get(String id) {
+    public Disk get(String id) throws StatusException {
         LOG.info("Searching disk with id={}", id);
         try {
             final DiskOuterClass.Disk disk = ycDiskService.get(
@@ -98,7 +101,7 @@ public class YcDiskManager implements DiskManager {
                 LOG.warn("Disk with id={} was not found", id);
                 return null;
             }
-            throw new RuntimeException(e);
+            throw e.getStatus().asException();
         }
     }
 

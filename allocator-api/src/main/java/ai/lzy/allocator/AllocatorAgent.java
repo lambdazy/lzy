@@ -93,7 +93,7 @@ public class AllocatorAgent extends TimerTask {
                 .setVmId(vmId)
                 .build());
         } catch (StatusRuntimeException e) {
-            LOG.error("Cannot send heartbeat to allocator", e);
+            LOG.error("Cannot send heartbeat to allocator: {}", e.getStatus());
         }
     }
 

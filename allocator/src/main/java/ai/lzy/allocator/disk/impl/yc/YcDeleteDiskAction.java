@@ -1,6 +1,7 @@
 package ai.lzy.allocator.disk.impl.yc;
 
 import ai.lzy.allocator.disk.DiskManager;
+import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.v1.DiskServiceApi;
@@ -11,6 +12,9 @@ import org.apache.logging.log4j.Logger;
 import yandex.cloud.api.compute.v1.DiskServiceOuterClass;
 import yandex.cloud.api.operation.OperationOuterClass;
 import yandex.cloud.api.operation.OperationServiceOuterClass;
+
+import java.time.Duration;
+import java.time.Instant;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
@@ -54,9 +58,9 @@ final class YcDeleteDiskAction extends YcDiskActionBase<YcDeleteDiskState> {
                             }
                         });
 
-                        metrics().cloneDiskError.inc();
+                        metrics().deleteDiskError.inc();
                     } catch (Exception ex) {
-                        metrics().cloneDiskRetryableError.inc();
+                        metrics().deleteDiskRetryableError.inc();
                         LOG.error("Error while failing YcDeleteDisk op {}: {}. Reschedule...", opId(), e.getMessage());
                         restart();
                     }
@@ -65,14 +69,19 @@ final class YcDeleteDiskAction extends YcDiskActionBase<YcDeleteDiskState> {
                 }
             }
 
+            InjectedFailures.failDeleteDisk1();
+
             try {
                 withRetries(LOG, () -> diskOpDao().updateDiskOp(opId(), toJson(state), null));
                 ycOpIdSaved = true;
             } catch (Exception e) {
+                metrics().deleteDiskRetryableError.inc();
                 LOG.debug("Cannot save new state for YcDeleteDisk {}/{}, reschedule...", opId(), state.ycOperationId());
                 restart();
                 return;
             }
+
+            InjectedFailures.failDeleteDisk2();
 
             LOG.info("Wait YC at YcDeleteDisk {}/{}...", opId(), state.ycOperationId());
             restart();
@@ -88,6 +97,7 @@ final class YcDeleteDiskAction extends YcDiskActionBase<YcDeleteDiskState> {
                     .setOperationId(state.ycOperationId())
                     .build());
         } catch (StatusRuntimeException e) {
+            metrics().deleteDiskRetryableError.inc();
             LOG.error("Error while getting YcDeleteDisk operation {}/{} state: [{}] {}. Reschedule...",
                 opId(), state.ycOperationId(), e.getStatus().getCode(), e.getStatus().getDescription());
             restart();
@@ -99,8 +109,6 @@ final class YcDeleteDiskAction extends YcDiskActionBase<YcDeleteDiskState> {
             restart();
             return;
         }
-
-        // TODO: update DiskService metrics
 
         if (ycOp.hasResponse()) {
             LOG.info("YcDeleteDisk succeeded, removed disk {}", state.diskId());
@@ -122,7 +130,11 @@ final class YcDeleteDiskAction extends YcDiskActionBase<YcDeleteDiskState> {
                         tx.commit();
                     }
                 });
+
+                metrics().deleteDiskFinish.inc();
+                metrics().deleteDiskDuration.observe(Duration.between(op.startedAt(), Instant.now()).getSeconds());
             } catch (Exception e) {
+                metrics().deleteDiskRetryableError.inc();
                 LOG.error("Cannot complete successful YcDeleteDisk operation {}/{}: {}. Reschedule...",
                     opId(), state.ycOperationId(), e.getMessage());
                 restart();
@@ -140,7 +152,10 @@ final class YcDeleteDiskAction extends YcDiskActionBase<YcDeleteDiskState> {
                     tx.commit();
                 }
             });
+
+            metrics().deleteDiskError.inc();
         } catch (Exception e) {
+            metrics().deleteDiskRetryableError.inc();
             LOG.error("Cannot complete failed YcDeleteDisk operation {}/{}: {}. Reschedule...",
                 opId(), state.ycOperationId(), e.getMessage());
             restart();
