@@ -91,6 +91,7 @@ public class WorkflowTest extends BaseTest {
 
     @Test
     public void testPortalStartedWhileCreatingWorkflow() {
+        WorkflowService.PEEK_RANDOM_PORTAL_PORTS = false;
         authorizedWorkflowClient.createWorkflow(
             LWFS.CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build());
 
