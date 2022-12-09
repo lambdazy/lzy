@@ -27,10 +27,7 @@ import yandex.cloud.sdk.auth.provider.CredentialProvider;
 
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import javax.inject.Named;
@@ -62,6 +59,7 @@ public class BeanFactory {
     }
 
     @Singleton
+    @Named("AllocatorObjectMapper")
     public ObjectMapper mapper() {
         return new ObjectMapper().registerModule(new JavaTimeModule());
     }
@@ -117,6 +115,25 @@ public class BeanFactory {
                 return th;
             }
         }) {
+            @Override
+            protected void afterExecute(Runnable r, Throwable t) {
+                super.afterExecute(r, t);
+                if (t == null && r instanceof Future<?> f) {
+                    try {
+                        f.get();
+                    } catch (CancellationException ce) {
+                        t = ce;
+                    } catch (ExecutionException ee) {
+                        t = ee.getCause();
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt(); // ignore/reset
+                    }
+                }
+                if (t != null) {
+                    logger.error("Unexpected exception: {}", t.getMessage(), t);
+                }
+            }
+
             @Override
             public void shutdown() {
                 logger.info("Shutdown AllocatorExecutor service. Tasks in queue: {}, running tasks: {}.",

@@ -21,6 +21,10 @@ public class InjectedFailures {
         new AtomicReference<>(null), new AtomicReference<>(null), new AtomicReference<>(null)
     );
 
+    public static final List<AtomicReference<Supplier<Throwable>>> FAIL_DELETE_DISK = List.of(
+        new AtomicReference<>(null), new AtomicReference<>(null), new AtomicReference<>(null)
+    );
+
     public static final List<AtomicReference<Supplier<Throwable>>> FAIL_CLONE_DISK = List.of(
         new AtomicReference<>(null), new AtomicReference<>(null), new AtomicReference<>(null),
         new AtomicReference<>(null), new AtomicReference<>(null), new AtomicReference<>(null)
@@ -30,6 +34,7 @@ public class InjectedFailures {
     public static void reset() {
         FAIL_ALLOCATE_VMS.forEach(x -> x.set(null));
         FAIL_CREATE_DISK.forEach(x -> x.set(null));
+        FAIL_DELETE_DISK.forEach(x -> x.set(null));
         FAIL_CLONE_DISK.forEach(x -> x.set(null));
     }
 
@@ -102,6 +107,18 @@ public class InjectedFailures {
 
     public static void failCreateDisk2() {
         failDiskOpImpl(FAIL_CREATE_DISK.get(2));
+    }
+
+    public static void failDeleteDisk0() {
+        failDiskOpImpl(FAIL_DELETE_DISK.get(0));
+    }
+
+    public static void failDeleteDisk1() {
+        failDiskOpImpl(FAIL_DELETE_DISK.get(1));
+    }
+
+    public static void failDeleteDisk2() {
+        failDiskOpImpl(FAIL_DELETE_DISK.get(2));
     }
 
     public static void failCloneDisk0() {

@@ -48,6 +48,11 @@ public class DiskMetrics {
         .subsystem(ALLOCATOR)
         .register();
 
+    public final Counter createDiskAlreadyExists = Counter
+        .build("create_disk_already_exists", "Disk already exists")
+        .subsystem(ALLOCATOR)
+        .register();
+
 
     // CLONE DISK
 
@@ -97,6 +102,11 @@ public class DiskMetrics {
 
     public final Counter deleteDiskError = Counter
         .build("delete_disk_error", "Disk deletion errors")
+        .subsystem(ALLOCATOR)
+        .register();
+
+    public final Counter deleteDiskRetryableError = Counter
+        .build("delete_disk_retryable_error", "Disk deletion errors (retryable)")
         .subsystem(ALLOCATOR)
         .register();
 

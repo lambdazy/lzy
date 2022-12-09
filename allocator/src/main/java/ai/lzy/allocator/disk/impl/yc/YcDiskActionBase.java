@@ -7,11 +7,15 @@ import ai.lzy.allocator.disk.dao.DiskOpDao;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.longrunning.dao.OperationDao;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.grpc.Status;
 import yandex.cloud.api.compute.v1.DiskServiceGrpc;
 import yandex.cloud.api.compute.v1.SnapshotServiceGrpc;
 import yandex.cloud.api.operation.OperationServiceGrpc;
 
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
+
+import static ai.lzy.util.grpc.ProtoConverter.toProto;
 
 abstract class YcDiskActionBase<S> implements Runnable {
 
@@ -24,6 +28,17 @@ abstract class YcDiskActionBase<S> implements Runnable {
         this.state = state;
         this.diskManager = diskManager;
     }
+
+    @Nullable
+    final Exception failOp(Status status) {
+        return failOp(toProto(status));
+    }
+
+    @Nullable
+    Exception failOp(com.google.rpc.Status status) {
+        throw new RuntimeException("sss");
+    }
+
 
     protected final String opId() {
         return op.opId();

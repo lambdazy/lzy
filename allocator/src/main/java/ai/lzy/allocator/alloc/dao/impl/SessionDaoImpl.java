@@ -17,6 +17,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
 import javax.annotation.Nullable;
+import javax.inject.Named;
 
 @Singleton
 public class SessionDaoImpl implements SessionDao {
@@ -26,7 +27,7 @@ public class SessionDaoImpl implements SessionDao {
     private final ObjectMapper objectMapper;
     private volatile Throwable injectedError = null;
 
-    public SessionDaoImpl(AllocatorDataSource storage, ObjectMapper objectMapper) {
+    public SessionDaoImpl(AllocatorDataSource storage, @Named("AllocatorObjectMapper") ObjectMapper objectMapper) {
         this.storage = storage;
         this.objectMapper = objectMapper;
     }
