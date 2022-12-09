@@ -2,6 +2,7 @@ package ai.lzy.fs;
 
 import ai.lzy.fs.commands.builtin.Cat;
 import ai.lzy.fs.fs.*;
+import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.model.deprecated.Zygote;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.GrpcUtils;
@@ -42,7 +43,7 @@ public class LzyFsServer {
     private final AtomicBoolean finished = new AtomicBoolean(false);
 
     public LzyFsServer(String agentId, Path mountPoint, URI selfUri, HostAndPort channelManagerAddress,
-                       RenewableJwt token)
+                       RenewableJwt token, LocalOperationService operationService)
     {
         this.mountPoint = mountPoint;
         this.selfUri = selfUri;
@@ -64,7 +65,7 @@ public class LzyFsServer {
             throw new RuntimeException(SystemUtils.OS_NAME + " is not supported");
         }
 
-        this.slotsService = new SlotsService(agentId, slotsManager, fsManager);
+        this.slotsService = new SlotsService(agentId, operationService, slotsManager, fsManager);
 
         this.localServer = newGrpcServer(selfUri.getHost(), selfUri.getPort(), GrpcUtils.NO_AUTH)
             .addService(slotsService.getSlotsApi())

@@ -1,17 +1,21 @@
 package ai.lzy.longrunning;
 
+import ai.lzy.longrunning.LocalOperationService.ImmutableCopyOperation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.longrunning.LongRunning;
+import com.google.protobuf.BytesValue;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import org.apache.commons.lang3.SerializationUtils;
 import org.apache.logging.log4j.Logger;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.concurrent.locks.LockSupport;
 import javax.annotation.Nullable;
@@ -87,10 +91,87 @@ public final class IdempotencyUtils {
             }
             response.onCompleted();
         } else {
-            response.onError(op.error().asRuntimeException());
+            var error = op.error();
+            assert error != null;
+            response.onError(error.asRuntimeException());
         }
 
         return true;
+    }
+
+    public static <T extends Message> boolean loadExistingOpResult(LocalOperationService opService,
+                                                                   Operation.IdempotencyKey idempotencyKey,
+                                                                   Class<T> responseType,
+                                                                   StreamObserver<T> response,
+                                                                   String internalErrorMessage,
+                                                                   Logger log)
+    {
+        return loadExistingOpResult(opService, idempotencyKey, false, responseType, response, internalErrorMessage,
+            log);
+    }
+
+    public static <T extends Message> boolean loadExistingOpResult(LocalOperationService opService,
+                                                                   Operation.IdempotencyKey idempotencyKey,
+                                                                   boolean isListType,
+                                                                   Class<T> responseType,
+                                                                   StreamObserver<T> response,
+                                                                   String internalErrorMessage,
+                                                                   Logger log)
+    {
+        ImmutableCopyOperation opSnapshot = opService.getByIdempotencyKey(idempotencyKey.token());
+
+        if (opSnapshot != null) {
+            if (!idempotencyKey.equals(opSnapshot.idempotencyKey())) {
+                log.error("Idempotency key {} conflict", idempotencyKey.token());
+                response.onError(Status.INVALID_ARGUMENT.withDescription("IdempotencyKey conflict").asException());
+                return true;
+            }
+
+            log.info("Found operation by idempotency key: {}", opSnapshot.toString());
+
+            var opId = opSnapshot.id();
+            opSnapshot = opService.awaitOperationCompletion(opId, Duration.ofMillis(50), Duration.ofSeconds(5));
+
+            if (opSnapshot == null) {
+                log.warn("Operation unexpectedly dissapeared from storage: { opId: {} }", opId);
+                return false;
+            }
+
+            if (opSnapshot.done()) {
+                if (opSnapshot.response() != null) {
+                    try {
+                        if (isListType) {
+                            var bytesMessage = opSnapshot.response().unpack(BytesValue.class);
+                            var bytes = bytesMessage.toByteString().toByteArray();
+                            ArrayList<T> list = SerializationUtils.deserialize(bytes);
+
+                            list.forEach(response::onNext);
+                        } else {
+                            var resp = opSnapshot.response().unpack(responseType);
+                            response.onNext(resp);
+                        }
+
+                        response.onCompleted();
+                    } catch (InvalidProtocolBufferException e) {
+                        log.error("Cannot serialize result of operation: { opId: {} }, error: {}", opId,
+                            e.getMessage(), e);
+                        response.onError(Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
+                    }
+                } else {
+                    var error = opSnapshot.error();
+                    assert error != null;
+                    response.onError(error.asRuntimeException());
+                }
+            } else {
+                log.error("Waiting deadline exceeded, operation: {}", opSnapshot.toShortString());
+                response.onError(Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
+            }
+
+            return true;
+        } else {
+            log.debug("Operation with idempotency key not found: { idempotencyKey: {} }", idempotencyKey.token());
+            return false;
+        }
     }
 
     public static boolean loadExistingOp(OperationDao operationsDao, Operation.IdempotencyKey idempotencyKey,
@@ -119,6 +200,29 @@ public final class IdempotencyUtils {
                 idempotencyKey.token(), ex.getMessage(), ex);
             response.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
             return true;
+        }
+    }
+
+    public static boolean loadExistingOp(LocalOperationService opService, Operation.IdempotencyKey idempotencyKey,
+                                         StreamObserver<LongRunning.Operation> response, Logger log)
+    {
+        ImmutableCopyOperation opSnapshot = opService.getByIdempotencyKey(idempotencyKey.token());
+
+        if (opSnapshot != null) {
+            if (!idempotencyKey.equals(opSnapshot.idempotencyKey())) {
+                log.error("Idempotency key {} conflict", idempotencyKey.token());
+                response.onError(Status.INVALID_ARGUMENT.withDescription("IdempotencyKey conflict").asException());
+                return true;
+            }
+
+            log.info("Found operation by idempotency key: {}", opSnapshot.toString());
+
+            response.onNext(opSnapshot.toProto());
+            response.onCompleted();
+            return true;
+        } else {
+            log.debug("Operation with idempotency key not found: { idempotencyKey: {} }", idempotencyKey.token());
+            return false;
         }
     }
 

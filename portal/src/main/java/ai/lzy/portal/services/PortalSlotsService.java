@@ -4,7 +4,9 @@ import ai.lzy.fs.SlotsManager;
 import ai.lzy.fs.fs.LzyInputSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
+import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.LocalOperationService;
+import ai.lzy.longrunning.LocalOperationService.ImmutableCopyOperation;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
@@ -18,25 +20,29 @@ import ai.lzy.v1.slots.LSA;
 import ai.lzy.v1.slots.LzySlotsApiGrpc;
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.BytesValue;
+import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
+import org.apache.commons.lang3.SerializationUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.net.URI;
-import java.util.Collections;
-import java.util.List;
-import java.util.Spliterator;
-import java.util.Spliterators;
+import java.time.Duration;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.StreamSupport;
 
+import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
+import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOpResult;
 import static ai.lzy.model.UriScheme.LzyFs;
 import static ai.lzy.portal.services.PortalService.APP;
 import static ai.lzy.portal.services.PortalService.PORTAL_SLOT_PREFIX;
@@ -77,10 +83,6 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
         this.workersPool = workersPool;
     }
 
-    public SlotsManager getSlotsManager() {
-        return slotsManager;
-    }
-
     public void start() {
         LOG.info("Registering portal stdout/err slots with config: {}", config.toSafeString());
 
@@ -102,61 +104,33 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
         this.slotsManager.close();
     }
 
-    public LzyInputSlot findOutSlot(String name) {
-        return stdoutSlot.find(name);
-    }
-
-    public LzyInputSlot findErrSlot(String name) {
-        return stderrSlot.find(name);
-    }
-
-    public StdoutSlot getStdoutSlot() {
-        return stdoutSlot;
-    }
-
-    public StdoutSlot getStderrSlot() {
-        return stderrSlot;
-    }
-
-    public List<StdoutSlot> getOutErrSlots() {
-        if (stdoutSlot != null && stderrSlot != null) {
-            return List.of(stdoutSlot, stderrSlot);
-        }
-        return Collections.emptyList();
-    }
-
-    public SnapshotProvider getSnapshots() {
-        return snapshots;
+    @Override
+    public void createSlot(LSA.CreateSlotRequest request, StreamObserver<LSA.CreateSlotResponse> response) {
+        response.onError(Status.UNIMPLEMENTED.withDescription("Not supported in portal").asException());
     }
 
     @Override
     public synchronized void connectSlot(LSA.ConnectSlotRequest request,
                                          StreamObserver<LongRunning.Operation> response)
     {
+        Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+        if (idempotencyKey != null && loadExistingOp(operationService, idempotencyKey, response, LOG)) {
+            return;
+        }
+
         final SlotInstance from = ProtoConverter.fromProto(request.getFrom());
         final SlotInstance to = ProtoConverter.fromProto(request.getTo());
-        LOG.info("Connect portal slot, taskId: {}, slotName: {}, remoteSlotUri: {}",
-            from.taskId(), from.name(), to.uri());
 
-        Consumer<LzyInputSlot> startConnect = inputSlot -> {
+        BiConsumer<LzyInputSlot, String> startConnect = (inputSlot, opId) -> {
+            LOG.info("Connect portal slot, taskId: {}, slotName: {}, remoteSlotUri: {}",
+                from.taskId(), from.name(), to.uri());
+
             try {
-                var op = new Operation(
-                    portalId,
-                    "ConnectSlot: %s -> %s".formatted(from.shortDesc(), to.shortDesc()),
-                    Any.pack(LSA.ConnectSlotMetadata.getDefaultInstance())
-                );
-
-                operationService.registerOperation(op);
-
-                response.onNext(op.toProto());
-                response.onCompleted();
-
                 // TODO: MDC & GrpcConntext
                 workersPool.submit(new ContextAwareTask() {
                     @Override
                     protected void execute() {
-                        LOG.info("[{}] Trying to connect slots, {} -> {}...",
-                            op.id(), from.shortDesc(), to.shortDesc());
+                        LOG.info("[{}] Trying to connect slots, {} -> {}...", opId, from.shortDesc(), to.shortDesc());
 
                         try {
                             var channel = newGrpcChannel(to.uri().getHost(), to.uri().getPort(),
@@ -178,16 +152,14 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
 
                             inputSlot.connect(to.uri(), dataProvider);
 
-                            synchronized (op) {
-                                op.setResponse(Any.pack(LSA.ConnectSlotResponse.getDefaultInstance()));
-                            }
-                            LOG.info("[{}] ... connected", op.id());
+                            operationService.updateResponse(opId, LSA.ConnectSlotResponse.getDefaultInstance());
+
+                            LOG.info("[{}] ... connected", opId);
                         } catch (Exception e) {
                             LOG.error("[{}] Cannot connect slots, {} -> {}: {}",
-                                op.id(), from.shortDesc(), to.shortDesc(), e.getMessage(), e);
-                            synchronized (op) {
-                                op.setError(Status.INTERNAL.withDescription(e.getMessage()));
-                            }
+                                opId, from.shortDesc(), to.shortDesc(), e.getMessage(), e);
+
+                            operationService.updateError(opId, Status.INTERNAL.withDescription(e.getMessage()));
                         }
                     }
                 });
@@ -197,94 +169,165 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
             }
         };
 
-        LzyInputSlot lzyInputSlot = snapshots.getInputSlot(from.name());
-        if (lzyInputSlot != null) {
-            if (lzyInputSlot.name().equals(from.name())) {
-                startConnect.accept(lzyInputSlot);
+        var op = Operation.create(
+            portalId,
+            "ConnectSlot: %s -> %s".formatted(from.shortDesc(), to.shortDesc()),
+            idempotencyKey,
+            Any.pack(LSA.ConnectSlotMetadata.getDefaultInstance()));
+
+        var opSnapshot = operationService.registerOperation(op);
+
+        response.onNext(opSnapshot.toProto());
+        response.onCompleted();
+
+        if (op.id().equals(opSnapshot.id())) {
+            var lzyInputSlot = snapshots.getInputSlot(from.name());
+            if (lzyInputSlot != null) {
+                if (lzyInputSlot.name().equals(from.name())) {
+                    startConnect.accept(lzyInputSlot, op.id());
+                    return;
+                }
+
+                LOG.error("Got connect to unexpected slot '{}', expected input slot '{}'",
+                    from.name(), lzyInputSlot.name());
+
+                var errorStatus = Status.INVALID_ARGUMENT.withDescription("Unexpected slot");
+                operationService.updateError(op.id(), errorStatus);
+                response.onError(errorStatus.asException());
                 return;
             }
 
-            LOG.error("Got connect to unexpected slot '{}', expected input slot '{}'",
-                from.name(), lzyInputSlot.name());
-            response.onError(Status.INVALID_ARGUMENT.withDescription("Unexpected slot").asException());
-            return;
-        }
+            var stdoutPeerSlot = findOutSlot(from.name());
+            if (stdoutPeerSlot != null) {
+                startConnect.accept(stdoutPeerSlot, op.id());
+                return;
+            }
 
-        var stdoutPeerSlot = findOutSlot(from.name());
-        if (stdoutPeerSlot != null) {
-            startConnect.accept(stdoutPeerSlot);
-            return;
-        }
+            var stderrPeerSlot = findErrSlot(from.name());
+            if (stderrPeerSlot != null) {
+                startConnect.accept(stderrPeerSlot, op.id());
+                return;
+            }
 
-        var stderrPeerSlot = findErrSlot(from.name());
-        if (stderrPeerSlot != null) {
-            startConnect.accept(stderrPeerSlot);
-            return;
-        }
+            var errorStatus = Status.INVALID_ARGUMENT.withDescription("Only snapshot is supported now");
 
-        LOG.error("Only snapshot is supported now, got connect from `{}` to `{}`", from, to);
-        response.onError(Status.INVALID_ARGUMENT.withDescription("Only snapshot is supported now").asException());
+            LOG.error("Only snapshot is supported now, got connect from `{}` to `{}`", from, to);
+            operationService.updateError(op.id(), errorStatus);
+            response.onError(errorStatus.asRuntimeException());
+        }
     }
 
     @Override
     public synchronized void disconnectSlot(LSA.DisconnectSlotRequest request,
                                             StreamObserver<LSA.DisconnectSlotResponse> response)
     {
+        var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+
+        if (idempotencyKey != null && loadExistingOpResult(operationService, idempotencyKey,
+            LSA.DisconnectSlotResponse.class, response, "Cannot disconnect slot", LOG))
+        {
+            return;
+        }
+
         final SlotInstance slotInstance = ProtoConverter.fromProto(request.getSlotInstance());
         LOG.info("Disconnect portal slot, taskId: {}, slotName: {}", slotInstance.taskId(), slotInstance.name());
 
         var slotName = slotInstance.name();
 
-        boolean done = false;
+        var op = Operation.create(portalId, "DisconnectSlot: " + slotName, idempotencyKey, null);
+        var opSnapshot = operationService.registerOperation(op);
 
-        LzyInputSlot inputSlot = snapshots.getInputSlot(slotName);
-        LzyOutputSlot outputSlot = snapshots.getOutputSlot(slotName);
-        if (inputSlot != null) {
-            inputSlot.disconnect();
-            done = true;
-        }
-        if (outputSlot != null) {
-            outputSlot.suspend();
-            done = true;
-        }
+        if (op.id().equals(opSnapshot.id())) {
+            boolean done = false;
 
-        if (!done) {
-            inputSlot = findOutSlot(slotName);
+            LzyInputSlot inputSlot = snapshots.getInputSlot(slotName);
+            LzyOutputSlot outputSlot = snapshots.getOutputSlot(slotName);
             if (inputSlot != null) {
                 inputSlot.disconnect();
                 done = true;
             }
-        }
-
-        if (!done) {
-            inputSlot = findErrSlot(slotName);
-            if (inputSlot != null) {
-                inputSlot.disconnect();
+            if (outputSlot != null) {
+                outputSlot.suspend();
                 done = true;
             }
+
+            if (!done) {
+                inputSlot = findOutSlot(slotName);
+                if (inputSlot != null) {
+                    inputSlot.disconnect();
+                    done = true;
+                }
+            }
+
+            if (!done) {
+                inputSlot = findErrSlot(slotName);
+                if (inputSlot != null) {
+                    inputSlot.disconnect();
+                    done = true;
+                }
+            }
+
+            StdoutSlot out = getStdoutSlot();
+            if (!done && out.name().equals(slotName)) {
+                out.suspend();
+                done = true;
+            }
+
+            StdoutSlot err = getStderrSlot();
+            if (!done && err.name().equals(slotName)) {
+                err.suspend();
+                done = true;
+            }
+
+            if (done) {
+                operationService.updateResponse(op.id(), LSA.DisconnectSlotResponse.getDefaultInstance());
+                response.onNext(LSA.DisconnectSlotResponse.getDefaultInstance());
+                response.onCompleted();
+                return;
+            }
+
+            LOG.error("Only snapshot or stdout/stderr are supported now, got {}", slotInstance);
+
+            var errorStatus = Status.NOT_FOUND.withDescription("Cannot find slot " + slotName);
+            operationService.updateError(op.id(), errorStatus);
+            response.onError(errorStatus.asRuntimeException());
+            return;
+        } else {
+            LOG.info("Found operation by idempotency key: {}", opSnapshot.toString());
         }
 
-        StdoutSlot out = getStdoutSlot();
-        if (!done && out.name().equals(slotName)) {
-            out.suspend();
-            done = true;
-        }
+        var typeResp = LSA.DisconnectSlotResponse.class;
+        var internalErrorMessage = "Cannot disconnect slot";
 
-        StdoutSlot err = getStderrSlot();
-        if (!done && err.name().equals(slotName)) {
-            err.suspend();
-            done = true;
-        }
+        var opId = opSnapshot.id();
 
-        if (done) {
-            response.onNext(LSA.DisconnectSlotResponse.getDefaultInstance());
-            response.onCompleted();
+        opSnapshot = operationService.awaitOperationCompletion(opId, Duration.ofMillis(50), Duration.ofSeconds(5));
+
+        if (opSnapshot == null) {
+            LOG.error("Can not find operation with id: { opId: {} }", opId);
+            response.onError(Status.INTERNAL.asRuntimeException());
             return;
         }
 
-        LOG.error("Only snapshot or stdout/stderr are supported now, got {}", slotInstance);
-        response.onError(Status.NOT_FOUND
-            .withDescription("Cannot find slot " + slotName).asException());
+        if (opSnapshot.done()) {
+            if (opSnapshot.response() != null) {
+                try {
+                    var resp = opSnapshot.response().unpack(typeResp);
+                    response.onNext(resp);
+                    response.onCompleted();
+                } catch (InvalidProtocolBufferException e) {
+                    LOG.error("Error while waiting op result: {}", e.getMessage(), e);
+                    response.onError(Status.INTERNAL.asRuntimeException());
+                }
+            } else {
+                var error = opSnapshot.error();
+                assert error != null;
+                response.onError(error.asRuntimeException());
+            }
+        } else {
+            LOG.error("Waiting deadline exceeded, operation: {}", opSnapshot.toShortString());
+            response.onError(Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
+        }
     }
 
     @Override
@@ -343,106 +386,245 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
     public synchronized void destroySlot(LSA.DestroySlotRequest request,
                                          StreamObserver<LSA.DestroySlotResponse> response)
     {
+        var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+
+        if (idempotencyKey != null && loadExistingOpResult(operationService, idempotencyKey,
+            LSA.DestroySlotResponse.class, response, "Cannot destroy slot", LOG))
+        {
+            return;
+        }
+
         final SlotInstance slotInstance = ProtoConverter.fromProto(request.getSlotInstance());
         LOG.info("Destroy portal slot, taskId: {}, slotName: {}", slotInstance.taskId(), slotInstance.name());
         var slotName = slotInstance.name();
 
-        boolean done = false;
+        var op = Operation.create(portalId, "DestroySlot: " + slotName, idempotencyKey, null);
+        var opSnapshot = operationService.registerOperation(op);
 
-        LzyInputSlot inputSlot = snapshots.getInputSlot(slotName);
-        LzyOutputSlot outputSlot = snapshots.getOutputSlot(slotName);
-        if (inputSlot != null) {
-            inputSlot.destroy();
-            snapshots.removeInputSlot(slotName);
-            done = true;
-        }
-        if (outputSlot != null) {
-            outputSlot.destroy();
-            snapshots.removeOutputSlot(slotName);
-            done = true;
-        }
+        if (op.id().equals(opSnapshot.id())) {
+            boolean done = false;
 
-        if (!done) {
-            inputSlot = findOutSlot(slotName);
+            LzyInputSlot inputSlot = snapshots.getInputSlot(slotName);
+            LzyOutputSlot outputSlot = snapshots.getOutputSlot(slotName);
             if (inputSlot != null) {
                 inputSlot.destroy();
+                snapshots.removeInputSlot(slotName);
                 done = true;
             }
-        }
-
-        if (!done) {
-            inputSlot = findErrSlot(slotName);
-            if (inputSlot != null) {
-                inputSlot.destroy();
+            if (outputSlot != null) {
+                outputSlot.destroy();
+                snapshots.removeOutputSlot(slotName);
                 done = true;
             }
+
+            if (!done) {
+                inputSlot = findOutSlot(slotName);
+                if (inputSlot != null) {
+                    inputSlot.destroy();
+                    done = true;
+                }
+            }
+
+            if (!done) {
+                inputSlot = findErrSlot(slotName);
+                if (inputSlot != null) {
+                    inputSlot.destroy();
+                    done = true;
+                }
+            }
+
+            StdoutSlot out = getStdoutSlot();
+            if (!done && out.name().equals(slotName)) {
+                out.destroy();
+                done = true;
+            }
+
+            StdoutSlot err = getStderrSlot();
+            if (!done && err.name().equals(slotName)) {
+                err.destroy();
+                done = true;
+            }
+
+            if (done) {
+                operationService.updateResponse(op.id(), LSA.DestroySlotResponse.getDefaultInstance());
+                response.onNext(LSA.DestroySlotResponse.getDefaultInstance());
+                response.onCompleted();
+                return;
+            }
+
+            LOG.error("Only snapshot or stdout/stderr are supported now, got {}", slotInstance);
+            response.onError(Status.NOT_FOUND
+                .withDescription("Cannot find slot " + slotName).asException());
+            return;
+        } else {
+            LOG.info("Found operation by idempotency key: {}", opSnapshot.toString());
         }
 
-        StdoutSlot out = getStdoutSlot();
-        if (!done && out.name().equals(slotName)) {
-            out.destroy();
-            done = true;
-        }
+        var typeResp = LSA.DestroySlotResponse.class;
+        var internalErrorMessage = "Cannot destroy slot";
 
-        StdoutSlot err = getStderrSlot();
-        if (!done && err.name().equals(slotName)) {
-            err.destroy();
-            done = true;
-        }
+        var opId = opSnapshot.id();
 
-        if (done) {
-            response.onNext(LSA.DestroySlotResponse.getDefaultInstance());
-            response.onCompleted();
+        opSnapshot = operationService.awaitOperationCompletion(opId, Duration.ofMillis(50), Duration.ofSeconds(5));
+
+        if (opSnapshot == null) {
+            LOG.error("Can not find operation with id: { opId: {} }", opId);
+            response.onError(Status.INTERNAL.asRuntimeException());
             return;
         }
 
-        LOG.error("Only snapshot or stdout/stderr are supported now, got {}", slotInstance);
-        response.onError(Status.NOT_FOUND
-            .withDescription("Cannot find slot " + slotName).asException());
+        if (opSnapshot.done()) {
+            if (opSnapshot.response() != null) {
+                try {
+                    var resp = opSnapshot.response().unpack(typeResp);
+                    response.onNext(resp);
+                    response.onCompleted();
+                } catch (InvalidProtocolBufferException e) {
+                    LOG.error("Error while waiting op result: {}", e.getMessage(), e);
+                    response.onError(Status.INTERNAL.asRuntimeException());
+                }
+            } else {
+                var error = opSnapshot.error();
+                assert error != null;
+                response.onError(error.asRuntimeException());
+            }
+        } else {
+            LOG.error("Waiting deadline exceeded, operation: {}", opSnapshot.toShortString());
+            response.onError(Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
+        }
     }
 
     @Override
     public void openOutputSlot(LSA.SlotDataRequest request, StreamObserver<LSA.SlotDataChunk> response) {
+        var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+
+        if (idempotencyKey != null && loadExistingOpResult(operationService, idempotencyKey,
+            /* for streaming data */ true, LSA.SlotDataChunk.class, response, "Cannot open output slot", LOG))
+        {
+            return;
+        }
+
         final SlotInstance slotInstance = ProtoConverter.fromProto(request.getSlotInstance());
         LOG.info("Open portal output slot, uri: {}, offset: {}", slotInstance.uri(), request.getOffset());
         final var slotName = slotInstance.name();
 
-        Consumer<LzyOutputSlot> reader = outputSlot -> {
-            try {
-                outputSlot
-                    .readFromPosition(request.getOffset())
-                    .forEach(chunk -> response.onNext(LSA.SlotDataChunk.newBuilder().setChunk(chunk).build()));
+        var op = Operation.create(portalId, "OpenOutputSlot with name: " + slotName, idempotencyKey, null);
+        ImmutableCopyOperation opSnapshot = operationService.registerOperation(op);
 
-                response.onNext(LSA.SlotDataChunk.newBuilder().setControl(LSA.SlotDataChunk.Control.EOS).build());
-                response.onCompleted();
-            } catch (Exception e) {
-                LOG.error("Error while uploading data: {}", e.getMessage(), e);
-                response.onError(Status.INTERNAL.withDescription(e.getMessage()).asRuntimeException());
-            }
-        };
+        if (op.id().equals(opSnapshot.id())) {
+            LzyOutputSlot outputSlot;
 
-        LzyOutputSlot outputSlot;
-
-        synchronized (this) {
-            outputSlot = snapshots.getOutputSlot(slotName);
-            if (outputSlot == null) {
-                StdoutSlot out = getStdoutSlot();
-                StdoutSlot err = getStderrSlot();
-                if (out.name().equals(slotName)) {
-                    outputSlot = out;
-                } else if (err.name().equals(slotName)) {
-                    outputSlot = err;
+            synchronized (this) {
+                outputSlot = snapshots.getOutputSlot(slotName);
+                if (outputSlot == null) {
+                    StdoutSlot out = getStdoutSlot();
+                    StdoutSlot err = getStderrSlot();
+                    if (out.name().equals(slotName)) {
+                        outputSlot = out;
+                    } else if (err.name().equals(slotName)) {
+                        outputSlot = err;
+                    }
                 }
             }
+
+            if (outputSlot != null) {
+                try {
+                    var fullData = new ArrayList<LSA.SlotDataChunk>();
+                    outputSlot
+                        .readFromPosition(request.getOffset())
+                        .forEach(chunk -> {
+                            fullData.add(LSA.SlotDataChunk.newBuilder().setChunk(chunk).build());
+                            response.onNext(LSA.SlotDataChunk.newBuilder().setChunk(chunk).build());
+                        });
+
+                    fullData.add(LSA.SlotDataChunk.newBuilder().setControl(LSA.SlotDataChunk.Control.EOS).build());
+                    operationService.updateResponse(op.id(), fullData);
+                    response.onNext(LSA.SlotDataChunk.newBuilder().setControl(LSA.SlotDataChunk.Control.EOS).build());
+                    response.onCompleted();
+                } catch (Exception e) {
+                    LOG.error("Error while uploading data: {}", e.getMessage(), e);
+                    var errorStatus = Status.INTERNAL.withDescription(e.getMessage());
+                    operationService.updateError(op.id(), errorStatus);
+                    response.onError(errorStatus.asRuntimeException());
+                }
+
+                return;
+            }
+
+            LOG.error("Only snapshot or stdout/stderr are supported now, got {}", slotInstance);
+            var errorStatus = Status.INVALID_ARGUMENT
+                .withDescription("Only snapshot or stdout/stderr are supported now");
+            operationService.updateError(op.id(), errorStatus);
+            response.onError(errorStatus.asRuntimeException());
+            return;
+        } else {
+            LOG.info("Found operation by idempotency key: {}", opSnapshot.toString());
         }
 
-        if (outputSlot != null) {
-            reader.accept(outputSlot);
+        var internalErrorMessage = "Cannot open output slot";
+
+        var opId = opSnapshot.id();
+
+        opSnapshot = operationService.awaitOperationCompletion(opId, Duration.ofMillis(50), Duration.ofSeconds(5));
+
+        if (opSnapshot == null) {
+            LOG.error("Can not find operation with id: { opId: {} }", opId);
+            response.onError(Status.INTERNAL.asRuntimeException());
             return;
         }
 
-        LOG.error("Only snapshot or stdout/stderr are supported now, got {}", slotInstance);
-        response.onError(Status.INVALID_ARGUMENT
-            .withDescription("Only snapshot or stdout/stderr are supported now").asException());
+        if (opSnapshot.done()) {
+            if (opSnapshot.response() != null) {
+                try {
+                    var bytesMessage = opSnapshot.response().unpack(BytesValue.class);
+                    var bytes = bytesMessage.toByteString().toByteArray();
+                    ArrayList<LSA.SlotDataChunk> list = SerializationUtils.deserialize(bytes);
+
+                    list.forEach(response::onNext);
+                    response.onCompleted();
+                } catch (InvalidProtocolBufferException e) {
+                    LOG.error("Error while waiting op result: {}", e.getMessage(), e);
+                    response.onError(Status.INTERNAL.asRuntimeException());
+                }
+            } else {
+                var error = opSnapshot.error();
+                assert error != null;
+                response.onError(error.asRuntimeException());
+            }
+        } else {
+            LOG.error("Waiting deadline exceeded, operation: {}", opSnapshot.toShortString());
+            response.onError(Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
+        }
+    }
+
+    public SlotsManager getSlotsManager() {
+        return slotsManager;
+    }
+
+    public LzyInputSlot findOutSlot(String name) {
+        return stdoutSlot.find(name);
+    }
+
+    public LzyInputSlot findErrSlot(String name) {
+        return stderrSlot.find(name);
+    }
+
+    public StdoutSlot getStdoutSlot() {
+        return stdoutSlot;
+    }
+
+    public StdoutSlot getStderrSlot() {
+        return stderrSlot;
+    }
+
+    public List<StdoutSlot> getOutErrSlots() {
+        if (stdoutSlot != null && stderrSlot != null) {
+            return List.of(stdoutSlot, stderrSlot);
+        }
+        return Collections.emptyList();
+    }
+
+    public SnapshotProvider getSnapshots() {
+        return snapshots;
     }
 }

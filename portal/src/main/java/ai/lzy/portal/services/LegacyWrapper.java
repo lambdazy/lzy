@@ -12,13 +12,14 @@ import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.time.Duration;
-import java.util.Objects;
-import java.util.concurrent.locks.LockSupport;
 
 @Singleton
 public class LegacyWrapper extends LzyFsGrpc.LzyFsImplBase {
+    private static final Logger LOG = LogManager.getLogger(LegacyWrapper.class);
 
     private final LzySlotsApiGrpc.LzySlotsApiImplBase slotsApi;
 
@@ -29,6 +30,11 @@ public class LegacyWrapper extends LzyFsGrpc.LzyFsImplBase {
     {
         this.slotsApi = slotsApi;
         this.operationService = operationService;
+    }
+
+    @Override
+    public void createSlot(LzyFsApi.CreateSlotRequest request, StreamObserver<LzyFsApi.SlotCommandStatus> resp) {
+        resp.onError(Status.UNIMPLEMENTED.withDescription("Not supported in portal").asException());
     }
 
     @Override
@@ -59,26 +65,29 @@ public class LegacyWrapper extends LzyFsGrpc.LzyFsImplBase {
             }
         );
 
-        if (opRef[0] != null) {
-            while (true) {
-                LockSupport.parkNanos(Duration.ofMillis(50).toNanos());
-                var done = operationService.isDone(opRef[0].getId());
-                if (done != null) {
-                    if (done) {
-                        resp.onNext(LzyFsApi.SlotCommandStatus.getDefaultInstance());
-                        resp.onCompleted();
-                        return;
-                    }
-                    // wait...
-                } else {
-                    resp.onError(Status.INTERNAL.withDescription("Smth goes wrong").asException());
-                    return;
-                }
-            }
+        var internalErrorMessage = "Cannot connect slot";
+        var opId = opRef[0].getId();
+        var opSnapshot = operationService.awaitOperationCompletion(opId, Duration.ofMillis(50), Duration.ofSeconds(5));
+
+        if (opSnapshot == null) {
+            LOG.error("Can not find operation with id: { opId: {} }", opId);
+            resp.onError(Status.INTERNAL.asRuntimeException());
+            return;
         }
 
-        Objects.requireNonNull(errRef[0]);
-        LegacyWrapper.this.onError(errRef[0], resp);
+        if (opSnapshot.done()) {
+            if (opSnapshot.response() != null) {
+                resp.onNext(LzyFsApi.SlotCommandStatus.getDefaultInstance());
+                resp.onCompleted();
+            } else {
+                var error = errRef[0];
+                assert error != null;
+                LegacyWrapper.this.onError(error, resp);
+            }
+        } else {
+            LOG.error("Waiting deadline exceeded, operation: {}", opSnapshot.toShortString());
+            resp.onError(Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
+        }
     }
 
     @Override
