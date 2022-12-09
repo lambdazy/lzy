@@ -238,6 +238,7 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                 vm.vmId(), vm.status());
             responseObserver.onError(
                 Status.FAILED_PRECONDITION.withDescription("Wrong state for heartbeat").asException());
+            return;
         }
 
         try {

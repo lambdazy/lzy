@@ -222,12 +222,12 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
 
         final var cloneDiskOperation = Operation.create(
             request.getUserId(),
-            "CloneDisk",
+            "CloneDisk: " + request.getDiskId(),
             idempotencyKey,
             DiskServiceApi.CloneDiskMetadata.newBuilder().build());
 
         final var startedAt = Instant.now();
-        final var deadline = startedAt.plus(Duration.ofHours(1));
+        final var deadline = startedAt.plus(Duration.ofDays(30));
 
         try {
             var diskOperation = withRetries(LOG, () -> {
