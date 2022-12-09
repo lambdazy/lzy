@@ -123,11 +123,13 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
         if (state.ycCreateSnapshotOperationId().isEmpty()) {
             try {
                 var ycOp = ycSnapshotService()
-                    .withInterceptors(ClientHeaderInterceptor.idempotencyKey(this::opId))
+                    .withInterceptors(ClientHeaderInterceptor.idempotencyKey(() -> opId() + "-CreateSnapshot"))
                     .create(
                         SnapshotServiceOuterClass.CreateSnapshotRequest.newBuilder()
                             .setFolderId(state.folderId())
                             .setDiskId(state.originDisk().id())
+                            .setDescription("CloneDisk: '%s', operation: '%s'"
+                                .formatted(state.originDisk().id(), opId()))
                             .build());
                 state = state.withCreateSnapshotOperationId(ycOp.getId());
             } catch (StatusRuntimeException e) {
@@ -277,6 +279,7 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
         if (state.ycCreateDiskOperationId().isEmpty()) {
             var diskRequestBuilder = DiskServiceOuterClass.CreateDiskRequest.newBuilder()
                 .setName(state.newDiskSpec().name())
+                .setDescription("Cloned disk '%s'".formatted(state.originDisk().id()))
                 .setFolderId(state.folderId())
                 .setSize(((long) state.newDiskSpec().sizeGb()) << YcDiskManager.GB_SHIFT)
                 .setTypeId(state.newDiskSpec().type().toYcName())
@@ -286,7 +289,7 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
 
             try {
                 var ycCreateDiskOperation = ycDiskService()
-                    .withInterceptors(ClientHeaderInterceptor.idempotencyKey(this::opId))
+                    .withInterceptors(ClientHeaderInterceptor.idempotencyKey(() -> opId() + "-CreateDisk"))
                     .create(diskRequestBuilder.build());
 
                 state = state.withCreateDiskOperationId(ycCreateDiskOperation.getId());
@@ -461,7 +464,7 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
         if (state.ycDeleteSnapshotOperationId().isEmpty()) {
             try {
                 var ycOp = ycSnapshotService()
-                    .withInterceptors(ClientHeaderInterceptor.idempotencyKey(this::opId))
+                    .withInterceptors(ClientHeaderInterceptor.idempotencyKey(() -> opId() + "-DeleteSnapshot"))
                     .delete(
                         SnapshotServiceOuterClass.DeleteSnapshotRequest.newBuilder()
                             .setSnapshotId(state.snapshotId())
