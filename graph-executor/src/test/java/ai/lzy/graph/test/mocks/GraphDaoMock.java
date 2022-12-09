@@ -29,7 +29,7 @@ public class GraphDaoMock extends GraphExecutionDaoImpl {
             throws InterruptedException, DaoException {
         GraphExecutionState currentState = this.get(workflowId, graphId);
         while (currentState == null || currentState.status() != status) {
-            Thread.sleep(10);
+            Thread.sleep(100);
             currentState = this.get(workflowId, graphId);
         }
     }
@@ -42,7 +42,7 @@ public class GraphDaoMock extends GraphExecutionDaoImpl {
             .stream()
             .map(TaskExecution::id)
             .collect(Collectors.toSet()).equals(executions)) {
-            Thread.sleep(10);
+            Thread.sleep(100);
             currentState = this.get(workflowId, graphId);
         }
     }

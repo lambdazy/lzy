@@ -6,12 +6,12 @@ CREATE TABLE graph_execution_state
     workflow_name varchar(255) NOT NULL,
     user_id varchar(255) NOT NULL,
     id varchar(255) NOT NULL,
-    error_description varchar(1023) NULL,
+    error_description text NULL,
     status graph_execution_status default 'WAITING' NOT NULL,
 
-    graph_description_json varchar(10485760) NOT NULL,
-    task_executions_json varchar(10485760) NOT NULL,
-    current_execution_group_json varchar(10485760) NOT NULL,
+    graph_description_json text NOT NULL,
+    task_executions_json text NOT NULL,
+    current_execution_group_json text NOT NULL,
 
     last_updated timestamp NOT NULL,
     acquired bool NOT NULL,
@@ -29,7 +29,7 @@ CREATE TABLE queue_event
     workflow_id varchar(255) NOT NULL,
     graph_id varchar(255) NOT NULL,
     acquired bool NOT NULL,
-    description varchar(10485760) NOT NULL,
+    description text NOT NULL,
 
     foreign key (workflow_id, graph_id) REFERENCES graph_execution_state (workflow_id, id)
         ON DELETE CASCADE
