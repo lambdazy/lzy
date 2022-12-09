@@ -1,11 +1,12 @@
 package ai.lzy.channelmanager.v2.debug;
 
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class InjectedFailures {
 
     private static final int FAILURE_MARKERS_COUNT = 20;
-    private static final AtomicInteger[] FAILURE_MARKERS = new AtomicInteger[FAILURE_MARKERS_COUNT];
+    private static final Marker[] FAILURE_MARKERS = new Marker[FAILURE_MARKERS_COUNT];
 
     static {
         clear();
@@ -13,7 +14,7 @@ public class InjectedFailures {
 
     public static void clear() {
         for (int i = 0; i < FAILURE_MARKERS_COUNT; ++i) {
-            FAILURE_MARKERS[i] = new AtomicInteger(0);
+            FAILURE_MARKERS[i] = new Marker();
         }
     }
 
@@ -27,6 +28,11 @@ public class InjectedFailures {
         assert markerIndex < FAILURE_MARKERS_COUNT;
         assert failOnTime > 0;
         FAILURE_MARKERS[markerIndex].set(failOnTime);
+    }
+
+    public static boolean awaitFailure(int markerIndex) {
+        assert markerIndex < FAILURE_MARKERS_COUNT;
+        return FAILURE_MARKERS[markerIndex].await();
     }
 
     public static void fail0() {
@@ -89,16 +95,57 @@ public class InjectedFailures {
         doFail(FAILURE_MARKERS[14]);
     }
 
-    private static void doFail(AtomicInteger counter) {
-        if (counter.get() == 0) {
+    private static void doFail(Marker marker) {
+        if (marker.get() == 0) {
             return;
         }
-        if (counter.decrementAndGet() == 0) {
+        if (marker.decrementAndGet() == 0) {
             throw new InjectedException();
         }
     }
 
     public static final class InjectedException extends RuntimeException {
+    }
+
+    private static class Marker {
+        private CountDownLatch counter = null;
+
+        private void set(int x) {
+            synchronized (this) {
+                counter = new CountDownLatch(x);
+            }
+        }
+
+        private int get() {
+            synchronized (this) {
+                if (counter == null) {
+                    return 0;
+                }
+                return (int) counter.getCount();
+            }
+        }
+
+        private int decrementAndGet() {
+            synchronized (this) {
+                if (counter == null) {
+                    return 0;
+                }
+                counter.countDown();
+                return (int) counter.getCount();
+            }
+        }
+
+        private boolean await() {
+            if (counter == null) {
+                return false;
+            }
+            try {
+                return counter.await(1, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                return false;
+            }
+        }
+
     }
 
 }

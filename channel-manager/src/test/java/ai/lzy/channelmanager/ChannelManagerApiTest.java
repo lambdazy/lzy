@@ -20,7 +20,6 @@ import org.junit.Test;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.UUID;
-import java.util.concurrent.locks.LockSupport;
 
 import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static org.junit.Assert.assertEquals;
@@ -324,14 +323,16 @@ public class ChannelManagerApiTest extends ChannelManagerBaseApiTest {
 
         awaitOperationResponse(bindOp.getId());
 
-        InjectedFailures.setFailure(1, 1);
+        int marker = 1;
+        InjectedFailures.setFailure(marker, 1);
 
         BindRequest bindRequestSender = makeBindCommand(channelId, "outSlot",
             LMS.Slot.Direction.OUTPUT, BindRequest.SlotOwner.WORKER);
         var bindOpSender = publicClient.bind(bindRequestSender);
         String outputSlotUri = bindRequestSender.getSlotInstance().getSlotUri();
 
-        LockSupport.parkNanos(Duration.ofMillis(300).toNanos());
+        boolean failed = InjectedFailures.awaitFailure(marker);
+        assertTrue(failed);
 
         var unbindOp = publicClient.unbind(makeUnbindCommand(outputSlotUri));
         awaitOperationResponse(unbindOp.getId());
@@ -357,14 +358,16 @@ public class ChannelManagerApiTest extends ChannelManagerBaseApiTest {
 
         awaitOperationResponse(bindOp.getId());
 
-        InjectedFailures.setFailure(1, 1);
+        int marker = 1;
+        InjectedFailures.setFailure(marker, 1);
 
         BindRequest bindRequestSender = makeBindCommand(channelId, "outSlot",
             LMS.Slot.Direction.OUTPUT, BindRequest.SlotOwner.WORKER);
         var bindOpSender = publicClient.bind(bindRequestSender);
         String outputSlotUri = bindRequestSender.getSlotInstance().getSlotUri();
 
-        LockSupport.parkNanos(Duration.ofMillis(300).toNanos());
+        boolean failed = InjectedFailures.awaitFailure(marker);
+        assertTrue(failed);
 
         var unbindOp = publicClient.unbind(makeUnbindCommand(inputSlotUri));
         awaitOperationResponse(unbindOp.getId());
@@ -388,14 +391,16 @@ public class ChannelManagerApiTest extends ChannelManagerBaseApiTest {
 
         awaitOperationResponse(bindOp.getId());
 
-        InjectedFailures.setFailure(1, 1);
+        int marker = 1;
+        InjectedFailures.setFailure(marker, 1);
 
         BindRequest bindRequestSender = makeBindCommand(channelId, "outSlot",
             LMS.Slot.Direction.OUTPUT, BindRequest.SlotOwner.WORKER);
         var bindOpSender = publicClient.bind(bindRequestSender);
         String outputSlotUri = bindRequestSender.getSlotInstance().getSlotUri();
 
-        LockSupport.parkNanos(Duration.ofMillis(300).toNanos());
+        boolean failed = InjectedFailures.awaitFailure(marker);
+        assertTrue(failed);
 
         var destroyOp = privateClient.destroy(makeChannelDestroyCommand(channelId));
         awaitOperationResponse(destroyOp.getId());
