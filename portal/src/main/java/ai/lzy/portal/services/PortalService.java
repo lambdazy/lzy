@@ -20,7 +20,6 @@ import ai.lzy.v1.portal.LzyPortalApi.*;
 import ai.lzy.v1.portal.LzyPortalGrpc.LzyPortalImplBase;
 import com.google.protobuf.Any;
 import com.google.protobuf.Empty;
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
@@ -30,12 +29,12 @@ import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.time.Duration;
 import java.util.HashSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 
 import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOpResult;
+import static ai.lzy.longrunning.IdempotencyUtils.replyWaitedOpResult;
 import static ai.lzy.portal.grpc.ProtoConverter.buildInputSlotStatus;
 import static ai.lzy.portal.grpc.ProtoConverter.buildOutputSlotStatus;
 
@@ -49,7 +48,6 @@ public class PortalService extends LzyPortalImplBase {
     public static final String PORTAL_ERR_SLOT_NAME = "/portal_slot:stderr";
 
     private final String portalId;
-    private final PortalConfig config;
 
     private final LocalOperationService operationService;
     private final PortalSlotsService slotsService;
@@ -61,7 +59,6 @@ public class PortalService extends LzyPortalImplBase {
                          @Named("PortalOperationsService") LocalOperationService operationService)
     {
         this.portalId = config.getPortalId();
-        this.config = config;
         this.operationService = operationService;
         this.slotsService = slotsService;
     }
@@ -121,42 +118,15 @@ public class PortalService extends LzyPortalImplBase {
             }
 
             operationService.updateResponse(op.id(), response.build());
+            responseObserver.onNext(response.build());
+            responseObserver.onCompleted();
+            return;
         } else {
             LOG.info("Found operation by idempotency key: {}", opSnapshot.toString());
         }
 
-        var typeResp = PortalStatusResponse.class;
-        var internalErrorMessage = "Cannot obtain status of portal slots";
-
-        var opId = opSnapshot.id();
-
-        opSnapshot = operationService.awaitOperationCompletion(opId, Duration.ofMillis(50), Duration.ofSeconds(5));
-
-        if (opSnapshot == null) {
-            LOG.error("Can not find operation with id: { opId: {} }", opId);
-            responseObserver.onError(Status.INTERNAL.asRuntimeException());
-            return;
-        }
-
-        if (opSnapshot.done()) {
-            if (opSnapshot.response() != null) {
-                try {
-                    var resp = opSnapshot.response().unpack(typeResp);
-                    responseObserver.onNext(resp);
-                    responseObserver.onCompleted();
-                } catch (InvalidProtocolBufferException e) {
-                    LOG.error("Error while waiting op result: {}", e.getMessage(), e);
-                    responseObserver.onError(Status.INTERNAL.asRuntimeException());
-                }
-            } else {
-                var error = opSnapshot.error();
-                assert error != null;
-                responseObserver.onError(error.asRuntimeException());
-            }
-        } else {
-            LOG.error("Waiting deadline exceeded, operation: {}", opSnapshot.toShortString());
-            responseObserver.onError(Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
-        }
+        replyWaitedOpResult(operationService, opSnapshot.id(), responseObserver, PortalStatusResponse.class,
+            "Cannot obtain status of portal slots", LOG);
     }
 
     @Override
@@ -179,8 +149,9 @@ public class PortalService extends LzyPortalImplBase {
 
         var op = Operation.create(portalId, "Open slots", idempotencyKey, Any.pack(Empty.getDefaultInstance()));
         var opSnapshot = operationService.registerOperation(op);
+        var snapshotId = opSnapshot.id();
 
-        if (op.id().equals(opSnapshot.id())) {
+        if (op.id().equals(snapshotId)) {
             for (LzyPortal.PortalSlotDesc slotDesc : request.getSlotsList()) {
                 LOG.info("Open slot {}", portalSlotToSafeString(slotDesc));
 
@@ -225,43 +196,17 @@ public class PortalService extends LzyPortalImplBase {
                 }
             }
 
-            operationService.updateResponse(op.id(), OpenSlotsResponse.newBuilder().setSuccess(true).build());
+            var resp = OpenSlotsResponse.newBuilder().setSuccess(true).build();
+
+            operationService.updateResponse(op.id(), resp);
+            response.onNext(resp);
+            response.onCompleted();
+            return;
         } else {
             LOG.info("Found operation by idempotency key: {}", opSnapshot.toString());
         }
 
-        var typeResp = OpenSlotsResponse.class;
-        var internalErrorMessage = "Cannot open slot";
-
-        var opId = opSnapshot.id();
-
-        opSnapshot = operationService.awaitOperationCompletion(opId, Duration.ofMillis(50), Duration.ofSeconds(5));
-
-        if (opSnapshot == null) {
-            LOG.error("Can not find operation with id: { opId: {} }", opId);
-            response.onError(Status.INTERNAL.asRuntimeException());
-            return;
-        }
-
-        if (opSnapshot.done()) {
-            if (opSnapshot.response() != null) {
-                try {
-                    var resp = opSnapshot.response().unpack(typeResp);
-                    response.onNext(resp);
-                    response.onCompleted();
-                } catch (InvalidProtocolBufferException e) {
-                    LOG.error("Error while waiting op result: {}", e.getMessage(), e);
-                    response.onError(Status.INTERNAL.asRuntimeException());
-                }
-            } else {
-                var error = opSnapshot.error();
-                assert error != null;
-                response.onError(error.asRuntimeException());
-            }
-        } else {
-            LOG.error("Waiting deadline exceeded, operation: {}", opSnapshot.toShortString());
-            response.onError(Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
-        }
+        replyWaitedOpResult(operationService, snapshotId, response, OpenSlotsResponse.class, "Cannot open slot", LOG);
     }
 
     @Override
@@ -313,42 +258,15 @@ public class PortalService extends LzyPortalImplBase {
             }
 
             operationService.updateResponse(op.id(), FinishResponse.getDefaultInstance());
+            responseObserver.onNext(FinishResponse.getDefaultInstance());
+            responseObserver.onCompleted();
+            return;
         } else {
             LOG.info("Found operation by idempotency key: {}", opSnapshot.toString());
         }
 
-        var typeResp = FinishResponse.class;
-        var internalErrorMessage = "Cannot finish portal";
-
-        var opId = opSnapshot.id();
-
-        opSnapshot = operationService.awaitOperationCompletion(opId, Duration.ofMillis(50), Duration.ofSeconds(5));
-
-        if (opSnapshot == null) {
-            LOG.error("Can not find operation with id: { opId: {} }", opId);
-            responseObserver.onError(Status.INTERNAL.asRuntimeException());
-            return;
-        }
-
-        if (opSnapshot.done()) {
-            if (opSnapshot.response() != null) {
-                try {
-                    var resp = opSnapshot.response().unpack(typeResp);
-                    responseObserver.onNext(resp);
-                    responseObserver.onCompleted();
-                } catch (InvalidProtocolBufferException e) {
-                    LOG.error("Error while waiting op result: {}", e.getMessage(), e);
-                    responseObserver.onError(Status.INTERNAL.asRuntimeException());
-                }
-            } else {
-                var error = opSnapshot.error();
-                assert error != null;
-                responseObserver.onError(error.asRuntimeException());
-            }
-        } else {
-            LOG.error("Waiting deadline exceeded, operation: {}", opSnapshot.toShortString());
-            responseObserver.onError(Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
-        }
+        replyWaitedOpResult(operationService, opSnapshot.id(), responseObserver, FinishResponse.class,
+            "Cannot finish portal", LOG);
     }
 
     private <T extends Message> boolean assertActive(StreamObserver<T> response) {

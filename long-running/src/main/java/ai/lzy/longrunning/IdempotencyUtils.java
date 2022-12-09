@@ -25,6 +25,57 @@ import static ai.lzy.model.db.DbHelper.isUniqueViolation;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
 public final class IdempotencyUtils {
+    public static <T extends Message> void replyWaitedOpResult(LocalOperationService opService, String opId,
+                                                               StreamObserver<T> responseObserver,
+                                                               Class<T> responseType,
+                                                               String internalErrorMessage, Logger log)
+    {
+        replyWaitedOpResult(opService, opId, responseObserver, responseType, false, internalErrorMessage, log);
+    }
+
+    public static <T extends Message> void replyWaitedOpResult(LocalOperationService operationService, String opId,
+                                                               StreamObserver<T> responseObserver,
+                                                               Class<T> responseType,
+                                                               boolean isListType,
+                                                               String internalErrorMessage, Logger log)
+    {
+        var opSnapshot = operationService.awaitOperationCompletion(opId, Duration.ofMillis(50), Duration.ofSeconds(5));
+
+        if (opSnapshot == null) {
+            log.error("Can not find operation with id: { opId: {} }", opId);
+            responseObserver.onError(Status.INTERNAL.asRuntimeException());
+            return;
+        }
+
+        if (opSnapshot.done()) {
+            if (opSnapshot.response() != null) {
+                try {
+                    if (isListType) {
+                        var bytesMessage = opSnapshot.response().unpack(BytesValue.class);
+                        var bytes = bytesMessage.toByteString().toByteArray();
+                        ArrayList<T> list = SerializationUtils.deserialize(bytes);
+
+                        list.forEach(responseObserver::onNext);
+                        responseObserver.onCompleted();
+                    } else {
+                        var resp = opSnapshot.response().unpack(responseType);
+                        responseObserver.onNext(resp);
+                        responseObserver.onCompleted();
+                    }
+                } catch (InvalidProtocolBufferException e) {
+                    log.error("Error while waiting op result: {}", e.getMessage(), e);
+                    responseObserver.onError(Status.INTERNAL.asRuntimeException());
+                }
+            } else {
+                var error = opSnapshot.error();
+                assert error != null;
+                responseObserver.onError(error.asRuntimeException());
+            }
+        } else {
+            log.error("Waiting deadline exceeded, operation: {}", opSnapshot.toShortString());
+            responseObserver.onError(Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
+        }
+    }
 
     public static <T extends Message> boolean loadExistingOpResult(OperationDao operationsDao,
                                                                    Operation.IdempotencyKey idempotencyKey,

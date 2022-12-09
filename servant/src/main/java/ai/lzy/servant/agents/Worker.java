@@ -29,7 +29,6 @@ import ai.lzy.v1.worker.LWS.*;
 import ai.lzy.v1.worker.WorkerApiGrpc;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.net.HostAndPort;
-import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
@@ -54,6 +53,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOpResult;
+import static ai.lzy.longrunning.IdempotencyUtils.replyWaitedOpResult;
 import static ai.lzy.model.UriScheme.LzyFs;
 import static ai.lzy.util.auth.credentials.CredentialsUtils.readPrivateKey;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
@@ -356,40 +356,8 @@ public class Worker {
                 LOG.info("Found operation by idempotencyKey: { idempotencyKey: {}, op: {} }", idempotencyKey.token(),
                     opSnapshot.toShortString());
 
-                var typeResp = ExecuteResponse.class;
-                var internalErrorMessage = "Cannot execute task on worker";
-
-                var opId = opSnapshot.id();
-
-                opSnapshot = operationService.awaitOperationCompletion(opId, Duration.ofMillis(50),
-                    Duration.ofSeconds(5));
-
-                if (opSnapshot == null) {
-                    LOG.error("Can not find operation with id: { opId: {} }", opId);
-                    responseObserver.onError(Status.INTERNAL.asRuntimeException());
-                    return;
-                }
-
-                if (opSnapshot.done()) {
-                    if (opSnapshot.response() != null) {
-                        try {
-                            var resp = opSnapshot.response().unpack(typeResp);
-                            responseObserver.onNext(resp);
-                            responseObserver.onCompleted();
-                        } catch (InvalidProtocolBufferException e) {
-                            LOG.error("Error while waiting op result: {}", e.getMessage(), e);
-                            responseObserver.onError(Status.INTERNAL.asRuntimeException());
-                        }
-                    } else {
-                        var error = opSnapshot.error();
-                        assert error != null;
-                        responseObserver.onError(error.asRuntimeException());
-                    }
-                } else {
-                    LOG.error("Waiting deadline exceeded, operation: {}", opSnapshot.toShortString());
-                    responseObserver.onError(
-                        Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
-                }
+                replyWaitedOpResult(operationService, opSnapshot.id(), responseObserver, ExecuteResponse.class,
+                    "Cannot execute task on worker", LOG);
             }
         }
 

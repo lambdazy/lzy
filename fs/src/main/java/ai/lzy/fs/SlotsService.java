@@ -20,12 +20,9 @@ import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.slots.LSA;
 import ai.lzy.v1.slots.LzySlotsApiGrpc;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.BytesValue;
-import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
-import org.apache.commons.lang3.SerializationUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -40,8 +37,7 @@ import java.util.stream.StreamSupport;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
-import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOpResult;
+import static ai.lzy.longrunning.IdempotencyUtils.*;
 import static ai.lzy.util.grpc.GrpcUtils.*;
 
 
@@ -144,38 +140,8 @@ public class SlotsService {
                 LOG.info("Found operation by idempotency key: {}", opSnapshot.toString());
             }
 
-            var typeResp = LSA.CreateSlotResponse.class;
-            var internalErrorMessage = "Cannot create slot";
-
-            var opId = opSnapshot.id();
-
-            opSnapshot = operationService.awaitOperationCompletion(opId, Duration.ofMillis(50), Duration.ofSeconds(5));
-
-            if (opSnapshot == null) {
-                LOG.error("Can not find operation with id: { opId: {} }", opId);
-                response.onError(Status.INTERNAL.asRuntimeException());
-                return;
-            }
-
-            if (opSnapshot.done()) {
-                if (opSnapshot.response() != null) {
-                    try {
-                        var resp = opSnapshot.response().unpack(typeResp);
-                        response.onNext(resp);
-                        response.onCompleted();
-                    } catch (InvalidProtocolBufferException e) {
-                        LOG.error("Error while waiting op result: {}", e.getMessage(), e);
-                        response.onError(Status.INTERNAL.asRuntimeException());
-                    }
-                } else {
-                    var error = opSnapshot.error();
-                    assert error != null;
-                    response.onError(error.asRuntimeException());
-                }
-            } else {
-                LOG.error("Waiting deadline exceeded, operation: {}", opSnapshot.toShortString());
-                response.onError(Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
-            }
+            replyWaitedOpResult(operationService, opSnapshot.id(), response, LSA.CreateSlotResponse.class,
+                "Cannot create slot", LOG);
         }
 
         @Override
@@ -307,38 +273,8 @@ public class SlotsService {
                 LOG.info("Found operation by idempotency key: {}", opSnapshot.toString());
             }
 
-            var typeResp = LSA.DisconnectSlotResponse.class;
-            var internalErrorMessage = "Cannot disconnect slot";
-
-            var opId = opSnapshot.id();
-
-            opSnapshot = operationService.awaitOperationCompletion(opId, Duration.ofMillis(50), Duration.ofSeconds(5));
-
-            if (opSnapshot == null) {
-                LOG.error("Can not find operation with id: { opId: {} }", opId);
-                responseObserver.onError(Status.INTERNAL.asRuntimeException());
-                return;
-            }
-
-            if (opSnapshot.done()) {
-                if (opSnapshot.response() != null) {
-                    try {
-                        var resp = opSnapshot.response().unpack(typeResp);
-                        responseObserver.onNext(resp);
-                        responseObserver.onCompleted();
-                    } catch (InvalidProtocolBufferException e) {
-                        LOG.error("Error while waiting op result: {}", e.getMessage(), e);
-                        responseObserver.onError(Status.INTERNAL.asRuntimeException());
-                    }
-                } else {
-                    var error = opSnapshot.error();
-                    assert error != null;
-                    responseObserver.onError(error.asRuntimeException());
-                }
-            } else {
-                LOG.error("Waiting deadline exceeded, operation: {}", opSnapshot.toShortString());
-                responseObserver.onError(Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
-            }
+            replyWaitedOpResult(operationService, opSnapshot.id(), responseObserver, LSA.DisconnectSlotResponse.class,
+                "Cannot disconnect slot", LOG);
         }
 
         @Override
@@ -418,38 +354,8 @@ public class SlotsService {
                 LOG.info("Found operation by idempotency key: {}", opSnapshot.toString());
             }
 
-            var typeResp = LSA.DestroySlotResponse.class;
-            var internalErrorMessage = "Cannot destroy slot";
-
-            var opId = opSnapshot.id();
-
-            opSnapshot = operationService.awaitOperationCompletion(opId, Duration.ofMillis(50), Duration.ofSeconds(5));
-
-            if (opSnapshot == null) {
-                LOG.error("Can not find operation with id: { opId: {} }", opId);
-                response.onError(Status.INTERNAL.asRuntimeException());
-                return;
-            }
-
-            if (opSnapshot.done()) {
-                if (opSnapshot.response() != null) {
-                    try {
-                        var resp = opSnapshot.response().unpack(typeResp);
-                        response.onNext(resp);
-                        response.onCompleted();
-                    } catch (InvalidProtocolBufferException e) {
-                        LOG.error("Error while waiting op result: {}", e.getMessage(), e);
-                        response.onError(Status.INTERNAL.asRuntimeException());
-                    }
-                } else {
-                    var error = opSnapshot.error();
-                    assert error != null;
-                    response.onError(error.asRuntimeException());
-                }
-            } else {
-                LOG.error("Waiting deadline exceeded, operation: {}", opSnapshot.toShortString());
-                response.onError(Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
-            }
+            replyWaitedOpResult(operationService, opSnapshot.id(), response, LSA.DestroySlotResponse.class,
+                "Cannot destroy slot", LOG);
         }
 
         @Override
@@ -510,40 +416,8 @@ public class SlotsService {
                 LOG.info("Found operation by idempotency key: {}", opSnapshot.toString());
             }
 
-            var internalErrorMessage = "Cannot open output slot";
-
-            var opId = opSnapshot.id();
-
-            opSnapshot = operationService.awaitOperationCompletion(opId, Duration.ofMillis(50), Duration.ofSeconds(5));
-
-            if (opSnapshot == null) {
-                LOG.error("Can not find operation with id: { opId: {} }", opId);
-                response.onError(Status.INTERNAL.asRuntimeException());
-                return;
-            }
-
-            if (opSnapshot.done()) {
-                if (opSnapshot.response() != null) {
-                    try {
-                        var bytesMessage = opSnapshot.response().unpack(BytesValue.class);
-                        var bytes = bytesMessage.toByteString().toByteArray();
-                        ArrayList<LSA.SlotDataChunk> list = SerializationUtils.deserialize(bytes);
-
-                        list.forEach(response::onNext);
-                        response.onCompleted();
-                    } catch (InvalidProtocolBufferException e) {
-                        LOG.error("Error while waiting op result: {}", e.getMessage(), e);
-                        response.onError(Status.INTERNAL.asRuntimeException());
-                    }
-                } else {
-                    var error = opSnapshot.error();
-                    assert error != null;
-                    response.onError(error.asRuntimeException());
-                }
-            } else {
-                LOG.error("Waiting deadline exceeded, operation: {}", opSnapshot.toShortString());
-                response.onError(Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
-            }
+            replyWaitedOpResult(operationService, opSnapshot.id(), response, LSA.SlotDataChunk.class,
+                /* for streaming data */ true, "Cannot open output slot", LOG);
         }
     }
 

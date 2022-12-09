@@ -3,10 +3,7 @@ package ai.lzy.longrunning;
 import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
-import com.google.protobuf.Any;
-import com.google.protobuf.ByteString;
-import com.google.protobuf.BytesValue;
-import com.google.protobuf.Message;
+import com.google.protobuf.*;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import org.apache.commons.lang3.SerializationUtils;
@@ -128,12 +125,6 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
         }
         LOG.error("Operation with id not found: { opId: {} }", opId);
         return null;
-    }
-
-    @Nullable
-    public Boolean isDone(String operationId) {
-        var op = operations.get(operationId);
-        return op != null ? op.done() : null;
     }
 
     @Override
