@@ -86,7 +86,7 @@ public class GarbageCollectorTest extends BaseTest {
                 .setGraph(graph)
                 .build()));
 
-        Thread.sleep(1000);
+        Thread.sleep(2000);
 
         free.take();
         deleteSession.take();
