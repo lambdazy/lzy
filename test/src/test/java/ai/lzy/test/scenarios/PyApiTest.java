@@ -7,7 +7,7 @@ import ai.lzy.test.ContextRule;
 import ai.lzy.test.impl.v2.PythonContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.List;
@@ -15,11 +15,11 @@ import java.util.List;
 public class PyApiTest {
     static final Logger LOG = LogManager.getLogger(SchedulerTest.class);
 
-    @ClassRule
-    public static final ApplicationContextRule ctx = new ApplicationContextRule();
+    @Rule
+    public final ApplicationContextRule ctx = new ApplicationContextRule();
 
-    @ClassRule
-    public static final ContextRule<PythonContext> pythonContext = new ContextRule<>(ctx, PythonContext.class);
+    @Rule
+    public final ContextRule<PythonContext> pythonContext = new ContextRule<>(ctx, PythonContext.class);
 
     static {
         WorkflowService.PEEK_RANDOM_PORTAL_PORTS = true;  // To recreate portals for all wfs
