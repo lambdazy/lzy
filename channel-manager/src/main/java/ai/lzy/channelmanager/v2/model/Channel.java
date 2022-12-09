@@ -15,27 +15,25 @@ public class Channel {
     private final String id;
     private final ChannelSpec spec;
     private final String executionId;
+    private final String workflowName;
+    private final String userId;
     private final Senders senders;
     private final Receivers receivers;
     private final List<Connection> connections;
     private final LifeStatus lifeStatus;
 
-    public Channel(String id, ChannelSpec spec, String executionId) {
-        this.id = id;
-        this.spec = spec;
-        this.executionId = executionId;
-        this.senders = new Senders();
-        this.receivers = new Receivers();
-        this.connections = new ArrayList<>();
-        this.lifeStatus = LifeStatus.ALIVE;
+    public Channel(String id, ChannelSpec spec, String executionId, String workflowName, String userId) {
+        this(id, spec, executionId, workflowName, userId, new ArrayList<>(), new ArrayList<>(), LifeStatus.ALIVE);
     }
 
-    public Channel(String id, ChannelSpec spec, String executionId, List<Endpoint> endpoints,
-                   List<Connection> connections, LifeStatus lifeStatus)
+    public Channel(String id, ChannelSpec spec, String executionId, String workflowName, String userId,
+                   List<Endpoint> endpoints, List<Connection> connections, LifeStatus lifeStatus)
     {
         this.id = id;
         this.spec = spec;
         this.executionId = executionId;
+        this.workflowName = workflowName;
+        this.userId = userId;
         this.senders = Senders.fromList(endpoints.stream()
             .filter(e -> e.getSlotDirection() == Slot.Direction.OUTPUT)
             .toList());
@@ -56,6 +54,14 @@ public class Channel {
 
     public String getExecutionId() {
         return executionId;
+    }
+
+    public String getWorkflowName() {
+        return workflowName;
+    }
+
+    public String getUserId() {
+        return userId;
     }
 
     public Senders getSenders() {

@@ -10,6 +10,12 @@ public class ProtoValidator {
 
     public static ValidationVerdict validate(LCMPS.ChannelCreateRequest request) {
         try {
+            if (request.getUserId().isBlank()) {
+                return ValidationVerdict.fail("userId is blank");
+            }
+            if (request.getWorkflowName().isBlank()) {
+                return ValidationVerdict.fail("workflowName is blank");
+            }
             if (request.getExecutionId().isBlank()) {
                 return ValidationVerdict.fail("executionId is blank");
             }

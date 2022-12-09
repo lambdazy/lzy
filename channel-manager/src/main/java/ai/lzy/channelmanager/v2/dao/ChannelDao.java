@@ -13,8 +13,8 @@ import javax.annotation.Nullable;
 
 public interface ChannelDao {
 
-    void insertChannel(String channelId, String executionId, ChannelSpec channelSpec,
-                       @Nullable TransactionHandle transaction) throws SQLException;
+    void insertChannel(String channelId, String executionId, String workflowName, String userId,
+                       ChannelSpec channelSpec, @Nullable TransactionHandle transaction) throws SQLException;
     void markChannelDestroying(String channelId, @Nullable TransactionHandle transaction) throws SQLException;
     void removeChannel(String channelId, @Nullable TransactionHandle transaction) throws SQLException;
 

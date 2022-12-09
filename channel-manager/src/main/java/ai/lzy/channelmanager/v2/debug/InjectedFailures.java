@@ -105,6 +105,9 @@ public class InjectedFailures {
     }
 
     public static final class InjectedException extends RuntimeException {
+        public InjectedException() {
+            super("Injected");
+        }
     }
 
     private static class Marker {

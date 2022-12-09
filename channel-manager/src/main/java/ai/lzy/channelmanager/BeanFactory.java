@@ -1,8 +1,13 @@
 package ai.lzy.channelmanager;
 
+import ai.lzy.channelmanager.v2.ChannelManagerApp;
 import ai.lzy.channelmanager.v2.config.ChannelManagerConfig;
 import ai.lzy.channelmanager.v2.dao.ChannelManagerDataSource;
 import ai.lzy.channelmanager.v2.lock.GrainedLock;
+import ai.lzy.iam.clients.AccessClient;
+import ai.lzy.iam.clients.SubjectServiceClient;
+import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
+import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.OperationService;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.longrunning.dao.OperationDaoImpl;
@@ -46,6 +51,24 @@ public class BeanFactory {
     @Named("ChannelManagerIamGrpcChannel")
     public ManagedChannel iamChannel(ChannelManagerConfig config) {
         return GrpcUtils.newGrpcChannel(config.getIam().getAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
+    }
+
+    @Singleton
+    @Named("ChannelManagerIamAccessClient")
+    public AccessClient iamAccessClient(
+        @Named("ChannelManagerIamGrpcChannel") ManagedChannel iamChannel,
+        @Named("ChannelManagerIamToken") RenewableJwt iamToken)
+    {
+        return new AccessServiceGrpcClient(ChannelManagerApp.APP, iamChannel, iamToken::get);
+    }
+
+    @Singleton
+    @Named("ChannelManagerIamSubjectClient")
+    public SubjectServiceClient iamSubjectClient(
+        @Named("ChannelManagerIamGrpcChannel") ManagedChannel iamChannel,
+        @Named("ChannelManagerIamToken") RenewableJwt iamToken)
+    {
+        return new SubjectServiceGrpcClient(ChannelManagerApp.APP, iamChannel, iamToken::get);
     }
 
     @Bean(preDestroy = "shutdown")

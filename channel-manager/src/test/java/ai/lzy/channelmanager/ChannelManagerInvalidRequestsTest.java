@@ -1,6 +1,7 @@
 package ai.lzy.channelmanager;
 
 import ai.lzy.model.DataScheme;
+import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.v1.channel.v2.LCM.ChannelSpec;
 import ai.lzy.v1.channel.v2.LCMPS.ChannelCreateRequest;
 import ai.lzy.v1.channel.v2.LCMPS.ChannelDestroyAllRequest;
@@ -18,7 +19,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.util.UUID;
 import java.util.function.Function;
 
@@ -28,18 +28,9 @@ import static org.junit.Assert.fail;
 
 public class ChannelManagerInvalidRequestsTest extends ChannelManagerBaseApiTest {
 
-    protected LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub unauthorizedPrivateClient;
-    protected LzyChannelManagerGrpc.LzyChannelManagerBlockingStub unauthorizedPublicClient;
-
     @Before
-    public void before() throws IOException, InterruptedException {
+    public void before() throws Exception {
         super.before();
-
-        unauthorizedPrivateClient = newBlockingClient(LzyChannelManagerPrivateGrpc.newBlockingStub(channel),
-            "NoAuthPrivateClientTest", null);
-
-        unauthorizedPublicClient = newBlockingClient(LzyChannelManagerGrpc.newBlockingStub(channel),
-            "NoAuthPublicClientTest", null);
     }
 
     @After
@@ -49,58 +40,98 @@ public class ChannelManagerInvalidRequestsTest extends ChannelManagerBaseApiTest
 
     @Test
     public void testUnauthenticated() {
+        final var unauthorizedPrivateClient = newBlockingClient(LzyChannelManagerPrivateGrpc.newBlockingStub(channel),
+            "NoAuthPrivateClientTest", null);
+
+        testAccess(unauthorizedPrivateClient, Status.UNAUTHENTICATED);
+
+        final var unauthorizedPublicClient = newBlockingClient(LzyChannelManagerGrpc.newBlockingStub(channel),
+            "NoAuthPublicClientTest", null);
+
+        testAccess(unauthorizedPublicClient, Status.UNAUTHENTICATED);
+    }
+
+    @Test
+    public void testPermissionDenied() {
+        final var invalidCredsPrivateClient = newBlockingClient(LzyChannelManagerPrivateGrpc.newBlockingStub(channel),
+            "InvalidCredsPrivateClientTest", JwtUtils.invalidCredentials("user", "GITHUB")::token);
+
+        testAccess(invalidCredsPrivateClient, Status.PERMISSION_DENIED);
+
+        final var userCredsPrivateClient = newBlockingClient(LzyChannelManagerPrivateGrpc.newBlockingStub(channel),
+            "UserCredsPrivateClientTest", user.credentials()::token);
+
+        testAccess(userCredsPrivateClient, Status.PERMISSION_DENIED);
+
+        final var invalidCredsPublicClient = newBlockingClient(LzyChannelManagerGrpc.newBlockingStub(channel),
+            "InvalidCredsPublicClientTest", JwtUtils.invalidCredentials("user", "GITHUB")::token);
+
+        testAccess(invalidCredsPublicClient, Status.PERMISSION_DENIED);
+    }
+
+    private void testAccess(LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub invalidPrivateClient,
+                            Status expectedStatus)
+    {
         try {
-            unauthorizedPrivateClient.create(ChannelCreateRequest.newBuilder().build());
+            invalidPrivateClient.create(ChannelCreateRequest.newBuilder().build());
             fail();
         } catch (StatusRuntimeException e) {
-            assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
         }
 
         try {
-            unauthorizedPrivateClient.destroy(ChannelDestroyRequest.newBuilder().build());
+            invalidPrivateClient.destroy(ChannelDestroyRequest.newBuilder().build());
             fail();
         } catch (StatusRuntimeException e) {
-            assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
         }
 
         try {
-            unauthorizedPrivateClient.destroyAll(ChannelDestroyAllRequest.newBuilder().build());
+            invalidPrivateClient.destroyAll(ChannelDestroyAllRequest.newBuilder().build());
             fail();
         } catch (StatusRuntimeException e) {
-            assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
         }
 
         try {
-            unauthorizedPrivateClient.status(ChannelStatusRequest.newBuilder().build());
+            invalidPrivateClient.status(ChannelStatusRequest.newBuilder().build());
             fail();
         } catch (StatusRuntimeException e) {
-            assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
         }
 
         try {
-            unauthorizedPrivateClient.statusAll(ChannelStatusAllRequest.newBuilder().build());
+            invalidPrivateClient.statusAll(ChannelStatusAllRequest.newBuilder().build());
             fail();
         } catch (StatusRuntimeException e) {
-            assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
+        }
+    }
+
+    private void testAccess(LzyChannelManagerGrpc.LzyChannelManagerBlockingStub invalidPublicClient,
+                            Status expectedStatus)
+    {
+        try {
+            invalidPublicClient.bind(BindRequest.newBuilder().build());
+            fail();
+        } catch (StatusRuntimeException e) {
+            assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
         }
 
         try {
-            unauthorizedPublicClient.bind(BindRequest.newBuilder().build());
+            invalidPublicClient.unbind(UnbindRequest.newBuilder().build());
             fail();
         } catch (StatusRuntimeException e) {
-            assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
-        }
-
-        try {
-            unauthorizedPublicClient.unbind(UnbindRequest.newBuilder().build());
-            fail();
-        } catch (StatusRuntimeException e) {
-            assertEquals(e.getStatus().toString(), Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode());
+            assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
         }
     }
 
     @Test
     public void testInvalidArgument() {
+        testInvalidCreate(request -> request.toBuilder().clearUserId().build());
+
+        testInvalidCreate(request -> request.toBuilder().clearWorkflowName().build());
+
         testInvalidCreate(request -> request.toBuilder().clearExecutionId().build());
 
         testInvalidCreate(request -> request.toBuilder().clearChannelSpec().build());
@@ -199,6 +230,8 @@ public class ChannelManagerInvalidRequestsTest extends ChannelManagerBaseApiTest
     private void testInvalidCreate(Function<ChannelCreateRequest, ChannelCreateRequest> requestCorrupter) {
         try {
             var request = ChannelCreateRequest.newBuilder()
+                .setUserId("uid")
+                .setWorkflowName("wfName")
                 .setExecutionId(UUID.randomUUID().toString())
                 .setChannelSpec(ChannelSpec.newBuilder()
                     .setChannelName("chanel_name")

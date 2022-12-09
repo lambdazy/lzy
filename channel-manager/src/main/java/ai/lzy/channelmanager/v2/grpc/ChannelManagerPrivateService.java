@@ -76,14 +76,17 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
 
         final String channelName = request.getChannelSpec().getChannelName();
         String operationDescription = "Create channel " + channelName;
-        LOG.info(operationDescription);
+        LOG.info(operationDescription + " started");
 
+        final String userId = request.getUserId();
+        final String workflowName = request.getWorkflowName();
         final String executionId = request.getExecutionId();
         final LCM.ChannelSpec channelSpec = request.getChannelSpec();
         final String channelId = "channel-" + executionId.replaceAll("[^a-zA-z0-9-]+", "-") + "-" + channelName;
 
         try (final var guard = lockManager.withLock(channelId)) {
-            withRetries(LOG, () -> channelDao.insertChannel(channelId, executionId, fromProto(channelSpec), null));
+            withRetries(LOG, () -> channelDao.insertChannel(
+                channelId, executionId, workflowName, userId, fromProto(channelSpec), null));
         } catch (AlreadyExistsException e) {
             LOG.error(operationDescription + " failed, channel already exists");
             response.onError(Status.ALREADY_EXISTS.withDescription(e.getMessage()).asException());
@@ -110,7 +113,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
 
         final String channelId = request.getChannelId();
         String operationDescription = "Destroy channel " + channelId;
-        LOG.info(operationDescription);
+        LOG.info(operationDescription + " started");
 
         final Channel channel;
         try {
@@ -187,7 +190,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
 
         final String executionId = request.getExecutionId();
         String operationDescription = "Destroying all channels for execution " + executionId;
-        LOG.info(operationDescription);
+        LOG.info(operationDescription + " started");
 
         final List<String> channelsToDestroy;
         try {

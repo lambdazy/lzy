@@ -23,20 +23,21 @@ public class InMemChannelDao implements ChannelDao {
     private final ConcurrentHashMap<String, String> channelsByEndpoints = new ConcurrentHashMap<>();
 
     @Override
-    public void insertChannel(String channelId, String executionId, ChannelSpec channelSpec,
-                              @Nullable TransactionHandle transaction) throws SQLException
+    public void insertChannel(String channelId, String executionId, String workflowName, String userId,
+                              ChannelSpec channelSpec, @Nullable TransactionHandle transaction) throws SQLException
     {
         if (channels.get(channelId) != null) {
             throw new AlreadyExistsException("Channel " + channelId + " already exists");
         }
 
-        channels.put(channelId, new Channel(channelId, channelSpec, executionId));
+        channels.put(channelId, new Channel(channelId, channelSpec, executionId, workflowName, userId));
     }
 
     @Override
     public void markChannelDestroying(String channelId, @Nullable TransactionHandle transaction) throws SQLException {
         Channel channel = channels.get(channelId);
-        channels.computeIfPresent(channelId, (id, ch) -> new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
+        channels.computeIfPresent(channelId, (id, ch) -> new Channel(
+            ch.getId(), ch.getSpec(), ch.getExecutionId(), ch.getWorkflowName(), ch.getUserId(),
             ch.getEndpoints(), ch.getConnections(), Channel.LifeStatus.DESTROYING));
     }
 
@@ -53,7 +54,7 @@ public class InMemChannelDao implements ChannelDao {
         channels.computeIfPresent(endpoint.getChannelId(), (id, ch) -> {
             final List<Endpoint> endpoints = ch.getEndpoints();
             endpoints.add(endpoint);
-            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), ch.getWorkflowName(), ch.getUserId(),
                 endpoints, ch.getConnections(), ch.getLifeStatus());
         });
         channelsByEndpoints.put(endpoint.getUri().toString(), endpoint.getChannelId());
@@ -69,7 +70,7 @@ public class InMemChannelDao implements ChannelDao {
                 }
                 return e;
             }).toList();
-            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), ch.getWorkflowName(), ch.getUserId(),
                 endpoints, ch.getConnections(), ch.getLifeStatus());
         });
     }
@@ -84,7 +85,7 @@ public class InMemChannelDao implements ChannelDao {
                 }
                 return e;
             }).toList();
-            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), ch.getWorkflowName(), ch.getUserId(),
                 endpoints, ch.getConnections(), ch.getLifeStatus());
         });
     }
@@ -96,7 +97,7 @@ public class InMemChannelDao implements ChannelDao {
         channels.computeIfPresent(channelId, (id, ch) -> {
             final List<Endpoint> endpoints = ch.getEndpoints().stream().map(e ->
                 new Endpoint(e.getSlot(), e.getSlotOwner(), Endpoint.LifeStatus.UNBINDING)).toList();
-            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), ch.getWorkflowName(), ch.getUserId(),
                 endpoints, ch.getConnections(), ch.getLifeStatus());
         });
     }
@@ -110,7 +111,7 @@ public class InMemChannelDao implements ChannelDao {
             final List<Endpoint> endpoints = ch.getEndpoints().stream()
                 .filter(e -> !e.getUri().toString().equals(endpointUri))
                 .toList();
-            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), ch.getWorkflowName(), ch.getUserId(),
                 endpoints, ch.getConnections(), ch.getLifeStatus());
         });
     }
@@ -126,7 +127,7 @@ public class InMemChannelDao implements ChannelDao {
         channels.computeIfPresent(channelId, (id, ch) -> {
             final List<Connection> connections = new ArrayList<>(ch.getConnections());
             connections.add(connection);
-            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), ch.getWorkflowName(), ch.getUserId(),
                 ch.getEndpoints(), connections, ch.getLifeStatus());
         });
     }
@@ -144,7 +145,7 @@ public class InMemChannelDao implements ChannelDao {
                 }
                 return c;
             }).toList();
-            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), ch.getWorkflowName(), ch.getUserId(),
                 ch.getEndpoints(), connections, ch.getLifeStatus());
         });
     }
@@ -162,7 +163,7 @@ public class InMemChannelDao implements ChannelDao {
                 }
                 return c;
             }).toList();
-            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), ch.getWorkflowName(), ch.getUserId(),
                 ch.getEndpoints(), connections, ch.getLifeStatus());
         });
     }
@@ -176,7 +177,7 @@ public class InMemChannelDao implements ChannelDao {
                 !(senderUri.equals(c.sender().getUri().toString())
                   && receiverUri.equals(c.receiver().getUri().toString()))
             ).toList();
-            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(),
+            return new Channel(ch.getId(), ch.getSpec(), ch.getExecutionId(), ch.getWorkflowName(), ch.getUserId(),
                 ch.getEndpoints(), connections, ch.getLifeStatus());
         });
     }

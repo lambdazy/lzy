@@ -7,7 +7,7 @@ public abstract class AuthException extends RuntimeException {
     private final String internalDetails;
 
     public AuthException(String details) {
-        super("", new RuntimeException());
+        super("");
         this.internalDetails = details;
     }
 

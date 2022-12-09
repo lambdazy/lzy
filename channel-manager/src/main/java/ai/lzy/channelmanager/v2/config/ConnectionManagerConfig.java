@@ -21,7 +21,6 @@ public class ConnectionManagerConfig {
         this.cacheTtlSeconds = cacheTtlSeconds;
     }
 
-
     @Override
     public String toString() {
         return "ConnectionManagerConfig{" +

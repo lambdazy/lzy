@@ -1,6 +1,7 @@
 package ai.lzy.channelmanager.v2.grpc;
 
 import ai.lzy.channelmanager.grpc.ProtoValidator;
+import ai.lzy.channelmanager.v2.access.IamAccessManager;
 import ai.lzy.channelmanager.v2.dao.ChannelDao;
 import ai.lzy.channelmanager.v2.dao.ChannelManagerDataSource;
 import ai.lzy.channelmanager.v2.dao.ChannelOperationDao;
@@ -11,6 +12,7 @@ import ai.lzy.channelmanager.v2.model.Endpoint;
 import ai.lzy.channelmanager.v2.operation.ChannelOperation;
 import ai.lzy.channelmanager.v2.operation.ChannelOperationExecutor;
 import ai.lzy.channelmanager.v2.operation.ChannelOperationManager;
+import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
@@ -29,6 +31,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.time.Instant;
+import java.util.Objects;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
 
@@ -42,6 +45,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
     private final ChannelOperationDao channelOperationDao;
     private final ChannelManagerDataSource storage;
     private final ChannelOperationManager channelOperationManager;
+    private final IamAccessManager accessManager;
     private final ChannelOperationExecutor executor;
     private final GrainedLock lockManager;
 
@@ -50,13 +54,14 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                                  @Named("ChannelManagerOperationDao") OperationDao operationDao,
                                  ChannelOperationDao channelOperationDao, ChannelManagerDataSource storage,
                                  ChannelOperationManager channelOperationManager, GrainedLock lockManager,
-                                 ChannelOperationExecutor executor)
+                                 IamAccessManager accessManager, ChannelOperationExecutor executor)
     {
         this.channelDao = channelDao;
         this.operationDao = operationDao;
         this.channelOperationDao = channelOperationDao;
         this.storage = storage;
         this.channelOperationManager = channelOperationManager;
+        this.accessManager = accessManager;
         this.executor = executor;
         this.lockManager = lockManager;
     }
@@ -76,12 +81,24 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             .formatted(request.getSlotOwner(), request.getSlotInstance().getSlot().getDirection(), slotUri, channelId);
         LOG.info(operationDescription + " started");
 
+
         final Channel channel;
         try {
             channel = withRetries(LOG, () -> channelDao.findChannel(channelId, Channel.LifeStatus.ALIVE, null));
         } catch (Exception e) {
             LOG.error(operationDescription + " failed, got exception: {}", e.getMessage(), e);
             response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
+            return;
+        }
+
+        final var authenticationContext = AuthenticationContext.current();
+        final String userId = Objects.requireNonNull(authenticationContext).getSubject().id();
+
+        if (!accessManager.checkAccess(userId, channel.getWorkflowName(), ChannelOperation.Type.BIND)) {
+            LOG.error(operationDescription + "failed: PERMISSION DENIED to workflow {}",
+                userId, channel.getWorkflowName());
+            response.onError(Status.PERMISSION_DENIED.withDescription(
+                "Don't have access to workflow " + channel.getWorkflowName()).asException());
             return;
         }
 
@@ -156,7 +173,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         }
 
         String operationDescription = "Unbind slot %s".formatted(request.getSlotUri());
-        LOG.info(operationDescription);
+        LOG.info(operationDescription + " started");
 
         final String slotUri = request.getSlotUri();
         final Endpoint endpoint;
@@ -183,7 +200,17 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             return;
         }
 
+        final var authenticationContext = AuthenticationContext.current();
+        final String userId = Objects.requireNonNull(authenticationContext).getSubject().id();
         final String channelId = channel.getId();
+
+        if (!accessManager.checkAccess(userId, channel.getWorkflowName(), ChannelOperation.Type.UNBIND)) {
+            LOG.error(operationDescription + "failed: PERMISSION DENIED to workflow {}",
+                userId, channel.getWorkflowName());
+            response.onError(Status.PERMISSION_DENIED.withDescription(
+                "Don't have access to workflow " + channel.getWorkflowName()).asException());
+            return;
+        }
 
         final Operation operation = Operation.create(
             "ChannelManager", operationDescription, Any.pack(LCMS.UnbindMetadata.getDefaultInstance()));

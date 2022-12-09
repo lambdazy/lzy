@@ -7,7 +7,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.UUID;
 
@@ -17,7 +16,7 @@ import static org.junit.Assert.assertFalse;
 public class ChannelManagerRestartTest extends ChannelManagerBaseApiTest {
 
     @Before
-    public void before() throws IOException, InterruptedException {
+    public void before() throws Exception {
         super.before();
     }
 

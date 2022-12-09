@@ -36,6 +36,8 @@ service LzyChannelManagerPrivate {
 message ChannelCreateRequest {
   ChannelSpec channelSpec = 1;
   string executionId = 2;
+  string workflowName = 3;
+  string userId = 4;
 }
 
 message ChannelCreateResponse {

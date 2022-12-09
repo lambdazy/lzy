@@ -5,10 +5,27 @@ import ai.lzy.channelmanager.v2.config.ChannelManagerConfig;
 import ai.lzy.channelmanager.v2.dao.ChannelManagerDataSource;
 import ai.lzy.channelmanager.v2.debug.InjectedFailures;
 import ai.lzy.channelmanager.v2.operation.ChannelOperationManager;
+import ai.lzy.iam.clients.AccessBindingClient;
+import ai.lzy.iam.clients.SubjectServiceClient;
+import ai.lzy.iam.config.IamClientConfiguration;
+import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
+import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
+import ai.lzy.iam.resources.AccessBinding;
+import ai.lzy.iam.resources.Role;
+import ai.lzy.iam.resources.credentials.SubjectCredentials;
+import ai.lzy.iam.resources.impl.Workflow;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.CredentialsType;
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.longrunning.OperationUtils;
 import ai.lzy.model.DataScheme;
 import ai.lzy.model.db.test.DatabaseTestUtils;
+import ai.lzy.util.auth.credentials.CredentialsUtils;
+import ai.lzy.util.auth.credentials.JwtCredentials;
+import ai.lzy.util.auth.credentials.JwtUtils;
+import ai.lzy.util.auth.credentials.RsaUtils;
+import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.channel.v2.LCM;
 import ai.lzy.v1.channel.v2.LCM.Channel;
 import ai.lzy.v1.channel.v2.LCM.ChannelSpec;
@@ -22,6 +39,7 @@ import ai.lzy.v1.channel.v2.LCMS.UnbindRequest;
 import ai.lzy.v1.channel.v2.LzyChannelManagerGrpc;
 import ai.lzy.v1.channel.v2.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LMS;
+import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.common.net.HostAndPort;
@@ -37,8 +55,12 @@ import org.junit.Rule;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -66,12 +88,14 @@ public class ChannelManagerBaseApiTest {
     protected LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub privateClient;
     protected LzyChannelManagerGrpc.LzyChannelManagerBlockingStub publicClient;
     protected LongRunningServiceGrpc.LongRunningServiceBlockingStub operationApiClient;
+    protected User user;
+    protected String workflowName;
 
     private Server mockedSlotApiServer;
     private HostAndPort mockedSlotApiAddress;
 
     @Before
-    public void before() throws IOException, InterruptedException {
+    public void before() throws Exception {
         var iamDbConfig = preparePostgresConfig("iam", iamDb.getConnectionInfo());
         iamTestContext.setUp(iamDbConfig);
 
@@ -83,16 +107,21 @@ public class ChannelManagerBaseApiTest {
         config = context.getBean(ChannelManagerConfig.class);
         channel = newGrpcChannel(config.getAddress(), LzyChannelManagerPrivateGrpc.SERVICE_NAME);
 
+        workflowName = "wfName";
+        try (final var iamClient = new IamClient(config.getIam())) {
+            user = iamClient.createUser("workflowUser");
+            iamClient.addWorkflowAccess(user, workflowName);
+        }
 
         var internalUserCredentials = config.getIam().createRenewableToken();
         privateClient = newBlockingClient(LzyChannelManagerPrivateGrpc.newBlockingStub(channel),
             "AuthPrivateTest", () -> internalUserCredentials.get().token());
 
         publicClient = newBlockingClient(LzyChannelManagerGrpc.newBlockingStub(channel),
-            "NoAuthTest", () -> internalUserCredentials.get().token()); // TODO not internal
+            "AuthPublicTest", () -> user.credentials().token());
 
-        operationApiClient = newBlockingClient(
-            LongRunningServiceGrpc.newBlockingStub(channel), "OpTest", () -> internalUserCredentials.get().token());
+        operationApiClient = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(channel),
+            "OpTest", () -> internalUserCredentials.get().token());
 
         mockedSlotApiAddress = HostAndPort.fromString(config.getStubSlotApiAddress());
         var slotService = new SlotServiceMock();
@@ -122,6 +151,8 @@ public class ChannelManagerBaseApiTest {
 
     protected ChannelCreateRequest makeChannelCreateCommand(String executionId, String channelName) {
         return ChannelCreateRequest.newBuilder()
+            .setUserId(user.id)
+            .setWorkflowName(workflowName)
             .setExecutionId(executionId)
             .setChannelSpec(makeChannelSpec(channelName))
             .build();
@@ -262,6 +293,67 @@ public class ChannelManagerBaseApiTest {
     protected void restoreActiveOperations() {
         var manager = context.getBean(ChannelOperationManager.class);
         manager.restoreActiveOperations();
+    }
+
+    public record User(
+        String id,
+        JwtCredentials credentials
+    ) { }
+
+    public static class IamClient implements AutoCloseable {
+
+        private final ManagedChannel channel;
+        private final SubjectServiceClient subjectClient;
+        private final AccessBindingClient accessBindingClient;
+
+        IamClient(IamClientConfiguration config) {
+            this.channel = GrpcUtils.newGrpcChannel(config.getAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
+            var iamToken = config.createRenewableToken();
+            this.subjectClient = new SubjectServiceGrpcClient("TestClient", channel, iamToken::get);
+            this.accessBindingClient = new AccessBindingServiceGrpcClient("TestABClient", channel, iamToken::get);
+        }
+
+        public User createUser(String name) throws Exception {
+            var login = "github-" + name;
+            var creds = generateCredentials(login, "GITHUB");
+
+            var subj = subjectClient.createSubject(AuthProvider.GITHUB, login, SubjectType.USER,
+                new SubjectCredentials("main", creds.publicKey(), CredentialsType.PUBLIC_KEY));
+
+            return new User(subj.id(), creds.credentials());
+        }
+
+        public void addWorkflowAccess(User user, String workflowName) throws Exception {
+            final var subj = subjectClient.getSubject(user.id);
+
+            accessBindingClient.setAccessBindings(new Workflow(user.id + "/" + workflowName),
+                List.of(new AccessBinding(Role.LZY_WORKFLOW_OWNER, subj)));
+        }
+
+        private GeneratedCredentials generateCredentials(String login, String provider)
+            throws IOException, InterruptedException, NoSuchAlgorithmException, InvalidKeySpecException
+        {
+            final var keys = RsaUtils.generateRsaKeys();
+            var from = Date.from(Instant.now());
+            var till = JwtUtils.afterDays(7);
+            var credentials = new JwtCredentials(JwtUtils.buildJWT(login, provider, from, till,
+                CredentialsUtils.readPrivateKey(keys.privateKey())));
+
+            final var publicKey = keys.publicKey();
+
+            return new GeneratedCredentials(publicKey, credentials);
+        }
+
+        @Override
+        public void close() {
+            channel.shutdown();
+        }
+
+        public record GeneratedCredentials(
+            String publicKey,
+            JwtCredentials credentials
+        ) { }
+
     }
 
 }
