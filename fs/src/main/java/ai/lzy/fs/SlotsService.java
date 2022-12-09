@@ -206,7 +206,7 @@ public class SlotsService {
             }
 
             if (slot instanceof LzyInputSlot inputSlot) {
-                var op = new Operation(agentId, "ConnectSlot: %s -> %s".formatted(
+                var op = Operation.create(agentId, "ConnectSlot: %s -> %s".formatted(
                     ProtoPrinter.printer().printToString(request.getFrom()),
                     ProtoPrinter.printer().printToString(request.getTo())
                 ), null);
