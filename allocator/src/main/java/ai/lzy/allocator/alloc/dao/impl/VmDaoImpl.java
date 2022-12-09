@@ -25,6 +25,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
+import javax.inject.Named;
 
 @Singleton
 public class VmDaoImpl implements VmDao {
@@ -157,7 +158,7 @@ public class VmDaoImpl implements VmDao {
     private final ObjectMapper objectMapper;
 
     @Inject
-    public VmDaoImpl(AllocatorDataSource storage, ObjectMapper objectMapper) {
+    public VmDaoImpl(AllocatorDataSource storage, @Named("AllocatorObjectMapper") ObjectMapper objectMapper) {
         this.storage = storage;
         this.objectMapper = objectMapper;
     }
@@ -256,13 +257,13 @@ public class VmDaoImpl implements VmDao {
     }
 
     @Override
-    public void delete(String sessionId) throws SQLException {
-        try (var conn = storage.connect();
-             var st = conn.prepareStatement(QUERY_DELETE_SESSION_VMS))
-        {
-            st.setString(1, sessionId);
-            st.execute();
-        }
+    public void delete(String sessionId, @Nullable TransactionHandle tx) throws SQLException {
+        DbOperation.execute(tx, storage, conn -> {
+            try (var st = conn.prepareStatement(QUERY_DELETE_SESSION_VMS)) {
+                st.setString(1, sessionId);
+                st.execute();
+            }
+        });
     }
 
     @Override
@@ -373,7 +374,6 @@ public class VmDaoImpl implements VmDao {
     {
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(QUERY_UPDATE_VM_ALLOCATION_META)) {
-                final ObjectMapper objectMapper = new ObjectMapper();
                 s.setString(1, objectMapper.writeValueAsString(meta));
                 s.setString(2, vmId);
                 s.executeUpdate();
@@ -391,7 +391,6 @@ public class VmDaoImpl implements VmDao {
         final AtomicReference<Map<String, String>> meta = new AtomicReference<>();
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement(QUERY_READ_VM_ALLOCATION_META + forUpdate(transaction))) {
-                final ObjectMapper objectMapper = new ObjectMapper();
                 s.setString(1, vmId);
                 final var res = s.executeQuery();
                 if (!res.next()) {

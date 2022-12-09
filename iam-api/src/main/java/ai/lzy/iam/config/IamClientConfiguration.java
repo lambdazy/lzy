@@ -48,4 +48,12 @@ public final class IamClientConfiguration {
     public void setInternalUserPrivateKey(String internalUserPrivateKey) {
         this.internalUserPrivateKey = internalUserPrivateKey;
     }
+
+    @Override
+    public String toString() {
+        return "IamClientConfiguration{" +
+               "address='" + address + '\'' +
+               ", internalUserName='" + internalUserName + '\'' +
+               '}';
+    }
 }

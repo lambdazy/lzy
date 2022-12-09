@@ -22,6 +22,8 @@ public class LzyServiceConfig {
     private String channelManagerAddress;
 
     private Duration waitAllocationTimeout;
+    private Duration gcPeriod;
+    private Duration gcLeaderPeriod;
 
     private StartupPortalConfig portal;
 

@@ -2,6 +2,7 @@ package ai.lzy.allocator.services;
 
 
 import ai.lzy.allocator.AllocatorMain;
+import ai.lzy.allocator.alloc.AllocatorMetrics;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.alloc.dao.SessionDao;
 import ai.lzy.allocator.alloc.dao.VmDao;
@@ -27,8 +28,6 @@ import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
-import io.prometheus.client.Counter;
-import io.prometheus.client.Histogram;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -53,14 +52,14 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
     private final SessionDao sessions;
     private final Storage storage;
     private final ServiceConfig config;
-    private final Metrics metrics = new Metrics();
+    private final AllocatorMetrics metrics;
     private final SubjectServiceClient subjectClient;
 
     public AllocatorPrivateService(VmDao dao, VmAllocator allocator, SessionDao sessions,
                                    AllocatorDataSource storage, ServiceConfig config,
                                    @Named("AllocatorOperationDao") OperationDao operationDao,
                                    @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
-                                   @Named("AllocatorIamToken") RenewableJwt iamToken)
+                                   @Named("AllocatorIamToken") RenewableJwt iamToken, AllocatorMetrics metrics)
     {
         this.dao = dao;
         this.allocator = allocator;
@@ -68,6 +67,7 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
         this.storage = storage;
         this.operations = operationDao;
         this.config = config;
+        this.metrics = metrics;
         this.subjectClient = new SubjectServiceGrpcClient(AllocatorMain.APP, iamChannel, iamToken::get);
     }
 
@@ -84,31 +84,34 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                     try (final var transaction = TransactionHandle.create(storage)) {
                         vm = dao.get(request.getVmId(), transaction);
                         if (vm == null) {
+                            metrics.registerFail.inc();
                             LOG.error("VM {} does not exist", request.getVmId());
-                            metrics.unknownVm.inc();
                             return Status.NOT_FOUND.withDescription("Vm with this id not found");
                         }
 
                         vmRef[0] = vm;
 
                         if (vm.status() == Vm.Status.RUNNING) {
+                            metrics.registerFail.inc();
                             LOG.error("Vm {} has been already registered", vm);
-                            metrics.alreadyRegistered.inc();
                             return Status.ALREADY_EXISTS;
                         }
 
                         if (vm.status() == Vm.Status.DEAD) {
+                            metrics.registerFail.inc();
                             LOG.error("Vm {} is DEAD", vm);
                             return Status.INVALID_ARGUMENT.withDescription("VM is dead");
                         }
 
                         if (vm.status() != Vm.Status.ALLOCATING) {
+                            metrics.registerFail.inc();
                             LOG.error("Wrong status of vm while register, expected ALLOCATING: {}", vm);
                             return Status.FAILED_PRECONDITION;
                         }
 
                         final var op = operations.get(vm.allocOpId(), transaction);
                         if (op == null) {
+                            metrics.registerFail.inc();
                             var opId = vm.allocOpId();
                             LOG.error("Operation {} does not exist", opId);
                             return Status.NOT_FOUND.withDescription("Op %s not found".formatted(opId));
@@ -116,19 +119,19 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
 
                         final var session = sessions.get(vm.sessionId(), transaction);
                         if (session == null) {
+                            metrics.registerFail.inc();
                             LOG.error("Session {} does not exist", vm.sessionId());
-                            metrics.unknownSession.inc();
                             return Status.NOT_FOUND.withDescription("Session not found");
                         }
 
                         if (op.error() != null && op.error().getCode() == Status.Code.CANCELLED) {
+                            metrics.registerFail.inc();
+
                             // Op is cancelled by client, add VM to cache
                             dao.release(vm.vmId(), Instant.now().plus(session.cachePolicy().minIdleTimeout()),
                                 transaction);
-
                             transaction.commit();
 
-                            metrics.registerCancelledVm.inc();
                             return Status.NOT_FOUND.withDescription("Op not found");
                         }
 
@@ -141,24 +144,26 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                                 .map(VmAllocator.VmEndpoint::toProto)
                                 .toList();
                         } catch (Exception e) {
+                            metrics.registerFail.inc();
                             LOG.error("Cannot get endpoints of vm {}", vm.vmId(), e);
                             return Status.INTERNAL.withDescription("Cannot get endpoints of vm");
                         }
 
-                        var response = Any.pack(AllocateResponse.newBuilder()
-                            .setPoolId(vm.poolLabel())
-                            .setSessionId(vm.sessionId())
-                            .setVmId(vm.vmId())
-                            .addAllEndpoints(hosts)
-                            .putAllMetadata(request.getMetadataMap())
-                            .build());
+                        var response = Any.pack(
+                            AllocateResponse.newBuilder()
+                                .setPoolId(vm.poolLabel())
+                                .setSessionId(vm.sessionId())
+                                .setVmId(vm.vmId())
+                                .addAllEndpoints(hosts)
+                                .putAllMetadata(request.getMetadataMap())
+                                .build());
                         op.setResponse(response);
                         operations.updateResponse(op.id(), response.toByteArray(), transaction);
 
                         transaction.commit();
 
-                        metrics.registered.inc();
-                        metrics.allocationTime.observe(
+                        metrics.registerSuccess.inc();
+                        metrics.allocateNewDuration.observe(
                             Duration.between(vm.allocateState().startedAt(), Instant.now()).toSeconds());
 
                         return Status.OK;
@@ -174,12 +179,12 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                 responseObserver.onError(status.asException());
             }
         } catch (Exception ex) {
+            metrics.registerFail.inc();
+
             var vm = vmRef[0];
 
             LOG.error("Error while registering vm {}: {}",
                 vm != null ? vm.toString() : request.getVmId(), ex.getMessage(), ex);
-
-            metrics.failed.inc();
 
             responseObserver.onError(Status.INTERNAL
                 .withDescription("Error while registering vm %s: %s".formatted(vm, ex.getMessage())).asException());
@@ -211,6 +216,7 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                 LOG,
                 () -> dao.get(request.getVmId(), null));
         } catch (Exception ex) {
+            metrics.hbFail.inc();
             LOG.error("Cannot read VM {}: {}", request.getVmId(), ex.getMessage(), ex);
             responseObserver.onError(
                 Status.INTERNAL.withDescription("Database error: " + ex.getMessage()).asException());
@@ -218,8 +224,8 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
         }
 
         if (vm == null) {
-            LOG.error("Heartbeat from unknown VM {}", request.getVmId());
             metrics.hbUnknownVm.inc();
+            LOG.error("Heartbeat from unknown VM {}", request.getVmId());
             responseObserver.onError(
                 Status.NOT_FOUND.withDescription("Vm not found").asException());
             return;
@@ -227,11 +233,12 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
 
 
         if (!Set.of(Vm.Status.RUNNING, Vm.Status.IDLE).contains(vm.status())) {
+            metrics.hbInvalidVm.inc();
             LOG.error("Wrong status of vm {} while receiving heartbeat: {}, expected RUNNING or IDLING",
                 vm.vmId(), vm.status());
-            metrics.hbInvalidVm.inc();
             responseObserver.onError(
                 Status.FAILED_PRECONDITION.withDescription("Wrong state for heartbeat").asException());
+            return;
         }
 
         try {
@@ -241,6 +248,7 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                 () -> dao.setLastActivityTime(vm.vmId(), Instant.now().plus(config.getHeartbeatTimeout()))
             );
         } catch (Exception ex) {
+            metrics.hbFail.inc();
             LOG.error("Cannot update VM {} last activity time: {}", vm, ex.getMessage(), ex);
             responseObserver.onError(
                 Status.INTERNAL.withDescription("Database error: " + ex.getMessage()).asException());
@@ -249,53 +257,5 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
 
         responseObserver.onNext(HeartbeatResponse.getDefaultInstance());
         responseObserver.onCompleted();
-    }
-
-    private static final class Metrics {
-        private final Counter registered = Counter
-            .build("registered", "Successfully registered VMs")
-            .subsystem("allocator_private")
-            .register();
-
-        private final Counter failed = Counter
-            .build("failed", "Exceptionally failed registrations")
-            .subsystem("allocator_private")
-            .register();
-
-        private final Counter unknownVm = Counter
-            .build("unknown_vm", "Request from unknown VM")
-            .subsystem("allocator_private")
-            .register();
-
-        private final Counter unknownSession = Counter
-            .build("unknown_session", "Request to unknown session")
-            .subsystem("allocator_private")
-            .register();
-
-        private final Counter alreadyRegistered = Counter
-            .build("already_registered", "VM already registered")
-            .subsystem("allocator_private")
-            .register();
-
-        private final Counter registerCancelledVm = Counter
-            .build("register_cancelled_vm", "Registered VM already cancelled by client")
-            .subsystem("allocator_private")
-            .register();
-
-        private final Counter hbUnknownVm = Counter
-            .build("hb_unknown_vm", "Heartbits from unknown VMs")
-            .subsystem("allocator_private")
-            .register();
-
-        private final Counter hbInvalidVm = Counter
-            .build("hb_invalid_vm", "Heartbits from VMs in invalid states")
-            .subsystem("allocator_private")
-            .register();
-
-        private final Histogram allocationTime = Histogram
-            .build("allocation_time", "Total allocation time (sec), from request till register")
-            .subsystem("allocator")
-            .buckets(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 30, 45, 60)
-            .register();
     }
 }

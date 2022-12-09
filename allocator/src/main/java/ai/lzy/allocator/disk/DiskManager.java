@@ -1,5 +1,7 @@
 package ai.lzy.allocator.disk;
 
+import io.grpc.StatusException;
+
 import java.time.Instant;
 import javax.annotation.Nullable;
 
@@ -12,7 +14,7 @@ public interface DiskManager {
     ) {}
 
     @Nullable
-    Disk get(String id);
+    Disk get(String id) throws StatusException;
 
     DiskOperation newCreateDiskOperation(OuterOperation outerOp, DiskSpec spec, DiskMeta meta);
 

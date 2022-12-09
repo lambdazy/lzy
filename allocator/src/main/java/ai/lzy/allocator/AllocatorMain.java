@@ -122,6 +122,7 @@ public class AllocatorMain {
     public static void main(String[] args) throws IOException, InterruptedException {
         final var context = Micronaut.build(args)
             .banner(true)
+            .eagerInitSingletons(true)
             .mainClass(AllocatorMain.class)
             .defaultEnvironments("local")
             .start();

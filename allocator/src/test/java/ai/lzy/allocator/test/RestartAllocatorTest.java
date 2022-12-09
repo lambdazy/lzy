@@ -50,52 +50,52 @@ public class RestartAllocatorTest extends AllocatorApiTestBase {
 
     @Test
     public void allocateVmFail1() throws Exception {
-        InjectedFailures.FAIL_ALLOCATE_VM_1.set(vm -> new RuntimeException("some runtime error"));
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(1).set(vm -> new InjectedFailures.TerminateException("term"));
         allocateVmFailImpl();
     }
 
     @Test
     public void allocateVmFail2() throws Exception {
-        InjectedFailures.FAIL_ALLOCATE_VM_2.set(vm -> new InjectedFailures.TerminateException("term"));
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(2).set(vm -> new InjectedFailures.TerminateException("term"));
         allocateVmFailImpl();
     }
 
     @Test
     public void allocateVmFail3() throws Exception {
-        InjectedFailures.FAIL_ALLOCATE_VM_3.set(vm -> new InjectedFailures.TerminateException("term"));
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(3).set(vm -> new InjectedFailures.TerminateException("term"));
         allocateVmFailImpl();
     }
 
     @Test
     @Ignore("requires v6 tunnel proxy to be set")
     public void allocateVmFail4() throws Exception {
-        InjectedFailures.FAIL_ALLOCATE_VM_4.set(vm -> new InjectedFailures.TerminateException("term"));
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(4).set(vm -> new InjectedFailures.TerminateException("term"));
         allocateVmFailImpl();
     }
 
     @Test
     public void allocateVmFail5() throws Exception {
-        InjectedFailures.FAIL_ALLOCATE_VM_5.set(vm -> new InjectedFailures.TerminateException("term"));
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(5).set(vm -> new InjectedFailures.TerminateException("term"));
         allocateVmFailImpl();
     }
 
     @Test
     public void allocateVmFail6() throws Exception {
-        InjectedFailures.FAIL_ALLOCATE_VM_6.set(vm -> new InjectedFailures.TerminateException("term"));
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(6).set(vm -> new InjectedFailures.TerminateException("term"));
         allocateVmFailImpl();
     }
 
     @Test
     @Ignore("requires v6 tunnel proxy to be set")
     public void allocateVmFail7() throws Exception {
-        InjectedFailures.FAIL_ALLOCATE_VM_7.set(vm -> new InjectedFailures.TerminateException("term"));
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(7).set(vm -> new InjectedFailures.TerminateException("term"));
         allocateVmFailImpl();
     }
 
     @Test
     @Ignore("double call to k8s")
     public void allocateVmFail8() throws Exception {
-        InjectedFailures.FAIL_ALLOCATE_VM_8.set(vm -> new InjectedFailures.TerminateException("term"));
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(8).set(vm -> new InjectedFailures.TerminateException("term"));
         allocateVmFailImpl();
     }
 

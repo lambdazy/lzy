@@ -1,13 +1,10 @@
 package ai.lzy.allocator.services;
 
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.disk.Disk;
-import ai.lzy.allocator.disk.DiskManager;
-import ai.lzy.allocator.disk.DiskMeta;
-import ai.lzy.allocator.disk.DiskOperation;
-import ai.lzy.allocator.disk.DiskSpec;
+import ai.lzy.allocator.disk.*;
 import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.disk.dao.DiskOpDao;
+import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
@@ -26,8 +23,6 @@ import com.google.protobuf.Any;
 import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.stub.StreamObserver;
-import io.prometheus.client.Counter;
-import io.prometheus.client.Histogram;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -57,11 +52,11 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
     private final DiskOpDao diskOpDao;
     private final AllocatorDataSource storage;
     private final ScheduledExecutorService executor;
-    private final Metrics metrics = new Metrics();
+    private final DiskMetrics metrics;
 
     public DiskService(ServiceConfig config, DiskManager diskManager, DiskDao diskDao, DiskOpDao diskOpDao,
                        AllocatorDataSource storage, @Named("AllocatorOperationDao") OperationDao operationDao,
-                       @Named("AllocatorExecutor") ScheduledExecutorService executor)
+                       @Named("AllocatorExecutor") ScheduledExecutorService executor, DiskMetrics metrics)
     {
         this.config = config;
         this.diskManager = diskManager;
@@ -70,6 +65,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
         this.storage = storage;
         this.operationsDao = operationDao;
         this.executor = executor;
+        this.metrics = metrics;
 
         restartActiveOperations();
     }
@@ -90,19 +86,16 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
         }
 
         if (ops.isEmpty()) {
+            LOG.info("No active disk ops found for allocator instance '{}'", config.getInstanceId());
             return;
         }
 
-        LOG.warn("Found {} not completed disk operations on allocator {}", ops.size(), config.getInstanceId());
+        LOG.warn("Found {} not completed disk operations on allocator '{}'", ops.size(), config.getInstanceId());
         for (var op : ops) {
             LOG.info("Restore {}", op);
             op = diskManager.restoreDiskOperation(op);
             executor.submit(op.deferredAction());
         }
-    }
-
-    public Metrics getMetrics() {
-        return metrics;
     }
 
     @Override
@@ -150,7 +143,12 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
 
                         case EXISTING_DISK -> {
                             final String diskId = request.getExistingDisk().getDiskId();
-                            var disk = diskManager.get(diskId);
+                            Disk disk;
+                            try {
+                                disk = diskManager.get(diskId);
+                            } catch (StatusException e) {
+                                throw e.getStatus().asRuntimeException();
+                            }
                             if (disk == null) {
                                 LOG.error("Create disk failed, disk {} not found", diskId);
 
@@ -189,6 +187,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
             });
 
             if (diskOperation != null) {
+                InjectedFailures.failCreateDisk0();
                 executor.submit(diskOperation.deferredAction());
             }
         } catch (Exception e) {
@@ -198,9 +197,9 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                 return;
             }
 
+            metrics.createDiskError.inc();
             LOG.error("Cannot create disk for owner {}: {}", request.getUserId(), e.getMessage(), e);
             response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
-            metrics.createDiskError.inc();
             return;
         }
 
@@ -223,12 +222,12 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
 
         final var cloneDiskOperation = Operation.create(
             request.getUserId(),
-            "CloneDisk",
+            "CloneDisk: " + request.getDiskId(),
             idempotencyKey,
             DiskServiceApi.CloneDiskMetadata.newBuilder().build());
 
         final var startedAt = Instant.now();
-        final var deadline = startedAt.plus(Duration.ofHours(1));
+        final var deadline = startedAt.plus(Duration.ofDays(30));
 
         try {
             var diskOperation = withRetries(LOG, () -> {
@@ -283,6 +282,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
             });
 
             if (diskOperation != null) {
+                InjectedFailures.failCloneDisk0();
                 executor.submit(diskOperation.deferredAction());
             }
         } catch (Exception e) {
@@ -343,7 +343,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                         LOG.error(status.getDescription());
                         operationsDao.updateError(deleteDiskOperation.id(), toProto(status).toByteArray(), tx);
                         tx.commit();
-                        metrics.cloneDiskError.inc();
+                        metrics.deleteDiskError.inc();
                         return null;
                     }
 
@@ -352,11 +352,13 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                     diskOpDao.createDiskOp(diskOp, tx);
 
                     tx.commit();
+                    metrics.deleteDiskStart.inc();
                     return diskOp;
                 }
             });
 
             if (diskOperation != null) {
+                InjectedFailures.failDeleteDisk0();
                 executor.submit(diskOperation.deferredAction());
             }
         } catch (Exception e) {
@@ -424,10 +426,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
             response.onError(Status.INVALID_ARGUMENT.withDescription("disk_id not set").asException());
             return false;
         }
-        if (!validateDiskSpec(request.getNewDiskSpec(), response)) {
-            return false;
-        }
-        return true;
+        return validateDiskSpec(request.getNewDiskSpec(), response);
     }
 
     private static boolean validateDiskSpec(DiskApi.DiskSpec spec, StreamObserver<LongRunning.Operation> response) {
@@ -448,53 +447,5 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
             return false;
         }
         return true;
-    }
-
-    public static final class Metrics {
-        public final Counter createDiskExisting = Counter
-            .build("create_disk_existing", "Create disk from existing cloud disk")
-            .subsystem("allocator")
-            .register();
-
-        public final Counter createDiskNewStart = Counter
-            .build("create_disk_new_start", "Create new disk (started requests)")
-            .subsystem("allocator")
-            .register();
-
-        public final Counter createDiskNewFinish = Counter
-            .build("create_disk_new_finish", "Create new disk (finished requests)")
-            .subsystem("allocator")
-            .register();
-
-        public final Counter cloneDiskStart = Counter
-            .build("clone_disk_start", "Clone disk (started requests)")
-            .subsystem("allocator")
-            .register();
-
-        public final Counter cloneDiskFinish = Counter
-            .build("clone_disk_finish", "Clone disk (finished requests)")
-            .subsystem("allocator")
-            .register();
-
-        public final Counter createDiskError = Counter
-            .build("create_disk_error", "Disk creation errors")
-            .subsystem("allocator")
-            .register();
-
-        public final Counter cloneDiskError = Counter
-            .build("clone_disk_error", "Disk clone errors")
-            .subsystem("allocator")
-            .register();
-
-        public final Counter deleteDiskError = Counter
-            .build("delete_disk_error", "Disk deletion errors")
-            .subsystem("allocator")
-            .register();
-
-        public final Histogram createNewDiskDuration = Histogram
-            .build("create_new_disk_duration", "Create new disk duration (sec)")
-            .subsystem("allocator")
-            .buckets(0.001, 0.1, 0.25, 0.5, 1.0, 1.5, 2.0, 5.0, 10.0)
-            .register();
     }
 }

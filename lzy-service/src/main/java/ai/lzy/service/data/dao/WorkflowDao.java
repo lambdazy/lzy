@@ -5,6 +5,7 @@ import ai.lzy.model.db.exceptions.AlreadyExistsException;
 import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.service.data.PortalStatus;
 import ai.lzy.v1.common.LMS3;
+import io.grpc.Status;
 
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -22,6 +23,13 @@ public interface WorkflowDao {
                 @Nullable TransactionHandle transaction) throws AlreadyExistsException, SQLException;
 
     boolean doesActiveExecutionExists(String userId, String workflowName, String executionId) throws SQLException;
+
+    default void setDeadExecutionStatus(String executionId) throws SQLException {
+        setDeadExecutionStatus(executionId, null);
+    }
+
+    void setDeadExecutionStatus(String executionId,
+                                @Nullable TransactionHandle transaction) throws SQLException;
 
     default void updateStatus(String executionId, PortalStatus portalStatus) throws SQLException {
         updateStatus(executionId, portalStatus, null);
@@ -62,8 +70,12 @@ public interface WorkflowDao {
                                   @Nullable TransactionHandle transaction)
         throws SQLException;
 
+    @Nullable
+    Status getExecutionErrorStatus(String executionId) throws SQLException;
+
     void updateFinishData(String workflowName, String executionId, Timestamp finishedAt,
-                          @Nullable String finishedWithError, @Nullable TransactionHandle transaction)
+                          @Nullable String finishedWithError, @Nullable Integer finishedErrorCode,
+                          @Nullable TransactionHandle transaction)
         throws SQLException;
 
     default void updateActiveExecution(String userId, String workflowName, String oldExecutionId,
@@ -95,4 +107,6 @@ public interface WorkflowDao {
 
     @Nullable
     String getAllocatorSession(String executionId) throws SQLException;
+
+    String getExpiredExecution() throws SQLException;
 }

@@ -17,6 +17,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
 import javax.annotation.Nullable;
+import javax.inject.Named;
 
 @Singleton
 public class SessionDaoImpl implements SessionDao {
@@ -26,7 +27,7 @@ public class SessionDaoImpl implements SessionDao {
     private final ObjectMapper objectMapper;
     private volatile Throwable injectedError = null;
 
-    public SessionDaoImpl(AllocatorDataSource storage, ObjectMapper objectMapper) {
+    public SessionDaoImpl(AllocatorDataSource storage, @Named("AllocatorObjectMapper") ObjectMapper objectMapper) {
         this.storage = storage;
         this.objectMapper = objectMapper;
     }
@@ -88,10 +89,12 @@ public class SessionDaoImpl implements SessionDao {
     }
 
     @Override
-    public void delete(String sessionId, @Nullable TransactionHandle transaction) throws SQLException {
+    public boolean delete(String sessionId, @Nullable TransactionHandle transaction) throws SQLException {
         LOG.debug("Delete session {} in tx {}", sessionId, transaction);
 
         throwInjectedError();
+
+        final boolean[] ret = {false};
 
         DbOperation.execute(transaction, storage, con -> {
             try (final var s = con.prepareStatement("""
@@ -100,9 +103,11 @@ public class SessionDaoImpl implements SessionDao {
                 WHERE id = ? AND deleted_at IS NULL"""))
             {
                 s.setString(1, sessionId);
-                s.execute();
+                ret[0] = s.executeUpdate() > 0;
             }
         });
+
+        return ret[0];
     }
 
     @VisibleForTesting

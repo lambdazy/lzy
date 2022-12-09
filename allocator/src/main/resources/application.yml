@@ -3,7 +3,7 @@ micronaut:
     port: 8082
 
 allocator:
-  instance-id: ${random.uuid}
+  instance-id: "single-allocator"
 
   service-clusters: []
 
