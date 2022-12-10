@@ -21,13 +21,11 @@
         <module>iam</module>
         <module>iam-api</module>
         <module>jupyter-kernel</module>
-        <module>kharon</module>
         <module>long-running</module>
         <module>long-running-api</module>
         <module>lzy-service</module>
         <module>lzy-service-api</module>
         <module>model</module>
-        <module>model-old</module>
         <module>parent</module>
         <module>portal</module>
         <module>portal-api</module>
@@ -35,7 +33,6 @@
         <module>scheduler</module>
         <module>scheduler-api</module>
         <module>servant</module>
-        <module>server</module>
         <module>site</module>
         <module>slots-api</module>
         <module>storage</module>
@@ -45,7 +42,6 @@
         <module>util</module>
         <module>whiteboard</module>
         <module>whiteboard-api</module>
-        <module>whiteboard-old</module>
         <module>worker-api</module>
     </modules>
 </project>

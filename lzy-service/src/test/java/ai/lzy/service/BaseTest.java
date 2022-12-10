@@ -8,6 +8,7 @@ import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.portal.grpc.ProtoConverter;
 import ai.lzy.service.config.LzyServiceConfig;
+import ai.lzy.service.workflow.WorkflowService;
 import ai.lzy.storage.test.BaseTestWithStorage;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.auth.credentials.RenewableJwt;
@@ -45,7 +46,7 @@ import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 public class BaseTest {
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
     private static final BaseTestWithStorage storageTestContext = new BaseTestWithStorage();
-    private static final BaseTestWithAllocator allocatorTestContext = new BaseTestWithAllocator();
+    protected static final BaseTestWithAllocator allocatorTestContext = new BaseTestWithAllocator();
 
     @Rule
     public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
@@ -86,6 +87,8 @@ public class BaseTest {
         allocatorConfigOverrides.put("allocator.thread-allocator.enabled", true);
         allocatorConfigOverrides.put("allocator.thread-allocator.vm-class-name", "ai.lzy.portal.App");
         allocatorTestContext.setUp(allocatorConfigOverrides);
+
+        WorkflowService.PEEK_RANDOM_PORTAL_PORTS = true;  // To recreate portals for all wfs
 
         var lzyDbConfig = preparePostgresConfig("lzy-service", lzyServiceDb.getConnectionInfo());
         context = ApplicationContext.run(PropertySource.of(lzyDbConfig));
@@ -142,6 +145,7 @@ public class BaseTest {
 
     @After
     public void tearDown() throws SQLException, InterruptedException {
+        WorkflowService.PEEK_RANDOM_PORTAL_PORTS = false;
         iamTestContext.after();
         allocatorTestContext.after();
         storageTestContext.after();

@@ -64,12 +64,6 @@ public class GarbageCollector extends TimerTask {
         } catch (Exception e) {
             LOG.error("Error during GC: " + e.getMessage(), e);
         }
-
-        try {
-            cleanExpiredDiskOps();
-        } catch (Exception e) {
-            LOG.error("Error during GC: " + e.getMessage(), e);
-        }
     }
 
     private void cleanExpiredVms() throws SQLException {
@@ -110,16 +104,6 @@ public class GarbageCollector extends TimerTask {
             } catch (Exception e) {
                 LOG.error("Error during clean up Vm {}", vm, e);
             }
-        });
-    }
-
-    private void cleanExpiredDiskOps() throws SQLException {
-        var expiredDiskOps = diskOpDao.getExpiredDiskOps(10, null);
-        LOG.debug("Found {} expired disk operations", expiredDiskOps.size());
-
-        expiredDiskOps.forEach(diskOp -> {
-            LOG.debug("Expired op: {}", diskOp);
-            // TODO: ...
         });
     }
 

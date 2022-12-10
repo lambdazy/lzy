@@ -43,12 +43,6 @@ public class DiskOpDao {
         SET failed = TRUE, fail_reason = ?
         WHERE op_id = ?""";
 
-    private static final String QUERY_GET_EXPIRED_DISK_OPS = """
-        SELECT op_id, started_at, deadline, owner_instance, op_type::TEXT, state_json
-        FROM disk_op
-        WHERE deadline <= NOW() AND NOT failed
-        LIMIT ?""";
-
     private static final String QUERY_GET_FAILED_DISK_OPS = """
         SELECT op_id, started_at, deadline, owner_instance, op_type::TEXT, state_json, fail_reason
         FROM disk_op
@@ -58,7 +52,7 @@ public class DiskOpDao {
     private static final String QUERY_GET_ACTIVE_DISK_OPS = """
         SELECT op_id, started_at, deadline, owner_instance, op_type::TEXT, state_json
         FROM disk_op
-        WHERE owner_instance = ? AND deadline > NOW() AND NOT failed""";
+        WHERE owner_instance = ? AND NOT failed""";
 
     private final AllocatorDataSource storage;
 
@@ -91,11 +85,11 @@ public class DiskOpDao {
         });
     }
 
-    public void deleteDiskOp(String opId, @Nullable TransactionHandle tx) throws SQLException {
-        DbOperation.execute(tx, storage, conn -> {
+    public boolean deleteDiskOp(String opId, @Nullable TransactionHandle tx) throws SQLException {
+        return DbOperation.execute(tx, storage, conn -> {
             try (var st = conn.prepareStatement(QUERY_DELETE_DISK_OP)) {
                 st.setString(1, opId);
-                st.executeUpdate();
+                return st.executeUpdate() > 0;
             }
         });
     }
@@ -124,21 +118,6 @@ public class DiskOpDao {
                 st.executeUpdate();
             }
         });
-    }
-
-    public List<DiskOperation> getExpiredDiskOps(int limit, @Nullable TransactionHandle tx) throws SQLException {
-        final List<DiskOperation> ops = new ArrayList<>(limit);
-        DbOperation.execute(tx, storage, conn -> {
-            try (var st = conn.prepareStatement(QUERY_GET_EXPIRED_DISK_OPS)) {
-                st.setInt(1, limit);
-
-                var rs = st.executeQuery();
-                while (rs.next()) {
-                    ops.add(readDiskOp(rs));
-                }
-            }
-        });
-        return ops;
     }
 
     public List<DiskOperation> getActiveDiskOps(String ownerInstanceId, @Nullable TransactionHandle tx)

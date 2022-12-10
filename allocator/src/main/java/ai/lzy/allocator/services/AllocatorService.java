@@ -63,7 +63,7 @@ import static ai.lzy.util.grpc.ProtoConverter.toProto;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
-@Requires(beans = MetricReporter.class)
+@Requires(beans = MetricReporter.class, notEnv = "test-mock")
 public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     private static final Logger LOG = LogManager.getLogger(AllocatorService.class);
 

@@ -29,13 +29,10 @@ import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmPoolServiceApi;
 import ai.lzy.v1.VmPoolServiceGrpc;
-import ai.lzy.v1.channel.LCMPS;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
-import ai.lzy.v1.portal.LzyPortalApi;
-import ai.lzy.v1.portal.LzyPortalGrpc;
 import ai.lzy.v1.storage.LSS;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import ai.lzy.v1.workflow.LWF;
@@ -63,7 +60,6 @@ import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -74,7 +70,6 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.service.LzyService.APP;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
-import static ai.lzy.util.grpc.GrpcUtils.*;
 
 @Singleton
 public class WorkflowService {
@@ -103,7 +98,6 @@ public class WorkflowService {
 
     private final VmPoolServiceGrpc.VmPoolServiceBlockingStub vmPoolClient;
 
-    private final RenewableJwt internalCreds;
     private final SubjectServiceGrpcClient subjectClient;
     private final AccessBindingServiceGrpcClient abClient;
 
@@ -123,7 +117,6 @@ public class WorkflowService {
         channelManagerAddress = config.getChannelManagerAddress();
         iamAddress = config.getIam().getAddress();
         whiteboardAddress = config.getWhiteboardAddress();
-        internalCreds = internalUserCredentials;
 
         this.allocatorClient = newBlockingClient(
             AllocatorGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
@@ -177,6 +170,21 @@ public class WorkflowService {
         startPortal(creationState);
 
         if (creationState.isInvalid()) {
+            try {
+                withRetries(defaultRetryPolicy(), LOG, () -> {
+                    try (var transaction = TransactionHandle.create(storage)) {
+                        workflowDao.updateFinishData(creationState.getWorkflowName(), creationState.getExecutionId(),
+                            Timestamp.from(Instant.now()), creationState.getErrorStatus().getDescription(),
+                            creationState.getErrorStatus().getCode().value(), transaction);
+                        workflowDao.updateActiveExecution(creationState.getUserId(), creationState.getWorkflowName(),
+                            creationState.getExecutionId(), null, transaction);
+
+                        transaction.commit();
+                    }
+                });
+            } catch (Exception e) {
+                LOG.error("[createWorkflow] Got Exception during saving error status: " + e.getMessage(), e);
+            }
             replyError.accept(creationState.getErrorStatus());
             return;
         }
@@ -241,13 +249,12 @@ public class WorkflowService {
             return;
         }
 
-        finishPortal(request.getExecutionId());
-
         try {
             withRetries(defaultRetryPolicy(), LOG, () -> {
                 try (var transaction = TransactionHandle.create(storage)) {
                     workflowDao.updateFinishData(request.getWorkflowName(), request.getExecutionId(),
-                        Timestamp.from(Instant.now()), request.getReason(), transaction);
+                        Timestamp.from(Instant.now()), request.getReason(),
+                        Status.CANCELLED.getCode().value(), transaction);
                     workflowDao.updateActiveExecution(userId, request.getWorkflowName(), request.getExecutionId(),
                         null, transaction);
 
@@ -564,66 +571,6 @@ public class WorkflowService {
         } catch (Exception e) {
             LOG.error("Error while reading std slots: ", e);
             response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
-        }
-    }
-
-    private void destroyPortal(String executionId) {
-        try {
-            var portalDesc = withRetries(LOG, () -> workflowDao.getPortalDescription(executionId));
-            if (portalDesc == null) {
-                return;  // No portal for execution
-            }
-
-            try {
-                //noinspection ResultOfMethodCallIgnored
-                channelManagerClient.destroy(LCMPS.ChannelDestroyRequest.newBuilder()
-                    .setChannelId(portalDesc.stderrChannelId())
-                    .build());
-            } catch (Exception e) {
-                LOG.error("Exception while destroying portal {} stderr channel {}",
-                    portalDesc.portalId(), portalDesc.stderrChannelId(), e);
-            }
-
-            try {
-                //noinspection ResultOfMethodCallIgnored
-                channelManagerClient.destroy(LCMPS.ChannelDestroyRequest.newBuilder()
-                    .setChannelId(portalDesc.stdoutChannelId())
-                    .build());
-            } catch (Exception e) {
-                LOG.error("Exception while destroying portal {} stdout channel {}",
-                    portalDesc.portalId(), portalDesc.stdoutChannelId(), e);
-            }
-
-            //noinspection ResultOfMethodCallIgnored
-            allocatorClient.free(VmAllocatorApi.FreeRequest.newBuilder()
-                .setVmId(portalDesc.vmId())
-                .build());
-
-        } catch (Exception e) {
-            LOG.error("Cannot destroy portal for execution <{}>. Please destroy it by yourself", executionId, e);
-        }
-
-    }
-
-    private void finishPortal(String executionId) {
-        try {
-            var portalAddress = withRetries(LOG, () -> workflowDao.getPortalAddress(executionId));
-            if (portalAddress == null) {
-                LOG.error("Error while building portal channel. Execution id: <{}>", executionId);
-                return;
-            }
-
-            var portalChannel = newGrpcChannel(portalAddress, LzyPortalGrpc.SERVICE_NAME);
-
-            var portalClient = newBlockingClient(LzyPortalGrpc.newBlockingStub(portalChannel),
-                    APP, () -> internalCreds.get().token());
-            var ignored = portalClient.finish(LzyPortalApi.FinishRequest.newBuilder().build());
-
-            portalChannel.shutdown();
-            portalChannel.awaitTermination(10, TimeUnit.SECONDS);
-
-        } catch (Exception e) {
-            LOG.error("Cannot finish portal for execution <{}>. Please destroy it by yourself", executionId, e);
         }
     }
 
