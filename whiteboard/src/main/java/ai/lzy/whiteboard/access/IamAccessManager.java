@@ -23,7 +23,7 @@ public class IamAccessManager implements AccessManager {
     @Inject
     public IamAccessManager(@Named("WhiteboardIamSubjectClient") SubjectServiceClient subjectClient,
                             @Named("WhiteboardIamAccessBindingClient") AccessBindingClient accessBindingClient,
-                            AccessClient iamAccessClient)
+                            @Named("WhiteboardIamAccessClient") AccessClient iamAccessClient)
     {
         this.iamSubjectClient = subjectClient;
         this.iamAccessBindingClient = accessBindingClient;
