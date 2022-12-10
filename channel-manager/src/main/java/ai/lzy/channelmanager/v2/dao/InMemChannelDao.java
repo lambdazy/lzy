@@ -211,6 +211,16 @@ public class InMemChannelDao implements ChannelDao {
             .collect(Collectors.toList());
     }
 
+    @Override
+    public List<Channel> listChannels(String executionId, Channel.LifeStatus lifeStatus,
+                                      @Nullable TransactionHandle transaction) throws SQLException
+    {
+        return channels.values().stream()
+            .filter(ch -> ch.getExecutionId().equals(executionId))
+            .filter(ch -> ch.getLifeStatus().equals(lifeStatus))
+            .collect(Collectors.toList());
+    }
+
     @Nullable
     @Override
     public Endpoint findEndpoint(String endpointUri, @Nullable TransactionHandle transaction) throws SQLException {

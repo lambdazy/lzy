@@ -153,12 +153,13 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
 
         try {
             withRetries(LOG, () -> {
-                try (final var tx = TransactionHandle.create(storage)) {
-                    try (final var guard = lockManager.withLock(channelId)) {
-                        channelDao.markChannelDestroying(channelId, tx);
-                    }
+                try (final var guard = lockManager.withLock(channelId);
+                     final var tx = TransactionHandle.create(storage))
+                {
+                    channelDao.markChannelDestroying(channelId, tx);
                     channelOperationDao.create(channelOperation, tx);
                     operationDao.create(operation, tx);
+
                     tx.commit();
                 }
             });
@@ -214,14 +215,6 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         try {
             withRetries(LOG, () -> {
                 try (final var tx = TransactionHandle.create(storage)) {
-                    for (final var channelId : channelsToDestroy) {
-                        try (final var guard = lockManager.withLock(channelId)) {
-                            channelDao.markChannelDestroying(channelId, tx);
-                        } catch (Exception e) {
-                            LOG.warn("Failed to mark channel {} destroying, will do it later, got exception: {}",
-                                channelId, e.getMessage());
-                        }
-                    }
                     channelOperationDao.create(channelOperation, tx);
                     operationDao.create(operation, tx);
                     tx.commit();
@@ -231,6 +224,15 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
             LOG.error(operationDescription + " failed, cannot create operation, got exception: {}", e.getMessage(), e);
             response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
             return;
+        }
+
+        for (final var channelId : channelsToDestroy) {
+            try (final var guard = lockManager.withLock(channelId)) {
+                withRetries(LOG, () -> channelDao.markChannelDestroying(channelId, null));
+            } catch (Exception e) {
+                LOG.warn("Failed to mark channel {} destroying, will do it later, got exception: {}",
+                    channelId, e.getMessage());
+            }
         }
 
         // TODO test on failure after adding idempotency token
@@ -290,9 +292,10 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         LOG.info("Get status for channels of execution {}", request.getExecutionId());
 
         final String executionId = request.getExecutionId();
-        List<Channel> channels;
+        List<Channel> aliveChannels;
         try {
-            channels = withRetries(LOG, () -> channelDao.listChannels(executionId, null));
+            aliveChannels = withRetries(LOG, () ->
+                channelDao.listChannels(executionId, Channel.LifeStatus.ALIVE, null));
         } catch (Exception e) {
             LOG.error("Get status for channels of execution {} failed, "
                       + "got exception: {}", executionId, e.getMessage(), e);
@@ -300,9 +303,6 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
             return;
         }
 
-        List<Channel> aliveChannels = channels.stream()
-            .filter(ch -> ch.getLifeStatus() == Channel.LifeStatus.ALIVE)
-            .collect(Collectors.toList());
         response.onNext(createChannelStatusAllResponse(aliveChannels));
         LOG.info("Get status for channels of execution {} done", executionId);
         response.onCompleted();

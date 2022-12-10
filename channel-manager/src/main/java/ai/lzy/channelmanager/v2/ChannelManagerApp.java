@@ -39,7 +39,7 @@ public class ChannelManagerApp {
                              @Named("ChannelManagerIamGrpcChannel") ManagedChannel iamChannel,
                              ChannelManagerService channelManagerService,
                              ChannelManagerPrivateService channelManagerPrivateService,
-                             OperationService operationService,
+                             @Named("ChannelManagerOperationService") OperationService operationService,
                              ChannelOperationManager channelOperationManager)
     {
         LOG.info("Starting ChannelManager service with config: {}", config.toString());

@@ -122,22 +122,24 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         final var slotOwner = fromProto(request.getSlotOwner());
         try {
             preconditionsStatus = withRetries(LOG, () -> {
-                try (final var tx = TransactionHandle.create(storage)) {
+                try (final var guard = lockManager.withLock(channelId);
+                     final var tx = TransactionHandle.create(storage))
+                {
                     final Status preconditionsActualStatus;
 
-                    try (final var guard = lockManager.withLock(channelId)) {
-                        final Channel actualChannel = channelDao.findChannel(channelId, Channel.LifeStatus.ALIVE, tx);
+                    final Channel actualChannel = channelDao.findChannel(channelId, Channel.LifeStatus.ALIVE, tx);
 
-                        preconditionsActualStatus = checkBindPreconditions(request, actualChannel);
-                        if (!preconditionsActualStatus.isOk()) {
-                            return preconditionsActualStatus;
-                        }
-
-                        channelDao.insertBindingEndpoint(slotInstance, slotOwner, tx);
+                    preconditionsActualStatus = checkBindPreconditions(request, actualChannel);
+                    if (!preconditionsActualStatus.isOk()) {
+                        return preconditionsActualStatus;
                     }
+
+                    channelDao.insertBindingEndpoint(slotInstance, slotOwner, tx);
                     channelOperationDao.create(channelOperation, tx);
                     operationDao.create(operation, tx);
+
                     tx.commit();
+
                     return preconditionsActualStatus;
                 }
             });
@@ -223,22 +225,24 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
 
         try {
             final Status preconditionsStatus = withRetries(LOG, () -> {
-                try (final var tx = TransactionHandle.create(storage)) {
+                try (final var guard = lockManager.withLock(channelId);
+                     final var tx = TransactionHandle.create(storage))
+                {
                     final Status preconditionsActualStatus;
 
-                    try (final var guard = lockManager.withLock(channelId)) {
-                        final Channel actualChannel = channelDao.findChannel(channelId, Channel.LifeStatus.ALIVE, tx);
+                    final Channel actualChannel = channelDao.findChannel(channelId, Channel.LifeStatus.ALIVE, tx);
 
-                        preconditionsActualStatus = checkUnbindPreconditions(request, actualChannel);
-                        if (!preconditionsActualStatus.isOk()) {
-                            return preconditionsActualStatus;
-                        }
-
-                        channelDao.markEndpointUnbinding(slotUri, tx);
+                    preconditionsActualStatus = checkUnbindPreconditions(request, actualChannel);
+                    if (!preconditionsActualStatus.isOk()) {
+                        return preconditionsActualStatus;
                     }
+
+                    channelDao.markEndpointUnbinding(slotUri, tx);
                     channelOperationDao.create(channelOperation, tx);
                     operationDao.create(operation, tx);
+
                     tx.commit();
+
                     return preconditionsActualStatus;
                 }
             });

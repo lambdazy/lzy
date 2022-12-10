@@ -35,6 +35,7 @@ public class BeanFactory {
     }
 
     @Singleton
+    @Named("ChannelManagerOperationService")
     public OperationService operationService(@Named("ChannelManagerOperationDao") OperationDao operationDao)
     {
         return new OperationService(operationDao);
