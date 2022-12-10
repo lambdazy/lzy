@@ -1,22 +1,15 @@
 package ai.lzy.worker.env;
 
-import ai.lzy.fs.storage.StorageClient;
 import ai.lzy.logs.MetricEvent;
 import ai.lzy.logs.MetricEventLogger;
 import ai.lzy.model.EnvironmentInstallationException;
 import ai.lzy.model.graph.PythonEnv;
-import com.google.common.util.concurrent.ListenableFuture;
 import net.lingala.zip4j.ZipFile;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.yaml.snakeyaml.Yaml;
-import ru.yandex.qe.s3.transfer.TransferStatus;
-import ru.yandex.qe.s3.transfer.Transmitter;
-import ru.yandex.qe.s3.transfer.download.DownloadRequestBuilder;
-import ru.yandex.qe.s3.transfer.download.DownloadResult;
 
 import java.io.*;
-import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -26,10 +19,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import javax.annotation.Nullable;
 
 public class CondaEnvironment implements AuxEnvironment {
     public static boolean RECONFIGURE_CONDA = true;  // Only for tests
@@ -39,24 +30,12 @@ public class CondaEnvironment implements AuxEnvironment {
 
     private final PythonEnv pythonEnv;
     private final BaseEnvironment baseEnv;
-    private final StorageClient storage;
-    private final String resourcesPath;
     private final String localModulesDir;
     private final String envName;
 
-    @Deprecated
-    public CondaEnvironment(
-        PythonEnv pythonEnv,
-        BaseEnvironment baseEnv,
-        @Nullable
-        StorageClient storage,
-        String resourcesPath
-    ) throws EnvironmentInstallationException
-    {
+    public CondaEnvironment(PythonEnv pythonEnv, BaseEnvironment baseEnv) throws EnvironmentInstallationException {
         this.pythonEnv = pythonEnv;
         this.baseEnv = baseEnv;
-        this.storage = storage;
-        this.resourcesPath = resourcesPath;
         this.localModulesDir = Path.of("/", "tmp", "local_modules" + UUID.randomUUID()).toString();
 
         var yaml = new Yaml();
@@ -76,29 +55,9 @@ public class CondaEnvironment implements AuxEnvironment {
         );
     }
 
-    public CondaEnvironment(
-        PythonEnv pythonEnv,
-        BaseEnvironment baseEnv,
-        String resourcesPath
-    ) throws EnvironmentInstallationException
-    {
-        this(pythonEnv, baseEnv, null, resourcesPath);
-    }
-
     @Override
     public BaseEnvironment base() {
         return baseEnv;
-    }
-
-    private void readToFile(File file, InputStream stream) throws IOException {
-        try (FileOutputStream output = new FileOutputStream(file.getAbsolutePath(), true)) {
-            byte[] buffer = new byte[4096];
-            int len = 0;
-            while (len != -1) {
-                output.write(buffer, 0, len);
-                len = stream.read(buffer);
-            }
-        }
     }
 
     private void extractFiles(File file, String destinationDirectory) throws IOException {
@@ -144,14 +103,15 @@ public class CondaEnvironment implements AuxEnvironment {
                 final int rc = lzyProcess.waitFor();
                 if (rc != 0) {
                     String errorMessage = "Failed to update conda env\n"
-                            + "  ReturnCode: " + rc + "\n"
-                            + "  Stdout: " + stdout + "\n\n"
-                            + "  Stderr: " + stderr + "\n";
+                        + "  ReturnCode: " + rc + "\n"
+                        + "  Stdout: " + stdout + "\n\n"
+                        + "  Stderr: " + stderr + "\n";
                     LOG.error(errorMessage);
                     throw new EnvironmentInstallationException(errorMessage);
                 }
                 LOG.info("CondaEnvironment::installPyenv successfully updated conda env");
 
+                //noinspection ResultOfMethodCallIgnored
                 condaFile.delete();
             }
 
@@ -169,47 +129,16 @@ public class CondaEnvironment implements AuxEnvironment {
                 String url = entry.uri();
                 LOG.info(
                     "CondaEnvironment::installPyenv installing local module with name " + name + " and url " + url);
+                File tempFile = File.createTempFile("tmp-file", ".zip");
 
-                if (storage == null) {
-
-                    File tempFile = File.createTempFile("tmp-file", ".zip");
-
-                    try (InputStream in = new URL(url).openStream()) {
-                        Files.copy(in, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                    }
-
-                    extractFiles(tempFile, localModulesDirectoryAbsolutePath());
-                    tempFile.deleteOnExit();
-
-                } else {  // TODO(artolord) Remove this in v2
-                    Transmitter transmitter = storage.transmitter();
-                    String bucket = storage.bucket(URI.create(url));
-                    String key = storage.key(URI.create(url));
-
-                    File tempFile = File.createTempFile("tmp-file", ".zip");
-                    LOG.info("CondaEnvironment::installPyenv trying to download module from storage");
-                    ListenableFuture<DownloadResult<Void>> resultFuture = transmitter.downloadC(
-                            new DownloadRequestBuilder()
-                                    .bucket(bucket)
-                                    .key(key)
-                                    .build(),
-                            data -> {
-                                InputStream stream = data.getInputStream();
-                                readToFile(tempFile, stream);
-                                stream.close();
-                                extractFiles(tempFile, localModulesDirectoryAbsolutePath());
-                            }
-                    );
-                    DownloadResult<Void> result = resultFuture.get();
-                    if (result.getDownloadState().getTransferStatus() != TransferStatus.DONE) {
-                        String errorMessage = "Failed to unzip local module " + name;
-                        LOG.error(errorMessage);
-                        throw new EnvironmentInstallationException(errorMessage);
-                    }
-                    tempFile.deleteOnExit();
+                try (InputStream in = new URL(url).openStream()) {
+                    Files.copy(in, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
                 }
+
+                extractFiles(tempFile, localModulesDirectoryAbsolutePath());
+                tempFile.deleteOnExit();
             }
-        } catch (IOException | ExecutionException | InterruptedException e) {
+        } catch (IOException e) {
             throw new RuntimeException(e);
         } finally {
             lockForMultithreadingTests.unlock();

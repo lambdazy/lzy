@@ -49,7 +49,6 @@ public class LzyFS extends FuseStubFS {
 
     private Map<Path, Set<String>> children = Collections.synchronizedMap(new HashMap<>());
     private Set<String> roots = Collections.synchronizedSet(new HashSet<>());
-    private Map<Path, LzyScript> executables = Collections.synchronizedMap(new HashMap<>());
     private Map<Path, LzyFileSlot> slots = Collections.synchronizedMap(new HashMap<>());
     private Map<Long, FileContents> openFiles = Collections.synchronizedMap(new HashMap<>());
     private Map<Path, Set<Long>> filesOpen = Collections.synchronizedMap(new HashMap<>());
@@ -113,13 +112,6 @@ public class LzyFS extends FuseStubFS {
     @Override
     public void mount(Path mountPoint, boolean blocking, boolean debug, String[] fuseOpts) {
         super.mount(mountPoint, blocking, debug, fuseOpts);
-    }
-
-    public boolean addScript(LzyScript script, Path path) {
-        if (executables.put(path, script) == null) {
-            return addPath(path);
-        }
-        return false;
     }
 
     public void addSlot(LzyFileSlot slot) {
@@ -196,13 +188,7 @@ public class LzyFS extends FuseStubFS {
     public int open(String pathStr, FuseFileInfo fi) {
         final Path path = Path.of(pathStr);
         final long fh = lastFh.addAndGet(1);
-        if (executables.containsKey(path)) {
-            final FileContents open = new TextContents(path, executables.get(path).scriptText());
-            openFiles.put(fh, open);
-            filesOpen.computeIfAbsent(path, p -> new HashSet<>()).add(fh);
-            fi.fh.set(fh);
-            return 0;
-        } else if (slots.containsKey(path)) {
+        if (slots.containsKey(path)) {
             return executeUnsafe(() -> {
                 final FileContents open = slots.get(path).open(fi);
                 openFiles.put(fh, open);
@@ -210,7 +196,6 @@ public class LzyFS extends FuseStubFS {
                 fi.fh.set(fh);
             });
         }
-
         return -ErrorCodes.ENOENT();
     }
 
@@ -263,10 +248,6 @@ public class LzyFS extends FuseStubFS {
             stat.st_mode.set(0750 | FileStat.S_IFDIR);
             final long size = children.getOrDefault(path, Set.of()).stream().mapToLong(String::length).sum() + 64;
             stat.st_size.set(size);
-        } else if (executables.containsKey(path)) { // declared operation
-            final LzyScript executable = executables.get(path);
-            stat.st_mode.set(0750 | FileStat.S_IFREG);
-            stat.st_size.set(executable.scriptText().length());
         } else if (slots.containsKey(path)) {
             final LzyFileSlot slot = slots.get(path);
             time = -1;
@@ -310,8 +291,7 @@ public class LzyFS extends FuseStubFS {
         final Path path = Paths.get(pathStr);
         final Set<String> children = this.children.getOrDefault(path, Set.of());
         if (children == null) {
-            return this.executables.containsKey(path) || this.slots.containsKey(path) ? -ErrorCodes.ENOTDIR() :
-                -ErrorCodes.ENOENT();
+            return this.slots.containsKey(path) ? -ErrorCodes.ENOTDIR() : -ErrorCodes.ENOENT();
         }
         children.stream().sorted().forEach(child -> {
             final FileStat lstat = new FileStat(buf.getRuntime());
@@ -388,8 +368,6 @@ public class LzyFS extends FuseStubFS {
                     roots.remove(path.getFileName().toString());
                 }
             }
-        } else if (executables.containsKey(path)) {
-            return -ErrorCodes.EACCES();
         } else if (slots.containsKey(path)) {
             final LzyFileSlot slot = slots.remove(path);
             return executeUnsafe(slot::remove);

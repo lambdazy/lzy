@@ -27,16 +27,6 @@ public class LzyMacosFsManagerImpl implements LzyFSManager {
     }
 
     @Override
-    public boolean addScript(LzyScript exec, boolean isSystem) {
-        final Path path = Path.of("/").resolve(exec.location());
-        if (isSystem) {
-            return sbinMount.addScript(exec, path);
-        } else {
-            return binMount.addScript(exec, path);
-        }
-    }
-
-    @Override
     public void addSlot(LzyFileSlot slot) {
         baseMount.addSlot(slot);
     }

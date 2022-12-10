@@ -23,17 +23,6 @@ public class LzyLinuxFsManagerImpl implements LzyFSManager {
     }
 
     @Override
-    public boolean addScript(LzyScript exec, boolean isSystem) {
-        Path path;
-        if (isSystem) {
-            path = Path.of("/sbin").resolve(exec.location());
-        } else {
-            path = Path.of("/bin").resolve(exec.location());
-        }
-        return baseMount.addScript(exec, path);
-    }
-
-    @Override
     public void addSlot(LzyFileSlot slot) {
         baseMount.addSlot(slot);
     }

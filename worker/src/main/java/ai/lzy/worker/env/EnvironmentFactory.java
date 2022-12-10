@@ -1,6 +1,5 @@
 package ai.lzy.worker.env;
 
-import ai.lzy.fs.storage.StorageClient;
 import ai.lzy.model.EnvironmentInstallationException;
 import ai.lzy.model.graph.Env;
 import ai.lzy.model.graph.PythonEnv;
@@ -9,7 +8,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.function.Supplier;
-import javax.annotation.Nullable;
 
 public class EnvironmentFactory {
     private static final Logger LOG = LogManager.getLogger(EnvironmentFactory.class);
@@ -17,7 +15,7 @@ public class EnvironmentFactory {
     private static boolean IS_DOCKER_SUPPORTED = true;
 
     @Deprecated
-    public static Environment create(Env env, @Nullable StorageClient storage) throws EnvironmentInstallationException {
+    public static Environment create(Env env) throws EnvironmentInstallationException {
         //to mock environment in tests
         if (envForTests != null) {
             LOG.info("EnvironmentFactory: using mocked environment");
@@ -46,15 +44,11 @@ public class EnvironmentFactory {
 
         if (env.auxEnv() instanceof PythonEnv) {
             LOG.info("Conda auxEnv provided, using CondaEnvironment");
-            return new CondaEnvironment((PythonEnv) env.auxEnv(), baseEnv, storage, resourcesPathStr);
+            return new CondaEnvironment((PythonEnv) env.auxEnv(), baseEnv);
         } else {
             LOG.info("No auxEnv provided, using SimpleBashEnvironment");
             return new SimpleBashEnvironment(baseEnv);
         }
-    }
-
-    public static Environment create(Env env) throws EnvironmentInstallationException {
-        return create(env, null);
     }
 
     @VisibleForTesting
