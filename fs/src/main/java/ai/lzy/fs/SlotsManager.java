@@ -12,7 +12,6 @@ import ai.lzy.model.slot.TextLinesOutSlot;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.channel.LCMS;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
-import ai.lzy.v1.deprecated.Servant;
 import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,14 +22,12 @@ import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Consumer;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
 import static ai.lzy.v1.common.LMS.SlotStatus.State.DESTROYED;
 import static ai.lzy.v1.common.LMS.SlotStatus.State.SUSPENDED;
 
-// TODO(artolord) remove progress from here in v2 servant
 public class SlotsManager implements AutoCloseable {
     private static final Logger LOG = LogManager.getLogger(SlotsManager.class);
 
@@ -39,7 +36,6 @@ public class SlotsManager implements AutoCloseable {
     // TODO: project?
     // { task -> { slot -> LzySlot } }
     private final Map<String, Map<String, LzySlot>> task2slots = new ConcurrentHashMap<>();
-    private final List<Consumer<Servant.ServantProgress>> listeners = new ArrayList<>();
     private boolean closed = false;
 
     public SlotsManager(LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManager, URI localLzyFsUri) {
@@ -58,8 +54,6 @@ public class SlotsManager implements AutoCloseable {
             LOG.info("Waiting for slots: {}...", Arrays.toString(slots().map(LzySlot::name).toArray()));
             this.wait(1_000);
         }
-        // TODO (tomato): it is better to move progress updates from SlotsManager
-        progress(Servant.ServantProgress.newBuilder().setConcluded(Servant.Concluded.newBuilder().build()).build());
         closed = true;
     }
 
@@ -72,14 +66,6 @@ public class SlotsManager implements AutoCloseable {
     public Stream<LzySlot> slots() {
         return Set.copyOf(task2slots.values()).stream()
             .flatMap(slots -> Set.copyOf(slots.values()).stream());
-    }
-
-    public synchronized void onProgress(Consumer<Servant.ServantProgress> listener) {
-        listeners.add(listener);
-    }
-
-    public synchronized void reportProgress(Servant.ServantProgress progress) {
-        progress(progress);
     }
 
     public URI resolveSlotUri(String taskId, String slotName) {
@@ -156,9 +142,6 @@ public class SlotsManager implements AutoCloseable {
                 LOG.info("SlotsManager:: Slot {} was removed", slot.name());
                 if (taskSlots.isEmpty()) {
                     task2slots.remove(taskId);
-                    progress(Servant.ServantProgress.newBuilder()
-                        .setCommunicationCompleted(Servant.CommunicationCompleted.newBuilder().build())
-                        .build());
                 }
                 SlotsManager.this.notifyAll();
             }
@@ -190,11 +173,5 @@ public class SlotsManager implements AutoCloseable {
             };
             case ARG -> new ArgumentsSlot(slotInstance, channelId);
         };
-    }
-
-    // call with global sync only
-    private void progress(Servant.ServantProgress progress) {
-        LOG.info("Progress {}", JsonUtils.printRequest(progress));
-        listeners.forEach(l -> l.accept(progress));
     }
 }

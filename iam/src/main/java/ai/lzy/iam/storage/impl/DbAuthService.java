@@ -85,7 +85,7 @@ public class DbAuthService implements AuthenticateService {
                 if (expiredAt.isAfter(Instant.now())) {
                     result = switch (subjectType) {
                         case USER -> new User(subjectId);
-                        case SERVANT -> new Servant(subjectId);
+                        case WORKER -> new Worker(subjectId);
                         case VM -> new Vm(subjectId);
                     };
                 } else {
@@ -156,7 +156,7 @@ public class DbAuthService implements AuthenticateService {
 
                         var subject = switch (subjectType) {
                             case USER -> new User(subjectId);
-                            case SERVANT -> new Servant(subjectId);
+                            case WORKER -> new Worker(subjectId);
                             case VM -> new Vm(subjectId); // TODO: fail?
                         };
 

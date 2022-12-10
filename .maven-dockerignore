@@ -1,1 +1,1 @@
-servant/target/docker/**
+worker/target/docker/**

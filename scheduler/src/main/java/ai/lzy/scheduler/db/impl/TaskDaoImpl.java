@@ -23,7 +23,7 @@ public class TaskDaoImpl implements TaskDao {
 
     private static final String FIELDS = """
         id, workflow_id, workflow_name, user_id, task_description_json, status,
-        rc, error_description, servant_id""";
+        rc, error_description, worker_id""";
 
     private final SchedulerDataSource storage;
 
@@ -115,13 +115,13 @@ public class TaskDaoImpl implements TaskDao {
     public void update(Task state) throws DaoException {
         try (var conn = storage.connect(); var st = conn.prepareStatement("""
                 UPDATE task
-                SET (status, rc, error_description, servant_id) = (CAST(? AS task_status), ?, ?, ?)
+                SET (status, rc, error_description, worker_id) = (CAST(? AS task_status), ?, ?, ?)
                 WHERE workflow_id = ? AND id = ?""")) {
             int paramCount = 0;
             st.setString(++paramCount, state.status().name());
             st.setObject(++paramCount, state.rc());
             st.setString(++paramCount, state.errorDescription());
-            st.setString(++paramCount, state.servantId());
+            st.setString(++paramCount, state.workerId());
             st.setString(++paramCount, state.workflowId());
             st.setString(++paramCount, state.taskId());
             st.execute();
@@ -142,9 +142,9 @@ public class TaskDaoImpl implements TaskDao {
         final TaskState.Status status = TaskState.Status.valueOf(rs.getString(++resCount));
         final Integer rc = rs.getObject(++resCount, Integer.class);
         final String errorDesc = rs.getString(++resCount);
-        final String servantId = rs.getString(++resCount);
+        final String workerId = rs.getString(++resCount);
         final var state = new TaskState(id, workflowIdRes, workflowName, userId,
-            taskDesc, status, rc, errorDesc, servantId);
+            taskDesc, status, rc, errorDesc, workerId);
         return new TaskImpl(state, this);
     }
 }

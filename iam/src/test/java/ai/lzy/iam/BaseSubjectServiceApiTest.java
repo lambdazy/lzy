@@ -29,8 +29,8 @@ public abstract class BaseSubjectServiceApiTest {
     }
 
     @Test
-    public void createAndDeleteServantTest() {
-        createAndDeleteScenario(SubjectType.SERVANT);
+    public void createAndDeleteWorkerTest() {
+        createAndDeleteScenario(SubjectType.WORKER);
     }
 
     public void createAndDeleteScenario(SubjectType subjectType) {
@@ -72,8 +72,8 @@ public abstract class BaseSubjectServiceApiTest {
     }
 
     @Test
-    public void createAndRemoveServantWithCredentialsTest() {
-        createAndRemoveWithCredentialsScenario(SubjectType.SERVANT);
+    public void createAndRemoveWorkerWithCredentialsTest() {
+        createAndRemoveWithCredentialsScenario(SubjectType.WORKER);
     }
 
     public void createAndRemoveWithCredentialsScenario(SubjectType subjectType) {
@@ -122,9 +122,9 @@ public abstract class BaseSubjectServiceApiTest {
         return Arrays.asList(
                 new Object[][]{
                         {SubjectType.USER, SubjectType.USER},
-                        {SubjectType.USER, SubjectType.SERVANT},
-                        {SubjectType.SERVANT, SubjectType.USER},
-                        {SubjectType.SERVANT, SubjectType.SERVANT}
+                        {SubjectType.USER, SubjectType.WORKER},
+                        {SubjectType.WORKER, SubjectType.USER},
+                        {SubjectType.WORKER, SubjectType.WORKER}
                 }
         );
     }

@@ -49,8 +49,8 @@ public class TaskImpl implements Task {
 
     @Nullable
     @Override
-    public String servantId() {
-        return state.servantId();
+    public String workerId() {
+        return state.workerId();
     }
 
     @Nullable
@@ -68,14 +68,14 @@ public class TaskImpl implements Task {
     @Override
     public void notifyScheduled() throws DaoException {
         state = new TaskState(taskId(), workflowId(), workflowName(), userId(), description(),
-                Status.SCHEDULED, rc(), errorDescription(), servantId());
+                Status.SCHEDULED, rc(), errorDescription(), workerId());
         dao.update(this);
     }
 
     @Override
-    public void notifyExecuting(String servantId) throws DaoException {
+    public void notifyExecuting(String workerId) throws DaoException {
         state = new TaskState(taskId(), workflowId(), workflowName(), userId(), description(),
-            Status.EXECUTING, rc(), errorDescription(), servantId);
+            Status.EXECUTING, rc(), errorDescription(), workerId);
         dao.update(this);
     }
 
@@ -83,7 +83,7 @@ public class TaskImpl implements Task {
     public void notifyExecutionCompleted(Integer rc, String description) throws DaoException {
         final Status status = rc == 0 ? Status.SUCCESS : Status.ERROR;
         state = new TaskState(taskId(), workflowId(), workflowName(), userId(), description(),
-            status, rc, description, servantId());
+            status, rc, description, workerId());
         dao.update(this);
     }
 }

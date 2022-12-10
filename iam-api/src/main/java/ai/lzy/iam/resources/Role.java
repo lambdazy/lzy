@@ -33,7 +33,7 @@ public enum Role {
             AuthPermission.WORKFLOW_DELETE,
             AuthPermission.INTERNAL_AUTHORIZE
     )),
-    LZY_SERVANT("lzy.internal.servant", Set.of(
+    LZY_WORKER("lzy.internal.worker", Set.of(
             AuthPermission.WORKFLOW_GET,
             AuthPermission.WORKFLOW_RUN,
             AuthPermission.WHITEBOARD_GET,

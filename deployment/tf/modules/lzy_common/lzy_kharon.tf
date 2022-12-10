@@ -6,8 +6,8 @@ locals {
     "lzy.ai/app"                = "kharon"
   }
   kharon-port                  = 8899
-  kharon-servant-proxy-port    = 8900
-  kharon-servant-fs-proxy-port = 8901
+  kharon-worker-proxy-port    = 8900
+  kharon-worker-fs-proxy-port = 8901
   kharon-k8s-name              = "lzy-kharon"
 }
 
@@ -76,12 +76,12 @@ resource "kubernetes_deployment" "kharon" {
             host_port      = local.kharon-port
           }
           port {
-            container_port = local.kharon-servant-proxy-port
-            host_port      = local.kharon-servant-proxy-port
+            container_port = local.kharon-worker-proxy-port
+            host_port      = local.kharon-worker-proxy-port
           }
           port {
-            container_port = local.kharon-servant-fs-proxy-port
-            host_port      = local.kharon-servant-fs-proxy-port
+            container_port = local.kharon-worker-fs-proxy-port
+            host_port      = local.kharon-worker-fs-proxy-port
           }
           args = [
             "--lzy-server-address",
@@ -92,10 +92,10 @@ resource "kubernetes_deployment" "kharon" {
             var.kharon_public_ip,
             "--port",
             local.kharon-port,
-            "--servant-proxy-port",
-            local.kharon-servant-proxy-port,
-            "--servantfs-proxy-port",
-            local.kharon-servant-fs-proxy-port,
+            "--worker-proxy-port",
+            local.kharon-worker-proxy-port,
+            "--workerfs-proxy-port",
+            local.kharon-worker-fs-proxy-port,
             "-w",
             "http://${kubernetes_service.whiteboard.spec[0].cluster_ip}:8999",
             "-lsa",

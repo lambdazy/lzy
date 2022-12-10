@@ -2,8 +2,8 @@ package ai.lzy.scheduler;
 
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.db.exceptions.DaoException;
-import ai.lzy.scheduler.db.ServantDao;
-import ai.lzy.scheduler.servant.Servant;
+import ai.lzy.scheduler.db.WorkerDao;
+import ai.lzy.scheduler.worker.Worker;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.util.grpc.RemoteAddressContext;
 import ai.lzy.v1.scheduler.SchedulerPrivateApi;
@@ -20,72 +20,72 @@ import javax.inject.Singleton;
 @Singleton
 public class PrivateSchedulerApiImpl extends SchedulerPrivateGrpc.SchedulerPrivateImplBase {
     private static final Logger LOG = LogManager.getLogger(PrivateSchedulerApiImpl.class);
-    private final ServantDao dao;
+    private final WorkerDao dao;
 
     @Inject
-    public PrivateSchedulerApiImpl(ServantDao dao) {
+    public PrivateSchedulerApiImpl(WorkerDao dao) {
         this.dao = dao;
     }
 
     @Override
-    public void servantProgress(SchedulerPrivateApi.ServantProgressRequest request,
-                                StreamObserver<SchedulerPrivateApi.ServantProgressResponse> responseObserver)
+    public void workerProgress(SchedulerPrivateApi.WorkerProgressRequest request,
+                               StreamObserver<SchedulerPrivateApi.WorkerProgressResponse> responseObserver)
     {
-        final Servant servant;
+        final Worker worker;
         try {
-            servant = dao.get(request.getWorkflowName(), request.getServantId());
+            worker = dao.get(request.getWorkflowName(), request.getWorkerId());
         } catch (DaoException e) {
             responseObserver.onError(Status.INTERNAL
                     .withDescription("Database exception").asException());
             return;
         }
-        if (servant == null) {
-            responseObserver.onError(Status.NOT_FOUND.withDescription("Servant not found").asException());
+        if (worker == null) {
+            responseObserver.onError(Status.NOT_FOUND.withDescription("Worker not found").asException());
             return;
         }
         switch (request.getProgress().getStatusCase()) {
-            case EXECUTING -> servant.executingHeartbeat();
-            case IDLING -> servant.idleHeartbeat();
+            case EXECUTING -> worker.executingHeartbeat();
+            case IDLING -> worker.idleHeartbeat();
             case CONFIGURED -> {
                 if (request.getProgress().getConfigured().hasErr()) {
-                    servant.notifyConfigured(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc(),
+                    worker.notifyConfigured(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc(),
                             request.getProgress().getConfigured().getErr().getDescription());
                 } else {
-                    servant.notifyConfigured(0, "Ok");
+                    worker.notifyConfigured(0, "Ok");
                 }
             }
 
-            case COMMUNICATIONCOMPLETED -> servant.notifyCommunicationCompleted();
-            case FINISHED -> servant.notifyStopped(0, "Ok");
-            case EXECUTIONCOMPLETED -> servant
+            case COMMUNICATIONCOMPLETED -> worker.notifyCommunicationCompleted();
+            case FINISHED -> worker.notifyStopped(0, "Ok");
+            case EXECUTIONCOMPLETED -> worker
                     .notifyExecutionCompleted(request.getProgress().getExecutionCompleted().getRc(),
                             request.getProgress().getExecutionCompleted().getDescription());
             default -> {
-                LOG.error("Unknown progress from servant: {}", JsonUtils.printRequest(request));
+                LOG.error("Unknown progress from worker: {}", JsonUtils.printRequest(request));
                 responseObserver.onError(Status.UNIMPLEMENTED.asException());
                 return;
             }
         }
-        responseObserver.onNext(SchedulerPrivateApi.ServantProgressResponse.newBuilder().build());
+        responseObserver.onNext(SchedulerPrivateApi.WorkerProgressResponse.newBuilder().build());
         responseObserver.onCompleted();
     }
 
     @Override
-    public void registerServant(SchedulerPrivateApi.RegisterServantRequest request,
-                                StreamObserver<SchedulerPrivateApi.RegisterServantResponse> responseObserver)
+    public void registerWorker(SchedulerPrivateApi.RegisterWorkerRequest request,
+                                StreamObserver<SchedulerPrivateApi.RegisterWorkerResponse> responseObserver)
     {
         RemoteAddressContext context = RemoteAddressContext.KEY.get();
-        final Servant servant;
+        final Worker worker;
         try {
-            servant = dao.get(request.getWorkflowName(), request.getServantId());
+            worker = dao.get(request.getWorkflowName(), request.getWorkerId());
         } catch (DaoException e) {
             responseObserver.onError(Status.INTERNAL.asException());
             return;
         }
 
-        if (servant == null) {
+        if (worker == null) {
             responseObserver.onError(
-                    Status.NOT_FOUND.withDescription("Servant not found in workflow").asException());
+                    Status.NOT_FOUND.withDescription("Worker not found in workflow").asException());
             return;
         }
         var host = context.remoteHost();
@@ -93,8 +93,8 @@ public class PrivateSchedulerApiImpl extends SchedulerPrivateGrpc.SchedulerPriva
             responseObserver.onError(Status.INTERNAL.withDescription("Cannot get remote peer host").asException());
             return;
         }
-        servant.notifyConnected(HostAndPort.fromParts(host, request.getApiPort()));
-        responseObserver.onNext(SchedulerPrivateApi.RegisterServantResponse.newBuilder().build());
+        worker.notifyConnected(HostAndPort.fromParts(host, request.getApiPort()));
+        responseObserver.onNext(SchedulerPrivateApi.RegisterWorkerResponse.newBuilder().build());
         responseObserver.onCompleted();
     }
 }

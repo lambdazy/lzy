@@ -1,10 +1,10 @@
 package ai.lzy.test.scenarios;
 
-import ai.lzy.servant.env.CondaEnvironment;
 import ai.lzy.service.workflow.WorkflowService;
 import ai.lzy.test.ApplicationContextRule;
 import ai.lzy.test.ContextRule;
 import ai.lzy.test.impl.v2.PythonContext;
+import ai.lzy.worker.env.CondaEnvironment;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Rule;

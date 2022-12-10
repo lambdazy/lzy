@@ -55,7 +55,7 @@
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
-            <artifactId>servant</artifactId>
+            <artifactId>worker</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
 

@@ -38,7 +38,7 @@ public class SchedulerContext {
                 "scheduler.allocator-address", allocator.address(),
                 "scheduler.channel-manager-address", channelManager.address(),
                 "scheduler.iam.address", iam.address(),
-                "max-servants-per-workflow", 2,
+                "max-workers-per-workflow", 2,
                 "default-provisioning-limit", 2
         )));
         this.context = ApplicationContext.run(opts);

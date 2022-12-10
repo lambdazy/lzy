@@ -151,8 +151,8 @@ public class DbAuthServiceTest {
     }
 
     @Test
-    public void validAuthServant() throws Exception {
-        validAuth(SubjectType.SERVANT);
+    public void validAuthWorker() throws Exception {
+        validAuth(SubjectType.WORKER);
     }
 
     public void validAuth(SubjectType subjectType) throws Exception {
@@ -172,8 +172,8 @@ public class DbAuthServiceTest {
     }
 
     @Test
-    public void invalidAuthServant() throws Exception {
-        invalidAuth(SubjectType.SERVANT);
+    public void invalidAuthWorker() throws Exception {
+        invalidAuth(SubjectType.WORKER);
     }
 
     public void invalidAuth(SubjectType subjectType) throws Exception {

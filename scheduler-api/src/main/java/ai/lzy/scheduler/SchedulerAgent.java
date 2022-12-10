@@ -3,9 +3,9 @@ package ai.lzy.scheduler;
 import ai.lzy.util.auth.credentials.CredentialsUtils;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.scheduler.SchedulerPrivateApi;
-import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress;
-import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress.Executing;
-import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress.Idle;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.WorkerProgress;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.WorkerProgress.Executing;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.WorkerProgress.Idle;
 import ai.lzy.v1.scheduler.SchedulerPrivateGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
@@ -29,7 +29,7 @@ import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 public class SchedulerAgent extends Thread {
     private static final Logger LOG = LogManager.getLogger(SchedulerAgent.class);
 
-    private final String servantId;
+    private final String workerId;
     private final String workflowName;
     private final Duration heartbeatPeriod;
     private final int apiPort;
@@ -37,22 +37,22 @@ public class SchedulerAgent extends Thread {
 
     private final SchedulerPrivateGrpc.SchedulerPrivateBlockingStub stub;
     private final AtomicBoolean stopping = new AtomicBoolean(false);
-    private final BlockingQueue<ServantProgress> progressQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<WorkerProgress> progressQueue = new LinkedBlockingQueue<>();
     private final Timer timer = new Timer();
     private final AtomicReference<TimerTask> task = new AtomicReference<>();
 
-    public SchedulerAgent(String schedulerAddress, String servantId, String workflowName,
+    public SchedulerAgent(String schedulerAddress, String workerId, String workflowName,
                           Duration heartbeatPeriod, int apiPort, String iamPrivateKey)
     {
-        super("scheduler-agent-" + servantId);
-        this.servantId = servantId;
+        super("scheduler-agent-" + workerId);
+        this.workerId = workerId;
         this.workflowName = workflowName;
         this.heartbeatPeriod = heartbeatPeriod;
         this.apiPort = apiPort;
 
         RenewableJwt jwt;
         try {
-            jwt = new RenewableJwt(servantId, "INTERNAL", Duration.ofDays(1),
+            jwt = new RenewableJwt(workerId, "INTERNAL", Duration.ofDays(1),
                 CredentialsUtils.readPrivateKey(iamPrivateKey));
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -66,8 +66,9 @@ public class SchedulerAgent extends Thread {
         super.start();
 
         try {
-            stub.registerServant(SchedulerPrivateApi.RegisterServantRequest.newBuilder()
-                .setServantId(servantId)
+            //noinspection ResultOfMethodCallIgnored
+            stub.registerWorker(SchedulerPrivateApi.RegisterWorkerRequest.newBuilder()
+                .setWorkerId(workerId)
                 .setWorkflowName(workflowName)
                 .setApiPort(apiPort)
                 .build());
@@ -78,7 +79,7 @@ public class SchedulerAgent extends Thread {
         }
     }
 
-    public synchronized void reportProgress(ServantProgress progress) {
+    public synchronized void reportProgress(WorkerProgress progress) {
         try {
             progressQueue.put(progress);
         } catch (InterruptedException e) {
@@ -89,7 +90,7 @@ public class SchedulerAgent extends Thread {
     @Override
     public void run() {
         while (!stopping.get()) {
-            final ServantProgress progress;
+            final WorkerProgress progress;
             try {
                 progress = progressQueue.take();
             } catch (InterruptedException e) {
@@ -99,9 +100,10 @@ public class SchedulerAgent extends Thread {
             var retryCount = 0;
             while (++retryCount < 5) {
                 try {
-                    stub.servantProgress(
-                        SchedulerPrivateApi.ServantProgressRequest.newBuilder()
-                            .setServantId(servantId)
+                    //noinspection ResultOfMethodCallIgnored
+                    stub.workerProgress(
+                        SchedulerPrivateApi.WorkerProgressRequest.newBuilder()
+                            .setWorkerId(workerId)
                             .setWorkflowName(workflowName)
                             .setProgress(progress)
                             .build());
@@ -131,7 +133,7 @@ public class SchedulerAgent extends Thread {
             new TimerTask() {
                 @Override
                 public void run() {
-                    reportProgress(ServantProgress.newBuilder()
+                    reportProgress(WorkerProgress.newBuilder()
                         .setIdling(Idle.newBuilder().build())
                         .build());
                 }
@@ -148,7 +150,7 @@ public class SchedulerAgent extends Thread {
             new TimerTask() {
                 @Override
                 public void run() {
-                    reportProgress(ServantProgress.newBuilder()
+                    reportProgress(WorkerProgress.newBuilder()
                         .setExecuting(Executing.newBuilder().build())
                         .build());
                 }

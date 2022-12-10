@@ -7,7 +7,6 @@ import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.config.PortalConfig;
 import ai.lzy.portal.mocks.MocksServer;
-import ai.lzy.servant.agents.Worker;
 import ai.lzy.test.GrpcUtils;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.JsonUtils;
@@ -20,6 +19,7 @@ import ai.lzy.v1.portal.LzyPortalApi.PortalStatusRequest;
 import ai.lzy.v1.portal.LzyPortalGrpc;
 import ai.lzy.v1.slots.LSA;
 import ai.lzy.v1.slots.LzySlotsApiGrpc;
+import ai.lzy.worker.Worker;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
@@ -197,7 +197,7 @@ public class PortalTestBase {
 
         String worker = null;
         if (newWorker) {
-            worker = "servant_" + taskNum;
+            worker = "worker_" + taskNum;
             startWorker(worker);
         }
 
@@ -234,7 +234,7 @@ public class PortalTestBase {
 
     protected String startTask(int taskNum, String fuze, LMS.Slot slot, String specifiedWorker) {
         String taskId = "task_" + taskNum;
-        String actualWorker = Objects.isNull(specifiedWorker) ? "servant_" + taskNum : specifiedWorker;
+        String actualWorker = Objects.isNull(specifiedWorker) ? "worker_" + taskNum : specifiedWorker;
 
         mocksServer.getSchedulerMock().startWorker(actualWorker,
             LMO.TaskDesc.newBuilder()

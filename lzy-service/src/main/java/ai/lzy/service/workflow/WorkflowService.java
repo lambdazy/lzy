@@ -499,7 +499,7 @@ public class WorkflowService {
             var workerKeys = RsaUtils.generateRsaKeys();
             privateKey = workerKeys.privateKey();
 
-            final var subj = subjectClient.createSubject(AuthProvider.INTERNAL, portalId, SubjectType.SERVANT,
+            final var subj = subjectClient.createSubject(AuthProvider.INTERNAL, portalId, SubjectType.WORKER,
                 new SubjectCredentials("main", workerKeys.publicKey(), CredentialsType.PUBLIC_KEY));
 
             abClient.setAccessBindings(new Workflow(userId + "/" + workflowName),

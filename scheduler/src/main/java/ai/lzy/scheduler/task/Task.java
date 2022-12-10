@@ -17,12 +17,12 @@ public interface Task {
     TaskDesc description();
     TaskState.Status status();
 
-    @Nullable String servantId();
+    @Nullable String workerId();
     @Nullable Integer rc();
     @Nullable String errorDescription();
 
-    // ========= Servant events ==========
+    // ========= Worker events ==========
     void notifyScheduled() throws DaoException;
-    void notifyExecuting(String servantId) throws DaoException;
+    void notifyExecuting(String workerId) throws DaoException;
     void notifyExecutionCompleted(Integer rc, String description) throws DaoException;
 }

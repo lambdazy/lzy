@@ -6,7 +6,7 @@ import javax.annotation.Nonnull;
 public enum UriScheme {
     // services
     LzyFs("fs"),
-    LzyServant("servant"),
+    LzyWorker("worker"),
     LzyTerminal("terminal"),
     LzyKharon("kharon"),
 

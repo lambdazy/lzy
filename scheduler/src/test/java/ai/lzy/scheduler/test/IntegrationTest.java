@@ -7,20 +7,20 @@ import ai.lzy.scheduler.PrivateSchedulerApiImpl;
 import ai.lzy.scheduler.SchedulerApi;
 import ai.lzy.scheduler.SchedulerApiImpl;
 import ai.lzy.scheduler.configs.ServiceConfig;
-import ai.lzy.scheduler.db.ServantDao;
-import ai.lzy.scheduler.test.mocks.AllocatedServantMock;
+import ai.lzy.scheduler.db.WorkerDao;
+import ai.lzy.scheduler.test.mocks.AllocatedWorkerMock;
 import ai.lzy.scheduler.test.mocks.AllocatorMock;
 import ai.lzy.util.grpc.GrpcChannels;
 import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.scheduler.SchedulerApi.TaskScheduleRequest;
 import ai.lzy.v1.scheduler.SchedulerGrpc;
-import ai.lzy.v1.scheduler.SchedulerPrivateApi.RegisterServantRequest;
-import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress;
-import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress.Configured;
-import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress.ExecutionCompleted;
-import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress.Finished;
-import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgressRequest;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.RegisterWorkerRequest;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.WorkerProgress;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.WorkerProgress.Configured;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.WorkerProgress.ExecutionCompleted;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.WorkerProgress.Finished;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.WorkerProgressRequest;
 import ai.lzy.v1.scheduler.SchedulerPrivateGrpc;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
@@ -68,7 +68,7 @@ public class IntegrationTest extends BaseTestWithIam {
         SchedulerApiImpl impl = context.getBean(SchedulerApiImpl.class);
         PrivateSchedulerApiImpl privateApi = context.getBean(PrivateSchedulerApiImpl.class);
         ServiceConfig config = context.getBean(ServiceConfig.class);
-        final var dao = context.getBean(ServantDao.class);
+        final var dao = context.getBean(WorkerDao.class);
         var auth = config.getIam();
         api = new SchedulerApi(impl, privateApi, config, new BeanFactory().iamChannel(config), dao);
         allocator = context.getBean(AllocatorMock.class);
@@ -98,8 +98,8 @@ public class IntegrationTest extends BaseTestWithIam {
     public void testSimple() throws Exception {
         CompletableFuture<String> a = new CompletableFuture<>();
         var latch = new CountDownLatch(1);
-        allocator.onAllocationRequested(((workflowId, servantId, token) -> a.complete(servantId)));
-        allocator.onDestroyRequested((workflow, servant) -> latch.countDown());
+        allocator.onAllocationRequested(((workflowId, workerId, token) -> a.complete(workerId)));
+        allocator.onDestroyRequested((workflow, worker) -> latch.countDown());
 
         //noinspection ResultOfMethodCallIgnored
         stub.schedule(TaskScheduleRequest.newBuilder()
@@ -125,25 +125,25 @@ public class IntegrationTest extends BaseTestWithIam {
         final BlockingQueue<String> exec = new LinkedBlockingQueue<>();
         final BlockingQueue<String> stop = new LinkedBlockingQueue<>();
 
-        new AllocatedServantMock.ServantBuilder(port)
+        new AllocatedWorkerMock.WorkerBuilder(port)
             .setOnEnv(() -> env.add(""))
             .setOnExec(() -> exec.add(""))
             .setOnStop(() -> stop.add(""))
             .build();
 
         //noinspection ResultOfMethodCallIgnored
-        privateStub.registerServant(RegisterServantRequest.newBuilder()
+        privateStub.registerWorker(RegisterWorkerRequest.newBuilder()
             .setWorkflowName("wf")
-            .setServantId(id)
+            .setWorkerId(id)
             .setApiPort(port)
             .build());
         env.take();
 
         //noinspection ResultOfMethodCallIgnored
-        privateStub.servantProgress(ServantProgressRequest.newBuilder()
-            .setServantId(id)
+        privateStub.workerProgress(WorkerProgressRequest.newBuilder()
+            .setWorkerId(id)
             .setWorkflowName("wf")
-            .setProgress(ServantProgress.newBuilder()
+            .setProgress(WorkerProgress.newBuilder()
                 .setConfigured(Configured.newBuilder()
                     .setOk(Configured.Ok.newBuilder().build())
                     .build())
@@ -154,10 +154,10 @@ public class IntegrationTest extends BaseTestWithIam {
         exec.take();
 
         //noinspection ResultOfMethodCallIgnored
-        privateStub.servantProgress(ServantProgressRequest.newBuilder()
-            .setServantId(id)
+        privateStub.workerProgress(WorkerProgressRequest.newBuilder()
+            .setWorkerId(id)
             .setWorkflowName("wf")
-            .setProgress(ServantProgress.newBuilder()
+            .setProgress(WorkerProgress.newBuilder()
                 .setExecutionCompleted(ExecutionCompleted.newBuilder()
                     .setDescription("Ok")
                     .setRc(0)
@@ -169,10 +169,10 @@ public class IntegrationTest extends BaseTestWithIam {
         stop.take();
 
         //noinspection ResultOfMethodCallIgnored
-        privateStub.servantProgress(ServantProgressRequest.newBuilder()
-            .setServantId(id)
+        privateStub.workerProgress(WorkerProgressRequest.newBuilder()
+            .setWorkerId(id)
             .setWorkflowName("wf")
-            .setProgress(ServantProgress.newBuilder()
+            .setProgress(WorkerProgress.newBuilder()
                 .setFinished(Finished.newBuilder().build())
                 .build()
             )

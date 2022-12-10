@@ -153,13 +153,13 @@ public final class LzyFsServerLegacy {
         LOG.info("LzyFs started on {}.", selfUri);
     }
 
-    private String generateJwtServantToken(String servantId) {
+    private String generateJwtServantToken(String workerId) {
         final Instant now = Instant.now();
         return Jwts.builder()
             .setIssuedAt(Date.from(now))
             .setNotBefore(Date.from(now))
             .setExpiration(Date.from(now.plusSeconds(Duration.ofDays(7).toSeconds())))
-            .setIssuer(servantId)
+            .setIssuer(workerId)
             .compact();
     }
 
@@ -407,7 +407,7 @@ public final class LzyFsServerLegacy {
         commandParts.add(System.getProperty("java.home") + "/bin/java");
         commandParts.add("-Xmx1g");
         commandParts.add("-Dcustom.log.file=" + LOGS_DIR + "/" + name + "_$(($RANDOM % 10000))");
-        commandParts.add("-Dlog4j.configurationFile=servant_cmd/log4j2.yaml");
+        commandParts.add("-Dlog4j.configurationFile=worker_cmd/log4j2.yaml");
         commandParts.add("-classpath");
         commandParts.add('"' + System.getProperty("java.class.path") + '"');
         commandParts.add(BashApi.class.getCanonicalName());

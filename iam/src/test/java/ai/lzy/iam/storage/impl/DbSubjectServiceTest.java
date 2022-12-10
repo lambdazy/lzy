@@ -146,7 +146,7 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
         var alisa = createSubject("Alisa", SubjectType.VM);
 
         assertThrows(AuthUniqueViolationException.class, () ->
-            createSubject("Alisa", SubjectType.SERVANT,
+            createSubject("Alisa", SubjectType.WORKER,
                 List.of(new SubjectCredentials("super-user", "SuperValue", CredentialsType.PUBLIC_KEY))));
 
         var actualAlisa = subject(alisa.id());

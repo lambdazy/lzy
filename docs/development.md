@@ -14,13 +14,13 @@
 
 1.  Install conda
 2.  Prepare conda env:
-    `conda create --name "py39" "python=3.9.7" && conda activate py39 && pip install -r servant/docker/requirements.txt && cd python && pip install -r requirements.txt && python setup.py install && cd ..`
+    `conda create --name "py39" "python=3.9.7" && conda activate py39 && pip install -r worker/docker/requirements.txt && cd python && pip install -r requirements.txt && python setup.py install && cd ..`
 
 ### Local run
 
 1.  Run [Server](server/readme.md)
 2.  Run [Kharon](kharon/readme.md)
-3.  Run [Terminal](servant/readme.md)
+3.  Run [Terminal](worker/readme.md)
 4.  Now ʎzy FS should be available at path `/tmp/lzy`
 
 ------------------------------------------------------------------------
@@ -28,7 +28,7 @@
 
 5.  Install
     [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html)
-6.  `cd servant/ && ./prepare_envs.sh ../python` (conda envs
+6.  `cd worker/ && ./prepare_envs.sh ../python` (conda envs
     setup)
 
 ### FAQ

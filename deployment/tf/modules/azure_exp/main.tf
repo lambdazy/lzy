@@ -22,6 +22,6 @@ module "azure_common" {
   server-image               = var.server-image
   whiteboard-image           = var.whiteboard-image
   iam-image                  = var.iam-image
-  servant-image              = var.servant-image
+  worker-image              = var.worker-image
   default-env-image          = var.default-env-image
 }
