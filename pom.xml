@@ -32,7 +32,7 @@
         <module>pylzy</module>
         <module>scheduler</module>
         <module>scheduler-api</module>
-        <module>servant</module>
+        <module>worker</module>
         <module>site</module>
         <module>slots-api</module>
         <module>storage</module>
