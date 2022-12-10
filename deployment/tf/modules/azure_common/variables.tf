@@ -87,7 +87,7 @@ variable "iam-image" {
   type    = string
 }
 
-variable "servant-image" {
+variable "worker-image" {
   type = string
 }
 

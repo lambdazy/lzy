@@ -1,14 +1,14 @@
 ARG SERVANT_BASE_TAG
-FROM lzydock/lzy-servant-base:${SERVANT_BASE_TAG}
+FROM lzydock/lzy-worker-base:${SERVANT_BASE_TAG}
 
-RUN mkdir -p /tmp/lzy-log/servant \
+RUN mkdir -p /tmp/lzy-log/worker \
     && mkdir -p /tmp/resources
 
 COPY docker/tmp-for-context/pylzy/ pylzy
-COPY target/servant-1.0-SNAPSHOT.jar pylzy/lzy/lzy-servant.jar
+COPY target/worker-1.0-SNAPSHOT.jar pylzy/lzy/lzy-worker.jar
 RUN ./conda_prepare.sh pylzy_install 'pylzy'
 
-COPY target/servant-1.0-SNAPSHOT.jar app/app.jar
+COPY target/worker-1.0-SNAPSHOT.jar app/app.jar
 COPY src/main/resources/ app/resources
 RUN chmod -R 700 app/resources
 

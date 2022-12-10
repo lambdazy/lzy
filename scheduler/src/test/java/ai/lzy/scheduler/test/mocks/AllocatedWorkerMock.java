@@ -10,20 +10,20 @@ import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-public class AllocatedServantMock {
+public class AllocatedWorkerMock {
     private final Server server;
     private final Runnable onStop;
     private final Runnable onSignal;
     private final Runnable onEnv;
     private final Runnable onExec;
 
-    public AllocatedServantMock(int port, Runnable onStop, Runnable onSignal,
-                                Runnable onEnv, Runnable onExec) throws IOException {
+    public AllocatedWorkerMock(int port, Runnable onStop, Runnable onSignal,
+                               Runnable onEnv, Runnable onExec) throws IOException {
         this.onStop = onStop;
         this.onSignal = onSignal;
         this.onEnv = onEnv;
         this.onExec = onExec;
-        ServantImpl impl = new ServantImpl();
+        WorkerImpl impl = new WorkerImpl();
         server = NettyServerBuilder.forPort(port)
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
@@ -36,7 +36,7 @@ public class AllocatedServantMock {
         server.awaitTermination();
     }
 
-    private class ServantImpl extends WorkerApiGrpc.WorkerApiImplBase {
+    private class WorkerImpl extends WorkerApiGrpc.WorkerApiImplBase {
 
         @Override
         public void configure(ConfigureRequest request, StreamObserver<ConfigureResponse> responseObserver) {
@@ -60,39 +60,39 @@ public class AllocatedServantMock {
         }
     }
 
-    public static class ServantBuilder {
+    public static class WorkerBuilder {
         private final int port;
         private Runnable onStop = () -> {};
         private Runnable onSignal = () -> {};
         private Runnable onEnv = () -> {};
         private Runnable onExec = () -> {};
 
-        public ServantBuilder(int port) {
+        public WorkerBuilder(int port) {
             this.port = port;
         }
 
-        public ServantBuilder setOnStop(Runnable onStop) {
+        public WorkerBuilder setOnStop(Runnable onStop) {
             this.onStop = onStop;
             return this;
         }
 
-        public ServantBuilder setOnSignal(Runnable onSignal) {
+        public WorkerBuilder setOnSignal(Runnable onSignal) {
             this.onSignal = onSignal;
             return this;
         }
 
-        public ServantBuilder setOnEnv(Runnable onEnv) {
+        public WorkerBuilder setOnEnv(Runnable onEnv) {
             this.onEnv = onEnv;
             return this;
         }
 
-        public ServantBuilder setOnExec(Runnable onExec) {
+        public WorkerBuilder setOnExec(Runnable onExec) {
             this.onExec = onExec;
             return this;
         }
 
-        public AllocatedServantMock build() throws IOException {
-            return new AllocatedServantMock(port, onStop, onSignal, onEnv, onExec);
+        public AllocatedWorkerMock build() throws IOException {
+            return new AllocatedWorkerMock(port, onStop, onSignal, onEnv, onExec);
         }
     }
 

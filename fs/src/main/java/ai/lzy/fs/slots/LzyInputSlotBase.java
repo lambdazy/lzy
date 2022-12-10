@@ -58,7 +58,7 @@ public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSl
                 }
             });
         } catch (Exception e) {
-            LOG.error("InputSlotBase:: Failed openOutputSlot connection to servant " + connected, e);
+            LOG.error("InputSlotBase:: Failed openOutputSlot connection to worker " + connected, e);
             close();
             return;
         }

@@ -53,28 +53,28 @@ public class SchedulerPrivateApiMock extends SchedulerPrivateGrpc.SchedulerPriva
     }
 
     @Override
-    public void registerServant(SchedulerPrivateApi.RegisterServantRequest request,
-                                StreamObserver<SchedulerPrivateApi.RegisterServantResponse> responseObserver)
+    public void registerWorker(SchedulerPrivateApi.RegisterWorkerRequest request,
+                                StreamObserver<SchedulerPrivateApi.RegisterWorkerResponse> responseObserver)
     {
         LOG.info("register worker: " + JsonUtils.printSingleLine(request));
 
-        workerHandlers.put(request.getServantId(), new WorkerHandler(request));
+        workerHandlers.put(request.getWorkerId(), new WorkerHandler(request));
 
-        responseObserver.onNext(SchedulerPrivateApi.RegisterServantResponse.getDefaultInstance());
+        responseObserver.onNext(SchedulerPrivateApi.RegisterWorkerResponse.getDefaultInstance());
         responseObserver.onCompleted();
     }
 
     @Override
-    public void servantProgress(SchedulerPrivateApi.ServantProgressRequest request,
-                                StreamObserver<SchedulerPrivateApi.ServantProgressResponse> responseObserver)
+    public void workerProgress(SchedulerPrivateApi.WorkerProgressRequest request,
+                               StreamObserver<SchedulerPrivateApi.WorkerProgressResponse> responseObserver)
     {
         LOG.info("worker progress: " + JsonUtils.printSingleLine(request));
 
-        if (request.getProgress().getStatusCase() == SchedulerPrivateApi.ServantProgress.StatusCase.IDLING) {
-            worker(request.getServantId()).active.set(false);
+        if (request.getProgress().getStatusCase() == SchedulerPrivateApi.WorkerProgress.StatusCase.IDLING) {
+            worker(request.getWorkerId()).active.set(false);
         }
 
-        responseObserver.onNext(SchedulerPrivateApi.ServantProgressResponse.getDefaultInstance());
+        responseObserver.onNext(SchedulerPrivateApi.WorkerProgressResponse.getDefaultInstance());
         responseObserver.onCompleted();
     }
 
@@ -85,7 +85,7 @@ public class SchedulerPrivateApiMock extends SchedulerPrivateGrpc.SchedulerPriva
         private final WorkerApiGrpc.WorkerApiBlockingStub workerClient;
         private final ManagedChannel workerChannel;
 
-        WorkerHandler(SchedulerPrivateApi.RegisterServantRequest req) {
+        WorkerHandler(SchedulerPrivateApi.RegisterWorkerRequest req) {
             workerChannel = newGrpcChannel("localhost", req.getApiPort(), WorkerApiGrpc.SERVICE_NAME);
             workerClient = newBlockingClient(
                 WorkerApiGrpc.newBlockingStub(workerChannel),

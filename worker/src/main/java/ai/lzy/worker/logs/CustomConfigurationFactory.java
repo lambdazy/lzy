@@ -19,9 +19,9 @@ public class CustomConfigurationFactory extends ConfigurationFactory {
     public Configuration getConfiguration(LoggerContext loggerContext, ConfigurationSource configurationSource) {
 
         if (Objects.equals(System.getenv("LOGS_APPENDER"), "Kafka")
-                && System.getenv("SERVANT_ID") == null)
+                && System.getenv("WORKER_ID") == null)
         {
-            throw new RuntimeException("SERVANT_ID env is null. Logging configuration failed.");
+            throw new RuntimeException("WORKER_ID env is null. Logging configuration failed.");
         }
 
         return new KafkaLogsConfiguration(
@@ -35,10 +35,10 @@ public class CustomConfigurationFactory extends ConfigurationFactory {
                 + "\"level\": \"%-5level\", "
                 + "\"logger\": \"%logger{36}\", "
                 + "\"message\": \"%enc{%msg}{JSON}\", "
-                + "\"servant\": \"" + System.getenv("SERVANT_ID") + "\", "
+                + "\"worker\": \"" + System.getenv("WORKER_ID") + "\", "
                 + "\"exception\": \"%enc{%ex}{JSON}\""
                 + "}",
-            "servant"
+            "worker"
         );
     }
 

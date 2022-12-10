@@ -4,27 +4,27 @@ resource "kubernetes_namespace" "fictive" {
   }
 }
 
-resource "kubernetes_daemonset" "servant_cpu_fictive_containers" {
+resource "kubernetes_daemonset" "worker_cpu_fictive_containers" {
   metadata {
-    name      = "servant-fictive-containers-cpu"
+    name      = "worker-fictive-containers-cpu"
     namespace = kubernetes_namespace.fictive.metadata[0].name
   }
   spec {
     selector {
       match_labels = {
-        name = "servant-image-caching-cpu"
+        name = "worker-image-caching-cpu"
       }
     }
     template {
       metadata {
         labels = {
-          name = "servant-image-caching-cpu"
+          name = "worker-image-caching-cpu"
         }
       }
       spec {
         container {
-          image   = var.servant-image
-          name    = "fictive-servant"
+          image   = var.worker-image
+          name    = "fictive-worker"
           command = ["tail", "-f", "/entrypoint.sh"]
         }
         node_selector = {
@@ -35,27 +35,27 @@ resource "kubernetes_daemonset" "servant_cpu_fictive_containers" {
   }
 }
 
-resource "kubernetes_daemonset" "servant_gpu_fictive_containers" {
+resource "kubernetes_daemonset" "worker_gpu_fictive_containers" {
   metadata {
-    name      = "servant-fictive-containers-gpu"
+    name      = "worker-fictive-containers-gpu"
     namespace = kubernetes_namespace.fictive.metadata[0].name
   }
   spec {
     selector {
       match_labels = {
-        name = "servant-image-caching-gpu"
+        name = "worker-image-caching-gpu"
       }
     }
     template {
       metadata {
         labels = {
-          name = "servant-image-caching-gpu"
+          name = "worker-image-caching-gpu"
         }
       }
       spec {
         container {
-          image   = var.servant-image
-          name    = "fictive-servant"
+          image   = var.worker-image
+          name    = "fictive-worker"
           command = ["tail", "-f", "/entrypoint.sh"]
         }
         node_selector = {

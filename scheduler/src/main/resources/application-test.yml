@@ -2,7 +2,7 @@ scheduler:
   port: 2392
 
   base-env-default-image: ""
-  max-servants-per-workflow: 1
+  max-workers-per-workflow: 1
   default-provisioning-limit: 1
 
   provisioning-limits:
@@ -12,7 +12,7 @@ scheduler:
   channel-manager-address: localhost:1234
   scheduler-address: localhost:2392  # ???
   allocator-address: localhost:1234
-  servant-image: lzy-servant
+  worker-image: lzy-worker
 
   database:
     url: 'embedded-postgres'
@@ -22,13 +22,13 @@ scheduler:
     max-pool-size: 5
     enabled: true
 
-  servant-processor:
+  worker-processor:
     allocation-timeout: 100d
     configuring-timeout: 100d
     executing-heartbeat-period: 100d
     idle-heartbeat-period: 100d
     idle-timeout: 100ms
-    servant-stop-timeout: 100ms
+    worker-stop-timeout: 100ms
 
   iam:
     address: 'localhost:8443'

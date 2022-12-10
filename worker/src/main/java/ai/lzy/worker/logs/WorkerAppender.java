@@ -21,34 +21,34 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-@Plugin(name = "ServantAppender", category = Core.CATEGORY_NAME, elementType = Appender.ELEMENT_TYPE)
-public class ServantAppender extends AbstractAppender {
+@Plugin(name = "WorkerAppender", category = Core.CATEGORY_NAME, elementType = Appender.ELEMENT_TYPE)
+public class WorkerAppender extends AbstractAppender {
     private static final Lock lock = new ReentrantLock();
-    private static ServantAppender instance;
+    private static WorkerAppender instance;
     private final ConcurrentLinkedQueue<LogEvent> queue;
-    private final String servantId;
+    private final String workerId;
     private BigInteger eventId = BigInteger.valueOf(0);
 
-    protected ServantAppender(String name, Filter filter, String servantId, Layout<?> layout) {
+    protected WorkerAppender(String name, Filter filter, String workerId, Layout<?> layout) {
         super(name, filter, layout, true);
-        this.servantId = servantId;
+        this.workerId = workerId;
         this.queue = new ConcurrentLinkedQueue<>();
         Thread thread = new Thread(this::queueThread);
         thread.start();
     }
 
     @PluginFactory
-    public static ServantAppender createAppender(
+    public static WorkerAppender createAppender(
         @PluginAttribute("name") String name,
         @PluginElement("Layout") Layout<? extends Serializable> layout,
         @PluginElement("Filter") final Filter filter,
-        @PluginAttribute("servantId") String servantId
+        @PluginAttribute("workerId") String workerId
     )
     {
         lock.lock();
         try {
             if (instance == null) {
-                instance = new ServantAppender(name, filter, servantId, layout);
+                instance = new WorkerAppender(name, filter, workerId, layout);
             }
             return instance;
         } finally {
@@ -66,8 +66,8 @@ public class ServantAppender extends AbstractAppender {
     {
         Connection connection = ConnectionFactory.getDatabaseConnection();
         PreparedStatement stmt = connection.prepareStatement(
-            "INSERT INTO lzy.servant_logs "
-                + "(EVENT_ID, EVENT_DATE, LEVEL, LOGGER, MESSAGE, SERVANT_ID) "
+            "INSERT INTO lzy.worker_logs "
+                + "(EVENT_ID, EVENT_DATE, LEVEL, LOGGER, MESSAGE, WORKER_ID) "
                 + "VALUES (?, ?, ?, ?, ?, ?)"
         );
         stmt.setString(1, eventId);
@@ -75,7 +75,7 @@ public class ServantAppender extends AbstractAppender {
         stmt.setString(3, level);
         stmt.setString(4, logger);
         stmt.setString(5, message);
-        stmt.setString(6, servantId);
+        stmt.setString(6, workerId);
         stmt.executeUpdate();
         connection.close();
     }

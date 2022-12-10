@@ -138,7 +138,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
     }
 
     @Test
-    public void allocateServantTimeout() throws Exception {
+    public void allocateWorkerTimeout() throws Exception {
         var sessionId = createSession(Durations.fromSeconds(100));
 
         final var future = awaitAllocationRequest();
@@ -551,7 +551,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
     }
 
     @Test
-    public void repeatedServantRegister() throws Exception {
+    public void repeatedWorkerRegister() throws Exception {
         var sessionId = createSession(Durations.ZERO);
 
         var future = awaitAllocationRequest();

@@ -12,7 +12,7 @@ docker ps && java \
 -Dsun.jnu.encoding=UTF-8 \
 -Dfile.encoding=UTF-8 \
 -Dcustom.log.file="$LOG_FILE" \
--Dcustom.log.servant_id="$LZYTASK" \
+-Dcustom.log.worker_id="$LZYTASK" \
 -Dcustom.log.appender="$LOGS_APPENDER" \
 -Dcustom.log.server="$LOGS_SERVER" \
 -Dcustom.log.username="$LOGS_USERNAME" \

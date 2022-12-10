@@ -9,13 +9,13 @@ import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.impl.Workflow;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.CredentialsType;
-import ai.lzy.iam.resources.subjects.Servant;
 import ai.lzy.iam.resources.subjects.SubjectType;
+import ai.lzy.iam.resources.subjects.Worker;
 import ai.lzy.model.operation.Operation;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.scheduler.SchedulerApi;
-import ai.lzy.scheduler.configs.ServantEventProcessorConfig;
 import ai.lzy.scheduler.configs.ServiceConfig;
+import ai.lzy.scheduler.configs.WorkerEventProcessorConfig;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.GrpcChannels;
 import ai.lzy.v1.AllocatorGrpc;
@@ -48,19 +48,19 @@ import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 
 @Singleton
-public class AllocatorImpl implements ServantsAllocator {
+public class AllocatorImpl implements WorkersAllocator {
     private static final Logger LOG = LogManager.getLogger(AllocatorImpl.class);
 
-    public static final String ENV_WORKER_PKEY = "LZY_WORKER_PKEY"; // same as at ai.lzy.servant.agents.Worker
+    public static final String ENV_WORKER_PKEY = "LZY_WORKER_PKEY"; // same as at ai.lzy.worker.Worker
 
-    public static final AtomicBoolean randomServantPorts = new AtomicBoolean(false);
+    public static final AtomicBoolean randomWorkerPorts = new AtomicBoolean(false);
 
     private final ServiceConfig config;
-    private final ServantEventProcessorConfig processorConfig;
-    private final ServantMetaStorage metaStorage;
+    private final WorkerEventProcessorConfig processorConfig;
+    private final WorkerMetaStorage metaStorage;
     private final AllocatorGrpc.AllocatorBlockingStub allocator;
     private final LongRunningServiceGrpc.LongRunningServiceBlockingStub operations;
-    private final AtomicInteger testServantCounter = new AtomicInteger(0);
+    private final AtomicInteger testWorkerCounter = new AtomicInteger(0);
     private final IamClientConfiguration authConfig;
     private final SubjectServiceGrpcClient subjectClient;
     private final AccessBindingServiceGrpcClient abClient;
@@ -68,8 +68,8 @@ public class AllocatorImpl implements ServantsAllocator {
     private final ManagedChannel allocatorChannel;
     private final ManagedChannel opChannel;
 
-    public AllocatorImpl(ServiceConfig config, ServantEventProcessorConfig processorConfig,
-                         ServantMetaStorage metaStorage)
+    public AllocatorImpl(ServiceConfig config, WorkerEventProcessorConfig processorConfig,
+                         WorkerMetaStorage metaStorage)
     {
         this.config = config;
         this.processorConfig = processorConfig;
@@ -98,27 +98,27 @@ public class AllocatorImpl implements ServantsAllocator {
     }
 
     @Override
-    public void allocate(String userId, String workflowName, String servantId, Operation.Requirements requirements) {
+    public void allocate(String userId, String workflowName, String workerId, Operation.Requirements requirements) {
         String privateKey;
         try {
             var workerKeys = RsaUtils.generateRsaKeys();
             privateKey = workerKeys.privateKey();
 
-            final var subj = subjectClient.createSubject(AuthProvider.INTERNAL, servantId, SubjectType.SERVANT,
+            final var subj = subjectClient.createSubject(AuthProvider.INTERNAL, workerId, SubjectType.WORKER,
                 new SubjectCredentials("main", workerKeys.publicKey(), CredentialsType.PUBLIC_KEY));
 
             abClient.setAccessBindings(new Workflow(userId + "/" + workflowName),
                 List.of(new AccessBinding(Role.LZY_WORKFLOW_OWNER, subj)));
         } catch (Exception e) {
-            LOG.error("Cannot build credentials for servant", e);
+            LOG.error("Cannot build credentials for worker", e);
             throw new RuntimeException(e);
         }
 
-        // TODO: use allocator_session_id from LzyServant
+        // TODO: use allocator_session_id from LzyWorker
         final var createSessionOp = allocator.createSession(
             CreateSessionRequest.newBuilder()
                 .setOwner(userId)
-                .setDescription("Worker allocation, wf='%s', w='%s'".formatted(workflowName, servantId))
+                .setDescription("Worker allocation, wf='%s', w='%s'".formatted(workflowName, workerId))
                 .setCachePolicy(
                     VmAllocatorApi.CachePolicy.newBuilder()
                         .setIdleTimeout(Durations.ZERO)
@@ -142,10 +142,10 @@ public class AllocatorImpl implements ServantsAllocator {
         final int fsPort;
         final String mountPoint;
 
-        if (randomServantPorts.get()) {
+        if (randomWorkerPorts.get()) {
             port = FreePortFinder.find(10000, 11000);
             fsPort = FreePortFinder.find(11000, 12000);
-            mountPoint = "/tmp/lzy" + testServantCounter.incrementAndGet();
+            mountPoint = "/tmp/lzy" + testWorkerCounter.incrementAndGet();
         } else {
             port = 9999;
             fsPort = 9988;
@@ -164,12 +164,12 @@ public class AllocatorImpl implements ServantsAllocator {
             "--scheduler-address", config.getSchedulerAddress(),
             "--channel-manager", config.getChannelManagerAddress(),
             "--lzy-mount", mountPoint,
-            "--servant-id", servantId,
+            "--worker-id", workerId,
             "--scheduler-heartbeat-period", processorConfig.executingHeartbeatPeriod().toString()
         );
         final var workload = Workload.newBuilder()
-            .setName(servantId)
-            .setImage(config.getServantImage())
+            .setName(workerId)
+            .setImage(config.getWorkerImage())
             .putEnv(ENV_WORKER_PKEY, privateKey)
             .addAllArgs(args)
             .putAllPortBindings(ports)
@@ -183,15 +183,15 @@ public class AllocatorImpl implements ServantsAllocator {
             .build();
 
         final var op = allocator.allocate(request);
-        metaStorage.saveMeta(workflowName, servantId, new KuberMeta(sessionId, op.getId()).toJson());
+        metaStorage.saveMeta(workflowName, workerId, new KuberMeta(sessionId, op.getId()).toJson());
     }
 
     @Override
-    public void free(String workflowName, String servantId) throws Exception {
-        subjectClient.removeSubject(new Servant(servantId));
-        final var s = metaStorage.getMeta(workflowName, servantId);
+    public void free(String workflowName, String workerId) throws Exception {
+        subjectClient.removeSubject(new Worker(workerId));
+        final var s = metaStorage.getMeta(workflowName, workerId);
         if (s == null) {
-            LOG.error("Cannot get meta. WfName: {}, servantId: {}", workflowName, servantId);
+            LOG.error("Cannot get meta. WfName: {}, workerId: {}", workflowName, workerId);
             throw new Exception("Cannot get meta.");
         }
 

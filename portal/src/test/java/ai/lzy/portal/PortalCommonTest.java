@@ -25,7 +25,7 @@ public class PortalCommonTest extends PortalTestBase {
 
         var taskOutputSlot = makeOutputFileSlot("/slot_1");
 
-        String firstTaskId = startTask(1, "echo 'i-am-a-hacker' > /tmp/lzy_servant_1/slot_1 && echo 'hello'",
+        String firstTaskId = startTask(1, "echo 'i-am-a-hacker' > /tmp/lzy_worker_1/slot_1 && echo 'hello'",
             taskOutputSlot, null);
         mocksServer.getSchedulerMock().awaitProcessing(firstWorkerId);
 
@@ -55,8 +55,8 @@ public class PortalCommonTest extends PortalTestBase {
 
         var taskInputSlot = makeInputFileSlot("/slot_2");
 
-        String secondTaskId = startTask(2, "echo 'x' && /tmp/lzy_servant_1/sbin/cat /tmp/lzy_servant_1/slot_2 > "
-            + tmpFile.getAbsolutePath(), taskInputSlot, "servant_1");
+        String secondTaskId = startTask(2, "echo 'x' && /tmp/lzy_worker_1/sbin/cat /tmp/lzy_worker_1/slot_2 > "
+            + tmpFile.getAbsolutePath(), taskInputSlot, "worker_1");
         mocksServer.getSchedulerMock().awaitProcessing(firstWorkerId);
 
         Assert.assertEquals(secondTaskId + "; x\n", portalStdout.take());
@@ -92,9 +92,9 @@ public class PortalCommonTest extends PortalTestBase {
         var task1OutputSlot = makeOutputFileSlot("/slot_1");
         var task2OutputSlot = makeOutputFileSlot("/slot_2");
 
-        String firstTaskId = startTask(1, "echo 'hello from task_1' > /tmp/lzy_servant_1/slot_1 && "
+        String firstTaskId = startTask(1, "echo 'hello from task_1' > /tmp/lzy_worker_1/slot_1 && "
             + "echo 'hello from task_1'", task1OutputSlot, null);
-        String secondTaskId = startTask(2, "echo 'hello from task_2' > /tmp/lzy_servant_2/slot_2 && "
+        String secondTaskId = startTask(2, "echo 'hello from task_2' > /tmp/lzy_worker_2/slot_2 && "
             + "echo 'hello from task_2'", task2OutputSlot, null);
 
         mocksServer.getSchedulerMock().awaitProcessing(firstWorkerId);
@@ -151,7 +151,7 @@ public class PortalCommonTest extends PortalTestBase {
 
         var taskOutputSlot = makeOutputFileSlot("/slot_1");
 
-        String firstTaskId = startTask(1, "echo 'i-am-a-hacker' > /tmp/lzy_servant_1/slot_1 && echo 'hello'",
+        String firstTaskId = startTask(1, "echo 'i-am-a-hacker' > /tmp/lzy_worker_1/slot_1 && echo 'hello'",
             taskOutputSlot, null);
         mocksServer.getSchedulerMock().awaitProcessing(firstWorkerId);
 
@@ -180,7 +180,7 @@ public class PortalCommonTest extends PortalTestBase {
 
         var taskInputSlot2 = makeInputFileSlot("/slot_2");
 
-        String secondTaskId = startTask(2, "echo 'x' && /tmp/lzy_servant_2/sbin/cat /tmp/lzy_servant_2/slot_2 > "
+        String secondTaskId = startTask(2, "echo 'x' && /tmp/lzy_worker_2/sbin/cat /tmp/lzy_worker_2/slot_2 > "
             + tmpFile2.getAbsolutePath(), taskInputSlot2, null);
         mocksServer.getSchedulerMock().awaitProcessing(secondWorkerId);
 
@@ -196,7 +196,7 @@ public class PortalCommonTest extends PortalTestBase {
 
         var taskInputSlot3 = makeInputFileSlot("/slot_3");
 
-        String thirdTaskId = startTask(3, "echo 'x' && /tmp/lzy_servant_3/sbin/cat /tmp/lzy_servant_3/slot_3 > "
+        String thirdTaskId = startTask(3, "echo 'x' && /tmp/lzy_worker_3/sbin/cat /tmp/lzy_worker_3/slot_3 > "
             + tmpFile3.getAbsolutePath(), taskInputSlot3, null);
         mocksServer.getSchedulerMock().awaitProcessing(thirdWorkerId);
 
@@ -238,7 +238,7 @@ public class PortalCommonTest extends PortalTestBase {
         System.out.println("\n----- RUN TASK 1 -----------------------------------------\n");
 
         var taskOutputSlot = makeOutputFileSlot("/slot_1");
-        String firstTaskId = startTask(1, "echo 'i-am-a-hacker' > /tmp/lzy_servant_1/slot_1 && echo 'hello'",
+        String firstTaskId = startTask(1, "echo 'i-am-a-hacker' > /tmp/lzy_worker_1/slot_1 && echo 'hello'",
             taskOutputSlot, null);
         mocksServer.getSchedulerMock().awaitProcessing(firstWorkerId);
 
@@ -271,9 +271,9 @@ public class PortalCommonTest extends PortalTestBase {
         var taskInputSlot2 = makeInputFileSlot("/slot_2");
         var taskInputSlot3 = makeInputFileSlot("/slot_3");
 
-        startTask(2, "/tmp/lzy_servant_2/sbin/cat /tmp/lzy_servant_2/slot_2 > "
+        startTask(2, "/tmp/lzy_worker_2/sbin/cat /tmp/lzy_worker_2/slot_2 > "
             + tmpFile2.getAbsolutePath(), taskInputSlot2, null);
-        startTask(3, "/tmp/lzy_servant_3/sbin/cat /tmp/lzy_servant_3/slot_3 > "
+        startTask(3, "/tmp/lzy_worker_3/sbin/cat /tmp/lzy_worker_3/slot_3 > "
             + tmpFile3.getAbsolutePath(), taskInputSlot3, null);
 
         // wait

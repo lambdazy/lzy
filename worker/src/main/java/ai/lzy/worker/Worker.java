@@ -13,11 +13,11 @@ import ai.lzy.scheduler.SchedulerAgent;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress;
-import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress.Configured;
-import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress.Configured.Err;
-import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress.Configured.Ok;
-import ai.lzy.v1.scheduler.SchedulerPrivateApi.ServantProgress.Finished;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.WorkerProgress;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.WorkerProgress.Configured;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.WorkerProgress.Configured.Err;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.WorkerProgress.Configured.Ok;
+import ai.lzy.v1.scheduler.SchedulerPrivateApi.WorkerProgress.Finished;
 import ai.lzy.v1.worker.LWS.*;
 import ai.lzy.v1.worker.WorkerApiGrpc;
 import ai.lzy.worker.env.Environment;
@@ -68,15 +68,15 @@ public class Worker {
         options.addOption(null, "allocator-address", true, "Lzy allocator address [host:port]");
         options.addOption("ch", "channel-manager", true, "Channel manager address [host:port]");
         options.addOption("m", "lzy-mount", true, "Lzy FS mount point");
-        options.addOption("h", "host", true, "Servant and FS host name");
+        options.addOption("h", "host", true, "Worker and FS host name");
         options.addOption(null, "vm-id", true, "Vm id from allocator");
-        options.addOption(null, "servant-id", true, "Servant id from scheduler");
+        options.addOption(null, "worker-id", true, "Worker id from scheduler");
         options.addOption(null, "allocator-heartbeat-period", true, "Allocator heartbeat period in duration format");
         options.addOption(null, "scheduler-heartbeat-period", true, "Scheduler heartbeat period in duration format");
 
         // for tests only
         options.addOption(null, "allocator-token", true, "OTT token for allocator");
-        options.addOption(null, "iam-token", true, "IAM private key for servant");
+        options.addOption(null, "iam-token", true, "IAM private key for worker");
     }
 
     private final LzyFsServer lzyFs;
@@ -86,7 +86,7 @@ public class Worker {
     private final AtomicReference<Execution> execution = new AtomicReference<>(null);
     private final Server server;
 
-    public Worker(String workflowName, String servantId, String vmId, String allocatorAddress, String schedulerAddress,
+    public Worker(String workflowName, String workerId, String vmId, String allocatorAddress, String schedulerAddress,
                   Duration allocatorHeartbeatPeriod, Duration schedulerHeartbeatPeriod, int apiPort, int fsPort,
                   String fsRoot, String channelManagerAddress, String host, String iamPrivateKey, String allocatorToken)
     {
@@ -114,8 +114,8 @@ public class Worker {
             final var fsUri = new URI(LzyFs.scheme(), null, host, fsPort, null, null, null);
             final var cm = HostAndPort.fromString(channelManagerAddress);
 
-            lzyFs = new LzyFsServer(servantId, Path.of(fsRoot), fsUri, cm,
-                new RenewableJwt(servantId, "INTERNAL", Duration.ofDays(1), readPrivateKey(iamPrivateKey)));
+            lzyFs = new LzyFsServer(workerId, Path.of(fsRoot), fsUri, cm,
+                new RenewableJwt(workerId, "INTERNAL", Duration.ofDays(1), readPrivateKey(iamPrivateKey)));
             lzyFs.start();
         } catch (IOException | URISyntaxException e) {
             LOG.error("Error while building uri", e);
@@ -134,7 +134,7 @@ public class Worker {
 
         // TODO: when should we start this agent?
         //       we can share VM among _all_ workflows of user, so, workflowName is not a constant
-        schedulerAgent = new SchedulerAgent(schedulerAddress, servantId, workflowName, schedulerHeartbeatPeriod,
+        schedulerAgent = new SchedulerAgent(schedulerAddress, workerId, workflowName, schedulerHeartbeatPeriod,
             apiPort, iamPrivateKey);
 
         schedulerAgent.start();
@@ -142,7 +142,7 @@ public class Worker {
 
     @VisibleForTesting
     public void stop() {
-        LOG.error("Stopping servant");
+        LOG.error("Stopping worker");
         server.shutdown();
         schedulerAgent.reportStop();
         allocatorAgent.shutdown();
@@ -150,7 +150,7 @@ public class Worker {
             LOG.info("Found current execution, killing it");
             execution.get().signal(Signal.KILL.sig());
         }
-        schedulerAgent.reportProgress(ServantProgress.newBuilder()
+        schedulerAgent.reportProgress(WorkerProgress.newBuilder()
             .setFinished(Finished.newBuilder().build())
             .build());
         lzyFs.stop();
@@ -167,7 +167,7 @@ public class Worker {
         try {
             final CommandLine parse = cliParser.parse(options, args, true);
 
-            final var worker = new Worker(parse.getOptionValue('w'), parse.getOptionValue("servant-id"),
+            final var worker = new Worker(parse.getOptionValue('w'), parse.getOptionValue("worker-id"),
                 parse.getOptionValue("vm-id"), parse.getOptionValue("allocator-address"),
                 parse.getOptionValue("scheduler-address"),
                 Duration.parse(parse.getOptionValue("allocator-heartbeat-period")),
@@ -206,7 +206,7 @@ public class Worker {
 
             try {
                 final var e = EnvironmentFactory.create(ProtoConverter.fromProto(request.getEnv()));
-                schedulerAgent.reportProgress(ServantProgress.newBuilder()
+                schedulerAgent.reportProgress(WorkerProgress.newBuilder()
                     .setConfigured(Configured.newBuilder()
                         .setOk(Ok.newBuilder().build())
                         .build())
@@ -215,7 +215,7 @@ public class Worker {
 
             } catch (EnvironmentInstallationException e) {
                 LOG.error("Unable to install environment", e);
-                schedulerAgent.reportProgress(ServantProgress.newBuilder()
+                schedulerAgent.reportProgress(WorkerProgress.newBuilder()
                     .setConfigured(Configured.newBuilder()
                         .setErr(Err.newBuilder()
                             .setDescription(e.getMessage())
@@ -223,8 +223,8 @@ public class Worker {
                         .build())
                     .build());
             } catch (Exception e) {
-                LOG.error("Error while preparing env, stopping servant", e);
-                schedulerAgent.reportProgress(ServantProgress.newBuilder()
+                LOG.error("Error while preparing env, stopping worker", e);
+                schedulerAgent.reportProgress(WorkerProgress.newBuilder()
                     .setConfigured(Configured.newBuilder()
                         .setErr(Err.newBuilder()
                             .setDescription("Internal exception")
@@ -299,8 +299,8 @@ public class Worker {
 
                 final int rc = exec.waitFor();
 
-                schedulerAgent.reportProgress(ServantProgress.newBuilder()
-                    .setExecutionCompleted(ServantProgress.ExecutionCompleted.newBuilder()
+                schedulerAgent.reportProgress(WorkerProgress.newBuilder()
+                    .setExecutionCompleted(WorkerProgress.ExecutionCompleted.newBuilder()
                         .setRc(rc)
                         .setDescription(rc == 0 ? "Success" : "Error while executing command on worker.\n" +
                             "See your stdout/stderr to see more info")
@@ -308,7 +308,7 @@ public class Worker {
                     .build());
                 schedulerAgent.reportIdle();
             } catch (Exception e) {
-                LOG.error("Error while executing task, stopping servant", e);
+                LOG.error("Error while executing task, stopping worker", e);
                 Worker.this.stop();
             }
         }

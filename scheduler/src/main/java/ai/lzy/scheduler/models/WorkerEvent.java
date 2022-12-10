@@ -10,26 +10,26 @@ import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
-public record ServantEvent(
+public record WorkerEvent(
     String id,
     Instant timestamp,
-    String servantId,
+    String workerId,
     String workflowName,
     Type type,
 
     @Nullable String description,
     @Nullable Integer rc,
     @Nullable String taskId,
-    @Nullable HostAndPort servantUrl
+    @Nullable HostAndPort workerUrl
 ) implements Delayed {
 
-    public static EventBuilder fromState(ServantState state, Type type) {
+    public static EventBuilder fromState(WorkerState state, Type type) {
         return new EventBuilder(state, type);
     }
 
-    public static ServantEvent noop(String workflowName, String servantId) {
-        return new ServantEvent(UUID.randomUUID().toString(),
-            Instant.now(), servantId, workflowName, Type.NOOP, "NOOP", null, null, null);
+    public static WorkerEvent noop(String workflowName, String workerId) {
+        return new WorkerEvent(UUID.randomUUID().toString(),
+            Instant.now(), workerId, workflowName, Type.NOOP, "NOOP", null, null, null);
     }
 
     @Override
@@ -45,21 +45,21 @@ public record ServantEvent(
     public enum Type {
         NOOP,  // empty event to interrupt queue. Does not save to db
         ALLOCATION_TIMEOUT,
-        CONNECTED,  // Servant connected to scheduler with method register
-        CONFIGURED,  // Servant env configuration completed
-        CONFIGURATION_TIMEOUT,  // Servant configuration timed out
+        CONNECTED,  // Worker connected to scheduler with method register
+        CONFIGURED,  // Worker env configuration completed
+        CONFIGURATION_TIMEOUT,  // Worker configuration timed out
         EXECUTION_REQUESTED,  // Task requests execution
-        EXECUTING_HEARTBEAT,  // Heartbeat of servant while its executing task
-        EXECUTING_HEARTBEAT_TIMEOUT,  // Timeout of heartbeat waiting of servant
-        EXECUTION_COMPLETED,  // Servant says that execution was completed
+        EXECUTING_HEARTBEAT,  // Heartbeat of worker while its executing task
+        EXECUTING_HEARTBEAT_TIMEOUT,  // Timeout of heartbeat waiting of worker
+        EXECUTION_COMPLETED,  // Worker says that execution was completed
         EXECUTION_TIMEOUT,  // Executing longer than execution timeout
-        COMMUNICATION_COMPLETED,  // All data from servant was uploaded
-        IDLE_HEARTBEAT,  // Heartbeat of servant while its idle
-        IDLE_HEARTBEAT_TIMEOUT,  // Timeout of heartbeat waiting of servant
-        IDLE_TIMEOUT,  // Servant is too long unused
+        COMMUNICATION_COMPLETED,  // All data from worker was uploaded
+        IDLE_HEARTBEAT,  // Heartbeat of worker while its idle
+        IDLE_HEARTBEAT_TIMEOUT,  // Timeout of heartbeat waiting of worker
+        IDLE_TIMEOUT,  // Worker is too long unused
         STOP,  // Stop requested
-        STOPPING_TIMEOUT,  // Timeout of graceful shutdown of servant
-        STOPPED  // Servant exited
+        STOPPING_TIMEOUT,  // Timeout of graceful shutdown of worker
+        STOPPED  // Worker exited
     }
 
     @Override
@@ -68,15 +68,15 @@ public record ServantEvent(
     }
 
     public static class EventBuilder {
-        private final ServantState state;
+        private final WorkerState state;
         private final Type type;
         private Instant timestamp = Instant.now();
         private Integer rc = null;
         private String description = null;
         private String taskId = null;
-        private HostAndPort servantUrl = null;
+        private HostAndPort workerUrl = null;
 
-        private EventBuilder(ServantState state, Type type) {
+        private EventBuilder(WorkerState state, Type type) {
             this.state = state;
             this.type = type;
         }
@@ -101,13 +101,13 @@ public record ServantEvent(
             return this;
         }
 
-        public EventBuilder setServantUrl(HostAndPort servantUrl) {
-            this.servantUrl = servantUrl;
+        public EventBuilder setWorkerUrl(HostAndPort workerUrl) {
+            this.workerUrl = workerUrl;
             return this;
         }
 
-        public ServantEvent build() {
-            return new ServantEvent(
+        public WorkerEvent build() {
+            return new WorkerEvent(
                 UUID.randomUUID().toString(),
                 timestamp,
                 state.id(),
@@ -116,7 +116,7 @@ public record ServantEvent(
                 description,
                 rc,
                 taskId,
-                servantUrl
+                workerUrl
             );
         }
     }

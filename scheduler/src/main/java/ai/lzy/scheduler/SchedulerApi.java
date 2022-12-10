@@ -5,7 +5,7 @@ import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.scheduler.configs.ServiceConfig;
-import ai.lzy.scheduler.db.ServantDao;
+import ai.lzy.scheduler.db.WorkerDao;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.GrpcHeadersServerInterceptor;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
@@ -34,11 +34,11 @@ public class SchedulerApi {
 
     private final Server server;
     private final SchedulerApiImpl impl;
-    private final ServantDao dao;
+    private final WorkerDao dao;
 
     @Inject
     public SchedulerApi(SchedulerApiImpl impl, PrivateSchedulerApiImpl privateApi, ServiceConfig config,
-                        @Named("SchedulerIamGrpcChannel") ManagedChannel iamChannel, ServantDao dao)
+                        @Named("SchedulerIamGrpcChannel") ManagedChannel iamChannel, WorkerDao dao)
     {
         this.impl = impl;
         this.dao = dao;

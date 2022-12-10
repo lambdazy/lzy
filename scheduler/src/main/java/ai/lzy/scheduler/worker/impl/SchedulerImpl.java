@@ -1,17 +1,17 @@
-package ai.lzy.scheduler.servant.impl;
+package ai.lzy.scheduler.worker.impl;
 
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.TaskDesc;
 import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.scheduler.configs.ServiceConfig;
-import ai.lzy.scheduler.db.ServantDao;
 import ai.lzy.scheduler.db.TaskDao;
+import ai.lzy.scheduler.db.WorkerDao;
 import ai.lzy.scheduler.models.TaskState;
-import ai.lzy.scheduler.servant.Scheduler;
-import ai.lzy.scheduler.servant.Servant;
-import ai.lzy.scheduler.servant.ServantsPool;
 import ai.lzy.scheduler.task.Task;
+import ai.lzy.scheduler.worker.Scheduler;
+import ai.lzy.scheduler.worker.Worker;
+import ai.lzy.scheduler.worker.WorkersPool;
 import io.grpc.Status;
 import io.grpc.StatusException;
 import jakarta.inject.Inject;
@@ -31,15 +31,15 @@ import java.util.stream.Collectors;
 public class SchedulerImpl extends Thread implements Scheduler {
     private static final Logger LOG = LogManager.getLogger(SchedulerImpl.class);
 
-    private final ServantDao dao;
+    private final WorkerDao dao;
     private final TaskDao taskDao;
-    private final ServantsPool pool;
+    private final WorkersPool pool;
     private final BlockingQueue<Task> tasks = new LinkedBlockingQueue<>();
     private final AtomicBoolean stopping = new AtomicBoolean(false);
     private final ServiceConfig config;
 
     @Inject
-    public SchedulerImpl(ServantDao dao, TaskDao taskDao, ServantsPool pool, ServiceConfig config) {
+    public SchedulerImpl(WorkerDao dao, TaskDao taskDao, WorkersPool pool, ServiceConfig config) {
         this.dao = dao;
         this.taskDao = taskDao;
         this.pool = pool;
@@ -72,8 +72,8 @@ public class SchedulerImpl extends Thread implements Scheduler {
         }
         final Task task = getTask(workflowId, taskId);
 
-        if (task.servantId() == null) {
-            throw io.grpc.Status.FAILED_PRECONDITION.withDescription("Task is not assigned to servant")
+        if (task.workerId() == null) {
+            throw io.grpc.Status.FAILED_PRECONDITION.withDescription("Task is not assigned to worker")
                 .asException();
         }
 
@@ -81,19 +81,19 @@ public class SchedulerImpl extends Thread implements Scheduler {
             return task;
         }
 
-        final Servant servant;
+        final Worker worker;
         try {
-            servant = dao.get(workflowId, task.servantId());
+            worker = dao.get(workflowId, task.workerId());
         } catch (DaoException e) {
-            LOG.error("Error while getting servant from dao", e);
+            LOG.error("Error while getting worker from dao", e);
             throw Status.INTERNAL.withDescription("Something wrong with service").asException();
         }
-        if (servant == null) {
-            throw io.grpc.Status.INTERNAL.withDescription("Task is assigned to servant, but servant is not exists")
+        if (worker == null) {
+            throw io.grpc.Status.INTERNAL.withDescription("Task is assigned to worker, but worker is not exists")
                 .asException();
         }
 
-        servant.stop(issue);
+        worker.stop(issue);
         return task;
     }
 
@@ -109,10 +109,10 @@ public class SchedulerImpl extends Thread implements Scheduler {
     @Override
     public void killAll(String workflowName, String issue) throws StatusException {
         try {
-            List<Servant> servants = dao.get(workflowName);
-            servants.forEach(s -> s.stop(issue));
+            List<Worker> workers = dao.get(workflowName);
+            workers.forEach(s -> s.stop(issue));
         } catch (DaoException e) {
-            LOG.error("Error while getting servant from db", e);
+            LOG.error("Error while getting worker from db", e);
             throw Status.INTERNAL.asException();
         }
     }
@@ -159,7 +159,7 @@ public class SchedulerImpl extends Thread implements Scheduler {
                 LOG.info("Pool is stopping.");
                 continue;
             }
-            future.whenComplete((servant, throwable) -> {
+            future.whenComplete((worker, throwable) -> {
                 if (throwable != null) {
                     LOG.error("Unknown error", throwable);
                     try {
@@ -175,7 +175,7 @@ public class SchedulerImpl extends Thread implements Scheduler {
                     LOG.error("Cannot notify task about scheduled state");
                     throw new RuntimeException(e);
                 }
-                servant.setTask(task);
+                worker.setTask(task);
             });
         }
     }

@@ -6,7 +6,7 @@ public class ProcessorConfigBuilder {
     private Duration allocationTimeout = Duration.ofDays(100);
     private Duration idleTimeout = Duration.ofDays(100);
     private Duration configuringTimeout = Duration.ofDays(100);
-    private Duration servantStopTimeout = Duration.ofDays(100);
+    private Duration workerStopTimeout = Duration.ofDays(100);
     private Duration executingHeartbeatPeriod = Duration.ofDays(100);
     private Duration idleHeartbeatPeriod = Duration.ofDays(100);
 
@@ -25,8 +25,8 @@ public class ProcessorConfigBuilder {
         return this;
     }
 
-    public ProcessorConfigBuilder setServantStopTimeout(long millis) {
-        this.servantStopTimeout = Duration.ofMillis(millis);
+    public ProcessorConfigBuilder setWorkerStopTimeout(long millis) {
+        this.workerStopTimeout = Duration.ofMillis(millis);
         return this;
     }
 
@@ -40,8 +40,8 @@ public class ProcessorConfigBuilder {
         return this;
     }
 
-    public ServantEventProcessorConfig build() {
-        return new ServantEventProcessorConfig(allocationTimeout, idleTimeout, configuringTimeout,
-                servantStopTimeout, executingHeartbeatPeriod, idleHeartbeatPeriod);
+    public WorkerEventProcessorConfig build() {
+        return new WorkerEventProcessorConfig(allocationTimeout, idleTimeout, configuringTimeout,
+            workerStopTimeout, executingHeartbeatPeriod, idleHeartbeatPeriod);
     }
 }

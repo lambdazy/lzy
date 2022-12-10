@@ -1,16 +1,16 @@
-package ai.lzy.scheduler.servant;
+package ai.lzy.scheduler.worker;
 
 import ai.lzy.model.operation.Operation;
-import ai.lzy.scheduler.models.ServantState.Status;
+import ai.lzy.scheduler.models.WorkerState.Status;
 import ai.lzy.scheduler.task.Task;
 import com.google.common.net.HostAndPort;
 
 import javax.annotation.Nullable;
 
-public interface Servant {
+public interface Worker {
 
     // ========= Events ===========
-    void notifyConnected(HostAndPort servantUrl);
+    void notifyConnected(HostAndPort workerUrl);
     void notifyConfigured(int rc, String description);
     void setTask(Task task);
     void notifyExecutionCompleted(int rc, String description);
@@ -30,5 +30,5 @@ public interface Servant {
 
     @Nullable String taskId();
     @Nullable String errorDescription();
-    @Nullable HostAndPort servantURL();
+    @Nullable HostAndPort workerURL();
 }

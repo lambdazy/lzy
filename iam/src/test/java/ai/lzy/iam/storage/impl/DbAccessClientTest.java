@@ -65,8 +65,8 @@ public class DbAccessClientTest {
     }
 
     @Test
-    public void validAccessServant() {
-        validAccess(SubjectType.SERVANT);
+    public void validAccessWorker() {
+        validAccess(SubjectType.WORKER);
     }
 
     public void validAccess(SubjectType subjectType) {
@@ -135,8 +135,8 @@ public class DbAccessClientTest {
     }
 
     @Test
-    public void invalidAccessServant() {
-        invalidAccess(SubjectType.SERVANT);
+    public void invalidAccessWorker() {
+        invalidAccess(SubjectType.WORKER);
     }
 
     public void invalidAccess(SubjectType subjectType) {

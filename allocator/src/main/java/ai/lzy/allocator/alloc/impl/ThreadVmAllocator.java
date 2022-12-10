@@ -107,10 +107,10 @@ public class ThreadVmAllocator implements VmAllocator {
                 try {
                     vmMain.invoke(null, (Object) args.toArray(new String[0]));
                 } catch (InvocationTargetException e) {
-                    LOG.error("Error while invocation of servant/portal method 'execute': " +
+                    LOG.error("Error while invocation of worker/portal method 'execute': " +
                         e.getTargetException().getMessage(), e.getTargetException());
                 } catch (IllegalAccessException e) {
-                    LOG.error("Error while invocation of servant/portal method 'execute': " + e.getMessage(), e);
+                    LOG.error("Error while invocation of worker/portal method 'execute': " + e.getMessage(), e);
                 }
             }
         };

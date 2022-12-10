@@ -1,22 +1,22 @@
-FROM lzydock/lzy-servant-base:old-scheme
+FROM lzydock/lzy-worker-base:old-scheme
 
-RUN mkdir -p /tmp/lzy-log/servant \
+RUN mkdir -p /tmp/lzy-log/worker \
     && mkdir tmp/resources
 
 ### copy jar & resources
-COPY servant/target/servant-1.0-SNAPSHOT.jar app/app.jar
-COPY servant/src/main/resources/ app/resources
+COPY worker/target/worker-1.0-SNAPSHOT.jar app/app.jar
+COPY worker/src/main/resources/ app/resources
 RUN chmod -R 700 app/resources
 
 ### copy lzy-py sources & install
 COPY pylzy/ pylzy
-COPY servant/target/servant-1.0-SNAPSHOT.jar pylzy/lzy/lzy-servant.jar
+COPY worker/target/worker-1.0-SNAPSHOT.jar pylzy/lzy/lzy-worker.jar
 RUN ./conda_prepare.sh pylzy_install 'pylzy'
 
-COPY servant/docker/old-scheme/entrypoint.sh /entrypoint.sh
+COPY worker/docker/old-scheme/entrypoint.sh /entrypoint.sh
 RUN chmod a+rx /entrypoint.sh
 
-COPY servant/docker/test_entrypoint.sh /
+COPY worker/docker/test_entrypoint.sh /
 RUN chmod a+rx /test_entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]

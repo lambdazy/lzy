@@ -1,19 +1,19 @@
-package ai.lzy.scheduler.servant.impl;
+package ai.lzy.scheduler.worker.impl;
 
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.db.exceptions.DaoException;
-import ai.lzy.scheduler.allocator.ServantsAllocator;
-import ai.lzy.scheduler.configs.ServantEventProcessorConfig;
-import ai.lzy.scheduler.db.ServantDao;
-import ai.lzy.scheduler.db.ServantEventDao;
+import ai.lzy.scheduler.allocator.WorkersAllocator;
+import ai.lzy.scheduler.configs.WorkerEventProcessorConfig;
 import ai.lzy.scheduler.db.TaskDao;
-import ai.lzy.scheduler.models.ServantEvent;
-import ai.lzy.scheduler.models.ServantEvent.Type;
-import ai.lzy.scheduler.models.ServantState;
-import ai.lzy.scheduler.models.ServantState.Status;
-import ai.lzy.scheduler.servant.Servant;
-import ai.lzy.scheduler.servant.ServantConnection;
+import ai.lzy.scheduler.db.WorkerDao;
+import ai.lzy.scheduler.db.WorkerEventDao;
+import ai.lzy.scheduler.models.WorkerEvent;
+import ai.lzy.scheduler.models.WorkerEvent.Type;
+import ai.lzy.scheduler.models.WorkerState;
+import ai.lzy.scheduler.models.WorkerState.Status;
 import ai.lzy.scheduler.task.Task;
+import ai.lzy.scheduler.worker.Worker;
+import ai.lzy.scheduler.worker.WorkerConnection;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -22,48 +22,48 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import javax.annotation.Nullable;
 
-public class ServantEventProcessor extends Thread {
+public class WorkerEventProcessor extends Thread {
 
-    private static final Logger LOG = LogManager.getLogger(ServantEventProcessor.class);
-    private static final ThreadGroup SERVANTS_TG = new ThreadGroup("servants");
+    private static final Logger LOG = LogManager.getLogger(WorkerEventProcessor.class);
+    private static final ThreadGroup WORKERS_TG = new ThreadGroup("workers");
 
     private final EventQueue queue;
-    private final ServantDao dao;
-    private final ServantEventDao eventDao;
-    private final ServantEventProcessorConfig config;
-    private final ServantsAllocator allocator;
+    private final WorkerDao dao;
+    private final WorkerEventDao eventDao;
+    private final WorkerEventProcessorConfig config;
+    private final WorkersAllocator allocator;
     private final TaskDao taskDao;
-    private final String servantId;
+    private final String workerId;
     private final String workflowName;
-    private final BiConsumer<String, String> notifyReady;  // notify scheduler about free servant
+    private final BiConsumer<String, String> notifyReady;  // notify scheduler about free worker
     private final BiConsumer<String, String> notifyDestroyed;  // notify scheduler about destroyed state
     private final AtomicBoolean stopping = new AtomicBoolean(false);
 
     @Nullable
-    private ServantConnection connection = null;
+    private WorkerConnection connection = null;
 
-    public ServantEventProcessor(String workflowName, String servantId,
-                                 ServantEventProcessorConfig config, ServantsAllocator allocator, TaskDao taskDao,
-                                 ServantEventDao eventDao, ServantDao dao, EventQueueManager queueManager,
-                                 BiConsumer<String, String> notifyReady, BiConsumer<String, String> notifyDestroyed) {
-        super(SERVANTS_TG, "servant-" + servantId);
+    public WorkerEventProcessor(String workflowName, String workerId,
+                                WorkerEventProcessorConfig config, WorkersAllocator allocator, TaskDao taskDao,
+                                WorkerEventDao eventDao, WorkerDao dao, EventQueueManager queueManager,
+                                BiConsumer<String, String> notifyReady, BiConsumer<String, String> notifyDestroyed) {
+        super(WORKERS_TG, "worker-" + workerId);
         this.dao = dao;
         this.notifyReady = notifyReady;
         this.config = config;
         this.allocator = allocator;
         this.taskDao = taskDao;
         this.eventDao = eventDao;
-        this.servantId = servantId;
+        this.workerId = workerId;
         this.workflowName = workflowName;
         this.notifyDestroyed = notifyDestroyed;
-        queue = queueManager.get(workflowName, servantId);
+        queue = queueManager.get(workflowName, workerId);
     }
 
     @Override
     public void run() {
         try {
             while (!stopping.get()) {
-                final ServantEvent event;
+                final WorkerEvent event;
                 try {
                     event = queue.waitForNext();
                 } catch (InterruptedException e) {
@@ -71,19 +71,19 @@ public class ServantEventProcessor extends Thread {
                     continue;
                 } catch (Exception e) {
                     LOG.error("Error while waiting for events", e);
-                    final ServantState currentState;
+                    final WorkerState currentState;
                     try {
-                        currentState = dao.acquire(workflowName, servantId);
-                    } catch (ServantDao.AcquireException | DaoException er) {
-                        throw new RuntimeException("Cannot acquire servant for processing", er);  // must be unreachable
+                        currentState = dao.acquire(workflowName, workerId);
+                    } catch (WorkerDao.AcquireException | DaoException er) {
+                        throw new RuntimeException("Cannot acquire worker for processing", er);  // must be unreachable
                     }
                     if (currentState == null) {
-                        throw new IllegalStateException("Cannot find servant");  // Destroying this thread
+                        throw new IllegalStateException("Cannot find worker");  // Destroying this thread
                     }
                     try {
                         dao.updateAndFree(destroy(currentState, null));
                     } catch (DaoException ex) {
-                        throw new RuntimeException("Cannot free servant from processing", ex);  // must be unreachable
+                        throw new RuntimeException("Cannot free worker from processing", ex);  // must be unreachable
                     }
                     throw e;
                 }
@@ -93,7 +93,7 @@ public class ServantEventProcessor extends Thread {
                 }
                 boolean isDestroyed = this.process(event);
                 if (isDestroyed) {
-                    notifyDestroyed.accept(workflowName, servantId);
+                    notifyDestroyed.accept(workflowName, workerId);
                     return;
                 }
             }
@@ -103,18 +103,18 @@ public class ServantEventProcessor extends Thread {
 
     }
 
-    private boolean process(ServantEvent event) {
+    private boolean process(WorkerEvent event) {
 
-        final ServantState currentState;
+        final WorkerState currentState;
         try {
-            currentState = dao.acquire(workflowName, servantId);
-        } catch (ServantDao.AcquireException | DaoException e) {
-            throw new RuntimeException("Cannot acquire servant for processing");  // must be unreachable
+            currentState = dao.acquire(workflowName, workerId);
+        } catch (WorkerDao.AcquireException | DaoException e) {
+            throw new RuntimeException("Cannot acquire worker for processing");  // must be unreachable
         }
         if (currentState == null) {
-            throw new IllegalStateException("Cannot find servant");  // Destroying this thread
+            throw new IllegalStateException("Cannot find worker");  // Destroying this thread
         }
-        ServantState newState;
+        WorkerState newState;
         try {
             newState = processEvent(currentState, event);
         } catch (Exception e) {
@@ -123,21 +123,21 @@ public class ServantEventProcessor extends Thread {
         }
         try {
             dao.updateAndFree(newState);
-            LOG.debug("Servant state processed.\n old: {}\n new: {}\n event: {}",
+            LOG.debug("Worker state processed.\n old: {}\n new: {}\n event: {}",
                     currentState, newState, event);
         } catch (DaoException e) {
-            LOG.error("Cannot write new servant state to dao", e);
+            LOG.error("Cannot write new worker state to dao", e);
             throw new RuntimeException(e);
         }
         if ((newState.status() == Status.RUNNING || newState.status() == Status.IDLE)
             && !(currentState.status() == Status.RUNNING || currentState.status() == Status.IDLE)) {
-            notifyReady.accept(workflowName, servantId);
+            notifyReady.accept(workflowName, workerId);
         }
         return newState.status() == Status.DESTROYED;
     }
 
-    private ServantState processEvent(ServantState currentState,
-                                      ServantEvent event) throws AssertionException, DaoException {
+    private WorkerState processEvent(WorkerState currentState,
+                                     WorkerEvent event) throws AssertionException, DaoException {
         return switch (event.type()) {
             case ALLOCATION_TIMEOUT, STOPPING_TIMEOUT, STOPPED,
                     IDLE_HEARTBEAT_TIMEOUT, EXECUTING_HEARTBEAT_TIMEOUT -> destroy(currentState, event);
@@ -145,19 +145,19 @@ public class ServantEventProcessor extends Thread {
             case CONNECTED -> {
                 assertStatus(currentState, event, Status.CONNECTING);
                 eventDao.removeAllByTypes(currentState.id(), Type.ALLOCATION_TIMEOUT);
-                if (event.servantUrl() == null) {
+                if (event.workerUrl() == null) {
                     throw new AssertionException();
                 }
-                Servant servant = dao.get(workflowName, servantId);
-                if (servant == null) {
+                Worker worker = dao.get(workflowName, workerId);
+                if (worker == null) {
                     throw new AssertionException();
                 }
-                this.connection = new ServantConnectionImpl(event.servantUrl());
+                this.connection = new WorkerConnectionImpl(event.workerUrl());
                 final Task task = getTask(currentState.taskId());
-                final ServantConnection connection = getConnection(currentState);
+                final WorkerConnection connection = getConnection(currentState);
 
                 connection.api().configure(task.description().operation().env());
-                final ServantEvent timeout = ServantEvent.fromState(currentState, Type.CONFIGURATION_TIMEOUT)
+                final WorkerEvent timeout = WorkerEvent.fromState(currentState, Type.CONFIGURATION_TIMEOUT)
                     .setTimeout(config.configuringTimeout())
                     .setRc(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc())
                     .setDescription("Environment is installing too long.")
@@ -166,7 +166,7 @@ public class ServantEventProcessor extends Thread {
                 yield currentState.copy()
                     .setStatus(Status.CONFIGURING)
                     .setTaskId(task.taskId())
-                    .setServantUrl(event.servantUrl())
+                    .setWorkerUrl(event.workerUrl())
                     .build();
             }
 
@@ -185,7 +185,7 @@ public class ServantEventProcessor extends Thread {
                 if (currentState.status() == Status.CREATED) {
                     allocator.allocate(currentState.userId(), currentState.workflowName(),
                         currentState.id(), currentState.requirements());
-                    final ServantEvent timeout = ServantEvent.fromState(currentState, Type.ALLOCATION_TIMEOUT)
+                    final WorkerEvent timeout = WorkerEvent.fromState(currentState, Type.ALLOCATION_TIMEOUT)
                         .setTimeout(config.allocationTimeout())
                         .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
                         .setDescription("Allocation timeout reached")
@@ -197,10 +197,10 @@ public class ServantEventProcessor extends Thread {
                         .build();
                 }
 
-                final ServantConnection connection = getConnection(currentState);
+                final WorkerConnection connection = getConnection(currentState);
 
                 connection.api().configure(task.description().operation().env());
-                final ServantEvent timeout = ServantEvent.fromState(currentState, Type.CONFIGURATION_TIMEOUT)
+                final WorkerEvent timeout = WorkerEvent.fromState(currentState, Type.CONFIGURATION_TIMEOUT)
                     .setTimeout(config.configuringTimeout())
                     .setRc(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc())
                     .setDescription("Environment is installing too long.")
@@ -216,18 +216,18 @@ public class ServantEventProcessor extends Thread {
                 assertStatus(currentState, event, Status.CONFIGURING);
                 eventDao.removeAllByTypes(currentState.id(), Type.CONFIGURATION_TIMEOUT);
                 if (event.rc() != ReturnCodes.SUCCESS.getRc()) {
-                    yield stop(currentState, "Error while configuring servant: " + event.description());
+                    yield stop(currentState, "Error while configuring worker: " + event.description());
                 }
 
                 final Task task = getTask(currentState.taskId());
-                final ServantConnection connection = getConnection(currentState);
+                final WorkerConnection connection = getConnection(currentState);
 
                 connection.api().startExecution(currentState.taskId(), task.description());
 
-                queue.put(ServantEvent
+                queue.put(WorkerEvent
                     .fromState(currentState, Type.EXECUTING_HEARTBEAT_TIMEOUT)
                     .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
-                    .setDescription("Servant is dead")
+                    .setDescription("Worker is dead")
                     .setTimeout(config.executingHeartbeatPeriod())
                     .build()
                 );
@@ -239,10 +239,10 @@ public class ServantEventProcessor extends Thread {
             case EXECUTING_HEARTBEAT -> {
                 assertStatus(currentState, event, Status.EXECUTING);
                 eventDao.removeAllByTypes(currentState.id(), Type.EXECUTING_HEARTBEAT_TIMEOUT);
-                queue.put(ServantEvent
+                queue.put(WorkerEvent
                     .fromState(currentState, Type.EXECUTING_HEARTBEAT_TIMEOUT)
                     .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
-                    .setDescription("Servant is dead")
+                    .setDescription("Worker is dead")
                     .setTimeout(config.executingHeartbeatPeriod())
                     .build()
                 );
@@ -255,11 +255,11 @@ public class ServantEventProcessor extends Thread {
                         Type.EXECUTING_HEARTBEAT_TIMEOUT, Type.EXECUTING_HEARTBEAT);
                 final Task task = getTask(currentState.taskId());
                 task.notifyExecutionCompleted(event.rc(), event.description());
-                queue.put(ServantEvent
+                queue.put(WorkerEvent
                     .fromState(currentState, Type.IDLE_HEARTBEAT_TIMEOUT)
                     .setTimeout(config.idleHeartbeatPeriod())
                     .build());
-                queue.put(ServantEvent
+                queue.put(WorkerEvent
                     .fromState(currentState, Type.IDLE_TIMEOUT)
                     .setTimeout(config.idleTimeout())
                     .build());
@@ -272,11 +272,11 @@ public class ServantEventProcessor extends Thread {
             case IDLE_HEARTBEAT -> {
                 assertStatus(currentState, event, Status.IDLE, Status.RUNNING);
                 eventDao.removeAllByTypes(currentState.id(), Type.IDLE_HEARTBEAT_TIMEOUT);
-                queue.put(ServantEvent
+                queue.put(WorkerEvent
                     .fromState(currentState, Type.IDLE_HEARTBEAT_TIMEOUT)
                     .setTimeout(config.idleHeartbeatPeriod())
                     .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
-                    .setDescription("Servant is dead")
+                    .setDescription("Worker is dead")
                     .build()
                 );
                 yield currentState;
@@ -287,42 +287,42 @@ public class ServantEventProcessor extends Thread {
                 yield idle(currentState);
             }
 
-            case STOP -> stop(currentState, "Servant stopping: <" + event.description() + ">");
+            case STOP -> stop(currentState, "Worker stopping: <" + event.description() + ">");
 
             case IDLE_TIMEOUT -> {
                 assertStatus(currentState, event, Status.IDLE, Status.RUNNING);
-                yield stop(currentState, "Servant stopping: <" + event.description() + ">");
+                yield stop(currentState, "Worker stopping: <" + event.description() + ">");
             }
 
             case EXECUTION_TIMEOUT -> {
                 assertStatus(currentState, event, Status.EXECUTING);
-                yield stop(currentState, "Servant stopping: <" + event.description() + ">");
+                yield stop(currentState, "Worker stopping: <" + event.description() + ">");
             }
 
             case CONFIGURATION_TIMEOUT -> {
                 assertStatus(currentState, event, Status.CONFIGURING);
-                yield stop(currentState, "Servant stopping: <" + event.description() + ">");
+                yield stop(currentState, "Worker stopping: <" + event.description() + ">");
             }
 
             case NOOP -> currentState;
         };
     }
 
-    private ServantConnection getConnection(ServantState currentState) throws AssertionException {
+    private WorkerConnection getConnection(WorkerState currentState) throws AssertionException {
         if (connection == null) {
-            if (currentState.servantUrl() == null) {
+            if (currentState.workerUrl() == null) {
                 throw new AssertionException();
             }
-            Servant servant = null;
+            Worker worker = null;
             try {
-                servant = dao.get(workflowName, servantId);
+                worker = dao.get(workflowName, workerId);
             } catch (DaoException e) {
-                LOG.error("Cannot get servant", e);
+                LOG.error("Cannot get worker", e);
             }
-            if (servant == null) {
+            if (worker == null) {
                 throw new AssertionException();
             }
-            connection = new ServantConnectionImpl(currentState.servantUrl());
+            connection = new WorkerConnectionImpl(currentState.workerUrl());
         }
         return connection;
     }
@@ -341,15 +341,15 @@ public class ServantEventProcessor extends Thread {
         return task;
     }
 
-    private ServantState destroy(ServantState currentState, @Nullable ServantEvent currentEvent) {
+    private WorkerState destroy(WorkerState currentState, @Nullable WorkerEvent currentEvent) {
         if (currentEvent != null) {
-            LOG.info("Destroying servant <{}> from workflow <{}> because of event <{}>, description <{}>",
+            LOG.info("Destroying worker <{}> from workflow <{}> because of event <{}>, description <{}>",
                     currentState.id(), currentState.workflowName(), currentEvent.type(), currentEvent.description());
         }
         try {
             allocator.free(currentState.workflowName(), currentState.id());
         } catch (Exception e) {
-            throw new RuntimeException("Exception while destroying servant", e);
+            throw new RuntimeException("Exception while destroying worker", e);
         }
         eventDao.removeAll(currentState.id());
 
@@ -392,14 +392,14 @@ public class ServantEventProcessor extends Thread {
             }
         }
 
-        final String servantExitDescription = currentState.errorDescription() != null
+        final String workerExitDescription = currentState.errorDescription() != null
             ? currentState.errorDescription()
             : description;
 
         return currentState.copy()
             .setStatus(Status.DESTROYED)
             .setTaskId(null)
-            .setErrorDescription(servantExitDescription)
+            .setErrorDescription(workerExitDescription)
             .build();
     }
 
@@ -409,31 +409,31 @@ public class ServantEventProcessor extends Thread {
         }
     }
 
-    private void assertStatus(ServantState currentState, ServantEvent event,
-                                      Status... statuses) throws AssertionException {
+    private void assertStatus(WorkerState currentState, WorkerEvent event,
+                              Status... statuses) throws AssertionException {
         if (!List.of(statuses).contains(currentState.status())) {
             LOG.error("Status <{}> is not acceptable for event <{}>", currentState.status(), event);
             throw new AssertionException();
         }
     }
 
-    private ServantState changeStatus(ServantState currentState, Status status) {
+    private WorkerState changeStatus(WorkerState currentState, Status status) {
         return currentState.copy()
             .setStatus(status)
             .build();
     }
 
-    private ServantState idle(ServantState currentState) {
-        final ServantEvent timeout = ServantEvent.fromState(currentState, Type.IDLE_TIMEOUT)
+    private WorkerState idle(WorkerState currentState) {
+        final WorkerEvent timeout = WorkerEvent.fromState(currentState, Type.IDLE_TIMEOUT)
             .setTimeout(config.idleTimeout())
             .setRc(ReturnCodes.SUCCESS.getRc())
-            .setDescription("Servant is destroyed because of long idle state")
+            .setDescription("Worker is destroyed because of long idle state")
             .build();
         queue.put(timeout);
         return changeStatus(currentState, Status.IDLE);
     }
 
-    private ServantState stop(ServantState currentState, String description) throws AssertionException {
+    private WorkerState stop(WorkerState currentState, String description) throws AssertionException {
         eventDao.removeAll(currentState.id());
         if (currentState.taskId() != null) {
             Task task = getTask(currentState.taskId());
@@ -443,12 +443,12 @@ public class ServantEventProcessor extends Thread {
                 LOG.error("Cannot notify task about stop", e);
             }
         }
-        final ServantConnection connection = getConnection(currentState);
+        final WorkerConnection connection = getConnection(currentState);
         connection.api().stop();
-        final ServantEvent timeout = ServantEvent.fromState(currentState, Type.STOPPING_TIMEOUT)
-            .setTimeout(config.servantStopTimeout())
+        final WorkerEvent timeout = WorkerEvent.fromState(currentState, Type.STOPPING_TIMEOUT)
+            .setTimeout(config.workerStopTimeout())
             .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
-            .setDescription("Servant stopping timeout")
+            .setDescription("Worker stopping timeout")
             .build();
         queue.put(timeout);
         return currentState.copy()
@@ -462,6 +462,6 @@ public class ServantEventProcessor extends Thread {
 
     public void shutdown() {
         this.stopping.set(true);
-        this.queue.put(ServantEvent.noop(workflowName, servantId));
+        this.queue.put(WorkerEvent.noop(workflowName, workerId));
     }
 }

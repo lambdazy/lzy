@@ -2,8 +2,8 @@ package ai.lzy.scheduler.db.impl;
 
 import ai.lzy.model.db.Transaction;
 import ai.lzy.model.db.exceptions.DaoException;
-import ai.lzy.scheduler.db.ServantEventDao;
-import ai.lzy.scheduler.models.ServantEvent;
+import ai.lzy.scheduler.db.WorkerEventDao;
+import ai.lzy.scheduler.models.WorkerEvent;
 import com.google.common.net.HostAndPort;
 import jakarta.inject.Singleton;
 import org.jetbrains.annotations.NotNull;
@@ -17,26 +17,26 @@ import java.util.Arrays;
 import java.util.List;
 
 @Singleton
-public class ServantEventDaoImpl implements ServantEventDao {
+public class WorkerEventDaoImpl implements WorkerEventDao {
     private final SchedulerDataSource storage;
 
-    private static final String FIELDS = " id, \"time\", servant_id, workflow_name, \"type\","
-        + " description, rc, task_id, servant_url ";
+    private static final String FIELDS = " id, \"time\", worker_id, workflow_name, \"type\","
+        + " description, rc, task_id, worker_url ";
 
-    public ServantEventDaoImpl(SchedulerDataSource storage) {
+    public WorkerEventDaoImpl(SchedulerDataSource storage) {
         this.storage = storage;
     }
 
     @Override
-    public void save(ServantEvent event) {
+    public void save(WorkerEvent event) {
         try (var con = storage.connect(); var ps = con.prepareStatement(
-            "INSERT INTO servant_event ("
+            "INSERT INTO worker_event ("
                 + FIELDS
-                + ") VALUES (?, ?, ?, ?, CAST(? AS servant_event_type), ?, ?, ?, ?)")) {
+                + ") VALUES (?, ?, ?, ?, CAST(? AS worker_event_type), ?, ?, ?, ?)")) {
             int count = 0;
             ps.setString(++count, event.id());
             ps.setTimestamp(++count, Timestamp.from(event.timestamp()));
-            ps.setString(++count, event.servantId());
+            ps.setString(++count, event.workerId());
             ps.setString(++count, event.workflowName());
             ps.setString(++count, event.type().name());
 
@@ -44,7 +44,7 @@ public class ServantEventDaoImpl implements ServantEventDao {
             ps.setObject(++count, event.rc());
             ps.setString(++count, event.taskId());
 
-            var url = event.servantUrl();
+            var url = event.workerUrl();
             ps.setString(++count, url == null ? null : url.toString());
 
             ps.execute();
@@ -55,18 +55,18 @@ public class ServantEventDaoImpl implements ServantEventDao {
 
     @Nullable
     @Override
-    public ServantEvent take(String servantId) throws InterruptedException {
-        final ServantEvent[] event = new ServantEvent[1];
+    public WorkerEvent take(String workerId) throws InterruptedException {
+        final WorkerEvent[] event = new WorkerEvent[1];
         try {
             Transaction.execute(storage, con -> {
                 try (var ps = con.prepareStatement(
                     "SELECT" + FIELDS + """
-                     FROM servant_event
-                     WHERE servant_id = ? AND "time" < current_timestamp
+                     FROM worker_event
+                     WHERE worker_id = ? AND "time" < current_timestamp
                      ORDER BY "time"
                      LIMIT 1
                      FOR UPDATE""")) {
-                    ps.setString(1, servantId);
+                    ps.setString(1, workerId);
                     try (var rs = ps.executeQuery()) {
                         if (!rs.isBeforeFirst()) {
                             event[0] = null;
@@ -77,7 +77,7 @@ public class ServantEventDaoImpl implements ServantEventDao {
                     }
                 }
                 try (var ps = con.prepareStatement("""
-                     DELETE FROM servant_event
+                     DELETE FROM worker_event
                      WHERE id = ?""")) {
                     ps.setString(1, event[0].id());
                     ps.execute();
@@ -95,16 +95,16 @@ public class ServantEventDaoImpl implements ServantEventDao {
     }
 
     @Override
-    public List<ServantEvent> list(String servantId) {
+    public List<WorkerEvent> list(String workerId) {
         try (var con = storage.connect(); var ps = con.prepareStatement(
-                "SELECT " + FIELDS + "FROM servant_event WHERE servant_id = ?")) {
-            ps.setString(1, servantId);
+                "SELECT " + FIELDS + "FROM worker_event WHERE worker_id = ?")) {
+            ps.setString(1, workerId);
 
-            List<ServantEvent> events = new ArrayList<>();
+            List<WorkerEvent> events = new ArrayList<>();
 
             try (var rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    final ServantEvent event = readEvent(rs);
+                    final WorkerEvent event = readEvent(rs);
                     events.add(event);
                 }
             }
@@ -115,28 +115,28 @@ public class ServantEventDaoImpl implements ServantEventDao {
     }
 
     @NotNull
-    private ServantEvent readEvent(ResultSet rs) throws SQLException {
+    private WorkerEvent readEvent(ResultSet rs) throws SQLException {
         int count = 0;
         final var id = rs.getString(++count);
         final var timestamp = rs.getTimestamp(++count);
-        final var servant = rs.getString(++count);
+        final var worker = rs.getString(++count);
         final var workflowId = rs.getString(++count);
-        final var type = ServantEvent.Type.valueOf(rs.getString(++count));
+        final var type = WorkerEvent.Type.valueOf(rs.getString(++count));
         final var description = rs.getString(++count);
         final var rc = rs.getObject(++count, Integer.class);
         final var taskId = rs.getString(++count);
-        final var servantUrl = rs.getString(++count);
-        return new ServantEvent(id, timestamp.toInstant(), servant, workflowId, type, description,
-            rc, taskId, servantUrl == null ? null : HostAndPort.fromString(servantUrl));
+        final var workerUrl = rs.getString(++count);
+        return new WorkerEvent(id, timestamp.toInstant(), worker, workflowId, type, description,
+            rc, taskId, workerUrl == null ? null : HostAndPort.fromString(workerUrl));
     }
 
     @Override
-    public void removeAllByTypes(String servantId, ServantEvent.Type... types) {
+    public void removeAllByTypes(String workerId, WorkerEvent.Type... types) {
         try (var con = storage.connect(); var ps = con.prepareStatement("""
-                DELETE FROM servant_event
-                 WHERE servant_id = ? AND "type" = ANY(?)""")) {
-            ps.setString(1, servantId);
-            var array = con.createArrayOf("servant_event_type", Arrays.stream(types).map(Enum::name).toArray());
+                DELETE FROM worker_event
+                 WHERE worker_id = ? AND "type" = ANY(?)""")) {
+            ps.setString(1, workerId);
+            var array = con.createArrayOf("worker_event_type", Arrays.stream(types).map(Enum::name).toArray());
             ps.setArray(2, array);
             ps.execute();
         } catch (SQLException e) {
@@ -145,11 +145,11 @@ public class ServantEventDaoImpl implements ServantEventDao {
     }
 
     @Override
-    public void removeAll(String servantId) {
+    public void removeAll(String workerId) {
         try (var con = storage.connect(); var ps = con.prepareStatement("""
-                DELETE FROM servant_event
-                 WHERE servant_id = ?""")) {
-            ps.setString(1, servantId);
+                DELETE FROM worker_event
+                 WHERE worker_id = ?""")) {
+            ps.setString(1, workerId);
             ps.execute();
         } catch (SQLException e) {
             throw new RuntimeException("Cannot remove events", e);

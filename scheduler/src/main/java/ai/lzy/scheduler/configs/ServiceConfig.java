@@ -14,14 +14,14 @@ import java.util.Map;
 @ConfigurationProperties("scheduler")
 public class ServiceConfig {
     private int port;
-    private int maxServantsPerWorkflow;
+    private int maxWorkersPerWorkflow;
     private Map<String, Integer> provisioningLimits;
     private Integer defaultProvisioningLimit;
     private String schedulerAddress;
     private String channelManagerAddress;
 
     private String allocatorAddress;
-    private String servantImage;
+    private String workerImage;
 
     @ConfigurationBuilder("iam")
     private IamClientConfiguration iam = new IamClientConfiguration();

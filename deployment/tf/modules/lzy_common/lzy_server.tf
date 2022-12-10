@@ -192,7 +192,7 @@ resource "kubernetes_deployment" "server" {
           }
           env {
             name  = "SERVANT_IMAGE"
-            value = var.servant-image
+            value = var.worker-image
           }
           env {
             name  = "BASE_ENV_DEFAULT_IMAGE"

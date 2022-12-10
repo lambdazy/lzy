@@ -440,7 +440,7 @@ public class DbSubjectService {
     private static Subject subjectWith(SubjectType type, String id) {
         return switch (type) {
             case USER -> new User(id);
-            case SERVANT -> new Servant(id);
+            case WORKER -> new Worker(id);
             case VM -> new Vm(id);
         };
     }

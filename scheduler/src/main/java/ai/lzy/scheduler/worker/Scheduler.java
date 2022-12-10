@@ -1,4 +1,4 @@
-package ai.lzy.scheduler.servant;
+package ai.lzy.scheduler.worker;
 
 import ai.lzy.model.TaskDesc;
 import ai.lzy.scheduler.task.Task;

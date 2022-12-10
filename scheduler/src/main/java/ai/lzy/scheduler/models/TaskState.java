@@ -14,12 +14,12 @@ public record TaskState(
 
     @Nullable Integer returnCode,
     @Nullable String errorDescription,
-    @Nullable String servantId
+    @Nullable String workerId
 ) {
     public enum Status {
         QUEUE,  // Task is in scheduler queue
-        SCHEDULED,  // Task is scheduled to servant, but event not processed yet
-        EXECUTING,  // Task executing in servant
+        SCHEDULED,  // Task is scheduled to worker, but event not processed yet
+        EXECUTING,  // Task executing in worker
         SUCCESS,  // Task execution completed
         ERROR  // Task execution failed
     }

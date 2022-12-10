@@ -16,7 +16,7 @@ public class UserEvent extends BaseEvent {
 
     public enum UserEventType {
         // TODO (lindvv): Think about it after turning on scheduler.
-        //      Delete unused statuses. Decide which statuses should be on servant, on scheduler, on smth else.
+        //      Delete unused statuses. Decide which statuses should be on worker, on scheduler, on smth else.
         TaskCreate,
         TaskStartUp,
         ExecutionPreparing,

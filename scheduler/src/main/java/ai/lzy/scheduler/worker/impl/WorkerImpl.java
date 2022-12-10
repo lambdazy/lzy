@@ -1,33 +1,33 @@
-package ai.lzy.scheduler.servant.impl;
+package ai.lzy.scheduler.worker.impl;
 
 import ai.lzy.model.operation.Operation;
-import ai.lzy.scheduler.models.ServantEvent;
-import ai.lzy.scheduler.models.ServantState;
-import ai.lzy.scheduler.servant.Servant;
+import ai.lzy.scheduler.models.WorkerEvent;
+import ai.lzy.scheduler.models.WorkerState;
 import ai.lzy.scheduler.task.Task;
+import ai.lzy.scheduler.worker.Worker;
 import com.google.common.net.HostAndPort;
 import org.jetbrains.annotations.Nullable;
 
-public class ServantImpl implements Servant {
-    private final ServantState state;
+public class WorkerImpl implements Worker {
+    private final WorkerState state;
     private final EventQueue events;
 
-    public ServantImpl(ServantState state, EventQueue events) {
+    public WorkerImpl(WorkerState state, EventQueue events) {
         this.state = state;
         this.events = events;
     }
 
     @Override
-    public void notifyConnected(HostAndPort servantUrl) {
-        events.put(ServantEvent.fromState(state, ServantEvent.Type.CONNECTED)
-            .setServantUrl(servantUrl)
-            .setDescription("Servant connected to scheduler")
+    public void notifyConnected(HostAndPort workerUrl) {
+        events.put(WorkerEvent.fromState(state, WorkerEvent.Type.CONNECTED)
+            .setWorkerUrl(workerUrl)
+            .setDescription("Worker connected to scheduler")
             .build());
     }
 
     @Override
     public void notifyConfigured(int rc, String description) {
-        events.put(ServantEvent.fromState(state, ServantEvent.Type.CONFIGURED)
+        events.put(WorkerEvent.fromState(state, WorkerEvent.Type.CONFIGURED)
             .setRc(rc)
             .setDescription(description)
             .build());
@@ -35,7 +35,7 @@ public class ServantImpl implements Servant {
 
     @Override
     public void setTask(Task task) {
-        events.put(ServantEvent.fromState(state, ServantEvent.Type.EXECUTION_REQUESTED)
+        events.put(WorkerEvent.fromState(state, WorkerEvent.Type.EXECUTION_REQUESTED)
             .setTaskId(task.taskId())
             .setDescription("Execution of task <" + task.taskId() + "> requested")
             .build());
@@ -43,7 +43,7 @@ public class ServantImpl implements Servant {
 
     @Override
     public void notifyExecutionCompleted(int rc, String description) {
-        events.put(ServantEvent.fromState(state, ServantEvent.Type.EXECUTION_COMPLETED)
+        events.put(WorkerEvent.fromState(state, WorkerEvent.Type.EXECUTION_COMPLETED)
             .setDescription(description)
             .setRc(rc)
             .build());
@@ -51,21 +51,21 @@ public class ServantImpl implements Servant {
 
     @Override
     public void notifyCommunicationCompleted() {
-        events.put(ServantEvent.fromState(state, ServantEvent.Type.COMMUNICATION_COMPLETED)
-            .setDescription("All slots of servant closed")
+        events.put(WorkerEvent.fromState(state, WorkerEvent.Type.COMMUNICATION_COMPLETED)
+            .setDescription("All slots of worker closed")
             .build());
     }
 
     @Override
     public void stop(String issue) {
-        events.put(ServantEvent.fromState(state, ServantEvent.Type.STOP)
+        events.put(WorkerEvent.fromState(state, WorkerEvent.Type.STOP)
             .setDescription(issue)
             .build());
     }
 
     @Override
     public void notifyStopped(int rc, String description) {
-        events.put(ServantEvent.fromState(state, ServantEvent.Type.STOPPED)
+        events.put(WorkerEvent.fromState(state, WorkerEvent.Type.STOPPED)
             .setDescription(description)
             .setRc(rc)
             .build());
@@ -73,14 +73,14 @@ public class ServantImpl implements Servant {
 
     @Override
     public void executingHeartbeat() {
-        events.put(ServantEvent.fromState(state, ServantEvent.Type.EXECUTING_HEARTBEAT)
+        events.put(WorkerEvent.fromState(state, WorkerEvent.Type.EXECUTING_HEARTBEAT)
             .setDescription("Executing heartbeat")
             .build());
     }
 
     @Override
     public void idleHeartbeat() {
-        events.put(ServantEvent.fromState(state, ServantEvent.Type.IDLE_HEARTBEAT)
+        events.put(WorkerEvent.fromState(state, WorkerEvent.Type.IDLE_HEARTBEAT)
             .setDescription("Idle heartbeat")
             .build());
     }
@@ -106,7 +106,7 @@ public class ServantImpl implements Servant {
     }
 
     @Override
-    public ServantState.Status status() {
+    public WorkerState.Status status() {
         return state.status();
     }
 
@@ -124,7 +124,7 @@ public class ServantImpl implements Servant {
 
     @Nullable
     @Override
-    public HostAndPort servantURL() {
-        return state.servantUrl();
+    public HostAndPort workerURL() {
+        return state.workerUrl();
     }
 }

@@ -21,7 +21,7 @@ module "azure_common" {
   ssl-enabled                = false  # To enable ssl, build your own backoffice with cert
   backoffice-backend-image   = "lzydock/lzy-backoffice-backend:master"
   backoffice-frontend-image  = "lzydock/lzy-backoffice-frontend:master"
-  servant-image              = "lzydock/lzy-servant:master-" + var.ver
+  worker-image              = "lzydock/lzy-worker:master-" + var.ver
   kharon-image               = "lzydock/lzy-kharon:master-" + var.ver
   server-image               = "lzydock/lzy-server:master-" + var.ver
   whiteboard-image           = "lzydock/lzy-whiteboard:master-" + var.ver

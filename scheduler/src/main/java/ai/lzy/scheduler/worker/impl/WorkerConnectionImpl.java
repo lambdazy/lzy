@@ -1,10 +1,10 @@
-package ai.lzy.scheduler.servant.impl;
+package ai.lzy.scheduler.worker.impl;
 
 import ai.lzy.model.TaskDesc;
 import ai.lzy.model.graph.Env;
 import ai.lzy.model.grpc.ProtoConverter;
-import ai.lzy.scheduler.servant.ServantApi;
-import ai.lzy.scheduler.servant.ServantConnection;
+import ai.lzy.scheduler.worker.WorkerApi;
+import ai.lzy.scheduler.worker.WorkerConnection;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.worker.LWS;
 import ai.lzy.v1.worker.WorkerApiGrpc;
@@ -12,25 +12,25 @@ import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 
-public class ServantConnectionImpl implements ServantConnection {
+public class WorkerConnectionImpl implements WorkerConnection {
     private final ManagedChannel channel;
-    private final WorkerApiGrpc.WorkerApiBlockingStub servantBlockingStub;
+    private final WorkerApiGrpc.WorkerApiBlockingStub workerBlockingStub;
 
-    public ServantConnectionImpl(HostAndPort servantUrl) {
-        this.channel = ChannelBuilder.forAddress(servantUrl.getHost(), servantUrl.getPort())
+    public WorkerConnectionImpl(HostAndPort workerUrl) {
+        this.channel = ChannelBuilder.forAddress(workerUrl.getHost(), workerUrl.getPort())
             .usePlaintext()
             .enableRetry(WorkerApiGrpc.SERVICE_NAME)
             .build();
-        this.servantBlockingStub = WorkerApiGrpc.newBlockingStub(channel);
+        this.workerBlockingStub = WorkerApiGrpc.newBlockingStub(channel);
     }
 
     @Override
-    public ServantApi api() {
-        return new ServantApi() {
+    public WorkerApi api() {
+        return new WorkerApi() {
             @Override
             public void configure(Env env) throws StatusRuntimeException {
                 //noinspection ResultOfMethodCallIgnored
-                servantBlockingStub.configure(LWS.ConfigureRequest.newBuilder()
+                workerBlockingStub.configure(LWS.ConfigureRequest.newBuilder()
                     .setEnv(ProtoConverter.toProto(env))
                     .build());
             }
@@ -39,7 +39,7 @@ public class ServantConnectionImpl implements ServantConnection {
             public void startExecution(String taskId, TaskDesc task) throws StatusRuntimeException {
 
                 //noinspection ResultOfMethodCallIgnored
-                servantBlockingStub.execute(LWS.ExecuteRequest.newBuilder()
+                workerBlockingStub.execute(LWS.ExecuteRequest.newBuilder()
                     .setTaskDesc(task.toProto())
                     .setTaskId(taskId)
                     .build());
@@ -48,7 +48,7 @@ public class ServantConnectionImpl implements ServantConnection {
             @Override
             public void stop() throws StatusRuntimeException {
                 //noinspection ResultOfMethodCallIgnored
-                servantBlockingStub.stop(LWS.StopRequest.newBuilder().build());
+                workerBlockingStub.stop(LWS.StopRequest.newBuilder().build());
             }
         };
     }

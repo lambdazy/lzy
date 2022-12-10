@@ -27,25 +27,25 @@ for ARG in "$@"; do
   esac
 done
 
-IMAGES="lzy-servant default-env test-env lzy-server lzy-kharon lzy-whiteboard lzy-iam"
+IMAGES="lzy-worker default-env test-env lzy-server lzy-kharon lzy-whiteboard lzy-iam"
 if [[ $BASE = true ]]; then
-  IMAGES="lzy-servant-base default-env-base test-env-base $IMAGES"
+  IMAGES="lzy-worker-base default-env-base test-env-base $IMAGES"
 fi
 BRANCH=$(echo "$1" | awk '{print tolower($0)}')
 CUSTOM_TAG=$2
 
 if [[ $REBUILD = true ]]; then
   if [[ $BASE = true ]]; then
-    docker build -t lzy-servant-base -t lzydock/lzy-servant-base:local -f servant/docker/System.Base.Dockerfile servant
-    SERVANT_BASE_TAG="local"
-    docker build -t default-env-base -t lzydock/default-env-base:local -f servant/docker/DefaultEnv.Base.Dockerfile servant
+    docker build -t lzy-worker-base -t lzydock/lzy-worker-base:local -f worker/docker/System.Base.Dockerfile worker
+    WORKER_BASE_TAG="local"
+    docker build -t default-env-base -t lzydock/default-env-base:local -f worker/docker/DefaultEnv.Base.Dockerfile worker
     DEFAULT_ENV_BASE_TAG="local"
-    docker build -t test-env-base    -t lzydock/test-env-base:local    -f servant/docker/TestEnv.Base.Dockerfile servant
+    docker build -t test-env-base    -t lzydock/test-env-base:local    -f worker/docker/TestEnv.Base.Dockerfile worker
     TEST_ENV_BASE_TAG="local"
   else
-    SERVANT_BASE="$(deployment/latest-docker-image-on-branches.sh lzy-servant-base $BRANCH master)"
-    docker pull "$SERVANT_BASE"
-    SERVANT_BASE_TAG="$(echo $SERVANT_BASE | awk -F: '{print $2}')"
+    WORKER_BASE="$(deployment/latest-docker-image-on-branches.sh lzy-worker-base $BRANCH master)"
+    docker pull "$WORKER_BASE"
+    WORKER_BASE_TAG="$(echo $WORKER_BASE | awk -F: '{print $2}')"
 
     DEFAULT_ENV_BASE="$(deployment/latest-docker-image-on-branches.sh default-env-base $BRANCH master)"
     docker pull "$DEFAULT_ENV_BASE"
@@ -58,12 +58,12 @@ if [[ $REBUILD = true ]]; then
   cd pylzy/ && ./scripts/gen_proto.sh && cd ..
   mvn clean install -DskipTests
 
-  mkdir -p servant/docker/tmp-for-context
-  cp -R pylzy servant/docker/tmp-for-context/pylzy
-  docker build --build-arg "SERVANT_BASE_TAG=$SERVANT_BASE_TAG"         -t lzy-servant -f servant/docker/System.Dockerfile servant
-  docker build --build-arg "DEFAULT_ENV_BASE_TAG=$DEFAULT_ENV_BASE_TAG" -t default-env -f servant/docker/DefaultEnv.Dockerfile servant
-  docker build --build-arg "TEST_ENV_BASE_TAG=$TEST_ENV_BASE_TAG"       -t test-env    -f servant/docker/TestEnv.Dockerfile servant
-  rm -rf servant/docker/tmp-for-context
+  mkdir -p worker/docker/tmp-for-context
+  cp -R pylzy worker/docker/tmp-for-context/pylzy
+  docker build --build-arg "WORKER_BASE_TAG=$WORKER_BASE_TAG"         -t lzy-worker -f worker/docker/System.Dockerfile worker
+  docker build --build-arg "DEFAULT_ENV_BASE_TAG=$DEFAULT_ENV_BASE_TAG" -t default-env -f worker/docker/DefaultEnv.Dockerfile worker
+  docker build --build-arg "TEST_ENV_BASE_TAG=$TEST_ENV_BASE_TAG"       -t test-env    -f worker/docker/TestEnv.Dockerfile worker
+  rm -rf worker/docker/tmp-for-context
 
   docker build -t lzy-server -f server/Dockerfile server
   docker build -t lzy-whiteboard -f whiteboard-old/Dockerfile whiteboard-old

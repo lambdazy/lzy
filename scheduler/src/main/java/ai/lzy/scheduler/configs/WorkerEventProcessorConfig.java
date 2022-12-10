@@ -4,12 +4,12 @@ import io.micronaut.context.annotation.ConfigurationProperties;
 
 import java.time.Duration;
 
-@ConfigurationProperties("scheduler.servant-processor")
-public record ServantEventProcessorConfig(
+@ConfigurationProperties("scheduler.worker-processor")
+public record WorkerEventProcessorConfig(
         Duration allocationTimeout,
         Duration idleTimeout,
         Duration configuringTimeout,
-        Duration servantStopTimeout,
+        Duration workerStopTimeout,
         Duration executingHeartbeatPeriod,
         Duration idleHeartbeatPeriod
 ) {}

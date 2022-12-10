@@ -75,9 +75,9 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
     }
 
     @Test
-    public void createSubjectServantWithInternalAuthProvider() {
-        var subject = subjectClient.createSubject(AuthProvider.INTERNAL, "Superman", SubjectType.SERVANT);
-        Assert.assertEquals(SubjectType.SERVANT, subject.type());
+    public void createSubjectWorkerWithInternalAuthProvider() {
+        var subject = subjectClient.createSubject(AuthProvider.INTERNAL, "Superman", SubjectType.WORKER);
+        Assert.assertEquals(SubjectType.WORKER, subject.type());
     }
 
     @Test
@@ -86,9 +86,9 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
         var creds2 = new SubjectCredentials("second", "second value", CredentialsType.OTT,
             Instant.now().plus(1, ChronoUnit.DAYS));
 
-        var subject = subjectClient.createSubject(AuthProvider.INTERNAL, "Superman", SubjectType.SERVANT,
+        var subject = subjectClient.createSubject(AuthProvider.INTERNAL, "Superman", SubjectType.WORKER,
             creds1, creds2);
-        Assert.assertEquals(SubjectType.SERVANT, subject.type());
+        Assert.assertEquals(SubjectType.WORKER, subject.type());
 
         var creds = subjectClient.listCredentials(subject);
         Assert.assertEquals(2, creds.size());

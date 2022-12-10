@@ -1,4 +1,4 @@
-CREATE type servant_event_type AS ENUM (
+CREATE type worker_event_type AS ENUM (
     'NOOP',
     'ALLOCATION_TIMEOUT',
     'CONNECTED',
@@ -18,7 +18,7 @@ CREATE type servant_event_type AS ENUM (
     'STOPPED'
 );
 
-CREATE type servant_status AS ENUM (
+CREATE type worker_status AS ENUM (
     'CREATED',
     'CONNECTING',
     'CONFIGURING',
@@ -29,16 +29,16 @@ CREATE type servant_status AS ENUM (
     'DESTROYED'
 );
 
-CREATE TABLE servant (
+CREATE TABLE worker (
     id varchar(255) NOT NULL,
     user_id varchar(255) NOT NULL,
     workflow_name varchar(255) NOT NULL,
-    status servant_status NOT NULL,
+    status worker_status NOT NULL,
     requirements_json varchar(10485760) NOT NULL,
 
     error_description varchar(2048) NULL,
     task_id varchar(255) NULL,
-    servant_url varchar(255) NULL,
+    worker_url varchar(255) NULL,
 
     allocator_meta varchar(10485760) NULL,
 
@@ -48,19 +48,19 @@ CREATE TABLE servant (
     PRIMARY KEY (id, workflow_name)
 );
 
-CREATE TABLE servant_event (
+CREATE TABLE worker_event (
     id varchar(255) NOT NULL PRIMARY KEY,
     time timestamp NOT NULL,
-    servant_id varchar(255) NOT NULL,
+    worker_id varchar(255) NOT NULL,
     workflow_name varchar(255) NOT NULL,
-    type servant_event_type NOT NULL,
+    type worker_event_type NOT NULL,
 
     description varchar(10485760) NULL,
     rc int NULL,
     task_id varchar(255) NULL,
-    servant_url varchar(255) NULL,
+    worker_url varchar(255) NULL,
 
-    FOREIGN KEY (servant_id, workflow_name) references servant(id, workflow_name)
+    FOREIGN KEY (worker_id, workflow_name) references worker(id, workflow_name)
         ON UPDATE CASCADE
         ON DELETE CASCADE
 );
@@ -83,6 +83,6 @@ CREATE TABLE task (
 
     rc int NULL,
     error_description varchar(10485760) NULL,
-    servant_id varchar(255) NULL,
+    worker_id varchar(255) NULL,
     PRIMARY KEY(id, workflow_id)
 );
