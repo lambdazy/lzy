@@ -564,7 +564,7 @@
                     <artifactId>maven-checkstyle-plugin</artifactId>
                     <version>${checkstyle-maven-plugin.version}</version>
                     <configuration>
-                        <configLocation>${project.basedir}/../.idea/codeStyles/LzyCheckStyle.xml</configLocation>
+                        <configLocation>${project.basedir}/../../.idea/codeStyles/LzyCheckStyle.xml</configLocation>
                         <sourceDirectories>${project.basedir}/src</sourceDirectories>
                         <encoding>UTF-8</encoding>
                         <consoleOutput>true</consoleOutput>
