@@ -42,8 +42,12 @@ public class GcDaoImpl implements GcDao {
             ResultSet rs = statement.executeQuery();
             if (rs.next()) {
                 if (rs.getTimestamp("valid_until").after(now)) {
-                    result[0] = false;
-                    return;
+                    if (rs.getString("gc_instance_id").equals(id)) {
+                        result[0] = false;
+                        return;
+                    } else {
+                        throw new IllegalStateException("There is already valid GC");
+                    }
                 }
 
                 rs.updateTimestamp("updated_at", now);
