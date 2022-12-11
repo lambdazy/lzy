@@ -2,6 +2,7 @@ package ai.lzy.channelmanager;
 
 import ai.lzy.channelmanager.grpc.ChannelManagerPrivateService;
 import ai.lzy.channelmanager.grpc.ChannelManagerService;
+import ai.lzy.channelmanager.v2.config.ChannelManagerConfig;
 import ai.lzy.iam.clients.stub.AuthenticateServiceStub;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
@@ -23,9 +24,9 @@ import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 
 @SuppressWarnings("UnstableApiUsage")
-public class ChannelManager {
+public class ChannelManagerAppOld {
 
-    private static final Logger LOG = LogManager.getLogger(ChannelManager.class);
+    private static final Logger LOG = LogManager.getLogger(ChannelManagerAppOld.class);
     private static final Options options = new Options();
 
     public static final String APP = "LzyChannelManager";
@@ -57,9 +58,9 @@ public class ChannelManager {
             "channel-manager.whiteboard-address", whiteboardAddress.toString()
         )))
         {
-            final ChannelManager channelManager = new ChannelManager(context);
-            channelManager.start();
-            channelManager.awaitTermination();
+            final ChannelManagerAppOld app = new ChannelManagerAppOld(context);
+            app.start();
+            app.awaitTermination();
         }
     }
 
@@ -82,7 +83,7 @@ public class ChannelManager {
         iamChannel.shutdown();
     }
 
-    public ChannelManager(ApplicationContext ctx) {
+    public ChannelManagerAppOld(ApplicationContext ctx) {
         var config = ctx.getBean(ChannelManagerConfig.class);
         final var iamAddress = HostAndPort.fromString(config.getIam().getAddress());
         iamChannel = newGrpcChannel(iamAddress, LzyAuthenticateServiceGrpc.SERVICE_NAME);

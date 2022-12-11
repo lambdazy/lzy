@@ -1,6 +1,7 @@
 channel-manager:
   address: 'localhost:8122'
-  whiteboard-address: 'localhost:8999'
+  stub-slot-api-address: 'localhost:8125'
+  lzy-service-address: 'localhost:8899'
   iam:
     address: 'localhost:8443'
     internal-user-name: "lzy-internal-user"
@@ -39,3 +40,6 @@ channel-manager:
     enabled: true
     min-pool-size: 5
     max-pool-size: 100
+  connections:
+    cache-concurrency-level: 10
+    cache-ttl-seconds: 60

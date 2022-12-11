@@ -1,12 +1,12 @@
 package ai.lzy.channelmanager.grpc;
 
-import ai.lzy.channelmanager.ChannelManagerConfig;
 import ai.lzy.channelmanager.channel.Channel;
 import ai.lzy.channelmanager.channel.ChannelSpec;
 import ai.lzy.channelmanager.channel.DirectChannelSpec;
 import ai.lzy.channelmanager.channel.SnapshotChannelSpec;
 import ai.lzy.channelmanager.db.ChannelStorage;
-import ai.lzy.channelmanager.lock.GrainedLock;
+import ai.lzy.channelmanager.v2.config.ChannelManagerConfig;
+import ai.lzy.channelmanager.v2.lock.GrainedLock;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.v1.channel.LCM;
 import ai.lzy.v1.channel.LCMPS;
@@ -24,7 +24,6 @@ import java.net.URI;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static ai.lzy.channelmanager.grpc.ProtoConverter.toProto;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
@@ -53,7 +52,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         try {
             final String executionId = request.getExecutionId();
             final LCM.ChannelSpec channelSpec = request.getChannelSpec();
-            if (executionId.isBlank() || !ProtoValidator.isValid(channelSpec)) {
+            if (executionId.isBlank() || !isValid(channelSpec)) {
                 String errorMessage = "Request shouldn't contain empty fields";
                 LOG.error("Create channel {} failed, invalid argument: {}",
                     request.getChannelSpec().getChannelName(), errorMessage);
@@ -286,7 +285,10 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         final LCMPS.ChannelStatus.Builder statusBuilder = LCMPS.ChannelStatus.newBuilder();
         statusBuilder
             .setChannelId(channel.id())
-            .setChannelSpec(toProto(channel.spec()));
+            .setChannelSpec(LCM.ChannelSpec.newBuilder()
+                .setChannelName(channel.name())
+                .setContentType(ai.lzy.model.grpc.ProtoConverter.toProto(channel.spec().contentType()))
+                .build());
         channel.slotsStatus()
             .map(slotStatus ->
                 LMS.SlotStatus.newBuilder()
@@ -298,6 +300,19 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
                     .build())
             .forEach(statusBuilder::addConnected);
         return statusBuilder.build();
+    }
+
+    private boolean isValid(ai.lzy.v1.channel.LCM.ChannelSpec channelSpec) {
+        try {
+            boolean isValid = true;
+            isValid = isValid && !channelSpec.getChannelName().isBlank();
+            isValid = isValid && channelSpec.getTypeCase().getNumber() != 0;
+            isValid = isValid && !channelSpec.getContentType().getDataFormat().isBlank();
+            isValid = isValid && !channelSpec.getContentType().getSchemeFormat().isBlank();
+            return isValid;
+        } catch (NullPointerException e) {
+            return false;
+        }
     }
 
 }

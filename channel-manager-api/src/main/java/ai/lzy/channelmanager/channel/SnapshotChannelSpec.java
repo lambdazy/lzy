@@ -4,6 +4,7 @@ import ai.lzy.model.DataScheme;
 
 import java.net.URI;
 
+@Deprecated
 public record SnapshotChannelSpec(
     String userId,
     String name,

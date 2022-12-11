@@ -1,4 +1,4 @@
-package ai.lzy.channelmanager.lock;
+package ai.lzy.channelmanager.v2.lock;
 
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;

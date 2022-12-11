@@ -4,9 +4,9 @@ import ai.lzy.channelmanager.channel.Channel;
 import ai.lzy.channelmanager.channel.ChannelException;
 import ai.lzy.channelmanager.channel.Endpoint;
 import ai.lzy.channelmanager.channel.SlotEndpoint;
-import ai.lzy.channelmanager.db.ChannelManagerDataSource;
 import ai.lzy.channelmanager.db.ChannelStorage;
-import ai.lzy.channelmanager.lock.GrainedLock;
+import ai.lzy.channelmanager.v2.dao.ChannelManagerDataSource;
+import ai.lzy.channelmanager.v2.lock.GrainedLock;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.SlotInstance;
@@ -52,7 +52,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             attach.getSlotInstance().getSlot().getName(),
             attach.getSlotInstance().getChannelId());
 
-        if (!ProtoValidator.isValid(attach.getSlotInstance())) {
+        if (!ProtoValidator.validate(attach.getSlotInstance()).isOk()) {
             String errorMessage = "Request shouldn't contain empty fields";
             LOG.error("Bind slot={} to channel={} failed, invalid argument: {}",
                 attach.getSlotInstance().getSlot().getName(),
@@ -125,7 +125,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             detach.getSlotInstance().getSlot(),
             detach.getSlotInstance().getChannelId());
 
-        if (!ProtoValidator.isValid(detach.getSlotInstance())) {
+        if (!ProtoValidator.validate(detach.getSlotInstance()).isOk()) {
             String errorMessage = "Request shouldn't contain empty fields";
             LOG.error("Unbind slot={} to channel={} failed, invalid argument: {}",
                 detach.getSlotInstance().getSlot().getName(),

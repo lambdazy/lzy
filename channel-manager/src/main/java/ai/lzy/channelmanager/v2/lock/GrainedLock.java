@@ -1,4 +1,4 @@
-package ai.lzy.channelmanager.lock;
+package ai.lzy.channelmanager.v2.lock;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -18,9 +18,9 @@ public class GrainedLock {
     }
 
     public Guard withLock(String subjectId) {
-        var subject = acquireSubject(subjectId);
-        subject.lock.lock();
-        return new Guard(subjectId);
+        var guard = new Guard(subjectId);
+        lock(subjectId);
+        return guard;
     }
 
     public void lock(String subjectId) {

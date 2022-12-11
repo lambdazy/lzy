@@ -54,10 +54,10 @@ public class LzyASService extends LzyAccessServiceGrpc.LzyAccessServiceImplBase 
                         .asException());
             }
         } catch (AuthException e) {
-            LOG.error("Auth exception::", e);
+            LOG.error("Auth exception:: {}", e.getInternalDetails());
             responseObserver.onError(e.status().asException());
         } catch (Exception e) {
-            LOG.error("Internal exception::", e);
+            LOG.error("Internal exception:: {}", e.getMessage(), e);
             responseObserver.onError(Status.INTERNAL.asException());
         }
     }
