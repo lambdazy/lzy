@@ -27,4 +27,4 @@ And then automatically load only view instances:
 models = env.whiteboards([BestModel]).views(CatBoostClassifier)
 ```
 
-In the [**next**](7-integrations.md) part, we will demonstrate how ʎzy is integrated with popular open-source libraries.
+In the [**next**](8-integrations.md) part, we will demonstrate how ʎzy is integrated with popular open-source libraries.

@@ -59,5 +59,5 @@ wbs = env.whiteboards([BestModel], from_date=..., to_date=...)
 
 ---
 
-In the [**next**](6-views.md) part, we will show how to load only data that is really needed for the business task.
+In the [**next**](7-views.md) part, we will show how to load only data that is really needed for the business task.
 

@@ -51,4 +51,4 @@ def train(data_set: Bunch) -> CatBoostClassifier:
 
 ---
 
-In the [**next**](5-whiteboards.md) part, we will detail how graph results can be stored in ʎzy.
+In the [**next**](6-whiteboards.md) part, we will detail how graph results can be stored in ʎzy.
