@@ -85,7 +85,7 @@ public class AllocatorContext {
 
         @Inject
         public WorkerAllocatorContext(IamContext iam) {
-            super(iam, "../worker/target/worker-1.0-SNAPSHOT.jar", "ai.lzy.worker.Worker", 23910);
+            super(iam, "../lzy/worker/target/worker-1.0-SNAPSHOT.jar", "ai.lzy.worker.Worker", 23910);
         }
 
         @Override
@@ -100,7 +100,7 @@ public class AllocatorContext {
 
         @Inject
         public PortalAllocatorContext(IamContext iam) {
-            super(iam, "../portal/target/portal-1.0-SNAPSHOT.jar", "ai.lzy.portal.App", 23911);
+            super(iam, "../lzy/portal/target/portal-1.0-SNAPSHOT.jar", "ai.lzy.portal.App", 23911);
         }
 
         @Override
