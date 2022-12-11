@@ -60,8 +60,7 @@ public class GarbageCollector extends TimerTask {
 
         try {
             if (!gcDao.updateGC(id, now, validUntil, null)) {
-                LOG.debug("GC {} can't become leader", id);
-                clearTasks();
+                LOG.debug("GC {} already leader", id);
                 return;
             }
         } catch (Exception e) {
