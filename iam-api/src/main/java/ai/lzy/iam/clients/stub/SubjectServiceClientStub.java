@@ -28,7 +28,7 @@ public class SubjectServiceClientStub implements SubjectServiceClient {
         final var id = "user_stub_" + UUID.randomUUID();
         return switch (type) {
             case USER -> new User(id);
-            case SERVANT -> new Servant(id);
+            case WORKER -> new Worker(id);
             case VM -> new Vm(id);
         };
     }

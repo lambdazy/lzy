@@ -1,7 +1,7 @@
 package ai.lzy.test.impl;
 
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.channelmanager.ChannelManager;
+import ai.lzy.channelmanager.ChannelManagerAppOld;
 import ai.lzy.test.LzyChannelManagerContext;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
@@ -26,7 +26,7 @@ public class ChannelManagerThreadContext implements LzyChannelManagerContext {
 
     private final String whiteboardAddress;
     private final HostAndPort iamAddress;
-    private ChannelManager channelManager;
+    private ChannelManagerAppOld channelManager;
     private LzyChannelManagerGrpc.LzyChannelManagerBlockingStub client;
     private LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub privateClient;
     private ManagedChannel channel;
@@ -70,7 +70,7 @@ public class ChannelManagerThreadContext implements LzyChannelManagerContext {
         try {
             context = ApplicationContext.run(PropertySource.of(props));
 
-            channelManager = new ChannelManager(context);
+            channelManager = new ChannelManagerAppOld(context);
             channelManager.start();
 
             channel = ChannelBuilder

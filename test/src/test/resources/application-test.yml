@@ -59,9 +59,9 @@ allocator:
 
 scheduler:
   base-env-default-image: ""
-  max-servants-per-workflow: 2
+  max-workers-per-workflow: 2
   default-provisioning-limit: 2
-  servant-image: lzy-servant
+  worker-image: lzy-worker
 
   provisioning-limits:
     s: 10
@@ -75,13 +75,13 @@ scheduler:
     max-pool-size: 5
     enabled: true
 
-  servant-processor:
+  worker-processor:
     allocation-timeout: 100d
     configuring-timeout: 100d
     executing-heartbeat-period: 100d
     idle-heartbeat-period: 100d
     idle-timeout: 1m
-    servant-stop-timeout: 100ms
+    worker-stop-timeout: 100ms
 
   iam:
     address: 'localhost:8443'

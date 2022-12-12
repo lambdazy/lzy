@@ -5,21 +5,20 @@
 
 # ʎzy
 
-ʎzy is a system for the distributed execution of an arbitrary code and storage of the obtained results.
+ʎzy is a platform for a hybrid execution of ML workflows that transparently integrates local and remote runtimes 
+with the following properties:
 
-The goals of this system are:
-- Transparent scaling of code that is not generally intended for distributed execution
-- Run ML training and inference tasks in one computing environment, effectively balancing the load between these circuits.
-- Provide an ability to combine local and distributed components in one task.
-- Allow an ML specialist to implement an arbitrary configuration of the computing environment (MR, main-secondary, rings/trees, etc.)
-
-The system is based on the following principle: a computing cluster is represented as one large UNIX machine. Calculations communicate with each other using shared files, pipes, and other familiar machinery. The user controls this large UNIX machine either from his local laptop, where the system crawls through a partition in the file system.
+- Python-native SDK
+- Automatic env (pip/conda) sync
+- K8s-native runtime
+- Resources allocation on-demand
+- Env-independent results storage
 
 ## Quick start
 
 [![Google Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1Z7CERGqTU-ZTu3dwbeZxD9zJ6L8oQBbN?usp=sharing)
 
-ʎzy allows running any python functions in the Cloud by annotating them with `@op` decorator:
+ʎzy allows running any python functions on a cluster by annotating them with `@op` decorator:
 
 ```python
 @op(gpu=Gpu.any())
@@ -27,9 +26,22 @@ def train(data_set: Bunch) -> CatBoostClassifier:
     cb_model = CatBoostClassifier(iterations=1000, task_type="GPU", devices='0:1', train_dir='/tmp/catboost')
     cb_model.fit(data_set.data, data_set.target, verbose=True)
     return cb_model
+
+
+# local python function call
+model = train(data_set)
+
+# remote call on a cluster
+env = LzyRemoteEnv()
+with env.workflow("training"):
+    model = train(data_set)
 ```
 
-Please read the [tutorial](docs/tutorials/1-setup.md) for details.
+Please read the [tutorial](docs/tutorials/0-contents.md) for details. We provide a free [sandbox installation](https://lzy.ai).
+
+## Runtime
+
+Check out our [key concepts](docs/arch/key-concepts.md) and [architecture intro](docs/arch/intro.md).
 
 ## Development
 
@@ -38,5 +50,6 @@ Development [guide](docs/development.md).
 ## Deployment
 
 Deployment guide.
+
 * [Azure](docs/deployment_azure.md)
 * [YCloud](docs/deployment_ycloud.md)

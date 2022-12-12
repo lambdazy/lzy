@@ -35,7 +35,7 @@ public class ProtoConverter {
         var subjectType = SubjectType.valueOf(subject.getType());
         return switch (subjectType) {
             case USER -> new User(subject.getId());
-            case SERVANT -> new Servant(subject.getId());
+            case WORKER -> new Worker(subject.getId());
             case VM -> new Vm(subject.getId());
         };
     }
@@ -75,8 +75,8 @@ public class ProtoConverter {
         SubjectType subjectType;
         if (subject instanceof User) {
             subjectType = SubjectType.USER;
-        } else if (subject instanceof Servant) {
-            subjectType = SubjectType.SERVANT;
+        } else if (subject instanceof Worker) {
+            subjectType = SubjectType.WORKER;
         } else if (subject instanceof Vm) {
             subjectType = SubjectType.VM;
         } else {
