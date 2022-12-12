@@ -39,41 +39,38 @@ public final class IdempotencyUtils {
                                                                boolean isListType,
                                                                String internalErrorMessage, Logger log)
     {
-        var opSnapshot = operationService.awaitOperationCompletion(opId, Duration.ofMillis(50), Duration.ofSeconds(5));
-
-        if (opSnapshot == null) {
-            log.error("Can not find operation with id: { opId: {} }", opId);
-            responseObserver.onError(Status.INTERNAL.asRuntimeException());
+        if (!operationService.awaitOperationCompletion(opId, Duration.ofSeconds(5))) {
+            log.error("Cannot await operation completion: { opId: {} }", opId);
+            responseObserver.onError(Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
             return;
         }
 
-        if (opSnapshot.done()) {
-            if (opSnapshot.response() != null) {
-                try {
-                    if (isListType) {
-                        var bytesMessage = opSnapshot.response().unpack(BytesValue.class);
-                        var bytes = bytesMessage.toByteString().toByteArray();
-                        ArrayList<T> list = SerializationUtils.deserialize(bytes);
+        var opSnapshot = operationService.get(opId);
 
-                        list.forEach(responseObserver::onNext);
-                        responseObserver.onCompleted();
-                    } else {
-                        var resp = opSnapshot.response().unpack(responseType);
-                        responseObserver.onNext(resp);
-                        responseObserver.onCompleted();
-                    }
-                } catch (InvalidProtocolBufferException e) {
-                    log.error("Error while waiting op result: {}", e.getMessage(), e);
-                    responseObserver.onError(Status.INTERNAL.asRuntimeException());
+        assert opSnapshot != null;
+
+        if (opSnapshot.response() != null) {
+            try {
+                if (isListType) {
+                    var bytesMessage = opSnapshot.response().unpack(BytesValue.class);
+                    var bytes = bytesMessage.toByteString().toByteArray();
+                    ArrayList<T> list = SerializationUtils.deserialize(bytes);
+
+                    list.forEach(responseObserver::onNext);
+                    responseObserver.onCompleted();
+                } else {
+                    var resp = opSnapshot.response().unpack(responseType);
+                    responseObserver.onNext(resp);
+                    responseObserver.onCompleted();
                 }
-            } else {
-                var error = opSnapshot.error();
-                assert error != null;
-                responseObserver.onError(error.asRuntimeException());
+            } catch (InvalidProtocolBufferException e) {
+                log.error("Cannot parse operation result: { opId: {}, error: {} }", e.getMessage(), e);
+                responseObserver.onError(Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
             }
         } else {
-            log.error("Waiting deadline exceeded, operation: {}", opSnapshot.toShortString());
-            responseObserver.onError(Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
+            var error = opSnapshot.error();
+            assert error != null;
+            responseObserver.onError(error.asRuntimeException());
         }
     }
 
@@ -169,60 +166,56 @@ public final class IdempotencyUtils {
                                                                    String internalErrorMessage,
                                                                    Logger log)
     {
-        ImmutableCopyOperation opSnapshot = opService.getByIdempotencyKey(idempotencyKey.token());
+        var op = opService.getByIdempotencyKey(idempotencyKey.token());
 
-        if (opSnapshot != null) {
-            if (!idempotencyKey.equals(opSnapshot.idempotencyKey())) {
+        if (op != null) {
+            if (!idempotencyKey.equals(op.idempotencyKey())) {
                 log.error("Idempotency key {} conflict", idempotencyKey.token());
                 response.onError(Status.INVALID_ARGUMENT.withDescription("IdempotencyKey conflict").asException());
                 return true;
             }
 
-            log.info("Found operation by idempotency key: {}", opSnapshot.toString());
+            log.info("Found operation by idempotency key: {}", op.toString());
 
-            var opId = opSnapshot.id();
-            opSnapshot = opService.awaitOperationCompletion(opId, Duration.ofMillis(50), Duration.ofSeconds(5));
-
-            if (opSnapshot == null) {
-                log.warn("Operation unexpectedly dissapeared from storage: { opId: {} }", opId);
-                return false;
+            if (!opService.awaitOperationCompletion(op.id(), Duration.ofSeconds(5))) {
+                log.error("Cannot await operation completion: { opId: {} }", op.id());
+                response.onError(Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
+                return true;
             }
 
-            if (opSnapshot.done()) {
-                if (opSnapshot.response() != null) {
-                    try {
-                        if (isListType) {
-                            var bytesMessage = opSnapshot.response().unpack(BytesValue.class);
-                            var bytes = bytesMessage.toByteString().toByteArray();
-                            ArrayList<T> list = SerializationUtils.deserialize(bytes);
+            op = opService.get(op.id());
 
-                            list.forEach(response::onNext);
-                        } else {
-                            var resp = opSnapshot.response().unpack(responseType);
-                            response.onNext(resp);
-                        }
+            assert op != null;
 
-                        response.onCompleted();
-                    } catch (InvalidProtocolBufferException e) {
-                        log.error("Cannot serialize result of operation: { opId: {} }, error: {}", opId,
-                            e.getMessage(), e);
-                        response.onError(Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
+            if (op.response() != null) {
+                try {
+                    if (isListType) {
+                        var bytesMessage = op.response().unpack(BytesValue.class);
+                        var bytes = bytesMessage.toByteString().toByteArray();
+                        ArrayList<T> list = SerializationUtils.deserialize(bytes);
+
+                        list.forEach(response::onNext);
+                    } else {
+                        var resp = op.response().unpack(responseType);
+                        response.onNext(resp);
                     }
-                } else {
-                    var error = opSnapshot.error();
-                    assert error != null;
-                    response.onError(error.asRuntimeException());
+
+                    response.onCompleted();
+                } catch (InvalidProtocolBufferException e) {
+                    log.error("Cannot serialize result of operation: { opId: {} }, error: {}", op.id(),
+                        e.getMessage(), e);
+                    response.onError(Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
                 }
             } else {
-                log.error("Waiting deadline exceeded, operation: {}", opSnapshot.toShortString());
-                response.onError(Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
+                var error = op.error();
+                assert error != null;
+                response.onError(error.asRuntimeException());
             }
 
             return true;
-        } else {
-            log.debug("Operation with idempotency key not found: { idempotencyKey: {} }", idempotencyKey.token());
-            return false;
         }
+
+        return false;
     }
 
     public static boolean loadExistingOp(OperationDao operationsDao, Operation.IdempotencyKey idempotencyKey,

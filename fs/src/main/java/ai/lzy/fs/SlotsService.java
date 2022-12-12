@@ -376,7 +376,7 @@ public class SlotsService {
 
             var op = Operation.create(agentId, "OpenOutputSlot with name: " + slotInstance.name(),
                 idempotencyKey, null);
-            ImmutableCopyOperation opSnapshot = operationService.registerOperation(op);
+            var opSnapshot = operationService.registerOperation(op);
 
             if (op.id().equals(opSnapshot.id())) {
                 final LzySlot slot = slotsManager.slot(taskId, slotInstance.name());
@@ -476,29 +476,26 @@ public class SlotsService {
                 }
             );
 
-            var internalErrorMessage = "Cannot connect slot";
-            var opId = opRef[0].getId();
-            var opSnapshot =
-                operationService.awaitOperationCompletion(opId, Duration.ofMillis(50), Duration.ofSeconds(5));
-
-            if (opSnapshot == null) {
-                LOG.error("Can not find operation with id: { opId: {} }", opId);
-                resp.onError(Status.INTERNAL.asRuntimeException());
+            if (errRef[0] != null) {
+                LegacyWrapper.this.onError(errRef[0], resp);
                 return;
             }
 
-            if (opSnapshot.done()) {
-                if (opSnapshot.response() != null) {
-                    resp.onNext(LzyFsApi.SlotCommandStatus.getDefaultInstance());
-                    resp.onCompleted();
-                } else {
-                    var error = errRef[0];
-                    assert error != null;
-                    LegacyWrapper.this.onError(error, resp);
-                }
+            if (!operationService.awaitOperationCompletion(opRef[0].getId(), Duration.ofSeconds(5))) {
+                LOG.error("[{}] Cannot await operation completion: { opId: {} }", agentId, opRef[0].getId());
+                resp.onError(Status.INTERNAL.withDescription("Cannot connect slot").asRuntimeException());
+                return;
+            }
+
+            var op = operationService.get(opRef[0].getId());
+
+            assert op != null;
+
+            if (op.error() != null) {
+                LegacyWrapper.this.onError(op.error().asRuntimeException(), resp);
             } else {
-                LOG.error("Waiting deadline exceeded, operation: {}", opSnapshot.toShortString());
-                resp.onError(Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
+                resp.onNext(LzyFsApi.SlotCommandStatus.getDefaultInstance());
+                resp.onCompleted();
             }
         }
 

@@ -6,7 +6,6 @@ import ai.lzy.v1.deprecated.LzyFsApi.*;
 import ai.lzy.v1.deprecated.LzyFsGrpc;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.slots.LSA;
-import ai.lzy.v1.slots.LzySlotsApiGrpc;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
@@ -21,11 +20,11 @@ import java.time.Duration;
 public class LegacyWrapper extends LzyFsGrpc.LzyFsImplBase {
     private static final Logger LOG = LogManager.getLogger(LegacyWrapper.class);
 
-    private final LzySlotsApiGrpc.LzySlotsApiImplBase slotsApi;
+    private final PortalSlotsService slotsApi;
 
     private final LocalOperationService operationService;
 
-    public LegacyWrapper(@Named("PortalSlotsService") LzySlotsApiGrpc.LzySlotsApiImplBase slotsApi,
+    public LegacyWrapper(@Named("PortalSlotsService") PortalSlotsService slotsApi,
                          @Named("PortalOperationsService") LocalOperationService operationService)
     {
         this.slotsApi = slotsApi;
@@ -65,28 +64,26 @@ public class LegacyWrapper extends LzyFsGrpc.LzyFsImplBase {
             }
         );
 
-        var internalErrorMessage = "Cannot connect slot";
-        var opId = opRef[0].getId();
-        var opSnapshot = operationService.awaitOperationCompletion(opId, Duration.ofMillis(50), Duration.ofSeconds(5));
-
-        if (opSnapshot == null) {
-            LOG.error("Can not find operation with id: { opId: {} }", opId);
-            resp.onError(Status.INTERNAL.asRuntimeException());
+        if (errRef[0] != null) {
+            LegacyWrapper.this.onError(errRef[0], resp);
             return;
         }
 
-        if (opSnapshot.done()) {
-            if (opSnapshot.response() != null) {
-                resp.onNext(LzyFsApi.SlotCommandStatus.getDefaultInstance());
-                resp.onCompleted();
-            } else {
-                var error = errRef[0];
-                assert error != null;
-                LegacyWrapper.this.onError(error, resp);
-            }
+        if (!operationService.awaitOperationCompletion(opRef[0].getId(), Duration.ofSeconds(5))) {
+            LOG.error("[{}] Cannot await operation completion: { opId: {} }", slotsApi.getPortalId(), opRef[0].getId());
+            resp.onError(Status.INTERNAL.withDescription("Cannot connect slot").asRuntimeException());
+            return;
+        }
+
+        var op = operationService.get(opRef[0].getId());
+
+        assert op != null;
+
+        if (op.error() != null) {
+            LegacyWrapper.this.onError(op.error().asRuntimeException(), resp);
         } else {
-            LOG.error("Waiting deadline exceeded, operation: {}", opSnapshot.toShortString());
-            resp.onError(Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
+            resp.onNext(LzyFsApi.SlotCommandStatus.getDefaultInstance());
+            resp.onCompleted();
         }
     }
 

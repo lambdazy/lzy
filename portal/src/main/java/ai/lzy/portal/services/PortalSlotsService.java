@@ -78,6 +78,10 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
         this.workersPool = workersPool;
     }
 
+    public String getPortalId() {
+        return portalId;
+    }
+
     public void start() {
         LOG.info("Registering portal stdout/err slots with config: {}", config.toSafeString());
 

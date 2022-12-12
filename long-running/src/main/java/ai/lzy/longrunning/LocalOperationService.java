@@ -3,7 +3,10 @@ package ai.lzy.longrunning;
 import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
-import com.google.protobuf.*;
+import com.google.protobuf.Any;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.BytesValue;
+import com.google.protobuf.Message;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import org.apache.commons.lang3.SerializationUtils;
@@ -15,7 +18,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.LockSupport;
 import javax.annotation.Nullable;
 
 public class LocalOperationService extends LongRunningServiceGrpc.LongRunningServiceImplBase {
@@ -35,7 +37,7 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
      * which should be considered as operation's state snapshot at some instant of time.
      */
     public ImmutableCopyOperation registerOperation(Operation operation) {
-        LOG.info("[{}] Attempt to register operation {}", name, operation.toShortString());
+        LOG.debug("[{}] Attempt to register operation {}", name, operation.toShortString());
 
         Operation.IdempotencyKey idempotencyKey = operation.idempotencyKey();
 
@@ -46,8 +48,8 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
             });
 
             if (!currentAssocOp.id().equals(operation.id())) {
-                LOG.info("[{}] Found operation by idempotency key: { opId: {}, key: {} }", name, currentAssocOp.id(),
-                    idempotencyKey.token());
+                LOG.debug("[{}] Found operation by idempotency key: { opId: {}, key: {} }", name,
+                    currentAssocOp.id(), idempotencyKey.token());
             }
 
             // race condition can occur here if some other thread would change operation state right here,
@@ -59,7 +61,7 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
         var op = operations.computeIfAbsent(operation.id(), id -> operation);
 
         if (!op.id().equals(operation.id())) {
-            LOG.warn("[{}] Operation id {} already exists.", name, operation.id());
+            LOG.warn("[{}] Operation with id {} already exists.", name, operation.id());
         }
 
         return ImmutableCopyOperation.of(op);
@@ -72,11 +74,13 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
     public ImmutableCopyOperation getByIdempotencyKey(String key) {
         var op = idempotencyKey2Operation.get(key);
         if (op != null) {
+            LOG.debug("[{}] Got operation by idempotency key: { key: {}, opId: {} }", name,
+                key, op.id());
             synchronized (op.id()) {
                 return ImmutableCopyOperation.of(op);
             }
         }
-        LOG.warn("Operation with idempotency key not found: { key: {} }", key);
+        LOG.debug("[{}] Operation with idempotency key not found: { key: {} }", name, key);
         return null;
     }
 
@@ -87,14 +91,15 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
     public ImmutableCopyOperation updateResponse(String opId, Message response) {
         var op = operations.get(opId);
         if (op != null) {
-            LOG.info("OpSrv-{}::update operation: { opId: {} }.", name, opId);
+            LOG.info("[{}] Update operation response: { opId: {} }", name, opId);
 
             synchronized (op.id()) {
                 op.setResponse(response);
+                op.id().notifyAll();
                 return ImmutableCopyOperation.of(op);
             }
         }
-        LOG.error("Operation with id not found: { opId: {} }", opId);
+        LOG.error("[{}] Operation not found: { opId: {} }", name, opId);
         return null;
     }
 
@@ -116,26 +121,39 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
     public ImmutableCopyOperation updateError(String opId, Status error) {
         var op = operations.get(opId);
         if (op != null) {
-            LOG.info("OpSrv-{}::update operation: { opId: {} }.", name, opId);
+            LOG.info("[{}] Update operation error: { opId: {} }", name, opId);
 
             synchronized (op.id()) {
                 op.setError(error);
+                op.id().notifyAll();
                 return ImmutableCopyOperation.of(op);
             }
         }
-        LOG.error("Operation with id not found: { opId: {} }", opId);
+        LOG.error("[{}] Operation not found: { opId: {} }", name, opId);
+        return null;
+    }
+
+    @Nullable
+    public ImmutableCopyOperation get(String opId) {
+        var op = operations.get(opId);
+        if (op != null) {
+            LOG.debug("[{}] Got operation: { opId: {} }", name, opId);
+
+            synchronized (op.id()) {
+                return ImmutableCopyOperation.of(op);
+            }
+        }
+        LOG.error("[{}] Operation not found: { opId: {} }", name, opId);
         return null;
     }
 
     @Override
     public void get(LongRunning.GetOperationRequest request, StreamObserver<LongRunning.Operation> response) {
-        LOG.info("OpSrv-{}::get op {}.", name, request.getOperationId());
-
         var op = operations.get(request.getOperationId());
         if (op == null) {
-            var msg = "Operation %s not found".formatted(request.getOperationId());
-            LOG.error("OpSrv-%s::get error: %s".formatted(name, msg));
-            response.onError(Status.NOT_FOUND.withDescription(msg).asException());
+            var errorMessage = "Operation %s not found".formatted(request.getOperationId());
+            LOG.error("[{}] Got error: {}", name, errorMessage);
+            response.onError(Status.NOT_FOUND.withDescription(errorMessage).asException());
             return;
         }
 
@@ -144,15 +162,15 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
         synchronized (op.id()) {
             if (op.done()) {
                 if (op.response() != null) {
-                    LOG.info("OpSrv-{}::get: operation {} successfully completed.", name, op.id());
+                    LOG.info("[{}] Got operation is successfully completed: { opId: {} }", name, op.id());
                 } else if (op.error() != null) {
-                    LOG.info("OpSrv-{}::get: operation {} failed with error {}.", name, op.id(), op.error());
+                    LOG.info("[{}] Got operation is failed: { opId: {}, error: {} }", name, op.id(), op.error());
                 } else {
-                    LOG.error("OpSrv-{}::get: operation {} is in unknown completed state {}.",
-                        name, op.id(), op.toString());
+                    LOG.error("[{}] Got completed operation is in unknown state: { opId: {}, state: {} }", name,
+                        op.id(), op.toString());
                 }
             } else {
-                LOG.info("OpSrv{}::get: operation {} is in progress", name, op.id());
+                LOG.info("[{}] Got operation is in progress: { opId: {} }", name, op.id());
             }
             protoOp = op.toProto();
         }
@@ -161,27 +179,34 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
         response.onCompleted();
     }
 
-    @Nullable
-    public ImmutableCopyOperation awaitOperationCompletion(String opId, Duration loadAttemptDelay, Duration timeout) {
-        long deadline = System.nanoTime() + timeout.toNanos();
-        ImmutableCopyOperation opSnapshot = null;
+    public boolean awaitOperationCompletion(String opId, Duration timeout) {
+        var nanos = timeout.toNanos();
+        var deadline = System.nanoTime() + nanos;
 
-        while (true) {
-            var op = operations.get(opId);
-            if (op != null) {
-                synchronized (op.id()) {
-                    opSnapshot = ImmutableCopyOperation.of(op);
-                }
-            }
-
-            if (opSnapshot == null || opSnapshot.done() || deadline - System.nanoTime() <= 0L) {
-                break;
-            }
-
-            LockSupport.parkNanos(loadAttemptDelay.toNanos());
+        var op = operations.get(opId);
+        if (op == null) {
+            LOG.error("[{}] Operation not found: { opId: {} }", name, opId);
+            return false;
         }
 
-        return opSnapshot;
+        var waited = false;
+        try {
+            synchronized (op.id()) {
+                while (!op.done() && (nanos = deadline - System.nanoTime()) > 0L) {
+                    op.id().wait(Duration.ofNanos(nanos).toMillis());
+                }
+                waited = op.done();
+            }
+        } catch (InterruptedException e) {
+            LOG.warn("[{}] Was interrupted while waiting operation completed: { opId: {}, error: {} }", name, opId,
+                e.getMessage(), e);
+        }
+
+        if (!waited) {
+            LOG.error("[{}] Waiting deadline exceeded: { opId: {} }", name, opId);
+        }
+
+        return waited;
     }
 
     public record ImmutableCopyOperation(String id, String createdBy, Instant createdAt, String description,
@@ -197,7 +222,8 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
 
         public ImmutableCopyOperation(String id, String createdBy, Instant createdAt, String description,
                                       @Nullable Operation.IdempotencyKey idempotencyKey, @Nullable Any meta,
-                                      Instant modifiedAt, boolean done, @Nullable Any response, @Nullable Status error)
+                                      Instant modifiedAt, boolean done, @Nullable Any response,
+                                      @Nullable Status error)
         {
             this.id = id;
             this.createdBy = createdBy;
@@ -247,11 +273,7 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
                 builder.setResponse(response);
             }
             if (error != null) {
-                builder.setError(
-                    com.google.rpc.Status.newBuilder()
-                        .setCode(error.getCode().value())
-                        .setMessage(error.toString())
-                        .build());
+                builder.setError(ProtoConverter.toProto(error));
             }
             return builder.build();
         }
