@@ -3,7 +3,7 @@
 echo "Clean up"
 
 # package build artefacts
-rm -rvf *.egg-info dist/ build/ lzy/lzy-servant-*.jar
+rm -rvf *.egg-info dist/ build/ lzy/lzy-worker-*.jar
 
 # linter and test outputs
 rm -rvf .mypy_cache test_output

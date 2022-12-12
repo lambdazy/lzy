@@ -23,6 +23,6 @@ pkgs.mkShell {
       export proto_out="$(pwd)/ai/lzy/v1"
       export proto_validation_path="$(pwd)/../util/util-grpc/src/main/proto/"
       export proto_model_path="$(pwd)/../model/src/main/proto/"
-      export proto_workflow_path="$(pwd)/../lzy-service-api/src/main/proto/"
+      export proto_workflow_path="$(pwd)/../lzy-api/src/main/proto/"
     '';
 }

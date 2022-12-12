@@ -1,19 +1,17 @@
 ## Overview
 
-ʎzy is a system for the distributed execution of an arbitrary code and storage of the obtained results.
+ʎzy is a platform for a hybrid execution of ML workflows that transparently integrates local and remote runtimes
+with the following properties:
 
-The goals of the system are:
-
-- Transparent scaling of code that is not generally intended for distributed execution
-- Run ML training and inference tasks in one computing environment, effectively balancing the load between these
-  circuits.
-- Provide an ability to combine local and distributed components in one task.
-- Allow an ML specialist to implement an arbitrary configuration of the computing environment (MR, main-secondary,
-  rings/trees, etc.)
+- Python-native SDK
+- Automatic env (pip/conda) sync
+- K8s-native runtime
+- Resources allocation on-demand
+- Env-independent results storage
 
 ### Quick start
 
-ʎzy allows running any python functions in the Cloud by annotating them with `@op` decorator:
+ʎzy allows running any python functions on a cluster by annotating them with `@op` decorator:
 
 ```python
 @op(gpu=Gpu.any())
@@ -26,7 +24,7 @@ def train(data_set: Bunch) -> CatBoostClassifier:
 # local python function call
 model = train(data_set)
 
-# `train` function runs in the Cloud
+# remote call on a cluster
 env = LzyRemoteEnv()
 with env.workflow("training"):
     model = train(data_set)
@@ -35,9 +33,10 @@ with env.workflow("training"):
 Please read the [tutorial](1-setup.md) for details:
 
 1. [Setup](1-setup.md)
-2. [Basics](2-basics.md)
-2. [Data transfer](3-data.md)
-2. [Dev Environment](4-environment.md)
-2. [Managing Graph Results - Whiteboards](5-whiteboards.md)
-2. [Managing Graph Results - Views](6-views.md)
-2. [Integrations (catboost native)](7-integrations.md)
+2. [Auth](2-auth.md)
+2. [Basics](3-basics.md)
+2. [Data transfer](4-data.md)
+2. [Dev Environment](5-environment.md)
+2. [Managing Graph Results - Whiteboards](6-whiteboards.md)
+2. [Managing Graph Results - Views](7-views.md)
+2. [Integrations (catboost native)](8-integrations.md)

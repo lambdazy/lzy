@@ -4,13 +4,13 @@ resource "random_password" "lzy_kafka_password" {
   special = false
 }
 
-resource "kubernetes_secret" "lzy_kafka_servant" {
+resource "kubernetes_secret" "lzy_kafka_worker" {
   metadata {
-    name = "kafka-servant"
+    name = "kafka-worker"
   }
 
   data = {
-    username = "servant"
+    username = "worker"
     password = random_password.lzy_kafka_password[0].result
   }
 

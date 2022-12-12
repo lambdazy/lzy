@@ -90,10 +90,8 @@ public class Utils {
         Map<String, Object> props = new HashMap<>();
         try {
             final String[] files = {
-                "../" + module + "/src/main/resources/application.yml",
-                "../" + module + "/src/main/resources/application-test.yml",
-                "./" + module + "/src/main/resources/application.yml",
-                "./" + module + "/src/main/resources/application-test.yml"
+                "../lzy/" + module + "/src/main/resources/application.yml",
+                "../lzy/" + module + "/src/main/resources/application-test.yml"
             };
 
             for (var file: files) {

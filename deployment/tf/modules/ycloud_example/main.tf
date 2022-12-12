@@ -20,7 +20,7 @@ module "azure_common" {
   s3-postfics                = "example"  # Postfix of your blob storage, must be unique for all azure storages
   ssl-enabled                = false  # To enable ssl, build your own backoffice with cert
 
-  servant-image              = "lzydock/lzy-servant:<enter version here>"
+  worker-image              = "lzydock/lzy-worker:<enter version here>"
   kharon-image               = "lzydock/lzy-kharon:<enter version here>"
   server-image               = "lzydock/lzy-server:<enter version here>"
   whiteboard-image           = "lzydock/lzy-whiteboard:<enter version here>"

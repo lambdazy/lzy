@@ -12,9 +12,9 @@ on:
         description: 'Tag with new minor version instead of custom tag for images'
         required: false
         default: true
-      servant-base:
+      worker-base:
         type: boolean
-        description: 'Update base servant docker image'
+        description: 'Update base worker docker image'
         required: false
         default: false
 jobs:
@@ -44,7 +44,7 @@ jobs:
         run: |
           FLAGS="--rebuild"
           if [[ ${{ github.event.inputs.update }} == true ]]; then FLAGS="$FLAGS --update"; fi
-          if [[ ${{ github.event.inputs.servant-base }} == true ]]; then FLAGS="$FLAGS --base"; fi
+          if [[ ${{ github.event.inputs.worker-base }} == true ]]; then FLAGS="$FLAGS --base"; fi
           bash deployment/push-docker.sh "${{ github.ref_name }}" "${{ github.event.inputs.tag }}" $FLAGS
 
       - name: 'Clean docker files'

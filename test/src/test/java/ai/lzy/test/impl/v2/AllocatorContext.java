@@ -41,7 +41,7 @@ public class AllocatorContext {
 
         this.context = ApplicationContext.run(opts);
         this.main = context.getBean(AllocatorMain.class);
-        AllocatorImpl.randomServantPorts.set(true);
+        AllocatorImpl.randomWorkerPorts.set(true);
         try {
             main.start();
         } catch (IOException e) {
@@ -85,7 +85,7 @@ public class AllocatorContext {
 
         @Inject
         public WorkerAllocatorContext(IamContext iam) {
-            super(iam, "../servant/target/servant-1.0-SNAPSHOT.jar", "ai.lzy.servant.agents.Worker", 23910);
+            super(iam, "../lzy/worker/target/worker-1.0-SNAPSHOT.jar", "ai.lzy.worker.Worker", 23910);
         }
 
         @Override
@@ -100,7 +100,7 @@ public class AllocatorContext {
 
         @Inject
         public PortalAllocatorContext(IamContext iam) {
-            super(iam, "../portal/target/portal-1.0-SNAPSHOT.jar", "ai.lzy.portal.App", 23911);
+            super(iam, "../lzy/portal/target/portal-1.0-SNAPSHOT.jar", "ai.lzy.portal.App", 23911);
         }
 
         @Override

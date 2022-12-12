@@ -25,7 +25,7 @@ jobs:
         run: |
           sudo umount -f /tmp/lzy*
           sudo umount -f /tmp/term*
-          sudo rm -rf /tmp/lzy* /tmp/h2* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/servant*
+          sudo rm -rf /tmp/lzy* /tmp/h2* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/worker*
           sudo rm -rf /tmp/temp* /tmp/test* /tmp/*json /tmp/*txt /tmp/*so /tmp/*lck /tmp/*sh
 
       - name: 'python-test'
@@ -49,9 +49,9 @@ jobs:
           cd pylzy/
           ./scripts/clean.sh
       
-      - name: 'install python requirements'
+      - name: 'install python test env'
         run: |
-          eval "$(conda shell.bash hook)" && conda activate py39 && pip install -r servant/docker/requirements.txt
+          eval "$(conda shell.bash hook)" && conda activate py39 && pip install -r lzy/worker/docker/requirements.txt
 
       - name: 'install pylzy'
         run: |
@@ -94,61 +94,26 @@ jobs:
         run: |
           cd test && mvn test -Dtest=WorkflowTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
-#      - name: 'LzyDryStartupTest'
-#        timeout-minutes: 5
-#        run: |
-#          cd test && mvn test -Dtest=LzyDryStartupTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-#
-#      - name: 'LzyStartupWithAvailableZygotesTest'
-#        timeout-minutes: 5
-#        run: |
-#          cd test && mvn test -Dtest=LzyStartupWithAvailableZygotesTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-#
-#      - name: 'RunTest'
-#        timeout-minutes: 5
-#        run: |
-#          cd test && mvn test -Dtest=RunTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-#
-#      - name: 'TerminalCrashTest'
-#        timeout-minutes: 5
-#        run: |
-#          cd test && mvn test -Dtest=TerminalCrashTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-#
-#      - name: 'ServantCrashTest'
-#        timeout-minutes: 5
-#        run: |
-#          cd test && mvn test -Dtest=ServantCrashTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-#
-#      - name: 'MultiSessionTest'
-#        timeout-minutes: 5
-#        run: |
-#          cd test && mvn test -Dtest=MultiSessionTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-#
-#      - name: 'SnapshotTest'
-#        timeout-minutes: 5
-#        run: |
-#          cd test && mvn test -Dtest=SnapshotTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-#
-#      - name: 'build servant image'
+#      - name: 'build worker image'
 #        timeout-minutes: 15
 #        run: |
 #          BRANCH=${{ (github.head_ref || github.ref_name) }}
-#          SERVANT_BASE_IMAGE=$(deployment/latest-docker-image-on-branches.sh lzy-servant-base $BRANCH master)
-#          docker pull $SERVANT_BASE_IMAGE
-#          SERVANT_BASE_TAG="$(echo $SERVANT_BASE_IMAGE | awk -F: '{print $2}')"
-#          mkdir -p servant/docker/tmp-for-context
-#          cp -R pylzy servant/docker/tmp-for-context/pylzy
-#          docker build --build-arg "SERVANT_BASE_TAG=$SERVANT_BASE_TAG" -t lzy-servant -f servant/docker/System.Dockerfile servant
+#          WORKER_BASE_IMAGE=$(deployment/latest-docker-image-on-branches.sh lzy-worker-base $BRANCH master)
+#          docker pull $WORKER_BASE_IMAGE
+#          WORKER_BASE_TAG="$(echo $WORKER_BASE_IMAGE | awk -F: '{print $2}')"
+#          mkdir -p worker/docker/tmp-for-context
+#          cp -R pylzy worker/docker/tmp-for-context/pylzy
+#          docker build --build-arg "WORKER_BASE_TAG=$WORKER_BASE_TAG" -t lzy-worker -f worker/docker/System.Dockerfile worker
 #
-#      - name: 'DockerServantTest'
+#      - name: 'DockerWorkerTest'
 #        timeout-minutes: 20
 #        run: |
 #          BRANCH=${{ (github.head_ref || github.ref_name) }}
 #          ENV_IMAGE=$(deployment/latest-docker-image-on-branches.sh test-env $BRANCH master)
-#          cd test && mvn test -Dtest=DockerServantTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" -Dserver.baseEnvDefaultImage="$ENV_IMAGE" && cd ..
+#          cd test && mvn test -Dtest=DockerWorkerTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" -Dserver.baseEnvDefaultImage="$ENV_IMAGE" && cd ..
 #
       - name: 'PyApiTest'
-        timeout-minutes: 10
+        timeout-minutes: 15
         run: |
           cd test && mvn test -Dtest=PyApiTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
@@ -167,7 +132,7 @@ jobs:
           sudo tar -czvf /tmp/old-lzy-logs/$SHA/logs.tar.gz /tmp/lzy-log
           sudo umount -f /tmp/lzy*
           sudo umount -f /tmp/term*
-          sudo rm -rf /tmp/lzy* /tmp/h2* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/servant* /tmp/tmp*
+          sudo rm -rf /tmp/lzy* /tmp/h2* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/worker* /tmp/tmp*
           sudo rm -rf /tmp/temp* /tmp/test* /tmp/*json /tmp/*txt /tmp/*so /tmp/*lck /tmp/*sh
       #### <- TODO: replace with call to reusable workflow in future: .github/workflows/reusable/pull-request-workflow.yaml
 

@@ -198,4 +198,4 @@ test/filename
 test/slot.json
 
 /pylzy/.tox/
-servant/docker/tmp-for-context
+worker/docker/tmp-for-context

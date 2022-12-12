@@ -37,11 +37,11 @@
 * `kubectl get pods` to find out server pod name (looks like `lzy-server-<id>`)
 * `kubectl get logs -f lzy-server-<id>`
 
-**Servant logs online**
-* `kubectl get pods` to find out servant pod name (looks like `lzy-servant-<id>`)
-* `kubectl exec -it lzy-servant-<id> -- cat /tmp/lzy-log/servant/servant.log`
+**Worker logs online**
+* `kubectl get pods` to find out worker pod name (looks like `lzy-worker-<id>`)
+* `kubectl exec -it lzy-worker-<id> -- cat /tmp/lzy-log/worker/worker.log`
 
-**Old server or servant logs**
+**Old server or worker logs**
 * `kubectl get pods` to find out clickhouse pod name (looks like `clickhouse-<id>`)
 * `kubectl port-forward clickhouse-<id> 8123:8123`
 * Go to azure for credentials: Azure -> lzy-prod -> Configuration (you can search for it or find in left bar) -> Secrets tab -> clickhousse
