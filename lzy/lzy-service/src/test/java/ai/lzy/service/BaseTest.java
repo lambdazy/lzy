@@ -1,7 +1,7 @@
 package ai.lzy.service;
 
 import ai.lzy.allocator.test.BaseTestWithAllocator;
-import ai.lzy.channelmanager.grpc.ChannelManagerMock;
+import ai.lzy.channelmanager.deprecated.grpc.ChannelManagerMock;
 import ai.lzy.graph.test.GraphExecutorMock;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.resources.subjects.User;
@@ -30,7 +30,11 @@ import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;

@@ -14,7 +14,7 @@ import ai.lzy.portal.slots.StdoutSlot;
 import ai.lzy.util.auth.credentials.CredentialsUtils;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.GrpcUtils;
-import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.channel.deprecated.LzyChannelManagerGrpc;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
@@ -38,8 +38,10 @@ import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
 import static ai.lzy.model.UriScheme.LzyFs;
-import static ai.lzy.util.grpc.GrpcUtils.*;
-import static ai.lzy.v1.channel.LzyChannelManagerGrpc.newBlockingStub;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
+import static ai.lzy.v1.channel.deprecated.LzyChannelManagerGrpc.newBlockingStub;
 
 public class Portal {
     private static final Logger LOG = LogManager.getLogger(Portal.class);

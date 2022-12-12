@@ -1,7 +1,7 @@
 package ai.lzy.test;
 
-import ai.lzy.v1.channel.LzyChannelManagerGrpc;
-import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
+import ai.lzy.v1.channel.deprecated.LzyChannelManagerGrpc;
+import ai.lzy.v1.channel.deprecated.LzyChannelManagerPrivateGrpc;
 
 public interface LzyChannelManagerContext extends AutoCloseable {
     String address();

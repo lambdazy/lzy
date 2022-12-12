@@ -1,7 +1,7 @@
 package ai.lzy.channelmanager;
 
-import ai.lzy.channelmanager.v2.debug.InjectedFailures;
-import ai.lzy.v1.channel.v2.LCMS.BindRequest;
+import ai.lzy.channelmanager.debug.InjectedFailures;
+import ai.lzy.v1.channel.LCMS.BindRequest;
 import ai.lzy.v1.common.LMS;
 import org.junit.After;
 import org.junit.Before;

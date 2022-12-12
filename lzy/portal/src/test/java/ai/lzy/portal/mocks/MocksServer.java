@@ -1,6 +1,6 @@
 package ai.lzy.portal.mocks;
 
-import ai.lzy.channelmanager.grpc.ChannelManagerMock;
+import ai.lzy.channelmanager.deprecated.grpc.ChannelManagerMock;
 import ai.lzy.util.grpc.GrpcUtils;
 import io.grpc.Server;
 

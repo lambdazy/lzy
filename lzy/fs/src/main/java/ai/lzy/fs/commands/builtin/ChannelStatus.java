@@ -1,9 +1,9 @@
 package ai.lzy.fs.commands.builtin;
 
 import ai.lzy.fs.commands.LzyCommand;
-import ai.lzy.v1.channel.LCMPS;
-import ai.lzy.v1.channel.LzyChannelManagerGrpc;
-import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
+import ai.lzy.v1.channel.deprecated.LCMPS;
+import ai.lzy.v1.channel.deprecated.LzyChannelManagerGrpc;
+import ai.lzy.v1.channel.deprecated.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.deprecated.LzyAuth;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;

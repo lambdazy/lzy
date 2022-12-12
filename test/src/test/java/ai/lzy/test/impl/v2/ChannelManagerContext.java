@@ -1,7 +1,7 @@
 package ai.lzy.test.impl.v2;
 
 import ai.lzy.test.impl.ChannelManagerThreadContext;
-import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
+import ai.lzy.v1.channel.deprecated.LzyChannelManagerPrivateGrpc;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Singleton;
 
