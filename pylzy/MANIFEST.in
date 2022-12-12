@@ -1,2 +1,1 @@
-include lzy/lzy-worker.jar
 include requirements.txt

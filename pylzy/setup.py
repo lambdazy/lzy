@@ -62,9 +62,6 @@ setuptools.setup(
     author="ʎzy developers",
     include_package_data=True,
     package_data={
-        "lzy": [
-            "lzy/lzy-servant.jar",
-        ],
         "ai/lzy/v1": [
             "**/*.pyi",
             "*.pyi",
@@ -76,22 +73,15 @@ setuptools.setup(
         "lzy",
         "lzy/api",
         "lzy/api/v1",
-        "lzy/api/v1/whiteboard",
-        "lzy/api/v1/servant/model",
-        "lzy/api/v1/servant",
-        "lzy/api/v1/pkg_info",
-        "lzy/api/v2",
-        "lzy/api/v2/local",
-        "lzy/api/v2/utils",
-        "lzy/api/v2/remote",
-        "lzy/api/v2/remote/model",
-        "lzy/api/v2/remote/model/converter",
+        "lzy/api/v1/local",
+        "lzy/api/v1/utils",
+        "lzy/api/v1/remote",
+        "lzy/api/v1/remote/model",
+        "lzy/api/v1/remote/model/converter",
         "lzy/proxy",
         "lzy/py_env",
         "lzy/storage",
         "lzy/storage/async_",
-        "lzy/storage/deprecated",
-        "lzy/cli",
         "lzy/serialization",
         "lzy/injections",
         "lzy/whiteboards",
@@ -111,8 +101,5 @@ setuptools.setup(
         "bdist_wheel": _bdist_wheel,
         "sdist": _sdist,
         "install_egg_info": _install_egg_info,
-    },
-    entry_points={
-        "console_scripts": ["lzy-terminal=lzy.cli.terminal_runner:console_main"],
-    },
+    }
 )

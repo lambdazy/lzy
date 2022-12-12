@@ -1,8 +1,8 @@
 # noinspection PyPackageRequirements
 from catboost import CatBoostClassifier, CatBoostRanker, CatBoostRegressor
 
-from lzy.api.v2 import Provisioning, op, Lzy
-from lzy.api.v2.provisioning import GpuType
+from lzy.api.v1 import Provisioning, op, Lzy
+from lzy.api.v1.provisioning import GpuType
 from lzy.injections.extensions import extend
 
 

@@ -5,7 +5,7 @@ from azure.storage.blob import BlobSasPermissions, generate_blob_sas
 from azure.storage.blob.aio import BlobServiceClient, ContainerClient
 
 # TODO[ottergottaott]: drop this dependency
-from lzy.api.v2.utils.types import unwrap
+from lzy.api.v1.utils.types import unwrap
 from lzy.storage.api import AsyncStorageClient, AzureCredentials, AzureSasCredentials
 from lzy.storage.url import Scheme, bucket_from_uri, uri_from_bucket
 

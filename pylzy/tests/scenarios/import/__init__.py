@@ -1,5 +1,5 @@
 from base_module.base import Base
-from lzy.api.v2 import op, Lzy
+from lzy.api.v1 import op, Lzy
 from some_imported_file_2 import foo
 
 
