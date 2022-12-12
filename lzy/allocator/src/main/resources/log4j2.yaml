@@ -1,12 +1,24 @@
 Configuration:
   status: warn
 
+  properties:
+    property:
+      name: gc_filename
+      value: allocator-gc.log
+
   Appenders:
     Console:
       name: Console
       target: SYSTEM_OUT
       PatternLayout:
         Pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS}{UTC} [%t] %-5level %logger{36} %notEmpty{[rid=%X{rid}] }- %msg%n"
+
+    File:
+      name: GcFile
+      fileName: ${gc_filename}
+      PatternLayout:
+        Pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS}{UTC} [%t] %-5level %logger{36} }- %msg%n"
+
 
   Loggers:
     Root:
@@ -15,6 +27,12 @@ Configuration:
         ref: Console
 
     Logger:
+      - name: "ai.lzy.allocator.gc"
+        additivity: false
+        level: info
+        AppenderRef:
+          ref: GcFile
+
       - name: UserEventLogs
         level: error
 
