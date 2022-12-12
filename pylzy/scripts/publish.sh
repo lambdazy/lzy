@@ -1,8 +1,6 @@
-#!/usr/bin/env nix-shell
-#! nix-shell build.nix -A publish -i bash
+#!/bin/bash
 
-
-echo "Calling publish commands"
+echo "Publishing package"
 
 export TWINE_USERNAME="__token__"
 # **token has to be provided by person or bot who runs the script**
@@ -10,4 +8,5 @@ export TWINE_USERNAME="__token__"
 #
 # export TWINE_PASSWORD="<provide token here>"
 
+pip install twine -U
 python -m twine upload dist/* --verbose
