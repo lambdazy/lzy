@@ -3,23 +3,30 @@ syntax = "proto3";
 package ai.lzy.v1.channel;
 
 import "ai/lzy/v1/common/data-scheme.proto";
+import "ai/lzy/v1/common/slot.proto";
 
 option java_outer_classname = "LCM";
 option java_package = "ai.lzy.v1.channel";
 
-message ChannelSpec {
-  string channelName = 1;
-  DataScheme contentType = 2;
-  oneof type {
-    DirectChannelType direct = 3;
-    SnapshotChannelType snapshot = 4;
-  }
+message Channel {
+  string channelId = 1;
+  ChannelSpec spec = 2;
+  string executionId = 3;
+  ChannelSenders senders  = 4;
+  ChannelReceivers receivers = 5;
 }
 
-message DirectChannelType {}
+message ChannelSpec {
+  string channelName = 1;
+  DataScheme scheme = 2;
+}
 
-message SnapshotChannelType {
-  string snapshotId = 1;
-  string entryId = 2;
-  string userId = 3;
+message ChannelSenders {
+  /* optional */ SlotInstance workerSlot = 1;
+  /* optional */ SlotInstance portalSlot = 2;
+}
+
+message ChannelReceivers {
+  repeated SlotInstance workerSlots = 1;
+  /* optional */ SlotInstance portalSlot = 2;
 }

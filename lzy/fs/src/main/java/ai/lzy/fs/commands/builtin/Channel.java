@@ -4,8 +4,9 @@ import ai.lzy.fs.commands.LzyCommand;
 import ai.lzy.model.DataScheme;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.v1.channel.LCMPS;
-import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
+import ai.lzy.v1.channel.deprecated.LCM;
+import ai.lzy.v1.channel.deprecated.LCMPS;
+import ai.lzy.v1.channel.deprecated.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.deprecated.LzyAuth;
 import ai.lzy.v1.deprecated.LzyKharonGrpc;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -108,19 +109,19 @@ public final class Channel implements LzyCommand {
                     data = DataScheme.PLAIN;
                 }
 
-                final var channelSpecBuilder = ai.lzy.v1.channel.LCM.ChannelSpec.newBuilder();
+                final var channelSpecBuilder = LCM.ChannelSpec.newBuilder();
                 channelSpecBuilder.setContentType(ProtoConverter.toProto(data));
                 channelSpecBuilder.setChannelName(channelName);
 
                 if ("snapshot".equals(localCmd.getOptionValue('t'))) {
                     channelSpecBuilder.setSnapshot(
-                        ai.lzy.v1.channel.LCM.SnapshotChannelType.newBuilder()
+                        LCM.SnapshotChannelType.newBuilder()
                             .setSnapshotId(localCmd.getOptionValue('s'))
                             .setEntryId(localCmd.getOptionValue('e'))
                             .setUserId(auth.getUser().getUserId())
                             .build());
                 } else {
-                    channelSpecBuilder.setDirect(ai.lzy.v1.channel.LCM.DirectChannelType.newBuilder().build());
+                    channelSpecBuilder.setDirect(LCM.DirectChannelType.newBuilder().build());
                 }
 
                 String workflowId = command.getOptionValue('i');
