@@ -5,7 +5,7 @@
         <groupId>ai.lzy</groupId>
         <artifactId>parent</artifactId>
         <version>1.0-SNAPSHOT</version>
-        <relativePath>../parent</relativePath>
+        <relativePath>../../parent</relativePath>
     </parent>
     <artifactId>whiteboard</artifactId>
     <version>1.0-SNAPSHOT</version>
@@ -13,6 +13,7 @@
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
+        <exec.mainClass>ai.lzy.whiteboard.WhiteboardApp</exec.mainClass>
     </properties>
 
     <dependencies>
