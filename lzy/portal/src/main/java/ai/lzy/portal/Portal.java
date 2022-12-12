@@ -14,7 +14,7 @@ import ai.lzy.portal.slots.StdoutSlot;
 import ai.lzy.util.auth.credentials.CredentialsUtils;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.GrpcUtils;
-import ai.lzy.v1.channel.deprecated.LzyChannelManagerGrpc;
+import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
@@ -41,7 +41,6 @@ import static ai.lzy.model.UriScheme.LzyFs;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
-import static ai.lzy.v1.channel.deprecated.LzyChannelManagerGrpc.newBlockingStub;
 
 public class Portal {
     private static final Logger LOG = LogManager.getLogger(Portal.class);
@@ -153,8 +152,8 @@ public class Portal {
         var stderrSlotName = PORTAL_SLOT_PREFIX + ":" + Slot.STDERR_SUFFIX;
 
         slotsManager = new SlotsManager(
-            newBlockingClient(newBlockingStub(channelsManagerChannel), APP, tokenFactory),
-            URI.create("%s://%s:%d".formatted(LzyFs.scheme(), host, slotsPort)));
+            newBlockingClient(LzyChannelManagerGrpc.newBlockingStub(channelsManagerChannel), APP, tokenFactory),
+            URI.create("%s://%s:%d".formatted(LzyFs.scheme(), host, slotsPort)), true);
 
         stdoutSlot = new StdoutSlot(stdoutSlotName, portalId, stdoutChannelId,
             slotsManager.resolveSlotUri(portalId, stdoutSlotName));

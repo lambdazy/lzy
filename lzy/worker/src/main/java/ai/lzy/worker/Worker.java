@@ -115,7 +115,7 @@ public class Worker {
             final var cm = HostAndPort.fromString(channelManagerAddress);
 
             lzyFs = new LzyFsServer(workerId, Path.of(fsRoot), fsUri, cm,
-                new RenewableJwt(workerId, "INTERNAL", Duration.ofDays(1), readPrivateKey(iamPrivateKey)));
+                new RenewableJwt(workerId, "INTERNAL", Duration.ofDays(1), readPrivateKey(iamPrivateKey)), false);
             lzyFs.start();
         } catch (IOException | URISyntaxException e) {
             LOG.error("Error while building uri", e);

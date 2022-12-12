@@ -9,7 +9,7 @@ import ai.lzy.fs.fs.LzyScript;
 import ai.lzy.model.deprecated.Zygote;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.GrpcUtils;
-import ai.lzy.v1.channel.deprecated.LzyChannelManagerGrpc;
+import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.deprecated.LzyZygote;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
@@ -31,8 +31,7 @@ import static ai.lzy.model.deprecated.GrpcConverter.from;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
-import static ai.lzy.v1.channel.deprecated.LzyChannelManagerGrpc.newBlockingStub;
-
+import static ai.lzy.v1.channel.LzyChannelManagerGrpc.newBlockingStub;
 
 public class LzyFsServer {
     private static final Logger LOG = LogManager.getLogger(LzyFsServer.class);
@@ -48,18 +47,16 @@ public class LzyFsServer {
     private final AtomicBoolean finished = new AtomicBoolean(false);
 
     public LzyFsServer(String agentId, Path mountPoint, URI selfUri, HostAndPort channelManagerAddress,
-                       RenewableJwt token)
+                       RenewableJwt token, boolean isPortal)
     {
         this.mountPoint = mountPoint;
         this.selfUri = selfUri;
 
         this.channelManagerChannel = newGrpcChannel(channelManagerAddress, LzyChannelManagerGrpc.SERVICE_NAME);
         this.slotsManager = new SlotsManager(
-            newBlockingClient(
-                newBlockingStub(channelManagerChannel),
-                "LzyFs",
-                () -> token.get().token()),
-            selfUri
+            newBlockingClient(newBlockingStub(channelManagerChannel), "LzyFs", () -> token.get().token()),
+            selfUri,
+            isPortal
         );
 
         if (SystemUtils.IS_OS_MAC) {

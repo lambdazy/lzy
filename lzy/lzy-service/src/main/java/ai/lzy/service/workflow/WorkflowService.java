@@ -29,7 +29,7 @@ import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmPoolServiceApi;
 import ai.lzy.v1.VmPoolServiceGrpc;
-import ai.lzy.v1.channel.deprecated.LzyChannelManagerPrivateGrpc;
+import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
@@ -63,7 +63,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-import static ai.lzy.channelmanager.deprecated.grpc.ProtoConverter.makeCreateDirectChannelCommand;
+import static ai.lzy.channelmanager.ProtoConverter.makeCreateChannelCommand;
 import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -380,7 +380,7 @@ public class WorkflowService {
             withRetries(defaultRetryPolicy(), LOG, () ->
                 workflowDao.updateStatus(executionId, PortalStatus.CREATING_STD_CHANNELS));
 
-            String[] portalChannelIds = createPortalStdChannels(executionId);
+            String[] portalChannelIds = createPortalStdChannels(userId, workflowName, executionId);
             var stdoutChannelId = portalChannelIds[0];
             var stderrChannelId = portalChannelIds[1];
 
@@ -448,15 +448,15 @@ public class WorkflowService {
         }
     }
 
-    private String[] createPortalStdChannels(String executionId) {
+    private String[] createPortalStdChannels(String userId, String workflowName, String executionId) {
         LOG.info("Creating portal stdout channel with name '{}'", startupPortalConfig.getStdoutChannelName());
         // create portal stdout channel that receives portal output
-        var stdoutChannelId = channelManagerClient.create(makeCreateDirectChannelCommand(executionId,
+        var stdoutChannelId = channelManagerClient.create(makeCreateChannelCommand(userId, workflowName, executionId,
             startupPortalConfig.getStdoutChannelName())).getChannelId();
 
         LOG.info("Creating portal stderr channel with name '{}'", startupPortalConfig.getStderrChannelName());
         // create portal stderr channel that receives portal error output
-        var stderrChannelId = channelManagerClient.create(makeCreateDirectChannelCommand(executionId,
+        var stderrChannelId = channelManagerClient.create(makeCreateChannelCommand(userId, workflowName, executionId,
             startupPortalConfig.getStderrChannelName())).getChannelId();
 
         return new String[] {stdoutChannelId, stderrChannelId};
