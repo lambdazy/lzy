@@ -1,49 +1,15 @@
-from abc import ABC
-from datetime import datetime
 from typing import List
 
 import setuptools
-from setuptools import Command, Distribution
-from setuptools.command.install import install
-from setuptools.command.install_egg_info import install_egg_info
-from setuptools.command.sdist import sdist
 from wheel.bdist_wheel import bdist_wheel  # type: ignore
 
 
-class RunMixin(Command, ABC):
-    def initialize_options(self):
-        self.dev = None
-        super().initialize_options()
-
-    def run(self):
-        self.set_distr_version_and_name(self.distribution, self.dev is not None)
-        super().run()
-
-    def set_distr_version_and_name(self, distribution: Distribution, is_dev: bool):
-        distribution.metadata.version = read_version()
-        if is_dev:
-            today = datetime.today().strftime("%Y%m%d")
-            distribution.metadata.version += f".dev{today}"  # type: ignore
-            distribution.metadata.name = "pylzy-nightly"
+def read_readme() -> str:
+    with open("readme.md", "r") as file:
+        return file.read()
 
 
-class _install_egg_info(RunMixin, install_egg_info):
-    user_options = bdist_wheel.user_options + [("dev", None, "Build nightly package")]
-
-
-class _bdist_wheel(RunMixin, bdist_wheel):
-    user_options = bdist_wheel.user_options + [("dev", None, "Build nightly package")]
-
-
-class _sdist(RunMixin, sdist):
-    user_options = sdist.user_options + [("dev", None, "Build nightly package")]
-
-
-class _install(RunMixin, install):
-    user_options = install.user_options + [("dev", None, "Build nightly package")]
-
-
-def read_version(path="version/version"):
+def read_version(path="lzy/version/version"):
     with open(path) as file:
         return file.read().rstrip()
 
@@ -59,6 +25,13 @@ def read_requirements() -> List[str]:
 setuptools.setup(
     name="pylzy",
     version=read_version(),
+    license="LICENSE",
+    classifiers=[
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10"
+    ],
     author="ʎzy developers",
     include_package_data=True,
     package_data={
@@ -66,7 +39,7 @@ setuptools.setup(
             "**/*.pyi",
             "*.pyi",
         ],
-        "version": ["version"],
+        "lzy": ["version/version"],
     },
     install_requires=read_requirements(),
     packages=[
@@ -92,14 +65,9 @@ setuptools.setup(
         "ai/lzy/v1/common",
         "ai/lzy/v1/validation",
         "ai/lzy/v1/whiteboard",
-        "ai/lzy/v1/workflow",
-        "version",
+        "ai/lzy/v1/workflow"
     ],
     python_requires=">=3.7",
-    cmdclass={
-        "install": _install,
-        "bdist_wheel": _bdist_wheel,
-        "sdist": _sdist,
-        "install_egg_info": _install_egg_info,
-    }
+    long_description=read_readme(),
+    long_description_content_type='text/markdown'
 )

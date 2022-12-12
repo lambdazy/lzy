@@ -1,5 +1,5 @@
 #!/bin/bash
 
-./scripts/gen_proto.sh
-pip install tox
+./scripts/build.sh
+pip install tox -U
 tox

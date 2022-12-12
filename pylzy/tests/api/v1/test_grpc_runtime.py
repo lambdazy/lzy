@@ -233,6 +233,7 @@ class SnapshotTests(TestCase):
                 aws_access_key_id="aaa",
                 aws_secret_access_key="aaa",
                 endpoint_url=self.endpoint_url,
+                region_name='us-east-1'
         ) as s3:
             await s3.create_bucket(Bucket="bucket")
 
