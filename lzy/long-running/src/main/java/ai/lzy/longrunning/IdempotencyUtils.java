@@ -1,21 +1,17 @@
 package ai.lzy.longrunning;
 
-import ai.lzy.longrunning.LocalOperationService.ImmutableCopyOperation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.longrunning.LongRunning;
-import com.google.protobuf.BytesValue;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
-import org.apache.commons.lang3.SerializationUtils;
 import org.apache.logging.log4j.Logger;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.concurrent.locks.LockSupport;
 import javax.annotation.Nullable;
@@ -25,55 +21,6 @@ import static ai.lzy.model.db.DbHelper.isUniqueViolation;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
 public final class IdempotencyUtils {
-    public static <T extends Message> void replyWaitedOpResult(LocalOperationService opService, String opId,
-                                                               StreamObserver<T> responseObserver,
-                                                               Class<T> responseType,
-                                                               String internalErrorMessage, Logger log)
-    {
-        replyWaitedOpResult(opService, opId, responseObserver, responseType, false, internalErrorMessage, log);
-    }
-
-    public static <T extends Message> void replyWaitedOpResult(LocalOperationService operationService, String opId,
-                                                               StreamObserver<T> responseObserver,
-                                                               Class<T> responseType,
-                                                               boolean isListType,
-                                                               String internalErrorMessage, Logger log)
-    {
-        if (!operationService.awaitOperationCompletion(opId, Duration.ofSeconds(5))) {
-            log.error("Cannot await operation completion: { opId: {} }", opId);
-            responseObserver.onError(Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
-            return;
-        }
-
-        var opSnapshot = operationService.get(opId);
-
-        assert opSnapshot != null;
-
-        if (opSnapshot.response() != null) {
-            try {
-                if (isListType) {
-                    var bytesMessage = opSnapshot.response().unpack(BytesValue.class);
-                    var bytes = bytesMessage.toByteString().toByteArray();
-                    ArrayList<T> list = SerializationUtils.deserialize(bytes);
-
-                    list.forEach(responseObserver::onNext);
-                    responseObserver.onCompleted();
-                } else {
-                    var resp = opSnapshot.response().unpack(responseType);
-                    responseObserver.onNext(resp);
-                    responseObserver.onCompleted();
-                }
-            } catch (InvalidProtocolBufferException e) {
-                log.error("Cannot parse operation result: { opId: {}, error: {} }", e.getMessage(), e);
-                responseObserver.onError(Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
-            }
-        } else {
-            var error = opSnapshot.error();
-            assert error != null;
-            responseObserver.onError(error.asRuntimeException());
-        }
-    }
-
     public static <T extends Message> boolean loadExistingOpResult(OperationDao operationsDao,
                                                                    Operation.IdempotencyKey idempotencyKey,
                                                                    StreamObserver<T> response, Class<T> responseType,
@@ -154,18 +101,6 @@ public final class IdempotencyUtils {
                                                                    String internalErrorMessage,
                                                                    Logger log)
     {
-        return loadExistingOpResult(opService, idempotencyKey, false, responseType, response, internalErrorMessage,
-            log);
-    }
-
-    public static <T extends Message> boolean loadExistingOpResult(LocalOperationService opService,
-                                                                   Operation.IdempotencyKey idempotencyKey,
-                                                                   boolean isListType,
-                                                                   Class<T> responseType,
-                                                                   StreamObserver<T> response,
-                                                                   String internalErrorMessage,
-                                                                   Logger log)
-    {
         var op = opService.getByIdempotencyKey(idempotencyKey.token());
 
         if (op != null) {
@@ -177,7 +112,7 @@ public final class IdempotencyUtils {
 
             log.info("Found operation by idempotency key: {}", op.toString());
 
-            if (!opService.awaitOperationCompletion(op.id(), Duration.ofSeconds(5))) {
+            if (!opService.await(op.id(), Duration.ofSeconds(5))) {
                 log.error("Cannot await operation completion: { opId: {} }", op.id());
                 response.onError(Status.INTERNAL.withDescription(internalErrorMessage).asRuntimeException());
                 return true;
@@ -189,17 +124,8 @@ public final class IdempotencyUtils {
 
             if (op.response() != null) {
                 try {
-                    if (isListType) {
-                        var bytesMessage = op.response().unpack(BytesValue.class);
-                        var bytes = bytesMessage.toByteString().toByteArray();
-                        ArrayList<T> list = SerializationUtils.deserialize(bytes);
-
-                        list.forEach(response::onNext);
-                    } else {
-                        var resp = op.response().unpack(responseType);
-                        response.onNext(resp);
-                    }
-
+                    var resp = op.response().unpack(responseType);
+                    response.onNext(resp);
                     response.onCompleted();
                 } catch (InvalidProtocolBufferException e) {
                     log.error("Cannot serialize result of operation: { opId: {} }, error: {}", op.id(),
@@ -250,7 +176,7 @@ public final class IdempotencyUtils {
     public static boolean loadExistingOp(LocalOperationService opService, Operation.IdempotencyKey idempotencyKey,
                                          StreamObserver<LongRunning.Operation> response, Logger log)
     {
-        ImmutableCopyOperation opSnapshot = opService.getByIdempotencyKey(idempotencyKey.token());
+        var opSnapshot = opService.getByIdempotencyKey(idempotencyKey.token());
 
         if (opSnapshot != null) {
             if (!idempotencyKey.equals(opSnapshot.idempotencyKey())) {

@@ -3,7 +3,8 @@ package ai.lzy.fs;
 import ai.lzy.fs.fs.*;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.LocalOperationService;
-import ai.lzy.longrunning.LocalOperationService.ImmutableCopyOperation;
+import ai.lzy.longrunning.LocalOperationService.OperationSnapshot;
+import ai.lzy.longrunning.LocalOperationUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.model.UriScheme;
 import ai.lzy.model.grpc.ProtoConverter;
@@ -18,8 +19,11 @@ import ai.lzy.v1.deprecated.LzyFsGrpc;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.slots.LSA;
+import ai.lzy.v1.slots.LSA.DisconnectSlotRequest;
+import ai.lzy.v1.slots.LSA.DisconnectSlotResponse;
 import ai.lzy.v1.slots.LzySlotsApiGrpc;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Message;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
@@ -28,7 +32,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.concurrent.*;
@@ -37,7 +40,6 @@ import java.util.stream.StreamSupport;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import static ai.lzy.longrunning.IdempotencyUtils.*;
 import static ai.lzy.util.grpc.GrpcUtils.*;
 
 
@@ -100,8 +102,8 @@ public class SlotsService {
         public void createSlot(LSA.CreateSlotRequest request, StreamObserver<LSA.CreateSlotResponse> response) {
             Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
 
-            if (idempotencyKey != null && loadExistingOpResult(operationService, idempotencyKey,
-                LSA.CreateSlotResponse.class, response, "Cannot create slot", LOG))
+            if (idempotencyKey != null &&
+                loadExistingOpResult(idempotencyKey, LSA.CreateSlotResponse.class, response, "Cannot create slot"))
             {
                 return;
             }
@@ -118,15 +120,13 @@ public class SlotsService {
                     var msg = "Slot `" + request.getSlot().getName() + "` already exists.";
                     var errorStatus = Status.ALREADY_EXISTS.withDescription(msg);
                     LOG.warn(msg);
-
                     operationService.updateError(op.id(), errorStatus);
                     response.onError(errorStatus.asRuntimeException());
                     return;
                 }
 
-                final Slot slotSpec = ProtoConverter.fromProto(request.getSlot());
-                final LzySlot lzySlot =
-                    slotsManager.getOrCreateSlot(request.getTaskId(), slotSpec, request.getChannelId());
+                Slot slotSpec = ProtoConverter.fromProto(request.getSlot());
+                LzySlot lzySlot = slotsManager.getOrCreateSlot(request.getTaskId(), slotSpec, request.getChannelId());
 
                 if (fsManager != null && lzySlot instanceof LzyFileSlot fileSlot) {
                     fsManager.addSlot(fileSlot);
@@ -140,14 +140,13 @@ public class SlotsService {
                 LOG.info("Found operation by idempotency key: {}", opSnapshot.toString());
             }
 
-            replyWaitedOpResult(operationService, opSnapshot.id(), response, LSA.CreateSlotResponse.class,
-                "Cannot create slot", LOG);
+            awaitOpAndReply(opSnapshot.id(), LSA.CreateSlotResponse.class, response, "Cannot create slot");
         }
 
         @Override
         public void connectSlot(LSA.ConnectSlotRequest request, StreamObserver<LongRunning.Operation> response) {
             Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
-            if (idempotencyKey != null && loadExistingOp(operationService, idempotencyKey, response, LOG)) {
+            if (idempotencyKey != null && loadExistingOp(idempotencyKey, response)) {
                 return;
             }
 
@@ -159,7 +158,7 @@ public class SlotsService {
             if (slot == null) {
                 var msg = "Slot `" + fromSlot.taskId() + "/" + fromSlot.name() + "` not found.";
                 LOG.error(msg);
-                response.onError(Status.NOT_FOUND.withDescription(msg).asException());
+                response.onError(Status.NOT_FOUND.withDescription(msg).asRuntimeException());
                 return;
             }
 
@@ -176,7 +175,7 @@ public class SlotsService {
                     ProtoPrinter.printer().printToString(request.getFrom()),
                     ProtoPrinter.printer().printToString(request.getTo())
                 ), null);
-                ImmutableCopyOperation opSnapshot = operationService.registerOperation(op);
+                OperationSnapshot opSnapshot = operationService.registerOperation(op);
 
                 response.onNext(opSnapshot.toProto());
                 response.onCompleted();
@@ -226,13 +225,11 @@ public class SlotsService {
         }
 
         @Override
-        public void disconnectSlot(LSA.DisconnectSlotRequest request,
-                                   StreamObserver<LSA.DisconnectSlotResponse> responseObserver)
-        {
+        public void disconnectSlot(DisconnectSlotRequest request, StreamObserver<DisconnectSlotResponse> response) {
             Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
 
-            if (idempotencyKey != null && loadExistingOpResult(operationService, idempotencyKey,
-                LSA.DisconnectSlotResponse.class, responseObserver, "Cannot disconnect slot", LOG))
+            if (idempotencyKey != null &&
+                loadExistingOpResult(idempotencyKey, DisconnectSlotResponse.class, response, "Cannot disconnect slot"))
             {
                 return;
             }
@@ -246,15 +243,13 @@ public class SlotsService {
             var opSnapshot = operationService.registerOperation(op);
 
             if (op.id().equals(opSnapshot.id())) {
-
                 final LzySlot slot = slotsManager.slot(slotInstance.taskId(), slotInstance.name());
                 if (slot == null) {
                     var msg = "Slot `" + slotInstance.shortDesc() + "` not found.";
                     var errorStatus = Status.NOT_FOUND.withDescription(msg);
-
                     LOG.error(msg);
                     operationService.updateError(op.id(), errorStatus);
-                    responseObserver.onError(errorStatus.asRuntimeException());
+                    response.onError(errorStatus.asRuntimeException());
                     return;
                 }
 
@@ -265,16 +260,14 @@ public class SlotsService {
                     }
                 });
 
-                operationService.updateResponse(op.id(), LSA.DisconnectSlotResponse.getDefaultInstance());
-                responseObserver.onNext(LSA.DisconnectSlotResponse.getDefaultInstance());
-                responseObserver.onCompleted();
-                return;
+                operationService.updateResponse(op.id(), DisconnectSlotResponse.getDefaultInstance());
+                response.onNext(DisconnectSlotResponse.getDefaultInstance());
+                response.onCompleted();
             } else {
                 LOG.info("Found operation by idempotency key: {}", opSnapshot.toString());
-            }
 
-            replyWaitedOpResult(operationService, opSnapshot.id(), responseObserver, LSA.DisconnectSlotResponse.class,
-                "Cannot disconnect slot", LOG);
+                awaitOpAndReply(opSnapshot.id(), DisconnectSlotResponse.class, response, "Cannot disconnect slot");
+            }
         }
 
         @Override
@@ -306,8 +299,8 @@ public class SlotsService {
         public void destroySlot(LSA.DestroySlotRequest request, StreamObserver<LSA.DestroySlotResponse> response) {
             var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
 
-            if (idempotencyKey != null && loadExistingOpResult(operationService, idempotencyKey,
-                LSA.DestroySlotResponse.class, response, "Cannot destroy slot", LOG))
+            if (idempotencyKey != null &&
+                loadExistingOpResult(idempotencyKey, LSA.DestroySlotResponse.class, response, "Cannot destroy slot"))
             {
                 return;
             }
@@ -324,13 +317,10 @@ public class SlotsService {
                 final LzySlot slot = slotsManager.slot(slotInstance.taskId(), slotInstance.name());
                 if (slot == null) {
                     var msg = "Slot `" + slotInstance.shortDesc() + "` not found.";
+                    var errorStatus = Status.NOT_FOUND.withDescription(msg);
                     LOG.warn(msg);
-
-                    operationService.updateResponse(op.id(), LSA.DestroySlotResponse.getDefaultInstance());
-                    response.onNext(LSA.DestroySlotResponse.getDefaultInstance());
-                    response.onCompleted();
-                    // operationService.updateError(...);
-                    // response.onError(Status.NOT_FOUND.withDescription(msg).asException());
+                    operationService.updateError(op.id(), errorStatus);
+                    response.onError(errorStatus.asRuntimeException());
                     return;
                 }
 
@@ -348,76 +338,61 @@ public class SlotsService {
                 operationService.updateResponse(op.id(), LSA.DestroySlotResponse.getDefaultInstance());
                 response.onNext(LSA.DestroySlotResponse.getDefaultInstance());
                 response.onCompleted();
-
-                return;
             } else {
                 LOG.info("Found operation by idempotency key: {}", opSnapshot.toString());
-            }
 
-            replyWaitedOpResult(operationService, opSnapshot.id(), response, LSA.DestroySlotResponse.class,
-                "Cannot destroy slot", LOG);
+                awaitOpAndReply(opSnapshot.id(), LSA.DestroySlotResponse.class, response, "Cannot destroy slot");
+            }
         }
 
         @Override
         public void openOutputSlot(LSA.SlotDataRequest request, StreamObserver<LSA.SlotDataChunk> response) {
-            var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
-
-            if (idempotencyKey != null && loadExistingOpResult(operationService, idempotencyKey,
-                /* for streaming data */ true, LSA.SlotDataChunk.class, response, "Cannot open output slot", LOG))
-            {
-                return;
-            }
-
             LOG.info("LzySlotsApi::openOutputSlot {}: {}.",
                 request.getSlotInstance().getSlotUri(), JsonUtils.printSingleLine(request));
 
             final SlotInstance slotInstance = ProtoConverter.fromProto(request.getSlotInstance());
             final String taskId = slotInstance.taskId();
 
-            var op = Operation.create(agentId, "OpenOutputSlot with name: " + slotInstance.name(),
-                idempotencyKey, null);
-            var opSnapshot = operationService.registerOperation(op);
+            final LzySlot slot = slotsManager.slot(taskId, slotInstance.name());
+            if (slot instanceof LzyOutputSlot outputSlot) {
+                try {
+                    outputSlot
+                        .readFromPosition(request.getOffset())
+                        .forEach(chunk -> response.onNext(LSA.SlotDataChunk.newBuilder().setChunk(chunk).build()));
 
-            if (op.id().equals(opSnapshot.id())) {
-                final LzySlot slot = slotsManager.slot(taskId, slotInstance.name());
-                if (slot instanceof LzyOutputSlot outputSlot) {
-                    try {
-                        var fullData = new ArrayList<LSA.SlotDataChunk>();
-                        outputSlot
-                            .readFromPosition(request.getOffset())
-                            .forEach(chunk -> {
-                                fullData.add(LSA.SlotDataChunk.newBuilder().setChunk(chunk).build());
-                                response.onNext(LSA.SlotDataChunk.newBuilder().setChunk(chunk).build());
-                            });
-
-                        fullData.add(LSA.SlotDataChunk.newBuilder().setControl(LSA.SlotDataChunk.Control.EOS).build());
-                        operationService.updateResponse(op.id(), fullData);
-                        response.onNext(
-                            LSA.SlotDataChunk.newBuilder().setControl(LSA.SlotDataChunk.Control.EOS).build());
-                        response.onCompleted();
-                    } catch (IOException e) {
-                        var msg =
-                            "IO error while reading slot %s: %s".formatted(slotInstance.shortDesc(), e.getMessage());
-                        var errorStatus = Status.INTERNAL.withDescription(msg);
-
-                        LOG.error(msg, e);
-                        operationService.updateError(op.id(), errorStatus);
-                        response.onError(errorStatus.asException());
-                    }
-                    return;
+                    response.onNext(
+                        LSA.SlotDataChunk.newBuilder()
+                            .setControl(LSA.SlotDataChunk.Control.EOS)
+                            .build());
+                    response.onCompleted();
+                } catch (IOException e) {
+                    var msg = "IO error while reading slot %s: %s".formatted(slotInstance.shortDesc(), e.getMessage());
+                    LOG.error(msg, e);
+                    response.onError(Status.INTERNAL.withDescription(msg).asException());
                 }
-
-                LOG.error("Cannot read from unknown slot " + slotInstance.uri());
-                var errorStatus = Status.NOT_FOUND.withDescription("Reading from input slot: " + slotInstance.uri());
-                operationService.updateError(op.id(), errorStatus);
-                response.onError(errorStatus.asException());
                 return;
-            } else {
-                LOG.info("Found operation by idempotency key: {}", opSnapshot.toString());
             }
 
-            replyWaitedOpResult(operationService, opSnapshot.id(), response, LSA.SlotDataChunk.class,
-                /* for streaming data */ true, "Cannot open output slot", LOG);
+            LOG.error("Cannot read from unknown slot " + slotInstance.uri());
+            response.onError(Status.NOT_FOUND
+                .withDescription("Reading from input slot: " + slotInstance.uri())
+                .asException());
+        }
+
+        private <T extends Message> boolean loadExistingOpResult(Operation.IdempotencyKey key, Class<T> respType,
+                                                                 StreamObserver<T> response, String errorMsg)
+        {
+            return IdempotencyUtils.loadExistingOpResult(operationService, key, respType, response, errorMsg, LOG);
+        }
+
+        private boolean loadExistingOp(Operation.IdempotencyKey key, StreamObserver<LongRunning.Operation> response) {
+            return IdempotencyUtils.loadExistingOp(operationService, key, response, LOG);
+        }
+
+        private <T extends Message> void awaitOpAndReply(String opId, Class<T> respType,
+                                                         StreamObserver<T> response, String errorMsg)
+        {
+            LocalOperationUtils.awaitOpAndReply(operationService, opId, response, respType, errorMsg, LOG);
         }
     }
 
@@ -481,8 +456,8 @@ public class SlotsService {
                 return;
             }
 
-            if (!operationService.awaitOperationCompletion(opRef[0].getId(), Duration.ofSeconds(5))) {
-                LOG.error("[{}] Cannot await operation completion: { opId: {} }", agentId, opRef[0].getId());
+            if (!operationService.await(opRef[0].getId(), Duration.ofSeconds(5))) {
+                LOG.error("Cannot await operation completion: { opId: {} }", opRef[0].getId());
                 resp.onError(Status.INTERNAL.withDescription("Cannot connect slot").asRuntimeException());
                 return;
             }
@@ -504,12 +479,12 @@ public class SlotsService {
                                    StreamObserver<LzyFsApi.SlotCommandStatus> response)
         {
             slotsApi.disconnectSlot(
-                LSA.DisconnectSlotRequest.newBuilder()
+                DisconnectSlotRequest.newBuilder()
                     .setSlotInstance(request.getSlotInstance())
                     .build(),
                 new StreamObserver<>() {
                     @Override
-                    public void onNext(LSA.DisconnectSlotResponse value) {
+                    public void onNext(DisconnectSlotResponse value) {
                         response.onNext(LzyFsApi.SlotCommandStatus.getDefaultInstance());
                     }
 

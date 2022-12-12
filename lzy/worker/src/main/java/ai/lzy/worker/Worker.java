@@ -7,7 +7,8 @@ import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.fs.slots.LineReaderSlot;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.LocalOperationService;
-import ai.lzy.longrunning.LocalOperationService.ImmutableCopyOperation;
+import ai.lzy.longrunning.LocalOperationService.OperationSnapshot;
+import ai.lzy.longrunning.LocalOperationUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.model.EnvironmentInstallationException;
 import ai.lzy.model.Signal;
@@ -52,8 +53,6 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOpResult;
-import static ai.lzy.longrunning.IdempotencyUtils.replyWaitedOpResult;
 import static ai.lzy.model.UriScheme.LzyFs;
 import static ai.lzy.util.auth.credentials.CredentialsUtils.readPrivateKey;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
@@ -220,7 +219,7 @@ public class Worker {
             var op = Operation.createCompleted(opId, workerId, "Configure worker", idempotencyKey, null,
                 ConfigureResponse.getDefaultInstance());
 
-            ImmutableCopyOperation opSnapshot = operationService.registerOperation(op);
+            OperationSnapshot opSnapshot = operationService.registerOperation(op);
 
             if (opId.equals(opSnapshot.id())) {
                 try {
@@ -259,7 +258,7 @@ public class Worker {
         }
 
         @Override
-        public synchronized void execute(ExecuteRequest request, StreamObserver<ExecuteResponse> responseObserver) {
+        public synchronized void execute(ExecuteRequest request, StreamObserver<ExecuteResponse> response) {
             if (LOG.getLevel().isLessSpecificThan(Level.DEBUG)) {
                 LOG.debug("Worker::execute " + JsonUtils.printRequest(request));
             } else {
@@ -268,14 +267,14 @@ public class Worker {
             }
 
             Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
-            if (idempotencyKey != null && loadExistingOpResult(operationService, idempotencyKey, ExecuteResponse.class,
-                responseObserver, "Cannot execute task on worker", LOG))
+            if (idempotencyKey != null &&
+                loadExistingOpResult(idempotencyKey, response))
             {
                 return;
             }
 
             var op = Operation.create(workerId, "Execute worker", idempotencyKey, null);
-            ImmutableCopyOperation opSnapshot = operationService.registerOperation(op);
+            OperationSnapshot opSnapshot = operationService.registerOperation(op);
 
             if (op.id().equals(opSnapshot.id())) {
                 String tid = request.getTaskId();
@@ -292,7 +291,7 @@ public class Worker {
                             slot.name());
 
                         operationService.updateError(op.id(), errorStatus);
-                        responseObserver.onError(errorStatus.asRuntimeException());
+                        response.onError(errorStatus.asRuntimeException());
 
                         return;
                     }
@@ -307,8 +306,8 @@ public class Worker {
                 });
 
                 operationService.updateResponse(op.id(), ExecuteResponse.getDefaultInstance());
-                responseObserver.onNext(ExecuteResponse.getDefaultInstance());
-                responseObserver.onCompleted();
+                response.onNext(ExecuteResponse.getDefaultInstance());
+                response.onCompleted();
 
                 try {
                     var exec = new Execution(tid, task.operation().command(), "", lzyFs.getMountPoint().toString());
@@ -356,8 +355,7 @@ public class Worker {
                 LOG.info("Found operation by idempotencyKey: { idempotencyKey: {}, op: {} }", idempotencyKey.token(),
                     opSnapshot.toShortString());
 
-                replyWaitedOpResult(operationService, opSnapshot.id(), responseObserver, ExecuteResponse.class,
-                    "Cannot execute task on worker", LOG);
+                awaitOpAndReply(opSnapshot.id(), response);
             }
         }
 
@@ -373,7 +371,7 @@ public class Worker {
             var op = Operation.createCompleted(opId, workerId, "Stop worker", idempotencyKey, null,
                 StopResponse.getDefaultInstance());
 
-            ImmutableCopyOperation opSnapshot = operationService.registerOperation(op);
+            OperationSnapshot opSnapshot = operationService.registerOperation(op);
 
             if (opId.equals(opSnapshot.id())) {
                 Worker.this.stop();
@@ -382,6 +380,16 @@ public class Worker {
                 LOG.info("Found operation by idempotencyKey: { idempotencyKey: {}, op: {} }", idempotencyKey.token(),
                     opSnapshot.toShortString());
             }
+        }
+
+        private boolean loadExistingOpResult(Operation.IdempotencyKey key, StreamObserver<ExecuteResponse> response) {
+            return IdempotencyUtils.loadExistingOpResult(operationService, key, ExecuteResponse.class, response,
+                "Cannot execute task on worker", LOG);
+        }
+
+        private void awaitOpAndReply(String opId, StreamObserver<ExecuteResponse> response) {
+            LocalOperationUtils.awaitOpAndReply(operationService, opId, response, ExecuteResponse.class,
+                "Cannot execute task on worker", LOG);
         }
     }
 }

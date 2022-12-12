@@ -69,8 +69,8 @@ public class LegacyWrapper extends LzyFsGrpc.LzyFsImplBase {
             return;
         }
 
-        if (!operationService.awaitOperationCompletion(opRef[0].getId(), Duration.ofSeconds(5))) {
-            LOG.error("[{}] Cannot await operation completion: { opId: {} }", slotsApi.getPortalId(), opRef[0].getId());
+        if (!operationService.await(opRef[0].getId(), Duration.ofSeconds(5))) {
+            LOG.error("Cannot await operation completion: { opId: {} }", opRef[0].getId());
             resp.onError(Status.INTERNAL.withDescription("Cannot connect slot").asRuntimeException());
             return;
         }
