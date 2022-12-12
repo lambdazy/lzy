@@ -3,12 +3,7 @@ from dataclasses import dataclass
 from typing import Any, List
 from unittest import TestCase
 
-from lzy.api.v1.lazy_op import LzyOp
-from lzy.api.v1.signatures import CallSignature, FuncSignature
-from lzy.api.v1.utils import infer_real_type, is_lazy_proxy, lazy_proxy
-
-# noinspection PyProtectedMember
-from lzy.api.v1.whiteboard.model import UUIDEntryIdGenerator
+from lzy.api.v1.utils.types import infer_real_type
 from lzy.proxy import proxy
 
 
@@ -105,36 +100,6 @@ class ProxyTests(TestCase):
         a._fields = None
         self.assertIs(a._fields, None)
         self.assertTupleEqual(B.__slots__, a.__slots__)
-
-    def test_lazy(self):
-        a = []
-
-        class LazyOpMock(LzyOp, ABC):
-            def __init__(self):
-                super().__init__(
-                    CallSignature(
-                        FuncSignature(lambda: None, {}, (None,), (), ()), (), {}
-                    ),
-                    UUIDEntryIdGenerator("Aaaaaa"),
-                )
-
-            def materialize(self) -> Any:
-                self.execute()
-                return "AAA"
-
-            def is_materialized(self) -> bool:
-                return False
-
-            def execute(self):
-                a.append("Materialized without any fcking reason")
-
-        mock = LazyOpMock()
-        prxy = lazy_proxy(lambda: mock.materialize(), str, {"_op": mock})
-        op = prxy._op
-        is_lazy_proxy(prxy)
-        self.assertEqual(len(a), 0)
-        op.materialize()
-        self.assertEqual(len(a), 1)
 
     def test_int_sum(self):
         a = 10

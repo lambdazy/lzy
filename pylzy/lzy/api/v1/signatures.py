@@ -7,7 +7,6 @@ from typing import (
     Generic,
     Iterable,
     Iterator,
-    List,
     Sequence,
     Tuple,
     Type,
@@ -19,10 +18,10 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 
 # TODO: own decorator with default unpacking?
 @dataclass
-class FuncSignature(Generic[T]):
-    callable: Callable[..., T]
+class FuncSignature:
+    callable: Callable
     input_types: Dict[str, type]
-    output_types: Sequence[Type[T]]
+    output_types: Sequence[type]
     arg_names: Tuple[str, ...]
     kwarg_names: Tuple[str, ...]
 
@@ -47,20 +46,17 @@ class FuncSignature(Generic[T]):
 
 
 @dataclass
-class CallSignature(Generic[T]):
-    func: FuncSignature[T]
+class CallSignature:
+    func: FuncSignature
     args: Tuple[Any, ...]
     kwargs: Dict[str, Any]
 
-    def exec(self) -> T:
+    def exec(self) -> Any:
         print("Calling: ", self.description)
         return self.func.callable(*self.args, **self.kwargs)
 
     def named_arguments(self) -> Iterator[Tuple[str, Any]]:
-        for name, arg in chain(
-            zip(self.func.arg_names, self.args), self.kwargs.items()
-        ):
-            yield name, arg
+        return chain(zip(self.func.arg_names, self.args), self.kwargs.items())
 
     @property
     def description(self) -> str:

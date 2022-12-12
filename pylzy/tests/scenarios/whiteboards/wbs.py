@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from data import MessageClass, Rule
-from lzy.api.v2 import whiteboard
+from lzy.api.v1 import whiteboard
 
 simple_whiteboard_tag = "simple_whiteboard_" + str(uuid.uuid4())
 another_simple_whiteboard_tag = "another_simple_whiteboard_" + str(uuid.uuid4())

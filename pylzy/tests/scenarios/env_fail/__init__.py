@@ -1,7 +1,7 @@
 import tempfile
 import uuid
 
-from lzy.api.v2 import Lzy, op
+from lzy.api.v1 import Lzy, op
 
 
 @op

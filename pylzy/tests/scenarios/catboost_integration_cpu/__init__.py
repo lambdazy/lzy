@@ -4,7 +4,7 @@ import numpy as np
 # noinspection PyPackageRequirements
 from catboost import CatBoostClassifier, Pool
 
-from lzy.api.v2 import Provisioning
+from lzy.api.v1 import Provisioning
 
 if __name__ == "__main__":
     # fmt: off
