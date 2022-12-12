@@ -47,11 +47,11 @@ public class ChannelManagerApp {
         this.iamChannel = iamChannel;
 
         final var authInterceptor = new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel));
-        final var chanelManagerAddress = HostAndPort.fromString(config.getAddress());
+        final var channelManagerAddress = HostAndPort.fromString(config.getAddress());
 
         final var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
 
-        this.channelManagerServer = newGrpcServer(chanelManagerAddress, authInterceptor)
+        this.channelManagerServer = newGrpcServer(channelManagerAddress, authInterceptor)
             .addService(channelManagerService)
             .addService(ServerInterceptors.intercept(channelManagerPrivateService, internalOnly))
             .addService(operationService)

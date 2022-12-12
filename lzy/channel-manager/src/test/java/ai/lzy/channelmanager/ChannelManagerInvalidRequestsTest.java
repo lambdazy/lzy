@@ -234,7 +234,7 @@ public class ChannelManagerInvalidRequestsTest extends ChannelManagerBaseApiTest
                 .setWorkflowName("wfName")
                 .setExecutionId(UUID.randomUUID().toString())
                 .setChannelSpec(ChannelSpec.newBuilder()
-                    .setChannelName("chanel_name")
+                    .setChannelName("channel_name")
                     .setScheme(ai.lzy.model.grpc.ProtoConverter.toProto(DataScheme.PLAIN))
                     .build())
                 .build();
