@@ -391,7 +391,7 @@ class RemoteRuntime(Runtime):
                 [
                     "python ",
                     "$(python -c 'import site; print(site.getsitepackages()[0])')",
-                    "/lzy/api/v2/startup.py ",
+                    "/lzy/api/v1/startup.py ",
                 ]
             )
 
