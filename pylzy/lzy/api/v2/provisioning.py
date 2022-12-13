@@ -5,15 +5,14 @@ from typing import Optional
 
 class CpuType(Enum):
     ICE_LAKE = "standard-v3"
-    CASCADE_LAKE = "Intel Cascade Lake"
-    BROADWELL = "Intel Broadwell"
-    AMD_EPYC = "AMD EPYC™"
+    CASCADE_LAKE = "standard-v2"
+    BROADWELL = "standard-v1"
 
 
 class GpuType(Enum):
     NO_GPU = "<none>"
-    V100 = "NVIDIA® Tesla® V100"
-    A100 = "NVIDIA® Ampere® V100"
+    V100 = "gpu-standard-v2"
+    A100 = "gpu-standard-v3"
 
 
 @dataclass(frozen=True)

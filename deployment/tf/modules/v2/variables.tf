@@ -29,26 +29,6 @@ variable "servant-image" {
   type = string
 }
 
-variable "ssl-enabled" {
-  type    = bool
-  default = false
-}
-
-variable "ssl-cert" {
-  type    = string
-  default = ""
-}
-
-variable "ssl-cert-key" {
-  type    = string
-  default = ""
-}
-
-variable "ssl-keystore-password" {
-  type    = string
-  default = ""
-}
-
 variable "network_id" {
   type = string
 }
@@ -83,5 +63,19 @@ variable "storage-image" {
 }
 
 variable "whiteboard-image" {
+  type = string
+}
+
+variable "oauth-github-client-id" {
+  type = string
+}
+variable "oauth-github-client-secret" {
+  type = string
+}
+
+variable "backoffice-frontend-image" {
+  type = string
+}
+variable "backoffice-backend-image" {
   type = string
 }

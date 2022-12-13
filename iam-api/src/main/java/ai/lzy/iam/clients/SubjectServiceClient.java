@@ -9,6 +9,7 @@ import ai.lzy.util.auth.exceptions.AuthException;
 
 import java.util.List;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 
 public interface SubjectServiceClient {
 
@@ -28,4 +29,7 @@ public interface SubjectServiceClient {
     List<SubjectCredentials> listCredentials(Subject subject) throws AuthException;
 
     void removeCredentials(Subject subject, String name) throws AuthException;
+
+    @Nullable
+    Subject findSubject(AuthProvider authProvider, String providerSubjectId, SubjectType type) throws AuthException;
 }

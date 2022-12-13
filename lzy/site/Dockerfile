@@ -1,12 +1,7 @@
-FROM findepi/graalvm:java17-all
+FROM amazoncorretto:17
 
-COPY target/backoffice-0.1.jar app/app.jar
-COPY src/main/resources/ app/resources
-RUN chmod -R 700 app/resources
-EXPOSE 8080
-EXPOSE 8443
-ARG keystore
-COPY $keystore app/keystore.jks
+RUN yum -y install openssl && yum clean all
+COPY target/site-1.0-SNAPSHOT.jar app/app.jar
 
 ENTRYPOINT ["java", \
             "-Xmx4G", \
