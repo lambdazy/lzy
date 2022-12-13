@@ -88,9 +88,5 @@ public class AuthControllerTest extends BaseTestWithIam {
 
         final var creds = listCredentials(subject);
         Assert.assertNotNull(creds);
-        final Optional<SubjectCredentials> subjectCreds =
-            creds.stream().filter(cred -> cred.type() == CredentialsType.COOKIE).findFirst();
-        Assert.assertTrue(subjectCreds.isPresent());
-        Assert.assertEquals(subjectCreds.get().value(), cookies.sessionId());
     }
 }
