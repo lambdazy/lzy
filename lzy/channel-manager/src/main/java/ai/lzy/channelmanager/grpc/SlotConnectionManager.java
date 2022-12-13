@@ -13,7 +13,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.net.URI;
-import java.util.concurrent.TimeUnit;
 
 @Singleton
 public class SlotConnectionManager {
@@ -27,7 +26,7 @@ public class SlotConnectionManager {
                                  @Named("ChannelManagerIamToken") RenewableJwt iamToken)
     {
         this.connections = CacheBuilder.newBuilder()
-            .expireAfterAccess(config.getConnections().getCacheTtlSeconds(), TimeUnit.SECONDS)
+            .expireAfterAccess(config.getConnections().getCacheTTL())
             .concurrencyLevel(config.getConnections().getCacheConcurrencyLevel())
             .removalListener(this::onRemove)
             .build(CacheLoader.from(this::onLoad));

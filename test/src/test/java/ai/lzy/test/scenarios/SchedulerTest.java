@@ -4,7 +4,6 @@ import ai.lzy.model.DataScheme;
 import ai.lzy.model.graph.AuxEnv;
 import ai.lzy.model.graph.BaseEnv;
 import ai.lzy.model.graph.Env;
-import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.operation.Operation;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.test.ApplicationContextRule;
@@ -12,9 +11,6 @@ import ai.lzy.test.ContextRule;
 import ai.lzy.test.impl.v2.ChannelManagerContext;
 import ai.lzy.test.impl.v2.GraphExecutorContext;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.v1.channel.deprecated.LCM.ChannelSpec;
-import ai.lzy.v1.channel.deprecated.LCM.DirectChannelType;
-import ai.lzy.v1.channel.deprecated.LCMPS.ChannelCreateRequest;
 import ai.lzy.v1.graph.GraphExecutor;
 import ai.lzy.v1.graph.GraphExecutor.ChannelDesc;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphExecuteRequest;
@@ -31,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import static ai.lzy.channelmanager.ProtoConverter.makeCreateChannelCommand;
 
 public class SchedulerTest {
     static final Logger LOG = LogManager.getLogger(SchedulerTest.class);
@@ -108,15 +105,10 @@ public class SchedulerTest {
     }
 
     @NotNull
-    private String buildChannel(String value) {
-        return channelManager.context().privateClient().create(ChannelCreateRequest.newBuilder()
-            .setExecutionId("ex_id")
-            .setChannelSpec(ChannelSpec.newBuilder()
-                .setChannelName(value)
-                .setDirect(DirectChannelType.newBuilder().build())
-                    .setContentType(ProtoConverter.toProto(DataScheme.PLAIN))
-                .build())
-            .build()).getChannelId();
+    private String buildChannel(String chanelName) {
+        final var client = channelManager.context().privateClient();
+        final var response = client.create(makeCreateChannelCommand("Semjon.Semjonych", "wf", "ex_id", chanelName));
+        return response.getChannelId();
     }
 
     private GraphExecutor.TaskDesc buildTask(String id, String command, List<String> inputs,
