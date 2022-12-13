@@ -60,3 +60,4 @@ lzy-service:
     slots-api-port: '${random.port}'
     stdout-channel-name: 'portal:stdout'
     stderr-channel-name: 'portal:stderr'
+    docker-image: ""
