@@ -5,8 +5,8 @@ echo "Clean up"
 # linter and test outputs
 rm -rvf .mypy_cache test_output
 
-# pip installed libs in nix env
-rm -rvf _build/
+# package build artefacts
+rm -rvf *.egg-info dist/ build/
 
 # mvn build artefacts
 rm -rvf target/
@@ -17,5 +17,8 @@ rm -rvf target/
 # coverage report
 rm -vf ./.coverage ./coverage.svg
 rm -rvf htmlcov
+
+# readme & license
+rm readme.md LICENSE
 
 

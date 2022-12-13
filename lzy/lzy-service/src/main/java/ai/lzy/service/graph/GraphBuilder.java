@@ -1,7 +1,6 @@
 package ai.lzy.service.graph;
 
 import ai.lzy.model.slot.Slot;
-import ai.lzy.portal.Portal;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
@@ -32,6 +31,7 @@ import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.model.grpc.ProtoConverter.*;
 import static ai.lzy.portal.grpc.ProtoConverter.*;
+import static ai.lzy.portal.services.PortalService.PORTAL_SLOT_PREFIX;
 
 class GraphBuilder {
     private static final Logger LOG = LogManager.getLogger(GraphBuilder.class);
@@ -133,7 +133,7 @@ class GraphBuilder {
             var channelId = channelManagerClient
                 .create(makeCreateChannelCommand(userId, workflowName, executionId, "channel_" + slotUri))
                 .getChannelId();
-            var portalInputSlotName = Portal.PORTAL_SLOT_PREFIX + "_" + UUID.randomUUID();
+            var portalInputSlotName = PORTAL_SLOT_PREFIX + "_" + UUID.randomUUID();
             var dataDescription = slot2dataDescription.get(slotUri);
 
             inputSlotNames.add(portalInputSlotName);
@@ -177,7 +177,7 @@ class GraphBuilder {
 
             for (var data : withoutOpenedPortalSlot) {
                 var slotUri = data.slotUri();
-                var portalOutputSlotName = Portal.PORTAL_SLOT_PREFIX + "_" + UUID.randomUUID();
+                var portalOutputSlotName = PORTAL_SLOT_PREFIX + "_" + UUID.randomUUID();
                 var channelId = channelManagerClient
                     .create(makeCreateChannelCommand(userId, workflowName, executionId, "portal_channel_" + slotUri))
                     .getChannelId();
@@ -284,8 +284,8 @@ class GraphBuilder {
         slotsDescriptionsConsumer.accept(operation.getInputSlotsList(), true);
         slotsDescriptionsConsumer.accept(operation.getOutputSlotsList(), false);
 
-        var stdoutPortalSlotName = Portal.PORTAL_SLOT_PREFIX + "_" + taskId + ":" + Slot.STDOUT_SUFFIX;
-        var stderrPortalSlotName = Portal.PORTAL_SLOT_PREFIX + "_" + taskId + ":" + Slot.STDERR_SUFFIX;
+        var stdoutPortalSlotName = PORTAL_SLOT_PREFIX + "_" + taskId + ":" + Slot.STDOUT_SUFFIX;
+        var stderrPortalSlotName = PORTAL_SLOT_PREFIX + "_" + taskId + ":" + Slot.STDERR_SUFFIX;
 
         //noinspection ResultOfMethodCallIgnored
         portalClient.openSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()

@@ -11,8 +11,7 @@ from stdlib_list import stdlib_list
 
 from lzy.py_env.api import PyEnv, PyEnvProvider
 
-version = "3.9" if sys.version_info > (3, 9) else None
-STDLIB_LIST = stdlib_list(version)
+STDLIB_LIST = stdlib_list() if sys.version_info < (3, 10) else sys.stdlib_module_names  # type: ignore
 pypi_existence_cache: Dict[str, bool] = dict()
 
 _LOG = logging.getLogger(__name__)

@@ -56,7 +56,7 @@ jobs:
       - name: 'install pylzy'
         run: |
           cd pylzy/
-          eval "$(conda shell.bash hook)" && ./scripts/gen_proto.sh
+          eval "$(conda shell.bash hook)" && ./scripts/build.sh
           eval "$(conda shell.bash hook)" && conda activate py39 && pip install . --force-reinstall
           cd ..
 
@@ -135,6 +135,12 @@ jobs:
           sudo rm -rf /tmp/lzy* /tmp/h2* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/worker* /tmp/tmp*
           sudo rm -rf /tmp/temp* /tmp/test* /tmp/*json /tmp/*txt /tmp/*so /tmp/*lck /tmp/*sh
       #### <- TODO: replace with call to reusable workflow in future: .github/workflows/reusable/pull-request-workflow.yaml
+
+      - name: 'clean pylzy'
+        run: |
+          cd pylzy/
+          eval "$(conda shell.bash hook)" && ./scripts/clean.sh
+          cd ..
 
       - name: 'Publish Test Report'
         uses: EnricoMi/publish-unit-test-result-action@v1
