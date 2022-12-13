@@ -1,4 +1,0 @@
-env: lzy-dev
-node_pool_id: cattcj8doum4em13h5oe
-new_min_pool_size: 3
-new_max_pool_size: 4
