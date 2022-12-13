@@ -44,7 +44,7 @@ import static ai.lzy.model.UriScheme.LzyFs;
 import static ai.lzy.portal.services.PortalService.APP;
 import static ai.lzy.portal.services.PortalService.PORTAL_SLOT_PREFIX;
 import static ai.lzy.util.grpc.GrpcUtils.*;
-import static ai.lzy.v1.channel.LzyChannelManagerGrpc.newBlockingStub;
+import static ai.lzy.v1.channel.deprecated.LzyChannelManagerGrpc.newBlockingStub;
 
 @Singleton
 @Named("PortalSlotsService")

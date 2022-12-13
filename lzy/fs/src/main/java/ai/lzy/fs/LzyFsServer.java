@@ -6,6 +6,7 @@ import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.fs.fs.LzyLinuxFsManagerImpl;
 import ai.lzy.fs.fs.LzyMacosFsManagerImpl;
 import ai.lzy.fs.fs.LzyScript;
+import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.model.deprecated.Zygote;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.GrpcUtils;
