@@ -36,6 +36,7 @@ message PortalSlotStatus {
 message PortalStatusRequest {
   repeated string slotNames = 1;  // Slot names to return status of. If empty, returns all slots
 }
+
 message PortalStatusResponse {
   repeated PortalSlotStatus slots = 1;
 }

@@ -1,8 +1,14 @@
 package ai.lzy.portal;
 
 import ai.lzy.allocator.AllocatorAgent;
+import ai.lzy.model.Constants;
 import ai.lzy.portal.config.PortalConfig;
+import ai.lzy.portal.services.PortalSlotsService;
+import com.google.common.net.HostAndPort;
+import io.grpc.Server;
+import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.annotation.Requires;
+import io.micronaut.inject.qualifiers.Qualifiers;
 import io.micronaut.runtime.Micronaut;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -19,31 +25,37 @@ public class App {
 
     public static final String ENV_PORTAL_PKEY = "LZY_PORTAL_PKEY";
 
-    private final Portal portal;
+    private final ApplicationContext context;
 
-    public App(Portal portal) {
-        this.portal = portal;
+    public App(ApplicationContext context) {
+        this.context = context;
     }
 
-    public void start() {
-        portal.start();
+    public void start() throws AllocatorAgent.RegisterException, IOException {
+        var config = context.getBean(PortalConfig.class);
+        LOG.info("Executing portal application with config: {}", config.toSafeString());
+
+        var slotsService = context.getBean(PortalSlotsService.class, Qualifiers.byName("PortalSlotsService"));
+        var allocatorAgent = context.getBean(AllocatorAgent.class, Qualifiers.byName("PortalAllocatorAgent"));
+        var portalServer = context.getBean(Server.class, Qualifiers.byName("PortalGrpcServer"));
+        var slotsServer = context.getBean(Server.class, Qualifiers.byName("PortalSlotsGrpcServer"));
+
+        slotsService.start();
+        allocatorAgent.start(Map.of(
+            Constants.PORTAL_ADDRESS_KEY, HostAndPort.fromParts(config.getHost(), config.getPortalApiPort()).toString(),
+            Constants.FS_ADDRESS_KEY, HostAndPort.fromParts(config.getHost(), config.getSlotsApiPort()).toString()
+        ));
+        slotsServer.start();
+        portalServer.start();
     }
 
-    public void stop(boolean force) {
-        if (force) {
-            portal.shutdownNow();
-        } else {
-            portal.shutdown();
-        }
+    public void stop() {
+        context.stop();
     }
 
-    public void awaitTermination() throws InterruptedException {
-        portal.awaitTermination();
-    }
-
-    public static void execute(String[] args) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
-        LOG.info("Executing portal application...");
-
+    public static void execute(String[] args)
+        throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, AllocatorAgent.RegisterException
+    {
         var context = Micronaut.build(args)
             .mainClass(App.class)
             // XXX: tests workaround
@@ -52,8 +64,6 @@ public class App {
 
         var config = context.getBean(PortalConfig.class);
 
-        // TODO: ssokolvyak -- let's rename 'host' field in config in order to delegate
-        //  setting up this property to micronaut
         if (config.getHost() == null) {
             config.setHost(System.getenv(AllocatorAgent.VM_IP_ADDRESS));
         }
@@ -67,31 +77,18 @@ public class App {
         Objects.requireNonNull(config.getAllocatorToken());
         Objects.requireNonNull(config.getIamPrivateKey());
 
-        var allocatorAgent = new AllocatorAgent(config.getAllocatorToken(),
-            config.getVmId(), config.getAllocatorAddress(), config.getAllocatorHeartbeatPeriod());
-
-        var main = new App(new Portal(config, allocatorAgent, null));
+        var main = new App(context);
         main.start();
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             LOG.info("Stopping portal service");
-            main.stop(false);
+            main.stop();
         }));
-
-        try {
-            main.awaitTermination();
-        } catch (InterruptedException e) {
-            LOG.debug("Was interrupted while waiting for portal termination");
-            main.stop(true);
-            try {
-                main.awaitTermination();
-            } catch (InterruptedException ex) {
-                LOG.debug("Was interrupted while waiting for portal termination");
-            }
-        }
     }
 
-    public static void main(String[] args) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+    public static void main(String[] args)
+        throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, AllocatorAgent.RegisterException
+    {
         execute(args);
     }
 }
