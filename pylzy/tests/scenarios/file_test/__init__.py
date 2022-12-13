@@ -1,6 +1,6 @@
 import dataclasses
 
-from lzy.api.v2 import op, whiteboard, Lzy, lzy_auth
+from lzy.api.v1 import op, whiteboard, Lzy, lzy_auth
 from lzy.types import File
 
 

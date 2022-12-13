@@ -1,12 +1,12 @@
 package ai.lzy.test.impl;
 
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.channelmanager.ChannelManagerAppOld;
+import ai.lzy.channelmanager.deprecated.ChannelManagerAppOld;
 import ai.lzy.test.LzyChannelManagerContext;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
-import ai.lzy.v1.channel.LzyChannelManagerGrpc;
-import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
+import ai.lzy.v1.channel.deprecated.LzyChannelManagerGrpc;
+import ai.lzy.v1.channel.deprecated.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.deprecated.LzyKharonGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ConnectivityState;

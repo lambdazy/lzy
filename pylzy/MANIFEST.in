@@ -1,2 +1,3 @@
-include lzy/lzy-worker.jar
 include requirements.txt
+include readme.md
+include LICENSE
