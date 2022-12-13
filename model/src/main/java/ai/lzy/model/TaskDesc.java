@@ -22,7 +22,8 @@ public record TaskDesc(
     @JsonDeserialize(using = OperationDeserializer.class)
     Operation operation,
     Map<String, String> slotsToChannelsAssignments
-) {
+)
+{
     public static TaskDesc fromProto(LMO.TaskDesc taskDesc) {
         Map<String, String> slotMapping = taskDesc.getSlotAssignmentsList()
             .stream()
@@ -37,7 +38,8 @@ public record TaskDesc(
         operation.slots().forEach(slot -> {
             if (Stream.of(Slot.STDOUT, Slot.STDERR)
                 .map(Slot::name)
-                .noneMatch(s -> s.equals(slot.name()))) {
+                .noneMatch(s -> s.equals(slot.name())))
+            {
                 builder.addSlotAssignmentsBuilder()
                     .setSlotName(slot.name())
                     .setChannelId(slotsToChannelsAssignments.get(slot.name()))

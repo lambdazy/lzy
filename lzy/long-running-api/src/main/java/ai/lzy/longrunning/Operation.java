@@ -54,7 +54,7 @@ public class Operation {
     }
 
     public static Operation create(String createdBy, String description, @Nullable Any meta) {
-        return create(createdBy, description, null ,meta);
+        return create(createdBy, description, null, meta);
     }
 
     public Operation(String id, String createdBy, Instant createdAt, String description,
@@ -99,7 +99,7 @@ public class Operation {
     }
 
     public LongRunning.Operation toProto() {
-        final var builder =  LongRunning.Operation.newBuilder()
+        final var builder = LongRunning.Operation.newBuilder()
             .setId(id)
             .setCreatedBy(createdBy)
             .setCreatedAt(toProto(createdAt))

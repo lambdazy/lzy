@@ -15,6 +15,7 @@ import ai.lzy.v1.portal.LzyPortal;
 import com.amazonaws.AmazonClientException;
 import com.azure.storage.common.implementation.connectionstring.StorageConnectionString;
 import com.google.protobuf.ByteString;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -25,6 +26,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
 
+@Singleton
 public class SnapshotProvider {
     private static final Logger LOG = LogManager.getLogger(SnapshotProvider.class);
 
