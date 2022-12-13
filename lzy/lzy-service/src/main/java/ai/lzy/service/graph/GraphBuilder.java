@@ -3,7 +3,7 @@ package ai.lzy.service.graph;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.WorkflowDao;
-import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
+import ai.lzy.v1.channel.deprecated.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.common.LMS;
@@ -26,7 +26,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static ai.lzy.channelmanager.grpc.ProtoConverter.makeCreateDirectChannelCommand;
+import static ai.lzy.channelmanager.deprecated.grpc.ProtoConverter.makeCreateDirectChannelCommand;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.model.grpc.ProtoConverter.*;

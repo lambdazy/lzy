@@ -1,9 +1,8 @@
 package ai.lzy.channelmanager;
 
-import ai.lzy.channelmanager.v2.ChannelManagerApp;
-import ai.lzy.channelmanager.v2.config.ChannelManagerConfig;
-import ai.lzy.channelmanager.v2.dao.ChannelManagerDataSource;
-import ai.lzy.channelmanager.v2.lock.GrainedLock;
+import ai.lzy.channelmanager.config.ChannelManagerConfig;
+import ai.lzy.channelmanager.dao.ChannelManagerDataSource;
+import ai.lzy.channelmanager.lock.GrainedLock;
 import ai.lzy.iam.clients.AccessClient;
 import ai.lzy.iam.clients.SubjectServiceClient;
 import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;

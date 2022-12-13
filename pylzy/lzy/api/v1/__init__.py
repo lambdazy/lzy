@@ -1,56 +1,70 @@
-import functools
+import datetime
 import inspect
-import logging
-import sys
-from typing import Callable, Optional, Sequence, Type
+import os
+from typing import Any, Callable, Dict, Optional, Sequence, TypeVar, Iterable
 
-from lzy.api.v1.cache_policy import CachePolicy
-from lzy.api.v1.env import (
-    LzyLocalEnv,
-    LzyLocalWorkflow,
-    LzyRemoteEnv,
-    LzyRemoteWorkflow,
-    LzyWorkflowBase,
-)
-from lzy.api.v1.lazy_op import LzyLocalOp, LzyOp, LzyRemoteOp
-from lzy.api.v1.servant.model.zygote import Gpu, Provisioning
-from lzy.api.v1.utils import infer_call_signature, infer_return_type, lazy_proxy
-from lzy.api.v1.whiteboard import view, whiteboard
-from lzy.api.v1.whiteboard.model import UUIDEntryIdGenerator
+from serialzy.api import SerializerRegistry
+
+from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard
+from lzy.api.v1.call import LzyCall, wrap_call
+from lzy.api.v1.env import CondaEnv, DockerEnv, DockerPullPolicy, Env
+from lzy.api.v1.local.runtime import LocalRuntime
+from lzy.api.v1.provisioning import Provisioning
+from lzy.api.v1.remote.runtime import RemoteRuntime, USER_ENV, KEY_PATH_ENV, ENDPOINT_ENV
+from lzy.api.v1.runtime import Runtime
+from lzy.api.v1.snapshot import DefaultSnapshot
+from lzy.api.v1.utils.conda import generate_conda_yaml
+from lzy.api.v1.utils.env import generate_env, merge_envs
+from lzy.api.v1.utils.packages import to_str_version
+from lzy.api.v1.utils.proxy_adapter import lzy_proxy
+from lzy.api.v1.utils.types import infer_call_signature, infer_return_type
+from lzy.api.v1.whiteboards import whiteboard_, ReadOnlyWhiteboard
+from lzy.api.v1.workflow import LzyWorkflow
 from lzy.proxy.result import Nothing
+from lzy.py_env.api import PyEnvProvider
+from lzy.py_env.py_env_provider import AutomaticPyEnvProvider
+from lzy.serialization.registry import LzySerializerRegistry
+from lzy.storage.api import StorageRegistry
+from lzy.storage.registry import DefaultStorageRegistry
+from lzy.utils.event_loop import LzyEventLoop
+from lzy.whiteboards.api import WhiteboardClient
+from lzy.whiteboards.remote import RemoteWhiteboardClient, WB_USER_ENV, WB_KEY_PATH_ENV, WB_ENDPOINT_ENV
 
-logging.root.setLevel(logging.INFO)
-handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logging.root.addHandler(handler)
+T = TypeVar("T")  # pylint: disable=invalid-name
+
+FuncT = TypeVar(
+    "FuncT",
+    bound=Callable[..., Any],
+)
 
 
 # pylint: disable=[invalid-name]
+# noinspection PyShadowingNames
 def op(
-    func: Callable = None,
-    *,
-    gpu: Gpu = None,
-    output_type=None,
-    docker_image: Optional[str] = None,
-):
-    provisioning = Provisioning(gpu)
-    if func is None:
-        return op_(provisioning, output_type=output_type, docker_image=docker_image)
-    return op_(provisioning, output_type=output_type, docker_image=docker_image)(func)
-
-
-# pylint: disable=unused-argument
-def op_(
-    provisioning: Provisioning,
-    *,
-    output_type: Type = None,
-    docker_image: Optional[str] = None,
+        func: Optional[FuncT] = None,
+        *,
+        output_types: Optional[Sequence[type]] = None,
+        python_version: Optional[str] = None,
+        libraries: Optional[Dict[str, str]] = None,
+        conda_yaml_path: Optional[str] = None,
+        docker_image: Optional[str] = None,
+        docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
+        local_modules_path: Optional[Sequence[str]] = None,
+        provisioning_: Provisioning = Provisioning(),
+        cpu_type: Optional[str] = None,
+        cpu_count: Optional[int] = None,
+        gpu_type: Optional[str] = None,
+        gpu_count: Optional[int] = None,
+        ram_size_gb: Optional[int] = None,
+        env: Optional[Env] = None,
 ):
     def deco(f):
-        output_types: Sequence[Type]
-        if output_type is None:
+        """
+        Decorator which will try to infer return type of function
+        and create lazy constructor instead of decorated function.
+        """
+        nonlocal output_types
+        if output_types is None:
             infer_result = infer_return_type(f)
             if isinstance(infer_result, Nothing):
                 raise TypeError(
@@ -59,79 +73,151 @@ def op_(
                     f"annotate return type of your function."
                 )
             else:
-                output_types = infer_result.value
-        else:
-            output_types = tuple((output_type,))
+                output_types = infer_result.value  # expecting multiple return types
 
-        @functools.wraps(f)
-        def lazy(*args, **kwargs):
-            # TODO: defaults?
-            current_workflow = LzyWorkflowBase.get_active()
-            # statement is unreachable
-            # if current_workflow is None:
-            #    return f(*args, **kwargs)
+        # yep, create lazy constructor and return it
+        # instead of function
+        return wrap_call(f, output_types, python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy,
+                         local_modules_path, provisioning_, cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb, env)
 
-            signature = infer_call_signature(f, output_types, *args, **kwargs)
-            lzy_op: LzyOp
-            if isinstance(current_workflow, LzyLocalWorkflow):
-                lzy_op = LzyLocalOp(signature)
-            elif isinstance(current_workflow, LzyRemoteWorkflow):
-                servant = current_workflow.servant()
-                if not servant:
-                    raise RuntimeError("Cannot find servant")
-                id_generator = UUIDEntryIdGenerator(current_workflow.snapshot_id())
+    if func is None:
+        return deco
 
-                base_env = current_workflow.base_env(docker_image)
-                # we need specify globals() for caller site to find all
-                # required modules
-                caller_globals = inspect.stack()[1].frame.f_globals
-                pyenv = current_workflow.py_env(caller_globals)
+    return deco(func)
 
-                lzy_op = LzyRemoteOp(
-                    servant,
-                    signature,
-                    current_workflow.snapshot_id(),
-                    id_generator,
-                    current_workflow.file_serializer(),
-                    current_workflow.hasher(),
-                    provisioning,
-                    base_env,
-                    pyenv,
-                    deployed=False,
-                    channel_manager=current_workflow.channel_manager(),
-                    cache_policy=current_workflow.cache_policy,
-                )
-            else:
-                raise TypeError(f"Unsupported env type: {type(current_workflow)}")
-            current_workflow.register_op(lzy_op)
 
-            # Special case for NoneType, just leave op registered and return
-            # the real None. LzyEnv later will materialize it anyway.
-            #
-            # Otherwise `is` checks won't work, for example:
-            # >>> @op
-            # ... def op_none_operation() -> None:
-            # ...      pass
-            #
-            # >>> obj = op_none_operation()
-            # >>> obj is None
-            # >>> False
-            if len(output_types) == 1 and issubclass(output_types[0], type(None)):
-                return None
-            if len(output_types) == 1:
-                val = lzy_op.return_values()[0]
-                return lazy_proxy(val.materialize, val.type, {"_op": val})
-            return tuple(
-                lazy_proxy(val.materialize, val.type, {"_op": val})
-                for val in lzy_op.return_values()
+def whiteboard(name: str, *, namespace: str = "default"):
+    def wrap(cls):
+        return whiteboard_(cls, namespace, name)
+
+    return wrap
+
+
+def lzy_auth(*, user: str, key_path: str, endpoint: Optional[str] = None,
+             whiteboards_endpoint: Optional[str] = None) -> None:
+    os.environ[USER_ENV] = user
+    os.environ[WB_USER_ENV] = user
+    os.environ[KEY_PATH_ENV] = key_path
+    os.environ[WB_KEY_PATH_ENV] = key_path
+    if endpoint is not None:
+        os.environ[ENDPOINT_ENV] = endpoint
+    if whiteboards_endpoint is not None:
+        os.environ[WB_ENDPOINT_ENV] = whiteboards_endpoint
+
+
+class Lzy:
+    # noinspection PyShadowingNames
+    def __init__(
+            self,
+            *,
+            runtime: Runtime = RemoteRuntime(),
+            whiteboard_client: WhiteboardClient = RemoteWhiteboardClient(),
+            py_env_provider: PyEnvProvider = AutomaticPyEnvProvider(),
+            storage_registry: StorageRegistry = DefaultStorageRegistry(),
+            serializer_registry: SerializerRegistry = LzySerializerRegistry()
+    ):
+        self.__env_provider = py_env_provider
+        self.__whiteboard_client = whiteboard_client
+        self.__serializer_registry = serializer_registry
+        self.__storage_registry = storage_registry
+        self.__runtime = runtime
+
+    @staticmethod
+    def auth(*, user: str, key_path: str, endpoint: Optional[str] = None,
+             whiteboards_endpoint: Optional[str] = None) -> None:
+        lzy_auth(user=user, key_path=key_path, endpoint=endpoint, whiteboards_endpoint=whiteboards_endpoint)
+
+    @property
+    def serializer(self) -> SerializerRegistry:
+        return self.__serializer_registry
+
+    @property
+    def env_provider(self) -> PyEnvProvider:
+        return self.__env_provider
+
+    @property
+    def runtime(self) -> Runtime:
+        return self.__runtime
+
+    @property
+    def storage_registry(self) -> StorageRegistry:
+        return self.__storage_registry
+
+    @property
+    def whiteboard_client(self) -> WhiteboardClient:
+        return self.__whiteboard_client
+
+    # noinspection PyShadowingNames
+    def workflow(
+            self,
+            name: str,
+            *,
+            eager: bool = False,
+            python_version: Optional[str] = None,
+            libraries: Optional[Dict[str, str]] = None,
+            conda_yaml_path: Optional[str] = None,
+            docker_image: Optional[str] = None,
+            docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
+            local_modules_path: Optional[Sequence[str]] = None,
+            provisioning: Provisioning = Provisioning.default(),
+            interactive: bool = True,
+            cpu_type: Optional[str] = None,
+            cpu_count: Optional[int] = None,
+            gpu_type: Optional[str] = None,
+            gpu_count: Optional[int] = None,
+            ram_size_gb: Optional[int] = None,
+            env: Optional[Env] = None,
+    ) -> LzyWorkflow:
+        namespace = inspect.stack()[1].frame.f_globals
+        if env is None:
+            env = generate_env(
+                self.env_provider.provide(namespace),
+                python_version,
+                libraries,
+                conda_yaml_path,
+                docker_image,
+                docker_pull_policy,
+                local_modules_path,
             )
+        return LzyWorkflow(
+            name,
+            self,
+            namespace,
+            snapshot=DefaultSnapshot(
+                storage_registry=self.storage_registry,
+                serializer_registry=self.serializer,
+            ),
+            env=env,
+            eager=eager,
+            provisioning=provisioning.override(
+                Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb)
+            ),
+            interactive=interactive,
+        )
 
-        return lazy
+    def whiteboard(self, wb_id: str) -> Any:
+        wb: Whiteboard = LzyEventLoop.run_async(self.__whiteboard_client.get(wb_id))
+        return LzyEventLoop.run_async(self.__build_whiteboard(wb))
 
-    return deco
+    def whiteboards(self, *,
+                    name: Optional[str] = None,
+                    tags: Sequence[str] = (),
+                    not_before: Optional[datetime.datetime] = None,
+                    not_after: Optional[datetime.datetime] = None):
+        wbs: Iterable[Whiteboard] = LzyEventLoop.run_async(self.__whiteboard_client.list(
+            name, tags, not_before, not_after
+        ))
+        wbs_to_build = [self.__build_whiteboard(wb) for wb in wbs]
+        return list(LzyEventLoop.gather(*wbs_to_build))
+
+    async def __build_whiteboard(self, wb: Whiteboard) -> Any:
+
+        if wb.status != Whiteboard.FINALIZED:
+            raise RuntimeError(f"Status of whiteboard with name {wb.name} is {wb.status}, but must be COMPLETED")
+
+        return ReadOnlyWhiteboard(self.__storage_registry, self.__serializer_registry, wb)
 
 
-# register cloud injections
 # noinspection PyBroadException
 try:
     from lzy.injections import catboost_injection

@@ -10,15 +10,9 @@ import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.channel.deprecated.LzyChannelManagerGrpc;
 import ai.lzy.v1.common.LMS;
-import ai.lzy.v1.deprecated.Lzy;
-import ai.lzy.v1.deprecated.LzyAuth;
-import ai.lzy.v1.deprecated.LzyFsApi;
-import ai.lzy.v1.deprecated.LzyFsGrpc;
-import ai.lzy.v1.deprecated.LzyKharonGrpc;
-import ai.lzy.v1.deprecated.LzyServerGrpc;
-import ai.lzy.v1.deprecated.LzyZygote;
+import ai.lzy.v1.deprecated.*;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.Status;
@@ -47,7 +41,7 @@ import static ai.lzy.model.deprecated.GrpcConverter.from;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
-import static ai.lzy.v1.channel.LzyChannelManagerGrpc.newBlockingStub;
+import static ai.lzy.v1.channel.deprecated.LzyChannelManagerGrpc.newBlockingStub;
 
 public final class LzyFsServerLegacy {
 

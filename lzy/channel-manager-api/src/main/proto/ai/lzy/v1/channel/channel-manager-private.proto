@@ -2,23 +2,40 @@ syntax = "proto3";
 
 package ai.lzy.v1.channel;
 
-import "ai/lzy/v1/common/slot.proto";
 import "ai/lzy/v1/channel/channel.proto";
+import "ai/lzy/v1/long-running/operation.proto";
+import "ai/lzy/v1/long-running/option.proto";
 
 option java_outer_classname = "LCMPS";
 option java_package = "ai.lzy.v1.channel";
 
 service LzyChannelManagerPrivate {
   rpc Create (ChannelCreateRequest) returns (ChannelCreateResponse);
-  rpc Destroy (ChannelDestroyRequest) returns (ChannelDestroyResponse);
-  rpc DestroyAll (ChannelDestroyAllRequest) returns (ChannelDestroyAllResponse);
-  rpc Status (ChannelStatusRequest) returns (ChannelStatus);
-  rpc StatusAll (ChannelStatusAllRequest) returns (ChannelStatusList);
+
+  rpc Destroy (ChannelDestroyRequest) returns (Operation) {
+    option (ai.lzy.v1.operation) = {
+      response: "ChannelDestroyResponse"
+      metadata: "ChannelDestroyMetadata"
+    };
+  }
+
+  rpc DestroyAll (ChannelDestroyAllRequest) returns (Operation) {
+    option (ai.lzy.v1.operation) = {
+      response: "ChannelDestroyAllResponse"
+      metadata: "ChannelDestroyAllMetadata"
+    };
+  }
+
+  rpc Status (ChannelStatusRequest) returns (ChannelStatusResponse);
+
+  rpc StatusAll (ChannelStatusAllRequest) returns (ChannelStatusAllResponse);
 }
 
 message ChannelCreateRequest {
   ChannelSpec channelSpec = 1;
   string executionId = 2;
+  string workflowName = 3;
+  string userId = 4;
 }
 
 message ChannelCreateResponse {
@@ -31,26 +48,32 @@ message ChannelDestroyRequest {
 
 message ChannelDestroyResponse {}
 
+message ChannelDestroyMetadata {}
+
 message ChannelDestroyAllRequest {
   string executionId = 1;
 }
 
 message ChannelDestroyAllResponse {}
 
+message ChannelDestroyAllMetadata {}
+
 message ChannelStatusRequest {
   string channelId = 1;
 }
 
 message ChannelStatus {
-  ChannelSpec channelSpec = 1;
-  repeated SlotStatus connected = 2;
-  string channelId = 3;
+  Channel channel = 1;
+}
+
+message ChannelStatusResponse {
+  ChannelStatus status = 1;
 }
 
 message ChannelStatusAllRequest {
   string executionId = 1;
 }
 
-message ChannelStatusList {
+message ChannelStatusAllResponse {
   repeated ChannelStatus statuses = 1;
 }

@@ -1,12 +1,15 @@
 package ai.lzy.fs;
 
 import ai.lzy.fs.commands.builtin.Cat;
-import ai.lzy.fs.fs.*;
-import ai.lzy.longrunning.LocalOperationService;
+import ai.lzy.fs.fs.LzyFSManager;
+import ai.lzy.fs.fs.LzyFileSlot;
+import ai.lzy.fs.fs.LzyLinuxFsManagerImpl;
+import ai.lzy.fs.fs.LzyMacosFsManagerImpl;
+import ai.lzy.fs.fs.LzyScript;
 import ai.lzy.model.deprecated.Zygote;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.GrpcUtils;
-import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.channel.deprecated.LzyChannelManagerGrpc;
 import ai.lzy.v1.deprecated.LzyZygote;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
@@ -25,8 +28,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static ai.lzy.model.deprecated.GrpcConverter.from;
-import static ai.lzy.util.grpc.GrpcUtils.*;
-import static ai.lzy.v1.channel.LzyChannelManagerGrpc.newBlockingStub;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
+import static ai.lzy.v1.channel.deprecated.LzyChannelManagerGrpc.newBlockingStub;
 
 
 public class LzyFsServer {

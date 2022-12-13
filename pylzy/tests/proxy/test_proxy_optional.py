@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 from unittest import TestCase
 
-from lzy.api.v1.utils import infer_real_type
+from lzy.api.v1.utils.types import infer_real_type
 
 # noinspection PyProtectedMember
 from lzy.proxy import proxy_optional

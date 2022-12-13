@@ -1,15 +1,29 @@
 package ai.lzy.channelmanager.control;
 
-import ai.lzy.channelmanager.channel.ChannelException;
-import ai.lzy.channelmanager.channel.Endpoint;
-import ai.lzy.channelmanager.graph.ChannelGraph;
+import ai.lzy.channelmanager.exceptions.CancellingChannelGraphStateException;
+import ai.lzy.channelmanager.exceptions.IllegalChannelGraphStateException;
+import ai.lzy.channelmanager.model.Channel;
+import ai.lzy.channelmanager.model.Connection;
+import ai.lzy.channelmanager.model.Endpoint;
 
-import java.util.stream.Stream;
+import javax.annotation.Nullable;
 
+// TODO (lindvv): move to Channel.java
 public interface ChannelController {
-    Stream<Endpoint> executeBind(ChannelGraph channelGraph, Endpoint slot) throws ChannelException;
 
-    void executeUnBind(ChannelGraph channelGraph, Endpoint slot) throws ChannelException;
+    @Nullable
+    Endpoint findEndpointToConnect(Channel actualChannel, Endpoint bindingEndpoint)
+        throws CancellingChannelGraphStateException;
 
-    void executeDestroy(ChannelGraph channelGraph) throws ChannelException;
+    boolean checkChannelForSavingConnection(Channel actualChannel, Endpoint bindingEndpoint, Endpoint connectedEndpoint)
+        throws CancellingChannelGraphStateException;
+
+    @Nullable
+    Endpoint findReceiverToUnbind(Channel actualChannel, Endpoint unbindingSender)
+        throws IllegalChannelGraphStateException;
+
+    @Nullable
+    Connection findConnectionToBreak(Channel actualChannel, Endpoint unbindingReceiver)
+        throws IllegalChannelGraphStateException;
+
 }

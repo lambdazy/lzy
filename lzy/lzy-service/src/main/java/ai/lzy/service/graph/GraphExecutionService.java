@@ -11,7 +11,7 @@ import ai.lzy.service.data.dao.GraphDao;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.VmPoolServiceGrpc;
-import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
+import ai.lzy.v1.channel.deprecated.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.graph.GraphExecutorApi;
 import ai.lzy.v1.graph.GraphExecutorGrpc;
 import ai.lzy.v1.portal.LzyPortalApi;

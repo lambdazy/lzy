@@ -46,9 +46,11 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.locks.LockSupport;
 
-import static ai.lzy.channelmanager.grpc.ProtoConverter.makeCreateDirectChannelCommand;
-import static ai.lzy.channelmanager.grpc.ProtoConverter.makeDestroyChannelCommand;
-import static ai.lzy.util.grpc.GrpcUtils.*;
+import static ai.lzy.channelmanager.deprecated.grpc.ProtoConverter.makeCreateDirectChannelCommand;
+import static ai.lzy.channelmanager.deprecated.grpc.ProtoConverter.makeDestroyChannelCommand;
+import static ai.lzy.util.grpc.GrpcUtils.NO_AUTH_TOKEN;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 public class PortalTestBase {
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();

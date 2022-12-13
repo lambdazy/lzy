@@ -5,7 +5,7 @@ from typing import List, Optional
 from pure_protobuf.types import int32
 
 from data import MessageClass, Test1, TestEnum
-from lzy.api.v2 import Lzy, op
+from lzy.api.v1 import Lzy, op
 from wbs import (
     AnotherSimpleView,
     AnotherSimpleWhiteboard,
