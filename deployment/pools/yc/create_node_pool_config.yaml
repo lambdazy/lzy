@@ -1,0 +1,21 @@
+env: lzy-dev
+folder_id: b1gagf3k6somdujj2a15
+cluster_id: catqjcp6n70cpp0p7l6v
+node_pool_name: system-s-pool
+node_template:
+  subnet_id: e9bno1trs3mqauujjtvv
+  platform_id: standard-v2
+  disc_size: 64
+  disc_type: network-hdd
+  resources:
+    cpu_count: 8
+    gpu_count: 0
+    memory: 48
+node_labels:
+  node_pool_id: asdasd
+  node_pool_label: s
+  node_pool_kind: CPU
+node_pool_taints: []
+scale_policy:
+  min_pool_size: 2
+  max_pool_size: 4
