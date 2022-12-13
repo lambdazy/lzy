@@ -2,8 +2,8 @@ package ai.lzy.channelmanager;
 
 import ai.lzy.channelmanager.config.ChannelManagerConfig;
 import ai.lzy.channelmanager.dao.ChannelManagerDataSource;
-import ai.lzy.channelmanager.debug.InjectedFailures;
 import ai.lzy.channelmanager.operation.ChannelOperationManager;
+import ai.lzy.channelmanager.test.InjectedFailures;
 import ai.lzy.iam.clients.AccessBindingClient;
 import ai.lzy.iam.clients.SubjectServiceClient;
 import ai.lzy.iam.config.IamClientConfiguration;

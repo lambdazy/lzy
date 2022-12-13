@@ -19,8 +19,8 @@ public class ConnectionManagerConfig {
         this.cacheConcurrencyLevel = cacheConcurrencyLevel;
     }
 
-    public void setCacheTTL(int cacheTTLSeconds) {
-        this.cacheTTL = Duration.ofSeconds(cacheTTLSeconds);
+    public void setCacheTTL(Duration cacheTTL) {
+        this.cacheTTL = cacheTTL;
     }
 
     @Override

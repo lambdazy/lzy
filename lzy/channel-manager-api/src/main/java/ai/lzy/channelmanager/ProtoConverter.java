@@ -29,6 +29,14 @@ public class ProtoConverter {
             ).build();
     }
 
+    public static LCMPS.ChannelDestroyRequest makeDestroyChannelCommand(String channelId) {
+        return LCMPS.ChannelDestroyRequest.newBuilder().setChannelId(channelId).build();
+    }
+
+    public static LCMPS.ChannelStatusRequest makeChannelStatusCommand(String channelId) {
+        return LCMPS.ChannelStatusRequest.newBuilder().setChannelId(channelId).build();
+    }
+
     public static LCMS.BindRequest makeBindSlotCommand(SlotInstance slotInstance, boolean ownerIsPortal) {
         return LCMS.BindRequest.newBuilder()
             .setSlotOwner(ownerIsPortal ? PORTAL : WORKER)

@@ -1,6 +1,7 @@
 package ai.lzy.portal;
 
 import ai.lzy.allocator.AllocatorAgent;
+import ai.lzy.channelmanager.test.BaseTestWithChannelManager;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.model.grpc.ProtoConverter;
@@ -10,6 +11,7 @@ import ai.lzy.portal.mocks.MocksServer;
 import ai.lzy.test.GrpcUtils;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.deprecated.LzyFsGrpc;
@@ -47,17 +49,22 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
-import static ai.lzy.channelmanager.deprecated.grpc.ProtoConverter.makeCreateDirectChannelCommand;
-import static ai.lzy.channelmanager.deprecated.grpc.ProtoConverter.makeDestroyChannelCommand;
+import static ai.lzy.channelmanager.ProtoConverter.makeChannelStatusCommand;
+import static ai.lzy.channelmanager.ProtoConverter.makeCreateChannelCommand;
+import static ai.lzy.channelmanager.ProtoConverter.makeDestroyChannelCommand;
+import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
 import static ai.lzy.util.grpc.GrpcUtils.NO_AUTH_TOKEN;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 public class PortalTestBase {
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
+    private static final BaseTestWithChannelManager channelManagerTestContext = new BaseTestWithChannelManager();
 
     @Rule
     public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+    @Rule
+    public PreparedDbRule channelManagerDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
 
     private static final Logger LOG = LogManager.getLogger(PortalTestBase.class);
 
@@ -81,6 +88,9 @@ public class PortalTestBase {
     private LzyPortalGrpc.LzyPortalBlockingStub authorizedPortalClient;
     private LzySlotsApiGrpc.LzySlotsApiBlockingStub portalSlotsClient;
 
+    private LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerPrivateClient;
+    private Map<String, String> createdChannels = new HashMap<>();
+
     @Before
     public void before() throws IOException {
         System.err.println("---> " + ForkJoinPool.commonPool().getParallelism());
@@ -88,13 +98,19 @@ public class PortalTestBase {
         var iamDbConfig = DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo());
         iamTestContext.setUp(iamDbConfig);
 
+        var channelManagerDbConfig = preparePostgresConfig("channel-manager", channelManagerDb.getConnectionInfo());
+        channelManagerTestContext.setUp(channelManagerDbConfig);
+        channelManagerPrivateClient = channelManagerTestContext.getOrCreatePrivateClient(
+            iamTestContext.getClientConfig().createRenewableToken());
+        createdChannels.clear();
+
         workers = new HashMap<>();
 
         config = context.getBean(PortalConfig.class);
         var mocksPort = GrpcUtils.rollPort();
         var mocksAddress = "localhost:" + mocksPort;
         config.setIamAddress("localhost:" + iamTestContext.getPort());
-        config.setChannelManagerAddress(mocksAddress);
+        config.setChannelManagerAddress(channelManagerTestContext.getAddress());
         config.setAllocatorAddress(mocksAddress);
         config.setWhiteboardAddress(mocksAddress);
         config.setPortalApiPort(GrpcUtils.rollPort());
@@ -117,6 +133,7 @@ public class PortalTestBase {
         workers = null;
 
         iamTestContext.after();
+        channelManagerTestContext.after();
     }
 
     private void startS3() {
@@ -306,15 +323,17 @@ public class PortalTestBase {
     }
 
     protected void createChannel(String name) {
-        mocksServer.getChannelManagerMock().create(makeCreateDirectChannelCommand(UUID.randomUUID().toString(), name),
-            GrpcUtils.SuccessStreamObserver.wrap(
-                status -> System.out.println("Channel '" + name + "' created: " + JsonUtils.printSingleLine(status))));
+        final var response = channelManagerPrivateClient.create(
+            makeCreateChannelCommand("uid", "wf", UUID.randomUUID().toString(), name));
+        System.out.println("Channel '" + name + "' created: " + response.getChannelId());
+        createdChannels.put(name, response.getChannelId());
     }
 
     protected void destroyChannel(String name) {
-        mocksServer.getChannelManagerMock().destroy(makeDestroyChannelCommand(name),
-            GrpcUtils.SuccessStreamObserver.wrap(
-                status -> System.out.println("Channel '" + name + "' removed: " + JsonUtils.printSingleLine(status))));
+        String id = createdChannels.get(name);
+        channelManagerPrivateClient.destroy(makeDestroyChannelCommand(id));
+        System.out.println("Channel '" + name + "' removed");
+        createdChannels.remove(name);
     }
 
     protected void openPortalSlots(LzyPortalApi.OpenSlotsRequest request) {
@@ -342,17 +361,28 @@ public class PortalTestBase {
     }
 
     protected ArrayBlockingQueue<Object> readPortalSlot(String channelName) {
-        var outputSlotRef = Objects.requireNonNull(mocksServer.getChannelManagerMock().get(channelName)).outputSlot;
-        var portalSlot = outputSlotRef.get();
+        String channelId = createdChannels.get(channelName);
+        LMS.SlotInstance portalSlot = null;
+
         int n = 100;
-        while (portalSlot == null && n-- > 0) {
+        while (n-- > 0) {
+            try {
+                var status = channelManagerPrivateClient.status(makeChannelStatusCommand(channelId));
+                portalSlot = status.getStatus().getChannel().getSenders().getPortalSlot();
+            } catch (StatusRuntimeException e) {
+                if (e.getStatus().getCode() == Status.NOT_FOUND.getCode()) {
+                    portalSlot = null;
+                }
+            }
+            if (portalSlot != null) {
+                break;
+            }
             LockSupport.parkNanos(Duration.ofMillis(10).toNanos());
-            portalSlot = outputSlotRef.get();
         }
 
         Assert.assertNotNull(portalSlot);
 
-        var iter = openOutputSlot(ProtoConverter.fromProto(portalSlot.getSlotInstance()));
+        var iter = openOutputSlot(ProtoConverter.fromProto(portalSlot));
 
         var values = new ArrayBlockingQueue<>(100);
 
