@@ -41,7 +41,7 @@ Please read the [tutorial](docs/tutorials/0-contents.md) for details. We provide
 
 ## Runtime
 
-Check out our [key concepts](docs/arch/key-concepts.md) and [architecture intro](docs/arch/intro.md).
+Check out our [key concepts](docs/arch/key-concepts.md) and [architecture intro](docs/arch/intro_en.md).
 
 ## Development
 
