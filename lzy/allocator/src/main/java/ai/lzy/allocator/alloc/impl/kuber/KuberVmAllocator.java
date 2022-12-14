@@ -296,7 +296,7 @@ public class KuberVmAllocator implements VmAllocator {
                 final var nodeName = pod.getSpec().getNodeName();
                 final var node = client.nodes().withName(nodeName).get();
 
-                final var providerId = node.getSpec().getProviderID();
+                final var providerId = node.getSpec() != null ? node.getSpec().getProviderID() : null;
                 final var instanceId = providerId != null && providerId.startsWith("yandex://")
                     ? providerId.substring("yandex://".length())
                     : null;
