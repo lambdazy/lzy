@@ -1,7 +1,6 @@
 package ai.lzy.allocator.services;
 
 
-import ai.lzy.allocator.AllocatorMain;
 import ai.lzy.allocator.alloc.AllocatorMetrics;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.alloc.dao.SessionDao;
@@ -9,13 +8,11 @@ import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.storage.AllocatorDataSource;
-import ai.lzy.iam.clients.SubjectServiceClient;
-import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
+import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
-import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.ProtoPrinter;
 import ai.lzy.v1.AllocatorPrivateGrpc.AllocatorPrivateImplBase;
 import ai.lzy.v1.VmAllocatorApi.AllocateResponse;
@@ -24,7 +21,6 @@ import ai.lzy.v1.VmAllocatorPrivateApi.HeartbeatResponse;
 import ai.lzy.v1.VmAllocatorPrivateApi.RegisterRequest;
 import ai.lzy.v1.VmAllocatorPrivateApi.RegisterResponse;
 import com.google.protobuf.Any;
-import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
@@ -32,6 +28,7 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -40,35 +37,32 @@ import javax.inject.Named;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
+import static ai.lzy.util.grpc.ProtoConverter.toProto;
 
 @Singleton
 @Requires(beans = MetricReporter.class)
 public class AllocatorPrivateService extends AllocatorPrivateImplBase {
     private static final Logger LOG = LogManager.getLogger(AllocatorPrivateService.class);
 
-    private final VmDao dao;
-    private final OperationDao operations;
+    private final VmDao vmDao;
+    private final OperationDao operationsDao;
     private final VmAllocator allocator;
-    private final SessionDao sessions;
+    private final SessionDao sessionsDao;
     private final Storage storage;
     private final ServiceConfig config;
     private final AllocatorMetrics metrics;
-    private final SubjectServiceClient subjectClient;
 
-    public AllocatorPrivateService(VmDao dao, VmAllocator allocator, SessionDao sessions,
-                                   AllocatorDataSource storage, ServiceConfig config,
-                                   @Named("AllocatorOperationDao") OperationDao operationDao,
-                                   @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
-                                   @Named("AllocatorIamToken") RenewableJwt iamToken, AllocatorMetrics metrics)
+    public AllocatorPrivateService(VmDao vmDao, VmAllocator allocator, SessionDao sessionsDao,
+                                   AllocatorDataSource storage, ServiceConfig config, AllocatorMetrics metrics,
+                                   @Named("AllocatorOperationDao") OperationDao operationDao)
     {
-        this.dao = dao;
+        this.vmDao = vmDao;
         this.allocator = allocator;
-        this.sessions = sessions;
+        this.sessionsDao = sessionsDao;
         this.storage = storage;
-        this.operations = operationDao;
+        this.operationsDao = operationDao;
         this.config = config;
         this.metrics = metrics;
-        this.subjectClient = new SubjectServiceGrpcClient(AllocatorMain.APP, iamChannel, iamToken::get);
     }
 
     @Override
@@ -76,19 +70,20 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
         LOG.info("RegisterVM: {}", ProtoPrinter.safePrinter().shortDebugString(request));
 
         final Vm[] vmRef = {null};
+        final Operation[] opRef = {null};
+
         try {
             var status = withRetries(
                 LOG,
                 () -> {
                     Vm vm;
                     try (final var transaction = TransactionHandle.create(storage)) {
-                        vm = dao.get(request.getVmId(), transaction);
+                        vm = vmDao.get(request.getVmId(), transaction);
                         if (vm == null) {
                             metrics.registerFail.inc();
                             LOG.error("VM {} does not exist", request.getVmId());
                             return Status.NOT_FOUND.withDescription("Vm with this id not found");
                         }
-
                         vmRef[0] = vm;
 
                         if (vm.status() == Vm.Status.RUNNING) {
@@ -109,15 +104,16 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                             return Status.FAILED_PRECONDITION;
                         }
 
-                        final var op = operations.get(vm.allocOpId(), transaction);
+                        final var op = operationsDao.get(vm.allocOpId(), transaction);
                         if (op == null) {
                             metrics.registerFail.inc();
                             var opId = vm.allocOpId();
                             LOG.error("Operation {} does not exist", opId);
                             return Status.NOT_FOUND.withDescription("Op %s not found".formatted(opId));
                         }
+                        opRef[0] = op;
 
-                        final var session = sessions.get(vm.sessionId(), transaction);
+                        final var session = sessionsDao.get(vm.sessionId(), transaction);
                         if (session == null) {
                             metrics.registerFail.inc();
                             LOG.error("Session {} does not exist", vm.sessionId());
@@ -128,7 +124,7 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                             metrics.registerFail.inc();
 
                             // Op is cancelled by client, add VM to cache
-                            dao.release(vm.vmId(), Instant.now().plus(session.cachePolicy().minIdleTimeout()),
+                            vmDao.release(vm.vmId(), Instant.now().plus(session.cachePolicy().minIdleTimeout()),
                                 transaction);
                             transaction.commit();
 
@@ -136,7 +132,7 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                         }
 
                         var activityDeadline = Instant.now().plus(config.getHeartbeatTimeout());
-                        dao.setVmRunning(vm.vmId(), request.getMetadataMap(), activityDeadline, transaction);
+                        vmDao.setVmRunning(vm.vmId(), request.getMetadataMap(), activityDeadline, transaction);
 
                         final List<AllocateResponse.VmEndpoint> hosts;
                         try {
@@ -158,7 +154,7 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                                 .putAllMetadata(request.getMetadataMap())
                                 .build());
                         op.setResponse(response);
-                        operations.updateResponse(op.id(), response.toByteArray(), transaction);
+                        operationsDao.updateResponse(op.id(), response.toByteArray(), transaction);
 
                         transaction.commit();
 
@@ -181,28 +177,29 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
         } catch (Exception ex) {
             metrics.registerFail.inc();
 
-            var vm = vmRef[0];
+            if (ex instanceof SQLException || vmRef[0] == null) {
+                LOG.error("Error while registering vm {}: {}", request.getVmId(), ex.getMessage(), ex);
+                responseObserver.onError(Status.UNAVAILABLE.withDescription(ex.getMessage()).asException());
+                return;
+            }
 
-            LOG.error("Error while registering vm {}: {}",
-                vm != null ? vm.toString() : request.getVmId(), ex.getMessage(), ex);
+            LOG.error("Error while registering vm {}: {}", vmRef[0], ex.getMessage(), ex);
 
-            responseObserver.onError(Status.INTERNAL
-                .withDescription("Error while registering vm %s: %s".formatted(vm, ex.getMessage())).asException());
+            var status = Status.INTERNAL
+                .withDescription("Error while registering vm %s: %s".formatted(vmRef[0].vmId(), ex.getMessage()));
+            responseObserver.onError(status.asException());
 
-            // TODO: do it another thread, don't occupy grpc thread
-            if (vm != null) {
-                LOG.info("Deallocating failed vm {}", vm);
-
-                var vmSubjId = vm.allocateState().vmSubjectId();
-                if (vmSubjId != null) {
-                    try {
-                        subjectClient.removeSubject(new ai.lzy.iam.resources.subjects.Vm(vmSubjId));
-                    } catch (Exception e) {
-                        LOG.error("Cannot remove VM subject {}: {}", vmSubjId, e.getMessage(), e);
+            try {
+                withRetries(LOG, () -> {
+                    try (var tx = TransactionHandle.create(storage)) {
+                        if (opRef[0] != null) {
+                            operationsDao.failOperation(opRef[0].id(), toProto(status), tx, LOG);
+                        }
+                        vmDao.setStatus(vmRef[0].vmId(), Vm.Status.DELETING, tx);
                     }
-                }
-
-                allocator.deallocate(vm.vmId());
+                });
+            } catch (Exception e) {
+                LOG.error("Cannot cleanup failed register: {}", vmRef[0], e);
             }
         }
     }
@@ -214,7 +211,7 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
             vm = withRetries(
                 defaultRetryPolicy(),
                 LOG,
-                () -> dao.get(request.getVmId(), null));
+                () -> vmDao.get(request.getVmId(), null));
         } catch (Exception ex) {
             metrics.hbFail.inc();
             LOG.error("Cannot read VM {}: {}", request.getVmId(), ex.getMessage(), ex);
@@ -245,7 +242,7 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
             withRetries(
                 defaultRetryPolicy(),
                 LOG,
-                () -> dao.setLastActivityTime(vm.vmId(), Instant.now().plus(config.getHeartbeatTimeout()))
+                () -> vmDao.setLastActivityTime(vm.vmId(), Instant.now().plus(config.getHeartbeatTimeout()))
             );
         } catch (Exception ex) {
             metrics.hbFail.inc();
