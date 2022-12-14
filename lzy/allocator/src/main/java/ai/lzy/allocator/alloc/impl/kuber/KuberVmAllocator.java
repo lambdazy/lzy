@@ -24,6 +24,7 @@ import lombok.Lombok;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -39,10 +40,12 @@ import static java.util.Objects.requireNonNull;
 @Requires(property = "allocator.kuber-allocator.enabled", value = "true")
 public class KuberVmAllocator implements VmAllocator {
     private static final Logger LOG = LogManager.getLogger(KuberVmAllocator.class);
-    public static final String NAMESPACE = "default";
 
     public static final String NAMESPACE_KEY = "namespace";
+    public static final String NAMESPACE_VALUE = "default";
     public static final String POD_NAME_KEY = "pod-name";
+    public static final String NODE_NAME_KEY = "node-name";
+    public static final String NODE_INSTANCE_ID_KEY = "node-instance-id";
     public static final String CLUSTER_ID_KEY = "cluster-id";
     public static final String VM_POD_NAME_PREFIX = "lzy-vm-";
     public static final String VM_POD_APP_LABEL_VALUE = "vm";
@@ -50,15 +53,17 @@ public class KuberVmAllocator implements VmAllocator {
     private final VmDao vmDao;
     private final ClusterRegistry poolRegistry;
     private final KuberClientFactory factory;
+    private final NodeRemover nodeRemover;
     private final ServiceConfig config;
 
     @Inject
     public KuberVmAllocator(VmDao vmDao, ClusterRegistry poolRegistry, KuberClientFactory factory,
-                            ServiceConfig config)
+                            NodeRemover nodeRemover, ServiceConfig config)
     {
         this.vmDao = vmDao;
         this.poolRegistry = poolRegistry;
         this.factory = factory;
+        this.nodeRemover = nodeRemover;
         this.config = config;
     }
 
@@ -80,7 +85,7 @@ public class KuberVmAllocator implements VmAllocator {
 
             if (allocState.allocatorMeta() == null) {
                 final var allocatorMeta = Map.of(
-                    NAMESPACE_KEY, NAMESPACE,
+                    NAMESPACE_KEY, NAMESPACE_VALUE,
                     POD_NAME_KEY, podName,
                     CLUSTER_ID_KEY, cluster.clusterId());
 
@@ -147,7 +152,7 @@ public class KuberVmAllocator implements VmAllocator {
 
             final Pod pod;
             try {
-                pod = client.pods().inNamespace(NAMESPACE).resource(vmPodSpec).create();
+                pod = client.pods().inNamespace(NAMESPACE_VALUE).resource(vmPodSpec).create();
             } catch (Exception e) {
                 if (KuberUtils.isResourceAlreadyExist(e)) {
                     LOG.warn("Allocation request for VM {} already exist", vmSpec.vmId());
@@ -175,11 +180,11 @@ public class KuberVmAllocator implements VmAllocator {
     @Nullable
     private Pod getVmPod(String namespace, String name, KubernetesClient client) {
         final var podsList = client.pods()
-                .inNamespace(namespace)
-                .list(new ListOptionsBuilder()
-                        .withLabelSelector(KuberLabels.LZY_POD_NAME_LABEL + "=" + name)
-                        .build()
-                ).getItems();
+            .inNamespace(namespace)
+            .list(new ListOptionsBuilder()
+                .withLabelSelector(KuberLabels.LZY_POD_NAME_LABEL + "=" + name)
+                .build())
+            .getItems();
         if (podsList.size() < 1) {
             return null;
         }
@@ -243,18 +248,27 @@ public class KuberVmAllocator implements VmAllocator {
                     .withLabelSelector(KuberLabels.LZY_VM_ID_LABEL + "=" + vmId)
                     .delete();
             if (statusDetails.isEmpty()) {
-                LOG.warn(
-                        "No delete status details were provided by k8s client after deleting pods with vm id {}",
-                        vmId
-                );
+                LOG.warn("No delete status details were provided by k8s client after deleting pods with vm {}", vmId);
             }
 
-            withRetries(
-                    defaultRetryPolicy(),
-                    LOG,
-                    () -> KuberVolumeManager.freeVolumes(client, vmDao.getVolumeClaims(vmId, null)),
-                    ex -> new RuntimeException("Database error: " + ex.getMessage(), ex));
+            var claims = vmDao.getVolumeClaims(vmId, null);
+            if (!claims.isEmpty()) {
+                KuberVolumeManager.freeVolumes(client, claims);
+            }
+        } catch (SQLException e) {
+            LOG.error("Cannot read volume claims for vm {}: {}", vmId, e.getMessage());
+            throw new RuntimeException(e.getMessage());
         }
+
+        var nodeName = meta.get(NODE_NAME_KEY);
+        var nodeInstanceId = meta.get(NODE_INSTANCE_ID_KEY);
+
+        if (nodeInstanceId == null) {
+            LOG.error("Cannot delete node for VM {} (node {}): unknown", vmId, nodeName);
+            return;
+        }
+
+        nodeRemover.removeNode(vmId, nodeName, nodeInstanceId);
     }
 
     @Override
@@ -280,9 +294,14 @@ public class KuberVmAllocator implements VmAllocator {
             final var pod = getVmPod(ns, podName, client);
             if (pod != null) {
                 final var nodeName = pod.getSpec().getNodeName();
-                final var node = client.nodes()
-                        .withName(nodeName)
-                        .get();
+                final var node = client.nodes().withName(nodeName).get();
+
+                final var providerId = node.getSpec().getProviderID();
+                final var instanceId = providerId != null && providerId.startsWith("yandex://")
+                    ? providerId.substring("yandex://".length())
+                    : null;
+
+                LOG.info("VM {} is allocated at POD {} on node {} ({})", vmId, podName, nodeName, providerId);
 
                 for (final var address : node.getStatus().getAddresses()) {
                     final var type = switch (address.getType().toLowerCase()) {
@@ -294,10 +313,21 @@ public class KuberVmAllocator implements VmAllocator {
                     hosts.add(new VmEndpoint(type, address.getAddress()));
                 }
 
+                meta.put(NODE_NAME_KEY, nodeName);
+                if (instanceId != null) {
+                    meta.put(NODE_INSTANCE_ID_KEY, instanceId);
+                }
             } else {
                 throw new RuntimeException("Cannot get pod with name " + podName + " to get addresses");
             }
         }
+
+        try {
+            withRetries(LOG, () -> vmDao.setAllocatorMeta(vmId, meta, transaction));
+        } catch (Exception e) {
+            LOG.error("Cannot save updated allocator meta for vm {}: {}", vmId, e.getMessage());
+        }
+
         return hosts;
     }
 }

@@ -47,10 +47,10 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
 
     protected static final long TIMEOUT_SEC = 10;
 
-    protected static final String POD_PATH = "/api/v1/namespaces/%s/pods".formatted(NAMESPACE);
+    protected static final String POD_PATH = "/api/v1/namespaces/%s/pods".formatted(NAMESPACE_VALUE);
     protected static final String PERSISTENT_VOLUME_PATH = "/api/v1/persistentvolumes";
     protected static final String PERSISTENT_VOLUME_CLAIM_PATH = "/api/v1/namespaces/%s/persistentvolumeclaims"
-        .formatted(NAMESPACE);
+        .formatted(NAMESPACE_VALUE);
     protected static final ClusterRegistry.ClusterType CLUSTER_TYPE = ClusterRegistry.ClusterType.User;
 
 
@@ -214,7 +214,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
                 privateAllocatorBlockingStub.register(
                     VmAllocatorPrivateApi.RegisterRequest.newBuilder()
                         .setVmId(vmId)
-                        .putMetadata(NAMESPACE_KEY, NAMESPACE)
+                        .putMetadata(NAMESPACE_KEY, NAMESPACE_VALUE)
                         .putMetadata(CLUSTER_ID_KEY, clusterId)
                         .build()
                 );

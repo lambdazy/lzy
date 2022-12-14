@@ -54,6 +54,12 @@ public class AllocatorMetrics {
         .buckets(0.5, 1.0, 1.5, 2.0, 5.0, 10.0)
         .register();
 
+    public final Counter removeNodeError = Counter
+        .build("remove_node_error", "Remove node errors")
+        .subsystem(ALLOCATOR)
+        .register();
+
+
 
     // allocator private API
 
