@@ -82,7 +82,7 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                         if (vm == null) {
                             metrics.registerFail.inc();
                             LOG.error("VM {} does not exist", request.getVmId());
-                            return Status.NOT_FOUND.withDescription("Vm %s found".formatted(request.getVmId()));
+                            return Status.NOT_FOUND.withDescription("Vm %s not found".formatted(request.getVmId()));
                         }
                         vmRef[0] = vm;
 
