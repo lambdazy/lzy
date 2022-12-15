@@ -1,4 +1,6 @@
+import shutil
 from abc import ABC, abstractmethod
+from io import BytesIO
 from typing import IO, Any, Dict, Type, TypeVar, cast
 
 import cloudpickle  # type: ignore
@@ -34,7 +36,17 @@ class FileSerializerImpl(FileSerializer):
             dumper = self._registry[obj_type]
             return cast(T, dumper.load(data))
         elif check_message_field(obj_type):
-            return load(obj_type, data)  # type: ignore
+            with BytesIO() as f:
+                shutil.copyfileobj(data, f)
+                f.seek(0)
+                try:
+                    return load(f, data)  # type: ignore
+                except Exception as e:
+                    try:
+                        f.seek(0)
+                        return cloudpickle.load(f)
+                    except Exception as e1:
+                        raise RuntimeError(f"Cannot deserialize data for type {obj_type}:") from e1
         return cloudpickle.load(data)  # type: ignore
 
 

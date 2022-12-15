@@ -1,9 +1,14 @@
+import dataclasses
 import uuid
+from io import BytesIO
 from typing import List, Optional
 from unittest import TestCase
 
+from pure_protobuf.dataclasses_ import message, field
+
 from lzy.api.v1 import op
 from lzy.api.v1.env import LzyLocalEnv
+from lzy.serialization.serializer import FileSerializerImpl
 
 WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
 
@@ -226,3 +231,18 @@ class BaseApiTests(TestCase):
 
         self.assertEqual(lol, "Lol")
         self.assertEqual(i, 239)
+
+    def test_optional_message(self):
+
+        @message
+        @dataclasses.dataclass
+        class Message:
+            a: str = field(1)
+
+        ser = FileSerializerImpl()
+        with BytesIO() as f:
+            ser.serialize_to_file(None, f)
+            f.flush()
+            f.seek(0)
+            res = ser.deserialize_from_file(f, Message)
+            self.assertIsNone(res)
