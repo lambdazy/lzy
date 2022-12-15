@@ -2,6 +2,8 @@ package ai.lzy.channelmanager.test;
 
 import ai.lzy.channelmanager.ChannelManagerApp;
 import ai.lzy.channelmanager.config.ChannelManagerConfig;
+import ai.lzy.channelmanager.dao.ChannelManagerDataSource;
+import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import io.grpc.ManagedChannel;
@@ -40,6 +42,7 @@ public class BaseTestWithChannelManager {
         }
         app.stop();
         app.awaitTermination();
+        DatabaseTestUtils.cleanup(context.getBean(ChannelManagerDataSource.class));
         context.stop();
     }
 
@@ -49,8 +52,12 @@ public class BaseTestWithChannelManager {
         props.putAll(overrides);
         context = ApplicationContext.run(PropertySource.of(props));
         config = context.getBean(ChannelManagerConfig.class);
+
         app = context.getBean(ChannelManagerApp.class);
         app.start();
+
+        channel = null;
+        privateClient = null;
     }
 
     public String getAddress() {
@@ -58,12 +65,10 @@ public class BaseTestWithChannelManager {
     }
 
     public LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub getOrCreatePrivateClient(
-        RenewableJwt internalUserCredentials
-    ) throws IOException {
-        if (channel == null) {
+        RenewableJwt internalUserCredentials)
+    {
+        if (channel == null || channel.isShutdown()) {
             channel = newGrpcChannel(config.getAddress(), LzyChannelManagerPrivateGrpc.SERVICE_NAME);
-        }
-        if (privateClient == null) {
             privateClient = newBlockingClient(LzyChannelManagerPrivateGrpc.newBlockingStub(channel),
                 "AuthChannelManagerTestPrivateClient", () -> internalUserCredentials.get().token());
         }

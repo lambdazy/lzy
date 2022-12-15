@@ -85,6 +85,12 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         final Channel channel;
         try {
             channel = withRetries(LOG, () -> channelDao.findChannel(channelId, Channel.LifeStatus.ALIVE, null));
+            if (channel == null) {
+                String errorMessage = "Channel " + channelId + " not found";
+                LOG.error(operationDescription + " failed, {}", errorMessage);
+                response.onError(Status.NOT_FOUND.withDescription(errorMessage).asException());
+                return;
+            }
         } catch (Exception e) {
             LOG.error(operationDescription + " failed, got exception: {}", e.getMessage(), e);
             response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
@@ -92,11 +98,13 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         }
 
         final var authenticationContext = AuthenticationContext.current();
-        final String userId = Objects.requireNonNull(authenticationContext).getSubject().id();
+        final String subjId = Objects.requireNonNull(authenticationContext).getSubject().id();
 
-        if (!accessManager.checkAccess(userId, channel.getWorkflowName(), ChannelOperation.Type.BIND)) {
-            LOG.error(operationDescription + "failed: PERMISSION DENIED to workflow {}",
-                userId, channel.getWorkflowName());
+        final String userId = channel.getUserId();
+        final String workflowName = channel.getWorkflowName();
+        if (!accessManager.checkAccess(subjId, userId, workflowName, ChannelOperation.Type.BIND)) {
+            LOG.error(operationDescription + "failed: PERMISSION DENIED to workflow {} of user {}",
+                workflowName, userId);
             response.onError(Status.PERMISSION_DENIED.withDescription(
                 "Don't have access to workflow " + channel.getWorkflowName()).asException());
             return;
@@ -203,12 +211,14 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         }
 
         final var authenticationContext = AuthenticationContext.current();
-        final String userId = Objects.requireNonNull(authenticationContext).getSubject().id();
-        final String channelId = channel.getId();
+        final String subjId = Objects.requireNonNull(authenticationContext).getSubject().id();
 
-        if (!accessManager.checkAccess(userId, channel.getWorkflowName(), ChannelOperation.Type.UNBIND)) {
-            LOG.error(operationDescription + "failed: PERMISSION DENIED to workflow {}",
-                userId, channel.getWorkflowName());
+        final String channelId = channel.getId();
+        final String userId = channel.getUserId();
+        final String workflowName = channel.getWorkflowName();
+        if (!accessManager.checkAccess(subjId, userId, workflowName, ChannelOperation.Type.UNBIND)) {
+            LOG.error(operationDescription + "failed: PERMISSION DENIED to workflow {} of user {}",
+                workflowName, userId);
             response.onError(Status.PERMISSION_DENIED.withDescription(
                 "Don't have access to workflow " + channel.getWorkflowName()).asException());
             return;

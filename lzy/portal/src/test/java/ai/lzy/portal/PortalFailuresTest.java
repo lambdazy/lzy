@@ -81,15 +81,15 @@ public class PortalFailuresTest extends PortalTestBase {
         System.out.println("\n----- PREPARE PORTAL FOR SCENARIO -----------------------------------------\n");
 
         // create channels for input portal slots
-        createChannel("channel_1");
-        createChannel("channel_2");
+        String channelId1 = createChannel("channel_1");
+        String channelId2 = createChannel("channel_2");
 
         // configure portal to snapshot `channel-1` data on S3
         openPortalSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
             .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSnapshot(GrpcUtils.makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_slot_1"))
-                .setChannelId("channel_1")
+                .setChannelId(channelId1)
                 .build())
             .build());
 
@@ -102,7 +102,7 @@ public class PortalFailuresTest extends PortalTestBase {
             .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSnapshot(GrpcUtils.makeAmazonSnapshot("snapshot_2", BUCKET_NAME, S3_ADDRESS))
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_slot_1"))
-                .setChannelId("channel_2")
+                .setChannelId(channelId2)
                 .build())
             .build());
 
@@ -112,8 +112,8 @@ public class PortalFailuresTest extends PortalTestBase {
 
         // clean up
         System.out.println("-- cleanup scenario --");
-        destroyChannel("channel_1");
-        destroyChannel("channel_2");
+        destroyChannel(channelId1);
+        destroyChannel(channelId2);
     }
 
     @Test
@@ -124,8 +124,8 @@ public class PortalFailuresTest extends PortalTestBase {
         System.out.println("\n----- PREPARE PORTAL FOR SCENARIO -----------------------------------------\n");
 
         // create channels for scenario
-        createChannel("channel_1");
-        createChannel("channel_2");
+        String channelId1 = createChannel("channel_1");
+        String channelId2 = createChannel("channel_2");
 
         System.out.println("\n----- RUN SCENARIO -----------------------------------------\n");
 
@@ -134,7 +134,7 @@ public class PortalFailuresTest extends PortalTestBase {
             .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSnapshot(GrpcUtils.makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_slot_1"))
-                .setChannelId("channel_1")
+                .setChannelId(channelId1)
                 .build())
             .build());
 
@@ -143,7 +143,7 @@ public class PortalFailuresTest extends PortalTestBase {
             .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSnapshot(GrpcUtils.makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_slot_2"))
-                .setChannelId("channel_2")
+                .setChannelId(channelId2)
                 .build())
             .build());
 
@@ -153,8 +153,8 @@ public class PortalFailuresTest extends PortalTestBase {
 
         // clean up
         System.out.println("-- cleanup scenario --");
-        destroyChannel("channel_1");
-        destroyChannel("channel_2");
+        destroyChannel(channelId1);
+        destroyChannel(channelId2);
     }
 
     @Test
@@ -162,49 +162,49 @@ public class PortalFailuresTest extends PortalTestBase {
         System.out.println("\n----- PREPARE PORTAL FOR TASK 1 -----------------------------------------\n");
 
         // create channels for task_1
-        createChannel("channel_1");
-        createChannel("task_1:stdout");
-        createChannel("task_1:stderr");
+        String channelId1 = createChannel("channel_1");
+        String stdoutChannelId1 = createChannel("task_1:stdout");
+        String stderrChannelId1 = createChannel("task_1:stderr");
 
         // configure portal to snapshot `channel-1` data
         openPortalSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
             .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSnapshot(GrpcUtils.makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_slot_1"))
-                .setChannelId("channel_1")
+                .setChannelId(channelId1)
                 .build())
             .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_task_1:stdout"))
-                .setChannelId("task_1:stdout")
+                .setChannelId(stdoutChannelId1)
                 .setStdout(GrpcUtils.makeStdoutStorage("task_1"))
                 .build())
             .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_task_1:stderr"))
-                .setChannelId("task_1:stderr")
+                .setChannelId(stderrChannelId1)
                 .setStderr(GrpcUtils.makeStderrStorage("task_1"))
                 .build())
             .build());
 
         // create channels for task_2
-        createChannel("channel_2");
-        createChannel("task_2:stdout");
-        createChannel("task_2:stderr");
+        String channelId2 = createChannel("channel_2");
+        String stdoutChannelId2 = createChannel("task_2:stdout");
+        String stderrChannelId2 = createChannel("task_2:stderr");
 
         // configure portal to read snapshot `channel-2` data
         openPortalSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
             .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSnapshot(GrpcUtils.makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
                 .setSlot(GrpcUtils.makeOutputFileSlot("/portal_slot_2"))
-                .setChannelId("channel_2")
+                .setChannelId(channelId2)
                 .build())
             .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_task_2:stdout"))
-                .setChannelId("task_2:stdout")
+                .setChannelId(stdoutChannelId2)
                 .setStdout(GrpcUtils.makeStdoutStorage("task_2"))
                 .build())
             .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_task_2:stderr"))
-                .setChannelId("task_2:stderr")
+                .setChannelId(stderrChannelId2)
                 .setStderr(GrpcUtils.makeStderrStorage("task_2"))
                 .build())
             .build());
@@ -227,14 +227,14 @@ public class PortalFailuresTest extends PortalTestBase {
 
         // task_1 clean up
         System.out.println("-- cleanup task1 scenario --");
-        destroyChannel("channel_1");
-        destroyChannel("task_1:stdout");
-        destroyChannel("task_1:stderr");
+        destroyChannel(channelId1);
+        destroyChannel(stdoutChannelId1);
+        destroyChannel(stderrChannelId1);
 
         // task_2 clean up
         System.out.println("-- cleanup task2 scenario --");
-        destroyChannel("channel_2");
-        destroyChannel("task_2:stdout");
-        destroyChannel("task_2:stderr");
+        destroyChannel(channelId2);
+        destroyChannel(stdoutChannelId2);
+        destroyChannel(stderrChannelId2);
     }
 }

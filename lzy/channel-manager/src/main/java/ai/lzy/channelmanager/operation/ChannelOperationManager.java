@@ -19,6 +19,7 @@ import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.workflow.LzyWorkflowPrivateServiceGrpc;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import io.grpc.ManagedChannel;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -128,6 +129,11 @@ public class ChannelOperationManager {
         }
 
         LOG.info("Restore active operations done, {} restored", restored);
+    }
+
+    @VisibleForTesting
+    public void interruptActions() {
+        executor.shutdownNow();
     }
 
     private String toJson(Object obj) {

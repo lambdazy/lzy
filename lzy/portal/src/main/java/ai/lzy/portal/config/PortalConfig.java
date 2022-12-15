@@ -31,12 +31,12 @@ public class PortalConfig {
 
     public String toSafeString() {
         return "{ " + "portalId: " + portalId +
-            "host: " + host +
-            "portalPort: " + portalApiPort +
-            "slotsPort: " + slotsApiPort +
-            "stdoutChannelId: " + stdoutChannelId +
-            "stderrChannelId: " + stderrChannelId +
-            "vmId: " + vmId +
+            ", host: " + host +
+            ", portalPort: " + portalApiPort +
+            ", slotsPort: " + slotsApiPort +
+            ", stdoutChannelId: " + stdoutChannelId +
+            ", stderrChannelId: " + stderrChannelId +
+            ", vmId: " + vmId +
             " }";
     }
 }

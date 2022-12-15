@@ -23,10 +23,10 @@ public class IamAccessManager {
         this.iamAccessClient = iamAccessClient;
     }
 
-    public boolean checkAccess(String userId, String workflowName, ChannelOperation.Type opType) {
+    public boolean checkAccess(String subjId, String userId, String workflowName, ChannelOperation.Type opType) {
         // TODO: retries
 
-        final var subj = iamSubjectClient.getSubject(userId);
+        final var subj = iamSubjectClient.getSubject(subjId);
         final var resource = new Workflow(userId + "/" + workflowName);
         final var permission = switch (opType) {
             case BIND, UNBIND -> AuthPermission.WORKFLOW_RUN;

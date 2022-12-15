@@ -140,12 +140,13 @@ public class ChannelManagerBaseApiTest {
         iamTestContext.after();
         app.stop();
         app.awaitTermination();
-        mockedSlotApiServer.shutdown();
-        mockedSlotApiServer.awaitTermination();
         channel.shutdown();
         channel.awaitTermination(10, TimeUnit.SECONDS);
         DatabaseTestUtils.cleanup(context.getBean(ChannelManagerDataSource.class));
         context.close();
+
+        mockedSlotApiServer.shutdown();
+        mockedSlotApiServer.awaitTermination();
     }
 
     protected ChannelCreateRequest makeChannelCreateCommand(String executionId, String channelName) {
