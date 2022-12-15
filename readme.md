@@ -37,19 +37,19 @@ with env.workflow("training"):
     model = train(data_set)
 ```
 
-Please read the [tutorial](docs/tutorials/0-contents.md) for details. We provide a free [sandbox installation](https://lzy.ai).
+Please read the [tutorial](https://github.com/lambdazy/lzy/tree/master/docs/tutorials/0-contents.md) for details. We provide a free [sandbox installation](https://lzy.ai).
 
 ## Runtime
 
-Check out our [key concepts](docs/arch/key-concepts.md) and [architecture intro](docs/arch/intro_en.md).
+Check out our [key concepts](https://github.com/lambdazy/lzy/tree/master/docs/arch/key-concepts.md) and [architecture intro](https://github.com/lambdazy/lzy/tree/master/docs/arch/intro_en.md).
 
 ## Development
 
-Development [guide](docs/development.md).
+Development [guide](https://github.com/lambdazy/lzy/tree/master/docs/development.md).
 
 ## Deployment
 
 Deployment guide.
 
-* [Azure](docs/deployment_azure.md)
-* [YCloud](docs/deployment_ycloud.md)
+* [Azure](https://github.com/lambdazy/lzy/tree/master/docs/deployment_azure.md)
+* [YCloud](https://github.com/lambdazy/lzy/tree/master/docs/deployment_ycloud.md)
