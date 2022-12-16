@@ -27,11 +27,11 @@ Configuration:
         ref: Console
 
     Logger:
-      - name: "ai.lzy.allocator.gc"
-        additivity: false
-        level: info
-        AppenderRef:
-          ref: GcFile
+#      - name: "ai.lzy.allocator.gc"
+#        additivity: false
+#        level: info
+#        AppenderRef:
+#          ref: GcFile
 
       - name: UserEventLogs
         level: error

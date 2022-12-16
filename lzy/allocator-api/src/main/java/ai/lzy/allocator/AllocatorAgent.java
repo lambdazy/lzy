@@ -9,12 +9,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 import javax.annotation.Nullable;
 
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
@@ -63,20 +65,55 @@ public class AllocatorAgent extends TimerTask {
     }
 
     public void start(@Nullable Map<String, String> meta) throws RegisterException {
-        LOG.info("Register vm with id '{}' in allocator", vmId);
         Map<String, String> m = meta == null ? Map.of() : meta;
 
-        try {
-            //noinspection ResultOfMethodCallIgnored
-            stub.withInterceptors(authInterceptor).register(
-                VmAllocatorPrivateApi.RegisterRequest.newBuilder()
-                    .setVmId(vmId)
-                    .putAllMetadata(m)
-                    .build());
-        } catch (StatusRuntimeException e) {
-            LOG.error("Cannot register allocator", e);
-            throw new RegisterException(e);
+        final var deadline = Instant.now().plus(Duration.ofMinutes(3));
+
+        boolean done = false;
+        String error = null;
+
+        while (!done && Instant.now().isBefore(deadline)) {
+            LOG.info("Register VM '{}' at allocator...", vmId);
+
+            try {
+                //noinspection ResultOfMethodCallIgnored
+                stub.withInterceptors(authInterceptor)
+                    .register(
+                        VmAllocatorPrivateApi.RegisterRequest.newBuilder()
+                            .setVmId(vmId)
+                            .putAllMetadata(m)
+                            .build());
+                done = true;
+                break;
+            } catch (StatusRuntimeException e) {
+                LOG.error("Cannot register at allocator: {}", e.getStatus());
+
+                switch (e.getStatus().getCode()) {
+                    case ALREADY_EXISTS ->
+                        done = true;
+                    case UNAVAILABLE, CANCELLED, ABORTED, DEADLINE_EXCEEDED, RESOURCE_EXHAUSTED ->
+                        LockSupport.parkNanos(Duration.ofSeconds(1).toNanos());
+                    default -> {
+                        done = true;
+                        error = e.getStatus().toString();
+                    }
+                }
+            }
         }
+
+        if (done) {
+            if (error == null) {
+                LOG.info("Successfully registered");
+            }
+        } else {
+            error = "Registration timeout";
+        }
+
+        if (error != null) {
+            LOG.error("Cannot register VM: {}", error);
+            throw new RegisterException(error);
+        }
+
 
         timer.scheduleAtFixedRate(this, heartbeatPeriod.toMillis(), heartbeatPeriod.toMillis());
     }
@@ -108,8 +145,8 @@ public class AllocatorAgent extends TimerTask {
     }
 
     public static class RegisterException extends Exception {
-        public RegisterException(Throwable e) {
-            super(e);
+        public RegisterException(String message) {
+            super(message);
         }
     }
 }
