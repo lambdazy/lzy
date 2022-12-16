@@ -4,6 +4,7 @@ import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.service.data.storage.LzyServiceStorage;
+import ai.lzy.service.graph.GraphExecutionState;
 import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
@@ -16,6 +17,13 @@ public class GraphDaoImpl implements GraphDao {
 
     public GraphDaoImpl(LzyServiceStorage storage) {
         this.storage = storage;
+    }
+
+    @Override
+    public void save(GraphExecutionState state, @Nullable TransactionHandle transaction) throws SQLException {
+        DbOperation.execute(transaction, storage, connection -> {
+            // todo: save the state here
+        });
     }
 
     @Override

@@ -21,7 +21,6 @@
             <groupId>ai.lzy</groupId>
             <artifactId>allocator-api</artifactId>
             <version>1.0-SNAPSHOT</version>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>

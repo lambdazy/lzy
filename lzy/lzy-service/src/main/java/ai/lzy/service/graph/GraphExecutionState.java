@@ -7,15 +7,22 @@ import io.grpc.Status;
 
 import java.util.List;
 
-final class GraphExecutionState {
+public final class GraphExecutionState {
     private final String executionId;
 
-    private String userId;
-    private String workflowName;
-    private String zone;
+    private final String opId;
+    private final String parentGraphId;
 
-    private List<LWF.DataDescription> descriptions;
-    private List<LWF.Operation> operations;
+    private final String userId;
+
+    private String zone;
+    private final List<LWF.DataDescription> descriptions;
+    private final List<LWF.Operation> operations;
+
+    private String workflowName;
+
+    private String graphId;
+
     private List<TaskDesc> tasks;
     private List<ChannelDesc> channels;
     private List<String> portalInputSlots;
@@ -24,16 +31,40 @@ final class GraphExecutionState {
 
     private Status errorStatus;
 
-    public GraphExecutionState(String executionId) {
+    public GraphExecutionState(String executionId, String opId, String parentGraphId, String userId,
+                               String zone, List<LWF.DataDescription> descriptions,
+                               List<LWF.Operation> operations) {
         this.executionId = executionId;
+        this.opId = opId;
+        this.parentGraphId = parentGraphId;
+        this.userId = userId;
+        this.zone = zone;
+        this.descriptions = descriptions;
+        this.operations = operations;
+    }
+
+    public void setZone(String zone) {
+        this.zone = zone;
+    }
+
+    public String getParentGraphId() {
+        return parentGraphId;
+    }
+
+    public String getOpId() {
+        return opId;
+    }
+
+    public String getGraphId() {
+        return graphId;
+    }
+
+    public void setGraphId(String graphId) {
+        this.graphId = graphId;
     }
 
     public List<LWF.DataDescription> getDescriptions() {
         return descriptions;
-    }
-
-    public void setDescriptions(List<LWF.DataDescription> descriptions) {
-        this.descriptions = descriptions;
     }
 
     public String getExecutionId() {
@@ -44,16 +75,8 @@ final class GraphExecutionState {
         return operations;
     }
 
-    public void setOperations(List<LWF.Operation> operations) {
-        this.operations = operations;
-    }
-
     public String getUserId() {
         return userId;
-    }
-
-    public void setUserId(String userId) {
-        this.userId = userId;
     }
 
     public String getWorkflowName() {
@@ -66,10 +89,6 @@ final class GraphExecutionState {
 
     public String getZone() {
         return zone;
-    }
-
-    public void setZone(String zone) {
-        this.zone = zone;
     }
 
     public DataFlowGraph getDataFlowGraph() {
