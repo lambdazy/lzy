@@ -165,6 +165,34 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
         }
     }
 
+    @Override
+    public void findSubject(LSS.FindSubjectRequest request, StreamObserver<LSS.FindSubjectResponse> responseObserver) {
+        LOG.info("Finding subject with provider_user_id=<{}>, auth_provider=<{}>, subject_type=<{}>",
+            request.getProviderUserId(), request.getAuthProvider(), request.getSubjectType());
+        try {
+            if (internalAccess()) {
+                var subject = subjectService.findSubject(
+                    request.getProviderUserId(), request.getAuthProvider(), request.getSubjectType());
+
+                if (subject == null) {
+                    responseObserver.onError(Status.NOT_FOUND.withDescription("Subject not found").asException());
+                    return;
+                }
+
+                responseObserver.onNext(
+                    LSS.FindSubjectResponse.newBuilder()
+                        .setSubject(ProtoConverter.from(subject))
+                        .build()
+                );
+                responseObserver.onCompleted();
+            }
+        } catch (AuthException e) {
+            LOG.error("LzySubjectService::listCredentials exception {}: {}",
+                e.getClass().getSimpleName(), e.getInternalDetails());
+            responseObserver.onError(e.status().asException());
+        }
+    }
+
     private boolean internalAccess() {
         var currentSubject = Objects.requireNonNull(AuthenticationContext.current()).getSubject();
 

@@ -1,8 +1,6 @@
 package ai.lzy.site.routes;
 
-import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.AuthProvider;
-import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.test.BaseTestWithIam;
@@ -20,7 +18,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
-import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -88,9 +85,5 @@ public class AuthControllerTest extends BaseTestWithIam {
 
         final var creds = listCredentials(subject);
         Assert.assertNotNull(creds);
-        final Optional<SubjectCredentials> subjectCreds =
-            creds.stream().filter(cred -> cred.type() == CredentialsType.COOKIE).findFirst();
-        Assert.assertTrue(subjectCreds.isPresent());
-        Assert.assertEquals(subjectCreds.get().value(), cookies.sessionId());
     }
 }

@@ -49,6 +49,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
@@ -96,6 +97,7 @@ public class Worker {
                   Duration allocatorHeartbeatPeriod, Duration schedulerHeartbeatPeriod, int apiPort, int fsPort,
                   String fsRoot, String channelManagerAddress, String host, String iamPrivateKey, String allocatorToken)
     {
+        LOG.info("Starting worker on vm {}.\n apiPort: {}\n fsPort: {}\n host: {}", vmId, apiPort, fsPort, host);
         final var realHost = host != null ? host : System.getenv(AllocatorAgent.VM_IP_ADDRESS);
 
         allocatorToken = allocatorToken != null ? allocatorToken : System.getenv(AllocatorAgent.VM_ALLOCATOR_OTT);
@@ -108,7 +110,7 @@ public class Worker {
 
         operationService = new LocalOperationService(workerId);
 
-        server = newGrpcServer(realHost, apiPort, GrpcUtils.NO_AUTH)
+        server = newGrpcServer("0.0.0.0", apiPort, GrpcUtils.NO_AUTH)
             .addService(new WorkerApiImpl())
             .build();
 
@@ -121,7 +123,7 @@ public class Worker {
         }
 
         try {
-            final var fsUri = new URI(LzyFs.scheme(), null, host, fsPort, null, null, null);
+            final var fsUri = new URI(LzyFs.scheme(), null, realHost, fsPort, null, null, null);
             final var cm = HostAndPort.fromString(channelManagerAddress);
 
             lzyFs = new LzyFsServer(workerId, Path.of(fsRoot), fsUri, cm, new RenewableJwt(workerId, "INTERNAL",
@@ -148,6 +150,7 @@ public class Worker {
             apiPort, iamPrivateKey);
 
         schedulerAgent.start();
+        LOG.info("Worker inited");
     }
 
     @VisibleForTesting
@@ -173,14 +176,18 @@ public class Worker {
 
     @VisibleForTesting
     public static int execute(String[] args) {
+        LOG.info("Starting worker with args {}", Arrays.toString(args));
+
         final CommandLineParser cliParser = new DefaultParser();
         try {
             final CommandLine parse = cliParser.parse(options, args, true);
 
+            var allocHeartbeat = parse.getOptionValue("allocator-heartbeat-period");
+
             final var worker = new Worker(parse.getOptionValue('w'), parse.getOptionValue("worker-id"),
                 parse.getOptionValue("vm-id"), parse.getOptionValue("allocator-address"),
                 parse.getOptionValue("scheduler-address"),
-                Duration.parse(parse.getOptionValue("allocator-heartbeat-period")),
+                allocHeartbeat == null ? null : Duration.parse(allocHeartbeat),
                 Duration.parse(parse.getOptionValue("scheduler-heartbeat-period")),
                 Integer.parseInt(parse.getOptionValue('p')), Integer.parseInt(parse.getOptionValue('q')),
                 parse.getOptionValue('m'), parse.getOptionValue("channel-manager"), parse.getOptionValue('h'),

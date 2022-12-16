@@ -9,6 +9,7 @@ import ai.lzy.util.auth.exceptions.AuthException;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 
 public class SubjectServiceClientStub implements SubjectServiceClient {
     @Override
@@ -54,5 +55,13 @@ public class SubjectServiceClientStub implements SubjectServiceClient {
     @Override
     public void removeCredentials(Subject subject, String name) throws AuthException {
 
+    }
+
+    @Nullable
+    @Override
+    public Subject findSubject(AuthProvider authProvider,
+                               String providerSubjectId, SubjectType type) throws AuthException
+    {
+        return null;
     }
 }

@@ -91,6 +91,11 @@ public class DbSubjectService {
         LEFT JOIN attempt_to_insert
         ON attempt_to_insert.name = row_to_insert.name AND attempt_to_insert.user_id = row_to_insert.user_id""";
 
+    private static final String QUERY_FIND_SUBJECT = """
+        SELECT user_id, user_type
+        FROM users
+        WHERE provider_user_id = ? AND auth_provider = ? AND user_type = ?""";
+
     @Inject
     private IamDataSource storage;
 
@@ -151,7 +156,9 @@ public class DbSubjectService {
             upsertSt.setString(1, subjectId);
             upsertSt.setString(2, authProvider.name());
             upsertSt.setString(3, providerSubjectId);
-            upsertSt.setString(4, accessTypeForNewUser(connect).toString());
+            upsertSt.setString(4, authProvider.equals(AuthProvider.INTERNAL)
+                    ? UserVerificationType.ACCESS_ALLOWED.toString()
+                    : accessTypeForNewUser(connect).toString());
             upsertSt.setString(5, subjectType.name());
             upsertSt.setString(6, requestHash);
 
@@ -371,6 +378,29 @@ public class DbSubjectService {
             AuthInternalException::new);
     }
 
+    @Nullable
+    public Subject findSubject(String providerUserId, String authProvider, String subjectType) {
+        return withRetries(
+            defaultRetryPolicy(),
+            LOG,
+            () -> {
+                try (var connect = storage.connect(); var st = connect.prepareStatement(QUERY_FIND_SUBJECT)) {
+                    int parameterIndex = 0;
+                    st.setString(++parameterIndex, providerUserId);
+                    st.setString(++parameterIndex, authProvider);
+                    st.setString(++parameterIndex, subjectType);
+                    var rs = st.executeQuery();
+                    if (!rs.next()) {
+                        return null;
+                    }
+                    var userId = rs.getString(1);
+                    var type = rs.getString(2);
+                    return subjectWith(SubjectType.valueOf(type), userId);
+                }
+            },
+            DbSubjectService::wrapError);
+    }
+
     @VisibleForTesting
     @Nullable
     public Subject getSubjectForTests(AuthProvider authProvider, String providerSubjectId, SubjectType subjectType)
@@ -408,7 +438,7 @@ public class DbSubjectService {
             LOG,
             () -> {
                 try (var st = connect.prepareStatement(
-                    "SELECT count(*) from users where access_type = ?"))
+                    "SELECT count(*) from users where access_type = ? AND auth_provider != 'INTERNAL'"))
                 {
                     int parameterIndex = 0;
                     st.setString(++parameterIndex, UserVerificationType.ACCESS_ALLOWED.toString());

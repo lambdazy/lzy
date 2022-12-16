@@ -603,12 +603,12 @@ public class SchedulerTest {
         /// THEN
         awaitState(r1.workflowId(), r1.workerId(), WorkerState.Status.DESTROYED);
 
-        for (var task : tasks.list(workflowId)) {
+        for (var task : tasks.list(r1.workflowId())) {
             Assert.assertEquals(TaskState.Status.ERROR, task.status());
             Assert.assertEquals("Internal error", task.errorDescription());
         }
 
-        for (var task : tasks.list(workflowId2)) {
+        for (var task : tasks.list(r2.workflowId())) {
             Assert.assertEquals(TaskState.Status.SUCCESS, task.status());
         }
     }

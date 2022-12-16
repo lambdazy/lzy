@@ -1,5 +1,7 @@
 package ai.lzy.site;
 
+import ai.lzy.iam.clients.AuthenticateService;
+import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.util.auth.credentials.RenewableJwt;
@@ -45,6 +47,14 @@ public class BeanFactory {
             "LzySite",
             GrpcConfig.from(config.getIam().getAddress()),
             iamToken::get
+        );
+    }
+
+    @Singleton
+    public AuthenticateService authService(ServiceConfig config) {
+        return new AuthenticateServiceGrpcClient(
+                "LzySite",
+                GrpcConfig.from(config.getIam().getAddress())
         );
     }
 }

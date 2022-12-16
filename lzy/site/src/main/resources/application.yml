@@ -1,4 +1,7 @@
 micronaut:
+  http:
+    client:
+      read-timeout: 5s
   application:
     name: lzySite
   ssl:
@@ -7,10 +10,8 @@ micronaut:
     port: 8080
     cors:
       enabled: true
-    ssl:
-      port: 8443
 grpc:
-  host: 127.0.0.1
+  host: 0.0.0.0
   port: 8888
 
 site:
@@ -46,13 +47,9 @@ site:
       l7I2m1fDWAE7ibup2fO9VSexAlqwoDnv4dWQ03f/ifRpFE/Tg7NV5OM=
       -----END RSA PRIVATE KEY-----
 
-  credentials:
-    user-id: artolord
-    private-key-path: <Some token path> # Can be set with CREDENTIALS_PRIVATE_KEY_PATH env var
-
   github:
     address: "https://github.com"
-    api-address: "https:/api.github.com"
+    api-address: "https://api.github.com"
 
   github-credentials:
     client-id: <Some client id>

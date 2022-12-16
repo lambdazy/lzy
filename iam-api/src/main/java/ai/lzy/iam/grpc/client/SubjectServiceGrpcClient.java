@@ -15,6 +15,7 @@ import ai.lzy.v1.iam.IAM;
 import ai.lzy.v1.iam.LSS;
 import ai.lzy.v1.iam.LzySubjectServiceGrpc;
 import io.grpc.Channel;
+import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,6 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 
@@ -170,6 +172,27 @@ public class SubjectServiceGrpcClient implements SubjectServiceClient {
                     .setCredentialsName(name)
                     .build());
         } catch (StatusRuntimeException e) {
+            throw AuthException.fromStatusRuntimeException(e);
+        }
+    }
+
+    @Override
+    @Nullable
+    public Subject findSubject(AuthProvider authProvider,
+                               String providerSubjectId, SubjectType type) throws AuthException
+    {
+        try {
+            var res = subjectService.findSubject(
+                LSS.FindSubjectRequest.newBuilder()
+                    .setAuthProvider(authProvider.name())
+                    .setProviderUserId(providerSubjectId)
+                    .setSubjectType(type.name())
+                    .build());
+            return ProtoConverter.to(res.getSubject());
+        } catch (StatusRuntimeException e) {
+            if (e.getStatus().equals(Status.NOT_FOUND)) {
+                return null;
+            }
             throw AuthException.fromStatusRuntimeException(e);
         }
     }

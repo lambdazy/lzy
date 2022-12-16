@@ -29,6 +29,7 @@ public class AccessBindingClientStub implements AccessBindingClient {
     @Override
     public void updateAccessBindings(
             AuthResource resource,
-            List<AccessBindingDelta> accessBindingDeltas) throws AuthException {
+            List<AccessBindingDelta> accessBindingDeltas) throws AuthException
+    {
     }
 }

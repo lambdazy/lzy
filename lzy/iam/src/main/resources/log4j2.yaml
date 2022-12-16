@@ -13,3 +13,6 @@ Configuration:
       level: info
       AppenderRef:
         ref: Console
+    Logger:
+      - name: "ai.lzy"
+        level: debug
