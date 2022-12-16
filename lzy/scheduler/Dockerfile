@@ -1,8 +1,7 @@
 FROM amazoncorretto:17
 
-COPY target/scheduler-1.0-SNAPSHOT.jar app/app.jar
 RUN yum -y install openssl && yum -y clean all  && rm -rf /var/cache
-
+COPY target/scheduler-1.0-SNAPSHOT.jar app/app.jar
 
 ENTRYPOINT ["java", \
             "-Xmx4G", \

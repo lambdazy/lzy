@@ -439,6 +439,7 @@ public class WorkflowService {
             ));
 
         } catch (StatusRuntimeException e) {
+            LOG.error("Cannot start portal", e);
             state.fail(e.getStatus(), "Cannot start portal");
         } catch (InvalidProtocolBufferException e) {
             LOG.error("Cannot deserialize allocate response from operation: " + e.getMessage());

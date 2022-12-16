@@ -14,47 +14,46 @@ RUN jlink \
 
 FROM python:3.7 as build-pylzy
 
-COPY pylzy /pylzy
+COPY docker/tmp-for-context/pylzy /pylzy
 WORKDIR /pylzy
 RUN pip install wheel setuptools
 
 RUN python setup.py bdist_wheel --dist-dir /dist
 
-FROM continuumio/miniconda3:4.12.0 as conda-build
+FROM condaforge/mambaforge:latest as conda-build
 
-COPY pylzy/requirements.txt /requirements.txt
-
+SHELL ["/bin/bash", "-l", "-c"]
 RUN conda config --set pip_interop_enabled True
 RUN conda init bash
 
-RUN bash -c "eval \"\$(conda shell.bash hook)\" && conda create --name lzy-base && conda activate lzy-base && pip install -r /requirements.txt"
+COPY docker/base-conda.yaml /env.yaml
 
-RUN conda create --name py39 --clone lzy-base && conda install -n py39 python=3.9.7
-RUN conda create --name py38 --clone lzy-base && conda install -n py38 python=3.8.12
-RUN conda create --name py37 --clone lzy-base && conda install -n py37 python=3.7.11
+RUN mamba env create -n py39 --file=/env.yaml python=3.9.7 && \
+    mamba env create -n py38 --file=/env.yaml python=3.8.12 &&  \
+    mamba env create -n py37 --file=/env.yaml python=3.7.10
 
 COPY --from=build-pylzy /dist /dist
 
-RUN bash -c "eval \"\$(conda shell.bash hook)\" && conda activate py39 && pip install /dist/*.whl"
-RUN bash -c "eval \"\$(conda shell.bash hook)\" && conda activate py38 && pip install /dist/*.whl"
-RUN bash -c "eval \"\$(conda shell.bash hook)\" && conda activate py37 && pip install /dist/*.whl"
+RUN eval "$(conda shell.bash hook)" &&  \
+    conda activate py39 && pip install /dist/*.whl && pip cache purge && \
+    conda activate py38 && pip install /dist/*.whl && pip cache purge && \
+    conda activate py37 && pip install /dist/*.whl && pip cache purge
 
-RUN rm -rf /dist && rm /requirements.txt && conda clean -a
+RUN conda clean --all --yes
 
-FROM continuumio/miniconda3:4.12.0
-
-COPY --from=build-jre /opt/jre-minimal /opt/jre-minimal
-ENV JAVA_HOME=/opt/jre-minimal
-ENV PATH="$PATH:$JAVA_HOME/bin"
-
-COPY servant/target/servant-1.0-SNAPSHOT.jar app/app.jar
-
-COPY --from=conda-build /opt/conda/envs /opt/conda/envs
+FROM continuumio/miniconda3:latest
 
 RUN apt-get update && apt-get install -y \
     fuse \
  && rm -rf /var/lib/apt/lists/*
 
+COPY --from=build-jre /opt/jre-minimal /opt/jre-minimal
+ENV JAVA_HOME=/opt/jre-minimal
+ENV PATH="$PATH:$JAVA_HOME/bin"
+
+COPY --from=conda-build /opt/conda/envs /opt/conda/envs
+
+COPY target/worker-1.0-SNAPSHOT.jar app/app.jar
 
 ENTRYPOINT ["java", \
             "-Xmx4G", \

@@ -93,7 +93,7 @@ resource "kubernetes_deployment" "scheduler" {
           }
 
           env {
-            name = "SCHEDULER_MAX_SERVANTS_PER_WORKFLOW"
+            name = "SCHEDULER_MAX_WORKERS_PER_WORKFLOW"
             value = var.max-servants-per-workflow
           }
 
@@ -126,37 +126,37 @@ resource "kubernetes_deployment" "scheduler" {
           }
 
           env {
-            name = "SCHEDULER_SERVANT_IMAGE"
+            name = "SCHEDULER_WORKER_IMAGE"
             value = var.servant-image
           }
 
           env {
-            name = "SCHEDULER_SERVANT_PROCESSOR_ALLOCATION_TIMEOUT"
+            name = "SCHEDULER_WORKER_PROCESSOR_ALLOCATION_TIMEOUT"
             value = "10m"
           }
 
           env {
-            name = "SCHEDULER_SERVANT_PROCESSOR_IDLE_TIMEOUT"
+            name = "SCHEDULER_WORKER_PROCESSOR_IDLE_TIMEOUT"
             value = "10m"
           }
 
           env {
-            name = "SCHEDULER_SERVANT_PROCESSOR_CONFIGURING_TIMEOUT"
+            name = "SCHEDULER_WORKER_PROCESSOR_CONFIGURING_TIMEOUT"
             value = "10m"
           }
 
           env {
-            name = "SCHEDULER_SERVANT_PROCESSOR_SERVANT_STOP_TIMEOUT"
+            name = "SCHEDULER_WORKER_PROCESSOR_WORKER_STOP_TIMEOUT"
             value = "1m"
           }
 
           env {
-            name = "SCHEDULER_SERVANT_PROCESSOR_EXECUTING_HEARTBEAT_PERIOD"
+            name = "SCHEDULER_WORKER_PROCESSOR_EXECUTING_HEARTBEAT_PERIOD"
             value = "30s"
           }
 
           env {
-            name = "SCHEDULER_SERVANT_PROCESSOR_IDLE_HEARTBEAT_PERIOD"
+            name = "SCHEDULER_WORKER_PROCESSOR_IDLE_HEARTBEAT_PERIOD"
             value = "5m"
           }
         }

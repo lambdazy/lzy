@@ -32,12 +32,6 @@ class FileWb:
 
 
 if __name__ == "__main__":
-    lzy_auth(
-        user="artolord",
-        key_path="/Users/artolord/.ssh/private.pem",
-        endpoint="158.160.44.118:8122",
-        whiteboards_endpoint="158.160.34.24:8122"
-    )
     wb_id = ""
     lzy = Lzy()
 

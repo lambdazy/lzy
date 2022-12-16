@@ -9,3 +9,6 @@ channel-manager:
     enabled: true
     min-pool-size: 5
     max-pool-size: 100
+  connections:
+    cache-concurrency-level: 10
+    cache-ttl-seconds: 60
