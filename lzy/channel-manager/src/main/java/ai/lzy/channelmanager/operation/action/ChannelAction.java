@@ -25,6 +25,7 @@ import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -69,8 +70,12 @@ public abstract class ChannelAction implements Runnable {
     }
 
     protected void scheduleRestart() {
+        scheduleRestart(Duration.ofMillis(300));
+    }
+
+    protected void scheduleRestart(Duration delay) {
         operationStopped = true;
-        executor.schedule(this, 1, TimeUnit.SECONDS);
+        executor.schedule(this, delay.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     protected void failOperation(String executionId, Status status) {

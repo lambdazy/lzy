@@ -9,6 +9,7 @@ import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.slot.TextLinesOutSlot;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -17,6 +18,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 import java.text.MessageFormat;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
@@ -26,6 +28,7 @@ import javax.annotation.Nullable;
 
 import static ai.lzy.channelmanager.ProtoConverter.makeBindSlotCommand;
 import static ai.lzy.channelmanager.ProtoConverter.makeUnbindSlotCommand;
+import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.v1.common.LMS.SlotStatus.State.DESTROYED;
 import static ai.lzy.v1.common.LMS.SlotStatus.State.SUSPENDED;
 
@@ -33,6 +36,7 @@ public class SlotsManager implements AutoCloseable {
     private static final Logger LOG = LogManager.getLogger(SlotsManager.class);
 
     private final LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManager;
+    private final LongRunningServiceGrpc.LongRunningServiceBlockingStub operationService;
     private final URI localLzyFsUri;
     private final Boolean isPortal;
     // TODO: project?
@@ -41,9 +45,11 @@ public class SlotsManager implements AutoCloseable {
     private boolean closed = false;
 
     public SlotsManager(LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManager,
+                        LongRunningServiceGrpc.LongRunningServiceBlockingStub operationService,
                         URI localLzyFsUri, boolean isPortal)
     {
         this.channelManager = channelManager;
+        this.operationService = operationService;
         this.localLzyFsUri = localLzyFsUri;
         this.isPortal = isPortal;
     }
@@ -148,8 +154,16 @@ public class SlotsManager implements AutoCloseable {
             }
         });
 
-        final var bindSlotOp = channelManager.bind(makeBindSlotCommand(slot.instance(), this.isPortal));
+        var bindSlotOp = channelManager.bind(makeBindSlotCommand(slot.instance(), this.isPortal));
         LOG.info("Bind slot requested, operationId={}", bindSlotOp.getId());
+        bindSlotOp = awaitOperationDone(operationService, bindSlotOp.getId(), Duration.ofSeconds(10));
+        if (!bindSlotOp.getDone()) {
+            throw new RuntimeException("Bind operation " + bindSlotOp.getId() + " hangs");
+        }
+        if (!bindSlotOp.hasResponse()) {
+            throw new RuntimeException("Bind operation " + bindSlotOp.getId() + " failed" +
+                " with code " + bindSlotOp.getError().getCode() + ": " + bindSlotOp.getError().getMessage());
+        }
         LOG.info("Slot `{}` configured.", slotUri);
     }
 

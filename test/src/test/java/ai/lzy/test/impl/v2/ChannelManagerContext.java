@@ -1,7 +1,7 @@
 package ai.lzy.test.impl.v2;
 
-import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.channelmanager.ChannelManagerApp;
+import ai.lzy.channelmanager.config.ChannelManagerConfig;
 import ai.lzy.test.impl.Utils;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import com.google.common.net.HostAndPort;
@@ -38,19 +38,24 @@ public class ChannelManagerContext {
         opts.putAll(new HashMap<String, Object>(Map.of(
             "channel-manager.address", address.toString(),
             "channel-manager.lzy-service-address", WorkflowContext.address,
-            "channel-manager.iam.address", iam.address()
+            "channel-manager.iam.address", iam.address(),
+            "channel-manager.lock-buckets-count", 256,
+            "channel-manager.executor-threads-count", 10,
+            "channel-manager.connections.cache-concurrency-level", 10,
+            "channel-manager.connections.cache-ttl", "20s"
         )));
 
         this.context = ApplicationContext.run(opts);
-        this.channelManager = context.getBean(ChannelManagerApp.class);
+        final var config = context.getBean(ChannelManagerConfig.class);
 
+        this.channelManager = context.getBean(ChannelManagerApp.class);
         try {
             channelManager.start();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
 
-        final var internalUserCredentials = context.getBean(ServiceConfig.class).getIam().createRenewableToken();
+        final var internalUserCredentials = config.getIam().createRenewableToken();
         channel = newGrpcChannel(address, LzyChannelManagerPrivateGrpc.SERVICE_NAME);
         privateClient = newBlockingClient(LzyChannelManagerPrivateGrpc.newBlockingStub(channel),
             "PrivateTest", () -> internalUserCredentials.get().token());

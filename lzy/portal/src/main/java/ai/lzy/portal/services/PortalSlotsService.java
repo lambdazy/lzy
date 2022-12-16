@@ -17,6 +17,7 @@ import ai.lzy.portal.slots.StdoutSlot;
 import ai.lzy.util.grpc.ContextAwareTask;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.longrunning.LongRunning;
+import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.slots.LSA;
 import ai.lzy.v1.slots.LzySlotsApiGrpc;
 import com.google.protobuf.ByteString;
@@ -42,7 +43,6 @@ import java.util.function.Supplier;
 import java.util.stream.StreamSupport;
 
 import static ai.lzy.model.UriScheme.LzyFs;
-import static ai.lzy.portal.services.PortalService.APP;
 import static ai.lzy.portal.services.PortalService.PORTAL_SLOT_PREFIX;
 import static ai.lzy.util.grpc.GrpcUtils.NO_AUTH_TOKEN;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
@@ -66,7 +66,7 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
 
     public PortalSlotsService(PortalConfig config, SnapshotProvider snapshots,
                               @Named("PortalTokenSupplier") Supplier<String> tokenFactory,
-                              @Named("PortalChannelManagerChannel") ManagedChannel channelsManagerChannel,
+                              @Named("PortalChannelManagerChannel") ManagedChannel channelManagerChannel,
                               @Named("PortalOperationsService") LocalOperationService operationService,
                               @Named("PortalServiceExecutor") ExecutorService workersPool)
     {
@@ -74,8 +74,16 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
         this.config = config;
 
         this.snapshots = snapshots;
-        this.slotsManager = new SlotsManager(
-            newBlockingClient(LzyChannelManagerGrpc.newBlockingStub(channelsManagerChannel), APP, tokenFactory),
+
+        final var channelManagerClient = newBlockingClient(
+            LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel),
+            "LzyPortal.ChannelManagerClient", tokenFactory);
+
+        final var channelManagerOperationClient = newBlockingClient(
+            LongRunningServiceGrpc.newBlockingStub(channelManagerChannel),
+            "LzyPortal.ChannelManagerOperationClient", tokenFactory);
+
+        this.slotsManager = new SlotsManager(channelManagerClient, channelManagerOperationClient,
             URI.create("%s://%s:%d".formatted(LzyFs.scheme(), config.getHost(), config.getSlotsApiPort())), true);
 
         this.operationService = operationService;
