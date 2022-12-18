@@ -1,25 +1,30 @@
 import logging
 import os
 import uuid
-from typing import Any, BinaryIO, Callable, Dict, Type, Union, cast
+from typing import Any, BinaryIO, Callable, Dict, Type, Union, Optional
 
-from serialzy.api import StandardDataFormats, Schema, Serializer, StandardSchemaFormats
+from packaging import version
+from serialzy.api import Schema, StandardSchemaFormats, VersionBoundary
+from serialzy.base import DefaultSchemaSerializerByReference
+
 from lzy.types import File
 from lzy.version import __version__
-from packaging import version
 
 _LOG = logging.getLogger(__name__)
 
 
-class FileSerializer(Serializer):
-    def serialize(self, obj: File, dest: BinaryIO) -> None:
+class FileSerializer(DefaultSchemaSerializerByReference):
+    DATA_FORMAT = "lzy_raw_file"
+
+    def _serialize(self, obj: File, dest: BinaryIO) -> None:
         with obj.path.open("rb") as f:
             data = f.read(4096)
             while len(data) > 0:
                 dest.write(data)
                 data = f.read(4096)
 
-    def deserialize(self, source: BinaryIO, typ: Type) -> Any:
+    def _deserialize(self, source: BinaryIO, schema_type: Type, user_type: Optional[Type] = None) -> Any:
+        self._check_types_valid(schema_type, user_type)
         new_path = os.path.join("/tmp", str(uuid.uuid1()))
         with open(new_path, "wb") as f:
             data = source.read(4096)
@@ -38,13 +43,13 @@ class FileSerializer(Serializer):
         return True
 
     def data_format(self) -> str:
-        return cast(str, StandardDataFormats.raw_file.name)
+        return self.DATA_FORMAT
 
     def meta(self) -> Dict[str, str]:
         return {"pylzy": __version__}
 
     def resolve(self, schema: Schema) -> Type:
-        if schema.data_format != StandardDataFormats.raw_file.name:
+        if schema.data_format != self.DATA_FORMAT:
             raise ValueError(f'Invalid data format {schema.data_format}')
         if schema.schema_format != StandardSchemaFormats.no_schema.name:
             raise ValueError(f'Invalid schema format {schema.schema_format}')
@@ -61,3 +66,6 @@ class FileSerializer(Serializer):
         if typ != File:
             raise ValueError(f'Invalid type {typ}')
         return Schema(self.data_format(), StandardSchemaFormats.no_schema.name, meta=self.meta())
+
+    def requirements(self) -> Dict[str, VersionBoundary]:
+        return {}

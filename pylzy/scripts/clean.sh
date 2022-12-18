@@ -19,6 +19,6 @@ rm -vf ./.coverage ./coverage.svg
 rm -rvf htmlcov
 
 # readme & license
-rm readme.md LICENSE
+rm -vf readme.md LICENSE
 
 
