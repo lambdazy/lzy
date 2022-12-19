@@ -47,7 +47,7 @@ public class PythonContext {
         );
 
         var keys = RsaUtils.generateRsaKeys();
-        final Path path = Path.of(System.getProperty("user.dir"), "../test-cert.pem");
+        final Path path = Path.of(System.getProperty("user.dir"), "../lzy-test-cert.pem");
         if (Files.exists(path)) {
             Files.delete(path);
         }
