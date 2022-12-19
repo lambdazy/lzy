@@ -118,7 +118,7 @@ public class WorkerEventProcessor extends Thread {
         try {
             newState = processEvent(currentState, event);
         } catch (Exception e) {
-            LOG.error("Error while processing event {}", event, e);
+            LOG.error("Error while processing event {}.\n Current state: {}", event, currentState, e);
             newState = destroy(currentState, event);
         }
         try {
@@ -270,7 +270,7 @@ public class WorkerEventProcessor extends Thread {
             }
 
             case IDLE_HEARTBEAT -> {
-                assertStatus(currentState, event, Status.IDLE, Status.RUNNING);
+                assertStatus(currentState, event, Status.IDLE, Status.RUNNING, Status.CONFIGURING);
                 eventDao.removeAllByTypes(currentState.id(), Type.IDLE_HEARTBEAT_TIMEOUT);
                 queue.put(WorkerEvent
                     .fromState(currentState, Type.IDLE_HEARTBEAT_TIMEOUT)

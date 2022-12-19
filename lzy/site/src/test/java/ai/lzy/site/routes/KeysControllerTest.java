@@ -52,7 +52,7 @@ public class KeysControllerTest extends BaseTestWithIam {
             final HttpResponse<Keys.ListKeysResponse> listKeys = keys.list(subjectId, sessionId);
             final Keys.ListKeysResponse body = listKeys.body();
             Assert.assertNotNull(body);
-            Assert.assertEquals(0, body.keys().size());
+            Assert.assertEquals(1, body.keys().size());  // Contains session key
         }
 
         {
@@ -62,16 +62,17 @@ public class KeysControllerTest extends BaseTestWithIam {
             HttpResponse<Keys.ListKeysResponse> listKeys = keys.list(subjectId, sessionId);
             Keys.ListKeysResponse body = listKeys.body();
             Assert.assertNotNull(body);
-            Assert.assertEquals(1, body.keys().size());
-            final Keys.Key key = body.keys().get(0);
-            Assert.assertEquals(keyName, key.name());
-            Assert.assertEquals(publicKey, key.value());
+            Assert.assertEquals(2, body.keys().size());
+            final var key = body.keys().stream().filter(k -> k.name().equals(keyName)).findFirst();
+            Assert.assertTrue(key.isPresent());
+            Assert.assertEquals(keyName, key.get().name());
+            Assert.assertEquals(publicKey, key.get().value());
 
             keys.delete(subjectId, sessionId, new Keys.DeletePublicKeyRequest(keyName));
             listKeys = keys.list(subjectId, sessionId);
             body = listKeys.body();
             Assert.assertNotNull(body);
-            Assert.assertEquals(0, body.keys().size());
+            Assert.assertEquals(1, body.keys().size());
         }
     }
 }

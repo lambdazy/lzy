@@ -1,3 +1,2 @@
-setuptools==59.1.1
 catboost==1.0.3
-wheel>=0.36.2
+pure-protobuf>=2.1.1

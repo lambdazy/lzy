@@ -17,7 +17,6 @@ import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.BucketLifecycleConfiguration;
 import com.amazonaws.services.s3.model.CanonicalGrantee;
 import com.amazonaws.services.s3.model.Permission;
 import com.google.protobuf.Any;
@@ -83,29 +82,6 @@ public class YandexCloudS3Storage implements StorageService {
             operationDao.failOperation(operation.id(), toProto(errorStatus), LOG);
 
             responseObserver.onError(errorStatus.asRuntimeException());
-            return;
-        }
-
-        try {
-            client.setBucketLifecycleConfiguration(request.getBucket(),
-                new BucketLifecycleConfiguration()
-                    .withRules(new BucketLifecycleConfiguration.Rule().withExpirationInDays(30)));
-        } catch (SdkClientException e) {
-            LOG.error("AWS SDK error while creating bucket '{}' for '{}': {}",
-                request.getBucket(), request.getUserId(), e.getMessage(), e);
-
-            var errorStatus = Status.INTERNAL.withDescription("S3 internal error: " + e.getMessage()).withCause(e);
-
-            operationDao.failOperation(operation.id(), toProto(errorStatus), LOG);
-
-            responseObserver.onError(errorStatus.asRuntimeException());
-
-            try {
-                client.deleteBucket(request.getBucket());
-            } catch (Exception ee) {
-                LOG.error("Cannot remove s3 bucket '{}': {}", request.getBucket(), e.getMessage(), e);
-            }
-
             return;
         }
 

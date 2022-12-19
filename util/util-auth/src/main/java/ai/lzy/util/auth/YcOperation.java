@@ -10,7 +10,8 @@ import java.io.IOException;
 
 public class YcOperation {
     public static JSONObject getResult(long retryInterval, int retryNum, String operationId, CloseableHttpClient client,
-        String iam) throws InterruptedException, IOException {
+        String iam) throws InterruptedException, IOException
+    {
         for (int i = 0; i < retryNum; i++) {
             HttpGet request = new HttpGet("https://operation.api.cloud.yandex.net/operations/" + operationId);
             request.setHeader("Authorization", "Bearer " + iam);
@@ -29,7 +30,8 @@ public class YcOperation {
     }
 
     public static JSONObject getResult(String operationId, CloseableHttpClient client, String iam)
-        throws InterruptedException, IOException {
+        throws InterruptedException, IOException
+    {
         return getResult(1000, 16, operationId, client, iam);
     }
 }

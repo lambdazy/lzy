@@ -5,6 +5,9 @@ import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
+import ai.lzy.util.auth.credentials.JwtUtils;
+import ai.lzy.util.auth.credentials.RsaUtils;
+import ai.lzy.util.auth.exceptions.AuthUniqueViolationException;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micronaut.core.annotation.Introspected;
@@ -27,10 +30,16 @@ import jakarta.inject.Inject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.IOException;
+import java.io.StringReader;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.text.SimpleDateFormat;
 import java.time.Duration;
-import java.util.UUID;
+import java.time.Instant;
+import java.util.Date;
 
 import static ai.lzy.site.ServiceConfig.GithubCredentials;
 
@@ -53,7 +62,7 @@ public class Auth {
     @Inject
     private RouteBuilder.UriNamingStrategy uriNamingStrategy;
 
-    @Client("${site.github.address}")
+    @Client(value = "${site.github.address}")
     @Inject
     private HttpClient githubClient;
 
@@ -120,17 +129,49 @@ public class Auth {
             throw new HttpStatusException(HttpStatus.FORBIDDEN, "Bad code");
         }
 
-        final Duration maxAge = Duration.ofDays(300);
-        final SubjectCredentials cookieToken =
-            SubjectCredentials.cookie("main", UUID.randomUUID().toString(), maxAge);
-        final Subject subject =
-            subjectServiceClient.createSubject(AuthProvider.GITHUB, userName, SubjectType.USER, cookieToken);
+        final Duration maxAge = Duration.ofDays(30);
+
+        final RsaUtils.RsaKeys keys;
+        try {
+            keys = RsaUtils.generateRsaKeys();
+        } catch (IOException | InterruptedException e) {
+            LOG.error("Cannot generate rsa keys: ", e);
+            throw new RuntimeException(e);
+        }
+
+        var keyName = String.format("Site session %s", new SimpleDateFormat("yyyy-MM-dd hh:mm:ss").format(new Date()));
+
+        var cred = SubjectCredentials.publicKey(keyName, keys.publicKey(), maxAge);
+
+        final String token;
+        try {
+            token = JwtUtils.buildJWT(userName, AuthProvider.GITHUB.name(),
+                Date.from(Instant.now()), Date.from(Instant.now().plus(maxAge)),
+                new StringReader(keys.privateKey()), cred.name());
+        } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
+            LOG.error("Cannot generate jwt token: ", e);
+            throw new RuntimeException(e);
+        }
+
+        Subject subject;
+
+        try {
+            subject = subjectServiceClient.createSubject(AuthProvider.GITHUB, userName, SubjectType.USER, cred);
+        } catch (AuthUniqueViolationException e) {
+            LOG.info("Logging in already created user {}", userName);
+            subject = subjectServiceClient.findSubject(AuthProvider.GITHUB, userName, SubjectType.USER);
+            if (subject == null) {
+                LOG.error("Cannot get subject <{}>, but its already exists", userName);
+                throw new RuntimeException("Internal error while getting subject");
+            }
+            subjectServiceClient.addCredentials(subject, cred);
+        }
 
         final URI siteSignInUrl = URI.create(state);
         return HttpResponse.redirect(siteSignInUrl)
-            .cookie(Cookie.of("userId", userName))
-            .cookie(Cookie.of("userSubjectId", subject.id()))
-            .cookie(Cookie.of("sessionId", cookieToken.value()).maxAge(maxAge.getSeconds()).secure(true));
+            .cookie(Cookie.of("userId", userName).path("/"))
+            .cookie(Cookie.of("userSubjectId", subject.id()).path("/"))
+            .cookie(Cookie.of("sessionId", token).path("/"));
     }
 
     public enum AuthType {

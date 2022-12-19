@@ -68,6 +68,5 @@ setuptools.setup(
         "ai/lzy/v1/workflow"
     ],
     python_requires=">=3.7",
-    long_description=read_readme(),
     long_description_content_type='text/markdown'
 )

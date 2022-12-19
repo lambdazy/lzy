@@ -31,7 +31,8 @@ public class LocalChannelGraph implements ChannelGraph {
         Stream<Endpoint> senders,
         Stream<Endpoint> receivers,
         Map<Endpoint, HashSet<Endpoint>> edges
-    ) {
+    )
+    {
         this.ownerChannelId = channelId;
         this.senders = senders.collect(Collectors.toSet());
         this.receivers = receivers.collect(Collectors.toSet());

@@ -3,10 +3,7 @@ package ai.lzy.iam.storage.impl;
 import ai.lzy.iam.clients.AuthenticateService;
 import ai.lzy.iam.resources.subjects.*;
 import ai.lzy.iam.storage.db.IamDataSource;
-import ai.lzy.util.auth.credentials.Credentials;
-import ai.lzy.util.auth.credentials.JwtCredentials;
-import ai.lzy.util.auth.credentials.JwtUtils;
-import ai.lzy.util.auth.credentials.OttCredentials;
+import ai.lzy.util.auth.credentials.*;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthInternalException;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
@@ -113,6 +110,15 @@ public class DbAuthService implements AuthenticateService {
             throw new AuthUnauthenticatedException("Failed to authenticate. Invalid JWT.");
         }
 
+        var header = JwtUtils.getHeader(credentials.token());
+
+        final String credName;
+        if (header == null || !header.containsKey("kn")) {
+            credName = null;
+        } else {
+            credName = (String) header.get("kn");
+        }
+
         var providerLogin = (String) jwtPayload.get(Claims.ISSUER);
         var providerName = (String) jwtPayload.get("pvd");
 
@@ -135,7 +141,7 @@ public class DbAuthService implements AuthenticateService {
                 JOIN users AS u
                   ON c.user_id = u.user_id
                 WHERE u.provider_user_id = ? AND u.auth_provider = ? AND c.type = ?
-                  AND (c.expired_at IS NULL OR c.expired_at > NOW())
+                  AND (c.expired_at IS NULL OR c.expired_at > NOW()) AND (? IS NULL OR c.name = ?)
                 """))
         {
 
@@ -143,6 +149,8 @@ public class DbAuthService implements AuthenticateService {
             st.setString(++parameterIndex, providerLogin);
             st.setString(++parameterIndex, providerName);
             st.setString(++parameterIndex, credentials.type());
+            st.setString(++parameterIndex, credName);
+            st.setString(++parameterIndex, credName);
 
             var rs = st.executeQuery();
             while (rs.next()) {

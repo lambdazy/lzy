@@ -6,14 +6,14 @@ Configuration:
       name: Console
       target: SYSTEM_OUT
       PatternLayout:
-        Pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS}{UTC} [%t] %-5level %logger{2.3.2} %notEmpty{%X{subj} }%notEmpty{[rid=%X{rid}] }- %msg%n"
+        Pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS}{UTC} [%t] %-5level %logger{2.3.2} %notEmpty{[rid=%X{rid}] }- %msg%n"
 
   Loggers:
     Root:
-      level: error
+      level: info
       AppenderRef:
         ref: Console
 
     Logger:
-      - name: "ai.lzy.channelmanager"
+      - name: "ai.lzy"
         level: debug

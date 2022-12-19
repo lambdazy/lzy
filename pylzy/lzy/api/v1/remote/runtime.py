@@ -367,7 +367,7 @@ class RemoteRuntime(Runtime):
 
             if pool is None:
                 raise RuntimeError(
-                    f"Cannot resolve pool for operation {call.signature.func.name}"
+                    f"Cannot resolve pool for operation {call.signature.func.name}:\nAvailable: {pools}\n Expected: {call.provisioning}"
                 )
 
             pool_to_call.append((pool, call))
