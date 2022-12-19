@@ -1,6 +1,5 @@
 package ai.lzy.worker.logs;
 
-import ai.lzy.model.utils.KafkaLogsConfiguration;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.ConfigurationFactory;

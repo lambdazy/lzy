@@ -29,7 +29,6 @@ import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.common.LMS;
-import ai.lzy.v1.deprecated.LzyFsGrpc;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.portal.LzyPortal;
 import ai.lzy.v1.portal.LzyPortalApi;
@@ -209,7 +208,7 @@ public class PortalTestBase {
         authorizedPortalClient = newBlockingClient(unauthorizedPortalClient, "TestClient",
             () -> internalUserCredentials.get().token());
 
-        portalSlotsChannel = newGrpcChannel("localhost", config.getSlotsApiPort(), LzyFsGrpc.SERVICE_NAME);
+        portalSlotsChannel = newGrpcChannel("localhost", config.getSlotsApiPort(), LzySlotsApiGrpc.SERVICE_NAME);
         portalSlotsClient = newBlockingClient(
             LzySlotsApiGrpc.newBlockingStub(portalSlotsChannel),
             "Test",

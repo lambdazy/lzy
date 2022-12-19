@@ -7,11 +7,9 @@ import ai.lzy.fs.fs.LzyLinuxFsManagerImpl;
 import ai.lzy.fs.fs.LzyMacosFsManagerImpl;
 import ai.lzy.fs.fs.LzyScript;
 import ai.lzy.longrunning.LocalOperationService;
-import ai.lzy.model.deprecated.Zygote;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
-import ai.lzy.v1.deprecated.LzyZygote;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
@@ -29,7 +27,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static ai.lzy.model.deprecated.GrpcConverter.from;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
@@ -78,7 +75,6 @@ public class LzyFsServer {
         this.localServer = newGrpcServer(selfUri.getHost(), selfUri.getPort(), GrpcUtils.NO_AUTH)
             .addService(slotsService.getSlotsApi())
             .addService(slotsService.getLongrunningApi())
-            .addService(slotsService.getLegacyWrapper())
             .build();
     }
 
@@ -111,7 +107,7 @@ public class LzyFsServer {
         commandParts.add("$@");
 
         final String script = String.join(" ", commandParts) + "\n";
-        if (fsManager.addScript(new LzyScriptImpl(cmd, script, null), /* isSystem */ true)) {
+        if (fsManager.addScript(new LzyScriptImpl(cmd, script), /* isSystem */ true)) {
             LOG.debug("Register command `{}`.", name);
         } else {
             LOG.warn("Command `{}` already exists.", name);
@@ -120,15 +116,9 @@ public class LzyFsServer {
 
     private record LzyScriptImpl(
         Path location,
-        CharSequence scriptText,
-        LzyZygote.Zygote zygote
+        CharSequence scriptText
     ) implements LzyScript
     {
-
-        @Override
-        public Zygote operation() {
-            return from(zygote);
-        }
     }
 
     public void stop() {
