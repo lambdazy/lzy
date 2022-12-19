@@ -47,7 +47,11 @@ public class PythonContext {
         );
 
         var keys = RsaUtils.generateRsaKeys();
-        file = Files.createTempFile("lzy", "pem");
+        final Path path = Path.of(System.getProperty("user.dir"), "../test-cert.pem");
+        if (Files.exists(path)) {
+            Files.delete(path);
+        }
+        file = Files.createFile(path);
         FileUtils.write(file.toFile(), keys.privateKey(), StandardCharsets.UTF_8);
 
 
@@ -61,6 +65,9 @@ public class PythonContext {
             "LZY_WHITEBOARD_ENDPOINT", whiteboard.publicAddress().toString(),
             "FETCH_STATUS_PERIOD_SEC", "0"
         );
+        for (var entry : envs.entrySet()) {
+            LOG.info(entry.getKey() + ":\t" + entry.getValue());
+        }
     }
 
     @PreDestroy

@@ -202,3 +202,5 @@ worker/docker/tmp-for-context
 
 /pylzy/readme.md
 /pylzy/LICENSE
+
+test-cert.pem
