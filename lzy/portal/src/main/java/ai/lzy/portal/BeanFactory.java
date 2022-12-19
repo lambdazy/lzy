@@ -6,7 +6,6 @@ import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.portal.config.PortalConfig;
-import ai.lzy.portal.services.LegacyWrapper;
 import ai.lzy.portal.services.PortalService;
 import ai.lzy.portal.services.PortalSlotsService;
 import ai.lzy.util.auth.credentials.CredentialsUtils;
@@ -28,7 +27,11 @@ import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.time.Duration;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
@@ -84,13 +87,12 @@ public class BeanFactory {
     @Bean(preDestroy = "shutdown")
     @Singleton
     @Named("PortalSlotsGrpcServer")
-    public Server portalSlotsServer(PortalConfig config, PortalSlotsService slotsApi, LegacyWrapper legacySlotsApi,
+    public Server portalSlotsServer(PortalConfig config, PortalSlotsService slotsApi,
                                     @Named("PortalOperationsService") LocalOperationService operationService)
     {
         return newGrpcServer(config.getHost(), config.getSlotsApiPort(), GrpcUtils.NO_AUTH)
             .addService(slotsApi)
             .addService(operationService)
-            .addService(legacySlotsApi)
             .build();
     }
 
