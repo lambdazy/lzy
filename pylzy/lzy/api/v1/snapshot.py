@@ -1,15 +1,14 @@
-import asyncio
 import dataclasses
 import logging
+import tempfile
 import uuid
 from abc import ABC, abstractmethod
-from io import BytesIO
-from typing import Any, Dict, Optional, Type, TypeVar, cast
+from typing import Any, Dict, Optional, Type, cast, BinaryIO
+
+from serialzy.api import SerializerRegistry, Schema
 
 from lzy.proxy.result import Just, Nothing, Result
-from serialzy.api import SerializerRegistry, Schema
 from lzy.storage.api import AsyncStorageClient, StorageRegistry
-
 
 _LOG = logging.getLogger(__name__)
 
@@ -54,7 +53,7 @@ class Snapshot(ABC):
 
 class DefaultSnapshot(Snapshot):
     def __init__(
-        self, storage_registry: StorageRegistry, serializer_registry: SerializerRegistry
+            self, storage_registry: StorageRegistry, serializer_registry: SerializerRegistry
     ):
         self.__storage_registry = storage_registry
         self.__serializer_registry = serializer_registry
@@ -67,7 +66,14 @@ class DefaultSnapshot(Snapshot):
     def create_entry(self, typ: Type) -> SnapshotEntry:
         eid = str(uuid.uuid4())
         url = self.storage_client.generate_uri(self.storage_bucket, eid)
-        schema = self.__serializer_registry.find_serializer_by_type(typ).schema(typ)
+        serializer_by_type = self.__serializer_registry.find_serializer_by_type(typ)
+        if serializer_by_type is None:
+            raise ValueError(f'Cannot find serializer for type {typ}')
+        if not serializer_by_type.available():
+            raise ValueError(
+                f'Serializer for type {typ} is not available, please install {serializer_by_type.requirements()}')
+
+        schema = serializer_by_type.schema(typ)
         e = SnapshotEntry(eid, typ, url, self.storage_name(), data_scheme=schema)
         self.__entry_id_to_entry[e.id] = e
         _LOG.debug(f"Created entry {e}")
@@ -83,12 +89,10 @@ class DefaultSnapshot(Snapshot):
         if not exists:
             return Nothing()
 
-        with BytesIO() as f:
-            await self.storage_client.read(entry.storage_url, f)
+        with tempfile.NamedTemporaryFile() as f:
+            await self.storage_client.read(entry.storage_url, cast(BinaryIO, f))
             f.seek(0)
-            res = self.__serializer_registry.find_serializer_by_type(
-                entry.typ
-            ).deserialize(f, entry.typ)
+            res = self.__serializer_registry.find_serializer_by_type(entry.typ).deserialize(f)
             return Just(res)
 
     async def put_data(self, entry_id: str, data: Any) -> None:
@@ -97,12 +101,10 @@ class DefaultSnapshot(Snapshot):
         if entry is None:
             raise ValueError(f"Cannot get entry {entry_id}")
 
-        with BytesIO() as f:
-            self.__serializer_registry.find_serializer_by_type(entry.typ).serialize(
-                data, f
-            )
+        with tempfile.NamedTemporaryFile() as f:
+            self.__serializer_registry.find_serializer_by_type(entry.typ).serialize(data, f)
             f.seek(0)
-            await self.storage_client.write(entry.storage_url, f)
+            await self.storage_client.write(entry.storage_url, cast(BinaryIO, f))
 
     def get(self, entry_id: str) -> SnapshotEntry:
         return self.__entry_id_to_entry[entry_id]

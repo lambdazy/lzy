@@ -4,21 +4,17 @@ import datetime
 import os
 import sys
 import time
-from typing import Any, Callable, Mapping, Sequence, Tuple, Type, TypeVar, cast, Optional
-
-from serialzy.api import SerializerRegistry
+from typing import Any, Callable, Mapping, Sequence, Tuple, Type, Optional, cast
 
 import cloudpickle
-
-T = TypeVar("T")
-
+from serialzy.api import SerializerRegistry
 
 _lzy_mount: Optional[str] = None  # for tests only
 
 
-def unpickle(base64_str: str, obj_type: Type[T] = None) -> T:
+def unpickle(base64_str: str) -> Any:
     t = cloudpickle.loads(base64.b64decode(base64_str.encode("ascii")))
-    return cast(T, t)
+    return t
 
 
 def read_data(path: str, typ: Type, serializers: SerializerRegistry) -> Any:
@@ -43,10 +39,14 @@ def write_data(path: str, data: Any, serializers: SerializerRegistry):
     assert mount is not None
 
     typ = type(data)
-
     ser = serializers.find_serializer_by_type(typ)
-    log(f"Writing data to {path} with type {typ} and serializer {type(ser)}")
+    if ser is None:
+        raise ValueError(f'Cannot find serializer for type {typ}')
+    if not ser.available():
+        raise ValueError(
+            f'Serializer for type {typ} is not available, please install {ser.requirements()}')
 
+    log(f"Writing data to {path} with type {typ} and serializer {type(ser)}")
     with open(mount + path, "wb") as out_handle:
         out_handle.seek(0)
         out_handle.flush()
@@ -65,11 +65,11 @@ def log(msg: str, *args, **kwargs):
 
 
 def process_execution(
-    serializers: SerializerRegistry,
-    op: Callable,
-    args_paths: Sequence[Tuple[Type, str]],
-    kwargs_paths: Mapping[str, Tuple[Type, str]],
-    output_paths: Sequence[str],
+        serializers: SerializerRegistry,
+        op: Callable,
+        args_paths: Sequence[Tuple[Type, str]],
+        kwargs_paths: Mapping[str, Tuple[Type, str]],
+        output_paths: Sequence[str],
 ):
     log("Reading arguments...")
 
@@ -115,19 +115,16 @@ class ProcessingRequest:
 
 
 def main(arg: str):
-
     if "LOCAL_MODULES" in os.environ:
         sys.path.append(os.environ["LOCAL_MODULES"])
 
     try:
-        req = unpickle(arg, ProcessingRequest)
+        req: ProcessingRequest = cast(ProcessingRequest, unpickle(arg))
     except Exception as e:
         log(f"Error while unpickling request: {e}")
         raise e
 
-    process_execution(
-        req.serializers, req.op, req.args_paths, req.kwargs_paths, req.output_paths
-    )
+    process_execution(req.serializers, req.op, req.args_paths, req.kwargs_paths, req.output_paths)
 
 
 if __name__ == "__main__":

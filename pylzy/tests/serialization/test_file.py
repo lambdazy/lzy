@@ -31,10 +31,10 @@ class FileSerializationTests(TestCase):
         self.assertIn("pylzy", serializer.meta())
 
     def test_schema(self):
-        serializer = self.registry.find_serializer_by_data_format(StandardDataFormats.raw_file.name)
+        serializer = self.registry.find_serializer_by_data_format("raw_file")
         schema = serializer.schema(File)
 
-        self.assertEqual(StandardDataFormats.raw_file.name, schema.data_format)
+        self.assertEqual("raw_file", schema.data_format)
         self.assertEqual(StandardSchemaFormats.no_schema.name, schema.schema_format)
         self.assertEqual('', schema.schema_content)
         self.assertIn("pylzy", schema.meta)
@@ -43,8 +43,8 @@ class FileSerializationTests(TestCase):
             serializer.schema(str)
 
     def test_resolve(self):
-        serializer = self.registry.find_serializer_by_data_format(StandardDataFormats.raw_file.name)
-        typ = serializer.resolve(Schema(StandardDataFormats.raw_file.name, StandardSchemaFormats.no_schema.name))
+        serializer = self.registry.find_serializer_by_data_format("raw_file")
+        typ = serializer.resolve(Schema("raw_file", StandardSchemaFormats.no_schema.name))
         self.assertEqual(File, typ)
 
         with self.assertRaisesRegex(ValueError, 'Invalid data format*'):
@@ -53,16 +53,16 @@ class FileSerializationTests(TestCase):
 
         with self.assertRaisesRegex(ValueError, 'Invalid schema format*'):
             serializer.resolve(
-                Schema(StandardDataFormats.raw_file.name, StandardSchemaFormats.pickled_type.name,
+                Schema("raw_file", StandardSchemaFormats.pickled_type.name,
                        meta={'pylzy': '0.0.0'}))
 
         with self.assertLogs() as cm:
             serializer.resolve(
-                Schema(StandardDataFormats.raw_file.name, StandardSchemaFormats.no_schema.name))
+                Schema("raw_file", StandardSchemaFormats.no_schema.name))
             self.assertRegex(cm.output[0], 'WARNING:lzy.serialization.file:No pylzy version in meta*')
 
         with self.assertLogs() as cm:
             serializer.resolve(
-                Schema(StandardDataFormats.raw_file.name, StandardSchemaFormats.no_schema.name,
+                Schema("raw_file", StandardSchemaFormats.no_schema.name,
                        meta={'pylzy': '100000.0.0'}))
             self.assertRegex(cm.output[0], 'WARNING:lzy.serialization.file:Installed version of pylzy*')

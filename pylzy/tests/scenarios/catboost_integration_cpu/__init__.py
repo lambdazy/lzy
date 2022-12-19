@@ -15,6 +15,7 @@ if __name__ == "__main__":
         label=[1, 1, -1],
         weight=[0.1, 0.2, 0.3],
     )
+    train_data.quantize()
     # fmt: on
 
     model = CatBoostClassifier(iterations=1000, train_dir="/tmp/catboost")
