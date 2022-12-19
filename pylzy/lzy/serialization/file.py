@@ -14,7 +14,7 @@ _LOG = logging.getLogger(__name__)
 
 
 class FileSerializer(DefaultSchemaSerializerByReference):
-    DATA_FORMAT = "lzy_raw_file"
+    DATA_FORMAT = "raw_file"
 
     def _serialize(self, obj: File, dest: BinaryIO) -> None:
         with obj.path.open("rb") as f:
