@@ -12,10 +12,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Singleton;
 
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
 
@@ -67,6 +69,47 @@ public class ChannelDaoImpl implements ChannelDao {
         UPDATE connections
         SET life_status = ?::connection_life_status_type, updated_at = ?
         WHERE sender_uri = ? and receiver_uri = ?""";
+
+
+    private static final String QUERY_SELECT_CHANNEL = """
+        SELECT
+            ch.channel_id as channel_id,
+            ch.execution_id as execution_id,
+            ch.workflow_name as workflow_name,
+            ch.user_id as user_id,
+            ch.channel_spec_json as channel_spec_json,
+            ch.life_status as channel_life_status,
+            
+            e.slot_uri as slot_uri,
+            e.task_id as task_id,
+            e.slot_owner as slot_owner,
+            e.slot_spec_json as slot_spec_json,
+            e.life_status as endpoint_life_status,
+            
+            c.sender_uri as connected_sender_uri,
+            c.receiver_uri as connected_receiver_uri,
+            c.life_status as connection_life_status
+        FROM channels ch
+        LEFT JOIN endpoints e ON ch.channel_id = e.channel_id
+        LEFT JOIN connections c ON e.channel_id = c.channel_id AND e.slot_uri = c.receiver_uri
+        """;
+
+    private static final String QUERY_SELECT_CHANNEL_BY_ID = QUERY_SELECT_CHANNEL +
+        " WHERE ch.channel_id = ?";
+
+    private static final String QUERY_SELECT_CHANNEL_BY_ID_AND_STATUS = QUERY_SELECT_CHANNEL +
+        " WHERE ch.channel_id = ? AND ch.life_status = ?::channel_life_status_type";
+
+    private static final String QUERY_SELECT_CHANNELS_BY_EXECUTION_ID = QUERY_SELECT_CHANNEL +
+        " WHERE ch.execution_id = ?";
+
+    private static final String QUERY_SELECT_CHANNELS_BY_EXECUTION_ID_AND_STATUS = QUERY_SELECT_CHANNEL +
+        " WHERE ch.execution_id = ? AND ch.life_status = ?::channel_life_status_type";
+
+    private static final String QUERY_SELECT_ENDPOINT_BY_URI = """
+        SELECT slot_uri, task_id, channel_id, slot_owner, slot_spec_json, life_status as endpoint_life_status
+        FROM endpoints
+        WHERE slot_uri = ?""";
 
     private final ChannelManagerDataSource storage;
     private final ObjectMapper objectMapper;
@@ -308,7 +351,18 @@ public class ChannelDaoImpl implements ChannelDao {
     @Nullable
     @Override
     public Channel findChannel(String channelId, @Nullable TransactionHandle transaction) throws SQLException {
-        return null; // TODO
+        return DbOperation.execute(transaction, storage, conn -> {
+            try (var st = conn.prepareStatement(QUERY_SELECT_CHANNEL_BY_ID)) {
+                st.setString(1, channelId);
+
+                var rs = st.executeQuery();
+                if (rs.next()) {
+                    return parseChannel(rs);
+                }
+
+                return null;
+            }
+        });
     }
 
     @Nullable
@@ -316,24 +370,78 @@ public class ChannelDaoImpl implements ChannelDao {
     public Channel findChannel(String channelId, Channel.LifeStatus lifeStatus, @Nullable TransactionHandle transaction)
         throws SQLException
     {
-        return null; // TODO
+        return DbOperation.execute(transaction, storage, conn -> {
+            try (var st = conn.prepareStatement(QUERY_SELECT_CHANNEL_BY_ID_AND_STATUS)) {
+                st.setString(1, channelId);
+                st.setString(2, lifeStatus.name());
+
+                var rs = st.executeQuery();
+                if (rs.next()) {
+                    return parseChannel(rs);
+                }
+
+                return null;
+            }
+        });
     }
 
     @Override
     public List<Channel> listChannels(String executionId, @Nullable TransactionHandle transaction) throws SQLException {
-        return null; // TODO
+        final List<Channel> channels = new ArrayList<>();
+        DbOperation.execute(transaction, storage, conn -> {
+            try (var st = conn.prepareStatement(QUERY_SELECT_CHANNELS_BY_EXECUTION_ID)) {
+                st.setString(1, executionId);
+
+                var rs = st.executeQuery();
+                while (rs.next()) {
+                    channels.add(parseChannel(rs));
+                }
+            }
+        });
+        return channels;
     }
 
     @Override
     public List<Channel> listChannels(String executionId, Channel.LifeStatus lifeStatus,
                                       @Nullable TransactionHandle transaction) throws SQLException
     {
-        return null; // TODO
+        final List<Channel> channels = new ArrayList<>();
+        DbOperation.execute(transaction, storage, conn -> {
+            try (var st = conn.prepareStatement(QUERY_SELECT_CHANNELS_BY_EXECUTION_ID_AND_STATUS)) {
+                st.setString(1, executionId);
+                st.setString(2, lifeStatus.name());
+
+                var rs = st.executeQuery();
+                while (rs.next()) {
+                    channels.add(parseChannel(rs));
+                }
+            }
+        });
+        return channels;
     }
 
     @Nullable
     @Override
     public Endpoint findEndpoint(String endpointUri, @Nullable TransactionHandle transaction) throws SQLException {
+        return DbOperation.execute(transaction, storage, conn -> {
+            try (var st = conn.prepareStatement(QUERY_SELECT_ENDPOINT_BY_URI)) {
+                st.setString(1, endpointUri);
+
+                var rs = st.executeQuery();
+                if (rs.next()) {
+                    return parseEndpoint(rs);
+                }
+
+                return null;
+            }
+        });
+    }
+
+    private Channel parseChannel(ResultSet rs) throws SQLException {
+        return null; // TODO
+    }
+
+    private Endpoint parseEndpoint(ResultSet rs) throws SQLException {
         return null; // TODO
     }
 
