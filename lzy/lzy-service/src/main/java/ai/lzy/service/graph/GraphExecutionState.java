@@ -6,6 +6,7 @@ import ai.lzy.v1.workflow.LWF;
 import io.grpc.Status;
 
 import java.util.List;
+import java.util.UUID;
 
 public final class GraphExecutionState {
     private final String executionId;
@@ -21,6 +22,7 @@ public final class GraphExecutionState {
 
     private String workflowName;
 
+    private String idempotencyKey;
     private String graphId;
 
     private List<TaskDesc> tasks;
@@ -33,7 +35,8 @@ public final class GraphExecutionState {
 
     public GraphExecutionState(String executionId, String opId, String parentGraphId, String userId,
                                String zone, List<LWF.DataDescription> descriptions,
-                               List<LWF.Operation> operations) {
+                               List<LWF.Operation> operations)
+    {
         this.executionId = executionId;
         this.opId = opId;
         this.parentGraphId = parentGraphId;
@@ -53,6 +56,10 @@ public final class GraphExecutionState {
 
     public String getOpId() {
         return opId;
+    }
+
+    public String getOrGenerateIdempotencyKey() {
+        return idempotencyKey = (idempotencyKey != null) ? idempotencyKey : UUID.randomUUID().toString();
     }
 
     public String getGraphId() {

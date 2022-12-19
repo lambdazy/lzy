@@ -34,23 +34,29 @@ public interface OperationDao {
     @Nullable
     Operation updateError(String id, byte[] error, @Nullable TransactionHandle transaction) throws SQLException;
 
-    default void failOperation(String operationId, com.google.rpc.Status error, @Nullable TransactionHandle transaction,
-                               Logger log)
+    @Nullable
+    default Operation failOperation(String operationId, com.google.rpc.Status error,
+                                    @Nullable TransactionHandle transaction, Logger log)
     {
+        Operation op = null;
+
         log.info("Fail operation with error: { operationId: {}, errorStatus: {}}", operationId, error.getMessage());
         try {
-            var op = withRetries(log, () -> updateError(operationId, error.toByteArray(), transaction));
-            if (op == null) {
-                log.error("Cannot fail operation {} with reason {}: operation not found",
-                    operationId, error.getMessage());
-            }
+            op = withRetries(log, () -> updateError(operationId, error.toByteArray(), transaction));
         } catch (Exception ex) {
             log.error("Cannot fail operation {} with reason {}: {}",
                 operationId, error.getMessage(), ex.getMessage(), ex);
         }
+
+        if (op == null) {
+            log.error("Cannot fail operation {} with reason {}: operation not found", operationId, error.getMessage());
+        }
+
+        return op;
     }
 
-    default void failOperation(String operationId, com.google.rpc.Status error, Logger log) {
-        failOperation(operationId, error, null, log);
+    @Nullable
+    default Operation failOperation(String operationId, com.google.rpc.Status error, Logger log) {
+        return failOperation(operationId, error, null, log);
     }
 }
