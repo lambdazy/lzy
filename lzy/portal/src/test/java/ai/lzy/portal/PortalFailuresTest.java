@@ -112,8 +112,8 @@ public class PortalFailuresTest extends PortalTestBase {
 
         // clean up
         System.out.println("-- cleanup scenario --");
-        destroyChannel(channelId1);
-        destroyChannel(channelId2);
+        destroyChannel("channel_1");
+        destroyChannel("channel_2");
     }
 
     @Test
@@ -153,8 +153,8 @@ public class PortalFailuresTest extends PortalTestBase {
 
         // clean up
         System.out.println("-- cleanup scenario --");
-        destroyChannel(channelId1);
-        destroyChannel(channelId2);
+        destroyChannel("channel_1");
+        destroyChannel("channel_2");
     }
 
     @Test
@@ -227,14 +227,14 @@ public class PortalFailuresTest extends PortalTestBase {
 
         // task_1 clean up
         System.out.println("-- cleanup task1 scenario --");
-        destroyChannel(channelId1);
-        destroyChannel(stdoutChannelId1);
-        destroyChannel(stderrChannelId1);
+        destroyChannel("channel_1");
+        destroyChannel("task_1:stdout");
+        destroyChannel("task_1:stderr");
 
         // task_2 clean up
         System.out.println("-- cleanup task2 scenario --");
-        destroyChannel(channelId2);
-        destroyChannel(stdoutChannelId2);
-        destroyChannel(stderrChannelId2);
+        destroyChannel("channel_2");
+        destroyChannel("task_2:stdout");
+        destroyChannel("task_2:stderr");
     }
 }

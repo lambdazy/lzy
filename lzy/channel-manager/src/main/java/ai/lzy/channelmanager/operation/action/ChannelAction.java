@@ -197,7 +197,7 @@ public abstract class ChannelAction implements Runnable {
 
         final String channelId = receiver.getChannelId();
 
-        final Endpoint sender;
+        final Connection connectionToBreak;
         try (final var guard = lockManager.withLock(channelId)) {
             final Channel channel;
             try {
@@ -213,20 +213,9 @@ public abstract class ChannelAction implements Runnable {
                 return;
             }
 
-            final Connection connectionToBreak = channelController.findConnectionToBreak(channel, receiver);
-            if (connectionToBreak == null) {
-                try {
-                    withRetries(LOG, () -> channelDao.removeEndpoint(receiver.getUri().toString(), null));
-                    LOG.info("Async operation (operationId={}): receiver unbound, unbindingReceiver={}",
-                        operationId, receiver.getUri());
-                } catch (Exception e) {
-                    String errorMessage = "Failed to remove receiver " + receiver.getUri() + ","
-                                          + " got exception: " + e.getMessage();
-                    throw new RuntimeException(errorMessage);
-                }
-                return;
-            } else {
-                sender = connectionToBreak.sender();
+            connectionToBreak = channelController.findConnectionToBreak(channel, receiver);
+            if (connectionToBreak != null) {
+                final Endpoint sender = connectionToBreak.sender();
                 try {
                     withRetries(LOG, () -> channelDao.markConnectionDisconnecting(channelId,
                         sender.getUri().toString(), receiver.getUri().toString(), null));
@@ -254,16 +243,15 @@ public abstract class ChannelAction implements Runnable {
         InjectedFailures.fail5();
 
         try (final var guard = lockManager.withLock(channelId)) {
-            withRetries(LOG, () -> {
-                try (var tx = TransactionHandle.create(storage)) {
-                    channelDao.removeConnection(channelId,
-                        sender.getUri().toString(),
-                        receiver.getUri().toString(),
-                        tx);
-                    channelDao.removeEndpoint(receiver.getUri().toString(), tx);
-                    tx.commit();
-                }
-            });
+            if (connectionToBreak != null) {
+                withRetries(LOG, () -> channelDao.removeConnection(channelId,
+                    connectionToBreak.sender().getUri().toString(),
+                    connectionToBreak.receiver().getUri().toString(),
+                    null));
+                LOG.info("Async operation (operationId={}): connection removed, sender={}, unbindingReceiver={}",
+                    operationId, connectionToBreak.sender().getUri(), receiver.getUri());
+            }
+            withRetries(LOG, () -> channelDao.removeEndpoint(receiver.getUri().toString(), null));
             LOG.info("Async operation (operationId={}): receiver removed,"
                      + " unbindingReceiver={}", operationId, receiver.getUri());
         } catch (Exception e) {

@@ -97,7 +97,7 @@ public class SlotsManager implements AutoCloseable {
 
             if (slot.state() == DESTROYED) {
                 final String msg = MessageFormat.format("Unable to create slot. Task: {}, spec: {}, binding: {}",
-                        taskId, spec.name(), channelId);
+                    taskId, spec.name(), channelId);
                 LOG.error(msg);
                 throw new RuntimeException(msg);
             }
@@ -132,8 +132,18 @@ public class SlotsManager implements AutoCloseable {
             synchronized (SlotsManager.this) {
                 LOG.info("UnBind slot {} from channel {}", spec, channelId);
                 try {
-                    final var unbindSlotOp = channelManager.unbind(makeUnbindSlotCommand(slotUri));
+                    var unbindSlotOp = channelManager.unbind(makeUnbindSlotCommand(slotUri));
                     LOG.info("Unbind slot requested, operationId={}", unbindSlotOp.getId());
+
+                    unbindSlotOp = awaitOperationDone(operationService, unbindSlotOp.getId(), Duration.ofSeconds(10));
+                    if (!unbindSlotOp.getDone()) {
+                        throw new RuntimeException("Unbind operation " + unbindSlotOp.getId() + " hangs");
+                    }
+                    if (!unbindSlotOp.hasResponse()) {
+                        throw new RuntimeException("Unbind operation " + unbindSlotOp.getId() + " failed with code "
+                            + unbindSlotOp.getError().getCode() + ": " + unbindSlotOp.getError().getMessage());
+                    }
+                    LOG.info("Slot `{}` configured.", slotUri);
                 } catch (StatusRuntimeException e) {
                     LOG.warn("Got exception while unbind slot {} from channel {}: {}",
                         spec.name(), channelId, e.getMessage());
@@ -161,8 +171,8 @@ public class SlotsManager implements AutoCloseable {
             throw new RuntimeException("Bind operation " + bindSlotOp.getId() + " hangs");
         }
         if (!bindSlotOp.hasResponse()) {
-            throw new RuntimeException("Bind operation " + bindSlotOp.getId() + " failed" +
-                " with code " + bindSlotOp.getError().getCode() + ": " + bindSlotOp.getError().getMessage());
+            throw new RuntimeException("Bind operation " + bindSlotOp.getId() + " failed with code "
+                + bindSlotOp.getError().getCode() + ": " + bindSlotOp.getError().getMessage());
         }
         LOG.info("Slot `{}` configured.", slotUri);
     }
