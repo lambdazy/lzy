@@ -4,7 +4,6 @@ import ai.lzy.channelmanager.config.ChannelManagerConfig;
 import ai.lzy.channelmanager.deprecated.grpc.ChannelManagerPrivateService;
 import ai.lzy.channelmanager.deprecated.grpc.ChannelManagerService;
 import ai.lzy.iam.clients.stub.AuthenticateServiceStub;
-import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import com.google.common.net.HostAndPort;
@@ -68,9 +67,7 @@ public class ChannelManagerAppOld {
 
         var builder = newGrpcServer(
             HostAndPort.fromString(config.getAddress()),
-            new AuthServerInterceptor(config.isStubIam()
-                ? new AuthenticateServiceStub()
-                : new AuthenticateServiceGrpcClient(APP, iamChannel)));
+            new AuthServerInterceptor(new AuthenticateServiceStub()));
 
         channelManagerServer = builder
             .addService(ctx.getBean(ChannelManagerService.class))

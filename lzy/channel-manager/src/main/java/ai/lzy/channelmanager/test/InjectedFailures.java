@@ -1,4 +1,4 @@
-package ai.lzy.channelmanager.debug;
+package ai.lzy.channelmanager.test;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;

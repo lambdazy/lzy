@@ -38,7 +38,7 @@ public class GraphExecutorContext  {
                 "graph-executor.executors-count", 1,
                 "graph-executor.scheduler.host", scheduler.address().getHost(),
                 "graph-executor.scheduler.port", scheduler.address().getPort(),
-                "graph-executor.iam,address", iam.address()
+                "graph-executor.iam.address", iam.address()
         )));
         this.context = ApplicationContext.run(opts);
         graphExecutor = context.getBean(GraphExecutorApi.class);

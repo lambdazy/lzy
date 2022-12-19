@@ -1,6 +1,6 @@
 package ai.lzy.channelmanager;
 
-import ai.lzy.channelmanager.debug.InjectedFailures;
+import ai.lzy.channelmanager.test.InjectedFailures;
 import ai.lzy.v1.channel.LCM.Channel;
 import ai.lzy.v1.channel.LCM.ChannelReceivers;
 import ai.lzy.v1.channel.LCM.ChannelSenders;

@@ -35,6 +35,7 @@ import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import org.apache.commons.cli.*;
 import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -127,7 +128,7 @@ public class Worker {
             final var cm = HostAndPort.fromString(channelManagerAddress);
 
             lzyFs = new LzyFsServer(workerId, Path.of(fsRoot), fsUri, cm, new RenewableJwt(workerId, "INTERNAL",
-                Duration.ofDays(1), readPrivateKey(iamPrivateKey)), operationService);
+                Duration.ofDays(1), readPrivateKey(iamPrivateKey)), operationService, false);
             lzyFs.start();
         } catch (IOException | URISyntaxException e) {
             LOG.error("Error while building uri", e);

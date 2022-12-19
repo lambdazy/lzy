@@ -2,8 +2,8 @@ package ai.lzy.channelmanager;
 
 import ai.lzy.channelmanager.config.ChannelManagerConfig;
 import ai.lzy.channelmanager.dao.ChannelManagerDataSource;
-import ai.lzy.channelmanager.debug.InjectedFailures;
 import ai.lzy.channelmanager.operation.ChannelOperationManager;
+import ai.lzy.channelmanager.test.InjectedFailures;
 import ai.lzy.iam.clients.AccessBindingClient;
 import ai.lzy.iam.clients.SubjectServiceClient;
 import ai.lzy.iam.config.IamClientConfiguration;
@@ -140,12 +140,13 @@ public class ChannelManagerBaseApiTest {
         iamTestContext.after();
         app.stop();
         app.awaitTermination();
-        mockedSlotApiServer.shutdown();
-        mockedSlotApiServer.awaitTermination();
         channel.shutdown();
         channel.awaitTermination(10, TimeUnit.SECONDS);
         DatabaseTestUtils.cleanup(context.getBean(ChannelManagerDataSource.class));
         context.close();
+
+        mockedSlotApiServer.shutdown();
+        mockedSlotApiServer.awaitTermination();
     }
 
     protected ChannelCreateRequest makeChannelCreateCommand(String executionId, String channelName) {

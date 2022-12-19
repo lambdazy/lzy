@@ -6,9 +6,7 @@ import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 
 @Singleton
-@Requires(property = "channel-manager.database.url")
-@Requires(property = "channel-manager.database.username")
-@Requires(property = "channel-manager.database.password")
+@Requires(property = "channel-manager.database.enabled", value = "true")
 public class ChannelManagerDataSource extends StorageImpl {
     public ChannelManagerDataSource(ChannelManagerConfig config) {
         super(config.getDatabase(), "classpath:db/channel-manager/migrations");

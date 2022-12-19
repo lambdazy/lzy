@@ -1,8 +1,6 @@
 package ai.lzy.channelmanager.operation;
 
 import ai.lzy.channelmanager.config.ChannelManagerConfig;
-import io.micronaut.context.annotation.Bean;
-import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -10,9 +8,8 @@ import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
+import javax.annotation.PreDestroy;
 
-@Singleton
-@Bean(preDestroy = "shutdown")
 public class ChannelOperationExecutor extends ScheduledThreadPoolExecutor {
 
     private static final Logger LOG = LogManager.getLogger(ChannelOperationExecutor.class);
@@ -43,6 +40,7 @@ public class ChannelOperationExecutor extends ScheduledThreadPoolExecutor {
     }
 
     @Override
+    @PreDestroy
     public void shutdown() {
         LOG.info("Shutdown executor, tasks in queue: {}, running tasks: {}",
             getQueue().size(), getActiveCount());

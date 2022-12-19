@@ -41,7 +41,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
                                         GrainedLock lockManager)
     {
         this.channelStorage = channelStorage;
-        this.whiteboardAddress = URI.create(config.getWhiteboardAddress());
+        this.whiteboardAddress = URI.create("config.getWhiteboardAddress()");
         this.lockManager = lockManager;
     }
 
