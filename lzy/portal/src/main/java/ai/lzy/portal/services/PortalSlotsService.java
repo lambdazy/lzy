@@ -39,6 +39,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.StreamSupport;
+import javax.annotation.PreDestroy;
 
 import static ai.lzy.model.UriScheme.LzyFs;
 import static ai.lzy.portal.services.PortalService.APP;
@@ -97,8 +98,12 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
         LOG.info("Portal stdout/err slots successfully registered...");
     }
 
+    @PreDestroy
     public void stop() throws InterruptedException {
-        this.slotsManager.close();
+        stdoutSlot.destroy();
+        stderrSlot.destroy();
+
+        slotsManager.close();
     }
 
     @Override

@@ -26,9 +26,11 @@ public class App {
     public static final String ENV_PORTAL_PKEY = "LZY_PORTAL_PKEY";
 
     private final ApplicationContext context;
+    private final Server mainServer;
 
     public App(ApplicationContext context) {
         this.context = context;
+        this.mainServer = context.getBean(Server.class, Qualifiers.byName("PortalGrpcServer"));
     }
 
     public void start() throws AllocatorAgent.RegisterException, IOException {
@@ -37,7 +39,6 @@ public class App {
 
         var slotsService = context.getBean(PortalSlotsService.class, Qualifiers.byName("PortalSlotsService"));
         var allocatorAgent = context.getBean(AllocatorAgent.class, Qualifiers.byName("PortalAllocatorAgent"));
-        var portalServer = context.getBean(Server.class, Qualifiers.byName("PortalGrpcServer"));
         var slotsServer = context.getBean(Server.class, Qualifiers.byName("PortalSlotsGrpcServer"));
 
         slotsService.start();
@@ -46,11 +47,16 @@ public class App {
             Constants.FS_ADDRESS_KEY, HostAndPort.fromParts(config.getHost(), config.getSlotsApiPort()).toString()
         ));
         slotsServer.start();
-        portalServer.start();
+
+        mainServer.start();
     }
 
     public void stop() {
         context.stop();
+    }
+
+    public void awaitTermination() throws InterruptedException {
+        mainServer.awaitTermination();
     }
 
     public static void execute(String[] args)
@@ -78,12 +84,21 @@ public class App {
         Objects.requireNonNull(config.getIamPrivateKey());
 
         var main = new App(context);
-        main.start();
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             LOG.info("Stopping portal service");
             main.stop();
         }));
+
+        main.start();
+
+        try {
+            main.awaitTermination();
+        } catch (InterruptedException e) {
+            LOG.warn("Portal main thread was interrupted");
+        }
+
+        main.stop();
     }
 
     public static void main(String[] args)
