@@ -6,7 +6,6 @@ import ai.lzy.channelmanager.model.Endpoint;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.AlreadyExistsException;
 import ai.lzy.model.slot.SlotInstance;
-import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -15,7 +14,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
-@Singleton
 public class InMemChannelDao implements ChannelDao {
 
     private final ConcurrentHashMap<String, Channel> channels = new ConcurrentHashMap<>();
