@@ -179,10 +179,24 @@ class WritableWhiteboard:
 
         whiteboard_id = self.__whiteboard_meta.id
 
-        if is_lzy_proxy(value):
+        proxy = is_lzy_proxy(value)
+        if proxy:
             entry_id = get_proxy_entry_id(value)
             entry = self.__workflow.snapshot.get(entry_id)
+        else:
+            entry = self.__workflow.snapshot.create_entry(type(value))
 
+        serializer = self.__workflow.owner.serializer.find_serializer_by_type(entry.typ)
+        if not serializer.available():
+            raise ValueError(
+                f'Serializer for type {entry.typ} is not available, please install {serializer.requirements()}')
+        if not serializer.stable():
+            raise ValueError(
+                f'Variables of type {entry.typ} cannot be assigned on whiteboard'
+                f' because we cannot serialize them in a portable format. '
+                f'See https://github.com/lambdazy/serialzy for details.')
+
+        if proxy:
             if materialized(value):
                 LzyEventLoop.run_async(self.__workflow.owner.whiteboard_client.link(
                     whiteboard_id, key, entry.storage_url, entry.data_scheme
@@ -190,7 +204,6 @@ class WritableWhiteboard:
             else:
                 self.__workflow.add_whiteboard_link(entry.storage_url, WbRef(whiteboard_id, key))
         else:
-            entry = self.__workflow.snapshot.create_entry(type(value))
             LzyEventLoop.run_async(self.__workflow.snapshot.put_data(entry_id=entry.id, data=value))
             value = lzy_proxy(entry.id, type(value), self.__workflow, Just(value))
             LzyEventLoop.run_async(self.__workflow.owner.whiteboard_client.link(
