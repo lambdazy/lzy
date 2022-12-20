@@ -28,7 +28,6 @@ import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
 import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
@@ -36,7 +35,6 @@ import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOpResult;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.v1.workflow.LWFS.*;
-import static java.util.concurrent.CompletableFuture.supplyAsync;
 
 @Singleton
 public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBase {
