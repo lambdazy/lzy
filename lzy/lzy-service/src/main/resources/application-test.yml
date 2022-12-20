@@ -1,4 +1,6 @@
 lzy-service:
+  instance-id: 'lzy-service'
+
   address: 'localhost:8899'
   # external-host: ''
 

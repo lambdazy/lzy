@@ -107,6 +107,7 @@ CREATE TABLE graph_op_state
 (
     op_id      TEXT NOT NULL PRIMARY KEY,
     state_json TEXT NOT NULL, -- some operation specific state
+    owner_id   TEXT NOT NULL, -- instance that created the op
 
     foreign key (op_id) references operation (id)
 );

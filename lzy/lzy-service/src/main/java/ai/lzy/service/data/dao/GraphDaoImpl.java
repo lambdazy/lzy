@@ -4,38 +4,49 @@ import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.service.data.storage.LzyServiceStorage;
+import ai.lzy.service.graph.GraphExecutionState;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import javax.annotation.Nullable;
 
 @Singleton
 public class GraphDaoImpl implements GraphDao {
     private final Storage storage;
+    private final ObjectMapper objectMapper;
 
-    public GraphDaoImpl(LzyServiceStorage storage) {
+    public GraphDaoImpl(LzyServiceStorage storage, @Named("GraphDaoObjectMapper") ObjectMapper objectMapper) {
         this.storage = storage;
+        this.objectMapper = objectMapper;
     }
 
     @Override
-    public void putJsonState(String graphOpId, String jsonState, @Nullable TransactionHandle transaction)
+    public void put(GraphExecutionState state, String ownerId, @Nullable TransactionHandle transaction)
         throws SQLException
     {
         DbOperation.execute(transaction, storage, connection -> {
             try (var statement = connection.prepareStatement("""
-                INSERT INTO graph_op_state (op_id, state_json)
-                VALUES (?, ?)"""))
+                INSERT INTO graph_op_state (op_id, state_json, owner_id)
+                VALUES (?, ?, ?)"""))
             {
-                statement.setString(1, graphOpId);
-                statement.setString(2, jsonState);
+                statement.setString(1, state.getOpId());
+                statement.setString(2, objectMapper.writeValueAsString(state));
+                statement.setString(3, ownerId);
                 statement.execute();
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Cannot dump graph execution state operation");
             }
         });
     }
 
     @Override
-    public void updateJsonState(String graphOpId, String jsonState, @Nullable TransactionHandle transaction)
+    public void update(GraphExecutionState state, @Nullable TransactionHandle transaction)
         throws SQLException
     {
         DbOperation.execute(transaction, storage, connection -> {
@@ -44,30 +55,40 @@ public class GraphDaoImpl implements GraphDao {
                 SET state_json = ?
                 WHERE op_id = ?"""))
             {
-                statement.setString(1, jsonState);
-                statement.setString(2, graphOpId);
+                statement.setString(1, objectMapper.writeValueAsString(state));
+                statement.setString(2, state.getOpId());
                 statement.execute();
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Cannot dump graph execution state operation");
             }
         });
     }
 
-    @Nullable
     @Override
-    public String getJsonState(String graphOpId, @Nullable TransactionHandle transaction) throws SQLException {
-        String[] jsonState = {null};
+    public List<GraphExecutionState> loadNotCompletedOpStates(String ownerId, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
+        List<GraphExecutionState> states = new ArrayList<>();
+
         DbOperation.execute(transaction, storage, connection -> {
             try (var statement = connection.prepareStatement("""
                 SELECT state_json FROM graph_op_state
-                WHERE op_id = ?"""))
+                JOIN operation o ON graph_op_state.op_id = o.id
+                WHERE o.done = FALSE AND owner_id = ?"""))
             {
-                statement.setString(1, graphOpId);
+                statement.setString(1, ownerId);
                 var rs = statement.executeQuery();
-                if (rs.next()) {
-                    jsonState[0] = rs.getString(1);
+                while (rs.next()) {
+                    var stateJson = rs.getString("state_json");
+                    var state = objectMapper.readValue(stateJson, GraphExecutionState.class);
+                    states.add(state);
                 }
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Cannot parse graph execution state: " + e.getMessage(), e);
             }
         });
-        return jsonState[0];
+
+        return states;
     }
 
     @Override

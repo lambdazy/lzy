@@ -14,6 +14,8 @@ import java.time.Duration;
 @Setter
 @ConfigurationProperties("lzy-service")
 public class LzyServiceConfig {
+    private String instanceId;
+
     private String address;
     private String allocatorAddress;
     private Duration allocatorVmCacheTimeout = Duration.ofMinutes(20);

@@ -6,6 +6,7 @@ import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.dao.GraphDao;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.service.data.storage.LzyServiceStorage;
@@ -22,6 +23,7 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
@@ -42,6 +44,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
     public static final String APP = "LzyService";
 
+    private final String instanceId;
+
     private final WorkflowService workflowService;
     private final GraphExecutionService graphExecutionService;
 
@@ -56,8 +60,10 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     public LzyService(WorkflowService workflowService, GraphExecutionService graphExecutionService,
                       @Named("LzyServiceServerExecutor") ExecutorService workersPool,
                       @Named("LzyServiceOperationDao") OperationDao operationDao,
-                      GraphDao graphDao, WorkflowDao workflowDao, LzyServiceStorage storage, GarbageCollector gc)
+                      GraphDao graphDao, WorkflowDao workflowDao, LzyServiceStorage storage,
+                      GarbageCollector gc, LzyServiceConfig config)
     {
+        this.instanceId = config.getInstanceId();
         this.workflowService = workflowService;
         this.graphExecutionService = graphExecutionService;
         this.workersPool = workersPool;
@@ -66,6 +72,23 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         this.operationDao = operationDao;
         this.graphDao = graphDao;
         this.storage = storage;
+
+        restartNotCompletedOps();
+    }
+
+    private void restartNotCompletedOps() {
+        try {
+            var execGraphStates = graphDao.loadNotCompletedOpStates(instanceId, null);
+            if (!execGraphStates.isEmpty()) {
+                LOG.warn("Found {} not completed operations on lzy-service {}", execGraphStates.size(), instanceId);
+
+                execGraphStates.forEach(state -> workersPool.submit(() -> graphExecutionService.executeGraph(state)));
+            } else {
+                LOG.info("Not completed lzy-service operations weren't found.");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -107,11 +130,11 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var state = new GraphExecutionState(executionId, op.id(), parentGraphId, userId, zone, descriptions,
             operations);
 
-        try (var transaction = TransactionHandle.create(storage)) {
-            withRetries(LOG, () -> operationDao.create(op, transaction));
-            withRetries(LOG, () -> graphDao.putJsonState(op.id(), graphExecutionService.toJson(state), transaction));
+        try (var tx = TransactionHandle.create(storage)) {
+            withRetries(LOG, () -> operationDao.create(op, tx));
+            withRetries(LOG, () -> graphDao.put(state, instanceId, tx));
 
-            transaction.commit();
+            tx.commit();
         } catch (Exception ex) {
             if (idempotencyKey != null && handleIdempotencyKeyConflict(idempotencyKey, ex, operationDao,
                 responseObserver, ExecuteGraphResponse.class, Duration.ofMillis(100), Duration.ofSeconds(5), LOG))

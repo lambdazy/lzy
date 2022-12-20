@@ -1,19 +1,21 @@
 package ai.lzy.service.data.dao;
 
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.service.graph.GraphExecutionState;
 
 import java.sql.SQLException;
 import java.util.List;
 import javax.annotation.Nullable;
 
 public interface GraphDao {
-    void putJsonState(String graphOpId, String jsonState, @Nullable TransactionHandle transaction) throws SQLException;
-
-    void updateJsonState(String graphOpId, String jsonState, @Nullable TransactionHandle transaction)
+    void put(GraphExecutionState state, String ownerId, @Nullable TransactionHandle transaction)
         throws SQLException;
 
-    @Nullable
-    String getJsonState(String graphOpId, @Nullable TransactionHandle transaction) throws SQLException;
+    void update(GraphExecutionState state, @Nullable TransactionHandle transaction)
+        throws SQLException;
+
+    List<GraphExecutionState> loadNotCompletedOpStates(String ownerId, @Nullable TransactionHandle transaction)
+        throws SQLException;
 
     void save(GraphDescription description, @Nullable TransactionHandle transaction) throws SQLException;
 

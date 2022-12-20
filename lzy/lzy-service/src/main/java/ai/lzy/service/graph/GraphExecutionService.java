@@ -20,8 +20,6 @@ import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LWFS.ExecuteGraphResponse;
 import ai.lzy.v1.workflow.LWFS.StopGraphRequest;
 import ai.lzy.v1.workflow.LWFS.StopGraphResponse;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Any;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
@@ -38,7 +36,6 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
 import javax.annotation.Nullable;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
@@ -57,29 +54,22 @@ public class GraphExecutionService {
     private final GraphDao graphDao;
     private final OperationDao operationDao;
 
-    private final ObjectMapper objectMapper;
-
     private final GraphValidator validator;
     private final GraphBuilder builder;
 
-    private final ExecutorService workersPool;
     private final RenewableJwt internalUserCredentials;
     private final GraphExecutorGrpc.GraphExecutorBlockingStub graphExecutorClient;
 
     private final Map<String, ManagedChannel> executionId2portalChannel = new ConcurrentHashMap<>();
 
     public GraphExecutionService(GraphDao graphDao, WorkflowDao workflowDao, ExecutionDao executionDao,
-                                 @Named("LzyServiceServerExecutor") ExecutorService workersPool,
                                  @Named("LzyServiceStorage") Storage storage,
                                  @Named("LzyServiceOperationDao") OperationDao operationDao,
-                                 @Named("LzyServiceObjectMapper") ObjectMapper objectMapper,
                                  @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
                                  @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
                                  @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
                                  @Named("GraphExecutorServiceChannel") ManagedChannel graphExecutorChannel)
     {
-        this.workersPool = workersPool;
-        this.objectMapper = objectMapper;
         this.internalUserCredentials = internalUserCredentials;
 
         this.storage = storage;
@@ -102,10 +92,6 @@ public class GraphExecutionService {
         this.builder = new GraphBuilder(workflowDao, executionDao, channelManagerClient);
     }
 
-    public Storage getStorage() {
-        return storage;
-    }
-
     public Operation executeGraph(GraphExecutionState state) {
         LOG.info("Start processing execute graph operation: { operationId: {} }", state.getOpId());
 
@@ -123,7 +109,7 @@ public class GraphExecutionService {
             if (state.getDataFlowGraph() == null || state.getZone() == null) {
                 LOG.debug("Validate dataflow graph, current state: " + state);
                 validator.validate(state);
-                withRetries(LOG, () -> graphDao.updateJsonState(state.getOpId(), toJson(state), null));
+                withRetries(LOG, () -> graphDao.update(state, null));
             }
 
             if (state.isInvalid()) {
@@ -146,7 +132,7 @@ public class GraphExecutionService {
             if (state.getTasks() == null) {
                 LOG.debug("Building graph, current state: " + state);
                 builder.build(state, portalClient);
-                withRetries(LOG, () -> graphDao.updateJsonState(state.getOpId(), toJson(state), null));
+                withRetries(LOG, () -> graphDao.update(state, null));
             }
 
             if (state.isInvalid()) {
@@ -162,7 +148,7 @@ public class GraphExecutionService {
 
                 String idempotencyKey = state.getOrGenerateIdempotencyKey();
 
-                withRetries(LOG, () -> graphDao.updateJsonState(state.getOpId(), toJson(state), null));
+                withRetries(LOG, () -> graphDao.update(state, null));
 
                 var idempotentGraphExecClient = withIdempotencyKey(graphExecutorClient, idempotencyKey);
 
@@ -186,7 +172,7 @@ public class GraphExecutionService {
 
                 state.setGraphId(executeResponse.getStatus().getGraphId());
 
-                withRetries(LOG, () -> graphDao.updateJsonState(state.getOpId(), toJson(state), null));
+                withRetries(LOG, () -> graphDao.update(state, null));
             }
 
             try {
@@ -208,11 +194,10 @@ public class GraphExecutionService {
             var response = ExecuteGraphResponse.newBuilder()
                 .setGraphId(state.getGraphId())
                 .build();
-            var packedResponse = Any.pack(response);
+            var packed = Any.pack(response);
 
             try {
-                return withRetries(LOG,
-                    () -> operationDao.updateResponse(state.getOpId(), packedResponse.toByteArray(), null));
+                return withRetries(LOG, () -> operationDao.updateResponse(state.getOpId(), packed.toByteArray(), null));
             } catch (Exception e) {
                 LOG.error("Error while executing transaction: {}", e.getMessage(), e);
 
@@ -418,22 +403,6 @@ public class GraphExecutionService {
             });
         } catch (Exception e) {
             LOG.error("[executeGraph] Got Exception during saving error status: " + e.getMessage(), e);
-        }
-    }
-
-    public String toJson(Object obj) {
-        try {
-            return objectMapper.writeValueAsString(obj);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public  <T> T fromJson(String obj, Class<T> type) {
-        try {
-            return objectMapper.readValue(obj, type);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
         }
     }
 }
