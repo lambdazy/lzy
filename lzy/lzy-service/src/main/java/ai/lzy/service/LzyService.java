@@ -150,10 +150,9 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
 
-        CompletableFuture<Operation> executeGraphFuture = supplyAsync(
-            () -> graphExecutionService.executeGraph(state), workersPool);
+        workersPool.submit(() -> {
+            var completedOp = graphExecutionService.executeGraph(state);
 
-        executeGraphFuture.thenAcceptAsync(completedOp -> {
             try {
                 var resp = completedOp.response();
                 if (resp != null) {
@@ -170,7 +169,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                 updateExecutionStatus(userId, executionId, status);
                 responseObserver.onError(status.asRuntimeException());
             }
-        }, workersPool);
+        });
     }
 
     @Override
