@@ -142,7 +142,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
             //ignored
         }
 
-        DatabaseTestUtils.cleanup(allocatorCtx.getBean(AllocatorDataSource.class));
+        allocatorCtx.getBean(AllocatorDataSource.class).setOnClose(DatabaseTestUtils::cleanup);
 
         allocatorCtx.stop();
         kubernetesServer.after();
