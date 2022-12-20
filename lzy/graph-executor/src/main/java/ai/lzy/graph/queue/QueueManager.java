@@ -113,7 +113,8 @@ public class QueueManager extends Thread {
     }
 
     public GraphExecutionState stopGraph(String workflowId, String graphId,
-                                         String description) throws StatusException {
+                                         String description) throws StatusException
+    {
         if (stopping.get()) {
             throw io.grpc.Status.UNAVAILABLE.withDescription("Service stopping, please try later").asException();
         }
