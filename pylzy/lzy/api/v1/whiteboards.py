@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Optional, Type, Dict, Union, Any, Iterable, Mapping, Set, TYPE_CHECKING
 
 from serialzy.api import SerializerRegistry, Schema
+from serialzy.types import get_type
 
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, WhiteboardField
 from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy, get_proxy_entry_id, materialized, lzy_proxy
@@ -184,7 +185,7 @@ class WritableWhiteboard:
             entry_id = get_proxy_entry_id(value)
             entry = self.__workflow.snapshot.get(entry_id)
         else:
-            entry = self.__workflow.snapshot.create_entry(type(value))
+            entry = self.__workflow.snapshot.create_entry(get_type(value))
 
         serializer = self.__workflow.owner.serializer.find_serializer_by_type(entry.typ)
         if not serializer.available():
@@ -205,6 +206,8 @@ class WritableWhiteboard:
                 self.__workflow.add_whiteboard_link(entry.storage_url, WbRef(whiteboard_id, key))
         else:
             LzyEventLoop.run_async(self.__workflow.snapshot.put_data(entry_id=entry.id, data=value))
+            # noinspection PyTypeChecker
+            # TODO: there is no need to create lazy proxy from value. We only need to attach entry id
             value = lzy_proxy(entry.id, type(value), self.__workflow, Just(value))
             LzyEventLoop.run_async(self.__workflow.owner.whiteboard_client.link(
                 whiteboard_id, key, entry.storage_url, entry.data_scheme
