@@ -37,7 +37,7 @@ public class StorageTest {
 
     @After
     public void tearDown() {
-        DatabaseTestUtils.cleanup(context.getBean(WhiteboardDataSource.class));
+        context.getBean(WhiteboardDataSource.class).setOnClose(DatabaseTestUtils::cleanup);
         context.stop();
     }
 

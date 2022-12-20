@@ -123,7 +123,7 @@ public class ApiTest extends BaseTestWithIam {
             //ignored
         }
 
-        DatabaseTestUtils.cleanup(context.getBean(WhiteboardDataSource.class));
+        context.getBean(WhiteboardDataSource.class).setOnClose(DatabaseTestUtils::cleanup);
         context.stop();
         super.after();
     }

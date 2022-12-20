@@ -10,9 +10,12 @@ allocator:
   user-clusters: []
 
   address: 'localhost:1234'
-  gc-period: 30s
   heartbeat-timeout: 1m
   allocation-timeout: 15m
+
+  gc:
+    cleanup-period: 3m
+    lease-duration: 30m
 
   metrics:
     kind: 'Prometheus'

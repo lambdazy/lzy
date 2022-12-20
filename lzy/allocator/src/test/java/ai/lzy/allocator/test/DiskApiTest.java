@@ -100,7 +100,7 @@ public class DiskApiTest extends BaseTestWithIam {
             // ignored
         }
 
-        DatabaseTestUtils.cleanup(context.getBean(AllocatorDataSource.class));
+        context.getBean(AllocatorDataSource.class).setOnClose(DatabaseTestUtils::cleanup);
 
         context.stop();
         super.after();
