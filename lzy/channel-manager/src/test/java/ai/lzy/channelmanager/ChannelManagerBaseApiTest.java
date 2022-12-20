@@ -142,7 +142,7 @@ public class ChannelManagerBaseApiTest {
         app.awaitTermination();
         channel.shutdown();
         channel.awaitTermination(10, TimeUnit.SECONDS);
-        DatabaseTestUtils.cleanup(context.getBean(ChannelManagerDataSource.class));
+        context.getBean(ChannelManagerDataSource.class).setOnClose(DatabaseTestUtils::cleanup);
         context.close();
 
         mockedSlotApiServer.shutdown();

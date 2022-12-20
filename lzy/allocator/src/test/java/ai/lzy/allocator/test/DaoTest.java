@@ -60,7 +60,7 @@ public class DaoTest {
 
     @After
     public void tearDown() {
-        DatabaseTestUtils.cleanup(context.getBean(AllocatorDataSource.class));
+        context.getBean(AllocatorDataSource.class).setOnClose(DatabaseTestUtils::cleanup);
         context.stop();
     }
 
