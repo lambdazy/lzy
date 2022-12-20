@@ -4,7 +4,6 @@ import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.service.data.storage.LzyServiceStorage;
-import ai.lzy.service.graph.GraphExecutionState;
 import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
@@ -20,10 +19,55 @@ public class GraphDaoImpl implements GraphDao {
     }
 
     @Override
-    public void save(GraphExecutionState state, @Nullable TransactionHandle transaction) throws SQLException {
+    public void putJsonState(String graphOpId, String jsonState, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
         DbOperation.execute(transaction, storage, connection -> {
-            // todo: save the state here
+            try (var statement = connection.prepareStatement("""
+                INSERT INTO graph_op_state (op_id, state_json)
+                VALUES (?, ?)"""))
+            {
+                statement.setString(1, graphOpId);
+                statement.setString(2, jsonState);
+                statement.execute();
+            }
         });
+    }
+
+    @Override
+    public void updateJsonState(String graphOpId, String jsonState, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
+        DbOperation.execute(transaction, storage, connection -> {
+            try (var statement = connection.prepareStatement("""
+                UPDATE graph_op_state
+                SET state_json = ?
+                WHERE op_id = ?"""))
+            {
+                statement.setString(1, jsonState);
+                statement.setString(2, graphOpId);
+                statement.execute();
+            }
+        });
+    }
+
+    @Nullable
+    @Override
+    public String getJsonState(String graphOpId, @Nullable TransactionHandle transaction) throws SQLException {
+        String[] jsonState = {null};
+        DbOperation.execute(transaction, storage, connection -> {
+            try (var statement = connection.prepareStatement("""
+                SELECT state_json FROM graph_op_state
+                WHERE op_id = ?"""))
+            {
+                statement.setString(1, graphOpId);
+                var rs = statement.executeQuery();
+                if (rs.next()) {
+                    jsonState[0] = rs.getString(1);
+                }
+            }
+        });
+        return jsonState[0];
     }
 
     @Override

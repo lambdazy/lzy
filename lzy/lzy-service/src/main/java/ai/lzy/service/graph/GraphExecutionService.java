@@ -20,6 +20,8 @@ import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LWFS.ExecuteGraphResponse;
 import ai.lzy.v1.workflow.LWFS.StopGraphRequest;
 import ai.lzy.v1.workflow.LWFS.StopGraphResponse;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Any;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
@@ -55,6 +57,8 @@ public class GraphExecutionService {
     private final GraphDao graphDao;
     private final OperationDao operationDao;
 
+    private final ObjectMapper objectMapper;
+
     private final GraphValidator validator;
     private final GraphBuilder builder;
 
@@ -68,12 +72,14 @@ public class GraphExecutionService {
                                  @Named("LzyServiceServerExecutor") ExecutorService workersPool,
                                  @Named("LzyServiceStorage") Storage storage,
                                  @Named("LzyServiceOperationDao") OperationDao operationDao,
+                                 @Named("LzyServiceObjectMapper") ObjectMapper objectMapper,
                                  @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
                                  @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
                                  @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
                                  @Named("GraphExecutorServiceChannel") ManagedChannel graphExecutorChannel)
     {
         this.workersPool = workersPool;
+        this.objectMapper = objectMapper;
         this.internalUserCredentials = internalUserCredentials;
 
         this.storage = storage;
@@ -103,10 +109,9 @@ public class GraphExecutionService {
     public Operation executeGraph(GraphExecutionState state) {
         LOG.info("Start processing execute graph operation: { operationId: {} }", state.getOpId());
 
-        if (state.getWorkflowName() == null) {
-            LOG.debug("Find workflow name of execution which graph belongs to...");
-            setWorkflowName(state);
-        }
+        LOG.debug("Find workflow name of execution which graph belongs to...");
+
+        setWorkflowName(state);
 
         if (state.isInvalid()) {
             updateExecutionStatus(state.getWorkflowName(), state.getUserId(), state.getExecutionId(),
@@ -114,96 +119,111 @@ public class GraphExecutionService {
             return operationDao.failOperation(state.getOpId(), toProto(state.getErrorStatus()), LOG);
         }
 
-        if (state.getDataFlowGraph() == null || state.getZone() == null) {
-            LOG.debug("Validate dataflow graph, current state: " + state);
-            validator.validate(state);
-        }
-
-        if (state.isInvalid()) {
-            updateExecutionStatus(state.getWorkflowName(), state.getUserId(), state.getExecutionId(),
-                state.getErrorStatus());
-            return operationDao.failOperation(state.getOpId(), toProto(state.getErrorStatus()), LOG);
-        }
-
-        LOG.info("Dataflow graph built and validated, building execution graph, current state:" + state);
-
-        var portalClient = getPortalClient(state.getExecutionId());
-
-        if (portalClient == null) {
-            LOG.error("Cannot get portal client while to create portal slots for current graph: " + state);
-            var status = Status.INTERNAL.withDescription("Cannot build execution graph");
-            updateExecutionStatus(state.getWorkflowName(), state.getUserId(), state.getExecutionId(), status);
-            return operationDao.failOperation(state.getOpId(), toProto(status), LOG);
-        }
-
-        if (state.getTasks() == null) {
-            LOG.debug("Building graph, current state: " + state);
-            builder.build(state, portalClient);
-        }
-
-        if (state.isInvalid()) {
-            updateExecutionStatus(state.getWorkflowName(), state.getUserId(), state.getExecutionId(),
-                state.getErrorStatus());
-            return operationDao.failOperation(state.getOpId(), toProto(state.getErrorStatus()), LOG);
-        }
-
-        LOG.info("Graph successfully built: " + state);
-
-        if (state.getGraphId() == null) {
-            LOG.debug("Send execute graph request to graph execution service, current state: " + state);
-
-            String idempotencyKey = state.getOrGenerateIdempotencyKey();
-            var idempotentGraphExecClient = withIdempotencyKey(graphExecutorClient, idempotencyKey);
-
-            GraphExecutorApi.GraphExecuteResponse executeResponse;
-            try {
-                executeResponse = idempotentGraphExecClient.execute(
-                    GraphExecutorApi.GraphExecuteRequest.newBuilder()
-                        .setWorkflowId(state.getExecutionId())
-                        .setWorkflowName(state.getWorkflowName())
-                        .setUserId(state.getUserId())
-                        .setParentGraphId(state.getParentGraphId())
-                        .addAllTasks(state.getTasks())
-                        .addAllChannels(state.getChannels())
-                        .build());
-            } catch (StatusRuntimeException e) {
-                var causeStatus = e.getStatus();
-                updateExecutionStatus(state.getWorkflowName(), state.getUserId(), state.getExecutionId(), causeStatus);
-                return operationDao.failOperation(state.getOpId(), toProto(causeStatus), LOG);
+        try {
+            if (state.getDataFlowGraph() == null || state.getZone() == null) {
+                LOG.debug("Validate dataflow graph, current state: " + state);
+                validator.validate(state);
+                withRetries(LOG, () -> graphDao.updateJsonState(state.getOpId(), toJson(state), null));
             }
 
-            state.setGraphId(executeResponse.getStatus().getGraphId());
-        }
+            if (state.isInvalid()) {
+                updateExecutionStatus(state.getWorkflowName(), state.getUserId(), state.getExecutionId(),
+                    state.getErrorStatus());
+                return operationDao.failOperation(state.getOpId(), toProto(state.getErrorStatus()), LOG);
+            }
 
-        try {
-            withRetries(defaultRetryPolicy(), LOG, () -> graphDao.save(new GraphDao.GraphDescription(
-                state.getGraphId(), state.getExecutionId(), state.getPortalInputSlots())));
+            LOG.info("Dataflow graph built and validated, building execution graph, current state:" + state);
+
+            var portalClient = getPortalClient(state.getExecutionId());
+
+            if (portalClient == null) {
+                LOG.error("Cannot get portal client while creating portal slots for current graph: " + state);
+                var status = Status.INTERNAL.withDescription("Cannot build execution graph");
+                updateExecutionStatus(state.getWorkflowName(), state.getUserId(), state.getExecutionId(), status);
+                return operationDao.failOperation(state.getOpId(), toProto(status), LOG);
+            }
+
+            if (state.getTasks() == null) {
+                LOG.debug("Building graph, current state: " + state);
+                builder.build(state, portalClient);
+                withRetries(LOG, () -> graphDao.updateJsonState(state.getOpId(), toJson(state), null));
+            }
+
+            if (state.isInvalid()) {
+                updateExecutionStatus(state.getWorkflowName(), state.getUserId(), state.getExecutionId(),
+                    state.getErrorStatus());
+                return operationDao.failOperation(state.getOpId(), toProto(state.getErrorStatus()), LOG);
+            }
+
+            LOG.info("Graph successfully built: " + state);
+
+            if (state.getGraphId() == null) {
+                LOG.debug("Send execute graph request to graph execution service, current state: " + state);
+
+                String idempotencyKey = state.getOrGenerateIdempotencyKey();
+
+                withRetries(LOG, () -> graphDao.updateJsonState(state.getOpId(), toJson(state), null));
+
+                var idempotentGraphExecClient = withIdempotencyKey(graphExecutorClient, idempotencyKey);
+
+                GraphExecutorApi.GraphExecuteResponse executeResponse;
+                try {
+                    executeResponse = idempotentGraphExecClient.execute(
+                        GraphExecutorApi.GraphExecuteRequest.newBuilder()
+                            .setWorkflowId(state.getExecutionId())
+                            .setWorkflowName(state.getWorkflowName())
+                            .setUserId(state.getUserId())
+                            .setParentGraphId(state.getParentGraphId())
+                            .addAllTasks(state.getTasks())
+                            .addAllChannels(state.getChannels())
+                            .build());
+                } catch (StatusRuntimeException e) {
+                    var causeStatus = e.getStatus();
+                    updateExecutionStatus(state.getWorkflowName(), state.getUserId(), state.getExecutionId(),
+                        causeStatus);
+                    return operationDao.failOperation(state.getOpId(), toProto(causeStatus), LOG);
+                }
+
+                state.setGraphId(executeResponse.getStatus().getGraphId());
+
+                withRetries(LOG, () -> graphDao.updateJsonState(state.getOpId(), toJson(state), null));
+            }
+
+            try {
+                withRetries(defaultRetryPolicy(), LOG, () -> graphDao.save(new GraphDao.GraphDescription(
+                    state.getGraphId(), state.getExecutionId(), state.getPortalInputSlots())));
+            } catch (Exception e) {
+                LOG.error("Cannot save portal slots", e);
+
+                var stopResponse = graphExecutorClient.stop(
+                    GraphExecutorApi.GraphStopRequest.newBuilder().setGraphId(state.getGraphId()).build());
+
+                var status = Status.INTERNAL.withDescription("Error while graph execution");
+                updateExecutionStatus(state.getWorkflowName(), state.getUserId(), state.getExecutionId(), status);
+                return operationDao.failOperation(state.getOpId(), toProto(status), LOG);
+            }
+
+            LOG.info("Graph successfully executed, current state: " + state);
+
+            var response = ExecuteGraphResponse.newBuilder()
+                .setGraphId(state.getGraphId())
+                .build();
+            var packedResponse = Any.pack(response);
+
+            try {
+                return withRetries(LOG,
+                    () -> operationDao.updateResponse(state.getOpId(), packedResponse.toByteArray(), null));
+            } catch (Exception e) {
+                LOG.error("Error while executing transaction: {}", e.getMessage(), e);
+
+                var stopResponse = graphExecutorClient.stop(
+                    GraphExecutorApi.GraphStopRequest.newBuilder().setGraphId(state.getGraphId()).build());
+
+                var errorStatus = Status.INTERNAL.withDescription("Error while execute graph: " + e.getMessage());
+                updateExecutionStatus(state.getWorkflowName(), state.getUserId(), state.getExecutionId(), errorStatus);
+                return operationDao.failOperation(state.getOpId(), toProto(errorStatus), LOG);
+            }
         } catch (Exception e) {
-            LOG.error("Cannot save portal slots", e);
-
-            var stopResponse = graphExecutorClient.stop(
-                GraphExecutorApi.GraphStopRequest.newBuilder().setGraphId(state.getGraphId()).build());
-
-            var status = Status.INTERNAL.withDescription("Error while graph execution");
-            updateExecutionStatus(state.getWorkflowName(), state.getUserId(), state.getExecutionId(), status);
-            return operationDao.failOperation(state.getOpId(), toProto(status), LOG);
-        }
-
-        LOG.info("Graph successfully executed, current state: " + state);
-
-        var response = ExecuteGraphResponse.newBuilder()
-            .setGraphId(state.getGraphId())
-            .build();
-        var packedResponse = Any.pack(response);
-
-        try {
-            return withRetries(LOG, () -> operationDao.updateResponse(state.getOpId(), packedResponse.toByteArray(), null));
-        } catch (Exception e) {
-            LOG.error("Error while executing transaction: {}", e.getMessage(), e);
-
-            var stopResponse = graphExecutorClient.stop(
-                GraphExecutorApi.GraphStopRequest.newBuilder().setGraphId(state.getGraphId()).build());
-
             var errorStatus = Status.INTERNAL.withDescription("Error while execute graph: " + e.getMessage());
             updateExecutionStatus(state.getWorkflowName(), state.getUserId(), state.getExecutionId(), errorStatus);
             return operationDao.failOperation(state.getOpId(), toProto(errorStatus), LOG);
@@ -398,6 +418,22 @@ public class GraphExecutionService {
             });
         } catch (Exception e) {
             LOG.error("[executeGraph] Got Exception during saving error status: " + e.getMessage(), e);
+        }
+    }
+
+    public String toJson(Object obj) {
+        try {
+            return objectMapper.writeValueAsString(obj);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public  <T> T fromJson(String obj, Class<T> type) {
+        try {
+            return objectMapper.readValue(obj, type);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
         }
     }
 }

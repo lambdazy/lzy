@@ -109,7 +109,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
         try (var transaction = TransactionHandle.create(storage)) {
             withRetries(LOG, () -> operationDao.create(op, transaction));
-            withRetries(LOG, () -> graphDao.save(state, transaction));
+            withRetries(LOG, () -> graphDao.putJsonState(op.id(), graphExecutionService.toJson(state), transaction));
 
             transaction.commit();
         } catch (Exception ex) {
