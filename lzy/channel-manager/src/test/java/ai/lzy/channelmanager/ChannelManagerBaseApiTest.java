@@ -204,7 +204,7 @@ public class ChannelManagerBaseApiTest {
 
         return BindRequest.newBuilder()
             .setSlotInstance(LMS.SlotInstance.newBuilder()
-                .setTaskId("tid")
+                .setTaskId(taskId)
                 .setSlot(LMS.Slot.newBuilder()
                     .setName(slotName)
                     .setDirection(slotDirection)

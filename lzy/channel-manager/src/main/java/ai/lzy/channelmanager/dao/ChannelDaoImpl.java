@@ -68,7 +68,7 @@ public class ChannelDaoImpl implements ChannelDao {
 
     private static final String QUERY_CREATE_CONNECTION = """
         INSERT INTO connections (sender_uri, receiver_uri, channel_id, life_status, created_at, updated_at)
-        VALUES (?, ?, ?, ?::endpoint_life_status_type, ?, ?)""";
+        VALUES (?, ?, ?, ?::connection_life_status_type, ?, ?)""";
 
     private static final String QUERY_REMOVE_CONNECTION = """
         DELETE FROM connections
@@ -142,7 +142,7 @@ public class ChannelDaoImpl implements ChannelDao {
                 st.setString(++index, workflowName);
                 st.setString(++index, userId);
                 st.setString(++index, channelSpec.name());
-                st.setString(++index, toJson(channelSpec.toString()));
+                st.setString(++index, toJson(channelSpec));
 
                 st.setString(++index, Channel.LifeStatus.ALIVE.name());
                 st.setTimestamp(++index, Timestamp.from(createdAt.truncatedTo(ChronoUnit.MILLIS)));
