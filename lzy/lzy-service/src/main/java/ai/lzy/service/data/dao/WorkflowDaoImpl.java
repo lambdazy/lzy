@@ -171,7 +171,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
                         if (StringUtils.isNotEmpty(existingExecutionId)) {
                             throw new AlreadyExistsException(
                                 String.format("Attempt to start one more instance of workflow: active is '%s'",
-                                existingExecutionId)
+                                    existingExecutionId)
                             );
                         }
                         update = true;
@@ -515,7 +515,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
                     var portalId = rs.getString(7);
 
                     descriptions[0] = new PortalDescription(portalId, vmId, vmAddress, fsAddress,
-                            stdoutChannelId, stderrChannelId, status);
+                        stdoutChannelId, stderrChannelId, status);
                 }
             }
         });

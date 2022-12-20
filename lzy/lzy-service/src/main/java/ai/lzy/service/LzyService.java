@@ -28,15 +28,15 @@ import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
 import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOpResult;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.v1.workflow.LWFS.*;
+import static java.util.concurrent.CompletableFuture.supplyAsync;
 
 @Singleton
 public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBase {
@@ -150,24 +150,27 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
 
-        Future<Operation> completedOpFuture = workersPool.submit(() -> graphExecutionService.executeGraph(state));
-        try {
-            var completedOp = completedOpFuture.get(30, TimeUnit.SECONDS);
-            var resp = completedOp.response();
-            if (resp != null) {
-                responseObserver.onNext(resp.unpack(ExecuteGraphResponse.class));
-                responseObserver.onCompleted();
-            } else {
-                var error = completedOp.error();
-                assert error != null;
-                responseObserver.onError(error.asRuntimeException());
+        CompletableFuture<Operation> executeGraphFuture = supplyAsync(
+            () -> graphExecutionService.executeGraph(state), workersPool);
+
+        executeGraphFuture.thenAcceptAsync(completedOp -> {
+            try {
+                var resp = completedOp.response();
+                if (resp != null) {
+                    responseObserver.onNext(resp.unpack(ExecuteGraphResponse.class));
+                    responseObserver.onCompleted();
+                } else {
+                    var error = completedOp.error();
+                    assert error != null;
+                    responseObserver.onError(error.asRuntimeException());
+                }
+            } catch (Exception e) {
+                var status = Status.INTERNAL.withDescription("Cannot execute graph");
+                LOG.error("Cannot execute graph: {}", e.getMessage(), e);
+                updateExecutionStatus(userId, executionId, status);
+                responseObserver.onError(status.asRuntimeException());
             }
-        } catch (Exception e) {
-            var status = Status.INTERNAL.withDescription("Cannot execute graph");
-            LOG.error("Cannot execute graph: {}", e.getMessage(), e);
-            updateExecutionStatus(userId, executionId, status);
-            responseObserver.onError(status.asRuntimeException());
-        }
+        }, workersPool);
     }
 
     @Override
