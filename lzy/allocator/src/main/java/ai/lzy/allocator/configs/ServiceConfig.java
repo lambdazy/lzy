@@ -18,7 +18,6 @@ import java.util.List;
 public class ServiceConfig {
     private String instanceId;
     private String address;
-    private Duration gcPeriod;
     private Duration allocationTimeout;
     private Duration heartbeatTimeout;
     private List<String> serviceClusters = new ArrayList<>();
@@ -103,5 +102,13 @@ public class ServiceConfig {
         private int port = 17080;
         private String loggerName = "LogMetricReporter";
         private String loggerLevel = "info";
+    }
+
+    @Getter
+    @Setter
+    @ConfigurationProperties("gc")
+    public static final class GcConfig {
+        private Duration cleanupPeriod = Duration.ofMinutes(5);
+        private Duration leaseDuration = Duration.ofMinutes(30);
     }
 }

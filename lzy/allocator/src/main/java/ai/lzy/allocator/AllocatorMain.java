@@ -95,6 +95,7 @@ public class AllocatorMain {
         LOG.info("Starting allocator at {}...", config.getAddress());
         metricReporter.start();
         server.start();
+        gc.start();
     }
 
     public void stop() {

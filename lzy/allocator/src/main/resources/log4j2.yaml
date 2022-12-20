@@ -27,9 +27,9 @@ Configuration:
         ref: Console
 
     Logger:
-#      - name: "ai.lzy.allocator.gc"
+      - name: ai.lzy.allocator.gc
 #        additivity: false
-#        level: info
+        level: info
 #        AppenderRef:
 #          ref: GcFile
 
@@ -40,4 +40,7 @@ Configuration:
         level: error
 
       - name: "ai.lzy.allocator"
+        level: debug
+
+      - name: AllocatorExecutor
         level: debug
