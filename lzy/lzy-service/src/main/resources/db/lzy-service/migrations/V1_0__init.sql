@@ -109,7 +109,7 @@ CREATE TABLE graph_op_state
     state_json TEXT NOT NULL, -- some operation specific state
     owner_id   TEXT NOT NULL, -- instance that created the op
 
-    foreign key (op_id) references operation (id)
+    FOREIGN KEY (op_id) REFERENCES operation (id)
 );
 
 create table garbage_collectors
