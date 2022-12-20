@@ -35,6 +35,8 @@ public class GarbageCollector extends TimerTask {
     private final Timer timer = new Timer("gc-workflow-timer", true);
     private Timer taskTimer = null;
 
+    private final long period;
+
     public GarbageCollector(LzyServiceConfig config, GcDao gcDao, WorkflowDao workflowDao,
                             @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
                             @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel)
@@ -47,8 +49,11 @@ public class GarbageCollector extends TimerTask {
 
         this.id = UUID.randomUUID().toString();
 
-        long period = config.getGcLeaderPeriod().toMillis() +
+        this.period = config.getGcLeaderPeriod().toMillis() +
             (long) ((MAX_JITTER_PERIOD - MIN_JITTER_PERIOD) * Math.random() + MIN_JITTER_PERIOD);
+    }
+
+    public void start() {
         timer.scheduleAtFixedRate(this, period, period);
     }
 

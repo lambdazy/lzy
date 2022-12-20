@@ -50,7 +50,6 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     private final GraphExecutionService graphExecutionService;
 
     private final ExecutorService workersPool;
-    private final GarbageCollector garbageCollector;
 
     private final Storage storage;
     private final OperationDao operationDao;
@@ -68,10 +67,11 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         this.graphExecutionService = graphExecutionService;
         this.workersPool = workersPool;
         this.workflowDao = workflowDao;
-        this.garbageCollector = gc;
         this.operationDao = operationDao;
         this.graphDao = graphDao;
         this.storage = storage;
+
+        gc.start();
 
         restartNotCompletedOps();
     }

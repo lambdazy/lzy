@@ -82,9 +82,9 @@ public class GarbageCollectorTest extends BaseTest {
             authorizedWorkflowClient
                 .withInterceptors(ClientHeaderInterceptor.idempotencyKey(() -> "idempotency-key"))
                 .executeGraph(LWFS.ExecuteGraphRequest.newBuilder()
-                .setExecutionId(executionId)
-                .setGraph(graph)
-                .build()));
+                    .setExecutionId(executionId)
+                    .setGraph(graph)
+                    .build()));
 
         Thread.sleep(2000);
 
@@ -215,5 +215,4 @@ public class GarbageCollectorTest extends BaseTest {
 
         lzyServer.start();
     }
-
 }
