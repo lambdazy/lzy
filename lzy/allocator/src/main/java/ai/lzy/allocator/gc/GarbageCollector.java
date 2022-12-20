@@ -19,7 +19,7 @@ import java.time.Instant;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.PreDestroy;
 import javax.inject.Named;
@@ -44,6 +44,7 @@ public class GarbageCollector {
         return th;
     });
     private final AtomicReference<Instant> leaderDeadline = new AtomicReference<>(null);
+    private volatile ScheduledFuture<?> becomeLeaderFuture;
 
     public GarbageCollector(ServiceConfig serviceConfig, ServiceConfig.GcConfig gcConfig, VmDao dao, GcDao gcDao,
                             @Named("AllocatorOperationDao") OperationDao operationDao, VmAllocator allocator,
@@ -60,15 +61,19 @@ public class GarbageCollector {
     }
 
     public void start() {
-        executor.scheduleAtFixedRate(new BecomeLeader(), 10, config.getLeaseDuration().getSeconds() / 3, SECONDS);
+        becomeLeaderFuture = executor.scheduleAtFixedRate(
+            new BecomeLeader(), 10, config.getLeaseDuration().getSeconds() / 3, SECONDS);
     }
 
     @PreDestroy
     public void shutdown() {
         LOG.info("Shutdown GC...");
+        if (becomeLeaderFuture != null) {
+            becomeLeaderFuture.cancel(true);
+        }
         executor.shutdown();
         try {
-            if (!executor.awaitTermination(1, TimeUnit.MINUTES)) {
+            if (!executor.awaitTermination(10, SECONDS)) {
                 LOG.error("GC task was not completed in timeout");
             }
         } catch (InterruptedException e) {
