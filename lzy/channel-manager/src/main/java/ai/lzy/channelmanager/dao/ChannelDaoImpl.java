@@ -1,32 +1,41 @@
 package ai.lzy.channelmanager.dao;
 
-import ai.lzy.channelmanager.model.Channel;
 import ai.lzy.channelmanager.model.Connection;
 import ai.lzy.channelmanager.model.Endpoint;
+import ai.lzy.channelmanager.model.channel.Channel;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.ProtoObjectMapper;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.AlreadyExistsException;
 import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.v1.common.LMS;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Singleton;
 
+import java.net.URI;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
+
+import static ai.lzy.model.grpc.ProtoConverter.fromProto;
+import static ai.lzy.model.grpc.ProtoConverter.toProto;
 
 @Singleton
 public class ChannelDaoImpl implements ChannelDao {
 
     private static final String QUERY_CREATE_CHANNEL = """
         INSERT INTO channels (channel_id, execution_id, workflow_name, user_id,
-            channel_name, channel_spec_json, life_status, created_at, updated_at)
+            channel_name, channel_spec, life_status, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?::channel_life_status_type, ?, ?)""";
 
     private static final String QUERY_REMOVE_CHANNEL = """
@@ -40,7 +49,7 @@ public class ChannelDaoImpl implements ChannelDao {
 
     private static final String QUERY_CREATE_ENDPOINT = """
         INSERT INTO endpoints (slot_uri, "slot_name", slot_owner, task_id, channel_id,
-            direction, slot_spec_json, life_status, created_at, updated_at)
+            direction, slot_spec, life_status, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?::endpoint_life_status_type, ?, ?)""";
 
     private static final String QUERY_REMOVE_ENDPOINT = """
@@ -77,13 +86,13 @@ public class ChannelDaoImpl implements ChannelDao {
             ch.execution_id as execution_id,
             ch.workflow_name as workflow_name,
             ch.user_id as user_id,
-            ch.channel_spec_json as channel_spec_json,
+            ch.channel_spec as channel_spec,
             ch.life_status as channel_life_status,
             
             e.slot_uri as slot_uri,
             e.task_id as task_id,
             e.slot_owner as slot_owner,
-            e.slot_spec_json as slot_spec_json,
+            e.slot_spec as slot_spec,
             e.life_status as endpoint_life_status,
             
             c.sender_uri as connected_sender_uri,
@@ -107,7 +116,7 @@ public class ChannelDaoImpl implements ChannelDao {
         " WHERE ch.execution_id = ? AND ch.life_status = ?::channel_life_status_type";
 
     private static final String QUERY_SELECT_ENDPOINT_BY_URI = """
-        SELECT slot_uri, task_id, channel_id, slot_owner, slot_spec_json, life_status as endpoint_life_status
+        SELECT slot_uri, task_id, channel_id, slot_owner, slot_spec, life_status as endpoint_life_status
         FROM endpoints
         WHERE slot_uri = ?""";
 
@@ -194,7 +203,7 @@ public class ChannelDaoImpl implements ChannelDao {
                 st.setString(++index, slot.taskId());
                 st.setString(++index, slot.channelId());
                 st.setString(++index, slot.spec().direction().name());
-                st.setString(++index, toJson(slot.spec()));
+                st.setString(++index, toJson(toProto(slot.spec())));
 
                 st.setString(++index, Endpoint.LifeStatus.BINDING.name());
                 st.setTimestamp(++index, Timestamp.from(createdAt.truncatedTo(ChronoUnit.MILLIS)));
@@ -350,74 +359,66 @@ public class ChannelDaoImpl implements ChannelDao {
 
     @Nullable
     @Override
-    public Channel findChannel(String channelId, @Nullable TransactionHandle transaction) throws SQLException {
+    public Channel findChannel(String channelId,
+                               @Nullable TransactionHandle transaction) throws SQLException
+    {
         return DbOperation.execute(transaction, storage, conn -> {
             try (var st = conn.prepareStatement(QUERY_SELECT_CHANNEL_BY_ID)) {
                 st.setString(1, channelId);
 
-                var rs = st.executeQuery();
-                if (rs.next()) {
-                    return parseChannel(rs);
-                }
+                Stream<Channel> channels = parseChannels(st.executeQuery());
 
-                return null;
+                return channels.findFirst().orElse(null);
             }
         });
     }
 
     @Nullable
     @Override
-    public Channel findChannel(String channelId, Channel.LifeStatus lifeStatus, @Nullable TransactionHandle transaction)
-        throws SQLException
+    public Channel findChannel(String channelId, Channel.LifeStatus lifeStatus,
+                               @Nullable TransactionHandle transaction) throws SQLException
     {
         return DbOperation.execute(transaction, storage, conn -> {
             try (var st = conn.prepareStatement(QUERY_SELECT_CHANNEL_BY_ID_AND_STATUS)) {
                 st.setString(1, channelId);
                 st.setString(2, lifeStatus.name());
 
-                var rs = st.executeQuery();
-                if (rs.next()) {
-                    return parseChannel(rs);
-                }
+                Stream<Channel> channels = parseChannels(st.executeQuery());
 
-                return null;
+                return channels.findFirst().orElse(null);
             }
         });
     }
 
     @Override
-    public List<Channel> listChannels(String executionId, @Nullable TransactionHandle transaction) throws SQLException {
-        final List<Channel> channels = new ArrayList<>();
-        DbOperation.execute(transaction, storage, conn -> {
+    public List<Channel> listChannels(String executionId,
+                                      @Nullable TransactionHandle transaction) throws SQLException
+    {
+        return DbOperation.execute(transaction, storage, conn -> {
             try (var st = conn.prepareStatement(QUERY_SELECT_CHANNELS_BY_EXECUTION_ID)) {
                 st.setString(1, executionId);
 
-                var rs = st.executeQuery();
-                while (rs.next()) {
-                    channels.add(parseChannel(rs));
-                }
+                Stream<Channel> channels = parseChannels(st.executeQuery());
+
+                return channels.collect(Collectors.toList());
             }
         });
-        return channels;
     }
 
     @Override
     public List<Channel> listChannels(String executionId, Channel.LifeStatus lifeStatus,
                                       @Nullable TransactionHandle transaction) throws SQLException
     {
-        final List<Channel> channels = new ArrayList<>();
-        DbOperation.execute(transaction, storage, conn -> {
+        return DbOperation.execute(transaction, storage, conn -> {
             try (var st = conn.prepareStatement(QUERY_SELECT_CHANNELS_BY_EXECUTION_ID_AND_STATUS)) {
                 st.setString(1, executionId);
                 st.setString(2, lifeStatus.name());
 
-                var rs = st.executeQuery();
-                while (rs.next()) {
-                    channels.add(parseChannel(rs));
-                }
+                Stream<Channel> channels = parseChannels(st.executeQuery());
+
+                return channels.collect(Collectors.toList());
             }
         });
-        return channels;
     }
 
     @Nullable
@@ -437,12 +438,62 @@ public class ChannelDaoImpl implements ChannelDao {
         });
     }
 
-    private Channel parseChannel(ResultSet rs) throws SQLException {
-        return null; // TODO
+    private Stream<Channel> parseChannels(ResultSet rs) throws SQLException {
+        Map<String, Channel.Builder> channelBuildersById = new HashMap<>();
+        Map<String, Endpoint> parsedEndpoints = new HashMap<>();
+        ArrayList<Runnable> awaitedConnections = new ArrayList<>();
+
+        while (rs.next()) {
+            final String channelId = rs.getString("channel_id");
+            if (!channelBuildersById.containsKey(channelId)) {
+                channelBuildersById.put(channelId, Channel.newBuilder()
+                    .setChannelId(channelId)
+                    .setExecutionId(rs.getString("execution_id"))
+                    .setWorkflowName(rs.getString("workflow_name"))
+                    .setUserId(rs.getString("user_id"))
+                    .setChannelSpec(fromJson(rs.getString("channel_spec"), Channel.Spec.class))
+                    .setChannelLifeStatus(Channel.LifeStatus.valueOf(rs.getString("channel_life_status"))));
+            }
+
+            final String slotUri = rs.getString("slot_uri");
+            if (slotUri != null && !parsedEndpoints.containsKey(slotUri)) {
+                var taskId = rs.getString("task_id");
+                var slotSpec = fromJson(rs.getString("slot_spec"), LMS.Slot.class);
+
+                var endpoint = new Endpoint(
+                    new SlotInstance(fromProto(slotSpec), taskId, channelId, URI.create(slotUri)),
+                    Endpoint.SlotOwner.valueOf(rs.getString("slot_owner")),
+                    Endpoint.LifeStatus.valueOf(rs.getString("endpoint_life_status"))
+                );
+
+                parsedEndpoints.put(slotUri, endpoint);
+                channelBuildersById.get(channelId).addEndpoint(endpoint);
+            }
+
+            final String senderUri = rs.getString("connected_sender_uri");
+            final String receiverUri = rs.getString("connected_receiver_uri");
+            if (senderUri != null && receiverUri != null) {
+                final var connectionLifeStatus = Connection.LifeStatus.valueOf(rs.getString("connection_life_status"));
+                awaitedConnections.add(() -> channelBuildersById.get(channelId).addConnection(new Connection(
+                    parsedEndpoints.get(senderUri), parsedEndpoints.get(receiverUri), connectionLifeStatus)));
+            }
+        }
+
+        awaitedConnections.forEach(Runnable::run);
+        return channelBuildersById.values().stream().map(Channel.Builder::build);
     }
 
     private Endpoint parseEndpoint(ResultSet rs) throws SQLException {
-        return null; // TODO
+        final String slotUri = rs.getString("slot_uri");
+        final String taskId = rs.getString("task_id");
+        final String channelId = rs.getString("channel_id");
+        var slotSpec = fromJson(rs.getString("slot_spec"), LMS.Slot.class);
+
+        return new Endpoint(
+            new SlotInstance(fromProto(slotSpec), taskId, channelId, URI.create(slotUri)),
+            Endpoint.SlotOwner.valueOf(rs.getString("slot_owner")),
+            Endpoint.LifeStatus.valueOf(rs.getString("endpoint_life_status"))
+        );
     }
 
     private String toJson(Object obj) {

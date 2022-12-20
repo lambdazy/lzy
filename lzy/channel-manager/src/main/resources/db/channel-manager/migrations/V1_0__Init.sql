@@ -38,16 +38,16 @@ CREATE TYPE channel_life_status_type AS ENUM ('ALIVE', 'DESTROYING');
 
 CREATE TABLE channels
 (
-    channel_id        TEXT                     NOT NULL,
-    execution_id      TEXT                     NOT NULL,
-    workflow_name     TEXT                     NOT NULL,
-    user_id           TEXT                     NOT NULL,
-    channel_name      TEXT                     NOT NULL,
-    channel_spec_json TEXT                     NOT NULL,
+    channel_id    TEXT                     NOT NULL,
+    execution_id  TEXT                     NOT NULL,
+    workflow_name TEXT                     NOT NULL,
+    user_id       TEXT                     NOT NULL,
+    channel_name  TEXT                     NOT NULL,
+    channel_spec  TEXT                     NOT NULL,
 
-    life_status       channel_life_status_type NOT NULL,
-    created_at        TIMESTAMP                NOT NULL,
-    updated_at        TIMESTAMP                NOT NULL,
+    life_status   channel_life_status_type NOT NULL,
+    created_at    TIMESTAMP                NOT NULL,
+    updated_at    TIMESTAMP                NOT NULL,
 
     CONSTRAINT channels_pkey PRIMARY KEY (channel_id)
 );
@@ -59,19 +59,23 @@ CREATE TYPE endpoint_life_status_type AS ENUM ('BINDING', 'BOUND', 'UNBINDING');
 
 CREATE TABLE endpoints
 (
-    slot_uri       TEXT                      NOT NULL,
-    "slot_name"    TEXT                      NOT NULL,
-    slot_owner     TEXT                      NOT NULL,
-    task_id        TEXT                      NOT NULL,
-    channel_id     TEXT                      NOT NULL,
-    direction      TEXT                      NOT NULL,
-    slot_spec_json TEXT                      NOT NULL,
+    slot_uri    TEXT                      NOT NULL,
+    "slot_name" TEXT                      NOT NULL,
+    slot_owner  TEXT                      NOT NULL,
+    task_id     TEXT                      NOT NULL,
+    channel_id  TEXT                      NOT NULL,
+    direction   TEXT                      NOT NULL,
+    slot_spec   TEXT                      NOT NULL,
 
-    life_status    endpoint_life_status_type NOT NULL,
-    created_at     TIMESTAMP                 NOT NULL,
-    updated_at     TIMESTAMP                 NOT NULL,
+    life_status endpoint_life_status_type NOT NULL,
+    created_at  TIMESTAMP                 NOT NULL,
+    updated_at  TIMESTAMP                 NOT NULL,
 
-    CONSTRAINT endpoints_pkey PRIMARY KEY (slot_uri)
+    CONSTRAINT endpoints_pkey PRIMARY KEY (slot_uri),
+
+    CONSTRAINT endpoints_channel_fkey
+        FOREIGN KEY (channel_id) REFERENCES channels (channel_id)
+            ON DELETE RESTRICT
 );
 
 CREATE UNIQUE INDEX endpoints_slot_name_task_id_idx
@@ -89,5 +93,13 @@ CREATE TABLE IF NOT EXISTS connections
     created_at   TIMESTAMP                   NOT NULL,
     updated_at   TIMESTAMP                   NOT NULL,
 
-    CONSTRAINT connections_pkey PRIMARY KEY (sender_uri, receiver_uri)
+    CONSTRAINT connections_pkey PRIMARY KEY (sender_uri, receiver_uri),
+
+    CONSTRAINT connections_sender_fkey
+        FOREIGN KEY (sender_uri) REFERENCES endpoints (slot_uri)
+            ON DELETE RESTRICT,
+
+    CONSTRAINT connections_receiver_fkey
+        FOREIGN KEY (receiver_uri) REFERENCES endpoints (slot_uri)
+            ON DELETE RESTRICT
 );
