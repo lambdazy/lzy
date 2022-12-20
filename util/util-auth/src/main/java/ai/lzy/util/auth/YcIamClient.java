@@ -13,7 +13,8 @@ import java.io.IOException;
 
 public class YcIamClient {
     public static String createServiceAccount(String uid, String iamToken, CloseableHttpClient httpclient,
-        String folderId, String bucket) throws IOException, InterruptedException {
+        String folderId, String bucket) throws IOException, InterruptedException
+    {
         HttpPost request = new HttpPost("https://iam.api.cloud.yandex.net/iam/v1/serviceAccounts/");
         String requestBody = new JSONObject()
             .put("folderId", folderId)
@@ -26,7 +27,8 @@ public class YcIamClient {
     }
 
     public static JSONObject executeRequest(String iamToken, CloseableHttpClient httpclient, HttpPost request,
-        String requestBody) throws IOException {
+        String requestBody) throws IOException
+    {
         StringEntity requestEntity = new StringEntity(requestBody);
         request.setEntity(requestEntity);
         request.setHeader("Content-type", "application/json");
@@ -41,7 +43,8 @@ public class YcIamClient {
     }
 
     public static AWSCredentials createStaticCredentials(String serviceAccountId, String iamToken,
-        CloseableHttpClient httpclient) throws IOException {
+        CloseableHttpClient httpclient) throws IOException
+    {
         HttpPost httppost = new HttpPost("https://iam.api.cloud.yandex.net/iam/aws-compatibility/v1/accessKeys/");
         String requestBody = new JSONObject()
             .put("serviceAccountId", serviceAccountId)

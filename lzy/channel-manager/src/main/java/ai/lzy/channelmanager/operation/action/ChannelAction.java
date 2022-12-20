@@ -4,7 +4,6 @@ import ai.lzy.channelmanager.control.ChannelController;
 import ai.lzy.channelmanager.dao.ChannelDao;
 import ai.lzy.channelmanager.dao.ChannelManagerDataSource;
 import ai.lzy.channelmanager.dao.ChannelOperationDao;
-import ai.lzy.channelmanager.debug.InjectedFailures;
 import ai.lzy.channelmanager.exceptions.ChannelGraphStateException;
 import ai.lzy.channelmanager.grpc.SlotConnectionManager;
 import ai.lzy.channelmanager.lock.GrainedLock;
@@ -12,6 +11,7 @@ import ai.lzy.channelmanager.model.Channel;
 import ai.lzy.channelmanager.model.Connection;
 import ai.lzy.channelmanager.model.Endpoint;
 import ai.lzy.channelmanager.operation.ChannelOperationExecutor;
+import ai.lzy.channelmanager.test.InjectedFailures;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.grpc.ProtoConverter;
@@ -25,6 +25,7 @@ import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -69,8 +70,12 @@ public abstract class ChannelAction implements Runnable {
     }
 
     protected void scheduleRestart() {
+        scheduleRestart(Duration.ofMillis(300));
+    }
+
+    protected void scheduleRestart(Duration delay) {
         operationStopped = true;
-        executor.schedule(this, 1, TimeUnit.SECONDS);
+        executor.schedule(this, delay.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     protected void failOperation(String executionId, Status status) {
@@ -192,7 +197,7 @@ public abstract class ChannelAction implements Runnable {
 
         final String channelId = receiver.getChannelId();
 
-        final Endpoint sender;
+        final Connection connectionToBreak;
         try (final var guard = lockManager.withLock(channelId)) {
             final Channel channel;
             try {
@@ -208,20 +213,9 @@ public abstract class ChannelAction implements Runnable {
                 return;
             }
 
-            final Connection connectionToBreak = channelController.findConnectionToBreak(channel, receiver);
-            if (connectionToBreak == null) {
-                try {
-                    withRetries(LOG, () -> channelDao.removeEndpoint(receiver.getUri().toString(), null));
-                    LOG.info("Async operation (operationId={}): receiver unbound, unbindingReceiver={}",
-                        operationId, receiver.getUri());
-                } catch (Exception e) {
-                    String errorMessage = "Failed to remove receiver " + receiver.getUri() + ","
-                                          + " got exception: " + e.getMessage();
-                    throw new RuntimeException(errorMessage);
-                }
-                return;
-            } else {
-                sender = connectionToBreak.sender();
+            connectionToBreak = channelController.findConnectionToBreak(channel, receiver);
+            if (connectionToBreak != null) {
+                final Endpoint sender = connectionToBreak.sender();
                 try {
                     withRetries(LOG, () -> channelDao.markConnectionDisconnecting(channelId,
                         sender.getUri().toString(), receiver.getUri().toString(), null));
@@ -249,16 +243,15 @@ public abstract class ChannelAction implements Runnable {
         InjectedFailures.fail5();
 
         try (final var guard = lockManager.withLock(channelId)) {
-            withRetries(LOG, () -> {
-                try (var tx = TransactionHandle.create(storage)) {
-                    channelDao.removeConnection(channelId,
-                        sender.getUri().toString(),
-                        receiver.getUri().toString(),
-                        tx);
-                    channelDao.removeEndpoint(receiver.getUri().toString(), tx);
-                    tx.commit();
-                }
-            });
+            if (connectionToBreak != null) {
+                withRetries(LOG, () -> channelDao.removeConnection(channelId,
+                    connectionToBreak.sender().getUri().toString(),
+                    connectionToBreak.receiver().getUri().toString(),
+                    null));
+                LOG.info("Async operation (operationId={}): connection removed, sender={}, unbindingReceiver={}",
+                    operationId, connectionToBreak.sender().getUri(), receiver.getUri());
+            }
+            withRetries(LOG, () -> channelDao.removeEndpoint(receiver.getUri().toString(), null));
             LOG.info("Async operation (operationId={}): receiver removed,"
                      + " unbindingReceiver={}", operationId, receiver.getUri());
         } catch (Exception e) {

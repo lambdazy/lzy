@@ -89,18 +89,36 @@ public enum JwtUtils {
     }
 
     public static String buildJWT(String issuer, String provider, Date from, Date till, PrivateKey key) {
-        return Jwts.builder()
+        return buildJWT(issuer, provider, from, till, key, null);
+    }
+
+    public static String buildJWT(String issuer, String provider, Date from,
+                                  Date till, PrivateKey key, @Nullable String keyName)
+    {
+        var builder = Jwts.builder()
             .setIssuedAt(from)
             .setNotBefore(from)
             .setExpiration(till)
             .setIssuer(issuer)
             .addClaims(Map.of(CLAIM_PROVIDER, provider))
-            .signWith(key, SignatureAlgorithm.PS256)
-            .compact();
+            .signWith(key, SignatureAlgorithm.PS256);
+
+        if (keyName != null) {
+            builder.setHeaderParam("kn", keyName);
+        }
+
+        return builder.compact();
     }
 
     public static String buildJWT(String issuer, String provider, Date from, Date till, Reader privateKeyReader)
         throws IOException, NoSuchAlgorithmException, InvalidKeySpecException
+    {
+        return buildJWT(issuer, provider, from, till, privateKeyReader, null);
+    }
+
+    public static String buildJWT(String issuer, String provider, Date from,
+                                  Date till, Reader privateKeyReader, @Nullable String keyName)
+            throws IOException, NoSuchAlgorithmException, InvalidKeySpecException
     {
         addProvider(new BouncyCastleProvider());
         KeyFactory factory = KeyFactory.getInstance("RSA");
@@ -110,7 +128,7 @@ public enum JwtUtils {
             PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(content);
             PrivateKey privateKey = factory.generatePrivate(privateKeySpec);
 
-            return buildJWT(issuer, provider, from, till, privateKey);
+            return buildJWT(issuer, provider, from, till, privateKey, keyName);
         }
     }
 
@@ -202,6 +220,18 @@ public enum JwtUtils {
     public static Map<String, Object> parseJwt(String jwt) {
         var chunks = jwt.split("\\.");
         var payload = new String(Base64.getUrlDecoder().decode(chunks[1]));
+        try {
+            return (Map<String, Object>) objectMapper.readValue(payload, Map.class);
+        } catch (JsonProcessingException ignored) {
+            return null;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    @Nullable
+    public static Map<String, Object> getHeader(String jwt) {
+        var chunks = jwt.split("\\.");
+        var payload = new String(Base64.getUrlDecoder().decode(chunks[0]));
         try {
             return (Map<String, Object>) objectMapper.readValue(payload, Map.class);
         } catch (JsonProcessingException ignored) {

@@ -1,7 +1,7 @@
 package ai.lzy.service;
 
 import ai.lzy.allocator.test.BaseTestWithAllocator;
-import ai.lzy.channelmanager.deprecated.grpc.ChannelManagerMock;
+import ai.lzy.channelmanager.test.BaseTestWithChannelManager;
 import ai.lzy.graph.test.GraphExecutorMock;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.resources.subjects.User;
@@ -50,12 +50,15 @@ import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 public class BaseTest {
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
     private static final BaseTestWithStorage storageTestContext = new BaseTestWithStorage();
+    private static final BaseTestWithChannelManager channelManagerTestContext = new BaseTestWithChannelManager();
     protected static final BaseTestWithAllocator allocatorTestContext = new BaseTestWithAllocator();
 
     @Rule
     public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
     @Rule
     public PreparedDbRule storageDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+    @Rule
+    public PreparedDbRule channelManagerDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
     @Rule
     public PreparedDbRule allocatorDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
     @Rule
@@ -65,8 +68,6 @@ public class BaseTest {
     protected LzyServiceConfig config;
 
     protected GraphExecutorMock graphExecutorMock;
-
-    private Server channelManagerServer;
 
     private Server whiteboardServer;
 
@@ -86,6 +87,9 @@ public class BaseTest {
 
         var storageDbConfig = preparePostgresConfig("storage", storageDb.getConnectionInfo());
         storageTestContext.setUp(storageDbConfig);
+
+        var channelManagerDbConfig = preparePostgresConfig("channel-manager", channelManagerDb.getConnectionInfo());
+        channelManagerTestContext.setUp(channelManagerDbConfig);
 
         var allocatorConfigOverrides = preparePostgresConfig("allocator", allocatorDb.getConnectionInfo());
         allocatorConfigOverrides.put("allocator.thread-allocator.enabled", true);
@@ -116,14 +120,6 @@ public class BaseTest {
 
         var workflowAddress = HostAndPort.fromString(config.getAddress());
 
-        var channelManagerAddress = HostAndPort.fromString(config.getChannelManagerAddress());
-        var channelManagerMock = new ChannelManagerMock();
-        channelManagerServer = GrpcUtils.newGrpcServer(channelManagerAddress, GrpcUtils.NO_AUTH)
-            .addService(channelManagerMock.publicService)
-            .addService(channelManagerMock.privateService)
-            .build();
-        channelManagerServer.start();
-
         lzyServer = App.createServer(workflowAddress, authInterceptor, context.getBean(LzyService.class));
         lzyServer.start();
 
@@ -153,8 +149,7 @@ public class BaseTest {
         iamTestContext.after();
         allocatorTestContext.after();
         storageTestContext.after();
-        channelManagerServer.shutdown();
-        channelManagerServer.awaitTermination();
+        channelManagerTestContext.after();
         lzyServiceChannel.shutdown();
         lzyServer.shutdown();
         lzyServer.awaitTermination();

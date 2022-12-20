@@ -1,6 +1,10 @@
 package ai.lzy.fs;
 
-import ai.lzy.fs.fs.*;
+import ai.lzy.fs.fs.LzyFSManager;
+import ai.lzy.fs.fs.LzyFileSlot;
+import ai.lzy.fs.fs.LzyInputSlot;
+import ai.lzy.fs.fs.LzyOutputSlot;
+import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.longrunning.LocalOperationService.OperationSnapshot;
@@ -14,8 +18,6 @@ import ai.lzy.util.grpc.ContextAwareTask;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.util.grpc.ProtoPrinter;
 import ai.lzy.v1.common.LMS;
-import ai.lzy.v1.deprecated.LzyFsApi;
-import ai.lzy.v1.deprecated.LzyFsGrpc;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.slots.LSA;
@@ -25,22 +27,26 @@ import ai.lzy.v1.slots.LzySlotsApiGrpc;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Message;
 import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.Spliterator;
 import java.util.Spliterators;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import static ai.lzy.util.grpc.GrpcUtils.*;
+import static ai.lzy.util.grpc.GrpcUtils.NO_AUTH_TOKEN;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 
 public class SlotsService {
@@ -53,7 +59,6 @@ public class SlotsService {
     private final ExecutorService longrunningExecutor;
     private final LocalOperationService operationService;
     private final LzySlotsApiGrpc.LzySlotsApiImplBase slotsApi;
-    private final LzyFsGrpc.LzyFsImplBase legacyWrapper;
 
     public SlotsService(String agentId, LocalOperationService operationService,
                         SlotsManager slotsManager, @Nullable LzyFSManager fsManager)
@@ -77,7 +82,6 @@ public class SlotsService {
             });
 
         this.slotsApi = new SlotsApiImpl();
-        this.legacyWrapper = new LegacyWrapper();
     }
 
     public void shutdown() {
@@ -90,10 +94,6 @@ public class SlotsService {
 
     public LongRunningServiceGrpc.LongRunningServiceImplBase getLongrunningApi() {
         return operationService;
-    }
-
-    public LzyFsGrpc.LzyFsImplBase getLegacyWrapper() {
-        return legacyWrapper;
     }
 
     private class SlotsApiImpl extends LzySlotsApiGrpc.LzySlotsApiImplBase {
@@ -396,184 +396,4 @@ public class SlotsService {
         }
     }
 
-    private class LegacyWrapper extends LzyFsGrpc.LzyFsImplBase {
-        @Override
-        public void createSlot(LzyFsApi.CreateSlotRequest request, StreamObserver<LzyFsApi.SlotCommandStatus> resp) {
-            slotsApi.createSlot(
-                LSA.CreateSlotRequest.newBuilder()
-                    .setTaskId(request.getTaskId())
-                    .setSlot(request.getSlot())
-                    .setChannelId(request.getChannelId())
-                    .build(),
-                new StreamObserver<>() {
-                    @Override
-                    public void onNext(LSA.CreateSlotResponse value) {
-                        resp.onNext(LzyFsApi.SlotCommandStatus.getDefaultInstance());
-                    }
-
-                    @Override
-                    public void onError(Throwable t) {
-                        LegacyWrapper.this.onError(t, resp);
-                    }
-
-                    @Override
-                    public void onCompleted() {
-                        resp.onCompleted();
-                    }
-                }
-            );
-        }
-
-        @Override
-        public void connectSlot(LzyFsApi.ConnectSlotRequest request, StreamObserver<LzyFsApi.SlotCommandStatus> resp) {
-            final LongRunning.Operation[] opRef = {null};
-            final Throwable[] errRef = {null};
-
-            slotsApi.connectSlot(
-                LSA.ConnectSlotRequest.newBuilder()
-                    .setFrom(request.getFrom())
-                    .setTo(request.getTo())
-                    .build(),
-                new StreamObserver<>() {
-                    @Override
-                    public void onNext(LongRunning.Operation value) {
-                        opRef[0] = value;
-                    }
-
-                    @Override
-                    public void onError(Throwable t) {
-                        errRef[0] = t;
-                    }
-
-                    @Override
-                    public void onCompleted() {
-                    }
-                }
-            );
-
-            if (errRef[0] != null) {
-                LegacyWrapper.this.onError(errRef[0], resp);
-                return;
-            }
-
-            if (!operationService.await(opRef[0].getId(), Duration.ofSeconds(5))) {
-                LOG.error("Cannot await operation completion: { opId: {} }", opRef[0].getId());
-                resp.onError(Status.INTERNAL.withDescription("Cannot connect slot").asRuntimeException());
-                return;
-            }
-
-            var op = operationService.get(opRef[0].getId());
-
-            assert op != null;
-
-            if (op.error() != null) {
-                LegacyWrapper.this.onError(op.error().asRuntimeException(), resp);
-            } else {
-                resp.onNext(LzyFsApi.SlotCommandStatus.getDefaultInstance());
-                resp.onCompleted();
-            }
-        }
-
-        @Override
-        public void disconnectSlot(LzyFsApi.DisconnectSlotRequest request,
-                                   StreamObserver<LzyFsApi.SlotCommandStatus> response)
-        {
-            slotsApi.disconnectSlot(
-                DisconnectSlotRequest.newBuilder()
-                    .setSlotInstance(request.getSlotInstance())
-                    .build(),
-                new StreamObserver<>() {
-                    @Override
-                    public void onNext(DisconnectSlotResponse value) {
-                        response.onNext(LzyFsApi.SlotCommandStatus.getDefaultInstance());
-                    }
-
-                    @Override
-                    public void onError(Throwable t) {
-                        LegacyWrapper.this.onError(t, response);
-                    }
-
-                    @Override
-                    public void onCompleted() {
-                        response.onCompleted();
-                    }
-                }
-            );
-        }
-
-        @Override
-        public void statusSlot(LzyFsApi.StatusSlotRequest request, StreamObserver<LzyFsApi.SlotCommandStatus> resp) {
-            slotsApi.statusSlot(
-                LSA.StatusSlotRequest.newBuilder()
-                    .setSlotInstance(request.getSlotInstance())
-                    .build(),
-                new StreamObserver<>() {
-                    @Override
-                    public void onNext(LSA.StatusSlotResponse value) {
-                        resp.onNext(LzyFsApi.SlotCommandStatus.newBuilder()
-                            .setStatus(value.getStatus())
-                            .build());
-                    }
-
-                    @Override
-                    public void onError(Throwable t) {
-                        LegacyWrapper.this.onError(t, resp);
-                    }
-
-                    @Override
-                    public void onCompleted() {
-                        resp.onCompleted();
-                    }
-                }
-            );
-        }
-
-        @Override
-        public void destroySlot(LzyFsApi.DestroySlotRequest request, StreamObserver<LzyFsApi.SlotCommandStatus> resp) {
-            slotsApi.destroySlot(
-                LSA.DestroySlotRequest.newBuilder()
-                    .setSlotInstance(request.getSlotInstance())
-                    .build(),
-                new StreamObserver<>() {
-                    @Override
-                    public void onNext(LSA.DestroySlotResponse value) {
-                        resp.onNext(LzyFsApi.SlotCommandStatus.getDefaultInstance());
-                    }
-
-                    @Override
-                    public void onError(Throwable t) {
-                        LegacyWrapper.this.onError(t, resp);
-                    }
-
-                    @Override
-                    public void onCompleted() {
-                        resp.onCompleted();
-                    }
-                }
-            );
-        }
-
-        @Override
-        public void openOutputSlot(LzyFsApi.SlotRequest request, StreamObserver<LzyFsApi.Message> response) {
-            response.onError(Status.UNIMPLEMENTED.withDescription("Legacy API").asException());
-        }
-
-        private void onError(Throwable t, StreamObserver<LzyFsApi.SlotCommandStatus> response) {
-            if (t instanceof StatusRuntimeException e) {
-                if (e.getStatus().getCode() == Status.Code.NOT_FOUND ||
-                    e.getStatus().getCode() == Status.Code.ALREADY_EXISTS)
-                {
-                    response.onNext(LzyFsApi.SlotCommandStatus.newBuilder()
-                        .setRc(LzyFsApi.SlotCommandStatus.RC.newBuilder()
-                            .setCode(LzyFsApi.SlotCommandStatus.RC.Code.ERROR)
-                            .setDescription(e.getStatus().getDescription())
-                            .build())
-                        .build());
-                    response.onCompleted();
-                    return;
-                }
-            }
-            response.onError(t);
-        }
-    }
 }

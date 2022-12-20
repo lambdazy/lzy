@@ -1,5 +1,5 @@
 import logging
-from typing import AsyncIterator, BinaryIO, cast
+from typing import BinaryIO, cast
 
 from aioboto3 import Session
 from botocore.exceptions import ClientError

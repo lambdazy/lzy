@@ -5,13 +5,11 @@ import ai.lzy.fs.slots.ArgumentsSlot;
 import ai.lzy.fs.slots.InFileSlot;
 import ai.lzy.fs.slots.LineReaderSlot;
 import ai.lzy.fs.slots.OutFileSlot;
-import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.slot.TextLinesOutSlot;
-import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.v1.channel.deprecated.LCMS;
-import ai.lzy.v1.channel.deprecated.LzyChannelManagerGrpc;
+import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -20,6 +18,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 import java.text.MessageFormat;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
@@ -27,6 +26,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
+import static ai.lzy.channelmanager.ProtoConverter.makeBindSlotCommand;
+import static ai.lzy.channelmanager.ProtoConverter.makeUnbindSlotCommand;
+import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.v1.common.LMS.SlotStatus.State.DESTROYED;
 import static ai.lzy.v1.common.LMS.SlotStatus.State.SUSPENDED;
 
@@ -34,15 +36,22 @@ public class SlotsManager implements AutoCloseable {
     private static final Logger LOG = LogManager.getLogger(SlotsManager.class);
 
     private final LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManager;
+    private final LongRunningServiceGrpc.LongRunningServiceBlockingStub operationService;
     private final URI localLzyFsUri;
+    private final Boolean isPortal;
     // TODO: project?
     // { task -> { slot -> LzySlot } }
     private final Map<String, Map<String, LzySlot>> task2slots = new ConcurrentHashMap<>();
     private boolean closed = false;
 
-    public SlotsManager(LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManager, URI localLzyFsUri) {
+    public SlotsManager(LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManager,
+                        LongRunningServiceGrpc.LongRunningServiceBlockingStub operationService,
+                        URI localLzyFsUri, boolean isPortal)
+    {
         this.channelManager = channelManager;
+        this.operationService = operationService;
         this.localLzyFsUri = localLzyFsUri;
+        this.isPortal = isPortal;
     }
 
     @Override
@@ -88,7 +97,7 @@ public class SlotsManager implements AutoCloseable {
 
             if (slot.state() == DESTROYED) {
                 final String msg = MessageFormat.format("Unable to create slot. Task: {}, spec: {}, binding: {}",
-                        taskId, spec.name(), channelId);
+                    taskId, spec.name(), channelId);
                 LOG.error(msg);
                 throw new RuntimeException(msg);
             }
@@ -123,12 +132,18 @@ public class SlotsManager implements AutoCloseable {
             synchronized (SlotsManager.this) {
                 LOG.info("UnBind slot {} from channel {}", spec, channelId);
                 try {
-                    final LCMS.UnbindResponse unbindResult = channelManager.unbind(
-                        LCMS.UnbindRequest.newBuilder()
-                            .setSlotInstance(ProtoConverter.toProto(slot.instance()))
-                            .build()
-                    );
-                    LOG.info(JsonUtils.printRequest(unbindResult));
+                    var unbindSlotOp = channelManager.unbind(makeUnbindSlotCommand(slotUri));
+                    LOG.info("Unbind slot requested, operationId={}", unbindSlotOp.getId());
+
+                    unbindSlotOp = awaitOperationDone(operationService, unbindSlotOp.getId(), Duration.ofSeconds(10));
+                    if (!unbindSlotOp.getDone()) {
+                        throw new RuntimeException("Unbind operation " + unbindSlotOp.getId() + " hangs");
+                    }
+                    if (!unbindSlotOp.hasResponse()) {
+                        throw new RuntimeException("Unbind operation " + unbindSlotOp.getId() + " failed with code "
+                            + unbindSlotOp.getError().getCode() + ": " + unbindSlotOp.getError().getMessage());
+                    }
+                    LOG.info("Slot `{}` configured.", slotUri);
                 } catch (StatusRuntimeException e) {
                     LOG.warn("Got exception while unbind slot {} from channel {}: {}",
                         spec.name(), channelId, e.getMessage());
@@ -149,11 +164,16 @@ public class SlotsManager implements AutoCloseable {
             }
         });
 
-        final LCMS.BindResponse slotAttachStatus = channelManager.bind(
-            LCMS.BindRequest.newBuilder()
-                .setSlotInstance(ProtoConverter.toProto(slot.instance()))
-                .build());
-        LOG.info(JsonUtils.printRequest(slotAttachStatus));
+        var bindSlotOp = channelManager.bind(makeBindSlotCommand(slot.instance(), this.isPortal));
+        LOG.info("Bind slot requested, operationId={}", bindSlotOp.getId());
+        bindSlotOp = awaitOperationDone(operationService, bindSlotOp.getId(), Duration.ofSeconds(10));
+        if (!bindSlotOp.getDone()) {
+            throw new RuntimeException("Bind operation " + bindSlotOp.getId() + " hangs");
+        }
+        if (!bindSlotOp.hasResponse()) {
+            throw new RuntimeException("Bind operation " + bindSlotOp.getId() + " failed with code "
+                + bindSlotOp.getError().getCode() + ": " + bindSlotOp.getError().getMessage());
+        }
         LOG.info("Slot `{}` configured.", slotUri);
     }
 

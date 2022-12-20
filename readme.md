@@ -2,10 +2,11 @@
 [![Tests](https://github.com/lambda-zy/lzy/actions/workflows/pull-tests.yaml/badge.svg)](https://github.com/lambda-zy/lzy/actions/workflows/pull-tests.yaml)
 [![Java tests coverage](https://gist.githubusercontent.com/mrMakaronka/be651155cb12a8006cecdee948ce1a0a/raw/master-java-coverage.svg)]()
 [![Python tests coverage](https://gist.githubusercontent.com/mrMakaronka/0095e900fb0fcbe5575ddc3c717fb65b/raw/master-coverage.svg)](https://github.com/lambdazy/lzy/tree/master/pylzy/tests)
+[![Telegram chat](https://img.shields.io/badge/chat-on%20Telegram-2ba2d9.svg)](https://t.me/+ad3OA-J96b9jYWJi)
 
 # ʎzy
 
-ʎzy is a platform for a hybrid execution of ML workflows that transparently integrates local and remote runtimes 
+ʎzy is a platform for a hybrid execution of ML workflows that transparently integrates local and remote runtimes
 with the following properties:
 
 - Python-native SDK
@@ -37,19 +38,23 @@ with env.workflow("training"):
     model = train(data_set)
 ```
 
-Please read the [tutorial](docs/tutorials/0-contents.md) for details. We provide a free [sandbox installation](https://lzy.ai).
+Please read the [tutorial](https://github.com/lambdazy/lzy/tree/master/docs/tutorials/0-contents.md) for details. We provide a free [sandbox installation](https://lzy.ai).
 
 ## Runtime
 
-Check out our [key concepts](docs/arch/key-concepts.md) and [architecture intro](docs/arch/intro_en.md).
+Check out our [key concepts](https://github.com/lambdazy/lzy/tree/master/docs/arch/key-concepts.md) and [architecture intro](https://github.com/lambdazy/lzy/tree/master/docs/arch/intro_en.md).
+
+## Community
+
+Join our chat [on telegram](https://t.me/+ad3OA-J96b9jYWJi)!
 
 ## Development
 
-Development [guide](docs/development.md).
+Development [guide](https://github.com/lambdazy/lzy/tree/master/docs/development.md).
 
 ## Deployment
 
 Deployment guide.
 
-* [Azure](docs/deployment_azure.md)
-* [YCloud](docs/deployment_ycloud.md)
+* [Azure](https://github.com/lambdazy/lzy/tree/master/docs/deployment_azure.md)
+* [YCloud](https://github.com/lambdazy/lzy/tree/master/docs/deployment_ycloud.md)

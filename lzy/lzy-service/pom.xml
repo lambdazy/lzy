@@ -11,6 +11,7 @@
     <artifactId>lzy-service</artifactId>
 
     <properties>
+        <exec.mainClass>ai.lzy.service.App</exec.mainClass>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
     </properties>
@@ -45,6 +46,11 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>lzy-api</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>graph-executor-api</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
         <dependency>
@@ -131,6 +137,12 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>util-test</artifactId>
+            <version>1.0-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>channel-manager</artifactId>
             <version>1.0-SNAPSHOT</version>
             <scope>test</scope>
         </dependency>

@@ -7,11 +7,10 @@ import ai.lzy.fs.fs.LzyLinuxFsManagerImpl;
 import ai.lzy.fs.fs.LzyMacosFsManagerImpl;
 import ai.lzy.fs.fs.LzyScript;
 import ai.lzy.longrunning.LocalOperationService;
-import ai.lzy.model.deprecated.Zygote;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.GrpcUtils;
-import ai.lzy.v1.channel.deprecated.LzyChannelManagerGrpc;
-import ai.lzy.v1.deprecated.LzyZygote;
+import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
@@ -28,12 +27,9 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static ai.lzy.model.deprecated.GrpcConverter.from;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
-import static ai.lzy.v1.channel.deprecated.LzyChannelManagerGrpc.newBlockingStub;
-
 
 public class LzyFsServer {
     private static final Logger LOG = LogManager.getLogger(LzyFsServer.class);
@@ -49,19 +45,22 @@ public class LzyFsServer {
     private final AtomicBoolean finished = new AtomicBoolean(false);
 
     public LzyFsServer(String agentId, Path mountPoint, URI selfUri, HostAndPort channelManagerAddress,
-                       RenewableJwt token, LocalOperationService operationService)
+                       RenewableJwt token, LocalOperationService operationService, boolean isPortal)
     {
         this.mountPoint = mountPoint;
         this.selfUri = selfUri;
 
         this.channelManagerChannel = newGrpcChannel(channelManagerAddress, LzyChannelManagerGrpc.SERVICE_NAME);
-        this.slotsManager = new SlotsManager(
-            newBlockingClient(
-                newBlockingStub(channelManagerChannel),
-                "LzyFs",
-                () -> token.get().token()),
-            selfUri
-        );
+
+        final var channelManagerClient = newBlockingClient(
+            LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel),
+            "LzyFs.ChannelManagerClient", () -> token.get().token());
+
+        final var channelManagerOperationClient = newBlockingClient(
+            LongRunningServiceGrpc.newBlockingStub(channelManagerChannel),
+            "LzyFs.ChannelManagerOperationClient", () -> token.get().token());
+
+        this.slotsManager = new SlotsManager(channelManagerClient, channelManagerOperationClient, selfUri, isPortal);
 
         if (SystemUtils.IS_OS_MAC) {
             this.fsManager = new LzyMacosFsManagerImpl();
@@ -76,7 +75,6 @@ public class LzyFsServer {
         this.localServer = newGrpcServer(selfUri.getHost(), selfUri.getPort(), GrpcUtils.NO_AUTH)
             .addService(slotsService.getSlotsApi())
             .addService(slotsService.getLongrunningApi())
-            .addService(slotsService.getLegacyWrapper())
             .build();
     }
 
@@ -109,7 +107,7 @@ public class LzyFsServer {
         commandParts.add("$@");
 
         final String script = String.join(" ", commandParts) + "\n";
-        if (fsManager.addScript(new LzyScriptImpl(cmd, script, null), /* isSystem */ true)) {
+        if (fsManager.addScript(new LzyScriptImpl(cmd, script), /* isSystem */ true)) {
             LOG.debug("Register command `{}`.", name);
         } else {
             LOG.warn("Command `{}` already exists.", name);
@@ -118,15 +116,9 @@ public class LzyFsServer {
 
     private record LzyScriptImpl(
         Path location,
-        CharSequence scriptText,
-        LzyZygote.Zygote zygote
+        CharSequence scriptText
     ) implements LzyScript
     {
-
-        @Override
-        public Zygote operation() {
-            return from(zygote);
-        }
     }
 
     public void stop() {

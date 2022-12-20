@@ -1,6 +1,4 @@
-coverage
 pure-protobuf==2.1.1
 moto==4.0.8
 flask==2.2.2
 flask-cors==3.0.10
-requests==2.28.1

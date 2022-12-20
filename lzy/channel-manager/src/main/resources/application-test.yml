@@ -1,7 +1,22 @@
 channel-manager:
   address: 'localhost:8122'
-  stub-slot-api-address: 'localhost:8125'
   lzy-service-address: 'localhost:8899'
+  stub-slot-api-address: 'localhost:8125'
+  lock-buckets-count: 256
+  executor-threads-count: 5
+
+  connections:
+    cache-concurrency-level: 5
+    cache-ttl: 20s
+
+  database:
+    url: "embedded-postgres"
+    username: "test"
+    password: ""
+    min-pool-size: 3
+    max-pool-size: 5
+    enabled: true
+
   iam:
     address: 'localhost:8443'
     internal-user-name: "lzy-internal-user"
@@ -33,13 +48,3 @@ channel-manager:
       /R0NeRjKxaOebS9NKgaWI9YB+9kxCa3R//sGkRvAOHa7H986mQ1Vx1y14GGtuSTr
       l7I2m1fDWAE7ibup2fO9VSexAlqwoDnv4dWQ03f/ifRpFE/Tg7NV5OM=
       -----END RSA PRIVATE KEY-----
-  database:
-    url: "embedded-postgres"
-    username: "test"
-    password: ""
-    enabled: true
-    min-pool-size: 5
-    max-pool-size: 100
-  connections:
-    cache-concurrency-level: 10
-    cache-ttl-seconds: 60

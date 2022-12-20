@@ -54,7 +54,7 @@ class DefaultWhiteboard:
     a: int = 0
     b: Optional[List[str]] = None
     c: str = "Hello"
-    d: int = None
+    d: Optional[int] = None
 
 
 @dataclass

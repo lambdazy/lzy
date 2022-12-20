@@ -22,13 +22,6 @@
             <version>1.0-SNAPSHOT</version>
         </dependency>
 
-        <!-- ChannelManagerMock depends on deprecated fs-api -->
-        <dependency>
-            <groupId>ai.lzy</groupId>
-            <artifactId>model-old</artifactId>
-            <version>1.0-SNAPSHOT</version>
-        </dependency>
-
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-protobuf</artifactId>

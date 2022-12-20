@@ -22,4 +22,12 @@ public class ServiceConfig {
         private String clientId;
         private String clientSecret;
     }
+
+    @Getter
+    @Setter
+    @ConfigurationProperties("github")
+    public static final class Github {
+        private String address;
+        private String apiAddress;
+    }
 }

@@ -1,0 +1,23 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="RunAllServices" type="MicronautRunConfigurationType" factoryName="Micronaut">
+    <module name="test" />
+    <extension name="coverage">
+      <pattern>
+        <option name="PATTERN" value="ai.lzy.test.*" />
+        <option name="ENABLED" value="true" />
+      </pattern>
+    </extension>
+    <option name="alternativeJrePath" />
+    <option name="alternativeJrePathEnabled" value="false" />
+    <option name="includeProvidedScope" value="true" />
+    <option name="mainClass" value="ai.lzy.test.RunAllServices" />
+    <option name="passParentEnvs" value="true" />
+    <option name="programParameters" value="" />
+    <option name="shortenCommandLine" value="NONE" />
+    <option name="vmParameters" value="-Dmicronaut.environments=test" />
+    <option name="workingDirectory" value="$PROJECT_DIR$/test" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

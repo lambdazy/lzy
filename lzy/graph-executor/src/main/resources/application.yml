@@ -1,0 +1,6 @@
+graph-executor:
+  database:
+    min-pool-size: 3
+    max-pool-size: 5
+    enabled: true
+  

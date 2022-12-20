@@ -33,13 +33,6 @@
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
-            <!-- TODO: should depends on tunnel-allocator-api only -->
-            <artifactId>tunnel-agent</artifactId>
-            <version>1.0-SNAPSHOT</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>ai.lzy</groupId>
             <artifactId>util-db</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>

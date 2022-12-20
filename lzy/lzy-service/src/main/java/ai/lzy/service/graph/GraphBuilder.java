@@ -3,7 +3,7 @@ package ai.lzy.service.graph;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.WorkflowDao;
-import ai.lzy.v1.channel.deprecated.LzyChannelManagerPrivateGrpc;
+import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.common.LMS;
@@ -26,7 +26,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static ai.lzy.channelmanager.deprecated.grpc.ProtoConverter.makeCreateDirectChannelCommand;
+import static ai.lzy.channelmanager.ProtoConverter.makeCreateChannelCommand;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.model.grpc.ProtoConverter.*;
@@ -49,8 +49,9 @@ class GraphBuilder {
     }
 
     public void build(GraphExecutionState state, LzyPortalGrpc.LzyPortalBlockingStub portalClient) {
-        var executionId = state.getExecutionId();
+        var userId = state.getUserId();
         var workflowName = state.getWorkflowName();
+        var executionId = state.getExecutionId();
         var dataFlow = state.getDataFlowGraph().getDataFlow();
         var slot2description = state.getDescriptions().stream()
             .collect(Collectors.toMap(LWF.DataDescription::getStorageUri, Function.identity()));
@@ -58,7 +59,8 @@ class GraphBuilder {
 
         Map<String, String> slot2channelId;
         try {
-            slot2channelId = createChannelsForDataFlow(executionId, dataFlow, slot2description, portalClient, state);
+            slot2channelId = createChannelsForDataFlow(userId, workflowName, executionId,
+                dataFlow, slot2description, portalClient, state);
         } catch (StatusRuntimeException e) {
             state.fail(e.getStatus(), "Cannot build graph");
             LOG.error("Cannot assign slots to channels for execution: " +
@@ -73,7 +75,7 @@ class GraphBuilder {
 
         List<TaskDesc> tasks;
         try {
-            tasks = buildTasksWithZone(executionId, state.getZone(), state.getOperations(),
+            tasks = buildTasksWithZone(userId, workflowName, executionId, state.getZone(), state.getOperations(),
                 slot2channelId, slot2description, portalClient);
         } catch (StatusRuntimeException e) {
             state.fail(e.getStatus(), "Cannot build graph");
@@ -102,7 +104,8 @@ class GraphBuilder {
         state.setChannels(channelsDescriptions);
     }
 
-    private Map<String, String> createChannelsForDataFlow(String executionId, List<DataFlowGraph.Data> dataFlow,
+    private Map<String, String> createChannelsForDataFlow(String userId, String workflowName, String executionId,
+                                                          List<DataFlowGraph.Data> dataFlow,
                                                           Map<String, LWF.DataDescription> slot2dataDescription,
                                                           LzyPortalGrpc.LzyPortalBlockingStub portalClient,
                                                           GraphExecutionState state)
@@ -128,7 +131,7 @@ class GraphBuilder {
         for (var data : fromOutput) {
             var slotUri = data.slotUri();
             var channelId = channelManagerClient
-                .create(makeCreateDirectChannelCommand(executionId, "channel_" + slotUri))
+                .create(makeCreateChannelCommand(userId, workflowName, executionId, "channel_" + slotUri))
                 .getChannelId();
             var portalInputSlotName = PORTAL_SLOT_PREFIX + "_" + UUID.randomUUID();
             var dataDescription = slot2dataDescription.get(slotUri);
@@ -176,7 +179,7 @@ class GraphBuilder {
                 var slotUri = data.slotUri();
                 var portalOutputSlotName = PORTAL_SLOT_PREFIX + "_" + UUID.randomUUID();
                 var channelId = channelManagerClient
-                    .create(makeCreateDirectChannelCommand(executionId, "portal_channel_" + slotUri))
+                    .create(makeCreateChannelCommand(userId, workflowName, executionId, "portal_channel_" + slotUri))
                     .getChannelId();
 
                 newChannels.put(slotUri, channelId);
@@ -216,7 +219,7 @@ class GraphBuilder {
         return slotName2channelId;
     }
 
-    private List<TaskDesc> buildTasksWithZone(String executionId, String zoneName,
+    private List<TaskDesc> buildTasksWithZone(String userId, String workflowName, String executionId, String zoneName,
                                               Collection<LWF.Operation> operations,
                                               Map<String, String> slot2Channel,
                                               Map<String, LWF.DataDescription> slot2description,
@@ -230,11 +233,11 @@ class GraphBuilder {
 
             var channelNameForStdoutSlot = "channel_" + taskId + ":" + Slot.STDOUT_SUFFIX;
             var stdoutChannelId = channelManagerClient.create(
-                makeCreateDirectChannelCommand(executionId, channelNameForStdoutSlot)).getChannelId();
+                makeCreateChannelCommand(userId, workflowName, executionId, channelNameForStdoutSlot)).getChannelId();
 
             var channelNameForStderrSlot = "channel_" + taskId + ":" + Slot.STDERR_SUFFIX;
             var stderrChannelId = channelManagerClient.create(
-                makeCreateDirectChannelCommand(executionId, channelNameForStderrSlot)).getChannelId();
+                makeCreateChannelCommand(userId, workflowName, executionId, channelNameForStderrSlot)).getChannelId();
 
             tasks.add(buildTaskWithZone(taskId, operation, zoneName, stdoutChannelId, stderrChannelId, slot2Channel,
                 slot2description, portalClient));

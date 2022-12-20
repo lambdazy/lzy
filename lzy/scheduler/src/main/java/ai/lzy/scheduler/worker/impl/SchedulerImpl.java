@@ -183,6 +183,7 @@ public class SchedulerImpl extends Thread implements Scheduler {
     private void restore() {
         try {
             List<Task> queue = taskDao.filter(TaskState.Status.QUEUE);
+            LOG.info("Restoring scheduler event queue: found {} events", queue.size());
             tasks.addAll(queue);
         } catch (DaoException e) {
             LOG.error("Cannot restore tasks queue", e);

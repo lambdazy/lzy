@@ -308,7 +308,7 @@ public class VmDaoImpl implements VmDao {
     public Vm get(String vmId, TransactionHandle transaction) throws SQLException {
         final Vm[] vm = {null};
         DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement(QUERY_READ_VM + forUpdate(transaction))) {
+            try (final var s = con.prepareStatement(QUERY_READ_VM)) {
                 s.setString(1, vmId);
                 final var res = s.executeQuery();
                 if (!res.next()) {
@@ -390,7 +390,7 @@ public class VmDaoImpl implements VmDao {
     {
         final AtomicReference<Map<String, String>> meta = new AtomicReference<>();
         DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement(QUERY_READ_VM_ALLOCATION_META + forUpdate(transaction))) {
+            try (final var s = con.prepareStatement(QUERY_READ_VM_ALLOCATION_META)) {
                 s.setString(1, vmId);
                 final var res = s.executeQuery();
                 if (!res.next()) {
@@ -585,9 +585,5 @@ public class VmDaoImpl implements VmDao {
                 vmSubjectId, tunnelPodName, allocatorMeta, volumeClaims),
             vmMeta != null ? new Vm.RunState(vmMeta, lastActivityTime, deadline) : null
         );
-    }
-
-    private static String forUpdate(@Nullable TransactionHandle tx) {
-        return tx != null ? " FOR UPDATE" : "";
     }
 }

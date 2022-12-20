@@ -1,11 +1,22 @@
 channel-manager:
   address: 'localhost:8122'
-  iam:
-    address: 'localhost:8443'
+  lzy-service-address: 'localhost:8899'
+  lock-buckets-count: 256
+  executor-threads-count: 10
+
+  connections:
+    cache-concurrency-level: 10
+    cache-ttl: 60s
+
   database:
-    url: ""
+    url: "jdbc:postgresql://localhost:5432/channel_manager_db"
     username: "test"
     password: ""
+    min-pool-size: 3
+    max-pool-size: 5
     enabled: true
-    min-pool-size: 5
-    max-pool-size: 100
+
+  iam:
+    address: 'localhost:8443'
+    internal-user-name: "lzy-internal-user"
+    internal-user-private-key: ""

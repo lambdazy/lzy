@@ -10,7 +10,6 @@ import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.longrunning.LocalOperationService.OperationSnapshot;
 import ai.lzy.longrunning.LocalOperationUtils;
 import ai.lzy.longrunning.Operation;
-import ai.lzy.model.EnvironmentInstallationException;
 import ai.lzy.model.Signal;
 import ai.lzy.model.TaskDesc;
 import ai.lzy.model.grpc.ProtoConverter;
@@ -28,12 +27,17 @@ import ai.lzy.v1.worker.LWS.*;
 import ai.lzy.v1.worker.WorkerApiGrpc;
 import ai.lzy.worker.env.Environment;
 import ai.lzy.worker.env.EnvironmentFactory;
+import ai.lzy.worker.env.EnvironmentInstallationException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.net.HostAndPort;
 import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
-import org.apache.commons.cli.*;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -49,6 +53,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
@@ -96,6 +101,7 @@ public class Worker {
                   Duration allocatorHeartbeatPeriod, Duration schedulerHeartbeatPeriod, int apiPort, int fsPort,
                   String fsRoot, String channelManagerAddress, String host, String iamPrivateKey, String allocatorToken)
     {
+        LOG.info("Starting worker on vm {}.\n apiPort: {}\n fsPort: {}\n host: {}", vmId, apiPort, fsPort, host);
         final var realHost = host != null ? host : System.getenv(AllocatorAgent.VM_IP_ADDRESS);
 
         allocatorToken = allocatorToken != null ? allocatorToken : System.getenv(AllocatorAgent.VM_ALLOCATOR_OTT);
@@ -108,7 +114,7 @@ public class Worker {
 
         operationService = new LocalOperationService(workerId);
 
-        server = newGrpcServer(realHost, apiPort, GrpcUtils.NO_AUTH)
+        server = newGrpcServer("0.0.0.0", apiPort, GrpcUtils.NO_AUTH)
             .addService(new WorkerApiImpl())
             .build();
 
@@ -121,11 +127,11 @@ public class Worker {
         }
 
         try {
-            final var fsUri = new URI(LzyFs.scheme(), null, host, fsPort, null, null, null);
+            final var fsUri = new URI(LzyFs.scheme(), null, realHost, fsPort, null, null, null);
             final var cm = HostAndPort.fromString(channelManagerAddress);
 
             lzyFs = new LzyFsServer(workerId, Path.of(fsRoot), fsUri, cm, new RenewableJwt(workerId, "INTERNAL",
-                Duration.ofDays(1), readPrivateKey(iamPrivateKey)), operationService);
+                Duration.ofDays(1), readPrivateKey(iamPrivateKey)), operationService, false);
             lzyFs.start();
         } catch (IOException | URISyntaxException e) {
             LOG.error("Error while building uri", e);
@@ -148,6 +154,7 @@ public class Worker {
             apiPort, iamPrivateKey);
 
         schedulerAgent.start();
+        LOG.info("Worker inited");
     }
 
     @VisibleForTesting
@@ -173,14 +180,18 @@ public class Worker {
 
     @VisibleForTesting
     public static int execute(String[] args) {
+        LOG.info("Starting worker with args {}", Arrays.toString(args));
+
         final CommandLineParser cliParser = new DefaultParser();
         try {
             final CommandLine parse = cliParser.parse(options, args, true);
 
+            var allocHeartbeat = parse.getOptionValue("allocator-heartbeat-period");
+
             final var worker = new Worker(parse.getOptionValue('w'), parse.getOptionValue("worker-id"),
                 parse.getOptionValue("vm-id"), parse.getOptionValue("allocator-address"),
                 parse.getOptionValue("scheduler-address"),
-                Duration.parse(parse.getOptionValue("allocator-heartbeat-period")),
+                allocHeartbeat == null ? null : Duration.parse(allocHeartbeat),
                 Duration.parse(parse.getOptionValue("scheduler-heartbeat-period")),
                 Integer.parseInt(parse.getOptionValue('p')), Integer.parseInt(parse.getOptionValue('q')),
                 parse.getOptionValue('m'), parse.getOptionValue("channel-manager"), parse.getOptionValue('h'),

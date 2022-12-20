@@ -1,7 +1,6 @@
 from typing import List
 
 import setuptools
-from wheel.bdist_wheel import bdist_wheel  # type: ignore
 
 
 def read_readme() -> str:
@@ -68,6 +67,5 @@ setuptools.setup(
         "ai/lzy/v1/workflow"
     ],
     python_requires=">=3.7",
-    long_description=read_readme(),
     long_description_content_type='text/markdown'
 )

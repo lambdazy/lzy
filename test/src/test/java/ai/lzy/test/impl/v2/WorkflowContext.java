@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit;
 
 @Singleton
 public class WorkflowContext {
-    private static final HostAndPort address = HostAndPort.fromParts("localhost", 13579);
+    public static final HostAndPort address = HostAndPort.fromParts("localhost", 13579);
 
     private final LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub stub;
     private final ApplicationContext ctx;

@@ -1,6 +1,19 @@
 package ai.lzy.portal;
 
 import ai.lzy.allocator.AllocatorAgent;
+import ai.lzy.channelmanager.test.BaseTestWithChannelManager;
+import ai.lzy.iam.clients.AccessBindingClient;
+import ai.lzy.iam.clients.SubjectServiceClient;
+import ai.lzy.iam.config.IamClientConfiguration;
+import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
+import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
+import ai.lzy.iam.resources.AccessBinding;
+import ai.lzy.iam.resources.Role;
+import ai.lzy.iam.resources.credentials.SubjectCredentials;
+import ai.lzy.iam.resources.impl.Workflow;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.CredentialsType;
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.model.grpc.ProtoConverter;
@@ -8,11 +21,15 @@ import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.config.PortalConfig;
 import ai.lzy.portal.mocks.MocksServer;
 import ai.lzy.test.GrpcUtils;
+import ai.lzy.util.auth.credentials.CredentialsUtils;
+import ai.lzy.util.auth.credentials.JwtCredentials;
+import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.common.LMS;
-import ai.lzy.v1.deprecated.LzyFsGrpc;
+import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.portal.LzyPortal;
 import ai.lzy.v1.portal.LzyPortalApi;
 import ai.lzy.v1.portal.LzyPortalApi.PortalStatusRequest;
@@ -40,40 +57,47 @@ import org.junit.Before;
 import org.junit.Rule;
 
 import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.locks.LockSupport;
 
-import static ai.lzy.channelmanager.deprecated.grpc.ProtoConverter.makeCreateDirectChannelCommand;
-import static ai.lzy.channelmanager.deprecated.grpc.ProtoConverter.makeDestroyChannelCommand;
+import static ai.lzy.channelmanager.ProtoConverter.makeChannelStatusCommand;
+import static ai.lzy.channelmanager.ProtoConverter.makeCreateChannelCommand;
+import static ai.lzy.channelmanager.ProtoConverter.makeDestroyChannelCommand;
+import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
 import static ai.lzy.util.grpc.GrpcUtils.NO_AUTH_TOKEN;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 public class PortalTestBase {
-    private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
-
-    @Rule
-    public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
-
     private static final Logger LOG = LogManager.getLogger(PortalTestBase.class);
 
-    private final ApplicationContext context = ApplicationContext.run("test");
-    private PortalConfig config;
-
-    private App portal;
-
-    protected MocksServer mocksServer;
-
-    private Map<String, Worker> workers;
+    private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
+    private static final BaseTestWithChannelManager channelManagerTestContext = new BaseTestWithChannelManager();
 
     private static final int S3_PORT = 8001;
     protected static final String S3_ADDRESS = "http://localhost:" + S3_PORT;
     protected static final String BUCKET_NAME = "lzy-bucket";
 
+    @Rule
+    public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+    @Rule
+    public PreparedDbRule channelManagerDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+
+    private final ApplicationContext context = ApplicationContext.run("test");
+    private PortalConfig config;
+    private App portal;
     private S3Mock s3;
+    private String userId;
+    private String workflowName;
+
+    protected MocksServer mocksServer;
+    private Map<String, Worker> workers;
 
     private ManagedChannel portalApiChannel;
     private ManagedChannel portalSlotsChannel;
@@ -81,20 +105,29 @@ public class PortalTestBase {
     private LzyPortalGrpc.LzyPortalBlockingStub authorizedPortalClient;
     private LzySlotsApiGrpc.LzySlotsApiBlockingStub portalSlotsClient;
 
+    private LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerPrivateClient;
+    private Map<String, String> createdChannels;
+
     @Before
-    public void before() throws IOException, AllocatorAgent.RegisterException {
+    public void before() throws Exception {
         System.err.println("---> " + ForkJoinPool.commonPool().getParallelism());
 
         var iamDbConfig = DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo());
         iamTestContext.setUp(iamDbConfig);
 
+        var channelManagerDbConfig = preparePostgresConfig("channel-manager", channelManagerDb.getConnectionInfo());
+        channelManagerTestContext.setUp(channelManagerDbConfig);
+        channelManagerPrivateClient = channelManagerTestContext.getOrCreatePrivateClient(
+            iamTestContext.getClientConfig().createRenewableToken());
+
+        createdChannels = new HashMap<>();
         workers = new HashMap<>();
 
         config = context.getBean(PortalConfig.class);
         var mocksPort = GrpcUtils.rollPort();
         var mocksAddress = "localhost:" + mocksPort;
         config.setIamAddress("localhost:" + iamTestContext.getPort());
-        config.setChannelManagerAddress(mocksAddress);
+        config.setChannelManagerAddress(channelManagerTestContext.getAddress());
         config.setAllocatorAddress(mocksAddress);
         config.setWhiteboardAddress(mocksAddress);
         config.setPortalApiPort(GrpcUtils.rollPort());
@@ -102,6 +135,15 @@ public class PortalTestBase {
 
         mocksServer = new MocksServer(mocksPort);
         mocksServer.start();
+
+        userId = "uid";
+        workflowName = "wf";
+
+        try (final var iamClient = new IamClient(iamTestContext.getClientConfig())) {
+            var user = iamClient.createUser(config.getPortalId());
+            iamClient.addWorkflowAccess(user.id(), userId, workflowName);
+            config.setIamPrivateKey(user.credentials().privateKey());
+        }
 
         startS3();
         startPortal();
@@ -123,6 +165,8 @@ public class PortalTestBase {
 
         portal.stop();
         iamTestContext.after();
+        System.err.println("CLOSE");
+        channelManagerTestContext.after();
     }
 
     private void startS3() {
@@ -144,8 +188,11 @@ public class PortalTestBase {
     }
 
     private void startPortal() throws IOException, AllocatorAgent.RegisterException {
-        createChannel("portal:stdout");
-        createChannel("portal:stderr");
+        var stdoutChannelId = createChannel("portal:stdout");
+        var stderrChannelId = createChannel("portal:stderr");
+
+        config.setStdoutChannelId(stdoutChannelId);
+        config.setStderrChannelId(stderrChannelId);
 
         portal = new App(context);
         portal.start();
@@ -161,7 +208,7 @@ public class PortalTestBase {
         authorizedPortalClient = newBlockingClient(unauthorizedPortalClient, "TestClient",
             () -> internalUserCredentials.get().token());
 
-        portalSlotsChannel = newGrpcChannel("localhost", config.getSlotsApiPort(), LzyFsGrpc.SERVICE_NAME);
+        portalSlotsChannel = newGrpcChannel("localhost", config.getSlotsApiPort(), LzySlotsApiGrpc.SERVICE_NAME);
         portalSlotsClient = newBlockingClient(
             LzySlotsApiGrpc.newBlockingStub(portalSlotsChannel),
             "Test",
@@ -178,11 +225,13 @@ public class PortalTestBase {
         }
 
         String channelName = "channel_" + taskNum;
-        String[] stdChannelNames = {taskId + ":stdout", taskId + ":stderr"};
+        String channelId = createChannel(channelName);
 
-        createChannel(channelName);
-        createChannel(stdChannelNames[0]);
-        createChannel(stdChannelNames[1]);
+        String stdoutChannelName = taskId + ":stdout";
+        String stdoutChannelId = createChannel(stdoutChannelName);
+
+        String stderrChannelName = taskId + ":stderr";
+        String stderrChannelId = createChannel(stderrChannelName);
 
         String slotName = "/portal_slot_" + taskNum;
         LMS.Slot slot = isInput ? GrpcUtils.makeInputFileSlot(slotName) : GrpcUtils.makeOutputFileSlot(slotName);
@@ -191,16 +240,16 @@ public class PortalTestBase {
             .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSnapshot(GrpcUtils.makeAmazonSnapshot(snapshotId, BUCKET_NAME, S3_ADDRESS))
                 .setSlot(slot)
-                .setChannelId(channelName)
+                .setChannelId(channelId)
                 .build())
             .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_%s:stdout".formatted(taskId)))
-                .setChannelId(stdChannelNames[0])
+                .setChannelId(stdoutChannelId)
                 .setStdout(GrpcUtils.makeStdoutStorage(taskId))
                 .build())
             .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_%s:stderr".formatted(taskId)))
-                .setChannelId(stdChannelNames[1])
+                .setChannelId(stderrChannelId)
                 .setStderr(GrpcUtils.makeStderrStorage(taskId))
                 .build())
             .build());
@@ -211,6 +260,9 @@ public class PortalTestBase {
     protected String startTask(int taskNum, String fuze, LMS.Slot slot, String specifiedWorker) {
         String taskId = "task_" + taskNum;
         String actualWorker = Objects.isNull(specifiedWorker) ? "worker_" + taskNum : specifiedWorker;
+        String channelId = createdChannels.get("channel_" + taskNum);
+        String stdoutChannelId = createdChannels.get(taskId + ":stdout");
+        String stderrChannelId = createdChannels.get(taskId + ":stderr");
 
         mocksServer.getSchedulerMock().startWorker(actualWorker,
             LMO.TaskDesc.newBuilder()
@@ -219,25 +271,25 @@ public class PortalTestBase {
                     .setCommand(fuze)
                     .setStdout(LMO.Operation.StdSlotDesc.newBuilder()
                         .setName("/dev/stdout")
-                        .setChannelId(taskId + ":stdout")
+                        .setChannelId(stdoutChannelId)
                         .build())
                     .setStderr(LMO.Operation.StdSlotDesc.newBuilder()
                         .setName("/dev/stderr")
-                        .setChannelId(taskId + ":stderr")
+                        .setChannelId(stderrChannelId)
                         .build())
                     .addSlots(slot)
                     .build())
                 .addSlotAssignments(LMO.SlotToChannelAssignment.newBuilder()
                     .setSlotName(slot.getName())
-                    .setChannelId("channel_" + taskNum)
+                    .setChannelId(channelId)
                     .build())
                 .addSlotAssignments(LMO.SlotToChannelAssignment.newBuilder()
                     .setSlotName("/dev/stdout")
-                    .setChannelId(taskId + ":stdout")
+                    .setChannelId(stdoutChannelId)
                     .build())
                 .addSlotAssignments(LMO.SlotToChannelAssignment.newBuilder()
                     .setSlotName("/dev/stderr")
-                    .setChannelId(taskId + ":stderr")
+                    .setChannelId(stderrChannelId)
                     .build())
                 .build(), taskId, "execution-id");
 
@@ -248,13 +300,18 @@ public class PortalTestBase {
         var allocatorDuration = Duration.ofSeconds(5);
         var schedulerDuration = Duration.ofSeconds(1);
         String privateKey;
-        try {
-            privateKey = RsaUtils.generateRsaKeys().privateKey();
+
+        try (final var iamClient = new IamClient(iamTestContext.getClientConfig())) {
+            var user = iamClient.createUser(workerId);
+            workflowName = "wf";
+            privateKey = user.credentials().privateKey();
+            iamClient.addWorkflowAccess(user.id(), userId, workflowName);
         } catch (Exception e) {
-            LOG.error("Cannot build credentials for portal", e);
+            Assert.fail("Failed to create worker user: " + e.getMessage());
             throw new RuntimeException(e);
         }
-        var worker = new Worker("workflow", workerId, UUID.randomUUID().toString(), config.getAllocatorAddress(),
+
+        var worker = new Worker(workflowName, workerId, UUID.randomUUID().toString(), config.getAllocatorAddress(),
             config.getAllocatorAddress(), allocatorDuration, schedulerDuration,
             GrpcUtils.rollPort(), GrpcUtils.rollPort(), "/tmp/lzy_" + workerId + "/",
             config.getChannelManagerAddress(), "localhost", privateKey, "token_" + workerId);
@@ -281,16 +338,21 @@ public class PortalTestBase {
         }
     }
 
-    protected void createChannel(String name) {
-        mocksServer.getChannelManagerMock().create(makeCreateDirectChannelCommand(UUID.randomUUID().toString(), name),
-            GrpcUtils.SuccessStreamObserver.wrap(
-                status -> System.out.println("Channel '" + name + "' created: " + JsonUtils.printSingleLine(status))));
+    protected String createChannel(String name) {
+        final var response = channelManagerPrivateClient.create(
+            makeCreateChannelCommand(userId, workflowName, UUID.randomUUID().toString(), name));
+        System.out.println("Channel '" + name + "' created: " + response.getChannelId());
+        createdChannels.put(name, response.getChannelId());
+        return response.getChannelId();
     }
 
     protected void destroyChannel(String name) {
-        mocksServer.getChannelManagerMock().destroy(makeDestroyChannelCommand(name),
-            GrpcUtils.SuccessStreamObserver.wrap(
-                status -> System.out.println("Channel '" + name + "' removed: " + JsonUtils.printSingleLine(status))));
+        String id = createdChannels.get(name);
+        if (id != null) {
+            channelManagerPrivateClient.destroy(makeDestroyChannelCommand(id));
+            System.out.println("Channel '" + name + "' removed");
+            createdChannels.remove(name);
+        }
     }
 
     protected void openPortalSlots(LzyPortalApi.OpenSlotsRequest request) {
@@ -318,17 +380,28 @@ public class PortalTestBase {
     }
 
     protected ArrayBlockingQueue<Object> readPortalSlot(String channelName) {
-        var outputSlotRef = Objects.requireNonNull(mocksServer.getChannelManagerMock().get(channelName)).outputSlot;
-        var portalSlot = outputSlotRef.get();
+        String channelId = createdChannels.get(channelName);
+        LMS.SlotInstance portalSlot = null;
+
         int n = 100;
-        while (portalSlot == null && n-- > 0) {
+        while (n-- > 0) {
+            try {
+                var status = channelManagerPrivateClient.status(makeChannelStatusCommand(channelId));
+                portalSlot = status.getStatus().getChannel().getSenders().getPortalSlot();
+            } catch (StatusRuntimeException e) {
+                if (e.getStatus().getCode() == Status.NOT_FOUND.getCode()) {
+                    portalSlot = null;
+                }
+            }
+            if (portalSlot != null) {
+                break;
+            }
             LockSupport.parkNanos(Duration.ofMillis(10).toNanos());
-            portalSlot = outputSlotRef.get();
         }
 
         Assert.assertNotNull(portalSlot);
 
-        var iter = openOutputSlot(ProtoConverter.fromProto(portalSlot.getSlotInstance()));
+        var iter = openOutputSlot(ProtoConverter.fromProto(portalSlot));
 
         var values = new ArrayBlockingQueue<>(100);
 
@@ -352,5 +425,66 @@ public class PortalTestBase {
         });
 
         return values;
+    }
+
+    public record User(
+        String id,
+        IamClient.GeneratedCredentials credentials
+    ) { }
+
+    public static class IamClient implements AutoCloseable {
+
+        private final ManagedChannel channel;
+        private final SubjectServiceClient subjectClient;
+        private final AccessBindingClient accessBindingClient;
+
+        IamClient(IamClientConfiguration config) {
+            this.channel = newGrpcChannel(config.getAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
+            var iamToken = config.createRenewableToken();
+            this.subjectClient = new SubjectServiceGrpcClient("TestClient", channel, iamToken::get);
+            this.accessBindingClient = new AccessBindingServiceGrpcClient("TestABClient", channel, iamToken::get);
+        }
+
+        public User createUser(String portalId) throws Exception {
+            var creds = generateCredentials(portalId, "INTERNAL");
+
+            var subj = subjectClient.createSubject(AuthProvider.INTERNAL, portalId, SubjectType.WORKER,
+                new SubjectCredentials("main", creds.publicKey(), CredentialsType.PUBLIC_KEY));
+
+            return new User(subj.id(), creds);
+        }
+
+        public void addWorkflowAccess(String subjId, String userId, String workflowName) {
+            final var subj = subjectClient.getSubject(subjId);
+
+            accessBindingClient.setAccessBindings(new Workflow(userId + "/" + workflowName),
+                List.of(new AccessBinding(Role.LZY_WORKFLOW_OWNER, subj)));
+        }
+
+        private GeneratedCredentials generateCredentials(String login, String provider)
+            throws IOException, InterruptedException, NoSuchAlgorithmException, InvalidKeySpecException
+        {
+            final var keys = RsaUtils.generateRsaKeys();
+            var from = Date.from(Instant.now());
+            var till = JwtUtils.afterDays(7);
+            var credentials = new JwtCredentials(JwtUtils.buildJWT(login, provider, from, till,
+                CredentialsUtils.readPrivateKey(keys.privateKey())));
+
+            final var publicKey = keys.publicKey();
+
+            return new GeneratedCredentials(publicKey, keys.privateKey(), credentials);
+        }
+
+        @Override
+        public void close() {
+            channel.shutdown();
+        }
+
+        public record GeneratedCredentials(
+            String publicKey,
+            String privateKey,
+            JwtCredentials credentials
+        ) { }
+
     }
 }

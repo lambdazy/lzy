@@ -6,7 +6,6 @@ import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.scheduler.db.WorkerDao;
-import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.GrpcHeadersServerInterceptor;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
 import ai.lzy.util.grpc.RemoteAddressInterceptor;
@@ -15,16 +14,16 @@ import com.google.common.annotations.VisibleForTesting;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
-import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.context.ApplicationContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
+
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 
 @Singleton
 public class SchedulerApi {
@@ -40,12 +39,11 @@ public class SchedulerApi {
     public SchedulerApi(SchedulerApiImpl impl, PrivateSchedulerApiImpl privateApi, ServiceConfig config,
                         @Named("SchedulerIamGrpcChannel") ManagedChannel iamChannel, WorkerDao dao)
     {
+        LOG.info("Building server at 0.0.0.0:{}", config.getPort());
         this.impl = impl;
         this.dao = dao;
 
-        var builder = NettyServerBuilder.forPort(config.getPort())
-            .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
+        var builder = newGrpcServer("0.0.0.0", config.getPort(), null)
             .intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel)))
             .intercept(new RemoteAddressInterceptor())
             .intercept(GrpcLogsInterceptor.server())
@@ -100,26 +98,26 @@ public class SchedulerApi {
         final SchedulerApi api;
         try (var context = ApplicationContext.run()) {
             api = context.getBean(SchedulerApi.class);
-        }
-        final Thread thread = Thread.currentThread();
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            LOG.info("Stopping GraphExecutor service");
-            api.close();
+            final Thread thread = Thread.currentThread();
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                LOG.info("Stopping GraphExecutor service");
+                api.close();
+                while (true) {
+                    try {
+                        thread.join();
+                        break;
+                    } catch (InterruptedException e) {
+                        LOG.debug(e);
+                    }
+                }
+            }));
             while (true) {
                 try {
-                    thread.join();
+                    api.awaitTermination();
                     break;
-                } catch (InterruptedException e) {
-                    LOG.debug(e);
+                } catch (InterruptedException ignored) {
+                    // ignored
                 }
-            }
-        }));
-        while (true) {
-            try {
-                api.awaitTermination();
-                break;
-            } catch (InterruptedException ignored) {
-                // ignored
             }
         }
     }

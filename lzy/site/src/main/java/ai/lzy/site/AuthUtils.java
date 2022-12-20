@@ -1,9 +1,10 @@
 package ai.lzy.site;
 
+import ai.lzy.iam.clients.AuthenticateService;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
-import ai.lzy.iam.resources.credentials.SubjectCredentials;
-import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.Subject;
+import ai.lzy.util.auth.credentials.JwtCredentials;
+import ai.lzy.util.auth.exceptions.AuthException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
@@ -22,16 +23,15 @@ public class AuthUtils {
     @Inject
     SubjectServiceGrpcClient subjectService;
 
+    @Inject
+    AuthenticateService authService;
+
     public Subject checkCookieAndGetSubject(String userSubjectId, String sessionId) {
-        final Subject subject = subjectService.getSubject(userSubjectId);
-        final SubjectCredentials credentials = subjectService.listCredentials(subject).stream()
-            .filter(creds -> creds.type() == CredentialsType.COOKIE)
-            .findFirst().orElse(null);
-        if (credentials == null || !credentials.value().equals(sessionId)) {
-            final String message = "Invalid cookie passed for user " + userSubjectId;
-            LOG.error(message);
-            throw new HttpStatusException(HttpStatus.FORBIDDEN, message);
+        try {
+            return authService.authenticate(new JwtCredentials(sessionId));
+        } catch (AuthException e) {
+            LOG.error("Cannot auth token for user {}: ", userSubjectId, e);
+            throw new HttpStatusException(HttpStatus.FORBIDDEN, "Invalid token: " + e.getMessage());
         }
-        return subject;
     }
 }
