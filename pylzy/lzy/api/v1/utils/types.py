@@ -62,7 +62,7 @@ def infer_call_signature(
 
 
 def infer_real_type(typ: Type) -> Type:
-    origin = get_origin(typ)
+    origin: Optional[Type] = get_origin(typ)
     if origin is not None:
         if origin == Union:  # type: ignore
             args = get_args(typ)  # TODO: what should we do with real Union?
