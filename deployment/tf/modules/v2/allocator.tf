@@ -27,15 +27,13 @@ locals {
   allocator-image = var.allocator-image
 }
 
-resource "kubernetes_deployment" "allocator" {
+resource "kubernetes_stateful_set" "allocator" {
   metadata {
     name   = local.allocator-k8s-name
     labels = local.allocator-labels
   }
   spec {
-    strategy {
-      type = "Recreate"
-    }
+    replicas = "1"
     selector {
       match_labels = local.allocator-labels
     }
@@ -164,6 +162,15 @@ resource "kubernetes_deployment" "allocator" {
             value = "5m"
           }
 
+          env {
+            name = "ALLOCATOR_INSTANCE_ID"
+            value_from {
+              field_ref {
+                field_path = "metadata.name"
+              }
+            }
+          }
+
           volume_mount {
             name       = "sa-key"
             mount_path = "/tmp/sa-key/"
@@ -212,6 +219,7 @@ resource "kubernetes_deployment" "allocator" {
         host_network  = true
       }
     }
+    service_name = ""
   }
 }
 
