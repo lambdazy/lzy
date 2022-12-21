@@ -86,45 +86,40 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
             return;
         }
 
+        final GraphDescription graph = GraphDescription.fromGrpc(request.getTasksList(), request.getChannelsList());
+        try {
+            graphBuilder.validate(graph);
+        } catch (GraphBuilder.GraphValidationException e) {
+            var errorStatus = Status.INVALID_ARGUMENT.withDescription(e.getMessage());
+            responseObserver.onError(errorStatus.asException());
+            return;
+        }
+
         var op = Operation.create(
             request.getUserId(),
             "Execute graph of execution: executionId='%s'".formatted(request.getWorkflowId()),
             idempotencyKey,
             /* meta */ null);
 
+        final GraphExecutionState graphExecution;
         try {
-            withRetries(LOG, () -> operationDao.create(op, null));
-        } catch (Exception ex) {
-            if (idempotencyKey != null && handleIdempotencyKeyConflict(idempotencyKey, ex, operationDao,
+            graphExecution = queueManager.startGraph(request.getWorkflowId(), request.getWorkflowName(),
+                request.getUserId(), graph, op);
+        } catch (StatusException e) {
+            LOG.error("Error while adding start graph event from workflow <{}>", request.getWorkflowId(), e);
+            responseObserver.onError(e);
+            return;
+        } catch (Exception e) {
+            if (idempotencyKey != null && handleIdempotencyKeyConflict(idempotencyKey, e, operationDao,
                 responseObserver, GraphExecuteResponse.class, Duration.ofMillis(100), Duration.ofSeconds(5), LOG))
             {
                 return;
             }
 
-            LOG.error("Cannot create execute graph operation for: { userId: {}, executionId: {}, error: {}}",
-                request.getUserId(), request.getWorkflowId(), ex.getMessage(), ex);
-            var status = Status.INTERNAL.withDescription(ex.getMessage());
-            responseObserver.onError(status.asException());
-            return;
-        }
-
-        final GraphDescription graph = GraphDescription.fromGrpc(request.getTasksList(), request.getChannelsList());
-        try {
-            graphBuilder.validate(graph);
-        } catch (GraphBuilder.GraphValidationException e) {
-            var errorStatus = Status.INVALID_ARGUMENT.withDescription(e.getMessage());
-            operationDao.failOperation(op.id(), toProto(errorStatus), LOG);
-            responseObserver.onError(errorStatus.asException());
-            return;
-        }
-        final GraphExecutionState graphExecution;
-        try {
-            graphExecution = queueManager.startGraph(request.getWorkflowId(), request.getWorkflowName(),
-                request.getUserId(), graph);
-        } catch (StatusException e) {
             LOG.error("Cannot create graph for workflow <" + request.getWorkflowId() + ">", e);
-            operationDao.failOperation(op.id(), toProto(e.getStatus()), LOG);
-            responseObserver.onError(e);
+
+            var status = Status.INTERNAL.withDescription(e.getMessage());
+            responseObserver.onError(status.asException());
             return;
         }
 
@@ -148,6 +143,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
             var errorStatus = Status.INTERNAL.withDescription("Error while execute graph: " + e.getMessage());
             operationDao.failOperation(op.id(), toProto(errorStatus), LOG);
             responseObserver.onError(errorStatus.asRuntimeException());
+            return;
         }
 
         responseObserver.onNext(response);

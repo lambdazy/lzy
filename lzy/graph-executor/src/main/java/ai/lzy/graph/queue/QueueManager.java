@@ -3,14 +3,20 @@ package ai.lzy.graph.queue;
 import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.graph.db.GraphExecutionDao;
 import ai.lzy.graph.db.QueueEventDao;
+import ai.lzy.graph.db.impl.GraphExecutorDataSource;
 import ai.lzy.graph.exec.GraphProcessor;
 import ai.lzy.graph.model.GraphDescription;
 import ai.lzy.graph.model.GraphExecutionState;
 import ai.lzy.graph.model.GraphExecutionState.Status;
 import ai.lzy.graph.model.QueueEvent;
+import ai.lzy.longrunning.Operation;
+import ai.lzy.longrunning.dao.OperationDao;
+import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.DaoException;
 import io.grpc.StatusException;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -36,13 +42,19 @@ public class QueueManager extends Thread {
     private final BlockingQueue<GraphExecutionKey> queue = new LinkedBlockingQueue<>();
     private final ExecutorService executor;
     private final GraphProcessor processor;
+    private final GraphExecutorDataSource storage;
     private final GraphExecutionDao dao;
     private final AtomicBoolean stopping = new AtomicBoolean(false);
     private final Map<GraphExecutionKey, String> stoppingGraphs = new ConcurrentHashMap<>();
     private final QueueEventDao eventDao;
 
+    private final OperationDao operationDao;
+
     @Inject
-    public QueueManager(GraphProcessor processor, GraphExecutionDao dao, ServiceConfig config, QueueEventDao eventDao) {
+    public QueueManager(ServiceConfig config, GraphProcessor processor, GraphExecutorDataSource storage,
+                        QueueEventDao eventDao, GraphExecutionDao dao,
+                        @Named("GraphExecutorOperationDao") OperationDao operationDao)
+    {
         super("queue-manager-thread");
         this.processor = processor;
         this.dao = dao;
@@ -55,6 +67,8 @@ public class QueueManager extends Thread {
                 return new Thread(EXECUTORS_TG, r, "graph-executor-" + (++count));
             }
         });
+        this.storage = storage;
+        this.operationDao = operationDao;
         try {
             restore();
         } catch (DaoException e) {
@@ -92,23 +106,29 @@ public class QueueManager extends Thread {
         putIntoQueue(GraphExecutionKey.noop());
     }
 
-    public GraphExecutionState startGraph(String workflowId, String workflowName, String userId,
-                                          GraphDescription graph) throws StatusException {
+    public GraphExecutionState startGraph(String workflowId, String workflowName, String userId, GraphDescription graph,
+                                          @Nullable Operation operation) throws Exception
+    {
         if (stopping.get()) {
             throw io.grpc.Status.UNAVAILABLE.withDescription("Service stopping, please try later").asException();
         }
 
         final GraphExecutionState state;
-        try {
-            // TODO: add tx
-            state = dao.create(workflowId, workflowName, userId, graph);
-            withRetries(LOG, () ->
-                eventDao.add(QueueEvent.Type.START, state.workflowId(), state.id(), "Starting graph"));
-        } catch (Exception e) {
-            LOG.error("Error while adding start graph event from workflow <{}>", workflowId, e);
-            throw io.grpc.Status.INTERNAL.withDescription("Error while starting graph").asException();
+
+        try (var tx = TransactionHandle.create(storage)) {
+            if (operation != null) {
+                withRetries(LOG, () -> operationDao.create(operation, tx));
+            }
+
+            state = withRetries(LOG, () -> dao.create(workflowId, workflowName, userId, graph, tx));
+            withRetries(LOG, () -> eventDao.add(QueueEvent.Type.START, state.workflowId(), state.id(),
+                "Starting graph", tx));
+
+            tx.commit();
         }
+
         putIntoQueue(GraphExecutionKey.noop());
+
         return state;
     }
 
@@ -127,7 +147,8 @@ public class QueueManager extends Thread {
             if (Set.of(Status.FAILED, Status.COMPLETED).contains(state.status())) {
                 return state;
             }
-            withRetries(LOG, () -> eventDao.add(QueueEvent.Type.STOP, state.workflowId(), state.id(), description));
+            withRetries(LOG, () -> eventDao.add(QueueEvent.Type.STOP, state.workflowId(), state.id(),
+                description, null));
         } catch (Exception e) {
             LOG.error("Error while adding graph {} stop event from workflow {}", graphId, workflowId, e);
             throw io.grpc.Status.INTERNAL.withDescription("Error while stopping graph").asException();
@@ -191,7 +212,7 @@ public class QueueManager extends Thread {
                     stateKey.workflowId(), stateKey.graphId(), ex);
             }
             throw new RuntimeException(String.format("Cannot update graph <%s> with workflow <%s>",
-                    stateKey.graphId(), stateKey.workflowId()), e);
+                stateKey.graphId(), stateKey.workflowId()), e);
         }
     }
 
@@ -227,7 +248,8 @@ public class QueueManager extends Thread {
         switch (event.type()) {
             case START -> putIntoQueue(key);
             case STOP -> stoppingGraphs.put(key, event.description());
-            default -> { }
+            default -> {
+            }
         }
         try {
             eventDao.remove(event);
