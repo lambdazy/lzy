@@ -1,7 +1,6 @@
 import uuid
 from inspect import getfullargspec
 from itertools import chain
-from types import NoneType
 from typing import (
     Callable,
     Optional,
@@ -63,7 +62,7 @@ def infer_real_type(type_: Type) -> Type:
         if origin == Union:  # type: ignore
             # noinspection PyUnresolvedReferences
             args = type_.__args__  # TODO: what should we do with real Union?
-            if len(args) == 2 and args[1] is NoneType:  # check typ is Optional
+            if len(args) == 2 and isinstance(None, args[1]):  # check typ is Optional
                 return infer_real_type(args[0])
         return origin
     return type_
