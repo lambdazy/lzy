@@ -14,6 +14,7 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.Executors;
@@ -79,6 +80,19 @@ public class GarbageCollector {
         } catch (InterruptedException e) {
             LOG.error("GC shutdown interrupted", e);
         }
+
+        if (isLeader()) {
+            LOG.info("Release GC lease...");
+            try {
+                gcDao.release(instanceId);
+            } catch (SQLException e) {
+                LOG.error("Cannot release GC lease for {}: {}", instanceId, e.getMessage());
+            }
+        }
+    }
+
+    private boolean isLeader() {
+        return leaderDeadline.get() != null && leaderDeadline.get().isAfter(Instant.now());
     }
 
     private void schedule(Runnable task, Duration delay) {
@@ -96,7 +110,7 @@ public class GarbageCollector {
     private class BecomeLeader implements Runnable {
         @Override
         public void run() {
-            if (leaderDeadline.get() != null && leaderDeadline.get().isAfter(Instant.now())) {
+            if (isLeader()) {
                 try {
                     var newDeadline = gcDao.prolongLeader(instanceId, config.getLeaseDuration());
                     leaderDeadline.set(newDeadline);
