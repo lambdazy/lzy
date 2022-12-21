@@ -52,7 +52,8 @@ public record WorkerState(
         @Nullable private HostAndPort workerUrl = null;
 
         public WorkerStateBuilder(String id, String userId, String workflowName,
-                                  Operation.Requirements requirements, Status status) {
+                                  Operation.Requirements requirements, Status status)
+        {
             this.id = id;
             this.userId = userId;
             this.workflowName = workflowName;

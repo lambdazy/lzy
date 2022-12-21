@@ -676,7 +676,8 @@ public class SchedulerTest {
     }
 
     public void awaitState(String workflowId, String workerId,
-                           WorkerState.Status status) throws InterruptedException, DaoException {
+                           WorkerState.Status status) throws InterruptedException, DaoException
+    {
         WorkerState.Status s = null;
         var worker = workerDao.get(workflowId, workerId);
         if (worker != null) {

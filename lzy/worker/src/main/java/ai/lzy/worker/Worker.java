@@ -65,6 +65,7 @@ import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 
 public class Worker {
     private static final Logger LOG = LogManager.getLogger(Worker.class);
+    public static boolean USE_LOCALHOST_AS_HOST = false;
 
     public static final String ENV_WORKER_PKEY = "LZY_WORKER_PKEY";
 
@@ -103,7 +104,17 @@ public class Worker {
                   String fsRoot, String channelManagerAddress, String host, String iamPrivateKey, String allocatorToken)
     {
         LOG.info("Starting worker on vm {}.\n apiPort: {}\n fsPort: {}\n host: {}", vmId, apiPort, fsPort, host);
-        final var realHost = host != null ? host : System.getenv(AllocatorAgent.VM_IP_ADDRESS);
+        var realHost = host != null ? host : System.getenv(AllocatorAgent.VM_IP_ADDRESS);
+
+        if (realHost == null) {
+            if (USE_LOCALHOST_AS_HOST) {
+                realHost = "localhost";  // For tests
+            } else {
+                LOG.error("Cannot resolve host of vm");
+                stop();
+                throw new RuntimeException("Cannot resolve host of vm");
+            }
+        }
 
         allocatorToken = allocatorToken != null ? allocatorToken : System.getenv(AllocatorAgent.VM_ALLOCATOR_OTT);
         iamPrivateKey = iamPrivateKey != null ? iamPrivateKey : System.getenv(ENV_WORKER_PKEY);
@@ -152,7 +163,7 @@ public class Worker {
         // TODO: when should we start this agent?
         //       we can share VM among _all_ workflows of user, so, workflowName is not a constant
         schedulerAgent = new SchedulerAgent(schedulerAddress, workerId, workflowName, schedulerHeartbeatPeriod,
-            apiPort, iamPrivateKey);
+            HostAndPort.fromParts(realHost, apiPort), iamPrivateKey);
 
         schedulerAgent.start();
         LOG.info("Worker inited");

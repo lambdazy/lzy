@@ -45,7 +45,8 @@ public class WorkersPoolImpl implements WorkersPool {
 
     public WorkersPoolImpl(ServiceConfig config, WorkerEventProcessorConfig workerConfig,
                            WorkerDao dao, WorkersAllocator allocator, WorkerEventDao events,
-                           TaskDao tasks, EventQueueManager queueManager) {
+                           TaskDao tasks, EventQueueManager queueManager)
+    {
         this.config = config;
         this.workerConfig = workerConfig;
         this.dao = dao;

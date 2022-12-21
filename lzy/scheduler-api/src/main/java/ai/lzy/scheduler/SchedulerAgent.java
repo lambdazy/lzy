@@ -7,6 +7,7 @@ import ai.lzy.v1.scheduler.SchedulerPrivateApi.WorkerProgress;
 import ai.lzy.v1.scheduler.SchedulerPrivateApi.WorkerProgress.Executing;
 import ai.lzy.v1.scheduler.SchedulerPrivateApi.WorkerProgress.Idle;
 import ai.lzy.v1.scheduler.SchedulerPrivateGrpc;
+import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
@@ -32,7 +33,7 @@ public class SchedulerAgent extends Thread {
     private final String workerId;
     private final String workflowName;
     private final Duration heartbeatPeriod;
-    private final int apiPort;
+    private final HostAndPort address;
     private final ManagedChannel channel;
 
     private final SchedulerPrivateGrpc.SchedulerPrivateBlockingStub stub;
@@ -42,13 +43,13 @@ public class SchedulerAgent extends Thread {
     private final AtomicReference<TimerTask> task = new AtomicReference<>();
 
     public SchedulerAgent(String schedulerAddress, String workerId, String workflowName,
-                          Duration heartbeatPeriod, int apiPort, String iamPrivateKey)
+                          Duration heartbeatPeriod, HostAndPort address, String iamPrivateKey)
     {
         super("scheduler-agent-" + workerId);
         this.workerId = workerId;
         this.workflowName = workflowName;
         this.heartbeatPeriod = heartbeatPeriod;
-        this.apiPort = apiPort;
+        this.address = address;
 
         RenewableJwt jwt;
         try {
@@ -70,7 +71,7 @@ public class SchedulerAgent extends Thread {
             stub.registerWorker(SchedulerPrivateApi.RegisterWorkerRequest.newBuilder()
                 .setWorkerId(workerId)
                 .setWorkflowName(workflowName)
-                .setApiPort(apiPort)
+                .setAddress(address.toString())
                 .build());
         } catch (StatusRuntimeException e) {
             LOG.error("Error while registering agent");
