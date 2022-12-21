@@ -7,9 +7,9 @@ import ai.lzy.channelmanager.dao.ChannelOperationDao;
 import ai.lzy.channelmanager.exceptions.ChannelGraphStateException;
 import ai.lzy.channelmanager.grpc.SlotConnectionManager;
 import ai.lzy.channelmanager.lock.GrainedLock;
-import ai.lzy.channelmanager.model.Channel;
 import ai.lzy.channelmanager.model.Connection;
 import ai.lzy.channelmanager.model.Endpoint;
+import ai.lzy.channelmanager.model.channel.Channel;
 import ai.lzy.channelmanager.operation.ChannelOperationExecutor;
 import ai.lzy.channelmanager.test.InjectedFailures;
 import ai.lzy.longrunning.dao.OperationDao;
@@ -270,7 +270,7 @@ public abstract class ChannelAction implements Runnable {
 
             slotApi.disconnectSlot(request);
         } catch (StatusRuntimeException e) {
-            if (Status.NOT_FOUND.equals(e.getStatus())) {
+            if (Status.NOT_FOUND.getCode().equals(e.getStatus().getCode())) {
                 LOG.info("Async operation (operationId={}): disconnectSlot request failed, slot not found. "
                          + "Continue action", operationId);
                 return;
@@ -294,7 +294,7 @@ public abstract class ChannelAction implements Runnable {
 
             slotApi.destroySlot(request);
         } catch (StatusRuntimeException e) {
-            if (Status.NOT_FOUND.equals(e.getStatus())) {
+            if (Status.NOT_FOUND.getCode().equals(e.getStatus().getCode())) {
                 LOG.info("Async operation (operationId={}): destroySlot request failed, slot not found. "
                          + "Continue action", operationId);
                 return;

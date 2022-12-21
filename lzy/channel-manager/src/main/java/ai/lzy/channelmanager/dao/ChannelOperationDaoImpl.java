@@ -101,6 +101,7 @@ public class ChannelOperationDaoImpl implements ChannelOperationDao {
         });
     }
 
+    @Nullable
     @Override
     public ChannelOperation get(String operationId, @Nullable TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, conn -> {

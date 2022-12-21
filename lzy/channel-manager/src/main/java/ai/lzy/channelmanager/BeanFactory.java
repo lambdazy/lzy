@@ -37,8 +37,7 @@ public class BeanFactory {
 
     @Singleton
     @Named("ChannelManagerOperationService")
-    public OperationService operationService(@Named("ChannelManagerOperationDao") OperationDao operationDao)
-    {
+    public OperationService operationService(@Named("ChannelManagerOperationDao") OperationDao operationDao) {
         return new OperationService(operationDao);
     }
 
@@ -83,8 +82,8 @@ public class BeanFactory {
     @Bean(preDestroy = "shutdown")
     @Singleton
     @Requires(bean = ChannelManagerDataSource.class)
-    public ChannelOperationExecutor executor(ChannelManagerConfig config) {
-        return new ChannelOperationExecutor(config);
+    public ChannelOperationExecutor executor(ChannelManagerDataSource dataSource, ChannelManagerConfig config) {
+        return new ChannelOperationExecutor(dataSource, config);
     }
 
 }

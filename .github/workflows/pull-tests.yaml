@@ -61,7 +61,7 @@ jobs:
           cd ..
 
       - name: 'java unit tests and install'
-        timeout-minutes: 15
+        timeout-minutes: 20
         run: mvn clean install
 
       - name: 'generate java coverage badge'

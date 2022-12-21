@@ -5,7 +5,9 @@ import ai.lzy.channelmanager.dao.ChannelManagerDataSource;
 import ai.lzy.channelmanager.dao.ChannelOperationDao;
 import ai.lzy.channelmanager.grpc.ProtoValidator;
 import ai.lzy.channelmanager.lock.GrainedLock;
-import ai.lzy.channelmanager.model.Channel;
+import ai.lzy.channelmanager.model.channel.Channel;
+import ai.lzy.channelmanager.model.channel.Receivers;
+import ai.lzy.channelmanager.model.channel.Senders;
 import ai.lzy.channelmanager.operation.ChannelOperation;
 import ai.lzy.channelmanager.operation.ChannelOperationExecutor;
 import ai.lzy.channelmanager.operation.ChannelOperationManager;
@@ -325,7 +327,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
     }
 
     private LCM.Channel toChannelProto(Channel channel) {
-        Channel.Senders activeSenders = channel.getActiveSenders();
+        Senders activeSenders = channel.getActiveSenders();
         LCM.ChannelSenders.Builder sendersBuilder = LCM.ChannelSenders.newBuilder();
         if (activeSenders.portalEndpoint() != null) {
             sendersBuilder.setPortalSlot(ProtoConverter.toProto(activeSenders.portalEndpoint().getSlot()));
@@ -334,7 +336,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
             sendersBuilder.setWorkerSlot(ProtoConverter.toProto(activeSenders.workerEndpoint().getSlot()));
         }
 
-        Channel.Receivers activeReceivers = channel.getActiveReceivers();
+        Receivers activeReceivers = channel.getActiveReceivers();
         LCM.ChannelReceivers.Builder receiversBuilder = LCM.ChannelReceivers.newBuilder();
         if (activeReceivers.portalEndpoint() != null) {
             receiversBuilder.setPortalSlot(ProtoConverter.toProto(activeReceivers.portalEndpoint().getSlot()));

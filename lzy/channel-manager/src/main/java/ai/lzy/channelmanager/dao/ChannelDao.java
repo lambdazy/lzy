@@ -1,8 +1,8 @@
 package ai.lzy.channelmanager.dao;
 
-import ai.lzy.channelmanager.model.Channel;
 import ai.lzy.channelmanager.model.Connection;
 import ai.lzy.channelmanager.model.Endpoint;
+import ai.lzy.channelmanager.model.channel.Channel;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.slot.SlotInstance;
 
