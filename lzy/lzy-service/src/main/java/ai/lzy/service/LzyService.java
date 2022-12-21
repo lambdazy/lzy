@@ -148,6 +148,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
 
+        // todo: test what if fails here
+
         workersPool.submit(() -> {
             var completedOp = graphExecutionService.executeGraph(state);
 

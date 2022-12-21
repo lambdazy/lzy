@@ -97,6 +97,8 @@ public class GraphExecutionService {
 
         LOG.debug("Find workflow name of execution which graph belongs to...");
 
+        // todo: test what if fails here
+
         setWorkflowName(state);
 
         if (state.isInvalid()) {
@@ -109,6 +111,9 @@ public class GraphExecutionService {
             if (state.getDataFlowGraph() == null || state.getZone() == null) {
                 LOG.debug("Validate dataflow graph, current state: " + state);
                 validator.validate(state);
+
+                // todo: test what if fails here
+
                 withRetries(LOG, () -> graphDao.update(state, null));
             }
 
@@ -129,9 +134,14 @@ public class GraphExecutionService {
                 return operationDao.failOperation(state.getOpId(), toProto(status), LOG);
             }
 
+            // todo: test what if fails here
+
             if (state.getTasks() == null) {
                 LOG.debug("Building graph, current state: " + state);
                 builder.build(state, portalClient);
+
+                // todo: test what if fails here
+
                 withRetries(LOG, () -> graphDao.update(state, null));
             }
 
@@ -145,6 +155,8 @@ public class GraphExecutionService {
 
             if (state.getGraphId() == null) {
                 LOG.debug("Send execute graph request to graph execution service, current state: " + state);
+
+                // todo: test what if fails here
 
                 String idempotencyKey = state.getOrGenerateIdempotencyKey();
 
@@ -172,8 +184,12 @@ public class GraphExecutionService {
 
                 state.setGraphId(executeResponse.getStatus().getGraphId());
 
+                // todo: test what if fails here
+
                 withRetries(LOG, () -> graphDao.update(state, null));
             }
+
+            // todo: test what if fails here
 
             try {
                 withRetries(defaultRetryPolicy(), LOG, () -> graphDao.save(new GraphDao.GraphDescription(
@@ -188,6 +204,8 @@ public class GraphExecutionService {
                 updateExecutionStatus(state.getWorkflowName(), state.getUserId(), state.getExecutionId(), status);
                 return operationDao.failOperation(state.getOpId(), toProto(status), LOG);
             }
+
+            // todo: test what if fails here
 
             LOG.info("Graph successfully executed, current state: " + state);
 
