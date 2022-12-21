@@ -17,6 +17,7 @@ public interface ChannelOperationDao {
 
     void fail(String operationId, String reason, @Nullable TransactionHandle tx) throws SQLException;
 
+    @Nullable
     ChannelOperation get(String operationId, @Nullable TransactionHandle tx) throws SQLException;
 
     List<ChannelOperation> getActiveOperations(@Nullable TransactionHandle tx) throws SQLException;

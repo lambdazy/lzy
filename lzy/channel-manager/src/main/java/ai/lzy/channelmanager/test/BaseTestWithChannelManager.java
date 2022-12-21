@@ -42,7 +42,6 @@ public class BaseTestWithChannelManager {
         }
         app.stop();
         app.awaitTermination();
-        DatabaseTestUtils.cleanup(context.getBean(ChannelManagerDataSource.class));
         context.stop();
     }
 
@@ -50,7 +49,10 @@ public class BaseTestWithChannelManager {
         var props = new YamlPropertySourceLoader().read("channel-manager",
             new FileInputStream("../channel-manager/src/main/resources/application-test.yml"));
         props.putAll(overrides);
+
         context = ApplicationContext.run(PropertySource.of(props));
+        context.getBean(ChannelManagerDataSource.class).setOnClose(DatabaseTestUtils::cleanup);
+
         config = context.getBean(ChannelManagerConfig.class);
 
         app = context.getBean(ChannelManagerApp.class);
