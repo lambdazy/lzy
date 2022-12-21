@@ -104,7 +104,6 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     }
 
     private void restoreRunningAllocations() {
-        // pure man restore
         try {
             var vms = vmDao.loadNotCompletedVms(config.getInstanceId(), null);
             if (!vms.isEmpty()) {
@@ -426,7 +425,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         var session = sessionsDao.get(vm.sessionId(), tx);
                         if (session == null) {
                             LOG.error("Corrupted vm with incorrect session id: {}", vm);
-                            return Status.INTERNAL;
+                            return Status.INTERNAL.withDescription("Session %s not found".formatted(vm.sessionId()));
                         }
 
                         cacheDeadline[0] = Instant.now().plus(session.cachePolicy().minIdleTimeout());
