@@ -16,9 +16,7 @@ def check_env_var_custom_image() -> str:
 
 WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
 
-
 if __name__ == "__main__":
-
     with LzyRemoteEnv().workflow(name=WORKFLOW_NAME):
         result = check_env_var_custom_image()
         print("Custom env: " + str(result))

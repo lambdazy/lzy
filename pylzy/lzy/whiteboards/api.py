@@ -34,22 +34,22 @@ class WhiteboardClient(ABC):
 
     @abstractmethod
     async def list(
-            self,
-            name: Optional[str] = None,
-            tags: Sequence[str] = (),
-            not_before: Optional[datetime.datetime] = None,
-            not_after: Optional[datetime.datetime] = None
+        self,
+        name: Optional[str] = None,
+        tags: Sequence[str] = (),
+        not_before: Optional[datetime.datetime] = None,
+        not_after: Optional[datetime.datetime] = None
     ) -> Iterable[Whiteboard]:
         pass
 
     @abstractmethod
     async def create_whiteboard(
-            self,
-            namespace: str,
-            name: str,
-            fields: Sequence[WhiteboardField],
-            storage_name: str,
-            tags: Sequence[str],
+        self,
+        namespace: str,
+        name: str,
+        fields: Sequence[WhiteboardField],
+        storage_name: str,
+        tags: Sequence[str],
     ) -> WhiteboardInstanceMeta:
         pass
 
@@ -59,7 +59,7 @@ class WhiteboardClient(ABC):
 
     @abstractmethod
     async def finalize(
-            self,
-            whiteboard_id: str
+        self,
+        whiteboard_id: str
     ):
         pass

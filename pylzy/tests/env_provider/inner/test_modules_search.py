@@ -3,7 +3,6 @@ from unittest import TestCase
 
 from lzy.py_env.api import PyEnvProvider
 from lzy.py_env.py_env_provider import AutomaticPyEnvProvider
-
 from ..local_file import bar
 
 

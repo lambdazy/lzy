@@ -65,11 +65,11 @@ def log(msg: str, *args, **kwargs):
 
 
 def process_execution(
-        serializers: SerializerRegistry,
-        op: Callable,
-        args_paths: Sequence[Tuple[Type, str]],
-        kwargs_paths: Mapping[str, Tuple[Type, str]],
-        output_paths: Sequence[str],
+    serializers: SerializerRegistry,
+    op: Callable,
+    args_paths: Sequence[Tuple[Type, str]],
+    kwargs_paths: Mapping[str, Tuple[Type, str]],
+    output_paths: Sequence[str],
 ):
     log("Reading arguments...")
 

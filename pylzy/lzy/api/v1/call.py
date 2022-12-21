@@ -6,11 +6,10 @@ from typing import Any, Callable, Dict, Iterator, Mapping, Sequence, Tuple, Type
 from lzy.api.v1.env import Env, DockerPullPolicy
 from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.signatures import CallSignature
+from lzy.api.v1.utils.env import generate_env, merge_envs
 from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy, lzy_proxy
 from lzy.api.v1.utils.types import infer_call_signature
 from lzy.api.v1.workflow import LzyWorkflow
-from lzy.api.v1.utils.env import generate_env, merge_envs
-
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 

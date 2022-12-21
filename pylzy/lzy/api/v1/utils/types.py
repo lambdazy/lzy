@@ -39,7 +39,7 @@ def infer_call_signature(
             types_mapping[name] = type(arg)
 
     generated_names = []
-    for arg in args[len(argspec.args) :]:
+    for arg in args[len(argspec.args):]:
         name = str(uuid.uuid4())
         generated_names.append(name)
         # noinspection PyProtectedMember
@@ -62,7 +62,7 @@ def infer_real_type(type_: Type) -> Type:
         if origin == Union:  # type: ignore
             # noinspection PyUnresolvedReferences
             args = type_.__args__  # TODO: what should we do with real Union?
-            if len(args) == 2 and args[1] is type(None):  # check typ is Optional
+            if len(args) == 2 and args[1].isinstance(type(None)):  # check typ is Optional
                 return infer_real_type(args[0])
         return origin
     return type_

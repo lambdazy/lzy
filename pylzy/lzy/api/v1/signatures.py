@@ -4,12 +4,10 @@ from typing import (
     Any,
     Callable,
     Dict,
-    Generic,
     Iterable,
     Iterator,
     Sequence,
     Tuple,
-    Type,
     TypeVar,
 )
 

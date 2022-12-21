@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING, Any, cast, TypeVar, Type
 
-from lzy.utils.event_loop import LzyEventLoop
 from lzy.proxy.automagic import proxy
 from lzy.proxy.result import Just, Result, Nothing
+from lzy.utils.event_loop import LzyEventLoop
 
 if TYPE_CHECKING:
     from lzy.api.v1 import LzyWorkflow
@@ -34,7 +34,6 @@ T = TypeVar("T")
 
 
 def lzy_proxy(entry_id: str, typ: Type[T], wflow: "LzyWorkflow", value: Result[T] = Nothing()) -> Any:
-
     async def __materialize() -> Any:
 
         if isinstance(value, Just):

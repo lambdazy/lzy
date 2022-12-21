@@ -1,8 +1,6 @@
 from pathlib import Path
 from typing import Dict, Optional, Sequence
 
-import yaml
-
 from lzy.api.v1.env import CondaEnv, DockerEnv, DockerPullPolicy, Env
 from lzy.api.v1.utils.conda import generate_conda_yaml, merge_conda_env_yamls
 from lzy.py_env.api import PyEnv
