@@ -1,6 +1,7 @@
 package ai.lzy.allocator;
 
 import ai.lzy.allocator.configs.ServiceConfig;
+import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.longrunning.dao.OperationDaoImpl;
@@ -129,6 +130,8 @@ public class BeanFactory {
                         t = ee.getCause();
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt(); // ignore/reset
+                    } catch (InjectedFailures.TerminateException e) {
+                        logger.error("Got InjectedFailure exception at {}: {}", r.getClass().getName(), e.getMessage());
                     }
                 }
                 if (t != null) {

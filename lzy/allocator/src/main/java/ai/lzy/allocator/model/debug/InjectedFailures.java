@@ -1,17 +1,14 @@
 package ai.lzy.allocator.model.debug;
 
-import ai.lzy.allocator.model.Vm;
 import lombok.Lombok;
 
-import java.security.Permission;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 public class InjectedFailures {
 
-    public static final List<AtomicReference<Function<Vm, Throwable>>> FAIL_ALLOCATE_VMS = List.of(
+    public static final List<AtomicReference<Supplier<Throwable>>> FAIL_ALLOCATE_VMS = List.of(
         new AtomicReference<>(null), new AtomicReference<>(null), new AtomicReference<>(null),
         new AtomicReference<>(null), new AtomicReference<>(null), new AtomicReference<>(null),
         new AtomicReference<>(null), new AtomicReference<>(null), new AtomicReference<>(null)
@@ -38,123 +35,99 @@ public class InjectedFailures {
         FAIL_CLONE_DISK.forEach(x -> x.set(null));
     }
 
-    public static SecurityManager prepareForTests() {
-        var sm = System.getSecurityManager();
-
-        System.setSecurityManager(new SecurityManager() {
-            @Override
-            public void checkPermission(Permission perm) {
-            }
-
-            @Override
-            public void checkPermission(Permission perm, Object context) {
-            }
-
-            @Override
-            public void checkExit(int status) {
-                if (status == 42) {
-                    throw Lombok.sneakyThrow(new TerminateException());
-                }
-            }
-        });
-
-        return sm;
+    public static void failAllocateVm(int n) {
+        failImpl(FAIL_ALLOCATE_VMS.get(n));
     }
 
-    public static void failAllocateVm0(Vm vm) {
-        failAllocateVmImpl(FAIL_ALLOCATE_VMS.get(0), vm);
+    public static void failAllocateVm0() {
+        failAllocateVm(0);
     }
 
-    public static void failAllocateVm1(Vm vm) {
-        failAllocateVmImpl(FAIL_ALLOCATE_VMS.get(1), vm);
+    public static void failAllocateVm1() {
+        failAllocateVm(1);
     }
 
-    public static void failAllocateVm2(Vm vm) {
-        failAllocateVmImpl(FAIL_ALLOCATE_VMS.get(2), vm);
+    public static void failAllocateVm2() {
+        failAllocateVm(2);
     }
 
-    public static void failAllocateVm3(Vm vm) {
-        failAllocateVmImpl(FAIL_ALLOCATE_VMS.get(3), vm);
+    public static void failAllocateVm3() {
+        failAllocateVm(3);
     }
 
-    public static void failAllocateVm4(Vm vm) {
-        failAllocateVmImpl(FAIL_ALLOCATE_VMS.get(4), vm);
+    public static void failAllocateVm4() {
+        failAllocateVm(4);
     }
 
-    public static void failAllocateVm5(Vm vm) {
-        failAllocateVmImpl(FAIL_ALLOCATE_VMS.get(5), vm);
+    public static void failAllocateVm5() {
+        failAllocateVm(5);
     }
 
-    public static void failAllocateVm6(Vm vm) {
-        failAllocateVmImpl(FAIL_ALLOCATE_VMS.get(6), vm);
+    public static void failAllocateVm6() {
+        failAllocateVm(6);
     }
 
-    public static void failAllocateVm7(Vm vm) {
-        failAllocateVmImpl(FAIL_ALLOCATE_VMS.get(7), vm);
+    public static void failAllocateVm7() {
+        failAllocateVm(7);
     }
 
-    public static void failAllocateVm8(Vm vm) {
-        failAllocateVmImpl(FAIL_ALLOCATE_VMS.get(8), vm);
+    public static void failAllocateVm8() {
+        failAllocateVm(8);
+    }
+
+    public static void failCreateDisk(int n) {
+        failImpl(FAIL_CREATE_DISK.get(n));
     }
 
     public static void failCreateDisk0() {
-        failDiskOpImpl(FAIL_CREATE_DISK.get(0));
+        failCreateDisk(0);
     }
 
     public static void failCreateDisk1() {
-        failDiskOpImpl(FAIL_CREATE_DISK.get(1));
+        failCreateDisk(1);
     }
 
     public static void failCreateDisk2() {
-        failDiskOpImpl(FAIL_CREATE_DISK.get(2));
+        failCreateDisk(2);
+    }
+
+    public static void failDeleteDisk(int n) {
+        failImpl(FAIL_DELETE_DISK.get(n));
     }
 
     public static void failDeleteDisk0() {
-        failDiskOpImpl(FAIL_DELETE_DISK.get(0));
+        failDeleteDisk(0);
     }
 
     public static void failDeleteDisk1() {
-        failDiskOpImpl(FAIL_DELETE_DISK.get(1));
+        failDeleteDisk(1);
     }
 
     public static void failDeleteDisk2() {
-        failDiskOpImpl(FAIL_DELETE_DISK.get(2));
+        failDeleteDisk(2);
+    }
+
+    public static void failCloneDisk(int n) {
+        failImpl(FAIL_CLONE_DISK.get(n));
     }
 
     public static void failCloneDisk0() {
-        failDiskOpImpl(FAIL_CLONE_DISK.get(0));
+        failCloneDisk(0);
     }
 
     public static void failCloneDisk1() {
-        failDiskOpImpl(FAIL_CLONE_DISK.get(1));
+        failCloneDisk(1);
     }
 
     public static void failCloneDisk2() {
-        failDiskOpImpl(FAIL_CLONE_DISK.get(2));
+        failCloneDisk(2);
     }
 
     public static void failCloneDisk3() {
-        failDiskOpImpl(FAIL_CLONE_DISK.get(3));
+        failCloneDisk(3);
     }
 
-
-    private static void failAllocateVmImpl(AtomicReference<Function<Vm, Throwable>> ref, Vm vm) {
-        final var fn = ref.get();
-        if (fn == null) {
-            return;
-        }
-        final var th = fn.apply(vm);
-        if (th != null) {
-            ref.set(null);
-            if (th instanceof TerminateProcess) {
-                Runtime.getRuntime().halt(42);
-                // System.exit(42);
-            }
-            throw Lombok.sneakyThrow(th);
-        }
-    }
-
-    private static void failDiskOpImpl(AtomicReference<Supplier<Throwable>> ref) {
+    private static void failImpl(AtomicReference<Supplier<Throwable>> ref) {
         final var fn = ref.get();
         if (fn == null) {
             return;
@@ -162,18 +135,11 @@ public class InjectedFailures {
         final var th = fn.get();
         if (th != null) {
             ref.set(null);
-            if (th instanceof TerminateProcess) {
-                Runtime.getRuntime().halt(42);
-                // System.exit(42);
-            }
             throw Lombok.sneakyThrow(th);
         }
     }
 
-    public static final class TerminateProcess extends RuntimeException {
-    }
-
-    public static final class TerminateException extends Exception {
+    public static final class TerminateException extends Error {
         public TerminateException() {
         }
 
@@ -181,5 +147,4 @@ public class InjectedFailures {
             super(message);
         }
     }
-
 }
