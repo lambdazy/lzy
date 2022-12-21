@@ -9,9 +9,11 @@ import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.mockwebserver.utils.ResponseProvider;
 import okhttp3.Headers;
 import okhttp3.mockwebserver.RecordedRequest;
-import org.junit.*;
-import org.junit.rules.TestWatcher;
-import org.junit.runner.Description;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Ignore;
+import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -26,9 +28,6 @@ import static java.util.Objects.requireNonNull;
 public class RestartAllocatorTest extends AllocatorApiTestBase {
 
     private static final String ZONE = "test-zone";
-
-    @Rule
-    public NoExitRule noExitRule = new NoExitRule();
 
     @Before
     public void before() throws IOException {
@@ -45,57 +44,58 @@ public class RestartAllocatorTest extends AllocatorApiTestBase {
     @Override
     protected void updateStartupProperties(Map<String, Object> props) {
         props.put("allocator.allocation-timeout", "10m");
-        props.put("allocator.gc-period", "100m");
+        props.put("allocator.gc.cleanup-period", "100m");
+        props.put("allocator.gc.lease-duration", "1000m");
     }
 
     @Test
     public void allocateVmFail1() throws Exception {
-        InjectedFailures.FAIL_ALLOCATE_VMS.get(1).set(vm -> new InjectedFailures.TerminateException("term"));
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(1).set(() -> new InjectedFailures.TerminateException("term 1"));
         allocateVmFailImpl();
     }
 
     @Test
     public void allocateVmFail2() throws Exception {
-        InjectedFailures.FAIL_ALLOCATE_VMS.get(2).set(vm -> new InjectedFailures.TerminateException("term"));
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(2).set(() -> new InjectedFailures.TerminateException("term 2"));
         allocateVmFailImpl();
     }
 
     @Test
     public void allocateVmFail3() throws Exception {
-        InjectedFailures.FAIL_ALLOCATE_VMS.get(3).set(vm -> new InjectedFailures.TerminateException("term"));
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(3).set(() -> new InjectedFailures.TerminateException("term 3"));
         allocateVmFailImpl();
     }
 
     @Test
     @Ignore("requires v6 tunnel proxy to be set")
     public void allocateVmFail4() throws Exception {
-        InjectedFailures.FAIL_ALLOCATE_VMS.get(4).set(vm -> new InjectedFailures.TerminateException("term"));
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(4).set(() -> new InjectedFailures.TerminateException("term 4"));
         allocateVmFailImpl();
     }
 
     @Test
     public void allocateVmFail5() throws Exception {
-        InjectedFailures.FAIL_ALLOCATE_VMS.get(5).set(vm -> new InjectedFailures.TerminateException("term"));
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(5).set(() -> new InjectedFailures.TerminateException("term 5"));
         allocateVmFailImpl();
     }
 
     @Test
     public void allocateVmFail6() throws Exception {
-        InjectedFailures.FAIL_ALLOCATE_VMS.get(6).set(vm -> new InjectedFailures.TerminateException("term"));
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(6).set(() -> new InjectedFailures.TerminateException("term 6"));
         allocateVmFailImpl();
     }
 
     @Test
     @Ignore("requires v6 tunnel proxy to be set")
     public void allocateVmFail7() throws Exception {
-        InjectedFailures.FAIL_ALLOCATE_VMS.get(7).set(vm -> new InjectedFailures.TerminateException("term"));
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(7).set(() -> new InjectedFailures.TerminateException("term 7"));
         allocateVmFailImpl();
     }
 
     @Test
     @Ignore("double call to k8s")
     public void allocateVmFail8() throws Exception {
-        InjectedFailures.FAIL_ALLOCATE_VMS.get(8).set(vm -> new InjectedFailures.TerminateException("term"));
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(8).set(() -> new InjectedFailures.TerminateException("term 8"));
         allocateVmFailImpl();
     }
 
@@ -170,19 +170,5 @@ public class RestartAllocatorTest extends AllocatorApiTestBase {
 
         allocOp = waitOpSuccess(allocOp);
         Assert.assertEquals(vmId, allocOp.getResponse().unpack(VmAllocatorApi.AllocateResponse.class).getVmId());
-    }
-
-    public static class NoExitRule extends TestWatcher {
-        private SecurityManager sm;
-
-        @Override
-        protected void starting(Description description) {
-            sm = InjectedFailures.prepareForTests();
-        }
-
-        @Override
-        protected void finished(Description description) {
-            System.setSecurityManager(sm);
-        }
     }
 }

@@ -20,7 +20,6 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import lombok.Lombok;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -97,7 +96,7 @@ public class KuberVmAllocator implements VmAllocator {
                 // TODO: validate existing meta
             }
 
-            InjectedFailures.failAllocateVm5(vm);
+            InjectedFailures.failAllocateVm5();
 
             if (allocState.volumeClaims() == null) {
                 final var resourceVolumes = vmSpec.volumeRequests().stream()
@@ -116,7 +115,7 @@ public class KuberVmAllocator implements VmAllocator {
                     allocState.volumeClaims().stream().map(VolumeClaim::name).collect(Collectors.joining(", ")));
             }
 
-            InjectedFailures.failAllocateVm6(vm);
+            InjectedFailures.failAllocateVm6();
 
             // add k8s pod affinity to allocate vm pod on the node with the tunnel pod,
             // which must be allocated by TunnelAllocator#allocateTunnel method
@@ -124,7 +123,7 @@ public class KuberVmAllocator implements VmAllocator {
                 podSpecBuilder = podSpecBuilder.withPodAffinity(
                     KuberLabels.LZY_APP_LABEL, "In", KuberTunnelAllocator.TUNNEL_POD_APP_LABEL_VALUE);
 
-                InjectedFailures.failAllocateVm7(vm);
+                InjectedFailures.failAllocateVm7();
             }
 
             final String vmOtt = allocState.vmOtt();
@@ -167,9 +166,10 @@ public class KuberVmAllocator implements VmAllocator {
             }
             LOG.debug("Created vm pod in Kuber: {}", pod);
 
-            InjectedFailures.failAllocateVm8(vm);
+            InjectedFailures.failAllocateVm8();
         } catch (InjectedFailures.TerminateException e) {
-            throw Lombok.sneakyThrow(e);
+            LOG.error("Got InjectedFailure, rethrow");
+            throw e;
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
