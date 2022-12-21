@@ -28,6 +28,16 @@ resource "yandex_resourcemanager_folder_iam_binding" "monitoring-editor" {
   ]
 }
 
+resource "yandex_resourcemanager_folder_iam_binding" "logging-writer" {
+  folder_id = var.folder_id
+
+  role = "logging.writer"
+
+  members = [
+    "serviceAccount:${yandex_iam_service_account.node-sa.id}",
+  ]
+}
+
 resource "yandex_resourcemanager_folder_iam_binding" "admin" {
   folder_id = var.folder_id
 

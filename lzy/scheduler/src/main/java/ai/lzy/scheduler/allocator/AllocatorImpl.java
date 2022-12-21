@@ -52,6 +52,10 @@ public class AllocatorImpl implements WorkersAllocator {
     private static final Logger LOG = LogManager.getLogger(AllocatorImpl.class);
 
     public static final String ENV_WORKER_PKEY = "LZY_WORKER_PKEY"; // same as at ai.lzy.worker.Worker
+    public static final String ENV_RESOURCE_TYPE = "RESOURCE_TYPE";
+    public static final String RESOURCE_TYPE = "lzy.worker";
+    public static final String ENV_RESOURCE_ID = "RESOURCE_ID";
+
 
     public static final AtomicBoolean randomWorkerPorts = new AtomicBoolean(false);
 
@@ -171,6 +175,8 @@ public class AllocatorImpl implements WorkersAllocator {
             .setName(workerId)
             .setImage(config.getWorkerImage())
             .putEnv(ENV_WORKER_PKEY, privateKey)
+            .putEnv(ENV_RESOURCE_TYPE, RESOURCE_TYPE)
+            .putEnv(ENV_RESOURCE_ID, workerId)
             .addAllArgs(args)
             .putAllPortBindings(ports)
             .build();

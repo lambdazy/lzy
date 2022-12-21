@@ -1,0 +1,47 @@
+routes:
+  - input:
+      plugin: file_input
+      config:
+        path: !expr "{$env('LOGFILE')}"
+        state_directory: /log_ua
+        multiline:
+          read_multiline: true
+          multiline_start_prefix: ^(\d\d\d\d-\d\d-\d\d\s+\d\d:\d\d:\d\d.\d\d\d)\s+\[(.*)\]\s+(.*)
+          log_priority_group: 3
+    channel:
+      channel_ref:
+        name: log_channel
+
+pipes:
+  - name: process_pipe
+    pipe:
+      - filter:
+          plugin: subprocess
+          config:
+            command: python
+            arguments:
+              - /log_processor.py
+
+
+channels:
+  - name: log_channel
+    channel:
+      pipe:
+        - pipe_ref:
+            name: process_pipe
+      output:
+        plugin: yc_logs
+        config:
+          iam:
+            cloud_meta: {}
+
+          folder_id: b1gagf3k6somdujj2a15
+
+          export_message_meta_keys:
+            - "timestamp"
+            - "thread"
+            - "level"
+            - "logger"
+
+          resource_id: !expr "{$env('RESOURCE_ID')}"
+          resource_type: !expr "{$env('RESOURCE_TYPE')}"
