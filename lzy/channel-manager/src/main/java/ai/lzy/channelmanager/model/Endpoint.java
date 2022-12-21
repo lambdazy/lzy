@@ -11,8 +11,7 @@ public class Endpoint {
     private final SlotOwner slotOwner;
     private final LifeStatus lifeStatus;
 
-    public Endpoint(SlotInstance slot, SlotOwner slotOwner, LifeStatus lifeStatus)
-    {
+    public Endpoint(SlotInstance slot, SlotOwner slotOwner, LifeStatus lifeStatus) {
         this.slotOwner = slotOwner;
         this.slot = slot;
         this.lifeStatus = lifeStatus;
@@ -47,6 +46,30 @@ public class Endpoint {
             case BINDING, BOUND -> true;
             case UNBINDING -> false;
         };
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        Endpoint endpoint = (Endpoint) o;
+
+        return slot.equals(endpoint.slot)
+            && slotOwner == endpoint.slotOwner
+            && lifeStatus == endpoint.lifeStatus;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = slot.hashCode();
+        result = 31 * result + slotOwner.hashCode();
+        result = 31 * result + lifeStatus.hashCode();
+        return result;
     }
 
     public enum SlotOwner {

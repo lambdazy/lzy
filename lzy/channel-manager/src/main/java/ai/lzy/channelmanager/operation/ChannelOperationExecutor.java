@@ -1,6 +1,7 @@
 package ai.lzy.channelmanager.operation;
 
 import ai.lzy.channelmanager.config.ChannelManagerConfig;
+import ai.lzy.channelmanager.dao.ChannelManagerDataSource;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -14,10 +15,14 @@ public class ChannelOperationExecutor extends ScheduledThreadPoolExecutor {
 
     private static final Logger LOG = LogManager.getLogger(ChannelOperationExecutor.class);
 
-    public ChannelOperationExecutor(ChannelManagerConfig config) {
+    // for micronaut
+    private final ChannelManagerDataSource dataSource;
+
+    public ChannelOperationExecutor(ChannelManagerDataSource dataSource, ChannelManagerConfig config) {
         super(config.getExecutorThreadsCount(), new ExecutorThreadFactory());
         this.setKeepAliveTime(1, TimeUnit.MINUTES);
         this.setMaximumPoolSize(20);
+        this.dataSource = dataSource;
     }
 
     @Override

@@ -51,6 +51,8 @@ public interface VmDao {
 
     void setDeadline(String vmId, Instant time) throws SQLException;
 
+    void deleteVm(String vmId) throws SQLException;
+
 
     @VisibleForTesting
     List<Vm> list(String sessionId) throws SQLException;

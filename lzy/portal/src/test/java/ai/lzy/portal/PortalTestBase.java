@@ -154,6 +154,8 @@ public class PortalTestBase {
         destroyChannel("portal:stdout");
         destroyChannel("portal:stderr");
 
+        channelManagerTestContext.after();
+
         portalApiChannel.shutdown();
         portalSlotsChannel.shutdown();
 
@@ -165,8 +167,6 @@ public class PortalTestBase {
 
         portal.stop();
         iamTestContext.after();
-        System.err.println("CLOSE");
-        channelManagerTestContext.after();
     }
 
     private void startS3() {

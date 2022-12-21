@@ -1,6 +1,7 @@
 package ai.lzy.allocator;
 
 import ai.lzy.allocator.configs.ServiceConfig;
+import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.longrunning.dao.OperationDaoImpl;
@@ -30,6 +31,7 @@ import java.time.Duration;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
+import javax.annotation.PreDestroy;
 import javax.inject.Named;
 
 @Factory
@@ -101,7 +103,8 @@ public class BeanFactory {
     @Singleton
     @Named("AllocatorExecutor")
     @Bean(preDestroy = "shutdown")
-    public ScheduledExecutorService executorService() {
+    @Requires(bean = AllocatorDataSource.class)
+    public ScheduledExecutorService executorService(AllocatorDataSource storage) {
         final var logger = LogManager.getLogger("AllocatorExecutor");
 
         var executor = new ScheduledThreadPoolExecutor(5, new ThreadFactory() {
@@ -127,6 +130,8 @@ public class BeanFactory {
                         t = ee.getCause();
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt(); // ignore/reset
+                    } catch (InjectedFailures.TerminateException e) {
+                        logger.error("Got InjectedFailure exception at {}: {}", r.getClass().getName(), e.getMessage());
                     }
                 }
                 if (t != null) {
@@ -135,16 +140,19 @@ public class BeanFactory {
             }
 
             @Override
+            @PreDestroy
             public void shutdown() {
                 logger.info("Shutdown AllocatorExecutor service. Tasks in queue: {}, running tasks: {}.",
                     getQueue().size(), getActiveCount());
 
-                // TODO: wait for all operations to be done
                 super.shutdown();
 
                 try {
-                    //noinspection ResultOfMethodCallIgnored
-                    awaitTermination(1, TimeUnit.MINUTES);
+                    var allDone = awaitTermination(1, TimeUnit.MINUTES);
+                    if (!allDone) {
+                        logger.error("Not all actions were completed in timeout, tasks in queue: {}, running tasks: {}",
+                            getQueue().size(), getActiveCount());
+                    }
                 } catch (InterruptedException e) {
                     logger.error("Graceful termination interrupted, tasks in queue: {}, running tasks: {}.",
                         getQueue().size(), getActiveCount());

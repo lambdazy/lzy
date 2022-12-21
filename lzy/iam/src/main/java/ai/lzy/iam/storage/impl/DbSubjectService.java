@@ -277,7 +277,7 @@ public class DbSubjectService {
                         return subjectWith(type, id);
                     }
 
-                    throw new AuthNotFoundException("Subject:: " + id + " NOT_FOND");
+                    throw new AuthNotFoundException("Subject:: " + id + " NOT_FOUND");
                 }
             },
             DbSubjectService::wrapError);
@@ -324,7 +324,7 @@ public class DbSubjectService {
                             expiredAt != null ? expiredAt.toInstant() : null);
                     }
 
-                    throw new AuthNotFoundException("Credentials:: " + name + " NOT_FOND");
+                    throw new AuthNotFoundException("Credentials:: " + name + " NOT_FOUND");
                 }
             },
             DbSubjectService::wrapError);

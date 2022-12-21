@@ -53,7 +53,7 @@ public class ClientAuthTest {
 
     @After
     public void shutdown() {
-        DatabaseTestUtils.cleanup(ctx.getBean(IamDataSource.class));
+        ctx.getBean(IamDataSource.class).setOnClose(DatabaseTestUtils::cleanup);
 
         lzyIAM.close();
         ctx.close();

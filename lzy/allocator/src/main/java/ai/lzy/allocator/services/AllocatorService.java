@@ -104,7 +104,6 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     }
 
     private void restoreRunningAllocations() {
-        // pure man restore
         try {
             var vms = vmDao.loadNotCompletedVms(config.getInstanceId(), null);
             if (!vms.isEmpty()) {
@@ -395,7 +394,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             return;
         }
 
-        InjectedFailures.failAllocateVm1(vm);
+        InjectedFailures.failAllocateVm1();
 
         executor.submit(new AllocateVmAction(vm, false));
     }
@@ -426,7 +425,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         var session = sessionsDao.get(vm.sessionId(), tx);
                         if (session == null) {
                             LOG.error("Corrupted vm with incorrect session id: {}", vm);
-                            return Status.INTERNAL;
+                            return Status.INTERNAL.withDescription("Session %s not found".formatted(vm.sessionId()));
                         }
 
                         cacheDeadline[0] = Instant.now().plus(session.cachePolicy().minIdleTimeout());
@@ -561,7 +560,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             }
 
             try {
-                InjectedFailures.failAllocateVm2(vm);
+                InjectedFailures.failAllocateVm2();
 
                 if (vm.allocateState().vmSubjectId() == null) {
                     var vmSubj = subjectClient
@@ -579,7 +578,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                     vm = vm.withVmSubjId(vmSubj.id());
                 }
 
-                InjectedFailures.failAllocateVm3(vm);
+                InjectedFailures.failAllocateVm3();
 
                 try {
                     if (vm.proxyV6Address() != null) {
@@ -592,7 +591,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                                 vm.allocateState().tunnelPodName(), vm.proxyV6Address(), vm.vmId());
                         }
 
-                        InjectedFailures.failAllocateVm4(vm);
+                        InjectedFailures.failAllocateVm4();
                     }
 
                     allocator.allocate(vm);
@@ -603,8 +602,8 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         vm.allocOpId(), toProto(Status.INVALID_ARGUMENT.withDescription(e.getMessage())), LOG);
                 }
             } catch (InjectedFailures.TerminateException e) {
-                LOG.error("[InjectedFailure] " + e.getMessage());
-                // don't fail operation explicitly
+                LOG.error("Got InjectedFailure exception: " + e.getMessage());
+                // don't fail operation explicitly, just pass
             } catch (Exception e) {
                 LOG.error("Error during VM {} allocation: {}", vm.vmId(), e.getMessage(), e);
                 metrics.allocationError.inc();
