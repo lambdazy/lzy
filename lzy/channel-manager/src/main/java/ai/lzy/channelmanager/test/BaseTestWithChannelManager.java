@@ -2,6 +2,8 @@ package ai.lzy.channelmanager.test;
 
 import ai.lzy.channelmanager.ChannelManagerApp;
 import ai.lzy.channelmanager.config.ChannelManagerConfig;
+import ai.lzy.channelmanager.dao.ChannelManagerDataSource;
+import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import io.grpc.ManagedChannel;
@@ -47,7 +49,10 @@ public class BaseTestWithChannelManager {
         var props = new YamlPropertySourceLoader().read("channel-manager",
             new FileInputStream("../channel-manager/src/main/resources/application-test.yml"));
         props.putAll(overrides);
+
         context = ApplicationContext.run(PropertySource.of(props));
+        context.getBean(ChannelManagerDataSource.class).setOnClose(DatabaseTestUtils::cleanup);
+
         config = context.getBean(ChannelManagerConfig.class);
 
         app = context.getBean(ChannelManagerApp.class);

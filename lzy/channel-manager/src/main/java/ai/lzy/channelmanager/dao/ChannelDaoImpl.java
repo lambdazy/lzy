@@ -3,6 +3,7 @@ package ai.lzy.channelmanager.dao;
 import ai.lzy.channelmanager.model.Connection;
 import ai.lzy.channelmanager.model.Endpoint;
 import ai.lzy.channelmanager.model.channel.Channel;
+import ai.lzy.model.db.DbHelper;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.ProtoObjectMapper;
 import ai.lzy.model.db.TransactionHandle;
@@ -151,9 +152,9 @@ public class ChannelDaoImpl implements ChannelDao {
                 try {
                     st.executeUpdate();
                 } catch (SQLException e) {
-                    if (e.getMessage().contains("channels_pkey")) {
-                        throw new AlreadyExistsException("Channel " + channelSpec.name() + " (id=" + channelId + ")" +
-                            "of execution " + executionId + " already exists in database");
+                    if (DbHelper.isUniqueViolation(e, "channels_pkey")) {
+                        throw new AlreadyExistsException("Channel " + channelSpec.name() + " (id=" + channelId +
+                            ", executionId=" + executionId + ") already exists in database");
                     }
                     throw e;
                 }
