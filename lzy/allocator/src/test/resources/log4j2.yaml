@@ -29,3 +29,6 @@ Configuration:
 
       - name: io.zonky.test
         level: warn
+
+      - name: AllocatorExecutor
+        level: debug

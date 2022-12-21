@@ -154,6 +154,16 @@ public class VmDaoImpl implements VmDao {
         SET tunnel_pod_name = ?
         WHERE id = ?""";
 
+    private static final String QUERY_DELETE_VM = """
+        WITH vm_row AS (
+            DELETE FROM vm
+            WHERE id = ?
+            RETURNING *
+        )
+        INSERT INTO dead_vms
+        SELECT id, NOW() AS ts, JSONB_SET(ROW_TO_JSON("vm_row")::JSONB, '{status}', '"DEAD"') AS vm
+        FROM vm_row""";
+
     private final Storage storage;
     private final ObjectMapper objectMapper;
 
@@ -234,6 +244,16 @@ public class VmDaoImpl implements VmDao {
             st.setTimestamp(1, Timestamp.from(time));
             st.setString(2, vmId);
             st.executeUpdate();
+        }
+    }
+
+    @Override
+    public void deleteVm(String vmId) throws SQLException {
+        try (var conn = storage.connect();
+             var st = conn.prepareStatement(QUERY_DELETE_VM))
+        {
+            st.setString(1, vmId);
+            st.execute();
         }
     }
 

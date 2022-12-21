@@ -1,6 +1,5 @@
 package ai.lzy.allocator.services;
 
-import ai.lzy.allocator.model.debug.InjectedFailures;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.annotation.Body;
@@ -11,6 +10,7 @@ import io.micronaut.http.annotation.Post;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import static ai.lzy.allocator.model.debug.InjectedFailures.*;
 
@@ -29,7 +29,7 @@ public class InjectedFailuresController {
 
     @Post(ALLOCATE_VM)
     public HttpResponse<String> injectAllocateVmFailure(@Body String body) {
-        return setImpl(Integer.parseInt(body), FAIL_ALLOCATE_VMS, vm -> new InjectedFailures.TerminateProcess());
+        return setImpl(Integer.parseInt(body), FAIL_ALLOCATE_VMS, Fail.Instance);
     }
 
     @Delete(ALLOCATE_VM)
@@ -44,7 +44,7 @@ public class InjectedFailuresController {
 
     @Post(CREATE_DISK)
     public HttpResponse<String> injectCreateDiskFailure(@Body String body) {
-        return setImpl(Integer.parseInt(body), FAIL_CREATE_DISK, InjectedFailures.TerminateProcess::new);
+        return setImpl(Integer.parseInt(body), FAIL_CREATE_DISK, Fail.Instance);
     }
 
     @Delete(CREATE_DISK)
@@ -59,7 +59,7 @@ public class InjectedFailuresController {
 
     @Post(DELETE_DISK)
     public HttpResponse<String> injectDeleteDiskFailure(@Body String body) {
-        return setImpl(Integer.parseInt(body), FAIL_DELETE_DISK, InjectedFailures.TerminateProcess::new);
+        return setImpl(Integer.parseInt(body), FAIL_DELETE_DISK, Fail.Instance);
     }
 
     @Delete(DELETE_DISK)
@@ -74,7 +74,7 @@ public class InjectedFailuresController {
 
     @Post(CLONE_DISK)
     public HttpResponse<String> injectCloneDiskFailure(@Body String body) {
-        return setImpl(Integer.parseInt(body), FAIL_CLONE_DISK, InjectedFailures.TerminateProcess::new);
+        return setImpl(Integer.parseInt(body), FAIL_CLONE_DISK, Fail.Instance);
     }
 
     @Delete(CLONE_DISK)
@@ -104,5 +104,15 @@ public class InjectedFailuresController {
             return HttpResponse.ok("Ok");
         }
         return HttpResponse.badRequest("Index out of range.");
+    }
+
+    private static final class Fail implements Supplier<Throwable> {
+        private static final Fail Instance = new Fail();
+
+        @Override
+        public Throwable get() {
+            Runtime.getRuntime().halt(42);
+            return null;
+        }
     }
 }

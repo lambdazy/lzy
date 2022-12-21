@@ -3,9 +3,12 @@ allocator:
 
   address: 'localhost:8799'
 
-  gc-period: 2s
   allocation-timeout: 5s
   heartbeat-timeout: 1m
+
+  gc:
+    cleanup-period: 2s
+    lease-duration: 1m
 
   database:
     url: 'embedded-postgres'

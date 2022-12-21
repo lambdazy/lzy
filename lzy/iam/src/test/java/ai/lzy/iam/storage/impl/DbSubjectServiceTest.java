@@ -52,7 +52,7 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
 
     @After
     public void tearDown() {
-        DatabaseTestUtils.cleanup(storage);
+        storage.setOnClose(DatabaseTestUtils::cleanup);
         ctx.stop();
     }
 
