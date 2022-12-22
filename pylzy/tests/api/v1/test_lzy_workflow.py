@@ -1,7 +1,14 @@
+import asyncio
 import uuid
+from typing import List
 from unittest import TestCase, skip
 
-from lzy.api.v1 import Lzy, op
+# noinspection PyPackageRequirements
+from moto.moto_server.threaded_moto_server import ThreadedMotoServer
+
+from lzy.api.v1 import Lzy, op, LocalRuntime
+from lzy.storage.api import StorageConfig, AmazonCredentials
+from tests.api.v1.utils import create_bucket
 
 
 @op
@@ -25,6 +32,11 @@ def boo(a: str, b: str) -> str:
 
 
 @op
+def list2list(a: List[int]) -> List[str]:
+    return [str(i) for i in a]
+
+
+@op
 def inc(numb: int) -> int:
     return numb + 1
 
@@ -35,12 +47,34 @@ def entry_id(lazy_proxy):
 
 class LzyWorkflowTests(TestCase):
     def setUp(self):
-        self._WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
-        self._lzy = Lzy()
+        self.service = ThreadedMotoServer(port=12345)
+        self.service.start()
+        self.endpoint_url = "http://localhost:12345"
+        asyncio.run(create_bucket(self.endpoint_url))
+
+        self.workflow_name = "workflow_" + str(uuid.uuid4())
+        self.lzy = Lzy(runtime=LocalRuntime())
+
+        storage_config = StorageConfig(
+            bucket="bucket",
+            credentials=AmazonCredentials(
+                self.endpoint_url, access_token="", secret_token=""
+            ),
+        )
+        self.lzy.storage_registry.register_storage('default', storage_config, True)
+
+    def tearDown(self) -> None:
+        self.service.stop()
+
+    def test_simple_graph(self):
+        with self.lzy.workflow(self.workflow_name):
+            l = [1, 2, 3]
+            result = list2list(l)
+            self.assertEqual([str(i) for i in l], result)
 
     @skip("WIP")
     def test_barrier(self):
-        with self._lzy.workflow(self._WORKFLOW_NAME, False) as workflow:
+        with self.lzy.workflow(self.workflow_name, False) as workflow:
             f = foo()
             b = bar(f)
             o = boo(b, baz(f, 3))
@@ -52,7 +86,7 @@ class LzyWorkflowTests(TestCase):
 
     @skip("WIP")
     def test_iteration(self):
-        with self._lzy.workflow(self._WORKFLOW_NAME, False) as workflow:
+        with self.lzy.workflow(self.workflow_name, False) as workflow:
             snapshot = workflow.snapshot()
             j = inc(0)
             entries = [entry_id(j)]
@@ -67,7 +101,7 @@ class LzyWorkflowTests(TestCase):
 
     @skip("WIP")
     def test_already_materialized_calls_when_barrier_called(self):
-        with self._lzy.workflow(self._WORKFLOW_NAME, False) as workflow:
+        with self.lzy.workflow(self.workflow_name, False) as workflow:
             snapshot = workflow.snapshot()
             f = foo()
             b = bar(f)
@@ -85,8 +119,8 @@ class LzyWorkflowTests(TestCase):
     @skip("WIP")
     def test_simultaneous_workflows_are_not_supported(self):
         with self.assertRaises(RuntimeError) as context:
-            with self._lzy.workflow(self._WORKFLOW_NAME, False) as workflow1:
-                with self._lzy.workflow(self._WORKFLOW_NAME, False) as workflow2:
+            with self.lzy.workflow(self.workflow_name, False) as workflow1:
+                with self.lzy.workflow(self.workflow_name, False) as workflow2:
                     pass
             self.assertTrue(
                 "Simultaneous workflows are not supported" in str(context.exception)
