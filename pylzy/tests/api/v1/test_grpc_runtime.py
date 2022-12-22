@@ -9,7 +9,6 @@ from io import BytesIO
 from typing import Iterator, Sequence, Optional, Iterable
 from unittest import TestCase
 
-import aioboto3
 # noinspection PyPackageRequirements
 import grpc.aio
 import requests
@@ -49,6 +48,7 @@ from lzy.types import File
 from lzy.utils.event_loop import LzyEventLoop
 from lzy.whiteboards.api import WhiteboardClient
 from lzy.whiteboards.api import WhiteboardInstanceMeta
+from tests.api.v1.utils import create_bucket
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -170,7 +170,7 @@ class GrpcRuntimeTests(TestCase):
             op=test,
             args_paths=[(str, arg_file)],
             kwargs_paths={"b": (File, kwarg_file)},
-            output_paths=[ret_file],
+            output_paths=[(str, ret_file)],
         )
 
         startup.main(pickle(req))
@@ -226,20 +226,10 @@ class SnapshotTests(TestCase):
         self.service = ThreadedMotoServer(port=12345)
         self.service.start()
         self.endpoint_url = "http://localhost:12345"
-        asyncio.run(self._create_bucket())
+        asyncio.run(create_bucket(self.endpoint_url))
 
     def tearDown(self) -> None:
         self.service.stop()
-
-    async def _create_bucket(self) -> None:
-        async with aioboto3.Session().client(
-            "s3",
-            aws_access_key_id="aaa",
-            aws_secret_access_key="aaa",
-            endpoint_url=self.endpoint_url,
-            region_name='us-east-1'
-        ) as s3:
-            await s3.create_bucket(Bucket="bucket")
 
     def test_simple(self):
         storage_config = storage.StorageConfig(

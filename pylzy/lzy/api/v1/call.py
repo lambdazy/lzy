@@ -1,4 +1,5 @@
 import functools
+import inspect
 import typing
 import uuid
 from typing import Any, Callable, Dict, Iterator, Mapping, Sequence, Tuple, TypeVar
@@ -8,7 +9,7 @@ from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.signatures import CallSignature
 from lzy.api.v1.utils.env import generate_env, merge_envs
 from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy, lzy_proxy
-from lzy.api.v1.utils.types import infer_call_signature
+from lzy.api.v1.utils.types import infer_call_signature, infer_real_type
 from lzy.api.v1.workflow import LzyWorkflow
 
 T = TypeVar("T")  # pylint: disable=invalid-name
@@ -164,18 +165,20 @@ def wrap_call(
         # >>> obj is None
         # >>> False
         if len(output_types) == 1:
-            if issubclass(output_types[0], type(None)):
+            if inspect.isclass(output_types[0]) and issubclass(output_types[0], type(None)):
                 return None
+            # noinspection PyTypeChecker
             return lzy_proxy(
                 lzy_call.entry_ids[0],
-                lzy_call.signature.func.output_types[0],
+                infer_real_type(lzy_call.signature.func.output_types[0]),
                 lzy_call.parent_wflow,
             )
 
+        # noinspection PyTypeChecker
         return tuple(
             lzy_proxy(
                 lzy_call.entry_ids[i],
-                lzy_call.signature.func.output_types[i],
+                infer_real_type(lzy_call.signature.func.output_types[i]),
                 lzy_call.parent_wflow,
             )
             for i in range(len(lzy_call.entry_ids))

@@ -43,6 +43,7 @@ def lzy_proxy(entry_id: str, typ: Type[T], wflow: "LzyWorkflow", value: Result[T
         if isinstance(data, Just):
             return data.value
 
+        # noinspection PyProtectedMember
         await wflow._barrier()
 
         new_data = await wflow.snapshot.get_data(entry_id)

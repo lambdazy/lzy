@@ -294,7 +294,7 @@ class RemoteRuntime(Runtime):
             output_slots: List[Operation.SlotDescription] = []
             arg_descriptions: List[Tuple[Type, str]] = []
             kwarg_descriptions: Dict[str, Tuple[Type, str]] = {}
-            ret_descriptions: List[str] = []
+            ret_descriptions: List[Tuple[Type, str]] = []
 
             for i, eid in enumerate(call.arg_entry_ids):
                 entry = self.__workflow.snapshot.get(eid)
@@ -362,14 +362,14 @@ class RemoteRuntime(Runtime):
                     if entry.data_scheme is not None
                     else None,
                 )
-                ret_descriptions.append(slot_path)
+                ret_descriptions.append((entry.typ, slot_path))
 
             pool = self.__resolve_pool(call.provisioning, pools)
 
             if pool is None:
                 raise RuntimeError(
-                    f"Cannot resolve pool for operation {call.signature.func.name}:\n"
-                    f"Available: {pools}\n Expected: {call.provisioning}"
+                    f"Cannot resolve pool for operation "
+                    f"{call.signature.func.name}:\nAvailable: {pools}\n Expected: {call.provisioning}"
                 )
 
             pool_to_call.append((pool, call))

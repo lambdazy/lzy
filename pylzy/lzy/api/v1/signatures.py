@@ -18,8 +18,8 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 @dataclass
 class FuncSignature:
     callable: Callable
-    input_types: Dict[str, type]
-    output_types: Sequence[type]
+    input_types: Dict[str, Type]
+    output_types: Sequence[Type]
     arg_names: Tuple[str, ...]
     kwarg_names: Tuple[str, ...]
 
