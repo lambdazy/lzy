@@ -7,7 +7,9 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.grpc.Status;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.util.List;
 import java.util.UUID;
@@ -15,12 +17,16 @@ import java.util.UUID;
 @JsonSerialize
 @JsonDeserialize
 @NoArgsConstructor
+@Getter
+@Setter
 public final class GraphExecutionState {
     private String opId;
     private String idempotencyKey;
 
     private String userId;
     private String executionId;
+
+    @JsonIgnore
     private String workflowName;
 
     private String graphId;
@@ -49,126 +55,6 @@ public final class GraphExecutionState {
         this.zone = zone;
         this.descriptions = descriptions;
         this.operations = operations;
-    }
-
-    public String getOpId() {
-        return opId;
-    }
-
-    public void setOpId(String opId) {
-        this.opId = opId;
-    }
-
-    public String getIdempotencyKey() {
-        return idempotencyKey;
-    }
-
-    public void setIdempotencyKey(String idempotencyKey) {
-        this.idempotencyKey = idempotencyKey;
-    }
-
-    public String getUserId() {
-        return userId;
-    }
-
-    public void setUserId(String userId) {
-        this.userId = userId;
-    }
-
-    public String getExecutionId() {
-        return executionId;
-    }
-
-    public void setExecutionId(String executionId) {
-        this.executionId = executionId;
-    }
-
-    public String getWorkflowName() {
-        return workflowName;
-    }
-
-    public void setWorkflowName(String workflowName) {
-        this.workflowName = workflowName;
-    }
-
-    public String getGraphId() {
-        return graphId;
-    }
-
-    public void setGraphId(String graphId) {
-        this.graphId = graphId;
-    }
-
-    public String getParentGraphId() {
-        return parentGraphId;
-    }
-
-    public void setParentGraphId(String parentGraphId) {
-        this.parentGraphId = parentGraphId;
-    }
-
-    public String getZone() {
-        return zone;
-    }
-
-    public void setZone(String zone) {
-        this.zone = zone;
-    }
-
-    public List<LWF.Operation> getOperations() {
-        return operations;
-    }
-
-    public void setOperations(List<LWF.Operation> operations) {
-        this.operations = operations;
-    }
-
-    public List<LWF.DataDescription> getDescriptions() {
-        return descriptions;
-    }
-
-    public void setDescriptions(List<LWF.DataDescription> descriptions) {
-        this.descriptions = descriptions;
-    }
-
-    public List<TaskDesc> getTasks() {
-        return tasks;
-    }
-
-    public void setTasks(List<TaskDesc> tasks) {
-        this.tasks = tasks;
-    }
-
-    public List<ChannelDesc> getChannels() {
-        return channels;
-    }
-
-    public void setChannels(List<ChannelDesc> channels) {
-        this.channels = channels;
-    }
-
-    public List<String> getPortalInputSlots() {
-        return portalInputSlots;
-    }
-
-    public void setPortalInputSlots(List<String> portalInputSlots) {
-        this.portalInputSlots = portalInputSlots;
-    }
-
-    public DataFlowGraph getDataFlowGraph() {
-        return dataFlowGraph;
-    }
-
-    public void setDataFlowGraph(DataFlowGraph dataFlowGraph) {
-        this.dataFlowGraph = dataFlowGraph;
-    }
-
-    public Status getErrorStatus() {
-        return errorStatus;
-    }
-
-    public void setErrorStatus(Status errorStatus) {
-        this.errorStatus = errorStatus;
     }
 
     @JsonIgnore
