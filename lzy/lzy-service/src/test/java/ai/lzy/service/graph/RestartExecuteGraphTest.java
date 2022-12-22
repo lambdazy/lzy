@@ -65,6 +65,7 @@ public class RestartExecuteGraphTest extends AbstractGraphExecutionTest {
         executeGraphWithRestartImpl();
     }
 
+    // todo: enable when CLOUD-122323 will be done
     @Ignore("Required idempotency in channel manager")
     @Test
     public void executeGraphFail4() {
