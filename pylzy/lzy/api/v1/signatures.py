@@ -9,6 +9,7 @@ from typing import (
     Sequence,
     Tuple,
     TypeVar,
+    Type,
 )
 
 T = TypeVar("T")  # pylint: disable=invalid-name
