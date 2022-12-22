@@ -53,9 +53,9 @@ def whiteboard_(cls: Type, namespace: str, name: str):
 
 def is_whiteboard(typ: Type) -> bool:
     return (
-            hasattr(typ, WB_NAMESPACE_FIELD_NAME)
-            and hasattr(typ, WB_NAME_FIELD_NAME)
-            and dataclasses.is_dataclass(typ)
+        hasattr(typ, WB_NAMESPACE_FIELD_NAME)
+        and hasattr(typ, WB_NAME_FIELD_NAME)
+        and dataclasses.is_dataclass(typ)
     )
 
 
@@ -69,10 +69,10 @@ def fetch_whiteboard_meta(typ: Type) -> Optional[DeclaredWhiteboardMeta]:
 
 class ReadOnlyWhiteboard:
     def __init__(
-            self,
-            storage_registry: StorageRegistry,
-            serializer_registry: SerializerRegistry,
-            wb: Whiteboard
+        self,
+        storage_registry: StorageRegistry,
+        serializer_registry: SerializerRegistry,
+        wb: Whiteboard
     ):
         cli = storage_registry.client(wb.storage.name)
 
@@ -152,11 +152,11 @@ class WritableWhiteboard:
     }
 
     def __init__(
-            self,
-            instance: Any,
-            whiteboard_meta: WhiteboardInstanceMeta,
-            workflow: "LzyWorkflow",
-            fields: Mapping[str, Any]
+        self,
+        instance: Any,
+        whiteboard_meta: WhiteboardInstanceMeta,
+        workflow: "LzyWorkflow",
+        fields: Mapping[str, Any]
     ):
         self.__fields_dict: Dict[str, dataclasses.Field] = {
             field.name: field for field in dataclasses.fields(instance)

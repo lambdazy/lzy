@@ -60,7 +60,7 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
         self.fail = False
 
     def CreateWorkflow(
-            self, request: CreateWorkflowRequest, context: grpc.ServicerContext
+        self, request: CreateWorkflowRequest, context: grpc.ServicerContext
     ) -> CreateWorkflowResponse:
         LOG.info(f"Creating wf {request}")
 
@@ -77,7 +77,7 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
         )
 
     def FinishWorkflow(
-            self, request: FinishWorkflowRequest, context: grpc.ServicerContext
+        self, request: FinishWorkflowRequest, context: grpc.ServicerContext
     ) -> FinishWorkflowResponse:
         LOG.info(f"Finishing workflow {request}")
 
@@ -90,7 +90,7 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
         return FinishWorkflowResponse()
 
     def ReadStdSlots(
-            self, request: ReadStdSlotsRequest, context: grpc.ServicerContext
+        self, request: ReadStdSlotsRequest, context: grpc.ServicerContext
     ) -> Iterator[ReadStdSlotsResponse]:
         LOG.info(f"Registered listener")
 
@@ -201,9 +201,13 @@ class WhiteboardClientForTest(WhiteboardClient):
     async def get(self, wb_id: str) -> Whiteboard:
         pass
 
-    async def list(self, name: Optional[str] = None, tags: Sequence[str] = (),
-                   not_before: Optional[datetime.datetime] = None, not_after: Optional[datetime.datetime] = None) -> \
-            Iterable[Whiteboard]:
+    async def list(
+        self,
+        name: Optional[str] = None,
+        tags: Sequence[str] = (),
+        not_before: Optional[datetime.datetime] = None,
+        not_after: Optional[datetime.datetime] = None
+    ) -> Iterable[Whiteboard]:
         pass
 
     async def create_whiteboard(self, namespace: str, name: str, fields: Sequence[WhiteboardField], storage_name: str,
@@ -260,15 +264,15 @@ class SnapshotTests(TestCase):
         lzy.storage_registry.register_storage("storage", storage_config, True)
 
         with lzy.workflow("") as wf:
-            l = a(41)
+            some_field = a(41)
 
-            l2 = c(l)
-            l3 = c(l)
+            some_field_2 = c(some_field)
+            some_field_3 = c(some_field)
 
             wf.barrier()
 
-            self.assertEqual(l2, "42")
-            self.assertEqual(l3, "42")
+            self.assertEqual(some_field_2, "42")
+            self.assertEqual(some_field_3, "42")
 
     def test_presigned_url(self):
         storage_config = storage.StorageConfig(

@@ -20,6 +20,8 @@ from typing import (
     cast,
 )
 
+from serialzy.api import Schema
+
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
 from ai.lzy.v1.workflow.workflow_pb2 import (
     DataDescription,
@@ -28,11 +30,8 @@ from ai.lzy.v1.workflow.workflow_pb2 import (
     VmPoolSpec,
 )
 from lzy.api.v1.call import LzyCall
-from lzy.api.v1.workflow import LzyWorkflow
-from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.exceptions import LzyExecutionException
-from serialzy.api import Schema
-from lzy.utils.grpc import build_token
+from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.remote.workflow_service_client import (
     Completed,
     Executing,
@@ -45,9 +44,11 @@ from lzy.api.v1.runtime import (
     Runtime,
 )
 from lzy.api.v1.startup import ProcessingRequest
-from lzy.api.v1.utils.pickle import pickle
 from lzy.api.v1.utils.files import fileobj_hash, zipdir
+from lzy.api.v1.utils.pickle import pickle
+from lzy.api.v1.workflow import LzyWorkflow
 from lzy.api.v1.workflow import WbRef
+from lzy.utils.grpc import build_token
 
 FETCH_STATUS_PERIOD_SEC = float(os.getenv("FETCH_STATUS_PERIOD_SEC", "10"))
 KEY_PATH_ENV = "LZY_KEY_PATH"
@@ -105,10 +106,10 @@ class RemoteRuntime(Runtime):
         )
 
     async def exec(
-            self,
-            calls: List[LzyCall],
-            links: Dict[str, WbRef],
-            progress: Callable[[ProgressStep], None],
+        self,
+        calls: List[LzyCall],
+        links: Dict[str, WbRef],
+        progress: Callable[[ProgressStep], None],
     ) -> None:
         assert self.__execution_id is not None
         assert self.__workflow is not None
@@ -235,22 +236,22 @@ class RemoteRuntime(Runtime):
 
     @staticmethod
     def __resolve_pool(
-            provisioning: Provisioning, pool_specs: Sequence[VmPoolSpec]
+        provisioning: Provisioning, pool_specs: Sequence[VmPoolSpec]
     ) -> Optional[VmPoolSpec]:
         assert (
-                provisioning.cpu_type is not None
-                and provisioning.cpu_count is not None
-                and provisioning.gpu_type is not None
-                and provisioning.gpu_count is not None
-                and provisioning.ram_size_gb is not None
+            provisioning.cpu_type is not None
+            and provisioning.cpu_count is not None
+            and provisioning.gpu_type is not None
+            and provisioning.gpu_count is not None
+            and provisioning.ram_size_gb is not None
         )
         for spec in pool_specs:
             if (
-                    provisioning.cpu_type == spec.cpuType
-                    and provisioning.cpu_count <= spec.cpuCount
-                    and provisioning.gpu_type == spec.gpuType
-                    and provisioning.gpu_count <= spec.gpuCount
-                    and provisioning.ram_size_gb <= spec.ramGb
+                provisioning.cpu_type == spec.cpuType
+                and provisioning.cpu_count <= spec.cpuCount
+                and provisioning.gpu_type == spec.gpuType
+                and provisioning.gpu_count <= spec.gpuCount
+                and provisioning.ram_size_gb <= spec.ramGb
             ):
                 return spec
         return None
@@ -277,10 +278,10 @@ class RemoteRuntime(Runtime):
                 print(data.data, file=sys.stderr)
 
     def __build_graph(
-            self,
-            calls: List[LzyCall],
-            pools: Sequence[VmPoolSpec],
-            modules: Sequence[Tuple[str, str]]
+        self,
+        calls: List[LzyCall],
+        pools: Sequence[VmPoolSpec],
+        modules: Sequence[Tuple[str, str]]
     ) -> Graph:
         assert self.__workflow is not None
 

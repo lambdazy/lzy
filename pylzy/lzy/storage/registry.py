@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Dict, Optional, Sequence, Iterable
+from typing import Dict, Optional, Iterable
 
 from lzy.storage.api import AsyncStorageClient, StorageConfig, StorageRegistry
 from lzy.storage.async_ import from_credentials

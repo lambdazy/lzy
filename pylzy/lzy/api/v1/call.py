@@ -7,21 +7,21 @@ from typing import Any, Callable, Dict, Iterator, Mapping, Sequence, Tuple, Type
 from lzy.api.v1.env import Env, DockerPullPolicy
 from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.signatures import CallSignature
+from lzy.api.v1.utils.env import generate_env, merge_envs
 from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy, lzy_proxy
 from lzy.api.v1.utils.types import infer_call_signature, infer_real_type
 from lzy.api.v1.workflow import LzyWorkflow
-from lzy.api.v1.utils.env import generate_env, merge_envs
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
 class LzyCall:
     def __init__(
-            self,
-            parent_wflow: LzyWorkflow,
-            sign: CallSignature,
-            provisioning: Provisioning,
-            env: Env,
+        self,
+        parent_wflow: LzyWorkflow,
+        sign: CallSignature,
+        provisioning: Provisioning,
+        env: Env,
     ):
         self.__id = str(uuid.uuid4())
         self.__wflow = parent_wflow
@@ -106,21 +106,21 @@ class LzyCall:
 
 
 def wrap_call(
-        f: Callable[..., Any],
-        output_types: Sequence[type],
-        python_version: typing.Optional[str] = None,
-        libraries: typing.Optional[Dict[str, str]] = None,
-        conda_yaml_path: typing.Optional[str] = None,
-        docker_image: typing.Optional[str] = None,
-        docker_pull_policy: typing.Optional[DockerPullPolicy] = DockerPullPolicy.IF_NOT_EXISTS,
-        local_modules_path: typing.Optional[Sequence[str]] = None,
-        provisioning_: Provisioning = Provisioning(),
-        cpu_type: typing.Optional[str] = None,
-        cpu_count: typing.Optional[int] = None,
-        gpu_type: typing.Optional[str] = None,
-        gpu_count: typing.Optional[int] = None,
-        ram_size_gb: typing.Optional[int] = None,
-        env: typing.Optional[Env] = None,
+    f: Callable[..., Any],
+    output_types: Sequence[type],
+    python_version: typing.Optional[str] = None,
+    libraries: typing.Optional[Dict[str, str]] = None,
+    conda_yaml_path: typing.Optional[str] = None,
+    docker_image: typing.Optional[str] = None,
+    docker_pull_policy: typing.Optional[DockerPullPolicy] = DockerPullPolicy.IF_NOT_EXISTS,
+    local_modules_path: typing.Optional[Sequence[str]] = None,
+    provisioning_: Provisioning = Provisioning(),
+    cpu_type: typing.Optional[str] = None,
+    cpu_count: typing.Optional[int] = None,
+    gpu_type: typing.Optional[str] = None,
+    gpu_count: typing.Optional[int] = None,
+    ram_size_gb: typing.Optional[int] = None,
+    env: typing.Optional[Env] = None,
 ) -> Callable[..., Any]:
     @functools.wraps(f)
     def lazy(*args, **kwargs):

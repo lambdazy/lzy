@@ -11,9 +11,9 @@ from typing import (
     cast,
     get_type_hints,
 )
-from typing_extensions import get_origin, get_args
 
 from serialzy.types import get_type
+from typing_extensions import get_origin, get_args
 
 from lzy.api.v1.signatures import CallSignature, FuncSignature
 from lzy.api.v1.snapshot import Snapshot
@@ -26,7 +26,7 @@ TypeInferResult = Result[Sequence[type]]
 
 
 def infer_call_signature(
-        f: Callable, output_type: Sequence[type], snapshot: Snapshot, *args, **kwargs
+    f: Callable, output_type: Sequence[type], snapshot: Snapshot, *args, **kwargs
 ) -> CallSignature:
     types_mapping = {}
     argspec = getfullargspec(f)

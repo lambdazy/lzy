@@ -1,10 +1,9 @@
-from typing import Any, Dict, List, cast, Sequence, Optional, Iterable
+import re
 from collections import OrderedDict, deque
 from copy import deepcopy
-import re
+from typing import Any, Dict, List, cast, Sequence
 
 import yaml
-
 
 # TODO(tomato): rethink this cache
 _installed_versions = {"3.7.11": "py37", "3.8.12": "py38", "3.9.7": "py39"}
@@ -82,7 +81,7 @@ def merge_channels(channels_list):
             for i, channel in enumerate(channels):
                 dag.add_node(channel)
                 if i > 0:
-                    dag.add_edge(channels[i-1], channel)
+                    dag.add_edge(channels[i - 1], channel)
         return dag.topological_sort()
     except ValueError as exc:
         raise MergeError("Can't satisfy channels priority: {}".format(exc.args[0]))

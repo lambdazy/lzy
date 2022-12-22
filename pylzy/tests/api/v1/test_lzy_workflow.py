@@ -68,9 +68,9 @@ class LzyWorkflowTests(TestCase):
 
     def test_simple_graph(self):
         with self.lzy.workflow(self.workflow_name):
-            l = [1, 2, 3]
-            result = list2list(l)
-            self.assertEqual([str(i) for i in l], result)
+            some_list = [1, 2, 3]
+            result = list2list(some_list)
+            self.assertEqual([str(i) for i in some_list], result)
 
     @skip("WIP")
     def test_barrier(self):

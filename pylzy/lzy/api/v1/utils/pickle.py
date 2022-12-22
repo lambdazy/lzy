@@ -1,5 +1,5 @@
 import base64
-from typing import Any, Type, TypeVar, cast
+from typing import Type, TypeVar, cast
 
 import cloudpickle
 
