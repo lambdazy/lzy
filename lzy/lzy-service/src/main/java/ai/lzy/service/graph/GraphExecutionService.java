@@ -37,6 +37,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
@@ -160,11 +161,12 @@ public class GraphExecutionService {
 
                 InjectedFailures.failExecuteGraph5();
 
-                String idempotencyKey = state.getOrGenerateIdempotencyKey();
+                if (state.getIdempotencyKey() == null) {
+                    state.setIdempotencyKey(UUID.randomUUID().toString());
+                    withRetries(LOG, () -> graphDao.update(state, null));
+                }
 
-                withRetries(LOG, () -> graphDao.update(state, null));
-
-                var idempotentGraphExecClient = withIdempotencyKey(graphExecutorClient, idempotencyKey);
+                var idempotentGraphExecClient = withIdempotencyKey(graphExecutorClient, state.getIdempotencyKey());
 
                 GraphExecutorApi.GraphExecuteResponse executeResponse;
                 try {

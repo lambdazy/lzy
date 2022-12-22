@@ -58,11 +58,6 @@ public final class GraphExecutionState {
     }
 
     @JsonIgnore
-    public String getOrGenerateIdempotencyKey() {
-        return idempotencyKey = (idempotencyKey != null) ? idempotencyKey : UUID.randomUUID().toString();
-    }
-
-    @JsonIgnore
     public boolean isInvalid() {
         return errorStatus != null;
     }
