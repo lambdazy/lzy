@@ -4,11 +4,18 @@
 
 System image, contains worker application.
 
-Lzy supports image with custom user environment, from which worker creates docker container. 
-Lzy use docker-in-docker scheme here. So **worker image** contains docker.
+Lzy supports images with custom user environment. Worker implements 
+[docker-in-docker](https://www.docker.com/blog/docker-can-now-run-within-docker/) scheme here:
 
-Worker has an alternative for docker-in-docker scheme. If user has no custom environment,
-worker can execute tasks in its own environment. So **worker image** contains pylzy python package.
+* There is an installed [Docker](https://docs.docker.com/get-started/overview/) inside **worker image**
+* When worker container creates, it runs Docker daemon, 
+which will listen for Docker API requests and will manage Docker objects.
+* When worker going to execute task, it creates inner Docker container with custom environment from user image. 
+Task will be executed inside inner container.
+
+Worker has an alternative for docker-in-docker scheme. 
+If user has no custom environment, worker can execute tasks in its own environment in outer container. 
+So **worker image** contains pylzy python package.
 
 **Worker image** split on **[base](System.Base.Dockerfile)** and **[final](System.Dockerfile)** images.
 **Base** image contains all dependencies (GPU drivers, java, docker, conda, etc.) and updates rarely.
