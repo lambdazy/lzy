@@ -40,7 +40,7 @@ class FileSerializerImpl(FileSerializer):
                 shutil.copyfileobj(data, f)
                 f.seek(0)
                 try:
-                    return load(f, data)  # type: ignore
+                    return load(obj_type, f)  # type: ignore
                 except Exception as e:
                     try:
                         f.seek(0)
