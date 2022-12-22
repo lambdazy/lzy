@@ -1,5 +1,6 @@
 package ai.lzy.service.graph;
 
+import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.service.LzyService;
 import ai.lzy.service.graph.debug.InjectedFailures;
 import ai.lzy.service.graph.debug.InjectedFailures.TerminateException;
@@ -32,7 +33,7 @@ public class RestartExecuteGraphTest extends AbstractGraphExecutionTest {
 
     @Override
     @After
-    public void tearDown() throws java.sql.SQLException, InterruptedException {
+    public void tearDown() throws java.sql.SQLException, InterruptedException, DaoException {
         super.tearDown();
         operationDaoDecorator = null;
         InjectedFailures.reset();
@@ -64,7 +65,7 @@ public class RestartExecuteGraphTest extends AbstractGraphExecutionTest {
         executeGraphWithRestartImpl();
     }
 
-    @Ignore("Graph executor mock does not support idempotency")
+    @Ignore("Required idempotency in channel manager")
     @Test
     public void executeGraphFail4() {
         InjectedFailures.FAIL_EXECUTE_GRAPH.get(4).set(
@@ -93,7 +94,6 @@ public class RestartExecuteGraphTest extends AbstractGraphExecutionTest {
         executeGraphWithRestartImpl();
     }
 
-    @Ignore("Graph executor mock does not implement stopGraph")
     @Test
     public void executeGraphFail8() {
         InjectedFailures.FAIL_EXECUTE_GRAPH.get(8).set(

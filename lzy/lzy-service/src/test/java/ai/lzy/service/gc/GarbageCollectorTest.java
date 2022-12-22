@@ -1,6 +1,7 @@
 package ai.lzy.service.gc;
 
 import ai.lzy.allocator.test.AllocatorProxy;
+import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.service.App;
 import ai.lzy.service.BaseTest;
@@ -188,7 +189,7 @@ public class GarbageCollectorTest extends BaseTest {
     }
 
     @After
-    public void tearDown() throws SQLException, InterruptedException {
+    public void tearDown() throws SQLException, InterruptedException, DaoException {
         super.tearDown();
         lzyServers.forEach(s -> {
             try {

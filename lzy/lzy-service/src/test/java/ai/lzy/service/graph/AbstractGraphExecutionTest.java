@@ -1,59 +1,22 @@
 package ai.lzy.service.graph;
 
-import ai.lzy.graph.test.GraphExecutorMock;
 import ai.lzy.service.BaseTest;
 import ai.lzy.test.IdempotencyUtils.TestScenario;
-import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.common.LMS3;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWF.Graph;
 import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub;
-import com.google.common.net.HostAndPort;
-import io.grpc.Server;
-import io.grpc.ServerInterceptors;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.grpc.netty.NettyServerBuilder;
-import org.junit.After;
-import org.junit.Before;
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.AbstractMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.*;
 
 public abstract class AbstractGraphExecutionTest extends BaseTest {
-    private Server graphExecutorServer;
-
-    @Override
-    @Before
-    public void setUp() throws IOException, InterruptedException {
-        super.setUp();
-
-        var graphExecutorAddress = HostAndPort.fromString(config.getGraphExecutorAddress());
-
-        graphExecutorMock = new GraphExecutorMock();
-        graphExecutorServer = NettyServerBuilder
-            .forAddress(new InetSocketAddress(graphExecutorAddress.getHost(), graphExecutorAddress.getPort()))
-            .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .addService(ServerInterceptors.intercept(graphExecutorMock, authInterceptor))
-            .build();
-        graphExecutorServer.start();
-    }
-
-    @Override
-    @After
-    public void tearDown() throws java.sql.SQLException, InterruptedException {
-        super.tearDown();
-        graphExecutorServer.shutdown();
-    }
-
     static LWFS.CreateWorkflowResponse createWorkflow(LzyWorkflowServiceBlockingStub client) {
         var workflowName = "workflow_1";
         return client.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()

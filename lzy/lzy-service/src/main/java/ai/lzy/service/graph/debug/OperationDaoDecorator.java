@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 @Singleton
 @Named("LzyServiceOperationDao")
-@Requires(beans = LzyServiceStorage.class, env = "test-mock")
+@Requires(env = "test-mock")
 public class OperationDaoDecorator implements OperationDao {
     private final Queue<Runnable> onCreateEvents = new ConcurrentLinkedQueue<>();
     private final AtomicInteger createCallsCounter = new AtomicInteger(0);

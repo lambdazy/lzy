@@ -1,4 +1,4 @@
-package ai.lzy.graph.test.mocks;
+package ai.lzy.graph.test;
 
 import ai.lzy.graph.db.impl.GraphExecutionDaoImpl;
 import ai.lzy.graph.db.impl.GraphExecutorDataSource;
@@ -7,25 +7,27 @@ import ai.lzy.graph.model.GraphExecutionState;
 import ai.lzy.graph.model.TaskExecution;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.DaoException;
-import jakarta.inject.Inject;
+import io.micronaut.context.annotation.Requires;
+import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
+@Singleton
+@Requires(env = "test-mock")
 public class GraphDaoMock extends GraphExecutionDaoImpl {
-    @Inject
     public GraphDaoMock(GraphExecutorDataSource storage) {
         super(storage);
     }
 
     @Override
-    public synchronized GraphExecutionState create(String workflowId, String workflowName,
+    public synchronized GraphExecutionState create(String executionId, String workflowName,
                                                    String userId, GraphDescription description,
                                                    @Nullable TransactionHandle transaction) throws SQLException
     {
-        var graph = super.create(workflowId, workflowName, userId, description, transaction);
+        var graph = super.create(executionId, workflowName, userId, description, transaction);
         this.notifyAll();
         return graph;
     }
@@ -48,7 +50,8 @@ public class GraphDaoMock extends GraphExecutionDaoImpl {
             || !currentState.currentExecutionGroup()
             .stream()
             .map(TaskExecution::id)
-            .collect(Collectors.toSet()).equals(executions)) {
+            .collect(Collectors.toSet()).equals(executions))
+        {
             Thread.sleep(100);
             currentState = this.get(workflowId, graphId);
         }

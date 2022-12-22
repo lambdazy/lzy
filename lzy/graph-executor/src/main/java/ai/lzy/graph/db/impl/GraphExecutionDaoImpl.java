@@ -11,8 +11,11 @@ import ai.lzy.model.db.exceptions.DaoException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import java.sql.*;
@@ -23,7 +26,10 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Singleton
+@Requires(notEnv = "test-mock")
 public class GraphExecutionDaoImpl implements GraphExecutionDao {
+    private static final Logger LOG = LogManager.getLogger(GraphExecutionDaoImpl.class);
+
     private final GraphExecutorDataSource storage;
     private final ObjectMapper objectMapper;
 
@@ -42,10 +48,13 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
     }
 
     @Override
-    public GraphExecutionState create(String workflowId, String workflowName, String userId,
+    public GraphExecutionState create(String executionId, String workflowName, String userId,
                                       GraphDescription description, @Nullable TransactionHandle transaction)
         throws SQLException
     {
+        LOG.info("Save graph execution state: { executionId: {}, workflowName: {}, userId: {}, desc: {} }",
+            executionId, workflowName, userId, description);
+
         GraphExecutionState[] state = {null};
 
         DbOperation.execute(transaction, storage, connection -> {
@@ -55,7 +64,7 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
             {
                 String id = UUID.randomUUID().toString();
                 state[0] = GraphExecutionState.builder()
-                    .withWorkflowId(workflowId)
+                    .withWorkflowId(executionId)
                     .withWorkflowName(workflowName)
                     .withUserId(userId)
                     .withId(id)

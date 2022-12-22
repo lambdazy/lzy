@@ -14,6 +14,7 @@ import ai.lzy.v1.scheduler.SchedulerGrpc.SchedulerBlockingStub;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -26,6 +27,7 @@ import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 @Singleton
+@Requires(notEnv = "test-mock")
 public class SchedulerApiImpl implements SchedulerApi {
     private final SchedulerBlockingStub stub;
     private final ManagedChannel channel;

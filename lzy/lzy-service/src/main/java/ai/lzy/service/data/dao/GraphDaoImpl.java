@@ -9,6 +9,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -18,6 +20,8 @@ import javax.annotation.Nullable;
 
 @Singleton
 public class GraphDaoImpl implements GraphDao {
+    private static final Logger LOG = LogManager.getLogger(GraphDaoImpl.class);
+
     private final Storage storage;
     private final ObjectMapper objectMapper;
 
@@ -30,6 +34,8 @@ public class GraphDaoImpl implements GraphDao {
     public void put(GraphExecutionState state, String ownerId, @Nullable TransactionHandle transaction)
         throws SQLException
     {
+        LOG.info("Put graph execution state to dao: " + state.toString());
+
         DbOperation.execute(transaction, storage, connection -> {
             try (var statement = connection.prepareStatement("""
                 INSERT INTO graph_op_state (op_id, state_json, owner_id)
@@ -49,6 +55,8 @@ public class GraphDaoImpl implements GraphDao {
     public void update(GraphExecutionState state, @Nullable TransactionHandle transaction)
         throws SQLException
     {
+        LOG.info("Update graph execution state to dao: " + state.toString());
+
         DbOperation.execute(transaction, storage, connection -> {
             try (var statement = connection.prepareStatement("""
                 UPDATE graph_op_state
@@ -68,6 +76,8 @@ public class GraphDaoImpl implements GraphDao {
     public List<GraphExecutionState> loadNotCompletedOpStates(String ownerId, @Nullable TransactionHandle transaction)
         throws SQLException
     {
+        LOG.info("Load not completed execute graph operations by: { ownerId: {} }", ownerId);
+
         List<GraphExecutionState> states = new ArrayList<>();
 
         DbOperation.execute(transaction, storage, connection -> {
@@ -97,7 +107,7 @@ public class GraphDaoImpl implements GraphDao {
         DbOperation.execute(transaction, storage, con -> {
             try (var statement = con.prepareStatement("""
                 INSERT INTO graphs (graph_id, execution_id, portal_input_slots)
-                VALUES (?, ? ,?)
+                VALUES (?, ? ,?) ON CONFLICT DO NOTHING
                 """))
             {
                 statement.setString(1, description.graphId());

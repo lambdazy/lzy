@@ -21,13 +21,13 @@ public class BeanFactory {
     @Singleton
     @Named("GraphExecutorIamGrpcChannel")
     public ManagedChannel iamChannel(ServiceConfig config) {
-        return GrpcUtils.newGrpcChannel(config.getAuth().getAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
+        return GrpcUtils.newGrpcChannel(config.getIam().getAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
     }
 
     @Singleton
     @Named("GraphExecutorIamToken")
     public RenewableJwt renewableIamToken(ServiceConfig config) {
-        return config.getAuth().createRenewableToken();
+        return config.getIam().createRenewableToken();
     }
 
     @Singleton

@@ -12,7 +12,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.List;
-import java.util.UUID;
 
 @JsonSerialize
 @JsonDeserialize
@@ -66,6 +65,10 @@ public final class GraphExecutionState {
         this.errorStatus = errorStatus.withDescription(description);
     }
 
+    private String printOperationId() {
+        return "operationId: " + opId;
+    }
+
     private String printExecutionId() {
         return "executionId: " + executionId;
     }
@@ -82,12 +85,21 @@ public final class GraphExecutionState {
         return "dataflowGraph: " + dataFlowGraph.toString();
     }
 
+    private String printIdempotencyKey() {
+        return "idempotencyKey: " + idempotencyKey;
+    }
+
+    private String printGraphId() {
+        return "graphId: " + graphId;
+    }
+
     @Override
     public String toString() {
         var sb = new StringBuilder();
         sb.append("{ ");
 
         sb.append(printExecutionId());
+        sb.append(", ").append(printOperationId());
         if (workflowName != null) {
             sb.append(", ").append(printWorkflowName());
         }
@@ -96,6 +108,12 @@ public final class GraphExecutionState {
         }
         if (dataFlowGraph != null) {
             sb.append(", ").append(printDataflowGraph());
+        }
+        if (idempotencyKey != null) {
+            sb.append(", ").append(printIdempotencyKey());
+        }
+        if (graphId != null) {
+            sb.append(", ").append(printGraphId());
         }
 
         sb.append(" }");

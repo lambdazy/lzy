@@ -40,7 +40,9 @@ public interface OperationDao {
     {
         Operation op = null;
 
-        log.info("Fail operation with error: { operationId: {}, errorStatus: {}}", operationId, error.getMessage());
+        log.info("Fail operation with error: { operationId: {}, errorCode: {}, message: {} }", operationId,
+            io.grpc.Status.fromCodeValue(error.getCode()).getCode().name(), error.getMessage());
+
         try {
             op = withRetries(log, () -> updateError(operationId, error.toByteArray(), transaction));
         } catch (Exception ex) {

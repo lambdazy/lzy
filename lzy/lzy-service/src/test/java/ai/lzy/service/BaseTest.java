@@ -2,10 +2,11 @@ package ai.lzy.service;
 
 import ai.lzy.allocator.test.BaseTestWithAllocator;
 import ai.lzy.channelmanager.test.BaseTestWithChannelManager;
-import ai.lzy.graph.test.GraphExecutorMock;
+import ai.lzy.graph.test.BaseTestWithGraphExecutor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.test.BaseTestWithIam;
+import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.portal.grpc.ProtoConverter;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.workflow.WorkflowService;
@@ -30,11 +31,7 @@ import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -51,6 +48,7 @@ public class BaseTest {
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
     private static final BaseTestWithStorage storageTestContext = new BaseTestWithStorage();
     private static final BaseTestWithChannelManager channelManagerTestContext = new BaseTestWithChannelManager();
+    private static final BaseTestWithGraphExecutor graphExecutorTestContext = new BaseTestWithGraphExecutor();
     protected static final BaseTestWithAllocator allocatorTestContext = new BaseTestWithAllocator();
 
     @Rule
@@ -60,14 +58,14 @@ public class BaseTest {
     @Rule
     public PreparedDbRule channelManagerDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
     @Rule
+    public PreparedDbRule graphExecutorDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+    @Rule
     public PreparedDbRule allocatorDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
     @Rule
     public PreparedDbRule lzyServiceDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
 
     protected ApplicationContext context;
     protected LzyServiceConfig config;
-
-    protected GraphExecutorMock graphExecutorMock;
 
     private Server whiteboardServer;
 
@@ -91,6 +89,9 @@ public class BaseTest {
         var channelManagerDbConfig = preparePostgresConfig("channel-manager", channelManagerDb.getConnectionInfo());
         channelManagerTestContext.setUp(channelManagerDbConfig);
 
+        var graphExecDbConfig = preparePostgresConfig("graph-executor", graphExecutorDb.getConnectionInfo());
+        graphExecutorTestContext.setUp(graphExecDbConfig);
+
         var allocatorConfigOverrides = preparePostgresConfig("allocator", allocatorDb.getConnectionInfo());
         allocatorConfigOverrides.put("allocator.thread-allocator.enabled", true);
         allocatorConfigOverrides.put("allocator.thread-allocator.vm-class-name", "ai.lzy.portal.App");
@@ -102,6 +103,7 @@ public class BaseTest {
         context = ApplicationContext.run(PropertySource.of(lzyDbConfig), "test-mock");
 
         config = context.getBean(LzyServiceConfig.class);
+        config.setGraphExecutorAddress("localhost:" + graphExecutorTestContext.getPort());
 
         authInterceptor = new AuthServerInterceptor(credentials -> {
             var iam = config.getIam();
@@ -144,10 +146,11 @@ public class BaseTest {
     }
 
     @After
-    public void tearDown() throws SQLException, InterruptedException {
+    public void tearDown() throws SQLException, InterruptedException, DaoException {
         WorkflowService.PEEK_RANDOM_PORTAL_PORTS = false;
         iamTestContext.after();
         allocatorTestContext.after();
+        graphExecutorTestContext.after();
         storageTestContext.after();
         channelManagerTestContext.after();
         lzyServiceChannel.shutdown();
