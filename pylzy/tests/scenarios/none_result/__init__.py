@@ -6,7 +6,7 @@ def just_return_none() -> None:
     return None
 
 
-with Lzy().workflow(name="wf4", interactive=False):
+with Lzy().workflow(name="wf", interactive=False):
     # noinspection PyNoneFunctionAssignment
     res = just_return_none()
     print(res)

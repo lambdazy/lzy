@@ -7,14 +7,12 @@ Configuration:
       target: SYSTEM_OUT
       PatternLayout:
         Pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS}{UTC} [%t] %-5level %logger{36} %notEmpty{[rid=%X{rid}] }- %msg%n"
-    File:
-      name: LogFile
-      fileName: ${sys:custom.log.file}
-      PatternLayout:
-        Pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS}{UTC} [%t] %-5level %logger{36} %notEmpty{[rid=%X{rid}] }- %msg%n"
-
   Loggers:
     Root:
       level: info
       AppenderRef:
-        - ref: LogFile
+        ref: Console
+
+    Logger:
+      - name: "ai.lzy"
+        level: debug

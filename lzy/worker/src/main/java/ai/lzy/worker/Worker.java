@@ -33,6 +33,7 @@ import com.google.common.net.HostAndPort;
 import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import lombok.SneakyThrows;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -209,6 +210,12 @@ public class Worker {
         } catch (Exception e) {
             LOG.error("Error while executing: " + String.join(" ", args), e);
             return -1;
+        } finally {
+            try {
+                Thread.sleep(10);  // Sleep some time to wait for all logs to be written
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
