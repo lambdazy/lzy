@@ -100,8 +100,8 @@ public class BeanFactory {
     }
 
     @Singleton
-    @Requires(beans = LzyServiceStorage.class)
     @Named("LzyServiceOperationDao")
+    @Requires(notEnv = "test-mock")
     public OperationDao operationDao(LzyServiceStorage storage) {
         return new OperationDaoImpl(storage);
     }

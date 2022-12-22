@@ -52,7 +52,7 @@ class GraphBuilder {
         var userId = state.getUserId();
         var workflowName = state.getWorkflowName();
         var executionId = state.getExecutionId();
-        var dataFlow = state.getDataFlowGraph().getDataFlow();
+        var dataFlow = state.getDataFlowGraph().getDataflow();
         var slot2description = state.getDescriptions().stream()
             .collect(Collectors.toMap(LWF.DataDescription::getStorageUri, Function.identity()));
 

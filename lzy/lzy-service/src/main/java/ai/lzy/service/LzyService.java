@@ -13,9 +13,11 @@ import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.service.gc.GarbageCollector;
 import ai.lzy.service.graph.GraphExecutionService;
 import ai.lzy.service.graph.GraphExecutionState;
+import ai.lzy.service.graph.debug.InjectedFailures;
 import ai.lzy.service.workflow.WorkflowService;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
+import com.google.common.annotations.VisibleForTesting;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Named;
@@ -71,6 +73,11 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
         gc.start();
 
+        restartNotCompletedOps();
+    }
+
+    @VisibleForTesting
+    public void testRestart() {
         restartNotCompletedOps();
     }
 
@@ -148,10 +155,16 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
 
-        // todo: test what if fails here
+        InjectedFailures.failExecuteGraph0();
 
         workersPool.submit(() -> {
             var completedOp = graphExecutionService.executeGraph(state);
+
+            if (completedOp == null) {
+                // emulates service shutdown
+                responseObserver.onError(Status.DEADLINE_EXCEEDED.asRuntimeException());
+                return;
+            }
 
             try {
                 var resp = completedOp.response();

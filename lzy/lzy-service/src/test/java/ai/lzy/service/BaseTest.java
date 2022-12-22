@@ -99,7 +99,7 @@ public class BaseTest {
         WorkflowService.PEEK_RANDOM_PORTAL_PORTS = true;  // To recreate portals for all wfs
 
         var lzyDbConfig = preparePostgresConfig("lzy-service", lzyServiceDb.getConnectionInfo());
-        context = ApplicationContext.run(PropertySource.of(lzyDbConfig));
+        context = ApplicationContext.run(PropertySource.of(lzyDbConfig), "test-mock");
 
         config = context.getBean(LzyServiceConfig.class);
 

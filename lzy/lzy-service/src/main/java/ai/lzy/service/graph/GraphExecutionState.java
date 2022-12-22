@@ -3,27 +3,32 @@ package ai.lzy.service.graph;
 import ai.lzy.v1.graph.GraphExecutor.ChannelDesc;
 import ai.lzy.v1.graph.GraphExecutor.TaskDesc;
 import ai.lzy.v1.workflow.LWF;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.grpc.Status;
+import lombok.NoArgsConstructor;
 
 import java.util.List;
 import java.util.UUID;
 
+@JsonSerialize
+@JsonDeserialize
+@NoArgsConstructor
 public final class GraphExecutionState {
-    private final String executionId;
+    private String opId;
+    private String idempotencyKey;
 
-    private final String opId;
-    private final String parentGraphId;
-
-    private final String userId;
-
-    private String zone;
-    private final List<LWF.DataDescription> descriptions;
-    private final List<LWF.Operation> operations;
-
+    private String userId;
+    private String executionId;
     private String workflowName;
 
-    private String idempotencyKey;
     private String graphId;
+    private String parentGraphId;
+
+    private String zone;
+    private List<LWF.Operation> operations;
+    private List<LWF.DataDescription> descriptions;
 
     private List<TaskDesc> tasks;
     private List<ChannelDesc> channels;
@@ -46,44 +51,36 @@ public final class GraphExecutionState {
         this.operations = operations;
     }
 
-    public void setZone(String zone) {
-        this.zone = zone;
-    }
-
-    public String getParentGraphId() {
-        return parentGraphId;
-    }
-
     public String getOpId() {
         return opId;
     }
 
-    public String getOrGenerateIdempotencyKey() {
-        return idempotencyKey = (idempotencyKey != null) ? idempotencyKey : UUID.randomUUID().toString();
+    public void setOpId(String opId) {
+        this.opId = opId;
     }
 
-    public String getGraphId() {
-        return graphId;
+    public String getIdempotencyKey() {
+        return idempotencyKey;
     }
 
-    public void setGraphId(String graphId) {
-        this.graphId = graphId;
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
     }
 
-    public List<LWF.DataDescription> getDescriptions() {
-        return descriptions;
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 
     public String getExecutionId() {
         return executionId;
     }
 
-    public List<LWF.Operation> getOperations() {
-        return operations;
-    }
-
-    public String getUserId() {
-        return userId;
+    public void setExecutionId(String executionId) {
+        this.executionId = executionId;
     }
 
     public String getWorkflowName() {
@@ -94,16 +91,44 @@ public final class GraphExecutionState {
         this.workflowName = workflowName;
     }
 
+    public String getGraphId() {
+        return graphId;
+    }
+
+    public void setGraphId(String graphId) {
+        this.graphId = graphId;
+    }
+
+    public String getParentGraphId() {
+        return parentGraphId;
+    }
+
+    public void setParentGraphId(String parentGraphId) {
+        this.parentGraphId = parentGraphId;
+    }
+
     public String getZone() {
         return zone;
     }
 
-    public DataFlowGraph getDataFlowGraph() {
-        return dataFlowGraph;
+    public void setZone(String zone) {
+        this.zone = zone;
     }
 
-    public void setDataFlowGraph(DataFlowGraph dataFlowGraph) {
-        this.dataFlowGraph = dataFlowGraph;
+    public List<LWF.Operation> getOperations() {
+        return operations;
+    }
+
+    public void setOperations(List<LWF.Operation> operations) {
+        this.operations = operations;
+    }
+
+    public List<LWF.DataDescription> getDescriptions() {
+        return descriptions;
+    }
+
+    public void setDescriptions(List<LWF.DataDescription> descriptions) {
+        this.descriptions = descriptions;
     }
 
     public List<TaskDesc> getTasks() {
@@ -122,20 +147,38 @@ public final class GraphExecutionState {
         this.channels = channels;
     }
 
-    public boolean isInvalid() {
-        return errorStatus != null;
-    }
-
-    public Status getErrorStatus() {
-        return errorStatus;
+    public List<String> getPortalInputSlots() {
+        return portalInputSlots;
     }
 
     public void setPortalInputSlots(List<String> portalInputSlots) {
         this.portalInputSlots = portalInputSlots;
     }
 
-    public List<String> getPortalInputSlots() {
-        return portalInputSlots;
+    public DataFlowGraph getDataFlowGraph() {
+        return dataFlowGraph;
+    }
+
+    public void setDataFlowGraph(DataFlowGraph dataFlowGraph) {
+        this.dataFlowGraph = dataFlowGraph;
+    }
+
+    public Status getErrorStatus() {
+        return errorStatus;
+    }
+
+    public void setErrorStatus(Status errorStatus) {
+        this.errorStatus = errorStatus;
+    }
+
+    @JsonIgnore
+    public String getOrGenerateIdempotencyKey() {
+        return idempotencyKey = (idempotencyKey != null) ? idempotencyKey : UUID.randomUUID().toString();
+    }
+
+    @JsonIgnore
+    public boolean isInvalid() {
+        return errorStatus != null;
     }
 
     public void fail(Status errorStatus, String description) {

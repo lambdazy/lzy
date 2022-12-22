@@ -8,6 +8,7 @@ import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.GraphDao;
 import ai.lzy.service.data.dao.WorkflowDao;
+import ai.lzy.service.graph.debug.InjectedFailures;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.VmPoolServiceGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
@@ -25,6 +26,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -36,7 +38,6 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-import javax.annotation.Nullable;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -92,27 +93,28 @@ public class GraphExecutionService {
         this.builder = new GraphBuilder(workflowDao, executionDao, channelManagerClient);
     }
 
+    @Nullable
     public Operation executeGraph(GraphExecutionState state) {
         LOG.info("Start processing execute graph operation: { operationId: {} }", state.getOpId());
 
         LOG.debug("Find workflow name of execution which graph belongs to...");
 
-        // todo: test what if fails here
-
-        setWorkflowName(state);
-
-        if (state.isInvalid()) {
-            updateExecutionStatus(state.getWorkflowName(), state.getUserId(), state.getExecutionId(),
-                state.getErrorStatus());
-            return operationDao.failOperation(state.getOpId(), toProto(state.getErrorStatus()), LOG);
-        }
-
         try {
+            InjectedFailures.failExecuteGraph1();
+
+            setWorkflowName(state);
+
+            if (state.isInvalid()) {
+                updateExecutionStatus(state.getWorkflowName(), state.getUserId(), state.getExecutionId(),
+                    state.getErrorStatus());
+                return operationDao.failOperation(state.getOpId(), toProto(state.getErrorStatus()), LOG);
+            }
+
             if (state.getDataFlowGraph() == null || state.getZone() == null) {
                 LOG.debug("Validate dataflow graph, current state: " + state);
                 validator.validate(state);
 
-                // todo: test what if fails here
+                InjectedFailures.failExecuteGraph2();
 
                 withRetries(LOG, () -> graphDao.update(state, null));
             }
@@ -134,13 +136,13 @@ public class GraphExecutionService {
                 return operationDao.failOperation(state.getOpId(), toProto(status), LOG);
             }
 
-            // todo: test what if fails here
+            InjectedFailures.failExecuteGraph3();
 
             if (state.getTasks() == null) {
                 LOG.debug("Building graph, current state: " + state);
                 builder.build(state, portalClient);
 
-                // todo: test what if fails here
+                InjectedFailures.failExecuteGraph4();
 
                 withRetries(LOG, () -> graphDao.update(state, null));
             }
@@ -156,7 +158,7 @@ public class GraphExecutionService {
             if (state.getGraphId() == null) {
                 LOG.debug("Send execute graph request to graph execution service, current state: " + state);
 
-                // todo: test what if fails here
+                InjectedFailures.failExecuteGraph5();
 
                 String idempotencyKey = state.getOrGenerateIdempotencyKey();
 
@@ -184,12 +186,14 @@ public class GraphExecutionService {
 
                 state.setGraphId(executeResponse.getStatus().getGraphId());
 
-                // todo: test what if fails here
+                InjectedFailures.failExecuteGraph6();
 
                 withRetries(LOG, () -> graphDao.update(state, null));
             }
 
-            // todo: test what if fails here
+            LOG.info("Graph successfully executed, current state: " + state);
+
+            InjectedFailures.failExecuteGraph7();
 
             try {
                 withRetries(defaultRetryPolicy(), LOG, () -> graphDao.save(new GraphDao.GraphDescription(
@@ -205,9 +209,7 @@ public class GraphExecutionService {
                 return operationDao.failOperation(state.getOpId(), toProto(status), LOG);
             }
 
-            // todo: test what if fails here
-
-            LOG.info("Graph successfully executed, current state: " + state);
+            InjectedFailures.failExecuteGraph8();
 
             var response = ExecuteGraphResponse.newBuilder()
                 .setGraphId(state.getGraphId())
@@ -226,6 +228,10 @@ public class GraphExecutionService {
                 updateExecutionStatus(state.getWorkflowName(), state.getUserId(), state.getExecutionId(), errorStatus);
                 return operationDao.failOperation(state.getOpId(), toProto(errorStatus), LOG);
             }
+        } catch (InjectedFailures.TerminateException e) {
+            LOG.error("Got InjectedFailure exception: " + e.getMessage());
+            // don't fail operation explicitly, just pass
+            return null;
         } catch (Exception e) {
             var errorStatus = Status.INTERNAL.withDescription("Error while execute graph: " + e.getMessage());
             updateExecutionStatus(state.getWorkflowName(), state.getUserId(), state.getExecutionId(), errorStatus);
