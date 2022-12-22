@@ -15,7 +15,7 @@ Task will be executed inside inner container.
 
 Worker has an alternative for docker-in-docker scheme. 
 If user has no custom environment, worker can execute tasks in its own environment in outer container. 
-So **worker image** contains pylzy python package.
+So **worker image** contains conda environment with pylzy python package.
 
 **Worker image** split on **[base](System.Base.Dockerfile)** and **[final](System.Dockerfile)** images.
 * **Base** image contains all dependencies (GPU drivers, java, docker, conda, etc.) and updates rarely.
