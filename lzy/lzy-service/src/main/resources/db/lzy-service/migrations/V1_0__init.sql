@@ -38,7 +38,7 @@ create table workflow_executions (
     check (finished_at >= created_at)
 );
 
-CREATE UNIQUE INDEX expired_workflow_executions_index ON workflow_executions (execution_status)
+CREATE INDEX expired_workflow_executions_index ON workflow_executions (execution_status)
 WHERE execution_status = cast('ERROR' as execution_status);
 
 create table workflows (

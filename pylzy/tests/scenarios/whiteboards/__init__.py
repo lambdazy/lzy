@@ -81,7 +81,7 @@ def fun8(a: MessageClass) -> int:
     return a.int_field
 
 
-WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
+WORKFLOW_NAME = "wf"
 
 lzy = Lzy()
 

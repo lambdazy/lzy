@@ -58,7 +58,7 @@ resource "yandex_kubernetes_node_group" "workers-s" {
     }
 
     resources {
-      memory = 2
+      memory = 4
       cores  = 2
     }
 
