@@ -48,6 +48,7 @@ def load_arg(
 
 
 def main():
+    log("Starting execution")
     argv = sys.argv[1:]
     servant: ServantClient = BashServantClient.instance(os.getenv("LZY_MOUNT"))
     if "LOCAL_MODULES" in os.environ:
@@ -112,4 +113,11 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        log(f"Exception while executing: {e}")
+        raise e
+    finally:
+        sys.stdout.flush()
+        sys.stderr.flush()
