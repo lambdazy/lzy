@@ -2,14 +2,21 @@ import functools
 import inspect
 import typing
 import uuid
-from typing import Any, Callable, Dict, Iterator, Mapping, Sequence, Tuple, TypeVar
+from inspect import getfullargspec
+from itertools import chain
+from typing import Any, Callable, Dict, Mapping, Sequence, Tuple, TypeVar
+
+# noinspection PyProtectedMember
+from pydantic.decorator import ValidatedFunction
+from serialzy.types import get_type
 
 from lzy.api.v1.env import Env, DockerPullPolicy
 from lzy.api.v1.provisioning import Provisioning
-from lzy.api.v1.signatures import CallSignature
+from lzy.api.v1.signatures import CallSignature, FuncSignature
+from lzy.api.v1.snapshot import Snapshot
 from lzy.api.v1.utils.env import generate_env, merge_envs
-from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy, lzy_proxy
-from lzy.api.v1.utils.types import infer_call_signature, infer_real_type
+from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy, lzy_proxy, get_proxy_entry_id
+from lzy.api.v1.utils.types import infer_real_type
 from lzy.api.v1.workflow import LzyWorkflow
 
 T = TypeVar("T")  # pylint: disable=invalid-name
@@ -17,21 +24,23 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 
 class LzyCall:
     def __init__(
-        self,
-        parent_wflow: LzyWorkflow,
-        sign: CallSignature,
-        provisioning: Provisioning,
-        env: Env,
+            self,
+            parent_wflow: LzyWorkflow,
+            sign: CallSignature,
+            provisioning: Provisioning,
+            env: Env,
+            description: str = ""
     ):
         self.__id = str(uuid.uuid4())
         self.__wflow = parent_wflow
         self.__sign = sign
         self.__provisioning = provisioning
         self.__env = env
+        self.__description = description
+
         self.__entry_ids = [
             parent_wflow.snapshot.create_entry(typ).id for typ in sign.func.output_types
         ]
-
         self.__args_entry_ids: typing.List[str] = []
 
         for arg in self.__sign.args:
@@ -74,10 +83,6 @@ class LzyCall:
         return self.__id
 
     @property
-    def operation_name(self) -> str:
-        return self.__sign.func.name
-
-    @property
     def entry_ids(self) -> Sequence[str]:
         return self.__entry_ids
 
@@ -97,30 +102,28 @@ class LzyCall:
     def kwargs(self) -> Dict[str, Any]:
         return self.__sign.kwargs
 
-    def named_arguments(self) -> Iterator[Tuple[str, Any]]:
-        return self.__sign.named_arguments()
-
     @property
     def description(self) -> str:
-        return self.__sign.description  # TODO(artolord) Add arguments description here
+        return self.__description
 
 
 def wrap_call(
-    f: Callable[..., Any],
-    output_types: Sequence[type],
-    python_version: typing.Optional[str] = None,
-    libraries: typing.Optional[Dict[str, str]] = None,
-    conda_yaml_path: typing.Optional[str] = None,
-    docker_image: typing.Optional[str] = None,
-    docker_pull_policy: typing.Optional[DockerPullPolicy] = DockerPullPolicy.IF_NOT_EXISTS,
-    local_modules_path: typing.Optional[Sequence[str]] = None,
-    provisioning_: Provisioning = Provisioning(),
-    cpu_type: typing.Optional[str] = None,
-    cpu_count: typing.Optional[int] = None,
-    gpu_type: typing.Optional[str] = None,
-    gpu_count: typing.Optional[int] = None,
-    ram_size_gb: typing.Optional[int] = None,
-    env: typing.Optional[Env] = None,
+        f: Callable[..., Any],
+        output_types: Sequence[type],
+        python_version: typing.Optional[str] = None,
+        libraries: typing.Optional[Dict[str, str]] = None,
+        conda_yaml_path: typing.Optional[str] = None,
+        docker_image: typing.Optional[str] = None,
+        docker_pull_policy: typing.Optional[DockerPullPolicy] = DockerPullPolicy.IF_NOT_EXISTS,
+        local_modules_path: typing.Optional[Sequence[str]] = None,
+        provisioning_: Provisioning = Provisioning(),
+        cpu_type: typing.Optional[str] = None,
+        cpu_count: typing.Optional[int] = None,
+        gpu_type: typing.Optional[str] = None,
+        gpu_count: typing.Optional[int] = None,
+        ram_size_gb: typing.Optional[int] = None,
+        env: typing.Optional[Env] = None,
+        description: str = ""
 ) -> Callable[..., Any]:
     @functools.wraps(f)
     def lazy(*args, **kwargs):
@@ -129,6 +132,7 @@ def wrap_call(
         if active_workflow is None:
             return f(*args, **kwargs)
 
+        signature = infer_and_validate_call_signature(f, output_types, active_workflow.snapshot, *args, **kwargs)
         if env is None:
             generated_env = generate_env(
                 active_workflow.auto_py_env,
@@ -143,14 +147,11 @@ def wrap_call(
             generated_env = env
 
         merged_env = merge_envs(generated_env, active_workflow.default_env)
-
         prov = provisioning_.override(
             Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb)
         ).override(active_workflow.provisioning)
 
-        signature = infer_call_signature(f, output_types, active_workflow.snapshot, *args, **kwargs)
-
-        lzy_call = LzyCall(active_workflow, signature, prov, merged_env)
+        lzy_call = LzyCall(active_workflow, signature, prov, merged_env, description)
         active_workflow.register_call(lzy_call)
 
         # Special case for NoneType, just leave op registered and return
@@ -185,3 +186,43 @@ def wrap_call(
         )
 
     return lazy
+
+
+def infer_and_validate_call_signature(
+        f: Callable, output_type: Sequence[type], snapshot: Snapshot, *args, **kwargs
+) -> CallSignature:
+    types_mapping = {}
+    argspec = getfullargspec(f)
+
+    vd = ValidatedFunction(f, {"arbitrary_types_allowed": True})
+    # pylint: disable=protected-access
+    for name, arg in chain(zip(argspec.args, args), kwargs.items()):
+        # noinspection PyProtectedMember
+        if is_lzy_proxy(arg):
+            eid = get_proxy_entry_id(arg)
+            entry = snapshot.get(eid)
+            types_mapping[name] = entry.typ
+            vd.model.__fields__[name].validators.clear()  # remove type validators for proxies to avoid materialization
+        elif name in argspec.annotations:
+            types_mapping[name] = argspec.annotations[name]
+        else:
+            types_mapping[name] = get_type(arg)
+
+    vd.call(*args, **kwargs)  # validate arguments
+
+    generated_names = []
+    for arg in args[len(argspec.args):]:
+        name = str(uuid.uuid4())
+        generated_names.append(name)
+        # noinspection PyProtectedMember
+        types_mapping[name] = (
+            arg.lzy_call._op.output_type if is_lzy_proxy(arg) else get_type(arg)
+        )
+
+    arg_names = tuple(argspec.args[: len(args)] + generated_names)
+    kwarg_names = tuple(kwargs.keys())
+    return CallSignature(
+        FuncSignature(f, types_mapping, output_type, arg_names, kwarg_names),
+        args,
+        kwargs,
+    )

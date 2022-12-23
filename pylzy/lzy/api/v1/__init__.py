@@ -17,7 +17,7 @@ from lzy.api.v1.utils.conda import generate_conda_yaml
 from lzy.api.v1.utils.env import generate_env, merge_envs
 from lzy.api.v1.utils.packages import to_str_version
 from lzy.api.v1.utils.proxy_adapter import lzy_proxy
-from lzy.api.v1.utils.types import infer_call_signature, infer_return_type
+from lzy.api.v1.utils.types import infer_return_type
 from lzy.api.v1.whiteboards import whiteboard_, ReadOnlyWhiteboard
 from lzy.api.v1.workflow import LzyWorkflow
 from lzy.proxy.result import Nothing
@@ -41,22 +41,23 @@ FuncT = TypeVar(
 # pylint: disable=[invalid-name]
 # noinspection PyShadowingNames
 def op(
-    func: Optional[FuncT] = None,
-    *,
-    output_types: Optional[Sequence[type]] = None,
-    python_version: Optional[str] = None,
-    libraries: Optional[Dict[str, str]] = None,
-    conda_yaml_path: Optional[str] = None,
-    docker_image: Optional[str] = None,
-    docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
-    local_modules_path: Optional[Sequence[str]] = None,
-    provisioning_: Provisioning = Provisioning(),
-    cpu_type: Optional[str] = None,
-    cpu_count: Optional[int] = None,
-    gpu_type: Optional[str] = None,
-    gpu_count: Optional[int] = None,
-    ram_size_gb: Optional[int] = None,
-    env: Optional[Env] = None,
+        func: Optional[FuncT] = None,
+        *,
+        output_types: Optional[Sequence[type]] = None,
+        python_version: Optional[str] = None,
+        libraries: Optional[Dict[str, str]] = None,
+        conda_yaml_path: Optional[str] = None,
+        docker_image: Optional[str] = None,
+        docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
+        local_modules_path: Optional[Sequence[str]] = None,
+        provisioning_: Provisioning = Provisioning(),
+        cpu_type: Optional[str] = None,
+        cpu_count: Optional[int] = None,
+        gpu_type: Optional[str] = None,
+        gpu_count: Optional[int] = None,
+        ram_size_gb: Optional[int] = None,
+        env: Optional[Env] = None,
+        description: str = ""
 ):
     def deco(f):
         """
@@ -78,7 +79,8 @@ def op(
         # yep, create lazy constructor and return it
         # instead of function
         return wrap_call(f, output_types, python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy,
-                         local_modules_path, provisioning_, cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb, env)
+                         local_modules_path, provisioning_, cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb, env,
+                         description)
 
     if func is None:
         return deco
@@ -108,13 +110,13 @@ def lzy_auth(*, user: str, key_path: str, endpoint: Optional[str] = None,
 class Lzy:
     # noinspection PyShadowingNames
     def __init__(
-        self,
-        *,
-        runtime: Runtime = RemoteRuntime(),
-        whiteboard_client: WhiteboardClient = RemoteWhiteboardClient(),
-        py_env_provider: PyEnvProvider = AutomaticPyEnvProvider(),
-        storage_registry: StorageRegistry = DefaultStorageRegistry(),
-        serializer_registry: SerializerRegistry = LzySerializerRegistry()
+            self,
+            *,
+            runtime: Runtime = RemoteRuntime(),
+            whiteboard_client: WhiteboardClient = RemoteWhiteboardClient(),
+            py_env_provider: PyEnvProvider = AutomaticPyEnvProvider(),
+            storage_registry: StorageRegistry = DefaultStorageRegistry(),
+            serializer_registry: SerializerRegistry = LzySerializerRegistry()
     ):
         self.__env_provider = py_env_provider
         self.__whiteboard_client = whiteboard_client
@@ -149,24 +151,24 @@ class Lzy:
 
     # noinspection PyShadowingNames
     def workflow(
-        self,
-        name: str,
-        *,
-        eager: bool = False,
-        python_version: Optional[str] = None,
-        libraries: Optional[Dict[str, str]] = None,
-        conda_yaml_path: Optional[str] = None,
-        docker_image: Optional[str] = None,
-        docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
-        local_modules_path: Optional[Sequence[str]] = None,
-        provisioning: Provisioning = Provisioning.default(),
-        interactive: bool = True,
-        cpu_type: Optional[str] = None,
-        cpu_count: Optional[int] = None,
-        gpu_type: Optional[str] = None,
-        gpu_count: Optional[int] = None,
-        ram_size_gb: Optional[int] = None,
-        env: Optional[Env] = None,
+            self,
+            name: str,
+            *,
+            eager: bool = False,
+            python_version: Optional[str] = None,
+            libraries: Optional[Dict[str, str]] = None,
+            conda_yaml_path: Optional[str] = None,
+            docker_image: Optional[str] = None,
+            docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
+            local_modules_path: Optional[Sequence[str]] = None,
+            provisioning: Provisioning = Provisioning.default(),
+            interactive: bool = True,
+            cpu_type: Optional[str] = None,
+            cpu_count: Optional[int] = None,
+            gpu_type: Optional[str] = None,
+            gpu_count: Optional[int] = None,
+            ram_size_gb: Optional[int] = None,
+            env: Optional[Env] = None,
     ) -> LzyWorkflow:
         namespace = inspect.stack()[1].frame.f_globals
         if env is None:
