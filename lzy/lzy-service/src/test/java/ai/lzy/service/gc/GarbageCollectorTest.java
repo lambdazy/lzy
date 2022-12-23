@@ -1,6 +1,7 @@
 package ai.lzy.service.gc;
 
 import ai.lzy.allocator.test.AllocatorProxy;
+import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.service.App;
 import ai.lzy.service.BaseTest;
@@ -82,9 +83,9 @@ public class GarbageCollectorTest extends BaseTest {
             authorizedWorkflowClient
                 .withInterceptors(ClientHeaderInterceptor.idempotencyKey(() -> "idempotency-key"))
                 .executeGraph(LWFS.ExecuteGraphRequest.newBuilder()
-                .setExecutionId(executionId)
-                .setGraph(graph)
-                .build()));
+                    .setExecutionId(executionId)
+                    .setGraph(graph)
+                    .build()));
 
         Thread.sleep(2000);
 
@@ -188,7 +189,7 @@ public class GarbageCollectorTest extends BaseTest {
     }
 
     @After
-    public void tearDown() throws SQLException, InterruptedException {
+    public void tearDown() throws SQLException, InterruptedException, DaoException {
         super.tearDown();
         lzyServers.forEach(s -> {
             try {
@@ -215,5 +216,4 @@ public class GarbageCollectorTest extends BaseTest {
 
         lzyServer.start();
     }
-
 }

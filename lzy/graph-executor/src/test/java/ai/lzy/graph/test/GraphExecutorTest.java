@@ -4,6 +4,7 @@ import ai.lzy.graph.algo.GraphBuilder;
 import ai.lzy.graph.algo.GraphBuilderImpl;
 import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.graph.db.QueueEventDao;
+import ai.lzy.graph.db.impl.GraphExecutorDataSource;
 import ai.lzy.graph.exec.BfsGraphProcessor;
 import ai.lzy.graph.exec.ChannelCheckerFactory;
 import ai.lzy.graph.exec.GraphProcessor;
@@ -12,22 +13,17 @@ import ai.lzy.graph.model.GraphDescription;
 import ai.lzy.graph.model.GraphExecutionState;
 import ai.lzy.graph.model.TaskDescription;
 import ai.lzy.graph.queue.QueueManager;
-import ai.lzy.graph.test.mocks.GraphDaoMock;
-import ai.lzy.graph.test.mocks.SchedulerApiMock;
+import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.DataScheme;
 import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.model.operation.Operation;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.v1.scheduler.Scheduler.TaskStatus;
-import io.grpc.StatusException;
 import io.micronaut.context.ApplicationContext;
+import io.micronaut.inject.qualifiers.Qualifiers;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.Timeout;
 
 import java.util.*;
@@ -48,14 +44,17 @@ public class GraphExecutorTest {
     private ApplicationContext context;
     private GraphDaoMock dao;
     private QueueEventDao queueEventDao;
+    private OperationDao operationDao;
     private SchedulerApiMock scheduler;
-
+    private GraphExecutorDataSource storage;
 
     @Before
     public void setUp() {
-        context = ApplicationContext.run(preparePostgresConfig("graph-executor", db.getConnectionInfo()));
+        context = ApplicationContext.run(preparePostgresConfig("graph-executor", db.getConnectionInfo()), "test-mock");
         dao = context.getBean(GraphDaoMock.class);
         queueEventDao = context.getBean(QueueEventDao.class);
+        storage = context.getBean(GraphExecutorDataSource.class);
+        operationDao = context.getBean(OperationDao.class, Qualifiers.byName("GraphExecutorOperationDao"));
 
         scheduler = new SchedulerApiMock((a, b, sch) -> {
             sch.changeStatus(b.id(), TaskStatus.newBuilder()
@@ -72,7 +71,7 @@ public class GraphExecutorTest {
         scheduler = null;
         var graphs = dao.filter(GraphExecutionState.Status.EXECUTING);
         graphs.addAll(dao.filter(GraphExecutionState.Status.WAITING));
-        for (var graph: graphs) {
+        for (var graph : graphs) {
             dao.updateAndFree(graph.copyFromThis()
                 .withStatus(GraphExecutionState.Status.FAILED)
                 .build());
@@ -90,7 +89,7 @@ public class GraphExecutorTest {
     }
 
     @Test
-    public void testSimple() throws InterruptedException, StatusException, DaoException {
+    public void testSimple() throws Exception {
         final GraphDescription graph = new GraphDescriptionBuilder()
             .addVertexes("1", "2", "3", "4", "5", "6", "7", "8", "9", "10")
             .addEdge("1", "2")
@@ -132,7 +131,7 @@ public class GraphExecutorTest {
     }
 
     @Test
-    public void testErrorInTask() throws InterruptedException, StatusException, DaoException {
+    public void testErrorInTask() throws Exception {
 
         final GraphDescription graph = new GraphDescriptionBuilder()
             .addVertexes("1", "2", "3")
@@ -158,7 +157,7 @@ public class GraphExecutorTest {
     }
 
     @Test
-    public void testStop() throws InterruptedException, StatusException, DaoException {
+    public void testStop() throws Exception {
         final GraphDescription graph = new GraphDescriptionBuilder()
             .addVertexes("1", "2", "3")
             .addEdge("1", "2")
@@ -184,7 +183,7 @@ public class GraphExecutorTest {
     }
 
     @Test
-    public void testCycles() throws InterruptedException, StatusException, DaoException {
+    public void testCycles() throws Exception {
         final GraphDescription graph = new GraphDescriptionBuilder()
             .addVertexes("1", "2", "3", "4", "5")
             .addEdge("1", "2")
@@ -216,7 +215,7 @@ public class GraphExecutorTest {
     }
 
     @Test
-    public void testRestore() throws InterruptedException, DaoException, StatusException {
+    public void testRestore() throws Exception {
         final GraphDescription graph = new GraphDescriptionBuilder()
             .addVertexes("1", "2", "3", "4", "5", "6", "7", "8", "9", "10")
             .addEdge("1", "2")
@@ -265,7 +264,7 @@ public class GraphExecutorTest {
     }
 
     @Test
-    public void testOneVertex() throws InterruptedException, DaoException, StatusException {
+    public void testOneVertex() throws Exception {
         final GraphDescription graph = new GraphDescriptionBuilder()
             .addVertexes("1")
             .build();
@@ -284,14 +283,14 @@ public class GraphExecutorTest {
     }
 
     @Test
-    public void testRhombus() throws InterruptedException, DaoException, StatusException {
+    public void testRhombus() throws Exception {
         final GraphDescription graph = new GraphDescriptionBuilder()
-                .addVertexes("1", "2", "3", "4")
-                .addEdge("1", "2")
-                .addEdge("1", "3")
-                .addEdge("2", "4")
-                .addEdge("3", "4")
-                .build();
+            .addVertexes("1", "2", "3", "4")
+            .addEdge("1", "2")
+            .addEdge("1", "3")
+            .addEdge("2", "4")
+            .addEdge("3", "4")
+            .build();
 
         try (var tester = new GraphTester(graph)) {
 
@@ -321,10 +320,10 @@ public class GraphExecutorTest {
     }
 
     @Test
-    public void testError() throws InterruptedException, DaoException, StatusException {
+    public void testError() throws Exception {
         final GraphDescription graph = new GraphDescriptionBuilder()
-                .addVertexes("1")
-                .build();
+            .addVertexes("1")
+            .build();
 
         try (var tester = new GraphTester(graph)) {
 
@@ -353,11 +352,11 @@ public class GraphExecutorTest {
             this.queue.start();
         }
 
-        GraphTester(GraphDescription graph) throws StatusException {
+        GraphTester(GraphDescription graph) throws Exception {
             this.graph = graph;
             this.queue = initQueue();
             this.queue.start();
-            state = this.queue.startGraph("", "changeMe", "uid", graph);
+            state = this.queue.startGraph("", "changeMe", "uid", graph, null);
         }
 
         public void awaitExecutingNow(String... taskIds) throws InterruptedException, DaoException {
@@ -394,10 +393,10 @@ public class GraphExecutorTest {
 
     public static Operation buildOperation(List<String> inputs, List<String> outputs) {
         final var slots = Stream.concat(
-            inputs.stream()
-                .map(s -> buildSlot(s, Slot.Direction.INPUT)),
-            outputs.stream()
-                .map(s -> buildSlot(s, Slot.Direction.OUTPUT)))
+                inputs.stream()
+                    .map(s -> buildSlot(s, Slot.Direction.INPUT)),
+                outputs.stream()
+                    .map(s -> buildSlot(s, Slot.Direction.OUTPUT)))
             .toList();
         return new Operation(null, new Operation.Requirements("", ""), "", slots, "", "", null, null);
     }
@@ -476,6 +475,6 @@ public class GraphExecutorTest {
         config.setExecutorsCount(1);
         config.setScheduler(new ServiceConfig.Scheduler());
 
-        return new QueueManager(processor, dao, config, queueEventDao);
+        return new QueueManager(config, processor, storage, queueEventDao, dao, operationDao);
     }
 }

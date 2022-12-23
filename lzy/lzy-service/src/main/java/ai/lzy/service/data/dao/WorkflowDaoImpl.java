@@ -18,6 +18,7 @@ import io.micronaut.core.util.StringUtils;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.util.Strings;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -170,7 +171,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
                         if (StringUtils.isNotEmpty(existingExecutionId)) {
                             throw new AlreadyExistsException(
                                 String.format("Attempt to start one more instance of workflow: active is '%s'",
-                                existingExecutionId)
+                                    existingExecutionId)
                             );
                         }
                         update = true;
@@ -432,7 +433,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
                     workflowName[0] = rs.getString("workflow_name");
 
                 }
-                if (workflowName[0] == null) {
+                if (Strings.isBlank(workflowName[0])) {
                     LOG.error("Cannot find workflow name for execution: { executionId: {} }", executionId);
                     throw new NotFoundException("Cannot find workflow name");
                 }
@@ -514,7 +515,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
                     var portalId = rs.getString(7);
 
                     descriptions[0] = new PortalDescription(portalId, vmId, vmAddress, fsAddress,
-                            stdoutChannelId, stderrChannelId, status);
+                        stdoutChannelId, stderrChannelId, status);
                 }
             }
         });
