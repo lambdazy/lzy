@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Union
 from unittest import TestCase
 
 from pure_protobuf.dataclasses_ import message, field
@@ -20,12 +20,6 @@ def returns_int() -> int:
 # noinspection PyUnusedLocal
 @op
 def one_arg(arg: int) -> str:
-    pass
-
-
-# noinspection PyUnusedLocal
-@op
-def one_default(arg: int, b: Optional[str] = None) -> str:
     pass
 
 
@@ -84,8 +78,13 @@ class LzyCallsTests(TestCase):
         self.assertEqual(int, func2.input_types['arg'])
 
     def test_default(self):
+        # noinspection PyUnusedLocal
+        @op
+        def one_default(arg: int, b: str = "default") -> str:
+            pass
+
         with self.lzy.workflow("test") as wf:
-            one_arg(1)
+            one_default(1)
 
         # noinspection PyUnresolvedReferences
         func: FuncSignature = wf.owner.runtime.calls[0].signature.func
@@ -138,6 +137,52 @@ class LzyCallsTests(TestCase):
         self.assertEqual(str, func.output_types[0])
         self.assertEqual(1, len(func.input_types))
         self.assertEqual(List[str], func.input_types['arg'])
+
+    def test_optional_inference(self):
+        # noinspection PyUnusedLocal
+        @op
+        def optional(arg: Optional[str]) -> Optional[str]:
+            pass
+
+        with self.lzy.workflow("test") as wf:
+            # noinspection PyTypeChecker
+            optional(None)
+            optional("str")
+
+        # noinspection PyUnresolvedReferences
+        func: FuncSignature = wf.owner.runtime.calls[0].signature.func
+        self.assertEqual(Optional[str], func.output_types[0])
+        self.assertEqual(1, len(func.input_types))
+        self.assertEqual(Optional[str], func.input_types['arg'])
+
+        # noinspection PyUnresolvedReferences
+        func: FuncSignature = wf.owner.runtime.calls[1].signature.func
+        self.assertEqual(Optional[str], func.output_types[0])
+        self.assertEqual(1, len(func.input_types))
+        self.assertEqual(Optional[str], func.input_types['arg'])
+
+    def test_union_inference(self):
+        # noinspection PyUnusedLocal
+        @op
+        def union(arg: Union[int, str]) -> Union[int, str]:
+            pass
+
+        with self.lzy.workflow("test") as wf:
+            # noinspection PyTypeChecker
+            union(1)
+            union("str")
+
+        # noinspection PyUnresolvedReferences
+        func: FuncSignature = wf.owner.runtime.calls[0].signature.func
+        self.assertEqual(Union[int, str], func.output_types[0])
+        self.assertEqual(1, len(func.input_types))
+        self.assertEqual(Union[int, str], func.input_types['arg'])
+
+        # noinspection PyUnresolvedReferences
+        func: FuncSignature = wf.owner.runtime.calls[1].signature.func
+        self.assertEqual(Union[int, str], func.output_types[0])
+        self.assertEqual(1, len(func.input_types))
+        self.assertEqual(Union[int, str], func.input_types['arg'])
 
     def test_custom_class(self):
         with self.lzy.workflow("test") as wf:
