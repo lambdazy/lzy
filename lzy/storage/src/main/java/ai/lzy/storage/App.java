@@ -27,6 +27,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
+import javax.annotation.PreDestroy;
 
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 

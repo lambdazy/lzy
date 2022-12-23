@@ -22,6 +22,7 @@ import com.google.protobuf.Any;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
+import jakarta.annotation.PreDestroy;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -89,6 +90,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
         try {
             graphBuilder.validate(graph);
         } catch (GraphBuilder.GraphValidationException e) {
+            LOG.error("Graph did not pass validation: { graph: {}, error: {} }", graph, e.getMessage());
             var errorStatus = Status.INVALID_ARGUMENT.withDescription(e.getMessage());
             responseObserver.onError(errorStatus.asException());
             return;
@@ -242,6 +244,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
         return true;
     }
 
+    @PreDestroy
     public void close() {
         LOG.info("Closing GraphExecutor");
         if (server != null) {

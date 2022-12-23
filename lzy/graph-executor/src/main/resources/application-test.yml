@@ -1,5 +1,5 @@
 graph-executor:
-  executors-сount: 1
+  executors-count: 1
 
   database:
     url: 'embedded-postgres'

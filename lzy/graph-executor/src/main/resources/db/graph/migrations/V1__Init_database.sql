@@ -14,9 +14,9 @@ CREATE TABLE graph_execution_state
     current_execution_group_json TEXT                                     NOT NULL,
 
     last_updated                 TIMESTAMP                                NOT NULL,
-    acquired                     bool                                     NOT NULL,
+    acquired                     BOOLEAN                                  NOT NULL,
 
-    primary key (workflow_id, id)
+    PRIMARY KEY (workflow_id, id)
 );
 
 CREATE TYPE event_type AS ENUM ('START', 'STOP');
@@ -28,10 +28,10 @@ CREATE TABLE queue_event
     type        event_type NOT NULL,
     workflow_id TEXT       NOT NULL,
     graph_id    TEXT       NOT NULL,
-    acquired    bool       NOT NULL,
+    acquired    BOOLEAN    NOT NULL,
     description TEXT       NOT NULL,
 
-    foreign key (workflow_id, graph_id) REFERENCES graph_execution_state (workflow_id, id)
+    FOREIGN KEY (workflow_id, graph_id) REFERENCES graph_execution_state (workflow_id, id)
         ON DELETE CASCADE
         ON UPDATE CASCADE
 );
@@ -44,7 +44,7 @@ CREATE TABLE operation
     created_at      TIMESTAMP NOT NULL,
     modified_at     TIMESTAMP NOT NULL,
     description     TEXT      NOT NULL,
-    done            bool      NOT NULL,
+    done            BOOLEAN   NOT NULL,
 
     response        BYTEA     NULL,
     error           BYTEA     NULL,

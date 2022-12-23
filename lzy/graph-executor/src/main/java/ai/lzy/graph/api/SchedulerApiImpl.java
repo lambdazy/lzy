@@ -27,7 +27,6 @@ import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 @Singleton
-@Requires(notEnv = "test-mock")
 public class SchedulerApiImpl implements SchedulerApi {
     private final SchedulerBlockingStub stub;
     private final ManagedChannel channel;

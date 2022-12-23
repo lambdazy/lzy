@@ -99,11 +99,13 @@ public class BaseTest {
 
         WorkflowService.PEEK_RANDOM_PORTAL_PORTS = true;  // To recreate portals for all wfs
 
-        var lzyDbConfig = preparePostgresConfig("lzy-service", lzyServiceDb.getConnectionInfo());
-        context = ApplicationContext.run(PropertySource.of(lzyDbConfig), "test-mock");
+        var lzyConfigOverrides = preparePostgresConfig("lzy-service", lzyServiceDb.getConnectionInfo());
 
+        context = ApplicationContext.run(PropertySource.of(lzyConfigOverrides), "test-mock");
         config = context.getBean(LzyServiceConfig.class);
+
         config.setGraphExecutorAddress("localhost:" + graphExecutorTestContext.getPort());
+        config.getStorage().setAddress("localhost:" + storageTestContext.getPort());
 
         authInterceptor = new AuthServerInterceptor(credentials -> {
             var iam = config.getIam();
@@ -161,7 +163,7 @@ public class BaseTest {
         context.stop();
     }
 
-    protected void shutdownStorage() throws SQLException, InterruptedException {
+    protected void shutdownStorage() throws InterruptedException {
         storageTestContext.after();
     }
 
