@@ -4,14 +4,9 @@ on:
     inputs:
       tag:
         type: string
-        description: 'Tag name for images'
+        description: 'Custom tag for images'
         required: false
         default: ''
-      update:
-        type: boolean
-        description: 'Tag with new minor version instead of custom tag for images'
-        required: false
-        default: true
       worker-base:
         type: boolean
         description: 'Update base worker docker image'
@@ -40,12 +35,11 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: 'push-docker'
+      - name: 'Build and push dockers'
         run: |
-          FLAGS="--rebuild"
-          if [[ ${{ github.event.inputs.update }} == true ]]; then FLAGS="$FLAGS --update"; fi
+          FLAGS=""
           if [[ ${{ github.event.inputs.worker-base }} == true ]]; then FLAGS="$FLAGS --base"; fi
-          bash deployment/push-docker.sh "${{ github.ref_name }}" "${{ github.event.inputs.tag }}" $FLAGS
+          bash deployment/build-images.sh "${{ github.ref_name }}" "${{ github.event.inputs.tag }}" $FLAGS
 
       - name: 'Clean docker files'
         run: |
