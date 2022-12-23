@@ -214,7 +214,7 @@ def infer_and_validate_call_signature(
         else:
             types_mapping[name] = get_type(arg)
 
-    vd.call(*args, **kwargs)  # validate arguments
+    vd.init_model_instance(*args, **kwargs)  # validate arguments
 
     generated_names = []
     for arg in args[len(argspec.args):]:

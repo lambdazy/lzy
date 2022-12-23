@@ -309,3 +309,15 @@ class LzyCallsTests(TestCase):
         # noinspection PyUnresolvedReferences
         call: LzyCall = wf.owner.runtime.calls[0]
         self.assertEqual(description, call.description)
+
+    def test_raises(self):
+        @op
+        def raises() -> int:
+            raise RuntimeError("Bad exception")
+
+        with self.lzy.workflow("test") as wf:
+            raises()
+
+        # noinspection PyUnresolvedReferences
+        func: FuncSignature = wf.owner.runtime.calls[0].signature.func
+        self.assertEqual(int, func.output_types[0])
