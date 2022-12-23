@@ -81,6 +81,7 @@ public class Worker {
         options.addOption("h", "host", true, "Worker and FS host name");
         options.addOption(null, "vm-id", true, "Vm id from allocator");
         options.addOption(null, "worker-id", true, "Worker id from scheduler");
+        options.addOption(null, "user-default-image", true, "Image, used for inner container by default");
         options.addOption(null, "allocator-heartbeat-period", true, "Allocator heartbeat period in duration format");
         options.addOption(null, "scheduler-heartbeat-period", true, "Scheduler heartbeat period in duration format");
 
@@ -94,13 +95,15 @@ public class Worker {
     private final SchedulerAgent schedulerAgent;
     private final AllocatorAgent allocatorAgent;
     private final LocalOperationService operationService;
+    private final EnvironmentFactory envFactory;
     private final AtomicReference<Environment> env = new AtomicReference<>(null);
     private final AtomicReference<Execution> execution = new AtomicReference<>(null);
     private final Server server;
 
     public Worker(String workflowName, String workerId, String vmId, String allocatorAddress, String schedulerAddress,
                   Duration allocatorHeartbeatPeriod, Duration schedulerHeartbeatPeriod, int apiPort, int fsPort,
-                  String fsRoot, String channelManagerAddress, String host, String iamPrivateKey, String allocatorToken)
+                  String fsRoot, String channelManagerAddress, String host, String defaultUserImage,
+                  String iamPrivateKey, String allocatorToken)
     {
         LOG.info("Starting worker on vm {}.\n apiPort: {}\n fsPort: {}\n host: {}", vmId, apiPort, fsPort, host);
         var realHost = host != null ? host : System.getenv(AllocatorAgent.VM_IP_ADDRESS);
@@ -122,6 +125,7 @@ public class Worker {
         Objects.requireNonNull(iamPrivateKey);
 
         this.workerId = workerId;
+        this.envFactory = new EnvironmentFactory(defaultUserImage);
 
         operationService = new LocalOperationService(workerId);
 
@@ -206,7 +210,8 @@ public class Worker {
                 Duration.parse(parse.getOptionValue("scheduler-heartbeat-period")),
                 Integer.parseInt(parse.getOptionValue('p')), Integer.parseInt(parse.getOptionValue('q')),
                 parse.getOptionValue('m'), parse.getOptionValue("channel-manager"), parse.getOptionValue('h'),
-                parse.getOptionValue("iam-token"), parse.getOptionValue("allocator-token"));
+                parse.getOptionValue("user-default-image"), parse.getOptionValue("iam-token"),
+                parse.getOptionValue("allocator-token"));
 
             try {
                 worker.awaitTermination();
@@ -251,7 +256,7 @@ public class Worker {
 
             if (opId.equals(opSnapshot.id())) {
                 try {
-                    final var e = EnvironmentFactory.create(ProtoConverter.fromProto(request.getEnv()));
+                    final var e = envFactory.create(ProtoConverter.fromProto(request.getEnv()));
                     schedulerAgent.reportProgress(WorkerProgress.newBuilder()
                         .setConfigured(Configured.newBuilder()
                             .setOk(Ok.newBuilder().build())

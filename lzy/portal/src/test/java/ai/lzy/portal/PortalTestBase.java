@@ -314,7 +314,7 @@ public class PortalTestBase {
         var worker = new Worker(workflowName, workerId, UUID.randomUUID().toString(), config.getAllocatorAddress(),
             config.getAllocatorAddress(), allocatorDuration, schedulerDuration,
             GrpcUtils.rollPort(), GrpcUtils.rollPort(), "/tmp/lzy_" + workerId + "/",
-            config.getChannelManagerAddress(), "localhost", privateKey, "token_" + workerId);
+            config.getChannelManagerAddress(), "localhost", "default", privateKey, "token_" + workerId);
         workers.put(workerId, worker);
     }
 

@@ -169,6 +169,7 @@ public class AllocatorImpl implements WorkersAllocator {
             "--channel-manager", config.getChannelManagerAddress(),
             "--lzy-mount", mountPoint,
             "--worker-id", workerId,
+            "--user-default-image", config.getUserDefaultImage(),
             "--scheduler-heartbeat-period", processorConfig.executingHeartbeatPeriod().toString()
         );
         final var workload = Workload.newBuilder()

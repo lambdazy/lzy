@@ -7,15 +7,11 @@ import java.util.Map;
 
 public class BaseEnvConfig {
 
-    public static final String DEFAULT_IMAGE_PROP = "BASE_ENV_DEFAULT_IMAGE";
-
     private final String image;
     private final List<MountDescription> mounts;
 
     private BaseEnvConfig(String image, Map<String, String> mounts) {
-        this.image = (image == null || image.equals("default"))
-            ? System.getenv(BaseEnvConfig.DEFAULT_IMAGE_PROP)
-            : image;
+        this.image = image;
         this.mounts = new ArrayList<>();
         mounts.forEach((source, target) ->
             this.mounts.add(new MountDescription(source, target))
@@ -28,10 +24,6 @@ public class BaseEnvConfig {
 
     public String image() {
         return this.image;
-    }
-
-    public String defaultImage() {
-        return System.getenv(BaseEnvConfig.DEFAULT_IMAGE_PROP);
     }
 
     public List<MountDescription> mounts() {

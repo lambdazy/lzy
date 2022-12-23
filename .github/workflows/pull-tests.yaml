@@ -115,7 +115,7 @@ jobs:
         run: |
           BRANCH=${{ (github.head_ref || github.ref_name) }}
           USER_IMAGE=$(deployment/latest-docker-image-on-branches.sh user-test $BRANCH master)
-          cd test && mvn test -Dtest=UserImagePyTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" -Dserver.baseEnvDefaultImage="$USER_IMAGE" && cd ..
+          cd test && mvn test -Dtest=UserImagePyTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" -Dscheduler.userTestImage="$USER_IMAGE" && cd ..
 
       - name: 'Clean docker files'
         run: |

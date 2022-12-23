@@ -21,7 +21,6 @@ import java.io.PipedOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
@@ -189,11 +188,6 @@ public class DockerEnvironment implements BaseEnvironment {
     }
 
     private String prepareImage(BaseEnvConfig config) {
-        if (Objects.equals(config.image(), config.defaultImage())) {
-            LOG.info("Default image requested");
-        } else {
-            LOG.info("Custom image {} requested", config.image());
-        }
         LOG.info("Pulling image {} ...", config.image());
         final var pullingImage = DOCKER
             .pullImageCmd(config.image())

@@ -23,6 +23,7 @@ public class ServiceConfig {
 
     private String allocatorAddress;
     private String workerImage;
+    private String userDefaultImage;
 
     @ConfigurationBuilder("iam")
     private IamClientConfiguration iam = new IamClientConfiguration();
