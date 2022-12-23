@@ -41,22 +41,22 @@ FuncT = TypeVar(
 # pylint: disable=[invalid-name]
 # noinspection PyShadowingNames
 def op(
-        func: Optional[FuncT] = None,
-        *,
-        output_types: Optional[Sequence[type]] = None,
-        python_version: Optional[str] = None,
-        libraries: Optional[Dict[str, str]] = None,
-        conda_yaml_path: Optional[str] = None,
-        docker_image: Optional[str] = None,
-        docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
-        local_modules_path: Optional[Sequence[str]] = None,
-        provisioning_: Provisioning = Provisioning(),
-        cpu_type: Optional[str] = None,
-        cpu_count: Optional[int] = None,
-        gpu_type: Optional[str] = None,
-        gpu_count: Optional[int] = None,
-        ram_size_gb: Optional[int] = None,
-        env: Optional[Env] = None,
+    func: Optional[FuncT] = None,
+    *,
+    output_types: Optional[Sequence[type]] = None,
+    python_version: Optional[str] = None,
+    libraries: Optional[Dict[str, str]] = None,
+    conda_yaml_path: Optional[str] = None,
+    docker_image: Optional[str] = None,
+    docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
+    local_modules_path: Optional[Sequence[str]] = None,
+    provisioning_: Provisioning = Provisioning(),
+    cpu_type: Optional[str] = None,
+    cpu_count: Optional[int] = None,
+    gpu_type: Optional[str] = None,
+    gpu_count: Optional[int] = None,
+    ram_size_gb: Optional[int] = None,
+    env: Optional[Env] = None,
 ):
     def deco(f):
         """
@@ -108,13 +108,13 @@ def lzy_auth(*, user: str, key_path: str, endpoint: Optional[str] = None,
 class Lzy:
     # noinspection PyShadowingNames
     def __init__(
-            self,
-            *,
-            runtime: Runtime = RemoteRuntime(),
-            whiteboard_client: WhiteboardClient = RemoteWhiteboardClient(),
-            py_env_provider: PyEnvProvider = AutomaticPyEnvProvider(),
-            storage_registry: StorageRegistry = DefaultStorageRegistry(),
-            serializer_registry: SerializerRegistry = LzySerializerRegistry()
+        self,
+        *,
+        runtime: Runtime = RemoteRuntime(),
+        whiteboard_client: WhiteboardClient = RemoteWhiteboardClient(),
+        py_env_provider: PyEnvProvider = AutomaticPyEnvProvider(),
+        storage_registry: StorageRegistry = DefaultStorageRegistry(),
+        serializer_registry: SerializerRegistry = LzySerializerRegistry()
     ):
         self.__env_provider = py_env_provider
         self.__whiteboard_client = whiteboard_client
@@ -149,24 +149,24 @@ class Lzy:
 
     # noinspection PyShadowingNames
     def workflow(
-            self,
-            name: str,
-            *,
-            eager: bool = False,
-            python_version: Optional[str] = None,
-            libraries: Optional[Dict[str, str]] = None,
-            conda_yaml_path: Optional[str] = None,
-            docker_image: Optional[str] = None,
-            docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
-            local_modules_path: Optional[Sequence[str]] = None,
-            provisioning: Provisioning = Provisioning.default(),
-            interactive: bool = True,
-            cpu_type: Optional[str] = None,
-            cpu_count: Optional[int] = None,
-            gpu_type: Optional[str] = None,
-            gpu_count: Optional[int] = None,
-            ram_size_gb: Optional[int] = None,
-            env: Optional[Env] = None,
+        self,
+        name: str,
+        *,
+        eager: bool = False,
+        python_version: Optional[str] = None,
+        libraries: Optional[Dict[str, str]] = None,
+        conda_yaml_path: Optional[str] = None,
+        docker_image: Optional[str] = None,
+        docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
+        local_modules_path: Optional[Sequence[str]] = None,
+        provisioning: Provisioning = Provisioning.default(),
+        interactive: bool = True,
+        cpu_type: Optional[str] = None,
+        cpu_count: Optional[int] = None,
+        gpu_type: Optional[str] = None,
+        gpu_count: Optional[int] = None,
+        ram_size_gb: Optional[int] = None,
+        env: Optional[Env] = None,
     ) -> LzyWorkflow:
         namespace = inspect.stack()[1].frame.f_globals
         if env is None:
@@ -221,5 +221,5 @@ class Lzy:
 # noinspection PyBroadException
 try:
     from lzy.injections import catboost_injection
-except:
+except Exception:
     pass

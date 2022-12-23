@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING, Any, cast, TypeVar, Type
 
-from lzy.utils.event_loop import LzyEventLoop
 from lzy.proxy.automagic import proxy
 from lzy.proxy.result import Just, Result, Nothing
+from lzy.utils.event_loop import LzyEventLoop
 
 if TYPE_CHECKING:
     from lzy.api.v1 import LzyWorkflow
@@ -34,7 +34,6 @@ T = TypeVar("T")
 
 
 def lzy_proxy(entry_id: str, typ: Type[T], wflow: "LzyWorkflow", value: Result[T] = Nothing()) -> Any:
-
     async def __materialize() -> Any:
 
         if isinstance(value, Just):
@@ -44,6 +43,7 @@ def lzy_proxy(entry_id: str, typ: Type[T], wflow: "LzyWorkflow", value: Result[T
         if isinstance(data, Just):
             return data.value
 
+        # noinspection PyProtectedMember
         await wflow._barrier()
 
         new_data = await wflow.snapshot.get_data(entry_id)

@@ -42,13 +42,13 @@ class RetryConfig:
 
 
 def build_channel(
-        address: str,
-        *,
-        service_name: Optional[str] = None,
-        enable_retry: bool = False,
-        retry_config: RetryConfig = RetryConfig(),
-        tls: bool = False,
-        interceptors: Optional[Sequence[aio.ClientInterceptor]] = None,
+    address: str,
+    *,
+    service_name: Optional[str] = None,
+    enable_retry: bool = False,
+    retry_config: RetryConfig = RetryConfig(),
+    tls: bool = False,
+    interceptors: Optional[Sequence[aio.ClientInterceptor]] = None,
 ) -> aio.Channel:
     options: List[Tuple[str, Any]] = [
         ("grpc.enable_retries", 1),
@@ -144,7 +144,7 @@ class _GenericStreamUnaryInterceptor(
         self._fn = interceptor_function
 
     async def intercept_stream_unary(
-            self, continuation, client_call_details, request_iterator
+        self, continuation, client_call_details, request_iterator
     ):
         new_details, new_request_iterator, postprocess = await self._fn(
             client_call_details, request_iterator
@@ -160,7 +160,7 @@ class _GenericStreamStreamInterceptor(
         self._fn = interceptor_function
 
     async def intercept_stream_stream(
-            self, continuation, client_call_details, request_iterator
+        self, continuation, client_call_details, request_iterator
     ):
         new_details, new_request_iterator, postprocess = await self._fn(
             client_call_details, request_iterator
@@ -172,7 +172,7 @@ class _GenericStreamStreamInterceptor(
 
 def add_headers_interceptor(headers: Mapping[str, str]) -> List[ClientInterceptor]:
     async def intercept(
-            details: ClientCallDetails, request_iter: AsyncIterable
+        details: ClientCallDetails, request_iter: AsyncIterable
     ) -> Tuple[ClientCallDetails, AsyncIterable[RequestType], None]:
         meta = [(k, v) for k, v in headers.items()]
         if details.metadata is not None:

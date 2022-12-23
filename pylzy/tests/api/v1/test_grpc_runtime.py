@@ -9,7 +9,6 @@ from io import BytesIO
 from typing import Iterator, Sequence, Optional, Iterable
 from unittest import TestCase
 
-import aioboto3
 # noinspection PyPackageRequirements
 import grpc.aio
 import requests
@@ -49,6 +48,7 @@ from lzy.types import File
 from lzy.utils.event_loop import LzyEventLoop
 from lzy.whiteboards.api import WhiteboardClient
 from lzy.whiteboards.api import WhiteboardInstanceMeta
+from tests.api.v1.utils import create_bucket
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -60,7 +60,7 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
         self.fail = False
 
     def CreateWorkflow(
-            self, request: CreateWorkflowRequest, context: grpc.ServicerContext
+        self, request: CreateWorkflowRequest, context: grpc.ServicerContext
     ) -> CreateWorkflowResponse:
         LOG.info(f"Creating wf {request}")
 
@@ -77,7 +77,7 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
         )
 
     def FinishWorkflow(
-            self, request: FinishWorkflowRequest, context: grpc.ServicerContext
+        self, request: FinishWorkflowRequest, context: grpc.ServicerContext
     ) -> FinishWorkflowResponse:
         LOG.info(f"Finishing workflow {request}")
 
@@ -90,7 +90,7 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
         return FinishWorkflowResponse()
 
     def ReadStdSlots(
-            self, request: ReadStdSlotsRequest, context: grpc.ServicerContext
+        self, request: ReadStdSlotsRequest, context: grpc.ServicerContext
     ) -> Iterator[ReadStdSlotsResponse]:
         LOG.info(f"Registered listener")
 
@@ -170,7 +170,7 @@ class GrpcRuntimeTests(TestCase):
             op=test,
             args_paths=[(str, arg_file)],
             kwargs_paths={"b": (File, kwarg_file)},
-            output_paths=[ret_file],
+            output_paths=[(str, ret_file)],
         )
 
         startup.main(pickle(req))
@@ -201,9 +201,13 @@ class WhiteboardClientForTest(WhiteboardClient):
     async def get(self, wb_id: str) -> Whiteboard:
         pass
 
-    async def list(self, name: Optional[str] = None, tags: Sequence[str] = (),
-                   not_before: Optional[datetime.datetime] = None, not_after: Optional[datetime.datetime] = None) -> \
-            Iterable[Whiteboard]:
+    async def list(
+        self,
+        name: Optional[str] = None,
+        tags: Sequence[str] = (),
+        not_before: Optional[datetime.datetime] = None,
+        not_after: Optional[datetime.datetime] = None
+    ) -> Iterable[Whiteboard]:
         pass
 
     async def create_whiteboard(self, namespace: str, name: str, fields: Sequence[WhiteboardField], storage_name: str,
@@ -222,20 +226,10 @@ class SnapshotTests(TestCase):
         self.service = ThreadedMotoServer(port=12345)
         self.service.start()
         self.endpoint_url = "http://localhost:12345"
-        asyncio.run(self._create_bucket())
+        asyncio.run(create_bucket(self.endpoint_url))
 
     def tearDown(self) -> None:
         self.service.stop()
-
-    async def _create_bucket(self) -> None:
-        async with aioboto3.Session().client(
-                "s3",
-                aws_access_key_id="aaa",
-                aws_secret_access_key="aaa",
-                endpoint_url=self.endpoint_url,
-                region_name='us-east-1'
-        ) as s3:
-            await s3.create_bucket(Bucket="bucket")
 
     def test_simple(self):
         storage_config = storage.StorageConfig(
@@ -270,15 +264,15 @@ class SnapshotTests(TestCase):
         lzy.storage_registry.register_storage("storage", storage_config, True)
 
         with lzy.workflow("") as wf:
-            l = a(41)
+            some_field = a(41)
 
-            l2 = c(l)
-            l3 = c(l)
+            some_field_2 = c(some_field)
+            some_field_3 = c(some_field)
 
             wf.barrier()
 
-            self.assertEqual(l2, "42")
-            self.assertEqual(l3, "42")
+            self.assertEqual(some_field_2, "42")
+            self.assertEqual(some_field_3, "42")
 
     def test_presigned_url(self):
         storage_config = storage.StorageConfig(

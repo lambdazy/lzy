@@ -53,7 +53,7 @@ class Snapshot(ABC):
 
 class DefaultSnapshot(Snapshot):
     def __init__(
-            self, storage_registry: StorageRegistry, serializer_registry: SerializerRegistry
+        self, storage_registry: StorageRegistry, serializer_registry: SerializerRegistry
     ):
         self.__storage_registry = storage_registry
         self.__serializer_registry = serializer_registry

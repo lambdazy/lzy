@@ -6,10 +6,21 @@ Configuration:
       name: Console
       target: SYSTEM_OUT
       PatternLayout:
-        Pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS}{UTC} [%t] %-5level %logger{36} - %msg%n"
+        pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS}{UTC} [%t] %-5level %logger{36} - %msg%n"
+
+    File:
+      name: FileAppender
+      fileName: /tmp/worker.log
+      PatternLayout:
+        pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS}{UTC} [%t] %-5level %logger{36} - %msg%n"
 
   Loggers:
     Root:
-      level: debug
+      level: info
       AppenderRef:
         - ref: Console
+        - ref: FileAppender
+
+    Logger:
+      - name: "ai.lzy"
+        level: debug

@@ -34,11 +34,10 @@ def read_data(path: str, typ: Type, serializers: SerializerRegistry) -> Any:
         return data
 
 
-def write_data(path: str, data: Any, serializers: SerializerRegistry):
+def write_data(path: str, typ: Type, data: Any, serializers: SerializerRegistry):
     mount = os.getenv("LZY_MOUNT", _lzy_mount)
     assert mount is not None
 
-    typ = type(data)
     ser = serializers.find_serializer_by_type(typ)
     if ser is None:
         raise ValueError(f'Cannot find serializer for type {typ}')
@@ -65,11 +64,11 @@ def log(msg: str, *args, **kwargs):
 
 
 def process_execution(
-        serializers: SerializerRegistry,
-        op: Callable,
-        args_paths: Sequence[Tuple[Type, str]],
-        kwargs_paths: Mapping[str, Tuple[Type, str]],
-        output_paths: Sequence[str],
+    serializers: SerializerRegistry,
+    op: Callable,
+    args_paths: Sequence[Tuple[Type, str]],
+    kwargs_paths: Mapping[str, Tuple[Type, str]],
+    output_paths: Sequence[Tuple[Type, str]],
 ):
     log("Reading arguments...")
 
@@ -94,10 +93,10 @@ def process_execution(
 
     try:
         if len(output_paths) == 1:
-            write_data(output_paths[0], res, serializers)
+            write_data(output_paths[0][1], output_paths[0][0], res, serializers)
             return
-        for path, data in zip(output_paths, res):
-            write_data(path, data, serializers)
+        for out, data in zip(output_paths, res):
+            write_data(out[1], out[0], data, serializers)
     except Exception as e:
         log("Error while writing result: {}", e)
         raise e
@@ -111,7 +110,7 @@ class ProcessingRequest:
     op: Callable
     args_paths: Sequence[Tuple[Type, str]]
     kwargs_paths: Mapping[str, Tuple[Type, str]]
-    output_paths: Sequence[str]
+    output_paths: Sequence[Tuple[Type, str]]
 
 
 def main(arg: str):

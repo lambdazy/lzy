@@ -3,7 +3,6 @@ from typing import List, Optional
 from unittest import TestCase
 
 from lzy.api.v1.utils.types import infer_real_type
-
 # noinspection PyProtectedMember
 from lzy.proxy import proxy_optional
 
@@ -80,10 +79,10 @@ class ProxyTests(TestCase):
         self.assertEqual(1, a._b)
         self.assertEqual(3, a.f())
 
-        a.l = 550
-        self.assertEqual(550, a.l)
-        a.l = 5
-        self.assertEqual(5, a.l)
+        a.some_field = 550
+        self.assertEqual(550, a.some_field)
+        a.some_field = 5
+        self.assertEqual(5, a.some_field)
 
         a.a = 55
         self.assertEqual(55, a.a)
@@ -104,7 +103,7 @@ class ProxyTests(TestCase):
             print(a.f())
 
         with self.assertRaises(AttributeError):
-            a.l = 550
+            a.some_field = 550
 
         with self.assertRaises(AttributeError):
             a.kung("Hello, " + "world!")
