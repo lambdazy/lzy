@@ -50,7 +50,7 @@ public class GraphExecutorTest {
 
     @Before
     public void setUp() {
-        context = ApplicationContext.run(preparePostgresConfig("graph-executor", db.getConnectionInfo()));
+        context = ApplicationContext.run(preparePostgresConfig("graph-executor", db.getConnectionInfo()), "test-mock");
         dao = context.getBean(GraphDaoMock.class);
         queueEventDao = context.getBean(QueueEventDao.class);
         storage = context.getBean(GraphExecutorDataSource.class);
