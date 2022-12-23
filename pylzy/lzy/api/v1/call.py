@@ -1,3 +1,4 @@
+import dataclasses
 import functools
 import inspect
 import typing
@@ -193,6 +194,11 @@ def infer_and_validate_call_signature(
 ) -> CallSignature:
     types_mapping = {}
     argspec = getfullargspec(f)
+
+    for typ in set(argspec.annotations.values()):
+        if dataclasses.is_dataclass(typ):
+            # do not validate dataclasses, because pydantic does not handle `default_factory` properly
+            setattr(typ, "__get_validators__", lambda: [])
 
     vd = ValidatedFunction(f, {"arbitrary_types_allowed": True})
     # pylint: disable=protected-access

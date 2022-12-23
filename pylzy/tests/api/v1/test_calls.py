@@ -1,6 +1,9 @@
+from dataclasses import dataclass
 from typing import Optional, List, Tuple
-from unittest import TestCase, skip
+from unittest import TestCase
 
+from pure_protobuf.dataclasses_ import message, field
+from pure_protobuf.types import int32
 from pydantic import ValidationError
 
 from lzy.api.v1 import Lzy, op
@@ -9,7 +12,7 @@ from lzy.api.v1.utils.proxy_adapter import materialized
 from tests.api.v1.mocks import RuntimeMock, StorageRegistryMock
 
 
-@op(description="aaa")
+@op
 def returns_int() -> int:
     return 1
 
@@ -226,16 +229,37 @@ class LzyCallsTests(TestCase):
         result = returns_int()
         self.assertEqual(1, result)
 
-    @skip
+    def test_pure_proto(self):
+        @message
+        @dataclass
+        class MessageClass:
+            string_field: str = field(1, default="")
+            list_field: List[int32] = field(2, default_factory=list)
+
+        # noinspection PyUnusedLocal
+        @op
+        def fun1(a: MessageClass) -> MessageClass:
+            pass
+
+        @op
+        def fun2() -> MessageClass:
+            pass
+
+        with self.lzy.workflow("test") as wf:
+            fun1(fun2())
+
+        # noinspection PyUnresolvedReferences
+        self.assertEqual(2, len(wf.owner.runtime.calls))
+
     def test_description(self):
         description = "my favourite func"
 
-        @op(description=description, ram_size_gb=10, python_version="3.9")
+        @op(description=description)
         def func() -> None:
             pass
 
         with self.lzy.workflow("test") as wf:
-            one_arg(1)
+            func()
 
         # noinspection PyUnresolvedReferences
         call: LzyCall = wf.owner.runtime.calls[0]
