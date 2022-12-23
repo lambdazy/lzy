@@ -25,12 +25,12 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 
 class LzyCall:
     def __init__(
-            self,
-            parent_wflow: LzyWorkflow,
-            sign: CallSignature,
-            provisioning: Provisioning,
-            env: Env,
-            description: str = ""
+        self,
+        parent_wflow: LzyWorkflow,
+        sign: CallSignature,
+        provisioning: Provisioning,
+        env: Env,
+        description: str = ""
     ):
         self.__id = str(uuid.uuid4())
         self.__wflow = parent_wflow
@@ -109,22 +109,22 @@ class LzyCall:
 
 
 def wrap_call(
-        f: Callable[..., Any],
-        output_types: Sequence[type],
-        python_version: typing.Optional[str] = None,
-        libraries: typing.Optional[Dict[str, str]] = None,
-        conda_yaml_path: typing.Optional[str] = None,
-        docker_image: typing.Optional[str] = None,
-        docker_pull_policy: typing.Optional[DockerPullPolicy] = DockerPullPolicy.IF_NOT_EXISTS,
-        local_modules_path: typing.Optional[Sequence[str]] = None,
-        provisioning_: Provisioning = Provisioning(),
-        cpu_type: typing.Optional[str] = None,
-        cpu_count: typing.Optional[int] = None,
-        gpu_type: typing.Optional[str] = None,
-        gpu_count: typing.Optional[int] = None,
-        ram_size_gb: typing.Optional[int] = None,
-        env: typing.Optional[Env] = None,
-        description: str = ""
+    f: Callable[..., Any],
+    output_types: Sequence[type],
+    python_version: typing.Optional[str] = None,
+    libraries: typing.Optional[Dict[str, str]] = None,
+    conda_yaml_path: typing.Optional[str] = None,
+    docker_image: typing.Optional[str] = None,
+    docker_pull_policy: typing.Optional[DockerPullPolicy] = DockerPullPolicy.IF_NOT_EXISTS,
+    local_modules_path: typing.Optional[Sequence[str]] = None,
+    provisioning_: Provisioning = Provisioning(),
+    cpu_type: typing.Optional[str] = None,
+    cpu_count: typing.Optional[int] = None,
+    gpu_type: typing.Optional[str] = None,
+    gpu_count: typing.Optional[int] = None,
+    ram_size_gb: typing.Optional[int] = None,
+    env: typing.Optional[Env] = None,
+    description: str = ""
 ) -> Callable[..., Any]:
     @functools.wraps(f)
     def lazy(*args, **kwargs):
@@ -190,7 +190,7 @@ def wrap_call(
 
 
 def infer_and_validate_call_signature(
-        f: Callable, output_type: Sequence[type], snapshot: Snapshot, *args, **kwargs
+    f: Callable, output_type: Sequence[type], snapshot: Snapshot, *args, **kwargs
 ) -> CallSignature:
     types_mapping = {}
     argspec = getfullargspec(f)
