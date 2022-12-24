@@ -17,7 +17,7 @@ from lzy.api.v1.utils.conda import generate_conda_yaml
 from lzy.api.v1.utils.env import generate_env, merge_envs
 from lzy.api.v1.utils.packages import to_str_version
 from lzy.api.v1.utils.proxy_adapter import lzy_proxy
-from lzy.api.v1.utils.types import infer_call_signature, infer_return_type
+from lzy.api.v1.utils.types import infer_return_type
 from lzy.api.v1.whiteboards import whiteboard_, ReadOnlyWhiteboard
 from lzy.api.v1.workflow import LzyWorkflow
 from lzy.proxy.result import Nothing
@@ -57,6 +57,7 @@ def op(
     gpu_count: Optional[int] = None,
     ram_size_gb: Optional[int] = None,
     env: Optional[Env] = None,
+    description: str = ""
 ):
     def deco(f):
         """
@@ -78,7 +79,8 @@ def op(
         # yep, create lazy constructor and return it
         # instead of function
         return wrap_call(f, output_types, python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy,
-                         local_modules_path, provisioning_, cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb, env)
+                         local_modules_path, provisioning_, cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb, env,
+                         description)
 
     if func is None:
         return deco
