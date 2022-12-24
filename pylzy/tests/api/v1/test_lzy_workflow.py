@@ -1,6 +1,6 @@
 import asyncio
 import uuid
-from typing import List
+from typing import List, Optional
 from unittest import TestCase, skip
 
 # noinspection PyPackageRequirements
@@ -29,11 +29,6 @@ def baz(a: str, b: int) -> str:
 @op
 def boo(a: str, b: str) -> str:
     return f"{a} {b} Boo"
-
-
-@op
-def list2list(a: List[int]) -> List[str]:
-    return [str(i) for i in a]
 
 
 @op
@@ -66,11 +61,27 @@ class LzyWorkflowTests(TestCase):
     def tearDown(self) -> None:
         self.service.stop()
 
-    def test_simple_graph(self):
+    def test_lists(self):
+        @op
+        def list2list(a: List[int]) -> List[str]:
+            return [str(i) for i in a]
+
         with self.lzy.workflow(self.workflow_name):
             some_list = [1, 2, 3]
             result = list2list(some_list)
             self.assertEqual([str(i) for i in some_list], result)
+
+    def test_optional(self):
+        @op
+        def optional(a: Optional[str]) -> Optional[str]:
+            return "s" if a is None else None
+
+        with self.lzy.workflow(self.workflow_name):
+            n = optional("s")
+            s = optional(n)
+
+            self.assertEqual("s", s)
+            self.assertEqual(None, n)
 
     @skip("WIP")
     def test_barrier(self):

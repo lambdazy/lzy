@@ -1,15 +1,54 @@
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 from unittest import TestCase
 
 from lzy.api.v1.utils.types import infer_real_type
 from lzy.proxy import proxy
 
 
-class TestProxyTests(TestCase):
+class ClassWithStaticAndClassMethods:
+    # noinspection PyShadowingNames
+    def __init__(self, a, b, c):
+        self.__a = a
+        self._b = b
+        self.c = c
+
+    @property
+    def a(self):
+        return self.__a
+
+    @a.setter
+    def a(self, value):
+        self.__a = value
+
+    def f(self):
+        return self.c
+
+    @classmethod
+    def class_method(cls):
+        return cls
+
+    @staticmethod
+    def kung(oh, way):
+        return oh + way
+
+
+class ClassWithSlotsAttribute:
+    __slots__ = ("_fields",)
+
+    def __init__(self, _fields=None):
+        if not _fields:
+            self._fields = set()
+
+
+class ProxyTests(TestCase):
     @staticmethod
     def lazy_constructed_obj(cls, *args, **kwargs):
         return proxy(lambda: cls(*args, **kwargs), cls)
+
+    @staticmethod
+    def lazy_constructed_obj_none(cls):
+        return proxy(lambda: None, cls)
 
     def test_simple_isinstance(self):
         class A:
@@ -21,34 +60,20 @@ class TestProxyTests(TestCase):
         prxy_int_ = self.lazy_constructed_obj(int)
         self.assertIsInstance(prxy_int_, int)
 
-    def test_custom_object_with_static_and_class_methods(self):
+    def test_simple_isinstance_none(self):
         class A:
-            # noinspection PyShadowingNames
-            def __init__(self, a, b, c):
-                self.__a = a
-                self._b = b
-                self.c = c
+            pass
 
-            @property
-            def a(self):
-                return self.__a
+        prxy_ = self.lazy_constructed_obj_none(A)
+        self.assertNotIsInstance(prxy_, A)
+        self.assertIsInstance(prxy_, type(None))
 
-            @a.setter
-            def a(self, value):
-                self.__a = value
+        prxy_int_ = self.lazy_constructed_obj_none(int)
+        self.assertNotIsInstance(prxy_int_, int)
+        self.assertIsInstance(prxy_int_, type(None))
 
-            def f(self):
-                return self.c
-
-            @classmethod
-            def class_method(cls):
-                return cls
-
-            @staticmethod
-            def kung(oh, way):
-                return oh + way
-
-        a = self.lazy_constructed_obj(A, 4, 1, 3)
+    def test_custom_object_with_static_and_class_methods(self):
+        a = self.lazy_constructed_obj(ClassWithStaticAndClassMethods, 4, 1, 3)
         self.assertEqual(4, a.a)
         self.assertEqual(1, a._b)
         self.assertEqual(3, a.f())
@@ -63,7 +88,27 @@ class TestProxyTests(TestCase):
 
         expected = "oh hohoho"
         self.assertEqual(expected, a.kung(expected[:4], expected[4:]))
-        self.assertIs(a.class_method(), A)
+        self.assertIs(a.class_method(), ClassWithStaticAndClassMethods)
+
+    def test_custom_object_with_static_and_class_methods_none(self):
+        a = self.lazy_constructed_obj_none(ClassWithStaticAndClassMethods)
+        with self.assertRaises(AttributeError):
+            print(a._b)
+
+        with self.assertRaises(AttributeError):
+            print(a.a)
+
+        with self.assertRaises(AttributeError):
+            print(a.f())
+
+        with self.assertRaises(AttributeError):
+            a.some_field = 550
+
+        with self.assertRaises(AttributeError):
+            a.kung("Hello, " + "world!")
+
+        with self.assertRaises(AttributeError):
+            a.class_method()
 
     def test_primitive_type(self):
         integer = self.lazy_constructed_obj(int, 42)
@@ -72,33 +117,44 @@ class TestProxyTests(TestCase):
             val += 1
         self.assertEqual(42, val)
 
-        # useless but good for tests
+    def test_primitive_type_none(self):
+        integer = self.lazy_constructed_obj_none(int)
+        val = self.lazy_constructed_obj(int, 0)
+        with self.assertRaises(AttributeError):
+            for i in range(integer):
+                val += 1
+
+    def test_primitive_type_2(self):
         string_ = self.lazy_constructed_obj(str, "string   ")
         expected = "string"
         self.assertEqual(string_.rstrip(), expected)
 
+        lst = self.lazy_constructed_obj(list, [1, 2, 3, 4, 5])
+        self.assertEqual(len(lst), 5)
+
+    def test_common_attributes(self):
         res = 0
         b = self.lazy_constructed_obj(bool, True)
         if b:
             res = 1
         self.assertEqual(res, 1)
 
-        lst = self.lazy_constructed_obj(list, [1, 2, 3, 4, 5])
-        self.assertEqual(len(lst), 5)
+        res = 0
+        b = self.lazy_constructed_obj_none(bool)
+        if b:
+            res = 1
+        self.assertEqual(res, 0)
 
     def test_slots(self):
-        class B:
-            __slots__ = ("_fields",)
-
-            def __init__(self, _fields=None):
-                if not _fields:
-                    self._fields = set()
-
-        a = self.lazy_constructed_obj(B)
+        a = self.lazy_constructed_obj(ClassWithSlotsAttribute)
         self.assertIsInstance(a._fields, set)
         a._fields = None
         self.assertIs(a._fields, None)
-        self.assertTupleEqual(B.__slots__, a.__slots__)
+        self.assertTupleEqual(ClassWithSlotsAttribute.__slots__, a.__slots__)
+
+        a = self.lazy_constructed_obj_none(ClassWithSlotsAttribute)
+        with self.assertRaises(AttributeError):
+            print(a._fields)
 
     def test_int_sum(self):
         a = 10
@@ -133,6 +189,10 @@ class TestProxyTests(TestCase):
         self.assertNotEqual(prxy.a, prxy.b)
         self.assertEqual(len(materialized), 1)
 
+        prxy = self.lazy_constructed_obj_none(MockType)
+        with self.assertRaises(AttributeError):
+            print(prxy.a)
+
     def test_proxy_set(self):
         class Field:
             def __init__(self, value):
@@ -161,6 +221,10 @@ class TestProxyTests(TestCase):
         self.assertEqual(len(materialized), 1)
         self.assertEqual(prxy.a, prxy.b)
 
+        prxy = self.lazy_constructed_obj_none(MockType)
+        with self.assertRaises(AttributeError):
+            prxy.a = 42
+
     def test_exception(self):
         class CrazyException(Exception):
             pass
@@ -184,6 +248,10 @@ class TestProxyTests(TestCase):
         self.assertEqual(prxy_a[1].val, 1)
         self.assertEqual(prxy_a[2].val, 2)
 
+        prxy_a = self.lazy_constructed_obj_none(infer_real_type(List[A]))
+        with self.assertRaises(AttributeError):
+            print(prxy_a[0].val)
+
     def test_proxy_with_custom_new(self):
         class ClassWithCustomNew:
             def __new__(cls):
@@ -194,6 +262,18 @@ class TestProxyTests(TestCase):
 
         prxy = proxy(ClassWithCustomNew, ClassWithCustomNew)
         self.assertEqual(prxy.test_attr, 42)
+
+    def test_proxy_optional(self):
+        @dataclass
+        class A:
+            a: int
+
+        prxy_a = proxy(lambda: A(0), infer_real_type(Optional[A]))
+        self.assertEqual(prxy_a.a, 0)
+
+        prxy_a = self.lazy_constructed_obj_none(infer_real_type(List[A]))
+        with self.assertRaises(AttributeError):
+            print(prxy_a.a)
 
     def test_origin(self):
         integer = self.lazy_constructed_obj(int, 42)
