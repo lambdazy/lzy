@@ -7,6 +7,7 @@ from unittest import TestCase, skip
 from moto.moto_server.threaded_moto_server import ThreadedMotoServer
 
 from lzy.api.v1 import Lzy, op, LocalRuntime
+from lzy.api.v1.utils.proxy_adapter import materialized
 from lzy.storage.api import StorageConfig, AmazonCredentials
 from tests.api.v1.utils import create_bucket
 
@@ -71,17 +72,43 @@ class LzyWorkflowTests(TestCase):
             result = list2list(some_list)
             self.assertEqual([str(i) for i in some_list], result)
 
-    def test_optional(self):
+    def test_optional_return(self):
         @op
-        def optional(a: Optional[str]) -> Optional[str]:
-            return "s" if a is None else None
+        def optional_not_none() -> Optional[str]:
+            return "s"
+
+        @op
+        def optional_none() -> Optional[str]:
+            return None
 
         with self.lzy.workflow(self.workflow_name):
-            n = optional("s")
-            s = optional(n)
+            n = optional_none()
+            s = optional_not_none()
 
+            self.assertFalse(materialized(s))
+            self.assertIsNotNone(s)
             self.assertEqual("s", s)
+            self.assertTrue(materialized(s))
+
+            self.assertFalse(materialized(n))
+            if n:
+                self.fail()
+            self.assertTrue(materialized(n))
             self.assertEqual(None, n)
+
+    def test_optional_arg(self):
+        @op
+        def optional(a: Optional[str]) -> str:
+            if a:
+                return "not none"
+            return "none"
+
+        with self.lzy.workflow(self.workflow_name):
+            n = optional(None)
+            nn = optional("nn")
+
+            self.assertEqual("not none", nn)
+            self.assertEqual("none", n)
 
     @skip("WIP")
     def test_barrier(self):

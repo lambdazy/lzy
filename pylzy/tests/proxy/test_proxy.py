@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass
 from typing import List, Optional
 from unittest import TestCase
@@ -110,21 +111,21 @@ class ProxyTests(TestCase):
         with self.assertRaises(AttributeError):
             a.class_method()
 
-    def test_primitive_type(self):
+    def test_int(self):
         integer = self.lazy_constructed_obj(int, 42)
         val = self.lazy_constructed_obj(int, 0)
         for i in range(integer):
             val += 1
         self.assertEqual(42, val)
 
-    def test_primitive_type_none(self):
+    def test_int_none(self):
         integer = self.lazy_constructed_obj_none(int)
         val = self.lazy_constructed_obj(int, 0)
         with self.assertRaises(AttributeError):
             for i in range(integer):
                 val += 1
 
-    def test_primitive_type_2(self):
+    def test_str(self):
         string_ = self.lazy_constructed_obj(str, "string   ")
         expected = "string"
         self.assertEqual(string_.rstrip(), expected)
@@ -277,5 +278,13 @@ class ProxyTests(TestCase):
 
     def test_origin(self):
         integer = self.lazy_constructed_obj(int, 42)
+        self.assertEqual(int, integer.__class__)
         self.assertNotEqual(int, type(integer))
         self.assertEqual(int, type(integer.__lzy_origin__))
+
+    def test_str_json(self):
+        s = self.lazy_constructed_obj(str, '[]')
+        with self.assertRaisesRegex(TypeError, "first argument must be a string, not Pearl"):
+            json.dumps(s)
+        loads = json.loads(s.__lzy_origin__)
+        self.assertEqual([], loads)

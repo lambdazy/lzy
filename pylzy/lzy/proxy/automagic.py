@@ -1,6 +1,6 @@
 import functools
 from itertools import chain
-from typing import Any, Callable, Dict, Optional, Tuple, Type, TypeVar
+from typing import Any, Callable, Dict, Optional, Type, TypeVar
 
 DEBUG = False
 
@@ -28,8 +28,8 @@ def always_materialize_args_before_call(func):
 
 class TrickDescriptor:
     def __init__(self, constructor, name):
-        self.constructor = constructor
-        self._name = name
+        self.__constructor = constructor
+        self.__name = name
 
     def __get__(self, instance, owner):
         # if called in not object context
@@ -41,8 +41,8 @@ class TrickDescriptor:
         # for attributes such that its __get__ requires (or just receives)
         # instance:
         # call given callback and put result as new instance
-        materialized_object = create_and_cache(proxy_cls, self.constructor)
-        res = getattr(materialized_object, self._name)
+        materialized_object = create_and_cache(proxy_cls, self.__constructor)
+        res = getattr(materialized_object, self.__name)
 
         if hasattr(res, "__get__"):
             res = res.__get__(materialized_object, type(materialized_object))
@@ -55,9 +55,6 @@ class TrickDescriptor:
         # so instead of this function we should return a new one,
         # which will **always** materialize its arguments before call
         return always_materialize_args_before_call(res)
-
-
-_cache: Dict[Tuple[type, Callable[..., type]], type] = {}
 
 
 def create_and_cache(proxy_cls, callback):
@@ -85,10 +82,15 @@ class Proxifier(type):
             new_attrs[k] = TrickDescriptor(constructor, k)
         for k in dir(type(None)):
             new_attrs[k] = TrickDescriptor(constructor, k)
+
+        # probably we can store data for this Proxy somewhere else
+        # weakref.WeakKeyDictionary is a good candidate I think
         new_attrs.update(attrs)
         new_attrs.update(cls_attrs)
         new_attrs.update({"_constructor": constructor})
 
+        # this single line allows proxy to wrap types with __slots__
+        # just leave it here
         new_attrs.pop("__slots__", None)
 
         return super().__new__(mcs, name, bases, new_attrs)
