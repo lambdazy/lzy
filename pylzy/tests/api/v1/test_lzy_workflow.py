@@ -119,14 +119,14 @@ class LzyWorkflowTests(TestCase):
 
         with self.lzy.workflow(self.workflow_name):
             s = union(True)
-            l = union(False)
+            lint = union(False)
 
             res = 0
-            for i in range(l):
+            for i in range(lint):
                 res += 1
 
             self.assertEqual(42, res)
-            self.assertEqual(42, l)
+            self.assertEqual(42, lint)
             self.assertEqual("str", s)
 
     def test_union_arg(self):
