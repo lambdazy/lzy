@@ -1,6 +1,6 @@
 import asyncio
 import uuid
-from typing import List, Optional
+from typing import List, Optional, Union
 from unittest import TestCase, skip
 
 # noinspection PyPackageRequirements
@@ -109,6 +109,39 @@ class LzyWorkflowTests(TestCase):
 
             self.assertEqual("not none", nn)
             self.assertEqual("none", n)
+
+    def test_union_return(self):
+        @op
+        def union(p: bool) -> Union[str, int]:
+            if p:
+                return "str"
+            return 42
+
+        with self.lzy.workflow(self.workflow_name):
+            s = union(True)
+            l = union(False)
+
+            res = 0
+            for i in range(l):
+                res += 1
+
+            self.assertEqual(42, res)
+            self.assertEqual(42, l)
+            self.assertEqual("str", s)
+
+    def test_union_arg(self):
+        @op
+        def is_str(a: Union[str, int]) -> bool:
+            if isinstance(a, str):
+                return True
+            return False
+
+        with self.lzy.workflow(self.workflow_name):
+            t = is_str("str")
+            f = is_str(1)
+
+            self.assertEqual(True, t)
+            self.assertEqual(False, f)
 
     @skip("WIP")
     def test_barrier(self):
