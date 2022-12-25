@@ -208,7 +208,7 @@ class WritableWhiteboard:
             LzyEventLoop.run_async(self.__workflow.snapshot.put_data(entry_id=entry.id, data=value))
             # noinspection PyTypeChecker
             # TODO: there is no need to create lazy proxy from value. We only need to attach entry id
-            value = lzy_proxy(entry.id, type(value), self.__workflow, Just(value))
+            value = lzy_proxy(entry.id, (type(value),), self.__workflow, Just(value))
             LzyEventLoop.run_async(self.__workflow.owner.whiteboard_client.link(
                 whiteboard_id, key, entry.storage_url, entry.data_scheme
             ))

@@ -5,10 +5,11 @@ from typing import (
     Type,
     TypeVar,
     Union,
-    cast,
-    get_type_hints,
+    get_type_hints, List,
 )
+
 from typing_extensions import get_origin, get_args
+
 from lzy.proxy.result import Just, Nothing, Result
 
 T = TypeVar("T")
@@ -16,15 +17,17 @@ T = TypeVar("T")
 TypeInferResult = Result[Sequence[type]]
 
 
-def infer_real_type(typ: Type) -> Type:
+def infer_real_types(typ: Type) -> Sequence[Type]:
     origin: Optional[Type] = get_origin(typ)
+    result : List[Type] = []
     if origin is not None:
         if origin == Union:  # type: ignore
-            args = get_args(typ)  # TODO: what should we do with real Union?
-            if len(args) == 2 and issubclass(args[1], type(None)):  # check type is Optional
-                return infer_real_type(args[0])
-        return origin
-    return typ
+            args = get_args(typ)
+            for arg in args:
+                result.extend(infer_real_types(arg))
+            return result
+        return origin,
+    return typ,
 
 
 def infer_return_type(func: Callable) -> TypeInferResult:
@@ -37,8 +40,3 @@ def infer_return_type(func: Callable) -> TypeInferResult:
         return Just(typ)
 
     return Just(tuple((typ,)))
-
-
-def unwrap(val: Optional[T]) -> T:
-    assert val is not None, "val is None :c"
-    return cast(T, val)

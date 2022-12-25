@@ -186,7 +186,7 @@ class LzyWorkflow:
                 fields.append(
                     WhiteboardField(field.name, WhiteboardDefaultDescription(entry.storage_url, entry.data_scheme))
                 )
-                defaults[field.name] = lzy_proxy(entry.id, field.type, self, Just(field.default))
+                defaults[field.name] = lzy_proxy(entry.id, (field.type,), self, Just(field.default))
             else:
                 fields.append(
                     WhiteboardField(field.name)

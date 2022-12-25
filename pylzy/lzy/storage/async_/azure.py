@@ -1,11 +1,11 @@
 import datetime
-from typing import Any, AsyncIterator, BinaryIO
+from typing import Any, AsyncIterator, BinaryIO, cast
 
+# noinspection PyPackageRequirements
 from azure.storage.blob import BlobSasPermissions, generate_blob_sas
+# noinspection PyPackageRequirements
 from azure.storage.blob.aio import BlobServiceClient, ContainerClient
 
-# TODO[ottergottaott]: drop this dependency
-from lzy.api.v1.utils.types import unwrap
 from lzy.storage.api import AsyncStorageClient, AzureCredentials, AzureSasCredentials
 from lzy.storage.url import Scheme, bucket_from_uri, uri_from_bucket
 
@@ -44,7 +44,7 @@ class AzureClientAsync(AsyncStorageClient):
     async def blob_exists(self, uri: str) -> bool:
         container, blob = bucket_from_uri(self.scheme, uri)
         blob_client = self._blob_client(container, blob)
-        return unwrap(await blob_client.exists())
+        return cast(bool, await blob_client.exists())
 
     async def blob_iter(self, uri: str) -> AsyncIterator[bytes]:
         blob_client = self._blob_client_from_uri(uri)

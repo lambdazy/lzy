@@ -1,9 +1,7 @@
 import json
 from dataclasses import dataclass
-from typing import List, Optional
 from unittest import TestCase
 
-from lzy.api.v1.utils.types import infer_real_type
 from lzy.proxy import proxy
 
 
@@ -45,11 +43,11 @@ class ClassWithSlotsAttribute:
 class ProxyTests(TestCase):
     @staticmethod
     def lazy_constructed_obj(cls, *args, **kwargs):
-        return proxy(lambda: cls(*args, **kwargs), cls)
+        return proxy(lambda: cls(*args, **kwargs), (cls,))
 
     @staticmethod
     def lazy_constructed_obj_none(cls):
-        return proxy(lambda: None, cls)
+        return proxy(lambda: None, (cls, type(None)))
 
     def test_simple_isinstance(self):
         class A:
@@ -186,7 +184,7 @@ class ProxyTests(TestCase):
             b = IntField(42)
 
         materialized = []
-        prxy = proxy(lambda: materialized.append(1) or MockType(), MockType)
+        prxy = proxy(lambda: materialized.append(1) or MockType(), (MockType,))
         self.assertNotEqual(prxy.a, prxy.b)
         self.assertEqual(len(materialized), 1)
 
@@ -217,7 +215,7 @@ class ProxyTests(TestCase):
             b = IntField(42)
 
         materialized = []
-        prxy = proxy(lambda: materialized.append(1) or MockType(), MockType)
+        prxy = proxy(lambda: materialized.append(1) or MockType(), (MockType,))
         prxy.a = 42
         self.assertEqual(len(materialized), 1)
         self.assertEqual(prxy.a, prxy.b)
@@ -235,7 +233,7 @@ class ProxyTests(TestCase):
                 raise CrazyException("Ahaa")
 
         with self.assertRaises(CrazyException):
-            prxy: CrazyClass = proxy(lambda: CrazyClass(), CrazyClass)
+            prxy: CrazyClass = proxy(lambda: CrazyClass(), (CrazyClass,))
             prxy.crazy_func()
 
     def test_lists(self):
@@ -244,12 +242,12 @@ class ProxyTests(TestCase):
             val: int
 
         a = [A(0), A(1), A(2)]
-        prxy_a = proxy(lambda: a, infer_real_type(List[A]))
+        prxy_a = proxy(lambda: a, (list,))
         self.assertEqual(prxy_a[0].val, 0)
         self.assertEqual(prxy_a[1].val, 1)
         self.assertEqual(prxy_a[2].val, 2)
 
-        prxy_a = self.lazy_constructed_obj_none(infer_real_type(List[A]))
+        prxy_a = self.lazy_constructed_obj_none(list)
         with self.assertRaises(AttributeError):
             print(prxy_a[0].val)
 
@@ -261,7 +259,7 @@ class ProxyTests(TestCase):
             def __init__(self):
                 self.test_attr = 42
 
-        prxy = proxy(ClassWithCustomNew, ClassWithCustomNew)
+        prxy = proxy(ClassWithCustomNew, (ClassWithCustomNew,))
         self.assertEqual(prxy.test_attr, 42)
 
     def test_proxy_optional(self):
@@ -269,10 +267,10 @@ class ProxyTests(TestCase):
         class A:
             a: int
 
-        prxy_a = proxy(lambda: A(0), infer_real_type(Optional[A]))
+        prxy_a = proxy(lambda: A(0), (A, type(None)))
         self.assertEqual(prxy_a.a, 0)
 
-        prxy_a = self.lazy_constructed_obj_none(infer_real_type(List[A]))
+        prxy_a = self.lazy_constructed_obj_none(list)
         with self.assertRaises(AttributeError):
             print(prxy_a.a)
 
@@ -288,3 +286,14 @@ class ProxyTests(TestCase):
             json.dumps(s)
         loads = json.loads(s.__lzy_origin__)
         self.assertEqual([], loads)
+
+    def test_multiple_options(self):
+        prxy_1 = proxy(lambda: "str", (int, str))
+        prxy_2 = proxy(lambda: 10, (int, str))
+        s = 0
+
+        self.assertEqual("strstr", prxy_1 + "str")
+        if isinstance(prxy_2, int):
+            for i in range(prxy_2):
+                s += 1
+        self.assertEqual(10, s)

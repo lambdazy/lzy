@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, cast, TypeVar, Type
+from typing import TYPE_CHECKING, Any, cast, Type, Sequence
 
 from lzy.proxy.automagic import proxy
 from lzy.proxy.result import Just, Result, Nothing
@@ -30,10 +30,7 @@ def materialize(obj: Any) -> Any:
     return obj.__lzy_origin__  # type: ignore
 
 
-T = TypeVar("T")
-
-
-def lzy_proxy(entry_id: str, typ: Type[T], wflow: "LzyWorkflow", value: Result[T] = Nothing()) -> Any:
+def lzy_proxy(entry_id: str, types: Sequence[Type], wflow: "LzyWorkflow", value: Result = Nothing()) -> Any:
     async def __materialize() -> Any:
 
         if isinstance(value, Just):
@@ -55,6 +52,6 @@ def lzy_proxy(entry_id: str, typ: Type[T], wflow: "LzyWorkflow", value: Result[T
 
     return proxy(
         lambda: LzyEventLoop.run_async(__materialize()),
-        typ,  # type: ignore
+        types,
         cls_attrs={__lzy_proxied: True, __entry_id: entry_id},
     )

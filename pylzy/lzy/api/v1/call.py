@@ -17,7 +17,7 @@ from lzy.api.v1.signatures import CallSignature, FuncSignature
 from lzy.api.v1.snapshot import Snapshot
 from lzy.api.v1.utils.env import generate_env, merge_envs
 from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy, lzy_proxy, get_proxy_entry_id
-from lzy.api.v1.utils.types import infer_real_type
+from lzy.api.v1.utils.types import infer_real_types
 from lzy.api.v1.workflow import LzyWorkflow
 
 T = TypeVar("T")  # pylint: disable=invalid-name
@@ -172,7 +172,7 @@ def wrap_call(
             # noinspection PyTypeChecker
             return lzy_proxy(
                 lzy_call.entry_ids[0],
-                infer_real_type(lzy_call.signature.func.output_types[0]),
+                infer_real_types(lzy_call.signature.func.output_types[0]),
                 lzy_call.parent_wflow,
             )
 
@@ -180,7 +180,7 @@ def wrap_call(
         return tuple(
             lzy_proxy(
                 lzy_call.entry_ids[i],
-                infer_real_type(lzy_call.signature.func.output_types[i]),
+                infer_real_types(lzy_call.signature.func.output_types[i]),
                 lzy_call.parent_wflow,
             )
             for i in range(len(lzy_call.entry_ids))

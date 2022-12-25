@@ -1,6 +1,6 @@
 import functools
 from itertools import chain
-from typing import Any, Callable, Dict, Optional, Type, TypeVar
+from typing import Any, Callable, Dict, Optional, Type, Tuple, Sequence
 
 DEBUG = False
 
@@ -27,11 +27,11 @@ def always_materialize_args_before_call(func):
 
 
 class TrickDescriptor:
-    def __init__(self, constructor, name):
-        self.__constructor = constructor
+    def __init__(self, name: str, constructor: Callable[[], Any]):
         self.__name = name
+        self.__constructor = constructor
 
-    def __get__(self, instance, owner):
+    def __get__(self, instance: Any, owner: Type):
         # if called in not object context
         if instance is None:
             proxy_cls = type(instance)
@@ -57,7 +57,7 @@ class TrickDescriptor:
         return always_materialize_args_before_call(res)
 
 
-def create_and_cache(proxy_cls, callback):
+def create_and_cache(proxy_cls: Type, callback: Callable[[], Any]):
     if not hasattr(proxy_cls, "_origin") and not hasattr(proxy_cls, "_exception"):  # type: ignore[attr-defined]
         try:
             proxy_cls._origin = (
@@ -76,12 +76,12 @@ def create_and_cache(proxy_cls, callback):
 
 
 class Proxifier(type):
-    def __new__(mcs, name, bases, attrs, proto_type, constructor, cls_attrs):
-        new_attrs = {}
-        for k in dir(proto_type):
-            new_attrs[k] = TrickDescriptor(constructor, k)
-        for k in dir(type(None)):
-            new_attrs[k] = TrickDescriptor(constructor, k)
+    def __new__(mcs, name: str, bases: Tuple[Type], attrs: Dict[str, Any], proto_types: Sequence[Type],
+                constructor: Callable[[], Any], cls_attrs: Dict[str, Any]):
+        new_attrs: Dict[str, Any] = {}
+        for typ in proto_types:
+            for prop in dir(typ):
+                new_attrs[prop] = TrickDescriptor(prop, constructor)
 
         # probably we can store data for this Proxy somewhere else
         # weakref.WeakKeyDictionary is a good candidate I think
@@ -96,30 +96,20 @@ class Proxifier(type):
         return super().__new__(mcs, name, bases, new_attrs)
 
 
-def collect_attributes(cls):
-    methods = {}
-    for k in dir(cls):
-        methods[k] = getattr(cls, k)
-    return methods
-
-
-T = TypeVar("T")  # pylint: disable=invalid-name
-
-
 def is_proxy(obj: Any) -> bool:
     return isinstance(type(obj), Proxifier) or isinstance(type(obj), Proxifier)
 
 
 def proxy(
-    constructor: Callable,
-    proto_type: Type,
+    constructor: Callable[[], Any],
+    proto_types: Sequence[Type],
     cls_attrs: Optional[Dict[str, Any]] = None,
     obj_attrs: Optional[Dict[str, Any]] = None,
 ) -> Any:
     """
     Function which returns proxy on object, i.e. object which looks like original,
     but lazy and created by calling given callback at the last moment
-    >>> a = proxy(lambda: 3, int)
+    >>> a = proxy(lambda: 3, (int,))
     >>> for i in range(a):
     >>>     print(i)
     >>> 0
@@ -135,7 +125,7 @@ def proxy(
     # __pearl, hope it's hidden__
     class Pearl(
         metaclass=Proxifier,
-        proto_type=proto_type,
+        proto_types=proto_types,
         constructor=constructor,
         cls_attrs=_cls_attrs,
     ):
