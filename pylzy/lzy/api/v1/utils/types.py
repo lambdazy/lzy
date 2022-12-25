@@ -19,7 +19,7 @@ TypeInferResult = Result[Sequence[type]]
 
 def infer_real_types(typ: Type) -> Sequence[Type]:
     origin: Optional[Type] = get_origin(typ)
-    result : List[Type] = []
+    result: List[Type] = []
     if origin is not None:
         if origin == Union:  # type: ignore
             args = get_args(typ)
