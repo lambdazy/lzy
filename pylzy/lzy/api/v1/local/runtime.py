@@ -1,10 +1,16 @@
 import asyncio
+import os
+import subprocess
+import tempfile
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from pathlib import Path
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Type, cast
 
+from lzy.api.v1.exceptions import LzyExecutionException
+from lzy.api.v1.startup import ProcessingRequest
+from lzy.api.v1.utils.pickle import pickle
 from lzy.api.v1.workflow import WbRef
-from lzy.proxy.result import unwrap
-from lzy.storage.api import StorageConfig
+from lzy.storage.api import StorageConfig, AsyncStorageClient
 
 if TYPE_CHECKING:
     from lzy.api.v1 import LzyWorkflow
@@ -75,30 +81,77 @@ class LocalRuntime(Runtime):
     async def __exec_call(self, call: LzyCall):
         assert self.__workflow is not None
 
-        args: List[Any] = [
-            unwrap(data)
-            for data in await asyncio.gather(
-                *[self.__workflow.snapshot.get_data(eid) for eid in call.arg_entry_ids]
+        arg_descriptions: List[Tuple[Type, str]] = []
+        kwarg_descriptions: Dict[str, Tuple[Type, str]] = {}
+        ret_descriptions: List[Tuple[Type, str]] = []
+
+        with tempfile.TemporaryDirectory("_lzy_call") as folder:
+            args_read = []
+            for eid in call.arg_entry_ids:
+                entry = self.__workflow.snapshot.get(eid)
+                name = folder + "/" + eid
+                args_read.append(self.__from_storage_to_file(entry.storage_url, name))
+                arg_descriptions.append((entry.typ, name[len(folder):]))
+            await asyncio.gather(*args_read)
+
+            kwargs_read = []
+            for name, eid in call.kwarg_entry_ids.items():
+                entry = self.__workflow.snapshot.get(eid)
+                name = folder + "/" + eid
+                kwargs_read.append(self.__from_storage_to_file(entry.storage_url, name))
+                kwarg_descriptions[name] = (entry.typ, name[len(folder):])
+            await asyncio.gather(*kwargs_read)
+
+            for i, eid in enumerate(call.entry_ids):
+                path = Path(folder + "/" + eid)
+                path.touch()
+                entry = self.__workflow.snapshot.get(eid)
+                ret_descriptions.append((entry.typ, str(path)[len(folder):]))
+
+            request = ProcessingRequest(
+                serializers=self.__workflow.owner.serializer,
+                op=call.signature.func.callable,
+                args_paths=arg_descriptions,
+                kwargs_paths=kwarg_descriptions,
+                output_paths=ret_descriptions,
             )
-        ]
-        kwargs: Dict[str, Any] = {
-            name: unwrap(await self.__workflow.snapshot.get_data(eid))
-            for (name, eid) in call.kwarg_entry_ids.items()
-        }
 
-        value = call.signature.func.callable(*args, **kwargs)
-        if len(call.entry_ids) == 1:
-            await self.__workflow.snapshot.put_data(call.entry_ids[0], value)
-            return
+            directory = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+            command = [
+                "python",
+                directory + "/startup.py",
+                pickle(request)
+            ]
 
-        data_to_put = []
+            env_vars = os.environ.copy()
+            env_vars["LZY_MOUNT"] = folder
+            result = subprocess.Popen(command, env=env_vars)
+            stdout, stderr = result.communicate()
+            if stdout:
+                print(stdout)
+            if stderr:
+                print(stderr)
 
-        for i, data in enumerate(value):
-            data_to_put.append(
-                self.__workflow.snapshot.put_data(call.entry_ids[i], data)
-            )
+            rc = result.wait()
+            if rc != 0:
+                raise LzyExecutionException(
+                    str(stderr) if stderr else f"Error during execution of {call.signature.func.callable}")
 
-        await asyncio.gather(*data_to_put)
+            data_to_put = []
+            for i, eid in enumerate(call.entry_ids):
+                entry = self.__workflow.snapshot.get(eid)
+                data_to_put.append(self.__from_file_to_storage(entry.storage_url, folder + "/" + eid))
+            await asyncio.gather(*data_to_put)
 
     async def destroy(self) -> None:
         pass
+
+    async def __from_storage_to_file(self, url: str, path: str) -> None:
+        with open(path, "wb+") as file:
+            await cast(AsyncStorageClient,
+                       cast(LzyWorkflow, self.__workflow).owner.storage_registry.default_client()).read(url, file)
+
+    async def __from_file_to_storage(self, url: str, path: str) -> None:
+        with open(path, "rb") as file:
+            await cast(AsyncStorageClient,
+                       cast(LzyWorkflow, self.__workflow).owner.storage_registry.default_client()).write(url, file)
