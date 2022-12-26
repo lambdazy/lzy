@@ -1,6 +1,4 @@
 storage:
-  address: 'localhost:7780'
-
   iam:
     address: 'localhost:8443'
     internal-user-name: "lzy-internal-user"

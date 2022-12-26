@@ -25,8 +25,8 @@ from ai.lzy.v1.workflow.workflow_service_pb2 import (
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceStub
 from lzy.api.v1.remote.model import converter
 from lzy.api.v1.remote.model.converter.storage_creds import to
-from lzy.utils.grpc import add_headers_interceptor, build_channel
 from lzy.storage.api import AmazonCredentials, StorageConfig, StorageCredentials
+from lzy.utils.grpc import add_headers_interceptor, build_channel
 
 
 @dataclass

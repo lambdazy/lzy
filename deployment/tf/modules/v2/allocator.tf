@@ -146,8 +146,12 @@ resource "kubernetes_deployment" "allocator" {
             value = "15m"
           }
           env {
-            name = "ALLOCATOR_GC_PERIOD"
+            name = "ALLOCATOR_GC_CLEANUP_PERIOD"
             value = "1m"
+          }
+          env {
+            name = "ALLOCATOR_GC_LEASE_DURATION"
+            value = "30m"
           }
 
           env {

@@ -15,8 +15,8 @@ public class ServiceConfig {
     private int executorsCount;
     private Scheduler scheduler = new Scheduler();
 
-    @ConfigurationBuilder("auth")
-    private IamClientConfiguration auth = new IamClientConfiguration();
+    @ConfigurationBuilder("iam")
+    private IamClientConfiguration iam = new IamClientConfiguration();
 
     @ConfigurationBuilder("database")
     private DatabaseConfiguration database = new DatabaseConfiguration();

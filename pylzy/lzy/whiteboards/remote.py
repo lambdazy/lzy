@@ -54,11 +54,11 @@ class RemoteWhiteboardClient(WhiteboardClient):
         return resp.whiteboard
 
     async def list(
-            self,
-            name: Optional[str] = None,
-            tags: Sequence[str] = (),
-            not_before: Optional[datetime.datetime] = None,
-            not_after: Optional[datetime.datetime] = None
+        self,
+        name: Optional[str] = None,
+        tags: Sequence[str] = (),
+        not_before: Optional[datetime.datetime] = None,
+        not_after: Optional[datetime.datetime] = None
     ) -> Iterable[Whiteboard]:
         self.__start()
         if not_before is not None:
@@ -86,12 +86,12 @@ class RemoteWhiteboardClient(WhiteboardClient):
         return resp.whiteboards
 
     async def create_whiteboard(
-            self,
-            namespace: str,
-            name: str,
-            fields: Sequence[WhiteboardField],
-            storage_name: str,
-            tags: Sequence[str],
+        self,
+        namespace: str,
+        name: str,
+        fields: Sequence[WhiteboardField],
+        storage_name: str,
+        tags: Sequence[str],
     ) -> WhiteboardInstanceMeta:
         self.__start()
         res: CreateWhiteboardResponse = await self.__stub.CreateWhiteboard(
@@ -130,8 +130,8 @@ class RemoteWhiteboardClient(WhiteboardClient):
         )
 
     async def finalize(
-            self,
-            whiteboard_id: str
+        self,
+        whiteboard_id: str
     ):
         self.__start()
         await self.__stub.FinalizeWhiteboard(

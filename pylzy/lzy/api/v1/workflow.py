@@ -10,8 +10,6 @@ from typing import (
     Type,
     TypeVar, cast, )
 
-from lzy.whiteboards.api import WhiteboardField, WhiteboardDefaultDescription
-
 from lzy.api.v1.env import Env
 from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.provisioning import Provisioning
@@ -21,6 +19,7 @@ from lzy.api.v1.whiteboards import WritableWhiteboard, fetch_whiteboard_meta, Wb
 from lzy.proxy.result import Just
 from lzy.py_env.api import PyEnv
 from lzy.utils.event_loop import LzyEventLoop
+from lzy.whiteboards.api import WhiteboardField, WhiteboardDefaultDescription
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -37,16 +36,16 @@ class LzyWorkflow:
         return cls.instance
 
     def __init__(
-            self,
-            name: str,
-            owner: "Lzy",
-            namespace: Dict[str, Any],
-            snapshot: Snapshot,
-            env: Env,
-            *,
-            eager: bool = False,
-            provisioning: Provisioning = Provisioning.default(),
-            interactive: bool = True,
+        self,
+        name: str,
+        owner: "Lzy",
+        namespace: Dict[str, Any],
+        snapshot: Snapshot,
+        env: Env,
+        *,
+        eager: bool = False,
+        provisioning: Provisioning = Provisioning.default(),
+        interactive: bool = True,
     ):
         self.__snapshot = snapshot
         self.__name = name

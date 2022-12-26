@@ -1,11 +1,21 @@
 package ai.lzy.service.graph;
 
 import ai.lzy.v1.workflow.LWF.Operation.SlotDescription;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.util.*;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
+@JsonSerialize
+@JsonDeserialize
+@NoArgsConstructor
 class DataFlowGraph {
     record Node(
         String operationName,
@@ -15,17 +25,33 @@ class DataFlowGraph {
 
     private static final String edge = " -> ";
 
-    private final List<List<Integer>> graph;
-    private final ArrayList<Node> operations;
+    @JsonIgnore
+    private List<List<Integer>> graph;
+    @JsonIgnore
+    private ArrayList<Node> operations;
 
     // slot uri ---> (slot name, operation id)
-    private final Map<String, Map.Entry<String, Integer>> dataSuppliers;
-    private final Map<String, List<Map.Entry<String, Integer>>> dataConsumers;
+    @JsonIgnore
+    private Map<String, Map.Entry<String, Integer>> dataSuppliers;
+    @JsonIgnore
+    private Map<String, List<Map.Entry<String, Integer>>> dataConsumers;
 
     // slot uri ---> slots name
-    private final Map<String, List<String>> danglingInputSlots;
+    @JsonIgnore
+    private Map<String, List<String>> danglingInputSlots;
 
+    @JsonIgnore
     private List<Integer> cycle = null;
+
+    @JsonInclude
+    @Getter
+    @Setter
+    private List<Data> dataflow;
+
+    @JsonInclude
+    @Getter
+    @Setter
+    private String dotNotation;
 
     public DataFlowGraph(Collection<Node> operations) {
         this.operations = new ArrayList<>(operations);
@@ -75,15 +101,9 @@ class DataFlowGraph {
 
             graph.add(to);
         }
-    }
 
-    /**
-     * Returns map in which key is a slot uri and value is a list of associated input slots names
-     *
-     * @return -- slot uri ---> slot names
-     */
-    public Map<String, List<String>> getDanglingInputSlots() {
-        return danglingInputSlots;
+        dataflow = calculateDataFlow();
+        dotNotation = printDotNotation();
     }
 
     private int[] dfs(int v, int[] colors, int[] prev) {
@@ -145,11 +165,8 @@ class DataFlowGraph {
         return cycle.stream().map(i -> operations.get(i).operationName).collect(Collectors.joining(edge));
     }
 
-    @Override
-    public String toString() {
-        // prints operations graph in dot notation
-
-        List<Data> dataflow = getDataFlow();
+    private String printDotNotation() {
+        List<Data> dataflow = getDataflow();
         var stringBuilder = new StringBuilder("digraph {");
 
         for (var data : dataflow) {
@@ -176,6 +193,12 @@ class DataFlowGraph {
 
         stringBuilder.append("\n}");
         return stringBuilder.toString();
+    }
+
+    @Override
+    public String toString() {
+        // prints operations graph in dot notation
+        return dotNotation;
     }
 
     private String findSupplierOperationIdBy(String slotUri) {
@@ -205,8 +228,8 @@ class DataFlowGraph {
      */
     public record Data(String slotUri, @Nullable String supplier, @Nullable List<String> consumers) {}
 
-    public List<Data> getDataFlow() {
-        var dataFromOutput = dataSuppliers.entrySet().parallelStream()
+    private List<Data> calculateDataFlow() {
+        var dataFromOutput = dataSuppliers.entrySet().stream()
             .map(pair -> {
                 var supplierSlotUri = pair.getKey();
                 var supplierSlotName = pair.getValue().getKey();
@@ -225,7 +248,7 @@ class DataFlowGraph {
             })
             .toList();
 
-        var notFoundInOutput = danglingInputSlots.entrySet().parallelStream()
+        var notFoundInOutput = danglingInputSlots.entrySet().stream()
             .map(pair -> new Data(pair.getKey(), null, pair.getValue()))
             .toList();
 

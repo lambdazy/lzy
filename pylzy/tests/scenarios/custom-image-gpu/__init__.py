@@ -26,7 +26,6 @@ def train_custom_env(data: np.ndarray, target: np.ndarray) -> CatBoostClassifier
 
 WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
 
-
 if __name__ == "__main__":
     data = np.array([[0, 3], [4, 1], [8, 1], [9, 1]])
     labels = np.array([0, 0, 1, 1])

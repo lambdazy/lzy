@@ -1,6 +1,5 @@
 # noinspection PyPackageRequirements
 import numpy as np
-
 # noinspection PyPackageRequirements
 from catboost import CatBoostClassifier
 

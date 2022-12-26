@@ -113,7 +113,8 @@ public enum IdempotencyUtils {
         }
 
         if (!firstAttempt.equals(secondAttempt)) {
-            throw new RuntimeException("Second attempt result not equal to the first one");
+            throw new RuntimeException("Second attempt result not equal to the first one: first: "
+                + firstAttempt + " second: " + secondAttempt);
         }
 
         asserting.accept(firstAttempt);

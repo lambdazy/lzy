@@ -2,7 +2,9 @@ package ai.lzy.graph.db.impl;
 
 import ai.lzy.graph.db.QueueEventDao;
 import ai.lzy.graph.model.QueueEvent;
+import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Transaction;
+import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.DaoException;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -13,6 +15,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import javax.annotation.Nullable;
 
 @Singleton
 public class QueueEventDaoImpl implements QueueEventDao {
@@ -24,26 +27,29 @@ public class QueueEventDaoImpl implements QueueEventDao {
     }
 
     @Override
-    public void add(QueueEvent.Type type, String workflowId, String graphId, String description) throws SQLException {
-        try (var con = storage.connect();
-             var st = con.prepareStatement("""
+    public void add(QueueEvent.Type type, String workflowId, String graphId, String description,
+                    @Nullable TransactionHandle transaction) throws SQLException
+    {
+        DbOperation.execute(transaction, storage, connection -> {
+            try (var st = connection.prepareStatement("""
                 INSERT INTO queue_event (
                     id, type, workflow_id, graph_id, acquired, description
                 ) VALUES (?, ?::event_type, ?, ?, ?, ?)"""))
-        {
+            {
 
-            final QueueEvent event = new QueueEvent(
-                UUID.randomUUID().toString(), workflowId,
-                graphId, type, description
-            );
-            st.setString(1, event.id());
-            st.setString(2, event.type().name());
-            st.setString(3, event.workflowId());
-            st.setString(4, event.graphId());
-            st.setBoolean(5, false);
-            st.setString(6, event.description());
-            st.execute();
-        }
+                final QueueEvent event = new QueueEvent(
+                    UUID.randomUUID().toString(), workflowId,
+                    graphId, type, description
+                );
+                st.setString(1, event.id());
+                st.setString(2, event.type().name());
+                st.setString(3, event.workflowId());
+                st.setString(4, event.graphId());
+                st.setBoolean(5, false);
+                st.setString(6, event.description());
+                st.execute();
+            }
+        });
     }
 
     @Override
@@ -79,7 +85,7 @@ public class QueueEventDaoImpl implements QueueEventDao {
             }
 
             try (var st = con.prepareStatement("UPDATE queue_event SET acquired = true WHERE id = ?")) {
-                for (QueueEvent event: ret) {
+                for (QueueEvent event : ret) {
                     st.setString(1, event.id());
                     st.addBatch();
                 }

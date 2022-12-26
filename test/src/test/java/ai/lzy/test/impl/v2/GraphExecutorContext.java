@@ -32,7 +32,11 @@ public class GraphExecutorContext  {
     public GraphExecutorContext(SchedulerContext scheduler, IamContext iam) {
 
         this.address = HostAndPort.fromParts("localhost", GRAPH_EXECUTOR_PORT);
-        final var opts = Utils.createModuleDatabase("graph-executor");
+        final var dbOpts = Utils.createModuleDatabase("graph-executor");
+        var opts = Utils.loadModuleTestProperties("graph-executor");
+
+        opts.putAll(dbOpts);
+
         opts.putAll(new HashMap<String, Object>(Map.of(
                 "graph-executor.port", GRAPH_EXECUTOR_PORT,
                 "graph-executor.executors-count", 1,
@@ -40,6 +44,7 @@ public class GraphExecutorContext  {
                 "graph-executor.scheduler.port", scheduler.address().getPort(),
                 "graph-executor.iam.address", iam.address()
         )));
+
         this.context = ApplicationContext.run(opts);
         graphExecutor = context.getBean(GraphExecutorApi.class);
         try {

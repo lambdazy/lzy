@@ -42,4 +42,3 @@ class LzyEventLoop:
     @staticmethod
     async def __gather(*args: Awaitable[T]) -> Sequence[T]:
         return await asyncio.gather(*args)
-

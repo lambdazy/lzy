@@ -209,6 +209,12 @@ public class Worker {
         } catch (Exception e) {
             LOG.error("Error while executing: " + String.join(" ", args), e);
             return -1;
+        } finally {
+            try {
+                Thread.sleep(10);  // Sleep some time to wait for all logs to be written
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 

@@ -14,6 +14,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.sql.SQLException;
+import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
@@ -87,7 +88,7 @@ public class WorkflowTest extends BaseTest {
     }
 
     @Test
-    public void testPortalStartedWhileCreatingWorkflow() {
+    public void testPortalStartedWhileCreatingWorkflow() throws InterruptedException {
         WorkflowService.PEEK_RANDOM_PORTAL_PORTS = false;
         authorizedWorkflowClient.startExecution(
             LWFS.StartExecutionRequest.newBuilder().setWorkflowName("workflow_1").build());
@@ -98,5 +99,8 @@ public class WorkflowTest extends BaseTest {
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> internalUserCredentials.get().token()));
 
         portalClient.status(LzyPortalApi.PortalStatusRequest.newBuilder().build());
+
+        portalChannel.shutdown();
+        portalChannel.awaitTermination(5, TimeUnit.SECONDS);
     }
 }

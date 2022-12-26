@@ -96,6 +96,15 @@ CREATE TABLE operation
 
 CREATE UNIQUE INDEX idempotency_key_to_operation_index ON operation (idempotency_key);
 
+CREATE TABLE graph_op_state
+(
+    op_id      TEXT NOT NULL PRIMARY KEY,
+    state_json TEXT NOT NULL, -- some operation specific state
+    owner_id   TEXT NOT NULL, -- instance that created the op
+
+    FOREIGN KEY (op_id) REFERENCES operation (id)
+);
+
 CREATE TABLE garbage_collectors
 (
     gc_instance_id TEXT NOT NULL PRIMARY KEY,

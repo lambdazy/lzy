@@ -10,18 +10,19 @@ import ai.lzy.graph.queue.QueueManager;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
+import ai.lzy.longrunning.IdempotencyUtils;
+import ai.lzy.longrunning.Operation;
+import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.graph.GraphExecutor;
 import ai.lzy.v1.graph.GraphExecutorApi.*;
 import ai.lzy.v1.graph.GraphExecutorGrpc;
-import io.grpc.ManagedChannel;
-import io.grpc.Server;
-import io.grpc.ServerInterceptors;
-import io.grpc.Status;
-import io.grpc.StatusException;
+import com.google.protobuf.Any;
+import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
+import jakarta.annotation.PreDestroy;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -29,10 +30,15 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
+import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOpResult;
+import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
+import static ai.lzy.util.grpc.ProtoConverter.toProto;
 
 @Singleton
 public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
@@ -42,6 +48,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
 
     private final ManagedChannel iamChannel;
     private final GraphExecutionDao dao;
+    private final OperationDao operationDao;
     private final GraphBuilder graphBuilder;
     private final ServiceConfig config;
     private final QueueManager queueManager;
@@ -50,13 +57,15 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
     private Server server;
 
     @Inject
-    public GraphExecutorApi(GraphExecutionDao dao, ServiceConfig config,
+    public GraphExecutorApi(ServiceConfig config, GraphExecutionDao dao,
+                            @Named("GraphExecutorOperationDao") OperationDao operationDao,
                             @Named("GraphExecutorIamGrpcChannel") ManagedChannel iamChannel,
                             @Named("GraphExecutorIamToken") RenewableJwt iamToken,
                             GraphBuilder graphBuilder, QueueManager queueManager, SchedulerApi schedulerApi)
     {
         this.iamChannel = iamChannel;
         this.dao = dao;
+        this.operationDao = operationDao;
         this.config = config;
         this.graphBuilder = graphBuilder;
         this.queueManager = queueManager;
@@ -69,25 +78,76 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
             return;
         }
 
+        Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+        if (idempotencyKey != null &&
+            loadExistingOpResult(operationDao, idempotencyKey, responseObserver, GraphExecuteResponse.class,
+                Duration.ofMillis(100), Duration.ofSeconds(5), LOG))
+        {
+            return;
+        }
+
         final GraphDescription graph = GraphDescription.fromGrpc(request.getTasksList(), request.getChannelsList());
         try {
             graphBuilder.validate(graph);
         } catch (GraphBuilder.GraphValidationException e) {
-            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
+            LOG.error("Graph did not pass validation: { graph: {}, error: {} }", graph, e.getMessage());
+            var errorStatus = Status.INVALID_ARGUMENT.withDescription(e.getMessage());
+            responseObserver.onError(errorStatus.asException());
             return;
         }
+
+        var op = Operation.create(
+            request.getUserId(),
+            "Execute graph of execution: executionId='%s'".formatted(request.getWorkflowId()),
+            idempotencyKey,
+            /* meta */ null);
+
         final GraphExecutionState graphExecution;
         try {
             graphExecution = queueManager.startGraph(request.getWorkflowId(), request.getWorkflowName(),
-                request.getUserId(), graph);
+                request.getUserId(), graph, op);
         } catch (StatusException e) {
-            LOG.error("Cannot create graph for workflow <" + request.getWorkflowId() + ">", e);
+            LOG.error("Error while adding start graph event from workflow <{}>", request.getWorkflowId(), e);
             responseObserver.onError(e);
             return;
+        } catch (Exception e) {
+            if (idempotencyKey != null && handleIdempotencyKeyConflict(idempotencyKey, e, operationDao,
+                responseObserver, GraphExecuteResponse.class, Duration.ofMillis(100), Duration.ofSeconds(5), LOG))
+            {
+                return;
+            }
+
+            LOG.error("Cannot create graph for workflow <" + request.getWorkflowId() + ">", e);
+
+            var status = Status.INTERNAL.withDescription(e.getMessage());
+            responseObserver.onError(status.asException());
+            return;
         }
-        responseObserver.onNext(GraphExecuteResponse.newBuilder()
+
+        var response = GraphExecuteResponse.newBuilder()
             .setStatus(graphExecution.toGrpc(schedulerApi))
-            .build());
+            .build();
+        var packed = Any.pack(response);
+
+        try {
+            withRetries(LOG, () -> operationDao.updateResponse(op.id(), packed.toByteArray(), null));
+        } catch (Exception e) {
+            LOG.error("Error while executing transaction: {}", e.getMessage(), e);
+
+            try {
+                queueManager.stopGraph(request.getWorkflowId(), graphExecution.id(),
+                    "Cancel graph because of exception occurs in operation dao: " + e.getMessage());
+            } catch (StatusException ex) {
+                LOG.warn("Cannot stop graph because of error {} in operation dao: {}", e.getMessage(), ex.getMessage());
+            }
+
+            var errorStatus = Status.INTERNAL.withDescription("Error while execute graph: " + e.getMessage());
+            operationDao.failOperation(op.id(), toProto(errorStatus), LOG);
+            responseObserver.onError(errorStatus.asRuntimeException());
+            return;
+        }
+
+        responseObserver.onNext(response);
         responseObserver.onCompleted();
     }
 
@@ -184,6 +244,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
         return true;
     }
 
+    @PreDestroy
     public void close() {
         LOG.info("Closing GraphExecutor");
         if (server != null) {
@@ -202,8 +263,8 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
         server =
             newGrpcServer("0.0.0.0", config.getPort(),
                 new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel)))
-            .addService(ServerInterceptors.intercept(this, internalUserOnly))
-            .build();
+                .addService(ServerInterceptors.intercept(this, internalUserOnly))
+                .build();
 
         server.start();
 
@@ -238,5 +299,4 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
             }
         }
     }
-
 }
