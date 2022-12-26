@@ -149,9 +149,9 @@ class LocalRuntime(Runtime):
     async def __from_storage_to_file(self, url: str, path: str) -> None:
         with open(path, "wb+") as file:
             await cast(AsyncStorageClient,
-                       cast(LzyWorkflow, self.__workflow).owner.storage_registry.default_client()).read(url, file)
+                       cast("LzyWorkflow", self.__workflow).owner.storage_registry.default_client()).read(url, file)
 
     async def __from_file_to_storage(self, url: str, path: str) -> None:
         with open(path, "rb") as file:
             await cast(AsyncStorageClient,
-                       cast(LzyWorkflow, self.__workflow).owner.storage_registry.default_client()).write(url, file)
+                       cast("LzyWorkflow", self.__workflow).owner.storage_registry.default_client()).write(url, file)
