@@ -99,7 +99,7 @@ public abstract class ChannelAction implements Runnable {
         }
 
         try {
-            workflowPrivateApi.stopWorkflow(LWFPS.StopWorkflowRequest.newBuilder()
+            workflowPrivateApi.stopExecution(LWFPS.StopExecutionRequest.newBuilder()
                 .setExecutionId(executionId)
                 .setReason(status.getDescription())
                 .build());

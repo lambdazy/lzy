@@ -1,0 +1,343 @@
+package ai.lzy.service.workflow;
+
+import ai.lzy.iam.resources.AccessBinding;
+import ai.lzy.iam.resources.Role;
+import ai.lzy.iam.resources.credentials.SubjectCredentials;
+import ai.lzy.iam.resources.impl.Workflow;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.CredentialsType;
+import ai.lzy.iam.resources.subjects.SubjectType;
+import ai.lzy.model.Constants;
+import ai.lzy.model.db.exceptions.AlreadyExistsException;
+import ai.lzy.model.utils.FreePortFinder;
+import ai.lzy.service.data.PortalStatus;
+import ai.lzy.util.auth.credentials.RsaUtils;
+import ai.lzy.v1.VmAllocatorApi;
+import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.longrunning.LongRunning;
+import ai.lzy.v1.storage.LSS;
+import ai.lzy.v1.workflow.LWFS;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.Durations;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
+import io.micronaut.core.util.StringUtils;
+import jakarta.annotation.Nullable;
+
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import static ai.lzy.channelmanager.ProtoConverter.makeCreateChannelCommand;
+import static ai.lzy.iam.grpc.context.AuthenticationContext.currentSubject;
+import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
+import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
+import static ai.lzy.model.db.DbHelper.withRetries;
+import static ai.lzy.service.workflow.WorkflowService.LOG;
+import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
+
+final class StartExecutionCompanion {
+    private final LWFS.StartExecutionRequest request;
+    private final CreateExecutionState state;
+    private final WorkflowService owner;
+
+    StartExecutionCompanion(LWFS.StartExecutionRequest request, CreateExecutionState initial, WorkflowService owner) {
+        this.request = request;
+        this.state = initial;
+        this.owner = owner;
+    }
+
+    static StartExecutionCompanion of(LWFS.StartExecutionRequest request, WorkflowService owner) {
+        var initState = new CreateExecutionState(currentSubject().id(), request.getWorkflowName());
+        return new StartExecutionCompanion(request, initState, owner);
+    }
+
+    public boolean isInvalid() {
+        return state.isInvalid();
+    }
+
+    @Nullable
+    public Status getErrorStatus() {
+        return state.getErrorStatus();
+    }
+
+    public String getExecutionId() {
+        return state.getExecutionId();
+    }
+
+    public CreateExecutionState getState() {
+        return state;
+    }
+
+    public void setStorage() {
+        var internalSnapshotStorage = !request.hasSnapshotStorage();
+        state.setStorageType(internalSnapshotStorage);
+
+        if (internalSnapshotStorage) {
+            try {
+                var bucketName = "tmp-bucket-" + state.getUserId();
+
+                LOG.info("Creating new temporary storage bucket: { bucketName: {}, userId: {} }",
+                    bucketName, state.getUserId());
+
+                var idempotencyKey = UUID.randomUUID().toString();
+                LongRunning.Operation createOp = withIdempotencyKey(owner.storageServiceClient, idempotencyKey)
+                    .createS3Bucket(LSS.CreateS3BucketRequest.newBuilder()
+                        .setUserId(state.getUserId())
+                        .setBucket(bucketName)
+                        .build());
+
+                createOp = awaitOperationDone(owner.storageOpService, createOp.getId(), owner.bucketCreationTimeout);
+
+                if (!createOp.getDone()) {
+                    state.fail(Status.DEADLINE_EXCEEDED, "Cannot wait create bucket operation response: { opId: {} }" +
+                        createOp.getId());
+                    return;
+                }
+
+                if (createOp.hasError()) {
+                    var status = createOp.getError();
+                    state.fail(Status.fromCodeValue(status.getCode()), "Cannot process create S3 bucket operation: " +
+                        "{ operationId: %s }, error: %s".formatted(createOp.getId(), status.getMessage()));
+                    return;
+                }
+
+                LSS.CreateS3BucketResponse response = createOp.getResponse().unpack(LSS.CreateS3BucketResponse.class);
+
+                var s3Locator = switch (response.getCredentialsCase()) {
+                    case AMAZON -> LMS3.S3Locator.newBuilder().setAmazon(response.getAmazon()).setBucket(bucketName)
+                        .build();
+                    case AZURE -> LMS3.S3Locator.newBuilder().setAzure(response.getAzure()).setBucket(bucketName)
+                        .build();
+                    default -> {
+                        LOG.error("Unsupported bucket storage type {}", response.getCredentialsCase());
+                        deleteTempUserBucket(bucketName);
+                        yield null;
+                    }
+                };
+
+                if (s3Locator == null) {
+                    state.fail(Status.INTERNAL, "Cannot create temp bucket");
+                    return;
+                }
+
+                state.setStorageLocator(s3Locator);
+            } catch (StatusRuntimeException e) {
+                state.fail(e.getStatus(), "Cannot create temp bucket: " + e.getMessage());
+            } catch (InvalidProtocolBufferException e) {
+                LOG.error("Cannot deserialize create S3 bucket response from operation: " + e.getMessage());
+                state.fail(Status.INTERNAL, "Cannot create temp bucket: " + e.getMessage());
+            }
+        } else {
+            var userStorage = request.getSnapshotStorage();
+            if (userStorage.getEndpointCase() == LMS3.S3Locator.EndpointCase.ENDPOINT_NOT_SET) {
+                state.fail(Status.INVALID_ARGUMENT, "Snapshot storage not set");
+            } else {
+                state.setStorageLocator(userStorage);
+            }
+        }
+    }
+
+    private void deleteTempUserBucket(String bucket) {
+        if (StringUtils.isEmpty(bucket)) {
+            return;
+        }
+
+        LOG.info("Deleting temp storage bucket '{}'", bucket);
+
+        try {
+            @SuppressWarnings("unused")
+            var resp = owner.storageServiceClient.deleteS3Bucket(
+                LSS.DeleteS3BucketRequest.newBuilder()
+                    .setBucket(bucket)
+                    .build());
+        } catch (StatusRuntimeException e) {
+            LOG.error("Can't delete temp bucket '{}': ({}) {}", bucket, e.getStatus(), e.getMessage(), e);
+        }
+    }
+
+    public void saveToDao() {
+        try {
+            withRetries(defaultRetryPolicy(), LOG, () ->
+                owner.workflowDao.create(state.getExecutionId(), state.getUserId(), state.getWorkflowName(),
+                    state.getStorageType().name(), state.getStorageLocator()));
+        } catch (AlreadyExistsException e) {
+            LOG.error("Error while creating execution state in dao", e);
+            state.fail(Status.ALREADY_EXISTS, "Cannot create execution: " + e.getMessage());
+        } catch (Exception e) {
+            LOG.error("Error while creating execution state in dao", e);
+            state.fail(Status.INTERNAL, "Cannot create execution: " + e.getMessage());
+        }
+    }
+
+    public void startPortal(String dockerImage, int portalPort, int slotsApiPort,
+                            String stdoutChannelName, String stderrChannelName,
+                            String channelManagerAddress, String iamAddress, String whiteboardAddress,
+                            Duration allocationTimeout, Duration allocateVmCacheTimeout)
+    {
+        try {
+            withRetries(defaultRetryPolicy(), LOG, () ->
+                owner.workflowDao.updateStatus(state.getExecutionId(), PortalStatus.CREATING_STD_CHANNELS));
+
+            createPortalStdChannels(stdoutChannelName, stderrChannelName);
+
+            withRetries(defaultRetryPolicy(), LOG, () -> owner.workflowDao.updateStdChannelIds(
+                state.getExecutionId(), state.getStdoutChannelId(), state.getStderrChannelId()));
+
+            createAllocatorSession(allocateVmCacheTimeout);
+
+            state.setPortalId("portal_" + state.getExecutionId() + UUID.randomUUID());
+
+            withRetries(defaultRetryPolicy(), LOG, () -> owner.workflowDao.updateAllocatorSession(
+                state.getExecutionId(), state.getSessionId(), state.getPortalId()));
+
+            var allocateVmOp = startAllocation(dockerImage, channelManagerAddress, iamAddress,
+                whiteboardAddress, portalPort, slotsApiPort);
+            var opId = allocateVmOp.getId();
+
+            VmAllocatorApi.AllocateMetadata allocateMetadata;
+            try {
+                allocateMetadata = allocateVmOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
+            } catch (InvalidProtocolBufferException e) {
+                state.fail(Status.INTERNAL,
+                    "Invalid allocate operation metadata: VM id missed. Operation id: " + opId);
+                return;
+            }
+            var vmId = allocateMetadata.getVmId();
+
+            withRetries(defaultRetryPolicy(), LOG,
+                () -> owner.workflowDao.updateAllocateOperationData(state.getExecutionId(), opId, vmId));
+
+            allocateVmOp = awaitOperationDone(owner.allocOpService, opId, allocationTimeout);
+
+            if (!allocateVmOp.getDone()) {
+                state.fail(Status.DEADLINE_EXCEEDED,
+                    "Cannot wait allocate operation response. Operation id: " + opId);
+                return;
+            }
+
+            if (allocateVmOp.hasError()) {
+                var status = allocateVmOp.getError();
+                state.fail(Status.fromCodeValue(status.getCode()), "Cannot process allocate vm operation: " +
+                    "{ operationId: %s }, error: %s".formatted(allocateVmOp.getId(), status.getMessage()));
+                return;
+            }
+
+            var allocateResponse = allocateVmOp.getResponse().unpack(VmAllocatorApi.AllocateResponse.class);
+
+            withRetries(defaultRetryPolicy(), LOG, () -> owner.workflowDao.updateAllocatedVmAddress(
+                state.getExecutionId(),
+                allocateResponse.getMetadataOrDefault(Constants.PORTAL_ADDRESS_KEY, null),
+                allocateResponse.getMetadataOrDefault(Constants.FS_ADDRESS_KEY, null)
+            ));
+
+        } catch (StatusRuntimeException e) {
+            LOG.error("Cannot start portal", e);
+            state.fail(e.getStatus(), "Cannot start portal");
+        } catch (InvalidProtocolBufferException e) {
+            LOG.error("Cannot deserialize allocate response from operation: " + e.getMessage());
+            state.fail(Status.INTERNAL, "Cannot start portal: " + e.getMessage());
+        } catch (Exception e) {
+            state.fail(Status.INTERNAL, "Cannot start portal: " + e.getMessage());
+        }
+    }
+
+    // create channels thar receive portal stdout/stderr
+    private void createPortalStdChannels(String stdoutName, String stderrName) {
+        LOG.info("Creating portal stdout channel: { channelName: {} }", stdoutName);
+
+        var stdoutChannelId = owner.channelManagerClient.create(makeCreateChannelCommand(state.getUserId(),
+            state.getWorkflowName(), state.getExecutionId(), stdoutName)).getChannelId();
+        state.setStdoutChannelId(stdoutChannelId);
+
+        LOG.info("Creating portal stderr channel: { channelName: {} }", stderrName);
+
+        var stderrChannelId = owner.channelManagerClient.create(makeCreateChannelCommand(state.getUserId(),
+            state.getWorkflowName(), state.getExecutionId(), stderrName)).getChannelId();
+        state.setStderrChannelId(stderrChannelId);
+    }
+
+    public void createAllocatorSession(Duration allocatorVmCacheTimeout) {
+        LOG.info("Creating session for: { userId: {}, workflowName: {}, executionId: {} }", state.getUserId(),
+            state.getWorkflowName(), state.getExecutionId());
+
+        var op = withIdempotencyKey(owner.allocatorClient, state.getExecutionId())
+            .createSession(
+                VmAllocatorApi.CreateSessionRequest.newBuilder()
+                    .setOwner(state.getUserId())
+                    .setDescription(state.getExecutionId())
+                    .setCachePolicy(
+                        VmAllocatorApi.CachePolicy.newBuilder()
+                            .setIdleTimeout(Durations.fromSeconds(allocatorVmCacheTimeout.getSeconds()))
+                            .build())
+                    .build());
+
+        if (op.getDone()) {
+            try {
+                state.setSessionId(op.getResponse().unpack(VmAllocatorApi.CreateSessionResponse.class).getSessionId());
+            } catch (InvalidProtocolBufferException e) {
+                LOG.error("Cannot parse CreateSessionResponse", e);
+            }
+        } else {
+            LOG.error(
+                "Unexpected create session operation state for: { userId: {}, workflowName: {}, executionId: {} }",
+                state.getUserId(), state.getWorkflowName(), state.getExecutionId());
+        }
+
+        if (state.getSessionId() == null) {
+            state.fail(Status.INTERNAL, "Cannot create allocator session");
+        }
+    }
+
+    public LongRunning.Operation startAllocation(String dockerImage, String channelManagerAddress, String iamAddress,
+                                                 String whiteboardAddress, int portalPort, int slotsApiPort)
+    {
+        String privateKey;
+        try {
+            var workerKeys = RsaUtils.generateRsaKeys();
+            privateKey = workerKeys.privateKey();
+
+            var subj = owner.subjectClient.createSubject(AuthProvider.INTERNAL, state.getPortalId(), SubjectType.WORKER,
+                new SubjectCredentials("main", workerKeys.publicKey(), CredentialsType.PUBLIC_KEY));
+
+            owner.abClient.setAccessBindings(new Workflow(state.getUserId() + "/" + state.getWorkflowName()),
+                List.of(new AccessBinding(Role.LZY_WORKFLOW_OWNER, subj)));
+        } catch (Exception e) {
+            LOG.error("Cannot build credentials for portal, workflow <{}/{}>", state.getUserId(),
+                state.getWorkflowName(), e);
+            throw new RuntimeException(e);
+        }
+
+        var actualPortalPort = (portalPort == -1) ? FreePortFinder.find(10000, 11000) : portalPort;
+        var actualSlotsApiPort = (slotsApiPort == -1) ? FreePortFinder.find(11000, 12000) : slotsApiPort;
+
+        var args = List.of(
+            "-portal.portal-id=" + state.getPortalId(),
+            "-portal.portal-api-port=" + actualPortalPort,
+            "-portal.slots-api-port=" + actualSlotsApiPort,
+            "-portal.stdout-channel-id=" + state.getStdoutChannelId(),
+            "-portal.stderr-channel-id=" + state.getStderrChannelId(),
+            "-portal.channel-manager-address=" + channelManagerAddress,
+            "-portal.iam-address=" + iamAddress,
+            "-portal.whiteboard-address=" + whiteboardAddress);
+
+        var portalEnvPKEY = "LZY_PORTAL_PKEY";
+        var ports = Map.of(actualSlotsApiPort, actualSlotsApiPort, actualPortalPort, actualPortalPort);
+
+        return withIdempotencyKey(owner.allocatorClient, "portal-" + state.getExecutionId()).allocate(
+            VmAllocatorApi.AllocateRequest.newBuilder()
+                .setSessionId(state.getSessionId())
+                .setPoolLabel("portals")
+                .setZone("default")
+                .addWorkload(
+                    VmAllocatorApi.AllocateRequest.Workload.newBuilder()
+                        .setName("portal")
+                        .setImage(dockerImage)
+                        .addAllArgs(args)
+                        .putEnv(portalEnvPKEY, privateKey)
+                        .putAllPortBindings(ports)
+                        .build())
+                .build());
+    }
+}

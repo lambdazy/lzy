@@ -13,10 +13,7 @@ import io.grpc.Server;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.Timeout;
 
 import java.io.IOException;
@@ -28,6 +25,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
 
+@Ignore
 public class GarbageCollectorTest extends BaseTest {
     private final List<Server> lzyServers = new ArrayList<>();
     private final List<ApplicationContext> lzyContexts = new ArrayList<>();
@@ -68,7 +66,7 @@ public class GarbageCollectorTest extends BaseTest {
 
 
         var workflowName = "workflow_" + numOfInstances;
-        var executionId = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
+        var executionId = authorizedWorkflowClient.startExecution(LWFS.StartExecutionRequest.newBuilder()
             .setWorkflowName(workflowName).build()).getExecutionId();
 
         createSession.take();
@@ -131,7 +129,7 @@ public class GarbageCollectorTest extends BaseTest {
 
         var workflowName = "workflow_" + numOfInstances;
         Assert.assertThrows(StatusRuntimeException.class, () ->
-            authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
+            authorizedWorkflowClient.startExecution(LWFS.StartExecutionRequest.newBuilder()
                 .setWorkflowName(workflowName).build()).getExecutionId());
 
         createSession.take();
@@ -179,7 +177,7 @@ public class GarbageCollectorTest extends BaseTest {
         var workflowName = "workflow_" + numOfInstances;
 
         Assert.assertThrows(StatusRuntimeException.class, () ->
-            authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
+            authorizedWorkflowClient.startExecution(LWFS.StartExecutionRequest.newBuilder()
                 .setWorkflowName(workflowName).build()).getExecutionId());
         createSession.take();
 

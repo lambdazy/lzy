@@ -30,11 +30,7 @@ import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -172,23 +168,11 @@ public class BaseTest {
 
         var thrown = new ArrayList<StatusRuntimeException>() {
             {
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedWorkflowClient.createWorkflow(
-                    LWFS.CreateWorkflowRequest.newBuilder().setWorkflowName(workflowName).build())));
+                add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedWorkflowClient.startExecution(
+                    LWFS.StartExecutionRequest.newBuilder().setWorkflowName(workflowName).build())));
 
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedWorkflowClient.deleteWorkflow(
-                    LWFS.DeleteWorkflowRequest.newBuilder().setWorkflowName(workflowName).build())));
-
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedWorkflowClient.attachWorkflow(
-                    LWFS.AttachWorkflowRequest.newBuilder()
-                        .setWorkflowName(workflowName)
-                        .setExecutionId(executionId)
-                        .build())));
-
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedWorkflowClient.finishWorkflow(
-                    LWFS.FinishWorkflowRequest.newBuilder()
-                        .setWorkflowName(workflowName)
-                        .setExecutionId(executionId)
-                        .setReason("my will").build())));
+                add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedWorkflowClient.finishExecution(
+                    LWFS.FinishExecutionRequest.newBuilder().setExecutionId(executionId).build())));
 
                 add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedWorkflowClient.executeGraph(
                     LWFS.ExecuteGraphRequest.newBuilder()
@@ -230,24 +214,11 @@ public class BaseTest {
 
         var thrown = new ArrayList<StatusRuntimeException>() {
             {
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> client.createWorkflow(
-                    LWFS.CreateWorkflowRequest.newBuilder().setWorkflowName(workflowName).build())));
+                add(Assert.assertThrows(StatusRuntimeException.class, () -> client.startExecution(
+                    LWFS.StartExecutionRequest.newBuilder().setWorkflowName(workflowName).build())));
 
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> client.deleteWorkflow(
-                    LWFS.DeleteWorkflowRequest.newBuilder().setWorkflowName(workflowName).build())));
-
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> client.attachWorkflow(
-                    LWFS.AttachWorkflowRequest.newBuilder()
-                        .setWorkflowName(workflowName)
-                        .setExecutionId(executionId)
-                        .build())));
-
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> client.finishWorkflow(
-                    LWFS.FinishWorkflowRequest.newBuilder()
-                        .setWorkflowName(workflowName)
-                        .setExecutionId(executionId)
-                        .setReason("my will")
-                        .build())));
+                add(Assert.assertThrows(StatusRuntimeException.class, () -> client.finishExecution(
+                    LWFS.FinishExecutionRequest.newBuilder().setExecutionId(executionId).build())));
 
                 add(Assert.assertThrows(StatusRuntimeException.class, () -> client.executeGraph(
                     LWFS.ExecuteGraphRequest.newBuilder()

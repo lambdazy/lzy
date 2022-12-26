@@ -26,18 +26,15 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     }
 
     @Override
-    public void createWorkflow(CreateWorkflowRequest request, StreamObserver<CreateWorkflowResponse> responseObserver) {
-        workflowService.createWorkflow(request, responseObserver);
+    public void startExecution(StartExecutionRequest request, StreamObserver<StartExecutionResponse> responseObserver) {
+        workflowService.startExecution(request, responseObserver);
     }
 
     @Override
-    public void attachWorkflow(AttachWorkflowRequest request, StreamObserver<AttachWorkflowResponse> responseObserver) {
-        workflowService.attachWorkflow(request, responseObserver);
-    }
-
-    @Override
-    public void finishWorkflow(FinishWorkflowRequest request, StreamObserver<FinishWorkflowResponse> responseObserver) {
-        workflowService.finishWorkflow(request, responseObserver);
+    public void finishExecution(FinishExecutionRequest request,
+                                StreamObserver<FinishExecutionResponse> responseObserver)
+    {
+        workflowService.finishExecution(request, responseObserver);
     }
 
     @Override

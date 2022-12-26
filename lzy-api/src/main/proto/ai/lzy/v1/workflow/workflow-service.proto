@@ -10,10 +10,8 @@ option java_outer_classname = "LWFS";
 option java_package = "ai.lzy.v1.workflow";
 
 service LzyWorkflowService {
-  rpc CreateWorkflow (CreateWorkflowRequest) returns (CreateWorkflowResponse);
-  rpc AttachWorkflow (AttachWorkflowRequest) returns (AttachWorkflowResponse);
-  rpc FinishWorkflow (FinishWorkflowRequest) returns (FinishWorkflowResponse);
-  rpc DeleteWorkflow (DeleteWorkflowRequest) returns (DeleteWorkflowResponse);
+  rpc StartExecution (StartExecutionRequest) returns (StartExecutionResponse);
+  rpc FinishExecution (FinishExecutionRequest) returns (FinishExecutionResponse);
 
   rpc ExecuteGraph (ExecuteGraphRequest) returns (ExecuteGraphResponse);
   rpc GraphStatus (GraphStatusRequest) returns (GraphStatusResponse);
@@ -24,41 +22,24 @@ service LzyWorkflowService {
   rpc GetAvailablePools (GetAvailablePoolsRequest) returns (GetAvailablePoolsResponse);
 }
 
-message CreateWorkflowRequest {
+message StartExecutionRequest {
   string workflowName = 1;
 
   // if not set then internal SnapshotStorage is created
   /* optional */ S3Locator snapshotStorage = 2;
 }
 
-message CreateWorkflowResponse {
+message StartExecutionResponse {
   string executionId = 1;
   /* optional */ S3Locator internalSnapshotStorage = 2;
 }
 
-message AttachWorkflowRequest {
-  string workflowName = 1;
-  string executionId = 2;
+message FinishExecutionRequest {
+  string executionId = 1;
+  string reason = 2;
 }
 
-message AttachWorkflowResponse {
-}
-
-message FinishWorkflowRequest {
-  string workflowName = 1;
-  string executionId = 2;
-  string reason = 3;
-}
-
-message FinishWorkflowResponse {
-}
-
-message DeleteWorkflowRequest {
-  string workflowName = 1;
-}
-
-message DeleteWorkflowResponse {
-}
+message FinishExecutionResponse {}
 
 // ==================== ExecuteGraph =====================
 

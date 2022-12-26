@@ -20,11 +20,11 @@ import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 @SuppressWarnings("ResultOfMethodCallIgnored")
 public class WorkflowTest extends BaseTest {
     @Test
-    public void createWorkflow() {
-        authorizedWorkflowClient.createWorkflow(
-            LWFS.CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build());
+    public void startExecution() {
+        authorizedWorkflowClient.startExecution(
+            LWFS.StartExecutionRequest.newBuilder().setWorkflowName("workflow_1").build());
         var thrown = Assert.assertThrows(StatusRuntimeException.class, () -> authorizedWorkflowClient
-            .createWorkflow(LWFS.CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build()));
+            .startExecution(LWFS.StartExecutionRequest.newBuilder().setWorkflowName("workflow_1").build()));
 
         var expectedStatusCode = Status.ALREADY_EXISTS.getCode();
 
@@ -36,8 +36,8 @@ public class WorkflowTest extends BaseTest {
         shutdownStorage();
 
         var thrown = Assert.assertThrows(StatusRuntimeException.class, () ->
-            authorizedWorkflowClient.createWorkflow(
-                LWFS.CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build()));
+            authorizedWorkflowClient.startExecution(
+                LWFS.StartExecutionRequest.newBuilder().setWorkflowName("workflow_1").build()));
 
         var expectedErrorCode = Status.UNAVAILABLE.getCode();
 
@@ -45,9 +45,9 @@ public class WorkflowTest extends BaseTest {
     }
 
     @Test
-    public void createWorkflowFailedWithUserStorageMissedEndpoint() {
+    public void startExecutionFailedWithUserStorageMissedEndpoint() {
         var thrown = Assert.assertThrows(StatusRuntimeException.class, () ->
-            authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
+            authorizedWorkflowClient.startExecution(LWFS.StartExecutionRequest.newBuilder()
                 .setWorkflowName("workflow_1")
                 .setSnapshotStorage(LMS3.S3Locator.newBuilder()
                     .setKey("some-valid-key")
@@ -61,27 +61,24 @@ public class WorkflowTest extends BaseTest {
     }
 
     @Test
-    public void finishWorkflow() {
-        var executionId = authorizedWorkflowClient.createWorkflow(
-            LWFS.CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_2").build()
+    public void finishExecution() {
+        var executionId = authorizedWorkflowClient.startExecution(
+            LWFS.StartExecutionRequest.newBuilder().setWorkflowName("workflow_2").build()
         ).getExecutionId();
 
-        authorizedWorkflowClient.finishWorkflow(
-            LWFS.FinishWorkflowRequest.newBuilder()
-                .setWorkflowName("workflow_2")
+        authorizedWorkflowClient.finishExecution(
+            LWFS.FinishExecutionRequest.newBuilder()
                 .setExecutionId(executionId)
                 .build());
 
         var thrownAlreadyFinished = Assert.assertThrows(StatusRuntimeException.class, () ->
-            authorizedWorkflowClient.finishWorkflow(LWFS.FinishWorkflowRequest.newBuilder()
-                .setWorkflowName("workflow_2")
+            authorizedWorkflowClient.finishExecution(LWFS.FinishExecutionRequest.newBuilder()
                 .setExecutionId(executionId)
                 .build()));
 
         var thrownUnknownWorkflow = Assert.assertThrows(StatusRuntimeException.class, () ->
-            authorizedWorkflowClient.finishWorkflow(
-                LWFS.FinishWorkflowRequest.newBuilder()
-                    .setWorkflowName("workflow_3")
+            authorizedWorkflowClient.finishExecution(
+                LWFS.FinishExecutionRequest.newBuilder()
                     .setExecutionId("execution_id")
                     .build()));
 
@@ -92,8 +89,8 @@ public class WorkflowTest extends BaseTest {
     @Test
     public void testPortalStartedWhileCreatingWorkflow() {
         WorkflowService.PEEK_RANDOM_PORTAL_PORTS = false;
-        authorizedWorkflowClient.createWorkflow(
-            LWFS.CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build());
+        authorizedWorkflowClient.startExecution(
+            LWFS.StartExecutionRequest.newBuilder().setWorkflowName("workflow_1").build());
 
         var portalAddress = HostAndPort.fromParts("localhost", config.getPortal().getPortalApiPort());
         var portalChannel = newGrpcChannel(portalAddress, LzyPortalGrpc.SERVICE_NAME);
