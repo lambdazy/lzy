@@ -1,12 +1,14 @@
 import asyncio
+import os
 import uuid
-from typing import List
+from typing import List, Optional, Union
 from unittest import TestCase, skip
 
 # noinspection PyPackageRequirements
 from moto.moto_server.threaded_moto_server import ThreadedMotoServer
 
 from lzy.api.v1 import Lzy, op, LocalRuntime
+from lzy.api.v1.utils.proxy_adapter import materialized
 from lzy.storage.api import StorageConfig, AmazonCredentials
 from tests.api.v1.utils import create_bucket
 
@@ -32,11 +34,6 @@ def boo(a: str, b: str) -> str:
 
 
 @op
-def list2list(a: List[int]) -> List[str]:
-    return [str(i) for i in a]
-
-
-@op
 def inc(numb: int) -> int:
     return numb + 1
 
@@ -46,6 +43,12 @@ def entry_id(lazy_proxy):
 
 
 class LzyWorkflowTests(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        # setup PYTHONPATH for child processes used in LocalRuntime
+        pylzy_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
+        os.environ["PYTHONPATH"] = pylzy_directory + ":" + pylzy_directory + "/tests"
+
     def setUp(self):
         self.service = ThreadedMotoServer(port=12345)
         self.service.start()
@@ -66,11 +69,86 @@ class LzyWorkflowTests(TestCase):
     def tearDown(self) -> None:
         self.service.stop()
 
-    def test_simple_graph(self):
+    def test_lists(self):
+        @op
+        def list2list(a: List[int]) -> List[str]:
+            return [str(i) for i in a]
+
         with self.lzy.workflow(self.workflow_name):
             some_list = [1, 2, 3]
             result = list2list(some_list)
             self.assertEqual([str(i) for i in some_list], result)
+
+    def test_optional_return(self):
+        @op
+        def optional_not_none() -> Optional[str]:
+            return "s"
+
+        @op
+        def optional_none() -> Optional[str]:
+            return None
+
+        with self.lzy.workflow(self.workflow_name):
+            n = optional_none()
+            s = optional_not_none()
+
+            self.assertFalse(materialized(s))
+            self.assertIsNotNone(s)
+            self.assertEqual("s", s)
+            self.assertTrue(materialized(s))
+
+            self.assertFalse(materialized(n))
+            if n:
+                self.fail()
+            self.assertTrue(materialized(n))
+            self.assertEqual(None, n)
+
+    def test_optional_arg(self):
+        @op
+        def optional(a: Optional[str]) -> str:
+            if a:
+                return "not none"
+            return "none"
+
+        with self.lzy.workflow(self.workflow_name):
+            n = optional(None)
+            nn = optional("nn")
+
+            self.assertEqual("not none", nn)
+            self.assertEqual("none", n)
+
+    def test_union_return(self):
+        @op
+        def union(p: bool) -> Union[str, int]:
+            if p:
+                return "str"
+            return 42
+
+        with self.lzy.workflow(self.workflow_name):
+            s = union(True)
+            lint = union(False)
+
+            res = 0
+            for i in range(lint):
+                res += 1
+
+            self.assertEqual(42, res)
+            self.assertEqual(42, lint)
+            self.assertEqual("str", s)
+
+    def test_union_arg(self):
+        @op
+        def is_str(a: Union[str, int]) -> bool:
+            if isinstance(a, str):
+                return True
+            return False
+
+        with self.lzy.workflow(self.workflow_name):
+            t = is_str("str")
+            f = is_str(1)
+
+            self.assertEqual(True, t)
+            self.assertEqual(False, f)
 
     @skip("WIP")
     def test_barrier(self):
