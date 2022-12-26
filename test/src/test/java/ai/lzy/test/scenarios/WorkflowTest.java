@@ -8,7 +8,6 @@ import ai.lzy.v1.workflow.LWF.Graph;
 import ai.lzy.v1.workflow.LWF.Operation;
 import ai.lzy.v1.workflow.LWF.Operation.SlotDescription;
 import ai.lzy.v1.workflow.LWFS;
-import ai.lzy.v1.workflow.LWFS.CreateWorkflowRequest;
 import ai.lzy.v1.workflow.LWFS.ExecuteGraphRequest;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
@@ -35,7 +34,7 @@ public class WorkflowTest {
     public void simple() throws InvalidProtocolBufferException {
         var stub = workflow.context().stub();
 
-        var wf = stub.createWorkflow(CreateWorkflowRequest
+        var wf = stub.startExecution(LWFS.StartExecutionRequest
             .newBuilder()
             .setWorkflowName("wf")
             .build()
