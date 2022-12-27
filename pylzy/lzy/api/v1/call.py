@@ -11,11 +11,10 @@ from typing import Any, Callable, Dict, Mapping, Sequence, Tuple, TypeVar
 from pydantic.decorator import ValidatedFunction
 from serialzy.types import get_type
 
-from lzy.api.v1.env import Env, DockerPullPolicy
+from lzy.api.v1.env import Env
 from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.signatures import CallSignature, FuncSignature
 from lzy.api.v1.snapshot import Snapshot
-from lzy.api.v1.utils.env import generate_env, merge_envs
 from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy, lzy_proxy, get_proxy_entry_id
 from lzy.api.v1.utils.types import infer_real_types
 from lzy.api.v1.workflow import LzyWorkflow
@@ -107,13 +106,7 @@ def wrap_call(
     f: Callable[..., Any],
     output_types: Sequence[type],
     provisioning: Provisioning,
-    python_version: typing.Optional[str] = None,
-    libraries: typing.Optional[Dict[str, str]] = None,
-    conda_yaml_path: typing.Optional[str] = None,
-    docker_image: typing.Optional[str] = None,
-    docker_pull_policy: typing.Optional[DockerPullPolicy] = DockerPullPolicy.IF_NOT_EXISTS,
-    local_modules_path: typing.Optional[Sequence[str]] = None,
-    env: typing.Optional[Env] = None,
+    env: Env,
     description: str = ""
 ) -> Callable[..., Any]:
     @functools.wraps(f)
@@ -123,25 +116,19 @@ def wrap_call(
         if active_workflow is None:
             return f(*args, **kwargs)
 
-        signature = infer_and_validate_call_signature(f, output_types, active_workflow.snapshot, *args, **kwargs)
-        if env is None:
-            generated_env = generate_env(
-                active_workflow.auto_py_env,
-                python_version,
-                libraries,
-                conda_yaml_path,
-                docker_image,
-                docker_pull_policy,
-                local_modules_path,
-            )
-        else:
-            generated_env = env
-        merged_env = merge_envs(generated_env, active_workflow.default_env)
-
         prov = active_workflow.provisioning.override(provisioning)
         prov.validate()
 
-        lzy_call = LzyCall(active_workflow, signature, prov, merged_env, description)
+        env_updated = active_workflow.env.override(env)
+        if env_updated.conda_yaml_path is None:
+            py_env = active_workflow.owner.env_provider.provide(active_workflow.namespace)
+            env_updated = Env(
+                py_env.python_version, py_env.libraries, None, None, None, py_env.local_modules_path
+            ).override(env_updated)
+        env_updated.validate()
+
+        signature = infer_and_validate_call_signature(f, output_types, active_workflow.snapshot, *args, **kwargs)
+        lzy_call = LzyCall(active_workflow, signature, prov, env_updated, description)
         active_workflow.register_call(lzy_call)
 
         # Special case for NoneType, just leave op registered and return

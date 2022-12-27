@@ -7,14 +7,13 @@ from serialzy.api import SerializerRegistry
 
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard
 from lzy.api.v1.call import LzyCall, wrap_call
-from lzy.api.v1.env import CondaEnv, DockerEnv, DockerPullPolicy, Env
+from lzy.api.v1.env import DockerPullPolicy, Env
 from lzy.api.v1.local.runtime import LocalRuntime
 from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.remote.runtime import RemoteRuntime, USER_ENV, KEY_PATH_ENV, ENDPOINT_ENV
 from lzy.api.v1.runtime import Runtime
 from lzy.api.v1.snapshot import DefaultSnapshot
 from lzy.api.v1.utils.conda import generate_conda_yaml
-from lzy.api.v1.utils.env import generate_env, merge_envs
 from lzy.api.v1.utils.packages import to_str_version
 from lzy.api.v1.utils.proxy_adapter import lzy_proxy
 from lzy.api.v1.utils.types import infer_return_type
@@ -56,7 +55,7 @@ def op(
     gpu_type: Optional[str] = None,
     gpu_count: Optional[int] = None,
     ram_size_gb: Optional[int] = None,
-    env: Optional[Env] = None,
+    env: Env = Env(),
     description: str = ""
 ):
     def deco(f):
@@ -64,10 +63,6 @@ def op(
         Decorator which will try to infer return type of function
         and create lazy constructor instead of decorated function.
         """
-
-        if conda_yaml_path and (python_version or libraries):
-            raise ValueError("Python version & libraries cannot be overriden if conda yaml is set. "
-                             "You can specify them inside the yaml file.")
 
         nonlocal output_types
         if output_types is None:
@@ -84,10 +79,17 @@ def op(
         nonlocal provisioning
         provisioning = provisioning.override(Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb))
 
+        nonlocal libraries
+        libraries = {} if not libraries else libraries
+
+        nonlocal env
+        env = env.override(
+            Env(python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy, local_modules_path)
+        )
+
         # yep, create lazy constructor and return it
         # instead of function
-        return wrap_call(f, output_types, provisioning, python_version, libraries, conda_yaml_path, docker_image,
-                         docker_pull_policy, local_modules_path, env, description)
+        return wrap_call(f, output_types, provisioning, env, description)
 
     if func is None:
         return deco
@@ -175,38 +177,31 @@ class Lzy:
         gpu_type: Optional[str] = None,
         gpu_count: Optional[int] = None,
         ram_size_gb: Optional[int] = None,
-        env: Optional[Env] = None
+        env: Optional[Env] = Env()
     ) -> LzyWorkflow:
-        if conda_yaml_path and (python_version or libraries):
-            raise ValueError("Python version & libraries cannot be overriden if conda yaml is set. "
-                             "You can specify them inside the yaml file.")
-
         provisioning = provisioning.override(Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb))
         provisioning.validate()
 
         namespace = inspect.stack()[1].frame.f_globals
-        if env is None:
-            env = generate_env(
-                self.env_provider.provide(namespace),
-                python_version,
-                libraries,
-                conda_yaml_path,
-                docker_image,
-                docker_pull_policy,
-                local_modules_path,
-            )
+        libraries = {} if not libraries else libraries
+        local_modules_path = [] if not local_modules_path else local_modules_path
+        env = env.override(
+            Env(python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy, local_modules_path)
+        )
+        env.validate()
+
         return LzyWorkflow(
             name,
             self,
-            namespace,
             snapshot=DefaultSnapshot(
                 storage_registry=self.storage_registry,
                 serializer_registry=self.serializer,
             ),
             env=env,
             provisioning=provisioning,
+            namespace=namespace,
             eager=eager,
-            interactive=interactive,
+            interactive=interactive
         )
 
     def whiteboard(self, wb_id: str) -> Any:
@@ -225,7 +220,6 @@ class Lzy:
         return list(LzyEventLoop.gather(*wbs_to_build))
 
     async def __build_whiteboard(self, wb: Whiteboard) -> Any:
-
         if wb.status != Whiteboard.FINALIZED:
             raise RuntimeError(f"Status of whiteboard with name {wb.name} is {wb.status}, but must be COMPLETED")
 

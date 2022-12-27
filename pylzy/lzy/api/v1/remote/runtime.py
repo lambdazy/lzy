@@ -20,6 +20,7 @@ from typing import (
     cast,
 )
 
+from lzy.api.v1.utils.conda import generate_conda_yaml
 from serialzy.api import Schema
 
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
@@ -119,7 +120,7 @@ class RemoteRuntime(Runtime):
 
         modules: Set[str] = set()
         for call in calls:
-            modules.update(call.env.local_modules)
+            modules.update(cast(Sequence[str], call.env.local_modules_path))
 
         urls = await self.__load_local_modules(modules)
 
@@ -365,15 +366,20 @@ class RemoteRuntime(Runtime):
                     f"Cannot resolve pool for operation "
                     f"{call.signature.func.name}:\nAvailable: {pools}\n Expected: {call.provisioning}"
                 )
-
             pool_to_call.append((pool, call))
 
             docker_image: Optional[str]
-
-            if call.env.docker:
-                docker_image = call.env.docker.image
+            if call.env.docker_image:
+                docker_image = call.env.docker_image
             else:
                 docker_image = None
+
+            conda_yaml: Optional[str]
+            if call.env.conda_yaml_path:
+                conda_yaml = call.env.conda_yaml_path
+            else:
+                conda_yaml = generate_conda_yaml(cast(str, call.env.python_version),
+                                                 cast(Dict[str, str], call.env.libraries))
 
             request = ProcessingRequest(
                 serializers=self.__workflow.owner.serializer,
@@ -402,7 +408,7 @@ class RemoteRuntime(Runtime):
                     command=command,
                     dockerImage=docker_image if docker_image is not None else "",
                     python=Operation.PythonEnvSpec(
-                        yaml=call.env.conda.yaml,
+                        yaml=conda_yaml,
                         localModules=[
                             Operation.PythonEnvSpec.LocalModule(name=name, url=url)
                             for (name, url) in modules

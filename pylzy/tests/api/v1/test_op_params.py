@@ -1,9 +1,10 @@
 from unittest import TestCase
 
 from api.v1.mocks import RuntimeMock, StorageRegistryMock
-from lzy.api.v1 import Lzy, op
+from lzy.api.v1 import Lzy, op, Env
 from lzy.api.v1.provisioning import GpuType, Provisioning, CpuType
 from lzy.api.v1.call import LzyCall
+from platform import python_version
 
 
 @op
@@ -93,3 +94,93 @@ class LzyOpParamsTests(TestCase):
         self.assertEqual(Provisioning.default().ram_size_gb, call.provisioning.ram_size_gb)
         self.assertEqual(8, call.provisioning.gpu_count)
         self.assertEqual(GpuType.A100.name, call.provisioning.gpu_type)
+
+    def test_op_provisioning_invalid(self):
+        @op(gpu_count=8)
+        def func_with_provisioning() -> None:
+            pass
+
+        with self.assertRaisesRegex(ValueError, "gpu_type is set to <none> while gpu_count"):
+            with self.lzy.workflow("test", gpu_type=str(GpuType.NO_GPU.value)):
+                func_with_provisioning()
+
+    def test_invalid_workflow_env(self):
+        with self.assertRaisesRegex(ValueError, "Python version & libraries cannot be overriden if conda yaml is set"):
+            with self.lzy.workflow("test", python_version="3.9.15", env=Env(conda_yaml_path="my_file")):
+                func()
+
+        with self.assertRaisesRegex(ValueError, "Python version & libraries cannot be overriden if conda yaml is set"):
+            with self.lzy.workflow("test", libraries={"pylzy": "1.1.1"}, env=Env(conda_yaml_path="my_file")):
+                func()
+
+        with self.assertRaisesRegex(ValueError, "Python version & libraries cannot be overriden if conda yaml is set"):
+            with self.lzy.workflow("test", env=Env(conda_yaml_path="my_file", libraries={"pylzy": "1.1.1"})):
+                func()
+
+        with self.assertRaisesRegex(ValueError, "Python version & libraries cannot be overriden if conda yaml is set"):
+            with self.lzy.workflow("test", env=Env(conda_yaml_path="my_file", python_version="3.9.15")):
+                func()
+
+        with self.assertRaisesRegex(ValueError, "docker_image is set but docker_pull_policy is not"):
+            # noinspection PyTypeChecker
+            with self.lzy.workflow("test", docker_image="lzy", docker_pull_policy=None):
+                func()
+
+    def test_default_env(self):
+        with self.lzy.workflow("test") as wf:
+            func()
+
+        # noinspection PyUnresolvedReferences
+        call: LzyCall = wf.owner.runtime.calls[0]
+        self.assertEqual(python_version(), call.env.python_version)
+        self.assertTrue("pylzy" in call.env.libraries)
+        self.assertIsNone(call.env.conda_yaml_path)
+        self.assertIsNone(call.env.docker_image)
+
+    def test_op_env(self):
+        @op(python_version="3.9.15", libraries={"cloudpickle": "1.1.1"})
+        def func_with_env() -> None:
+            pass
+
+        with self.lzy.workflow("test", python_version="3.8.6", env=Env(libraries={"pylzy": "1.1.1"})) as wf:
+            func_with_env()
+
+        # noinspection PyUnresolvedReferences
+        call: LzyCall = wf.owner.runtime.calls[0]
+        self.assertEqual("3.9.15", call.env.python_version)
+        self.assertTrue("pylzy" in call.env.libraries)
+        self.assertTrue("cloudpickle" in call.env.libraries)
+        self.assertIsNone(call.env.conda_yaml_path)
+        self.assertIsNone(call.env.docker_image)
+
+    def test_op_env_invalid(self):
+        @op(python_version="3.9.15")
+        def func_with_py() -> None:
+            pass
+
+        @op(libraries={"cloudpickle": "1.1.1"})
+        def func_with_libs() -> None:
+            pass
+
+        with self.assertRaisesRegex(ValueError, "Python version & libraries cannot be overriden if conda yaml is set"):
+            with self.lzy.workflow("test", conda_yaml_path="yaml"):
+                func_with_py()
+
+        with self.assertRaisesRegex(ValueError, "Python version & libraries cannot be overriden if conda yaml is set"):
+            with self.lzy.workflow("test", conda_yaml_path="yaml"):
+                func_with_libs()
+
+    def test_op_env_yaml(self):
+        @op(conda_yaml_path="path_op")
+        def func_with_env() -> None:
+            pass
+
+        with self.lzy.workflow("test", conda_yaml_path="path_wf") as wf:
+            func_with_env()
+
+        # noinspection PyUnresolvedReferences
+        call: LzyCall = wf.owner.runtime.calls[0]
+        self.assertIsNone(call.env.python_version)
+        self.assertEqual({}, call.env.libraries)
+        self.assertEqual("path_op", call.env.conda_yaml_path)
+        self.assertIsNone(call.env.docker_image)
