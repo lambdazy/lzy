@@ -376,7 +376,8 @@ class RemoteRuntime(Runtime):
 
             conda_yaml: Optional[str]
             if call.env.conda_yaml_path:
-                conda_yaml = call.env.conda_yaml_path
+                with open(call.env.conda_yaml_path, "r") as file:
+                    conda_yaml = file.read()
             else:
                 conda_yaml = generate_conda_yaml(cast(str, call.env.python_version),
                                                  cast(Dict[str, str], call.env.libraries))
