@@ -136,6 +136,7 @@ class LzyOpParamsTests(TestCase):
         self.assertTrue("pylzy" in call.env.libraries)
         self.assertIsNone(call.env.conda_yaml_path)
         self.assertIsNone(call.env.docker_image)
+        self.assertEqual(1, len(call.env.local_modules_path))
 
     def test_op_env(self):
         @op(python_version="3.9.15", libraries={"cloudpickle": "1.1.1"})

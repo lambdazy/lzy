@@ -122,9 +122,9 @@ def wrap_call(
         env_updated = active_workflow.env.override(env)
         if env_updated.conda_yaml_path is None:
             py_env = active_workflow.owner.env_provider.provide(active_workflow.namespace)
-            env_updated = Env(
+            env_updated = active_workflow.env.override(Env(
                 py_env.python_version, py_env.libraries, None, None, None, py_env.local_modules_path
-            ).override(env_updated)
+            )).override(env)
         env_updated.validate()
 
         signature = infer_and_validate_call_signature(f, output_types, active_workflow.snapshot, *args, **kwargs)
