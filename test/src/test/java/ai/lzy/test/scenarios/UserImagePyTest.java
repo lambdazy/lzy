@@ -23,15 +23,6 @@ public class UserImagePyTest {
     }
 
     @Test
-    public void testNoneResult() {
-        /* This scenario checks for:
-                1. Calling @op with None as result
-         */
-
-        //Arrange
-        pythonContext.context().evalAndAssertScenarioResult("none_result");
-    }
-
     public void test() {
         pythonContext.context().evalAndAssertScenarioResult("custom-image-cpu");
     }
