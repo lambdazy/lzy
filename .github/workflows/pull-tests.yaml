@@ -108,7 +108,7 @@ jobs:
           WORKER_BASE_TAG="$(echo $WORKER_BASE_IMAGE | awk -F: '{print $2}')"
           mkdir -p lzy/worker/docker/tmp-for-context
           cp -R pylzy lzy/worker/docker/tmp-for-context/pylzy
-          docker build --build-arg "WORKER_BASE_TAG=$WORKER_BASE_TAG" -t lzy-worker -f lzy/worker/docker/Worker.Dockerfile lzy/worker
+          docker build --build-arg "WORKER_BASE_TAG=$WORKER_BASE_TAG" -t worker -f lzy/worker/docker/Worker.Dockerfile lzy/worker
 
       - name: 'UserImagePyTest'
         timeout-minutes: 60

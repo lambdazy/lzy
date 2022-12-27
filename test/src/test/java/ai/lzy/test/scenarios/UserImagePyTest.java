@@ -19,7 +19,7 @@ public class UserImagePyTest {
 
     @Test
     public void test() {
-        pythonContext.context().evalAndAssertScenarioResult("custom_image_cpu");
+        pythonContext.context().evalAndAssertScenarioResult("custom-image-cpu");
     }
 
 }
