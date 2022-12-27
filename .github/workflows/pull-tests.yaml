@@ -67,7 +67,7 @@ jobs:
 #   TODO: return tests back
 
       - name: 'build worker image'
-        timeout-minutes: 60
+        timeout-minutes: 20
         run: |
           BRANCH=${{ (github.head_ref || github.ref_name) }}
           WORKER_BASE_IMAGE=$(deployment/latest-docker-image-on-branches.sh worker-base $BRANCH master)
@@ -78,7 +78,7 @@ jobs:
           docker build --build-arg "WORKER_BASE_TAG=$WORKER_BASE_TAG" -t worker -f lzy/worker/docker/Worker.Dockerfile lzy/worker
 
       - name: 'UserImagePyTest'
-        timeout-minutes: 60
+        timeout-minutes: 20
         run: |
           BRANCH=${{ (github.head_ref || github.ref_name) }}
           USER_IMAGE=$(deployment/latest-docker-image-on-branches.sh user-test $BRANCH master)

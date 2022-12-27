@@ -1,5 +1,4 @@
 import os
-import uuid
 
 from lzy.api.v1 import Lzy, op
 
@@ -16,12 +15,11 @@ def check_env_var_custom_image() -> str:
 
 if __name__ == "__main__":
     lzy = Lzy()
-    WORKFLOW_NAME = "workflow-" + str(uuid.uuid4())
 
-    with lzy.workflow(name=WORKFLOW_NAME):
+    with lzy.workflow(name="wf"):
         result = check_env_var_custom_image()
         print("Custom env: " + str(result))
 
-    with lzy.workflow(name=WORKFLOW_NAME, docker_image="lzydock/test-env:custom3"):
+    with lzy.workflow(name="wf", docker_image="lzydock/test-env:custom3"):
         result = check_env_var_default_image()
         print("Custom env: " + str(result))
