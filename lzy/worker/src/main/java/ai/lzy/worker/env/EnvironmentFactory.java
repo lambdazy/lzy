@@ -27,12 +27,15 @@ public class EnvironmentFactory {
             return envForTests.get();
         }
 
+        final String resourcesPathStr = "/tmp/resources/";
+
         final BaseEnvironment baseEnv;
         if (isDockerSupported && env.baseEnv() != null) {
             LOG.info("Docker baseEnv provided, using DockerEnvironment");
             String image = env.baseEnv().name();
             BaseEnvConfig config = BaseEnvConfig.newBuilder()
                     .image((image == null || image.equals("default")) ? defaultImage : image)
+                    .addMount(resourcesPathStr, resourcesPathStr)
                     .build();
             baseEnv = new DockerEnvironment(config);
         } else {
@@ -47,7 +50,7 @@ public class EnvironmentFactory {
 
         if (env.auxEnv() instanceof PythonEnv) {
             LOG.info("Conda auxEnv provided, using CondaEnvironment");
-            return new CondaEnvironment((PythonEnv) env.auxEnv(), baseEnv);
+            return new CondaEnvironment((PythonEnv) env.auxEnv(), baseEnv, resourcesPathStr);
         } else {
             LOG.info("No auxEnv provided, using SimpleBashEnvironment");
             return new SimpleBashEnvironment(baseEnv);

@@ -29,16 +29,19 @@ public class CondaEnvironment implements AuxEnvironment {
 
     private final PythonEnv pythonEnv;
     private final BaseEnvironment baseEnv;
+    private final String resourcesPath;
     private final String localModulesDir;
     private final String envName;
 
     public CondaEnvironment(
         PythonEnv pythonEnv,
-        BaseEnvironment baseEnv
+        BaseEnvironment baseEnv,
+        String resourcesPath
     ) throws EnvironmentInstallationException
     {
         this.pythonEnv = pythonEnv;
         this.baseEnv = baseEnv;
+        this.resourcesPath = resourcesPath;
         this.localModulesDir = Path.of("/", "tmp", "local_modules" + UUID.randomUUID()).toString();
 
         var yaml = new Yaml();
