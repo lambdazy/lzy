@@ -99,7 +99,7 @@ public class CondaEnvironment implements AuxEnvironment {
                 }
 
                 LOG.info("CondaEnvironment::installPyenv trying to install pyenv");
-                File condaFile = File.createTempFile("conda", ".yaml");
+                final File condaFile = Files.createFile(Path.of(resourcesPath, "conda.yaml")).toFile();
 
                 try (FileWriter file = new FileWriter(condaFile.getAbsolutePath())) {
                     file.write(pythonEnv.yaml());
