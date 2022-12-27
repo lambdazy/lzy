@@ -243,10 +243,10 @@ class RemoteRuntime(Runtime):
         for spec in pool_specs:
             if (
                 provisioning.cpu_type == spec.cpuType
-                and provisioning.cpu_count <= spec.cpuCount
+                and cast(int, provisioning.cpu_count) <= spec.cpuCount
                 and provisioning.gpu_type == spec.gpuType
-                and provisioning.gpu_count <= spec.gpuCount
-                and provisioning.ram_size_gb <= spec.ramGb
+                and cast(int, provisioning.gpu_count) <= spec.gpuCount
+                and cast(int, provisioning.ram_size_gb) <= spec.ramGb
             ):
                 return spec
         return None

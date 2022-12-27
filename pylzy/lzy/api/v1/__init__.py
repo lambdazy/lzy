@@ -177,7 +177,7 @@ class Lzy:
         gpu_type: Optional[str] = None,
         gpu_count: Optional[int] = None,
         ram_size_gb: Optional[int] = None,
-        env: Optional[Env] = Env()
+        env: Env = Env()
     ) -> LzyWorkflow:
         provisioning = provisioning.override(Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb))
         provisioning.validate()
