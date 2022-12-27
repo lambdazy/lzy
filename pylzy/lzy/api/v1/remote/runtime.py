@@ -238,13 +238,7 @@ class RemoteRuntime(Runtime):
     def __resolve_pool(
         provisioning: Provisioning, pool_specs: Sequence[VmPoolSpec]
     ) -> Optional[VmPoolSpec]:
-        assert (
-            provisioning.cpu_type is not None
-            and provisioning.cpu_count is not None
-            and provisioning.gpu_type is not None
-            and provisioning.gpu_count is not None
-            and provisioning.ram_size_gb is not None
-        )
+        provisioning.validate()
         for spec in pool_specs:
             if (
                 provisioning.cpu_type == spec.cpuType

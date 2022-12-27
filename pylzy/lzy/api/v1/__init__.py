@@ -50,7 +50,7 @@ def op(
     docker_image: Optional[str] = None,
     docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
     local_modules_path: Optional[Sequence[str]] = None,
-    provisioning_: Provisioning = Provisioning(),
+    provisioning: Provisioning = Provisioning(),
     cpu_type: Optional[str] = None,
     cpu_count: Optional[int] = None,
     gpu_type: Optional[str] = None,
@@ -64,6 +64,11 @@ def op(
         Decorator which will try to infer return type of function
         and create lazy constructor instead of decorated function.
         """
+
+        if conda_yaml_path and (python_version or libraries):
+            raise ValueError("Python version & libraries cannot be overriden if conda yaml is set. "
+                             "You can specify them inside the yaml file.")
+
         nonlocal output_types
         if output_types is None:
             infer_result = infer_return_type(f)
@@ -76,11 +81,13 @@ def op(
             else:
                 output_types = infer_result.value  # expecting multiple return types
 
+        nonlocal provisioning
+        provisioning = provisioning.override(Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb))
+
         # yep, create lazy constructor and return it
         # instead of function
-        return wrap_call(f, output_types, python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy,
-                         local_modules_path, provisioning_, cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb, env,
-                         description)
+        return wrap_call(f, output_types, provisioning, python_version, libraries, conda_yaml_path, docker_image,
+                         docker_pull_policy, local_modules_path, env, description)
 
     if func is None:
         return deco
@@ -168,8 +175,15 @@ class Lzy:
         gpu_type: Optional[str] = None,
         gpu_count: Optional[int] = None,
         ram_size_gb: Optional[int] = None,
-        env: Optional[Env] = None,
+        env: Optional[Env] = None
     ) -> LzyWorkflow:
+        if conda_yaml_path and (python_version or libraries):
+            raise ValueError("Python version & libraries cannot be overriden if conda yaml is set. "
+                             "You can specify them inside the yaml file.")
+
+        provisioning = provisioning.override(Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb))
+        provisioning.validate()
+
         namespace = inspect.stack()[1].frame.f_globals
         if env is None:
             env = generate_env(
@@ -190,10 +204,8 @@ class Lzy:
                 serializer_registry=self.serializer,
             ),
             env=env,
+            provisioning=provisioning,
             eager=eager,
-            provisioning=provisioning.override(
-                Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb)
-            ),
             interactive=interactive,
         )
 

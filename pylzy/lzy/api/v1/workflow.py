@@ -42,10 +42,10 @@ class LzyWorkflow:
         namespace: Dict[str, Any],
         snapshot: Snapshot,
         env: Env,
+        provisioning: Provisioning,
         *,
         eager: bool = False,
-        provisioning: Provisioning = Provisioning.default(),
-        interactive: bool = True,
+        interactive: bool = True
     ):
         self.__snapshot = snapshot
         self.__name = name
