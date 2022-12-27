@@ -32,7 +32,6 @@ public class UserImagePyTest {
         pythonContext.context().evalAndAssertScenarioResult("none_result");
     }
 
-    @Test
     public void test() {
         pythonContext.context().evalAndAssertScenarioResult("custom-image-cpu");
     }
