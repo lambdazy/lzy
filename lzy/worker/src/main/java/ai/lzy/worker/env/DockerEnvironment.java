@@ -7,7 +7,10 @@ import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.ExecCreateCmd;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.PullImageResultCallback;
-import com.github.dockerjava.api.model.*;
+import com.github.dockerjava.api.model.Frame;
+import com.github.dockerjava.api.model.HostConfig;
+import com.github.dockerjava.api.model.Mount;
+import com.github.dockerjava.api.model.MountType;
 import com.github.dockerjava.core.DockerClientBuilder;
 import org.apache.commons.io.output.NullOutputStream;
 import org.apache.logging.log4j.LogManager;
@@ -41,13 +44,6 @@ public class DockerEnvironment implements BaseEnvironment {
         LOG.info("Mount options:\n\t{}",
             config.mounts().stream().map(it -> it.source + " -> " + it.target).collect(Collectors.joining("\n\t")));
         final List<Mount> dockerMounts = new ArrayList<>();
-        dockerMounts.add(
-            new Mount()
-                .withSource("/tmp/lzy")
-                .withTarget("/tmp/lzy")
-                .withType(MountType.BIND)
-                .withBindOptions(new BindOptions().withPropagation(BindPropagation.R_SHARED))
-        );
         config.mounts().forEach(m -> dockerMounts.add(
             new Mount()
                 .withType(MountType.BIND)
