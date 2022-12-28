@@ -92,6 +92,7 @@ public class Worker {
 
     private final String workerId;
     private final LzyFsServer lzyFs;
+    private final String lzyFsRoot;
     private final SchedulerAgent schedulerAgent;
     private final AllocatorAgent allocatorAgent;
     private final LocalOperationService operationService;
@@ -145,6 +146,7 @@ public class Worker {
             final var fsUri = new URI(LzyFs.scheme(), null, realHost, fsPort, null, null, null);
             final var cm = HostAndPort.fromString(channelManagerAddress);
 
+            lzyFsRoot = fsRoot;
             lzyFs = new LzyFsServer(workerId, Path.of(fsRoot), fsUri, cm, new RenewableJwt(workerId, "INTERNAL",
                 Duration.ofDays(1), readPrivateKey(iamPrivateKey)), operationService, false);
             lzyFs.start();
@@ -256,7 +258,7 @@ public class Worker {
 
             if (opId.equals(opSnapshot.id())) {
                 try {
-                    final var e = envFactory.create(ProtoConverter.fromProto(request.getEnv()));
+                    final var e = envFactory.create(lzyFsRoot, ProtoConverter.fromProto(request.getEnv()));
                     schedulerAgent.reportProgress(WorkerProgress.newBuilder()
                         .setConfigured(Configured.newBuilder()
                             .setOk(Ok.newBuilder().build())

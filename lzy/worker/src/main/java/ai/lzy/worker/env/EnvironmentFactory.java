@@ -20,7 +20,7 @@ public class EnvironmentFactory {
         this.isDockerSupported = true;
     }
 
-    public Environment create(Env env) throws EnvironmentInstallationException {
+    public Environment create(String fsRoot, Env env) throws EnvironmentInstallationException {
         //to mock environment in tests
         if (envForTests != null) {
             LOG.info("EnvironmentFactory: using mocked environment");
@@ -34,9 +34,10 @@ public class EnvironmentFactory {
             LOG.info("Docker baseEnv provided, using DockerEnvironment");
             String image = env.baseEnv().name();
             BaseEnvConfig config = BaseEnvConfig.newBuilder()
-                    .image((image == null || image.equals("default")) ? defaultImage : image)
-                    .addMount(resourcesPathStr, resourcesPathStr)
-                    .build();
+                .image((image == null || image.equals("default")) ? defaultImage : image)
+                .addMount(resourcesPathStr, resourcesPathStr)
+                .addMount(fsRoot, fsRoot)
+                .build();
             baseEnv = new DockerEnvironment(config);
         } else {
             if (env.baseEnv() == null) {
