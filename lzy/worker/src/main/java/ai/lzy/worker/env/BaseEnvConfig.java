@@ -1,21 +1,16 @@
 package ai.lzy.worker.env;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class BaseEnvConfig {
 
     private final String image;
     private final List<MountDescription> mounts;
 
-    private BaseEnvConfig(String image, Map<String, String> mounts) {
+    private BaseEnvConfig(String image, List<MountDescription> mounts) {
         this.image = image;
-        this.mounts = new ArrayList<>();
-        mounts.forEach((source, target) ->
-            this.mounts.add(new MountDescription(source, target))
-        );
+        this.mounts = mounts;
     }
 
     public static Builder newBuilder() {
@@ -30,20 +25,12 @@ public class BaseEnvConfig {
         return this.mounts;
     }
 
-    public static class MountDescription {
-        public final String source;
-        public final String target;
-
-        public MountDescription(String source, String target) {
-            this.source = source;
-            this.target = target;
-        }
-    }
+    public record MountDescription(String source, String target, boolean isRshared) { }
 
     public static class Builder {
 
         String image = null;
-        Map<String, String> mounts = new HashMap<>();
+        List<MountDescription> mounts = new ArrayList<>();
 
         public Builder image(String name) {
             this.image = name;
@@ -51,7 +38,12 @@ public class BaseEnvConfig {
         }
 
         public Builder addMount(String source, String target) {
-            this.mounts.put(source, target);
+            mounts.add(new MountDescription(source, target, false));
+            return this;
+        }
+
+        public Builder addRsharedMount(String source, String target) {
+            mounts.add(new MountDescription(source, target, true));
             return this;
         }
 
