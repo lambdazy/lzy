@@ -149,7 +149,7 @@ public class AllocatorImpl implements WorkersAllocator {
         if (randomWorkerPorts.get()) {
             port = FreePortFinder.find(10000, 11000);
             fsPort = FreePortFinder.find(11000, 12000);
-            mountPoint = "/tmp/lzy" + testWorkerCounter.incrementAndGet();
+            mountPoint = "/tmp/lzy"; // + testWorkerCounter.incrementAndGet();
         } else {
             port = 9999;
             fsPort = 9988;
