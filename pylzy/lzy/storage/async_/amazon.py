@@ -1,4 +1,3 @@
-import logging
 from typing import BinaryIO, cast
 
 from aioboto3 import Session
@@ -6,8 +5,6 @@ from botocore.exceptions import ClientError
 
 from lzy.storage.api import AmazonCredentials, AsyncStorageClient
 from lzy.storage.url import Scheme, bucket_from_uri, uri_from_bucket
-
-_LOG = logging.getLogger(__name__)
 
 
 class AmazonClient(AsyncStorageClient):
@@ -47,7 +44,7 @@ class AmazonClient(AsyncStorageClient):
                     Key=blob,
                 )
                 return True
-        except ClientError as e:
+        except ClientError:
             return False
 
     def generate_uri(self, container: str, blob: str) -> str:

@@ -1,26 +1,23 @@
-import base64
 import dataclasses
-import datetime
 import os
 import sys
 import time
 from typing import Any, Callable, Mapping, Sequence, Tuple, Type, Optional, cast
 
-import cloudpickle
 from serialzy.api import SerializerRegistry
+
+from lzy.api.v1.utils.pickle import unpickle
+from lzy.logging import get_remote_logger
 
 _lzy_mount: Optional[str] = None  # for tests only
 
-
-def unpickle(base64_str: str) -> Any:
-    t = cloudpickle.loads(base64.b64decode(base64_str.encode("ascii")))
-    return t
+_LOG = get_remote_logger(__name__)
 
 
 def read_data(path: str, typ: Type, serializers: SerializerRegistry) -> Any:
     ser = serializers.find_serializer_by_type(typ)
 
-    log(f"Reading data from {path} with type {typ} and serializer {type(ser)}")
+    _LOG.info(f"Reading data from {path} with type {typ} and serializer {type(ser)}")
 
     mount = os.getenv("LZY_MOUNT", _lzy_mount)
     assert mount is not None
@@ -45,22 +42,13 @@ def write_data(path: str, typ: Type, data: Any, serializers: SerializerRegistry)
         raise ValueError(
             f'Serializer for type {typ} is not available, please install {ser.requirements()}')
 
-    log(f"Writing data to {path} with type {typ} and serializer {type(ser)}")
+    _LOG.info(f"Writing data to {path} with type {typ} and serializer {type(ser)}")
     with open(mount + path, "wb") as out_handle:
         out_handle.seek(0)
         out_handle.flush()
         ser.serialize(data, out_handle)
         out_handle.flush()
         os.fsync(out_handle.fileno())
-
-
-def log(msg: str, *args, **kwargs):
-    now = datetime.datetime.utcnow()
-    time_prefix = now.strftime("%Y-%m-%d %H:%M:%S")
-    if args:
-        print("[LZY]", time_prefix, msg.format(args, kwargs))
-    else:
-        print("[LZY]", time_prefix, msg)
 
 
 def process_execution(
@@ -70,7 +58,7 @@ def process_execution(
     kwargs_paths: Mapping[str, Tuple[Type, str]],
     output_paths: Sequence[Tuple[Type, str]],
 ):
-    log("Reading arguments...")
+    _LOG.info("Reading arguments...")
 
     try:
         args = [read_data(path, typ, serializers) for typ, path in args_paths]
@@ -79,17 +67,17 @@ def process_execution(
             for name, (typ, path) in kwargs_paths.items()
         }
     except Exception as e:
-        log(f"Error while reading arguments: {e}")
+        _LOG.error(f"Error while reading arguments: {e}")
         raise e
 
-    log(f"Executing operation with args <{args}> and kwargs <{kwargs}>")
+    _LOG.info(f"Executing operation with args <{args}> and kwargs <{kwargs}>")
     try:
         res = op(*args, **kwargs)
     except Exception as e:
-        log(f"Exception while executing op: {e}")
+        _LOG.error(f"Exception while executing op: {e}")
         raise e
 
-    log("Writing arguments...")
+    _LOG.info("Writing results...")
 
     try:
         if len(output_paths) == 1:
@@ -98,10 +86,10 @@ def process_execution(
         for out, data in zip(output_paths, res):
             write_data(out[1], out[0], data, serializers)
     except Exception as e:
-        log("Error while writing result: {}", e)
+        _LOG.error("Error while writing result: {}", e)
         raise e
 
-    log("Execution completed")
+    _LOG.info("Execution completed")
 
 
 @dataclasses.dataclass
@@ -120,12 +108,12 @@ def main(arg: str):
     try:
         req: ProcessingRequest = cast(ProcessingRequest, unpickle(arg))
     except Exception as e:
-        log(f"Error while unpickling request: {e}")
+        _LOG.error(f"Error while unpickling request: {e}")
         raise e
 
     process_execution(req.serializers, req.op, req.args_paths, req.kwargs_paths, req.output_paths)
 
 
 if __name__ == "__main__":
-    log(f"Running with environment: {os.environ}")
+    _LOG.info(f"Running with environment: {os.environ}")
     main(sys.argv[1])

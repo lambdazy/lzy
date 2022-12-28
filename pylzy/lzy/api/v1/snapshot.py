@@ -1,5 +1,4 @@
 import dataclasses
-import logging
 import tempfile
 import uuid
 from abc import ABC, abstractmethod
@@ -7,10 +6,11 @@ from typing import Any, Dict, Optional, Type, cast, BinaryIO
 
 from serialzy.api import SerializerRegistry, Schema
 
+from lzy.logging import get_logger
 from lzy.proxy.result import Just, Nothing, Result
 from lzy.storage.api import AsyncStorageClient, StorageRegistry
 
-_LOG = logging.getLogger(__name__)
+_LOG = get_logger(__name__)
 
 
 @dataclasses.dataclass(frozen=True)

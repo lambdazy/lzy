@@ -41,6 +41,7 @@ from lzy.api.v1 import Lzy, op, whiteboard, ReadOnlyWhiteboard
 from lzy.api.v1.local.runtime import LocalRuntime
 from lzy.api.v1.snapshot import DefaultSnapshot
 from lzy.api.v1.utils.pickle import pickle
+from lzy.logging import get_logger
 from lzy.proxy.result import Just
 from lzy.serialization.registry import LzySerializerRegistry
 from lzy.storage import api as storage
@@ -53,7 +54,7 @@ from tests.api.v1.utils import create_bucket
 
 logging.basicConfig(level=logging.DEBUG)
 
-LOG = logging.getLogger(__name__)
+_LOG = get_logger(__name__)
 
 
 class WorkflowServiceMock(LzyWorkflowServiceServicer):
@@ -63,7 +64,7 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
     def CreateWorkflow(
         self, request: CreateWorkflowRequest, context: grpc.ServicerContext
     ) -> CreateWorkflowResponse:
-        LOG.info(f"Creating wf {request}")
+        _LOG.info(f"Creating wf {request}")
 
         if self.fail:
             self.fail = False
@@ -80,7 +81,7 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
     def FinishWorkflow(
         self, request: FinishWorkflowRequest, context: grpc.ServicerContext
     ) -> FinishWorkflowResponse:
-        LOG.info(f"Finishing workflow {request}")
+        _LOG.info(f"Finishing workflow {request}")
 
         if self.fail:
             self.fail = False
@@ -93,7 +94,7 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
     def ReadStdSlots(
         self, request: ReadStdSlotsRequest, context: grpc.ServicerContext
     ) -> Iterator[ReadStdSlotsResponse]:
-        LOG.info(f"Registered listener")
+        _LOG.info(f"Registered listener")
 
         if self.fail:
             self.fail = False

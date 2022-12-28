@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from enum import Enum
 from typing import TYPE_CHECKING, Callable, List, Dict
 
 from lzy.api.v1.workflow import WbRef
@@ -10,9 +10,11 @@ if TYPE_CHECKING:
 from lzy.api.v1.call import LzyCall
 
 
-@dataclass
-class ProgressStep:
-    pass
+class ProgressStep(Enum):
+    WAITING = "WAITING"
+    EXECUTING = "EXECUTING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
 
 
 class Runtime(ABC):

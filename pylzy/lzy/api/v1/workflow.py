@@ -16,12 +16,14 @@ from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.snapshot import Snapshot
 from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy, lzy_proxy
 from lzy.api.v1.whiteboards import WritableWhiteboard, fetch_whiteboard_meta, WbRef
+from lzy.logging import get_logger
 from lzy.proxy.result import Just
 from lzy.utils.event_loop import LzyEventLoop
 from lzy.whiteboards.api import WhiteboardField, WhiteboardDefaultDescription
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
+_LOG = get_logger(__name__)
 if TYPE_CHECKING:
     from lzy.api.v1 import Lzy
     from lzy.api.v1.call import LzyCall
@@ -160,7 +162,8 @@ class LzyWorkflow:
 
         await asyncio.gather(*data_to_load)
 
-        await self.__owner.runtime.exec(self.__call_queue, self.__whiteboards_links, lambda x: print(x))
+        await self.__owner.runtime.exec(self.__call_queue, self.__whiteboards_links,
+                                        lambda x: _LOG.info(f"Graph status: {x.name}"))
         self.__call_queue = []
 
     async def __create_whiteboard(self, typ: Type[T], tags: Sequence = ()) -> T:
