@@ -8,7 +8,7 @@ def check_env_var_default_image() -> str:
     return os.environ["CUSTOM_ENV"]
 
 
-@op(docker_image="lzydock/test-env:custom3")
+@op(docker_image="lzydock/user-test:custom-1")
 def check_env_var_custom_image() -> str:
     return os.environ["CUSTOM_ENV"]
 
@@ -20,6 +20,6 @@ if __name__ == "__main__":
         result = check_env_var_custom_image()
         print("Custom env: " + str(result))
 
-    with lzy.workflow(name="wf", interactive=False, docker_image="lzydock/test-env:custom3"):
+    with lzy.workflow(name="wf", interactive=False, docker_image="lzydock/user-test:custom-1"):
         result = check_env_var_default_image()
         print("Custom env: " + str(result))
