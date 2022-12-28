@@ -20,6 +20,7 @@ from typing import (
     cast,
 )
 
+from lzy.api.v1.utils.conda import generate_conda_yaml
 from serialzy.api import Schema
 
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
@@ -119,7 +120,7 @@ class RemoteRuntime(Runtime):
 
         modules: Set[str] = set()
         for call in calls:
-            modules.update(call.env.local_modules)
+            modules.update(cast(Sequence[str], call.env.local_modules_path))
 
         urls = await self.__load_local_modules(modules)
 
@@ -238,20 +239,14 @@ class RemoteRuntime(Runtime):
     def __resolve_pool(
         provisioning: Provisioning, pool_specs: Sequence[VmPoolSpec]
     ) -> Optional[VmPoolSpec]:
-        assert (
-            provisioning.cpu_type is not None
-            and provisioning.cpu_count is not None
-            and provisioning.gpu_type is not None
-            and provisioning.gpu_count is not None
-            and provisioning.ram_size_gb is not None
-        )
+        provisioning.validate()
         for spec in pool_specs:
             if (
                 provisioning.cpu_type == spec.cpuType
-                and provisioning.cpu_count <= spec.cpuCount
+                and cast(int, provisioning.cpu_count) <= spec.cpuCount
                 and provisioning.gpu_type == spec.gpuType
-                and provisioning.gpu_count <= spec.gpuCount
-                and provisioning.ram_size_gb <= spec.ramGb
+                and cast(int, provisioning.gpu_count) <= spec.gpuCount
+                and cast(int, provisioning.ram_size_gb) <= spec.ramGb
             ):
                 return spec
         return None
@@ -371,15 +366,21 @@ class RemoteRuntime(Runtime):
                     f"Cannot resolve pool for operation "
                     f"{call.signature.func.name}:\nAvailable: {pools}\n Expected: {call.provisioning}"
                 )
-
             pool_to_call.append((pool, call))
 
             docker_image: Optional[str]
-
-            if call.env.docker:
-                docker_image = call.env.docker.image
+            if call.env.docker_image:
+                docker_image = call.env.docker_image
             else:
                 docker_image = None
+
+            conda_yaml: Optional[str]
+            if call.env.conda_yaml_path:
+                with open(call.env.conda_yaml_path, "r") as file:
+                    conda_yaml = file.read()
+            else:
+                conda_yaml = generate_conda_yaml(cast(str, call.env.python_version),
+                                                 cast(Dict[str, str], call.env.libraries))
 
             request = ProcessingRequest(
                 serializers=self.__workflow.owner.serializer,
@@ -408,7 +409,7 @@ class RemoteRuntime(Runtime):
                     command=command,
                     dockerImage=docker_image if docker_image is not None else "",
                     python=Operation.PythonEnvSpec(
-                        yaml=call.env.conda.yaml,
+                        yaml=conda_yaml,
                         localModules=[
                             Operation.PythonEnvSpec.LocalModule(name=name, url=url)
                             for (name, url) in modules

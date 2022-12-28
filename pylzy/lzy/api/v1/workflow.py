@@ -17,7 +17,6 @@ from lzy.api.v1.snapshot import Snapshot
 from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy, lzy_proxy
 from lzy.api.v1.whiteboards import WritableWhiteboard, fetch_whiteboard_meta, WbRef
 from lzy.proxy.result import Just
-from lzy.py_env.api import PyEnv
 from lzy.utils.event_loop import LzyEventLoop
 from lzy.whiteboards.api import WhiteboardField, WhiteboardDefaultDescription
 
@@ -39,13 +38,13 @@ class LzyWorkflow:
         self,
         name: str,
         owner: "Lzy",
-        namespace: Dict[str, Any],
         snapshot: Snapshot,
         env: Env,
+        provisioning: Provisioning,
+        namespace: Dict[str, Any],
         *,
         eager: bool = False,
-        provisioning: Provisioning = Provisioning.default(),
-        interactive: bool = True,
+        interactive: bool = True
     ):
         self.__snapshot = snapshot
         self.__name = name
@@ -55,10 +54,9 @@ class LzyWorkflow:
         self.__whiteboards_links: Dict[str, WbRef] = {}
         self.__started = False
 
-        self.__auto_py_env: PyEnv = owner.env_provider.provide(namespace)
-        self.__default_env: Env = env
-
+        self.__env = env
         self.__provisioning = provisioning
+        self.__namespace = namespace
         self.__interactive = interactive
         self.__whiteboards: List[str] = []
 
@@ -75,12 +73,12 @@ class LzyWorkflow:
         return self.__name
 
     @property
-    def auto_py_env(self) -> PyEnv:
-        return self.__auto_py_env
+    def env(self) -> Env:
+        return self.__env
 
     @property
-    def default_env(self) -> Env:
-        return self.__default_env
+    def namespace(self) -> Dict[str, Any]:
+        return self.__namespace
 
     @property
     def provisioning(self) -> Provisioning:

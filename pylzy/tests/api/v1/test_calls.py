@@ -296,20 +296,6 @@ class LzyCallsTests(TestCase):
         # noinspection PyUnresolvedReferences
         self.assertEqual(2, len(wf.owner.runtime.calls))
 
-    def test_description(self):
-        description = "my favourite func"
-
-        @op(description=description)
-        def func() -> None:
-            pass
-
-        with self.lzy.workflow("test") as wf:
-            func()
-
-        # noinspection PyUnresolvedReferences
-        call: LzyCall = wf.owner.runtime.calls[0]
-        self.assertEqual(description, call.description)
-
     def test_raises(self):
         @op
         def raises() -> int:
