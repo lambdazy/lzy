@@ -109,10 +109,12 @@ public class WorkerEventProcessor extends Thread {
         final WorkerState currentState;
         try {
             currentState = dao.acquire(workflowName, workerId);
-        } catch (WorkerDao.AcquireException | DaoException e) {
+        } catch (Exception e) {
+            this.notifyDestroyed.accept(workflowName, workerId);
             throw new RuntimeException("Cannot acquire worker for processing");  // must be unreachable
         }
         if (currentState == null) {
+            this.notifyDestroyed.accept(workflowName, workerId);
             throw new IllegalStateException("Cannot find worker");  // Destroying this thread
         }
         WorkerState newState;

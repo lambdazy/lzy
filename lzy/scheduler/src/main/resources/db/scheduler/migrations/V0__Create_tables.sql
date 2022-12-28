@@ -30,17 +30,17 @@ CREATE type worker_status AS ENUM (
 );
 
 CREATE TABLE worker (
-    id varchar(255) NOT NULL,
-    user_id varchar(255) NOT NULL,
-    workflow_name varchar(255) NOT NULL,
+    id text NOT NULL,
+    user_id text NOT NULL,
+    workflow_name text NOT NULL,
     status worker_status NOT NULL,
-    requirements_json varchar(10485760) NOT NULL,
+    requirements_json text NOT NULL,
 
-    error_description varchar(2048) NULL,
-    task_id varchar(255) NULL,
-    worker_url varchar(255) NULL,
+    error_description text NULL,
+    task_id text NULL,
+    worker_url text NULL,
 
-    allocator_meta varchar(10485760) NULL,
+    allocator_meta text NULL,
 
     acquired bool NOT NULL DEFAULT false,
     acquired_for_task bool NOT NULL DEFAULT false,
@@ -49,16 +49,16 @@ CREATE TABLE worker (
 );
 
 CREATE TABLE worker_event (
-    id varchar(255) NOT NULL PRIMARY KEY,
+    id text NOT NULL PRIMARY KEY,
     time timestamp NOT NULL,
-    worker_id varchar(255) NOT NULL,
-    workflow_name varchar(255) NOT NULL,
+    worker_id text NOT NULL,
+    workflow_name text NOT NULL,
     type worker_event_type NOT NULL,
 
-    description varchar(10485760) NULL,
+    description text NULL,
     rc int NULL,
-    task_id varchar(255) NULL,
-    worker_url varchar(255) NULL,
+    task_id text NULL,
+    worker_url text NULL,
 
     FOREIGN KEY (worker_id, workflow_name) references worker(id, workflow_name)
         ON UPDATE CASCADE
@@ -74,15 +74,15 @@ CREATE type task_status AS ENUM (
 );
 
 CREATE TABLE task (
-    id varchar(255) NOT NULL,
-    workflow_id varchar(255) NOT NULL,
-    workflow_name varchar(255) NOT NULL,
-    user_id varchar(255) NOT NULL,
-    task_description_json varchar(10485760) NOT NULL,
+    id text NOT NULL,
+    workflow_id text NOT NULL,
+    workflow_name text NOT NULL,
+    user_id text NOT NULL,
+    task_description_json text NOT NULL,
     status task_status NOT NULL,
 
     rc int NULL,
-    error_description varchar(10485760) NULL,
-    worker_id varchar(255) NULL,
+    error_description text NULL,
+    worker_id text NULL,
     PRIMARY KEY(id, workflow_id)
 );

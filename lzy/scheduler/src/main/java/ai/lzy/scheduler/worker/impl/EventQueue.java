@@ -17,10 +17,10 @@ public class EventQueue {
     }
 
     public WorkerEvent waitForNext() throws InterruptedException {
-        WorkerEvent event = dao.take(workerId);
+        WorkerEvent event = null;
         while (event == null) {
-            queue.take();
-            event = dao.take(workerId);  // Event can be removed from dao
+            event = queue.take();
+            event = dao.takeById(event.id());  // Event can be removed from dao
         }
         return event;
     }

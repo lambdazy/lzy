@@ -1,6 +1,7 @@
 package ai.lzy.scheduler.db.impl;
 
-import ai.lzy.model.db.Transaction;
+import ai.lzy.model.db.DbOperation;
+import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.model.operation.Operation;
 import ai.lzy.scheduler.allocator.WorkerMetaStorage;
@@ -109,19 +110,30 @@ public class WorkerDaoImpl implements WorkerDao, WorkerMetaStorage {
     }
 
     @Override
-    public Worker create(String userId, String workflowName, Operation.Requirements requirements) throws DaoException {
+    public Worker create(String userId, String workflowName, Operation.Requirements requirements,
+                         @Nullable TransactionHandle tx) throws DaoException
+    {
         final var id = UUID.randomUUID().toString();
         final var status = WorkerState.Status.CREATED;
         final var state = new WorkerStateBuilder(id, userId, workflowName, requirements, status).build();
-        try (var con = storage.connect(); var ps = con.prepareStatement(
-            " INSERT INTO worker(" + FIELDS + ")"
-                + " VALUES (?, ?, ?, CAST(? AS worker_status), ?, ?, ?, ?)"))
-        {
-            writeState(state, con, ps);
-            ps.execute();
-        } catch (SQLException | JsonProcessingException e) {
+
+        try {
+            DbOperation.execute(tx, storage, con -> {
+                try (var ps = con.prepareStatement(
+                        " INSERT INTO worker(" + FIELDS + ")"
+                                + " VALUES (?, ?, ?, CAST(? AS worker_status), ?, ?, ?, ?)"))
+                {
+                    writeState(state, con, ps);
+                    ps.execute();
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+        } catch (SQLException e) {
             throw new DaoException(e);
         }
+
+
         return new WorkerImpl(state, queue.get(state.workflowName(), state.id()));
     }
 
@@ -151,40 +163,48 @@ public class WorkerDaoImpl implements WorkerDao, WorkerMetaStorage {
     }
 
     @Override
-    public void acquireForTask(String workflowName, String workerId) throws DaoException, AcquireException {
+    public void acquireForTask(String workflowName, String workerId,
+                               @Nullable TransactionHandle tx) throws DaoException, AcquireException
+    {
         AtomicBoolean failed = new AtomicBoolean(false);
-        Transaction.execute(storage, con -> {
-            final WorkerState state;
-            try (var ps = con.prepareStatement(
-                "SELECT " + FIELDS + " FROM worker " + """
-                WHERE workflow_name = ? AND id = ? AND acquired_for_task = false
-                FOR UPDATE
-                """))
-            {
-                ps.setString(1, workflowName);
-                ps.setString(2, workerId);
-                try (var rs = ps.executeQuery()) {
-                    if (!rs.isBeforeFirst()) {
-                        failed.set(true);
-                        return true;
+        try {
+            DbOperation.execute(tx, storage, con -> {
+                final WorkerState state;
+                try (var ps = con.prepareStatement(
+                    "SELECT " + FIELDS + " FROM worker " + """
+                    WHERE workflow_name = ? AND id = ? AND acquired_for_task = false
+                    FOR UPDATE
+                    """))
+                {
+                    ps.setString(1, workflowName);
+                    ps.setString(2, workerId);
+                    try (var rs = ps.executeQuery()) {
+                        if (!rs.isBeforeFirst()) {
+                            failed.set(true);
+                            return true;
+                        }
+                        rs.next();
+                        state = readWorkerState(rs);
+                    } catch (JsonProcessingException e) {
+                        throw new RuntimeException(e);
                     }
-                    rs.next();
-                    state = readWorkerState(rs);
                 }
-            }
-            try (var ps = con.prepareStatement("""
-                UPDATE worker
-                SET acquired_for_task = true
-                WHERE workflow_name = ? AND id = ?
-                """))
-            {
-                ps.setString(1, state.workflowName());
-                ps.setString(2, state.id());
-                ps.executeUpdate();
-            }
+                try (var ps = con.prepareStatement("""
+                    UPDATE worker
+                    SET acquired_for_task = true
+                    WHERE workflow_name = ? AND id = ?
+                    """))
+                {
+                    ps.setString(1, state.workflowName());
+                    ps.setString(2, state.id());
+                    ps.executeUpdate();
+                }
 
-            return true;
-        });
+                return true;
+            });
+        } catch (SQLException e) {
+            throw new DaoException(e);
+        }
         if (failed.get()) {
             throw new AcquireException();
         }

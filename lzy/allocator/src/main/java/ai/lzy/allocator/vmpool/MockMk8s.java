@@ -20,11 +20,11 @@ public class MockMk8s implements VmPoolRegistry, ClusterRegistry {
         "S", new ClusterDescription(
             "S-" + UUID.randomUUID(),
             HostAndPort.fromString("localhost:1256"),
-            ""),
+            "", ClusterType.User),
         "M", new ClusterDescription(
             "M-" + UUID.randomUUID(),
             HostAndPort.fromString("localhost:1256"),
-            "")
+            "", ClusterType.User)
     ));
     private final Map<String, ClusterDescription> idsToClusters;
 

@@ -546,6 +546,7 @@ public class WorkflowService {
                 .setSessionId(sessionId)
                 .setPoolLabel("portals")
                 .setZone("ru-central1-a")
+                .setClusterType(VmAllocatorApi.AllocateRequest.ClusterType.SYSTEM)
                 .addWorkload(
                     VmAllocatorApi.AllocateRequest.Workload.newBuilder()
                         .setName("portal")

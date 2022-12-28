@@ -9,6 +9,7 @@ import ai.lzy.allocator.disk.DiskType;
 import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.model.*;
 import ai.lzy.allocator.storage.AllocatorDataSource;
+import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.Storage;
@@ -188,7 +189,8 @@ public class DaoTest {
             List.of(),
             List.of(wl1),
             List.of(volumeRequest),
-            null);
+            null,
+            ClusterRegistry.ClusterType.User);
         final var vm = vmDao.create(vmSpec, allocOp.id(), now(), now().plus(Duration.ofDays(1)), "ott", "x", null);
 
         final var vm1 = vmDao.get(vm.vmId(), null);

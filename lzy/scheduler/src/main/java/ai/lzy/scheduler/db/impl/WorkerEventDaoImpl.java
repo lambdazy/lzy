@@ -9,6 +9,7 @@ import jakarta.inject.Singleton;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -51,6 +52,26 @@ public class WorkerEventDaoImpl implements WorkerEventDao {
             ps.execute();
         } catch (SQLException e) {
             throw new RuntimeException("Cannot save event", e);
+        }
+    }
+
+    @Nullable
+    @Override
+    public WorkerEvent takeById(String eventId) {
+        try (var con = storage.connect(); PreparedStatement ps = con.prepareStatement(String.format("""
+            DELETE FROM worker_event
+            WHERE id = ?
+            RETURNING %s
+            """, FIELDS)))
+        {
+            ps.setString(1, eventId);
+            var rs = ps.executeQuery();
+            if (rs.next()) {
+                return readEvent(rs);
+            }
+            return null;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);  // TODO(artolord) add more clear error processing
         }
     }
 

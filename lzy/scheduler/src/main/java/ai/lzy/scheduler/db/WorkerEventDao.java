@@ -11,6 +11,9 @@ public interface WorkerEventDao {
     @Nullable
     WorkerEvent take(String workerId) throws InterruptedException;
 
+    @Nullable
+    WorkerEvent takeById(String eventId);
+
     List<WorkerEvent> list(String workerId);
 
     void removeAllByTypes(String workerId, WorkerEvent.Type... types);

@@ -10,6 +10,7 @@ import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.scheduler.db.TaskDao;
 import ai.lzy.scheduler.db.WorkerDao;
 import ai.lzy.scheduler.db.WorkerEventDao;
+import ai.lzy.scheduler.db.impl.SchedulerDataSource;
 import ai.lzy.scheduler.models.TaskState;
 import ai.lzy.scheduler.models.WorkerState;
 import ai.lzy.scheduler.test.EventProcessorTest.AllocationRequest;
@@ -63,6 +64,7 @@ public class SchedulerTest {
 
     @Rule
     public Timeout globalTimeout = Timeout.seconds(30);
+    private SchedulerDataSource storage;
 
     @Before
     public void setUp() {
@@ -72,6 +74,7 @@ public class SchedulerTest {
         workerDao = context.getBean(WorkerDao.class);
         tasks = context.getBean(TaskDao.class);
         manager = context.getBean(EventQueueManager.class);
+        storage = context.getBean(SchedulerDataSource.class);
 
         workflowId = "wfid" + UUID.randomUUID();
         workflowName = "wf" + UUID.randomUUID();
@@ -99,7 +102,7 @@ public class SchedulerTest {
             .build();
 
         WorkersPool pool = new WorkersPoolImpl(config, processorConfig, workerDao, allocator, events, tasks,
-            manager);
+            manager, storage);
         SchedulerImpl scheduler = new SchedulerImpl(workerDao, tasks, pool, config);
         scheduler.start();
         final CompletableFuture<AllocationRequest> allocationRequested = new CompletableFuture<>();
@@ -204,7 +207,7 @@ public class SchedulerTest {
             .build();
 
         WorkersPool pool = new WorkersPoolImpl(config, processorConfig, workerDao, allocator, events, tasks,
-            manager);
+            manager, storage);
         SchedulerImpl scheduler = new SchedulerImpl(workerDao, tasks, pool, config);
         scheduler.start();
 
@@ -215,7 +218,8 @@ public class SchedulerTest {
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
-            var poolTmp = new WorkersPoolImpl(config, processorConfig, workerDao, allocator, events, tasks, manager);
+            var poolTmp = new WorkersPoolImpl(config, processorConfig, workerDao, allocator, events,
+                    tasks, manager, storage);
             var schedulerTmp = new SchedulerImpl(workerDao, tasks, poolTmp, config);
             schedulerTmp.start();
             return schedulerTmp;
@@ -668,7 +672,7 @@ public class SchedulerTest {
             .build();
 
         WorkersPool pool = new WorkersPoolImpl(config, processorConfig, workerDao, allocator, events, tasks,
-            manager);
+            manager, storage);
         SchedulerImpl scheduler = new SchedulerImpl(workerDao, tasks, pool, config);
         scheduler.start();
 

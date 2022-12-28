@@ -93,6 +93,11 @@ public class CondaEnvironment implements AuxEnvironment {
         lockForMultithreadingTests.lock();
         try {
             if (RECONFIGURE_CONDA) {
+                if (CondaPackageRegistry.isInstalled(pythonEnv.yaml())) {
+                    LOG.info("Conda env {} already configured, skipping", envName);
+                    return;
+                }
+
                 LOG.info("CondaEnvironment::installPyenv trying to install pyenv");
                 File condaFile = File.createTempFile("conda", ".yaml");
 
@@ -100,7 +105,8 @@ public class CondaEnvironment implements AuxEnvironment {
                     file.write(pythonEnv.yaml());
                 }
 
-                final LzyProcess lzyProcess = execInEnv("conda env update --file " + condaFile.getAbsolutePath());
+                final LzyProcess lzyProcess = runProcess(
+                    "conda", "env", "update", "--file", condaFile.getAbsolutePath());
                 final StringBuilder stdout = new StringBuilder();
                 final StringBuilder stderr = new StringBuilder();
                 try (LineNumberReader reader = new LineNumberReader(new InputStreamReader(lzyProcess.out()))) {

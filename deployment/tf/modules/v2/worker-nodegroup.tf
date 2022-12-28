@@ -101,6 +101,7 @@ resource "kubernetes_daemonset" "worker_cpu_fictive_containers" {
       spec {
         container {
           image   = var.servant-image
+          image_pull_policy = "Always"
           name    = "fictive-worker"
           command = ["tail", "-f", "/entrypoint.sh"]
         }

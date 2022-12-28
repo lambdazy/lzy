@@ -6,6 +6,7 @@ import ai.lzy.allocator.model.VolumeClaim;
 import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.allocator.storage.AllocatorDataSource;
+import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
@@ -30,7 +31,8 @@ import javax.inject.Named;
 @Singleton
 public class VmDaoImpl implements VmDao {
     private static final String SPEC_FIELDS =
-        "id, session_id, pool_label, zone, init_workloads_json, workloads_json, volume_requests_json, v6_proxy_address";
+        "id, session_id, pool_label, zone, init_workloads_json, workloads_json, volume_requests_json," +
+        " v6_proxy_address, cluster_type";
 
     private static final String STATUS_FIELDS = "status";
 
@@ -54,7 +56,7 @@ public class VmDaoImpl implements VmDao {
 
     private static final String QUERY_CREATE_VM = """
         INSERT INTO vm (%s, %s, %s)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """.formatted(SPEC_FIELDS, STATUS_FIELDS, ALLOCATION_START_FIELDS);
 
     private static final String QUERY_UPDATE_VM_ACTIVITY = """
@@ -190,16 +192,17 @@ public class VmDaoImpl implements VmDao {
                 s.setString(6, objectMapper.writeValueAsString(vmSpec.workloads()));
                 s.setString(7, objectMapper.writeValueAsString(vmSpec.volumeRequests()));
                 s.setString(8, vmSpec.proxyV6Address() == null ? null : vmSpec.proxyV6Address().getHostAddress());
+                s.setString(9, vmSpec.clusterType().name());
 
                 // status
-                s.setString(9, Vm.Status.ALLOCATING.name());
+                s.setString(10, Vm.Status.ALLOCATING.name());
 
                 // allocation state
-                s.setString(10, opId);
-                s.setTimestamp(11, Timestamp.from(startedAt));
-                s.setTimestamp(12, Timestamp.from(opDeadline));
-                s.setString(13, allocatorId);
-                s.setString(14, vmOtt);
+                s.setString(11, opId);
+                s.setTimestamp(12, Timestamp.from(startedAt));
+                s.setTimestamp(13, Timestamp.from(opDeadline));
+                s.setString(14, allocatorId);
+                s.setString(15, vmOtt);
 
                 int ret = s.executeUpdate();
                 assert ret == 1;
@@ -555,6 +558,8 @@ public class VmDaoImpl implements VmDao {
             })
             .orElse(null);
 
+        final var clusterType = ClusterRegistry.ClusterType.valueOf(rs.getString(++idx));
+
         // status
         final var vmStatus = Vm.Status.valueOf(rs.getString(++idx));
 
@@ -599,7 +604,8 @@ public class VmDaoImpl implements VmDao {
         final var deadline = Optional.ofNullable(rs.getTimestamp(++idx)).map(Timestamp::toInstant).orElse(null);
 
         return new Vm(
-            new Vm.Spec(id, sessionId, poolLabel, zone, initWorkloads, workloads, volumeRequests, v6ProxyAddress),
+            new Vm.Spec(id, sessionId, poolLabel, zone, initWorkloads, workloads,
+                volumeRequests, v6ProxyAddress, clusterType),
             vmStatus,
             new Vm.AllocateState(allocationOpId, allocationStartedAt, allocationDeadline, allocationOwner, vmOtt,
                 vmSubjectId, tunnelPodName, allocatorMeta, volumeClaims),

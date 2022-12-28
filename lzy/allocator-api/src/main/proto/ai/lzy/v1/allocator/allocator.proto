@@ -76,6 +76,12 @@ message AllocateRequest {
     repeated Mount volume_mounts = 20;
   }
 
+  enum ClusterType {
+    UNSPECIFIED = 0;
+    USER = 1;
+    SYSTEM = 2;
+  }
+
   string session_id = 1;
   string pool_label = 2;
   string zone = 3;
@@ -92,6 +98,10 @@ message AllocateRequest {
   // Setting this field will result in creating ipip6 tunnel to this address on the vm side.
   // Only works for k8s allocated machines and expected to be the address of other side of the tunnel.
   optional string proxy_v6_address = 7;
+
+  // Sets cluster type requirements for allocation
+  // If not set, using user clusters to find available vms
+  ClusterType cluster_type = 8;
 }
 
 message AllocateResponse {
