@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional, Type, cast, BinaryIO
 from serialzy.api import SerializerRegistry, Schema
 from tqdm import tqdm
 
-from lzy.logging import get_logger
+from lzy.logging.config import get_logger
 from lzy.proxy.result import Just, Nothing, Result
 from lzy.storage.api import AsyncStorageClient, StorageRegistry
 

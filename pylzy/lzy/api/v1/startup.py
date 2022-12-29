@@ -7,11 +7,11 @@ from typing import Any, Callable, Mapping, Sequence, Tuple, Type, Optional, cast
 from serialzy.api import SerializerRegistry
 
 from lzy.api.v1.utils.pickle import unpickle
-from lzy.logging import get_remote_logger
+from lzy.logging.config import get_logger, load_logging_config
 
 _lzy_mount: Optional[str] = None  # for tests only
 
-_LOG = get_remote_logger(__name__)
+_LOG = get_logger(__name__)
 
 
 def read_data(path: str, typ: Type, serializers: SerializerRegistry) -> Any:
@@ -117,6 +117,7 @@ def main(arg: str):
 
 
 if __name__ == "__main__":
+    load_logging_config()
     _LOG.info("Starting remote runtime...")
     _LOG.debug(f"Running with environment: {os.environ}")
     main(sys.argv[1])

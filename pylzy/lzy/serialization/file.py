@@ -6,7 +6,7 @@ from packaging import version
 from serialzy.api import Schema, StandardSchemaFormats, VersionBoundary
 from serialzy.base import DefaultSchemaSerializerByReference
 
-from lzy.logging import get_logger
+from lzy.logging.config import get_logger
 from lzy.types import File
 from lzy.version import __version__
 

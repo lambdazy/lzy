@@ -58,6 +58,7 @@ setuptools.setup(
         "lzy/injections",
         "lzy/whiteboards",
         "lzy/utils",
+        "lzy/logging",
         "ai/",
         "ai/lzy",
         "ai/lzy/v1",

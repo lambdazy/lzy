@@ -1,0 +1,32 @@
+version: 1
+disable_existing_loggers: False
+
+formatters:
+  local:
+    format: "[LZY LOCAL] - %(asctime)s - [%(levelname)s] - %(message)s"
+
+  remote:
+    format: "%(asctime)s - [%(levelname)s] - %(message)s"
+
+handlers:
+  local:
+    level: 0
+    class: logging.StreamHandler
+    formatter: local
+
+  remote:
+    level: 0
+    class: logging.StreamHandler
+    formatter: remote
+
+loggers:
+  lzy:
+    level: "${LZY_LOGGING_LEVEL}"
+
+  lzy.api.v1.startup:
+    level: "${LZY_LOGGING_LEVEL}"
+    handlers: [ remote ]
+
+root:
+  level: WARNING
+  handlers: [ local ]

@@ -9,7 +9,7 @@ import requests
 from importlib_metadata import packages_distributions  # type: ignore
 from stdlib_list import stdlib_list
 
-from lzy.logging import get_logger
+from lzy.logging.config import get_logger
 from lzy.py_env.api import PyEnv, PyEnvProvider
 
 STDLIB_LIST = stdlib_list() if sys.version_info < (3, 10) else sys.stdlib_module_names  # type: ignore
