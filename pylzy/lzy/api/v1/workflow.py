@@ -150,6 +150,9 @@ class LzyWorkflow:
         if len(self.__call_queue) == 0:
             return
 
+        _LOG.info(f"Building graph from calls "
+                  f"{' -> '.join(call.signature.func.callable.__name__ for call in self.__call_queue)}")
+
         data_to_load = []
         for call in self.__call_queue:
             for arg, eid in zip(call.args, call.arg_entry_ids):
@@ -183,7 +186,7 @@ class LzyWorkflow:
 
         for field in declared_fields:
             if field.default != dataclasses.MISSING:
-                entry = self.snapshot.create_entry(field.type)
+                entry = self.snapshot.create_entry(field.name, field.type)
                 data_to_load.append(self.snapshot.put_data(entry.id, field.default))
                 fields.append(
                     WhiteboardField(field.name, WhiteboardDefaultDescription(entry.storage_url, entry.data_scheme))

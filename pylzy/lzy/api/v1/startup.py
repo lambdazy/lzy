@@ -17,7 +17,8 @@ _LOG = get_remote_logger(__name__)
 def read_data(path: str, typ: Type, serializers: SerializerRegistry) -> Any:
     ser = serializers.find_serializer_by_type(typ)
 
-    _LOG.info(f"Reading data from {path} with type {typ} and serializer {type(ser)}")
+    name = path.split('/')[-1]
+    _LOG.info(f"Reading {name} with serializer {type(ser).__name__}")
 
     mount = os.getenv("LZY_MOUNT", _lzy_mount)
     assert mount is not None
@@ -42,7 +43,8 @@ def write_data(path: str, typ: Type, data: Any, serializers: SerializerRegistry)
         raise ValueError(
             f'Serializer for type {typ} is not available, please install {ser.requirements()}')
 
-    _LOG.info(f"Writing data to {path} with type {typ} and serializer {type(ser)}")
+    name = path.split('/')[-1]
+    _LOG.info(f"Writing {name} with serializer {type(ser)}")
     with open(mount + path, "wb") as out_handle:
         out_handle.seek(0)
         out_handle.flush()
@@ -70,7 +72,7 @@ def process_execution(
         _LOG.error(f"Error while reading arguments: {e}")
         raise e
 
-    _LOG.info(f"Executing operation with args <{args}> and kwargs <{kwargs}>")
+    _LOG.info(f"Executing operation '{op.__name__}'")
     try:
         res = op(*args, **kwargs)
     except Exception as e:
@@ -115,5 +117,6 @@ def main(arg: str):
 
 
 if __name__ == "__main__":
-    _LOG.info(f"Running with environment: {os.environ}")
+    _LOG.info("Starting remote runtime...")
+    _LOG.debug(f"Running with environment: {os.environ}")
     main(sys.argv[1])

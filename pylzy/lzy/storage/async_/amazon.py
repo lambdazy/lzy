@@ -1,4 +1,4 @@
-from typing import BinaryIO, cast
+from typing import BinaryIO, cast, Callable, Optional
 
 from aioboto3 import Session
 from botocore.exceptions import ClientError
@@ -21,15 +21,21 @@ class AmazonClient(AsyncStorageClient):
             endpoint_url=self.__credentials.endpoint,
         )
 
-    async def read(self, url: str, data: BinaryIO):
+    async def size_in_bytes(self, uri: str) -> int:
         async with self._get_client_context() as client:
-            bucket, key = bucket_from_uri(self.scheme, url)
-            await client.download_fileobj(bucket, key, data)
+            bucket, key = bucket_from_uri(self.scheme, uri)
+            head = await client.head_object(Bucket=bucket, Key=key)
+            return head['ContentLength']
 
-    async def write(self, url: str, data: BinaryIO) -> str:
+    async def read(self, url: str, data: BinaryIO, progress: Optional[Callable[[int], None]] = None):
         async with self._get_client_context() as client:
             bucket, key = bucket_from_uri(self.scheme, url)
-            await client.upload_fileobj(data, bucket, key)
+            await client.download_fileobj(bucket, key, data, Callback=progress)
+
+    async def write(self, url: str, data: BinaryIO, progress: Optional[Callable[[int], None]] = None) -> str:
+        async with self._get_client_context() as client:
+            bucket, key = bucket_from_uri(self.scheme, url)
+            await client.upload_fileobj(data, bucket, key, Callback=progress)
             return uri_from_bucket(self.scheme, bucket, key)
 
     async def blob_exists(self, uri: str) -> bool:

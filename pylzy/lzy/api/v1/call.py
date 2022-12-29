@@ -38,7 +38,10 @@ class LzyCall:
         self.__provisioning = provisioning
         self.__env = env
         self.__description = description
-        self.__entry_ids = [parent_wflow.snapshot.create_entry(typ).id for typ in sign.func.output_types]
+        self.__entry_ids = [
+            parent_wflow.snapshot.create_entry(sign.func.callable.__name__ + ".return_" + str(i), typ).id
+            for i, typ in enumerate(sign.func.output_types)
+        ]
 
         self.__args_entry_ids: typing.List[str] = []
         for i, arg in enumerate(sign.args):
@@ -46,7 +49,9 @@ class LzyCall:
                 self.__args_entry_ids.append(get_proxy_entry_id(arg))
             else:
                 name = sign.func.arg_names[i]
-                self.__args_entry_ids.append(parent_wflow.snapshot.create_entry(sign.func.input_types[name]).id)
+                self.__args_entry_ids.append(
+                    parent_wflow.snapshot.create_entry(sign.func.callable.__name__ + "." + name,
+                                                       sign.func.input_types[name]).id)
 
         self.__kwargs_entry_ids: Dict[str, str] = {}
         for name, kwarg in sign.kwargs.items():
@@ -54,7 +59,8 @@ class LzyCall:
             if is_lzy_proxy(kwarg):
                 entry_id = kwarg.__lzy_entry_id__
             else:
-                entry_id = parent_wflow.snapshot.create_entry(sign.func.input_types[name]).id
+                entry_id = parent_wflow.snapshot.create_entry(sign.func.callable.__name__ + "." + name,
+                                                              sign.func.input_types[name]).id
 
             self.__kwargs_entry_ids[name] = entry_id
 
