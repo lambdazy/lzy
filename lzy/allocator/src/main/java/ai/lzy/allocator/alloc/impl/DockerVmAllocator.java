@@ -1,6 +1,5 @@
 package ai.lzy.allocator.alloc.impl;
 
-import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
@@ -24,10 +23,13 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+
+import static ai.lzy.allocator.alloc.impl.ThreadVmAllocator.PORTAL_POOL_LABEL;
 
 @Singleton
 @Requires(property = "allocator.docker-allocator.enabled", value = "true")
@@ -46,7 +48,7 @@ public class DockerVmAllocator implements VmAllocator {
         this.config = config;
     }
 
-    private String requestAllocation(Workload workload, String vmId) {
+    private String allocateWithSingleWorkload(String vmId, String vmOtt, Workload workload) {
 
         final HostConfig hostConfig = new HostConfig();
 
@@ -71,11 +73,20 @@ public class DockerVmAllocator implements VmAllocator {
             .map(e -> e.getKey() + "=" + e.getValue())
             .collect(Collectors.toList());
 
-        envs.addAll(List.of(
-            AllocatorAgent.VM_ALLOCATOR_ADDRESS + "=" + config.getAddress(),
-            AllocatorAgent.VM_HEARTBEAT_PERIOD + "=" + config.getHeartbeatTimeout().dividedBy(2).toString(),
-            AllocatorAgent.VM_ID_KEY + "=" + vmId
+        final var args = new ArrayList<>(workload.args());
+
+        args.addAll(List.of(
+            "--vm-id", vmId,
+            "--allocator-address", config.getAddress(),
+            "--allocator-heartbeat-period", config.getHeartbeatTimeout().dividedBy(2).toString(),
+            "--host", "localhost"
         ));
+        args.add("--allocator-token");
+        args.add('"' + vmOtt + '"');
+        if (workload.env().containsKey("LZY_WORKER_PKEY")) {
+            args.add("--iam-token");
+            args.add('"' + workload.env().get("LZY_WORKER_PKEY") + '"');
+        }
 
         final CreateContainerResponse container = DOCKER.createContainerCmd(workload.image())
             .withAttachStdout(true)
@@ -83,9 +94,9 @@ public class DockerVmAllocator implements VmAllocator {
             .withEnv(envs)
             .withExposedPorts(exposedPorts)
             .withHostConfig(hostConfig)
-            .withCmd(workload.args())
+            .withCmd(args)
             .exec();
-        LOG.info("Created vm container id = {}", container.getId());
+        LOG.info("Created vm {} inside container with id = {}", vmId, container.getId());
         DOCKER.startContainerCmd(container.getId()).exec();
         return container.getId();
     }
@@ -93,9 +104,12 @@ public class DockerVmAllocator implements VmAllocator {
     @Override
     public boolean allocate(Vm vm) throws InvalidConfigurationException {
         if (vm.workloads().size() > 1) {
-            throw new InvalidConfigurationException("Docker allocator supports only one workload");
+            throw new InvalidConfigurationException("DockerAllocator supports only one workload");
         }
-        var containerId = requestAllocation(vm.workloads().get(0), vm.vmId());
+        if (vm.poolLabel().contains(PORTAL_POOL_LABEL)) {
+            throw new InvalidConfigurationException("PORTAL_POOL_LABEL is not supported in DockerAllocator");
+        }
+        var containerId = allocateWithSingleWorkload(vm.vmId(), vm.allocateState().vmOtt(), vm.workloads().get(0));
         try {
             dao.setAllocatorMeta(vm.vmId(), Map.of(CONTAINER_ID_KEY, containerId), null);
             return true;
