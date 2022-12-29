@@ -46,9 +46,15 @@ public class LzyLinuxFsManagerImpl implements LzyFSManager {
 
     private void createFsDirectories(Path mount) {
         try {
+            System.out.println("Creating " + mount.toString() + " with permissions \"rwxrwxrwx\"");
+            Thread.sleep(60_000);
             var permissions = PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwxrwxrwx"));
             Files.createDirectories(mount, permissions);
+            System.out.println("Created " + mount.toString() + " with permissions \"rwxrwxrwx\"");
+            Thread.sleep(60_000);
         } catch (IOException e) {
+            throw new RuntimeException(e);
+        } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
     }
