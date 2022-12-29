@@ -18,6 +18,7 @@ from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy, lzy_proxy
 from lzy.api.v1.whiteboards import WritableWhiteboard, fetch_whiteboard_meta, WbRef
 from lzy.logging import get_logger
 from lzy.proxy.result import Just
+from lzy.py_env.api import PyEnv
 from lzy.utils.event_loop import LzyEventLoop
 from lzy.whiteboards.api import WhiteboardField, WhiteboardDefaultDescription
 
@@ -43,7 +44,7 @@ class LzyWorkflow:
         snapshot: Snapshot,
         env: Env,
         provisioning: Provisioning,
-        namespace: Dict[str, Any],
+        auto_py_env: Optional[PyEnv],
         *,
         eager: bool = False,
         interactive: bool = True
@@ -58,7 +59,7 @@ class LzyWorkflow:
 
         self.__env = env
         self.__provisioning = provisioning
-        self.__namespace = namespace
+        self.__auto_py_env = auto_py_env
         self.__interactive = interactive
         self.__whiteboards: List[str] = []
 
@@ -79,8 +80,8 @@ class LzyWorkflow:
         return self.__env
 
     @property
-    def namespace(self) -> Dict[str, Any]:
-        return self.__namespace
+    def auto_py_env(self) -> Optional[PyEnv]:
+        return self.__auto_py_env
 
     @property
     def provisioning(self) -> Provisioning:

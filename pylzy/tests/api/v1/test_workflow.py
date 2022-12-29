@@ -150,6 +150,15 @@ class LzyWorkflowTests(TestCase):
             self.assertEqual(True, t)
             self.assertEqual(False, f)
 
+    def test_globals_not_materialized(self):
+        with self.lzy.workflow(self.workflow_name):
+            # noinspection PyGlobalUndefined
+            global s1, s2
+            s1 = foo()
+            s2 = foo()
+            self.assertFalse(materialized(s1))
+            self.assertFalse(materialized(s2))
+
     @skip("WIP")
     def test_barrier(self):
         with self.lzy.workflow(self.workflow_name, False) as workflow:

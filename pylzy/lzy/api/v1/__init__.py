@@ -20,7 +20,7 @@ from lzy.api.v1.utils.types import infer_return_type
 from lzy.api.v1.whiteboards import whiteboard_, ReadOnlyWhiteboard
 from lzy.api.v1.workflow import LzyWorkflow
 from lzy.proxy.result import Nothing
-from lzy.py_env.api import PyEnvProvider
+from lzy.py_env.api import PyEnvProvider, PyEnv
 from lzy.py_env.py_env_provider import AutomaticPyEnvProvider
 from lzy.serialization.registry import LzySerializerRegistry
 from lzy.storage.api import StorageRegistry
@@ -182,7 +182,10 @@ class Lzy:
         provisioning = provisioning.override(Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb))
         provisioning.validate()
 
+        # it is important to detect py env before registering lazy calls to avoid materialization of them
         namespace = inspect.stack()[1].frame.f_globals
+        auto_py_env: Optional[PyEnv] = self.__env_provider.provide(namespace) if not conda_yaml_path else None
+
         libraries = {} if not libraries else libraries
         local_modules_path = [] if not local_modules_path else local_modules_path
         env = env.override(
@@ -199,7 +202,7 @@ class Lzy:
             ),
             env=env,
             provisioning=provisioning,
-            namespace=namespace,
+            auto_py_env=auto_py_env,
             eager=eager,
             interactive=interactive
         )

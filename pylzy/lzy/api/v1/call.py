@@ -18,6 +18,7 @@ from lzy.api.v1.snapshot import Snapshot
 from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy, lzy_proxy, get_proxy_entry_id
 from lzy.api.v1.utils.types import infer_real_types
 from lzy.api.v1.workflow import LzyWorkflow
+from lzy.py_env.api import PyEnv
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -121,7 +122,8 @@ def wrap_call(
 
         env_updated = active_workflow.env.override(env)
         if env_updated.conda_yaml_path is None:
-            py_env = active_workflow.owner.env_provider.provide(active_workflow.namespace)
+            # it is guaranteed that PyEnv is not None if conda_yaml_path is None
+            py_env = typing.cast(PyEnv, active_workflow.auto_py_env)
             env_updated = active_workflow.env.override(Env(
                 py_env.python_version, py_env.libraries, None, None, None, py_env.local_modules_path
             )).override(env)
