@@ -14,9 +14,10 @@ import jakarta.inject.Singleton;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
+import static ai.lzy.test.impl.v2.AllocatorContext.AllocatorType.THREAD_ALLOCATOR;
 
 
 public class AllocatorContext {
@@ -26,21 +27,32 @@ public class AllocatorContext {
     private final ManagedChannel channel;
     private final AllocatorGrpc.AllocatorBlockingStub stub;
 
-    public AllocatorContext(IamContext iam, String jarPath, String executableClass, int port) {
+    public AllocatorContext(AllocatorType type, IamContext iam, String jarPath, String executableClass, int port) {
 
         this.address = HostAndPort.fromParts("localhost", port);
 
         Utils.createFolder(Path.of("/tmp/resources"));
         final var opts = Utils.createModuleDatabase("allocator");
-        opts.putAll(new HashMap<String, Object>(Map.of(
+
+        switch (type) {
+            case THREAD_ALLOCATOR -> opts.putAll(Map.of(
+                "allocator.kuber-allocator.enabled", "false",
+                "allocator.docker-allocator.enabled", "false",
+                "allocator.thread-allocator.enabled", "true",
+                "allocator.thread-allocator.vm-jar-file", jarPath,
+                "allocator.thread-allocator.vm-class-name", executableClass
+            ));
+            case DOCKER_ALLOCATOR -> opts.putAll(Map.of(
+                "allocator.kuber-allocator.enabled", "false",
+                "allocator.docker-allocator.enabled", "true",
+                "allocator.thread-allocator.enabled", "false"
+            ));
+        }
+        opts.putAll(Map.of(
             "allocator.instance-id", "xxx",
             "allocator.iam.address", iam.address(),
-            "allocator.address", address.toString(),
-            "allocator.kuber-allocator.enabled", "false",
-            "allocator.thread-allocator.enabled", "true",
-            "allocator.thread-allocator.vm-jar-file", jarPath,
-            "allocator.thread-allocator.vm-class-name", executableClass
-        )));
+            "allocator.address", address.toString()
+        ));
 
         this.context = ApplicationContext.run(opts);
         this.main = context.getBean(AllocatorMain.class);
@@ -88,7 +100,8 @@ public class AllocatorContext {
 
         @Inject
         public WorkerAllocatorContext(IamContext iam) {
-            super(iam, "../lzy/worker/target/worker-1.0-SNAPSHOT.jar", "ai.lzy.worker.Worker", 23910);
+            super(AllocatorContext.resolveAllocatorType(), iam, "../lzy/worker/target/worker-1.0-SNAPSHOT.jar",
+                "ai.lzy.worker.Worker", 23910);
         }
 
         @Override
@@ -103,7 +116,7 @@ public class AllocatorContext {
 
         @Inject
         public PortalAllocatorContext(IamContext iam) {
-            super(iam, "../lzy/portal/target/portal-1.0-SNAPSHOT.jar", "ai.lzy.portal.App", 23911);
+            super(THREAD_ALLOCATOR, iam, "../lzy/portal/target/portal-1.0-SNAPSHOT.jar", "ai.lzy.portal.App", 23911);
         }
 
         @Override
@@ -112,4 +125,18 @@ public class AllocatorContext {
             super.close();
         }
     }
+
+    private static AllocatorType resolveAllocatorType() {
+        var prop = System.getProperty("ALLOCATOR_TYPE");
+        if (prop == null) {
+            return THREAD_ALLOCATOR;
+        }
+        return AllocatorType.valueOf(prop);
+    }
+
+    public enum AllocatorType {
+        THREAD_ALLOCATOR,
+        DOCKER_ALLOCATOR,
+    }
+
 }
