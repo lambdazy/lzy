@@ -1,8 +1,8 @@
 package ai.lzy.test.scenarios;
 
+import ai.lzy.service.workflow.WorkflowService;
 import ai.lzy.test.ApplicationContextRule;
 import ai.lzy.test.ContextRule;
-import ai.lzy.test.impl.v2.AllocatorContext;
 import ai.lzy.test.impl.v2.PythonContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -19,7 +19,7 @@ public class UserImagePyTest {
     public final ContextRule<PythonContext> pythonContext = new ContextRule<>(ctx, PythonContext.class);
 
     static {
-        System.setProperty("ALLOCATOR_TYPE", AllocatorContext.AllocatorType.DOCKER_ALLOCATOR.name());
+        WorkflowService.PEEK_RANDOM_PORTAL_PORTS = true;  // To recreate portals for all wfs
     }
 
     @Test
