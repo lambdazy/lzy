@@ -3,6 +3,7 @@ package ai.lzy.fs.fs;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Set;
 
 public class LzyLinuxFsManagerImpl implements LzyFSManager {
@@ -45,7 +46,8 @@ public class LzyLinuxFsManagerImpl implements LzyFSManager {
 
     private void createFsDirectories(Path mount) {
         try {
-            Files.createDirectories(mount);
+            var permissions = PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwxrwxrwx"));
+            Files.createDirectories(mount, permissions);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
