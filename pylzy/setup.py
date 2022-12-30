@@ -38,7 +38,7 @@ setuptools.setup(
             "**/*.pyi",
             "*.pyi",
         ],
-        "lzy": ["version/version"],
+        "lzy": ["version/version", "logging/logging.yml"],
     },
     install_requires=read_requirements(),
     packages=[
