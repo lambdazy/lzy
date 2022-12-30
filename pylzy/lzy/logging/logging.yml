@@ -13,11 +13,13 @@ handlers:
     level: 0
     class: logging.StreamHandler
     formatter: local
+    stream  : ext://sys.stdout
 
   remote:
     level: 0
     class: logging.StreamHandler
     formatter: remote
+    stream  : ext://sys.stdout
 
 loggers:
   lzy:
