@@ -84,6 +84,8 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
         if (taskId != null) {
             if (!line.isEmpty()) {
                 buffer.offer("[LZY-REMOTE-" + taskId + "] - " + line.toStringUtf8());
+            } else {
+                buffer.offer(line.toStringUtf8());
             }
             notifyAll();
         } else {
