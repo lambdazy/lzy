@@ -30,6 +30,7 @@ public class PortalCommonTest extends PortalTestBase {
         mocksServer.getSchedulerMock().awaitProcessing(firstWorkerId);
 
         Assert.assertEquals("[LZY-REMOTE-" + firstTaskId + "] - hello\n", portalStdout.take());
+        Assert.assertTrue(portalStdout.isEmpty());
         Assert.assertTrue(portalStderr.isEmpty());
         waitPortalCompleted();
 
@@ -59,6 +60,7 @@ public class PortalCommonTest extends PortalTestBase {
         mocksServer.getSchedulerMock().awaitProcessing(firstWorkerId);
 
         Assert.assertEquals("[LZY-REMOTE-" + secondTaskId + "] - x\n", portalStdout.take());
+        Assert.assertTrue(portalStdout.isEmpty());
         Assert.assertTrue(portalStderr.isEmpty());
         waitPortalCompleted();
 
@@ -143,8 +145,8 @@ public class PortalCommonTest extends PortalTestBase {
         mocksServer.getSchedulerMock().awaitProcessing(firstWorkerId);
 
         Assert.assertEquals("[LZY-REMOTE-" + firstTaskId + "] - hello\n", portalStdout.take());
-        Assert.assertEquals("", portalStdout.take());
-        Assert.assertEquals("", portalStderr.take());
+        Assert.assertTrue(portalStdout.isEmpty());
+        Assert.assertTrue(portalStderr.isEmpty());
         waitPortalCompleted();
 
         // task_1 clean up
@@ -172,6 +174,7 @@ public class PortalCommonTest extends PortalTestBase {
         mocksServer.getSchedulerMock().awaitProcessing(secondWorkerId);
 
         Assert.assertEquals("[LZY-REMOTE-" + secondTaskId + "] - x\n", portalStdout.take());
+        Assert.assertTrue(portalStdout.isEmpty());
         Assert.assertTrue(portalStderr.isEmpty());
         waitPortalCompleted();
 
@@ -187,6 +190,7 @@ public class PortalCommonTest extends PortalTestBase {
         mocksServer.getSchedulerMock().awaitProcessing(thirdWorkerId);
 
         Assert.assertEquals("[LZY-REMOTE-" + thirdTaskId + "] - x\n", portalStdout.take());
+        Assert.assertTrue(portalStdout.isEmpty());
         Assert.assertTrue(portalStderr.isEmpty());
         waitPortalCompleted();
 
@@ -228,6 +232,7 @@ public class PortalCommonTest extends PortalTestBase {
         mocksServer.getSchedulerMock().awaitProcessing(firstWorkerId);
 
         Assert.assertEquals("[LZY-REMOTE-" + firstTaskId + "] - hello\n", portalStdout.take());
+        Assert.assertTrue(portalStdout.isEmpty());
         Assert.assertTrue(portalStderr.isEmpty());
         waitPortalCompleted();
 
