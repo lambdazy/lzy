@@ -22,11 +22,11 @@ handlers:
 loggers:
   lzy:
     level: "${LZY_LOGGING_LEVEL}"
+    handlers: [ local ]
 
-  lzy.api.v1.startup:
+  remote:
     level: "${LZY_LOGGING_LEVEL}"
     handlers: [ remote ]
 
 root:
   level: WARNING
-  handlers: [ local ]

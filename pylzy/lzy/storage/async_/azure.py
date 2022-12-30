@@ -35,13 +35,13 @@ class AzureClientAsync(AsyncStorageClient):
         container, blob = bucket_from_uri(self.scheme, uri)
         blob_client = self._blob_client(container, blob)
         props = await blob_client.get_blob_properties()
-        return props.size
+        return cast(int, props.size)
 
-    async def read(self, uri: str, dest: BinaryIO, progress: Optional[Callable[[int], None]] = None):
+    async def read(self, uri: str, dest: BinaryIO, progress: Optional[Callable[[int], Any]] = None):
         async for chunk in self.blob_iter(uri):
             dest.write(chunk)
 
-    async def write(self, uri: str, data: BinaryIO, progress: Optional[Callable[[int], None]] = None):
+    async def write(self, uri: str, data: BinaryIO, progress: Optional[Callable[[int], Any]] = None):
         container, blob = bucket_from_uri(self.scheme, uri)
         blob_client = self._blob_client(container, blob)
         await blob_client.upload_blob(data, prpgress_hook=lambda x, t: progress(x) if progress else None)

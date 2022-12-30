@@ -1,7 +1,7 @@
 import dataclasses
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import BinaryIO, Optional, Union, Iterable, Callable
+from typing import BinaryIO, Optional, Union, Iterable, Callable, Any
 
 
 @dataclasses.dataclass
@@ -62,11 +62,11 @@ class AsyncStorageClient(ABC):
         pass
 
     @abstractmethod
-    async def read(self, uri: str, dest: BinaryIO, progress: Optional[Callable[[int], None]] = None) -> None:
+    async def read(self, uri: str, dest: BinaryIO, progress: Optional[Callable[[int], Any]] = None) -> None:
         pass
 
     @abstractmethod
-    async def write(self, uri: str, data: BinaryIO, progress: Optional[Callable[[int], None]] = None):
+    async def write(self, uri: str, data: BinaryIO, progress: Optional[Callable[[int], Any]] = None):
         pass
 
     @abstractmethod

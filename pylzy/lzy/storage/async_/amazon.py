@@ -1,4 +1,4 @@
-from typing import BinaryIO, cast, Callable, Optional
+from typing import BinaryIO, cast, Callable, Optional, Any
 
 from aioboto3 import Session
 from botocore.exceptions import ClientError
@@ -25,14 +25,14 @@ class AmazonClient(AsyncStorageClient):
         async with self._get_client_context() as client:
             bucket, key = bucket_from_uri(self.scheme, uri)
             head = await client.head_object(Bucket=bucket, Key=key)
-            return head['ContentLength']
+            return cast(int, head['ContentLength'])
 
-    async def read(self, url: str, data: BinaryIO, progress: Optional[Callable[[int], None]] = None):
+    async def read(self, url: str, data: BinaryIO, progress: Optional[Callable[[int], Any]] = None):
         async with self._get_client_context() as client:
             bucket, key = bucket_from_uri(self.scheme, url)
             await client.download_fileobj(bucket, key, data, Callback=progress)
 
-    async def write(self, url: str, data: BinaryIO, progress: Optional[Callable[[int], None]] = None) -> str:
+    async def write(self, url: str, data: BinaryIO, progress: Optional[Callable[[int], Any]] = None) -> str:
         async with self._get_client_context() as client:
             bucket, key = bucket_from_uri(self.scheme, url)
             await client.upload_fileobj(data, bucket, key, Callback=progress)

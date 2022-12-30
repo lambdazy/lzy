@@ -48,7 +48,7 @@ from lzy.api.v1.utils.files import fileobj_hash, zipdir
 from lzy.api.v1.utils.pickle import pickle
 from lzy.api.v1.workflow import LzyWorkflow
 from lzy.api.v1.workflow import WbRef
-from lzy.logging.config import get_logger
+from lzy.logging.config import get_logger, get_logging_config
 from lzy.utils.grpc import build_token
 
 FETCH_STATUS_PERIOD_SEC = float(os.getenv("FETCH_STATUS_PERIOD_SEC", "10"))
@@ -387,6 +387,7 @@ class RemoteRuntime(Runtime):
                                                  cast(Dict[str, str], call.env.libraries))
 
             request = ProcessingRequest(
+                get_logging_config(),
                 serializers=self.__workflow.owner.serializer,
                 op=call.signature.func.callable,
                 args_paths=arg_descriptions,
@@ -396,7 +397,7 @@ class RemoteRuntime(Runtime):
 
             _com = "".join(
                 [
-                    "python ",
+                    "python -u ",  # -u makes stdout/stderr unbuffered. Maybe it should be a parameter
                     "$(python -c 'import site; print(site.getsitepackages()[0])')",
                     "/lzy/api/v1/startup.py ",
                 ]

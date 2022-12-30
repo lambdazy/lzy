@@ -41,7 +41,7 @@ from lzy.api.v1 import Lzy, op, whiteboard, ReadOnlyWhiteboard
 from lzy.api.v1.local.runtime import LocalRuntime
 from lzy.api.v1.snapshot import DefaultSnapshot
 from lzy.api.v1.utils.pickle import pickle
-from lzy.logging import get_logger
+from lzy.logging.config import get_logging_config, get_logger
 from lzy.proxy.result import Just
 from lzy.serialization.registry import LzySerializerRegistry
 from lzy.storage import api as storage
@@ -174,6 +174,7 @@ class GrpcRuntimeTests(TestCase):
         startup._lzy_mount = ""
 
         req = startup.ProcessingRequest(
+            get_logging_config(),
             serializers=ser,
             op=test,
             args_paths=[(str, arg_file)],
@@ -254,7 +255,7 @@ class SnapshotTests(TestCase):
 
         snapshot = DefaultSnapshot(storages, serializers)
 
-        entry = snapshot.create_entry(str)
+        entry = snapshot.create_entry("name", str)
 
         asyncio.run(snapshot.put_data(entry.id, "some_str"))
         ret = asyncio.run(snapshot.get_data(entry.id))
@@ -341,8 +342,8 @@ class SnapshotTests(TestCase):
 
         snapshot = DefaultSnapshot(storages, serializer)
 
-        e1 = snapshot.create_entry(str)
-        e2 = snapshot.create_entry(int)
+        e1 = snapshot.create_entry("name1", str)
+        e2 = snapshot.create_entry("name2", int)
 
         LzyEventLoop.run_async(snapshot.put_data(e1.id, "42"))
         LzyEventLoop.run_async(snapshot.put_data(e2.id, 42))
