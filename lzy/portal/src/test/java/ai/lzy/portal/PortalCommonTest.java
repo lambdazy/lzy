@@ -30,8 +30,7 @@ public class PortalCommonTest extends PortalTestBase {
         mocksServer.getSchedulerMock().awaitProcessing(firstWorkerId);
 
         Assert.assertEquals("[LZY-REMOTE-" + firstTaskId + "] - hello\n", portalStdout.take());
-        Assert.assertEquals("", portalStdout.take());
-        Assert.assertEquals("", portalStderr.take());
+        Assert.assertTrue(portalStderr.isEmpty());
         waitPortalCompleted();
 
         // task_1 clean up
@@ -60,8 +59,7 @@ public class PortalCommonTest extends PortalTestBase {
         mocksServer.getSchedulerMock().awaitProcessing(firstWorkerId);
 
         Assert.assertEquals("[LZY-REMOTE-" + secondTaskId + "] - x\n", portalStdout.take());
-        Assert.assertEquals("", portalStdout.take());
-        Assert.assertEquals("", portalStderr.take());
+        Assert.assertTrue(portalStderr.isEmpty());
         waitPortalCompleted();
 
         // task_2 clean up
@@ -124,16 +122,7 @@ public class PortalCommonTest extends PortalTestBase {
             Assert.assertTrue(actual.toString(), expected.remove(actual));
         }
         Assert.assertNull(portalStdout.poll());
-
-        expected.add(firstTaskId + "; ");
-        expected.add(secondTaskId + "; ");
-
-        while (!expected.isEmpty()) {
-            var actual = portalStderr.take();
-            Assert.assertTrue(actual.toString(), actual instanceof String);
-            Assert.assertTrue(actual.toString(), expected.remove(actual));
-        }
-        Assert.assertNull(portalStderr.poll());
+        Assert.assertTrue(portalStderr.isEmpty());
     }
 
     @Test
@@ -183,8 +172,7 @@ public class PortalCommonTest extends PortalTestBase {
         mocksServer.getSchedulerMock().awaitProcessing(secondWorkerId);
 
         Assert.assertEquals("[LZY-REMOTE-" + secondTaskId + "] - x\n", portalStdout.take());
-        Assert.assertEquals("", portalStdout.take());
-        Assert.assertEquals("", portalStderr.take());
+        Assert.assertTrue(portalStderr.isEmpty());
         waitPortalCompleted();
 
         System.out.println("\n----- RUN TASK 3 -----------------------------------------\n");
@@ -199,8 +187,7 @@ public class PortalCommonTest extends PortalTestBase {
         mocksServer.getSchedulerMock().awaitProcessing(thirdWorkerId);
 
         Assert.assertEquals("[LZY-REMOTE-" + thirdTaskId + "] - x\n", portalStdout.take());
-        Assert.assertEquals("", portalStdout.take());
-        Assert.assertEquals("", portalStderr.take());
+        Assert.assertTrue(portalStderr.isEmpty());
         waitPortalCompleted();
 
         // task_3 clean up
@@ -241,8 +228,7 @@ public class PortalCommonTest extends PortalTestBase {
         mocksServer.getSchedulerMock().awaitProcessing(firstWorkerId);
 
         Assert.assertEquals("[LZY-REMOTE-" + firstTaskId + "] - hello\n", portalStdout.take());
-        Assert.assertEquals("", portalStdout.take());
-        Assert.assertEquals("", portalStderr.take());
+        Assert.assertTrue(portalStderr.isEmpty());
         waitPortalCompleted();
 
         // task_1 clean up
