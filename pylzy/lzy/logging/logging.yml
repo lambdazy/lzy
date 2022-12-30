@@ -23,11 +23,11 @@ handlers:
 
 loggers:
   lzy:
-    level: "${LZY_LOGGING_LEVEL}"
+    level: "${LZY_LOG_LEVEL}"
     handlers: [ local ]
 
   remote:
-    level: "${LZY_LOGGING_LEVEL}"
+    level: "${LZY_LOG_LEVEL}"
     handlers: [ remote ]
 
 root:

@@ -7,19 +7,19 @@ from typing import Optional, Dict, Any, cast
 
 import yaml
 
-LZY_LOGGING_CONFIG_PATH_ENV = "LZY_LOGGING_CONFIG_PATH"
-LZY_LOGGING_LEVEL_ENV = "LZY_LOGGING_LEVEL"
+LZY_LOG_CONFIG_PATH = "LZY_LOG_CONFIG_PATH"
+LZY_LOG_LEVEL = "LZY_LOG_LEVEL"
 
 
 def get_logging_config() -> Dict[str, Any]:
-    level = os.environ.get(LZY_LOGGING_LEVEL_ENV, default="INFO")
+    level = os.environ.get(LZY_LOG_LEVEL, default="INFO")
     lzy_config_path: Optional[str] = os.getenv("LZY_LOGGING_CONFIG_ENV", default=None)
     path = Path(lzy_config_path) if lzy_config_path else Path(__file__).parent / "logging.yml"
     template = string.Template(path.read_text())
     config = yaml.safe_load(
         template.substitute(
             {
-                LZY_LOGGING_LEVEL_ENV: level
+                LZY_LOG_LEVEL: level
             }
         )
     )

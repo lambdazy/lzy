@@ -274,7 +274,7 @@ class RemoteRuntime(Runtime):
             if isinstance(data, StdoutMessage):
                 sys.stdout.write(data.data)
             else:
-                sys.stdout.write(data.data)
+                sys.stderr.write(data.data)
 
     def __build_graph(
         self,
