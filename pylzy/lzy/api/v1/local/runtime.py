@@ -10,6 +10,7 @@ from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.startup import ProcessingRequest
 from lzy.api.v1.utils.pickle import pickle
 from lzy.api.v1.workflow import WbRef
+from lzy.logging.config import get_logging_config
 from lzy.storage.api import StorageConfig, AsyncStorageClient
 
 if TYPE_CHECKING:
@@ -109,6 +110,7 @@ class LocalRuntime(Runtime):
                 ret_descriptions.append((entry.typ, str(path)[len(folder):]))
 
             request = ProcessingRequest(
+                get_logging_config(),
                 serializers=self.__workflow.owner.serializer,
                 op=call.signature.func.callable,
                 args_paths=arg_descriptions,

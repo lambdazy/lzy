@@ -22,10 +22,13 @@ class RuntimeMock(Runtime):
 
 
 class StorageClientMock(AsyncStorageClient):
-    async def read(self, uri: str, dest: BinaryIO) -> None:
+    async def size_in_bytes(self, uri: str) -> int:
         pass
 
-    async def write(self, uri: str, data: BinaryIO):
+    async def read(self, uri: str, dest: BinaryIO, progress: Optional[Callable[[int], None]] = None) -> None:
+        pass
+
+    async def write(self, uri: str, data: BinaryIO, progress: Optional[Callable[[int], None]] = None):
         pass
 
     async def blob_exists(self, uri: str) -> bool:

@@ -16,12 +16,15 @@ from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.snapshot import Snapshot
 from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy, lzy_proxy
 from lzy.api.v1.whiteboards import WritableWhiteboard, fetch_whiteboard_meta, WbRef
+from lzy.logging.config import get_logger
 from lzy.proxy.result import Just
+from lzy.py_env.api import PyEnv
 from lzy.utils.event_loop import LzyEventLoop
 from lzy.whiteboards.api import WhiteboardField, WhiteboardDefaultDescription
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
+_LOG = get_logger(__name__)
 if TYPE_CHECKING:
     from lzy.api.v1 import Lzy
     from lzy.api.v1.call import LzyCall
@@ -41,7 +44,7 @@ class LzyWorkflow:
         snapshot: Snapshot,
         env: Env,
         provisioning: Provisioning,
-        namespace: Dict[str, Any],
+        auto_py_env: Optional[PyEnv],
         *,
         eager: bool = False,
         interactive: bool = True
@@ -56,7 +59,7 @@ class LzyWorkflow:
 
         self.__env = env
         self.__provisioning = provisioning
-        self.__namespace = namespace
+        self.__auto_py_env = auto_py_env
         self.__interactive = interactive
         self.__whiteboards: List[str] = []
 
@@ -77,8 +80,8 @@ class LzyWorkflow:
         return self.__env
 
     @property
-    def namespace(self) -> Dict[str, Any]:
-        return self.__namespace
+    def auto_py_env(self) -> Optional[PyEnv]:
+        return self.__auto_py_env
 
     @property
     def provisioning(self) -> Provisioning:
@@ -147,6 +150,9 @@ class LzyWorkflow:
         if len(self.__call_queue) == 0:
             return
 
+        _LOG.info(f"Building graph from calls "
+                  f"{' -> '.join(call.signature.func.callable.__name__ for call in self.__call_queue)}")
+
         data_to_load = []
         for call in self.__call_queue:
             for arg, eid in zip(call.args, call.arg_entry_ids):
@@ -160,7 +166,8 @@ class LzyWorkflow:
 
         await asyncio.gather(*data_to_load)
 
-        await self.__owner.runtime.exec(self.__call_queue, self.__whiteboards_links, lambda x: print(x))
+        await self.__owner.runtime.exec(self.__call_queue, self.__whiteboards_links,
+                                        lambda x: _LOG.info(f"Graph status: {x.name}"))
         self.__call_queue = []
 
     async def __create_whiteboard(self, typ: Type[T], tags: Sequence = ()) -> T:
@@ -179,7 +186,7 @@ class LzyWorkflow:
 
         for field in declared_fields:
             if field.default != dataclasses.MISSING:
-                entry = self.snapshot.create_entry(field.type)
+                entry = self.snapshot.create_entry(field.name, field.type)
                 data_to_load.append(self.snapshot.put_data(entry.id, field.default))
                 fields.append(
                     WhiteboardField(field.name, WhiteboardDefaultDescription(entry.storage_url, entry.data_scheme))

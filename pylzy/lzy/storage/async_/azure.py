@@ -1,5 +1,5 @@
 import datetime
-from typing import Any, AsyncIterator, BinaryIO, cast
+from typing import Any, AsyncIterator, BinaryIO, cast, Optional, Callable
 
 # noinspection PyPackageRequirements
 from azure.storage.blob import BlobSasPermissions, generate_blob_sas
@@ -31,14 +31,20 @@ class AzureClientAsync(AsyncStorageClient):
             str(blob),
         )
 
-    async def read(self, uri: str, dest: BinaryIO):
+    async def size_in_bytes(self, uri: str) -> int:
+        container, blob = bucket_from_uri(self.scheme, uri)
+        blob_client = self._blob_client(container, blob)
+        props = await blob_client.get_blob_properties()
+        return cast(int, props.size)
+
+    async def read(self, uri: str, dest: BinaryIO, progress: Optional[Callable[[int], Any]] = None):
         async for chunk in self.blob_iter(uri):
             dest.write(chunk)
 
-    async def write(self, uri: str, data: BinaryIO):
+    async def write(self, uri: str, data: BinaryIO, progress: Optional[Callable[[int], Any]] = None):
         container, blob = bucket_from_uri(self.scheme, uri)
         blob_client = self._blob_client(container, blob)
-        await blob_client.upload_blob(data)
+        await blob_client.upload_blob(data, prpgress_hook=lambda x, t: progress(x) if progress else None)
         return uri_from_bucket(self.scheme, container, blob)
 
     async def blob_exists(self, uri: str) -> bool:
@@ -46,9 +52,9 @@ class AzureClientAsync(AsyncStorageClient):
         blob_client = self._blob_client(container, blob)
         return cast(bool, await blob_client.exists())
 
-    async def blob_iter(self, uri: str) -> AsyncIterator[bytes]:
+    async def blob_iter(self, uri: str, progress: Optional[Callable[[int], None]] = None) -> AsyncIterator[bytes]:
         blob_client = self._blob_client_from_uri(uri)
-        stream = await blob_client.download_blob()
+        stream = await blob_client.download_blob(progress_hook=lambda x, t: progress(x) if progress else None)
         async for chunk in stream:
             yield chunk
 

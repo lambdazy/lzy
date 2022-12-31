@@ -82,7 +82,9 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
     public synchronized void onLine(String slot, ByteString line) {
         var taskId = slot2task.get(slot);
         if (taskId != null) {
-            buffer.offer(taskId + "; " + line.toStringUtf8());
+            if (!line.isEmpty()) {
+                buffer.offer("[LZY-REMOTE-" + taskId + "] - " + line.toStringUtf8());
+            }
             notifyAll();
         } else {
             LOG.error("Attempt to write stdout/stderr slot from unknown task, slot " + slot);
@@ -162,7 +164,7 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
                 notifyAll();
             }
 
-            for (var slot: task2slot.values()) {
+            for (var slot : task2slot.values()) {
                 if (slot.state().equals(LMS.SlotStatus.State.UNBOUND)) {
                     slot.close();
                 }

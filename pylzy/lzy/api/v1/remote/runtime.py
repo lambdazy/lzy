@@ -1,6 +1,5 @@
 import asyncio
 import functools
-import logging
 import os
 import sys
 import tempfile
@@ -20,7 +19,6 @@ from typing import (
     cast,
 )
 
-from lzy.api.v1.utils.conda import generate_conda_yaml
 from serialzy.api import Schema
 
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
@@ -45,10 +43,12 @@ from lzy.api.v1.runtime import (
     Runtime,
 )
 from lzy.api.v1.startup import ProcessingRequest
+from lzy.api.v1.utils.conda import generate_conda_yaml
 from lzy.api.v1.utils.files import fileobj_hash, zipdir
 from lzy.api.v1.utils.pickle import pickle
 from lzy.api.v1.workflow import LzyWorkflow
 from lzy.api.v1.workflow import WbRef
+from lzy.logging.config import get_logger, get_logging_config
 from lzy.utils.grpc import build_token
 
 FETCH_STATUS_PERIOD_SEC = float(os.getenv("FETCH_STATUS_PERIOD_SEC", "10"))
@@ -56,7 +56,7 @@ KEY_PATH_ENV = "LZY_KEY_PATH"
 USER_ENV = "LZY_USER"
 ENDPOINT_ENV = "LZY_ENDPOINT"
 
-_LOG = logging.getLogger(__name__)
+_LOG = get_logger(__name__)
 
 
 def wrap_error(message: str = "Something went wrong"):
@@ -89,7 +89,7 @@ class RemoteRuntime(Runtime):
         self.__workflow = workflow
         client = await self.__get_client()
 
-        _LOG.info(f"Starting workflow {self.__workflow.name}")
+        _LOG.info(f"Starting workflow '{self.__workflow.name}'")
         default_creds = self.__workflow.owner.storage_registry.default_config()
 
         exec_id, creds = await client.create_workflow(
@@ -124,15 +124,16 @@ class RemoteRuntime(Runtime):
 
         urls = await self.__load_local_modules(modules)
 
-        _LOG.info("Building graph")
+        _LOG.debug("Building execution graph")
         graph = await asyncio.get_event_loop().run_in_executor(
             None, self.__build_graph, calls, pools, list(zip(modules, urls))
         )  # Running long op in threadpool
         _LOG.debug(f"Starting executing graph {graph}")
 
         graph_id = await client.execute_graph(self.__execution_id, graph)
-        _LOG.info(f"Send graph to Lzy, graph_id={graph_id}")
+        _LOG.debug(f"Requesting remote execution, graph_id={graph_id}")
 
+        progress(ProgressStep.WAITING)
         is_executing = False
         while True:
             await asyncio.sleep(FETCH_STATUS_PERIOD_SEC)
@@ -140,14 +141,17 @@ class RemoteRuntime(Runtime):
 
             if isinstance(status, Executing) and not is_executing:
                 is_executing = True
+                progress(ProgressStep.EXECUTING)
                 continue
 
             if isinstance(status, Completed):
-                _LOG.info(f"Graph {graph_id} execution completed")
+                progress(ProgressStep.COMPLETED)
+                _LOG.debug(f"Graph {graph_id} execution completed")
                 break
 
             if isinstance(status, Failed):
-                _LOG.info(f"Graph {graph_id} execution failed: {status.description}")
+                progress(ProgressStep.FAILED)
+                _LOG.debug(f"Graph {graph_id} execution failed: {status.description}")
                 raise LzyExecutionException(
                     f"Failed executing graph {graph_id}: {status.description}"
                 )
@@ -170,7 +174,7 @@ class RemoteRuntime(Runtime):
 
     async def destroy(self):
         client = await self.__get_client()
-        _LOG.info(f"Finishing workflow {self.__workflow.name}")
+        _LOG.info(f"Finishing workflow '{self.__workflow.name}'")
 
         try:
             if not self.__running:
@@ -268,9 +272,9 @@ class RemoteRuntime(Runtime):
         client = await self.__get_client()
         async for data in client.read_std_slots(execution_id):
             if isinstance(data, StdoutMessage):
-                print(data.data, file=sys.stdout)
+                sys.stdout.write(data.data)
             else:
-                print(data.data, file=sys.stderr)
+                sys.stderr.write(data.data)
 
     def __build_graph(
         self,
@@ -293,7 +297,7 @@ class RemoteRuntime(Runtime):
 
             for i, eid in enumerate(call.arg_entry_ids):
                 entry = self.__workflow.snapshot.get(eid)
-                slot_path = f"/{call.id}/arg_{i}"
+                slot_path = f"/{call.id}/{entry.name}"
                 input_slots.append(
                     Operation.SlotDescription(
                         path=slot_path, storageUri=entry.storage_url
@@ -317,7 +321,7 @@ class RemoteRuntime(Runtime):
 
             for name, eid in call.kwarg_entry_ids.items():
                 entry = self.__workflow.snapshot.get(eid)
-                slot_path = f"/{call.id}/arg_{name}"
+                slot_path = f"/{call.id}/{entry.name}"
                 input_slots.append(
                     Operation.SlotDescription(
                         path=slot_path, storageUri=entry.storage_url
@@ -338,8 +342,8 @@ class RemoteRuntime(Runtime):
                 )
 
             for i, eid in enumerate(call.entry_ids):
-                slot_path = f"/{call.id}/ret_{i}"
                 entry = self.__workflow.snapshot.get(eid)
+                slot_path = f"/{call.id}/{entry.name}"
                 output_slots.append(
                     Operation.SlotDescription(
                         path=slot_path, storageUri=entry.storage_url
@@ -383,6 +387,7 @@ class RemoteRuntime(Runtime):
                                                  cast(Dict[str, str], call.env.libraries))
 
             request = ProcessingRequest(
+                get_logging_config(),
                 serializers=self.__workflow.owner.serializer,
                 op=call.signature.func.callable,
                 args_paths=arg_descriptions,
@@ -392,7 +397,7 @@ class RemoteRuntime(Runtime):
 
             _com = "".join(
                 [
-                    "python ",
+                    "python -u ",  # -u makes stdout/stderr unbuffered. Maybe it should be a parameter
                     "$(python -c 'import site; print(site.getsitepackages()[0])')",
                     "/lzy/api/v1/startup.py ",
                 ]

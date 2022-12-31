@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Union
+from typing import Union, Optional
 
 # noinspection PyPackageRequirements
 from catboost import CatBoostClassifier, CatBoostRanker, CatBoostRegressor
@@ -15,7 +15,7 @@ class UnfitCatboostModel:
 
 
 @extend((CatBoostClassifier, CatBoostRegressor, CatBoostRanker))
-def fit(self, *args, provisioning: Provisioning = Provisioning.default(), **kwargs):
+def fit(self, *args, provisioning: Optional[Provisioning] = None, **kwargs):
     if provisioning:
         if provisioning.gpu_type is not None and provisioning.gpu_type != GpuType.NO_GPU.value:
             self._init_params["task_type"] = "GPU"
