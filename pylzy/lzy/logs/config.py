@@ -1,4 +1,5 @@
 import logging.config
+import random
 from logging import Logger
 import os
 import string
@@ -21,6 +22,8 @@ RESET_COLOR = "\x1b[0m"
 
 def get_color() -> str:
     color = os.environ.get(LZY_SYSTEM_LOG_COLOR, default="CYAN").upper()
+    if color == "RANDOM":
+        return list(COLOURS.keys())[random.randint(0, len(COLOURS) - 1)]
     if color not in COLOURS:
         raise ValueError(f'Color {color} is not supported. Supported colors are: {COLOURS.keys()}')
     return color
