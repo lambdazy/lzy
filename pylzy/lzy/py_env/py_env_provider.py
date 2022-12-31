@@ -1,5 +1,4 @@
 import inspect
-import logging
 import sys
 from types import ModuleType
 from typing import Any, Dict, Iterable, List, Union, cast
@@ -9,7 +8,7 @@ import requests
 from importlib_metadata import packages_distributions  # type: ignore
 from stdlib_list import stdlib_list
 
-from lzy.logging.config import get_logger
+from lzy.logs.config import get_logger
 from lzy.py_env.api import PyEnv, PyEnvProvider
 
 STDLIB_LIST = stdlib_list() if sys.version_info < (3, 10) else sys.stdlib_module_names  # type: ignore
@@ -106,13 +105,13 @@ class AutomaticPyEnvProvider(PyEnvProvider):
                 # case for namespace package
                 return [module_path for module_path in module.__path__]
 
-        def append_to_module_paths(p: str, paths: List[str]):  # type: ignore
+        def append_to_module_paths(f: str, paths: List[str]):  # type: ignore
             for module_path in paths:
-                if module_path.startswith(p):
+                if module_path.startswith(f):
                     paths.remove(module_path)
-                elif p.startswith(module_path):
+                elif f.startswith(module_path):
                     return
-            paths.append(p)
+            paths.append(f)
 
         # reverse to ensure the right order: from leaves to the root
         module_paths: List[str] = []

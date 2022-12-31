@@ -16,7 +16,7 @@ from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.snapshot import Snapshot
 from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy, lzy_proxy
 from lzy.api.v1.whiteboards import WritableWhiteboard, fetch_whiteboard_meta, WbRef
-from lzy.logging.config import get_logger
+from lzy.logs.config import get_logger
 from lzy.proxy.result import Just
 from lzy.py_env.api import PyEnv
 from lzy.utils.event_loop import LzyEventLoop
@@ -130,6 +130,7 @@ class LzyWorkflow:
             self.__started = False
 
     async def __stop(self):
+        _LOG.info(f"Finishing workflow '{self.name}'")
         await self.__owner.runtime.destroy()
         wbs_to_finalize = []
         while len(self.__whiteboards) > 0:
@@ -144,6 +145,8 @@ class LzyWorkflow:
         if type(self).instance is not None:
             raise RuntimeError("Simultaneous workflows are not supported")
         type(self).instance = self
+
+        _LOG.info(f"Starting workflow '{self.name}'")
         await self.__owner.runtime.start(self)
 
     async def _barrier(self) -> None:

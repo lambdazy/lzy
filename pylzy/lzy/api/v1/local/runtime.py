@@ -1,16 +1,17 @@
 import asyncio
 import os
 import subprocess
+import sys
 import tempfile
 from collections import defaultdict
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Type, cast
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Type, cast, IO
 
 from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.startup import ProcessingRequest
 from lzy.api.v1.utils.pickle import pickle
 from lzy.api.v1.workflow import WbRef
-from lzy.logging.config import get_logging_config
+from lzy.logs.config import get_logging_config, COLOURS, get_color, RESET_COLOR
 from lzy.storage.api import StorageConfig, AsyncStorageClient
 
 if TYPE_CHECKING:
@@ -121,23 +122,26 @@ class LocalRuntime(Runtime):
             directory = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
             command = [
                 "python",
+                "-u",
                 directory + "/startup.py",
                 pickle(request)
             ]
 
             env_vars = os.environ.copy()
             env_vars["LZY_MOUNT"] = folder
-            result = subprocess.Popen(command, env=env_vars)
-            stdout, stderr = result.communicate()
-            if stdout:
-                print(stdout)
-            if stderr:
-                print(stderr)
+            result = subprocess.Popen(command, env=env_vars, stdout=subprocess.PIPE)
+            out = cast(IO[bytes], result.stdout)
+            for line in iter(out.readline, b''):
+                str_line = line.decode("utf-8")
+                system_log = "[SYS]" in str_line
+                prefix = COLOURS[get_color()] if system_log else ""
+                suffix = RESET_COLOR if system_log else ""
+                sys.stdout.write(prefix + str_line + suffix)
+            out.close()
 
             rc = result.wait()
             if rc != 0:
-                raise LzyExecutionException(
-                    str(stderr) if stderr else f"Error during execution of {call.signature.func.callable}")
+                raise LzyExecutionException(f"Error during execution of {call.signature.func.callable}")
 
             data_to_put = []
             for i, eid in enumerate(call.entry_ids):

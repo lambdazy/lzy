@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional, Type, cast, BinaryIO
 from serialzy.api import SerializerRegistry, Schema
 from tqdm import tqdm
 
-from lzy.logging.config import get_logger
+from lzy.logs.config import get_logger, get_color
 from lzy.proxy.result import Just, Nothing, Result
 from lzy.storage.api import AsyncStorageClient, StorageRegistry
 
@@ -95,10 +95,10 @@ class DefaultSnapshot(Snapshot):
         with tempfile.NamedTemporaryFile() as f:
             size = await self.storage_client.size_in_bytes(entry.storage_url)
             with tqdm(total=size, desc=f"Downloading {entry.name}", file=sys.stdout, unit='B', unit_scale=True,
-                      unit_divisor=1024) as bar:
+                      unit_divisor=1024, colour=get_color()) as bar:
                 await self.storage_client.read(entry.storage_url, cast(BinaryIO, f), progress=lambda x: bar.update(x))
                 f.seek(0)
-                res = self.__serializer_registry.find_serializer_by_type(entry.typ).deserialize(f)
+                res = self.__serializer_registry.find_serializer_by_type(entry.typ).deserialize(cast(BinaryIO, f))
                 return Just(res)
 
     async def put_data(self, entry_id: str, data: Any) -> None:
@@ -114,7 +114,7 @@ class DefaultSnapshot(Snapshot):
             f.seek(0)
 
             with tqdm(total=length, desc=f"Uploading {entry.name}", file=sys.stdout, unit='B', unit_scale=True,
-                      unit_divisor=1024) as bar:
+                      unit_divisor=1024, colour=get_color()) as bar:
                 await self.storage_client.write(entry.storage_url, cast(BinaryIO, f), progress=lambda x: bar.update(x))
 
     def get(self, entry_id: str) -> SnapshotEntry:

@@ -41,7 +41,7 @@ from lzy.api.v1 import Lzy, op, whiteboard, ReadOnlyWhiteboard
 from lzy.api.v1.local.runtime import LocalRuntime
 from lzy.api.v1.snapshot import DefaultSnapshot
 from lzy.api.v1.utils.pickle import pickle
-from lzy.logging.config import get_logging_config, get_logger
+from lzy.logs.config import get_logging_config, get_logger
 from lzy.proxy.result import Just
 from lzy.serialization.registry import LzySerializerRegistry
 from lzy.storage import api as storage

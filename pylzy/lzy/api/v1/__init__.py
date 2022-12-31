@@ -19,7 +19,7 @@ from lzy.api.v1.utils.proxy_adapter import lzy_proxy
 from lzy.api.v1.utils.types import infer_return_type
 from lzy.api.v1.whiteboards import whiteboard_, ReadOnlyWhiteboard
 from lzy.api.v1.workflow import LzyWorkflow
-from lzy.logging.config import configure_logging
+from lzy.logs.config import configure_logging
 from lzy.proxy.result import Nothing
 from lzy.py_env.api import PyEnvProvider, PyEnv
 from lzy.py_env.py_env_provider import AutomaticPyEnvProvider
@@ -129,6 +129,7 @@ class Lzy:
         serializer_registry: SerializerRegistry = LzySerializerRegistry()
     ):
         configure_logging()
+
         self.__env_provider = py_env_provider
         self.__whiteboard_client = whiteboard_client
         self.__serializer_registry = serializer_registry

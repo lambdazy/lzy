@@ -48,7 +48,7 @@ from lzy.api.v1.utils.files import fileobj_hash, zipdir
 from lzy.api.v1.utils.pickle import pickle
 from lzy.api.v1.workflow import LzyWorkflow
 from lzy.api.v1.workflow import WbRef
-from lzy.logging.config import get_logger, get_logging_config
+from lzy.logs.config import get_logger, get_logging_config, RESET_COLOR, COLOURS, get_color
 from lzy.utils.grpc import build_token
 
 FETCH_STATUS_PERIOD_SEC = float(os.getenv("FETCH_STATUS_PERIOD_SEC", "10"))
@@ -89,9 +89,7 @@ class RemoteRuntime(Runtime):
         self.__workflow = workflow
         client = await self.__get_client()
 
-        _LOG.info(f"Starting workflow '{self.__workflow.name}'")
         default_creds = self.__workflow.owner.storage_registry.default_config()
-
         exec_id, creds = await client.create_workflow(
             self.__workflow.name, default_creds
         )
@@ -174,8 +172,6 @@ class RemoteRuntime(Runtime):
 
     async def destroy(self):
         client = await self.__get_client()
-        _LOG.info(f"Finishing workflow '{self.__workflow.name}'")
-
         try:
             if not self.__running:
                 return
@@ -272,7 +268,10 @@ class RemoteRuntime(Runtime):
         client = await self.__get_client()
         async for data in client.read_std_slots(execution_id):
             if isinstance(data, StdoutMessage):
-                sys.stdout.write(data.data)
+                system_log = "[SYS]" in data.data
+                prefix = COLOURS[get_color()] if system_log else ""
+                suffix = RESET_COLOR if system_log else ""
+                sys.stdout.write(prefix + data.data + suffix)
             else:
                 sys.stderr.write(data.data)
 
