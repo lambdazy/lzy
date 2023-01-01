@@ -9,7 +9,7 @@ from serialzy.api import SerializerRegistry
 from lzy.api.v1.utils.pickle import unpickle
 from logging import Logger
 
-from lzy.logging.config import get_logger, configure_logging, get_remote_logger
+from lzy.logs.config import configure_logging, get_remote_logger
 
 NAME = __name__
 _lzy_mount: Optional[str] = None  # for tests only

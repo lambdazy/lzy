@@ -38,7 +38,7 @@ setuptools.setup(
             "**/*.pyi",
             "*.pyi",
         ],
-        "lzy": ["version/version", "logging/logging.yml"],
+        "lzy": ["version/version", "logs/logging.yml"],
     },
     install_requires=read_requirements(),
     packages=[
@@ -58,7 +58,7 @@ setuptools.setup(
         "lzy/injections",
         "lzy/whiteboards",
         "lzy/utils",
-        "lzy/logging",
+        "lzy/logs",
         "ai/",
         "ai/lzy",
         "ai/lzy/v1",
