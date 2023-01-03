@@ -290,8 +290,8 @@ public class PortalService extends LzyPortalImplBase {
             .append(", \"storage\": ");
 
         switch (slotDesc.getKindCase()) {
-            case SNAPSHOT -> sb.append("\"snapshot/key:").append(slotDesc.getSnapshot().getS3().getKey())
-                .append("/bucket:").append(slotDesc.getSnapshot().getS3().getBucket()).append("\"");
+            case SNAPSHOT ->
+                sb.append("\"snapshot/uri:").append(slotDesc.getSnapshot().getStorageConfig().getUri()).append("\"");
             case STDOUT -> sb.append("\"stdout\"");
             case STDERR -> sb.append("\"stderr\"");
             default -> sb.append("\"").append(slotDesc.getKindCase()).append("\"");

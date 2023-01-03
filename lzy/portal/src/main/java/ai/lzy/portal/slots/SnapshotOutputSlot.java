@@ -4,7 +4,7 @@ import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.slots.LzySlotBase;
 import ai.lzy.fs.slots.OutFileSlot;
 import ai.lzy.model.slot.SlotInstance;
-import ai.lzy.portal.s3.S3Repository;
+import ai.lzy.portal.s3.Repository;
 import com.google.protobuf.ByteString;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -13,6 +13,7 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.util.Objects;
@@ -23,9 +24,8 @@ import static ai.lzy.v1.common.LMS.SlotStatus.State.OPEN;
 public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot, SnapshotSlot {
     private static final Logger LOG = LogManager.getLogger(SnapshotOutputSlot.class);
 
-    private final String key;
-    private final String bucket;
-    private final S3Repository<Stream<ByteString>> s3Repository;
+    private final URI uri;
+    private final Repository<Stream<ByteString>> repository;
     private final Path storage;
 
     private final boolean hasInputSlot;
@@ -34,12 +34,11 @@ public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot, Sn
     private SnapshotSlotStatus state = SnapshotSlotStatus.INITIALIZING;
 
     public SnapshotOutputSlot(SlotInstance slotInstance, S3Snapshot slot, Path storage,
-                              String key, String bucket, S3Repository<Stream<ByteString>> s3Repository)
+                              URI uri, Repository<Stream<ByteString>> repository)
     {
         super(slotInstance);
-        this.key = key;
-        this.bucket = bucket;
-        this.s3Repository = s3Repository;
+        this.uri = uri;
+        this.repository = repository;
         this.storage = storage;
         this.slot = slot;
         this.hasInputSlot = Objects.nonNull(slot.getInputSlot());
@@ -70,7 +69,7 @@ public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot, Sn
         } else if (slot.getState().compareAndSet(S3Snapshot.State.INITIAL, S3Snapshot.State.PREPARING)) {
             state = SnapshotSlotStatus.SYNCING;
             try {
-                write(s3Repository.get(bucket, key), storage.toFile());
+                write(repository.get(uri), storage.toFile());
             } catch (Exception e) {
                 LOG.error("Cannot sync data with remote storage", e);
                 state = SnapshotSlotStatus.FAILED;

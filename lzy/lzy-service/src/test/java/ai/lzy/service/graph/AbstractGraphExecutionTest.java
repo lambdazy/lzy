@@ -2,7 +2,7 @@ package ai.lzy.service.graph;
 
 import ai.lzy.service.BaseTest;
 import ai.lzy.test.IdempotencyUtils.TestScenario;
-import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWF.Graph;
 import ai.lzy.v1.workflow.LWFS;
@@ -23,14 +23,14 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
             .setWorkflowName(workflowName).build());
     }
 
-    Graph buildSimpleGraph(LMS3.S3Locator s3locator) {
+    Graph buildSimpleGraph(LMST.StorageConfig storageConfig) {
         var operations = List.of(
             LWF.Operation.newBuilder()
                 .setName("first task prints string 'i-am-hacker' to variable")
                 .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_worker_1/a")
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_worker_1/a")
-                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
+                    .setStorageUri(buildSlotUri("snapshot_a_1", storageConfig))
                     .build())
                 .setPoolSpecName("s")
                 .build(),
@@ -39,11 +39,11 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
                 .setCommand("/tmp/lzy_worker_2/sbin/cat /tmp/lzy_worker_2/a > /tmp/lzy_worker_2/b")
                 .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_worker_2/a")
-                    .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
+                    .setStorageUri(buildSlotUri("snapshot_a_1", storageConfig))
                     .build())
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_worker_2/b")
-                    .setStorageUri(buildSlotUri("snapshot_b_1", s3locator))
+                    .setStorageUri(buildSlotUri("snapshot_b_1", storageConfig))
                     .build())
                 .setPoolSpecName("s")
                 .build()
@@ -102,7 +102,7 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
         return new TestScenario<>(authorizedWorkflowClient,
             stub -> {
                 LWFS.CreateWorkflowResponse workflow = createWorkflow(stub);
-                LMS3.S3Locator s3locator = workflow.getInternalSnapshotStorage();
+                LMST.StorageConfig storageConfig = workflow.getInternalSnapshotStorage();
 
                 var operation =
                     LWF.Operation.newBuilder()
@@ -111,11 +111,11 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
                             "echo 'i-am-a-hacker' > /tmp/lzy_worker_1/a && echo 'hello' > /tmp/lzy_worker_1/b")
                         .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                             .setPath("/tmp/lzy_worker_1/a")
-                            .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
+                            .setStorageUri(buildSlotUri("snapshot_a_1", storageConfig))
                             .build())
                         .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                             .setPath("/tmp/lzy_worker_1/b")
-                            .setStorageUri(buildSlotUri("snapshot_a_1", s3locator)))
+                            .setStorageUri(buildSlotUri("snapshot_a_1", storageConfig)))
                         .setPoolSpecName("s")
                         .build();
 
@@ -144,7 +144,7 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
         return new TestScenario<>(authorizedWorkflowClient,
             stub -> {
                 LWFS.CreateWorkflowResponse workflow = createWorkflow(stub);
-                LMS3.S3Locator s3locator = workflow.getInternalSnapshotStorage();
+                LMST.StorageConfig storageConfig = workflow.getInternalSnapshotStorage();
 
                 var operationsWithCycleDependency = List.of(
                     LWF.Operation.newBuilder()
@@ -153,15 +153,15 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
                             "/tmp/lzy_worker_1/sbin/cat /tmp/lzy_worker_1/c > /tmp/lzy_worker_1/b")
                         .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
                             .setPath("/tmp/lzy_worker_1/c")
-                            .setStorageUri(buildSlotUri("snapshot_c_1", s3locator))
+                            .setStorageUri(buildSlotUri("snapshot_c_1", storageConfig))
                             .build())
                         .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                             .setPath("/tmp/lzy_worker_1/a")
-                            .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
+                            .setStorageUri(buildSlotUri("snapshot_a_1", storageConfig))
                             .build())
                         .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                             .setPath("/tmp/lzy_worker_1/b")
-                            .setStorageUri(buildSlotUri("snapshot_b_1", s3locator))
+                            .setStorageUri(buildSlotUri("snapshot_b_1", storageConfig))
                             .build())
                         .setPoolSpecName("s")
                         .build(),
@@ -171,15 +171,15 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
                             " /tmp/lzy_worker_2/sbin/cat /tmp/lzy_worker_2/d > /tmp/lzy_worker_2/c")
                         .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
                             .setPath("/tmp/lzy_worker_2/a")
-                            .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
+                            .setStorageUri(buildSlotUri("snapshot_a_1", storageConfig))
                             .build())
                         .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                             .setPath("/tmp/lzy_worker_2/d")
-                            .setStorageUri(buildSlotUri("snapshot_d_1", s3locator))
+                            .setStorageUri(buildSlotUri("snapshot_d_1", storageConfig))
                             .build())
                         .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                             .setPath("/tmp/lzy_worker_2/c")
-                            .setStorageUri(buildSlotUri("snapshot_c_1", s3locator))
+                            .setStorageUri(buildSlotUri("snapshot_c_1", storageConfig))
                             .build())
                         .setPoolSpecName("s")
                         .build());
@@ -210,9 +210,9 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
         return new TestScenario<>(authorizedWorkflowClient,
             stub -> {
                 LWFS.CreateWorkflowResponse workflow = createWorkflow(stub);
-                LMS3.S3Locator s3locator = workflow.getInternalSnapshotStorage();
+                LMST.StorageConfig storageConfig = workflow.getInternalSnapshotStorage();
 
-                var unknownStorageUri = buildSlotUri("snapshot_a_1", s3locator);
+                var unknownStorageUri = buildSlotUri("snapshot_a_1", storageConfig);
 
                 var operation =
                     LWF.Operation.newBuilder()
@@ -224,7 +224,7 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
                             .build())
                         .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                             .setPath("/tmp/lzy_worker_2/b")
-                            .setStorageUri(buildSlotUri("snapshot_b_1", s3locator))
+                            .setStorageUri(buildSlotUri("snapshot_b_1", storageConfig))
                             .build())
                         .setPoolSpecName("s")
                         .build();
@@ -256,7 +256,7 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
         return new TestScenario<>(authorizedWorkflowClient,
             stub -> {
                 var workflow = createWorkflow(stub);
-                LMS3.S3Locator s3locator = workflow.getInternalSnapshotStorage();
+                LMST.StorageConfig storageConfig = workflow.getInternalSnapshotStorage();
 
                 var operation =
                     LWF.Operation.newBuilder()
@@ -264,7 +264,7 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
                         .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_worker_1/a")
                         .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                             .setPath("/tmp/lzy_worker_1/a")
-                            .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
+                            .setStorageUri(buildSlotUri("snapshot_a_1", storageConfig))
                             .build())
                         .setPoolSpecName("m")
                         .build();
@@ -293,7 +293,7 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
         return new TestScenario<>(authorizedWorkflowClient,
             stub -> {
                 LWFS.CreateWorkflowResponse workflow = createWorkflow(stub);
-                LMS3.S3Locator s3locator = workflow.getInternalSnapshotStorage();
+                LMST.StorageConfig storageConfig = workflow.getInternalSnapshotStorage();
 
                 var operation =
                     LWF.Operation.newBuilder()
@@ -301,11 +301,11 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
                         .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_worker_1/a && echo 'hi' > /tmp/lzy_worker_1/b")
                         .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                             .setPath("/tmp/lzy_worker_1/a")
-                            .setStorageUri(buildSlotUri("snapshot_a_1", s3locator))
+                            .setStorageUri(buildSlotUri("snapshot_a_1", storageConfig))
                             .build())
                         .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                             .setPath("/tmp/lzy_worker_1/b")
-                            .setStorageUri(buildSlotUri("snapshot_b_1", s3locator)))
+                            .setStorageUri(buildSlotUri("snapshot_b_1", storageConfig)))
                         .setPoolSpecName("l")
                         .build();
 

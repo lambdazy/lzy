@@ -1,7 +1,7 @@
 package ai.lzy.service.data.dao;
 
 import ai.lzy.model.db.test.DatabaseTestUtils;
-import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.common.LMST;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
@@ -41,7 +41,7 @@ public class DaoTest {
         var firstWorkflowName = "workflow_1";
         var secondWorkflowName = "workflow_2";
         var storageType = "USER";
-        var s3Locator = LMS3.S3Locator.getDefaultInstance();
+        var s3Locator = LMST.StorageConfig.getDefaultInstance();
 
         var firstSlotsUri = Set.of("slot_snapshot_1", "slot_snapshot_3");
         var secondSlotsUri = Set.of("slot_snapshot_2");
@@ -77,7 +77,7 @@ public class DaoTest {
         var firstWorkflowName = "workflow_1";
         var secondWorkflowName = "workflow_2";
         var storageType = "USER";
-        var s3Locator = LMS3.S3Locator.getDefaultInstance();
+        var s3Locator = LMST.StorageConfig.getDefaultInstance();
 
         var firstSlotsUri = Set.of("slot_snapshot_1", "slot_snapshot_3");
         var secondSlotsUri = Set.of("slot_snapshot_2");
@@ -110,7 +110,7 @@ public class DaoTest {
         var userId = "user_1";
         var firstWorkflowName = "workflow_1";
         var storageType = "USER";
-        var s3Locator = LMS3.S3Locator.getDefaultInstance();
+        var s3Locator = LMST.StorageConfig.getDefaultInstance();
 
         workflowDao.create(firstExecutionId, userId, firstWorkflowName, storageType, s3Locator);
 
@@ -129,7 +129,7 @@ public class DaoTest {
         var userId = "user_1";
         var workflowName = "workflow_1";
         var storageType = "USER";
-        var s3Locator = LMS3.S3Locator.getDefaultInstance();
+        var s3Locator = LMST.StorageConfig.getDefaultInstance();
 
         var slotsUri = Set.of("slot_snapshot_1", "slot_snapshot_3");
         var unknownSlotUri = Set.of("slot_snapshot_2");
@@ -150,7 +150,7 @@ public class DaoTest {
         var userId = "user_1";
         var firstWorkflowName = "workflow_1";
         var storageType = "USER";
-        var s3Locator = LMS3.S3Locator.getDefaultInstance();
+        var s3Locator = LMST.StorageConfig.getDefaultInstance();
 
         var slotsUri = Set.of("slot_snapshot_1", "slot_snapshot_3");
         var oneMoreSlotUri = Set.of("slot_snapshot_2");
@@ -173,7 +173,7 @@ public class DaoTest {
         var userId = "user_1";
         var workflowName = "workflow_1";
         var storageType = "USER";
-        var s3Locator = LMS3.S3Locator.getDefaultInstance();
+        var s3Locator = LMST.StorageConfig.getDefaultInstance();
 
         var slotsUri = Set.of("slot_snapshot_1", "slot_snapshot_3");
         var oneMoreSlotUri = Set.of("slot_snapshot_2");
@@ -205,7 +205,7 @@ public class DaoTest {
         var userId = "user_1";
         var workflowName = "workflow_1";
         var storageType = "USER";
-        var s3Locator = LMS3.S3Locator.getDefaultInstance();
+        var s3Locator = LMST.StorageConfig.getDefaultInstance();
 
         workflowDao.create(executionId, userId, workflowName, storageType, s3Locator);
 

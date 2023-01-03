@@ -3,7 +3,7 @@ package ai.lzy.portal.slots;
 import ai.lzy.fs.slots.LzyInputSlotBase;
 import ai.lzy.fs.slots.OutFileSlot;
 import ai.lzy.model.slot.SlotInstance;
-import ai.lzy.portal.s3.S3Repository;
+import ai.lzy.portal.s3.Repository;
 import ai.lzy.v1.common.LMS;
 import com.google.protobuf.ByteString;
 import org.apache.logging.log4j.LogManager;
@@ -26,26 +26,24 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
     private final Path storage;
     private final OutputStream outputStream;
 
-    private final String key;
-    private final String bucket;
-    private final S3Repository<Stream<ByteString>> s3Repository;
+    private final URI uri;
+    private final Repository<Stream<ByteString>> repository;
 
     private final S3Snapshot slot;
     private SnapshotSlotStatus state = SnapshotSlotStatus.INITIALIZING;
 
     private final Runnable slotSyncHandler;
 
-    public SnapshotInputSlot(SlotInstance slotInstance, S3Snapshot slot, Path storage, String key,
-                             String bucket, S3Repository<Stream<ByteString>> s3Repository,
-                             @Nullable Runnable syncHandler) throws IOException
+    public SnapshotInputSlot(SlotInstance slotInstance, S3Snapshot slot, Path storage, URI uri,
+                             Repository<Stream<ByteString>> repository, @Nullable Runnable syncHandler)
+        throws IOException
     {
         super(slotInstance);
         this.slot = slot;
         this.storage = storage;
         this.outputStream = Files.newOutputStream(storage);
-        this.key = key;
-        this.bucket = bucket;
-        this.s3Repository = s3Repository;
+        this.uri = uri;
+        this.repository = repository;
         this.slotSyncHandler = syncHandler;
     }
 
@@ -74,7 +72,7 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
             try {
                 state = SnapshotSlotStatus.SYNCING;
                 FileChannel channel = FileChannel.open(storage, StandardOpenOption.READ);
-                s3Repository.put(bucket, key, OutFileSlot.readFileChannel(definition().name(), 0, channel, () -> true));
+                repository.put(uri, OutFileSlot.readFileChannel(definition().name(), 0, channel, () -> true));
                 state = SnapshotSlotStatus.SYNCED;
                 if (slotSyncHandler != null) {
                     slotSyncHandler.run();

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package ai.lzy.v1.storage;
 
-import "ai/lzy/v1/common/s3.proto";
+import "ai/lzy/v1/common/storage.proto";
 import "ai/lzy/v1/long-running/operation.proto";
 import "ai/lzy/v1/long-running/option.proto";
 
@@ -29,8 +29,8 @@ message CreateS3BucketRequest {
 
 message CreateS3BucketResponse {
   oneof credentials {
-    AmazonS3Endpoint amazon = 1;
-    AzureS3Endpoint azure = 2;
+    S3Credentials s3 = 1;
+    AzureBlobStorageCredentials azure = 2;
   }
 }
 
@@ -48,7 +48,7 @@ message GetS3BucketCredentialsRequest {
 
 message GetS3BucketCredentialsResponse {
   oneof credentials {
-    AmazonS3Endpoint amazon = 1;
-    AzureS3Endpoint azure = 2;
+    S3Credentials amazon = 1;
+    AzureBlobStorageCredentials azure = 2;
   }
 }

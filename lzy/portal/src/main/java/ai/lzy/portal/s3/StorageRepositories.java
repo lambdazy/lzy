@@ -13,26 +13,26 @@ import ru.yandex.qe.s3.transfer.Transmitter;
 import java.util.HashMap;
 import java.util.Map;
 
-public class S3Repositories<T> {
+public class StorageRepositories<T> {
 
     public interface S3RepositoryProvider<U> {
-        S3Repository<U> getRepository();
+        Repository<U> getRepository();
     }
 
     static final String DEFAULT_TRANSMITTER_NAME = "transmitter";
     static final int DEFAULT_DOWNLOAD_POOL_SIZE = 10;
     static final int DEFAULT_UPLOAD_POOL_SIZE = 10;
 
-    private final Map<S3RepositoryProvider<T>, S3Repository<T>> repositories = new HashMap<>();
+    private final Map<S3RepositoryProvider<T>, Repository<T>> repositories = new HashMap<>();
 
-    public S3Repository<T> getOrCreate(String endpoint, String accessToken, String secretToken,
-                                       BiDirectS3Converter<T> converter)
+    public Repository<T> getOrCreate(String endpoint, String accessToken, String secretToken,
+                                     BiDirectS3Converter<T> converter)
     {
         return repositories.computeIfAbsent(AmazonS3Key.of(endpoint, accessToken, secretToken, converter),
             S3RepositoryProvider::getRepository);
     }
 
-    public S3Repository<T> getOrCreate(String connectionString, BiDirectS3Converter<T> converter) {
+    public Repository<T> getOrCreate(String connectionString, BiDirectS3Converter<T> converter) {
         return repositories.computeIfAbsent(AzureS3Key.of(connectionString, converter),
             S3RepositoryProvider::getRepository);
     }
@@ -46,7 +46,7 @@ public class S3Repositories<T> {
         }
 
         @Override
-        public AmazonS3RepositoryAdapter<T> getRepository() {
+        public AmazonRepositoryAdapter<T> getRepository() {
             BasicAWSCredentials credentials = new BasicAWSCredentials(accessToken, secretToken);
             AmazonS3 client = AmazonS3ClientBuilder.standard()
                 .withCredentials(new AWSStaticCredentialsProvider(credentials))
@@ -56,7 +56,7 @@ public class S3Repositories<T> {
             Transmitter transmitter = new AmazonTransmitterFactory(client).fixedPoolsTransmitter(
                 DEFAULT_TRANSMITTER_NAME, DEFAULT_DOWNLOAD_POOL_SIZE, DEFAULT_UPLOAD_POOL_SIZE
             );
-            return new AmazonS3RepositoryAdapter<>(client, transmitter, DEFAULT_DOWNLOAD_POOL_SIZE, converter);
+            return new AmazonRepositoryAdapter<>(client, transmitter, DEFAULT_DOWNLOAD_POOL_SIZE, converter);
         }
     }
 

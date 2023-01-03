@@ -22,7 +22,7 @@ create table workflow_executions
     finished_error_code      integer, -- error code or null
 
     storage                  storage_type     not null,
-    storage_bucket           text             not null,
+    storage_uri              text             not null,
     storage_credentials      text             not null,
 
     portal                   portal_status,
