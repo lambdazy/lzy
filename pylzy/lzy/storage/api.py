@@ -16,7 +16,7 @@ class AzureSasCredentials:
 
 
 @dataclasses.dataclass
-class AmazonCredentials:
+class S3Credentials:
     endpoint: str
     access_token: str
     secret_token: str
@@ -24,36 +24,36 @@ class AmazonCredentials:
 
 StorageCredentials = Union[
     AzureCredentials,
-    AmazonCredentials,
+    S3Credentials,
     AzureSasCredentials,
 ]
 
 
 @dataclass
-class StorageConfig:
+class Storage:
     credentials: StorageCredentials
-    bucket: str
+    uri: str
 
     @staticmethod
     def yc_object_storage(
         bucket: str, access_token: str, secret_token: str
-    ) -> "StorageConfig":
-        return StorageConfig(
-            AmazonCredentials(
+    ) -> "Storage":
+        return Storage(
+            S3Credentials(
                 "https://storage.yandexcloud.net", access_token, secret_token
             ),
             bucket,
         )
 
     @staticmethod
-    def azure_blob_storage(container: str, connection_string: str) -> "StorageConfig":
-        return StorageConfig(AzureCredentials(connection_string), container)
+    def azure_blob_storage(container: str, connection_string: str) -> "Storage":
+        return Storage(AzureCredentials(connection_string), container)
 
     @staticmethod
     def azure_blob_storage_sas(
         container: str, endpoint: str, signature: str
-    ) -> "StorageConfig":
-        return StorageConfig(AzureSasCredentials(endpoint, signature), container)
+    ) -> "Storage":
+        return Storage(AzureSasCredentials(endpoint, signature), container)
 
 
 class AsyncStorageClient(ABC):
@@ -74,10 +74,6 @@ class AsyncStorageClient(ABC):
         pass
 
     @abstractmethod
-    def generate_uri(self, container: str, blob: str) -> str:
-        pass
-
-    @abstractmethod
     async def sign_storage_uri(self, uri: str) -> str:
         pass
 
@@ -85,7 +81,7 @@ class AsyncStorageClient(ABC):
 class StorageRegistry:
     @abstractmethod
     def register_storage(
-        self, name: str, storage: StorageConfig, default: bool = False
+        self, name: str, storage: Storage, default: bool = False
     ) -> None:
         pass
 
@@ -94,11 +90,11 @@ class StorageRegistry:
         pass
 
     @abstractmethod
-    def config(self, storage_name: str) -> Optional[StorageConfig]:
+    def config(self, storage_name: str) -> Optional[Storage]:
         pass
 
     @abstractmethod
-    def default_config(self) -> Optional[StorageConfig]:
+    def default_config(self) -> Optional[Storage]:
         pass
 
     @abstractmethod

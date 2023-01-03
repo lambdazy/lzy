@@ -84,7 +84,7 @@ class RemoteRuntime(Runtime):
         self.__std_slots_listener: Optional[Task] = None
         self.__running = False
 
-    async def start(self, workflow: LzyWorkflow):
+    async def start(self, workflow: LzyWorkflow) -> str:
         self.__running = True
         self.__workflow = workflow
         client = await self.__get_client()
@@ -103,6 +103,7 @@ class RemoteRuntime(Runtime):
         self.__std_slots_listener = asyncio.create_task(
             self.__listen_to_std_slots(exec_id)
         )
+        return cast(str, exec_id)
 
     async def exec(
         self,
@@ -212,7 +213,7 @@ class RemoteRuntime(Runtime):
                 archive.seek(0)
                 file = cast(BytesIO, archive.file)
                 key = os.path.join(
-                    "local_modules",
+                    "lzy_local_modules",
                     os.path.basename(local_module),
                     fileobj_hash(file),
                 )
@@ -225,12 +226,11 @@ class RemoteRuntime(Runtime):
                 if conf is None:
                     raise RuntimeError("No default storage config")
 
-                url = client.generate_uri(conf.bucket, key)
+                uri = conf.uri + "/" + key
+                if not await client.blob_exists(uri):
+                    await client.write(uri, file)
 
-                if not await client.blob_exists(url):
-                    await client.write(url, file)
-
-                presigned_uri = await client.sign_storage_uri(url)
+                presigned_uri = await client.sign_storage_uri(uri)
                 modules_uploaded.append(presigned_uri)
 
         return modules_uploaded

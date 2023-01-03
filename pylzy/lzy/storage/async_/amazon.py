@@ -3,14 +3,14 @@ from typing import BinaryIO, cast, Callable, Optional, Any
 from aioboto3 import Session
 from botocore.exceptions import ClientError
 
-from lzy.storage.api import AmazonCredentials, AsyncStorageClient
+from lzy.storage.api import S3Credentials, AsyncStorageClient
 from lzy.storage.url import Scheme, bucket_from_uri, uri_from_bucket
 
 
 class AmazonClient(AsyncStorageClient):
     scheme = Scheme.s3
 
-    def __init__(self, credentials: AmazonCredentials):
+    def __init__(self, credentials: S3Credentials):
         self.__credentials = credentials
 
     def _get_client_context(self):
@@ -52,9 +52,6 @@ class AmazonClient(AsyncStorageClient):
                 return True
         except ClientError:
             return False
-
-    def generate_uri(self, container: str, blob: str) -> str:
-        return uri_from_bucket(self.scheme, container, blob)
 
     async def sign_storage_uri(self, url: str) -> str:
         container, blob = bucket_from_uri(self.scheme, url)

@@ -185,7 +185,7 @@ class WritableWhiteboard:
             entry_id = get_proxy_entry_id(value)
             entry = self.__workflow.snapshot.get(entry_id)
         else:
-            entry = self.__workflow.snapshot.create_entry(key, get_type(value))
+            entry = self.__workflow.snapshot.create_entry(self.__whiteboard_meta.name + "." + key, get_type(value))
 
         serializer = self.__workflow.owner.serializer.find_serializer_by_type(entry.typ)
         if not serializer.available():

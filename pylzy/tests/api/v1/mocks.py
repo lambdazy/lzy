@@ -3,7 +3,7 @@ from typing import List, Dict, Callable, Optional, Iterable, BinaryIO
 from lzy.api.v1 import Runtime, LzyCall, LzyWorkflow
 from lzy.api.v1.runtime import ProgressStep
 from lzy.api.v1.whiteboards import WbRef
-from lzy.storage.api import StorageRegistry, StorageConfig, AsyncStorageClient
+from lzy.storage.api import StorageRegistry, Storage, AsyncStorageClient
 
 
 class RuntimeMock(Runtime):
@@ -43,17 +43,17 @@ class StorageClientMock(AsyncStorageClient):
 
 class StorageRegistryMock(StorageRegistry):
 
-    def register_storage(self, name: str, storage: StorageConfig, default: bool = False) -> None:
+    def register_storage(self, name: str, storage: Storage, default: bool = False) -> None:
         pass
 
     def unregister_storage(self, name: str) -> None:
         pass
 
-    def config(self, storage_name: str) -> Optional[StorageConfig]:
+    def config(self, storage_name: str) -> Optional[Storage]:
         pass
 
-    def default_config(self) -> Optional[StorageConfig]:
-        return StorageConfig.azure_blob_storage("", "")
+    def default_config(self) -> Optional[Storage]:
+        return Storage.azure_blob_storage("", "")
 
     def default_storage_name(self) -> Optional[str]:
         return "storage_name"
