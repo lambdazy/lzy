@@ -9,7 +9,7 @@ from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard
 from lzy.api.v1.call import LzyCall, wrap_call
 from lzy.api.v1.env import DockerPullPolicy, Env
 from lzy.api.v1.local.runtime import LocalRuntime
-from lzy.api.v1.provisioning import Provisioning
+from lzy.api.v1.provisioning import Provisioning, GpuType, CpuType
 from lzy.api.v1.remote.runtime import RemoteRuntime, USER_ENV, KEY_PATH_ENV, ENDPOINT_ENV
 from lzy.api.v1.runtime import Runtime
 from lzy.api.v1.snapshot import DefaultSnapshot
@@ -226,10 +226,3 @@ class Lzy:
             raise RuntimeError(f"Status of whiteboard with name {wb.name} is {wb.status}, but must be COMPLETED")
 
         return ReadOnlyWhiteboard(self.__storage_registry, self.__serializer_registry, wb)
-
-
-# noinspection PyBroadException
-try:
-    from lzy.injections import catboost_injection
-except Exception:
-    pass
