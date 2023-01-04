@@ -41,7 +41,9 @@ public class SnapshotProvider {
     {
         URI uri = URI.create(snapshotData.getStorageConfig().getUri());
         String endpoint = endpointFrom(snapshotData.getStorageConfig());
-        var snapshotId = "%s-%s-%s".formatted(uri.getPath(), uri.getHost(), endpoint);
+        var snapshotId = "%s-%s-%s".formatted(uri.getPath(), uri.getHost(), endpoint)
+            .replace("/", "")
+            .replace(":", "");
         var previousSnapshotId = name2id.get(instance.name());
         if (Objects.nonNull(previousSnapshotId)) {
             throw new SnapshotUniquenessException("Slot '" + instance.name() + "' already associated with "

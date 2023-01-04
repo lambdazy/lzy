@@ -179,14 +179,17 @@ public class PortalService extends LzyPortalImplBase {
                     };
                     slotsService.getSlotsManager().registerSlot(newLzySlot);
                 } catch (SnapshotNotFound e) {
+                    e.printStackTrace();
                     operationService.updateError(op.id(), Status.NOT_FOUND.withDescription(e.getMessage()));
                     replyError.accept(e.getMessage(), Status.NOT_FOUND);
                     return;
                 } catch (SnapshotUniquenessException | NotImplementedException e) {
+                    e.printStackTrace();
                     operationService.updateError(op.id(), Status.INVALID_ARGUMENT.withDescription(e.getMessage()));
                     replyError.accept(e.getMessage(), Status.INVALID_ARGUMENT);
                     return;
                 } catch (CreateSlotException e) {
+                    e.printStackTrace();
                     operationService.updateError(op.id(), Status.INTERNAL.withDescription(e.getMessage()));
                     replyError.accept(e.getMessage(), Status.INTERNAL);
                     return;
