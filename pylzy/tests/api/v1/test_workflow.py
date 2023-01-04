@@ -9,7 +9,7 @@ from moto.moto_server.threaded_moto_server import ThreadedMotoServer
 
 from lzy.api.v1 import Lzy, op, LocalRuntime
 from lzy.api.v1.utils.proxy_adapter import materialized
-from lzy.storage.api import StorageConfig, AmazonCredentials
+from lzy.storage.api import Storage, S3Credentials
 from tests.api.v1.utils import create_bucket
 
 
@@ -58,9 +58,9 @@ class LzyWorkflowTests(TestCase):
         self.workflow_name = "workflow_" + str(uuid.uuid4())
         self.lzy = Lzy(runtime=LocalRuntime())
 
-        storage_config = StorageConfig(
-            bucket="bucket",
-            credentials=AmazonCredentials(
+        storage_config = Storage(
+            uri="s3://bucket/prefix",
+            credentials=S3Credentials(
                 self.endpoint_url, access_token="", secret_token=""
             ),
         )

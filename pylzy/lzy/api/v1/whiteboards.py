@@ -185,7 +185,7 @@ class WritableWhiteboard:
             entry_id = get_proxy_entry_id(value)
             entry = self.__workflow.snapshot.get(entry_id)
         else:
-            entry = self.__workflow.snapshot.create_entry(key, get_type(value))
+            entry = self.__workflow.snapshot.create_entry(self.__whiteboard_meta.name + "." + key, get_type(value))
 
         serializer = self.__workflow.owner.serializer.find_serializer_by_type(entry.typ)
         if not serializer.available():
@@ -200,17 +200,17 @@ class WritableWhiteboard:
         if proxy:
             if materialized(value):
                 LzyEventLoop.run_async(self.__workflow.owner.whiteboard_client.link(
-                    whiteboard_id, key, entry.storage_url, entry.data_scheme
+                    whiteboard_id, key, entry.storage_uri, entry.data_scheme
                 ))
             else:
-                self.__workflow.add_whiteboard_link(entry.storage_url, WbRef(whiteboard_id, key))
+                self.__workflow.add_whiteboard_link(entry.storage_uri, WbRef(whiteboard_id, key))
         else:
             LzyEventLoop.run_async(self.__workflow.snapshot.put_data(entry_id=entry.id, data=value))
             # noinspection PyTypeChecker
             # TODO: there is no need to create lazy proxy from value. We only need to attach entry id
             value = lzy_proxy(entry.id, (type(value),), self.__workflow, Just(value))
             LzyEventLoop.run_async(self.__workflow.owner.whiteboard_client.link(
-                whiteboard_id, key, entry.storage_url, entry.data_scheme
+                whiteboard_id, key, entry.storage_uri, entry.data_scheme
             ))
 
         self.__fields_assigned.add(key)

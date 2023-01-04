@@ -8,7 +8,7 @@ import ai.lzy.storage.StorageService;
 import ai.lzy.storage.config.StorageConfig;
 import ai.lzy.storage.data.StorageDataSource;
 import ai.lzy.util.auth.YcIamClient;
-import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.storage.LSS.*;
 import com.amazonaws.SdkClientException;
@@ -164,7 +164,7 @@ public class YandexCloudS3Storage implements StorageService {
         }
 
         var response = Any.pack(CreateS3BucketResponse.newBuilder()
-            .setAmazon(LMS3.AmazonS3Endpoint.newBuilder()
+            .setS3(LMST.S3Credentials.newBuilder()
                 .setEndpoint(s3Creds.getEndpoint())
                 .setAccessToken(tokens[1])
                 .setSecretToken(tokens[2])
@@ -214,7 +214,7 @@ public class YandexCloudS3Storage implements StorageService {
             var rs = st.executeQuery();
             if (rs.next()) {
                 response.onNext(GetS3BucketCredentialsResponse.newBuilder()
-                    .setAmazon(LMS3.AmazonS3Endpoint.newBuilder()
+                    .setAmazon(LMST.S3Credentials.newBuilder()
                         .setEndpoint(s3Creds.getEndpoint())
                         .setAccessToken(rs.getString("access_token"))
                         .setSecretToken(rs.getString("secret_token"))

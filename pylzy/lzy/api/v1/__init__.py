@@ -199,10 +199,6 @@ class Lzy:
         return LzyWorkflow(
             name,
             self,
-            snapshot=DefaultSnapshot(
-                storage_registry=self.storage_registry,
-                serializer_registry=self.serializer,
-            ),
             env=env,
             provisioning=provisioning,
             auto_py_env=auto_py_env,

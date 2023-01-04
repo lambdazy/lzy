@@ -23,7 +23,7 @@ from serialzy.api import Schema
 
 import lzy.api.v1.startup as startup
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
-from ai.lzy.v1.common.s3_pb2 import AmazonS3Endpoint, S3Locator
+from ai.lzy.v1.common.storage_pb2 import S3Credentials, StorageConfig
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, WhiteboardField, WhiteboardFieldInfo, Storage
 from ai.lzy.v1.workflow.workflow_service_pb2 import (
     CreateWorkflowRequest,
@@ -72,9 +72,9 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
 
         return CreateWorkflowResponse(
             executionId="exec_id",
-            internalSnapshotStorage=S3Locator(
-                bucket="bucket",
-                amazon=AmazonS3Endpoint(endpoint="", accessToken="", secretToken=""),
+            internalSnapshotStorage=StorageConfig(
+                uri="s3://bucket/prefix",
+                s3=S3Credentials(endpoint="", accessToken="", secretToken=""),
             ),
         )
 
@@ -241,9 +241,9 @@ class SnapshotTests(TestCase):
         self.service.stop()
 
     def test_simple(self):
-        storage_config = storage.StorageConfig(
-            bucket="bucket",
-            credentials=storage.AmazonCredentials(
+        storage_config = storage.Storage(
+            uri="s3://bucket/prefix",
+            credentials=storage.S3Credentials(
                 self.endpoint_url, access_token="", secret_token=""
             ),
         )
@@ -253,7 +253,7 @@ class SnapshotTests(TestCase):
 
         serializers = LzySerializerRegistry()
 
-        snapshot = DefaultSnapshot(storages, serializers)
+        snapshot = DefaultSnapshot(str(uuid.uuid4()), storages, serializers)
 
         entry = snapshot.create_entry("name", str)
 
@@ -263,9 +263,9 @@ class SnapshotTests(TestCase):
         self.assertEqual(Just("some_str"), ret)
 
     def test_local(self):
-        storage_config = storage.StorageConfig(
-            bucket="bucket",
-            credentials=storage.AmazonCredentials(
+        storage_config = storage.Storage(
+            uri="s3://bucket/prefix",
+            credentials=storage.S3Credentials(
                 self.endpoint_url, access_token="", secret_token=""
             ),
         )
@@ -284,9 +284,9 @@ class SnapshotTests(TestCase):
             self.assertEqual(some_field_3, "42")
 
     def test_presigned_url(self):
-        storage_config = storage.StorageConfig(
-            bucket="bucket",
-            credentials=storage.AmazonCredentials(
+        storage_config = storage.Storage(
+            uri="s3://bucket/prefix",
+            credentials=storage.S3Credentials(
                 self.endpoint_url, access_token="", secret_token=""
             ),
         )
@@ -295,7 +295,7 @@ class SnapshotTests(TestCase):
         storages.register_storage("storage", storage_config, True)
 
         client = storages.default_client()
-        url = client.generate_uri("bucket", "12345")
+        url = storage_config.uri + "/obj"
         with BytesIO(b"42") as f:
             asyncio.run(client.write(url, f))
 
@@ -306,9 +306,9 @@ class SnapshotTests(TestCase):
         self.assertEqual(data, b"42")
 
     def test_whiteboard(self):
-        storage_config = storage.StorageConfig(
-            bucket="bucket",
-            credentials=storage.AmazonCredentials(
+        storage_config = storage.Storage(
+            uri="s3://bucket/prefix",
+            credentials=storage.S3Credentials(
                 self.endpoint_url, access_token="", secret_token=""
             ),
         )
@@ -329,9 +329,9 @@ class SnapshotTests(TestCase):
                 wb.b = ""
 
     def test_read_whiteboard(self):
-        storage_config = storage.StorageConfig(
-            bucket="bucket",
-            credentials=storage.AmazonCredentials(
+        storage_config = storage.Storage(
+            uri="s3://bucket/prefix",
+            credentials=storage.S3Credentials(
                 self.endpoint_url, access_token="", secret_token=""
             ),
         )
@@ -340,7 +340,7 @@ class SnapshotTests(TestCase):
         storages.register_storage("storage", storage_config, True)
         serializer = LzySerializerRegistry()
 
-        snapshot = DefaultSnapshot(storages, serializer)
+        snapshot = DefaultSnapshot(str(uuid.uuid4()), storages, serializer)
 
         e1 = snapshot.create_entry("name1", str)
         e2 = snapshot.create_entry("name2", int)
@@ -369,7 +369,7 @@ class SnapshotTests(TestCase):
                                 schemeContent=e1.data_scheme.schema_content,
                                 metadata=e1.data_scheme.meta
                             ),
-                            storageUri=e1.storage_url
+                            storageUri=e1.storage_uri
                         )
                     )
                 ),
@@ -384,7 +384,7 @@ class SnapshotTests(TestCase):
                                 schemeContent=e2.data_scheme.schema_content,
                                 metadata=e2.data_scheme.meta
                             ),
-                            storageUri=e2.storage_url
+                            storageUri=e2.storage_uri
                         )
                     )
                 )

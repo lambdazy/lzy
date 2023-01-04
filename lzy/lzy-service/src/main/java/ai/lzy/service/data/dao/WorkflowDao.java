@@ -4,7 +4,7 @@ import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.AlreadyExistsException;
 import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.service.data.PortalStatus;
-import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.common.LMST;
 import io.grpc.Status;
 
 import java.sql.SQLException;
@@ -14,13 +14,14 @@ import javax.annotation.Nullable;
 
 public interface WorkflowDao {
     default void create(String executionId, String userId, String workflowName, String storageType,
-                        LMS3.S3Locator storageData) throws AlreadyExistsException, SQLException
+                        LMST.StorageConfig storageConfig) throws AlreadyExistsException, SQLException
     {
-        create(executionId, userId, workflowName, storageType, storageData, null);
+        create(executionId, userId, workflowName, storageType, storageConfig, null);
     }
 
-    void create(String executionId, String userId, String workflowName, String storageType, LMS3.S3Locator storageData,
-                @Nullable TransactionHandle transaction) throws AlreadyExistsException, SQLException;
+    void create(String executionId, String userId, String workflowName, String storageType,
+                LMST.StorageConfig storageConfig, @Nullable TransactionHandle transaction)
+        throws AlreadyExistsException, SQLException;
 
     boolean doesActiveExecutionExists(String userId, String workflowName, String executionId) throws SQLException;
 
@@ -100,7 +101,7 @@ public interface WorkflowDao {
         return desc.vmAddress().toString();
     }
 
-    LMS3.S3Locator getStorageLocator(String executionId) throws SQLException;
+    LMST.StorageConfig getStorageConfig(String executionId) throws SQLException;
 
     @Nullable
     PortalDescription getPortalDescription(String executionId) throws SQLException;

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package ai.lzy.v1.portal;
 
-import "ai/lzy/v1/common/s3.proto";
+import "ai/lzy/v1/common/storage.proto";
 import "ai/lzy/v1/common/slot.proto";
 
 option java_outer_classname = "LzyPortal";
@@ -14,7 +14,7 @@ message PortalSlotDesc {
 
   message Snapshot {
     // external s3 storage
-    S3Locator s3 = 1;
+    StorageConfig storageConfig = 1;
   }
 
   message StdOut {

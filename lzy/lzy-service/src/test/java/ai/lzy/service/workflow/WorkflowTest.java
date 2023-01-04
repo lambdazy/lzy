@@ -3,7 +3,7 @@ package ai.lzy.service.workflow;
 import ai.lzy.service.BaseTest;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.portal.LzyPortalApi;
 import ai.lzy.v1.portal.LzyPortalGrpc;
 import ai.lzy.v1.workflow.LWFS;
@@ -46,13 +46,12 @@ public class WorkflowTest extends BaseTest {
     }
 
     @Test
-    public void createWorkflowFailedWithUserStorageMissedEndpoint() {
+    public void createWorkflowFailedWithUserStorageMissedCredentials() {
         var thrown = Assert.assertThrows(StatusRuntimeException.class, () ->
             authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
                 .setWorkflowName("workflow_1")
-                .setSnapshotStorage(LMS3.S3Locator.newBuilder()
-                    .setKey("some-valid-key")
-                    .setBucket("some-valid-bucket")
+                .setSnapshotStorage(LMST.StorageConfig.newBuilder()
+                    .setUri("s3://bucket/key")
                     .build())
                 .build()));
 

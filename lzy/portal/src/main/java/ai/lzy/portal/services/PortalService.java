@@ -179,14 +179,17 @@ public class PortalService extends LzyPortalImplBase {
                     };
                     slotsService.getSlotsManager().registerSlot(newLzySlot);
                 } catch (SnapshotNotFound e) {
+                    e.printStackTrace();
                     operationService.updateError(op.id(), Status.NOT_FOUND.withDescription(e.getMessage()));
                     replyError.accept(e.getMessage(), Status.NOT_FOUND);
                     return;
                 } catch (SnapshotUniquenessException | NotImplementedException e) {
+                    e.printStackTrace();
                     operationService.updateError(op.id(), Status.INVALID_ARGUMENT.withDescription(e.getMessage()));
                     replyError.accept(e.getMessage(), Status.INVALID_ARGUMENT);
                     return;
                 } catch (CreateSlotException e) {
+                    e.printStackTrace();
                     operationService.updateError(op.id(), Status.INTERNAL.withDescription(e.getMessage()));
                     replyError.accept(e.getMessage(), Status.INTERNAL);
                     return;
@@ -290,8 +293,8 @@ public class PortalService extends LzyPortalImplBase {
             .append(", \"storage\": ");
 
         switch (slotDesc.getKindCase()) {
-            case SNAPSHOT -> sb.append("\"snapshot/key:").append(slotDesc.getSnapshot().getS3().getKey())
-                .append("/bucket:").append(slotDesc.getSnapshot().getS3().getBucket()).append("\"");
+            case SNAPSHOT ->
+                sb.append("\"snapshot/uri:").append(slotDesc.getSnapshot().getStorageConfig().getUri()).append("\"");
             case STDOUT -> sb.append("\"stdout\"");
             case STDERR -> sb.append("\"stderr\"");
             default -> sb.append("\"").append(slotDesc.getKindCase()).append("\"");

@@ -26,7 +26,7 @@ class SnapshotEntry:
     id: str
     name: str
     typ: Type
-    storage_url: str
+    storage_uri: str
     storage_name: Optional[str]
     data_scheme: Schema
 
@@ -55,11 +55,10 @@ class Snapshot(ABC):
 
 
 class DefaultSnapshot(Snapshot):
-    def __init__(
-        self, storage_registry: StorageRegistry, serializer_registry: SerializerRegistry
-    ):
+    def __init__(self, execution_id: str, storage_registry: StorageRegistry, serializer_registry: SerializerRegistry):
         self.__storage_registry = storage_registry
         self.__serializer_registry = serializer_registry
+        self.__execution_id = execution_id
 
         self.__storage_client: Optional[AsyncStorageClient] = None
         self.__storage_name: Optional[str] = None
@@ -68,7 +67,7 @@ class DefaultSnapshot(Snapshot):
 
     def create_entry(self, name: str, typ: Type) -> SnapshotEntry:
         eid = str(uuid.uuid4())
-        url = self.storage_client.generate_uri(self.storage_bucket, eid)
+        uri = self.storage_uri + f"/lzy_runs/{self.__execution_id}/data/{name + '.' + eid[:8]}"
         serializer_by_type = self.__serializer_registry.find_serializer_by_type(typ)
         if serializer_by_type is None:
             raise ValueError(f'Cannot find serializer for type {typ}')
@@ -77,7 +76,7 @@ class DefaultSnapshot(Snapshot):
                 f'Serializer for type {typ} is not available, please install {serializer_by_type.requirements()}')
 
         schema = serializer_by_type.schema(typ)
-        e = SnapshotEntry(eid, name, typ, url, self.storage_name(), data_scheme=schema)
+        e = SnapshotEntry(eid, name, typ, uri, self.storage_name(), data_scheme=schema)
         self.__entry_id_to_entry[e.id] = e
         _LOG.debug(f"Created entry {e}")
         return e
@@ -88,15 +87,15 @@ class DefaultSnapshot(Snapshot):
         if entry is None:
             return Nothing()
 
-        exists = await self.storage_client.blob_exists(entry.storage_url)
+        exists = await self.storage_client.blob_exists(entry.storage_uri)
         if not exists:
             return Nothing()
 
         with tempfile.NamedTemporaryFile() as f:
-            size = await self.storage_client.size_in_bytes(entry.storage_url)
+            size = await self.storage_client.size_in_bytes(entry.storage_uri)
             with tqdm(total=size, desc=f"Downloading {entry.name}", file=sys.stdout, unit='B', unit_scale=True,
                       unit_divisor=1024, colour=get_color()) as bar:
-                await self.storage_client.read(entry.storage_url, cast(BinaryIO, f), progress=lambda x: bar.update(x))
+                await self.storage_client.read(entry.storage_uri, cast(BinaryIO, f), progress=lambda x: bar.update(x))
                 f.seek(0)
                 res = self.__serializer_registry.find_serializer_by_type(entry.typ).deserialize(cast(BinaryIO, f))
                 return Just(res)
@@ -115,7 +114,7 @@ class DefaultSnapshot(Snapshot):
 
             with tqdm(total=length, desc=f"Uploading {entry.name}", file=sys.stdout, unit='B', unit_scale=True,
                       unit_divisor=1024, colour=get_color()) as bar:
-                await self.storage_client.write(entry.storage_url, cast(BinaryIO, f), progress=lambda x: bar.update(x))
+                await self.storage_client.write(entry.storage_uri, cast(BinaryIO, f), progress=lambda x: bar.update(x))
 
     def get(self, entry_id: str) -> SnapshotEntry:
         return self.__entry_id_to_entry[entry_id]
@@ -132,15 +131,15 @@ class DefaultSnapshot(Snapshot):
         return self.__storage_name
 
     @property
-    def storage_bucket(self) -> str:
+    def storage_uri(self) -> str:
         if self.__storage_bucket is None:
             conf = self.__storage_registry.default_config()
             if conf is None:
                 raise ValueError(
                     f"Cannot get storage bucket, default storage config is not set"
                 )
-            self.__storage_bucket = conf.bucket
-            return conf.bucket
+            self.__storage_bucket = conf.uri
+            return conf.uri
         return self.__storage_bucket
 
     @property

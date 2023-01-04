@@ -19,7 +19,7 @@ class ProgressStep(Enum):
 
 class Runtime(ABC):
     @abstractmethod
-    async def start(self, workflow: "LzyWorkflow"):
+    async def start(self, workflow: "LzyWorkflow") -> str:
         pass
 
     @abstractmethod

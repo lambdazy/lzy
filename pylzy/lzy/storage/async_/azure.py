@@ -73,9 +73,6 @@ class AzureClientAsync(AsyncStorageClient):
             )
         )
 
-    def generate_uri(self, container: str, blob: str) -> str:
-        return uri_from_bucket(self.scheme, container, blob)
-
     async def sign_storage_uri(self, uri: str) -> str:
         container, blob = bucket_from_uri(self.scheme, uri)
         sas = generate_blob_sas(

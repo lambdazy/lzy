@@ -9,7 +9,7 @@ import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.service.data.ExecutionStatus;
 import ai.lzy.service.data.PortalStatus;
 import ai.lzy.service.data.storage.LzyServiceStorage;
-import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.common.LMST;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.net.HostAndPort;
@@ -60,7 +60,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
         WHERE user_id = ? AND workflow_name=?""";
 
     private static final String QUERY_INSERT_EXECUTION = """
-        INSERT INTO workflow_executions (execution_id, created_at, storage, storage_bucket, 
+        INSERT INTO workflow_executions (execution_id, created_at, storage, storage_uri, 
             storage_credentials, execution_status)
         VALUES (?, ?, cast(? as storage_type), ?, ?, cast(? as execution_status))""";
 
@@ -153,7 +153,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
     @Override
     public void create(String executionId, String userId, String workflowName, String storageType,
-                       LMS3.S3Locator storageData, @Nullable TransactionHandle outerTransaction)
+                       LMST.StorageConfig storageConfig, @Nullable TransactionHandle outerTransaction)
         throws SQLException
     {
         try (var transaction = TransactionHandle.getOrCreate(storage, outerTransaction)) {
@@ -182,8 +182,8 @@ public class WorkflowDaoImpl implements WorkflowDao {
                     statement.setString(1, executionId);
                     statement.setTimestamp(2, Timestamp.from(Instant.now()));
                     statement.setString(3, storageType.toUpperCase(Locale.ROOT));
-                    statement.setString(4, storageData.getBucket());
-                    statement.setString(5, objectMapper.writeValueAsString(storageData));
+                    statement.setString(4, storageConfig.getUri());
+                    statement.setString(5, objectMapper.writeValueAsString(storageConfig));
                     statement.setString(6, ExecutionStatus.RUN.name());
                     statement.executeUpdate();
                 } catch (JsonProcessingException e) {
@@ -466,8 +466,8 @@ public class WorkflowDaoImpl implements WorkflowDao {
     }
 
     @Override
-    public LMS3.S3Locator getStorageLocator(String executionId) throws SQLException {
-        LMS3.S3Locator[] credentials = {null};
+    public LMST.StorageConfig getStorageConfig(String executionId) throws SQLException {
+        LMST.StorageConfig[] credentials = {null};
 
         DbOperation.execute(null, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_GET_STORAGE_CREDENTIALS)) {
@@ -480,7 +480,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
                         LOG.warn("Cannot obtain storage credentials for execution: { executionId : {} }", executionId);
                         throw new RuntimeException("Cannot obtain storage credentials");
                     }
-                    credentials[0] = objectMapper.readValue(dump, LMS3.S3Locator.class);
+                    credentials[0] = objectMapper.readValue(dump, LMST.StorageConfig.class);
                 } else {
                     LOG.warn("Cannot obtain storage credentials for execution: { executionId : {} }", executionId);
                     throw new RuntimeException("Cannot obtain storage credentials");

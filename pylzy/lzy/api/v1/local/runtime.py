@@ -3,6 +3,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import uuid
 from collections import defaultdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Type, cast, IO
@@ -12,7 +13,7 @@ from lzy.api.v1.startup import ProcessingRequest
 from lzy.api.v1.utils.pickle import pickle
 from lzy.api.v1.workflow import WbRef
 from lzy.logs.config import get_logging_config, COLOURS, get_color, RESET_COLOR
-from lzy.storage.api import StorageConfig, AsyncStorageClient
+from lzy.storage.api import Storage, AsyncStorageClient
 
 if TYPE_CHECKING:
     from lzy.api.v1 import LzyWorkflow
@@ -28,11 +29,12 @@ class LocalRuntime(Runtime):
     def __init__(self):
         self.__workflow: Optional["LzyWorkflow"] = None
 
-    async def start(self, workflow: "LzyWorkflow"):
+    async def start(self, workflow: "LzyWorkflow") -> str:
         self.__workflow = workflow
         self.__workflow.owner.storage_registry.register_storage(
-            "default", StorageConfig.yc_object_storage("bucket", "", "")
+            "default", Storage.yc_object_storage("bucket", "", "")
         )
+        return str(uuid.uuid4())
 
     async def exec(
         self,
@@ -92,7 +94,7 @@ class LocalRuntime(Runtime):
             for eid in call.arg_entry_ids:
                 entry = self.__workflow.snapshot.get(eid)
                 name = folder + "/" + eid
-                args_read.append(self.__from_storage_to_file(entry.storage_url, name))
+                args_read.append(self.__from_storage_to_file(entry.storage_uri, name))
                 arg_descriptions.append((entry.typ, name[len(folder):]))
             await asyncio.gather(*args_read)
 
@@ -100,7 +102,7 @@ class LocalRuntime(Runtime):
             for name, eid in call.kwarg_entry_ids.items():
                 entry = self.__workflow.snapshot.get(eid)
                 name = folder + "/" + eid
-                kwargs_read.append(self.__from_storage_to_file(entry.storage_url, name))
+                kwargs_read.append(self.__from_storage_to_file(entry.storage_uri, name))
                 kwarg_descriptions[name] = (entry.typ, name[len(folder):])
             await asyncio.gather(*kwargs_read)
 
@@ -146,7 +148,7 @@ class LocalRuntime(Runtime):
             data_to_put = []
             for i, eid in enumerate(call.entry_ids):
                 entry = self.__workflow.snapshot.get(eid)
-                data_to_put.append(self.__from_file_to_storage(entry.storage_url, folder + "/" + eid))
+                data_to_put.append(self.__from_file_to_storage(entry.storage_uri, folder + "/" + eid))
             await asyncio.gather(*data_to_put)
 
     async def destroy(self) -> None:

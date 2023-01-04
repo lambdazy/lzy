@@ -1,7 +1,7 @@
 from functools import singledispatch
 
 from lzy.storage.api import (
-    AmazonCredentials,
+    S3Credentials,
     AsyncStorageClient,
     AzureCredentials,
     AzureSasCredentials,
@@ -16,7 +16,7 @@ def _from(credentials: StorageCredentials) -> AsyncStorageClient:
 
 
 @_from.register
-def _(credentials: AmazonCredentials) -> AsyncStorageClient:
+def _(credentials: S3Credentials) -> AsyncStorageClient:
     # use local imports to import unnecessary libs as late as possible to avoid version conflicts
     from lzy.storage.async_.amazon import AmazonClient
 
