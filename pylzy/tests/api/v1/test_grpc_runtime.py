@@ -369,7 +369,7 @@ class SnapshotTests(TestCase):
                                 schemeContent=e1.data_scheme.schema_content,
                                 metadata=e1.data_scheme.meta
                             ),
-                            storageUri=e1.storage_url
+                            storageUri=e1.storage_uri
                         )
                     )
                 ),
@@ -384,7 +384,7 @@ class SnapshotTests(TestCase):
                                 schemeContent=e2.data_scheme.schema_content,
                                 metadata=e2.data_scheme.meta
                             ),
-                            storageUri=e2.storage_url
+                            storageUri=e2.storage_uri
                         )
                     )
                 )

@@ -94,7 +94,7 @@ class LocalRuntime(Runtime):
             for eid in call.arg_entry_ids:
                 entry = self.__workflow.snapshot.get(eid)
                 name = folder + "/" + eid
-                args_read.append(self.__from_storage_to_file(entry.storage_url, name))
+                args_read.append(self.__from_storage_to_file(entry.storage_uri, name))
                 arg_descriptions.append((entry.typ, name[len(folder):]))
             await asyncio.gather(*args_read)
 
@@ -102,7 +102,7 @@ class LocalRuntime(Runtime):
             for name, eid in call.kwarg_entry_ids.items():
                 entry = self.__workflow.snapshot.get(eid)
                 name = folder + "/" + eid
-                kwargs_read.append(self.__from_storage_to_file(entry.storage_url, name))
+                kwargs_read.append(self.__from_storage_to_file(entry.storage_uri, name))
                 kwarg_descriptions[name] = (entry.typ, name[len(folder):])
             await asyncio.gather(*kwargs_read)
 
@@ -148,7 +148,7 @@ class LocalRuntime(Runtime):
             data_to_put = []
             for i, eid in enumerate(call.entry_ids):
                 entry = self.__workflow.snapshot.get(eid)
-                data_to_put.append(self.__from_file_to_storage(entry.storage_url, folder + "/" + eid))
+                data_to_put.append(self.__from_file_to_storage(entry.storage_uri, folder + "/" + eid))
             await asyncio.gather(*data_to_put)
 
     async def destroy(self) -> None:

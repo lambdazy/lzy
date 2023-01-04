@@ -299,15 +299,15 @@ class RemoteRuntime(Runtime):
                 slot_path = f"/{call.id}/{entry.name}"
                 input_slots.append(
                     Operation.SlotDescription(
-                        path=slot_path, storageUri=entry.storage_url
+                        path=slot_path, storageUri=entry.storage_uri
                     )
                 )
                 arg_descriptions.append((entry.typ, slot_path))
 
                 scheme = entry.data_scheme
 
-                data_descriptions[entry.storage_url] = DataDescription(
-                    storageUri=entry.storage_url,
+                data_descriptions[entry.storage_uri] = DataDescription(
+                    storageUri=entry.storage_uri,
                     dataScheme=DataScheme(
                         dataFormat=scheme.data_format,
                         schemeFormat=scheme.schema_format,
@@ -323,13 +323,13 @@ class RemoteRuntime(Runtime):
                 slot_path = f"/{call.id}/{entry.name}"
                 input_slots.append(
                     Operation.SlotDescription(
-                        path=slot_path, storageUri=entry.storage_url
+                        path=slot_path, storageUri=entry.storage_uri
                     )
                 )
                 kwarg_descriptions[name] = (entry.typ, slot_path)
 
-                data_descriptions[entry.storage_url] = DataDescription(
-                    storageUri=entry.storage_url,
+                data_descriptions[entry.storage_uri] = DataDescription(
+                    storageUri=entry.storage_uri,
                     dataScheme=DataScheme(
                         dataFormat=entry.data_scheme.data_format,
                         schemeFormat=entry.data_scheme.schema_format,
@@ -345,12 +345,12 @@ class RemoteRuntime(Runtime):
                 slot_path = f"/{call.id}/{entry.name}"
                 output_slots.append(
                     Operation.SlotDescription(
-                        path=slot_path, storageUri=entry.storage_url
+                        path=slot_path, storageUri=entry.storage_uri
                     )
                 )
 
-                data_descriptions[entry.storage_url] = DataDescription(
-                    storageUri=entry.storage_url,
+                data_descriptions[entry.storage_uri] = DataDescription(
+                    storageUri=entry.storage_uri,
                     dataScheme=DataScheme(
                         dataFormat=entry.data_scheme.data_format,
                         schemeFormat=entry.data_scheme.schema_format,

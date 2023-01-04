@@ -196,7 +196,7 @@ class LzyWorkflow:
                 entry = self.snapshot.create_entry(declaration_meta.name + "." + field.name, field.type)
                 data_to_load.append(self.snapshot.put_data(entry.id, field.default))
                 fields.append(
-                    WhiteboardField(field.name, WhiteboardDefaultDescription(entry.storage_url, entry.data_scheme))
+                    WhiteboardField(field.name, WhiteboardDefaultDescription(entry.storage_uri, entry.data_scheme))
                 )
                 defaults[field.name] = lzy_proxy(entry.id, (field.type,), self, Just(field.default))
             else:

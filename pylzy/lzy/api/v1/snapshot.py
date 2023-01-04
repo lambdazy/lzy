@@ -26,7 +26,7 @@ class SnapshotEntry:
     id: str
     name: str
     typ: Type
-    storage_url: str
+    storage_uri: str
     storage_name: Optional[str]
     data_scheme: Schema
 
@@ -87,15 +87,15 @@ class DefaultSnapshot(Snapshot):
         if entry is None:
             return Nothing()
 
-        exists = await self.storage_client.blob_exists(entry.storage_url)
+        exists = await self.storage_client.blob_exists(entry.storage_uri)
         if not exists:
             return Nothing()
 
         with tempfile.NamedTemporaryFile() as f:
-            size = await self.storage_client.size_in_bytes(entry.storage_url)
+            size = await self.storage_client.size_in_bytes(entry.storage_uri)
             with tqdm(total=size, desc=f"Downloading {entry.name}", file=sys.stdout, unit='B', unit_scale=True,
                       unit_divisor=1024, colour=get_color()) as bar:
-                await self.storage_client.read(entry.storage_url, cast(BinaryIO, f), progress=lambda x: bar.update(x))
+                await self.storage_client.read(entry.storage_uri, cast(BinaryIO, f), progress=lambda x: bar.update(x))
                 f.seek(0)
                 res = self.__serializer_registry.find_serializer_by_type(entry.typ).deserialize(cast(BinaryIO, f))
                 return Just(res)
@@ -114,7 +114,7 @@ class DefaultSnapshot(Snapshot):
 
             with tqdm(total=length, desc=f"Uploading {entry.name}", file=sys.stdout, unit='B', unit_scale=True,
                       unit_divisor=1024, colour=get_color()) as bar:
-                await self.storage_client.write(entry.storage_url, cast(BinaryIO, f), progress=lambda x: bar.update(x))
+                await self.storage_client.write(entry.storage_uri, cast(BinaryIO, f), progress=lambda x: bar.update(x))
 
     def get(self, entry_id: str) -> SnapshotEntry:
         return self.__entry_id_to_entry[entry_id]
