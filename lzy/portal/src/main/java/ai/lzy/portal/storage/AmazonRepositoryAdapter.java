@@ -1,4 +1,4 @@
-package ai.lzy.portal.s3;
+package ai.lzy.portal.storage;
 
 import com.amazonaws.services.s3.AmazonS3;
 import ru.yandex.qe.s3.amazon.repository.AmazonS3Repository;
@@ -16,21 +16,21 @@ public class AmazonRepositoryAdapter<T> extends AmazonS3Repository<T> implements
     }
 
     public boolean contains(URI uri) {
-        return amazonS3.doesObjectExist(uri.getHost(), uri.getPath());
+        return amazonS3.doesObjectExist(uri.getHost(), Utils.removeLeadingSlash(uri.getPath()));
     }
 
     @Override
     public void put(URI uri, T value) {
-        super.put(uri.getHost(), uri.getPath(), value);
+        super.put(uri.getHost(), Utils.removeLeadingSlash(uri.getPath()), value);
     }
 
     @Override
     public T get(URI uri) {
-        return super.get(uri.getHost(), uri.getPath());
+        return super.get(uri.getHost(), Utils.removeLeadingSlash(uri.getPath()));
     }
 
     @Override
     public void remove(URI uri) {
-        super.remove(uri.getHost(), uri.getPath());
+        super.remove(uri.getHost(), Utils.removeLeadingSlash(uri.getPath()));
     }
 }

@@ -3,7 +3,7 @@ package ai.lzy.portal.slots;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.exceptions.CreateSlotException;
-import ai.lzy.portal.s3.Repository;
+import ai.lzy.portal.storage.Repository;
 import com.google.protobuf.ByteString;
 
 import java.io.IOException;

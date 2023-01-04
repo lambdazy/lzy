@@ -4,7 +4,7 @@ import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.slots.LzySlotBase;
 import ai.lzy.fs.slots.OutFileSlot;
 import ai.lzy.model.slot.SlotInstance;
-import ai.lzy.portal.s3.Repository;
+import ai.lzy.portal.storage.Repository;
 import com.google.protobuf.ByteString;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

@@ -3,7 +3,7 @@ package ai.lzy.portal.slots;
 import ai.lzy.fs.slots.LzyInputSlotBase;
 import ai.lzy.fs.slots.OutFileSlot;
 import ai.lzy.model.slot.SlotInstance;
-import ai.lzy.portal.s3.Repository;
+import ai.lzy.portal.storage.Repository;
 import ai.lzy.v1.common.LMS;
 import com.google.protobuf.ByteString;
 import org.apache.logging.log4j.LogManager;

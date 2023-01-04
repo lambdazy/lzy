@@ -1,4 +1,4 @@
-package ai.lzy.portal.s3;
+package ai.lzy.portal.storage;
 
 import com.azure.storage.blob.BlobServiceClient;
 import org.apache.commons.lang3.StringUtils;
@@ -28,7 +28,7 @@ public class AzureRepositoryAdapter<T> extends ru.yandex.qe.s3.repository.S3Repo
     }
 
     private static String internalKey(String bucket, String key) {
-        return bucket + BUCKET_KEY_DELIMITER + key;
+        return bucket + BUCKET_KEY_DELIMITER + Utils.removeLeadingSlash(key);
     }
 
     @Override
