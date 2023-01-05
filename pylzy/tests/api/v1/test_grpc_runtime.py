@@ -175,7 +175,7 @@ class GrpcRuntimeTests(TestCase):
 
         req = startup.ProcessingRequest(
             get_logging_config(),
-            serializers=ser,
+            serializers=ser.imports(),
             op=test,
             args_paths=[(str, arg_file)],
             kwargs_paths={"b": (File, kwarg_file)},

@@ -3,8 +3,6 @@ import inspect
 import os
 from typing import Any, Callable, Dict, Optional, Sequence, TypeVar, Iterable
 
-from serialzy.api import SerializerRegistry
-
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard
 from lzy.api.v1.call import LzyCall, wrap_call
 from lzy.api.v1.env import DockerPullPolicy, Env
@@ -126,7 +124,7 @@ class Lzy:
         whiteboard_client: WhiteboardClient = RemoteWhiteboardClient(),
         py_env_provider: PyEnvProvider = AutomaticPyEnvProvider(),
         storage_registry: StorageRegistry = DefaultStorageRegistry(),
-        serializer_registry: SerializerRegistry = LzySerializerRegistry()
+        serializer_registry: LzySerializerRegistry = LzySerializerRegistry()
     ):
         configure_logging()
 
@@ -142,7 +140,7 @@ class Lzy:
         lzy_auth(user=user, key_path=key_path, endpoint=endpoint, whiteboards_endpoint=whiteboards_endpoint)
 
     @property
-    def serializer_registry(self) -> SerializerRegistry:
+    def serializer_registry(self) -> LzySerializerRegistry:
         return self.__serializer_registry
 
     @property

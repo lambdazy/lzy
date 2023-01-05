@@ -387,7 +387,7 @@ class RemoteRuntime(Runtime):
 
             request = ProcessingRequest(
                 get_logging_config(),
-                serializers=self.__workflow.owner.serializer_registry,
+                serializers=self.__workflow.owner.serializer_registry.imports(),
                 op=call.signature.func.callable,
                 args_paths=arg_descriptions,
                 kwargs_paths=kwarg_descriptions,

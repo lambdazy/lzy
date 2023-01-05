@@ -35,6 +35,7 @@ if __name__ == "__main__":
             )
         )
         f.flush()
+
         lzy = Lzy()
         lzy.serializer_registry.register_serializer(TestStrSerializer())
         with lzy.workflow("wf", interactive=False, conda_yaml_path=f.name):
