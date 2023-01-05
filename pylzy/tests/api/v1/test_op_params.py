@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from api.v1.mocks import RuntimeMock, StorageRegistryMock
-from lzy.api.v1 import Lzy, op, Env
+from lzy.api.v1 import Lzy, op, Env, DockerPullPolicy
 from lzy.api.v1.provisioning import GpuType, Provisioning, CpuType
 from lzy.api.v1.call import LzyCall
 from platform import python_version
@@ -185,3 +185,62 @@ class LzyOpParamsTests(TestCase):
         self.assertEqual({}, call.env.libraries)
         self.assertEqual("path_op", call.env.conda_yaml_path)
         self.assertIsNone(call.env.docker_image)
+        self.assertTrue(len(call.env.local_modules_path) > 0)
+
+    def test_wf_env_yaml(self):
+        with self.lzy.workflow("test", conda_yaml_path="path_wf") as wf:
+            func()
+
+        # noinspection PyUnresolvedReferences
+        call: LzyCall = wf.owner.runtime.calls[0]
+        self.assertIsNone(call.env.python_version)
+        self.assertEqual({}, call.env.libraries)
+        self.assertEqual("path_wf", call.env.conda_yaml_path)
+        self.assertIsNone(call.env.docker_image)
+        self.assertTrue(len(call.env.local_modules_path) > 0)
+
+    def test_docker_wf(self):
+        with self.lzy.workflow("test", docker_image='image1') as wf:
+            func()
+
+        # noinspection PyUnresolvedReferences
+        call: LzyCall = wf.owner.runtime.calls[0]
+        self.assertIsNotNone(call.env.python_version)
+        self.assertTrue(len(call.env.libraries) > 0)
+        self.assertEqual("image1", call.env.docker_image)
+        self.assertIsNone(call.env.conda_yaml_path)
+        self.assertTrue(len(call.env.local_modules_path) > 0)
+        self.assertEqual(DockerPullPolicy.IF_NOT_EXISTS, call.env.docker_pull_policy)
+
+    def test_docker_op(self):
+        @op(docker_image="image2", docker_pull_policy=DockerPullPolicy.ALWAYS)
+        def func_with_docker() -> None:
+            pass
+
+        with self.lzy.workflow("test", docker_image='image1') as wf:
+            func_with_docker()
+
+        # noinspection PyUnresolvedReferences
+        call: LzyCall = wf.owner.runtime.calls[0]
+        self.assertIsNotNone(call.env.python_version)
+        self.assertTrue(len(call.env.libraries) > 0)
+        self.assertEqual("image2", call.env.docker_image)
+        self.assertIsNone(call.env.conda_yaml_path)
+        self.assertTrue(len(call.env.local_modules_path) > 0)
+        self.assertEqual(DockerPullPolicy.ALWAYS, call.env.docker_pull_policy)
+
+    def test_docker_with_conda(self):
+        @op(docker_image="image2", conda_yaml_path="path1")
+        def func_with_docker() -> None:
+            pass
+
+        with self.lzy.workflow("test", docker_image='image1') as wf:
+            func_with_docker()
+
+        # noinspection PyUnresolvedReferences
+        call: LzyCall = wf.owner.runtime.calls[0]
+        self.assertIsNone(call.env.python_version)
+        self.assertEqual({}, call.env.libraries)
+        self.assertEqual("image2", call.env.docker_image)
+        self.assertEqual("path1", call.env.conda_yaml_path)
+        self.assertTrue(len(call.env.local_modules_path) > 0)

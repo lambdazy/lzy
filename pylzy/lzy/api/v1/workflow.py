@@ -43,7 +43,7 @@ class LzyWorkflow:
         owner: "Lzy",
         env: Env,
         provisioning: Provisioning,
-        auto_py_env: Optional[PyEnv],
+        auto_py_env: PyEnv,
         *,
         eager: bool = False,
         interactive: bool = True
@@ -81,7 +81,7 @@ class LzyWorkflow:
         return self.__env
 
     @property
-    def auto_py_env(self) -> Optional[PyEnv]:
+    def auto_py_env(self) -> PyEnv:
         return self.__auto_py_env
 
     @property
@@ -112,7 +112,7 @@ class LzyWorkflow:
             self.__snapshot = DefaultSnapshot(
                 execution_id,
                 storage_registry=self.owner.storage_registry,
-                serializer_registry=self.owner.serializer,
+                serializer_registry=self.owner.serializer_registry,
             )
             return self
         except Exception as e:

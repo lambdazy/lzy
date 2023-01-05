@@ -10,6 +10,7 @@ from lzy.api.v1.utils.pickle import unpickle
 from logging import Logger
 
 from lzy.logs.config import configure_logging, get_remote_logger
+from lzy.serialization.registry import LzySerializerRegistry, SerializerImport
 
 NAME = __name__
 _lzy_mount: Optional[str] = None  # for tests only
@@ -98,7 +99,7 @@ def process_execution(
 @dataclasses.dataclass
 class ProcessingRequest:
     logger_config: Dict[str, Any]
-    serializers: SerializerRegistry
+    serializers: Sequence[SerializerImport]
     op: Callable
     args_paths: Sequence[Tuple[Type, str]]
     kwargs_paths: Mapping[str, Tuple[Type, str]]
@@ -115,11 +116,25 @@ def main(arg: str):
         sys.stderr.flush()
         raise e
 
-    configure_logging(req.logger_config)
+    registry = LzySerializerRegistry()
+    try:
+        registry.load_imports(req.serializers)
+    except Exception as e:
+        sys.stderr.write(f"Error while loading serializers: {e}")
+        sys.stderr.flush()
+        raise e
+
+    try:
+        configure_logging(req.logger_config)
+    except Exception as e:
+        sys.stderr.write(f"Error while logging configuration: {e}")
+        sys.stderr.flush()
+        raise e
+
     logger = get_remote_logger(__name__)
     logger.info("Starting remote runtime...")
     logger.debug(f"Running with environment: {os.environ}")
-    process_execution(req.serializers, req.op, req.args_paths, req.kwargs_paths, req.output_paths, logger)
+    process_execution(registry, req.op, req.args_paths, req.kwargs_paths, req.output_paths, logger)
     logger.info("Finishing remote runtime...")
 
 

@@ -3,13 +3,11 @@ import inspect
 import os
 from typing import Any, Callable, Dict, Optional, Sequence, TypeVar, Iterable
 
-from serialzy.api import SerializerRegistry
-
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard
 from lzy.api.v1.call import LzyCall, wrap_call
 from lzy.api.v1.env import DockerPullPolicy, Env
 from lzy.api.v1.local.runtime import LocalRuntime
-from lzy.api.v1.provisioning import Provisioning
+from lzy.api.v1.provisioning import Provisioning, GpuType, CpuType
 from lzy.api.v1.remote.runtime import RemoteRuntime, USER_ENV, KEY_PATH_ENV, ENDPOINT_ENV
 from lzy.api.v1.runtime import Runtime
 from lzy.api.v1.snapshot import DefaultSnapshot
@@ -126,7 +124,7 @@ class Lzy:
         whiteboard_client: WhiteboardClient = RemoteWhiteboardClient(),
         py_env_provider: PyEnvProvider = AutomaticPyEnvProvider(),
         storage_registry: StorageRegistry = DefaultStorageRegistry(),
-        serializer_registry: SerializerRegistry = LzySerializerRegistry()
+        serializer_registry: LzySerializerRegistry = LzySerializerRegistry()
     ):
         configure_logging()
 
@@ -142,7 +140,7 @@ class Lzy:
         lzy_auth(user=user, key_path=key_path, endpoint=endpoint, whiteboards_endpoint=whiteboards_endpoint)
 
     @property
-    def serializer(self) -> SerializerRegistry:
+    def serializer_registry(self) -> LzySerializerRegistry:
         return self.__serializer_registry
 
     @property
@@ -187,10 +185,10 @@ class Lzy:
 
         # it is important to detect py env before registering lazy calls to avoid materialization of them
         namespace = inspect.stack()[1].frame.f_globals
-        auto_py_env: Optional[PyEnv] = self.__env_provider.provide(namespace) if not conda_yaml_path else None
+        auto_py_env: PyEnv = self.__env_provider.provide(namespace)
 
         libraries = {} if not libraries else libraries
-        local_modules_path = [] if not local_modules_path else local_modules_path
+        local_modules_path = auto_py_env.local_modules_path if not local_modules_path else local_modules_path
         env = env.override(
             Env(python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy, local_modules_path)
         )
@@ -226,10 +224,3 @@ class Lzy:
             raise RuntimeError(f"Status of whiteboard with name {wb.name} is {wb.status}, but must be COMPLETED")
 
         return ReadOnlyWhiteboard(self.__storage_registry, self.__serializer_registry, wb)
-
-
-# noinspection PyBroadException
-try:
-    from lzy.injections import catboost_injection
-except Exception:
-    pass
