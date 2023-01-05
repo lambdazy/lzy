@@ -1,15 +1,15 @@
 from dataclasses import dataclass
 from typing import Union, Optional
 
+from lzy.api.v1 import Provisioning, op, Lzy
+from lzy.api.v1.provisioning import GpuType
+from lzy.injections.extensions import extend
+
+# noinspection PyPackageRequirements
+from catboost import CatBoostClassifier, CatBoostRanker, CatBoostRegressor
+
 
 def inject_catboost() -> None:
-    from lzy.api.v1 import Provisioning, op, Lzy
-    from lzy.api.v1.provisioning import GpuType
-    from lzy.injections.extensions import extend
-
-    # noinspection PyPackageRequirements
-    from catboost import CatBoostClassifier, CatBoostRanker, CatBoostRegressor
-
     @dataclass
     class UnfitCatboostModel:
         model: Union[CatBoostClassifier, CatBoostRegressor, CatBoostRanker]
@@ -34,7 +34,7 @@ def inject_catboost() -> None:
             @op
             def train(holder: UnfitCatboostModel, x, *fit_args, **fit_kwargs) -> CatBoostClassifier:
                 # noinspection PyUnresolvedReferences
-                holder.model.original_fit(x, *fit_args, **fit_kwargs)
+                holder.model.fit(x, *fit_args, **fit_kwargs)
                 return holder.model
 
             with Lzy().workflow("catboost", interactive=False, provisioning=provisioning):
