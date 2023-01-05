@@ -1,6 +1,6 @@
 import importlib
 from dataclasses import dataclass
-from typing import Optional, List, Sequence
+from typing import Optional, Sequence, Type, Set
 
 from serialzy.api import Serializer
 from serialzy.registry import DefaultSerializerRegistry
@@ -18,7 +18,7 @@ class SerializerImport:
 class LzySerializerRegistry(DefaultSerializerRegistry):
     def __init__(self):
         self.__inited = False
-        self.__user_serializers: List[Serializer] = []
+        self.__user_serializers: Set[Type[Serializer]] = set()
         super().__init__()
         self.register_serializer(FileSerializer())
         self.__inited = True
@@ -29,14 +29,17 @@ class LzySerializerRegistry(DefaultSerializerRegistry):
                              "Please move serializer class to an external file.")
         super().register_serializer(serializer, priority)
         if self.__inited:
-            self.__user_serializers.append(serializer)
+            self.__user_serializers.add(type(serializer))
+
+    def unregister_serializer(self, serializer: Serializer):
+        super().unregister_serializer(serializer)
+        self.__user_serializers.remove(type(serializer))
 
     def imports(self) -> Sequence[SerializerImport]:
         result = []
         for serializer in self.__user_serializers:
-            typ = type(serializer)
-            result.append(SerializerImport(typ.__module__, typ.__name__,
-                                           self._serializer_priorities[type(serializer)]))
+            result.append(SerializerImport(serializer.__module__, serializer.__name__,
+                                           self._serializer_priorities[serializer]))
         return result
 
     def load_imports(self, imports: Sequence[SerializerImport]):
