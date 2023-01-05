@@ -3,11 +3,17 @@ import uuid
 from pathlib import Path
 
 from lzy.api.v1 import Lzy, op
+from serializer import TestStrSerializer
+
+
+class Kek:
+    pass
 
 
 @op
-def func() -> None:
-    print("DONE")
+def func(s: str) -> str:
+    print(s)
+    return "some_string"
 
 
 WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
@@ -29,5 +35,8 @@ if __name__ == "__main__":
             )
         )
         f.flush()
-        with Lzy().workflow("wf", interactive=False, conda_yaml_path=f.name):
-            func()
+        lzy = Lzy()
+        lzy.serializer_registry.register_serializer(TestStrSerializer())
+        with lzy.workflow("wf", interactive=False, conda_yaml_path=f.name):
+            result = func("some_str")
+            print(result)

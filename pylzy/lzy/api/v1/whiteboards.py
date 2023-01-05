@@ -187,7 +187,7 @@ class WritableWhiteboard:
         else:
             entry = self.__workflow.snapshot.create_entry(self.__whiteboard_meta.name + "." + key, get_type(value))
 
-        serializer = self.__workflow.owner.serializer.find_serializer_by_type(entry.typ)
+        serializer = self.__workflow.owner.serializer_registry.find_serializer_by_type(entry.typ)
         if not serializer.available():
             raise ValueError(
                 f'Serializer for type {entry.typ} is not available, please install {serializer.requirements()}')

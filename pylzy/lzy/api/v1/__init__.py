@@ -142,7 +142,7 @@ class Lzy:
         lzy_auth(user=user, key_path=key_path, endpoint=endpoint, whiteboards_endpoint=whiteboards_endpoint)
 
     @property
-    def serializer(self) -> SerializerRegistry:
+    def serializer_registry(self) -> SerializerRegistry:
         return self.__serializer_registry
 
     @property
@@ -187,10 +187,10 @@ class Lzy:
 
         # it is important to detect py env before registering lazy calls to avoid materialization of them
         namespace = inspect.stack()[1].frame.f_globals
-        auto_py_env: Optional[PyEnv] = self.__env_provider.provide(namespace) if not conda_yaml_path else None
+        auto_py_env: PyEnv = self.__env_provider.provide(namespace)
 
         libraries = {} if not libraries else libraries
-        local_modules_path = [] if not local_modules_path else local_modules_path
+        local_modules_path = auto_py_env.local_modules_path if not local_modules_path else local_modules_path
         env = env.override(
             Env(python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy, local_modules_path)
         )

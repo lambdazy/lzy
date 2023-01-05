@@ -44,9 +44,9 @@ public class PyApiTest {
     }
 
     @Test
-    public void testCustomConda() {
+    public void testCustomCondaAndSerializer() {
         CondaEnvironment.RECONFIGURE_CONDA = true;
-        pythonContext.context().evalAndAssertScenarioResult("custom_conda_env");
+        pythonContext.context().evalAndAssertScenarioResult("custom_conda_and_serializer");
         CondaEnvironment.RECONFIGURE_CONDA = false;
     }
 
