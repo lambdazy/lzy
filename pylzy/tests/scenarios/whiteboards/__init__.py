@@ -99,13 +99,11 @@ wb = lzy.whiteboard(wb_id)
 print(wb.a, wb.b)
 print(f"Len: {len(wb.b)}")
 
-
 with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
     wb = wf.create_whiteboard(AnotherSimpleWhiteboard, tags=[another_simple_whiteboard_tag])
     wb.a = fun3(3)
     wb.b = fun4(3)
     wb.c = fun5(4)
-
 
 with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
     wb = wf.create_whiteboard(OneMoreSimpleWhiteboard, tags=[simple_whiteboard_tag])
@@ -169,7 +167,6 @@ print(
 )
 print("enum_field value in WhiteboardWithLzyMessageFields is " + str(wb.a.enum_field))
 print("non lzy message int field in WhiteboardWithLzyMessageFields is " + str(wb.b))
-
 
 wb = lzy.whiteboard(wb_id)
 print("string_field value in WhiteboardWithOneLzyMessageField is " + wb.a.string_field)

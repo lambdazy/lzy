@@ -35,16 +35,26 @@ class Provisioning:
             ram_size_gb=2,
         )
 
-    def override(self, other: Optional["Provisioning"] = None) -> "Provisioning":
-        if other is None:
-            other = self.default()
-
+    def override(self, other: "Provisioning") -> "Provisioning":
         return Provisioning(
-            cpu_type=self.cpu_type if self.cpu_type else other.cpu_type,
-            cpu_count=self.cpu_count if self.cpu_count is not None else other.cpu_count,
-            gpu_type=self.gpu_type if self.gpu_type else other.gpu_type,
-            gpu_count=self.gpu_count if self.gpu_count is not None else other.gpu_count,
-            ram_size_gb=self.ram_size_gb
-            if self.ram_size_gb is not None
-            else other.ram_size_gb,
+            cpu_type=other.cpu_type if other.cpu_type else self.cpu_type,
+            cpu_count=other.cpu_count if other.cpu_count else self.cpu_count,
+            gpu_type=other.gpu_type if other.gpu_type else self.gpu_type,
+            gpu_count=other.gpu_count if other.gpu_count else self.gpu_count,
+            ram_size_gb=other.ram_size_gb if other.ram_size_gb else self.ram_size_gb
         )
+
+    def validate(self) -> None:
+        if self.cpu_type is None:
+            raise ValueError("cpu_type is not set")
+        if self.cpu_count is None:
+            raise ValueError("cpu_count is not set")
+        if self.ram_size_gb is None:
+            raise ValueError("ram_size_gb is not set")
+        if self.gpu_type is None:
+            raise ValueError("gpu_type is not set")
+        if self.gpu_count is None:
+            raise ValueError("gpu_count is not set")
+
+        if self.gpu_count > 0 and self.gpu_type == GpuType.NO_GPU.value:
+            raise ValueError(f"gpu_type is set to {self.gpu_type} while gpu_count is {self.gpu_count}")

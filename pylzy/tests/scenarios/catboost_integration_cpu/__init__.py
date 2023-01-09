@@ -1,10 +1,12 @@
 # noinspection PyPackageRequirements
 import numpy as np
-
 # noinspection PyPackageRequirements
 from catboost import CatBoostClassifier, Pool
 
-from lzy.api.v1 import Provisioning
+from lzy.api.v1 import CpuType
+from lzy.injections.catboost import inject_catboost
+
+inject_catboost()
 
 if __name__ == "__main__":
     # fmt: off
@@ -20,7 +22,7 @@ if __name__ == "__main__":
 
     model = CatBoostClassifier(iterations=1000, train_dir="/tmp/catboost")
     # noinspection PyArgumentList
-    model.fit(train_data, provisioning=Provisioning.default())
+    model.fit(train_data, cpu_type=str(CpuType.ICE_LAKE.value))
 
     result = model.predict(np.array([1, 4, 5, 6]))
     print("Prediction: " + str(result))

@@ -7,7 +7,7 @@ import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.common.LMS;
-import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.graph.GraphExecutor;
 import ai.lzy.v1.graph.GraphExecutor.SlotToChannelAssignment;
 import ai.lzy.v1.graph.GraphExecutor.TaskDesc;
@@ -52,7 +52,7 @@ class GraphBuilder {
         var userId = state.getUserId();
         var workflowName = state.getWorkflowName();
         var executionId = state.getExecutionId();
-        var dataFlow = state.getDataFlowGraph().getDataFlow();
+        var dataFlow = state.getDataFlowGraph().getDataflow();
         var slot2description = state.getDescriptions().stream()
             .collect(Collectors.toMap(LWF.DataDescription::getStorageUri, Function.identity()));
 
@@ -115,9 +115,9 @@ class GraphBuilder {
         var fromOutput = partitionBySupplier.get(true);
         var fromPortal = partitionBySupplier.get(false);
 
-        LMS3.S3Locator storageLocator;
+        LMST.StorageConfig storageConfig;
         try {
-            storageLocator = withRetries(LOG, () -> workflowDao.getStorageLocator(executionId));
+            storageConfig = withRetries(LOG, () -> workflowDao.getStorageConfig(executionId));
         } catch (Exception e) {
             LOG.error("Cannot obtain information about snapshots storage for execution: { executionId: {} } " +
                 e.getMessage(), executionId);
@@ -137,7 +137,7 @@ class GraphBuilder {
             var dataDescription = slot2dataDescription.get(slotUri);
 
             inputSlotNames.add(portalInputSlotName);
-            portalSlotToOpen.add(makePortalInputSlot(slotUri, portalInputSlotName, channelId, storageLocator));
+            portalSlotToOpen.add(makePortalInputSlot(slotUri, portalInputSlotName, channelId, storageConfig));
 
             slotName2channelId.put(data.supplier(), channelId);
             if (data.consumers() != null) {
@@ -183,7 +183,7 @@ class GraphBuilder {
                     .getChannelId();
 
                 newChannels.put(slotUri, channelId);
-                portalSlotToOpen.add(makePortalOutputSlot(slotUri, portalOutputSlotName, channelId, storageLocator));
+                portalSlotToOpen.add(makePortalOutputSlot(slotUri, portalOutputSlotName, channelId, storageConfig));
             }
 
             try {

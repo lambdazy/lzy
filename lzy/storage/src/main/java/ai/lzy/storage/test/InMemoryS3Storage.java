@@ -4,7 +4,7 @@ import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.storage.StorageService;
 import ai.lzy.storage.config.StorageConfig;
-import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.storage.LSS.*;
 import com.amazonaws.SdkClientException;
@@ -94,7 +94,7 @@ public class InMemoryS3Storage implements StorageService {
         }
 
         var response = Any.pack(CreateS3BucketResponse.newBuilder()
-            .setAmazon(LMS3.AmazonS3Endpoint.newBuilder()
+            .setS3(LMST.S3Credentials.newBuilder()
                 .setEndpoint(endpoint)
                 .build())
             .build());
@@ -140,7 +140,7 @@ public class InMemoryS3Storage implements StorageService {
             request.getUserId(), request.getBucket());
 
         response.onNext(GetS3BucketCredentialsResponse.newBuilder()
-            .setAmazon(LMS3.AmazonS3Endpoint.newBuilder()
+            .setAmazon(LMST.S3Credentials.newBuilder()
                 .setEndpoint(endpoint)
                 .build())
             .build());

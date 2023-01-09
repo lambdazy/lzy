@@ -6,7 +6,7 @@ import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.model.DataScheme;
 import ai.lzy.portal.slots.SnapshotSlot;
 import ai.lzy.v1.common.LMS;
-import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.portal.LzyPortal;
 import ai.lzy.v1.portal.LzyPortalApi;
 
@@ -19,29 +19,28 @@ public enum ProtoConverter {
     ;
 
     public static LzyPortal.PortalSlotDesc makePortalOutputSlot(String slotUri, String slotName,
-                                                                String channelId, LMS3.S3Locator s3Locator)
+                                                                String channelId, LMST.StorageConfig storageConfig)
     {
-        return makePortalSlot(slotUri, slotName, channelId, LMS.Slot.Direction.OUTPUT, s3Locator);
+        return makePortalSlot(slotUri, slotName, channelId, LMS.Slot.Direction.OUTPUT, storageConfig);
     }
 
     public static LzyPortal.PortalSlotDesc makePortalInputSlot(String slotUri, String slotName,
-                                                               String channelId, LMS3.S3Locator s3Locator)
+                                                               String channelId, LMST.StorageConfig storageConfig)
     {
-        return makePortalSlot(slotUri, slotName, channelId, LMS.Slot.Direction.INPUT, s3Locator);
+        return makePortalSlot(slotUri, slotName, channelId, LMS.Slot.Direction.INPUT, storageConfig);
     }
 
     public static LzyPortal.PortalSlotDesc makePortalSlot(String slotUri, String slotName, String channelId,
-                                                          LMS.Slot.Direction direction, LMS3.S3Locator s3Locator)
+                                                          LMS.Slot.Direction direction,
+                                                          LMST.StorageConfig storageConfig)
     {
-        var keyAndBucket = parseStorageUri(slotUri);
-        var bucket = keyAndBucket[0];
-        var key = keyAndBucket[1];
-
-        var snapshot = LzyPortal.PortalSlotDesc.Snapshot.newBuilder()
-            .setS3(LMS3.S3Locator.newBuilder()
-                .setKey(key)
-                .setBucket(bucket)
-                .setAmazon(s3Locator.getAmazon()));
+        final LMST.StorageConfig.Builder builder = LMST.StorageConfig.newBuilder()
+            .setUri(slotUri);
+        if (storageConfig.hasS3()) {
+            builder.setS3(storageConfig.getS3());
+        } else if (storageConfig.hasAzure()) {
+            builder.setAzure(storageConfig.getAzure());
+        }
 
         return LzyPortal.PortalSlotDesc.newBuilder()
             .setSlot(LMS.Slot.newBuilder()
@@ -50,13 +49,8 @@ public enum ProtoConverter {
                 .setDirection(direction)
                 .setContentType(toProto(DataScheme.PLAIN)))
             .setChannelId(channelId)
-            .setSnapshot(snapshot)
+            .setSnapshot(LzyPortal.PortalSlotDesc.Snapshot.newBuilder().setStorageConfig(builder.build()).build())
             .build();
-    }
-
-    private static String[] parseStorageUri(String storageUri) {
-        String[] schemaAndRest = storageUri.split("//", 2);
-        return schemaAndRest[1].split("/", 2);
     }
 
     public static LzyPortal.PortalSlotDesc makePortalInputStdoutSlot(String taskId,
@@ -122,14 +116,5 @@ public enum ProtoConverter {
         return commonSlotStatusBuilder(slot)
             .setConnectedTo("")
             .build();
-    }
-
-    public static String getSlotUri(LMS3.S3Locator s3locator) {
-        var uriSchema = switch (s3locator.getEndpointCase()) {
-            case AZURE -> "azure";
-            case AMAZON -> "s3";
-            case ENDPOINT_NOT_SET -> throw new IllegalArgumentException("Unsupported bucket storage type");
-        };
-        return uriSchema + "://" + s3locator.getBucket() + "/" + s3locator.getKey();
     }
 }

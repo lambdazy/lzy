@@ -3,7 +3,7 @@ package ai.lzy.service.workflow;
 import ai.lzy.service.BaseTest;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.portal.LzyPortalApi;
 import ai.lzy.v1.portal.LzyPortalGrpc;
 import ai.lzy.v1.workflow.LWFS;
@@ -14,6 +14,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.sql.SQLException;
+import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
@@ -45,13 +46,12 @@ public class WorkflowTest extends BaseTest {
     }
 
     @Test
-    public void createWorkflowFailedWithUserStorageMissedEndpoint() {
+    public void createWorkflowFailedWithUserStorageMissedCredentials() {
         var thrown = Assert.assertThrows(StatusRuntimeException.class, () ->
             authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
                 .setWorkflowName("workflow_1")
-                .setSnapshotStorage(LMS3.S3Locator.newBuilder()
-                    .setKey("some-valid-key")
-                    .setBucket("some-valid-bucket")
+                .setSnapshotStorage(LMST.StorageConfig.newBuilder()
+                    .setUri("s3://bucket/key")
                     .build())
                 .build()));
 
@@ -90,7 +90,7 @@ public class WorkflowTest extends BaseTest {
     }
 
     @Test
-    public void testPortalStartedWhileCreatingWorkflow() {
+    public void testPortalStartedWhileCreatingWorkflow() throws InterruptedException {
         WorkflowService.PEEK_RANDOM_PORTAL_PORTS = false;
         authorizedWorkflowClient.createWorkflow(
             LWFS.CreateWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build());
@@ -101,5 +101,8 @@ public class WorkflowTest extends BaseTest {
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> internalUserCredentials.get().token()));
 
         portalClient.status(LzyPortalApi.PortalStatusRequest.newBuilder().build());
+
+        portalChannel.shutdown();
+        portalChannel.awaitTermination(5, TimeUnit.SECONDS);
     }
 }

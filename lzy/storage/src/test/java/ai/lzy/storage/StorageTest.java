@@ -200,14 +200,14 @@ public class StorageTest extends BaseTestWithIam {
         var resp = opClient.get(LongRunning.GetOperationRequest.newBuilder()
             .setOperationId(respOp.getId()).build()).getResponse().unpack(CreateS3BucketResponse.class);
 
-        assertTrue(resp.toString(), resp.hasAmazon());
-        assertTrue(resp.toString(), resp.getAmazon().getAccessToken().isEmpty());
-        assertTrue(resp.toString(), resp.getAmazon().getSecretToken().isEmpty());
+        assertTrue(resp.toString(), resp.hasS3());
+        assertTrue(resp.toString(), resp.getS3().getAccessToken().isEmpty());
+        assertTrue(resp.toString(), resp.getS3().getSecretToken().isEmpty());
 
         var s3 = AmazonS3ClientBuilder.standard()
             .withPathStyleAccessEnabled(true)
             .withEndpointConfiguration(
-                new AwsClientBuilder.EndpointConfiguration(resp.getAmazon().getEndpoint(), "us-west-1"))
+                new AwsClientBuilder.EndpointConfiguration(resp.getS3().getEndpoint(), "us-west-1"))
             .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
             .build();
 
@@ -222,7 +222,7 @@ public class StorageTest extends BaseTestWithIam {
             .setBucket("bucket-1")
             .build());
         assertTrue(credsResp.hasAmazon());
-        Assert.assertEquals(resp.getAmazon(), credsResp.getAmazon());
+        Assert.assertEquals(resp.getS3(), credsResp.getAmazon());
 
         authorizedStorageClient.deleteS3Bucket(LSS.DeleteS3BucketRequest.newBuilder()
             .setBucket("bucket-1")
@@ -260,7 +260,7 @@ public class StorageTest extends BaseTestWithIam {
                 assertFalse(op.hasError());
 
                 try {
-                    assertTrue(op.getResponse().unpack(CreateS3BucketResponse.class).hasAmazon());
+                    assertTrue(op.getResponse().unpack(CreateS3BucketResponse.class).hasS3());
                 } catch (InvalidProtocolBufferException e) {
                     fail(e.getMessage());
                 }

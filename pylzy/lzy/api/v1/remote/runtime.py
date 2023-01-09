@@ -1,6 +1,5 @@
 import asyncio
 import functools
-import logging
 import os
 import sys
 import tempfile
@@ -20,6 +19,8 @@ from typing import (
     cast,
 )
 
+from serialzy.api import Schema
+
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
 from ai.lzy.v1.workflow.workflow_pb2 import (
     DataDescription,
@@ -28,11 +29,8 @@ from ai.lzy.v1.workflow.workflow_pb2 import (
     VmPoolSpec,
 )
 from lzy.api.v1.call import LzyCall
-from lzy.api.v1.workflow import LzyWorkflow
-from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.exceptions import LzyExecutionException
-from serialzy.api import Schema
-from lzy.utils.grpc import build_token
+from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.remote.workflow_service_client import (
     Completed,
     Executing,
@@ -45,16 +43,20 @@ from lzy.api.v1.runtime import (
     Runtime,
 )
 from lzy.api.v1.startup import ProcessingRequest
-from lzy.api.v1.utils.pickle import pickle
+from lzy.api.v1.utils.conda import generate_conda_yaml
 from lzy.api.v1.utils.files import fileobj_hash, zipdir
+from lzy.api.v1.utils.pickle import pickle
+from lzy.api.v1.workflow import LzyWorkflow
 from lzy.api.v1.workflow import WbRef
+from lzy.logs.config import get_logger, get_logging_config, RESET_COLOR, COLOURS, get_color
+from lzy.utils.grpc import build_token
 
 FETCH_STATUS_PERIOD_SEC = float(os.getenv("FETCH_STATUS_PERIOD_SEC", "10"))
 KEY_PATH_ENV = "LZY_KEY_PATH"
 USER_ENV = "LZY_USER"
 ENDPOINT_ENV = "LZY_ENDPOINT"
 
-_LOG = logging.getLogger(__name__)
+_LOG = get_logger(__name__)
 
 
 def wrap_error(message: str = "Something went wrong"):
@@ -82,14 +84,12 @@ class RemoteRuntime(Runtime):
         self.__std_slots_listener: Optional[Task] = None
         self.__running = False
 
-    async def start(self, workflow: LzyWorkflow):
+    async def start(self, workflow: LzyWorkflow) -> str:
         self.__running = True
         self.__workflow = workflow
         client = await self.__get_client()
 
-        _LOG.info(f"Starting workflow {self.__workflow.name}")
         default_creds = self.__workflow.owner.storage_registry.default_config()
-
         exec_id, creds = await client.create_workflow(
             self.__workflow.name, default_creds
         )
@@ -103,12 +103,13 @@ class RemoteRuntime(Runtime):
         self.__std_slots_listener = asyncio.create_task(
             self.__listen_to_std_slots(exec_id)
         )
+        return cast(str, exec_id)
 
     async def exec(
-            self,
-            calls: List[LzyCall],
-            links: Dict[str, WbRef],
-            progress: Callable[[ProgressStep], None],
+        self,
+        calls: List[LzyCall],
+        links: Dict[str, WbRef],
+        progress: Callable[[ProgressStep], None],
     ) -> None:
         assert self.__execution_id is not None
         assert self.__workflow is not None
@@ -118,19 +119,20 @@ class RemoteRuntime(Runtime):
 
         modules: Set[str] = set()
         for call in calls:
-            modules.update(call.env.local_modules)
+            modules.update(cast(Sequence[str], call.env.local_modules_path))
 
         urls = await self.__load_local_modules(modules)
 
-        _LOG.info("Building graph")
+        _LOG.debug("Building execution graph")
         graph = await asyncio.get_event_loop().run_in_executor(
             None, self.__build_graph, calls, pools, list(zip(modules, urls))
         )  # Running long op in threadpool
         _LOG.debug(f"Starting executing graph {graph}")
 
         graph_id = await client.execute_graph(self.__execution_id, graph)
-        _LOG.info(f"Send graph to Lzy, graph_id={graph_id}")
+        _LOG.debug(f"Requesting remote execution, graph_id={graph_id}")
 
+        progress(ProgressStep.WAITING)
         is_executing = False
         while True:
             await asyncio.sleep(FETCH_STATUS_PERIOD_SEC)
@@ -138,14 +140,17 @@ class RemoteRuntime(Runtime):
 
             if isinstance(status, Executing) and not is_executing:
                 is_executing = True
+                progress(ProgressStep.EXECUTING)
                 continue
 
             if isinstance(status, Completed):
-                _LOG.info(f"Graph {graph_id} execution completed")
+                progress(ProgressStep.COMPLETED)
+                _LOG.debug(f"Graph {graph_id} execution completed")
                 break
 
             if isinstance(status, Failed):
-                _LOG.info(f"Graph {graph_id} execution failed: {status.description}")
+                progress(ProgressStep.FAILED)
+                _LOG.debug(f"Graph {graph_id} execution failed: {status.description}")
                 raise LzyExecutionException(
                     f"Failed executing graph {graph_id}: {status.description}"
                 )
@@ -168,8 +173,6 @@ class RemoteRuntime(Runtime):
 
     async def destroy(self):
         client = await self.__get_client()
-        _LOG.info(f"Finishing workflow {self.__workflow.name}")
-
         try:
             if not self.__running:
                 return
@@ -210,7 +213,7 @@ class RemoteRuntime(Runtime):
                 archive.seek(0)
                 file = cast(BytesIO, archive.file)
                 key = os.path.join(
-                    "local_modules",
+                    "lzy_local_modules",
                     os.path.basename(local_module),
                     fileobj_hash(file),
                 )
@@ -223,34 +226,27 @@ class RemoteRuntime(Runtime):
                 if conf is None:
                     raise RuntimeError("No default storage config")
 
-                url = client.generate_uri(conf.bucket, key)
+                uri = conf.uri + "/" + key
+                if not await client.blob_exists(uri):
+                    await client.write(uri, file)
 
-                if not await client.blob_exists(url):
-                    await client.write(url, file)
-
-                presigned_uri = await client.sign_storage_uri(url)
+                presigned_uri = await client.sign_storage_uri(uri)
                 modules_uploaded.append(presigned_uri)
 
         return modules_uploaded
 
     @staticmethod
     def __resolve_pool(
-            provisioning: Provisioning, pool_specs: Sequence[VmPoolSpec]
+        provisioning: Provisioning, pool_specs: Sequence[VmPoolSpec]
     ) -> Optional[VmPoolSpec]:
-        assert (
-                provisioning.cpu_type is not None
-                and provisioning.cpu_count is not None
-                and provisioning.gpu_type is not None
-                and provisioning.gpu_count is not None
-                and provisioning.ram_size_gb is not None
-        )
+        provisioning.validate()
         for spec in pool_specs:
             if (
-                    provisioning.cpu_type == spec.cpuType
-                    and provisioning.cpu_count <= spec.cpuCount
-                    and provisioning.gpu_type == spec.gpuType
-                    and provisioning.gpu_count <= spec.gpuCount
-                    and provisioning.ram_size_gb <= spec.ramGb
+                provisioning.cpu_type == spec.cpuType
+                and cast(int, provisioning.cpu_count) <= spec.cpuCount
+                and provisioning.gpu_type == spec.gpuType
+                and cast(int, provisioning.gpu_count) <= spec.gpuCount
+                and cast(int, provisioning.ram_size_gb) <= spec.ramGb
             ):
                 return spec
         return None
@@ -272,15 +268,18 @@ class RemoteRuntime(Runtime):
         client = await self.__get_client()
         async for data in client.read_std_slots(execution_id):
             if isinstance(data, StdoutMessage):
-                print(data.data, file=sys.stdout)
+                system_log = "[SYS]" in data.data
+                prefix = COLOURS[get_color()] if system_log else ""
+                suffix = RESET_COLOR if system_log else ""
+                sys.stdout.write(prefix + data.data + suffix)
             else:
-                print(data.data, file=sys.stderr)
+                sys.stderr.write(data.data)
 
     def __build_graph(
-            self,
-            calls: List[LzyCall],
-            pools: Sequence[VmPoolSpec],
-            modules: Sequence[Tuple[str, str]]
+        self,
+        calls: List[LzyCall],
+        pools: Sequence[VmPoolSpec],
+        modules: Sequence[Tuple[str, str]]
     ) -> Graph:
         assert self.__workflow is not None
 
@@ -297,18 +296,18 @@ class RemoteRuntime(Runtime):
 
             for i, eid in enumerate(call.arg_entry_ids):
                 entry = self.__workflow.snapshot.get(eid)
-                slot_path = f"/{call.id}/arg_{i}"
+                slot_path = f"/{call.id}/{entry.name}"
                 input_slots.append(
                     Operation.SlotDescription(
-                        path=slot_path, storageUri=entry.storage_url
+                        path=slot_path, storageUri=entry.storage_uri
                     )
                 )
                 arg_descriptions.append((entry.typ, slot_path))
 
                 scheme = entry.data_scheme
 
-                data_descriptions[entry.storage_url] = DataDescription(
-                    storageUri=entry.storage_url,
+                data_descriptions[entry.storage_uri] = DataDescription(
+                    storageUri=entry.storage_uri,
                     dataScheme=DataScheme(
                         dataFormat=scheme.data_format,
                         schemeFormat=scheme.schema_format,
@@ -321,16 +320,16 @@ class RemoteRuntime(Runtime):
 
             for name, eid in call.kwarg_entry_ids.items():
                 entry = self.__workflow.snapshot.get(eid)
-                slot_path = f"/{call.id}/arg_{name}"
+                slot_path = f"/{call.id}/{entry.name}"
                 input_slots.append(
                     Operation.SlotDescription(
-                        path=slot_path, storageUri=entry.storage_url
+                        path=slot_path, storageUri=entry.storage_uri
                     )
                 )
                 kwarg_descriptions[name] = (entry.typ, slot_path)
 
-                data_descriptions[entry.storage_url] = DataDescription(
-                    storageUri=entry.storage_url,
+                data_descriptions[entry.storage_uri] = DataDescription(
+                    storageUri=entry.storage_uri,
                     dataScheme=DataScheme(
                         dataFormat=entry.data_scheme.data_format,
                         schemeFormat=entry.data_scheme.schema_format,
@@ -342,16 +341,16 @@ class RemoteRuntime(Runtime):
                 )
 
             for i, eid in enumerate(call.entry_ids):
-                slot_path = f"/{call.id}/ret_{i}"
                 entry = self.__workflow.snapshot.get(eid)
+                slot_path = f"/{call.id}/{entry.name}"
                 output_slots.append(
                     Operation.SlotDescription(
-                        path=slot_path, storageUri=entry.storage_url
+                        path=slot_path, storageUri=entry.storage_uri
                     )
                 )
 
-                data_descriptions[entry.storage_url] = DataDescription(
-                    storageUri=entry.storage_url,
+                data_descriptions[entry.storage_uri] = DataDescription(
+                    storageUri=entry.storage_uri,
                     dataScheme=DataScheme(
                         dataFormat=entry.data_scheme.data_format,
                         schemeFormat=entry.data_scheme.schema_format,
@@ -370,18 +369,25 @@ class RemoteRuntime(Runtime):
                     f"Cannot resolve pool for operation "
                     f"{call.signature.func.name}:\nAvailable: {pools}\n Expected: {call.provisioning}"
                 )
-
             pool_to_call.append((pool, call))
 
             docker_image: Optional[str]
-
-            if call.env.docker:
-                docker_image = call.env.docker.image
+            if call.env.docker_image:
+                docker_image = call.env.docker_image
             else:
                 docker_image = None
 
+            conda_yaml: Optional[str]
+            if call.env.conda_yaml_path:
+                with open(call.env.conda_yaml_path, "r") as file:
+                    conda_yaml = file.read()
+            else:
+                conda_yaml = generate_conda_yaml(cast(str, call.env.python_version),
+                                                 cast(Dict[str, str], call.env.libraries))
+
             request = ProcessingRequest(
-                serializers=self.__workflow.owner.serializer,
+                get_logging_config(),
+                serializers=self.__workflow.owner.serializer_registry.imports(),
                 op=call.signature.func.callable,
                 args_paths=arg_descriptions,
                 kwargs_paths=kwarg_descriptions,
@@ -390,7 +396,7 @@ class RemoteRuntime(Runtime):
 
             _com = "".join(
                 [
-                    "python ",
+                    "python -u ",  # -u makes stdout/stderr unbuffered. Maybe it should be a parameter
                     "$(python -c 'import site; print(site.getsitepackages()[0])')",
                     "/lzy/api/v1/startup.py ",
                 ]
@@ -407,7 +413,7 @@ class RemoteRuntime(Runtime):
                     command=command,
                     dockerImage=docker_image if docker_image is not None else "",
                     python=Operation.PythonEnvSpec(
-                        yaml=call.env.conda.yaml,
+                        yaml=conda_yaml,
                         localModules=[
                             Operation.PythonEnvSpec.LocalModule(name=name, url=url)
                             for (name, url) in modules

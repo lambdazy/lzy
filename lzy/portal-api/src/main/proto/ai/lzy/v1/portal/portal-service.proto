@@ -5,7 +5,7 @@ package ai.lzy.v1.portal;
 import "ai/lzy/v1/common/slot.proto";
 import "ai/lzy/v1/portal/portal.proto";
 import "google/protobuf/empty.proto";
-import "ai/lzy/v1/common/s3.proto";
+import "ai/lzy/v1/common/storage.proto";
 
 option java_outer_classname = "LzyPortalApi";
 option java_package = "ai.lzy.v1.portal";

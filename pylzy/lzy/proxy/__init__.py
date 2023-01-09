@@ -1,3 +1,3 @@
-from .automagic import proxy, proxy_optional
+from .automagic import proxy
 
 __all__ = ["proxy"]

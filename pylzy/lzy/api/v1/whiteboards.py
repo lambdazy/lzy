@@ -53,9 +53,9 @@ def whiteboard_(cls: Type, namespace: str, name: str):
 
 def is_whiteboard(typ: Type) -> bool:
     return (
-            hasattr(typ, WB_NAMESPACE_FIELD_NAME)
-            and hasattr(typ, WB_NAME_FIELD_NAME)
-            and dataclasses.is_dataclass(typ)
+        hasattr(typ, WB_NAMESPACE_FIELD_NAME)
+        and hasattr(typ, WB_NAME_FIELD_NAME)
+        and dataclasses.is_dataclass(typ)
     )
 
 
@@ -69,10 +69,10 @@ def fetch_whiteboard_meta(typ: Type) -> Optional[DeclaredWhiteboardMeta]:
 
 class ReadOnlyWhiteboard:
     def __init__(
-            self,
-            storage_registry: StorageRegistry,
-            serializer_registry: SerializerRegistry,
-            wb: Whiteboard
+        self,
+        storage_registry: StorageRegistry,
+        serializer_registry: SerializerRegistry,
+        wb: Whiteboard
     ):
         cli = storage_registry.client(wb.storage.name)
 
@@ -152,11 +152,11 @@ class WritableWhiteboard:
     }
 
     def __init__(
-            self,
-            instance: Any,
-            whiteboard_meta: WhiteboardInstanceMeta,
-            workflow: "LzyWorkflow",
-            fields: Mapping[str, Any]
+        self,
+        instance: Any,
+        whiteboard_meta: WhiteboardInstanceMeta,
+        workflow: "LzyWorkflow",
+        fields: Mapping[str, Any]
     ):
         self.__fields_dict: Dict[str, dataclasses.Field] = {
             field.name: field for field in dataclasses.fields(instance)
@@ -185,9 +185,9 @@ class WritableWhiteboard:
             entry_id = get_proxy_entry_id(value)
             entry = self.__workflow.snapshot.get(entry_id)
         else:
-            entry = self.__workflow.snapshot.create_entry(get_type(value))
+            entry = self.__workflow.snapshot.create_entry(self.__whiteboard_meta.name + "." + key, get_type(value))
 
-        serializer = self.__workflow.owner.serializer.find_serializer_by_type(entry.typ)
+        serializer = self.__workflow.owner.serializer_registry.find_serializer_by_type(entry.typ)
         if not serializer.available():
             raise ValueError(
                 f'Serializer for type {entry.typ} is not available, please install {serializer.requirements()}')
@@ -200,17 +200,17 @@ class WritableWhiteboard:
         if proxy:
             if materialized(value):
                 LzyEventLoop.run_async(self.__workflow.owner.whiteboard_client.link(
-                    whiteboard_id, key, entry.storage_url, entry.data_scheme
+                    whiteboard_id, key, entry.storage_uri, entry.data_scheme
                 ))
             else:
-                self.__workflow.add_whiteboard_link(entry.storage_url, WbRef(whiteboard_id, key))
+                self.__workflow.add_whiteboard_link(entry.storage_uri, WbRef(whiteboard_id, key))
         else:
             LzyEventLoop.run_async(self.__workflow.snapshot.put_data(entry_id=entry.id, data=value))
             # noinspection PyTypeChecker
             # TODO: there is no need to create lazy proxy from value. We only need to attach entry id
-            value = lzy_proxy(entry.id, type(value), self.__workflow, Just(value))
+            value = lzy_proxy(entry.id, (type(value),), self.__workflow, Just(value))
             LzyEventLoop.run_async(self.__workflow.owner.whiteboard_client.link(
-                whiteboard_id, key, entry.storage_url, entry.data_scheme
+                whiteboard_id, key, entry.storage_uri, entry.data_scheme
             ))
 
         self.__fields_assigned.add(key)

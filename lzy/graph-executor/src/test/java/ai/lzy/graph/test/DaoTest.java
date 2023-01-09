@@ -8,13 +8,10 @@ import ai.lzy.model.db.exceptions.DaoException;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.Timeout;
 
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Set;
 
@@ -43,17 +40,17 @@ public class DaoTest {
     }
 
     @Test
-    public void daoSimpleTest() throws DaoException {
+    public void daoSimpleTest() throws SQLException, DaoException {
         GraphDescription d = new GraphDescriptionBuilder()
             .addEdge("1", "2")
             .addEdge("2", "3")
             .addEdge("3", "1")
             .build();
-        GraphExecutionState s = dao.create("1", "changeMe", "userId", d);
+        GraphExecutionState s = dao.create("1", "changeMe", "userId", d, null);
         GraphExecutionState s2 = dao.get("1", s.id());
         Assert.assertEquals(s, s2);
 
-        GraphExecutionState s3 = dao.create("1", "changeMe", "userId", d);
+        GraphExecutionState s3 = dao.create("1", "changeMe", "userId", d, null);
         List<GraphExecutionState> list = dao.list("1");
         Assert.assertEquals(Set.of(s, s3), Set.copyOf(list));
 
@@ -65,8 +62,8 @@ public class DaoTest {
 
         dao.updateAndFree(
             s4.copyFromThis()
-            .withStatus(GraphExecutionState.Status.EXECUTING)
-            .build()
+                .withStatus(GraphExecutionState.Status.EXECUTING)
+                .build()
         );
 
         List<GraphExecutionState> filter = dao.filter(GraphExecutionState.Status.WAITING);

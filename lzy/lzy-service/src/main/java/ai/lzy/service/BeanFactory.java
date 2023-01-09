@@ -13,6 +13,8 @@ import ai.lzy.v1.iam.LzyAccessBindingServiceGrpc;
 import ai.lzy.v1.iam.LzySubjectServiceGrpc;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hubspot.jackson.datatype.protobuf.ProtobufModule;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
@@ -98,9 +100,15 @@ public class BeanFactory {
     }
 
     @Singleton
-    @Requires(beans = LzyServiceStorage.class)
     @Named("LzyServiceOperationDao")
+    @Requires(notEnv = "test-mock")
     public OperationDao operationDao(LzyServiceStorage storage) {
         return new OperationDaoImpl(storage);
+    }
+
+    @Singleton
+    @Named("GraphDaoObjectMapper")
+    public ObjectMapper mapper() {
+        return new ObjectMapper().registerModule(new ProtobufModule());
     }
 }

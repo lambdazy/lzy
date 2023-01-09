@@ -1,15 +1,12 @@
 import base64
-from typing import Any, Type, TypeVar, cast
+from typing import Any
 
 import cloudpickle
 
-T = TypeVar("T")
 
-
-def pickle(obj: T) -> str:
+def pickle(obj: Any) -> str:
     return base64.b64encode(cloudpickle.dumps(obj)).decode("ascii")
 
 
-def unpickle(base64_str: str, obj_type: Type[T] = None) -> T:
-    t = cloudpickle.loads(base64.b64decode(base64_str.encode("ascii")))
-    return cast(T, t)
+def unpickle(base64_str: str) -> Any:
+    return cloudpickle.loads(base64.b64decode(base64_str.encode("ascii")))

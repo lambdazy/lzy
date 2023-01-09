@@ -1,4 +1,5 @@
 lzy-service:
+  instance-id: 'lzy-service'
   address: 'localhost:8899'
   snapshot-address: 'localhost:8999'
   channel-manager-address: 'localhost:8122'

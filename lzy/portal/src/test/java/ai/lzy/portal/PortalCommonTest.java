@@ -29,9 +29,9 @@ public class PortalCommonTest extends PortalTestBase {
             taskOutputSlot, null);
         mocksServer.getSchedulerMock().awaitProcessing(firstWorkerId);
 
-        Assert.assertEquals(firstTaskId + "; hello\n", portalStdout.take());
-        Assert.assertEquals(firstTaskId + "; ", portalStdout.take());
-        Assert.assertEquals(firstTaskId + "; ", portalStderr.take());
+        Assert.assertEquals("[LZY-REMOTE-" + firstTaskId + "] - hello\n", portalStdout.take());
+        Assert.assertTrue(portalStdout.isEmpty());
+        Assert.assertTrue(portalStderr.isEmpty());
         waitPortalCompleted();
 
         // task_1 clean up
@@ -59,9 +59,9 @@ public class PortalCommonTest extends PortalTestBase {
             + tmpFile.getAbsolutePath(), taskInputSlot, "worker_1");
         mocksServer.getSchedulerMock().awaitProcessing(firstWorkerId);
 
-        Assert.assertEquals(secondTaskId + "; x\n", portalStdout.take());
-        Assert.assertEquals(secondTaskId + "; ", portalStdout.take());
-        Assert.assertEquals(secondTaskId + "; ", portalStderr.take());
+        Assert.assertEquals("[LZY-REMOTE-" + secondTaskId + "] - x\n", portalStdout.take());
+        Assert.assertTrue(portalStdout.isEmpty());
+        Assert.assertTrue(portalStderr.isEmpty());
         waitPortalCompleted();
 
         // task_2 clean up
@@ -113,10 +113,8 @@ public class PortalCommonTest extends PortalTestBase {
 
         var expected = new HashSet<String>() {
             {
-                add(firstTaskId + "; hello from task_1\n");
-                add(firstTaskId + "; ");
-                add(secondTaskId + "; hello from task_2\n");
-                add(secondTaskId + "; ");
+                add("[LZY-REMOTE-" + firstTaskId + "] - hello from task_1\n");
+                add("[LZY-REMOTE-" + secondTaskId + "] - hello from task_2\n");
             }
         };
 
@@ -126,16 +124,7 @@ public class PortalCommonTest extends PortalTestBase {
             Assert.assertTrue(actual.toString(), expected.remove(actual));
         }
         Assert.assertNull(portalStdout.poll());
-
-        expected.add(firstTaskId + "; ");
-        expected.add(secondTaskId + "; ");
-
-        while (!expected.isEmpty()) {
-            var actual = portalStderr.take();
-            Assert.assertTrue(actual.toString(), actual instanceof String);
-            Assert.assertTrue(actual.toString(), expected.remove(actual));
-        }
-        Assert.assertNull(portalStderr.poll());
+        Assert.assertTrue(portalStderr.isEmpty());
     }
 
     @Test
@@ -155,9 +144,9 @@ public class PortalCommonTest extends PortalTestBase {
             taskOutputSlot, null);
         mocksServer.getSchedulerMock().awaitProcessing(firstWorkerId);
 
-        Assert.assertEquals(firstTaskId + "; hello\n", portalStdout.take());
-        Assert.assertEquals(firstTaskId + "; ", portalStdout.take());
-        Assert.assertEquals(firstTaskId + "; ", portalStderr.take());
+        Assert.assertEquals("[LZY-REMOTE-" + firstTaskId + "] - hello\n", portalStdout.take());
+        Assert.assertTrue(portalStdout.isEmpty());
+        Assert.assertTrue(portalStderr.isEmpty());
         waitPortalCompleted();
 
         // task_1 clean up
@@ -184,9 +173,9 @@ public class PortalCommonTest extends PortalTestBase {
             + tmpFile2.getAbsolutePath(), taskInputSlot2, null);
         mocksServer.getSchedulerMock().awaitProcessing(secondWorkerId);
 
-        Assert.assertEquals(secondTaskId + "; x\n", portalStdout.take());
-        Assert.assertEquals(secondTaskId + "; ", portalStdout.take());
-        Assert.assertEquals(secondTaskId + "; ", portalStderr.take());
+        Assert.assertEquals("[LZY-REMOTE-" + secondTaskId + "] - x\n", portalStdout.take());
+        Assert.assertTrue(portalStdout.isEmpty());
+        Assert.assertTrue(portalStderr.isEmpty());
         waitPortalCompleted();
 
         System.out.println("\n----- RUN TASK 3 -----------------------------------------\n");
@@ -200,9 +189,9 @@ public class PortalCommonTest extends PortalTestBase {
             + tmpFile3.getAbsolutePath(), taskInputSlot3, null);
         mocksServer.getSchedulerMock().awaitProcessing(thirdWorkerId);
 
-        Assert.assertEquals(thirdTaskId + "; x\n", portalStdout.take());
-        Assert.assertEquals(thirdTaskId + "; ", portalStdout.take());
-        Assert.assertEquals(thirdTaskId + "; ", portalStderr.take());
+        Assert.assertEquals("[LZY-REMOTE-" + thirdTaskId + "] - x\n", portalStdout.take());
+        Assert.assertTrue(portalStdout.isEmpty());
+        Assert.assertTrue(portalStderr.isEmpty());
         waitPortalCompleted();
 
         // task_3 clean up
@@ -242,9 +231,9 @@ public class PortalCommonTest extends PortalTestBase {
             taskOutputSlot, null);
         mocksServer.getSchedulerMock().awaitProcessing(firstWorkerId);
 
-        Assert.assertEquals(firstTaskId + "; hello\n", portalStdout.take());
-        Assert.assertEquals(firstTaskId + "; ", portalStdout.take());
-        Assert.assertEquals(firstTaskId + "; ", portalStderr.take());
+        Assert.assertEquals("[LZY-REMOTE-" + firstTaskId + "] - hello\n", portalStdout.take());
+        Assert.assertTrue(portalStdout.isEmpty());
+        Assert.assertTrue(portalStderr.isEmpty());
         waitPortalCompleted();
 
         // task_1 clean up

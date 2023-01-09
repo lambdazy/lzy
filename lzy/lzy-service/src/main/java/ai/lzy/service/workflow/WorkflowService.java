@@ -30,7 +30,7 @@ import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmPoolServiceApi;
 import ai.lzy.v1.VmPoolServiceGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
-import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.portal.LzyPortalApi;
@@ -53,6 +53,7 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.net.URI;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
@@ -198,8 +199,8 @@ public class WorkflowService {
         response.onNext(LWFS.CreateWorkflowResponse.newBuilder()
             .setExecutionId(creationState.getExecutionId())
             .setInternalSnapshotStorage(creationState.getStorageType() == StorageType.INTERNAL
-                ? creationState.getStorageLocator()
-                : LMS3.S3Locator.getDefaultInstance())
+                ? creationState.getStorageConfig()
+                : LMST.StorageConfig.getDefaultInstance())
             .build());
         response.onCompleted();
     }
@@ -312,10 +313,12 @@ public class WorkflowService {
 
                 LSS.CreateS3BucketResponse response = createOp.getResponse().unpack(LSS.CreateS3BucketResponse.class);
 
-                var s3Locator = switch (response.getCredentialsCase()) {
-                    case AMAZON -> LMS3.S3Locator.newBuilder().setAmazon(response.getAmazon()).setBucket(bucketName)
+                var storageConfig = switch (response.getCredentialsCase()) {
+                    case S3 -> LMST.StorageConfig.newBuilder().setS3(response.getS3())
+                        .setUri(URI.create("s3://" + bucketName).toString())
                         .build();
-                    case AZURE -> LMS3.S3Locator.newBuilder().setAzure(response.getAzure()).setBucket(bucketName)
+                    case AZURE -> LMST.StorageConfig.newBuilder().setAzure(response.getAzure())
+                        .setUri(URI.create("azure://" + bucketName).toString())
                         .build();
                     default -> {
                         LOG.error("Unsupported bucket storage type {}", response.getCredentialsCase());
@@ -324,12 +327,12 @@ public class WorkflowService {
                     }
                 };
 
-                if (s3Locator == null) {
+                if (storageConfig == null) {
                     state.fail(Status.INTERNAL, "Cannot create temp bucket");
                     return;
                 }
 
-                state.setStorageLocator(s3Locator);
+                state.setStorageConfig(storageConfig);
             } catch (StatusRuntimeException e) {
                 state.fail(e.getStatus(), "Cannot create temp bucket: " + e.getMessage());
             } catch (InvalidProtocolBufferException e) {
@@ -338,10 +341,10 @@ public class WorkflowService {
             }
         } else {
             var userStorage = request.getSnapshotStorage();
-            if (userStorage.getEndpointCase() == LMS3.S3Locator.EndpointCase.ENDPOINT_NOT_SET) {
-                state.fail(Status.INVALID_ARGUMENT, "Snapshot storage not set");
+            if (userStorage.getCredentialsCase() == LMST.StorageConfig.CredentialsCase.CREDENTIALS_NOT_SET) {
+                state.fail(Status.INVALID_ARGUMENT, "Credentials are not set");
             } else {
-                state.setStorageLocator(userStorage);
+                state.setStorageConfig(userStorage);
             }
         }
     }
@@ -368,7 +371,7 @@ public class WorkflowService {
         try {
             withRetries(defaultRetryPolicy(), LOG, () ->
                 workflowDao.create(state.getExecutionId(), state.getUserId(), state.getWorkflowName(),
-                    state.getStorageType().name(), state.getStorageLocator()));
+                    state.getStorageType().name(), state.getStorageConfig()));
         } catch (AlreadyExistsException e) {
             state.fail(Status.ALREADY_EXISTS, "Cannot create execution: " + e.getMessage());
         } catch (Exception e) {

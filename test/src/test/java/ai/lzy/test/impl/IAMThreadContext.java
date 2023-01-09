@@ -20,7 +20,6 @@ import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
-@SuppressWarnings("UnstableApiUsage")
 public class IAMThreadContext implements LzyIAMTestContext {
     private static final Logger LOG = LogManager.getLogger(IAMThreadContext.class);
 

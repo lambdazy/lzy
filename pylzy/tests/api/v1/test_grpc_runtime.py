@@ -2,6 +2,7 @@ import asyncio
 import dataclasses
 import datetime
 import logging
+import os
 import tempfile
 import uuid
 from concurrent import futures
@@ -22,7 +23,7 @@ from serialzy.api import Schema
 
 import lzy.api.v1.startup as startup
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
-from ai.lzy.v1.common.s3_pb2 import AmazonS3Endpoint, S3Locator
+from ai.lzy.v1.common.storage_pb2 import S3Credentials, StorageConfig
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, WhiteboardField, WhiteboardFieldInfo, Storage
 from ai.lzy.v1.workflow.workflow_service_pb2 import (
     CreateWorkflowRequest,
@@ -40,6 +41,7 @@ from lzy.api.v1 import Lzy, op, whiteboard, ReadOnlyWhiteboard
 from lzy.api.v1.local.runtime import LocalRuntime
 from lzy.api.v1.snapshot import DefaultSnapshot
 from lzy.api.v1.utils.pickle import pickle
+from lzy.logs.config import get_logging_config, get_logger
 from lzy.proxy.result import Just
 from lzy.serialization.registry import LzySerializerRegistry
 from lzy.storage import api as storage
@@ -52,7 +54,7 @@ from tests.api.v1.utils import create_bucket
 
 logging.basicConfig(level=logging.DEBUG)
 
-LOG = logging.getLogger(__name__)
+_LOG = get_logger(__name__)
 
 
 class WorkflowServiceMock(LzyWorkflowServiceServicer):
@@ -60,9 +62,9 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
         self.fail = False
 
     def CreateWorkflow(
-            self, request: CreateWorkflowRequest, context: grpc.ServicerContext
+        self, request: CreateWorkflowRequest, context: grpc.ServicerContext
     ) -> CreateWorkflowResponse:
-        LOG.info(f"Creating wf {request}")
+        _LOG.info(f"Creating wf {request}")
 
         if self.fail:
             self.fail = False
@@ -70,16 +72,16 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
 
         return CreateWorkflowResponse(
             executionId="exec_id",
-            internalSnapshotStorage=S3Locator(
-                bucket="bucket",
-                amazon=AmazonS3Endpoint(endpoint="", accessToken="", secretToken=""),
+            internalSnapshotStorage=StorageConfig(
+                uri="s3://bucket/prefix",
+                s3=S3Credentials(endpoint="", accessToken="", secretToken=""),
             ),
         )
 
     def FinishWorkflow(
-            self, request: FinishWorkflowRequest, context: grpc.ServicerContext
+        self, request: FinishWorkflowRequest, context: grpc.ServicerContext
     ) -> FinishWorkflowResponse:
-        LOG.info(f"Finishing workflow {request}")
+        _LOG.info(f"Finishing workflow {request}")
 
         if self.fail:
             self.fail = False
@@ -90,9 +92,9 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
         return FinishWorkflowResponse()
 
     def ReadStdSlots(
-            self, request: ReadStdSlotsRequest, context: grpc.ServicerContext
+        self, request: ReadStdSlotsRequest, context: grpc.ServicerContext
     ) -> Iterator[ReadStdSlotsResponse]:
-        LOG.info(f"Registered listener")
+        _LOG.info(f"Registered listener")
 
         if self.fail:
             self.fail = False
@@ -107,6 +109,12 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
 
 
 class GrpcRuntimeTests(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        # setup PYTHONPATH for child processes used in LocalRuntime
+        pylzy_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
+        os.environ["PYTHONPATH"] = pylzy_directory + ":" + pylzy_directory + "/tests"
+
     def setUp(self) -> None:
         self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         self.mock = WorkflowServiceMock()
@@ -166,7 +174,8 @@ class GrpcRuntimeTests(TestCase):
         startup._lzy_mount = ""
 
         req = startup.ProcessingRequest(
-            serializers=ser,
+            get_logging_config(),
+            serializers=ser.imports(),
             op=test,
             args_paths=[(str, arg_file)],
             kwargs_paths={"b": (File, kwarg_file)},
@@ -201,9 +210,13 @@ class WhiteboardClientForTest(WhiteboardClient):
     async def get(self, wb_id: str) -> Whiteboard:
         pass
 
-    async def list(self, name: Optional[str] = None, tags: Sequence[str] = (),
-                   not_before: Optional[datetime.datetime] = None, not_after: Optional[datetime.datetime] = None) -> \
-            Iterable[Whiteboard]:
+    async def list(
+        self,
+        name: Optional[str] = None,
+        tags: Sequence[str] = (),
+        not_before: Optional[datetime.datetime] = None,
+        not_after: Optional[datetime.datetime] = None
+    ) -> Iterable[Whiteboard]:
         pass
 
     async def create_whiteboard(self, namespace: str, name: str, fields: Sequence[WhiteboardField], storage_name: str,
@@ -228,9 +241,9 @@ class SnapshotTests(TestCase):
         self.service.stop()
 
     def test_simple(self):
-        storage_config = storage.StorageConfig(
-            bucket="bucket",
-            credentials=storage.AmazonCredentials(
+        storage_config = storage.Storage(
+            uri="s3://bucket/prefix",
+            credentials=storage.S3Credentials(
                 self.endpoint_url, access_token="", secret_token=""
             ),
         )
@@ -240,9 +253,9 @@ class SnapshotTests(TestCase):
 
         serializers = LzySerializerRegistry()
 
-        snapshot = DefaultSnapshot(storages, serializers)
+        snapshot = DefaultSnapshot(str(uuid.uuid4()), storages, serializers)
 
-        entry = snapshot.create_entry(str)
+        entry = snapshot.create_entry("name", str)
 
         asyncio.run(snapshot.put_data(entry.id, "some_str"))
         ret = asyncio.run(snapshot.get_data(entry.id))
@@ -250,9 +263,9 @@ class SnapshotTests(TestCase):
         self.assertEqual(Just("some_str"), ret)
 
     def test_local(self):
-        storage_config = storage.StorageConfig(
-            bucket="bucket",
-            credentials=storage.AmazonCredentials(
+        storage_config = storage.Storage(
+            uri="s3://bucket/prefix",
+            credentials=storage.S3Credentials(
                 self.endpoint_url, access_token="", secret_token=""
             ),
         )
@@ -260,20 +273,20 @@ class SnapshotTests(TestCase):
         lzy.storage_registry.register_storage("storage", storage_config, True)
 
         with lzy.workflow("") as wf:
-            l = a(41)
+            some_field = a(41)
 
-            l2 = c(l)
-            l3 = c(l)
+            some_field_2 = c(some_field)
+            some_field_3 = c(some_field)
 
             wf.barrier()
 
-            self.assertEqual(l2, "42")
-            self.assertEqual(l3, "42")
+            self.assertEqual(some_field_2, "42")
+            self.assertEqual(some_field_3, "42")
 
     def test_presigned_url(self):
-        storage_config = storage.StorageConfig(
-            bucket="bucket",
-            credentials=storage.AmazonCredentials(
+        storage_config = storage.Storage(
+            uri="s3://bucket/prefix",
+            credentials=storage.S3Credentials(
                 self.endpoint_url, access_token="", secret_token=""
             ),
         )
@@ -282,7 +295,7 @@ class SnapshotTests(TestCase):
         storages.register_storage("storage", storage_config, True)
 
         client = storages.default_client()
-        url = client.generate_uri("bucket", "12345")
+        url = storage_config.uri + "/obj"
         with BytesIO(b"42") as f:
             asyncio.run(client.write(url, f))
 
@@ -293,9 +306,9 @@ class SnapshotTests(TestCase):
         self.assertEqual(data, b"42")
 
     def test_whiteboard(self):
-        storage_config = storage.StorageConfig(
-            bucket="bucket",
-            credentials=storage.AmazonCredentials(
+        storage_config = storage.Storage(
+            uri="s3://bucket/prefix",
+            credentials=storage.S3Credentials(
                 self.endpoint_url, access_token="", secret_token=""
             ),
         )
@@ -316,9 +329,9 @@ class SnapshotTests(TestCase):
                 wb.b = ""
 
     def test_read_whiteboard(self):
-        storage_config = storage.StorageConfig(
-            bucket="bucket",
-            credentials=storage.AmazonCredentials(
+        storage_config = storage.Storage(
+            uri="s3://bucket/prefix",
+            credentials=storage.S3Credentials(
                 self.endpoint_url, access_token="", secret_token=""
             ),
         )
@@ -327,10 +340,10 @@ class SnapshotTests(TestCase):
         storages.register_storage("storage", storage_config, True)
         serializer = LzySerializerRegistry()
 
-        snapshot = DefaultSnapshot(storages, serializer)
+        snapshot = DefaultSnapshot(str(uuid.uuid4()), storages, serializer)
 
-        e1 = snapshot.create_entry(str)
-        e2 = snapshot.create_entry(int)
+        e1 = snapshot.create_entry("name1", str)
+        e2 = snapshot.create_entry("name2", int)
 
         LzyEventLoop.run_async(snapshot.put_data(e1.id, "42"))
         LzyEventLoop.run_async(snapshot.put_data(e2.id, 42))
@@ -356,7 +369,7 @@ class SnapshotTests(TestCase):
                                 schemeContent=e1.data_scheme.schema_content,
                                 metadata=e1.data_scheme.meta
                             ),
-                            storageUri=e1.storage_url
+                            storageUri=e1.storage_uri
                         )
                     )
                 ),
@@ -371,7 +384,7 @@ class SnapshotTests(TestCase):
                                 schemeContent=e2.data_scheme.schema_content,
                                 metadata=e2.data_scheme.meta
                             ),
-                            storageUri=e2.storage_url
+                            storageUri=e2.storage_uri
                         )
                     )
                 )

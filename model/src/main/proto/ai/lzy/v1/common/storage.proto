@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package ai.lzy.v1;
+
+import "ai/lzy/v1/validation/validation.proto";
+
+option java_outer_classname = "LMST";
+option java_package = "ai.lzy.v1.common";
+
+message S3Credentials {
+  string endpoint = 1;
+  string accessToken = 2;
+  string secretToken = 3 [(validation.sensitive) = true];
+}
+
+message AzureBlobStorageCredentials {
+  string connectionString = 1;
+}
+
+message StorageConfig {
+  string uri = 1;
+
+  oneof credentials {
+    S3Credentials s3 = 2;
+    AzureBlobStorageCredentials azure = 3;
+  }
+}

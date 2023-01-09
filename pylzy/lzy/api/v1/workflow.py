@@ -10,20 +10,21 @@ from typing import (
     Type,
     TypeVar, cast, )
 
-from lzy.whiteboards.api import WhiteboardField, WhiteboardDefaultDescription
-
 from lzy.api.v1.env import Env
 from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.provisioning import Provisioning
-from lzy.api.v1.snapshot import Snapshot
+from lzy.api.v1.snapshot import Snapshot, DefaultSnapshot
 from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy, lzy_proxy
 from lzy.api.v1.whiteboards import WritableWhiteboard, fetch_whiteboard_meta, WbRef
+from lzy.logs.config import get_logger
 from lzy.proxy.result import Just
 from lzy.py_env.api import PyEnv
 from lzy.utils.event_loop import LzyEventLoop
+from lzy.whiteboards.api import WhiteboardField, WhiteboardDefaultDescription
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
+_LOG = get_logger(__name__)
 if TYPE_CHECKING:
     from lzy.api.v1 import Lzy
     from lzy.api.v1.call import LzyCall
@@ -37,18 +38,16 @@ class LzyWorkflow:
         return cls.instance
 
     def __init__(
-            self,
-            name: str,
-            owner: "Lzy",
-            namespace: Dict[str, Any],
-            snapshot: Snapshot,
-            env: Env,
-            *,
-            eager: bool = False,
-            provisioning: Provisioning = Provisioning.default(),
-            interactive: bool = True,
+        self,
+        name: str,
+        owner: "Lzy",
+        env: Env,
+        provisioning: Provisioning,
+        auto_py_env: PyEnv,
+        *,
+        eager: bool = False,
+        interactive: bool = True
     ):
-        self.__snapshot = snapshot
         self.__name = name
         self.__eager = eager
         self.__owner = owner
@@ -56,12 +55,12 @@ class LzyWorkflow:
         self.__whiteboards_links: Dict[str, WbRef] = {}
         self.__started = False
 
-        self.__auto_py_env: PyEnv = owner.env_provider.provide(namespace)
-        self.__default_env: Env = env
-
+        self.__env = env
         self.__provisioning = provisioning
+        self.__auto_py_env = auto_py_env
         self.__interactive = interactive
         self.__whiteboards: List[str] = []
+        self.__snapshot: Optional[Snapshot] = None
 
     @property
     def owner(self) -> "Lzy":
@@ -69,6 +68,8 @@ class LzyWorkflow:
 
     @property
     def snapshot(self) -> Snapshot:
+        if self.__snapshot is None:
+            raise ValueError("Workflow is not yet started")
         return self.__snapshot
 
     @property
@@ -76,12 +77,12 @@ class LzyWorkflow:
         return self.__name
 
     @property
-    def auto_py_env(self) -> PyEnv:
-        return self.__auto_py_env
+    def env(self) -> Env:
+        return self.__env
 
     @property
-    def default_env(self) -> Env:
-        return self.__default_env
+    def auto_py_env(self) -> PyEnv:
+        return self.__auto_py_env
 
     @property
     def provisioning(self) -> Provisioning:
@@ -107,7 +108,12 @@ class LzyWorkflow:
 
     def __enter__(self) -> "LzyWorkflow":
         try:
-            LzyEventLoop.run_async(self.__start())
+            execution_id = LzyEventLoop.run_async(self.__start())
+            self.__snapshot = DefaultSnapshot(
+                execution_id,
+                storage_registry=self.owner.storage_registry,
+                serializer_registry=self.owner.serializer_registry,
+            )
             return self
         except Exception as e:
             self.__destroy()
@@ -130,6 +136,7 @@ class LzyWorkflow:
             self.__started = False
 
     async def __stop(self):
+        _LOG.info(f"Finishing workflow '{self.name}'")
         await self.__owner.runtime.destroy()
         wbs_to_finalize = []
         while len(self.__whiteboards) > 0:
@@ -137,18 +144,23 @@ class LzyWorkflow:
             wbs_to_finalize.append(self.__owner.whiteboard_client.finalize(wb_id))
         await asyncio.gather(*wbs_to_finalize)
 
-    async def __start(self):
+    async def __start(self) -> str:
         if self.__started:
-            return RuntimeError("Workflow already started")
+            raise RuntimeError("Workflow already started")
         self.__started = True
         if type(self).instance is not None:
             raise RuntimeError("Simultaneous workflows are not supported")
         type(self).instance = self
-        await self.__owner.runtime.start(self)
+
+        _LOG.info(f"Starting workflow '{self.name}'")
+        return await self.__owner.runtime.start(self)
 
     async def _barrier(self) -> None:
         if len(self.__call_queue) == 0:
             return
+
+        _LOG.info(f"Building graph from calls "
+                  f"{' -> '.join(call.signature.func.callable.__name__ for call in self.__call_queue)}")
 
         data_to_load = []
         for call in self.__call_queue:
@@ -163,7 +175,8 @@ class LzyWorkflow:
 
         await asyncio.gather(*data_to_load)
 
-        await self.__owner.runtime.exec(self.__call_queue, self.__whiteboards_links, lambda x: print(x))
+        await self.__owner.runtime.exec(self.__call_queue, self.__whiteboards_links,
+                                        lambda x: _LOG.info(f"Graph status: {x.name}"))
         self.__call_queue = []
 
     async def __create_whiteboard(self, typ: Type[T], tags: Sequence = ()) -> T:
@@ -175,19 +188,17 @@ class LzyWorkflow:
 
         declared_fields = dataclasses.fields(typ)
         fields = []
-
         data_to_load = []
-
         defaults = {}
 
         for field in declared_fields:
             if field.default != dataclasses.MISSING:
-                entry = self.snapshot.create_entry(field.type)
+                entry = self.snapshot.create_entry(declaration_meta.name + "." + field.name, field.type)
                 data_to_load.append(self.snapshot.put_data(entry.id, field.default))
                 fields.append(
-                    WhiteboardField(field.name, WhiteboardDefaultDescription(entry.storage_url, entry.data_scheme))
+                    WhiteboardField(field.name, WhiteboardDefaultDescription(entry.storage_uri, entry.data_scheme))
                 )
-                defaults[field.name] = lzy_proxy(entry.id, field.type, self, Just(field.default))
+                defaults[field.name] = lzy_proxy(entry.id, (field.type,), self, Just(field.default))
             else:
                 fields.append(
                     WhiteboardField(field.name)

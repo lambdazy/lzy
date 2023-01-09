@@ -4,7 +4,7 @@ from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Tuple, Unio
 # noinspection PyPackageRequirements
 from grpc.aio import Channel
 
-from ai.lzy.v1.common.s3_pb2 import S3Locator
+from ai.lzy.v1.common.storage_pb2 import StorageConfig
 from ai.lzy.v1.workflow.workflow_pb2 import Graph, VmPoolSpec
 from ai.lzy.v1.workflow.workflow_service_pb2 import (
     AttachWorkflowRequest,
@@ -25,8 +25,8 @@ from ai.lzy.v1.workflow.workflow_service_pb2 import (
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceStub
 from lzy.api.v1.remote.model import converter
 from lzy.api.v1.remote.model.converter.storage_creds import to
+from lzy.storage.api import S3Credentials, Storage, StorageCredentials
 from lzy.utils.grpc import add_headers_interceptor, build_channel
-from lzy.storage.api import AmazonCredentials, StorageConfig, StorageCredentials
 
 
 @dataclass
@@ -57,22 +57,22 @@ GraphStatus = Union[Waiting, Executing, Completed, Failed]
 
 def _create_storage_endpoint(
     response: CreateWorkflowResponse,
-) -> StorageConfig:
+) -> Storage:
     error_msg = "no storage credentials provided"
 
     assert response.HasField("internalSnapshotStorage"), error_msg
-    store: S3Locator = response.internalSnapshotStorage
+    store: StorageConfig = response.internalSnapshotStorage
 
     grpc_creds: converter.storage_creds.grpc_STORAGE_CREDS
     if store.HasField("azure"):
         grpc_creds = store.azure
-    elif store.HasField("amazon"):
-        grpc_creds = store.amazon
+    elif store.HasField("s3"):
+        grpc_creds = store.s3
     else:
         raise ValueError(error_msg)
 
     creds: StorageCredentials = converter.storage_creds.from_(grpc_creds)
-    return StorageConfig(creds, store.bucket)
+    return Storage(creds, store.uri)
 
 
 @dataclass
@@ -103,22 +103,22 @@ class WorkflowServiceClient:
         self.__channel = channel
 
     async def create_workflow(
-        self, name: str, storage: Optional[StorageConfig] = None
-    ) -> Tuple[str, Optional[StorageConfig]]:
-        s: Optional[S3Locator] = None
+        self, name: str, storage: Optional[Storage] = None
+    ) -> Tuple[str, Optional[Storage]]:
+        s: Optional[StorageConfig] = None
 
         if storage is not None:
-            if isinstance(storage.credentials, AmazonCredentials):
-                s = S3Locator(bucket=storage.bucket, amazon=to(storage.credentials))
+            if isinstance(storage.credentials, S3Credentials):
+                s = StorageConfig(uri=storage.uri, s3=to(storage.credentials))
             else:
-                s = S3Locator(bucket=storage.bucket, azure=to(storage.credentials))
+                s = StorageConfig(uri=storage.uri, azure=to(storage.credentials))
 
         res: CreateWorkflowResponse = await self.__stub.CreateWorkflow(
             CreateWorkflowRequest(workflowName=name, snapshotStorage=s)
         )
         exec_id = res.executionId
 
-        if res.internalSnapshotStorage is not None and res.internalSnapshotStorage.bucket != "":
+        if res.internalSnapshotStorage is not None and res.internalSnapshotStorage.uri != "":
             return exec_id, _create_storage_endpoint(res)
 
         return exec_id, None

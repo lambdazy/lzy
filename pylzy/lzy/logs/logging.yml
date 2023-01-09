@@ -1,0 +1,34 @@
+version: 1
+disable_existing_loggers: False
+
+formatters:
+  local:
+    format: "${LZY_SYSTEM_LOG_COLOR}[LZY LOCAL] - %(asctime)s - [%(levelname)s] - %(message)s\x1b[0m"
+
+  remote:
+    format: "[SYS] - %(asctime)s - [%(levelname)s] - %(message)s"
+
+handlers:
+  local:
+    level: 0
+    class: logging.StreamHandler
+    formatter: local
+    stream  : ext://sys.stdout
+
+  remote:
+    level: 0
+    class: logging.StreamHandler
+    formatter: remote
+    stream  : ext://sys.stdout
+
+loggers:
+  lzy:
+    level: "${LZY_LOG_LEVEL}"
+    handlers: [ local ]
+
+  remote:
+    level: "${LZY_LOG_LEVEL}"
+    handlers: [ remote ]
+
+root:
+  level: WARNING

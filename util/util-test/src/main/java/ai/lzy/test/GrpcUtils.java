@@ -3,7 +3,7 @@ package ai.lzy.test;
 import ai.lzy.model.DataScheme;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.v1.common.LMS;
-import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.portal.LzyPortal;
 import io.grpc.stub.StreamObserver;
 import org.junit.Assert;
@@ -49,10 +49,9 @@ public class GrpcUtils {
 
     public static LzyPortal.PortalSlotDesc.Snapshot makeAmazonSnapshot(String key, String bucket, String endpoint) {
         return LzyPortal.PortalSlotDesc.Snapshot.newBuilder()
-            .setS3(LMS3.S3Locator.newBuilder()
-                .setKey(key)
-                .setBucket(bucket)
-                .setAmazon(LMS3.AmazonS3Endpoint.newBuilder()
+            .setStorageConfig(LMST.StorageConfig.newBuilder()
+                .setUri("s3://" + bucket + "/" + key)
+                .setS3(LMST.S3Credentials.newBuilder()
                     .setAccessToken("")
                     .setSecretToken("")
                     .setEndpoint(endpoint)

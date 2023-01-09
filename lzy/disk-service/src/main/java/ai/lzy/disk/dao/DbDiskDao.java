@@ -70,7 +70,8 @@ public class DbDiskDao implements DiskDao {
                 SELECT user_id, disk_id, disk_provider, disk_spec_json
                 FROM disks WHERE disk_id = ? AND user_id = ?
                 """);
-            ){
+            )
+        {
 
             int index = 0;
             st.setString(++index, diskId);

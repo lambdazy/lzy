@@ -1,4 +1,3 @@
-import logging
 import os
 import uuid
 from typing import Any, BinaryIO, Callable, Dict, Type, Union, Optional
@@ -7,10 +6,11 @@ from packaging import version
 from serialzy.api import Schema, StandardSchemaFormats, VersionBoundary
 from serialzy.base import DefaultSchemaSerializerByReference
 
+from lzy.logs.config import get_logger
 from lzy.types import File
 from lzy.version import __version__
 
-_LOG = logging.getLogger(__name__)
+_LOG = get_logger(__name__)
 
 
 class FileSerializer(DefaultSchemaSerializerByReference):
