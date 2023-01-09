@@ -73,7 +73,7 @@ public class IAMThreadContext implements LzyIAMTestContext {
             context = ApplicationContext.run(PropertySource.of(props));
 
             try {
-                lzyIAM = new LzyIAM(context);
+                lzyIAM = context.getBean(LzyIAM.class);
                 lzyIAM.start();
             } catch (IOException e) {
                 throw new RuntimeException(e);

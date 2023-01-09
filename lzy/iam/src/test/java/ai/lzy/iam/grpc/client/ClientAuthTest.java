@@ -40,7 +40,7 @@ public class ClientAuthTest {
     public void setUp() throws IOException {
         ctx = ApplicationContext.run(DatabaseTestUtils.preparePostgresConfig("iam", db.getConnectionInfo()));
 
-        lzyIAM = new LzyIAM(ctx);
+        lzyIAM = ctx.getBean(LzyIAM.class);
         lzyIAM.start();
 
         var internalUserConfig = ctx.getBean(InternalUserConfig.class);

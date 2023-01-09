@@ -50,7 +50,7 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
             JwtUtils.afterDays(1),
             internalUserConfig.credentialPrivateKey()
         );
-        lzyIAM = new LzyIAM(ctx);
+        lzyIAM = ctx.getBean(LzyIAM.class);
         lzyIAM.start();
         ServiceConfig iamConfig = ctx.getBean(ServiceConfig.class);
         subjectClient = new SubjectServiceGrpcClient(
