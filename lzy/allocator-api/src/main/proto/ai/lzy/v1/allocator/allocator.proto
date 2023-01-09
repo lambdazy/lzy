@@ -100,7 +100,6 @@ message AllocateRequest {
   optional string proxy_v6_address = 7;
 
   // Sets cluster type requirements for allocation
-  // If not set, using user clusters to find available vms
   ClusterType cluster_type = 8;
 }
 

@@ -547,8 +547,8 @@ public class WorkflowService {
         return withIdempotencyKey(allocatorClient, "portal-" + executionId).allocate(
             VmAllocatorApi.AllocateRequest.newBuilder()
                 .setSessionId(sessionId)
-                .setPoolLabel("portals")
-                .setZone("ru-central1-a")
+                .setPoolLabel(startupPortalConfig.getPoolLabel())
+                .setZone(startupPortalConfig.getPoolZone())
                 .setClusterType(VmAllocatorApi.AllocateRequest.ClusterType.SYSTEM)
                 .addWorkload(
                     VmAllocatorApi.AllocateRequest.Workload.newBuilder()
@@ -603,7 +603,7 @@ public class WorkflowService {
             portalChannel.awaitTermination(10, TimeUnit.SECONDS);
 
         } catch (Exception e) {
-            LOG.error("Cannot finish portal for execution <{}>. Please destroy it by yourself", executionId, e);
+            LOG.error("Cannot finish portal for execution <{}>. Please destroy it manually", executionId, e);
         }
     }
 

@@ -143,6 +143,7 @@ public class RestartAllocatorTest extends AllocatorApiTestBase {
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
                 .setZone(ZONE)
+                .setClusterType(VmAllocatorApi.AllocateRequest.ClusterType.USER)
                 .addWorkload(
                     VmAllocatorApi.AllocateRequest.Workload.newBuilder()
                         .setName("wl")

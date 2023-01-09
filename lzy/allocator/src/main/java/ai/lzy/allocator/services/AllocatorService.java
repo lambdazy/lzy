@@ -308,8 +308,10 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                     final var volumes = prepareVolumeRequests(request.getVolumesList(), tx);
 
                     var clusterType = switch (request.getClusterType()) {
-                        case USER, UNSPECIFIED, UNRECOGNIZED -> ClusterRegistry.ClusterType.User;
+                        case USER -> ClusterRegistry.ClusterType.User;
                         case SYSTEM -> ClusterRegistry.ClusterType.System;
+                        case UNRECOGNIZED, UNSPECIFIED -> throw Status.INVALID_ARGUMENT
+                            .withDescription("Cluster type not specified").asRuntimeException();
                     };
 
                     final var vmSpec = new Vm.Spec(
