@@ -13,7 +13,6 @@ import io.grpc.StatusRuntimeException;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.sql.SQLException;
 import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
@@ -21,19 +20,7 @@ import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 @SuppressWarnings("ResultOfMethodCallIgnored")
 public class WorkflowTest extends BaseTest {
     @Test
-    public void startExecution() {
-        authorizedWorkflowClient.startExecution(
-            LWFS.StartExecutionRequest.newBuilder().setWorkflowName("workflow_1").build());
-        var thrown = Assert.assertThrows(StatusRuntimeException.class, () -> authorizedWorkflowClient
-            .startExecution(LWFS.StartExecutionRequest.newBuilder().setWorkflowName("workflow_1").build()));
-
-        var expectedStatusCode = Status.ALREADY_EXISTS.getCode();
-
-        Assert.assertEquals(expectedStatusCode, thrown.getStatus().getCode());
-    }
-
-    @Test
-    public void tempBucketCreationFailed() throws SQLException, InterruptedException {
+    public void tempBucketCreationFailed() throws InterruptedException {
         shutdownStorage();
 
         var thrown = Assert.assertThrows(StatusRuntimeException.class, () ->
@@ -62,7 +49,7 @@ public class WorkflowTest extends BaseTest {
     }
 
     @Test
-    public void finishExecution() {
+    public void startAndFinishExecution() {
         var executionId = authorizedWorkflowClient.startExecution(
             LWFS.StartExecutionRequest.newBuilder().setWorkflowName("workflow_2").build()
         ).getExecutionId();
@@ -83,15 +70,15 @@ public class WorkflowTest extends BaseTest {
                     .setExecutionId("execution_id")
                     .build()));
 
-        Assert.assertEquals(Status.INTERNAL.getCode(), thrownAlreadyFinished.getStatus().getCode());
-        Assert.assertEquals(Status.INTERNAL.getCode(), thrownUnknownWorkflow.getStatus().getCode());
+        Assert.assertEquals(Status.INVALID_ARGUMENT.getCode(), thrownAlreadyFinished.getStatus().getCode());
+        Assert.assertEquals(Status.NOT_FOUND.getCode(), thrownUnknownWorkflow.getStatus().getCode());
     }
 
     @Test
     public void testPortalStartedWhileCreatingWorkflow() throws InterruptedException {
         WorkflowService.PEEK_RANDOM_PORTAL_PORTS = false;
-        authorizedWorkflowClient.startExecution(
-            LWFS.StartExecutionRequest.newBuilder().setWorkflowName("workflow_1").build());
+        var exId = authorizedWorkflowClient.startExecution(
+            LWFS.StartExecutionRequest.newBuilder().setWorkflowName("workflow_1").build()).getExecutionId();
 
         var portalAddress = HostAndPort.fromParts("localhost", config.getPortal().getPortalApiPort());
         var portalChannel = newGrpcChannel(portalAddress, LzyPortalGrpc.SERVICE_NAME);
@@ -102,5 +89,7 @@ public class WorkflowTest extends BaseTest {
 
         portalChannel.shutdown();
         portalChannel.awaitTermination(5, TimeUnit.SECONDS);
+
+        authorizedWorkflowClient.finishExecution(LWFS.FinishExecutionRequest.newBuilder().setExecutionId(exId).build());
     }
 }

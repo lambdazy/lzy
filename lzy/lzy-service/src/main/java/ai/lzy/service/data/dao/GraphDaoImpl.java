@@ -121,18 +121,15 @@ public class GraphDaoImpl implements GraphDao {
         });
     }
 
-    @Nullable
     @Override
-    public GraphDescription get(String graphId, String executionId,
-                                @Nullable TransactionHandle transaction) throws SQLException
-    {
-
+    @Nullable
+    public GraphDescription get(String graphId, String executionId) throws SQLException {
         GraphDescription[] desc = {null};
-        DbOperation.execute(transaction, storage, con -> {
-            try (var statement = con.prepareStatement("""
-                SELECT (portal_input_slots) FROM graphs
-                WHERE graph_id = ? AND execution_id = ?
-                """))
+
+        DbOperation.execute(null, storage, connection -> {
+            try (var statement = connection.prepareStatement("""
+                SELECT portal_input_slots FROM graphs
+                WHERE graph_id = ? AND execution_id = ?"""))
             {
                 statement.setString(1, graphId);
                 statement.setString(2, executionId);
@@ -145,6 +142,30 @@ public class GraphDaoImpl implements GraphDao {
                 }
             }
         });
+
         return desc[0];
+    }
+
+    @Override
+    public List<GraphDescription> getAll(String executionId) throws SQLException {
+        var graphs = new ArrayList<GraphDescription>();
+
+        DbOperation.execute(null, storage, connection -> {
+            try (var statement = connection.prepareStatement("""
+                SELECT graph_id, portal_input_slots FROM graphs
+                WHERE execution_id = ?"""))
+            {
+                statement.setString(1, executionId);
+                var rs = statement.executeQuery();
+                while (rs.next()) {
+                    graphs.add(
+                        new GraphDescription(rs.getString(1), executionId,
+                            Arrays.stream(((String[]) rs.getArray(2).getArray())).toList())
+                    );
+                }
+            }
+        });
+
+        return graphs;
     }
 }

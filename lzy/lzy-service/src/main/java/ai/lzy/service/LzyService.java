@@ -15,6 +15,7 @@ import ai.lzy.service.graph.GraphExecutionService;
 import ai.lzy.service.graph.GraphExecutionState;
 import ai.lzy.service.graph.debug.InjectedFailures;
 import ai.lzy.service.workflow.WorkflowService;
+import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.annotations.VisibleForTesting;
@@ -26,15 +27,13 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 
 import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
 import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOpResult;
-import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.v1.workflow.LWFS.*;
 
@@ -44,6 +43,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
     public static final String APP = "LzyService";
 
+    private final ExecutionFinalizer executionFinalizer;
     private final String instanceId;
 
     private final WorkflowService workflowService;
@@ -53,21 +53,22 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
     private final Storage storage;
     private final OperationDao operationDao;
-    private final GraphDao graphDao;
     private final WorkflowDao workflowDao;
+    private final GraphDao graphDao;
 
     public LzyService(WorkflowService workflowService, GraphExecutionService graphExecutionService,
+                      LzyServiceStorage storage, GraphDao graphDao, WorkflowDao workflowDao,
                       @Named("LzyServiceServerExecutor") ExecutorService workersPool,
                       @Named("LzyServiceOperationDao") OperationDao operationDao,
-                      GraphDao graphDao, WorkflowDao workflowDao, LzyServiceStorage storage,
-                      GarbageCollector gc, LzyServiceConfig config)
+                      ExecutionFinalizer executionFinalizer, GarbageCollector gc, LzyServiceConfig config)
     {
+        this.executionFinalizer = executionFinalizer;
         this.instanceId = config.getInstanceId();
         this.workflowService = workflowService;
         this.graphExecutionService = graphExecutionService;
         this.workersPool = workersPool;
-        this.workflowDao = workflowDao;
         this.operationDao = operationDao;
+        this.workflowDao = workflowDao;
         this.graphDao = graphDao;
         this.storage = storage;
 
@@ -102,10 +103,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     }
 
     @Override
-    public void finishExecution(FinishExecutionRequest request,
-                                StreamObserver<FinishExecutionResponse> responseObserver)
-    {
-        workflowService.finishExecution(request, responseObserver);
+    public void finishExecution(FinishExecutionRequest request, StreamObserver<LongRunning.Operation> response) {
+        workflowService.finishExecution(request, response);
     }
 
     @Override
@@ -120,6 +119,21 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
         String userId = AuthenticationContext.currentSubject().id();
         String executionId = request.getExecutionId();
+
+        try {
+            String[] wfNameAndUserId = withRetries(LOG, () -> workflowDao.findWorkflowBy(executionId));
+            if (wfNameAndUserId == null || !Objects.equals(userId, wfNameAndUserId[1])) {
+                LOG.error("Cannot find active execution of user: { executionId: {}, userId: {} }", executionId, userId);
+                responseObserver.onError(Status.NOT_FOUND.withDescription("Cannot find active execution " +
+                    "'%s' of user '%s'".formatted(executionId, userId)).asRuntimeException());
+                return;
+            }
+        } catch (Exception e) {
+            LOG.error("Cannot check that active execution of user exists: { executionId: {}, userId: " +
+                "{}, error: {} } ", executionId, userId, e.getMessage());
+            responseObserver.onError(Status.INTERNAL.withDescription("Cannot execute graph").asRuntimeException());
+            return;
+        }
 
         var op = Operation.create(userId, "Execute graph in execution: executionId='%s'".formatted(executionId),
             idempotencyKey, null);
@@ -144,10 +158,18 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                 return;
             }
 
-            LOG.error("Cannot create execute graph operation for: { userId: {}, executionId: {}, error: {}}",
+            LOG.error("Cannot create execute graph operation for: { userId: {}, executionId: {}, error: {} }",
                 userId, executionId, ex.getMessage(), ex);
             var status = Status.INTERNAL.withDescription(ex.getMessage());
-            updateExecutionStatus(userId, executionId, status);
+
+            try {
+                executionFinalizer.finishInDao(userId, executionId, status);
+            } catch (Exception e) {
+                LOG.warn("Execute graph fail. Cannot finish execution: { executionId: {}, error: {} }", executionId,
+                    e.getMessage());
+            }
+            executionFinalizer.finalizeNow(executionId);
+
             responseObserver.onError(status.asException());
             return;
         }
@@ -176,7 +198,15 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             } catch (Exception e) {
                 var status = Status.INTERNAL.withDescription("Cannot execute graph");
                 LOG.error("Cannot execute graph: {}", e.getMessage(), e);
-                updateExecutionStatus(userId, executionId, status);
+
+                try {
+                    executionFinalizer.finishInDao(userId, executionId, status);
+                } catch (Exception ex) {
+                    LOG.warn("Execute graph fail. Cannot finish execution: { executionId: {}, error: {} }", executionId,
+                        e.getMessage());
+                }
+                executionFinalizer.finalizeNow(executionId);
+
                 responseObserver.onError(status.asRuntimeException());
             }
         });
@@ -202,23 +232,5 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                                   StreamObserver<GetAvailablePoolsResponse> responseObserver)
     {
         workflowService.getAvailablePools(request, responseObserver);
-    }
-
-    private void updateExecutionStatus(String userId, String executionId, Status status) {
-        try {
-            withRetries(defaultRetryPolicy(), LOG, () -> {
-                try (var transaction = TransactionHandle.create(storage)) {
-                    var workflowName = workflowDao.getWorkflowName(executionId);
-
-                    workflowDao.updateFinishData(workflowName, executionId,
-                        Timestamp.from(Instant.now()), status.getDescription(), status.getCode().value(), transaction);
-                    workflowDao.updateActiveExecution(userId, workflowName, executionId, null, transaction);
-
-                    transaction.commit();
-                }
-            });
-        } catch (Exception e) {
-            LOG.error("[executeGraph] Got Exception during saving error status: " + e.getMessage(), e);
-        }
     }
 }

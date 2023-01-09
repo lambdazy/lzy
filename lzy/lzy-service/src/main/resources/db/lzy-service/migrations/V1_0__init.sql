@@ -12,6 +12,7 @@ CREATE TYPE execution_status AS ENUM (
 CREATE TABLE workflow_executions
 (
     execution_id             TEXT             NOT NULL PRIMARY KEY,
+    user_id                  TEXT             NOT NULL,
     execution_status         execution_status NOT NULL,
 
     allocator_session_id     TEXT,
@@ -38,7 +39,7 @@ CREATE TABLE workflow_executions
     CHECK (finished_at >= created_at)
 );
 
-CREATE UNIQUE INDEX expired_workflow_executions_index ON workflow_executions (execution_status)
+CREATE INDEX expired_workflow_executions_index ON workflow_executions (execution_status)
     WHERE execution_status = cast('ERROR' AS execution_status);
 
 CREATE TABLE workflows
@@ -46,6 +47,7 @@ CREATE TABLE workflows
     user_id             TEXT      NOT NULL,
     workflow_name       TEXT      NOT NULL,
     created_at          TIMESTAMP NOT NULL,
+    modified_at         TIMESTAMP NOT NULL,
 
     active_execution_id TEXT REFERENCES workflow_executions (execution_id),
 
@@ -71,6 +73,7 @@ CREATE TABLE graphs
     graph_id           TEXT   NOT NULL,
     execution_id       TEXT   NOT NULL REFERENCES workflow_executions (execution_id),
     portal_input_slots TEXT[] NOT NULL,
+
     PRIMARY KEY (graph_id, execution_id)
 );
 

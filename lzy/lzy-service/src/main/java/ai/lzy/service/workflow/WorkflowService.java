@@ -4,20 +4,22 @@ import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.model.db.Storage;
-import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.model.db.exceptions.NotFoundException;
+import ai.lzy.service.ExecutionFinalizer;
 import ai.lzy.service.PortalSlotsListener;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.StorageType;
+import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.PortalDescription;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.util.auth.credentials.RenewableJwt;
-import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmPoolServiceApi;
 import ai.lzy.v1.VmPoolServiceGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import ai.lzy.v1.workflow.LWF;
@@ -32,17 +34,13 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.Timestamp;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.service.LzyService.APP;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
@@ -54,7 +52,7 @@ public class WorkflowService {
 
     private final LzyServiceConfig.StartupPortalConfig startupPortalConfig;
 
-    private final Storage storage;
+    final Storage storage;
     final WorkflowDao workflowDao;
 
     private final Duration allocationTimeout;
@@ -63,6 +61,7 @@ public class WorkflowService {
     private final String channelManagerAddress;
     private final String iamAddress;
     private final String whiteboardAddress;
+    private RenewableJwt internalUserCredentials;
 
     final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
     final LongRunningServiceGrpc.LongRunningServiceBlockingStub allocOpService;
@@ -77,9 +76,12 @@ public class WorkflowService {
     final SubjectServiceGrpcClient subjectClient;
     final AccessBindingServiceGrpcClient abClient;
 
+    private final ExecutionFinalizer executionFinalizer;
+    final ExecutionDao executionDao;
     private final Map<String, Queue<PortalSlotsListener>> listenersByExecution = new ConcurrentHashMap<>();
 
-    public WorkflowService(LzyServiceConfig config, LzyServiceStorage storage, WorkflowDao workflowDao,
+    public WorkflowService(LzyServiceConfig config, ExecutionFinalizer executionFinalizer,
+                           LzyServiceStorage storage, WorkflowDao workflowDao, ExecutionDao executionDao,
                            @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
                            @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
                            @Named("StorageServiceChannel") ManagedChannel storageChannel,
@@ -93,6 +95,14 @@ public class WorkflowService {
         channelManagerAddress = config.getChannelManagerAddress();
         iamAddress = config.getIam().getAddress();
         whiteboardAddress = config.getWhiteboardAddress();
+
+        this.storage = storage;
+        this.workflowDao = workflowDao;
+        this.executionDao = executionDao;
+
+        this.executionFinalizer = executionFinalizer;
+
+        this.internalUserCredentials = internalUserCredentials;
 
         this.allocatorClient = newBlockingClient(
             AllocatorGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
@@ -112,9 +122,6 @@ public class WorkflowService {
 
         this.subjectClient = new SubjectServiceGrpcClient(APP, iamChannel, internalUserCredentials::get);
         this.abClient = new AccessBindingServiceGrpcClient(APP, iamChannel, internalUserCredentials::get);
-
-        this.storage = storage;
-        this.workflowDao = workflowDao;
     }
 
     public void startExecution(StartExecutionRequest request, StreamObserver<StartExecutionResponse> response) {
@@ -135,9 +142,15 @@ public class WorkflowService {
             return;
         }
 
-        newExecution.saveToDao();
+        var previousActiveExecutionId = newExecution.createExecutionInDao();
+
+        if (previousActiveExecutionId != null) {
+            executionFinalizer.finalizeNow(previousActiveExecutionId);
+        }
 
         if (newExecution.isInvalid()) {
+            deactivateExecution(newExecution.getOwner(), request.getWorkflowName(), newExecution.getExecutionId());
+            deleteExecution(newExecution.getExecutionId());
             replyError.accept(newExecution.getErrorStatus());
             return;
         }
@@ -150,23 +163,9 @@ public class WorkflowService {
             channelManagerAddress, iamAddress, whiteboardAddress, allocationTimeout, allocatorVmCacheTimeout);
 
         if (newExecution.isInvalid()) {
-            var state = newExecution.getState();
-            try {
-                withRetries(defaultRetryPolicy(), LOG, () -> {
-                    try (var transaction = TransactionHandle.create(storage)) {
-                        workflowDao.updateFinishData(state.getWorkflowName(), state.getExecutionId(),
-                            Timestamp.from(Instant.now()), state.getErrorStatus().getDescription(),
-                            state.getErrorStatus().getCode().value(), transaction);
-                        workflowDao.updateActiveExecution(state.getUserId(), state.getWorkflowName(),
-                            state.getExecutionId(), null, transaction);
-
-                        transaction.commit();
-                    }
-                });
-            } catch (Exception e) {
-                LOG.error("[startExecution] Got Exception during saving error status: " + e.getMessage(), e);
-            }
-
+            deactivateExecution(newExecution.getOwner(), request.getWorkflowName(), newExecution.getExecutionId());
+            // todo: delete workflow too in case of created in this execution
+            deleteExecution(newExecution.getExecutionId());
             replyError.accept(newExecution.getErrorStatus());
             return;
         }
@@ -182,58 +181,82 @@ public class WorkflowService {
         response.onCompleted();
     }
 
-    public void finishExecution(FinishExecutionRequest request, StreamObserver<FinishExecutionResponse> response) {
+    public void finishExecution(FinishExecutionRequest request, StreamObserver<LongRunning.Operation> response) {
         var userId = AuthenticationContext.currentSubject().id();
+        var executionId = request.getExecutionId();
+        var reason = request.getReason();
 
-        LOG.info("[finishExecution], uid={}, request={}.", userId, JsonUtils.printSingleLine(request));
-
-        BiConsumer<io.grpc.Status, String> replyError = (status, descr) -> {
-            LOG.error("[finishExecution], fail: status={}, msg={}.", status, descr);
-            response.onError(status.withDescription(descr).asException());
-        };
-
-        if (StringUtils.isEmpty(request.getExecutionId())) {
-            replyError.accept(Status.INVALID_ARGUMENT, "Empty 'executionId'");
+        if (StringUtils.isEmpty(executionId)) {
+            LOG.error("Cannot finish execution: { executionId: {} }", executionId);
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Empty 'executionId'").asRuntimeException());
             return;
         }
 
-        String workflowName;
-        try {
-            workflowName = withRetries(LOG, () -> workflowDao.getWorkflowName(request.getExecutionId()));
-        } catch (Exception e) {
-            LOG.error("[finishExecution], fail: {}.", e.getMessage(), e);
-            replyError.accept(Status.INTERNAL, "Cannot finish execution with id '" +
-                request.getExecutionId() + "': " + e.getMessage());
-            return;
-        }
+        LOG.info("Attempt to finish execution: { userId: {}, executionId: {}, reason: {} }", userId,
+            executionId, reason);
 
         try {
-            withRetries(defaultRetryPolicy(), LOG, () -> {
-                try (var transaction = TransactionHandle.create(storage)) {
-                    workflowDao.updateFinishData(workflowName, request.getExecutionId(),
-                        Timestamp.from(Instant.now()), request.getReason(),
-                        Status.CANCELLED.getCode().value(), transaction);
-                    workflowDao.updateActiveExecution(userId, workflowName, request.getExecutionId(),
-                        null, transaction);
-
-                    transaction.commit();
-                }
-            });
-        } catch (Exception e) {
-            LOG.error("[finishExecution], fail: {}.", e.getMessage(), e);
-            replyError.accept(Status.INTERNAL, "Cannot finish execution with id '" +
-                request.getExecutionId() + "': " + e.getMessage());
+            executionFinalizer.finishInDao(userId, executionId, Status.OK.withDescription(reason));
+        } catch (NotFoundException e) {
+            LOG.error("Cannot finish execution, not found: { executionId: {}, error: {} }", executionId,
+                e.getMessage());
+            response.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asRuntimeException());
             return;
+        } catch (IllegalStateException e) {
+            LOG.error("Cannot finish execution, invalid state: { executionId: {}, error: {} }", executionId,
+                e.getMessage());
+            response.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException());
+            return;
+        } catch (Exception e) {
+            LOG.warn("Unexpected error while finish execution: { executionId: {}, error: {} }", executionId,
+                e.getMessage());
         }
 
-        response.onNext(FinishExecutionResponse.getDefaultInstance());
+        var op = executionFinalizer.finalizeAndAwait(executionId);
+
+        response.onNext(op.toProto());
         response.onCompleted();
+    }
+
+    private void deactivateExecution(String userId, String workflowName, String executionId) {
+        try {
+            withRetries(LOG, () -> workflowDao.setActiveExecutionToNull(userId, workflowName, executionId, null));
+        } catch (Exception e) {
+            LOG.warn("Cannot deactivate execution of workflow: { workflowName: {}, executionId: {}, error: {} }",
+                workflowName, executionId, e.getMessage());
+        }
+    }
+
+    private void deleteExecution(String executionId) {
+        LOG.info("Delete broken execution: { executionId: {} }", executionId);
+
+        PortalDescription portalDesc;
+        try {
+            portalDesc = withRetries(LOG, () -> executionDao.getPortalDescription(executionId));
+        } catch (Exception e) {
+            LOG.error("Cannot get portal for execution {}", executionId, e);
+            return;
+        }
+
+        if (portalDesc != null && portalDesc.vmId() != null) {
+            executionFinalizer.freeVm(executionId, portalDesc.vmId());
+        }
+
+        if (portalDesc != null && portalDesc.allocatorSessionId() != null) {
+            executionFinalizer.deleteSession(executionId, portalDesc.allocatorSessionId());
+        }
+
+        try {
+            withRetries(LOG, () -> executionDao.delete(executionId, null));
+        } catch (Exception e) {
+            LOG.error("Cannot delete execution data from dao: { executionId: {} }", executionId, e);
+        }
     }
 
     public void readStdSlots(LWFS.ReadStdSlotsRequest request, StreamObserver<LWFS.ReadStdSlotsResponse> response) {
         var executionId = request.getExecutionId();
         try {
-            var portalDesc = withRetries(LOG, () -> workflowDao.getPortalDescription(executionId));
+            var portalDesc = withRetries(LOG, () -> executionDao.getPortalDescription(executionId));
             if (portalDesc == null) {
                 response.onError(Status.NOT_FOUND.withDescription("Portal not found.").asException());
                 return;

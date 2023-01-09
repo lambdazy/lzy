@@ -5,13 +5,20 @@ package ai.lzy.v1.workflow;
 import "ai/lzy/v1/common/s3.proto";
 import "ai/lzy/v1/workflow/workflow.proto";
 import "ai/lzy/v1/common/data-scheme.proto";
+import "ai/lzy/v1/long-running/operation.proto";
+import "ai/lzy/v1/long-running/option.proto";
 
 option java_outer_classname = "LWFS";
 option java_package = "ai.lzy.v1.workflow";
 
 service LzyWorkflowService {
   rpc StartExecution (StartExecutionRequest) returns (StartExecutionResponse);
-  rpc FinishExecution (FinishExecutionRequest) returns (FinishExecutionResponse);
+  rpc FinishExecution (FinishExecutionRequest) returns (ai.lzy.v1.Operation) {
+    option (ai.lzy.v1.operation) = {
+      // metadata: null
+      response: "FinishExecutionResponse";
+    };
+  }
 
   rpc ExecuteGraph (ExecuteGraphRequest) returns (ExecuteGraphResponse);
   rpc GraphStatus (GraphStatusRequest) returns (GraphStatusResponse);

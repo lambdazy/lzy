@@ -8,9 +8,8 @@ import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.model.Constants;
-import ai.lzy.model.db.exceptions.AlreadyExistsException;
+import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.utils.FreePortFinder;
-import ai.lzy.service.data.PortalStatus;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.common.LMS3;
@@ -32,7 +31,6 @@ import java.util.UUID;
 import static ai.lzy.channelmanager.ProtoConverter.makeCreateChannelCommand;
 import static ai.lzy.iam.grpc.context.AuthenticationContext.currentSubject;
 import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
-import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.service.workflow.WorkflowService.LOG;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
@@ -64,6 +62,10 @@ final class StartExecutionCompanion {
 
     public String getExecutionId() {
         return state.getExecutionId();
+    }
+
+    public String getOwner() {
+        return state.getUserId();
     }
 
     public CreateExecutionState getState() {
@@ -157,18 +159,26 @@ final class StartExecutionCompanion {
         }
     }
 
-    public void saveToDao() {
-        try {
-            withRetries(defaultRetryPolicy(), LOG, () ->
-                owner.workflowDao.create(state.getExecutionId(), state.getUserId(), state.getWorkflowName(),
-                    state.getStorageType().name(), state.getStorageLocator()));
-        } catch (AlreadyExistsException e) {
-            LOG.error("Error while creating execution state in dao", e);
-            state.fail(Status.ALREADY_EXISTS, "Cannot create execution: " + e.getMessage());
+    /**
+     * Returns previous active execution id.
+     */
+    @Nullable
+    public String createExecutionInDao() {
+        String prevExecutionId = null;
+
+        try (var tx = TransactionHandle.create(owner.storage)) {
+            withRetries(LOG, () -> owner.executionDao.create(state.getUserId(), state.getExecutionId(),
+                state.getStorageType().name(), state.getStorageLocator(), tx));
+            prevExecutionId = withRetries(LOG,
+                () -> owner.workflowDao.upsert(state.getUserId(), state.getWorkflowName(), state.getExecutionId(), tx));
+
+            tx.commit();
         } catch (Exception e) {
             LOG.error("Error while creating execution state in dao", e);
             state.fail(Status.INTERNAL, "Cannot create execution: " + e.getMessage());
         }
+
+        return prevExecutionId;
     }
 
     public void startPortal(String dockerImage, int portalPort, int slotsApiPort,
@@ -177,20 +187,17 @@ final class StartExecutionCompanion {
                             Duration allocationTimeout, Duration allocateVmCacheTimeout)
     {
         try {
-            withRetries(defaultRetryPolicy(), LOG, () ->
-                owner.workflowDao.updateStatus(state.getExecutionId(), PortalStatus.CREATING_STD_CHANNELS));
-
             createPortalStdChannels(stdoutChannelName, stderrChannelName);
 
-            withRetries(defaultRetryPolicy(), LOG, () -> owner.workflowDao.updateStdChannelIds(
-                state.getExecutionId(), state.getStdoutChannelId(), state.getStderrChannelId()));
+            withRetries(LOG, () -> owner.executionDao.updateStdChannelIds(state.getExecutionId(),
+                state.getStdoutChannelId(), state.getStderrChannelId(), null));
 
             createAllocatorSession(allocateVmCacheTimeout);
 
             state.setPortalId("portal_" + state.getExecutionId() + UUID.randomUUID());
 
-            withRetries(defaultRetryPolicy(), LOG, () -> owner.workflowDao.updateAllocatorSession(
-                state.getExecutionId(), state.getSessionId(), state.getPortalId()));
+            withRetries(LOG, () -> owner.executionDao.updateAllocatorSession(state.getExecutionId(),
+                state.getSessionId(), state.getPortalId(), null));
 
             var allocateVmOp = startAllocation(dockerImage, channelManagerAddress, iamAddress,
                 whiteboardAddress, portalPort, slotsApiPort);
@@ -206,8 +213,8 @@ final class StartExecutionCompanion {
             }
             var vmId = allocateMetadata.getVmId();
 
-            withRetries(defaultRetryPolicy(), LOG,
-                () -> owner.workflowDao.updateAllocateOperationData(state.getExecutionId(), opId, vmId));
+            withRetries(LOG, () ->
+                owner.executionDao.updateAllocateOperationData(state.getExecutionId(), opId, vmId, null));
 
             allocateVmOp = awaitOperationDone(owner.allocOpService, opId, allocationTimeout);
 
@@ -226,10 +233,11 @@ final class StartExecutionCompanion {
 
             var allocateResponse = allocateVmOp.getResponse().unpack(VmAllocatorApi.AllocateResponse.class);
 
-            withRetries(defaultRetryPolicy(), LOG, () -> owner.workflowDao.updateAllocatedVmAddress(
+            withRetries(LOG, () -> owner.executionDao.updateAllocatedVmAddress(
                 state.getExecutionId(),
                 allocateResponse.getMetadataOrDefault(Constants.PORTAL_ADDRESS_KEY, null),
-                allocateResponse.getMetadataOrDefault(Constants.FS_ADDRESS_KEY, null)
+                allocateResponse.getMetadataOrDefault(Constants.FS_ADDRESS_KEY, null),
+                /* transaction */ null
             ));
 
         } catch (StatusRuntimeException e) {
