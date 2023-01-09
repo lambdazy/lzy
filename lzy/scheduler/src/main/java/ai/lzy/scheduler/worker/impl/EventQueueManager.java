@@ -17,7 +17,7 @@ public class EventQueueManager {
         this.dao = dao;
     }
 
-    public EventQueue get(String workflowId, String workerId) {
+    public synchronized EventQueue get(String workflowId, String workerId) {
         return queueMap.computeIfAbsent(new WorkerKey(workflowId, workerId), k -> new EventQueue(dao, workerId));
     }
 

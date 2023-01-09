@@ -1,5 +1,6 @@
 package ai.lzy.service.gc;
 
+import ai.lzy.model.db.DbHelper;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.dao.GcDao;
 import ai.lzy.service.data.dao.WorkflowDao;
@@ -64,7 +65,8 @@ public class GarbageCollector extends TimerTask {
             .plusMillis(config.getGcLeaderPeriod().toMillis()));
 
         try {
-            if (!gcDao.updateGC(id, now, validUntil, null)) {
+            var res = DbHelper.withRetries(LOG, () -> gcDao.updateGC(id, now, validUntil, null));
+            if (!res) {
                 LOG.debug("GC {} already leader", id);
                 return;
             }

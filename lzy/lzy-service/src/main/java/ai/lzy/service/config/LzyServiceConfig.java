@@ -38,6 +38,8 @@ public class LzyServiceConfig {
         private String dockerImage;
         private String stdoutChannelName;
         private String stderrChannelName;
+        private String poolLabel;
+        private String poolZone;
     }
 
     @ConfigurationBuilder("iam")

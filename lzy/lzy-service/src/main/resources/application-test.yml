@@ -63,3 +63,5 @@ lzy-service:
     stdout-channel-name: 'portal:stdout'
     stderr-channel-name: 'portal:stderr'
     docker-image: ""
+    pool-label: "portals"
+    pool-zone: "ru-central1-a"

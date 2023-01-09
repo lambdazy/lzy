@@ -5,8 +5,8 @@ import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmAllocatorApi;
-import ai.lzy.v1.portal.LzyPortalApi;
 import ai.lzy.v1.portal.LzyPortalGrpc;
+import com.google.protobuf.Empty;
 import io.grpc.ManagedChannel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -55,7 +55,7 @@ public class GarbageCollectorTask extends TimerTask {
     private void cleanWorkflow(String execution) {
         LOG.info("Execution {} is expired, GC {}", execution, id);
 
-        PortalDescription portalDesc;
+        PortalDescription portalDesc = null;
         try {
             portalDesc = withRetries(LOG, () -> workflowDao.getPortalDescription(execution));
         } catch (Exception e) {
@@ -71,7 +71,7 @@ public class GarbageCollectorTask extends TimerTask {
                 var portalChannel = newGrpcChannel(portalAddress, LzyPortalGrpc.SERVICE_NAME);
                 var portalClient = newBlockingClient(LzyPortalGrpc.newBlockingStub(portalChannel),
                     APP, () -> internalCreds.get().token());
-                var ignored = portalClient.finish(LzyPortalApi.FinishRequest.newBuilder().build());
+                var ignored = portalClient.stop(Empty.getDefaultInstance());
 
                 portalChannel.shutdown();
                 portalChannel.awaitTermination(10, TimeUnit.SECONDS);
@@ -81,7 +81,6 @@ public class GarbageCollectorTask extends TimerTask {
                 LOG.info("Portal {} finished for execution {}", portalAddress, execution);
             } catch (Exception e) {
                 LOG.error("Cannot clean portal for execution {}", execution, e);
-                return;
             }
         }
 
@@ -98,7 +97,6 @@ public class GarbageCollectorTask extends TimerTask {
                 LOG.info("VM cleaned {} for execution {}", portalDesc.vmId(), execution);
             } catch (Exception e) {
                 LOG.error("Cannot free VM for execution {}", execution, e);
-                return;
             }
         }
 
@@ -115,7 +113,6 @@ public class GarbageCollectorTask extends TimerTask {
             }
         } catch (Exception e) {
             LOG.error("Cannot clean allocator session for execution {}", execution, e);
-            return;
         }
 
         try {

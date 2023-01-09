@@ -33,6 +33,8 @@ import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
+import ai.lzy.v1.portal.LzyPortalApi;
+import ai.lzy.v1.portal.LzyPortalGrpc;
 import ai.lzy.v1.storage.LSS;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import ai.lzy.v1.workflow.LWF;
@@ -61,6 +63,7 @@ import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -69,8 +72,7 @@ import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.service.LzyService.APP;
-import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
-import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
+import static ai.lzy.util.grpc.GrpcUtils.*;
 
 @Singleton
 public class WorkflowService {
@@ -88,6 +90,7 @@ public class WorkflowService {
     private final String channelManagerAddress;
     private final String iamAddress;
     private final String whiteboardAddress;
+    private final RenewableJwt interanalCreds;
 
     private final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
     private final LongRunningServiceGrpc.LongRunningServiceBlockingStub allocOpService;
@@ -118,6 +121,7 @@ public class WorkflowService {
         channelManagerAddress = config.getChannelManagerAddress();
         iamAddress = config.getIam().getAddress();
         whiteboardAddress = config.getWhiteboardAddress();
+        interanalCreds = config.getIam().createRenewableToken();
 
         this.allocatorClient = newBlockingClient(
             AllocatorGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
@@ -249,6 +253,8 @@ public class WorkflowService {
             replyError.accept(Status.INVALID_ARGUMENT, "Empty 'workflowName' or 'executionId'");
             return;
         }
+
+        finishPortal(request.getExecutionId());
 
         try {
             withRetries(defaultRetryPolicy(), LOG, () -> {
@@ -541,8 +547,9 @@ public class WorkflowService {
         return withIdempotencyKey(allocatorClient, "portal-" + executionId).allocate(
             VmAllocatorApi.AllocateRequest.newBuilder()
                 .setSessionId(sessionId)
-                .setPoolLabel("portals")
-                .setZone("default")
+                .setPoolLabel(startupPortalConfig.getPoolLabel())
+                .setZone(startupPortalConfig.getPoolZone())
+                .setClusterType(VmAllocatorApi.AllocateRequest.ClusterType.SYSTEM)
                 .addWorkload(
                     VmAllocatorApi.AllocateRequest.Workload.newBuilder()
                         .setName("portal")
@@ -575,6 +582,28 @@ public class WorkflowService {
         } catch (Exception e) {
             LOG.error("Error while reading std slots: ", e);
             response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
+        }
+    }
+
+    private void finishPortal(String executionId) {
+        try {
+            var portalAddress = withRetries(LOG, () -> workflowDao.getPortalAddress(executionId));
+            if (portalAddress == null) {
+                LOG.error("Error while building portal channel. Execution id: <{}>", executionId);
+                return;
+            }
+
+            var portalChannel = newGrpcChannel(portalAddress, LzyPortalGrpc.SERVICE_NAME);
+
+            var portalClient = newBlockingClient(LzyPortalGrpc.newBlockingStub(portalChannel),
+                    APP, () -> interanalCreds.get().token());
+            var ignored = portalClient.finish(LzyPortalApi.FinishRequest.newBuilder().build());
+
+            portalChannel.shutdown();
+            portalChannel.awaitTermination(10, TimeUnit.SECONDS);
+
+        } catch (Exception e) {
+            LOG.error("Cannot finish portal for execution <{}>. Please destroy it manually", executionId, e);
         }
     }
 

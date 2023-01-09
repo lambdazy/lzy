@@ -163,6 +163,7 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
             .setSessionId(sessionId)
             .setPoolLabel("s")
             .setZone(Zone.RU_CENTRAL1_A.getId())
+            .setClusterType(VmAllocatorApi.AllocateRequest.ClusterType.USER)
             .addAllWorkload(workloads)
             .addAllVolumes(volumes)
             .build());

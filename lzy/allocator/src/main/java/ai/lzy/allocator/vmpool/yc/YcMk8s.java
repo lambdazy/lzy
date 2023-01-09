@@ -62,7 +62,8 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         HostAndPort masterExternalAddress,
         String masterCert,
         Map<String, NodeGroupDesc> nodeGroups,
-        String clusterIpv4CidrBlock
+        String clusterIpv4CidrBlock,
+        ClusterType type
     ) {}
 
     private final Map<String, ClusterDesc> clusters = new HashMap<>();
@@ -105,10 +106,7 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         // TODO(artolord) make better logic of vm scheduling
         final var desc = clusters.values()
             .stream()
-            .filter(cluster -> switch (type) {
-                case User -> userFolders.contains(cluster.folderId());
-                case System -> systemFolders.contains(cluster.folderId());
-            })
+            .filter(cluster -> cluster.type.equals(type))
             .filter(cluster -> cluster.nodeGroups.values().stream()
                 .anyMatch(ng -> ng.zone.equals(zone) && ng.label.equals(poolLabel)))
             .findFirst()
@@ -117,7 +115,7 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         if (desc == null) {
             return null;
         }
-        return new ClusterDescription(desc.clusterId, desc.masterExternalAddress, desc.masterCert);
+        return new ClusterDescription(desc.clusterId, desc.masterExternalAddress, desc.masterCert, desc.type);
     }
 
     @Override
@@ -126,7 +124,7 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         if (desc == null) {
             throw new NoSuchElementException("cluster with id " + clusterId + " not found");
         }
-        return new ClusterDescription(desc.clusterId, desc.masterExternalAddress, desc.masterCert);
+        return new ClusterDescription(desc.clusterId, desc.masterExternalAddress, desc.masterCert, desc.type);
     }
 
     @Override
@@ -198,7 +196,8 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
             HostAndPort.fromString(masterExternalAddress),
             masterCert,
             new HashMap<>(),
-            cluster.getIpAllocationPolicy().getClusterIpv4CidrBlock());
+            cluster.getIpAllocationPolicy().getClusterIpv4CidrBlock(),
+            system ? ClusterType.System : ClusterType.User);
         clusters.put(clusterId, clusterDesc);
 
         // process node groups

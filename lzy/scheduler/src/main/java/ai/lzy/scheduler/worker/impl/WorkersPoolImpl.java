@@ -1,6 +1,7 @@
 package ai.lzy.scheduler.worker.impl;
 
 import ai.lzy.model.ReturnCodes;
+import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.model.operation.Operation;
 import ai.lzy.scheduler.allocator.WorkersAllocator;
@@ -9,6 +10,7 @@ import ai.lzy.scheduler.configs.WorkerEventProcessorConfig;
 import ai.lzy.scheduler.db.TaskDao;
 import ai.lzy.scheduler.db.WorkerDao;
 import ai.lzy.scheduler.db.WorkerEventDao;
+import ai.lzy.scheduler.db.impl.SchedulerDataSource;
 import ai.lzy.scheduler.task.Task;
 import ai.lzy.scheduler.worker.Worker;
 import ai.lzy.scheduler.worker.WorkersPool;
@@ -16,6 +18,7 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -41,11 +44,13 @@ public class WorkersPoolImpl implements WorkersPool {
     private final Map<String, Map<String, Worker>> freeWorkersByWorkflow = new ConcurrentHashMap<>();
     private final AtomicBoolean stopping = new AtomicBoolean(false);
     private final EventQueueManager queueManager;
+    private final SchedulerDataSource storage;
     private static final Logger LOG = LogManager.getLogger(WorkersPoolImpl.class);
 
     public WorkersPoolImpl(ServiceConfig config, WorkerEventProcessorConfig workerConfig,
                            WorkerDao dao, WorkersAllocator allocator, WorkerEventDao events,
-                           TaskDao tasks, EventQueueManager queueManager) {
+                           TaskDao tasks, EventQueueManager queueManager, SchedulerDataSource storage)
+    {
         this.config = config;
         this.workerConfig = workerConfig;
         this.dao = dao;
@@ -53,6 +58,7 @@ public class WorkersPoolImpl implements WorkersPool {
         this.events = events;
         this.tasks = tasks;
         this.queueManager = queueManager;
+        this.storage = storage;
         restore();
     }
 
@@ -65,31 +71,30 @@ public class WorkersPoolImpl implements WorkersPool {
         if (stopping.get()) {
             return null;
         }
+
         Worker free = tryToAcquire(workflowName, requirements);
         if (free != null) {
             future.complete(free);
             return future;
         }
-        Worker worker = null;
+
         synchronized (this) {
-            try {
-                if (countAlive(workflowName, requirements) < limit(requirements)) {
-                    worker = dao.create(userId, workflowName, requirements);
+            if (countAlive(workflowName, requirements) < limit(requirements)) {
+
+                try (var tx = TransactionHandle.create(storage)) {
+
+                    var worker = dao.create(userId, workflowName, requirements, tx);
+                    dao.acquireForTask(workflowName, worker.id(), tx);
+                    initProcessor(worker);
+                    tx.commit();
+
+                    future.complete(worker);
+                    return future;
+                } catch (DaoException | SQLException | WorkerDao.AcquireException e) {
+                    LOG.error("Cannot count worker", e);
+                    throw new RuntimeException(e);
                 }
-            } catch (DaoException e) {
-                LOG.error("Cannot count worker", e);
             }
-        }
-        if (worker != null) {
-            initProcessor(worker);
-            try {
-                dao.acquireForTask(workflowName, worker.id());
-            } catch (DaoException | WorkerDao.AcquireException e) {
-                LOG.error("Error while acquiring new worker", e);
-                throw new RuntimeException(e);
-            }
-            future.complete(worker);
-            return future;
         }
 
         waiters.computeIfAbsent(workflowName, t -> ConcurrentHashMap.newKeySet())
@@ -204,21 +209,21 @@ public class WorkersPoolImpl implements WorkersPool {
             throw new RuntimeException("Cannot free worker", e);
         }
         if (worker == null) {
+            LOG.error("Freeing not existing worker <{}>, workflowName: <{}>", workerId, workflowName);
             return;
         }
         final var set = waiters.computeIfAbsent(workflowName, t -> new HashSet<>());
         for (var waiter: set) {
             if (worker.requirements().equals(waiter.requirements)) {
+
                 try {
                     dao.acquireForTask(workflowName, workerId);
-                } catch (DaoException e) {
-                    LOG.error("Cannot acquire worker", e);
-                    continue;
-                } catch (WorkerDao.AcquireException e) {
-                    continue;
+                    set.remove(waiter);
+                    waiter.future.complete(worker);
+                } catch (WorkerDao.AcquireException | DaoException e) {
+                    LOG.error("Cannot acquire worker <{}>.", workerId, e);
+                    worker.stop("Internal error while trying to free worker");
                 }
-                set.remove(waiter);
-                waiter.future.complete(worker);
                 return;
             }
         }

@@ -21,6 +21,7 @@ public interface ClusterRegistry {
     record ClusterDescription(
         String clusterId,
         HostAndPort masterAddress,
-        String masterCert
+        String masterCert,
+        ClusterType type
     ) {}
 }

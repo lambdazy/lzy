@@ -86,7 +86,7 @@ public class SchedulerPrivateApiMock extends SchedulerPrivateGrpc.SchedulerPriva
         private final ManagedChannel workerChannel;
 
         WorkerHandler(SchedulerPrivateApi.RegisterWorkerRequest req) {
-            workerChannel = newGrpcChannel("localhost", req.getApiPort(), WorkerApiGrpc.SERVICE_NAME);
+            workerChannel = newGrpcChannel(req.getAddress(), WorkerApiGrpc.SERVICE_NAME);
             workerClient = newBlockingClient(
                 WorkerApiGrpc.newBlockingStub(workerChannel),
                 "WorkerHandler",

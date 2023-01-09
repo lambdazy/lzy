@@ -45,7 +45,8 @@ public class WorkerEventProcessor extends Thread {
     public WorkerEventProcessor(String workflowName, String workerId,
                                 WorkerEventProcessorConfig config, WorkersAllocator allocator, TaskDao taskDao,
                                 WorkerEventDao eventDao, WorkerDao dao, EventQueueManager queueManager,
-                                BiConsumer<String, String> notifyReady, BiConsumer<String, String> notifyDestroyed) {
+                                BiConsumer<String, String> notifyReady, BiConsumer<String, String> notifyDestroyed)
+    {
         super(WORKERS_TG, "worker-" + workerId);
         this.dao = dao;
         this.notifyReady = notifyReady;
@@ -108,10 +109,12 @@ public class WorkerEventProcessor extends Thread {
         final WorkerState currentState;
         try {
             currentState = dao.acquire(workflowName, workerId);
-        } catch (WorkerDao.AcquireException | DaoException e) {
+        } catch (Exception e) {
+            this.notifyDestroyed.accept(workflowName, workerId);
             throw new RuntimeException("Cannot acquire worker for processing");  // must be unreachable
         }
         if (currentState == null) {
+            this.notifyDestroyed.accept(workflowName, workerId);
             throw new IllegalStateException("Cannot find worker");  // Destroying this thread
         }
         WorkerState newState;
@@ -130,14 +133,16 @@ public class WorkerEventProcessor extends Thread {
             throw new RuntimeException(e);
         }
         if ((newState.status() == Status.RUNNING || newState.status() == Status.IDLE)
-            && !(currentState.status() == Status.RUNNING || currentState.status() == Status.IDLE)) {
+            && !(currentState.status() == Status.RUNNING || currentState.status() == Status.IDLE))
+        {
             notifyReady.accept(workflowName, workerId);
         }
         return newState.status() == Status.DESTROYED;
     }
 
     private WorkerState processEvent(WorkerState currentState,
-                                     WorkerEvent event) throws AssertionException, DaoException {
+                                     WorkerEvent event) throws AssertionException, DaoException
+    {
         return switch (event.type()) {
             case ALLOCATION_TIMEOUT, STOPPING_TIMEOUT, STOPPED,
                     IDLE_HEARTBEAT_TIMEOUT, EXECUTING_HEARTBEAT_TIMEOUT -> destroy(currentState, event);
@@ -381,7 +386,8 @@ public class WorkerEventProcessor extends Thread {
 
         if (currentEvent != null
             && currentEvent.taskId() != null
-            && !currentEvent.taskId().equals(currentState.taskId())) {
+            && !currentEvent.taskId().equals(currentState.taskId()))
+        {
             try {
                 final Task task = taskDao.get(currentEvent.taskId());
                 if (task != null) {
@@ -410,7 +416,8 @@ public class WorkerEventProcessor extends Thread {
     }
 
     private void assertStatus(WorkerState currentState, WorkerEvent event,
-                              Status... statuses) throws AssertionException {
+                              Status... statuses) throws AssertionException
+    {
         if (!List.of(statuses).contains(currentState.status())) {
             LOG.error("Status <{}> is not acceptable for event <{}>", currentState.status(), event);
             throw new AssertionException();

@@ -123,6 +123,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
                 .setZone(ZONE)
+                .setClusterType(AllocateRequest.ClusterType.USER)
                 .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                 .build());
         final VmAllocatorApi.AllocateMetadata allocateMetadata =
@@ -148,6 +149,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
                 .setZone(ZONE)
+                .setClusterType(AllocateRequest.ClusterType.USER)
                 .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                 .build());
 
@@ -171,6 +173,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                     .setSessionId(sessionId)
                     .setPoolLabel("LABEL")
                     .setZone(ZONE)
+                    .setClusterType(AllocateRequest.ClusterType.USER)
                     .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                     .build()),
             Status.INVALID_ARGUMENT);
@@ -185,6 +188,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                     AllocateRequest.newBuilder()
                         .setSessionId(UUID.randomUUID().toString())
                         .setPoolLabel("S")
+                        .setClusterType(AllocateRequest.ClusterType.USER)
                         .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                         .build()),
                 TIMEOUT_SEC
@@ -214,6 +218,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
                 .setZone(ZONE)
+                .setClusterType(AllocateRequest.ClusterType.USER)
                 .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                 .build());
         Assert.assertFalse(allocOp.getDone());
@@ -269,6 +274,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
                 .setZone(ZONE)
+                .setClusterType(AllocateRequest.ClusterType.USER)
                 .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                 .build());
         Assert.assertTrue(allocOp.getDone());
@@ -303,6 +309,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                             .setSessionId(sessionId)
                             .setPoolLabel("S")
                             .setZone(ZONE)
+                            .setClusterType(AllocateRequest.ClusterType.USER)
                             .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                             .build());
 
@@ -368,6 +375,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
                 .setZone(ZONE)
+                .setClusterType(AllocateRequest.ClusterType.USER)
                 .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                 .build());
         var allocateMetadataSecond = operationSecond.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
@@ -421,6 +429,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                             .setSessionId(sessionId)
                             .setPoolLabel("S")
                             .setZone(ZONE)
+                            .setClusterType(AllocateRequest.ClusterType.USER)
                             .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                             .build());
                     allocOp = waitOpSuccess(allocOp);
@@ -455,6 +464,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
                 .setZone(ZONE)
+                .setClusterType(AllocateRequest.ClusterType.USER)
                 .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                 .build());
         var allocateMetadata = allocate.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
@@ -490,6 +500,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
                 .setZone(ZONE)
+                .setClusterType(AllocateRequest.ClusterType.USER)
                 .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                 .build());
         var allocateMetadata = allocate.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
@@ -561,6 +572,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
                 .setZone(ZONE)
+                .setClusterType(AllocateRequest.ClusterType.USER)
                 .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                 .build());
         var allocateMetadata = allocate.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
@@ -628,6 +640,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
                 .setZone(ZONE)
+                .setClusterType(AllocateRequest.ClusterType.USER)
                 .addWorkload(AllocateRequest.Workload.newBuilder()
                     .setName("workload")
                     .addVolumeMounts(volumeMount)
@@ -706,6 +719,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                     .setSessionId(sessionId)
                     .setPoolLabel("S")
                     .setZone(ZONE)
+                    .setClusterType(AllocateRequest.ClusterType.USER)
                     .addWorkload(AllocateRequest.Workload.newBuilder()
                         .setName("workload")
                         .addVolumeMounts(volumeMount)
