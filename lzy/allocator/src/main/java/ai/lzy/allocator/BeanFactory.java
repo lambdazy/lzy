@@ -75,7 +75,6 @@ public class BeanFactory {
 
     @Singleton
     @Bean(preDestroy = "stop")
-    @Requires(beans = ServiceConfig.MetricsConfig.class)
     public MetricReporter metricReporter(ServiceConfig.MetricsConfig config) {
         CollectorRegistry.defaultRegistry.clear();
 
@@ -94,7 +93,6 @@ public class BeanFactory {
     }
 
     @Singleton
-    @Requires(beans = AllocatorDataSource.class)
     @Named("AllocatorOperationDao")
     public OperationDao operationDao(AllocatorDataSource storage) {
         return new OperationDaoImpl(storage);
@@ -103,8 +101,7 @@ public class BeanFactory {
     @Singleton
     @Named("AllocatorExecutor")
     @Bean(preDestroy = "shutdown")
-    @Requires(bean = AllocatorDataSource.class)
-    public ScheduledExecutorService executorService(AllocatorDataSource storage) {
+    public ScheduledExecutorService executorService(AllocatorDataSource ignoredStorage) {
         final var logger = LogManager.getLogger("AllocatorExecutor");
 
         var executor = new ScheduledThreadPoolExecutor(5, new ThreadFactory() {
