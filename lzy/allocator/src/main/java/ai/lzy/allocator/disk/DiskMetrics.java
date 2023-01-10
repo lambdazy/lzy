@@ -1,11 +1,14 @@
 package ai.lzy.allocator.disk;
 
+import ai.lzy.metrics.MetricReporter;
+import io.micronaut.context.annotation.Requires;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
 
 import javax.inject.Singleton;
 
 @Singleton
+@Requires(bean = MetricReporter.class)
 public class DiskMetrics {
 
     private static final String ALLOCATOR = "allocator";
