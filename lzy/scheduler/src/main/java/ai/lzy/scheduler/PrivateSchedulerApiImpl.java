@@ -5,7 +5,6 @@ import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.scheduler.db.WorkerDao;
 import ai.lzy.scheduler.worker.Worker;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.util.grpc.RemoteAddressContext;
 import ai.lzy.v1.scheduler.SchedulerPrivateApi;
 import ai.lzy.v1.scheduler.SchedulerPrivateGrpc;
 import com.google.common.net.HostAndPort;
@@ -74,7 +73,6 @@ public class PrivateSchedulerApiImpl extends SchedulerPrivateGrpc.SchedulerPriva
     public void registerWorker(SchedulerPrivateApi.RegisterWorkerRequest request,
                                 StreamObserver<SchedulerPrivateApi.RegisterWorkerResponse> responseObserver)
     {
-        RemoteAddressContext context = RemoteAddressContext.KEY.get();
         final Worker worker;
         try {
             worker = dao.get(request.getWorkflowName(), request.getWorkerId());
@@ -85,15 +83,10 @@ public class PrivateSchedulerApiImpl extends SchedulerPrivateGrpc.SchedulerPriva
 
         if (worker == null) {
             responseObserver.onError(
-                    Status.NOT_FOUND.withDescription("Worker not found in workflow").asException());
+                Status.NOT_FOUND.withDescription("Worker not found in workflow").asException());
             return;
         }
-        var host = context.remoteHost();
-        if (host == null) {
-            responseObserver.onError(Status.INTERNAL.withDescription("Cannot get remote peer host").asException());
-            return;
-        }
-        worker.notifyConnected(HostAndPort.fromParts(host, request.getApiPort()));
+        worker.notifyConnected(HostAndPort.fromString(request.getAddress()));
         responseObserver.onNext(SchedulerPrivateApi.RegisterWorkerResponse.newBuilder().build());
         responseObserver.onCompleted();
     }

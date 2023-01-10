@@ -68,7 +68,7 @@ public class KuberVmAllocator implements VmAllocator {
 
     @Override
     public void allocate(Vm vm) throws InvalidConfigurationException {
-        var cluster = poolRegistry.findCluster(vm.poolLabel(), vm.zone(), ClusterRegistry.ClusterType.User);
+        var cluster = poolRegistry.findCluster(vm.poolLabel(), vm.zone(), vm.spec().clusterType());
         if (cluster == null) {
             throw new InvalidConfigurationException(
                 "Cannot find pool for label " + vm.poolLabel() + " and zone " + vm.zone());
@@ -268,7 +268,10 @@ public class KuberVmAllocator implements VmAllocator {
             return;
         }
 
-        nodeRemover.removeNode(vmId, nodeName, nodeInstanceId);
+        // TODO(artolord) make optional deletion of system nodes
+        if (credentials.type().equals(ClusterRegistry.ClusterType.User)) {
+            nodeRemover.removeNode(vmId, nodeName, nodeInstanceId);
+        }
     }
 
     @Override

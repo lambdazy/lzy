@@ -1,6 +1,7 @@
 package ai.lzy.scheduler.db.impl;
 
-import ai.lzy.model.db.Transaction;
+import ai.lzy.model.db.DbOperation;
+import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.model.operation.Operation;
 import ai.lzy.scheduler.allocator.WorkerMetaStorage;
@@ -47,7 +48,8 @@ public class WorkerDaoImpl implements WorkerDao, WorkerMetaStorage {
         final int affected;
         try (var con = storage.connect(); var ps = con.prepareStatement("""
                 UPDATE worker SET acquired = true
-                 WHERE id = ? AND workflow_name = ? AND acquired = false""")) {
+                 WHERE id = ? AND workflow_name = ? AND acquired = false"""))
+        {
             ps.setString(1, workerId);
             ps.setString(2, workflowName);
             affected = ps.executeUpdate();
@@ -68,7 +70,8 @@ public class WorkerDaoImpl implements WorkerDao, WorkerMetaStorage {
     public void updateAndFree(WorkerState resource) throws DaoException {
         try (var con = storage.connect(); var ps = con.prepareStatement(
             " UPDATE worker SET (" + FIELDS + ", acquired) = (?, ?, ?, CAST(? AS worker_status), ?, ?, ?, ?, false) "
-                + " WHERE workflow_name = ? AND  id = ?")) {
+                + " WHERE workflow_name = ? AND  id = ?"))
+        {
             writeState(resource, con, ps);
             ps.setString(9, resource.workflowName());
             ps.setString(10, resource.id());
@@ -83,7 +86,8 @@ public class WorkerDaoImpl implements WorkerDao, WorkerMetaStorage {
         final List<WorkerState> states;
         try (var con = storage.connect(); var ps = con.prepareStatement(
             " SELECT " + FIELDS + " FROM worker"
-                + " WHERE acquired = false AND status != 'DESTROYED'")) {
+                + " WHERE acquired = false AND status != 'DESTROYED'"))
+        {
             states = readWorkerStates(ps);
         } catch (SQLException | JsonProcessingException e) {
             throw new DaoException(e);
@@ -96,7 +100,8 @@ public class WorkerDaoImpl implements WorkerDao, WorkerMetaStorage {
         final List<WorkerState> states;
         try (var con = storage.connect(); var ps = con.prepareStatement(
             " SELECT " + FIELDS + " FROM worker"
-                + " WHERE acquired = true AND status != 'DESTROYED'")) {
+                + " WHERE acquired = true AND status != 'DESTROYED'"))
+        {
             states = readWorkerStates(ps);
         } catch (SQLException | JsonProcessingException e) {
             throw new DaoException(e);
@@ -105,18 +110,30 @@ public class WorkerDaoImpl implements WorkerDao, WorkerMetaStorage {
     }
 
     @Override
-    public Worker create(String userId, String workflowName, Operation.Requirements requirements) throws DaoException {
+    public Worker create(String userId, String workflowName, Operation.Requirements requirements,
+                         @Nullable TransactionHandle tx) throws DaoException
+    {
         final var id = UUID.randomUUID().toString();
         final var status = WorkerState.Status.CREATED;
         final var state = new WorkerStateBuilder(id, userId, workflowName, requirements, status).build();
-        try (var con = storage.connect(); var ps = con.prepareStatement(
-            " INSERT INTO worker(" + FIELDS + ")"
-                + " VALUES (?, ?, ?, CAST(? AS worker_status), ?, ?, ?, ?)")) {
-            writeState(state, con, ps);
-            ps.execute();
-        } catch (SQLException | JsonProcessingException e) {
+
+        try {
+            DbOperation.execute(tx, storage, con -> {
+                try (var ps = con.prepareStatement(
+                        " INSERT INTO worker(" + FIELDS + ")"
+                                + " VALUES (?, ?, ?, CAST(? AS worker_status), ?, ?, ?, ?)"))
+                {
+                    writeState(state, con, ps);
+                    ps.execute();
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+        } catch (SQLException e) {
             throw new DaoException(e);
         }
+
+
         return new WorkerImpl(state, queue.get(state.workflowName(), state.id()));
     }
 
@@ -135,7 +152,8 @@ public class WorkerDaoImpl implements WorkerDao, WorkerMetaStorage {
         final List<WorkerState> states;
         try (var con = storage.connect(); var ps = con.prepareStatement(
                 " SELECT " + FIELDS + " FROM worker"
-                        + " WHERE workflow_name = ? AND status != 'DESTROYED'")) {
+                        + " WHERE workflow_name = ? AND status != 'DESTROYED'"))
+        {
             ps.setString(1, workflowName);
             states = readWorkerStates(ps);
         } catch (SQLException | JsonProcessingException e) {
@@ -145,38 +163,48 @@ public class WorkerDaoImpl implements WorkerDao, WorkerMetaStorage {
     }
 
     @Override
-    public void acquireForTask(String workflowName, String workerId) throws DaoException, AcquireException {
+    public void acquireForTask(String workflowName, String workerId,
+                               @Nullable TransactionHandle tx) throws DaoException, AcquireException
+    {
         AtomicBoolean failed = new AtomicBoolean(false);
-        Transaction.execute(storage, con -> {
-            final WorkerState state;
-            try (var ps = con.prepareStatement(
-                "SELECT " + FIELDS + " FROM worker " + """
-                WHERE workflow_name = ? AND id = ? AND acquired_for_task = false
-                FOR UPDATE
-                """)) {
-                ps.setString(1, workflowName);
-                ps.setString(2, workerId);
-                try (var rs = ps.executeQuery()) {
-                    if (!rs.isBeforeFirst()) {
-                        failed.set(true);
-                        return true;
+        try {
+            DbOperation.execute(tx, storage, con -> {
+                final WorkerState state;
+                try (var ps = con.prepareStatement(
+                    "SELECT " + FIELDS + " FROM worker " + """
+                    WHERE workflow_name = ? AND id = ? AND acquired_for_task = false
+                    FOR UPDATE
+                    """))
+                {
+                    ps.setString(1, workflowName);
+                    ps.setString(2, workerId);
+                    try (var rs = ps.executeQuery()) {
+                        if (!rs.isBeforeFirst()) {
+                            failed.set(true);
+                            return true;
+                        }
+                        rs.next();
+                        state = readWorkerState(rs);
+                    } catch (JsonProcessingException e) {
+                        throw new RuntimeException(e);
                     }
-                    rs.next();
-                    state = readWorkerState(rs);
                 }
-            }
-            try (var ps = con.prepareStatement("""
-                UPDATE worker
-                SET acquired_for_task = true
-                WHERE workflow_name = ? AND id = ?
-                """)) {
-                ps.setString(1, state.workflowName());
-                ps.setString(2, state.id());
-                ps.executeUpdate();
-            }
+                try (var ps = con.prepareStatement("""
+                    UPDATE worker
+                    SET acquired_for_task = true
+                    WHERE workflow_name = ? AND id = ?
+                    """))
+                {
+                    ps.setString(1, state.workflowName());
+                    ps.setString(2, state.id());
+                    ps.executeUpdate();
+                }
 
-            return true;
-        });
+                return true;
+            });
+        } catch (SQLException e) {
+            throw new DaoException(e);
+        }
         if (failed.get()) {
             throw new AcquireException();
         }
@@ -187,7 +215,8 @@ public class WorkerDaoImpl implements WorkerDao, WorkerMetaStorage {
         try (var con = storage.connect(); var ps = con.prepareStatement("""
                 UPDATE worker
                 SET acquired_for_task = false
-                WHERE workflow_name = ? AND id = ?""")) {
+                WHERE workflow_name = ? AND id = ?"""))
+        {
             ps.setString(1, workflowName);
             ps.setString(2, workerId);
             ps.executeUpdate();
@@ -201,7 +230,8 @@ public class WorkerDaoImpl implements WorkerDao, WorkerMetaStorage {
         try (var con = storage.connect(); var ps = con.prepareStatement("""
                 UPDATE worker
                 SET (acquired_for_task, acquired, status, error_description) = (false, false, 'DESTROYED', ?)
-                WHERE workflow_name = ? AND id = ?""")) {
+                WHERE workflow_name = ? AND id = ?"""))
+        {
             ps.setString(1, description);
             ps.setString(2, worker.workflowName());
             ps.setString(3, worker.id());
@@ -215,7 +245,8 @@ public class WorkerDaoImpl implements WorkerDao, WorkerMetaStorage {
     }
 
     private void writeState(WorkerState state, Connection con, PreparedStatement ps)
-            throws SQLException, JsonProcessingException {
+            throws SQLException, JsonProcessingException
+    {
         final var mapper = new ObjectMapper();
 
         int paramCount = 0;
@@ -250,7 +281,8 @@ public class WorkerDaoImpl implements WorkerDao, WorkerMetaStorage {
     private WorkerState getState(String workflowId, String workerId) throws DaoException {
         try (var con = storage.connect(); var ps = con.prepareStatement(
                 " SELECT " + FIELDS + " FROM worker"
-                    + " WHERE id = ? AND workflow_name = ?")) {
+                    + " WHERE id = ? AND workflow_name = ?"))
+        {
             ps.setString(1, workerId);
             ps.setString(2, workflowId);
             try (var rs = ps.executeQuery()) {
@@ -281,7 +313,8 @@ public class WorkerDaoImpl implements WorkerDao, WorkerMetaStorage {
         try (var con = storage.connect(); var ps = con.prepareStatement(""" 
              UPDATE worker
              SET allocator_meta = null
-             WHERE id = ? AND workflow_name = ?""")) {
+             WHERE id = ? AND workflow_name = ?"""))
+        {
             ps.setString(1, workerId);
             ps.setString(2, workflowName);
             ps.execute();
@@ -295,7 +328,8 @@ public class WorkerDaoImpl implements WorkerDao, WorkerMetaStorage {
         try (var con = storage.connect(); var ps = con.prepareStatement(""" 
              UPDATE worker
              SET allocator_meta = ?
-             WHERE id = ? AND workflow_name = ?""")) {
+             WHERE id = ? AND workflow_name = ?"""))
+        {
             ps.setString(1, meta);
             ps.setString(2, workerId);
             ps.setString(3, workflowName);
@@ -310,7 +344,8 @@ public class WorkerDaoImpl implements WorkerDao, WorkerMetaStorage {
     public String getMeta(String workflowName, String workerId) {
         try (var con = storage.connect(); var ps = con.prepareStatement(""" 
              SELECT allocator_meta FROM worker
-             WHERE id = ? AND workflow_name = ?""")) {
+             WHERE id = ? AND workflow_name = ?"""))
+        {
             ps.setString(1, workerId);
             ps.setString(2, workflowName);
             try (var rs = ps.executeQuery()) {

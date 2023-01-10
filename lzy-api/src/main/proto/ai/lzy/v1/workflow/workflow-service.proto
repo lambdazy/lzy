@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package ai.lzy.v1.workflow;
 
-import "ai/lzy/v1/common/s3.proto";
+import "ai/lzy/v1/common/storage.proto";
 import "ai/lzy/v1/workflow/workflow.proto";
 import "ai/lzy/v1/common/data-scheme.proto";
 import "ai/lzy/v1/long-running/operation.proto";
@@ -33,12 +33,12 @@ message StartExecutionRequest {
   string workflowName = 1;
 
   // if not set then internal SnapshotStorage is created
-  /* optional */ S3Locator snapshotStorage = 2;
+  /* optional */ StorageConfig snapshotStorage = 2;
 }
 
 message StartExecutionResponse {
   string executionId = 1;
-  /* optional */ S3Locator internalSnapshotStorage = 2;
+  /* optional */ StorageConfig internalSnapshotStorage = 2;
 }
 
 message FinishExecutionRequest {

@@ -135,7 +135,7 @@ public class IntegrationTest extends BaseTestWithIam {
         privateStub.registerWorker(RegisterWorkerRequest.newBuilder()
             .setWorkflowName("wf")
             .setWorkerId(id)
-            .setApiPort(port)
+            .setAddress("localhost:" + port)
             .build());
         env.take();
 

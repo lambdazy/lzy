@@ -1,17 +1,17 @@
 from functools import singledispatch
 from typing import Union, overload
 
-from ai.lzy.v1.common import s3_pb2
+from ai.lzy.v1.common import storage_pb2
 from lzy.storage.api import (
-    AmazonCredentials,
+    S3Credentials,
     AzureCredentials,
     AzureSasCredentials,
     StorageCredentials,
 )
 
 grpc_STORAGE_CREDS = Union[
-    s3_pb2.AmazonS3Endpoint,
-    s3_pb2.AzureS3Endpoint,
+    storage_pb2.S3Credentials,
+    storage_pb2.AzureBlobStorageCredentials,
 ]
 
 
@@ -21,8 +21,8 @@ def _to(credentials: StorageCredentials) -> grpc_STORAGE_CREDS:
 
 
 @_to.register
-def _(credentials: AmazonCredentials) -> grpc_STORAGE_CREDS:
-    return s3_pb2.AmazonS3Endpoint(
+def _(credentials: S3Credentials) -> grpc_STORAGE_CREDS:
+    return storage_pb2.S3Credentials(
         endpoint=credentials.endpoint,
         accessToken=credentials.access_token,
         secretToken=credentials.secret_token,
@@ -31,23 +31,23 @@ def _(credentials: AmazonCredentials) -> grpc_STORAGE_CREDS:
 
 @_to.register  # type: ignore[no-redef]
 def _(credentials: AzureCredentials) -> grpc_STORAGE_CREDS:
-    return s3_pb2.AzureS3Endpoint(
+    return storage_pb2.AzureBlobStorageCredentials(
         connectionString=credentials.connection_string,
     )
 
 
 @overload
-def to(obj: AmazonCredentials) -> s3_pb2.AmazonS3Endpoint:
+def to(obj: S3Credentials) -> storage_pb2.S3Credentials:
     ...
 
 
 @overload
-def to(obj: AzureCredentials) -> s3_pb2.AzureS3Endpoint:
+def to(obj: AzureCredentials) -> storage_pb2.AzureBlobStorageCredentials:
     ...
 
 
 @overload
-def to(obj: AzureSasCredentials) -> s3_pb2.AzureS3Endpoint:
+def to(obj: AzureSasCredentials) -> storage_pb2.AzureBlobStorageCredentials:
     ...
 
 
@@ -61,8 +61,8 @@ def _from(creds: grpc_STORAGE_CREDS) -> StorageCredentials:
 
 
 @_from.register
-def _(creds: s3_pb2.AmazonS3Endpoint) -> StorageCredentials:
-    return AmazonCredentials(
+def _(creds: storage_pb2.S3Credentials) -> StorageCredentials:
+    return S3Credentials(
         access_token=creds.accessToken,
         endpoint=creds.endpoint,
         secret_token=creds.secretToken,
@@ -70,19 +70,19 @@ def _(creds: s3_pb2.AmazonS3Endpoint) -> StorageCredentials:
 
 
 @_from.register  # type: ignore[no-redef]
-def _(creds: s3_pb2.AzureS3Endpoint) -> StorageCredentials:
+def _(creds: storage_pb2.AzureBlobStorageCredentials) -> StorageCredentials:
     return AzureCredentials(
         connection_string=creds.connectionString,
     )
 
 
 @overload
-def from_(obj: s3_pb2.AmazonS3Endpoint) -> AmazonCredentials:
+def from_(obj: storage_pb2.S3Credentials) -> S3Credentials:
     ...
 
 
 @overload
-def from_(obj: s3_pb2.AzureS3Endpoint) -> AzureCredentials:
+def from_(obj: storage_pb2.AzureBlobStorageCredentials) -> AzureCredentials:
     ...
 
 

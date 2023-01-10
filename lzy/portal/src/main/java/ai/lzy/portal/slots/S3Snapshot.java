@@ -3,10 +3,11 @@ package ai.lzy.portal.slots;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.exceptions.CreateSlotException;
-import ai.lzy.portal.s3.S3Repository;
+import ai.lzy.portal.storage.Repository;
 import com.google.protobuf.ByteString;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -23,20 +24,18 @@ public class S3Snapshot implements Snapshot {
     private final AtomicReference<SnapshotInputSlot> inputSlot = new AtomicReference<>(null);
     private final Map<String, SnapshotOutputSlot> outputSlots = new ConcurrentHashMap<>(); // slot name -> slot instance
 
-    private final String key;
-    private final String bucket;
-    private final S3Repository<Stream<ByteString>> s3Repository;
+    private final URI uri;
+    private final Repository<Stream<ByteString>> repository;
     private final Path storageFile;
 
     private final AtomicReference<State> state = new AtomicReference<>(State.INITIAL);
 
-    public S3Snapshot(String snapshotId, String key, String bucket, S3Repository<Stream<ByteString>> s3Repository)
+    public S3Snapshot(String snapshotId, URI uri, Repository<Stream<ByteString>> repository)
         throws IOException
     {
         this.snapshotId = snapshotId;
-        this.key = key;
-        this.bucket = bucket;
-        this.s3Repository = s3Repository;
+        this.uri = uri;
+        this.repository = repository;
         this.storageFile = Files.createTempFile("lzy", "snapshot_" + snapshotId + "_storage");
         this.storageFile.toFile().deleteOnExit();
     }
@@ -51,7 +50,7 @@ public class S3Snapshot implements Snapshot {
     {
         assert instance.spec().direction() == Slot.Direction.INPUT;
         try {
-            var inputSlot = new SnapshotInputSlot(instance, this, storageFile, key, bucket, s3Repository, syncHandler);
+            var inputSlot = new SnapshotInputSlot(instance, this, storageFile, uri, repository, syncHandler);
             if (!this.inputSlot.compareAndSet(null, inputSlot)) {
                 throw new CreateSlotException("InputSlot already set for snapshot " + snapshotId);
             }
@@ -64,7 +63,7 @@ public class S3Snapshot implements Snapshot {
     @Override
     public SnapshotOutputSlot addOutputSlot(SlotInstance slotInstance) {
         assert slotInstance.spec().direction() == Slot.Direction.OUTPUT;
-        var outputSlot = new SnapshotOutputSlot(slotInstance, this, storageFile, key, bucket, s3Repository);
+        var outputSlot = new SnapshotOutputSlot(slotInstance, this, storageFile, uri, repository);
         var prev = outputSlots.putIfAbsent(slotInstance.name(), outputSlot);
         assert prev == null;
         return outputSlot;

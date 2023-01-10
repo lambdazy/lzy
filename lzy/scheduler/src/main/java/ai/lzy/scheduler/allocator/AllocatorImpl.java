@@ -186,6 +186,7 @@ public class AllocatorImpl implements WorkersAllocator {
             .setZone(requirements.zone())
             .setSessionId(sessionId)
             .addWorkload(workload)
+            .setClusterType(VmAllocatorApi.AllocateRequest.ClusterType.USER)
             .build();
 
         final var op = allocator.allocate(request);

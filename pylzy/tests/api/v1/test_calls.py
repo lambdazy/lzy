@@ -296,20 +296,6 @@ class LzyCallsTests(TestCase):
         # noinspection PyUnresolvedReferences
         self.assertEqual(2, len(wf.owner.runtime.calls))
 
-    def test_description(self):
-        description = "my favourite func"
-
-        @op(description=description)
-        def func() -> None:
-            pass
-
-        with self.lzy.workflow("test") as wf:
-            func()
-
-        # noinspection PyUnresolvedReferences
-        call: LzyCall = wf.owner.runtime.calls[0]
-        self.assertEqual(description, call.description)
-
     def test_raises(self):
         @op
         def raises() -> int:
@@ -321,3 +307,9 @@ class LzyCallsTests(TestCase):
         # noinspection PyUnresolvedReferences
         func: FuncSignature = wf.owner.runtime.calls[0].signature.func
         self.assertEqual(int, func.output_types[0])
+
+    def test_no_return_hint(self):
+        with self.assertRaisesRegex(TypeError, "return type is not annotated*"):
+            @op
+            def no_hint():
+                pass

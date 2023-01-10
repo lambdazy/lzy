@@ -12,7 +12,7 @@ import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.v1.VmAllocatorApi;
-import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.storage.LSS;
 import ai.lzy.v1.workflow.LWFS;
@@ -23,6 +23,7 @@ import io.grpc.StatusRuntimeException;
 import io.micronaut.core.util.StringUtils;
 import jakarta.annotation.Nullable;
 
+import java.net.URI;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -107,10 +108,12 @@ final class StartExecutionCompanion {
 
                 LSS.CreateS3BucketResponse response = createOp.getResponse().unpack(LSS.CreateS3BucketResponse.class);
 
-                var s3Locator = switch (response.getCredentialsCase()) {
-                    case AMAZON -> LMS3.S3Locator.newBuilder().setAmazon(response.getAmazon()).setBucket(bucketName)
+                var storageConfig = switch (response.getCredentialsCase()) {
+                    case S3 -> LMST.StorageConfig.newBuilder().setS3(response.getS3())
+                        .setUri(URI.create("s3://" + bucketName).toString())
                         .build();
-                    case AZURE -> LMS3.S3Locator.newBuilder().setAzure(response.getAzure()).setBucket(bucketName)
+                    case AZURE -> LMST.StorageConfig.newBuilder().setAzure(response.getAzure())
+                        .setUri(URI.create("azure://" + bucketName).toString())
                         .build();
                     default -> {
                         LOG.error("Unsupported bucket storage type {}", response.getCredentialsCase());
@@ -119,12 +122,12 @@ final class StartExecutionCompanion {
                     }
                 };
 
-                if (s3Locator == null) {
+                if (storageConfig == null) {
                     state.fail(Status.INTERNAL, "Cannot create temp bucket");
                     return;
                 }
 
-                state.setStorageLocator(s3Locator);
+                state.setStorageConfig(storageConfig);
             } catch (StatusRuntimeException e) {
                 state.fail(e.getStatus(), "Cannot create temp bucket: " + e.getMessage());
             } catch (InvalidProtocolBufferException e) {
@@ -133,10 +136,10 @@ final class StartExecutionCompanion {
             }
         } else {
             var userStorage = request.getSnapshotStorage();
-            if (userStorage.getEndpointCase() == LMS3.S3Locator.EndpointCase.ENDPOINT_NOT_SET) {
-                state.fail(Status.INVALID_ARGUMENT, "Snapshot storage not set");
+            if (userStorage.getCredentialsCase() == LMST.StorageConfig.CredentialsCase.CREDENTIALS_NOT_SET) {
+                state.fail(Status.INVALID_ARGUMENT, "Credentials are not set");
             } else {
-                state.setStorageLocator(userStorage);
+                state.setStorageConfig(userStorage);
             }
         }
     }
@@ -168,7 +171,7 @@ final class StartExecutionCompanion {
 
         try (var tx = TransactionHandle.create(owner.storage)) {
             withRetries(LOG, () -> owner.executionDao.create(state.getUserId(), state.getExecutionId(),
-                state.getStorageType().name(), state.getStorageLocator(), tx));
+                state.getStorageType().name(), state.getStorageConfig(), tx));
             prevExecutionId = withRetries(LOG,
                 () -> owner.workflowDao.upsert(state.getUserId(), state.getWorkflowName(), state.getExecutionId(), tx));
 
@@ -338,6 +341,7 @@ final class StartExecutionCompanion {
                 .setSessionId(state.getSessionId())
                 .setPoolLabel("portals")
                 .setZone("default")
+                .setClusterType(VmAllocatorApi.AllocateRequest.ClusterType.SYSTEM)
                 .addWorkload(
                     VmAllocatorApi.AllocateRequest.Workload.newBuilder()
                         .setName("portal")

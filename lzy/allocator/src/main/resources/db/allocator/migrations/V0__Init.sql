@@ -47,6 +47,7 @@ CREATE TABLE vm
     workloads_json        TEXT      NOT NULL,
     volume_requests_json  TEXT      NOT NULL,
     v6_proxy_address      TEXT      NULL,
+    cluster_type          TEXT      NOT NULL,
 
 -- state
     -- overall status
@@ -97,3 +98,21 @@ CREATE TABLE disk_op
     failed         BOOLEAN             NOT NULL DEFAULT FALSE,
     fail_reason    TEXT                NULL
 );
+
+CREATE TABLE dead_vms
+(
+    id TEXT      NOT NULL PRIMARY KEY,
+    ts TIMESTAMP NOT NULL,
+    vm JSONB     NOT NULL
+);
+
+CREATE TABLE gc_lease
+(
+    gc         TEXT      NOT NULL PRIMARY KEY,
+    owner      TEXT      NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    expired_at TIMESTAMP NOT NULL
+);
+
+INSERT INTO gc_lease (gc, owner, updated_at, expired_at)
+VALUES ('default', 'none', 'epoch'::TIMESTAMP, 'epoch'::TIMESTAMP);

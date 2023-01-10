@@ -7,7 +7,6 @@ import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.db.exceptions.DaoException;
-import ai.lzy.portal.grpc.ProtoConverter;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.workflow.WorkflowService;
 import ai.lzy.storage.test.BaseTestWithStorage;
@@ -16,7 +15,7 @@ import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
 import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
 import ai.lzy.util.grpc.*;
-import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
@@ -52,17 +51,23 @@ public class BaseTest {
     protected static final BaseTestWithAllocator allocatorTestContext = new BaseTestWithAllocator();
 
     @Rule
-    public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+    public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {
+    });
     @Rule
-    public PreparedDbRule storageDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+    public PreparedDbRule storageDb = EmbeddedPostgresRules.preparedDatabase(ds -> {
+    });
     @Rule
-    public PreparedDbRule channelManagerDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+    public PreparedDbRule channelManagerDb = EmbeddedPostgresRules.preparedDatabase(ds -> {
+    });
     @Rule
-    public PreparedDbRule graphExecutorDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+    public PreparedDbRule graphExecutorDb = EmbeddedPostgresRules.preparedDatabase(ds -> {
+    });
     @Rule
-    public PreparedDbRule allocatorDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+    public PreparedDbRule allocatorDb = EmbeddedPostgresRules.preparedDatabase(ds -> {
+    });
     @Rule
-    public PreparedDbRule lzyServiceDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+    public PreparedDbRule lzyServiceDb = EmbeddedPostgresRules.preparedDatabase(ds -> {
+    });
 
     protected ApplicationContext context;
     protected LzyServiceConfig config;
@@ -257,12 +262,7 @@ public class BaseTest {
         thrown.forEach(e -> Assert.assertEquals(Status.PERMISSION_DENIED.getCode(), e.getStatus().getCode()));
     }
 
-    public static String buildSlotUri(String key, LMS3.S3Locator locator) {
-        return ProtoConverter.getSlotUri(LMS3.S3Locator.newBuilder()
-            .setKey(key)
-            .setBucket(locator.getBucket())
-            .setAmazon(locator.getAmazon())
-            .setAzure(locator.getAzure())
-            .build());
+    public static String buildSlotUri(String key, LMST.StorageConfig storageConfig) {
+        return storageConfig.getUri() + "/" + key;
     }
 }

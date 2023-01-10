@@ -1,7 +1,7 @@
 package ai.lzy.service.workflow;
 
 import ai.lzy.service.data.StorageType;
-import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.common.LMST;
 import io.grpc.Status;
 
 import java.util.UUID;
@@ -16,7 +16,7 @@ final class CreateExecutionState {
     private String portalId;
 
     private StorageType storageType;
-    private LMS3.S3Locator storageLocator;
+    private LMST.StorageConfig storageConfig;
 
     private Status errorStatus;
 
@@ -78,12 +78,12 @@ final class CreateExecutionState {
         return storageType;
     }
 
-    public LMS3.S3Locator getStorageLocator() {
-        return storageLocator;
+    public LMST.StorageConfig getStorageConfig() {
+        return storageConfig;
     }
 
-    public void setStorageLocator(LMS3.S3Locator storageLocator) {
-        this.storageLocator = storageLocator;
+    public void setStorageConfig(LMST.StorageConfig storageConfig) {
+        this.storageConfig = storageConfig;
     }
 
     public boolean isInvalid() {

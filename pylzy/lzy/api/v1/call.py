@@ -11,13 +11,12 @@ from typing import Any, Callable, Dict, Mapping, Sequence, Tuple, TypeVar
 from pydantic.decorator import ValidatedFunction
 from serialzy.types import get_type
 
-from lzy.api.v1.env import Env, DockerPullPolicy
+from lzy.api.v1.env import Env
 from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.signatures import CallSignature, FuncSignature
 from lzy.api.v1.snapshot import Snapshot
-from lzy.api.v1.utils.env import generate_env, merge_envs
 from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy, lzy_proxy, get_proxy_entry_id
-from lzy.api.v1.utils.types import infer_real_type
+from lzy.api.v1.utils.types import infer_real_types
 from lzy.api.v1.workflow import LzyWorkflow
 
 T = TypeVar("T")  # pylint: disable=invalid-name
@@ -38,28 +37,29 @@ class LzyCall:
         self.__provisioning = provisioning
         self.__env = env
         self.__description = description
-
         self.__entry_ids = [
-            parent_wflow.snapshot.create_entry(typ).id for typ in sign.func.output_types
+            parent_wflow.snapshot.create_entry(sign.func.callable.__name__ + ".return_" + str(i), typ).id
+            for i, typ in enumerate(sign.func.output_types)
         ]
-        self.__args_entry_ids: typing.List[str] = []
 
-        for arg in self.__sign.args:
+        self.__args_entry_ids: typing.List[str] = []
+        for i, arg in enumerate(sign.args):
             if is_lzy_proxy(arg):
-                self.__args_entry_ids.append(arg.__lzy_entry_id__)
+                self.__args_entry_ids.append(get_proxy_entry_id(arg))
             else:
+                name = sign.func.arg_names[i]
                 self.__args_entry_ids.append(
-                    parent_wflow.snapshot.create_entry(type(arg)).id
-                )
+                    parent_wflow.snapshot.create_entry(sign.func.callable.__name__ + "." + name,
+                                                       sign.func.input_types[name]).id)
 
         self.__kwargs_entry_ids: Dict[str, str] = {}
-
-        for name, kwarg in self.__sign.kwargs.items():
+        for name, kwarg in sign.kwargs.items():
             entry_id: str
             if is_lzy_proxy(kwarg):
                 entry_id = kwarg.__lzy_entry_id__
             else:
-                entry_id = parent_wflow.snapshot.create_entry(type(kwarg)).id
+                entry_id = parent_wflow.snapshot.create_entry(sign.func.callable.__name__ + "." + name,
+                                                              sign.func.input_types[name]).id
 
             self.__kwargs_entry_ids[name] = entry_id
 
@@ -111,19 +111,8 @@ class LzyCall:
 def wrap_call(
     f: Callable[..., Any],
     output_types: Sequence[type],
-    python_version: typing.Optional[str] = None,
-    libraries: typing.Optional[Dict[str, str]] = None,
-    conda_yaml_path: typing.Optional[str] = None,
-    docker_image: typing.Optional[str] = None,
-    docker_pull_policy: typing.Optional[DockerPullPolicy] = DockerPullPolicy.IF_NOT_EXISTS,
-    local_modules_path: typing.Optional[Sequence[str]] = None,
-    provisioning_: Provisioning = Provisioning(),
-    cpu_type: typing.Optional[str] = None,
-    cpu_count: typing.Optional[int] = None,
-    gpu_type: typing.Optional[str] = None,
-    gpu_count: typing.Optional[int] = None,
-    ram_size_gb: typing.Optional[int] = None,
-    env: typing.Optional[Env] = None,
+    provisioning: Provisioning,
+    env: Env,
     description: str = ""
 ) -> Callable[..., Any]:
     @functools.wraps(f)
@@ -133,26 +122,20 @@ def wrap_call(
         if active_workflow is None:
             return f(*args, **kwargs)
 
+        prov = active_workflow.provisioning.override(provisioning)
+        prov.validate()
+
+        env_updated = active_workflow.env.override(env)
+        if env_updated.conda_yaml_path is None:
+            # it is guaranteed that PyEnv is not None if conda_yaml_path is None
+            py_env = active_workflow.auto_py_env
+            env_updated = active_workflow.env.override(Env(
+                py_env.python_version, py_env.libraries, None, None, None, py_env.local_modules_path
+            )).override(env)
+        env_updated.validate()
+
         signature = infer_and_validate_call_signature(f, output_types, active_workflow.snapshot, *args, **kwargs)
-        if env is None:
-            generated_env = generate_env(
-                active_workflow.auto_py_env,
-                python_version,
-                libraries,
-                conda_yaml_path,
-                docker_image,
-                docker_pull_policy,
-                local_modules_path,
-            )
-        else:
-            generated_env = env
-
-        merged_env = merge_envs(generated_env, active_workflow.default_env)
-        prov = provisioning_.override(
-            Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb)
-        ).override(active_workflow.provisioning)
-
-        lzy_call = LzyCall(active_workflow, signature, prov, merged_env, description)
+        lzy_call = LzyCall(active_workflow, signature, prov, env_updated, description)
         active_workflow.register_call(lzy_call)
 
         # Special case for NoneType, just leave op registered and return
@@ -172,7 +155,7 @@ def wrap_call(
             # noinspection PyTypeChecker
             return lzy_proxy(
                 lzy_call.entry_ids[0],
-                infer_real_type(lzy_call.signature.func.output_types[0]),
+                infer_real_types(lzy_call.signature.func.output_types[0]),
                 lzy_call.parent_wflow,
             )
 
@@ -180,7 +163,7 @@ def wrap_call(
         return tuple(
             lzy_proxy(
                 lzy_call.entry_ids[i],
-                infer_real_type(lzy_call.signature.func.output_types[i]),
+                infer_real_types(lzy_call.signature.func.output_types[i]),
                 lzy_call.parent_wflow,
             )
             for i in range(len(lzy_call.entry_ids))

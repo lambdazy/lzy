@@ -13,6 +13,7 @@ import ai.lzy.allocator.model.CachePolicy;
 import ai.lzy.allocator.model.*;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.storage.AllocatorDataSource;
+import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.AuthProvider;
@@ -306,6 +307,13 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 try (var tx = TransactionHandle.create(storage)) {
                     final var volumes = prepareVolumeRequests(request.getVolumesList(), tx);
 
+                    var clusterType = switch (request.getClusterType()) {
+                        case USER -> ClusterRegistry.ClusterType.User;
+                        case SYSTEM -> ClusterRegistry.ClusterType.System;
+                        case UNRECOGNIZED, UNSPECIFIED -> throw Status.INVALID_ARGUMENT
+                            .withDescription("Cluster type not specified").asRuntimeException();
+                    };
+
                     final var vmSpec = new Vm.Spec(
                         "VM ID Placeholder",
                         request.getSessionId(),
@@ -314,7 +322,8 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         initWorkloads,
                         workloads,
                         volumes,
-                        proxyV6Address);
+                        proxyV6Address,
+                        clusterType);
 
                     final var existingVm = vmDao.acquire(vmSpec, tx);
                     if (existingVm != null) {

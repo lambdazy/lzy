@@ -12,6 +12,8 @@ import ai.lzy.iam.storage.impl.DbAuthService;
 import io.grpc.Server;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.exceptions.NoSuchBeanException;
+import jakarta.annotation.PreDestroy;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
@@ -21,6 +23,7 @@ import java.util.stream.Collectors;
 
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 
+@Singleton
 public class LzyIAM {
 
     public static final Logger LOG;
@@ -33,20 +36,19 @@ public class LzyIAM {
 
     private final Server iamServer;
 
-    public LzyIAM(ApplicationContext context) {
-        ServiceConfig config = context.getBean(ServiceConfig.class);
-
-        InternalUserConfig internalUserConfig = context.getBean(InternalUserConfig.class);
-        InternalUserInserter internalUserInserter = context.getBean(InternalUserInserter.class);
+    public LzyIAM(ServiceConfig config,
+                  InternalUserConfig internalUserConfig,
+                  InternalUserInserter internalUserInserter,
+                  DbAuthService dbAuthService,
+                  LzyASService accessService,
+                  LzyABSService accessBindingService,
+                  LzySubjectService subjectService,
+                  LzyAuthService authService)
+    {
         internalUserInserter.addOrUpdateInternalUser(internalUserConfig);
 
         var builder = newGrpcServer("0.0.0.0", config.getServerPort(),
-            new AuthServerInterceptor(context.getBean(DbAuthService.class)));
-
-        LzyASService accessService = context.getBean(LzyASService.class);
-        LzyABSService accessBindingService = context.getBean(LzyABSService.class);
-        LzySubjectService subjectService = context.getBean(LzySubjectService.class);
-        LzyAuthService authService = context.getBean(LzyAuthService.class);
+            new AuthServerInterceptor(dbAuthService));
 
         builder.addService(accessService);
         builder.addService(accessBindingService);
@@ -72,8 +74,14 @@ public class LzyIAM {
         return this.iamServer.getPort();
     }
 
+    @PreDestroy
     public void close() {
         iamServer.shutdownNow();
+        try {
+            iamServer.awaitTermination();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void awaitTermination() throws InterruptedException {
@@ -83,7 +91,7 @@ public class LzyIAM {
     public static void main(String[] args) throws IOException, InterruptedException {
         try (ApplicationContext context = ApplicationContext.run()) {
             try {
-                final LzyIAM lzyIAM = new LzyIAM(context);
+                final LzyIAM lzyIAM = context.getBean(LzyIAM.class);
 
                 lzyIAM.start();
                 lzyIAM.awaitTermination();

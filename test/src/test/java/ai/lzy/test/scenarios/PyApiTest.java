@@ -5,16 +5,12 @@ import ai.lzy.test.ApplicationContextRule;
 import ai.lzy.test.ContextRule;
 import ai.lzy.test.impl.v2.PythonContext;
 import ai.lzy.worker.env.CondaEnvironment;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.List;
 
 public class PyApiTest {
-    static final Logger LOG = LogManager.getLogger(SchedulerTest.class);
-
     @Rule
     public final ApplicationContextRule ctx = new ApplicationContextRule();
 
@@ -48,11 +44,20 @@ public class PyApiTest {
     }
 
     @Test
+    public void testCustomCondaAndSerializer() {
+        CondaEnvironment.RECONFIGURE_CONDA = true;
+        pythonContext.context().evalAndAssertScenarioResult("custom_conda_and_serializer");
+        CondaEnvironment.RECONFIGURE_CONDA = false;
+    }
+
+    @Test
     public void testImportFile() {
         /* This scenario checks for:
                 1. Importing local file package 
          */
+        CondaEnvironment.RECONFIGURE_CONDA = true;
         pythonContext.context().evalAndAssertScenarioResult("import");
+        CondaEnvironment.RECONFIGURE_CONDA = false;
     }
 
     @Test

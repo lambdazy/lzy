@@ -93,6 +93,11 @@ public class CondaEnvironment implements AuxEnvironment {
         lockForMultithreadingTests.lock();
         try {
             if (RECONFIGURE_CONDA) {
+                if (CondaPackageRegistry.isInstalled(pythonEnv.yaml())) {
+                    LOG.info("Conda env {} already configured, skipping", envName);
+                    return;
+                }
+
                 LOG.info("CondaEnvironment::installPyenv trying to install pyenv");
                 File condaFile = File.createTempFile("conda", ".yaml");
 
@@ -100,7 +105,12 @@ public class CondaEnvironment implements AuxEnvironment {
                     file.write(pythonEnv.yaml());
                 }
 
-                final LzyProcess lzyProcess = execInEnv("conda env update --file " + condaFile.getAbsolutePath());
+                // Conda env create or update: https://github.com/conda/conda/issues/7819
+                final LzyProcess lzyProcess = execInEnv(
+                    String.format("conda env create --file %s  || conda env update --file %s",
+                        condaFile.getAbsolutePath(),
+                        condaFile.getAbsolutePath())
+                );
                 final StringBuilder stdout = new StringBuilder();
                 final StringBuilder stderr = new StringBuilder();
                 try (LineNumberReader reader = new LineNumberReader(new InputStreamReader(lzyProcess.out()))) {
@@ -119,10 +129,10 @@ public class CondaEnvironment implements AuxEnvironment {
                 }
                 final int rc = lzyProcess.waitFor();
                 if (rc != 0) {
-                    String errorMessage = "Failed to update conda env\n"
-                            + "  ReturnCode: " + rc + "\n"
-                            + "  Stdout: " + stdout + "\n\n"
-                            + "  Stderr: " + stderr + "\n";
+                    String errorMessage = "Failed to create/update conda env\n"
+                        + "  ReturnCode: " + rc + "\n"
+                        + "  Stdout: " + stdout + "\n\n"
+                        + "  Stderr: " + stderr + "\n";
                     LOG.error(errorMessage);
                     throw new EnvironmentInstallationException(errorMessage);
                 }
@@ -165,7 +175,7 @@ public class CondaEnvironment implements AuxEnvironment {
     private LzyProcess execInEnv(String command, String[] envp) {
         LOG.info("Executing command " + command);
         String[] bashCmd = new String[] {"bash", "-c", "eval \"$(conda shell.bash hook)\" && conda activate "
-                + envName + " && " + command};
+            + envName + " && " + command};
         return baseEnv.runProcess(bashCmd, envp);
     }
 

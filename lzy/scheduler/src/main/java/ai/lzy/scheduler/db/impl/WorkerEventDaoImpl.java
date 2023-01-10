@@ -9,6 +9,7 @@ import jakarta.inject.Singleton;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -32,7 +33,8 @@ public class WorkerEventDaoImpl implements WorkerEventDao {
         try (var con = storage.connect(); var ps = con.prepareStatement(
             "INSERT INTO worker_event ("
                 + FIELDS
-                + ") VALUES (?, ?, ?, ?, CAST(? AS worker_event_type), ?, ?, ?, ?)")) {
+                + ") VALUES (?, ?, ?, ?, CAST(? AS worker_event_type), ?, ?, ?, ?)"))
+        {
             int count = 0;
             ps.setString(++count, event.id());
             ps.setTimestamp(++count, Timestamp.from(event.timestamp()));
@@ -55,6 +57,26 @@ public class WorkerEventDaoImpl implements WorkerEventDao {
 
     @Nullable
     @Override
+    public WorkerEvent takeById(String eventId) {
+        try (var con = storage.connect(); PreparedStatement ps = con.prepareStatement(String.format("""
+            DELETE FROM worker_event
+            WHERE id = ?
+            RETURNING %s
+            """, FIELDS)))
+        {
+            ps.setString(1, eventId);
+            var rs = ps.executeQuery();
+            if (rs.next()) {
+                return readEvent(rs);
+            }
+            return null;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);  // TODO(artolord) add more clear error processing
+        }
+    }
+
+    @Nullable
+    @Override
     public WorkerEvent take(String workerId) throws InterruptedException {
         final WorkerEvent[] event = new WorkerEvent[1];
         try {
@@ -65,7 +87,8 @@ public class WorkerEventDaoImpl implements WorkerEventDao {
                      WHERE worker_id = ? AND "time" < current_timestamp
                      ORDER BY "time"
                      LIMIT 1
-                     FOR UPDATE""")) {
+                     FOR UPDATE"""))
+                {
                     ps.setString(1, workerId);
                     try (var rs = ps.executeQuery()) {
                         if (!rs.isBeforeFirst()) {
@@ -78,7 +101,8 @@ public class WorkerEventDaoImpl implements WorkerEventDao {
                 }
                 try (var ps = con.prepareStatement("""
                      DELETE FROM worker_event
-                     WHERE id = ?""")) {
+                     WHERE id = ?"""))
+                {
                     ps.setString(1, event[0].id());
                     ps.execute();
                 }
@@ -97,7 +121,8 @@ public class WorkerEventDaoImpl implements WorkerEventDao {
     @Override
     public List<WorkerEvent> list(String workerId) {
         try (var con = storage.connect(); var ps = con.prepareStatement(
-                "SELECT " + FIELDS + "FROM worker_event WHERE worker_id = ?")) {
+                "SELECT " + FIELDS + "FROM worker_event WHERE worker_id = ?"))
+        {
             ps.setString(1, workerId);
 
             List<WorkerEvent> events = new ArrayList<>();
@@ -134,7 +159,8 @@ public class WorkerEventDaoImpl implements WorkerEventDao {
     public void removeAllByTypes(String workerId, WorkerEvent.Type... types) {
         try (var con = storage.connect(); var ps = con.prepareStatement("""
                 DELETE FROM worker_event
-                 WHERE worker_id = ? AND "type" = ANY(?)""")) {
+                 WHERE worker_id = ? AND "type" = ANY(?)"""))
+        {
             ps.setString(1, workerId);
             var array = con.createArrayOf("worker_event_type", Arrays.stream(types).map(Enum::name).toArray());
             ps.setArray(2, array);
@@ -148,7 +174,8 @@ public class WorkerEventDaoImpl implements WorkerEventDao {
     public void removeAll(String workerId) {
         try (var con = storage.connect(); var ps = con.prepareStatement("""
                 DELETE FROM worker_event
-                 WHERE worker_id = ?""")) {
+                 WHERE worker_id = ?"""))
+        {
             ps.setString(1, workerId);
             ps.execute();
         } catch (SQLException e) {

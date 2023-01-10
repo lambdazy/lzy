@@ -27,15 +27,13 @@ locals {
   allocator-image = var.allocator-image
 }
 
-resource "kubernetes_deployment" "allocator" {
+resource "kubernetes_stateful_set" "allocator" {
   metadata {
     name   = local.allocator-k8s-name
     labels = local.allocator-labels
   }
   spec {
-    strategy {
-      type = "Recreate"
-    }
+    replicas = "1"
     selector {
       match_labels = local.allocator-labels
     }
@@ -53,18 +51,24 @@ resource "kubernetes_deployment" "allocator" {
             container_port = local.allocator-port
             host_port      = local.allocator-port
           }
+          port {
+            container_port = 17080
+            host_port = 17080
+          }
 
           env {
             name = "ALLOCATOR_ADDRESS"
             value = "${kubernetes_service.allocator_service.status[0].load_balancer[0].ingress[0]["ip"]}:${local.allocator-port}"
           }
 
-          dynamic "env" {
-            for_each = length(local.user-clusters) == 0 ? [] : [1]
-            content {
-              name  = "ALLOCATOR_USER_CLUSTERS"
-              value = join(",", local.user-clusters)
-            }
+          env {
+            name  = "ALLOCATOR_USER_CLUSTERS"
+            value = yandex_kubernetes_cluster.allocator_cluster.id
+          }
+
+          env {
+            name  = "ALLOCATOR_SERVICE_CLUSTERS"
+            value = yandex_kubernetes_cluster.main.id
           }
 
           env {
@@ -164,6 +168,15 @@ resource "kubernetes_deployment" "allocator" {
             value = "5m"
           }
 
+          env {
+            name = "ALLOCATOR_INSTANCE_ID"
+            value_from {
+              field_ref {
+                field_path = "metadata.name"
+              }
+            }
+          }
+
           volume_mount {
             name       = "sa-key"
             mount_path = "/tmp/sa-key/"
@@ -212,6 +225,7 @@ resource "kubernetes_deployment" "allocator" {
         host_network  = true
       }
     }
+    service_name = ""
   }
 }
 

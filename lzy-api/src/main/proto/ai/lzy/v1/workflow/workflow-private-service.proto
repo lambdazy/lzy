@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package ai.lzy.v1.workflow;
 
-import "ai/lzy/v1/common/s3.proto";
+import "ai/lzy/v1/common/storage.proto";
 import "ai/lzy/v1/workflow/workflow.proto";
 
 option java_outer_classname = "LWFPS";

@@ -1,7 +1,7 @@
 package ai.lzy.service.data.dao;
 
 import ai.lzy.model.db.TransactionHandle;
-import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.common.LMST;
 import io.grpc.Status;
 import jakarta.annotation.Nullable;
 
@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Set;
 
 public interface ExecutionDao {
-    void create(String userId, String executionId, String storageType, LMS3.S3Locator storageData,
+    void create(String userId, String executionId, String storageType, LMST.StorageConfig storageConfig,
                 @Nullable TransactionHandle transaction) throws SQLException;
 
     void delete(String executionId, @Nullable TransactionHandle transaction) throws SQLException;
@@ -55,7 +55,7 @@ public interface ExecutionDao {
     }
 
     @Nullable
-    LMS3.S3Locator getStorageLocator(String executionId) throws SQLException;
+    LMST.StorageConfig getStorageConfig(String executionId) throws SQLException;
 
     @Nullable
     PortalDescription getPortalDescription(String executionId) throws SQLException;

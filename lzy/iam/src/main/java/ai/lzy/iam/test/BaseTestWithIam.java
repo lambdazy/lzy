@@ -34,7 +34,7 @@ public class BaseTestWithIam {
             .read("iam", new FileInputStream("../iam/src/main/resources/application-test.yml"));
         iamProps.putAll(overrides);
         iamCtx = ApplicationContext.run(PropertySource.of(iamProps));
-        iamApp = new LzyIAM(iamCtx);
+        iamApp = iamCtx.getBean(LzyIAM.class);
         iamApp.start();
     }
 

@@ -18,7 +18,7 @@ import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmPoolServiceApi;
 import ai.lzy.v1.VmPoolServiceGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
-import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
@@ -61,7 +61,7 @@ public class WorkflowService {
     private final String channelManagerAddress;
     private final String iamAddress;
     private final String whiteboardAddress;
-    private RenewableJwt internalUserCredentials;
+    private final RenewableJwt internalUserCredentials;
 
     final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
     final LongRunningServiceGrpc.LongRunningServiceBlockingStub allocOpService;
@@ -173,8 +173,8 @@ public class WorkflowService {
         LOG.info("New execution started: " + newExecution.getState());
 
         var storage = newExecution.getState().getStorageType() == StorageType.INTERNAL
-            ? newExecution.getState().getStorageLocator()
-            : LMS3.S3Locator.getDefaultInstance();
+            ? newExecution.getState().getStorageConfig()
+            : LMST.StorageConfig.getDefaultInstance();
 
         response.onNext(StartExecutionResponse.newBuilder().setExecutionId(newExecution.getExecutionId())
             .setInternalSnapshotStorage(storage).build());

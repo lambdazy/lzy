@@ -1,5 +1,7 @@
 package ai.lzy.allocator.model;
 
+import ai.lzy.allocator.vmpool.ClusterRegistry;
+
 import java.net.Inet6Address;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -35,10 +37,12 @@ public record Vm(
         List<Workload> initWorkloads,
         List<Workload> workloads,
         List<VolumeRequest> volumeRequests,
-        @Nullable Inet6Address proxyV6Address
+        @Nullable Inet6Address proxyV6Address,
+        ClusterRegistry.ClusterType clusterType
     ) {
         public Spec withVmId(String vmId) {
-            return new Spec(vmId, sessionId, poolLabel, zone, initWorkloads, workloads, volumeRequests, proxyV6Address);
+            return new Spec(vmId, sessionId, poolLabel, zone, initWorkloads,
+                workloads, volumeRequests, proxyV6Address, clusterType);
         }
     }
 

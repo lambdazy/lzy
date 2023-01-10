@@ -18,7 +18,8 @@ public class AllocatedWorkerMock {
     private final Runnable onExec;
 
     public AllocatedWorkerMock(int port, Runnable onStop, Runnable onSignal,
-                               Runnable onEnv, Runnable onExec) throws IOException {
+                               Runnable onEnv, Runnable onExec) throws IOException
+    {
         this.onStop = onStop;
         this.onSignal = onSignal;
         this.onEnv = onEnv;

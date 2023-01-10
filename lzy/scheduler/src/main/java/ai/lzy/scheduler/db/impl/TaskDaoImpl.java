@@ -36,7 +36,8 @@ public class TaskDaoImpl implements TaskDao {
         try (var conn = storage.connect(); var st = conn.prepareStatement("""
                 INSERT INTO task(id, workflow_id, workflow_name, user_id, task_description_json, status)
                 VALUES (?, ?, ?, ?, ?, CAST(? AS task_status))
-                """)) {
+                """))
+        {
             int paramCount = 0;
             String id = UUID.randomUUID().toString();
             st.setString(++paramCount, id);
@@ -61,7 +62,8 @@ public class TaskDaoImpl implements TaskDao {
     @Override
     public Task get(String taskId) throws DaoException {
         try (var conn = storage.connect(); var st = conn.prepareStatement(
-                "SELECT " + FIELDS + " FROM task WHERE id = ?")) {
+                "SELECT " + FIELDS + " FROM task WHERE id = ?"))
+        {
             int paramCount = 0;
             st.setString(++paramCount, taskId);
             try (var rs = st.executeQuery()) {
@@ -79,7 +81,8 @@ public class TaskDaoImpl implements TaskDao {
     @Override
     public List<Task> filter(TaskState.Status status) throws DaoException {
         try (var conn = storage.connect(); var st = conn.prepareStatement(
-                "SELECT " + FIELDS + "  FROM task WHERE status = CAST(? AS task_status)")) {
+                "SELECT " + FIELDS + "  FROM task WHERE status = CAST(? AS task_status)"))
+        {
             st.setString(1, status.name());
             final List<Task> tasks = new ArrayList<>();
             try (var rs = st.executeQuery()) {
@@ -96,8 +99,9 @@ public class TaskDaoImpl implements TaskDao {
     @Override
     public List<Task> list(String workflowId) throws DaoException {
         try (var conn = storage.connect(); var st = conn.prepareStatement(
-                "SELECT " + FIELDS + " FROM task "
-                + " WHERE workflow_id = ?")) {
+            "SELECT " + FIELDS + " FROM task "
+            + " WHERE workflow_id = ?"))
+        {
             st.setString(1, workflowId);
             final List<Task> tasks = new ArrayList<>();
             try (var rs = st.executeQuery()) {
@@ -114,9 +118,10 @@ public class TaskDaoImpl implements TaskDao {
     @Override
     public void update(Task state) throws DaoException {
         try (var conn = storage.connect(); var st = conn.prepareStatement("""
-                UPDATE task
-                SET (status, rc, error_description, worker_id) = (CAST(? AS task_status), ?, ?, ?)
-                WHERE workflow_id = ? AND id = ?""")) {
+            UPDATE task
+            SET (status, rc, error_description, worker_id) = (CAST(? AS task_status), ?, ?, ?)
+            WHERE workflow_id = ? AND id = ?"""))
+        {
             int paramCount = 0;
             st.setString(++paramCount, state.status().name());
             st.setObject(++paramCount, state.rc());

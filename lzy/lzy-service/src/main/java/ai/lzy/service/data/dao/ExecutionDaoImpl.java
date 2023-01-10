@@ -7,7 +7,7 @@ import ai.lzy.service.data.ExecutionStatus;
 import ai.lzy.service.data.PortalStatus;
 import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.v1.common.LMS3;
+import ai.lzy.v1.common.LMST;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.net.HostAndPort;
@@ -30,8 +30,8 @@ public class ExecutionDaoImpl implements ExecutionDao {
     private static final Function<String, String> toSqlString = (obj) -> "'" + obj + "'";
 
     private static final String QUERY_INSERT_EXECUTION = """
-        INSERT INTO workflow_executions (execution_id, user_id, created_at, storage, 
-            storage_bucket, storage_credentials, execution_status)
+        INSERT INTO workflow_executions (execution_id, user_id, created_at, storage,
+            storage_uri, storage_credentials, execution_status)
         VALUES (?, ?, ?, cast(? as storage_type), ?, ?, cast(? as execution_status))""";
 
     private static final String QUERY_DELETE_EXECUTION = """
@@ -136,7 +136,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
     }
 
     @Override
-    public void create(String userId, String executionId, String storageType, LMS3.S3Locator storageData,
+    public void create(String userId, String executionId, String storageType, LMST.StorageConfig storageConfig,
                        @Nullable TransactionHandle transaction) throws SQLException
     {
         DbOperation.execute(transaction, storage, connection -> {
@@ -145,8 +145,8 @@ public class ExecutionDaoImpl implements ExecutionDao {
                 statement.setString(2, userId);
                 statement.setTimestamp(3, Timestamp.from(Instant.now()));
                 statement.setString(4, storageType.toUpperCase(Locale.ROOT));
-                statement.setString(5, storageData.getBucket());
-                statement.setString(6, objectMapper.writeValueAsString(storageData));
+                statement.setString(5, storageConfig.getUri());
+                statement.setString(6, objectMapper.writeValueAsString(storageConfig));
                 statement.setString(7, ExecutionStatus.RUN.name());
                 statement.execute();
             } catch (JsonProcessingException e) {
@@ -388,8 +388,8 @@ public class ExecutionDaoImpl implements ExecutionDao {
 
     @Override
     @Nullable
-    public LMS3.S3Locator getStorageLocator(String executionId) throws SQLException {
-        LMS3.S3Locator[] credentials = {null};
+    public LMST.StorageConfig getStorageConfig(String executionId) throws SQLException {
+        LMST.StorageConfig[] credentials = {null};
 
         DbOperation.execute(null, storage, connection -> {
             try (var statement = connection.prepareStatement(QUERY_GET_STORAGE_CREDENTIALS)) {
@@ -402,7 +402,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
                         LOG.warn("Cannot obtain storage credentials for execution: { executionId : {} }", executionId);
                         throw new RuntimeException("Cannot obtain storage credentials");
                     }
-                    credentials[0] = objectMapper.readValue(dump, LMS3.S3Locator.class);
+                    credentials[0] = objectMapper.readValue(dump, LMST.StorageConfig.class);
                 } else {
                     LOG.warn("Storage credentials not found: { executionId : {} }", executionId);
                 }

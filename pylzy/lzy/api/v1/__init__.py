@@ -3,25 +3,23 @@ import inspect
 import os
 from typing import Any, Callable, Dict, Optional, Sequence, TypeVar, Iterable
 
-from serialzy.api import SerializerRegistry
-
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard
 from lzy.api.v1.call import LzyCall, wrap_call
-from lzy.api.v1.env import CondaEnv, DockerEnv, DockerPullPolicy, Env
+from lzy.api.v1.env import DockerPullPolicy, Env
 from lzy.api.v1.local.runtime import LocalRuntime
-from lzy.api.v1.provisioning import Provisioning
+from lzy.api.v1.provisioning import Provisioning, GpuType, CpuType
 from lzy.api.v1.remote.runtime import RemoteRuntime, USER_ENV, KEY_PATH_ENV, ENDPOINT_ENV
 from lzy.api.v1.runtime import Runtime
 from lzy.api.v1.snapshot import DefaultSnapshot
 from lzy.api.v1.utils.conda import generate_conda_yaml
-from lzy.api.v1.utils.env import generate_env, merge_envs
 from lzy.api.v1.utils.packages import to_str_version
 from lzy.api.v1.utils.proxy_adapter import lzy_proxy
 from lzy.api.v1.utils.types import infer_return_type
 from lzy.api.v1.whiteboards import whiteboard_, ReadOnlyWhiteboard
 from lzy.api.v1.workflow import LzyWorkflow
+from lzy.logs.config import configure_logging
 from lzy.proxy.result import Nothing
-from lzy.py_env.api import PyEnvProvider
+from lzy.py_env.api import PyEnvProvider, PyEnv
 from lzy.py_env.py_env_provider import AutomaticPyEnvProvider
 from lzy.serialization.registry import LzySerializerRegistry
 from lzy.storage.api import StorageRegistry
@@ -50,13 +48,13 @@ def op(
     docker_image: Optional[str] = None,
     docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
     local_modules_path: Optional[Sequence[str]] = None,
-    provisioning_: Provisioning = Provisioning(),
+    provisioning: Provisioning = Provisioning(),
     cpu_type: Optional[str] = None,
     cpu_count: Optional[int] = None,
     gpu_type: Optional[str] = None,
     gpu_count: Optional[int] = None,
     ram_size_gb: Optional[int] = None,
-    env: Optional[Env] = None,
+    env: Env = Env(),
     description: str = ""
 ):
     def deco(f):
@@ -64,6 +62,7 @@ def op(
         Decorator which will try to infer return type of function
         and create lazy constructor instead of decorated function.
         """
+
         nonlocal output_types
         if output_types is None:
             infer_result = infer_return_type(f)
@@ -76,11 +75,20 @@ def op(
             else:
                 output_types = infer_result.value  # expecting multiple return types
 
+        nonlocal provisioning
+        provisioning = provisioning.override(Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb))
+
+        nonlocal libraries
+        libraries = {} if not libraries else libraries
+
+        nonlocal env
+        env = env.override(
+            Env(python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy, local_modules_path)
+        )
+
         # yep, create lazy constructor and return it
         # instead of function
-        return wrap_call(f, output_types, python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy,
-                         local_modules_path, provisioning_, cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb, env,
-                         description)
+        return wrap_call(f, output_types, provisioning, env, description)
 
     if func is None:
         return deco
@@ -116,8 +124,10 @@ class Lzy:
         whiteboard_client: WhiteboardClient = RemoteWhiteboardClient(),
         py_env_provider: PyEnvProvider = AutomaticPyEnvProvider(),
         storage_registry: StorageRegistry = DefaultStorageRegistry(),
-        serializer_registry: SerializerRegistry = LzySerializerRegistry()
+        serializer_registry: LzySerializerRegistry = LzySerializerRegistry()
     ):
+        configure_logging()
+
         self.__env_provider = py_env_provider
         self.__whiteboard_client = whiteboard_client
         self.__serializer_registry = serializer_registry
@@ -130,7 +140,7 @@ class Lzy:
         lzy_auth(user=user, key_path=key_path, endpoint=endpoint, whiteboards_endpoint=whiteboards_endpoint)
 
     @property
-    def serializer(self) -> SerializerRegistry:
+    def serializer_registry(self) -> LzySerializerRegistry:
         return self.__serializer_registry
 
     @property
@@ -168,33 +178,30 @@ class Lzy:
         gpu_type: Optional[str] = None,
         gpu_count: Optional[int] = None,
         ram_size_gb: Optional[int] = None,
-        env: Optional[Env] = None,
+        env: Env = Env()
     ) -> LzyWorkflow:
+        provisioning = provisioning.override(Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb))
+        provisioning.validate()
+
+        # it is important to detect py env before registering lazy calls to avoid materialization of them
         namespace = inspect.stack()[1].frame.f_globals
-        if env is None:
-            env = generate_env(
-                self.env_provider.provide(namespace),
-                python_version,
-                libraries,
-                conda_yaml_path,
-                docker_image,
-                docker_pull_policy,
-                local_modules_path,
-            )
+        auto_py_env: PyEnv = self.__env_provider.provide(namespace)
+
+        libraries = {} if not libraries else libraries
+        local_modules_path = auto_py_env.local_modules_path if not local_modules_path else local_modules_path
+        env = env.override(
+            Env(python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy, local_modules_path)
+        )
+        env.validate()
+
         return LzyWorkflow(
             name,
             self,
-            namespace,
-            snapshot=DefaultSnapshot(
-                storage_registry=self.storage_registry,
-                serializer_registry=self.serializer,
-            ),
             env=env,
+            provisioning=provisioning,
+            auto_py_env=auto_py_env,
             eager=eager,
-            provisioning=provisioning.override(
-                Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb)
-            ),
-            interactive=interactive,
+            interactive=interactive
         )
 
     def whiteboard(self, wb_id: str) -> Any:
@@ -213,15 +220,7 @@ class Lzy:
         return list(LzyEventLoop.gather(*wbs_to_build))
 
     async def __build_whiteboard(self, wb: Whiteboard) -> Any:
-
         if wb.status != Whiteboard.FINALIZED:
             raise RuntimeError(f"Status of whiteboard with name {wb.name} is {wb.status}, but must be COMPLETED")
 
         return ReadOnlyWhiteboard(self.__storage_registry, self.__serializer_registry, wb)
-
-
-# noinspection PyBroadException
-try:
-    from lzy.injections import catboost_injection
-except Exception:
-    pass
