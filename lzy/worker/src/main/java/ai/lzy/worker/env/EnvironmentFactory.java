@@ -13,7 +13,7 @@ public class EnvironmentFactory {
     private static Supplier<Environment> envForTests = null;
     private static boolean IS_DOCKER_SUPPORTED = true;
 
-    public static Environment create(Env env) throws EnvironmentInstallationException {
+    public static Environment create(Env env) {
         //to mock environment in tests
         if (envForTests != null) {
             LOG.info("EnvironmentFactory: using mocked environment");
@@ -42,7 +42,7 @@ public class EnvironmentFactory {
 
         if (env.auxEnv() instanceof PythonEnv) {
             LOG.info("Conda auxEnv provided, using CondaEnvironment");
-            return new CondaEnvironment((PythonEnv) env.auxEnv(), baseEnv, resourcesPathStr);
+            return new CondaEnvironment((PythonEnv) env.auxEnv(), baseEnv);
         } else {
             LOG.info("No auxEnv provided, using SimpleBashEnvironment");
             return new SimpleBashEnvironment(baseEnv);

@@ -5,9 +5,7 @@ import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.scheduler.SchedulerPrivateApi;
 import ai.lzy.v1.scheduler.SchedulerPrivateApi.WorkerProgress;
 import ai.lzy.v1.scheduler.SchedulerPrivateApi.WorkerProgress.Executing;
-import ai.lzy.v1.scheduler.SchedulerPrivateApi.WorkerProgress.Idle;
 import ai.lzy.v1.scheduler.SchedulerPrivateGrpc;
-import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
@@ -16,44 +14,32 @@ import org.apache.logging.log4j.Logger;
 import java.time.Duration;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.LockSupport;
 
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 
-public class SchedulerAgent extends Thread {
+public class SchedulerAgent implements AutoCloseable {
     private static final Logger LOG = LogManager.getLogger(SchedulerAgent.class);
 
-    private final String workerId;
-    private final String workflowName;
-    private final Duration heartbeatPeriod;
-    private final HostAndPort address;
+    private final String taskId;
+    private final String executionId;
     private final ManagedChannel channel;
 
     private final SchedulerPrivateGrpc.SchedulerPrivateBlockingStub stub;
-    private final AtomicBoolean stopping = new AtomicBoolean(false);
-    private final BlockingQueue<WorkerProgress> progressQueue = new LinkedBlockingQueue<>();
     private final Timer timer = new Timer();
-    private final AtomicReference<TimerTask> task = new AtomicReference<>();
+    private final TimerTask task;
 
-    public SchedulerAgent(String schedulerAddress, String workerId, String workflowName,
-                          Duration heartbeatPeriod, HostAndPort address, String iamPrivateKey)
+    public SchedulerAgent(String schedulerAddress, String taskId, String executionId,
+                          Duration heartbeatPeriod, String iamPrivateKey)
     {
-        super("scheduler-agent-" + workerId);
-        this.workerId = workerId;
-        this.workflowName = workflowName;
-        this.heartbeatPeriod = heartbeatPeriod;
-        this.address = address;
+        this.taskId = taskId;
+        this.executionId = executionId;
 
         RenewableJwt jwt;
         try {
-            jwt = new RenewableJwt(workerId, "INTERNAL", Duration.ofDays(1),
+            jwt = new RenewableJwt(this.taskId, "INTERNAL", Duration.ofMinutes(15),
                 CredentialsUtils.readPrivateKey(iamPrivateKey));
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -61,115 +47,44 @@ public class SchedulerAgent extends Thread {
 
         channel = newGrpcChannel(schedulerAddress, SchedulerPrivateGrpc.SERVICE_NAME);
         stub = newBlockingClient(SchedulerPrivateGrpc.newBlockingStub(channel), "SA", () -> jwt.get().token());
+
+        task = new TimerTask() {
+            @Override
+            public void run() {
+                reportProgress(WorkerProgress.newBuilder()
+                    .setExecuting(Executing.newBuilder().build())
+                    .build());
+            }
+        };
+        timer.scheduleAtFixedRate(task, heartbeatPeriod.toMillis(), heartbeatPeriod.toMillis());
     }
 
-    public void start() {
-        super.start();
-
+    private synchronized void reportProgress(WorkerProgress progress) {
         try {
-            //noinspection ResultOfMethodCallIgnored
-            stub.registerWorker(SchedulerPrivateApi.RegisterWorkerRequest.newBuilder()
-                .setWorkerId(workerId)
-                .setWorkflowName(workflowName)
-                .setAddress(address.toString())
-                .build());
+            stub.workerProgress(
+                SchedulerPrivateApi.WorkerProgressRequest.newBuilder()
+                    .setTaskId(taskId)
+                    .setExecutionId(executionId)
+                    .setProgress(progress)
+                    .build());
         } catch (StatusRuntimeException e) {
-            LOG.error("Error while registering agent");
-            shutdown();
-            throw new RuntimeException(e);
+            LOG.error("Error while reporting progress", e);
+            throw e;
         }
     }
 
-    public synchronized void reportProgress(WorkerProgress progress) {
-        try {
-            progressQueue.put(progress);
-        } catch (InterruptedException e) {
-            throw new RuntimeException("Must be unreachable");
-        }
+    public void reportExecutionCompleted(int rc, String description) {
+        reportProgress(WorkerProgress.newBuilder()
+            .setExecutionCompleted(WorkerProgress.ExecutionCompleted.newBuilder()
+                .setRc(rc)
+                .setDescription(description)
+            )
+            .build());
     }
 
-    @Override
-    public void run() {
-        while (!stopping.get()) {
-            final WorkerProgress progress;
-            try {
-                progress = progressQueue.take();
-            } catch (InterruptedException e) {
-                continue;
-            }
-
-            var retryCount = 0;
-            while (++retryCount < 5) {
-                try {
-                    //noinspection ResultOfMethodCallIgnored
-                    stub.workerProgress(
-                        SchedulerPrivateApi.WorkerProgressRequest.newBuilder()
-                            .setWorkerId(workerId)
-                            .setWorkflowName(workflowName)
-                            .setProgress(progress)
-                            .build());
-                    break;
-                } catch (StatusRuntimeException e) {
-                    if (stopping.get()) {
-                        return;
-                    }
-                    LOG.error("Cannot send progress to scheduler: {}. Retrying...", e.getStatus());
-                    LockSupport.parkNanos(Duration.ofMillis(100L * retryCount).toNanos());
-                }
-            }
-
-            if (retryCount == 5 && !stopping.get()) {
-                LOG.error("Cannot send progress to scheduler. Stopping thread");
-                throw new RuntimeException("Cannot send progress to scheduler");
-            }
-        }
-    }
-
-    public synchronized void reportIdle() {
-        if (task.get() != null) {
-            task.get().cancel();
-            timer.purge();
-        }
-        task.set(
-            new TimerTask() {
-                @Override
-                public void run() {
-                    reportProgress(WorkerProgress.newBuilder()
-                        .setIdling(Idle.newBuilder().build())
-                        .build());
-                }
-            });
-        timer.scheduleAtFixedRate(task.get(), heartbeatPeriod.toMillis(), heartbeatPeriod.toMillis());
-    }
-
-    public synchronized void reportExecuting() {
-        if (task.get() != null) {
-            task.get().cancel();
-            timer.purge();
-        }
-        task.set(
-            new TimerTask() {
-                @Override
-                public void run() {
-                    reportProgress(WorkerProgress.newBuilder()
-                        .setExecuting(Executing.newBuilder().build())
-                        .build());
-                }
-            });
-        timer.scheduleAtFixedRate(task.get(), heartbeatPeriod.toMillis(), heartbeatPeriod.toMillis());
-    }
-
-    public synchronized void reportStop() {
-        if (task.get() != null) {
-            task.get().cancel();
-            timer.purge();
-        }
-        stopping.set(true);
-    }
-
-    public void shutdown() {
-        reportStop();
-        this.interrupt();
+    public synchronized void close() {
+        task.cancel();
+        timer.cancel();
         channel.shutdown();
         try {
             channel.awaitTermination(5, TimeUnit.SECONDS);

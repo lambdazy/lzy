@@ -24,6 +24,9 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
     private final Map<String, Operation> operations = new ConcurrentHashMap<>();
     private final Map<String, Operation> idempotencyKey2Operation = new ConcurrentHashMap<>();
 
+    /**
+     * @param name Service name for logs
+     */
     public LocalOperationService(String name) {
         this.name = name;
     }

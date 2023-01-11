@@ -1,5 +1,6 @@
 package ai.lzy.worker.env;
 
+import ai.lzy.worker.StreamQueue;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -21,6 +22,9 @@ public class SimpleBashEnvironment implements AuxEnvironment {
         String[] bashCmd = new String[]{"bash", "-c", command};
         return baseEnv.runProcess(bashCmd, envp);
     }
+
+    @Override
+    public void install(StreamQueue out, StreamQueue err) {}
 
     @Override
     public LzyProcess runProcess(String... command) {

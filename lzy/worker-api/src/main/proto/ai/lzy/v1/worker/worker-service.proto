@@ -9,30 +9,15 @@ option java_outer_classname = "LWS";
 option java_package = "ai.lzy.v1.worker";
 
 service WorkerApi {
-  rpc Configure (ConfigureRequest) returns (ConfigureResponse);
   rpc Execute (ExecuteRequest) returns (ExecuteResponse);
-  rpc Stop (StopRequest) returns (StopResponse);
 }
-
-// ========== Configure ============
-
-message ConfigureRequest {
-  EnvSpec env = 1;
-}
-
-message ConfigureResponse {}
 
 // ========== Execute ============
 
 message ExecuteRequest {
   TaskDesc taskDesc = 1;
-  string taskId = 2;
-  string executionId = 3;
+  string task_id = 2;
+  string execution_id = 3;
 }
 
 message ExecuteResponse {}
-
-// ========== Stop ============
-
-message StopRequest {}
-message StopResponse {}

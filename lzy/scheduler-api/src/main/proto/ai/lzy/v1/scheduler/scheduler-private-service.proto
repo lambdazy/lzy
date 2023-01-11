@@ -6,57 +6,28 @@ option java_outer_classname = "SchedulerPrivateApi";
 option java_package = "ai.lzy.v1.scheduler";
 
 service SchedulerPrivate {
-  rpc RegisterWorker (RegisterWorkerRequest) returns (RegisterWorkerResponse);
   rpc WorkerProgress (WorkerProgressRequest) returns (WorkerProgressResponse);
 }
-
-// =========Register worker=========
-
-message RegisterWorkerRequest {
-  string workflowName = 1;
-  string workerId = 2;
-  string address = 3;
-}
-message RegisterWorkerResponse {}
 
 // ========= Progress ==========
 
 message WorkerProgress {
-
-  message Configured {
-    message Ok {}
-    message Err {
-      string description = 1;
-    }
-    oneof result {
-      Ok ok = 1;
-      Err err = 2;
-    }
-  }
-  message Finished {}
-  message CommunicationCompleted {}
   message ExecutionCompleted {
     int32 rc = 1;
     string description = 2;
   }
 
   message Executing {}
-  message Idle {}
 
   oneof status {
-    Configured configured = 2;
-    ExecutionCompleted executionCompleted = 3;
-    CommunicationCompleted communicationCompleted = 4;
-    Finished finished = 5;
-
-    Executing executing = 6;
-    Idle idling = 7;
+    ExecutionCompleted executionCompleted = 1;
+    Executing executing = 2;
   }
 }
 
 message WorkerProgressRequest {
-  string workflowName = 1;
-  string workerId = 2;
+  string execution_id = 1;
+  string task_id = 2;
   WorkerProgress progress = 3;
 }
 message WorkerProgressResponse {}

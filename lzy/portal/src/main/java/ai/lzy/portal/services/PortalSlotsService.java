@@ -20,6 +20,7 @@ import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.slots.LSA;
 import ai.lzy.v1.slots.LzySlotsApiGrpc;
+import com.google.common.net.HostAndPort;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Message;
 import io.grpc.ManagedChannel;
@@ -85,7 +86,7 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
             "LzyPortal.ChannelManagerOperationClient", tokenFactory);
 
         this.slotsManager = new SlotsManager(channelManagerClient, channelManagerOperationClient,
-            URI.create("%s://%s:%d".formatted(LzyFs.scheme(), config.getHost(), config.getSlotsApiPort())), true);
+            HostAndPort.fromParts(config.getHost(), config.getSlotsApiPort()), true);
 
         this.operationService = operationService;
         this.workersPool = workersPool;

@@ -1,0 +1,14 @@
+pyyaml<7.0.0,>=6.0.0
+azure-storage-blob<13.0.0,>=12.9.0
+requests<3.0.0,>=2.26.0
+stdlib-list<1.0.0,>=0.8.0
+grpcio<2.0.0,>=1.50.0
+pyjwt<3.0.0,>=2.4.0
+pycryptodome<4.0.0,>=3.15.0
+protobuf<5.0.0,>=4.21.8
+packaging<23.0.0,>=21.3.0
+importlib-metadata<6.0.0,>=4.8.1
+aioboto3<11.0.0,>=9.6.0
+cloudpickle<3.0.0,>=2.1.0
+serialzy<1.0.0,>=0.0.11
+typing-extensions<5.0.0,>=4.4.0

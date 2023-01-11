@@ -1,0 +1,28 @@
+[tool.isort]
+profile = "black"
+skip = ["lzy/proto/"]
+[tool.pyright]
+include = ["lzy"]
+exclude = [
+    "**/__pycache__",
+]
+[tool.black]
+line-length = 88
+target-version = ['py36', 'py37', 'py38', 'py39']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  | lzy/proto/.*
+)/
+'''
+[tool.mypy]
+exclude = [
+   # 'lzy/proto/'  # TOML literal string (single-quotes, no escaping necessary)
+]
+
+[build-system]
+requires = [
+    "setuptools >= 35.0.2",
+    "wheel >= 0.37.1"
+]
+build-backend = "setuptools.build_meta"
