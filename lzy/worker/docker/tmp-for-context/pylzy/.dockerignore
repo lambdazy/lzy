@@ -1,9 +1,0 @@
-venv
-build
-.tox
-nix
-scripts
-test_modules
-tests
-.mypy*
-target
