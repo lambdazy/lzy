@@ -178,18 +178,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         String userId = AuthenticationContext.currentSubject().id();
         String executionId = request.getExecutionId();
 
-        try {
-            String[] wfNameAndUserId = withRetries(LOG, () -> workflowDao.findWorkflowBy(executionId));
-            if (wfNameAndUserId == null || !Objects.equals(userId, wfNameAndUserId[1])) {
-                LOG.error("Cannot find active execution of user: { executionId: {}, userId: {} }", executionId, userId);
-                responseObserver.onError(Status.NOT_FOUND.withDescription("Cannot find active execution " +
-                    "'%s' of user '%s'".formatted(executionId, userId)).asRuntimeException());
-                return;
-            }
-        } catch (Exception e) {
-            LOG.error("Cannot check that active execution of user exists: { executionId: {}, userId: " +
-                "{}, error: {} } ", executionId, userId, e.getMessage());
-            responseObserver.onError(Status.INTERNAL.withDescription("Cannot execute graph").asRuntimeException());
+        if (checkExecution(userId, executionId, responseObserver)) {
             return;
         }
 
@@ -272,16 +261,37 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
     @Override
     public void graphStatus(GraphStatusRequest request, StreamObserver<GraphStatusResponse> responseObserver) {
+        String userId = AuthenticationContext.currentSubject().id();
+        String executionId = request.getExecutionId();
+
+        if (checkExecution(userId, executionId, responseObserver)) {
+            return;
+        }
+
         graphExecutionService.graphStatus(request, responseObserver);
     }
 
     @Override
     public void stopGraph(StopGraphRequest request, StreamObserver<StopGraphResponse> responseObserver) {
+        String userId = AuthenticationContext.currentSubject().id();
+        String executionId = request.getExecutionId();
+
+        if (checkExecution(userId, executionId, responseObserver)) {
+            return;
+        }
+
         graphExecutionService.stopGraph(request, responseObserver);
     }
 
     @Override
     public void readStdSlots(ReadStdSlotsRequest request, StreamObserver<ReadStdSlotsResponse> responseObserver) {
+        String userId = AuthenticationContext.currentSubject().id();
+        String executionId = request.getExecutionId();
+
+        if (checkExecution(userId, executionId, responseObserver)) {
+            return;
+        }
+
         workflowService.readStdSlots(request, responseObserver);
     }
 
@@ -289,6 +299,32 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     public void getAvailablePools(GetAvailablePoolsRequest request,
                                   StreamObserver<GetAvailablePoolsResponse> responseObserver)
     {
+        String userId = AuthenticationContext.currentSubject().id();
+        String executionId = request.getExecutionId();
+
+        if (checkExecution(userId, executionId, responseObserver)) {
+            return;
+        }
+
         workflowService.getAvailablePools(request, responseObserver);
+    }
+
+    private <T> boolean checkExecution(String userId, String executionId, StreamObserver<T> responseObserver) {
+        try {
+            String[] wfNameAndUserId = withRetries(LOG, () -> workflowDao.findWorkflowBy(executionId));
+            if (wfNameAndUserId == null || !Objects.equals(userId, wfNameAndUserId[1])) {
+                LOG.error("Cannot find active execution of user: { executionId: {}, userId: {} }", executionId, userId);
+                responseObserver.onError(Status.NOT_FOUND.withDescription("Cannot find active execution " +
+                    "'%s' of user '%s'".formatted(executionId, userId)).asRuntimeException());
+                return true;
+            }
+        } catch (Exception e) {
+            LOG.error("Cannot check that active execution of user exists: { executionId: {}, userId: " +
+                "{}, error: {} } ", executionId, userId, e.getMessage());
+            responseObserver.onError(Status.INTERNAL.withDescription("Cannot execute graph").asRuntimeException());
+            return true;
+        }
+
+        return false;
     }
 }
