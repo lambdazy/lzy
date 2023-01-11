@@ -409,7 +409,7 @@ public class GraphExecutionService {
     public LzyPortalGrpc.LzyPortalBlockingStub getPortalClient(String executionId) {
         String address;
         try {
-            address = withRetries(LOG, () -> executionDao.getPortalAddress(executionId));
+            address = withRetries(LOG, () -> executionDao.getPortalVmAddress(executionId));
         } catch (Exception e) {
             LOG.error("Cannot obtain portal address { executionId: {}, error: {} } ", executionId, e.getMessage(), e);
             return null;

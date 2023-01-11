@@ -18,15 +18,15 @@ public interface ExecutionDao {
     void updateStdChannelIds(String executionId, String stdoutChannelId, String stderrChannelId,
                              @Nullable TransactionHandle transaction) throws SQLException;
 
-    void updateAllocatorSession(String executionId, String sessionId, String portalId,
-                                @Nullable TransactionHandle transaction)
+    void updatePortalVmAllocateSession(String executionId, String sessionId, String portalId,
+                                       @Nullable TransactionHandle transaction)
         throws SQLException;
 
     void updateAllocateOperationData(String executionId, String opId, String vmId,
                                      @Nullable TransactionHandle transaction) throws SQLException;
 
-    void updateAllocatedVmAddress(String executionId, String vmAddress, String fsAddress,
-                                  @Nullable TransactionHandle transaction)
+    void updatePortalVmAddress(String executionId, String vmAddress, String fsAddress,
+                               @Nullable TransactionHandle transaction)
         throws SQLException;
 
     void updateFinishData(String userId, String executionId, Status status, @Nullable TransactionHandle transaction)
@@ -46,7 +46,7 @@ public interface ExecutionDao {
     Map<String, String> findChannels(Set<String> slotsUri) throws SQLException;
 
     @Nullable
-    default String getPortalAddress(String executionId) throws SQLException {
+    default String getPortalVmAddress(String executionId) throws SQLException {
         var desc = getPortalDescription(executionId);
         if (desc != null) {
             return desc.vmAddress().toString();

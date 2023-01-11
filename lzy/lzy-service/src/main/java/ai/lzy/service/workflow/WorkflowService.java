@@ -2,9 +2,8 @@ package ai.lzy.service.workflow;
 
 import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
-import ai.lzy.iam.grpc.context.AuthenticationContext;
+import ai.lzy.longrunning.Operation;
 import ai.lzy.model.db.Storage;
-import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.service.ExecutionFinalizer;
 import ai.lzy.service.PortalSlotsListener;
 import ai.lzy.service.config.LzyServiceConfig;
@@ -19,16 +18,17 @@ import ai.lzy.v1.VmPoolServiceApi;
 import ai.lzy.v1.VmPoolServiceGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LMST;
-import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;
-import ai.lzy.v1.workflow.LWFS.*;
+import ai.lzy.v1.workflow.LWFS.GetAvailablePoolsRequest;
+import ai.lzy.v1.workflow.LWFS.GetAvailablePoolsResponse;
+import ai.lzy.v1.workflow.LWFS.StartExecutionRequest;
+import ai.lzy.v1.workflow.LWFS.StartExecutionResponse;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
-import io.micronaut.core.util.StringUtils;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -181,41 +181,8 @@ public class WorkflowService {
         response.onCompleted();
     }
 
-    public void finishExecution(FinishExecutionRequest request, StreamObserver<LongRunning.Operation> response) {
-        var userId = AuthenticationContext.currentSubject().id();
-        var executionId = request.getExecutionId();
-        var reason = request.getReason();
-
-        if (StringUtils.isEmpty(executionId)) {
-            LOG.error("Cannot finish execution: { executionId: {} }", executionId);
-            response.onError(Status.INVALID_ARGUMENT.withDescription("Empty 'executionId'").asRuntimeException());
-            return;
-        }
-
-        LOG.info("Attempt to finish execution: { userId: {}, executionId: {}, reason: {} }", userId,
-            executionId, reason);
-
-        try {
-            executionFinalizer.finishInDao(userId, executionId, Status.OK.withDescription(reason));
-        } catch (NotFoundException e) {
-            LOG.error("Cannot finish execution, not found: { executionId: {}, error: {} }", executionId,
-                e.getMessage());
-            response.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asRuntimeException());
-            return;
-        } catch (IllegalStateException e) {
-            LOG.error("Cannot finish execution, invalid state: { executionId: {}, error: {} }", executionId,
-                e.getMessage());
-            response.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException());
-            return;
-        } catch (Exception e) {
-            LOG.warn("Unexpected error while finish execution: { executionId: {}, error: {} }", executionId,
-                e.getMessage());
-        }
-
-        var op = executionFinalizer.finalizeAndAwait(executionId);
-
-        response.onNext(op.toProto());
-        response.onCompleted();
+    public void finishExecution(String executionId, Operation operation) {
+        executionFinalizer.gracefulFinalize(executionId, operation);
     }
 
     private void deactivateExecution(String userId, String workflowName, String executionId) {
@@ -236,6 +203,10 @@ public class WorkflowService {
         } catch (Exception e) {
             LOG.error("Cannot get portal for execution {}", executionId, e);
             return;
+        }
+
+        if (portalDesc != null && portalDesc.vmAddress() != null) {
+            executionFinalizer.stopPortal(executionId, portalDesc.vmAddress());
         }
 
         if (portalDesc != null && portalDesc.vmId() != null) {

@@ -18,7 +18,6 @@ public enum OperationUtils {
         LongRunning.Operation result;
 
         while (true) {
-            // TODO: ssokolvyak -- replace on streaming request
             result = grpcClient.get(LongRunning.GetOperationRequest.newBuilder().setOperationId(operationId).build());
 
             if (result.getDone() || deadline - System.nanoTime() <= 0L) {

@@ -6,7 +6,9 @@ import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.service.config.LzyServiceConfig;
+import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.GraphDao;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.service.data.storage.LzyServiceStorage;
@@ -21,6 +23,7 @@ import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.annotations.VisibleForTesting;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import io.micronaut.core.util.StringUtils;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -32,8 +35,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 
-import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
-import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOpResult;
+import static ai.lzy.longrunning.IdempotencyUtils.*;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.v1.workflow.LWFS.*;
 
@@ -54,13 +56,14 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     private final Storage storage;
     private final OperationDao operationDao;
     private final WorkflowDao workflowDao;
+    private final ExecutionDao executionDao;
     private final GraphDao graphDao;
 
     public LzyService(WorkflowService workflowService, GraphExecutionService graphExecutionService,
-                      LzyServiceStorage storage, GraphDao graphDao, WorkflowDao workflowDao,
-                      @Named("LzyServiceServerExecutor") ExecutorService workersPool,
-                      @Named("LzyServiceOperationDao") OperationDao operationDao,
-                      ExecutionFinalizer executionFinalizer, GarbageCollector gc, LzyServiceConfig config)
+                      GraphDao graphDao, ExecutionDao executionDao, WorkflowDao workflowDao,
+                      LzyServiceStorage storage, @Named("LzyServiceOperationDao") OperationDao operationDao,
+                      ExecutionFinalizer executionFinalizer, GarbageCollector gc, LzyServiceConfig config,
+                      @Named("LzyServiceServerExecutor") ExecutorService workersPool)
     {
         this.executionFinalizer = executionFinalizer;
         this.instanceId = config.getInstanceId();
@@ -69,6 +72,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         this.workersPool = workersPool;
         this.operationDao = operationDao;
         this.workflowDao = workflowDao;
+        this.executionDao = executionDao;
         this.graphDao = graphDao;
         this.storage = storage;
 
@@ -104,7 +108,61 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
     @Override
     public void finishExecution(FinishExecutionRequest request, StreamObserver<LongRunning.Operation> response) {
-        workflowService.finishExecution(request, response);
+        Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+        if (idempotencyKey != null && loadExistingOp(operationDao, idempotencyKey, response, LOG)) {
+            return;
+        }
+
+        var userId = AuthenticationContext.currentSubject().id();
+        var executionId = request.getExecutionId();
+        var reason = request.getReason();
+
+        if (StringUtils.isEmpty(executionId)) {
+            LOG.error("Cannot finish execution: { executionId: {} }", executionId);
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Empty 'executionId'").asRuntimeException());
+            return;
+        }
+
+        LOG.info("Attempt to finish execution: { userId: {}, executionId: {}, reason: {} }", userId,
+            executionId, reason);
+
+        var op = Operation.create(userId, "Finish execution: executionId='%s'".formatted(executionId),
+            idempotencyKey, null);
+        var finishStatus = Status.OK.withDescription(reason);
+
+        try (var tx = TransactionHandle.create(storage)) {
+            withRetries(LOG, () -> operationDao.create(op, tx));
+            withRetries(LOG, () -> executionDao.updateFinishData(userId, executionId, finishStatus, tx));
+
+            tx.commit();
+        } catch (NotFoundException e) {
+            LOG.error("Cannot finish execution, not found: { executionId: {}, error: {} }", executionId,
+                e.getMessage());
+            response.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asRuntimeException());
+            return;
+        } catch (IllegalStateException e) {
+            LOG.error("Cannot finish execution, invalid state: { executionId: {}, error: {} }", executionId,
+                e.getMessage());
+            response.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException());
+            return;
+        } catch (Exception e) {
+            if (idempotencyKey != null &&
+                handleIdempotencyKeyConflict(idempotencyKey, e, operationDao, response, LOG))
+            {
+                return;
+            }
+
+            LOG.error("Unexpected error while finish execution: { executionId: {}, error: {} }", executionId,
+                e.getMessage());
+            response.onError(Status.INTERNAL.withDescription("Cannot finish execution " +
+                "'%s': %s".formatted(executionId, e.getMessage())).asRuntimeException());
+            return;
+        }
+
+        workersPool.submit(() -> workflowService.finishExecution(executionId, op));
+
+        response.onNext(op.toProto());
+        response.onCompleted();
     }
 
     @Override

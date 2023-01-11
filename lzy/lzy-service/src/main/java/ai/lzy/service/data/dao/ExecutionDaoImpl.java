@@ -182,8 +182,8 @@ public class ExecutionDaoImpl implements ExecutionDao {
     }
 
     @Override
-    public void updateAllocatorSession(String executionId, String sessionId, String portalId,
-                                       @Nullable TransactionHandle transaction) throws SQLException
+    public void updatePortalVmAllocateSession(String executionId, String sessionId, String portalId,
+                                              @Nullable TransactionHandle transaction) throws SQLException
     {
         DbOperation.execute(transaction, storage, connection -> {
             try (var statement = connection.prepareStatement(QUERY_UPDATE_ALLOCATOR_SESSION)) {
@@ -212,8 +212,8 @@ public class ExecutionDaoImpl implements ExecutionDao {
     }
 
     @Override
-    public void updateAllocatedVmAddress(String executionId, String vmAddress, String fsAddress,
-                                         @Nullable TransactionHandle transaction) throws SQLException
+    public void updatePortalVmAddress(String executionId, String vmAddress, String fsAddress,
+                                      @Nullable TransactionHandle transaction) throws SQLException
     {
         DbOperation.execute(transaction, storage, connection -> {
             try (var statement = connection.prepareStatement(QUERY_UPDATE_ALLOCATE_VM_ADDRESS)) {
