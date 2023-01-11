@@ -92,12 +92,6 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                             return Status.ALREADY_EXISTS;
                         }
 
-                        if (vm.status() == Vm.Status.DEAD) {
-                            metrics.registerFail.inc();
-                            LOG.error("Vm {} is DEAD", vm);
-                            return Status.INVALID_ARGUMENT.withDescription("VM is dead");
-                        }
-
                         if (vm.status() != Vm.Status.ALLOCATING) {
                             metrics.registerFail.inc();
                             LOG.error("Wrong status of vm while register, expected ALLOCATING: {}", vm);
@@ -111,6 +105,14 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                             LOG.error("Operation {} does not exist", opId);
                             return Status.NOT_FOUND.withDescription("Op %s not found".formatted(opId));
                         }
+
+                        if (op.done()) {
+                            metrics.registerFail.inc();
+                            var opId = vm.allocOpId();
+                            LOG.error("Operation {} already done", opId);
+                            return Status.CANCELLED.withDescription("Op %s already done".formatted(opId));
+                        }
+
                         opRef[0] = op;
 
                         final var session = sessionsDao.get(vm.sessionId(), transaction);
@@ -118,17 +120,6 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                             metrics.registerFail.inc();
                             LOG.error("Session {} does not exist", vm.sessionId());
                             return Status.NOT_FOUND.withDescription("Session not found");
-                        }
-
-                        if (op.error() != null && op.error().getCode() == Status.Code.CANCELLED) {
-                            metrics.registerFail.inc();
-
-                            // Op is cancelled by client, add VM to cache
-                            vmDao.release(vm.vmId(), Instant.now().plus(session.cachePolicy().minIdleTimeout()),
-                                transaction);
-                            transaction.commit();
-
-                            return Status.NOT_FOUND.withDescription("Op not found");
                         }
 
                         var activityDeadline = Instant.now().plus(config.getHeartbeatTimeout());
@@ -154,7 +145,13 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                                 .putAllMetadata(request.getMetadataMap())
                                 .build());
                         op.setResponse(response);
-                        operationsDao.updateResponse(op.id(), response.toByteArray(), transaction);
+
+                        var prev = operationsDao.complete(op.id(), response.toByteArray(), transaction);
+                        if (prev != null) {
+                            metrics.registerFail.inc();
+                            LOG.error("Operation {} (VM {}) already completed", op.id(), vm.vmId());
+                            return Status.CANCELLED.withDescription("Op %s already done".formatted(vm.vmId()));
+                        }
 
                         transaction.commit();
 
@@ -193,9 +190,10 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                 withRetries(LOG, () -> {
                     try (var tx = TransactionHandle.create(storage)) {
                         if (opRef[0] != null) {
-                            operationsDao.failOperation(opRef[0].id(), toProto(status), tx, LOG);
+                            operationsDao.fail(opRef[0].id(), toProto(status), tx);
                         }
                         vmDao.setStatus(vmRef[0].vmId(), Vm.Status.DELETING, tx);
+                        tx.commit();
                     }
                 });
             } catch (Exception e) {

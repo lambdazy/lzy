@@ -95,7 +95,7 @@ public class DaoTest {
             .setMessage("Error")
             .build();
 
-        opDao.updateError(op2.id(), status.toByteArray(), null);
+        opDao.fail(op2.id(), status.toByteArray(), null);
 
         final var op3 = opDao.get(op1.id(), null);
         Assert.assertNotNull(op3);
@@ -215,9 +215,10 @@ public class DaoTest {
         Assert.assertEquals(List.of(vm2), vms);
 
         vmDao.setStatus(vm2.vmId(), Vm.Status.IDLE, null);
-        vmDao.setDeadline(vm2.vmId(), now().minus(Duration.ofSeconds(1)));
+        vmDao.setDeadline(vm2.vmId(), now().minus(Duration.ofSeconds(10)));
 
-        final var vms2 = vmDao.listExpired(100);
+        final var vms2 = vmDao.listVmsToClean(100);
+        Assert.assertEquals(1, vms2.size());
         Assert.assertEquals(vm.vmId(), vms2.get(0).vmId());
 
         final var meta = Map.of("a", "b", "c", "d");

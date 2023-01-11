@@ -53,9 +53,13 @@
         <jackson-datatype-jdk8.version>2.14.1</jackson-datatype-jdk8.version>
         <jackson-datatype-jsr310.version>2.14.1</jackson-datatype-jsr310.version>
         <jackson-datatype-protobuf.version>0.9.13</jackson-datatype-protobuf.version>
+
         <javax.annotation-api.version>1.3.2</javax.annotation-api.version>
         <javax.inject.version>1</javax.inject.version>
         <javax.validation.api.version>2.0.1.Final</javax.validation.api.version>
+
+        <jakarta.version>2.1.1</jakarta.version>
+
         <javax.ws.rs.version>2.1.1</javax.ws.rs.version>
         <jnr-ffi.version>2.2.12</jnr-ffi.version>
         <jnr-fuse.version>0.5.7</jnr-fuse.version>
@@ -360,6 +364,8 @@
                 <artifactId>simpleclient_httpserver</artifactId>
                 <version>${prometheus.version}</version>
             </dependency>
+
+            <!-- TODO: replace with jakarta -->
             <dependency>
                 <groupId>javax.annotation</groupId>
                 <artifactId>javax.annotation-api</artifactId>
@@ -370,6 +376,13 @@
                 <artifactId>validation-api</artifactId>
                 <version>${javax.validation.api.version}</version>
             </dependency>
+
+            <dependency>
+                <groupId>jakarta.annotation</groupId>
+                <artifactId>jakarta.annotation-api</artifactId>
+                <version>${jakarta.version}</version>
+            </dependency>
+
             <dependency>
                 <groupId>javax.ws.rs</groupId>
                 <artifactId>javax.ws.rs-api</artifactId>

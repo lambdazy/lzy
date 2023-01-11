@@ -91,13 +91,14 @@ public class DockerVmAllocator implements VmAllocator {
     }
 
     @Override
-    public void allocate(Vm vm) throws InvalidConfigurationException {
+    public boolean allocate(Vm vm) throws InvalidConfigurationException {
         if (vm.workloads().size() > 1) {
             throw new InvalidConfigurationException("Docker allocator supports only one workload");
         }
         var containerId = requestAllocation(vm.workloads().get(0), vm.vmId());
         try {
             dao.setAllocatorMeta(vm.vmId(), Map.of(CONTAINER_ID_KEY, containerId), null);
+            return true;
         } catch (SQLException e) {
             LOG.error("Cannot allocate VM: {}", e.getMessage(), e);
             throw new RuntimeException("Cannot allocate VM: " + e.getMessage(), e);

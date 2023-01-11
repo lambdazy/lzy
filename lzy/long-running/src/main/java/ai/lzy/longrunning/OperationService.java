@@ -1,6 +1,7 @@
 package ai.lzy.longrunning;
 
 import ai.lzy.longrunning.dao.OperationDao;
+import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.v1.longrunning.LongRunning.CancelOperationRequest;
 import ai.lzy.v1.longrunning.LongRunning.Operation;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
@@ -11,6 +12,7 @@ import org.apache.logging.log4j.Logger;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
+import static ai.lzy.util.grpc.ProtoConverter.toProto;
 import static ai.lzy.v1.longrunning.LongRunning.GetOperationRequest;
 
 public class OperationService extends LongRunningServiceGrpc.LongRunningServiceImplBase {
@@ -47,28 +49,21 @@ public class OperationService extends LongRunningServiceGrpc.LongRunningServiceI
 
     @Override
     public void cancel(CancelOperationRequest request, StreamObserver<Operation> response) {
-        // TODO(artolord) add more logic here
-
-        ai.lzy.longrunning.Operation operation;
-
+        LOG.info("Cancel operation {}", request.getOperationId());
         try {
-            var status = com.google.rpc.Status.newBuilder().setCode(Status.CANCELLED.getCode().value());
-            operation = withRetries(
-                defaultRetryPolicy(),
-                LOG,
-                () -> operations.updateError(request.getOperationId(), status.build().toByteArray(), null));
-        } catch (Exception ex) {
-            LOG.error("Cannot cancel operation {}: {}", request.getOperationId(), ex.getMessage(), ex);
-            response.onError(
-                Status.INTERNAL.withDescription("Database error: " + ex.getMessage()).asException());
-            return;
-        }
-
-        if (operation != null) {
+            var status = toProto(Status.CANCELLED.withDescription(request.getMessage())).toByteArray();
+            var operation = withRetries(LOG, () -> operations.fail(request.getOperationId(), status, null));
+            if (operation == null) {
+                operation = withRetries(LOG, () -> operations.get(request.getOperationId(), null));
+            }
             response.onNext(operation.toProto());
             response.onCompleted();
-        } else {
+        } catch (NotFoundException e) {
+            LOG.error("Cannot cancel operation {}: not found", request.getOperationId());
             response.onError(Status.NOT_FOUND.withDescription("Operation not found").asException());
+        } catch (Exception ex) {
+            LOG.error("Cannot cancel operation {}: {}", request.getOperationId(), ex.getMessage(), ex);
+            response.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
         }
     }
 }

@@ -52,7 +52,7 @@ final class YcDeleteDiskAction extends YcDiskActionBase<YcDeleteDiskState> {
                     try {
                         withRetries(LOG, () -> {
                             try (var tx = TransactionHandle.create(storage())) {
-                                operationsDao().failOperation(opId(), toProto(e.getStatus()), tx, LOG);
+                                operationsDao().fail(opId(), toProto(e.getStatus()), tx);
                                 diskOpDao().deleteDiskOp(opId(), tx);
                                 tx.commit();
                             }
@@ -126,7 +126,7 @@ final class YcDeleteDiskAction extends YcDiskActionBase<YcDeleteDiskState> {
                     try (var tx = TransactionHandle.create(storage())) {
                         diskOpDao().deleteDiskOp(opId(), tx);
                         diskDao().remove(state.diskId(), tx);
-                        operationsDao().updateMetaAndResponse(opId(), meta, resp, tx);
+                        operationsDao().complete(opId(), meta, resp, tx);
                         tx.commit();
                     }
                 });
@@ -148,7 +148,7 @@ final class YcDeleteDiskAction extends YcDiskActionBase<YcDeleteDiskState> {
             withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage())) {
                     diskOpDao().failDiskOp(opId(), ycOp.getError().getMessage(), tx);
-                    operationsDao().updateError(opId(), ycOp.getError().toByteArray(), tx);
+                    operationsDao().fail(opId(), ycOp.getError().toByteArray(), tx);
                     tx.commit();
                 }
             });

@@ -14,6 +14,7 @@ import ai.lzy.channelmanager.operation.ChannelOperationExecutor;
 import ai.lzy.channelmanager.test.InjectedFailures;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.v1.slots.LSA;
 import ai.lzy.v1.workflow.LWFPS;
@@ -84,15 +85,14 @@ public abstract class ChannelAction implements Runnable {
             withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage)) {
                     channelOperationDao.fail(operationId, status.getDescription(), tx);
-                    var operation = operationDao.updateError(operationId, toProto(status).toByteArray(), tx);
-                    if (operation == null) {
-                        LOG.error("Cannot fail operation {} with reason {}: operation not found",
-                            operationId, status.getDescription());
-                    } else {
-                        tx.commit();
-                    }
+                    var operation = operationDao.fail(operationId, toProto(status).toByteArray(), tx);
+                    assert operation == null;
+                    tx.commit();
                 }
             });
+        } catch (NotFoundException ex) {
+            LOG.error("Cannot fail operation {} with reason {}: operation not found",
+                operationId, status.getDescription());
         } catch (Exception ex) {
             LOG.error("Cannot fail operation {} with reason {}: {}",
                 operationId, status.getDescription(), ex.getMessage());

@@ -105,7 +105,7 @@ public class MockDiskManager implements DiskManager {
                         try (var tx = TransactionHandle.create(storage)) {
                             diskDao.insert(disk, tx);
                             diskOpDao.deleteDiskOp(outerOp.opId(), tx);
-                            operationsDao.updateMetaAndResponse(outerOp.opId(), m, r, tx);
+                            operationsDao.complete(outerOp.opId(), m, r, tx);
                             tx.commit();
                         }
                     });
@@ -145,7 +145,7 @@ public class MockDiskManager implements DiskManager {
                 if (notFound) {
                     var status = Status.NOT_FOUND.withDescription("Disk not found");
                     try {
-                        operationsDao.updateError(outerOp.opId(), toProto(status).toByteArray(), null);
+                        operationsDao.fail(outerOp.opId(), toProto(status).toByteArray(), null);
                     } catch (SQLException e) {
                         throw new RuntimeException(e);
                     }
@@ -170,7 +170,7 @@ public class MockDiskManager implements DiskManager {
                         try (var tx = TransactionHandle.create(storage)) {
                             diskOpDao.deleteDiskOp(outerOp.opId(), tx);
                             diskDao.insert(newDisk, tx);
-                            operationsDao.updateMetaAndResponse(outerOp.opId(), m, r, tx);
+                            operationsDao.complete(outerOp.opId(), m, r, tx);
                             tx.commit();
                         }
                     });
@@ -209,7 +209,7 @@ public class MockDiskManager implements DiskManager {
                         try (var tx = TransactionHandle.create(storage)) {
                             diskOpDao.deleteDiskOp(outerOp.opId(), tx);
                             diskDao.remove(diskId, tx);
-                            operationsDao.updateMetaAndResponse(outerOp.opId(), m, r, tx);
+                            operationsDao.complete(outerOp.opId(), m, r, tx);
                             tx.commit();
                         }
                     });

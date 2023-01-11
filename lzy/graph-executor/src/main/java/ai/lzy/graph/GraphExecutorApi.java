@@ -30,6 +30,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -130,7 +131,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
         var packed = Any.pack(response);
 
         try {
-            withRetries(LOG, () -> operationDao.updateResponse(op.id(), packed.toByteArray(), null));
+            withRetries(LOG, () -> operationDao.complete(op.id(), packed.toByteArray(), null));
         } catch (Exception e) {
             LOG.error("Error while executing transaction: {}", e.getMessage(), e);
 
@@ -142,7 +143,11 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
             }
 
             var errorStatus = Status.INTERNAL.withDescription("Error while execute graph: " + e.getMessage());
-            operationDao.failOperation(op.id(), toProto(errorStatus), LOG);
+            try {
+                operationDao.failOperation(op.id(), toProto(errorStatus), null, LOG);
+            } catch (SQLException ex) {
+                LOG.error("Cannot fail operation {}: {}", op.id(), ex.getMessage());
+            }
             responseObserver.onError(errorStatus.asRuntimeException());
             return;
         }

@@ -234,8 +234,9 @@ public class BindAction extends ChannelAction {
             withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage)) {
                     channelOperationDao.delete(operationId, tx);
-                    operationDao.updateResponse(operationId,
+                    var op = operationDao.complete(operationId,
                         Any.pack(LCMS.BindResponse.getDefaultInstance()).toByteArray(), tx);
+                    assert op == null;
                     channelDao.markEndpointBound(state.endpointUri(), tx);
                     tx.commit();
                 }

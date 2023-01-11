@@ -63,11 +63,24 @@ public class OperationDaoDecorator implements OperationDao {
 
     @Nullable
     @Override
-    public Operation updateMetaAndResponse(String id, byte[] meta, byte[] response,
-                                           @Nullable TransactionHandle transaction) throws SQLException
-    {
-        return delegate.updateMetaAndResponse(id, meta, response, transaction);
+    public Operation update(String id, TransactionHandle transaction) throws SQLException {
+        return delegate.update(id, transaction);
     }
+
+    @Nullable
+    @Override
+    public Operation complete(String id, byte[] meta, byte[] response, TransactionHandle transaction)
+        throws SQLException
+    {
+        return delegate.complete(id, meta, response, transaction);
+    }
+
+    @Nullable
+    @Override
+    public Operation complete(String id, byte[] response, TransactionHandle transaction) throws SQLException {
+        return delegate.complete(id, response, transaction);
+    }
+
 
     @Nullable
     @Override
@@ -77,15 +90,17 @@ public class OperationDaoDecorator implements OperationDao {
 
     @Nullable
     @Override
-    public Operation updateResponse(String id, byte[] response, @Nullable TransactionHandle transaction)
-        throws SQLException
-    {
-        return delegate.updateResponse(id, response, transaction);
+    public Operation fail(String id, byte[] error, TransactionHandle transaction) throws SQLException {
+        return delegate.fail(id, error, transaction);
     }
 
-    @Nullable
     @Override
-    public Operation updateError(String id, byte[] error, @Nullable TransactionHandle transaction) throws SQLException {
-        return delegate.updateError(id, error, transaction);
+    public boolean deleteCompletedOperation(String operationId, TransactionHandle transaction) throws SQLException {
+        return delegate.deleteCompletedOperation(operationId, transaction);
+    }
+
+    @Override
+    public int deleteOutdatedOperations(int hours) throws SQLException {
+        return delegate.deleteOutdatedOperations(hours);
     }
 }

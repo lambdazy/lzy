@@ -12,6 +12,7 @@ import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.allocator.volume.KuberVolumeManager;
+import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import io.fabric8.kubernetes.api.model.ListOptionsBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -29,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import javax.inject.Named;
 
 import static ai.lzy.allocator.alloc.impl.kuber.PodSpecBuilder.VM_POD_TEMPLATE_PATH;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
@@ -50,16 +52,19 @@ public class KuberVmAllocator implements VmAllocator {
     public static final String VM_POD_APP_LABEL_VALUE = "vm";
 
     private final VmDao vmDao;
+    private final OperationDao operationsDao;
     private final ClusterRegistry poolRegistry;
     private final KuberClientFactory factory;
     private final NodeRemover nodeRemover;
     private final ServiceConfig config;
 
     @Inject
-    public KuberVmAllocator(VmDao vmDao, ClusterRegistry poolRegistry, KuberClientFactory factory,
-                            NodeRemover nodeRemover, ServiceConfig config)
+    public KuberVmAllocator(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
+                            ClusterRegistry poolRegistry, KuberClientFactory factory, NodeRemover nodeRemover,
+                            ServiceConfig config)
     {
         this.vmDao = vmDao;
+        this.operationsDao = operationsDao;
         this.poolRegistry = poolRegistry;
         this.factory = factory;
         this.nodeRemover = nodeRemover;
@@ -67,8 +72,9 @@ public class KuberVmAllocator implements VmAllocator {
     }
 
     @Override
-    public void allocate(Vm vm) throws InvalidConfigurationException {
+    public boolean allocate(Vm vm) throws InvalidConfigurationException {
         var cluster = poolRegistry.findCluster(vm.poolLabel(), vm.zone(), vm.spec().clusterType());
+
         if (cluster == null) {
             throw new InvalidConfigurationException(
                 "Cannot find pool for label " + vm.poolLabel() + " and zone " + vm.zone());
@@ -88,15 +94,30 @@ public class KuberVmAllocator implements VmAllocator {
                     POD_NAME_KEY, podName,
                     CLUSTER_ID_KEY, cluster.clusterId());
 
-                withRetries(LOG, () -> vmDao.setAllocatorMeta(vmSpec.vmId(), allocatorMeta, null));
+                try {
+                    withRetries(LOG, () -> vmDao.setAllocatorMeta(vmSpec.vmId(), allocatorMeta, null));
+                    allocState = allocState.withAllocatorMeta(allocatorMeta);
+                } catch (Exception ex) {
+                    LOG.error("Cannot save allocator meta for operation {} (VM {}): {}",
+                        vm.allocOpId(), vm.vmId(), ex.getMessage());
+                    return false; // retry later
+                }
 
-                allocState = allocState.withAllocatorMeta(allocatorMeta);
+                try {
+                    var op = withRetries(LOG, () -> operationsDao.update(vm.allocOpId(), null));
+                    if (op != null) {
+                        return true; // already completed (cancelled)
+                    }
+                } catch (Exception ex) {
+                    LOG.error("Cannot update operation {} (VM {}): {}", vm.allocOpId(), vm.vmId(), ex.getMessage());
+                    return false;
+                }
             } else {
                 LOG.info("Found exising allocator meta {} for VM {}", allocState.allocatorMeta(), vmSpec.vmId());
                 // TODO: validate existing meta
             }
 
-            InjectedFailures.failAllocateVm5();
+            InjectedFailures.failAllocateVm6();
 
             if (allocState.volumeClaims() == null) {
                 final var resourceVolumes = vmSpec.volumeRequests().stream()
@@ -106,16 +127,31 @@ public class KuberVmAllocator implements VmAllocator {
 
                 final var volumeClaims = KuberVolumeManager.allocateVolumes(client, resourceVolumes);
 
-                withRetries(LOG, () -> vmDao.setVolumeClaims(vmSpec.vmId(), volumeClaims, null));
+                InjectedFailures.failAllocateVm7();
 
-                allocState = allocState.withVolumeClaims(volumeClaims);
+                try {
+                    withRetries(LOG, () -> vmDao.setVolumeClaims(vmSpec.vmId(), volumeClaims, null));
+                    allocState = allocState.withVolumeClaims(volumeClaims);
+                } catch (Exception ex) {
+                    LOG.error("Cannot save volume claims for operation {} (VM {}): {}",
+                        vm.allocOpId(), vm.vmId(), ex.getMessage());
+                    return false; // retry later
+                }
+
+                try {
+                    var op = withRetries(LOG, () -> operationsDao.update(vm.allocOpId(), null));
+                    if (op != null) {
+                        return true; // already completed (cancelled)
+                    }
+                } catch (Exception ex) {
+                    LOG.error("Cannot update operation {} (VM {}): {}", vm.allocOpId(), vm.vmId(), ex.getMessage());
+                    return false;
+                }
             } else {
                 LOG.info("Found existing volumes claims for VM {}: {}",
                     vmSpec.vmId(),
                     allocState.volumeClaims().stream().map(VolumeClaim::name).collect(Collectors.joining(", ")));
             }
-
-            InjectedFailures.failAllocateVm6();
 
             // add k8s pod affinity to allocate vm pod on the node with the tunnel pod,
             // which must be allocated by TunnelAllocator#allocateTunnel method
@@ -123,7 +159,7 @@ public class KuberVmAllocator implements VmAllocator {
                 podSpecBuilder = podSpecBuilder.withPodAffinity(
                     KuberLabels.LZY_APP_LABEL, "In", KuberTunnelAllocator.TUNNEL_POD_APP_LABEL_VALUE);
 
-                InjectedFailures.failAllocateVm7();
+                InjectedFailures.failAllocateVm8();
             }
 
             final String vmOtt = allocState.vmOtt();
@@ -155,21 +191,19 @@ public class KuberVmAllocator implements VmAllocator {
             } catch (Exception e) {
                 if (KuberUtils.isResourceAlreadyExist(e)) {
                     LOG.warn("Allocation request for VM {} already exist", vmSpec.vmId());
-                    return;
+                    return true;
                 }
 
                 LOG.error("Failed to allocate vm pod: {}", e.getMessage(), e);
-                deallocate(vmSpec.vmId());
-                //TODO (tomato): add retries here if the error is caused due to temporal problems with kuber
+
                 throw new RuntimeException(
                     "Failed to allocate vm (vmId: %s) pod: %s".formatted(vmSpec.vmId(), e.getMessage()), e);
             }
             LOG.debug("Created vm pod in Kuber: {}", pod);
 
-            InjectedFailures.failAllocateVm8();
-        } catch (InjectedFailures.TerminateException e) {
-            LOG.error("Got InjectedFailure, rethrow");
-            throw e;
+            InjectedFailures.failAllocateVm9();
+
+            return true;
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {

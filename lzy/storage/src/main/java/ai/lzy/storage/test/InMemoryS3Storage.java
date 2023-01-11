@@ -25,6 +25,8 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.sql.SQLException;
+
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
 
@@ -87,7 +89,11 @@ public class InMemoryS3Storage implements StorageService {
 
             var errorStatus = Status.INTERNAL.withDescription("S3 internal error: " + e.getMessage()).withCause(e);
 
-            operationDao.failOperation(operation.id(), toProto(errorStatus), LOG);
+            try {
+                operationDao.fail(operation.id(), toProto(errorStatus), null, LOG);
+            } catch (SQLException ex) {
+                LOG.error("Cannot fail operation {}: {}", operation.id(), ex.getMessage());
+            }
 
             responseObserver.onError(errorStatus.asRuntimeException());
             return;
@@ -100,8 +106,10 @@ public class InMemoryS3Storage implements StorageService {
             .build());
 
         try {
-            var completedOp = withRetries(LOG, () ->
-                operationDao.updateResponse(operation.id(), response.toByteArray(), null));
+            var completedOp = withRetries(LOG, () -> {
+                operationDao.complete(operation.id(), response.toByteArray(), null);
+                return operationDao.get(operation.id(), null);
+            });
 
             responseObserver.onNext(completedOp.toProto());
             responseObserver.onCompleted();
@@ -109,7 +117,11 @@ public class InMemoryS3Storage implements StorageService {
             LOG.error("Error while executing transaction: {}", ex.getMessage(), ex);
             var errorStatus = Status.INTERNAL.withDescription("Error while executing request: " + ex.getMessage());
 
-            operationDao.failOperation(operation.id(), toProto(errorStatus), LOG);
+            try {
+                operationDao.fail(operation.id(), toProto(errorStatus), null, LOG);
+            } catch (SQLException e) {
+                LOG.error("Cannot fail operation {}: {}", operation.id(), ex.getMessage());
+            }
 
             responseObserver.onError(errorStatus.asRuntimeException());
         }
