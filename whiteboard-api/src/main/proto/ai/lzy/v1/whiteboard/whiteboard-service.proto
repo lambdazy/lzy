@@ -9,11 +9,11 @@ option java_outer_classname = "LWBS";
 option java_package = "ai.lzy.v1.whiteboard";
 
 service LzyWhiteboardService {
+  rpc RegisterWhiteboard (RegisterWhiteboardRequest) returns (RegisterWhiteboardResponse);
+  rpc UpdateWhiteboard (UpdateWhiteboardRequest) returns (UpdateWhiteboardResponse);
+
   rpc Get (GetRequest) returns (GetResponse);
   rpc List (ListRequest) returns (ListResponse);
-  rpc CreateWhiteboard (CreateWhiteboardRequest) returns (CreateWhiteboardResponse);
-  rpc LinkField (LinkFieldRequest) returns (LinkFieldResponse);
-  rpc FinalizeWhiteboard (FinalizeWhiteboardRequest) returns (FinalizeWhiteboardResponse);
 }
 
 // =========== Get ============
@@ -38,37 +38,20 @@ message ListResponse {
   repeated Whiteboard whiteboards = 1;
 }
 
-// =========== Create ============
+// =========== Register ============
 
-message CreateWhiteboardRequest {
-  string whiteboardName = 1;
-  repeated WhiteboardFieldInfo fields = 2;
-  Storage storage = 3;
-  repeated string tags = 4;
-  string namespace = 5;
-}
-
-message CreateWhiteboardResponse {
+message RegisterWhiteboardRequest {
   Whiteboard whiteboard = 1;
 }
 
-// =========== Link ============
-
-message LinkFieldRequest {
-  string whiteboardId = 1;
-  string fieldName = 2;
-  string storageUri = 3;
-  DataScheme scheme = 4;
+message RegisterWhiteboardResponse {
 }
 
-message LinkFieldResponse {
+// =========== Update ============
+
+message UpdateWhiteboardRequest {
+  Whiteboard whiteboard = 1;
 }
 
-// =========== Finalize ============
-
-message FinalizeWhiteboardRequest {
-  string whiteboardId = 1;
-}
-
-message FinalizeWhiteboardResponse {
+message UpdateWhiteboardResponse {
 }
