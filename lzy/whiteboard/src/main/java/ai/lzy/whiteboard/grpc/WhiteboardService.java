@@ -212,7 +212,7 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
                 LOG.info("Undo creating whiteboard {} done", request.getWhiteboardName());
                 var status = Status.INTERNAL.withCause(e);
 
-                operationDao.fail(op.id(), toProto(status), null, LOG);
+                operationDao.failOperation(op.id(), toProto(status), null, LOG);
 
                 responseObserver.onError(status.asRuntimeException());
             }
@@ -222,7 +222,7 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
             var status = Status.INVALID_ARGUMENT.withDescription(e.getMessage());
 
             try {
-                operationDao.fail(op.id(), toProto(status), null, LOG);
+                operationDao.failOperation(op.id(), toProto(status), null, LOG);
             } catch (SQLException ex) {
                 LOG.error("Cannot fail operation {}: {}", op.id(), ex.getMessage());
             }
@@ -233,7 +233,7 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
             var status = Status.INTERNAL.withCause(e);
 
             try {
-                operationDao.fail(op.id(), toProto(status), null, LOG);
+                operationDao.failOperation(op.id(), toProto(status), null, LOG);
             } catch (SQLException ex) {
                 LOG.error("Cannot fail operation {}: {}", op.id(), ex.getMessage());
             }
@@ -255,7 +255,7 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
             var errorStatus = Status.INTERNAL.withDescription("Error while creating whiteboard: " + e.getMessage());
 
             try {
-                operationDao.fail(op.id(), toProto(errorStatus), null, LOG);
+                operationDao.failOperation(op.id(), toProto(errorStatus), null, LOG);
             } catch (SQLException ex) {
                 LOG.error("Cannot fail operation {}: {}", op.id(), ex.getMessage());
             }

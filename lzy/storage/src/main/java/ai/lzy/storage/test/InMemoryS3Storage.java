@@ -90,7 +90,7 @@ public class InMemoryS3Storage implements StorageService {
             var errorStatus = Status.INTERNAL.withDescription("S3 internal error: " + e.getMessage()).withCause(e);
 
             try {
-                operationDao.fail(operation.id(), toProto(errorStatus), null, LOG);
+                operationDao.failOperation(operation.id(), toProto(errorStatus), null, LOG);
             } catch (SQLException ex) {
                 LOG.error("Cannot fail operation {}: {}", operation.id(), ex.getMessage());
             }
@@ -118,7 +118,7 @@ public class InMemoryS3Storage implements StorageService {
             var errorStatus = Status.INTERNAL.withDescription("Error while executing request: " + ex.getMessage());
 
             try {
-                operationDao.fail(operation.id(), toProto(errorStatus), null, LOG);
+                operationDao.failOperation(operation.id(), toProto(errorStatus), null, LOG);
             } catch (SQLException e) {
                 LOG.error("Cannot fail operation {}: {}", operation.id(), ex.getMessage());
             }
