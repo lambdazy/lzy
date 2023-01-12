@@ -1,26 +1,25 @@
 package ai.lzy.jobutils;
 
+import ai.lzy.jobsutils.JobService;
 import ai.lzy.jobsutils.providers.JobProviderBase;
-import ai.lzy.model.db.Storage;
-import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.jobsutils.providers.JsonJobSerializer;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import jakarta.inject.Singleton;
 
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 @Singleton
 public class Provider extends JobProviderBase<Provider.Data> {
     public static Consumer<Data> onExecute = (a) -> {};
 
-    protected Provider() {
-        super(Data.class);
+    protected Provider(JobService jobService, DataSerializer serializer) {
+        super(serializer, jobService, Data.class);
     }
 
     @Override
-    protected void execute(Data arg) {
+    protected void executeJob(Data arg) {
         onExecute.accept(arg);
     }
 
@@ -28,4 +27,11 @@ public class Provider extends JobProviderBase<Provider.Data> {
     @JsonSerialize
     @JsonDeserialize
     public record Data(String a, String b) {}
+
+    @Singleton
+    public static class DataSerializer extends JsonJobSerializer<Data> {
+        protected DataSerializer() {
+            super(Provider.Data.class);
+        }
+    }
 }

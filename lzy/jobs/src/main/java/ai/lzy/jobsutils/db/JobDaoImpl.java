@@ -6,16 +6,16 @@ import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import jakarta.inject.Singleton;
 
-import javax.annotation.Nullable;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
+import javax.annotation.Nullable;
 
 @Singleton
 public class JobDaoImpl implements JobDao {
-    private static final String FIELDS = "id, provider_class, status, serialized_input, start_after";
+    private static final String FIELDS = "id, provider_class, serializer_class, status, serialized_input, start_after";
 
     private final Storage storage;
 
@@ -28,44 +28,35 @@ public class JobDaoImpl implements JobDao {
         DbOperation.execute(tx, storage, (conn) -> {
             try (PreparedStatement ps = conn.prepareStatement(String.format("""
                 INSERT INTO job (%s)
-                 VALUES (?, ?, ?, ?, ?)""", FIELDS)))
+                 VALUES (?, ?, ?, ?, ?, ?)""", FIELDS)))
             {
                 ps.setString(1, job.id());
                 ps.setString(2, job.providerClass());
-                ps.setString(3, job.status().name());
-                ps.setString(4, job.serializedInput());
-                ps.setTimestamp(5, Timestamp.from(job.startAfter()));
+                ps.setString(3, job.serializerClass());
+                ps.setString(4, job.status().name());
+                ps.setString(5, job.serializedInput());
+                ps.setTimestamp(6, Timestamp.from(job.startAfter()));
 
                 ps.execute();
             }
         });
     }
 
-    @Nullable
     @Override
-    public JobService.Job getForExecution(String id, @Nullable TransactionHandle tx) throws SQLException {
-        return DbOperation.execute(tx, storage, (conn) -> {
-            try (PreparedStatement ps = conn.prepareStatement(String.format("""
+    public void executing(String id, @Nullable TransactionHandle tx) throws SQLException {
+        DbOperation.execute(tx, storage, (conn) -> {
+            try (PreparedStatement ps = conn.prepareStatement("""
                 UPDATE job
                 SET status = ?
                  WHERE id = ? AND status = 'CREATED'
-                RETURNING %s""", FIELDS)))
+                """))
             {
                 ps.setString(1, JobService.JobStatus.EXECUTING.name());
                 ps.setString(2, id);
-                var rs = ps.executeQuery();
-
-                if (!rs.next()) {
-                    return null;
+                var ret = ps.executeUpdate();
+                if (ret != 1) {
+                    throw new RuntimeException("Cannot update, job not found or status is different");
                 }
-
-                var providerClass = rs.getString(2);
-                var status = JobService.JobStatus.valueOf(rs.getString(3));
-                var serializerInput = rs.getString(4);
-                var startAfter = rs.getTimestamp(5).toInstant();
-
-                return new JobService.Job(id, providerClass, status, serializerInput, startAfter);
-
             }
         });
     }
@@ -90,11 +81,11 @@ public class JobDaoImpl implements JobDao {
     }
 
     @Override
-    public List<JobService.Job> listCreated(@Nullable TransactionHandle tx) throws SQLException {
+    public List<JobService.Job> listToRestore(@Nullable TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, (conn) -> {
             try (PreparedStatement ps = conn.prepareStatement(String.format("""
                 SELECT %s FROM job
-                WHERE status = 'CREATED'
+                WHERE status != 'DONE'
                 """, FIELDS)))
             {
                 var rs = ps.executeQuery();
@@ -103,11 +94,13 @@ public class JobDaoImpl implements JobDao {
                 while (rs.next()) {
                     var id = rs.getString(1);
                     var providerClass = rs.getString(2);
-                    var status = JobService.JobStatus.valueOf(rs.getString(3));
-                    var serializerInput = rs.getString(4);
-                    var startAfter = rs.getTimestamp(5).toInstant();
+                    var serializerClass = rs.getString(3);
+                    var status = JobService.JobStatus.valueOf(rs.getString(4));
+                    var serializerInput = rs.getString(5);
+                    var startAfter = rs.getTimestamp(6).toInstant();
 
-                    list.add(new JobService.Job(id, providerClass, status, serializerInput, startAfter));
+                    list.add(new JobService.Job(id, providerClass, serializerClass,
+                        status, serializerInput, startAfter));
                 }
                 return list;
             }

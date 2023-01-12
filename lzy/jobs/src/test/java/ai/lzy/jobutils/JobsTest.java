@@ -1,44 +1,46 @@
 package ai.lzy.jobutils;
 
 import ai.lzy.jobsutils.JobService;
-import ai.lzy.jobsutils.providers.WaitForOperation;
-import ai.lzy.longrunning.LocalOperationService;
+import ai.lzy.jobsutils.db.JobsOperationDao;
 import ai.lzy.longrunning.Operation;
+import ai.lzy.longrunning.OperationService;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.util.grpc.GrpcUtils;
-import io.grpc.Status;
+import com.google.rpc.Status;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import jakarta.inject.Singleton;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.*;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
 
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 
 public class JobsTest {
+    private static final Logger LOG = LogManager.getLogger(JobsTest.class);
     @Rule
     public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
 
     private ApplicationContext context;
     private JobService service;
     private Provider provider;
-    private WaitForOperation waitForOp;
+    private JobsOperationDao opDao;
 
     @Before
     public void setUp() {
         context = ApplicationContext.run(DatabaseTestUtils.preparePostgresConfig("jobs", db.getConnectionInfo()));
         service = context.getBean(JobService.class);
         provider = context.getBean(Provider.class);
-        this.waitForOp = context.getBean(WaitForOperation.class);
+        opDao = context.getBean(JobsOperationDao.class);
+
     }
 
     @After
     public void tearDown() {
+        service.stop();
         context.close();
     }
 
@@ -48,8 +50,7 @@ public class JobsTest {
         Provider.onExecute = f::complete;
 
         var data = new Provider.Data("a", "b");
-
-        service.create(provider, data, null);
+        provider.schedule(data, null);
 
         var ret = f.get();
 
@@ -58,7 +59,7 @@ public class JobsTest {
 
     @Test
     public void testOp() throws Exception {
-        var operationService = new LocalOperationService("service");
+        var operationService = new OperationService(opDao);
         var server = newGrpcServer("0.0.0.0", 19234, GrpcUtils.NO_AUTH)
             .addService(operationService)
             .build();
@@ -73,99 +74,107 @@ public class JobsTest {
             null,
             null,
             Instant.now(),
-            true,
+            false,
             null,
             null
         );
 
         try {
-            operationService.registerOperation(op);
+            opDao.create(op, null);
 
-            var f = new CompletableFuture<WaitForOperation.OperationResult>();
+            var f1 = new CompletableFuture<Provider.Data>();
 
-            OpConsumer.onRes = f::complete;
+            A.onExecute = (d) -> {
+                f1.complete(d);
+                return new Provider.Data("1", "1");
+            };
 
-            service.create(waitForOp, new WaitForOperation.OperationDescription(
-                "localhost:19234",
-                op.id(),
-                Duration.ofMillis(100),
-                OpConsumer.class.getName(),
-                null,
-                null,
-                null
-            ), null);
+            var f2 = new CompletableFuture<Provider.Data>();
 
-            var res = f.get();
+            B.onExecute = (d) -> {
+                f2.complete(d);
+                return new Provider.Data("2", "2");
+            };
 
-            Assert.assertEquals(Status.OK.getCode().value(), res.statusCode().intValue());
-            Assert.assertEquals("test", res.op().getCreatedBy());
+            var a = context.getBean(A.class);
+
+            a.schedule(op.id(), new Provider.Data("0", "0"), null, null);
+
+            var res = f1.get();
+
+            Assert.assertEquals("0", res.a());
+
+            res = f2.get();
+
+            Assert.assertEquals("1", res.a());
 
         } finally {
             server.shutdownNow();
             server.awaitTermination();
         }
-
-
     }
 
     @Test
-    public void testOpFail() throws Exception {
-        var operationService = new LocalOperationService("service");
+    public void testFailOp() throws Exception {
+        var operationService = new OperationService(opDao);
         var server = newGrpcServer("0.0.0.0", 19234, GrpcUtils.NO_AUTH)
-            .addService(operationService)
-            .build();
+                .addService(operationService)
+                .build();
 
         server.start();
 
         var op = new Operation(
-            "opId",
-            "test",
-            Instant.now(),
-            "",
-            null,
-            null,
-            Instant.now(),
-            true,
-            null,
-            null
+                "opId",
+                "test",
+                Instant.now(),
+                "",
+                null,
+                null,
+                Instant.now(),
+                false,
+                null,
+                null
         );
 
         try {
+            opDao.create(op, null);
 
-            var f = new CompletableFuture<WaitForOperation.OperationResult>();
+            var f1 = new CompletableFuture<Provider.Data>();
 
-            OpConsumer.onRes = f::complete;
+            A.onClear = (d) -> {
+                f1.complete(d);
+                return new Provider.Data("2", "2");
+            };
 
-            service.create(waitForOp, new WaitForOperation.OperationDescription(
-                "localhost:19234",
-                op.id(),
-                Duration.ofMillis(100),
-                OpConsumer.class.getName(),
-                null,
-                null,
-                null
-            ), null);
+            var f2 = new CompletableFuture<Provider.Data>();
 
-            var res = f.get();
+            B.onClear = (d) -> {
+                f2.complete(d);
+                return new Provider.Data("1", "1");
+            };
 
-            Assert.assertEquals(Status.NOT_FOUND.getCode().value(), res.statusCode().intValue());
+            A.onExecute = (d) -> {
+                opDao.failOperation(op.id(), Status.newBuilder()
+                    .setCode(io.grpc.Status.Code.INTERNAL.value())
+                    .build(), LOG);
+                return d;
+            };
+
+            var a = context.getBean(A.class);
+
+            a.schedule(op.id(), new Provider.Data("0", "0"), null, null);
+
+            var res = f2.get();
+
+            Assert.assertEquals("0", res.a());
+
+            res = f1.get();
+
+            Assert.assertEquals("1", res.a());
 
         } finally {
             server.shutdownNow();
             server.awaitTermination();
-        }
-
-
-    }
-
-    @Singleton
-    public static class OpConsumer extends WaitForOperation.OperationConsumer {
-
-        public static Consumer<WaitForOperation.OperationResult> onRes = (a) -> {};
-
-        @Override
-        protected void execute(WaitForOperation.OperationResult arg) {
-            onRes.accept(arg);
         }
     }
 
