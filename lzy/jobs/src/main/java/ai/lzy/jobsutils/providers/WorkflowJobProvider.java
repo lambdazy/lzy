@@ -168,6 +168,10 @@ public abstract class WorkflowJobProvider<T> extends JobProviderBase<WorkflowJob
         }
     }
 
+    protected void reschedule() throws JobProviderException {
+        throw new JobProviderException(null);
+    }
+
     public void schedule(String opId, T input, @Nullable Duration startAfter,
                          @Nullable Instant deadline) throws SerializationException
     {
@@ -198,9 +202,5 @@ public abstract class WorkflowJobProvider<T> extends JobProviderBase<WorkflowJob
 
     protected void fail(Status status) throws JobProviderException {
         throw new JobProviderException(status);
-    }
-
-    protected void reschedule() throws JobProviderException {
-        throw new JobProviderException(null);
     }
 }
