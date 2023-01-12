@@ -2,20 +2,22 @@ package ai.lzy.jobsutils;
 
 import ai.lzy.jobsutils.db.JobDao;
 import ai.lzy.jobsutils.providers.JobProvider;
+import ai.lzy.jobsutils.providers.JobSerializer;
 import ai.lzy.model.db.DbHelper;
 import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.annotation.Nullable;
-import javax.annotation.PreDestroy;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
+import javax.annotation.PreDestroy;
 
 @Singleton
 public class JobService {
@@ -25,34 +27,42 @@ public class JobService {
 
     // TODO(artolord) add config here
     private final ScheduledThreadPoolExecutor pool = new ScheduledThreadPoolExecutor(16);
+    private final ConcurrentHashMap<String, JobProvider> providers = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, JobSerializer> serializers = new ConcurrentHashMap<>();
 
     public JobService(JobDao dao, ApplicationContext context) {
         this.dao = dao;
         this.context = context;
+        pool.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
         pool.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+        pool.setRemoveOnCancelPolicy(true);
         restore();
     }
 
     /**
      * Restore jobs pool
      */
-    public void restore() {
+    private void restore() {
         final List<Job> jobs;
         try {
-            jobs = DbHelper.withRetries(LOG, () -> dao.listCreated(null));
+            jobs = DbHelper.withRetries(LOG, () -> dao.listToRestore(null));
         } catch (Exception e) {
             LOG.error("Cannot restore job service: ", e);
             return;
         }
 
+        LOG.debug("Restoring {} jobs: {}", jobs.size(), jobs);
+
         for (var job: jobs) {
-            pool.schedule(() -> executeJob(job.id), Duration.between(job.startAfter(),
-                Instant.now()).toMillis(), TimeUnit.MILLISECONDS);
+            LOG.debug("Restoring job {} for provider {}", job.id, job.providerClass);
+            pool.schedule(() -> executeJob(job, null), Duration.between(Instant.now(), job.startAfter()).toMillis(),
+                TimeUnit.MILLISECONDS);
         }
     }
 
-    public void create(JobProvider provider, @Nullable Object input,
-                       @Nullable Duration startAfter) throws JobProvider.SerializationException {
+    public void create(JobProvider provider, JobSerializer serializer, @Nullable Object input,
+                       @Nullable Duration startAfter) throws JobSerializer.SerializationException
+    {
         var id = UUID.randomUUID().toString();
 
         var dur = startAfter == null ? Duration.ZERO : startAfter;
@@ -60,8 +70,9 @@ public class JobService {
         var job = new Job(
             id,
             provider.getClass().getName(),
+            serializer.getClass().getName(),
             JobStatus.CREATED,
-            provider.serialize(input),
+            serializer.serialize(input),
             Instant.now().plus(dur)
         );
 
@@ -71,60 +82,76 @@ public class JobService {
             LOG.error("Error while inserting job: ", e);
             throw new RuntimeException(e);
         }
-
-        pool.schedule(() -> executeJob(id), dur.toMillis(), TimeUnit.MILLISECONDS);
+        LOG.debug("Scheduling to execute job {} for provider {} after {} ms", job.id,
+            job.providerClass, dur.toMillis());
+        pool.schedule(() -> executeJob(job, input), dur.toMillis(), TimeUnit.MILLISECONDS);
     }
 
-    private void executeJob(String jobId) {
-        final Job job;
+    private void executeJob(Job job, @Nullable Object arg) {
+        LOG.debug("Starting to execute job {} of provider {}", job.id, job.providerClass);
 
         // Getting job from dao
         try {
-            job = DbHelper.withRetries(LOG, () -> dao.getForExecution(jobId, null));
-
-            if (job == null) {
-                LOG.error("Job {} already done or not found", jobId);
-                return;
-            }
+            DbHelper.withRetries(LOG, () -> dao.executing(job.id, null));
         } catch (Exception e) {
-            LOG.error("Error while getting job {} from dao", jobId, e);
+            LOG.error("Error while getting job {} from dao", job.id, e);
             return;
         }
 
         final JobProvider provider;
 
-        // Getting provider from context
-        try {
-            provider = (JobProvider) context.getBean(Class.forName(job.providerClass()));
-        } catch (Exception e) {
+        if (providers.containsKey(job.providerClass)) {
+            provider = providers.get(job.providerClass);
+        } else {
+
+            // Getting provider from context
             try {
-                LOG.error("Cannot get provider {} for job", job.providerClass);
-                DbHelper.withRetries(LOG, () -> dao.complete(jobId, JobStatus.EXECUTING, null));
-            } catch (Exception ex) {
-                LOG.error("Cannot fail job for provider {}:", job.providerClass, e);
+                provider = (JobProvider) context.getBean(Class.forName(job.providerClass()));
+                providers.put(job.providerClass(), provider);
+            } catch (Exception e) {
+                try {
+                    LOG.error("Cannot get provider {} for job", job.providerClass);
+                    DbHelper.withRetries(LOG, () -> dao.complete(job.id, JobStatus.EXECUTING, null));
+                } catch (Exception ex) {
+                    LOG.error("Cannot fail job for provider {}:", job.providerClass, e);
+                }
+                return;
             }
-
-            return;
         }
-
 
         // Executing job
         try {
-            provider.execute(job.serializedInput);
+            if (arg != null) {
+                provider.execute(arg);
+            } else {
+                final JobSerializer serializer;
+                if (serializers.containsKey(job.serializerClass)) {
+                    serializer = serializers.get(job.serializerClass);
+                } else {
+                    serializer = (JobSerializer) context.getBean(Class.forName(job.serializerClass));
+                    serializers.put(job.serializerClass, serializer);
+                }
+
+                var input = serializer.deserialize(job.serializedInput);
+                provider.execute(input);
+            }
         } catch (Exception e) {
             LOG.error("Error while executing job for provider {}: ", job.providerClass, e);
         }
 
         // Completing job
         try {
-            DbHelper.withRetries(LOG, () -> dao.complete(jobId, JobStatus.EXECUTING, null));
+            DbHelper.withRetries(LOG, () -> dao.complete(job.id, JobStatus.EXECUTING, null));
         } catch (Exception e) {
             LOG.error("Error while completing job {}: ", job.providerClass, e);
         }
+
+        LOG.debug("Completing job {}", job.id);
     }
 
     @PreDestroy
     public void stop() {
+        LOG.info("Stopping JobService");
         this.pool.shutdown();
         try {
             this.pool.awaitTermination(10, TimeUnit.SECONDS);
@@ -143,6 +170,7 @@ public class JobService {
     public record Job(
         String id,  // Job id
         String providerClass,  // Job provider class name, must be a bean and implementation of JobProvider
+        String serializerClass,  // Argument serializer class, must be a bean and implementation of JobSerializer
         JobStatus status,  // Current status of job
         @Nullable String serializedInput,  // Serialized input of job
         Instant startAfter  // Delay start of job to duration

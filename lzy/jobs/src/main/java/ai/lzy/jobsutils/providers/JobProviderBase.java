@@ -1,46 +1,39 @@
 package ai.lzy.jobsutils.providers;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import ai.lzy.jobsutils.JobService;
+import ai.lzy.jobsutils.providers.JobSerializer.SerializationException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.time.Duration;
 import javax.annotation.Nullable;
 
-/**
- * Job provider to serialize/deserialize data with jackson
- * @param <T> Must be JsonSerializable and JsonDeserializable by jackson
- */
 public abstract class JobProviderBase<T> implements JobProvider {
+    private static final Logger LOG = LogManager.getLogger(JobProviderBase.class);
 
-    private static final Logger LOG = LogManager.getLogger(WaitForOperation.class);
-    final ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+    final JobSerializerBase<T> serializer;
+    final JobService jobService;
     final Class<T> type;
 
-    protected JobProviderBase(Class<T> type) {
+    protected JobProviderBase(JobSerializerBase<T> serializer, JobService jobService, Class<T> type) {
+        this.serializer = serializer;
+        this.jobService = jobService;
         this.type = type;
     }
 
-    protected abstract void execute(T arg);
+    protected abstract void executeJob(T arg);
 
     @Override
-    public void execute(@Nullable String serializedInput) {
-        final T data;
-        try {
-            data = mapper.readValue(serializedInput, type);
-        } catch (JsonProcessingException e) {
-            LOG.error("Error while parsing data: ", e);
-            return;
+    public void execute(Object data) {
+        if (type.isInstance(data)) {
+            executeJob(type.cast(data));
+        } else {
+            LOG.error("Cannot cast {} to {}", data.getClass().getName(), type.getName());
+            throw new RuntimeException("Error while executing job");
         }
-        execute(data);
     }
 
-    @Override
-    public String serialize(Object input) throws SerializationException {
-        try {
-            return mapper.writeValueAsString(input);
-        } catch (JsonProcessingException e) {
-            throw new SerializationException(e);
-        }
+    public void schedule(T arg, @Nullable Duration startAfter) throws SerializationException {
+        jobService.create(this, serializer, arg, startAfter);
     }
 }
