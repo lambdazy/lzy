@@ -153,7 +153,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                                 LOG.error("Create disk failed, disk {} not found", diskId);
 
                                 var status = toProto(Status.NOT_FOUND);
-                                operationsDao.updateError(createDiskOperation.id(), status.toByteArray(), tx);
+                                operationsDao.fail(createDiskOperation.id(), status, tx);
 
                                 tx.commit();
                                 metrics.createDiskError.inc();
@@ -172,8 +172,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                             createDiskOperation.modifyMeta(meta);
                             createDiskOperation.setResponse(resp);
 
-                            operationsDao.updateMetaAndResponse(
-                                createDiskOperation.id(), meta.toByteArray(), resp.toByteArray(), tx);
+                            operationsDao.complete(createDiskOperation.id(), meta, resp, tx);
 
                             diskDao.insert(disk, tx);
                             tx.commit();
@@ -239,7 +238,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                         origDisk = getDisk(request.getDiskId(), tx);
                     } catch (StatusException e) {
                         LOG.error(e.getStatus().getDescription());
-                        operationsDao.updateError(cloneDiskOperation.id(), toProto(e.getStatus()).toByteArray(), tx);
+                        operationsDao.fail(cloneDiskOperation.id(), toProto(e.getStatus()), tx);
                         tx.commit();
                         metrics.cloneDiskError.inc();
                         return null;
@@ -250,7 +249,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                             "Unable to clone disk [operation_id=%s]. Disk %s not found."
                                 .formatted(cloneDiskOperation.id(), request.getDiskId()));
                         LOG.error(status.getDescription());
-                        operationsDao.updateError(cloneDiskOperation.id(), toProto(status).toByteArray(), tx);
+                        operationsDao.fail(cloneDiskOperation.id(), toProto(status), tx);
                         tx.commit();
                         metrics.cloneDiskError.inc();
                         return null;
@@ -268,7 +267,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                             "Unable to clone disk [operation_id=%s]. %s"
                                 .formatted(cloneDiskOperation.id(), e.getMessage()));
                         LOG.error(status.getDescription());
-                        operationsDao.updateError(cloneDiskOperation.id(), toProto(status).toByteArray(), tx);
+                        operationsDao.fail(cloneDiskOperation.id(), toProto(status), tx);
                         tx.commit();
                         metrics.cloneDiskError.inc();
                         return null;
@@ -330,7 +329,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                         disk = getDisk(request.getDiskId(), tx);
                     } catch (StatusException e) {
                         LOG.error(e.getStatus().getDescription());
-                        operationsDao.updateError(deleteDiskOperation.id(), toProto(e.getStatus()).toByteArray(), tx);
+                        operationsDao.fail(deleteDiskOperation.id(), toProto(e.getStatus()), tx);
                         tx.commit();
                         metrics.deleteDiskError.inc();
                         return null;
@@ -341,7 +340,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                             "Unable to delete disk [operation_id=%s]. Disk %s not found."
                                 .formatted(deleteDiskOperation.id(), request.getDiskId()));
                         LOG.error(status.getDescription());
-                        operationsDao.updateError(deleteDiskOperation.id(), toProto(status).toByteArray(), tx);
+                        operationsDao.fail(deleteDiskOperation.id(), toProto(status), tx);
                         tx.commit();
                         metrics.deleteDiskError.inc();
                         return null;

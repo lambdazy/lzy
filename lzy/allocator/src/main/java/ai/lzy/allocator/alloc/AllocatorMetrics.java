@@ -45,6 +45,11 @@ public class AllocatorMetrics {
         .subsystem(ALLOCATOR)
         .register();
 
+    public final Counter allocationTimeout = Counter
+        .build("allocate_timeout", "Allocation timeout errors")
+        .subsystem(ALLOCATOR)
+        .register();
+
     public final Histogram allocateNewDuration = Histogram
         .build("allocate_new_time", "Allocate duration (sec)")
         .subsystem(ALLOCATOR)

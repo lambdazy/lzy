@@ -1,6 +1,6 @@
 package ai.lzy.allocator.services;
 
-import ai.lzy.allocator.AllocatorMain;
+import ai.lzy.allocator.alloc.AllocateVmAction;
 import ai.lzy.allocator.alloc.AllocatorMetrics;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.alloc.dao.SessionDao;
@@ -15,15 +15,11 @@ import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
-import ai.lzy.iam.resources.credentials.SubjectCredentials;
-import ai.lzy.iam.resources.subjects.AuthProvider;
-import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.model.db.TransactionHandle;
-import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.util.grpc.ProtoPrinter;
 import ai.lzy.v1.AllocatorGrpc;
@@ -32,12 +28,13 @@ import ai.lzy.v1.VolumeApi;
 import ai.lzy.v1.longrunning.LongRunning;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.Any;
-import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
+import jakarta.annotation.PreDestroy;
 import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -51,16 +48,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-import javax.annotation.PreDestroy;
-import javax.inject.Named;
 
 import static ai.lzy.allocator.model.HostPathVolumeDescription.HostPathType;
 import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
 import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
 import static ai.lzy.model.db.DbHelper.withRetries;
-import static ai.lzy.util.grpc.ProtoConverter.toProto;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -79,15 +72,13 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     private final ScheduledExecutorService executor;
     private final AllocatorMetrics metrics;
     private final SubjectServiceGrpcClient subjectClient;
-    private final AtomicInteger runningAllocations = new AtomicInteger(0);
 
     @Inject
     public AllocatorService(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
                             SessionDao sessionsDao, DiskDao diskDao, VmAllocator allocator,
                             TunnelAllocator tunnelAllocator, ServiceConfig config, AllocatorDataSource storage,
                             AllocatorMetrics metrics, @Named("AllocatorExecutor") ScheduledExecutorService executor,
-                            @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
-                            @Named("AllocatorIamToken") RenewableJwt iamToken)
+                            @Named("AllocatorSubjectServiceClient") SubjectServiceGrpcClient subjectClient)
     {
         this.vmDao = vmDao;
         this.operationsDao = operationsDao;
@@ -99,18 +90,19 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         this.storage = storage;
         this.metrics = metrics;
         this.executor = executor;
-        this.subjectClient = new SubjectServiceGrpcClient(AllocatorMain.APP, iamChannel, iamToken::get);
+        this.subjectClient = subjectClient;
 
         restoreRunningAllocations();
     }
 
     private void restoreRunningAllocations() {
         try {
-            var vms = vmDao.loadNotCompletedVms(config.getInstanceId(), null);
+            var vms = vmDao.loadAllocatingVms(config.getInstanceId(), null);
             if (!vms.isEmpty()) {
                 LOG.warn("Found {} not completed allocations on allocator {}", vms.size(), config.getInstanceId());
 
-                vms.forEach(vm -> executor.submit(new AllocateVmAction(vm, true)));
+                vms.forEach(vm -> executor.submit(new AllocateVmAction(vm, storage, operationsDao, vmDao, executor,
+                    subjectClient, allocator, tunnelAllocator, metrics, true)));
             } else {
                 LOG.info("Not completed allocations weren't found.");
             }
@@ -121,7 +113,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
     @PreDestroy
     public void shutdown() {
-        LOG.info("Shutdown AllocatorService, active allocations: {}", runningAllocations.get());
+        LOG.info("Shutdown AllocatorService, active allocations: ???");
     }
 
     @VisibleForTesting
@@ -200,12 +192,13 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         try {
             success = withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage)) {
-                    var ok = sessionsDao.delete(request.getSessionId(), tx);
-                    if (ok) {
+                    var session = sessionsDao.delete(request.getSessionId(), tx);
+                    if (session != null) {
+                        operationsDao.deleteCompletedOperation(session.opId(), tx);
                         vmDao.delete(request.getSessionId(), tx);
                     }
                     tx.commit();
-                    return ok;
+                    return session != null;
                 }
             });
         } catch (Exception ex) {
@@ -368,7 +361,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         .build());
 
                     op.modifyMeta(meta);
-                    operationsDao.updateMeta(op.id(), meta.toByteArray(), tx);
+                    operationsDao.updateMeta(op.id(), meta, tx);
 
                     tx.commit();
 
@@ -403,9 +396,10 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             return;
         }
 
-        InjectedFailures.failAllocateVm1();
+        InjectedFailures.failAllocateVm0();
 
-        executor.submit(new AllocateVmAction(vm, false));
+        executor.submit(new AllocateVmAction(vm, storage, operationsDao, vmDao, executor, subjectClient, allocator,
+            tunnelAllocator, metrics, false));
     }
 
     @Override
@@ -549,78 +543,5 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             return false;
         }
         return true;
-    }
-
-
-    private final class AllocateVmAction implements Runnable {
-        private Vm vm;
-        private final boolean restore;
-
-        AllocateVmAction(Vm vm, boolean restore) {
-            this.vm = vm;
-            this.restore = restore;
-            runningAllocations.getAndIncrement();
-        }
-
-        @Override
-        public void run() {
-            if (restore) {
-                LOG.info("Restore VM {} allocation...", vm.toString());
-            }
-
-            try {
-                InjectedFailures.failAllocateVm2();
-
-                if (vm.allocateState().vmSubjectId() == null) {
-                    var vmSubj = subjectClient
-                        .withIdempotencyKey(vm.vmId())
-                        .createSubject(
-                            AuthProvider.INTERNAL,
-                            vm.vmId(),
-                            SubjectType.VM,
-                            SubjectCredentials.ott("main", vm.allocateState().vmOtt(), Duration.ofMinutes(15)));
-
-                    LOG.info("Create IAM VM subject {} with OTT credentials for vmId {}", vmSubj.id(), vm.vmId());
-
-                    withRetries(LOG, () -> vmDao.setVmSubjectId(vm.vmId(), vmSubj.id(), null));
-
-                    vm = vm.withVmSubjId(vmSubj.id());
-                }
-
-                InjectedFailures.failAllocateVm3();
-
-                try {
-                    if (vm.proxyV6Address() != null) {
-                        if (vm.allocateState().tunnelPodName() == null) {
-                            var tunnelPodName = tunnelAllocator.allocateTunnel(vm.spec());
-                            withRetries(LOG, () -> vmDao.setTunnelPod(vm.vmId(), tunnelPodName, null));
-                            vm = vm.withTunnelPod(tunnelPodName);
-                        } else {
-                            LOG.info("Found existing tunnel pod {} with address {} for VM {}",
-                                vm.allocateState().tunnelPodName(), vm.proxyV6Address(), vm.vmId());
-                        }
-
-                        InjectedFailures.failAllocateVm4();
-                    }
-
-                    allocator.allocate(vm);
-                } catch (InvalidConfigurationException e) {
-                    LOG.error("Error while allocating: {}", e.getMessage(), e);
-                    metrics.allocationError.inc();
-                    operationsDao.failOperation(
-                        vm.allocOpId(), toProto(Status.INVALID_ARGUMENT.withDescription(e.getMessage())), LOG);
-                }
-            } catch (InjectedFailures.TerminateException e) {
-                LOG.error("Got InjectedFailure exception: " + e.getMessage());
-                // don't fail operation explicitly, just pass
-            } catch (Exception e) {
-                LOG.error("Error during VM {} allocation: {}", vm.vmId(), e.getMessage(), e);
-                metrics.allocationError.inc();
-                operationsDao.failOperation(
-                    vm.allocOpId(), toProto(Status.INTERNAL.withDescription("Error while executing request")), LOG);
-            } finally {
-                runningAllocations.getAndDecrement();
-            }
-        }
     }
 }

@@ -14,8 +14,10 @@ allocator:
   allocation-timeout: 15m
 
   gc:
+    initial-delay: 10s
     cleanup-period: 3m
     lease-duration: 30m
+    graceful-shutdown-duration: 10s
 
   metrics:
     kind: 'Prometheus'

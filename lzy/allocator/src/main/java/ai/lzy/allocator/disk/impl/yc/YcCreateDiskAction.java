@@ -48,7 +48,7 @@ final class YcCreateDiskAction extends YcDiskActionBase<YcCreateDiskState> {
                 try (var tx = TransactionHandle.create(storage())) {
                     var ok = diskOpDao().deleteDiskOp(opId(), tx);
                     if (ok) {
-                        operationsDao().failOperation(opId(), status, tx, LOG);
+                        operationsDao().fail(opId(), status, tx);
                         tx.commit();
                     }
                     return ok;
@@ -211,20 +211,18 @@ final class YcCreateDiskAction extends YcDiskActionBase<YcCreateDiskState> {
                 var meta = Any.pack(
                         DiskServiceApi.CreateDiskMetadata.newBuilder()
                             .setDiskId(diskId)
-                            .build())
-                    .toByteArray();
+                            .build());
 
                 var resp = Any.pack(
                         DiskServiceApi.CreateDiskResponse.newBuilder()
                             .setDisk(disk.toProto())
-                            .build())
-                    .toByteArray();
+                            .build());
 
                 withRetries(LOG, () -> {
                     try (var tx = TransactionHandle.create(storage())) {
                         diskOpDao().deleteDiskOp(opId(), tx);
                         diskDao().insert(disk, tx);
-                        operationsDao().updateMetaAndResponse(opId(), meta, resp, tx);
+                        operationsDao().complete(opId(), meta, resp, tx);
                         tx.commit();
                     }
                 });

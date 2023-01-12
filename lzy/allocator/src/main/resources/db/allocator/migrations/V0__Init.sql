@@ -5,7 +5,7 @@ CREATE TABLE operation
     created_at      TIMESTAMP NOT NULL,
     modified_at     TIMESTAMP NOT NULL,
     description     TEXT      NOT NULL,
-    done            bool      NOT NULL,
+    done            BOOLEAN   NOT NULL,
 
     meta            BYTEA     NULL,
     response        BYTEA     NULL,
@@ -19,7 +19,7 @@ CREATE TABLE operation
 );
 
 CREATE UNIQUE INDEX idempotency_key_to_operation_index ON operation (idempotency_key);
-CREATE INDEX active_operation_index ON operation (id) WHERE done = FALSE;
+CREATE UNIQUE INDEX failed_operations_index ON operation (id) WHERE done = TRUE AND error IS NOT NULL;
 
 CREATE TABLE session
 (
@@ -28,19 +28,15 @@ CREATE TABLE session
     description       TEXT      NULL,
     cache_policy_json TEXT      NOT NULL,
 
-    created_at        TIMESTAMP NOT NULL DEFAULT now(),
-    op_id             TEXT      NOT NULL REFERENCES operation (id),
-
-    deleted_at        TIMESTAMP NULL
+    created_at        TIMESTAMP NOT NULL DEFAULT NOW(),
+    op_id             TEXT      NOT NULL REFERENCES operation (id)
 );
-
-CREATE INDEX session_activity_index ON session (deleted_at) WHERE (deleted_at IS NOT NULL);
 
 CREATE TABLE vm
 (
 -- spec
     id                    TEXT      NOT NULL PRIMARY KEY,
-    session_id            TEXT      NOT NULL REFERENCES session (id),
+    session_id            TEXT      NOT NULL,
     pool_label            TEXT      NOT NULL,
     zone                  TEXT      NOT NULL,
     init_workloads_json   TEXT      NOT NULL,
@@ -51,7 +47,7 @@ CREATE TABLE vm
 
 -- state
     -- overall status
-    status                TEXT      NOT NULL,
+    status                TEXT      NOT NULL, -- INIT, ALLOCATING, RUNNING, IDLE, DELETING
 
     -- allocation progress
     allocation_op_id      TEXT      NOT NULL REFERENCES operation (id),
@@ -71,6 +67,7 @@ CREATE TABLE vm
 );
 
 CREATE INDEX allocation_operation_vm_index ON vm (allocation_op_id);
+CREATE INDEX session_vm_index ON vm (session_id);
 
 CREATE TABLE disk
 (

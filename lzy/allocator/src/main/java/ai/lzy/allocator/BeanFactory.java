@@ -3,6 +3,7 @@ package ai.lzy.allocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.storage.AllocatorDataSource;
+import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.metrics.DummyMetricReporter;
@@ -19,6 +20,10 @@ import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
 import io.micronaut.context.annotation.Requires;
 import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.Counter;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.PreDestroy;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -30,9 +35,6 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.annotation.Nonnull;
-import javax.annotation.PreDestroy;
-import javax.inject.Named;
 
 @Factory
 public class BeanFactory {
@@ -99,10 +101,23 @@ public class BeanFactory {
     }
 
     @Singleton
+    @Named("AllocatorSubjectServiceClient")
+    public SubjectServiceGrpcClient subjectServiceClient(@Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
+                                                         @Named("AllocatorIamToken") RenewableJwt iamToken)
+    {
+        return new SubjectServiceGrpcClient(AllocatorMain.APP, iamChannel, iamToken::get);
+    }
+
+    @Singleton
     @Named("AllocatorExecutor")
     @Bean(preDestroy = "shutdown")
     public ScheduledExecutorService executorService(AllocatorDataSource ignoredStorage) {
         final var logger = LogManager.getLogger("AllocatorExecutor");
+
+        final Counter errors = Counter
+            .build("executor_errors", "Executor unexpected errors")
+            .subsystem("allocator")
+            .register();
 
         var executor = new ScheduledThreadPoolExecutor(5, new ThreadFactory() {
             private final AtomicInteger counter = new AtomicInteger(1);
@@ -110,8 +125,10 @@ public class BeanFactory {
             @Override
             public Thread newThread(@Nonnull Runnable r) {
                 var th = new Thread(r, "executor-" + counter.getAndIncrement());
-                th.setUncaughtExceptionHandler(
-                    (t, e) -> logger.error("Unexpected exception in thread {}: {}", t.getName(), e.getMessage(), e));
+                th.setUncaughtExceptionHandler((t, e) -> {
+                    errors.inc();
+                    logger.error("Unexpected exception in thread {}: {}", t.getName(), e.getMessage(), e);
+                });
                 return th;
             }
         }) {
@@ -132,6 +149,7 @@ public class BeanFactory {
                     }
                 }
                 if (t != null) {
+                    errors.inc();
                     logger.error("Unexpected exception: {}", t.getMessage(), t);
                 }
             }

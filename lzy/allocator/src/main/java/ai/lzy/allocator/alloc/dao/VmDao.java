@@ -4,12 +4,12 @@ import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.VolumeClaim;
 import ai.lzy.model.db.TransactionHandle;
 import com.google.common.annotations.VisibleForTesting;
+import jakarta.annotation.Nullable;
 
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 
 public interface VmDao {
 
@@ -51,8 +51,7 @@ public interface VmDao {
 
     void setDeadline(String vmId, Instant time) throws SQLException;
 
-    void deleteVm(String vmId) throws SQLException;
-
+    void deleteVm(String vmId, @Nullable TransactionHandle transaction) throws SQLException;
 
     @VisibleForTesting
     List<Vm> list(String sessionId) throws SQLException;
@@ -60,12 +59,14 @@ public interface VmDao {
     @VisibleForTesting
     List<Vm> listAlive() throws SQLException;
 
-    List<Vm> listExpired(int limit) throws SQLException;
+    List<Vm> listVmsToClean(int limit) throws SQLException;
 
     @Nullable
     Map<String, String> getAllocatorMeta(String vmId, @Nullable TransactionHandle transaction) throws SQLException;
 
     List<VolumeClaim> getVolumeClaims(String vmId, @Nullable TransactionHandle transaction) throws SQLException;
 
-    List<Vm> loadNotCompletedVms(String allocatorId, @Nullable TransactionHandle transaction) throws SQLException;
+    List<Vm> loadAllocatingVms(String allocatorId, @Nullable TransactionHandle transaction) throws SQLException;
+
+    List<String> findFailedVms(@Nullable TransactionHandle transaction) throws SQLException;
 }
