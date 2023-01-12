@@ -9,6 +9,7 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.longrunning.Operation;
+import ai.lzy.longrunning.dao.OperationCompletedException;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.model.db.Storage;
@@ -146,8 +147,9 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                                 .build());
                         op.setResponse(response);
 
-                        var prev = operationsDao.complete(op.id(), response.toByteArray(), transaction);
-                        if (prev != null) {
+                        try {
+                            operationsDao.complete(op.id(), response.toByteArray(), transaction);
+                        } catch (OperationCompletedException e) {
                             metrics.registerFail.inc();
                             LOG.error("Operation {} (VM {}) already completed", op.id(), vm.vmId());
                             return Status.CANCELLED.withDescription("Op %s already done".formatted(vm.vmId()));

@@ -220,13 +220,7 @@ public class GraphExecutionService {
             var packed = Any.pack(response);
 
             try {
-                return withRetries(LOG, () -> {
-                    var op = operationDao.complete(state.getOpId(), packed.toByteArray(), null);
-                    if (op != null) {
-                        return op;
-                    }
-                    return operationDao.get(state.getOpId(), null);
-                });
+                return withRetries(LOG, () -> operationDao.complete(state.getOpId(), packed.toByteArray(), null));
             } catch (Exception e) {
                 LOG.error("Error while executing transaction: {}", e.getMessage(), e);
 

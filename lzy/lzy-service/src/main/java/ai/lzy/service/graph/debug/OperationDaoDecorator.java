@@ -5,6 +5,7 @@ import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.service.data.storage.LzyServiceStorage;
+import com.google.rpc.Status;
 import io.micronaut.context.annotation.Requires;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
@@ -61,13 +62,11 @@ public class OperationDaoDecorator implements OperationDao {
         return delegate.get(id, transaction);
     }
 
-    @Nullable
     @Override
-    public Operation update(String id, TransactionHandle transaction) throws SQLException {
-        return delegate.update(id, transaction);
+    public void update(String id, TransactionHandle transaction) throws SQLException {
+        delegate.update(id, transaction);
     }
 
-    @Nullable
     @Override
     public Operation complete(String id, byte[] meta, byte[] response, TransactionHandle transaction)
         throws SQLException
@@ -75,22 +74,24 @@ public class OperationDaoDecorator implements OperationDao {
         return delegate.complete(id, meta, response, transaction);
     }
 
-    @Nullable
     @Override
     public Operation complete(String id, byte[] response, TransactionHandle transaction) throws SQLException {
         return delegate.complete(id, response, transaction);
     }
 
 
-    @Nullable
     @Override
     public Operation updateMeta(String id, byte[] meta, @Nullable TransactionHandle transaction) throws SQLException {
         return delegate.updateMeta(id, meta, transaction);
     }
 
-    @Nullable
     @Override
     public Operation fail(String id, byte[] error, TransactionHandle transaction) throws SQLException {
+        return delegate.fail(id, error, transaction);
+    }
+
+    @Override
+    public Operation fail(String id, Status error, TransactionHandle transaction) throws SQLException {
         return delegate.fail(id, error, transaction);
     }
 

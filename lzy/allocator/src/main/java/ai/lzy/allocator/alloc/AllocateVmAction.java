@@ -11,6 +11,7 @@ import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
+import ai.lzy.longrunning.dao.OperationCompletedException;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.NotFoundException;
@@ -114,13 +115,15 @@ public final class AllocateVmAction implements Runnable {
             try {
                 withRetries(LOG, () -> {
                     try (var tx = TransactionHandle.create(storage)) {
-                        var op = operationsDao.fail(vm.allocOpId(), toProto(status), tx);
-                        if (op == null) {
-                            vmDao.setStatus(vm.vmId(), Vm.Status.DELETING, tx);
-                            tx.commit();
-                        }
+                        operationsDao.fail(vm.allocOpId(), toProto(status), tx);
+                        vmDao.setStatus(vm.vmId(), Vm.Status.DELETING, tx);
+                        tx.commit();
                     }
                 });
+            } catch (OperationCompletedException ex) {
+                LOG.error("Cannot fail operation {} (VM {}): already completed", vm.allocOpId(), vm.vmId());
+            } catch (NotFoundException ex) {
+                LOG.error("Cannot fail operation {} (VM {}): not found", vm.allocOpId(), vm.vmId());
             } catch (Exception ex) {
                 LOG.error("Cannot fail operation {} (VM {}): {}", vm.allocOpId(), vm.vmId(), e.getMessage());
                 executor.schedule(this, 1, TimeUnit.SECONDS);
@@ -160,13 +163,13 @@ public final class AllocateVmAction implements Runnable {
         try {
             withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage)) {
-                    var op = operationsDao.fail(vm.allocOpId(), toProto(Status.DEADLINE_EXCEEDED), tx);
-                    if (op == null) {
-                        vmDao.setStatus(vm.vmId(), Vm.Status.DELETING, tx);
-                        tx.commit();
-                    }
+                    operationsDao.fail(vm.allocOpId(), toProto(Status.DEADLINE_EXCEEDED), tx);
+                    vmDao.setStatus(vm.vmId(), Vm.Status.DELETING, tx);
+                    tx.commit();
                 }
             });
+        } catch (OperationCompletedException ex) {
+            LOG.error("Cannot fail operation {} (VM {}): already completed", vm.allocOpId(), vm.vmId());
         } catch (NotFoundException e) {
             LOG.error("Cannot fail operation {} (VM {}): not found", vm.allocOpId(), vm.vmId());
         } catch (Exception e) {
@@ -225,16 +228,18 @@ public final class AllocateVmAction implements Runnable {
                 try {
                     withRetries(LOG, () -> {
                         try (var tx = TransactionHandle.create(storage)) {
-                            var op = operationsDao.fail(
+                            operationsDao.fail(
                                 vm.allocOpId(),
                                 toProto(Status.INVALID_ARGUMENT.withDescription(e.getMessage())),
                                 tx);
-                            if (op == null) {
-                                vmDao.setStatus(vm.vmId(), Vm.Status.DELETING, tx);
-                                tx.commit();
-                            }
+                            vmDao.setStatus(vm.vmId(), Vm.Status.DELETING, tx);
+                            tx.commit();
                         }
                     });
+                } catch (OperationCompletedException ex) {
+                    LOG.error("Cannot fail operation {} (VM {}): already completed", vm.allocOpId(), vm.vmId());
+                } catch (NotFoundException ex) {
+                    LOG.error("Cannot fail operation {} (VM {}): not found", vm.allocOpId(), vm.vmId());
                 } catch (Exception ex) {
                     LOG.error("Cannot fail operation {} (VM {}): {}. Retry later...",
                         vm.allocOpId(), vm.vmId(), ex.getMessage());
@@ -261,8 +266,11 @@ public final class AllocateVmAction implements Runnable {
 
     private boolean updateOperationProgress() {
         try {
-            var op = withRetries(LOG, () -> operationsDao.update(vm.allocOpId(), null));
-            return op == null;
+            withRetries(LOG, () -> operationsDao.update(vm.allocOpId(), null));
+            return true;
+        } catch (OperationCompletedException e) {
+            LOG.error("Cannot update operation {} (VM {}): already completed", vm.allocOpId(), vm.vmId());
+            return false;
         } catch (NotFoundException e) {
             LOG.error("Cannot update operation {} (VM {}): not found", vm.allocOpId(), vm.vmId());
             return false;

@@ -12,6 +12,7 @@ import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.allocator.volume.KuberVolumeManager;
+import ai.lzy.longrunning.dao.OperationCompletedException;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import io.fabric8.kubernetes.api.model.ListOptionsBuilder;
@@ -104,10 +105,10 @@ public class KuberVmAllocator implements VmAllocator {
                 }
 
                 try {
-                    var op = withRetries(LOG, () -> operationsDao.update(vm.allocOpId(), null));
-                    if (op != null) {
-                        return true; // already completed (cancelled)
-                    }
+                    withRetries(LOG, () -> operationsDao.update(vm.allocOpId(), null));
+                } catch (OperationCompletedException e) {
+                    LOG.error("Cannot update operation {} (VM {}): already completed", vm.allocOpId(), vm.vmId());
+                    return true;
                 } catch (Exception ex) {
                     LOG.error("Cannot update operation {} (VM {}): {}", vm.allocOpId(), vm.vmId(), ex.getMessage());
                     return false;
@@ -139,10 +140,10 @@ public class KuberVmAllocator implements VmAllocator {
                 }
 
                 try {
-                    var op = withRetries(LOG, () -> operationsDao.update(vm.allocOpId(), null));
-                    if (op != null) {
-                        return true; // already completed (cancelled)
-                    }
+                    withRetries(LOG, () -> operationsDao.update(vm.allocOpId(), null));
+                } catch (OperationCompletedException e) {
+                    LOG.error("Cannot update operation {} (VM {}): already completed", vm.allocOpId(), vm.vmId());
+                    return true;
                 } catch (Exception ex) {
                     LOG.error("Cannot update operation {} (VM {}): {}", vm.allocOpId(), vm.vmId(), ex.getMessage());
                     return false;

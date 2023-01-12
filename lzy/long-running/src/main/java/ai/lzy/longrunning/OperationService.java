@@ -1,5 +1,6 @@
 package ai.lzy.longrunning;
 
+import ai.lzy.longrunning.dao.OperationCompletedException;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.v1.longrunning.LongRunning.CancelOperationRequest;
@@ -53,11 +54,11 @@ public class OperationService extends LongRunningServiceGrpc.LongRunningServiceI
         try {
             var status = toProto(Status.CANCELLED.withDescription(request.getMessage())).toByteArray();
             var operation = withRetries(LOG, () -> operations.fail(request.getOperationId(), status, null));
-            if (operation == null) {
-                operation = withRetries(LOG, () -> operations.get(request.getOperationId(), null));
-            }
             response.onNext(operation.toProto());
             response.onCompleted();
+        } catch (OperationCompletedException e) {
+            LOG.error("Cannot cancel operation {}: already completed", request.getOperationId());
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Operation already completed").asException());
         } catch (NotFoundException e) {
             LOG.error("Cannot cancel operation {}: not found", request.getOperationId());
             response.onError(Status.NOT_FOUND.withDescription("Operation not found").asException());

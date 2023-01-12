@@ -21,67 +21,59 @@ public interface OperationDao {
     Operation get(String id, @Nullable TransactionHandle transaction) throws SQLException;
 
     /**
-     * @return <code>null</code> on success, actual (completed) operation on fail
      * @throws ai.lzy.model.db.exceptions.NotFoundException if operation not exists
-     * @throws SQLException on any sql error
+     * @throws OperationCompletedException                  if operation already completed
+     * @throws SQLException                                 on any sql error
      */
-    @Nullable
-    Operation update(String id, @Nullable TransactionHandle transaction) throws SQLException;
+    void update(String id, @Nullable TransactionHandle transaction) throws SQLException;
 
     /**
-     * @return <code>null</code> on success, actual (completed) operation on fail
+     * @return completed operation
      * @throws ai.lzy.model.db.exceptions.NotFoundException if operation not exists
-     * @throws SQLException on any sql error
+     * @throws OperationCompletedException                  if operation already completed
+     * @throws SQLException                                 on any sql error
      */
-    @Nullable
     Operation complete(String id, byte[] meta, byte[] response, @Nullable TransactionHandle transaction)
         throws SQLException;
 
     /**
-     * @return <code>null</code> on success, actual (completed) operation on fail
+     * @return completed operation
      * @throws ai.lzy.model.db.exceptions.NotFoundException if operation not exists
-     * @throws SQLException on any sql error
+     * @throws OperationCompletedException                  if operation already completed
+     * @throws SQLException                                 on any sql error
      */
-    @Nullable
     Operation complete(String id, byte[] response, @Nullable TransactionHandle transaction) throws SQLException;
 
     /**
-     * @return <code>null</code> on success, actual (completed) operation on fail
+     * @return updated operation
      * @throws ai.lzy.model.db.exceptions.NotFoundException if operation not exists
-     * @throws SQLException on any sql error
+     * @throws OperationCompletedException                  if operation already completed
+     * @throws SQLException                                 on any sql error
      */
-    @Nullable
     Operation updateMeta(String id, byte[] meta, @Nullable TransactionHandle transaction) throws SQLException;
 
     /**
-     * @return <code>null</code> on success, actual (completed) operation on fail
+     * @return failed operation
      * @throws ai.lzy.model.db.exceptions.NotFoundException if operation not exists
-     * @throws SQLException on any sql error
+     * @throws OperationCompletedException                  if operation already completed
+     * @throws SQLException                                 on any sql error
      */
-    @Nullable
     Operation fail(String id, byte[] error, @Nullable TransactionHandle transaction) throws SQLException;
 
     /**
-     * @return <code>null</code> on success, actual (completed) operation on fail
+     * @return failed operation
      * @throws ai.lzy.model.db.exceptions.NotFoundException if operation not exists
-     * @throws SQLException on any sql error
+     * @throws OperationCompletedException                  if operation already completed
+     * @throws SQLException                                 on any sql error
      */
-    @Nullable
-    default Operation fail(String id, com.google.rpc.Status error, @Nullable TransactionHandle transaction)
-        throws SQLException
-    {
-        return fail(id, error.toByteArray(), transaction);
-    }
+    Operation fail(String id, com.google.rpc.Status error, @Nullable TransactionHandle transaction) throws SQLException;
+
 
     boolean deleteCompletedOperation(String operationId, @Nullable TransactionHandle transaction) throws SQLException;
 
     int deleteOutdatedOperations(int hours) throws SQLException;
 
 
-    /**
-     * @return failed operation (!!!)
-     */
-    @Nullable
     default Operation failOperation(String operationId, com.google.rpc.Status error, @Nullable TransactionHandle tx,
                                     Logger log) throws SQLException
     {
@@ -89,13 +81,11 @@ public interface OperationDao {
             operationId, io.grpc.Status.fromCodeValue(error.getCode()).getCode().name(), error.getMessage());
 
         try {
-            var op = fail(operationId, error.toByteArray(), tx);
-            if (op != null) {
-                log.error("Cannot fail operation {} with reason {}: operation already completed",
-                    operationId, error.getMessage());
-                return op;
-            }
-            return get(operationId, tx);
+            return fail(operationId, error.toByteArray(), tx);
+        } catch (OperationCompletedException e) {
+            log.error("Cannot fail operation {} with reason {}: operation already completed",
+                operationId, error.getMessage());
+            return get(operationId, null);
         } catch (NotFoundException e) {
             log.error("Cannot fail operation {} with reason {}: operation not found", operationId, error.getMessage());
             return null;

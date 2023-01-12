@@ -184,10 +184,8 @@ public class YandexCloudS3Storage implements StorageService {
             .build());
 
         try {
-            var completedOp = withRetries(LOG, () -> {
-                operationDao.complete(operation.id(), response.toByteArray(), null);
-                return operationDao.get(operation.id(), null);
-            });
+            var completedOp = withRetries(LOG, () ->
+                operationDao.complete(operation.id(), response.toByteArray(), null));
 
             responseObserver.onNext(completedOp.toProto());
             responseObserver.onCompleted();

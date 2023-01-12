@@ -49,9 +49,11 @@ public class OperationDaoImpl implements OperationDao {
                 UPDATE operation
                 SET meta = ?, response = ?, done = TRUE, modified_at = NOW()
                 WHERE id = ? AND done = FALSE
-                RETURNING id
+                RETURNING id, modified_at
             )
-        SELECT (new.id IS NOT NULL) AS __updated__, prev.*
+        SELECT (new.id IS NOT NULL) AS __updated__,
+               prev.*,
+               (CASE WHEN (new.id IS NOT NULL) THEN new.modified_at ELSE prev.modified_at END) AS modified_at
         FROM prev LEFT JOIN new USING (id)""".formatted(FIELDS_STRING);
 
     private static final String QUERY_UPDATE_OPERATION_RESPONSE = """
@@ -63,9 +65,11 @@ public class OperationDaoImpl implements OperationDao {
                 UPDATE operation
                 SET response = ?, done = TRUE, modified_at = NOW()
                 WHERE id = ? AND done = FALSE
-                RETURNING id
+                RETURNING id, modified_at
             )
-        SELECT (new.id IS NOT NULL) AS __updated__, prev.*
+        SELECT (new.id IS NOT NULL) AS __updated__,
+               prev.*,
+               (CASE WHEN (new.id IS NOT NULL) THEN new.modified_at ELSE prev.modified_at END) AS modified_at
         FROM prev LEFT JOIN new USING (id)""".formatted(FIELDS_STRING);
 
     private static final String QUERY_UPDATE_OPERATION_META = """
@@ -77,9 +81,11 @@ public class OperationDaoImpl implements OperationDao {
                 UPDATE operation
                 SET meta = ?, modified_at = NOW()
                 WHERE id = ? AND done = FALSE
-                RETURNING id
+                RETURNING id, modified_at
             )
-        SELECT (new.id IS NOT NULL) AS __updated__, prev.*
+        SELECT (new.id IS NOT NULL) AS __updated__,
+               prev.*,
+               (CASE WHEN (new.id IS NOT NULL) THEN new.modified_at ELSE prev.modified_at END) AS modified_at
         FROM prev LEFT JOIN new USING (id)""".formatted(FIELDS_STRING);
 
     private static final String QUERY_UPDATE_OPERATION_ERROR = """
@@ -91,15 +97,17 @@ public class OperationDaoImpl implements OperationDao {
                 UPDATE operation
                 SET error = ?, done = TRUE, modified_at = NOW()
                 WHERE id = ? AND done = FALSE
-                RETURNING id
+                RETURNING id, modified_at
             )
-        SELECT (new.id IS NOT NULL) AS __updated__, prev.*
+        SELECT (new.id IS NOT NULL) AS __updated__,
+               prev.*,
+               (CASE WHEN (new.id IS NOT NULL) THEN new.modified_at ELSE prev.modified_at END) AS modified_at
         FROM prev LEFT JOIN new USING (id)""".formatted(FIELDS_STRING);
 
     private static final String QUERY_UPDATE_OPERATION_TIME = """
         WITH
             prev AS (
-                SELECT %s FROM operation WHERE id = ? FOR UPDATE
+                SELECT id FROM operation WHERE id = ? FOR UPDATE
             ),
             new AS (
                 UPDATE operation
@@ -107,8 +115,9 @@ public class OperationDaoImpl implements OperationDao {
                 WHERE id = ? AND done = FALSE
                 RETURNING id
             )
-        SELECT (new.id IS NOT NULL) AS __updated__, prev.*
-        FROM prev LEFT JOIN new USING (id)""".formatted(FIELDS_STRING);
+        SELECT
+            (new.id IS NOT NULL) AS __updated__
+        FROM prev LEFT JOIN new USING (id)""";
 
     private static final String QUERY_DELETE_COMPLETED_OPERATION = """
         DELETE FROM operation
@@ -229,23 +238,32 @@ public class OperationDaoImpl implements OperationDao {
         });
     }
 
-    @Nullable
     @Override
-    public Operation update(String id, @Nullable TransactionHandle transaction) throws SQLException {
+    public void update(String id, @Nullable TransactionHandle transaction) throws SQLException {
         LOG.info("Update operation {}", id);
 
-        return DbOperation.execute(transaction, storage, con -> {
+        DbOperation.execute(transaction, storage, con -> {
             try (PreparedStatement st = con.prepareStatement(QUERY_UPDATE_OPERATION_TIME)) {
                 st.setString(1, id);
                 st.setString(2, id);
 
                 var rs = st.executeQuery();
-                return processResult(id, rs, "updated");
+
+                if (rs.next()) {
+                    if (rs.getBoolean("__updated__")) {
+                        LOG.info("Operation {} successfully updated", id);
+                    } else {
+                        LOG.warn("Operation {} already completed", id);
+                        throw new OperationCompletedException(id);
+                    }
+                } else {
+                    LOG.warn("Operation {} not exists", id);
+                    throw new NotFoundException("Operation %s not found".formatted(id));
+                }
             }
         });
     }
 
-    @Nullable
     @Override
     public Operation complete(String id, byte[] meta, byte[] response, @Nullable TransactionHandle transaction)
         throws SQLException
@@ -265,19 +283,26 @@ public class OperationDaoImpl implements OperationDao {
                 st.setString(++index, id);
 
                 var rs = st.executeQuery();
-                return processResult(id, rs, "completed");
+                var op = processResult(id, rs, "completed");
+                try {
+                    if (meta != null) {
+                        op.modifyMeta(Any.parseFrom(meta));
+                    }
+                    op.setResponse(Any.parseFrom(response));
+                } catch (InvalidProtocolBufferException e) {
+                    throw new RuntimeException("Cannot load operation %s".formatted(id), e);
+                }
+                return op;
             }
         });
     }
 
     @Override
-    @Nullable
     public Operation complete(String id, byte[] response, @Nullable TransactionHandle transaction) throws SQLException {
         return complete(id, null, response, transaction);
     }
 
     @Override
-    @Nullable
     public Operation updateMeta(String id, byte[] meta, @Nullable TransactionHandle transaction) throws SQLException {
         LOG.info("Update operation {} meta", id);
 
@@ -288,24 +313,53 @@ public class OperationDaoImpl implements OperationDao {
                 st.setString(3, id);
 
                 var rs = st.executeQuery();
-                return processResult(id, rs, "updated");
+                var op = processResult(id, rs, "updated");
+                try {
+                    if (meta != null) {
+                        op.modifyMeta(Any.parseFrom(meta));
+                    }
+                } catch (InvalidProtocolBufferException e) {
+                    throw new RuntimeException("Cannot load operation %s".formatted(id), e);
+                }
+                return op;
             }
         });
     }
 
     @Override
-    @Nullable
     public Operation fail(String id, byte[] error, @Nullable TransactionHandle transaction) throws SQLException {
+        return failImpl(id, null, error, transaction);
+    }
+
+    @Override
+    public Operation fail(String id, Status error, TransactionHandle transaction) throws SQLException {
+        return failImpl(id, error, null, transaction);
+    }
+
+    private Operation failImpl(String id, Status error, byte[] errorBytes, TransactionHandle transaction)
+        throws SQLException
+    {
         LOG.info("Update operation with error: { operationId: {} }", id);
 
         return DbOperation.execute(transaction, storage, con -> {
             try (PreparedStatement st = con.prepareStatement(QUERY_UPDATE_OPERATION_ERROR)) {
                 st.setString(1, id);
-                st.setBytes(2, error);
+                st.setBytes(2, errorBytes != null ? errorBytes : error.toByteArray());
                 st.setString(3, id);
 
                 var rs = st.executeQuery();
-                return processResult(id, rs, "failed");
+                var op = processResult(id, rs, "failed");
+
+                if (error != null) {
+                    op.setError(io.grpc.Status.fromCodeValue(error.getCode()).withDescription(error.getMessage()));
+                } else {
+                    var err = com.google.rpc.Status.parseFrom(errorBytes);
+                    op.setError(io.grpc.Status.fromCodeValue(err.getCode()).withDescription(err.getMessage()));
+                }
+
+                return op;
+            } catch (InvalidProtocolBufferException e) {
+                throw new RuntimeException(e);
             }
         });
     }
@@ -331,19 +385,18 @@ public class OperationDaoImpl implements OperationDao {
         });
     }
 
-    @Nullable
     private static Operation processResult(String id, ResultSet rs, String action) throws SQLException {
         if (rs.next()) {
             if (rs.getBoolean("__updated__")) {
                 LOG.info("Operation {} successfully {}", id, action);
-                return null;
-            } else {
-                LOG.warn("Operation {} concurrently updated", id);
                 try {
                     return from(rs);
                 } catch (InvalidProtocolBufferException e) {
                     throw new RuntimeException("Cannot load operation %s".formatted(id), e);
                 }
+            } else {
+                LOG.warn("Operation {} concurrently updated", id);
+                throw new OperationCompletedException(id);
             }
         } else {
             LOG.warn("Operation {} not exists", id);
