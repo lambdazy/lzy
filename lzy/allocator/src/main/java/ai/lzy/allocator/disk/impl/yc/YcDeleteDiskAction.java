@@ -113,13 +113,8 @@ final class YcDeleteDiskAction extends YcDiskActionBase<YcDeleteDiskState> {
         if (ycOp.hasResponse()) {
             LOG.info("YcDeleteDisk succeeded, removed disk {}", state.diskId());
 
-            var meta = Any.pack(
-                    DiskServiceApi.DeleteDiskMetadata.newBuilder().build())
-                .toByteArray();
-
-            var resp = Any.pack(
-                    DiskServiceApi.DeleteDiskResponse.newBuilder().build())
-                .toByteArray();
+            var meta = Any.pack(DiskServiceApi.DeleteDiskMetadata.newBuilder().build());
+            var resp = Any.pack(DiskServiceApi.DeleteDiskResponse.newBuilder().build());
 
             try {
                 withRetries(LOG, () -> {
@@ -148,7 +143,7 @@ final class YcDeleteDiskAction extends YcDiskActionBase<YcDeleteDiskState> {
             withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage())) {
                     diskOpDao().failDiskOp(opId(), ycOp.getError().getMessage(), tx);
-                    operationsDao().fail(opId(), ycOp.getError().toByteArray(), tx);
+                    operationsDao().fail(opId(), ycOp.getError(), tx);
                     tx.commit();
                 }
             });

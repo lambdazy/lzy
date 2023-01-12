@@ -52,7 +52,7 @@ public class OperationService extends LongRunningServiceGrpc.LongRunningServiceI
     public void cancel(CancelOperationRequest request, StreamObserver<Operation> response) {
         LOG.info("Cancel operation {}", request.getOperationId());
         try {
-            var status = toProto(Status.CANCELLED.withDescription(request.getMessage())).toByteArray();
+            var status = toProto(Status.CANCELLED.withDescription(request.getMessage()));
             var operation = withRetries(LOG, () -> operations.fail(request.getOperationId(), status, null));
             response.onNext(operation.toProto());
             response.onCompleted();

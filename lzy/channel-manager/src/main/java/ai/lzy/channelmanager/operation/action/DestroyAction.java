@@ -60,7 +60,7 @@ public class DestroyAction extends ChannelAction {
                         try (var tx = TransactionHandle.create(storage)) {
                             channelOperationDao.delete(operationId, tx);
                             operationDao.complete(operationId,
-                                Any.pack(LCMPS.ChannelDestroyResponse.getDefaultInstance()).toByteArray(), tx);
+                                Any.pack(LCMPS.ChannelDestroyResponse.getDefaultInstance()), tx);
                             tx.commit();
                         }
                     });

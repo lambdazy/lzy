@@ -361,7 +361,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         .build());
 
                     op.modifyMeta(meta);
-                    operationsDao.updateMeta(op.id(), meta.toByteArray(), tx);
+                    operationsDao.updateMeta(op.id(), meta, tx);
 
                     tx.commit();
 

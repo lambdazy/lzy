@@ -91,14 +91,12 @@ public class MockDiskManager implements DiskManager {
                 var m = Any.pack(
                         DiskServiceApi.CreateDiskMetadata.newBuilder()
                             .setDiskId(id)
-                            .build())
-                    .toByteArray();
+                            .build());
 
                 var r = Any.pack(
                         DiskServiceApi.CreateDiskResponse.newBuilder()
                             .setDisk(disk.toProto())
-                            .build())
-                    .toByteArray();
+                            .build());
 
                 try {
                     withRetries(LOG, () -> {
@@ -145,7 +143,7 @@ public class MockDiskManager implements DiskManager {
                 if (notFound) {
                     var status = Status.NOT_FOUND.withDescription("Disk not found");
                     try {
-                        operationsDao.fail(outerOp.opId(), toProto(status).toByteArray(), null);
+                        operationsDao.fail(outerOp.opId(), toProto(status), null);
                     } catch (SQLException e) {
                         throw new RuntimeException(e);
                     }
@@ -156,14 +154,12 @@ public class MockDiskManager implements DiskManager {
                 var m = Any.pack(
                         DiskServiceApi.CloneDiskMetadata.newBuilder()
                             .setDiskId(newDisk.id())
-                            .build())
-                    .toByteArray();
+                            .build());
 
                 var r = Any.pack(
                         DiskServiceApi.CloneDiskResponse.newBuilder()
                             .setDisk(newDisk.toProto())
-                            .build())
-                    .toByteArray();
+                            .build());
 
                 try {
                     withRetries(LOG, () -> {
@@ -196,13 +192,8 @@ public class MockDiskManager implements DiskManager {
             DiskOperation.Type.DELETE,
             "",
             () -> {
-                var m = Any.pack(
-                        DiskServiceApi.DeleteDiskMetadata.newBuilder().build())
-                    .toByteArray();
-
-                var r = Any.pack(
-                        DiskServiceApi.DeleteDiskResponse.newBuilder().build())
-                    .toByteArray();
+                var m = Any.pack(DiskServiceApi.DeleteDiskMetadata.newBuilder().build());
+                var r = Any.pack(DiskServiceApi.DeleteDiskResponse.newBuilder().build());
 
                 try {
                     withRetries(LOG, () -> {

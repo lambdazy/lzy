@@ -5,6 +5,7 @@ import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.service.data.storage.LzyServiceStorage;
+import com.google.protobuf.Any;
 import com.google.rpc.Status;
 import io.micronaut.context.annotation.Requires;
 import jakarta.annotation.Nullable;
@@ -68,26 +69,23 @@ public class OperationDaoDecorator implements OperationDao {
     }
 
     @Override
-    public Operation complete(String id, byte[] meta, byte[] response, TransactionHandle transaction)
+    public Operation complete(String id, @Nullable Any meta, Any response, TransactionHandle transaction)
         throws SQLException
     {
         return delegate.complete(id, meta, response, transaction);
     }
 
     @Override
-    public Operation complete(String id, byte[] response, TransactionHandle transaction) throws SQLException {
+    public Operation complete(String id, Any response, TransactionHandle transaction) throws SQLException {
         return delegate.complete(id, response, transaction);
     }
 
 
     @Override
-    public Operation updateMeta(String id, byte[] meta, @Nullable TransactionHandle transaction) throws SQLException {
+    public Operation updateMeta(String id, @Nullable Any meta, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
         return delegate.updateMeta(id, meta, transaction);
-    }
-
-    @Override
-    public Operation fail(String id, byte[] error, TransactionHandle transaction) throws SQLException {
-        return delegate.fail(id, error, transaction);
     }
 
     @Override

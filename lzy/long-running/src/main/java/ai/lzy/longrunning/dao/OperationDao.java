@@ -3,6 +3,7 @@ package ai.lzy.longrunning.dao;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.NotFoundException;
+import com.google.protobuf.Any;
 import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.Logger;
 
@@ -33,7 +34,7 @@ public interface OperationDao {
      * @throws OperationCompletedException                  if operation already completed
      * @throws SQLException                                 on any sql error
      */
-    Operation complete(String id, byte[] meta, byte[] response, @Nullable TransactionHandle transaction)
+    Operation complete(String id, @Nullable Any meta, Any response, @Nullable TransactionHandle transaction)
         throws SQLException;
 
     /**
@@ -42,7 +43,7 @@ public interface OperationDao {
      * @throws OperationCompletedException                  if operation already completed
      * @throws SQLException                                 on any sql error
      */
-    Operation complete(String id, byte[] response, @Nullable TransactionHandle transaction) throws SQLException;
+    Operation complete(String id, Any response, @Nullable TransactionHandle transaction) throws SQLException;
 
     /**
      * @return updated operation
@@ -50,15 +51,7 @@ public interface OperationDao {
      * @throws OperationCompletedException                  if operation already completed
      * @throws SQLException                                 on any sql error
      */
-    Operation updateMeta(String id, byte[] meta, @Nullable TransactionHandle transaction) throws SQLException;
-
-    /**
-     * @return failed operation
-     * @throws ai.lzy.model.db.exceptions.NotFoundException if operation not exists
-     * @throws OperationCompletedException                  if operation already completed
-     * @throws SQLException                                 on any sql error
-     */
-    Operation fail(String id, byte[] error, @Nullable TransactionHandle transaction) throws SQLException;
+    Operation updateMeta(String id, Any meta, @Nullable TransactionHandle transaction) throws SQLException;
 
     /**
      * @return failed operation
@@ -81,7 +74,7 @@ public interface OperationDao {
             operationId, io.grpc.Status.fromCodeValue(error.getCode()).getCode().name(), error.getMessage());
 
         try {
-            return fail(operationId, error.toByteArray(), tx);
+            return fail(operationId, error, tx);
         } catch (OperationCompletedException e) {
             log.error("Cannot fail operation {} with reason {}: operation already completed",
                 operationId, error.getMessage());

@@ -85,7 +85,7 @@ public abstract class ChannelAction implements Runnable {
             withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage)) {
                     channelOperationDao.fail(operationId, status.getDescription(), tx);
-                    operationDao.fail(operationId, toProto(status).toByteArray(), tx);
+                    operationDao.fail(operationId, toProto(status), tx);
                     tx.commit();
                 }
             });

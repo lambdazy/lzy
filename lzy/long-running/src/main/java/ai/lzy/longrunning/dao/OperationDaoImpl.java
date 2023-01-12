@@ -8,6 +8,7 @@ import ai.lzy.model.db.exceptions.NotFoundException;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.rpc.Status;
+import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -16,7 +17,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.List;
-import javax.annotation.Nullable;
 
 public class OperationDaoImpl implements OperationDao {
     private static final Logger LOG = LogManager.getLogger(OperationDaoImpl.class);
@@ -265,101 +265,71 @@ public class OperationDaoImpl implements OperationDao {
     }
 
     @Override
-    public Operation complete(String id, byte[] meta, byte[] response, @Nullable TransactionHandle transaction)
+    public Operation complete(String id, @Nullable Any meta, Any response, @Nullable TransactionHandle tx)
         throws SQLException
     {
         LOG.info("Complete operation {}", id);
 
-        return DbOperation.execute(transaction, storage, con -> {
+        return DbOperation.execute(tx, storage, con -> {
             try (PreparedStatement st = con.prepareStatement(
                     meta != null ? QUERY_UPDATE_OPERATION_META_RESPONSE : QUERY_UPDATE_OPERATION_RESPONSE))
             {
                 int index = 0;
                 st.setString(++index, id);
                 if (meta != null) {
-                    st.setBytes(++index, meta);
+                    st.setBytes(++index, meta.toByteArray());
                 }
-                st.setBytes(++index, response);
+                st.setBytes(++index, response.toByteArray());
                 st.setString(++index, id);
 
                 var rs = st.executeQuery();
                 var op = processResult(id, rs, "completed");
-                try {
-                    if (meta != null) {
-                        op.modifyMeta(Any.parseFrom(meta));
-                    }
-                    op.setResponse(Any.parseFrom(response));
-                } catch (InvalidProtocolBufferException e) {
-                    throw new RuntimeException("Cannot load operation %s".formatted(id), e);
+                if (meta != null) {
+                    op.modifyMeta(meta);
                 }
+                op.setResponse(response);
                 return op;
             }
         });
     }
 
     @Override
-    public Operation complete(String id, byte[] response, @Nullable TransactionHandle transaction) throws SQLException {
+    public Operation complete(String id, Any response, @Nullable TransactionHandle transaction) throws SQLException {
         return complete(id, null, response, transaction);
     }
 
     @Override
-    public Operation updateMeta(String id, byte[] meta, @Nullable TransactionHandle transaction) throws SQLException {
+    public Operation updateMeta(String id, Any meta, @Nullable TransactionHandle transaction) throws SQLException {
         LOG.info("Update operation {} meta", id);
 
         return DbOperation.execute(transaction, storage, con -> {
             try (PreparedStatement st = con.prepareStatement(QUERY_UPDATE_OPERATION_META)) {
                 st.setString(1, id);
-                st.setBytes(2, meta);
+                st.setBytes(2, meta.toByteArray());
                 st.setString(3, id);
 
                 var rs = st.executeQuery();
                 var op = processResult(id, rs, "updated");
-                try {
-                    if (meta != null) {
-                        op.modifyMeta(Any.parseFrom(meta));
-                    }
-                } catch (InvalidProtocolBufferException e) {
-                    throw new RuntimeException("Cannot load operation %s".formatted(id), e);
-                }
+                op.modifyMeta(meta);
                 return op;
             }
         });
     }
 
     @Override
-    public Operation fail(String id, byte[] error, @Nullable TransactionHandle transaction) throws SQLException {
-        return failImpl(id, null, error, transaction);
-    }
-
-    @Override
     public Operation fail(String id, Status error, TransactionHandle transaction) throws SQLException {
-        return failImpl(id, error, null, transaction);
-    }
-
-    private Operation failImpl(String id, Status error, byte[] errorBytes, TransactionHandle transaction)
-        throws SQLException
-    {
         LOG.info("Update operation with error: { operationId: {} }", id);
 
         return DbOperation.execute(transaction, storage, con -> {
             try (PreparedStatement st = con.prepareStatement(QUERY_UPDATE_OPERATION_ERROR)) {
                 st.setString(1, id);
-                st.setBytes(2, errorBytes != null ? errorBytes : error.toByteArray());
+                st.setBytes(2, error.toByteArray());
                 st.setString(3, id);
 
                 var rs = st.executeQuery();
                 var op = processResult(id, rs, "failed");
-
-                if (error != null) {
-                    op.setError(io.grpc.Status.fromCodeValue(error.getCode()).withDescription(error.getMessage()));
-                } else {
-                    var err = com.google.rpc.Status.parseFrom(errorBytes);
-                    op.setError(io.grpc.Status.fromCodeValue(err.getCode()).withDescription(err.getMessage()));
-                }
-
+                op.setError(io.grpc.Status.fromCodeValue(error.getCode()).withDescription(error.getMessage()));
                 return op;
-            } catch (InvalidProtocolBufferException e) {
-                throw new RuntimeException(e);
             }
         });
     }

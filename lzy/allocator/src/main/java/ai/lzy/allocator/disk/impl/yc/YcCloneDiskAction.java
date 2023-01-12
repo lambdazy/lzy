@@ -210,7 +210,7 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
                     withRetries(LOG, () -> {
                         try (var tx = TransactionHandle.create(storage())) {
                             diskOpDao().deleteDiskOp(opId(), tx);
-                            operationsDao().fail(opId(), ycGetSnapshotOp.getError().toByteArray(), tx);
+                            operationsDao().fail(opId(), ycGetSnapshotOp.getError(), tx);
                             tx.commit();
                         }
                     });
@@ -242,8 +242,7 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
                     withRetries(LOG, () -> {
                         try (var tx = TransactionHandle.create(storage())) {
                             diskOpDao().failDiskOp(opId(), e.getMessage(), tx);
-                            operationsDao().fail(opId(),
-                                toProto(Status.INTERNAL.withDescription(e.getMessage())).toByteArray(), tx);
+                            operationsDao().fail(opId(), toProto(Status.INTERNAL.withDescription(e.getMessage())), tx);
                             tx.commit();
                         }
                     });
@@ -378,8 +377,7 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
                     withRetries(LOG, () -> {
                         try (var tx = TransactionHandle.create(storage())) {
                             diskOpDao().failDiskOp(opId(), e.getMessage(), tx);
-                            operationsDao().fail(opId(),
-                                toProto(Status.INTERNAL.withDescription(e.getMessage())).toByteArray(), tx);
+                            operationsDao().fail(opId(), toProto(Status.INTERNAL.withDescription(e.getMessage())), tx);
                             tx.commit();
                         }
                     });
@@ -399,14 +397,12 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
             var meta = Any.pack(
                     DiskServiceApi.CloneDiskMetadata.newBuilder()
                         .setDiskId(newDisk.id())
-                        .build())
-                .toByteArray();
+                        .build());
 
             var resp = Any.pack(
                     DiskServiceApi.CloneDiskResponse.newBuilder()
                         .setDisk(newDisk.toProto())
-                        .build())
-                .toByteArray();
+                        .build());
 
             try {
                 withRetries(LOG, () -> {
@@ -443,7 +439,7 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
             withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage())) {
                     diskOpDao().deleteDiskOp(opId(), tx);
-                    operationsDao().fail(opId(), ycOp.getError().toByteArray(), tx);
+                    operationsDao().fail(opId(), ycOp.getError(), tx);
                     tx.commit();
                 }
             });

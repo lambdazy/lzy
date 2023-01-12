@@ -95,7 +95,7 @@ public class DaoTest {
             .setMessage("Error")
             .build();
 
-        opDao.fail(op2.id(), status.toByteArray(), null);
+        opDao.fail(op2.id(), status, null);
 
         final var op3 = opDao.get(op1.id(), null);
         Assert.assertNotNull(op3);

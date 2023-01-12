@@ -82,8 +82,7 @@ public class UnbindAction extends ChannelAction {
             withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage)) {
                     channelOperationDao.delete(operationId, tx);
-                    operationDao.complete(operationId,
-                        Any.pack(LCMS.UnbindResponse.getDefaultInstance()).toByteArray(), tx);
+                    operationDao.complete(operationId, Any.pack(LCMS.UnbindResponse.getDefaultInstance()), tx);
                     tx.commit();
                 }
             });

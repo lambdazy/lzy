@@ -249,7 +249,7 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
         var packedResponse = Any.pack(response);
 
         try {
-            withRetries(LOG, () -> operationDao.complete(op.id(), packedResponse.toByteArray(), null));
+            withRetries(LOG, () -> operationDao.complete(op.id(), packedResponse, null));
         } catch (Exception e) {
             LOG.error("Error while executing transaction: {}", e.getMessage(), e);
             var errorStatus = Status.INTERNAL.withDescription("Error while creating whiteboard: " + e.getMessage());

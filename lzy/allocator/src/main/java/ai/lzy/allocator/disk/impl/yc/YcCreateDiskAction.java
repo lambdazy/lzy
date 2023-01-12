@@ -211,14 +211,12 @@ final class YcCreateDiskAction extends YcDiskActionBase<YcCreateDiskState> {
                 var meta = Any.pack(
                         DiskServiceApi.CreateDiskMetadata.newBuilder()
                             .setDiskId(diskId)
-                            .build())
-                    .toByteArray();
+                            .build());
 
                 var resp = Any.pack(
                         DiskServiceApi.CreateDiskResponse.newBuilder()
                             .setDisk(disk.toProto())
-                            .build())
-                    .toByteArray();
+                            .build());
 
                 withRetries(LOG, () -> {
                     try (var tx = TransactionHandle.create(storage())) {

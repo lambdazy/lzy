@@ -135,7 +135,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
         var packed = Any.pack(response);
 
         try {
-            withRetries(LOG, () -> operationDao.complete(op.id(), packed.toByteArray(), null));
+            withRetries(LOG, () -> operationDao.complete(op.id(), packed, null));
         } catch (Exception e) {
             LOG.error("Error while executing transaction: {}", e.getMessage(), e);
 

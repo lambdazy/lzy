@@ -148,7 +148,7 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                         op.setResponse(response);
 
                         try {
-                            operationsDao.complete(op.id(), response.toByteArray(), transaction);
+                            operationsDao.complete(op.id(), response, transaction);
                         } catch (OperationCompletedException e) {
                             metrics.registerFail.inc();
                             LOG.error("Operation {} (VM {}) already completed", op.id(), vm.vmId());

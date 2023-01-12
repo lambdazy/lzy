@@ -106,8 +106,7 @@ public class InMemoryS3Storage implements StorageService {
             .build());
 
         try {
-            var completedOp = withRetries(LOG, () ->
-                operationDao.complete(operation.id(), response.toByteArray(), null));
+            var completedOp = withRetries(LOG, () -> operationDao.complete(operation.id(), response, null));
 
             responseObserver.onNext(completedOp.toProto());
             responseObserver.onCompleted();

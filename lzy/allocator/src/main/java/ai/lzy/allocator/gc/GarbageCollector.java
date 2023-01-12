@@ -198,8 +198,7 @@ public class GarbageCollector {
                 if (allocOp != null && !allocOp.done()) {
                     LOG.info("Clean VM {}: try to fail allocation operation {}...", vm.vmId(), allocOp.id());
                     var status = toProto(Status.DEADLINE_EXCEEDED.withDescription("Vm is expired"));
-
-                    operationsDao.fail(vm.allocOpId(), status.toByteArray(), null);
+                    operationsDao.fail(vm.allocOpId(), status, null);
                     return;
                 }
 
