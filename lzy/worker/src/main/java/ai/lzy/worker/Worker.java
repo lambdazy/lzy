@@ -21,12 +21,6 @@ import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.v1.common.LME;
-import ai.lzy.v1.scheduler.SchedulerPrivateApi.WorkerProgress;
-import ai.lzy.v1.scheduler.SchedulerPrivateApi.WorkerProgress.Configured;
-import ai.lzy.v1.scheduler.SchedulerPrivateApi.WorkerProgress.Configured.Err;
-import ai.lzy.v1.scheduler.SchedulerPrivateApi.WorkerProgress.Configured.Ok;
-import ai.lzy.v1.scheduler.SchedulerPrivateApi.WorkerProgress.Finished;
 import ai.lzy.v1.worker.LWS.*;
 import ai.lzy.v1.worker.WorkerApiGrpc;
 import ai.lzy.worker.env.Environment;
@@ -42,15 +36,11 @@ import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.commons.io.input.QueueInputStream;
-import org.apache.commons.io.output.QueueOutputStream;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.*;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.security.NoSuchAlgorithmException;
@@ -66,8 +56,6 @@ import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 public class Worker {
     private static final Logger LOG = LogManager.getLogger(Worker.class);
     public static boolean USE_LOCALHOST_AS_HOST = false;
-
-    public static final String ENV_WORKER_PKEY = "LZY_WORKER_PKEY";
 
     private static final Options options = new Options();
 
@@ -120,7 +108,12 @@ public class Worker {
         }
 
         allocatorToken = allocatorToken != null ? allocatorToken : System.getenv(AllocatorAgent.VM_ALLOCATOR_OTT);
-        this.iamKeys = RsaUtils.generateRsaKeys();
+        try {
+            this.iamKeys = RsaUtils.generateRsaKeys();
+        } catch (IOException | InterruptedException e) {
+            LOG.error("Cannot generate keys");
+            throw new RuntimeException(e);
+        }
 
         Objects.requireNonNull(allocatorToken);
 
@@ -165,7 +158,7 @@ public class Worker {
 
         try {
             allocatorAgent = new AllocatorAgent(allocatorToken, vmId, allocatorAddress, allocatorHeartbeatPeriod);
-            allocatorAgent.start(Map.of("public-key", iamKeys.publicKey()));
+            allocatorAgent.start(Map.of("PUBLIC_KEY", iamKeys.publicKey()));
         } catch (AllocatorAgent.RegisterException e) {
             throw new RuntimeException(e);
         }

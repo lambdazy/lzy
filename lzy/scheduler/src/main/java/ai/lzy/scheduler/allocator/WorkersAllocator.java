@@ -1,10 +1,14 @@
 package ai.lzy.scheduler.allocator;
 
 import ai.lzy.model.operation.Operation;
+import ai.lzy.v1.longrunning.LongRunning;
 
 public interface WorkersAllocator {
 
-    void allocate(String userId, String workflowName, String workerId, Operation.Requirements requirements);
+    LongRunning.Operation allocate(String userId, String workflowName,
+                                   String sessionId, Operation.Requirements requirements);
 
-    void free(String workflowId, String workerId) throws Exception;
+    String createSession(String userId, String workflowName);
+
+    void free(String vmId);
 }

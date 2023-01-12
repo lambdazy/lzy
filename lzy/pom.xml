@@ -33,5 +33,6 @@
         <module>whiteboard</module>
         <module>worker-api</module>
         <module>site</module>
+        <module>jobs</module>
     </modules>
 </project>

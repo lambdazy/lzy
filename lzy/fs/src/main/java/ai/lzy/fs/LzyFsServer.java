@@ -67,7 +67,8 @@ public class LzyFsServer {
             LongRunningServiceGrpc.newBlockingStub(channelManagerChannel),
             "LzyFs.ChannelManagerOperationClient", () -> token.get().token());
 
-        this.slotsManager = new SlotsManager(channelManagerClient, channelManagerOperationClient, selfAddress, isPortal);
+        this.slotsManager = new SlotsManager(channelManagerClient, channelManagerOperationClient,
+            selfAddress, isPortal);
 
         if (SystemUtils.IS_OS_MAC) {
             this.fsManager = new LzyMacosFsManagerImpl();

@@ -4,20 +4,30 @@ package ai.lzy.v1.worker;
 
 import "ai/lzy/v1/common/env.proto";
 import "ai/lzy/v1/common/operation.proto";
+import "ai/lzy/v1/long-running/operation.proto";
+import "ai/lzy/v1/long-running/option.proto";
 
 option java_outer_classname = "LWS";
 option java_package = "ai.lzy.v1.worker";
 
 service WorkerApi {
-  rpc Execute (ExecuteRequest) returns (ExecuteResponse);
+  rpc Execute (ExecuteRequest) returns (ai.lzy.v1.longrunning.Operation) {
+    option (ai.lzy.v1.operation) = {
+      // metadata: null
+      response: "ExecuteResponse"
+    };
+  };
 }
 
 // ========== Execute ============
 
 message ExecuteRequest {
-  TaskDesc taskDesc = 1;
+  lzy.v1.common.TaskDesc taskDesc = 1;
   string task_id = 2;
   string execution_id = 3;
 }
 
-message ExecuteResponse {}
+message ExecuteResponse {
+  int32 rc = 1;
+  string description = 2;
+}

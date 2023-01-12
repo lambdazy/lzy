@@ -68,26 +68,4 @@ public class PrivateSchedulerApiImpl extends SchedulerPrivateGrpc.SchedulerPriva
         responseObserver.onNext(SchedulerPrivateApi.WorkerProgressResponse.newBuilder().build());
         responseObserver.onCompleted();
     }
-
-    @Override
-    public void registerWorker(SchedulerPrivateApi.RegisterWorkerRequest request,
-                                StreamObserver<SchedulerPrivateApi.RegisterWorkerResponse> responseObserver)
-    {
-        final Worker worker;
-        try {
-            worker = dao.get(request.getWorkflowName(), request.getWorkerId());
-        } catch (DaoException e) {
-            responseObserver.onError(Status.INTERNAL.asException());
-            return;
-        }
-
-        if (worker == null) {
-            responseObserver.onError(
-                Status.NOT_FOUND.withDescription("Worker not found in workflow").asException());
-            return;
-        }
-        worker.notifyConnected(HostAndPort.fromString(request.getAddress()));
-        responseObserver.onNext(SchedulerPrivateApi.RegisterWorkerResponse.newBuilder().build());
-        responseObserver.onCompleted();
-    }
 }
