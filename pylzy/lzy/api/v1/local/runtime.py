@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Type, c
 from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.startup import ProcessingRequest
 from lzy.api.v1.utils.pickle import pickle
-from lzy.api.v1.workflow import WbRef
 from lzy.logs.config import get_logging_config, COLOURS, get_color, RESET_COLOR
 from lzy.storage.api import Storage, AsyncStorageClient
 
@@ -39,7 +38,6 @@ class LocalRuntime(Runtime):
     async def exec(
         self,
         calls: List[LzyCall],
-        _: Dict[str, WbRef],
         progress: Callable[[ProgressStep], None],
     ):
         assert self.__workflow is not None

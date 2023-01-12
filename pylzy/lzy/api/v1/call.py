@@ -37,31 +37,35 @@ class LzyCall:
         self.__provisioning = provisioning
         self.__env = env
         self.__description = description
-        self.__entry_ids = [
-            parent_wflow.snapshot.create_entry(sign.func.callable.__name__ + ".return_" + str(i), typ).id
-            for i, typ in enumerate(sign.func.output_types)
-        ]
+
+        prefix = f"{parent_wflow.owner.storage_uri}/lzy_runs/{parent_wflow.execution_id}/data"
+        self.__entry_ids: typing.List[str] = []
+        for i, typ in enumerate(sign.func.output_types):
+            name = sign.func.callable.__name__ + ".return_" + str(i)
+            uri = f"{prefix}/{name}.{self.__id}"
+            self.__entry_ids.append(parent_wflow.snapshot.create_entry(name, typ, uri).id)
 
         self.__args_entry_ids: typing.List[str] = []
         for i, arg in enumerate(sign.args):
             if is_lzy_proxy(arg):
                 self.__args_entry_ids.append(get_proxy_entry_id(arg))
             else:
-                name = sign.func.arg_names[i]
+                arg_name = sign.func.arg_names[i]
+                name = sign.func.callable.__name__ + "." + arg_name
+                uri = f"{prefix}/{name}.{self.__id}"
                 self.__args_entry_ids.append(
-                    parent_wflow.snapshot.create_entry(sign.func.callable.__name__ + "." + name,
-                                                       sign.func.input_types[name]).id)
+                    parent_wflow.snapshot.create_entry(name, sign.func.input_types[arg_name], uri).id)
 
         self.__kwargs_entry_ids: Dict[str, str] = {}
-        for name, kwarg in sign.kwargs.items():
+        for kwarg_name, kwarg in sign.kwargs.items():
             entry_id: str
             if is_lzy_proxy(kwarg):
-                entry_id = kwarg.__lzy_entry_id__
+                entry_id = get_proxy_entry_id(kwarg)
             else:
-                entry_id = parent_wflow.snapshot.create_entry(sign.func.callable.__name__ + "." + name,
-                                                              sign.func.input_types[name]).id
-
-            self.__kwargs_entry_ids[name] = entry_id
+                name = sign.func.callable.__name__ + "." + kwarg_name
+                uri = f"{prefix}/{name}.{self.__id}"
+                entry_id = parent_wflow.snapshot.create_entry(name, sign.func.input_types[kwarg_name], uri).id
+            self.__kwargs_entry_ids[kwarg_name] = entry_id
 
     @property
     def provisioning(self) -> Provisioning:

@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime, timedelta
 from typing import List, Optional
 
@@ -91,11 +90,11 @@ with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
     wb.b = fun2(42)
     wb_id = wb.id
 
-wb = lzy.whiteboard(wb_id)
+wb = lzy.whiteboard(id_=wb_id)
 print(wb.a, wb.a)
 print(f"Len: {len(wb.b)}")
 
-wb = lzy.whiteboard(wb_id)
+wb = lzy.whiteboard(id_=wb_id)
 print(wb.a, wb.b)
 print(f"Len: {len(wb.b)}")
 
@@ -110,36 +109,36 @@ with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
     wb.a = fun1()
     wb.b = fun2(wb.a)
 
-whiteboards = lzy.whiteboards(tags=[simple_whiteboard_tag])
+whiteboards = list(lzy.whiteboards(tags=[simple_whiteboard_tag]))
 print("Number of whiteboard with simple_whiteboard_tag is " + str(len(whiteboards)))
 
 current_datetime_local = datetime.now() - timedelta(days=1)
 next_day_datetime_local = current_datetime_local + timedelta(days=1)
-whiteboards = lzy.whiteboards(
+whiteboards = list(lzy.whiteboards(
     not_before=current_datetime_local,
     not_after=next_day_datetime_local,
-)
+))
 print(
     "Number of whiteboard when date lower and upper bounds are specified is "
     + str(len(whiteboards))
 )
-whiteboards = lzy.whiteboards(
+whiteboards = list(lzy.whiteboards(
     not_before=current_datetime_local,
-)
+))
 print(
     "Number of whiteboard when date lower bound is specified is "
     + str(len(whiteboards))
 )
-whiteboards = lzy.whiteboards(
+whiteboards = list(lzy.whiteboards(
     not_after=next_day_datetime_local,
-)
+))
 print(
     "Number of whiteboard when date upper bounds is specified is "
     + str(len(whiteboards))
 )
-whiteboards = lzy.whiteboards(
+whiteboards = list(lzy.whiteboards(
     not_before=next_day_datetime_local
-)
+))
 print(
     "Number of whiteboard when date interval is set for the future is "
     + str(len(whiteboards))
@@ -151,7 +150,7 @@ with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
     wb.b = fun8(wb.a)
     wb_id = wb.id
 
-wb = lzy.whiteboard(wb_id)
+wb = lzy.whiteboard(id_=wb_id)
 print("string_field value in WhiteboardWithLzyMessageFields is " + wb.a.string_field)
 print("int_field value in WhiteboardWithLzyMessageFields is " + str(wb.a.int_field))
 print(
@@ -168,7 +167,7 @@ print(
 print("enum_field value in WhiteboardWithLzyMessageFields is " + str(wb.a.enum_field))
 print("non lzy message int field in WhiteboardWithLzyMessageFields is " + str(wb.b))
 
-wb = lzy.whiteboard(wb_id)
+wb = lzy.whiteboard(id_=wb_id)
 print("string_field value in WhiteboardWithOneLzyMessageField is " + wb.a.string_field)
 print("int_field value in WhiteboardWithOneLzyMessageField is " + str(wb.a.int_field))
 
@@ -182,7 +181,7 @@ with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
     wb.b = fun2(fun1())
     wb_id = wb.id
 
-wb = lzy.whiteboard(wb_id)
+wb = lzy.whiteboard(id_=wb_id)
 print(
     f"Value a in DefaultWhiteboard is {wb.a}, b length is {len(wb.b)}, c is {wb.c}, d is {wb.d}"
 )
@@ -199,7 +198,7 @@ with lzy.workflow(name=WORKFLOW_NAME, interactive=False) as wf:
     )
     wb_id = wb.id
 
-wb = lzy.whiteboard(wb_id)
+wb = lzy.whiteboard(id_=wb_id)
 print(
     f"Value a.string_field in WhiteboardWithOneLzyMessageField is {wb.a.string_field}"
 )

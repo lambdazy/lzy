@@ -1,26 +1,32 @@
 import asyncio
 import dataclasses
+import datetime
+import uuid
 from typing import (
     TYPE_CHECKING,
     Any,
-    Dict,
     List,
     Optional,
     Sequence,
     Type,
-    TypeVar, cast, )
+    TypeVar, cast, Set, )
 
+from serialzy.api import Schema
+
+from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
 from lzy.api.v1.env import Env
 from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.snapshot import Snapshot, DefaultSnapshot
 from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy, lzy_proxy
-from lzy.api.v1.whiteboards import WritableWhiteboard, fetch_whiteboard_meta, WbRef
+from lzy.api.v1.whiteboards import WritableWhiteboard, fetch_whiteboard_meta
 from lzy.logs.config import get_logger
 from lzy.proxy.result import Just
 from lzy.py_env.api import PyEnv
 from lzy.utils.event_loop import LzyEventLoop
-from lzy.whiteboards.api import WhiteboardField, WhiteboardDefaultDescription
+from ai.lzy.v1.whiteboard.whiteboard_pb2 import WhiteboardField, Whiteboard, Storage
+# noinspection PyPackageRequirements
+from google.protobuf.timestamp_pb2 import Timestamp
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -52,15 +58,17 @@ class LzyWorkflow:
         self.__eager = eager
         self.__owner = owner
         self.__call_queue: List["LzyCall"] = []
-        self.__whiteboards_links: Dict[str, WbRef] = {}
         self.__started = False
 
         self.__env = env
         self.__provisioning = provisioning
         self.__auto_py_env = auto_py_env
         self.__interactive = interactive
-        self.__whiteboards: List[str] = []
+        self.__whiteboards: List[Whiteboard] = []
+        self.__filled_entry_ids: Set[str] = set()
+
         self.__snapshot: Optional[Snapshot] = None
+        self.__execution_id: Optional[str] = None
 
     @property
     def owner(self) -> "Lzy":
@@ -71,6 +79,12 @@ class LzyWorkflow:
         if self.__snapshot is None:
             raise ValueError("Workflow is not yet started")
         return self.__snapshot
+
+    @property
+    def execution_id(self) -> str:
+        if self.__execution_id is None:
+            raise ValueError("Workflow is not yet started")
+        return self.__execution_id
 
     @property
     def name(self) -> str:
@@ -92,13 +106,14 @@ class LzyWorkflow:
     def is_interactive(self) -> bool:
         return self.__interactive
 
+    @property
+    def filled_entry_ids(self) -> Set[str]:
+        return self.__filled_entry_ids
+
     def register_call(self, call: "LzyCall") -> Any:
         self.__call_queue.append(call)
         if self.__eager:
             self.barrier()
-
-    def add_whiteboard_link(self, storage_uri: str, ref: WbRef):
-        self.__whiteboards_links[storage_uri] = ref
 
     def barrier(self):
         LzyEventLoop.run_async(self._barrier())
@@ -108,12 +123,9 @@ class LzyWorkflow:
 
     def __enter__(self) -> "LzyWorkflow":
         try:
-            execution_id = LzyEventLoop.run_async(self.__start())
-            self.__snapshot = DefaultSnapshot(
-                execution_id,
-                storage_registry=self.owner.storage_registry,
-                serializer_registry=self.owner.serializer_registry,
-            )
+            self.__execution_id = LzyEventLoop.run_async(self.__start())
+            self.__snapshot = DefaultSnapshot(self.owner.serializer_registry, self.owner.storage_client,
+                                              self.owner.storage_name)
             return self
         except Exception as e:
             self.__destroy()
@@ -140,8 +152,10 @@ class LzyWorkflow:
         await self.__owner.runtime.destroy()
         wbs_to_finalize = []
         while len(self.__whiteboards) > 0:
-            wb_id = self.__whiteboards.pop()
-            wbs_to_finalize.append(self.__owner.whiteboard_client.finalize(wb_id))
+            whiteboard = self.__whiteboards.pop()
+            wbs_to_finalize.append(
+                self.__owner.whiteboard_manager.update_meta(
+                    Whiteboard(id=whiteboard.id, status=Whiteboard.Status.FINALIZED), uri=whiteboard.storage.uri))
         await asyncio.gather(*wbs_to_finalize)
 
     async def __start(self) -> str:
@@ -173,10 +187,10 @@ class LzyWorkflow:
                 if not is_lzy_proxy(kwarg):
                     data_to_load.append(self.snapshot.put_data(eid, kwarg))
 
-        await asyncio.gather(*data_to_load)
+            self.__filled_entry_ids.update(call.entry_ids)
 
-        await self.__owner.runtime.exec(self.__call_queue, self.__whiteboards_links,
-                                        lambda x: _LOG.info(f"Graph status: {x.name}"))
+        await asyncio.gather(*data_to_load)
+        await self.__owner.runtime.exec(self.__call_queue, lambda x: _LOG.info(f"Graph status: {x.name}"))
         self.__call_queue = []
 
     async def __create_whiteboard(self, typ: Type[T], tags: Sequence = ()) -> T:
@@ -186,34 +200,64 @@ class LzyWorkflow:
                 f"Whiteboard class should be annotated with both @whiteboard and @dataclass"
             )
 
+        config = self.owner.storage_registry.default_config()
+        if config is None:
+            raise ValueError("Default storage is required to create whiteboard")
+
+        whiteboard_id = str(uuid.uuid4())
+        storage_prefix = f"whiteboards/{declaration_meta.name}-{whiteboard_id}"
+        whiteboard_uri = f"{config.uri}/{storage_prefix}"
+
         declared_fields = dataclasses.fields(typ)
         fields = []
         data_to_load = []
         defaults = {}
 
         for field in declared_fields:
+            serializer = self.owner.serializer_registry.find_serializer_by_type(field.type)
+            if not serializer.available():
+                raise ValueError(
+                    f'Serializer for type {field.type} is not available, please install {serializer.requirements()}')
+            if not serializer.stable():
+                raise ValueError(
+                    f'Variables of type {field.type} cannot be assigned on whiteboard'
+                    f' because we cannot serialize them in a portable format. '
+                    f'See https://github.com/lambdazy/serialzy for details.')
+
             if field.default != dataclasses.MISSING:
-                entry = self.snapshot.create_entry(declaration_meta.name + "." + field.name, field.type)
+                entry = self.snapshot.create_entry(declaration_meta.name + "." + field.name, field.type,
+                                                   f"{whiteboard_uri}/{field.name}.default")
                 data_to_load.append(self.snapshot.put_data(entry.id, field.default))
-                fields.append(
-                    WhiteboardField(field.name, WhiteboardDefaultDescription(entry.storage_uri, entry.data_scheme))
-                )
                 defaults[field.name] = lzy_proxy(entry.id, (field.type,), self, Just(field.default))
-            else:
-                fields.append(
-                    WhiteboardField(field.name)
-                )
+
+            fields.append(WhiteboardField(name=field.name, scheme=self.__build_scheme(serializer.schema(field.type))))
 
         await asyncio.gather(*data_to_load)
 
-        created_meta = await self.__owner.whiteboard_client.create_whiteboard(
-            declaration_meta.namespace,
-            declaration_meta.name,
-            fields,
-            self.snapshot.storage_name(),
-            tags,
+        now = datetime.datetime.now()
+        timestamp = Timestamp()
+        timestamp.FromDatetime(now)
+        whiteboard = Whiteboard(
+            id=whiteboard_id,
+            name=declaration_meta.name,
+            tags=tags,
+            fields=fields,
+            storage=Storage(name=self.owner.storage_name, uri=whiteboard_uri),
+            namespace="default",
+            status=Whiteboard.Status.CREATED,
+            createdAt=timestamp
         )
-
-        self.__whiteboards.append(created_meta.id)
-        wb = WritableWhiteboard(typ, created_meta, self, defaults)
+        await self.owner.whiteboard_manager.write_meta(whiteboard, whiteboard_uri)
+        self.__whiteboards.append(whiteboard)
+        wb = WritableWhiteboard(typ, whiteboard, self, defaults)
         return cast(T, wb)
+
+    @staticmethod
+    def __build_scheme(data_scheme: Schema) -> DataScheme:
+        return DataScheme(
+            dataFormat=data_scheme.data_format,
+            schemeFormat=data_scheme.schema_format,
+            schemeContent=data_scheme.schema_content
+            if data_scheme.schema_content else "",
+            metadata=data_scheme.meta
+        )

@@ -7,7 +7,7 @@ from lzy.storage.api import S3Credentials, AsyncStorageClient
 from lzy.storage.url import Scheme, bucket_from_uri, uri_from_bucket
 
 
-class AmazonClient(AsyncStorageClient):
+class S3Client(AsyncStorageClient):
     scheme = Scheme.s3
 
     def __init__(self, credentials: S3Credentials):
