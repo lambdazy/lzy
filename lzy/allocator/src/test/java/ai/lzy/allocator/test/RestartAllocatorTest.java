@@ -1,6 +1,7 @@
 package ai.lzy.allocator.test;
 
 import ai.lzy.allocator.model.debug.InjectedFailures;
+import ai.lzy.allocator.model.debug.InjectedFailures.TerminateException;
 import ai.lzy.allocator.services.AllocatorService;
 import ai.lzy.v1.VmAllocatorApi;
 import com.google.protobuf.util.Durations;
@@ -49,53 +50,66 @@ public class RestartAllocatorTest extends AllocatorApiTestBase {
     }
 
     @Test
+    public void allocateVmFail0() throws Exception {
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(0).set(failure("term 0"));
+        allocateVmFailImpl();
+    }
+
+    @Test
     public void allocateVmFail1() throws Exception {
-        InjectedFailures.FAIL_ALLOCATE_VMS.get(1).set(() -> new InjectedFailures.TerminateException("term 1"));
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(1).set(failure("term 1"));
         allocateVmFailImpl();
     }
 
     @Test
     public void allocateVmFail2() throws Exception {
-        InjectedFailures.FAIL_ALLOCATE_VMS.get(2).set(() -> new InjectedFailures.TerminateException("term 2"));
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(2).set(failure("term 2"));
         allocateVmFailImpl();
     }
 
     @Test
     public void allocateVmFail3() throws Exception {
-        InjectedFailures.FAIL_ALLOCATE_VMS.get(3).set(() -> new InjectedFailures.TerminateException("term 3"));
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(3).set(failure("term 3"));
         allocateVmFailImpl();
     }
 
     @Test
     @Ignore("requires v6 tunnel proxy to be set")
     public void allocateVmFail4() throws Exception {
-        InjectedFailures.FAIL_ALLOCATE_VMS.get(4).set(() -> new InjectedFailures.TerminateException("term 4"));
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(4).set(failure("term 4"));
         allocateVmFailImpl();
     }
 
     @Test
     public void allocateVmFail5() throws Exception {
-        InjectedFailures.FAIL_ALLOCATE_VMS.get(5).set(() -> new InjectedFailures.TerminateException("term 5"));
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(5).set(failure("term 5"));
         allocateVmFailImpl();
     }
 
     @Test
     public void allocateVmFail6() throws Exception {
-        InjectedFailures.FAIL_ALLOCATE_VMS.get(6).set(() -> new InjectedFailures.TerminateException("term 6"));
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(6).set(failure("term 6"));
         allocateVmFailImpl();
     }
 
     @Test
-    @Ignore("requires v6 tunnel proxy to be set")
+    @Ignore("requires volume claims support")
     public void allocateVmFail7() throws Exception {
-        InjectedFailures.FAIL_ALLOCATE_VMS.get(7).set(() -> new InjectedFailures.TerminateException("term 7"));
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(7).set(failure("term 7"));
         allocateVmFailImpl();
     }
 
     @Test
     @Ignore("double call to k8s")
     public void allocateVmFail8() throws Exception {
-        InjectedFailures.FAIL_ALLOCATE_VMS.get(8).set(() -> new InjectedFailures.TerminateException("term 8"));
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(8).set(failure("term 8"));
+        allocateVmFailImpl();
+    }
+
+    @Test
+    @Ignore("double call to k8s")
+    public void allocateVmFail9() throws Exception {
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(9).set(failure("term 9"));
         allocateVmFailImpl();
     }
 
@@ -171,5 +185,9 @@ public class RestartAllocatorTest extends AllocatorApiTestBase {
 
         allocOp = waitOpSuccess(allocOp);
         Assert.assertEquals(vmId, allocOp.getResponse().unpack(VmAllocatorApi.AllocateResponse.class).getVmId());
+    }
+
+    private static Runnable failure(String message) {
+        return () -> { throw new TerminateException(message); };
     }
 }

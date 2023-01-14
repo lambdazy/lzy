@@ -10,14 +10,16 @@ import ai.lzy.model.db.TransactionHandle;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
+import jakarta.annotation.Nullable;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import lombok.Lombok;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
-import javax.annotation.Nullable;
-import javax.inject.Named;
 
 @Singleton
 public class SessionDaoImpl implements SessionDao {
@@ -62,52 +64,57 @@ public class SessionDaoImpl implements SessionDao {
 
         throwInjectedError();
 
-        final Session[] session = {null};
-        DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement("""
+        return DbOperation.execute(transaction, storage, con -> {
+            try (PreparedStatement s = con.prepareStatement("""
                 SELECT id, owner, description, cache_policy_json, op_id
                 FROM session
-                WHERE id = ? AND deleted_at IS NULL""" + forUpdate(transaction)))
+                WHERE id = ?""" + forUpdate(transaction)))
             {
                 s.setString(1, sessionId);
                 final var rs = s.executeQuery();
-                if (!rs.next()) {
-                    session[0] = null;
-                    return;
+                if (rs.next()) {
+                    return readSession(rs);
                 }
-                final var id = rs.getString(1);
-                final var owner = rs.getString(2);
-                final var description = rs.getString(3);
-                final var cachePolicy = objectMapper.readValue(rs.getString(4), CachePolicy.class);
-                final var opId = rs.getString(5);
-                session[0] = new Session(id, owner, description, cachePolicy, opId);
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException("Cannot parse cache policy for session " + sessionId, e);
+                return null;
             }
         });
-        return session[0];
     }
 
     @Override
-    public boolean delete(String sessionId, @Nullable TransactionHandle transaction) throws SQLException {
+    @Nullable
+    public Session delete(String sessionId, @Nullable TransactionHandle transaction) throws SQLException {
         LOG.debug("Delete session {} in tx {}", sessionId, transaction);
 
         throwInjectedError();
 
-        final boolean[] ret = {false};
-
-        DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement("""
-                UPDATE session
-                SET deleted_at = now()
-                WHERE id = ? AND deleted_at IS NULL"""))
+        return DbOperation.execute(transaction, storage, con -> {
+            try (PreparedStatement st = con.prepareStatement("""
+                DELETE FROM session
+                WHERE id = ?
+                RETURNING id, owner, description, cache_policy_json, op_id"""))
             {
-                s.setString(1, sessionId);
-                ret[0] = s.executeUpdate() > 0;
+                st.setString(1, sessionId);
+                var rs = st.executeQuery();
+                if (rs.next()) {
+                    return readSession(rs);
+                }
+                return null;
             }
         });
+    }
 
-        return ret[0];
+    private Session readSession(ResultSet rs) throws SQLException {
+        final var id = rs.getString(1);
+        final var owner = rs.getString(2);
+        final var description = rs.getString(3);
+        final CachePolicy cachePolicy;
+        try {
+            cachePolicy = objectMapper.readValue(rs.getString(4), CachePolicy.class);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Cannot parse cache policy for session " + id, e);
+        }
+        final var opId = rs.getString(5);
+        return new Session(id, owner, description, cachePolicy, opId);
     }
 
     @VisibleForTesting

@@ -8,7 +8,8 @@ import java.util.function.Supplier;
 
 public class InjectedFailures {
 
-    public static final List<AtomicReference<Supplier<Throwable>>> FAIL_ALLOCATE_VMS = List.of(
+    public static final List<AtomicReference<Runnable>> FAIL_ALLOCATE_VMS = List.of(
+        new AtomicReference<>(null), new AtomicReference<>(null), new AtomicReference<>(null),
         new AtomicReference<>(null), new AtomicReference<>(null), new AtomicReference<>(null),
         new AtomicReference<>(null), new AtomicReference<>(null), new AtomicReference<>(null),
         new AtomicReference<>(null), new AtomicReference<>(null), new AtomicReference<>(null)
@@ -36,7 +37,7 @@ public class InjectedFailures {
     }
 
     public static void failAllocateVm(int n) {
-        failImpl(FAIL_ALLOCATE_VMS.get(n));
+        failImpl0(FAIL_ALLOCATE_VMS.get(n));
     }
 
     public static void failAllocateVm0() {
@@ -73,6 +74,10 @@ public class InjectedFailures {
 
     public static void failAllocateVm8() {
         failAllocateVm(8);
+    }
+
+    public static void failAllocateVm9() {
+        failAllocateVm(9);
     }
 
     public static void failCreateDisk(int n) {
@@ -137,6 +142,15 @@ public class InjectedFailures {
             ref.set(null);
             throw Lombok.sneakyThrow(th);
         }
+    }
+
+    private static void failImpl0(AtomicReference<Runnable> ref) {
+        final var fn = ref.get();
+        if (fn == null) {
+            return;
+        }
+        ref.set(null);
+        fn.run();
     }
 
     public static final class TerminateException extends Error {

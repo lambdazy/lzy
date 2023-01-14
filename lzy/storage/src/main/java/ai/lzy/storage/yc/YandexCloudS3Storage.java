@@ -79,7 +79,11 @@ public class YandexCloudS3Storage implements StorageService {
 
             var errorStatus = Status.INTERNAL.withDescription("S3 internal error: " + e.getMessage()).withCause(e);
 
-            operationDao.failOperation(operation.id(), toProto(errorStatus), LOG);
+            try {
+                operationDao.failOperation(operation.id(), toProto(errorStatus), null, LOG);
+            } catch (SQLException ex) {
+                LOG.error("Cannot fail operation {}: {}", operation.id(), ex.getMessage());
+            }
 
             responseObserver.onError(errorStatus.asRuntimeException());
             return;
@@ -139,7 +143,11 @@ public class YandexCloudS3Storage implements StorageService {
 
             var errorStatus = Status.INTERNAL.withDescription("SQL error: " + e.getMessage()).withCause(e);
 
-            operationDao.failOperation(operation.id(), toProto(errorStatus), LOG);
+            try {
+                operationDao.failOperation(operation.id(), toProto(errorStatus), null, LOG);
+            } catch (SQLException ex) {
+                LOG.error("Cannot fail operation {}: {}", operation.id(), ex.getMessage());
+            }
 
             responseObserver.onError(errorStatus.asRuntimeException());
             return;
@@ -157,7 +165,11 @@ public class YandexCloudS3Storage implements StorageService {
 
             var errorStatus = Status.INTERNAL.withDescription("S3 internal error: " + e.getMessage()).withCause(e);
 
-            operationDao.failOperation(operation.id(), toProto(errorStatus), LOG);
+            try {
+                operationDao.failOperation(operation.id(), toProto(errorStatus), null, LOG);
+            } catch (SQLException ex) {
+                LOG.error("Cannot fail operation {}: {}", operation.id(), ex.getMessage());
+            }
 
             responseObserver.onError(errorStatus.asRuntimeException());
             return;
@@ -172,8 +184,7 @@ public class YandexCloudS3Storage implements StorageService {
             .build());
 
         try {
-            var completedOp = withRetries(LOG, () ->
-                operationDao.updateResponse(operation.id(), response.toByteArray(), null));
+            var completedOp = withRetries(LOG, () -> operationDao.complete(operation.id(), response, null));
 
             responseObserver.onNext(completedOp.toProto());
             responseObserver.onCompleted();
@@ -181,7 +192,11 @@ public class YandexCloudS3Storage implements StorageService {
             LOG.error("Error while executing transaction: {}", ex.getMessage(), ex);
             var errorStatus = Status.INTERNAL.withDescription("Error while executing request: " + ex.getMessage());
 
-            operationDao.failOperation(operation.id(), toProto(errorStatus), LOG);
+            try {
+                operationDao.failOperation(operation.id(), toProto(errorStatus), null, LOG);
+            } catch (SQLException e) {
+                LOG.error("Cannot fail operation {}: {}", operation.id(), ex.getMessage());
+            }
 
             responseObserver.onError(errorStatus.asRuntimeException());
         }

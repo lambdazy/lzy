@@ -19,7 +19,11 @@ import ai.lzy.v1.graph.GraphExecutor;
 import ai.lzy.v1.graph.GraphExecutorApi.*;
 import ai.lzy.v1.graph.GraphExecutorGrpc;
 import com.google.protobuf.Any;
-import io.grpc.*;
+import io.grpc.ManagedChannel;
+import io.grpc.Server;
+import io.grpc.ServerInterceptors;
+import io.grpc.Status;
+import io.grpc.StatusException;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
 import jakarta.annotation.PreDestroy;
@@ -30,6 +34,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -130,7 +135,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
         var packed = Any.pack(response);
 
         try {
-            withRetries(LOG, () -> operationDao.updateResponse(op.id(), packed.toByteArray(), null));
+            withRetries(LOG, () -> operationDao.complete(op.id(), packed, null));
         } catch (Exception e) {
             LOG.error("Error while executing transaction: {}", e.getMessage(), e);
 
@@ -142,7 +147,11 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
             }
 
             var errorStatus = Status.INTERNAL.withDescription("Error while execute graph: " + e.getMessage());
-            operationDao.failOperation(op.id(), toProto(errorStatus), LOG);
+            try {
+                operationDao.failOperation(op.id(), toProto(errorStatus), null, LOG);
+            } catch (SQLException ex) {
+                LOG.error("Cannot fail operation {}: {}", op.id(), ex.getMessage());
+            }
             responseObserver.onError(errorStatus.asRuntimeException());
             return;
         }

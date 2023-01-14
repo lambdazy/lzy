@@ -60,8 +60,9 @@ public class ThreadVmAllocator implements VmAllocator {
     }
 
     @Override
-    public void allocate(Vm vm) {
+    public boolean allocate(Vm vm) {
         allocateWithSingleWorkload(vm.vmId(), vm.poolLabel(), vm.allocateState().vmOtt(), vm.workloads().get(0));
+        return true;
     }
 
     private void allocateWithSingleWorkload(String vmId, String poolLabel, String vmOtt, Workload workload) {

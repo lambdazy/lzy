@@ -91,7 +91,7 @@ public class AllocatorAgent extends TimerTask {
                 switch (e.getStatus().getCode()) {
                     case ALREADY_EXISTS ->
                         done = true;
-                    case UNAVAILABLE, CANCELLED, ABORTED, DEADLINE_EXCEEDED, RESOURCE_EXHAUSTED ->
+                    case UNAVAILABLE, ABORTED, DEADLINE_EXCEEDED, RESOURCE_EXHAUSTED ->
                         LockSupport.parkNanos(Duration.ofSeconds(1).toNanos());
                     default -> {
                         done = true;

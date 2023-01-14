@@ -6,7 +6,7 @@ import ai.lzy.allocator.model.Workload;
 
 public interface TunnelAllocator {
     /**
-     * @return allocated Pon name
+     * @return allocated Pod name
      */
     String allocateTunnel(Vm.Spec vmSpec) throws InvalidConfigurationException;
 

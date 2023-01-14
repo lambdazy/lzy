@@ -29,7 +29,13 @@ public class InjectedFailuresController {
 
     @Post(ALLOCATE_VM)
     public HttpResponse<String> injectAllocateVmFailure(@Body String body) {
-        return setImpl(Integer.parseInt(body), FAIL_ALLOCATE_VMS, Fail.Instance);
+        int n = Integer.parseInt(body);
+        if (n >= 0 && n < FAIL_ALLOCATE_VMS.size()) {
+            FAIL_ALLOCATE_VMS.get(n).set(() -> { Runtime.getRuntime().halt(42); });
+            return HttpResponse.ok("Ok");
+        }
+        return HttpResponse.badRequest("Index out of range.");
+        //return setImpl(Integer.parseInt(body), FAIL_ALLOCATE_VMS, Fail.Instance);
     }
 
     @Delete(ALLOCATE_VM)

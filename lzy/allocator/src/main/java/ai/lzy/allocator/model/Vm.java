@@ -89,17 +89,14 @@ public record Vm(
     ) {}
 
     public enum Status {
-        // Vm spec saved, but allocation not started yet (internal state, not visible for user)
-        INIT,
         // Vm is allocating
         ALLOCATING,
         // Vm is running and client is holding control of it
         RUNNING,
         // Vm is running, but not allocated for client
         IDLE,
-        // VM is going to be deleted (session removed)
-        DELETING,
-        DEAD
+        // VM is going to be deleted (i.e. session removed or allocation was failed/cancelled)
+        DELETING
     }
 
     public String vmId() {

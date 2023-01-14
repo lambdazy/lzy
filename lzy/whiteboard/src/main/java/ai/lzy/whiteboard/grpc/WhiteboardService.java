@@ -23,7 +23,7 @@ import jakarta.inject.Named;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.net.URI;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -203,7 +203,7 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
                 LOG.info("Undo creating whiteboard {} done", whiteboard.getName());
                 var status = Status.INTERNAL.withCause(e);
 
-                operationDao.failOperation(op.id(), toProto(status), LOG);
+                operationDao.failOperation(op.id(), toProto(status), null, LOG);
 
                 responseObserver.onError(status.asRuntimeException());
             }
@@ -212,14 +212,22 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
                 e.getMessage(), e);
             var status = Status.INVALID_ARGUMENT.withDescription(e.getMessage());
 
-            operationDao.failOperation(op.id(), toProto(status), LOG);
+            try {
+                operationDao.failOperation(op.id(), toProto(status), null, LOG);
+            } catch (SQLException ex) {
+                LOG.error("Cannot fail operation {}: {}", op.id(), ex.getMessage());
+            }
 
             responseObserver.onError(status.asRuntimeException());
         } catch (Exception e) {
             LOG.error("Create whiteboard {} failed, got exception: {}", whiteboard.getName(), e.getMessage(), e);
             var status = Status.INTERNAL.withCause(e);
 
-            operationDao.failOperation(op.id(), toProto(status), LOG);
+            try {
+                operationDao.failOperation(op.id(), toProto(status), null, LOG);
+            } catch (SQLException ex) {
+                LOG.error("Cannot fail operation {}: {}", op.id(), ex.getMessage());
+            }
 
             responseObserver.onError(status.asRuntimeException());
         }
@@ -229,11 +237,15 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
             .build();
         var packedResponse = Any.pack(response);
         try {
-            withRetries(LOG, () -> operationDao.updateResponse(op.id(), packedResponse.toByteArray(), null));
+            withRetries(LOG, () -> operationDao.complete(op.id(), packedResponse, null));
         } catch (Exception e) {
             LOG.error("Error while executing transaction: {}", e.getMessage(), e);
             var errorStatus = Status.INTERNAL.withDescription("Error while creating whiteboard: " + e.getMessage());
-            operationDao.failOperation(op.id(), toProto(errorStatus), LOG);
+            try {
+                operationDao.failOperation(op.id(), toProto(errorStatus), null, LOG);
+            } catch (SQLException ex) {
+                LOG.error("Cannot fail operation {}: {}", op.id(), ex.getMessage());
+            }
             responseObserver.onError(errorStatus.asRuntimeException());
         }
         responseObserver.onNext(response);

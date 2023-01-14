@@ -12,8 +12,6 @@ import "google/rpc/status.proto";
 service LongRunningService {
   rpc Get (GetOperationRequest) returns (Operation) {}
 
-  rpc Listen (stream GetOperationRequest) returns (stream Operation) {}
-
   rpc Cancel (CancelOperationRequest) returns (Operation) {}
 
   rpc List (ListOperationsRequest) returns (ListOperationsResponse) {}
@@ -42,6 +40,7 @@ message GetOperationRequest {
 
 message CancelOperationRequest {
   string operation_id = 1;
+  string message = 2;
 }
 
 message ListOperationsRequest {

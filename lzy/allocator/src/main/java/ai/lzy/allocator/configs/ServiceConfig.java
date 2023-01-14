@@ -108,7 +108,10 @@ public class ServiceConfig {
     @Setter
     @ConfigurationProperties("gc")
     public static final class GcConfig {
+        private Duration initialDelay = Duration.ofSeconds(10);
         private Duration cleanupPeriod = Duration.ofMinutes(5);
         private Duration leaseDuration = Duration.ofMinutes(30);
+        private Duration gracefulShutdownDuration = Duration.ofSeconds(10);
+        private Duration keepTimeout = Duration.ofDays(7);
     }
 }

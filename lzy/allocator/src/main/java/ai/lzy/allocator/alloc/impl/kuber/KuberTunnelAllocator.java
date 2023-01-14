@@ -125,4 +125,8 @@ public class KuberTunnelAllocator implements TunnelAllocator {
             List.of()
         );
     }
+
+    public void deallocateTunnel() {
+        // TODO:
+    }
 }

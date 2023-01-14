@@ -7,8 +7,11 @@ allocator:
   heartbeat-timeout: 1m
 
   gc:
+    initial-delay: 0s
     cleanup-period: 2s
     lease-duration: 1m
+    graceful-shutdown-duration: 0s
+    keep-timeout: 0s
 
   database:
     url: 'embedded-postgres'

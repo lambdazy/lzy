@@ -9,19 +9,18 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.services.AllocatorService;
 import ai.lzy.allocator.storage.AllocatorDataSource;
+import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.metrics.MetricReporter;
-import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.longrunning.LongRunning;
-import io.grpc.ManagedChannel;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import lombok.Setter;
 
 import java.util.concurrent.ScheduledExecutorService;
-import javax.inject.Named;
 
 @Singleton
 @Requires(beans = MetricReporter.class, env = "test-mock")
@@ -36,13 +35,11 @@ public class AllocatorProxy extends AllocatorService {
     public AllocatorProxy(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
                           SessionDao sessionsDao, DiskDao diskDao, VmAllocator allocator,
                           TunnelAllocator tunnelAllocator, ServiceConfig config, AllocatorDataSource storage,
-                          AllocatorMetrics metrics,
-                          @Named("AllocatorExecutor") ScheduledExecutorService executor,
-                          @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
-                          @Named("AllocatorIamToken") RenewableJwt iamToken)
+                          AllocatorMetrics metrics, @Named("AllocatorExecutor") ScheduledExecutorService executor,
+                          @Named("AllocatorSubjectServiceClient") SubjectServiceGrpcClient subjectClient)
     {
-        super(vmDao, operationsDao, sessionsDao, diskDao, allocator,
-            tunnelAllocator, config, storage, metrics, executor, iamChannel, iamToken);
+        super(vmDao, operationsDao, sessionsDao, diskDao, allocator, tunnelAllocator, config, storage, metrics,
+            executor, subjectClient);
     }
 
     @Override
