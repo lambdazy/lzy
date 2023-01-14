@@ -1,10 +1,16 @@
 import dataclasses
+import datetime
+import uuid
 from dataclasses import dataclass
-from typing import Optional, Type, Dict, Any, Iterable, Mapping, Set, TYPE_CHECKING
+from typing import Optional, Type, Dict, Any, Iterable, Set, TYPE_CHECKING, Sequence
 
+# noinspection PyPackageRequirements
+from google.protobuf.timestamp_pb2 import Timestamp
+from serialzy.api import Schema
 from serialzy.types import get_type
 
-from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard
+from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
+from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, WhiteboardField, Storage
 from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy, get_proxy_entry_id, lzy_proxy
 from lzy.proxy.result import Just
 from lzy.utils.event_loop import LzyEventLoop
@@ -44,6 +50,16 @@ def fetch_whiteboard_meta(typ: Type) -> Optional[DeclaredWhiteboardMeta]:
     return DeclaredWhiteboardMeta(getattr(typ, WB_NAME_FIELD_NAME))
 
 
+def build_scheme(data_scheme: Schema) -> DataScheme:
+    return DataScheme(
+        dataFormat=data_scheme.data_format,
+        schemeFormat=data_scheme.schema_format,
+        schemeContent=data_scheme.schema_content
+        if data_scheme.schema_content else "",
+        metadata=data_scheme.meta
+    )
+
+
 class WritableWhiteboard:
     __internal_fields = {
         "_WritableWhiteboard__fields_dict", "_WritableWhiteboard__fields_assigned",
@@ -52,19 +68,69 @@ class WritableWhiteboard:
 
     def __init__(
         self,
-        instance: Any,
-        model: Whiteboard,
-        workflow: "LzyWorkflow",
-        fields: Mapping[str, Any]
+        typ: Type,
+        tags: Sequence[str],
+        workflow: "LzyWorkflow"
     ):
-        self.__fields_dict: Dict[str, dataclasses.Field] = {
-            field.name: field for field in dataclasses.fields(instance)
-        }
-        self.__fields_assigned: Set[str] = set()
-        self.__model = model
         self.__workflow = workflow
+        declaration_meta = fetch_whiteboard_meta(typ)
+        if declaration_meta is None:
+            raise ValueError(
+                f"Whiteboard class should be annotated with both @whiteboard and @dataclass"
+            )
+
+        whiteboard_id = str(uuid.uuid4())
+        storage_prefix = f"whiteboards/{declaration_meta.name}-{whiteboard_id}"
+        whiteboard_uri = f"{workflow.owner.storage_uri}/{storage_prefix}"
+
+        # noinspection PyDataclass
+        declared_fields = dataclasses.fields(typ)
+        fields = []
+        data_to_load = []
+        defaults = {}
+
+        for field in declared_fields:
+            serializer = workflow.owner.serializer_registry.find_serializer_by_type(field.type)
+            if not serializer.available():
+                raise ValueError(
+                    f'Serializer for type {field.type} is not available, please install {serializer.requirements()}')
+            if not serializer.stable():
+                raise ValueError(
+                    f'Variables of type {field.type} cannot be assigned on whiteboard'
+                    f' because we cannot serialize them in a portable format. '
+                    f'See https://github.com/lambdazy/serialzy for details.')
+
+            if field.default != dataclasses.MISSING:
+                entry = workflow.snapshot.create_entry(declaration_meta.name + "." + field.name, field.type,
+                                                       f"{whiteboard_uri}/{field.name}.default")
+                data_to_load.append(workflow.snapshot.put_data(entry.id, field.default))
+                defaults[field.name] = lzy_proxy(entry.id, (field.type,), workflow, Just(field.default))
+
+            fields.append(WhiteboardField(name=field.name, scheme=build_scheme(serializer.schema(field.type))))
+
+        LzyEventLoop.gather(*data_to_load)
+        # noinspection PyDataclass
+        self.__fields_dict: Dict[str, dataclasses.Field] = {field.name: field for field in dataclasses.fields(typ)}
         self.__fields: Dict[str, Any] = {}
-        self.__fields.update(fields)
+        self.__fields.update(defaults)
+
+        now = datetime.datetime.now()
+        timestamp = Timestamp()
+        timestamp.FromDatetime(now)
+        whiteboard = Whiteboard(
+            id=whiteboard_id,
+            name=declaration_meta.name,
+            tags=tags,
+            fields=fields,
+            storage=Storage(name=workflow.owner.storage_name, uri=whiteboard_uri),
+            namespace="default",
+            status=Whiteboard.Status.CREATED,
+            createdAt=timestamp
+        )
+        LzyEventLoop.run_async(workflow.owner.whiteboard_manager.write_meta(whiteboard, whiteboard_uri))
+
+        self.__model = whiteboard
+        self.__fields_assigned: Set[str] = set()
 
     def __setattr__(self, key: str, value: Any):
         if key in WritableWhiteboard.__internal_fields:  # To complete constructor
@@ -98,7 +164,7 @@ class WritableWhiteboard:
 
     def __getattr__(self, item: str) -> Any:
         if item not in self.__fields:
-            raise AttributeError(f"Whiteboard has no field {item}")
+            raise AttributeError(f"Whiteboard field {item} is not assigned")
         return self.__fields[item]
 
     @property
@@ -112,3 +178,7 @@ class WritableWhiteboard:
     @property
     def tags(self) -> Iterable[str]:
         return self.__model.tags
+
+    @property
+    def storage_uri(self) -> str:
+        return self.__model.storage.uri
