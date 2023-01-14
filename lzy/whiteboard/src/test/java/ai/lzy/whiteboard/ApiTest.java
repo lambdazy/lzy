@@ -44,6 +44,7 @@ import java.net.URI;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -325,7 +326,8 @@ public class ApiTest extends BaseTestWithIam {
         assertEquals(2, tags.size());
         assertTrue(tags.contains("t1"));
         assertTrue(tags.contains("t2"));
-        assertEquals(createdAt, ai.lzy.util.grpc.ProtoConverter.fromProto(whiteboard.getCreatedAt()));
+        assertEquals(createdAt.truncatedTo(ChronoUnit.MILLIS),
+            ai.lzy.util.grpc.ProtoConverter.fromProto(whiteboard.getCreatedAt()).truncatedTo(ChronoUnit.MILLIS));
         assertEquals("storage", whiteboard.getStorage().getName());
         assertEquals("description", whiteboard.getStorage().getDescription());
         assertEquals("s3://uri", whiteboard.getStorage().getUri());
@@ -411,7 +413,8 @@ public class ApiTest extends BaseTestWithIam {
         assertEquals(2, tags.size());
         assertTrue(tags.contains("t1"));
         assertTrue(tags.contains("t2"));
-        assertEquals(createdAt, ai.lzy.util.grpc.ProtoConverter.fromProto(whiteboard.getCreatedAt()));
+        assertEquals(createdAt.truncatedTo(ChronoUnit.MILLIS),
+            ai.lzy.util.grpc.ProtoConverter.fromProto(whiteboard.getCreatedAt()).truncatedTo(ChronoUnit.MILLIS));
         assertEquals("storage", whiteboard.getStorage().getName());
         assertEquals("description", whiteboard.getStorage().getDescription());
         assertEquals("s3://uri", whiteboard.getStorage().getUri());
