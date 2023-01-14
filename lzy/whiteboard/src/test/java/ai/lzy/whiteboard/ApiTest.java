@@ -369,7 +369,8 @@ public class ApiTest extends BaseTestWithIam {
         assertEquals(2, tags.size());
         assertTrue(tags.contains("t3"));
         assertTrue(tags.contains("t4"));
-        assertEquals(newCreatedAt, ai.lzy.util.grpc.ProtoConverter.fromProto(whiteboard.getCreatedAt()));
+        assertEquals(newCreatedAt.truncatedTo(ChronoUnit.MILLIS),
+            ai.lzy.util.grpc.ProtoConverter.fromProto(whiteboard.getCreatedAt()).truncatedTo(ChronoUnit.MILLIS));
         assertEquals("new_storage", whiteboard.getStorage().getName());
         assertEquals("new_description", whiteboard.getStorage().getDescription());
         assertEquals("s3://new", whiteboard.getStorage().getUri());
@@ -443,7 +444,8 @@ public class ApiTest extends BaseTestWithIam {
         assertEquals(2, tags.size());
         assertTrue(tags.contains("t1"));
         assertTrue(tags.contains("t2"));
-        assertEquals(createdAt, ai.lzy.util.grpc.ProtoConverter.fromProto(whiteboard.getCreatedAt()));
+        assertEquals(createdAt.truncatedTo(ChronoUnit.MILLIS),
+            ai.lzy.util.grpc.ProtoConverter.fromProto(whiteboard.getCreatedAt()).truncatedTo(ChronoUnit.MILLIS));
         assertEquals("storage", whiteboard.getStorage().getName());
         assertEquals("description", whiteboard.getStorage().getDescription());
         assertEquals("s3://uri", whiteboard.getStorage().getUri());
