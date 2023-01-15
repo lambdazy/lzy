@@ -1,22 +1,30 @@
 import asyncio
 import sys
 import tempfile
-from dataclasses import dataclass
+from enum import Enum
 from typing import Dict, Union, Any, Iterable, Type
 
-from lzy.logs.config import get_color
 from serialzy.api import SerializerRegistry, Schema, Serializer
 from tqdm import tqdm
 
+from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, WhiteboardField
+from lzy.logs.config import get_color
 from lzy.proxy.result import Nothing
 from lzy.storage.api import StorageRegistry
-from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, WhiteboardField
 from lzy.utils.event_loop import LzyEventLoop
 
 
-@dataclass(frozen=True)
-class MissingWhiteboardField:
-    name: str
+class MissingWhiteboardFieldType:
+    pass
+
+
+MISSING_WHITEBOARD_FIELD = MissingWhiteboardFieldType()
+
+
+class WhiteboardStatus(Enum):
+    CREATED = "CREATED"
+    FINALIZED = "FINALIZED"
+    UNKNOWN = "UNKNOWN"
 
 
 class WhiteboardWrapper:
@@ -66,13 +74,26 @@ class WhiteboardWrapper:
     def tags(self) -> Iterable[str]:
         return self.__wb.tags
 
+    @property
+    def storage_uri(self) -> str:
+        return self.__wb.storage.uri
+
+    @property
+    def status(self) -> WhiteboardStatus:
+        if self.__wb.status == Whiteboard.Status.CREATED:
+            return WhiteboardStatus.CREATED
+        elif self.__wb.status == Whiteboard.Status.FINALIZED:
+            return WhiteboardStatus.FINALIZED
+        else:
+            return WhiteboardStatus.UNKNOWN
+
     async def __read_data(self, field: WhiteboardField) -> Any:
         data_scheme = field.scheme
         serializer = self.__serializers.find_serializer_by_data_format(data_scheme.dataFormat)
         if serializer is None:
-            raise RuntimeError(f"Serializer not found for data format {data_scheme.dataFormat}")
+            raise TypeError(f"Serializer not found for data format {data_scheme.dataFormat}")
         elif not serializer.available():
-            raise ValueError(
+            raise TypeError(
                 f'Serializer for data format {data_scheme.dataFormat} is not available, '
                 f'please install {serializer.requirements()}')
 
@@ -94,7 +115,7 @@ class WhiteboardWrapper:
         if exists_default:
             return await self.__load_and_deserialize(f"{self.name}.{field.name}", storage_uri_default, serializer, typ)
 
-        return MissingWhiteboardField(field.name)
+        return MISSING_WHITEBOARD_FIELD
 
     async def __load_and_deserialize(self, name: str, storage_uri: str, serializer: Serializer, typ: Type) -> Any:
         size = await self.__storage.size_in_bytes(storage_uri)

@@ -78,7 +78,7 @@ class SnapshotTests(TestCase):
         serializers = SerializerRegistryMock()
         snapshot = DefaultSnapshot(serializers, self.storages.client("storage"), "storage")
 
-        with self.assertRaisesRegex(ValueError, "Cannot find serializer for type"):
+        with self.assertRaisesRegex(TypeError, "Cannot find serializer for type"):
             snapshot.create_entry("name", str, f"{self.storages.config('storage').uri}/name")
 
     def test_serializer_not_available(self):
@@ -86,5 +86,5 @@ class SnapshotTests(TestCase):
         serializers.register_serializer(NotAvailablePrimitiveSerializer())
         snapshot = DefaultSnapshot(serializers, self.storages.client("storage"), "storage")
 
-        with self.assertRaisesRegex(ValueError, "is not available, please install"):
+        with self.assertRaisesRegex(TypeError, "is not available, please install"):
             snapshot.create_entry("name", str, f"{self.storages.config('storage').uri}/name")

@@ -15,7 +15,7 @@ from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy, get_proxy_entry_id, lzy
 from lzy.proxy.result import Just
 from lzy.utils.event_loop import LzyEventLoop
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from lzy.api.v1.workflow import LzyWorkflow
 
 WB_NAME_FIELD_NAME = "__lzy_wb_name__"
@@ -28,7 +28,7 @@ class DeclaredWhiteboardMeta:
 
 def whiteboard_(cls: Type, name: str):
     if not name:
-        raise TypeError("tags attribute must be specified")
+        raise ValueError("name attribute must be specified")
 
     if not isinstance(name, str):
         raise TypeError("name attribute is required to be a string")
@@ -75,12 +75,12 @@ class WritableWhiteboard:
         self.__workflow = workflow
         declaration_meta = fetch_whiteboard_meta(typ)
         if declaration_meta is None:
-            raise ValueError(
+            raise TypeError(
                 f"Whiteboard class should be annotated with both @whiteboard and @dataclass"
             )
 
         whiteboard_id = str(uuid.uuid4())
-        storage_prefix = f"whiteboards/{declaration_meta.name}-{whiteboard_id}"
+        storage_prefix = f"whiteboards/{declaration_meta.name}/{whiteboard_id}"
         whiteboard_uri = f"{workflow.owner.storage_uri}/{storage_prefix}"
 
         # noinspection PyDataclass
@@ -91,11 +91,13 @@ class WritableWhiteboard:
 
         for field in declared_fields:
             serializer = workflow.owner.serializer_registry.find_serializer_by_type(field.type)
-            if not serializer.available():
-                raise ValueError(
+            if serializer is None:
+                raise TypeError(f'Cannot find serializer for type {typ}')
+            elif not serializer.available():
+                raise TypeError(
                     f'Serializer for type {field.type} is not available, please install {serializer.requirements()}')
-            if not serializer.stable():
-                raise ValueError(
+            elif not serializer.stable():
+                raise TypeError(
                     f'Variables of type {field.type} cannot be assigned on whiteboard'
                     f' because we cannot serialize them in a portable format. '
                     f'See https://github.com/lambdazy/serialzy for details.')
@@ -162,7 +164,9 @@ class WritableWhiteboard:
         self.__fields[key] = value
 
     def __getattr__(self, item: str) -> Any:
-        if item not in self.__fields:
+        if item not in self.__fields_dict:
+            raise AttributeError(f"No such attribute: {item}")
+        elif item not in self.__fields:
             raise AttributeError(f"Whiteboard field {item} is not assigned")
         return self.__fields[item]
 

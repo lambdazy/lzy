@@ -31,25 +31,25 @@ class SnapshotEntry:
     data_scheme: Schema
 
 
-class Snapshot(ABC):
+class Snapshot(ABC):  # pragma: no cover
     @abstractmethod
-    def create_entry(self, name: str, typ: Type, storage_uri: str) -> SnapshotEntry:  # pragma: no cover
+    def create_entry(self, name: str, typ: Type, storage_uri: str) -> SnapshotEntry:
         pass
 
     @abstractmethod
-    def update_entry(self, entry_id: str, storage_uri: str) -> None:  # pragma: no cover
+    def update_entry(self, entry_id: str, storage_uri: str) -> None:
         pass
 
     @abstractmethod
-    async def get_data(self, entry_id: str) -> Result[Any]:  # pragma: no cover
+    async def get_data(self, entry_id: str) -> Result[Any]:
         pass
 
     @abstractmethod
-    async def put_data(self, entry_id: str, data: Any) -> None:  # pragma: no cover
+    async def put_data(self, entry_id: str, data: Any) -> None:
         pass
 
     @abstractmethod
-    def get(self, entry_id: str) -> SnapshotEntry:  # pragma: no cover
+    def get(self, entry_id: str) -> SnapshotEntry:
         pass
 
 
@@ -65,9 +65,9 @@ class DefaultSnapshot(Snapshot):
         eid = str(uuid.uuid4())
         serializer_by_type = self.__serializer_registry.find_serializer_by_type(typ)
         if serializer_by_type is None:
-            raise ValueError(f'Cannot find serializer for type {typ}')
+            raise TypeError(f'Cannot find serializer for type {typ}')
         elif not serializer_by_type.available():
-            raise ValueError(
+            raise TypeError(
                 f'Serializer for type {typ} is not available, please install {serializer_by_type.requirements()}')
 
         schema = serializer_by_type.schema(typ)

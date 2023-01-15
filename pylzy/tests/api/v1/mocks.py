@@ -1,6 +1,6 @@
 import datetime
 import uuid
-from typing import List, Callable, Optional, Iterable, BinaryIO, Iterator, Sequence, AsyncIterable
+from typing import List, Callable, Optional, Iterable, BinaryIO, Iterator, Sequence, AsyncIterable, Dict
 
 # noinspection PyPackageRequirements
 import grpc
@@ -8,6 +8,9 @@ from serialzy.serializers.primitive import PrimitiveSerializer
 
 from ai.lzy.v1.common.storage_pb2 import StorageConfig, S3Credentials
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard
+from ai.lzy.v1.whiteboard.whiteboard_service_pb2 import RegisterWhiteboardRequest, RegisterWhiteboardResponse, \
+    UpdateWhiteboardRequest, UpdateWhiteboardResponse, GetRequest, GetResponse
+from ai.lzy.v1.whiteboard.whiteboard_service_pb2_grpc import LzyWhiteboardServiceServicer
 
 from lzy.logs.config import get_logger
 
@@ -63,6 +66,7 @@ class StorageClientMock(AsyncStorageClient):
 class WorkflowServiceMock(LzyWorkflowServiceServicer):
     def __init__(self):
         self.fail = False
+        self.created = False
 
     def CreateWorkflow(
         self, request: CreateWorkflowRequest, context: grpc.ServicerContext
@@ -73,6 +77,7 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
             self.fail = False
             context.abort(grpc.StatusCode.INTERNAL, "some_error")
 
+        self.created = True
         return CreateWorkflowResponse(
             executionId="exec_id",
             internalSnapshotStorage=StorageConfig(
@@ -165,3 +170,31 @@ class SerializerRegistryMock(LzySerializerRegistry):
 class NotAvailablePrimitiveSerializer(PrimitiveSerializer):
     def available(self) -> bool:
         return False
+
+
+class NotStablePrimitiveSerializer(PrimitiveSerializer):
+    def stable(self) -> bool:
+        return False
+
+
+class WhiteboardIndexServiceMock(LzyWhiteboardServiceServicer):
+    def __init__(self):
+        self.__whiteboards: Dict[str, Whiteboard] = {}
+
+    def RegisterWhiteboard(self, request: RegisterWhiteboardRequest, context) -> RegisterWhiteboardResponse:
+        self.__whiteboards[request.whiteboard.id] = request.whiteboard
+        return RegisterWhiteboardResponse()
+
+    def UpdateWhiteboard(self, request: UpdateWhiteboardRequest, context) -> UpdateWhiteboardResponse:
+        self.__whiteboards[request.whiteboard.id].MergeFrom(request.whiteboard)
+        return UpdateWhiteboardResponse()
+
+    def Get(self, request: GetRequest, context) -> GetResponse:
+        whiteboard = self.__whiteboards[request.whiteboardId]
+        return GetResponse(whiteboard=whiteboard)
+
+    def List(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
