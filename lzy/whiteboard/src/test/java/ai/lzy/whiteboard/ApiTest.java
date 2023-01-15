@@ -153,7 +153,7 @@ public class ApiTest extends BaseTestWithIam {
         }
 
         final LWBS.RegisterWhiteboardRequest request =
-            genCreateWhiteboardRequest(UUID.randomUUID().toString(), Instant.now());
+            genCreateWhiteboardRequest(UUID.randomUUID().toString(), Instant.now().truncatedTo(ChronoUnit.MILLIS));
         externalUserWhiteboardClient.registerWhiteboard(request);
 
         final var getRequest = LWBS.GetRequest.newBuilder().setWhiteboardId(request.getWhiteboard().getId()).build();
@@ -313,7 +313,7 @@ public class ApiTest extends BaseTestWithIam {
     @Test
     public void updateWhiteboardAllFields() {
         final String id = UUID.randomUUID().toString();
-        final Instant createdAt = Instant.now();
+        final Instant createdAt = Instant.now().truncatedTo(ChronoUnit.MILLIS);
         final LWBS.RegisterWhiteboardRequest whiteboardRequest = genCreateWhiteboardRequest(id, createdAt);
         whiteboardClient.registerWhiteboard(whiteboardRequest);
 
@@ -341,7 +341,7 @@ public class ApiTest extends BaseTestWithIam {
         assertTrue(fields.containsKey("f3"));
         assertTrue(fields.containsKey("f4"));
 
-        final Instant newCreatedAt = Instant.now();
+        final Instant newCreatedAt = Instant.now().truncatedTo(ChronoUnit.MILLIS);
         whiteboardClient.updateWhiteboard(LWBS.UpdateWhiteboardRequest.newBuilder()
             .setWhiteboard(LWB.Whiteboard.newBuilder()
                 .setId(id)
@@ -401,7 +401,7 @@ public class ApiTest extends BaseTestWithIam {
     @Test
     public void updateWhiteboardOnlyStatus() {
         final String id = UUID.randomUUID().toString();
-        final Instant createdAt = Instant.now();
+        final Instant createdAt = Instant.now().truncatedTo(ChronoUnit.MILLIS);
         final LWBS.RegisterWhiteboardRequest whiteboardRequest = genCreateWhiteboardRequest(id, createdAt);
         whiteboardClient.registerWhiteboard(whiteboardRequest);
 
@@ -502,7 +502,7 @@ public class ApiTest extends BaseTestWithIam {
 
     @Test
     public void updateWhiteboardIdempotency() {
-        processSequentially(finalizeWbScenario());
+        processSequentially(updateWbScenario());
     }
 
     @Test
@@ -512,12 +512,12 @@ public class ApiTest extends BaseTestWithIam {
 
     @Test
     public void idempotentUpdateWbConcurrent() throws InterruptedException {
-        processConcurrently(finalizeWbScenario());
+        processConcurrently(updateWbScenario());
     }
 
     private TestScenario<LzyWhiteboardServiceBlockingStub, Void, LWB.Whiteboard> createWbScenario() {
         final String id = UUID.randomUUID().toString();
-        final Instant ts = Instant.now();
+        final Instant ts = Instant.now().truncatedTo(ChronoUnit.MILLIS);
         return new TestScenario<>(whiteboardClient,
             stub -> null,
             (stub, nothing) -> registerWhiteboard(stub, id, ts),
@@ -536,10 +536,10 @@ public class ApiTest extends BaseTestWithIam {
             });
     }
 
-    private TestScenario<LzyWhiteboardServiceBlockingStub, LWB.Whiteboard, LWB.Whiteboard> finalizeWbScenario() {
+    private TestScenario<LzyWhiteboardServiceBlockingStub, LWB.Whiteboard, LWB.Whiteboard> updateWbScenario() {
         final String id = UUID.randomUUID().toString();
         return new TestScenario<>(whiteboardClient,
-            (client) -> registerWhiteboard(client, id, Instant.now()),
+            (client) -> registerWhiteboard(client, id, Instant.now().truncatedTo(ChronoUnit.MILLIS)),
             (stub, input) -> {
                 stub.updateWhiteboard(LWBS.UpdateWhiteboardRequest.newBuilder()
                     .setWhiteboard(LWB.Whiteboard.newBuilder()
@@ -633,7 +633,7 @@ public class ApiTest extends BaseTestWithIam {
                 .setNamespace("namespace")
                 .setName(name)
                 .setId(UUID.randomUUID().toString())
-                .setCreatedAt(ai.lzy.util.grpc.ProtoConverter.toProto(Instant.now()))
+                .setCreatedAt(ai.lzy.util.grpc.ProtoConverter.toProto(Instant.now().truncatedTo(ChronoUnit.MILLIS)))
                 .setStatus(LWB.Whiteboard.Status.CREATED)
                 .build())
             .build();
