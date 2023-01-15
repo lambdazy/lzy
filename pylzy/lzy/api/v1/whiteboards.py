@@ -148,8 +148,7 @@ class WritableWhiteboard:
         if proxy:
             entry = self.__workflow.snapshot.get(get_proxy_entry_id(value))
             if entry.id in self.__workflow.filled_entry_ids:
-                # TODO (tomato): copy data to whiteboard uri
-                pass
+                LzyEventLoop.run_async(self.__workflow.owner.storage_client.copy(entry.storage_uri, storage_uri))
             else:
                 self.__workflow.snapshot.update_entry(entry.id, storage_uri)
         else:

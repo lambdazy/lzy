@@ -38,6 +38,9 @@ class RuntimeMock(Runtime):
 
 
 class StorageClientMock(AsyncStorageClient):
+    async def copy(self, from_uri: str, to_uri: str) -> None:
+        pass
+
     async def size_in_bytes(self, uri: str) -> int:
         pass
 
