@@ -4,6 +4,8 @@ from typing import List, Callable, Optional, Iterable, BinaryIO, Iterator, Seque
 
 # noinspection PyPackageRequirements
 import grpc
+from serialzy.serializers.primitive import PrimitiveSerializer
+
 from ai.lzy.v1.common.storage_pb2 import StorageConfig, S3Credentials
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard
 
@@ -14,6 +16,7 @@ from ai.lzy.v1.workflow.workflow_service_pb2 import CreateWorkflowRequest, Creat
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceServicer
 from lzy.api.v1 import Runtime, LzyCall, LzyWorkflow
 from lzy.api.v1.runtime import ProgressStep
+from lzy.serialization.registry import LzySerializerRegistry
 from lzy.storage.api import StorageRegistry, Storage, AsyncStorageClient
 from lzy.whiteboards.api import WhiteboardIndexClient
 
@@ -147,3 +150,15 @@ class WhiteboardIndexClientMock(WhiteboardIndexClient):
 
     async def update(self, wb: Whiteboard):
         pass
+
+
+class SerializerRegistryMock(LzySerializerRegistry):
+    def __init__(self):
+        super().__init__()
+        for serializer in list(self._serializer_registry.values()):
+            self.unregister_serializer(serializer)
+
+
+class NotAvailablePrimitiveSerializer(PrimitiveSerializer):
+    def available(self) -> bool:
+        return False

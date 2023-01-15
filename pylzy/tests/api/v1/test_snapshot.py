@@ -5,6 +5,7 @@ from unittest import TestCase
 # noinspection PyPackageRequirements
 from moto.moto_server.threaded_moto_server import ThreadedMotoServer
 
+from api.v1.mocks import SerializerRegistryMock, NotAvailablePrimitiveSerializer
 from api.v1.utils import create_bucket
 from lzy.api.v1.snapshot import DefaultSnapshot
 from lzy.proxy.result import Just, Nothing
@@ -72,3 +73,18 @@ class SnapshotTests(TestCase):
 
         with self.assertRaisesRegex(ValueError, "data has been already uploaded"):
             self.snapshot.update_entry(entry.id, f"{self.storages.config('storage').uri}/name2")
+
+    def test_serializer_not_found(self):
+        serializers = SerializerRegistryMock()
+        snapshot = DefaultSnapshot(serializers, self.storages.client("storage"), "storage")
+
+        with self.assertRaisesRegex(ValueError, "Cannot find serializer for type"):
+            snapshot.create_entry("name", str, f"{self.storages.config('storage').uri}/name")
+
+    def test_serializer_not_available(self):
+        serializers = SerializerRegistryMock()
+        serializers.register_serializer(NotAvailablePrimitiveSerializer())
+        snapshot = DefaultSnapshot(serializers, self.storages.client("storage"), "storage")
+
+        with self.assertRaisesRegex(ValueError, "is not available, please install"):
+            snapshot.create_entry("name", str, f"{self.storages.config('storage').uri}/name")
