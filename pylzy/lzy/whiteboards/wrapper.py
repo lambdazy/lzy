@@ -71,6 +71,10 @@ class WhiteboardWrapper:
         serializer = self.__serializers.find_serializer_by_data_format(data_scheme.dataFormat)
         if serializer is None:
             raise RuntimeError(f"Serializer not found for data format {data_scheme.dataFormat}")
+        elif not serializer.available():
+            raise ValueError(
+                f'Serializer for data format {data_scheme.dataFormat} is not available, '
+                f'please install {serializer.requirements()}')
 
         schema = Schema(
             data_format=data_scheme.dataFormat,

@@ -66,7 +66,7 @@ class DefaultSnapshot(Snapshot):
         serializer_by_type = self.__serializer_registry.find_serializer_by_type(typ)
         if serializer_by_type is None:
             raise ValueError(f'Cannot find serializer for type {typ}')
-        if not serializer_by_type.available():
+        elif not serializer_by_type.available():
             raise ValueError(
                 f'Serializer for type {typ} is not available, please install {serializer_by_type.requirements()}')
 
@@ -78,7 +78,7 @@ class DefaultSnapshot(Snapshot):
 
     def update_entry(self, entry_id: str, storage_uri: str) -> None:
         if entry_id in self.__filled_entries:
-            raise ValueError("Cannot update filled entry")
+            raise ValueError(f"Cannot update entry {entry_id}: data has been already uploaded")
 
         prev = self.get(entry_id)
         self.__entry_id_to_entry[entry_id] = SnapshotEntry(entry_id, prev.name, prev.typ, storage_uri,
@@ -88,7 +88,7 @@ class DefaultSnapshot(Snapshot):
         _LOG.debug(f"Getting data for entry {entry_id}")
         entry = self.__entry_id_to_entry.get(entry_id, None)
         if entry is None:
-            return Nothing()
+            raise ValueError(f"Entry with id={entry_id} does not exist")
 
         exists = await self.__storage_client.blob_exists(entry.storage_uri)
         if not exists:
@@ -109,7 +109,7 @@ class DefaultSnapshot(Snapshot):
         _LOG.debug(f"Putting data for entry {entry_id}")
         entry = self.__entry_id_to_entry.get(entry_id, None)
         if entry is None:
-            raise ValueError(f"Cannot get entry {entry_id}")
+            raise ValueError(f"Entry with id={entry_id} does not exist")
 
         with tempfile.NamedTemporaryFile() as f:
             _LOG.debug(f"Serializing {entry.name}...")

@@ -1,18 +1,15 @@
 import asyncio
-from io import BytesIO
+import uuid
 from unittest import TestCase
 
-import requests
-
-from lzy.api.v1.snapshot import DefaultSnapshot
 # noinspection PyPackageRequirements
 from moto.moto_server.threaded_moto_server import ThreadedMotoServer
 
-from lzy.proxy.result import Just
+from api.v1.utils import create_bucket
+from lzy.api.v1.snapshot import DefaultSnapshot
+from lzy.proxy.result import Just, Nothing
 from lzy.serialization.registry import LzySerializerRegistry
 from lzy.storage import api as storage
-
-from api.v1.utils import create_bucket
 from lzy.storage.registry import DefaultStorageRegistry
 
 
@@ -32,15 +29,46 @@ class SnapshotTests(TestCase):
         self.storages = DefaultStorageRegistry()
         self.storages.register_storage("storage", storage_config, True)
 
+        serializers = LzySerializerRegistry()
+        self.snapshot = DefaultSnapshot(serializers, self.storages.client("storage"), "storage")
+
     def tearDown(self) -> None:
         self.service.stop()
 
     def test_put_get(self):
-        serializers = LzySerializerRegistry()
-        snapshot = DefaultSnapshot(serializers, self.storages.client("storage"), "storage")
-        entry = snapshot.create_entry("name", str, f"{self.storages.config('storage').uri}/name")
+        entry = self.snapshot.create_entry("name", str, f"{self.storages.config('storage').uri}/name")
 
-        asyncio.run(snapshot.put_data(entry.id, "some_str"))
-        ret = asyncio.run(snapshot.get_data(entry.id))
+        asyncio.run(self.snapshot.put_data(entry.id, "some_str"))
+        ret = asyncio.run(self.snapshot.get_data(entry.id))
 
         self.assertEqual(Just("some_str"), ret)
+
+    def test_get_nonexistent_entry(self):
+        with self.assertRaisesRegex(ValueError, "does not exist"):
+            asyncio.run(self.snapshot.get_data(str(uuid.uuid4())))
+
+    def test_put_nonexistent_entry(self):
+        with self.assertRaisesRegex(ValueError, "does not exist"):
+            asyncio.run(self.snapshot.put_data(str(uuid.uuid4()), "some_str"))
+
+    def test_get_nit_uploaded_entry(self):
+        entry = self.snapshot.create_entry("name", str, f"{self.storages.config('storage').uri}/name")
+        ret = asyncio.run(self.snapshot.get_data(entry.id))
+        self.assertIsInstance(ret, Nothing)
+
+    def test_update(self):
+        entry = self.snapshot.create_entry("name", str, f"{self.storages.config('storage').uri}/name")
+        self.snapshot.update_entry(entry.id, f"{self.storages.config('storage').uri}/name2")
+
+        asyncio.run(self.snapshot.put_data(entry.id, "some_str"))
+        ret = asyncio.run(self.snapshot.get_data(entry.id))
+
+        self.assertEqual(f"{self.storages.config('storage').uri}/name2", self.snapshot.get(entry.id).storage_uri)
+        self.assertEqual(Just("some_str"), ret)
+
+    def test_update_after_put(self):
+        entry = self.snapshot.create_entry("name", str, f"{self.storages.config('storage').uri}/name")
+        asyncio.run(self.snapshot.put_data(entry.id, "some_str"))
+
+        with self.assertRaisesRegex(ValueError, "data has been already uploaded"):
+            self.snapshot.update_entry(entry.id, f"{self.storages.config('storage').uri}/name2")
