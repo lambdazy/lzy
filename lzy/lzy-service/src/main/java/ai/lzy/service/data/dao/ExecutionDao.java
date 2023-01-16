@@ -32,7 +32,11 @@ public interface ExecutionDao {
     void updateFinishData(String userId, String executionId, Status status, @Nullable TransactionHandle transaction)
         throws SQLException;
 
-    void setDeadExecutionStatus(String executionId, @Nullable TransactionHandle transaction) throws SQLException;
+    void setErrorExecutionStatus(String executionId, @Nullable TransactionHandle transaction) throws SQLException;
+
+    void setCompletingExecutionStatus(String executionId, @Nullable TransactionHandle transaction) throws SQLException;
+
+    void setCompletedExecutionStatus(String executionId, @Nullable TransactionHandle transaction) throws SQLException;
 
     void saveSlots(String executionId, Set<String> slotsUri, @Nullable TransactionHandle transaction)
         throws SQLException;

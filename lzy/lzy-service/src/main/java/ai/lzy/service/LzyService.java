@@ -45,7 +45,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
     public static final String APP = "LzyService";
 
-    private final ExecutionFinalizer executionFinalizer;
+    private final CleanExecutionCompanion cleanExecutionCompanion;
     private final String instanceId;
 
     private final WorkflowService workflowService;
@@ -62,10 +62,10 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     public LzyService(WorkflowService workflowService, GraphExecutionService graphExecutionService,
                       GraphDao graphDao, ExecutionDao executionDao, WorkflowDao workflowDao,
                       LzyServiceStorage storage, @Named("LzyServiceOperationDao") OperationDao operationDao,
-                      ExecutionFinalizer executionFinalizer, GarbageCollector gc, LzyServiceConfig config,
+                      CleanExecutionCompanion cleanExecutionCompanion, GarbageCollector gc, LzyServiceConfig config,
                       @Named("LzyServiceServerExecutor") ExecutorService workersPool)
     {
-        this.executionFinalizer = executionFinalizer;
+        this.cleanExecutionCompanion = cleanExecutionCompanion;
         this.instanceId = config.getInstanceId();
         this.workflowService = workflowService;
         this.graphExecutionService = graphExecutionService;
@@ -76,7 +76,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         this.graphDao = graphDao;
         this.storage = storage;
 
-        gc.start();
+        // gc.start();
 
         restartNotCompletedOps();
     }
@@ -131,8 +131,9 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var finishStatus = Status.OK.withDescription(reason);
 
         try (var tx = TransactionHandle.create(storage)) {
-            withRetries(LOG, () -> operationDao.create(op, tx));
-            withRetries(LOG, () -> executionDao.updateFinishData(userId, executionId, finishStatus, tx));
+            operationDao.create(op, tx);
+            executionDao.setCompletingExecutionStatus(executionId, tx);
+            executionDao.updateFinishData(userId, executionId, finishStatus, tx);
 
             tx.commit();
         } catch (NotFoundException e) {
@@ -159,7 +160,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
 
-        workersPool.submit(() -> workflowService.finishExecution(executionId, op));
+        workersPool.submit(() -> workflowService.completeExecution(executionId, op));
 
         response.onNext(op.toProto());
         response.onCompleted();
@@ -194,8 +195,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             operations);
 
         try (var tx = TransactionHandle.create(storage)) {
-            withRetries(LOG, () -> operationDao.create(op, tx));
-            withRetries(LOG, () -> graphDao.put(state, instanceId, tx));
+            operationDao.create(op, tx);
+            graphDao.put(state, instanceId, tx);
 
             tx.commit();
         } catch (Exception ex) {
@@ -209,13 +210,9 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                 userId, executionId, ex.getMessage(), ex);
             var status = Status.INTERNAL.withDescription(ex.getMessage());
 
-            try {
-                executionFinalizer.finishInDao(userId, executionId, status);
-            } catch (Exception e) {
-                LOG.warn("Execute graph fail. Cannot finish execution: { executionId: {}, error: {} }", executionId,
-                    e.getMessage());
+            if (cleanExecutionCompanion.markExecutionAsBroken(userId, executionId, status)) {
+                cleanExecutionCompanion.cleanExecution(executionId);
             }
-            executionFinalizer.finalizeNow(executionId);
 
             responseObserver.onError(status.asException());
             return;
@@ -246,13 +243,9 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                 var status = Status.INTERNAL.withDescription("Cannot execute graph");
                 LOG.error("Cannot execute graph: {}", e.getMessage(), e);
 
-                try {
-                    executionFinalizer.finishInDao(userId, executionId, status);
-                } catch (Exception ex) {
-                    LOG.warn("Execute graph fail. Cannot finish execution: { executionId: {}, error: {} }", executionId,
-                        e.getMessage());
+                if (cleanExecutionCompanion.markExecutionAsBroken(userId, executionId, status)) {
+                    cleanExecutionCompanion.cleanExecution(executionId);
                 }
-                executionFinalizer.finalizeNow(executionId);
 
                 responseObserver.onError(status.asRuntimeException());
             }

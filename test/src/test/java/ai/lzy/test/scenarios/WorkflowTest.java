@@ -2,8 +2,10 @@ package ai.lzy.test.scenarios;
 
 import ai.lzy.test.ApplicationContextRule;
 import ai.lzy.test.ContextRule;
+import ai.lzy.test.GrpcUtils;
 import ai.lzy.test.impl.v2.WhiteboardContext;
 import ai.lzy.test.impl.v2.WorkflowContext;
+import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.workflow.LWF.Graph;
 import ai.lzy.v1.workflow.LWF.Operation;
 import ai.lzy.v1.workflow.LWF.Operation.SlotDescription;
@@ -85,5 +87,8 @@ public class WorkflowTest {
         LOG.info("Result of execution: {}", JsonFormat.printer().print(status));
 
         Assert.assertTrue(status.hasCompleted());
+
+        LongRunning.Operation op = stub.finishExecution(LWFS.FinishExecutionRequest.newBuilder()
+            .setExecutionId(wf.getExecutionId()).build());
     }
 }

@@ -2,12 +2,15 @@ package ai.lzy.service;
 
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
+import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.GraphDao;
 import ai.lzy.service.data.dao.PortalDescription;
+import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmAllocatorApi;
+import ai.lzy.v1.channel.LCMPS;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.graph.GraphExecutorApi;
 import ai.lzy.v1.graph.GraphExecutorGrpc;
@@ -39,9 +42,10 @@ import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
 
 @Singleton
-public class ExecutionFinalizer {
-    private static final Logger LOG = LogManager.getLogger(ExecutionFinalizer.class);
+public class CleanExecutionCompanion {
+    private static final Logger LOG = LogManager.getLogger(CleanExecutionCompanion.class);
 
+    private final LzyServiceStorage storage;
     private final ExecutionDao executionDao;
     private final GraphDao graphDao;
     private final OperationDao operationDao;
@@ -54,22 +58,23 @@ public class ExecutionFinalizer {
     private final GraphExecutorGrpc.GraphExecutorBlockingStub graphExecutorClient;
     private final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
 
-    public ExecutionFinalizer(ExecutionDao executionDao, GraphDao graphDao,
-                              @Named("LzyServiceOperationDao") OperationDao operationDao,
-                              @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
-                              @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
-                              @Named("PortalChannels") Map<String, ManagedChannel> portalChannels,
-                              @Named("GraphExecutorServiceChannel") ManagedChannel graphExecutorChannel,
-                              @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel)
+    public CleanExecutionCompanion(LzyServiceStorage storage, ExecutionDao executionDao, GraphDao graphDao,
+                                   @Named("LzyServiceOperationDao") OperationDao operationDao,
+                                   @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
+                                   @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
+                                   @Named("PortalChannels") Map<String, ManagedChannel> portalChannels,
+                                   @Named("GraphExecutorServiceChannel") ManagedChannel graphExecutorChannel,
+                                   @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel)
     {
+        this.storage = storage;
         this.executionDao = executionDao;
         this.graphDao = graphDao;
         this.operationDao = operationDao;
 
         this.internalUserCredentials = internalUserCredentials;
 
-        this.channelManagerChannel = channelManagerChannel;
         this.portalChannels = portalChannels;
+        this.channelManagerChannel = channelManagerChannel;
         this.channelManagerClient = newBlockingClient(
             LzyChannelManagerPrivateGrpc.newBlockingStub(channelManagerChannel), APP,
             () -> internalUserCredentials.get().token());
@@ -79,43 +84,51 @@ public class ExecutionFinalizer {
             AllocatorGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
     }
 
-    public void gracefulFinalize(String executionId, Operation finalizeOp) {
-        // after this action there is only data about snapshots and graphs of execution are presented in lzy-service db
+    public boolean markExecutionAsBroken(String userId, String executionId, Status reason) {
+        LOG.info("Attempt to mark execution as broken by reason: { executionId: {}, reason: {} }", executionId, reason);
+
+        try {
+            withRetries(LOG, () -> {
+                try (var tx = TransactionHandle.create(storage)) {
+                    executionDao.setErrorExecutionStatus(executionId, tx);
+                    executionDao.updateFinishData(userId, executionId, reason, tx);
+
+                    tx.commit();
+                }
+            });
+        } catch (Exception e) {
+            LOG.warn("Cannot mark execution as broken: { executionId: {}, error: {} }", executionId,
+                e.getMessage());
+            return false;
+        }
+
+        return true;
+    }
+
+    public void completeExecution(String executionId, Operation completeOperation) {
+        LOG.info("Attempt to complete execution: { executionId: {} }", executionId);
 
         stopGraphs(executionId);
 
         var portalDesc = getPortalDescription(executionId);
 
         if (portalDesc != null && portalDesc.vmAddress() != null) {
-            var finishOp = finishPortal(executionId, portalDesc.vmAddress());
-            if (finishOp != null) {
+            var shutdownPortalOp = shutdownPortal(executionId, portalDesc.vmAddress());
+            if (shutdownPortalOp != null) {
                 var grpcChannel = portalChannels.computeIfAbsent(executionId, exId ->
                     newGrpcChannel(portalDesc.vmAddress(), LzyPortalGrpc.SERVICE_NAME));
                 var portalOpsClient = newBlockingClient(
                     LongRunningServiceGrpc.newBlockingStub(grpcChannel), APP,
                     () -> internalUserCredentials.get().token());
 
-                finishOp = awaitOperationDone(portalOpsClient, finishOp.getId(), Duration.ofSeconds(5));
+                // it may be long-running process to finish stdout/err portal slots
+                shutdownPortalOp = awaitOperationDone(portalOpsClient, shutdownPortalOp.getId(), Duration.ofMinutes(5));
 
-                if (!finishOp.getDone()) {
-                    LOG.warn("Cannot wait portal of execution finished: { executionId: {} }", executionId);
+                if (!shutdownPortalOp.getDone()) {
+                    LOG.warn("Cannot wait portal of execution shutdown: { executionId: {} }", executionId);
+                    stopPortal(executionId, portalDesc.vmAddress());
                 }
             }
-        }
-
-        if (portalDesc != null && portalDesc.vmId() != null) {
-            freeVm(executionId, portalDesc.vmId());
-        }
-
-        if (portalDesc != null && portalDesc.allocatorSessionId() != null) {
-            deleteSession(executionId, portalDesc.allocatorSessionId());
-        }
-
-        try {
-            withRetries(LOG, () -> executionDao.setDeadExecutionStatus(executionId, null));
-            LOG.info("Execution {} is deleted", executionId);
-        } catch (Exception e) {
-            LOG.warn("Cannot update execution status {}", executionId, e);
         }
 
         var destroyChannelsOp = destroyChannels(executionId);
@@ -128,30 +141,9 @@ public class ExecutionFinalizer {
             destroyChannelsOp = awaitOperationDone(channelManagerOpsClient, opId, Duration.ofSeconds(5));
 
             if (!destroyChannelsOp.getDone()) {
-                LOG.warn("Cannot wait channel manager destroy all execution resources: { executionId: {} }",
+                LOG.warn("Cannot wait channel manager destroy all execution channels: { executionId: {} }",
                     executionId);
             }
-        }
-
-        try {
-            withRetries(LOG, () -> operationDao.updateResponse(finalizeOp.id(), Any.pack(
-                LzyPortalApi.FinishResponse.getDefaultInstance()).toByteArray(), null));
-        } catch (Exception e) {
-            LOG.error("Cannot set finish execution operation response: { executionId: {} }", executionId, e);
-            operationDao.failOperation(finalizeOp.id(), toProto(Status.INTERNAL.withDescription("Cannot set response")),
-                LOG);
-        }
-    }
-
-    public void finalizeNow(String executionId) {
-        // after this action there is only data about snapshots and graphs of execution are presented in lzy-service db
-
-        stopGraphs(executionId);
-
-        var portalDesc = getPortalDescription(executionId);
-
-        if (portalDesc != null && portalDesc.vmAddress() != null) {
-            stopPortal(executionId, portalDesc.vmAddress());
         }
 
         if (portalDesc != null && portalDesc.vmId() != null) {
@@ -163,35 +155,81 @@ public class ExecutionFinalizer {
         }
 
         try {
-            withRetries(LOG, () -> executionDao.setDeadExecutionStatus(executionId, null));
-            LOG.info("Execution {} is deleted", executionId);
+            withRetries(LOG, () -> {
+                try (var tx = TransactionHandle.create(storage)) {
+                    executionDao.setCompletedExecutionStatus(executionId, tx);
+                    operationDao.updateResponse(completeOperation.id(), Any.pack(
+                        LzyPortalApi.FinishResponse.getDefaultInstance()).toByteArray(), tx);
+
+                    LOG.info("Execution was completed: { executionId: {} }", executionId);
+                    tx.commit();
+                } catch (Exception e) {
+                    LOG.warn("Cannot update execution status: { executionId: {} }", executionId, e);
+                    operationDao.failOperation(completeOperation.id(), toProto(
+                        Status.INTERNAL.withDescription("Cannot set response")), LOG);
+                }
+            });
         } catch (Exception e) {
-            LOG.warn("Cannot update execution status {}", executionId, e);
+            LOG.warn("Cannot update execution status: { executionId: {} }", executionId, e);
+            operationDao.failOperation(completeOperation.id(), toProto(
+                Status.INTERNAL.withDescription("Cannot set response")), LOG);
+        }
+    }
+
+    public void cleanExecution(String executionId) {
+        LOG.info("Attempt to clean execution: { executionId: {} }", executionId);
+
+        try {
+            withRetries(LOG, () -> executionDao.setCompletingExecutionStatus(executionId, null));
+        } catch (Exception e) {
+            LOG.warn("Cannot mark execution as completing: { executionId: {}, error: {} }",
+                executionId, e.getMessage(), e);
+            return;
         }
 
-        //noinspection ResultOfMethodCallIgnored
+        stopGraphs(executionId);
+
+        var portalDesc = getPortalDescription(executionId);
+
+        if (portalDesc != null && portalDesc.vmAddress() != null) {
+            stopPortal(executionId, portalDesc.vmAddress());
+        }
+
         destroyChannels(executionId);
+
+        if (portalDesc != null && portalDesc.vmId() != null) {
+            freeVm(executionId, portalDesc.vmId());
+        }
+
+        if (portalDesc != null && portalDesc.allocatorSessionId() != null) {
+            deleteSession(executionId, portalDesc.allocatorSessionId());
+        }
+
+        try {
+            withRetries(LOG, () -> executionDao.setCompletedExecutionStatus(executionId, null));
+            LOG.info("Execution was cleaned: { executionId: {} }", executionId);
+        } catch (Exception e) {
+            LOG.warn("Cannot update execution status: { executionId: {} }", executionId, e);
+        }
     }
 
-    public void finishInDao(String userId, String executionId, Status status) throws Exception {
-        withRetries(LOG, () -> executionDao.updateFinishData(userId, executionId, status, null));
-    }
+    @Nullable
+    public LongRunning.Operation destroyChannels(String executionId) {
+        LOG.info("Destroy channels of execution: { executionId: {} }", executionId);
 
-    private LongRunning.Operation destroyChannels(String executionId) {
-        /*
         try {
             return channelManagerClient.destroyAll(LCMPS.ChannelDestroyAllRequest.newBuilder()
                 .setExecutionId(executionId).build());
         } catch (StatusRuntimeException e) {
-            LOG.warn("Cannot destroy channels: { executionId: {}, error: {} }", executionId,
-                e.getStatus().getDescription());
+            LOG.warn("Cannot destroy channels of execution: { executionId: {} }", executionId, e);
         }
-        */
 
         return null;
     }
 
     private void stopGraphs(String executionId) {
+        LOG.info("Attempt to stop graphs of execution because of completing: { executionId: {} }", executionId);
+
         String curGraphId = null;
         try {
             var graphs = withRetries(LOG, () -> graphDao.getAll(executionId));
@@ -202,8 +240,8 @@ public class ExecutionFinalizer {
                     .setGraphId(curGraphId).build());
             }
         } catch (StatusRuntimeException e) {
-            LOG.warn("Cannot stop graph: { executionId: {}, graphId: {} }, error: {}", executionId,
-                Objects.toString(curGraphId, ""), e.getStatus().getDescription());
+            LOG.warn("Cannot stop graphs of completed execution: { executionId: {}, graphId: {} }, error: {}",
+                executionId, Objects.toString(curGraphId, ""), e.getStatus().getDescription());
         } catch (Exception e) {
             LOG.warn("Cannot find graphs of execution: { executionId: {} }", executionId);
         }
@@ -215,49 +253,54 @@ public class ExecutionFinalizer {
         try {
             portalDesc = withRetries(LOG, () -> executionDao.getPortalDescription(executionId));
         } catch (Exception e) {
-            LOG.warn("Cannot get portal for execution {}", executionId, e);
+            LOG.warn("Cannot get portal for execution: { executionId: {} }", executionId, e);
         }
         return portalDesc;
     }
 
     @Nullable
-    public LongRunning.Operation finishPortal(String executionId, HostAndPort portalVmAddress) {
+    public LongRunning.Operation shutdownPortal(String executionId, HostAndPort portalVmAddress) {
+        LOG.info("Attempt to shutdown portal of execution: { executionId: {} }", executionId);
+
         var portalClient = obtainPortalClient(executionId, portalVmAddress);
 
         try {
-            LOG.info("Finish portal {} for execution {}", portalVmAddress, executionId);
-            var finishPortalOp = portalClient.finish(LzyPortalApi.FinishRequest.getDefaultInstance());
+            LOG.info("Shutdown portal of execution: { executionId: {} }", executionId);
+            var operation = portalClient.finish(LzyPortalApi.FinishRequest.getDefaultInstance());
 
             withRetries(LOG, () -> executionDao.updatePortalVmAddress(executionId, null, null, null));
 
-            LOG.info("Portal {} stopped for execution {}", portalVmAddress, executionId);
-            return finishPortalOp;
+            LOG.info("Portal of execution was shutdown: { executionId: {} }", executionId);
+            return operation;
         } catch (Exception e) {
-            LOG.warn("Cannot clean portal for execution {}", executionId, e);
+            LOG.warn("Cannot shutdown portal of execution: { executionId: {} }", executionId, e);
         }
 
         return null;
     }
 
     public void stopPortal(String executionId, HostAndPort portalVmAddress) {
+        LOG.info("Attempt to stop portal of execution: { executionId: {} }", executionId);
+
         var portalClient = obtainPortalClient(executionId, portalVmAddress);
 
         try {
-            LOG.info("Stop portal for execution: { vmAddress: {}, executionId: {} }", portalVmAddress, executionId);
+            LOG.info("Stop portal of execution: { executionId: {} }", executionId);
             //noinspection ResultOfMethodCallIgnored
             portalClient.stop(Empty.getDefaultInstance());
 
             withRetries(LOG, () -> executionDao.updatePortalVmAddress(executionId, null, null, null));
 
-            LOG.info("Portal stopped for execution: { vmAddress: {}, executionId: {} }", portalVmAddress, executionId);
+            LOG.info("Portal of execution was stopped: { executionId: {} }", executionId);
         } catch (Exception e) {
             LOG.warn("Cannot stop portal for execution: { executionId: {} }", executionId, e);
         }
     }
 
     public void freeVm(String executionId, String portalVmId) {
+        LOG.info("Free portal vm of execution: { vmId: {}, executionId: {} }", portalVmId, executionId);
+
         try {
-            LOG.info("Freeing portal vm {} for execution {}", portalVmId, executionId);
             //noinspection ResultOfMethodCallIgnored
             allocatorClient.free(VmAllocatorApi.FreeRequest.newBuilder()
                 .setVmId(portalVmId)
@@ -265,15 +308,16 @@ public class ExecutionFinalizer {
 
             withRetries(LOG, () -> executionDao.updateAllocateOperationData(executionId, null, null, null));
 
-            LOG.info("Portal vm cleaned {} for execution {}", portalVmId, executionId);
+            LOG.info("Portal vm of execution was released: { vmId: {}, executionId: {} }", portalVmId, executionId);
         } catch (Exception e) {
-            LOG.warn("Cannot free portal vm for execution {}", executionId, e);
+            LOG.warn("Cannot free portal vm of execution: { vmId: {}, executionId: {} }", portalVmId, executionId, e);
         }
     }
 
     public void deleteSession(String executionId, String sessionId) {
+        LOG.info("Delete allocator session for execution: { sessionId: {}, executionId: {} }", sessionId, executionId);
+
         try {
-            LOG.info("Cleaning allocator session {} for execution {}", sessionId, executionId);
             //noinspection ResultOfMethodCallIgnored
             allocatorClient.deleteSession(VmAllocatorApi.DeleteSessionRequest.newBuilder()
                 .setSessionId(sessionId)
@@ -281,9 +325,11 @@ public class ExecutionFinalizer {
 
             withRetries(LOG, () -> executionDao.updatePortalVmAllocateSession(executionId, null, null, null));
 
-            LOG.info("Allocator session {} cleaned for execution {}", sessionId, executionId);
+            LOG.info("Allocator session for execution was deleted: { sessionId: {}, executionId: {} }",
+                sessionId, executionId);
         } catch (Exception e) {
-            LOG.warn("Cannot clean allocator session for execution {}", executionId, e);
+            LOG.warn("Cannot delete allocator session for execution: { sessionId: {}, executionId: {} }",
+                sessionId, executionId, e);
         }
     }
 

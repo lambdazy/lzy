@@ -50,7 +50,7 @@ public class BaseTestWithChannelManager {
             new FileInputStream("../channel-manager/src/main/resources/application-test.yml"));
         props.putAll(overrides);
 
-        context = ApplicationContext.run(PropertySource.of(props));
+        context = ApplicationContext.run(PropertySource.of(props), "test-mock");
         context.getBean(ChannelManagerDataSource.class).setOnClose(DatabaseTestUtils::cleanup);
 
         config = context.getBean(ChannelManagerConfig.class);
@@ -77,4 +77,7 @@ public class BaseTestWithChannelManager {
         return privateClient;
     }
 
+    public ApplicationContext getContext() {
+        return context;
+    }
 }

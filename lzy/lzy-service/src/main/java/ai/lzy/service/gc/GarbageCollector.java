@@ -1,7 +1,7 @@
 package ai.lzy.service.gc;
 
 import ai.lzy.model.db.DbHelper;
-import ai.lzy.service.ExecutionFinalizer;
+import ai.lzy.service.CleanExecutionCompanion;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.GcDao;
@@ -26,7 +26,7 @@ public class GarbageCollector extends TimerTask {
     private final GcDao gcDao;
     private final ExecutionDao executionDao;
 
-    private final ExecutionFinalizer executionFinalizer;
+    private final CleanExecutionCompanion cleanExecutionCompanion;
 
 
     private final String id;
@@ -36,12 +36,12 @@ public class GarbageCollector extends TimerTask {
     private final long period;
 
     public GarbageCollector(LzyServiceConfig config, ExecutionDao executionDao,
-                            GcDao gcDao, ExecutionFinalizer executionFinalizer)
+                            GcDao gcDao, CleanExecutionCompanion cleanExecutionCompanion)
     {
         this.config = config;
         this.gcDao = gcDao;
         this.executionDao = executionDao;
-        this.executionFinalizer = executionFinalizer;
+        this.cleanExecutionCompanion = cleanExecutionCompanion;
 
         this.id = UUID.randomUUID().toString();
 
@@ -75,7 +75,7 @@ public class GarbageCollector extends TimerTask {
 
         long taskPeriod = config.getGcPeriod().toMillis();
         taskTimer = new Timer("gc-workflow-task-timer", true);
-        taskTimer.scheduleAtFixedRate(new GarbageCollectorTask(id, executionDao, executionFinalizer),
+        taskTimer.scheduleAtFixedRate(new GarbageCollectorTask(id, executionDao, cleanExecutionCompanion),
             taskPeriod, taskPeriod);
         long markPeriod = config.getGcLeaderPeriod().toMillis() / 2;
         taskTimer.scheduleAtFixedRate(new MarkGcValid(config.getGcLeaderPeriod()), markPeriod, markPeriod);

@@ -102,11 +102,11 @@ public class PortalService extends LzyPortalImplBase {
             LOG.error("Cannot finish stderr slot in portal with id <{}>: ", portalId, e);
         }
 
-        var main = context.getBean(App.class);
-        main.stop();
-
         responseObserver.onNext(Empty.getDefaultInstance());
         responseObserver.onCompleted();
+
+        var main = context.getBean(App.class);
+        main.stop();
     }
 
     @Override
