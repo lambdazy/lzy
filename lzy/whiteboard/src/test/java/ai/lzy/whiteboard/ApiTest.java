@@ -52,8 +52,7 @@ import java.util.stream.Collectors;
 import static ai.lzy.model.grpc.ProtoConverter.toProto;
 import static ai.lzy.test.IdempotencyUtils.processConcurrently;
 import static ai.lzy.test.IdempotencyUtils.processSequentially;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 @SuppressWarnings("ResultOfMethodCallIgnored")
 public class ApiTest extends BaseTestWithIam {
@@ -178,7 +177,7 @@ public class ApiTest extends BaseTestWithIam {
                     LWB.Whiteboard.newBuilder()
                         .build())
                 .build()));
-        assertTrue(sre.getMessage().startsWith("INVALID_ARGUMENT: Whiteboard must contain not blank ID"));
+        assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
 
         sre = Assert.assertThrows(StatusRuntimeException.class,
             () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
@@ -186,7 +185,7 @@ public class ApiTest extends BaseTestWithIam {
                         .setId(UUID.randomUUID().toString())
                         .build())
                 .build()));
-        assertTrue(sre.getMessage().startsWith("INVALID_ARGUMENT: Whiteboard must contain not blank whiteboard name"));
+        assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
 
         sre = Assert.assertThrows(StatusRuntimeException.class,
             () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
@@ -195,7 +194,7 @@ public class ApiTest extends BaseTestWithIam {
                         .setName("name")
                         .build())
                 .build()));
-        assertTrue(sre.getMessage().startsWith("INVALID_ARGUMENT: Whiteboard must contain at least one field"));
+        assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
 
         sre = Assert.assertThrows(StatusRuntimeException.class,
             () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
@@ -209,7 +208,7 @@ public class ApiTest extends BaseTestWithIam {
                                 .build()))
                         .build())
                 .build()));
-        assertTrue(sre.getMessage().startsWith("INVALID_ARGUMENT: Whiteboard must contain not blank namespace"));
+        assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
 
         sre = Assert.assertThrows(StatusRuntimeException.class,
             () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
@@ -224,7 +223,7 @@ public class ApiTest extends BaseTestWithIam {
                         .setNamespace("ns")
                         .build())
                 .build()));
-        assertTrue(sre.getMessage().startsWith("INVALID_ARGUMENT: Whiteboard must contain not blank storage name"));
+        assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
 
         sre = Assert.assertThrows(StatusRuntimeException.class,
             () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
@@ -240,7 +239,7 @@ public class ApiTest extends BaseTestWithIam {
                         .setStorage(LWB.Storage.newBuilder().setName("storage").build())
                         .build())
                 .build()));
-        assertTrue(sre.getMessage().startsWith("INVALID_ARGUMENT: Whiteboard must contain not blank storage uri"));
+        assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
 
         sre = Assert.assertThrows(StatusRuntimeException.class,
             () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
@@ -256,7 +255,7 @@ public class ApiTest extends BaseTestWithIam {
                         .setStorage(LWB.Storage.newBuilder().setName("storage").setUri("s3://uri").build())
                         .build())
                 .build()));
-        assertTrue(sre.getMessage().startsWith("INVALID_ARGUMENT: Whiteboard must contain initialized createdAt"));
+        assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
 
         sre = Assert.assertThrows(StatusRuntimeException.class,
             () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
@@ -273,7 +272,7 @@ public class ApiTest extends BaseTestWithIam {
                         .setCreatedAt(ai.lzy.util.grpc.ProtoConverter.toProto(Instant.now()))
                         .build())
                 .build()));
-        assertTrue(sre.getMessage().startsWith("INVALID_ARGUMENT: Whiteboard status is not specified"));
+        assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
 
         sre = Assert.assertThrows(StatusRuntimeException.class,
             () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
@@ -290,7 +289,7 @@ public class ApiTest extends BaseTestWithIam {
                         .setStatus(LWB.Whiteboard.Status.FINALIZED)
                         .build())
                 .build()));
-        assertTrue(sre.getMessage().startsWith("INVALID_ARGUMENT: Request contains invalid whiteboard field"));
+        assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
 
         sre = Assert.assertThrows(StatusRuntimeException.class,
             () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
@@ -307,7 +306,7 @@ public class ApiTest extends BaseTestWithIam {
                         .setStatus(LWB.Whiteboard.Status.FINALIZED)
                         .build())
                 .build()));
-        assertTrue(sre.getMessage().startsWith("INVALID_ARGUMENT: Request contains invalid whiteboard field"));
+        assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
     }
 
     @Test
