@@ -37,7 +37,7 @@ public class ProtoConverter {
     public static LWB.WhiteboardField toProto(Field field) {
         return LWB.WhiteboardField.newBuilder()
             .setName(field.name())
-            .setScheme(ai.lzy.model.grpc.ProtoConverter.toProto(field.schema()))
+            .setScheme(ai.lzy.model.grpc.ProtoConverter.toProto(field.scheme()))
             .build();
     }
 
