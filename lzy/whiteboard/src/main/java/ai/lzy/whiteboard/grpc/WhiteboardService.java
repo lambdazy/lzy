@@ -381,9 +381,6 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
         if (whiteboard.getStorage().getName().isBlank()) {
             return replyValidateError(methodName, "Whiteboard must contain not blank storage name", responseObserver);
         }
-        if (whiteboard.getStorage().getName().isBlank()) {
-            return replyValidateError(methodName, "Whiteboard must contain not blank storage name", responseObserver);
-        }
         if (whiteboard.getStorage().getUri().isBlank()) {
             return replyValidateError(methodName, "Whiteboard must contain not blank storage uri", responseObserver);
         }
