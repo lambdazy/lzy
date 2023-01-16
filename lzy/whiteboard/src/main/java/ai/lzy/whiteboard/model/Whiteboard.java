@@ -3,9 +3,7 @@ package ai.lzy.whiteboard.model;
 import java.net.URI;
 import java.time.Instant;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
-import javax.annotation.Nullable;
 
 public record Whiteboard(
     String id,
@@ -18,28 +16,6 @@ public record Whiteboard(
     Instant createdAt
 )
 {
-    @Nullable
-    public Field getField(String name) {
-        return fields.get(name);
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        Whiteboard that = (Whiteboard) o;
-        return id.equals(that.id);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(id);
-    }
-
     public enum Status {
         CREATED,
         FINALIZED,
@@ -49,5 +25,7 @@ public record Whiteboard(
         String name,
         String description,
         URI uri
-    ) { }
+    )
+    {
+    }
 }
