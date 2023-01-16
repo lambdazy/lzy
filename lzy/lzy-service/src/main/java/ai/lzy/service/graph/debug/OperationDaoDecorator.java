@@ -5,6 +5,8 @@ import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.service.data.storage.LzyServiceStorage;
+import com.google.protobuf.Any;
+import com.google.rpc.Status;
 import io.micronaut.context.annotation.Requires;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
@@ -61,31 +63,43 @@ public class OperationDaoDecorator implements OperationDao {
         return delegate.get(id, transaction);
     }
 
-    @Nullable
     @Override
-    public Operation updateMetaAndResponse(String id, byte[] meta, byte[] response,
-                                           @Nullable TransactionHandle transaction) throws SQLException
-    {
-        return delegate.updateMetaAndResponse(id, meta, response, transaction);
+    public void update(String id, TransactionHandle transaction) throws SQLException {
+        delegate.update(id, transaction);
     }
 
-    @Nullable
     @Override
-    public Operation updateMeta(String id, byte[] meta, @Nullable TransactionHandle transaction) throws SQLException {
+    public Operation complete(String id, @Nullable Any meta, Any response, TransactionHandle transaction)
+        throws SQLException
+    {
+        return delegate.complete(id, meta, response, transaction);
+    }
+
+    @Override
+    public Operation complete(String id, Any response, TransactionHandle transaction) throws SQLException {
+        return delegate.complete(id, response, transaction);
+    }
+
+
+    @Override
+    public Operation updateMeta(String id, @Nullable Any meta, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
         return delegate.updateMeta(id, meta, transaction);
     }
 
-    @Nullable
     @Override
-    public Operation updateResponse(String id, byte[] response, @Nullable TransactionHandle transaction)
-        throws SQLException
-    {
-        return delegate.updateResponse(id, response, transaction);
+    public Operation fail(String id, Status error, TransactionHandle transaction) throws SQLException {
+        return delegate.fail(id, error, transaction);
     }
 
-    @Nullable
     @Override
-    public Operation updateError(String id, byte[] error, @Nullable TransactionHandle transaction) throws SQLException {
-        return delegate.updateError(id, error, transaction);
+    public boolean deleteCompletedOperation(String operationId, TransactionHandle transaction) throws SQLException {
+        return delegate.deleteCompletedOperation(operationId, transaction);
+    }
+
+    @Override
+    public int deleteOutdatedOperations(int hours) throws SQLException {
+        return delegate.deleteOutdatedOperations(hours);
     }
 }

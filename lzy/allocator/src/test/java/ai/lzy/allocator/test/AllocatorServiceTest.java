@@ -140,6 +140,8 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
 
     @Test
     public void allocateWorkerTimeout() throws Exception {
+        // we don't call AllocatorPrivate::registerVm, so we should cancel allocation by timeout
+
         var sessionId = createSession(Durations.fromSeconds(100));
 
         final var future = awaitAllocationRequest();

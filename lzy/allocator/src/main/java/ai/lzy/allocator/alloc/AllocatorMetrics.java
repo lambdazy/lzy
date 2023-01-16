@@ -1,5 +1,7 @@
 package ai.lzy.allocator.alloc;
 
+import ai.lzy.metrics.MetricReporter;
+import io.micronaut.context.annotation.Requires;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Histogram;
@@ -7,6 +9,7 @@ import io.prometheus.client.Histogram;
 import javax.inject.Singleton;
 
 @Singleton
+@Requires(bean = MetricReporter.class)
 public class AllocatorMetrics {
 
     private static final String ALLOCATOR = "allocator";
@@ -39,6 +42,11 @@ public class AllocatorMetrics {
 
     public final Counter allocationError = Counter
         .build("allocate_error", "Allocation errors")
+        .subsystem(ALLOCATOR)
+        .register();
+
+    public final Counter allocationTimeout = Counter
+        .build("allocate_timeout", "Allocation timeout errors")
         .subsystem(ALLOCATOR)
         .register();
 

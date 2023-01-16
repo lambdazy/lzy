@@ -10,9 +10,13 @@ import javax.annotation.Nullable;
 
 public interface VmAllocator {
     /**
-     * Start vm allocation
+     * Start vm allocation.
+     *
+     * @return <code>true</code> on success, <code>false</code> - retry later
+     * @throws InvalidConfigurationException on invalid spec
+     * @throws RuntimeException on any fatal error
      */
-    void allocate(Vm vm) throws InvalidConfigurationException;
+    boolean allocate(Vm vm) throws InvalidConfigurationException;
 
     /**
      * Idempotent operation to destroy vm

@@ -190,7 +190,7 @@ public class SubjectServiceGrpcClient implements SubjectServiceClient {
                     .build());
             return ProtoConverter.to(res.getSubject());
         } catch (StatusRuntimeException e) {
-            if (e.getStatus().equals(Status.NOT_FOUND)) {
+            if (e.getStatus().getCode().equals(Status.NOT_FOUND.getCode())) {
                 return null;
             }
             throw AuthException.fromStatusRuntimeException(e);

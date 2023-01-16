@@ -4,19 +4,19 @@ import ai.lzy.longrunning.Operation;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.model.db.exceptions.NotFoundException;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.rpc.Status;
+import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.List;
-import javax.annotation.Nullable;
 
 public class OperationDaoImpl implements OperationDao {
     private static final Logger LOG = LogManager.getLogger(OperationDaoImpl.class);
@@ -24,39 +24,110 @@ public class OperationDaoImpl implements OperationDao {
     private static final List<String> FIELDS = List.of("id", "meta", "created_by", "created_at",
         "modified_at", "description", "done", "response", "error", "idempotency_key", "request_hash");
 
+    private static final String FIELDS_STRING = String.join(", ", FIELDS);
+
     private static final String QUERY_CREATE_OPERATION = """
         INSERT INTO operation (%s)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""".formatted(String.join(", ", FIELDS));
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""".formatted(FIELDS_STRING);
 
     private static final String QUERY_GET_OPERATION = """
         SELECT %s
         FROM operation
-        WHERE id = ?""".formatted(String.join(", ", FIELDS));
+        WHERE id = ?""".formatted(FIELDS_STRING);
 
     private static final String QUERY_FIND_OPERATION = """
         SELECT %s
         FROM operation
-        WHERE idempotency_key = ?""".formatted(String.join(", ", FIELDS));
+        WHERE idempotency_key = ?""".formatted(FIELDS_STRING);
 
     private static final String QUERY_UPDATE_OPERATION_META_RESPONSE = """
-        UPDATE operation
-        SET (meta, response, done, modified_at) = (?, ?, ?, ?)
-        WHERE id = ?""";
-
-    private static final String QUERY_UPDATE_OPERATION_META = """
-        UPDATE operation
-        SET (meta, modified_at) = (?, ?)
-        WHERE id = ?""";
+        WITH
+            prev AS (
+                SELECT %s FROM operation WHERE id = ? FOR UPDATE
+            ),
+            new AS (
+                UPDATE operation
+                SET meta = ?, response = ?, done = TRUE, modified_at = NOW()
+                WHERE id = ? AND done = FALSE
+                RETURNING id, modified_at
+            )
+        SELECT (new.id IS NOT NULL) AS __updated__,
+               prev.*,
+               (CASE WHEN (new.id IS NOT NULL) THEN new.modified_at ELSE prev.modified_at END) AS modified_at
+        FROM prev LEFT JOIN new USING (id)""".formatted(FIELDS_STRING);
 
     private static final String QUERY_UPDATE_OPERATION_RESPONSE = """
-        UPDATE operation
-        SET (response, done, modified_at) = (?, ?, ?)
-        WHERE id = ?""";
+        WITH
+            prev AS (
+                SELECT %s FROM operation WHERE id = ? FOR UPDATE
+            ),
+            new AS (
+                UPDATE operation
+                SET response = ?, done = TRUE, modified_at = NOW()
+                WHERE id = ? AND done = FALSE
+                RETURNING id, modified_at
+            )
+        SELECT (new.id IS NOT NULL) AS __updated__,
+               prev.*,
+               (CASE WHEN (new.id IS NOT NULL) THEN new.modified_at ELSE prev.modified_at END) AS modified_at
+        FROM prev LEFT JOIN new USING (id)""".formatted(FIELDS_STRING);
+
+    private static final String QUERY_UPDATE_OPERATION_META = """
+        WITH
+            prev AS (
+                SELECT %s FROM operation WHERE id = ? FOR UPDATE
+            ),
+            new AS (
+                UPDATE operation
+                SET meta = ?, modified_at = NOW()
+                WHERE id = ? AND done = FALSE
+                RETURNING id, modified_at
+            )
+        SELECT (new.id IS NOT NULL) AS __updated__,
+               prev.*,
+               (CASE WHEN (new.id IS NOT NULL) THEN new.modified_at ELSE prev.modified_at END) AS modified_at
+        FROM prev LEFT JOIN new USING (id)""".formatted(FIELDS_STRING);
 
     private static final String QUERY_UPDATE_OPERATION_ERROR = """
-        UPDATE operation
-        SET (error, done, modified_at) = (?, ?, ?)
-        WHERE id = ?""";
+        WITH
+            prev AS (
+                SELECT %s FROM operation WHERE id = ? FOR UPDATE
+            ),
+            new AS (
+                UPDATE operation
+                SET error = ?, done = TRUE, modified_at = NOW()
+                WHERE id = ? AND done = FALSE
+                RETURNING id, modified_at
+            )
+        SELECT (new.id IS NOT NULL) AS __updated__,
+               prev.*,
+               (CASE WHEN (new.id IS NOT NULL) THEN new.modified_at ELSE prev.modified_at END) AS modified_at
+        FROM prev LEFT JOIN new USING (id)""".formatted(FIELDS_STRING);
+
+    private static final String QUERY_UPDATE_OPERATION_TIME = """
+        WITH
+            prev AS (
+                SELECT id FROM operation WHERE id = ? FOR UPDATE
+            ),
+            new AS (
+                UPDATE operation
+                SET modified_at = NOW()
+                WHERE id = ? AND done = FALSE
+                RETURNING id
+            )
+        SELECT
+            (new.id IS NOT NULL) AS __updated__
+        FROM prev LEFT JOIN new USING (id)""";
+
+    private static final String QUERY_DELETE_COMPLETED_OPERATION = """
+        DELETE FROM operation
+        WHERE id = ?
+          AND done = TRUE""";
+
+    private static final String QUERY_DELETE_OUTDATED_OPERATIONS = """
+        DELETE FROM operation
+        WHERE done = TRUE
+          AND modified_at + INTERVAL '%d hours' < NOW()""";
 
     private final Storage storage;
 
@@ -69,28 +140,28 @@ public class OperationDaoImpl implements OperationDao {
         LOG.info("Create operation {}", operation.toShortString());
 
         DbOperation.execute(transaction, storage, connection -> {
-            try (var statement = connection.prepareStatement(QUERY_CREATE_OPERATION)) {
-                statement.setString(1, operation.id());
+            try (PreparedStatement st = connection.prepareStatement(QUERY_CREATE_OPERATION)) {
+                st.setString(1, operation.id());
 
                 var meta = operation.meta();
 
                 if (meta != null) {
-                    statement.setBytes(2, meta.toByteArray());
+                    st.setBytes(2, meta.toByteArray());
                 } else {
-                    statement.setBytes(2, null);
+                    st.setBytes(2, null);
                 }
 
-                statement.setString(3, operation.createdBy());
-                statement.setTimestamp(4, Timestamp.from(operation.createdAt()));
-                statement.setTimestamp(5, Timestamp.from(operation.modifiedAt()));
-                statement.setString(6, operation.description());
-                statement.setBoolean(7, operation.done());
+                st.setString(3, operation.createdBy());
+                st.setTimestamp(4, Timestamp.from(operation.createdAt()));
+                st.setTimestamp(5, Timestamp.from(operation.modifiedAt()));
+                st.setString(6, operation.description());
+                st.setBoolean(7, operation.done());
 
                 var response = operation.response();
                 if (response != null) {
-                    statement.setBytes(8, response.toByteArray());
+                    st.setBytes(8, response.toByteArray());
                 } else {
-                    statement.setBytes(8, null);
+                    st.setBytes(8, null);
                 }
 
                 var error = operation.error();
@@ -100,21 +171,21 @@ public class OperationDaoImpl implements OperationDao {
                     if (description != null) {
                         status.setMessage(description);
                     }
-                    statement.setBytes(9, status.build().toByteArray());
+                    st.setBytes(9, status.build().toByteArray());
                 } else {
-                    statement.setBytes(9, null);
+                    st.setBytes(9, null);
                 }
 
                 Operation.IdempotencyKey idempotencyKey = operation.idempotencyKey();
                 if (idempotencyKey != null) {
-                    statement.setString(10, idempotencyKey.token());
-                    statement.setString(11, idempotencyKey.requestHash());
+                    st.setString(10, idempotencyKey.token());
+                    st.setString(11, idempotencyKey.requestHash());
                 } else {
-                    statement.setString(10, null);
-                    statement.setString(11, null);
+                    st.setString(10, null);
+                    st.setString(11, null);
                 }
 
-                statement.execute();
+                st.execute();
             }
         });
 
@@ -147,154 +218,163 @@ public class OperationDaoImpl implements OperationDao {
         return operation;
     }
 
+    @Nullable
     private Operation getBy(String key, String sql, @Nullable TransactionHandle transaction)
         throws SQLException
     {
-        Operation[] result = {null};
+        return DbOperation.execute(transaction, storage, connection -> {
+            try (PreparedStatement st = connection.prepareStatement(sql + forUpdate(transaction))) {
+                st.setString(1, key);
 
-        DbOperation.execute(transaction, storage, connection -> {
-            try (var statement = connection.prepareStatement(sql + forUpdate(transaction))) {
-                statement.setString(1, key);
-
-                ResultSet rs = statement.executeQuery();
-
+                var rs = st.executeQuery();
                 if (rs.next()) {
-                    result[0] = from(rs);
+                    return from(rs);
                 }
+
+                return null;
             } catch (InvalidProtocolBufferException e) {
                 throw new RuntimeException("Cannot parse proto", e);
             }
         });
-
-        return result[0];
     }
 
-    @Nullable
     @Override
-    public Operation updateMetaAndResponse(String id, byte[] meta, byte[] response,
-                                           @Nullable TransactionHandle transaction) throws SQLException
-    {
-        LOG.info("Update operation meta and response: { operationId: {} }", id);
-
-        Operation[] result = {null};
+    public void update(String id, @Nullable TransactionHandle transaction) throws SQLException {
+        LOG.info("Update operation {}", id);
 
         DbOperation.execute(transaction, storage, con -> {
-            try (var statement = con.prepareStatement(QUERY_UPDATE_OPERATION_META_RESPONSE,
-                Statement.RETURN_GENERATED_KEYS))
-            {
-                statement.setBytes(1, meta);
-                statement.setBytes(2, response);
-                statement.setBoolean(3, true);
-                statement.setTimestamp(4, Timestamp.from(Instant.now()));
-                statement.setString(5, id);
+            try (PreparedStatement st = con.prepareStatement(QUERY_UPDATE_OPERATION_TIME)) {
+                st.setString(1, id);
+                st.setString(2, id);
 
-                statement.execute();
+                var rs = st.executeQuery();
 
-                try (ResultSet rs = statement.getGeneratedKeys()) {
-                    if (rs.next()) {
-                        result[0] = from(rs);
+                if (rs.next()) {
+                    if (rs.getBoolean("__updated__")) {
+                        LOG.info("Operation {} successfully updated", id);
+                    } else {
+                        LOG.warn("Operation {} already completed", id);
+                        throw new OperationCompletedException(id);
                     }
-                } catch (InvalidProtocolBufferException e) {
-                    throw new RuntimeException("Cannot parse proto", e);
+                } else {
+                    LOG.warn("Operation {} not exists", id);
+                    throw new NotFoundException("Operation %s not found".formatted(id));
                 }
             }
         });
-
-        if (result[0] != null) {
-            LOG.info("Operation meta and response has been updated: { operationId: {} }", id);
-        } else {
-            LOG.warn("Operation not found: { operationId: {} }", id);
-        }
-
-        return result[0];
     }
 
     @Override
-    @Nullable
-    public Operation updateMeta(String id, byte[] meta, @Nullable TransactionHandle transaction) throws SQLException {
-        LOG.info("Update operation meta: { operationId: {} }", id);
-
-        Operation[] result = {null};
-
-        DbOperation.execute(transaction, storage, con -> {
-            try (var statement = con.prepareStatement(QUERY_UPDATE_OPERATION_META, Statement.RETURN_GENERATED_KEYS)) {
-                statement.setBytes(1, meta);
-                statement.setTimestamp(2, Timestamp.from(Instant.now()));
-                statement.setString(3, id);
-
-                statement.execute();
-
-                try (ResultSet rs = statement.getGeneratedKeys()) {
-                    if (rs.next()) {
-                        result[0] = from(rs);
-                    }
-                } catch (InvalidProtocolBufferException e) {
-                    throw new RuntimeException("Cannot parse proto", e);
-                }
-            }
-        });
-
-        if (result[0] != null) {
-            LOG.info("Operation meta has been updated: { operationId: {} }", id);
-        } else {
-            LOG.warn("Operation not found: { operationId: {} }", id);
-        }
-
-        return result[0];
-    }
-
-    @Override
-    @Nullable
-    public Operation updateResponse(String id, byte[] response, @Nullable TransactionHandle transaction)
+    public Operation complete(String id, @Nullable Any meta, Any response, @Nullable TransactionHandle tx)
         throws SQLException
     {
-        LOG.info("Update operation with response: { operationId: {} }", id);
+        LOG.info("Complete operation {}", id);
 
-        return updateAsDone(id, response, QUERY_UPDATE_OPERATION_RESPONSE, transaction);
+        return DbOperation.execute(tx, storage, con -> {
+            try (PreparedStatement st = con.prepareStatement(
+                    meta != null ? QUERY_UPDATE_OPERATION_META_RESPONSE : QUERY_UPDATE_OPERATION_RESPONSE))
+            {
+                int index = 0;
+                st.setString(++index, id);
+                if (meta != null) {
+                    st.setBytes(++index, meta.toByteArray());
+                }
+                st.setBytes(++index, response.toByteArray());
+                st.setString(++index, id);
+
+                var rs = st.executeQuery();
+                var op = processResult(id, rs, "completed");
+                if (meta != null) {
+                    op.modifyMeta(meta);
+                }
+                op.setResponse(response);
+                return op;
+            }
+        });
     }
 
     @Override
-    @Nullable
-    public Operation updateError(String id, byte[] error, @Nullable TransactionHandle transaction) throws SQLException {
+    public Operation complete(String id, Any response, @Nullable TransactionHandle transaction) throws SQLException {
+        return complete(id, null, response, transaction);
+    }
+
+    @Override
+    public Operation updateMeta(String id, Any meta, @Nullable TransactionHandle transaction) throws SQLException {
+        LOG.info("Update operation {} meta", id);
+
+        return DbOperation.execute(transaction, storage, con -> {
+            try (PreparedStatement st = con.prepareStatement(QUERY_UPDATE_OPERATION_META)) {
+                st.setString(1, id);
+                st.setBytes(2, meta.toByteArray());
+                st.setString(3, id);
+
+                var rs = st.executeQuery();
+                var op = processResult(id, rs, "updated");
+                op.modifyMeta(meta);
+                return op;
+            }
+        });
+    }
+
+    @Override
+    public Operation fail(String id, Status error, TransactionHandle transaction) throws SQLException {
         LOG.info("Update operation with error: { operationId: {} }", id);
 
-        return updateAsDone(id, error, QUERY_UPDATE_OPERATION_ERROR, transaction);
-    }
+        return DbOperation.execute(transaction, storage, con -> {
+            try (PreparedStatement st = con.prepareStatement(QUERY_UPDATE_OPERATION_ERROR)) {
+                st.setString(1, id);
+                st.setBytes(2, error.toByteArray());
+                st.setString(3, id);
 
-    private Operation updateAsDone(String id, byte[] opResult, String sql, @Nullable TransactionHandle transaction)
-        throws SQLException
-    {
-        Operation[] result = {null};
-
-        DbOperation.execute(transaction, storage, connection -> {
-            try (var statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-                statement.setBytes(1, opResult);
-                statement.setBoolean(2, true);
-                statement.setTimestamp(3, Timestamp.from(Instant.now()));
-                statement.setString(4, id);
-
-                statement.execute();
-
-                try (ResultSet rs = statement.getGeneratedKeys()) {
-                    if (rs.next()) {
-                        result[0] = from(rs);
-                    }
-                } catch (InvalidProtocolBufferException e) {
-                    throw new RuntimeException("Cannot parse proto", e);
-                }
+                var rs = st.executeQuery();
+                var op = processResult(id, rs, "failed");
+                op.setError(io.grpc.Status.fromCodeValue(error.getCode()).withDescription(error.getMessage()));
+                return op;
             }
         });
-
-        if (result[0] != null) {
-            LOG.info("Operation has been updated: { operationId: {} }", id);
-        } else {
-            LOG.warn("Operation not found: { operationId: {} }", id);
-        }
-
-        return result[0];
     }
 
-    private Operation from(ResultSet resultSet) throws InvalidProtocolBufferException, SQLException {
+    @Override
+    public boolean deleteCompletedOperation(String operationId, TransactionHandle transaction) throws SQLException {
+        LOG.info("Delete completed operation {}", operationId);
+        return DbOperation.execute(transaction, storage, conn -> {
+            try (PreparedStatement st = conn.prepareStatement(QUERY_DELETE_COMPLETED_OPERATION)) {
+                st.setString(1, operationId);
+                return st.executeUpdate() != 0;
+            }
+        });
+    }
+
+    @Override
+    public int deleteOutdatedOperations(int hours) throws SQLException {
+        LOG.info("Delete outdated operations (more then {} hours)", hours);
+        return DbOperation.execute(null, storage, conn -> {
+            try (PreparedStatement st = conn.prepareStatement(QUERY_DELETE_OUTDATED_OPERATIONS.formatted(hours))) {
+                return st.executeUpdate();
+            }
+        });
+    }
+
+    private static Operation processResult(String id, ResultSet rs, String action) throws SQLException {
+        if (rs.next()) {
+            if (rs.getBoolean("__updated__")) {
+                LOG.info("Operation {} successfully {}", id, action);
+                try {
+                    return from(rs);
+                } catch (InvalidProtocolBufferException e) {
+                    throw new RuntimeException("Cannot load operation %s".formatted(id), e);
+                }
+            } else {
+                LOG.warn("Operation {} concurrently updated", id);
+                throw new OperationCompletedException(id);
+            }
+        } else {
+            LOG.warn("Operation {} not exists", id);
+            throw new NotFoundException("Operation %s not found".formatted(id));
+        }
+    }
+
+    private static Operation from(ResultSet resultSet) throws InvalidProtocolBufferException, SQLException {
         var id = resultSet.getString("id");
         var createdBy = resultSet.getString("created_by");
         var createdAt = resultSet.getTimestamp("created_at").toInstant();

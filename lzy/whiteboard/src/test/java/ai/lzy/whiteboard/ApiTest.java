@@ -40,20 +40,19 @@ import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.junit.*;
 
 import java.io.IOException;
+import java.net.URI;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.time.Instant;
-import java.util.Date;
-import java.util.List;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static ai.lzy.model.grpc.ProtoConverter.toProto;
 import static ai.lzy.test.IdempotencyUtils.processConcurrently;
 import static ai.lzy.test.IdempotencyUtils.processSequentially;
-import static ai.lzy.v1.whiteboard.LWB.WhiteboardFieldInfo.StateCase.LINKEDSTATE;
-import static ai.lzy.v1.whiteboard.LWB.WhiteboardFieldInfo.StateCase.NONESTATE;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 @SuppressWarnings("ResultOfMethodCallIgnored")
 public class ApiTest extends BaseTestWithIam {
@@ -144,7 +143,7 @@ public class ApiTest extends BaseTestWithIam {
     }
 
     @Test
-    public void createAndGetWhiteboard() {
+    public void registerAndGetWhiteboard() {
         try {
             externalUserWhiteboardClient.get(LWBS.GetRequest.newBuilder().setWhiteboardId("some_wb_id").build());
             Assert.fail();
@@ -152,26 +151,16 @@ public class ApiTest extends BaseTestWithIam {
             assertEquals(e.getStatus().toString(), Status.Code.NOT_FOUND, e.getStatus().getCode());
         }
 
-        final var createdWhiteboard = externalUserWhiteboardClient
-            .createWhiteboard(genCreateWhiteboardRequest()).getWhiteboard();
+        final LWBS.RegisterWhiteboardRequest request =
+            genCreateWhiteboardRequest(UUID.randomUUID().toString(), Instant.now().truncatedTo(ChronoUnit.MILLIS));
+        externalUserWhiteboardClient.registerWhiteboard(request);
 
-        assertEquals(LWB.Whiteboard.Status.CREATED, createdWhiteboard.getStatus());
-        assertEquals(4, createdWhiteboard.getFieldsCount());
-        createdWhiteboard.getFieldsList().forEach(field ->
-            assertEquals(LWB.WhiteboardField.Status.CREATED, field.getStatus()));
-        final var fields = createdWhiteboard.getFieldsList().stream()
-            .collect(Collectors.toMap(f -> f.getInfo().getName(), f -> f));
-        assertEquals(NONESTATE, fields.get("f1").getInfo().getStateCase());
-        assertEquals(NONESTATE, fields.get("f2").getInfo().getStateCase());
-        assertEquals(LINKEDSTATE, fields.get("f3").getInfo().getStateCase());
-        assertEquals(LINKEDSTATE, fields.get("f4").getInfo().getStateCase());
-
-        final var getRequest = LWBS.GetRequest.newBuilder().setWhiteboardId(createdWhiteboard.getId()).build();
+        final var getRequest = LWBS.GetRequest.newBuilder().setWhiteboardId(request.getWhiteboard().getId()).build();
         final var getResponse = whiteboardClient.get(getRequest);
-        assertEquals(createdWhiteboard, getResponse.getWhiteboard());
+        assertEquals(request.getWhiteboard(), getResponse.getWhiteboard());
 
         final var getUserResponse = externalUserWhiteboardClient.get(getRequest);
-        assertEquals(createdWhiteboard, getUserResponse.getWhiteboard());
+        assertEquals(request.getWhiteboard(), getUserResponse.getWhiteboard());
 
         try {
             externalUser2WhiteboardClient.get(getRequest);
@@ -182,84 +171,328 @@ public class ApiTest extends BaseTestWithIam {
     }
 
     @Test
-    public void finalizeWhiteboard() {
-        final var createdWhiteboard = whiteboardClient
-            .createWhiteboard(genCreateWhiteboardRequest()).getWhiteboard();
-        final var getRequest = LWBS.GetRequest.newBuilder().setWhiteboardId(createdWhiteboard.getId()).build();
+    public void registerInvalidArgs() {
+        StatusRuntimeException sre = Assert.assertThrows(StatusRuntimeException.class,
+            () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
+                    LWB.Whiteboard.newBuilder()
+                        .build())
+                .build()));
+        assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
 
-        whiteboardClient.linkField(LWBS.LinkFieldRequest.newBuilder()
-            .setWhiteboardId(createdWhiteboard.getId())
-            .setFieldName("f1")
-            .setStorageUri("s-uri-1")
-            .setScheme(toProto(DataScheme.PLAIN))
-            .build());
+        sre = Assert.assertThrows(StatusRuntimeException.class,
+            () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
+                    LWB.Whiteboard.newBuilder()
+                        .setId(UUID.randomUUID().toString())
+                        .build())
+                .build()));
+        assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
 
-        whiteboardClient.linkField(LWBS.LinkFieldRequest.newBuilder()
-            .setWhiteboardId(createdWhiteboard.getId())
-            .setFieldName("f4")
-            .setStorageUri("s-uri-4")
-            .setScheme(toProto(DataScheme.PLAIN))
-            .build());
+        sre = Assert.assertThrows(StatusRuntimeException.class,
+            () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
+                    LWB.Whiteboard.newBuilder()
+                        .setId(UUID.randomUUID().toString())
+                        .setName("name")
+                        .build())
+                .build()));
+        assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
 
+        sre = Assert.assertThrows(StatusRuntimeException.class,
+            () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
+                    LWB.Whiteboard.newBuilder()
+                        .setId(UUID.randomUUID().toString())
+                        .setName("name")
+                        .addAllFields(List.of(
+                            LWB.WhiteboardField.newBuilder()
+                                .setName("f1")
+                                .setScheme(toProto(DataScheme.PLAIN))
+                                .build()))
+                        .build())
+                .build()));
+        assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
+
+        sre = Assert.assertThrows(StatusRuntimeException.class,
+            () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
+                    LWB.Whiteboard.newBuilder()
+                        .setId(UUID.randomUUID().toString())
+                        .setName("name")
+                        .addAllFields(List.of(
+                            LWB.WhiteboardField.newBuilder()
+                                .setName("f1")
+                                .setScheme(toProto(DataScheme.PLAIN))
+                                .build()))
+                        .setNamespace("ns")
+                        .build())
+                .build()));
+        assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
+
+        sre = Assert.assertThrows(StatusRuntimeException.class,
+            () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
+                    LWB.Whiteboard.newBuilder()
+                        .setId(UUID.randomUUID().toString())
+                        .setName("name")
+                        .addAllFields(List.of(
+                            LWB.WhiteboardField.newBuilder()
+                                .setName("f1")
+                                .setScheme(toProto(DataScheme.PLAIN))
+                                .build()))
+                        .setNamespace("ns")
+                        .setStorage(LWB.Storage.newBuilder().setName("storage").build())
+                        .build())
+                .build()));
+        assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
+
+        sre = Assert.assertThrows(StatusRuntimeException.class,
+            () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
+                    LWB.Whiteboard.newBuilder()
+                        .setId(UUID.randomUUID().toString())
+                        .setName("name")
+                        .addAllFields(List.of(
+                            LWB.WhiteboardField.newBuilder()
+                                .setName("f1")
+                                .setScheme(toProto(DataScheme.PLAIN))
+                                .build()))
+                        .setNamespace("ns")
+                        .setStorage(LWB.Storage.newBuilder().setName("storage").setUri("s3://uri").build())
+                        .build())
+                .build()));
+        assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
+
+        sre = Assert.assertThrows(StatusRuntimeException.class,
+            () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
+                    LWB.Whiteboard.newBuilder()
+                        .setId(UUID.randomUUID().toString())
+                        .setName("name")
+                        .addAllFields(List.of(
+                            LWB.WhiteboardField.newBuilder()
+                                .setName("f1")
+                                .setScheme(toProto(DataScheme.PLAIN))
+                                .build()))
+                        .setNamespace("ns")
+                        .setStorage(LWB.Storage.newBuilder().setName("storage").setUri("s3://uri").build())
+                        .setCreatedAt(ai.lzy.util.grpc.ProtoConverter.toProto(Instant.now()))
+                        .build())
+                .build()));
+        assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
+
+        sre = Assert.assertThrows(StatusRuntimeException.class,
+            () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
+                    LWB.Whiteboard.newBuilder()
+                        .setId(UUID.randomUUID().toString())
+                        .setName("name")
+                        .addAllFields(List.of(
+                            LWB.WhiteboardField.newBuilder()
+                                .setScheme(toProto(DataScheme.PLAIN))
+                                .build()))
+                        .setNamespace("ns")
+                        .setStorage(LWB.Storage.newBuilder().setName("storage").setUri("s3://uri").build())
+                        .setCreatedAt(ai.lzy.util.grpc.ProtoConverter.toProto(Instant.now()))
+                        .setStatus(LWB.Whiteboard.Status.FINALIZED)
+                        .build())
+                .build()));
+        assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
+
+        sre = Assert.assertThrows(StatusRuntimeException.class,
+            () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
+                    LWB.Whiteboard.newBuilder()
+                        .setId(UUID.randomUUID().toString())
+                        .setName("name")
+                        .addAllFields(List.of(
+                            LWB.WhiteboardField.newBuilder()
+                                .setName("name")
+                                .build()))
+                        .setNamespace("ns")
+                        .setStorage(LWB.Storage.newBuilder().setName("storage").setUri("s3://uri").build())
+                        .setCreatedAt(ai.lzy.util.grpc.ProtoConverter.toProto(Instant.now()))
+                        .setStatus(LWB.Whiteboard.Status.FINALIZED)
+                        .build())
+                .build()));
+        assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
+    }
+
+    @Test
+    public void updateWhiteboardAllFields() {
+        final String id = UUID.randomUUID().toString();
+        final Instant createdAt = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+        final LWBS.RegisterWhiteboardRequest whiteboardRequest = genCreateWhiteboardRequest(id, createdAt);
+        whiteboardClient.registerWhiteboard(whiteboardRequest);
+
+        var getRequest =
+            LWBS.GetRequest.newBuilder().setWhiteboardId(whiteboardRequest.getWhiteboard().getId()).build();
         var whiteboard = whiteboardClient.get(getRequest).getWhiteboard();
         assertEquals(LWB.Whiteboard.Status.CREATED, whiteboard.getStatus());
-        whiteboard.getFieldsList().forEach(field -> {
-            if (field.getInfo().getName().equals("f1") || field.getInfo().getName().equals("f4")) {
-                assertEquals(LWB.WhiteboardField.Status.FINALIZED, field.getStatus());
-            } else {
-                assertEquals(LWB.WhiteboardField.Status.CREATED, field.getStatus());
-            }
-        });
+        assertEquals("wb-name", whiteboard.getName());
+        HashSet<String> tags = new HashSet<>(whiteboard.getTagsList());
+        assertEquals(2, tags.size());
+        assertTrue(tags.contains("t1"));
+        assertTrue(tags.contains("t2"));
+        assertEquals(createdAt.truncatedTo(ChronoUnit.MILLIS),
+            ai.lzy.util.grpc.ProtoConverter.fromProto(whiteboard.getCreatedAt()).truncatedTo(ChronoUnit.MILLIS));
+        assertEquals("storage", whiteboard.getStorage().getName());
+        assertEquals("description", whiteboard.getStorage().getDescription());
+        assertEquals("s3://uri", whiteboard.getStorage().getUri());
+        assertEquals("namespace", whiteboard.getNamespace());
 
-        whiteboardClient.finalizeWhiteboard(LWBS.FinalizeWhiteboardRequest.newBuilder()
-            .setWhiteboardId(createdWhiteboard.getId())
+        var fields = whiteboard.getFieldsList().stream()
+            .collect(Collectors.toMap(LWB.WhiteboardField::getName, f -> f));
+        assertEquals(4, whiteboard.getFieldsList().size());
+        assertTrue(fields.containsKey("f1"));
+        assertTrue(fields.containsKey("f2"));
+        assertTrue(fields.containsKey("f3"));
+        assertTrue(fields.containsKey("f4"));
+
+        final Instant newCreatedAt = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+        whiteboardClient.updateWhiteboard(LWBS.UpdateWhiteboardRequest.newBuilder()
+            .setWhiteboard(LWB.Whiteboard.newBuilder()
+                .setId(id)
+                .setName("new_name")
+                .setStatus(LWB.Whiteboard.Status.FINALIZED)
+                .setCreatedAt(ai.lzy.util.grpc.ProtoConverter.toProto(newCreatedAt))
+                .setNamespace("new_namespace")
+                .setStorage(
+                    LWB.Storage.newBuilder().setName("new_storage").setDescription("new_description").setUri("s3://new")
+                        .build())
+                .addAllFields(List.of(
+                    LWB.WhiteboardField.newBuilder()
+                        .setName("f5")
+                        .setScheme(toProto(DataScheme.PLAIN))
+                        .build()))
+                .addAllTags(List.of("t3", "t4"))
+                .build())
             .build());
 
+        getRequest = LWBS.GetRequest.newBuilder().setWhiteboardId(whiteboardRequest.getWhiteboard().getId()).build();
         whiteboard = whiteboardClient.get(getRequest).getWhiteboard();
         assertEquals(LWB.Whiteboard.Status.FINALIZED, whiteboard.getStatus());
-        whiteboard.getFieldsList().forEach(field ->
-            assertEquals(LWB.WhiteboardField.Status.FINALIZED, field.getStatus()));
+        assertEquals("new_name", whiteboard.getName());
+        tags = new HashSet<>(whiteboard.getTagsList());
+        assertEquals(2, tags.size());
+        assertTrue(tags.contains("t3"));
+        assertTrue(tags.contains("t4"));
+        assertEquals(newCreatedAt.truncatedTo(ChronoUnit.MILLIS),
+            ai.lzy.util.grpc.ProtoConverter.fromProto(whiteboard.getCreatedAt()).truncatedTo(ChronoUnit.MILLIS));
+        assertEquals("new_storage", whiteboard.getStorage().getName());
+        assertEquals("new_description", whiteboard.getStorage().getDescription());
+        assertEquals("s3://new", whiteboard.getStorage().getUri());
+        assertEquals("new_namespace", whiteboard.getNamespace());
 
-        final var finalizedFields = whiteboard.getFieldsList().stream()
-            .collect(Collectors.toMap(f -> f.getInfo().getName(), f -> f));
-        assertEquals(LINKEDSTATE, finalizedFields.get("f1").getInfo().getStateCase());
-        assertEquals(NONESTATE, finalizedFields.get("f2").getInfo().getStateCase());
-        assertEquals(LINKEDSTATE, finalizedFields.get("f3").getInfo().getStateCase());
-        assertEquals(LINKEDSTATE, finalizedFields.get("f4").getInfo().getStateCase());
-        assertEquals("s-uri-4", finalizedFields.get("f4").getInfo().getLinkedState().getStorageUri());
+        fields = whiteboard.getFieldsList().stream()
+            .collect(Collectors.toMap(LWB.WhiteboardField::getName, f -> f));
+        assertEquals(1, whiteboard.getFieldsList().size());
+        assertTrue(fields.containsKey("f5"));
+    }
+
+    @Test
+    public void updateNonexistentWhiteboard() {
+        final StatusRuntimeException statusRuntimeException = Assert.assertThrows(StatusRuntimeException.class,
+            () -> whiteboardClient.updateWhiteboard(LWBS.UpdateWhiteboardRequest.newBuilder().setWhiteboard(
+                LWB.Whiteboard.newBuilder().setId(UUID.randomUUID().toString()).build()).build()));
+        assertTrue(statusRuntimeException.getMessage().startsWith("NOT_FOUND"));
+    }
+
+    @Test
+    public void updateNoWhiteboardId() {
+        final StatusRuntimeException statusRuntimeException = Assert.assertThrows(StatusRuntimeException.class,
+            () -> whiteboardClient.updateWhiteboard(LWBS.UpdateWhiteboardRequest.newBuilder().setWhiteboard(
+                LWB.Whiteboard.newBuilder().build()).build()));
+        assertTrue(statusRuntimeException.getMessage().startsWith("INVALID_ARGUMENT: whiteboard ID is empty"));
+    }
+
+    @Test
+    public void updateWhiteboardOnlyStatus() {
+        final String id = UUID.randomUUID().toString();
+        final Instant createdAt = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+        final LWBS.RegisterWhiteboardRequest whiteboardRequest = genCreateWhiteboardRequest(id, createdAt);
+        whiteboardClient.registerWhiteboard(whiteboardRequest);
+
+        var getRequest =
+            LWBS.GetRequest.newBuilder().setWhiteboardId(whiteboardRequest.getWhiteboard().getId()).build();
+        var whiteboard = whiteboardClient.get(getRequest).getWhiteboard();
+        assertEquals(LWB.Whiteboard.Status.CREATED, whiteboard.getStatus());
+        assertEquals("wb-name", whiteboard.getName());
+        HashSet<String> tags = new HashSet<>(whiteboard.getTagsList());
+        assertEquals(2, tags.size());
+        assertTrue(tags.contains("t1"));
+        assertTrue(tags.contains("t2"));
+        assertEquals(createdAt.truncatedTo(ChronoUnit.MILLIS),
+            ai.lzy.util.grpc.ProtoConverter.fromProto(whiteboard.getCreatedAt()).truncatedTo(ChronoUnit.MILLIS));
+        assertEquals("storage", whiteboard.getStorage().getName());
+        assertEquals("description", whiteboard.getStorage().getDescription());
+        assertEquals("s3://uri", whiteboard.getStorage().getUri());
+        assertEquals("namespace", whiteboard.getNamespace());
+
+        var fields = whiteboard.getFieldsList().stream()
+            .collect(Collectors.toMap(LWB.WhiteboardField::getName, f -> f));
+        assertEquals(4, whiteboard.getFieldsList().size());
+        assertTrue(fields.containsKey("f1"));
+        assertTrue(fields.containsKey("f2"));
+        assertTrue(fields.containsKey("f3"));
+        assertTrue(fields.containsKey("f4"));
+
+        whiteboardClient.updateWhiteboard(LWBS.UpdateWhiteboardRequest.newBuilder()
+            .setWhiteboard(LWB.Whiteboard.newBuilder()
+                .setId(id)
+                .setStatus(LWB.Whiteboard.Status.FINALIZED)
+                .build())
+            .build());
+
+        getRequest = LWBS.GetRequest.newBuilder().setWhiteboardId(whiteboardRequest.getWhiteboard().getId()).build();
+        whiteboard = whiteboardClient.get(getRequest).getWhiteboard();
+        assertEquals(LWB.Whiteboard.Status.FINALIZED, whiteboard.getStatus());
+        assertEquals("wb-name", whiteboard.getName());
+        tags = new HashSet<>(whiteboard.getTagsList());
+        assertEquals(2, tags.size());
+        assertTrue(tags.contains("t1"));
+        assertTrue(tags.contains("t2"));
+        assertEquals(createdAt.truncatedTo(ChronoUnit.MILLIS),
+            ai.lzy.util.grpc.ProtoConverter.fromProto(whiteboard.getCreatedAt()).truncatedTo(ChronoUnit.MILLIS));
+        assertEquals("storage", whiteboard.getStorage().getName());
+        assertEquals("description", whiteboard.getStorage().getDescription());
+        assertEquals("s3://uri", whiteboard.getStorage().getUri());
+        assertEquals("namespace", whiteboard.getNamespace());
+
+        fields = whiteboard.getFieldsList().stream()
+            .collect(Collectors.toMap(LWB.WhiteboardField::getName, f -> f));
+        assertEquals(4, whiteboard.getFieldsList().size());
+        assertTrue(fields.containsKey("f1"));
+        assertTrue(fields.containsKey("f2"));
+        assertTrue(fields.containsKey("f3"));
+        assertTrue(fields.containsKey("f4"));
     }
 
     @Test
     public void listWhiteboards() {
-        final var whiteboard1 = externalUserWhiteboardClient
-            .createWhiteboard(genCreateWhiteboardRequest("wb1", List.of("t1"))).getWhiteboard();
-        final var whiteboard2 = externalUserWhiteboardClient
-            .createWhiteboard(genCreateWhiteboardRequest("wb2", List.of("t2"))).getWhiteboard();
-        final var whiteboard3 = externalUserWhiteboardClient
-            .createWhiteboard(genCreateWhiteboardRequest("wb3", List.of("t1", "t2"))).getWhiteboard();
-        final var whiteboard4 = externalUser2WhiteboardClient
-            .createWhiteboard(genCreateWhiteboardRequest("wb", List.of("t1", "t2"))).getWhiteboard();
+        final LWBS.RegisterWhiteboardRequest whiteboardRequest1 = genCreateWhiteboardRequest("wb1", List.of("t1"));
+        externalUserWhiteboardClient.registerWhiteboard(whiteboardRequest1);
+        final LWBS.RegisterWhiteboardRequest whiteboardRequest2 = genCreateWhiteboardRequest("wb2", List.of("t2"));
+        externalUserWhiteboardClient.registerWhiteboard(whiteboardRequest2);
+        final LWBS.RegisterWhiteboardRequest whiteboardRequest3 =
+            genCreateWhiteboardRequest("wb3", List.of("t1", "t2"));
+        externalUserWhiteboardClient.registerWhiteboard(whiteboardRequest3);
+        final LWBS.RegisterWhiteboardRequest whiteboardRequest4 = genCreateWhiteboardRequest("wb", List.of("t1", "t2"));
+        externalUser2WhiteboardClient.registerWhiteboard(whiteboardRequest4);
 
         var listResult = externalUserWhiteboardClient.list(LWBS.ListRequest.newBuilder().build());
         assertEquals(3, listResult.getWhiteboardsCount());
 
         listResult = externalUser2WhiteboardClient.list(LWBS.ListRequest.newBuilder().build());
         assertEquals(1, listResult.getWhiteboardsCount());
-        assertEquals(whiteboard4, listResult.getWhiteboards(0));
+        assertEquals(whiteboardRequest4.getWhiteboard(), listResult.getWhiteboards(0));
 
         listResult = externalUserWhiteboardClient.list(LWBS.ListRequest.newBuilder()
             .addAllTags(List.of("t1", "t2")).build());
         assertEquals(1, listResult.getWhiteboardsCount());
-        assertEquals(whiteboard3, listResult.getWhiteboards(0));
+        assertEquals(whiteboardRequest3.getWhiteboard(), listResult.getWhiteboards(0));
 
         listResult = externalUserWhiteboardClient.list(LWBS.ListRequest.newBuilder().setName("wb1").build());
         assertEquals(1, listResult.getWhiteboardsCount());
-        assertEquals(whiteboard1, listResult.getWhiteboards(0));
+        assertEquals(whiteboardRequest1.getWhiteboard(), listResult.getWhiteboards(0));
 
         listResult = externalUserWhiteboardClient.list(LWBS.ListRequest.newBuilder()
-            .setCreatedTimeBounds(LWB.TimeBounds.newBuilder().setTo(whiteboard2.getCreatedAt()).build()).build());
+            .setCreatedTimeBounds(LWB.TimeBounds.newBuilder().setTo(whiteboardRequest2.getWhiteboard().getCreatedAt())
+                .build()).build());
         assertEquals(2, listResult.getWhiteboardsCount());
     }
+
 
     @Test
     public void createWhiteboardIdempotency() {
@@ -267,13 +500,8 @@ public class ApiTest extends BaseTestWithIam {
     }
 
     @Test
-    public void linkWbFieldIdempotency() {
-        processSequentially(linkFieldScenario());
-    }
-
-    @Test
-    public void finalizeWhiteboardIdempotency() {
-        processSequentially(finalizeWbScenario());
+    public void updateWhiteboardIdempotency() {
+        processSequentially(updateWbScenario());
     }
 
     @Test
@@ -282,103 +510,59 @@ public class ApiTest extends BaseTestWithIam {
     }
 
     @Test
-    public void idempotentLinkWbFieldConcurrent() throws InterruptedException {
-        processConcurrently(linkFieldScenario());
-    }
-
-    @Test
-    public void idempotentFinalizeWbConcurrent() throws InterruptedException {
-        processConcurrently(finalizeWbScenario());
+    public void idempotentUpdateWbConcurrent() throws InterruptedException {
+        processConcurrently(updateWbScenario());
     }
 
     private TestScenario<LzyWhiteboardServiceBlockingStub, Void, LWB.Whiteboard> createWbScenario() {
+        final String id = UUID.randomUUID().toString();
+        final Instant ts = Instant.now().truncatedTo(ChronoUnit.MILLIS);
         return new TestScenario<>(whiteboardClient,
             stub -> null,
-            (stub, nothing) -> createWhiteboard(stub),
+            (stub, nothing) -> registerWhiteboard(stub, id, ts),
             wb -> {
                 assertEquals(LWB.Whiteboard.Status.CREATED, wb.getStatus());
                 assertEquals(4, wb.getFieldsCount());
                 wb.getFieldsList().forEach(field ->
-                    assertEquals(LWB.WhiteboardField.Status.CREATED, field.getStatus()));
+                    assertEquals(toProto(DataScheme.PLAIN), field.getScheme()));
 
                 var fields = wb.getFieldsList().stream()
-                    .collect(Collectors.toMap(f -> f.getInfo().getName(), f -> f));
-
-                assertEquals(NONESTATE, fields.get("f1").getInfo().getStateCase());
-                assertEquals(NONESTATE, fields.get("f2").getInfo().getStateCase());
-                assertEquals(LINKEDSTATE, fields.get("f3").getInfo().getStateCase());
-                assertEquals(LINKEDSTATE, fields.get("f4").getInfo().getStateCase());
+                    .collect(Collectors.toMap(LWB.WhiteboardField::getName, f -> f));
+                assertTrue(fields.containsKey("f1"));
+                assertTrue(fields.containsKey("f2"));
+                assertTrue(fields.containsKey("f3"));
+                assertTrue(fields.containsKey("f4"));
             });
     }
 
-    private TestScenario<LzyWhiteboardServiceBlockingStub, LWB.Whiteboard, LWB.Whiteboard> linkFieldScenario() {
+    private TestScenario<LzyWhiteboardServiceBlockingStub, LWB.Whiteboard, LWB.Whiteboard> updateWbScenario() {
+        final String id = UUID.randomUUID().toString();
         return new TestScenario<>(whiteboardClient,
-            ApiTest::createWhiteboard,
-            (stub, wb) -> {
-                stub.linkField(LWBS.LinkFieldRequest.newBuilder()
-                    .setWhiteboardId(wb.getId())
-                    .setFieldName("f1")
-                    .setStorageUri("s-uri-1")
-                    .setScheme(toProto(DataScheme.PLAIN))
-                    .build());
-
-                var getRequest = LWBS.GetRequest.newBuilder().setWhiteboardId(wb.getId()).build();
-                return whiteboardClient.get(getRequest).getWhiteboard();
-            },
-            wb -> {
-                assertEquals(LWB.Whiteboard.Status.CREATED, wb.getStatus());
-                wb.getFieldsList().forEach(field -> {
-                    if (field.getInfo().getName().equals("f1")) {
-                        assertEquals(LWB.WhiteboardField.Status.FINALIZED, field.getStatus());
-                    } else {
-                        assertEquals(LWB.WhiteboardField.Status.CREATED, field.getStatus());
-                    }
-                });
-            });
-    }
-
-    private TestScenario<LzyWhiteboardServiceBlockingStub, LWB.Whiteboard, LWB.Whiteboard> finalizeWbScenario() {
-        return new TestScenario<>(whiteboardClient,
-            ApiTest::createWhiteboard,
+            (client) -> registerWhiteboard(client, id, Instant.now().truncatedTo(ChronoUnit.MILLIS)),
             (stub, input) -> {
-                stub.finalizeWhiteboard(LWBS.FinalizeWhiteboardRequest.newBuilder()
-                    .setWhiteboardId(input.getId())
+                stub.updateWhiteboard(LWBS.UpdateWhiteboardRequest.newBuilder()
+                    .setWhiteboard(LWB.Whiteboard.newBuilder()
+                        .setId(id)
+                        .setStatus(LWB.Whiteboard.Status.FINALIZED)
+                        .build())
                     .build());
                 var getRequest = LWBS.GetRequest.newBuilder().setWhiteboardId(input.getId()).build();
                 return whiteboardClient.get(getRequest).getWhiteboard();
             },
-            whiteboard -> {
-                assertEquals(LWB.Whiteboard.Status.FINALIZED, whiteboard.getStatus());
-                whiteboard.getFieldsList().forEach(field ->
-                    assertEquals(LWB.WhiteboardField.Status.FINALIZED, field.getStatus()));
-
-                final var finalizedFields = whiteboard.getFieldsList().stream()
-                    .collect(Collectors.toMap(f -> f.getInfo().getName(), f -> f));
-                assertEquals(NONESTATE, finalizedFields.get("f1").getInfo().getStateCase());
-                assertEquals(NONESTATE, finalizedFields.get("f2").getInfo().getStateCase());
-                assertEquals(LINKEDSTATE, finalizedFields.get("f3").getInfo().getStateCase());
-                assertEquals(LINKEDSTATE, finalizedFields.get("f4").getInfo().getStateCase());
-                assertEquals("s-uri-4-init", finalizedFields.get("f4").getInfo().getLinkedState().getStorageUri());
-            });
+            whiteboard -> assertEquals(LWB.Whiteboard.Status.FINALIZED, whiteboard.getStatus()));
     }
 
     private void apiAccessTest(LzyWhiteboardServiceBlockingStub client,
                                Status expectedStatus)
     {
         try {
-            client.createWhiteboard(LWBS.CreateWhiteboardRequest.getDefaultInstance());
+            client.registerWhiteboard(LWBS.RegisterWhiteboardRequest.getDefaultInstance());
             Assert.fail();
         } catch (StatusRuntimeException e) {
             assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
         }
         try {
-            client.linkField(LWBS.LinkFieldRequest.getDefaultInstance());
-            Assert.fail();
-        } catch (StatusRuntimeException e) {
-            assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
-        }
-        try {
-            client.finalizeWhiteboard(LWBS.FinalizeWhiteboardRequest.getDefaultInstance());
+            client.updateWhiteboard(LWBS.UpdateWhiteboardRequest.getDefaultInstance());
             Assert.fail();
         } catch (StatusRuntimeException e) {
             assertEquals(e.getStatus().toString(), expectedStatus.getCode(), e.getStatus().getCode());
@@ -397,56 +581,60 @@ public class ApiTest extends BaseTestWithIam {
         }
     }
 
-    private static LWB.Whiteboard createWhiteboard(LzyWhiteboardServiceBlockingStub client) {
-        return client.createWhiteboard(genCreateWhiteboardRequest()).getWhiteboard();
+    private static LWB.Whiteboard registerWhiteboard(LzyWhiteboardServiceBlockingStub client, String id, Instant ts) {
+        final LWBS.RegisterWhiteboardRequest request = genCreateWhiteboardRequest(id, ts);
+        client.registerWhiteboard(request);
+        return request.getWhiteboard();
     }
 
-    private static LWBS.CreateWhiteboardRequest genCreateWhiteboardRequest() {
-        return LWBS.CreateWhiteboardRequest.newBuilder()
-            .setWhiteboardName("wb-name")
-            .addAllFields(List.of(
-                LWB.WhiteboardFieldInfo.newBuilder()
-                    .setName("f1")
-                    .setNoneState(LWB.WhiteboardFieldInfo.NoneField.getDefaultInstance())
-                    .build(),
-                LWB.WhiteboardFieldInfo.newBuilder()
-                    .setName("f2")
-                    .setNoneState(LWB.WhiteboardFieldInfo.NoneField.getDefaultInstance())
-                    .build(),
-                LWB.WhiteboardFieldInfo.newBuilder()
-                    .setName("f3")
-                    .setLinkedState(LWB.WhiteboardFieldInfo.LinkedField.newBuilder()
-                        .setStorageUri("s-uri-3")
+    private static LWBS.RegisterWhiteboardRequest genCreateWhiteboardRequest(String id, Instant ts) {
+        return LWBS.RegisterWhiteboardRequest.newBuilder()
+            .setWhiteboard(LWB.Whiteboard.newBuilder()
+                .setName("wb-name")
+                .addAllFields(List.of(
+                    LWB.WhiteboardField.newBuilder()
+                        .setName("f1")
                         .setScheme(toProto(DataScheme.PLAIN))
-                        .build())
-                    .build(),
-                LWB.WhiteboardFieldInfo.newBuilder()
-                    .setName("f4")
-                    .setLinkedState(LWB.WhiteboardFieldInfo.LinkedField.newBuilder()
-                        .setStorageUri("s-uri-4-init")
+                        .build(),
+                    LWB.WhiteboardField.newBuilder()
+                        .setName("f2")
                         .setScheme(toProto(DataScheme.PLAIN))
-                        .build())
-                    .build()))
-            .setStorage(ProtoConverter.toProto(new Whiteboard.Storage("storage", "")))
-            .addAllTags(List.of("t1, t2"))
-            .setNamespace("namespace")
+                        .build(),
+                    LWB.WhiteboardField.newBuilder()
+                        .setName("f3")
+                        .setScheme(toProto(DataScheme.PLAIN))
+                        .build(),
+                    LWB.WhiteboardField.newBuilder()
+                        .setName("f4")
+                        .setScheme(toProto(DataScheme.PLAIN))
+                        .build()))
+                .setStorage(
+                    ProtoConverter.toProto(new Whiteboard.Storage("storage", "description", URI.create("s3://uri"))))
+                .addAllTags(List.of("t1", "t2"))
+                .setNamespace("namespace")
+                .setCreatedAt(ai.lzy.util.grpc.ProtoConverter.toProto(ts))
+                .setId(id)
+                .setStatus(LWB.Whiteboard.Status.CREATED)
+                .build())
             .build();
     }
 
-    private static LWBS.CreateWhiteboardRequest genCreateWhiteboardRequest(String name, List<String> tags) {
-        return LWBS.CreateWhiteboardRequest.newBuilder()
-            .setWhiteboardName(name)
-            .addAllFields(List.of(
-                LWB.WhiteboardFieldInfo.newBuilder()
-                    .setName("f")
-                    .setLinkedState(LWB.WhiteboardFieldInfo.LinkedField.newBuilder()
-                        .setStorageUri("s-uri")
+    private static LWBS.RegisterWhiteboardRequest genCreateWhiteboardRequest(String name, List<String> tags) {
+        return LWBS.RegisterWhiteboardRequest.newBuilder()
+            .setWhiteboard(LWB.Whiteboard.newBuilder()
+                .addAllFields(List.of(
+                    LWB.WhiteboardField.newBuilder()
+                        .setName("f")
                         .setScheme(toProto(DataScheme.PLAIN))
-                        .build())
-                    .build()))
-            .setStorage(ProtoConverter.toProto(new Whiteboard.Storage("storage", "")))
-            .addAllTags(tags)
-            .setNamespace("namespace")
+                        .build()))
+                .setStorage(ProtoConverter.toProto(new Whiteboard.Storage("storage", "", URI.create("s3://uri"))))
+                .addAllTags(tags)
+                .setNamespace("namespace")
+                .setName(name)
+                .setId(UUID.randomUUID().toString())
+                .setCreatedAt(ai.lzy.util.grpc.ProtoConverter.toProto(Instant.now().truncatedTo(ChronoUnit.MILLIS)))
+                .setStatus(LWB.Whiteboard.Status.CREATED)
+                .build())
             .build();
     }
 
@@ -483,7 +671,9 @@ public class ApiTest extends BaseTestWithIam {
     public record GeneratedCredentials(
         String publicKey,
         JwtCredentials credentials
-    ) {}
+    )
+    {
+    }
 
     public static GeneratedCredentials generateCredentials(String login, String provider)
         throws IOException, InterruptedException, NoSuchAlgorithmException, InvalidKeySpecException

@@ -4,10 +4,11 @@ CREATE TABLE IF NOT EXISTS whiteboards (
     user_id              varchar(255)  NOT NULL,
     storage_name         varchar(255)  NOT NULL,
     storage_description  text          NOT NULL,
+    storage_uri          text          NOT NULL,
     namespace            varchar(255)  NOT NULL,
     whiteboard_status    varchar(255)  NOT NULL,
     created_at           timestamp     NOT NULL,
-    finalized_at         timestamp,
+    registered_at        timestamp,
 
     CONSTRAINT whiteboards_pkey PRIMARY KEY (whiteboard_id)
 );
@@ -31,10 +32,7 @@ CREATE TABLE IF NOT EXISTS whiteboard_fields
 (
     whiteboard_id     varchar(255)  NOT NULL,
     field_name        varchar(255)  NOT NULL,
-    field_status      varchar(255)  NOT NULL,
     data_scheme       text,
-    storage_uri       varchar(255),
-    finalized_at      timestamp,
 
     CONSTRAINT whiteboard_fields_pkey PRIMARY KEY (whiteboard_id, field_name),
 

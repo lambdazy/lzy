@@ -30,6 +30,9 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.UUID;
@@ -108,7 +111,7 @@ public class GraphExecutionService {
                 if (cleanExecutionCompanion.markExecutionAsBroken(userId, executionId, state.getErrorStatus())) {
                     cleanExecutionCompanion.cleanExecution(executionId);
                 }
-                return operationDao.failOperation(state.getOpId(), toProto(state.getErrorStatus()), LOG);
+                return operationDao.failOperation(state.getOpId(), toProto(state.getErrorStatus()), null, LOG);
             }
 
             if (state.getDataFlowGraph() == null || state.getZone() == null) {
@@ -124,7 +127,7 @@ public class GraphExecutionService {
                 if (cleanExecutionCompanion.markExecutionAsBroken(userId, executionId, state.getErrorStatus())) {
                     cleanExecutionCompanion.cleanExecution(executionId);
                 }
-                return operationDao.failOperation(state.getOpId(), toProto(state.getErrorStatus()), LOG);
+                return operationDao.failOperation(state.getOpId(), toProto(state.getErrorStatus()), null, LOG);
             }
 
             LOG.info("Dataflow graph built and validated, building execution graph, current state:" + state);
@@ -137,7 +140,7 @@ public class GraphExecutionService {
                 if (cleanExecutionCompanion.markExecutionAsBroken(userId, executionId, errorStatus)) {
                     cleanExecutionCompanion.cleanExecution(executionId);
                 }
-                return operationDao.failOperation(state.getOpId(), toProto(errorStatus), LOG);
+                return operationDao.failOperation(state.getOpId(), toProto(errorStatus), null, LOG);
             }
 
             InjectedFailures.failExecuteGraph3();
@@ -155,7 +158,7 @@ public class GraphExecutionService {
                 if (cleanExecutionCompanion.markExecutionAsBroken(userId, executionId, state.getErrorStatus())) {
                     cleanExecutionCompanion.cleanExecution(executionId);
                 }
-                return operationDao.failOperation(state.getOpId(), toProto(state.getErrorStatus()), LOG);
+                return operationDao.failOperation(state.getOpId(), toProto(state.getErrorStatus()), null, LOG);
             }
 
             LOG.info("Graph successfully built: " + state);
@@ -187,7 +190,7 @@ public class GraphExecutionService {
                     if (cleanExecutionCompanion.markExecutionAsBroken(userId, executionId, e.getStatus())) {
                         cleanExecutionCompanion.cleanExecution(executionId);
                     }
-                    return operationDao.failOperation(state.getOpId(), toProto(e.getStatus()), LOG);
+                    return operationDao.failOperation(state.getOpId(), toProto(e.getStatus()), null, LOG);
                 }
 
                 state.setGraphId(executeResponse.getStatus().getGraphId());
@@ -214,7 +217,7 @@ public class GraphExecutionService {
                 if (cleanExecutionCompanion.markExecutionAsBroken(userId, executionId, errorStatus)) {
                     cleanExecutionCompanion.cleanExecution(executionId);
                 }
-                return operationDao.failOperation(state.getOpId(), toProto(errorStatus), LOG);
+                return operationDao.failOperation(state.getOpId(), toProto(errorStatus), null, LOG);
             }
 
             InjectedFailures.failExecuteGraph8();
@@ -225,7 +228,7 @@ public class GraphExecutionService {
             var packed = Any.pack(response);
 
             try {
-                return withRetries(LOG, () -> operationDao.updateResponse(state.getOpId(), packed.toByteArray(), null));
+                return withRetries(LOG, () -> operationDao.complete(state.getOpId(), packed, null));
             } catch (Exception e) {
                 LOG.error("Error while executing transaction: {}", e.getMessage(), e);
 
@@ -236,7 +239,7 @@ public class GraphExecutionService {
                 if (cleanExecutionCompanion.markExecutionAsBroken(userId, executionId, errorStatus)) {
                     cleanExecutionCompanion.cleanExecution(executionId);
                 }
-                return operationDao.failOperation(state.getOpId(), toProto(errorStatus), LOG);
+                return operationDao.failOperation(state.getOpId(), toProto(errorStatus), null, LOG);
             }
         } catch (InjectedFailures.TerminateException e) {
             LOG.error("Got InjectedFailure exception: " + e.getMessage());
@@ -247,7 +250,11 @@ public class GraphExecutionService {
             if (cleanExecutionCompanion.markExecutionAsBroken(userId, executionId, errorStatus)) {
                 cleanExecutionCompanion.cleanExecution(executionId);
             }
-            return operationDao.failOperation(state.getOpId(), toProto(errorStatus), LOG);
+            try {
+                return operationDao.failOperation(state.getOpId(), toProto(errorStatus), null, LOG);
+            } catch (SQLException ex) {
+                throw new RuntimeException(ex);
+            }
         }
     }
 

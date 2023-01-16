@@ -13,8 +13,10 @@ import ai.lzy.channelmanager.model.channel.Channel;
 import ai.lzy.channelmanager.operation.ChannelOperationExecutor;
 import ai.lzy.channelmanager.operation.state.BindActionState;
 import ai.lzy.channelmanager.test.InjectedFailures;
+import ai.lzy.longrunning.dao.OperationCompletedException;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.v1.channel.LCMS;
 import ai.lzy.v1.longrunning.LongRunning;
@@ -234,14 +236,17 @@ public class BindAction extends ChannelAction {
             withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage)) {
                     channelOperationDao.delete(operationId, tx);
-                    operationDao.updateResponse(operationId,
-                        Any.pack(LCMS.BindResponse.getDefaultInstance()).toByteArray(), tx);
+                    operationDao.complete(operationId, Any.pack(LCMS.BindResponse.getDefaultInstance()), tx);
                     channelDao.markEndpointBound(state.endpointUri(), tx);
                     tx.commit();
                 }
             });
             LOG.info("Async operation (operationId={}) finished", operationId);
             operationStopped = true;
+        } catch (OperationCompletedException e) {
+            LOG.error("Async operation (operationId={}): failed to finish: already finished.", operationId);
+        } catch (NotFoundException e) {
+            LOG.error("Async operation (operationId={}): failed to finish: not found.", operationId);
         } catch (SQLException e) {
             LOG.error("Async operation (operationId={}): failed to finish: {}. Schedule restart action",
                 operationId, e.getMessage());

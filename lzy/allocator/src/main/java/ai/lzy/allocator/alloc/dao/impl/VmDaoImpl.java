@@ -19,6 +19,7 @@ import jakarta.inject.Singleton;
 
 import java.net.Inet6Address;
 import java.net.UnknownHostException;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -81,45 +82,49 @@ public class VmDaoImpl implements VmDao {
 
     private static final String QUERY_LIST_ALIVE_VMS = """
         SELECT %s
-        FROM vm
-        WHERE status != 'DEAD'""".formatted(ALL_FIELDS);
+        FROM vm""".formatted(ALL_FIELDS);
 
     private static final String QUERY_READ_VM = """
         SELECT %s
         FROM vm
         WHERE id = ?""".formatted(ALL_FIELDS);
 
-    private static final String QUERY_LIST_EXPIRED_VMS = """
+    private static final String QUERY_LIST_VMS_TO_CLEANUP = """
         SELECT %s
         FROM vm
         WHERE (status = 'IDLE' AND deadline IS NOT NULL AND deadline < NOW())
            OR (status = 'DELETING')
            OR (status = 'ALLOCATING' AND allocation_deadline < NOW())
-           OR (status != 'INIT' AND status != 'DEAD' AND COALESCE(last_activity_time < NOW(), FALSE))
+           OR (status = 'RUNNING' AND COALESCE(last_activity_time < NOW(), FALSE))
         LIMIT ?""".formatted(ALL_FIELDS);
+
+    private static final String QUERY_MARK_FAILED_ALLOCATIONS = """
+        UPDATE vm
+        SET status = 'DELETING'
+        WHERE status = 'ALLOCATING'
+          AND allocation_op_id IN (SELECT id FROM operation WHERE done = TRUE AND error IS NOT NULL)
+        RETURNING id""";
 
     private static final String QUERY_ACQUIRE_VM = """
         UPDATE vm
-        SET status = '%s'
+        SET status = 'RUNNING'
         WHERE
-            session_id = ? AND pool_label = ? AND zone = ? AND status = '%s'
+            session_id = ? AND pool_label = ? AND zone = ? AND status = 'IDLE'
             AND workloads_json = ? AND init_workloads_json = ?
             AND volume_requests_json = ?
             AND COALESCE(v6_proxy_address, '') = ?
         RETURNING %s
-        """.formatted(Vm.Status.RUNNING.name(), Vm.Status.IDLE.name(), ALL_FIELDS);
+        """.formatted(ALL_FIELDS);
 
     private static final String QUERY_RELEASE_VM = """
         UPDATE vm
-        SET status = '%s', deadline = ?
-        WHERE id = ?
-        """.formatted(Vm.Status.IDLE.name());
+        SET status = 'IDLE', deadline = ?
+        WHERE id = ?""";
 
     private static final String QUERY_SET_VM_RUNNING = """
         UPDATE vm
-        SET status = '%s', vm_meta_json = ?, last_activity_time = ?
-        WHERE id = ?
-        """.formatted(Vm.Status.RUNNING.name());
+        SET status = 'RUNNING', vm_meta_json = ?, last_activity_time = ?
+        WHERE id = ?""";
 
     private static final String QUERY_UPDATE_VM_ALLOCATION_META = """
         UPDATE vm
@@ -182,7 +187,7 @@ public class VmDaoImpl implements VmDao {
         final var vmId = "vm-" + UUID.randomUUID();
 
         DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement(QUERY_CREATE_VM)) {
+            try (PreparedStatement s = con.prepareStatement(QUERY_CREATE_VM)) {
                 // spec
                 s.setString(1, vmId);
                 s.setString(2, vmSpec.sessionId());
@@ -220,7 +225,7 @@ public class VmDaoImpl implements VmDao {
         throws SQLException
     {
         DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement(QUERY_UPDATE_VM_STATUS)) {
+            try (PreparedStatement s = con.prepareStatement(QUERY_UPDATE_VM_STATUS)) {
                 s.setString(1, status.name());
                 s.setString(2, vmId);
                 s.executeUpdate();
@@ -242,7 +247,7 @@ public class VmDaoImpl implements VmDao {
     @Override
     public void setDeadline(String vmId, Instant time) throws SQLException {
         try (var conn = storage.connect();
-             var st = conn.prepareStatement(QUERY_UPDATE_VM_ACTIVITY))
+             var st = conn.prepareStatement(QUERY_UPDATE_VM_DEADLINE))
         {
             st.setTimestamp(1, Timestamp.from(time));
             st.setString(2, vmId);
@@ -251,13 +256,13 @@ public class VmDaoImpl implements VmDao {
     }
 
     @Override
-    public void deleteVm(String vmId) throws SQLException {
-        try (var conn = storage.connect();
-             var st = conn.prepareStatement(QUERY_DELETE_VM))
-        {
-            st.setString(1, vmId);
-            st.execute();
-        }
+    public void deleteVm(String vmId, @jakarta.annotation.Nullable TransactionHandle transaction) throws SQLException {
+        DbOperation.execute(transaction, storage, conn -> {
+            try (PreparedStatement st = conn.prepareStatement(QUERY_DELETE_VM)) {
+                st.setString(1, vmId);
+                st.execute();
+            }
+        });
     }
 
     @Override
@@ -282,7 +287,7 @@ public class VmDaoImpl implements VmDao {
     @Override
     public void delete(String sessionId, @Nullable TransactionHandle tx) throws SQLException {
         DbOperation.execute(tx, storage, conn -> {
-            try (var st = conn.prepareStatement(QUERY_DELETE_SESSION_VMS)) {
+            try (PreparedStatement st = conn.prepareStatement(QUERY_DELETE_SESSION_VMS)) {
                 st.setString(1, sessionId);
                 st.execute();
             }
@@ -308,9 +313,9 @@ public class VmDaoImpl implements VmDao {
     }
 
     @Override
-    public List<Vm> listExpired(int limit) throws SQLException {
+    public List<Vm> listVmsToClean(int limit) throws SQLException {
         try (var conn = storage.connect();
-             var st = conn.prepareStatement(QUERY_LIST_EXPIRED_VMS))
+             var st = conn.prepareStatement(QUERY_LIST_VMS_TO_CLEANUP))
         {
             st.setInt(1, limit);
             final var res = st.executeQuery();
@@ -331,7 +336,7 @@ public class VmDaoImpl implements VmDao {
     public Vm get(String vmId, TransactionHandle transaction) throws SQLException {
         final Vm[] vm = {null};
         DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement(QUERY_READ_VM)) {
+            try (PreparedStatement s = con.prepareStatement(QUERY_READ_VM)) {
                 s.setString(1, vmId);
                 final var res = s.executeQuery();
                 if (!res.next()) {
@@ -352,7 +357,7 @@ public class VmDaoImpl implements VmDao {
         final Vm[] vm = {null};
         try (final var transaction = TransactionHandle.getOrCreate(storage, outerTransaction)) {
             DbOperation.execute(transaction, storage, con -> {
-                try (final var s = con.prepareStatement(QUERY_ACQUIRE_VM)) {
+                try (PreparedStatement s = con.prepareStatement(QUERY_ACQUIRE_VM)) {
                     s.setString(1, vmSpec.sessionId());
                     s.setString(2, vmSpec.poolLabel());
                     s.setString(3, vmSpec.zone());
@@ -383,7 +388,7 @@ public class VmDaoImpl implements VmDao {
     @Override
     public void release(String vmId, Instant deadline, @Nullable TransactionHandle transaction) throws SQLException {
         DbOperation.execute(transaction, storage, conn -> {
-            try (var st = conn.prepareStatement(QUERY_RELEASE_VM)) {
+            try (PreparedStatement st = conn.prepareStatement(QUERY_RELEASE_VM)) {
                 st.setTimestamp(1, Timestamp.from(deadline));
                 st.setString(2, vmId);
                 st.execute();
@@ -396,7 +401,7 @@ public class VmDaoImpl implements VmDao {
         throws SQLException
     {
         DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement(QUERY_UPDATE_VM_ALLOCATION_META)) {
+            try (PreparedStatement s = con.prepareStatement(QUERY_UPDATE_VM_ALLOCATION_META)) {
                 s.setString(1, objectMapper.writeValueAsString(meta));
                 s.setString(2, vmId);
                 s.executeUpdate();
@@ -413,7 +418,7 @@ public class VmDaoImpl implements VmDao {
     {
         final AtomicReference<Map<String, String>> meta = new AtomicReference<>();
         DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement(QUERY_READ_VM_ALLOCATION_META)) {
+            try (PreparedStatement s = con.prepareStatement(QUERY_READ_VM_ALLOCATION_META)) {
                 s.setString(1, vmId);
                 final var res = s.executeQuery();
                 if (!res.next()) {
@@ -439,7 +444,7 @@ public class VmDaoImpl implements VmDao {
                                 @Nullable TransactionHandle transaction) throws SQLException
     {
         DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement(QUERY_UPDATE_VOLUME_CLAIMS)) {
+            try (PreparedStatement s = con.prepareStatement(QUERY_UPDATE_VOLUME_CLAIMS)) {
                 s.setString(1, objectMapper.writeValueAsString(volumeClaims));
                 s.setString(2, vmId);
                 s.executeUpdate();
@@ -453,7 +458,7 @@ public class VmDaoImpl implements VmDao {
     public List<VolumeClaim> getVolumeClaims(String vmId, @Nullable TransactionHandle transaction) throws SQLException {
         final AtomicReference<List<VolumeClaim>> volumeClaims = new AtomicReference<>();
         DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement(QUERY_GET_VOLUME_CLAIMS)) {
+            try (PreparedStatement s = con.prepareStatement(QUERY_GET_VOLUME_CLAIMS)) {
                 s.setString(1, vmId);
                 final var resultSet = s.executeQuery();
                 if (!resultSet.next()) {
@@ -478,7 +483,7 @@ public class VmDaoImpl implements VmDao {
         throws SQLException
     {
         DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement(QUERY_SET_VM_SUBJECT_ID)) {
+            try (PreparedStatement s = con.prepareStatement(QUERY_SET_VM_SUBJECT_ID)) {
                 s.setString(1, vmSubjectId);
                 s.setString(2, vmId);
                 s.executeUpdate();
@@ -491,7 +496,7 @@ public class VmDaoImpl implements VmDao {
         throws SQLException
     {
         DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement(QUERY_SET_TUNNEL_PON_NAME)) {
+            try (PreparedStatement s = con.prepareStatement(QUERY_SET_TUNNEL_PON_NAME)) {
                 s.setString(1, tunnelPodName);
                 s.setString(2, vmId);
                 s.executeUpdate();
@@ -500,12 +505,12 @@ public class VmDaoImpl implements VmDao {
     }
 
     @Override
-    public List<Vm> loadNotCompletedVms(String allocatorId, @Nullable TransactionHandle transaction)
+    public List<Vm> loadAllocatingVms(String allocatorId, @Nullable TransactionHandle transaction)
         throws SQLException
     {
         final List<Vm> vms = new ArrayList<>();
         DbOperation.execute(transaction, storage, con -> {
-            try (final var s = con.prepareStatement(QUERY_LOAD_NOT_COMPLETED_VMS)) {
+            try (PreparedStatement s = con.prepareStatement(QUERY_LOAD_NOT_COMPLETED_VMS)) {
                 s.setString(1, allocatorId);
                 final var res = s.executeQuery();
                 while (res.next()) {
@@ -521,11 +526,27 @@ public class VmDaoImpl implements VmDao {
     }
 
     @Override
+    public List<String> findFailedVms(@Nullable TransactionHandle transaction)
+        throws SQLException
+    {
+        return DbOperation.execute(transaction, storage, conn -> {
+            try (PreparedStatement st = conn.prepareStatement(QUERY_MARK_FAILED_ALLOCATIONS)) {
+                var rs = st.executeQuery();
+                var ids = new ArrayList<String>();
+                while (rs.next()) {
+                    ids.add(rs.getString(1));
+                }
+                return ids;
+            }
+        });
+    }
+
+    @Override
     public void setVmRunning(String vmId, Map<String, String> vmMeta, Instant activityDeadline,
                              TransactionHandle transaction) throws SQLException
     {
         DbOperation.execute(transaction, storage, con -> {
-            try (var st = con.prepareStatement(QUERY_SET_VM_RUNNING)) {
+            try (PreparedStatement st = con.prepareStatement(QUERY_SET_VM_RUNNING)) {
                 st.setString(1, objectMapper.writeValueAsString(vmMeta));
                 st.setTimestamp(2, Timestamp.from(activityDeadline));
                 st.setString(3, vmId);
