@@ -6,7 +6,7 @@ from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard
 from lzy.whiteboards.wrapper import WhiteboardWrapper
 
 
-class WhiteboardIndexClient(ABC):
+class WhiteboardIndexClient(ABC):  # pragma: no cover
     @abstractmethod
     async def get(self, id_: str) -> Optional[Whiteboard]:
         pass
@@ -30,7 +30,7 @@ class WhiteboardIndexClient(ABC):
         pass
 
 
-class WhiteboardManager(ABC):
+class WhiteboardManager(ABC):  # pragma: no cover
     @abstractmethod
     async def write_meta(self, wb: Whiteboard, uri: str, storage_name: Optional[str] = None) -> None:
         pass

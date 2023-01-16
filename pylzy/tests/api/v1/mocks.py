@@ -9,7 +9,7 @@ from serialzy.serializers.primitive import PrimitiveSerializer
 from ai.lzy.v1.common.storage_pb2 import StorageConfig, S3Credentials
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2 import RegisterWhiteboardRequest, RegisterWhiteboardResponse, \
-    UpdateWhiteboardRequest, UpdateWhiteboardResponse, GetRequest, GetResponse
+    UpdateWhiteboardRequest, UpdateWhiteboardResponse, GetRequest, GetResponse, ListRequest, ListResponse
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2_grpc import LzyWhiteboardServiceServicer
 
 from lzy.logs.config import get_logger
@@ -193,8 +193,23 @@ class WhiteboardIndexServiceMock(LzyWhiteboardServiceServicer):
         whiteboard = self.__whiteboards[request.whiteboardId]
         return GetResponse(whiteboard=whiteboard)
 
-    def List(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+    def List(self, request: ListRequest, context) -> ListResponse:
+        whiteboards: List[Whiteboard] = []
+        for whiteboard in self.__whiteboards.values():
+            name = request.name if request.name else whiteboard.name
+            tags = request.tags if request.tags else whiteboard.tags
+
+            if name != whiteboard.name:
+                continue
+            if not (set(whiteboard.tags) <= set(tags)):
+                continue
+
+            from_millis = request.createdTimeBounds.from_.ToMilliseconds()
+            if from_millis != 0 and whiteboard.createdAt.ToMilliseconds() < from_millis:
+                continue
+            to_millis = request.createdTimeBounds.to.ToMilliseconds()
+            if to_millis != 0 and whiteboard.createdAt.ToMilliseconds() > to_millis:
+                continue
+
+            whiteboards.append(whiteboard)
+        return ListResponse(whiteboards=whiteboards)
