@@ -30,6 +30,7 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.sql.SQLException;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
@@ -158,21 +159,25 @@ public class CleanExecutionCompanion {
             withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage)) {
                     executionDao.setCompletedExecutionStatus(executionId, tx);
-                    operationDao.updateResponse(completeOperation.id(), Any.pack(
-                        LzyPortalApi.FinishResponse.getDefaultInstance()).toByteArray(), tx);
+                    operationDao.complete(completeOperation.id(), Any.pack(
+                        LzyPortalApi.FinishResponse.getDefaultInstance()), tx);
 
                     LOG.info("Execution was completed: { executionId: {} }", executionId);
                     tx.commit();
                 } catch (Exception e) {
                     LOG.warn("Cannot update execution status: { executionId: {} }", executionId, e);
                     operationDao.failOperation(completeOperation.id(), toProto(
-                        Status.INTERNAL.withDescription("Cannot set response")), LOG);
+                        Status.INTERNAL.withDescription("Cannot set response")), null, LOG);
                 }
             });
         } catch (Exception e) {
             LOG.warn("Cannot update execution status: { executionId: {} }", executionId, e);
-            operationDao.failOperation(completeOperation.id(), toProto(
-                Status.INTERNAL.withDescription("Cannot set response")), LOG);
+            try {
+                operationDao.failOperation(completeOperation.id(), toProto(
+                    Status.INTERNAL.withDescription("Cannot set response")), null, LOG);
+            } catch (SQLException ex) {
+                throw new RuntimeException(ex);
+            }
         }
     }
 

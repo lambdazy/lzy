@@ -2,7 +2,6 @@ package ai.lzy.test.scenarios;
 
 import ai.lzy.test.ApplicationContextRule;
 import ai.lzy.test.ContextRule;
-import ai.lzy.test.GrpcUtils;
 import ai.lzy.test.impl.v2.WhiteboardContext;
 import ai.lzy.test.impl.v2.WorkflowContext;
 import ai.lzy.v1.longrunning.LongRunning;
@@ -88,7 +87,7 @@ public class WorkflowTest {
 
         Assert.assertTrue(status.hasCompleted());
 
-        LongRunning.Operation op = stub.finishExecution(LWFS.FinishExecutionRequest.newBuilder()
-            .setExecutionId(wf.getExecutionId()).build());
+        //noinspection ResultOfMethodCallIgnored
+        stub.finishExecution(LWFS.FinishExecutionRequest.newBuilder().setExecutionId(wf.getExecutionId()).build());
     }
 }
