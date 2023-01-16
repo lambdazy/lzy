@@ -5,7 +5,7 @@ import ai.lzy.model.DataScheme;
 
 public record Field(
     String name,
-    DataScheme schema
+    DataScheme scheme
 )
 {
 }

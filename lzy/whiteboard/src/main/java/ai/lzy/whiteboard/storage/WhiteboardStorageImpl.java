@@ -249,7 +249,7 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                     int index = 0;
                     st.setString(++index, whiteboardId);
                     st.setString(++index, field.name());
-                    String dataSchemeJson = objectMapper.writeValueAsString(toProto(field.schema()));
+                    String dataSchemeJson = objectMapper.writeValueAsString(toProto(field.scheme()));
                     st.setString(++index, dataSchemeJson);
                     st.addBatch();
                 }
