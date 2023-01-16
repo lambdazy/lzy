@@ -127,8 +127,9 @@ public class CleanExecutionCompanion {
 
                 if (!shutdownPortalOp.getDone()) {
                     LOG.warn("Cannot wait portal of execution shutdown: { executionId: {} }", executionId);
-                    stopPortal(executionId, portalDesc.vmAddress());
                 }
+
+                stopPortal(executionId, portalDesc.vmAddress());
             }
         }
 
