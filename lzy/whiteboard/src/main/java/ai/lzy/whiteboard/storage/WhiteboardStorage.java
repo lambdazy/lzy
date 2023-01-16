@@ -12,8 +12,8 @@ import javax.annotation.Nullable;
 
 public interface WhiteboardStorage {
 
-    void insertWhiteboard(String userId, Whiteboard whiteboard, Instant ts,
-                          @Nullable TransactionHandle transaction) throws SQLException;
+    void registerWhiteboard(String userId, Whiteboard whiteboard, Instant ts,
+                            @Nullable TransactionHandle transaction) throws SQLException;
 
     void deleteWhiteboard(String whiteboardId, @Nullable TransactionHandle transaction) throws SQLException;
 

@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS whiteboards (
     namespace            varchar(255)  NOT NULL,
     whiteboard_status    varchar(255)  NOT NULL,
     created_at           timestamp     NOT NULL,
-    inserted_at           timestamp,
+    registered_at        timestamp,
 
     CONSTRAINT whiteboards_pkey PRIMARY KEY (whiteboard_id)
 );

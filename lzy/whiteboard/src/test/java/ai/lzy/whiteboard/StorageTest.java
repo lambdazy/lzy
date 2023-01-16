@@ -54,7 +54,7 @@ public class StorageTest {
         ), Set.of(), new Whiteboard.Storage("s-name", "", URI.create("")), "namespace", Whiteboard.Status.CREATED,
             timestampNow());
 
-        wbStorage.insertWhiteboard(userId, wb, Instant.now(), null);
+        wbStorage.registerWhiteboard(userId, wb, Instant.now(), null);
         Assert.assertEquals(wb, wbStorage.getWhiteboard(wb.id(), null));
 
         final var wbTagged = new Whiteboard("id3", "wb-name-1",
@@ -63,7 +63,7 @@ public class StorageTest {
             Whiteboard.Status.CREATED, timestampNow()
         );
 
-        wbStorage.insertWhiteboard(userId, wbTagged, Instant.now(), null);
+        wbStorage.registerWhiteboard(userId, wbTagged, Instant.now(), null);
         Assert.assertEquals(wbTagged, wbStorage.getWhiteboard(wbTagged.id(), null));
     }
 
@@ -73,7 +73,7 @@ public class StorageTest {
 
         Whiteboard wb =
             genWhiteboard(UUID.randomUUID().toString(), "wb-name", Set.of("f1", "f2"), Set.of("t1"), timestampNow());
-        wbStorage.insertWhiteboard(userId, wb, Instant.now(), null);
+        wbStorage.registerWhiteboard(userId, wb, Instant.now(), null);
         Assert.assertEquals(wb, wbStorage.getWhiteboard(wb.id(), null));
 
         wbStorage.deleteWhiteboard(wb.id(), null);
@@ -88,19 +88,19 @@ public class StorageTest {
 
         final var wb1 = genWhiteboard("id1", "name1", Set.of("f"), Set.of("all", "b", "c", "x"),
             Instant.parse("2022-09-01T12:00:00.00Z"));
-        wbStorage.insertWhiteboard(userId1, wb1, Instant.now(), null);
+        wbStorage.registerWhiteboard(userId1, wb1, Instant.now(), null);
 
         final var wb2 = genWhiteboard("id2", "name2", Set.of("g"), Set.of("all", "b", "d", "y"),
             Instant.parse("2022-09-01T12:10:00.00Z"));
-        wbStorage.insertWhiteboard(userId1, wb2, Instant.now(), null);
+        wbStorage.registerWhiteboard(userId1, wb2, Instant.now(), null);
 
         final var wb3 = genWhiteboard("id3", "name3", Set.of("g", "h"), Set.of("all", "c", "d", "z"),
             Instant.parse("2022-09-01T12:20:00.00Z"));
-        wbStorage.insertWhiteboard(userId1, wb3, Instant.now(), null);
+        wbStorage.registerWhiteboard(userId1, wb3, Instant.now(), null);
 
         final var wb4 = genWhiteboard("id", "name", Set.of("fun"), Set.of("all", "other"),
             Instant.parse("2022-09-01T12:10:00.00Z"));
-        wbStorage.insertWhiteboard(userId2, wb4, Instant.now(), null);
+        wbStorage.registerWhiteboard(userId2, wb4, Instant.now(), null);
 
 
         Assert.assertEquals(3, wbStorage.listWhiteboards(userId1, null, List.of(), null, null, null).count());

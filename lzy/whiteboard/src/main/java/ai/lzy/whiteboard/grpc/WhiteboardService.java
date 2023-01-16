@@ -188,7 +188,7 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
         LOG.info("Register whiteboard name={}, id={}", whiteboard.getName(), whiteboard.getId());
         try {
             final Instant inserted = Instant.now().truncatedTo(ChronoUnit.MILLIS);
-            withRetries(defaultRetryPolicy(), LOG, () -> whiteboardStorage.insertWhiteboard(
+            withRetries(defaultRetryPolicy(), LOG, () -> whiteboardStorage.registerWhiteboard(
                 userId, ProtoConverter.fromProto(whiteboard), inserted, null)
             );
 
@@ -328,7 +328,7 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
                     );
                     whiteboardStorage.deleteWhiteboard(whiteboardId, tx);
                     final Instant inserted = Instant.now().truncatedTo(ChronoUnit.MILLIS);
-                    whiteboardStorage.insertWhiteboard(userId, newWhiteboard, inserted, tx);
+                    whiteboardStorage.registerWhiteboard(userId, newWhiteboard, inserted, tx);
                     tx.commit();
                 }
             });

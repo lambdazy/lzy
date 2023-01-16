@@ -40,8 +40,8 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
     }
 
     @Override
-    public void insertWhiteboard(String userId, Whiteboard whiteboard, Instant ts,
-                                 @Nullable TransactionHandle outerTransaction) throws SQLException
+    public void registerWhiteboard(String userId, Whiteboard whiteboard, Instant ts,
+                                   @Nullable TransactionHandle outerTransaction) throws SQLException
     {
         LOG.debug("Inserting whiteboard (userId={},whiteboardId={})", userId, whiteboard.id());
         try (final TransactionHandle transaction = TransactionHandle.getOrCreate(dataSource, outerTransaction)) {
@@ -93,7 +93,7 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                     wb.whiteboard_status,
                     wb.namespace,
                     wb.created_at,
-                    wb.inserted_at,
+                    wb.registered_at,
                     f.field_name as field_name,
                     f.data_scheme as field_data_scheme,
                     t.tags as tags
@@ -181,7 +181,7 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                     wb.whiteboard_status,
                     wb.namespace,
                     wb.created_at,
-                    wb.inserted_at,
+                    wb.registered_at,
                     f.field_name as field_name,
                     f.data_scheme as field_data_scheme,
                     t.tags as tags
@@ -213,7 +213,7 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 INSERT INTO whiteboards(
                     whiteboard_id, whiteboard_name, user_id, storage_name, storage_description, storage_uri,
-                    whiteboard_status, namespace, created_at, inserted_at
+                    whiteboard_status, namespace, created_at, registered_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """)
             )
