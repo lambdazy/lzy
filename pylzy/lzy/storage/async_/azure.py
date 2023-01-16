@@ -1,4 +1,5 @@
 import datetime
+import time
 from typing import Any, AsyncIterator, BinaryIO, cast, Optional, Callable
 
 # noinspection PyPackageRequirements
@@ -57,6 +58,21 @@ class AzureClientAsync(AsyncStorageClient):
         stream = await blob_client.download_blob(progress_hook=lambda x, t: progress(x) if progress else None)
         async for chunk in stream:
             yield chunk
+
+    async def copy(self, from_uri: str, to_uri: str) -> None:
+        url = self.sign_storage_uri(from_uri)
+        blob_client = self._blob_client_from_uri(to_uri)
+        await blob_client.start_copy_from_url(url)
+        while True:
+            props = await blob_client.get_blob_properties()
+            status = props.copy.status
+            if status == "success":
+                break
+            elif status == "pending":
+                time.sleep(1)
+            else:
+                await blob_client.abort_copy(props.copy.id)
+                raise ValueError(f"Failed to copy object with status {status}")
 
     @staticmethod
     def from_cred(creds: AzureCredentials) -> "AzureClientAsync":

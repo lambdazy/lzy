@@ -19,8 +19,6 @@ from typing import (
     cast,
 )
 
-from serialzy.api import Schema
-
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
 from ai.lzy.v1.workflow.workflow_pb2 import (
     DataDescription,
@@ -47,7 +45,6 @@ from lzy.api.v1.utils.conda import generate_conda_yaml
 from lzy.api.v1.utils.files import fileobj_hash, zipdir
 from lzy.api.v1.utils.pickle import pickle
 from lzy.api.v1.workflow import LzyWorkflow
-from lzy.api.v1.workflow import WbRef
 from lzy.logs.config import get_logger, get_logging_config, RESET_COLOR, COLOURS, get_color
 from lzy.utils.grpc import build_token
 
@@ -108,7 +105,6 @@ class RemoteRuntime(Runtime):
     async def exec(
         self,
         calls: List[LzyCall],
-        links: Dict[str, WbRef],
         progress: Callable[[ProgressStep], None],
     ) -> None:
         assert self.__execution_id is not None
@@ -154,22 +150,6 @@ class RemoteRuntime(Runtime):
                 raise LzyExecutionException(
                     f"Failed executing graph {graph_id}: {status.description}"
                 )
-
-        data_to_link = []
-
-        for desc in graph.dataDescriptions:
-            link = links.pop(desc.storageUri, None)
-            if link is not None:
-                data_to_link.append(self.__workflow.owner.whiteboard_client.link(
-                    link.whiteboard_id, link.field_name, desc.storageUri, Schema(
-                        data_format=desc.dataScheme.dataFormat,
-                        schema_format=desc.dataScheme.schemeFormat,
-                        schema_content=desc.dataScheme.schemeContent,
-                        meta=dict(**desc.dataScheme.metadata)
-                    )
-                ))
-
-        await asyncio.gather(*data_to_link)
 
     async def destroy(self):
         client = await self.__get_client()

@@ -3,14 +3,14 @@ import sys
 import tempfile
 import uuid
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Type, cast, BinaryIO
+from typing import Any, Dict, Type, cast, BinaryIO, Set
 
-from serialzy.api import SerializerRegistry, Schema
+from serialzy.api import Schema, SerializerRegistry
 from tqdm import tqdm
 
 from lzy.logs.config import get_logger, get_color
 from lzy.proxy.result import Just, Nothing, Result
-from lzy.storage.api import AsyncStorageClient, StorageRegistry
+from lzy.storage.api import AsyncStorageClient
 
 _LOG = get_logger(__name__)
 
@@ -27,14 +27,17 @@ class SnapshotEntry:
     name: str
     typ: Type
     storage_uri: str
-    storage_name: Optional[str]
+    storage_name: str
     data_scheme: Schema
 
 
-class Snapshot(ABC):
+class Snapshot(ABC):  # pragma: no cover
     @abstractmethod
-    def create_entry(self, name: str, typ: Type) -> SnapshotEntry:
-        # TODO (tomato): add prefixes to entry
+    def create_entry(self, name: str, typ: Type, storage_uri: str) -> SnapshotEntry:
+        pass
+
+    @abstractmethod
+    def update_entry(self, entry_id: str, storage_uri: str) -> None:
         pass
 
     @abstractmethod
@@ -49,53 +52,54 @@ class Snapshot(ABC):
     def get(self, entry_id: str) -> SnapshotEntry:
         pass
 
-    @abstractmethod
-    def storage_name(self) -> str:
-        pass
-
 
 class DefaultSnapshot(Snapshot):
-    def __init__(self, execution_id: str, storage_registry: StorageRegistry, serializer_registry: SerializerRegistry):
-        self.__storage_registry = storage_registry
+    def __init__(self, serializer_registry: SerializerRegistry, storage_client: AsyncStorageClient, storage_name: str):
         self.__serializer_registry = serializer_registry
-        self.__execution_id = execution_id
-
-        self.__storage_client: Optional[AsyncStorageClient] = None
-        self.__storage_name: Optional[str] = None
+        self.__storage_client = storage_client
+        self.__storage_name = storage_name
         self.__entry_id_to_entry: Dict[str, SnapshotEntry] = {}
-        self.__storage_bucket: Optional[str] = None
+        self.__filled_entries: Set[str] = set()
 
-    def create_entry(self, name: str, typ: Type) -> SnapshotEntry:
+    def create_entry(self, name: str, typ: Type, storage_uri: str) -> SnapshotEntry:
         eid = str(uuid.uuid4())
-        uri = self.storage_uri + f"/lzy_runs/{self.__execution_id}/data/{name + '.' + eid[:8]}"
         serializer_by_type = self.__serializer_registry.find_serializer_by_type(typ)
         if serializer_by_type is None:
-            raise ValueError(f'Cannot find serializer for type {typ}')
-        if not serializer_by_type.available():
-            raise ValueError(
+            raise TypeError(f'Cannot find serializer for type {typ}')
+        elif not serializer_by_type.available():
+            raise TypeError(
                 f'Serializer for type {typ} is not available, please install {serializer_by_type.requirements()}')
 
         schema = serializer_by_type.schema(typ)
-        e = SnapshotEntry(eid, name, typ, uri, self.storage_name(), data_scheme=schema)
+        e = SnapshotEntry(eid, name, typ, storage_uri, self.__storage_name, data_scheme=schema)
         self.__entry_id_to_entry[e.id] = e
         _LOG.debug(f"Created entry {e}")
         return e
+
+    def update_entry(self, entry_id: str, storage_uri: str) -> None:
+        if entry_id in self.__filled_entries:
+            raise ValueError(f"Cannot update entry {entry_id}: data has been already uploaded")
+
+        prev = self.get(entry_id)
+        self.__entry_id_to_entry[entry_id] = SnapshotEntry(entry_id, prev.name, prev.typ, storage_uri,
+                                                           prev.storage_name, prev.data_scheme)
 
     async def get_data(self, entry_id: str) -> Result[Any]:
         _LOG.debug(f"Getting data for entry {entry_id}")
         entry = self.__entry_id_to_entry.get(entry_id, None)
         if entry is None:
-            return Nothing()
+            raise ValueError(f"Entry with id={entry_id} does not exist")
 
-        exists = await self.storage_client.blob_exists(entry.storage_uri)
+        exists = await self.__storage_client.blob_exists(entry.storage_uri)
         if not exists:
             return Nothing()
 
         with tempfile.NamedTemporaryFile() as f:
-            size = await self.storage_client.size_in_bytes(entry.storage_uri)
+            size = await self.__storage_client.size_in_bytes(entry.storage_uri)
             with tqdm(total=size, desc=f"Downloading {entry.name}", file=sys.stdout, unit='B', unit_scale=True,
                       unit_divisor=1024, colour=get_color()) as bar:
-                await self.storage_client.read(entry.storage_uri, cast(BinaryIO, f), progress=lambda x: bar.update(x))
+                await self.__storage_client.read(entry.storage_uri, cast(BinaryIO, f),
+                                                 progress=lambda x: bar.update(x))
                 f.seek(0)
                 res = self.__serializer_registry.find_serializer_by_type(entry.typ).deserialize(cast(BinaryIO, f))
                 return Just(res)
@@ -104,7 +108,7 @@ class DefaultSnapshot(Snapshot):
         _LOG.debug(f"Putting data for entry {entry_id}")
         entry = self.__entry_id_to_entry.get(entry_id, None)
         if entry is None:
-            raise ValueError(f"Cannot get entry {entry_id}")
+            raise ValueError(f"Entry with id={entry_id} does not exist")
 
         with tempfile.NamedTemporaryFile() as f:
             _LOG.debug(f"Serializing {entry.name}...")
@@ -114,42 +118,10 @@ class DefaultSnapshot(Snapshot):
 
             with tqdm(total=length, desc=f"Uploading {entry.name}", file=sys.stdout, unit='B', unit_scale=True,
                       unit_divisor=1024, colour=get_color()) as bar:
-                await self.storage_client.write(entry.storage_uri, cast(BinaryIO, f), progress=lambda x: bar.update(x))
+                await self.__storage_client.write(entry.storage_uri, cast(BinaryIO, f),
+                                                  progress=lambda x: bar.update(x))
+
+        self.__filled_entries.add(entry_id)
 
     def get(self, entry_id: str) -> SnapshotEntry:
         return self.__entry_id_to_entry[entry_id]
-
-    def storage_name(self) -> str:
-        if self.__storage_name is None:
-            name = self.__storage_registry.default_storage_name()
-            if name is None:
-                raise ValueError(
-                    f"Cannot get storage name, default storage config is not set"
-                )
-            self.__storage_name = name
-            return name
-        return self.__storage_name
-
-    @property
-    def storage_uri(self) -> str:
-        if self.__storage_bucket is None:
-            conf = self.__storage_registry.default_config()
-            if conf is None:
-                raise ValueError(
-                    f"Cannot get storage bucket, default storage config is not set"
-                )
-            self.__storage_bucket = conf.uri
-            return conf.uri
-        return self.__storage_bucket
-
-    @property
-    def storage_client(self) -> AsyncStorageClient:
-        if self.__storage_client is None:
-            client = self.__storage_registry.default_client()
-            if client is None:
-                raise ValueError(
-                    f"Cannot get storage client, default storage config is not set"
-                )
-            self.__storage_client = client
-            return client
-        return self.__storage_client

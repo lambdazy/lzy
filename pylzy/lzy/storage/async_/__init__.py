@@ -18,9 +18,9 @@ def _from(credentials: StorageCredentials) -> AsyncStorageClient:
 @_from.register
 def _(credentials: S3Credentials) -> AsyncStorageClient:
     # use local imports to import unnecessary libs as late as possible to avoid version conflicts
-    from lzy.storage.async_.amazon import AmazonClient
+    from lzy.storage.async_.s3 import S3Client
 
-    return AmazonClient(credentials)
+    return S3Client(credentials)
 
 
 @_from.register
