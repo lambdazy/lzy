@@ -28,8 +28,6 @@ def returns_str() -> str:
 
 
 lzy = Lzy()
-lzy.auth(user="test", whiteboards_endpoint="localhost:10000", endpoint="localhost:13579",
-         key_path="/Users/tomato/Work/lzy-repo/lzy/test/../lzy-test-cert.pem")
 with lzy.workflow(name="wf", interactive=False) as wf:
     wb = wf.create_whiteboard(SimpleWhiteboard, tags=["wf_tag"])
     wb.b = returns_str()
