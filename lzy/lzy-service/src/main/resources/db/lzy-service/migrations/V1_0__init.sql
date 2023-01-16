@@ -3,11 +3,11 @@ CREATE TYPE storage_type AS ENUM ('USER', 'INTERNAL');
 CREATE TYPE portal_status AS ENUM (
     'CREATING_STD_CHANNELS', 'CREATING_SESSION',
     'REQUEST_VM', 'ALLOCATING_VM', 'VM_READY'
-    );
+);
 
 CREATE TYPE execution_status AS ENUM (
-    'RUN', 'COMPLETED', 'ERROR', 'CLEANED'
-    );
+    'RUN', 'ERROR', 'COMPLETING', 'COMPLETED'
+);
 
 CREATE TABLE workflow_executions
 (

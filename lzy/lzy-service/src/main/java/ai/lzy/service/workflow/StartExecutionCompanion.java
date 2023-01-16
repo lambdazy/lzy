@@ -199,7 +199,7 @@ final class StartExecutionCompanion {
 
             state.setPortalId("portal_" + state.getExecutionId() + UUID.randomUUID());
 
-            withRetries(LOG, () -> owner.executionDao.updateAllocatorSession(state.getExecutionId(),
+            withRetries(LOG, () -> owner.executionDao.updatePortalVmAllocateSession(state.getExecutionId(),
                 state.getSessionId(), state.getPortalId(), null));
 
             var allocateVmOp = startAllocation(dockerImage, channelManagerAddress, iamAddress,
@@ -236,7 +236,7 @@ final class StartExecutionCompanion {
 
             var allocateResponse = allocateVmOp.getResponse().unpack(VmAllocatorApi.AllocateResponse.class);
 
-            withRetries(LOG, () -> owner.executionDao.updateAllocatedVmAddress(
+            withRetries(LOG, () -> owner.executionDao.updatePortalVmAddress(
                 state.getExecutionId(),
                 allocateResponse.getMetadataOrDefault(Constants.PORTAL_ADDRESS_KEY, null),
                 allocateResponse.getMetadataOrDefault(Constants.FS_ADDRESS_KEY, null),

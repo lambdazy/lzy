@@ -65,11 +65,14 @@ public class ExecutionDaoImpl implements ExecutionDao {
 
     private static final String QUERY_UPDATE_EXECUTION_FINISH_DATA = """
         UPDATE workflow_executions
-        SET finished_at = ?, finished_with_error = ?, finished_error_code = ?,
-        execution_status = cast(? as execution_status)
+        SET finished_at = ?, finished_with_error = ?, finished_error_code = ?
         WHERE execution_id = ?""";
 
-    private static final String QUERY_UPDATE_CLEANED_EXECUTION = """
+    private static final String QUERY_SELECT_EXECUTION_STATUS = """
+        SELECT execution_id, execution_status FROM workflow_executions
+        WHERE execution_id = ?""";
+
+    private static final String QUERY_UPDATE_EXECUTION_STATUS = """
         UPDATE workflow_executions
         SET execution_status = cast(? as execution_status)
         WHERE execution_id = ?""";
@@ -182,8 +185,8 @@ public class ExecutionDaoImpl implements ExecutionDao {
     }
 
     @Override
-    public void updateAllocatorSession(String executionId, String sessionId, String portalId,
-                                       @Nullable TransactionHandle transaction) throws SQLException
+    public void updatePortalVmAllocateSession(String executionId, String sessionId, String portalId,
+                                              @Nullable TransactionHandle transaction) throws SQLException
     {
         DbOperation.execute(transaction, storage, connection -> {
             try (var statement = connection.prepareStatement(QUERY_UPDATE_ALLOCATOR_SESSION)) {
@@ -212,8 +215,8 @@ public class ExecutionDaoImpl implements ExecutionDao {
     }
 
     @Override
-    public void updateAllocatedVmAddress(String executionId, String vmAddress, String fsAddress,
-                                         @Nullable TransactionHandle transaction) throws SQLException
+    public void updatePortalVmAddress(String executionId, String vmAddress, String fsAddress,
+                                      @Nullable TransactionHandle transaction) throws SQLException
     {
         DbOperation.execute(transaction, storage, connection -> {
             try (var statement = connection.prepareStatement(QUERY_UPDATE_ALLOCATE_VM_ADDRESS)) {
@@ -253,13 +256,10 @@ public class ExecutionDaoImpl implements ExecutionDao {
                         }
 
                         try (var updateStmt = conn.prepareStatement(QUERY_UPDATE_EXECUTION_FINISH_DATA)) {
-                            var execStatus = status.isOk() ? ExecutionStatus.COMPLETED : ExecutionStatus.ERROR;
-
                             updateStmt.setTimestamp(1, Timestamp.from(Instant.now()));
                             updateStmt.setString(2, status.getDescription());
                             updateStmt.setInt(3, status.getCode().value());
-                            updateStmt.setString(4, execStatus.name());
-                            updateStmt.setString(5, executionId);
+                            updateStmt.setString(4, executionId);
 
                             updateStmt.executeUpdate();
                         }
@@ -277,20 +277,104 @@ public class ExecutionDaoImpl implements ExecutionDao {
     }
 
     @Override
-    public void setDeadExecutionStatus(String executionId, @Nullable TransactionHandle transaction)
+    public void setErrorExecutionStatus(String executionId, @Nullable TransactionHandle transaction)
         throws SQLException
     {
         DbOperation.execute(transaction, storage, connection -> {
-            try (var statement = connection.prepareStatement(QUERY_UPDATE_CLEANED_EXECUTION)) {
-                statement.setString(1, ExecutionStatus.CLEANED.name());
-                statement.setString(2, executionId);
-                statement.executeUpdate();
+            try (var selectStmt = connection.prepareStatement(QUERY_SELECT_EXECUTION_STATUS + "FOR UPDATE")) {
+                selectStmt.setString(1, executionId);
+                ResultSet rs = selectStmt.executeQuery();
+
+                if (rs.next()) {
+                    var curStatus = ExecutionStatus.valueOf(rs.getString("execution_status"));
+                    if (curStatus != ExecutionStatus.RUN) {
+                        LOG.error("Attempt to set status '{}' to '{}' execution: { executionId: {} }",
+                            ExecutionStatus.ERROR, curStatus.name(), executionId);
+                        throw new IllegalStateException("Invalid execution status change");
+                    }
+
+                    try (var updateStmt = connection.prepareStatement(QUERY_UPDATE_EXECUTION_STATUS)) {
+                        updateStmt.setString(1, ExecutionStatus.ERROR.name());
+                        updateStmt.setString(2, executionId);
+                        updateStmt.executeUpdate();
+                    }
+                } else {
+                    LOG.error("Attempt to set status '{}' of unknown execution: { executionId: {} }",
+                        ExecutionStatus.ERROR, executionId);
+                    throw new NotFoundException("Cannot find execution '%s'".formatted(executionId));
+                }
             }
         });
     }
 
     @Override
-    public void saveSlots(String executionId, Set<String> slotsUri, TransactionHandle transaction) throws SQLException {
+    public void setCompletingExecutionStatus(String executionId, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
+        DbOperation.execute(transaction, storage, connection -> {
+            try (var statement = connection.prepareStatement(QUERY_SELECT_EXECUTION_STATUS + "FOR UPDATE")) {
+                statement.setString(1, executionId);
+                ResultSet rs = statement.executeQuery();
+
+                if (rs.next()) {
+                    var curStatus = ExecutionStatus.valueOf(rs.getString("execution_status"));
+                    if (curStatus != ExecutionStatus.ERROR && curStatus != ExecutionStatus.RUN) {
+                        LOG.error("Attempt to set status '{}' to '{}' execution: { executionId: {} }",
+                            ExecutionStatus.COMPLETING, curStatus.name(), executionId);
+                        throw new IllegalStateException("Invalid execution status change");
+                    }
+
+                    try (var updateStmt = connection.prepareStatement(QUERY_UPDATE_EXECUTION_STATUS)) {
+                        updateStmt.setString(1, ExecutionStatus.COMPLETING.name());
+                        updateStmt.setString(2, executionId);
+                        updateStmt.executeUpdate();
+                    }
+                } else {
+                    LOG.error("Attempt to set status '{}' of unknown execution: { executionId: {} }",
+                        ExecutionStatus.COMPLETING, executionId);
+                    throw new NotFoundException("Cannot find execution '%s'".formatted(executionId));
+                }
+            }
+        });
+    }
+
+    @Override
+    public void setCompletedExecutionStatus(String executionId, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
+        DbOperation.execute(transaction, storage, connection -> {
+            try (var statement = connection.prepareStatement(QUERY_SELECT_EXECUTION_STATUS + "FOR UPDATE",
+                ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE))
+            {
+                statement.setString(1, executionId);
+                ResultSet rs = statement.executeQuery();
+
+                if (rs.next()) {
+                    var curStatus = ExecutionStatus.valueOf(rs.getString("execution_status"));
+                    if (curStatus != ExecutionStatus.COMPLETING) {
+                        LOG.error("Attempt to set status '{}' to '{}' execution: { executionId: {} }",
+                            ExecutionStatus.COMPLETED, curStatus.name(), executionId);
+                        throw new IllegalStateException("Invalid execution status change");
+                    }
+
+                    try (var updateStmt = connection.prepareStatement(QUERY_UPDATE_EXECUTION_STATUS)) {
+                        updateStmt.setString(1, ExecutionStatus.COMPLETED.name());
+                        updateStmt.setString(2, executionId);
+                        updateStmt.executeUpdate();
+                    }
+                } else {
+                    LOG.error("Attempt to set status '{}' of unknown execution: { executionId: {} }",
+                        ExecutionStatus.COMPLETED, executionId);
+                    throw new NotFoundException("Cannot find execution '%s'".formatted(executionId));
+                }
+            }
+        });
+    }
+
+    @Override
+    public void saveSlots(String executionId, Set<String> slotsUri, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
         DbOperation.execute(transaction, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_PUT_SLOTS_URI)) {
                 for (var slotUri : slotsUri) {
@@ -305,7 +389,9 @@ public class ExecutionDaoImpl implements ExecutionDao {
     }
 
     @Override
-    public void saveChannels(Map<String, String> slot2channel, TransactionHandle transaction) throws SQLException {
+    public void saveChannels(Map<String, String> slot2channel, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
         DbOperation.execute(transaction, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_PUT_CHANNELS)) {
                 for (var slotAndChannel : slot2channel.entrySet()) {

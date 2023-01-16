@@ -50,7 +50,6 @@ class GraphBuilder {
         var slot2description = state.getDescriptions().stream()
             .collect(Collectors.toMap(LWF.DataDescription::getStorageUri, Function.identity()));
 
-
         Map<String, String> slot2channelId;
         try {
             slot2channelId = createChannelsForDataFlow(userId, workflowName, executionId,

@@ -75,12 +75,14 @@ public class BeanFactory {
     @Singleton
     @Named("PortalGrpcServer")
     public Server portalServer(PortalConfig config, PortalService portalService,
+                               @Named("PortalOperationsService") LocalOperationService operationService,
                                @Named("PortalIamChannel") ManagedChannel iamChannel)
     {
         var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
         return newGrpcServer(config.getHost(), config.getPortalApiPort(),
             new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel)))
             .addService(ServerInterceptors.intercept(portalService, internalOnly))
+            .addService(operationService)
             .build();
     }
 

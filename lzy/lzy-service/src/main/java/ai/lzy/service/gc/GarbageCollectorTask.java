@@ -1,6 +1,6 @@
 package ai.lzy.service.gc;
 
-import ai.lzy.service.ExecutionFinalizer;
+import ai.lzy.service.CleanExecutionCompanion;
 import ai.lzy.service.data.dao.ExecutionDao;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -12,12 +12,12 @@ public class GarbageCollectorTask extends TimerTask {
     private final String id;
     private final ExecutionDao executionDao;
 
-    private final ExecutionFinalizer executionFinalizer;
+    private final CleanExecutionCompanion cleanExecutionCompanion;
 
-    public GarbageCollectorTask(String id, ExecutionDao executionDao, ExecutionFinalizer executionFinalizer) {
+    public GarbageCollectorTask(String id, ExecutionDao executionDao, CleanExecutionCompanion cleanExecutionCompanion) {
         this.id = id;
         this.executionDao = executionDao;
-        this.executionFinalizer = executionFinalizer;
+        this.cleanExecutionCompanion = cleanExecutionCompanion;
     }
 
     @Override
@@ -35,6 +35,6 @@ public class GarbageCollectorTask extends TimerTask {
 
     private void cleanExecution(String executionId) {
         LOG.info("Execution {} is expired, GC {}", executionId, id);
-        executionFinalizer.finalizeNow(executionId);
+        cleanExecutionCompanion.cleanExecution(executionId);
     }
 }
