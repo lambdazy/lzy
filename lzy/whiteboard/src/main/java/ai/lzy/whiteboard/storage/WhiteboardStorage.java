@@ -12,7 +12,7 @@ import javax.annotation.Nullable;
 
 public interface WhiteboardStorage {
 
-    void registerWhiteboard(String userId, Whiteboard whiteboard, Instant ts,
+    void registerWhiteboard(String userId, Whiteboard whiteboard, Instant registeredAt,
                             @Nullable TransactionHandle transaction) throws SQLException;
 
     void deleteWhiteboard(String whiteboardId, @Nullable TransactionHandle transaction) throws SQLException;
