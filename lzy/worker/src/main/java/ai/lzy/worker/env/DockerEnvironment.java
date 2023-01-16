@@ -39,7 +39,7 @@ public class DockerEnvironment implements BaseEnvironment {
 
         LOG.info("Creating container from image={} ...", sourceImage);
         LOG.info("Mount options:\n\t{}", config.mounts().stream()
-            .map(it -> it.source() + " -> " + it.target())
+            .map(it -> it.source() + " -> " + it.target() + (it.isRshared() ? " (R_SHARED)" : ""))
             .collect(Collectors.joining("\n\t")));
 
         try {
