@@ -101,8 +101,7 @@ class DefaultSnapshot(Snapshot):
                 await self.__storage_client.read(entry.storage_uri, cast(BinaryIO, f),
                                                  progress=lambda x: bar.update(x))
                 f.seek(0)
-                res = self.__serializer_registry.find_serializer_by_type(entry.typ).deserialize(
-                    cast(BinaryIO, f))
+                res = self.__serializer_registry.find_serializer_by_type(entry.typ).deserialize(cast(BinaryIO, f))
                 return Just(res)
 
     async def put_data(self, entry_id: str, data: Any) -> None:
