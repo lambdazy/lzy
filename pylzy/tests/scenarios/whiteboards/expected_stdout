@@ -4,6 +4,6 @@ Value wb.b: new_str
 Number of whiteboard when name is specified is 1
 Number of whiteboard when tag is specified is is 1
 Number of whiteboard when date lower and upper bounds are specified is 1
-Number of whiteboard when invalid name is specified is is 0
-Number of whiteboard when invalid tag is specified is is 0
+Number of whiteboard when invalid name is specified is 0
+Number of whiteboard when invalid tag is specified is 0
 Number of whiteboard when date lower and upper bounds are invalid is 0
