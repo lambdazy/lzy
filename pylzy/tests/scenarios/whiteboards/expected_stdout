@@ -1,20 +1,9 @@
-42 42
-Len: 3
-42 ['42', '42', '42']
-Len: 3
-Number of whiteboard with simple_whiteboard_tag is 2
-Number of whiteboard when date lower and upper bounds are specified is 3
-Number of whiteboard when date lower bound is specified is 3
-Number of whiteboard when date upper bounds is specified is 3
-Number of whiteboard when date interval is set for the future is 0
-string_field value in WhiteboardWithLzyMessageFields is fun6:fun7
-int_field value in WhiteboardWithLzyMessageFields is 3
-list_field length in WhiteboardWithLzyMessageFields is 3
-optional_field value in WhiteboardWithLzyMessageFields is 1
-inner_field value in WhiteboardWithLzyMessageFields is 6
-enum_field value in WhiteboardWithLzyMessageFields is TestEnum.BAZ
-non lzy message int field in WhiteboardWithLzyMessageFields is 3
-string_field value in WhiteboardWithOneLzyMessageField is fun6:fun7
-int_field value in WhiteboardWithOneLzyMessageField is 3
-Value a in DefaultWhiteboard is 7, b length is 3, c is Hello, d is None
-Value a.string_field in WhiteboardWithOneLzyMessageField is local_data
+42
+Value wb.a: 42
+Value wb.b: new_str
+Number of whiteboard when name is specified is 1
+Number of whiteboard when tag is specified is 1
+Number of whiteboard when date lower and upper bounds are specified is 1
+Number of whiteboard when invalid name is specified is 0
+Number of whiteboard when invalid tag is specified is 0
+Number of whiteboard when date lower and upper bounds are invalid is 0

@@ -321,7 +321,8 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
                         newStorage,
                         requestWhiteboard.getNamespace().isBlank() ? whiteboard.namespace() :
                             requestWhiteboard.getNamespace(),
-                        requestWhiteboard.getStatus() == LWB.Whiteboard.Status.UNRECOGNIZED ? whiteboard.status() :
+                        requestWhiteboard.getStatus() == LWB.Whiteboard.Status.WHITEBOARD_STATUS_UNSPECIFIED ?
+                            whiteboard.status() :
                             Whiteboard.Status.valueOf(requestWhiteboard.getStatus().name()),
                         requestWhiteboard.getCreatedAt().getSeconds() == 0 ? whiteboard.createdAt() :
                             ai.lzy.util.grpc.ProtoConverter.fromProto(requestWhiteboard.getCreatedAt())
@@ -376,9 +377,6 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
         }
         if (whiteboard.getNamespace().isBlank()) {
             return replyValidateError(methodName, "Whiteboard must contain not blank namespace", responseObserver);
-        }
-        if (whiteboard.getStorage().getName().isBlank()) {
-            return replyValidateError(methodName, "Whiteboard must contain not blank storage name", responseObserver);
         }
         if (whiteboard.getStorage().getName().isBlank()) {
             return replyValidateError(methodName, "Whiteboard must contain not blank storage name", responseObserver);

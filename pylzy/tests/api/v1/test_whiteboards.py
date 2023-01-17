@@ -4,6 +4,7 @@ import tempfile
 import uuid
 from concurrent import futures
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from unittest import TestCase
 
 # noinspection PyPackageRequirements
@@ -222,3 +223,43 @@ class WhiteboardTests(TestCase):
         with self.assertRaisesRegex(TypeError, "we cannot serialize them in a portable format"):
             with self.lzy.workflow(self.workflow_name) as wf:
                 wf.create_whiteboard(WhiteboardWithDefaults)
+
+    def test_whiteboard_list(self):
+        with self.lzy.workflow(self.workflow_name) as wf:
+            wb1 = wf.create_whiteboard(Whiteboard, tags=["a"])
+            wb2 = wf.create_whiteboard(Whiteboard, tags=["b"])
+            wb1.num = 1
+            wb2.num = 1
+            wb1.desc = "str"
+            wb2.desc = "str"
+
+        whiteboards = list(self.lzy.whiteboards(name="whiteboard_name"))
+        self.assertEqual(2, len(whiteboards))
+        self.assertEqual(wb1.id, whiteboards[0].id)
+        self.assertEqual(wb2.id, whiteboards[1].id)
+
+        whiteboards = list(self.lzy.whiteboards(name="whiteboard_name", tags=["a"]))
+        self.assertEqual(1, len(whiteboards))
+        self.assertEqual(wb1.id, whiteboards[0].id)
+
+        whiteboards = list(self.lzy.whiteboards(name="whiteboard_name", tags=["b"]))
+        self.assertEqual(1, len(whiteboards))
+        self.assertEqual(wb2.id, whiteboards[0].id)
+
+        whiteboards = list(self.lzy.whiteboards(tags=["a", "b"]))
+        self.assertEqual(2, len(whiteboards))
+        self.assertEqual(wb1.id, whiteboards[0].id)
+        self.assertEqual(wb2.id, whiteboards[1].id)
+
+        whiteboards = list(self.lzy.whiteboards(tags=["c"]))
+        self.assertEqual(0, len(whiteboards))
+
+        prev_day_datetime_local = datetime.now() - timedelta(days=1)
+        next_day_datetime_local = prev_day_datetime_local + timedelta(days=1)
+        whiteboards = list(self.lzy.whiteboards(not_before=prev_day_datetime_local, not_after=next_day_datetime_local))
+        self.assertEqual(2, len(whiteboards))
+        self.assertEqual(wb1.id, whiteboards[0].id)
+        self.assertEqual(wb2.id, whiteboards[1].id)
+
+        whiteboards = list(self.lzy.whiteboards(not_before=next_day_datetime_local, not_after=prev_day_datetime_local))
+        self.assertEqual(0, len(whiteboards))
