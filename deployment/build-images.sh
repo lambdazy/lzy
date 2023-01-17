@@ -55,6 +55,9 @@ else
   USER_TEST_BASE_TAG="$(echo $USER_TEST_BASE | awk -F: '{print $2}')"
 fi
 
+cd pylzy/ && ./scripts/gen_proto.sh && cd ..
+mvn clean install -DskipTests
+
 mkdir -p docker/tmp-for-context
 cp -R ../../pylzy docker/tmp-for-context/pylzy
 
@@ -68,7 +71,6 @@ echo "Building image user-test with base tag $USER_TEST_BASE_TAG"
 docker build --build-arg "USER_TEST_BASE_TAG=$USER_TEST_BASE_TAG" -t user-test -f docker/UserTest.Dockerfile .
 
 rm -rf docker/tmp-for-context
-
 cd ../..
 
 # Can add more images to build here
