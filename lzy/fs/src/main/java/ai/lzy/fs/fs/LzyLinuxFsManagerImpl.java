@@ -14,7 +14,7 @@ public class LzyLinuxFsManagerImpl implements LzyFSManager {
     public void mount(Path mountPoint) {
         createFsDirectories(mountPoint);
         baseMount.mount(mountPoint, false, false,
-            new String[] {"-o", "direct_io"}
+            new String[] {"-o", "direct_io", "-o", "allow_root"}
         );
     }
 
