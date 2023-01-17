@@ -4,6 +4,7 @@ from typing import List, Callable, Optional, Iterable, BinaryIO, Iterator, Seque
 
 # noinspection PyPackageRequirements
 import grpc
+from google.protobuf.any_pb2 import Any
 from serialzy.serializers.primitive import PrimitiveSerializer
 
 from ai.lzy.v1.common.storage_pb2 import StorageConfig, S3Credentials
@@ -14,14 +15,17 @@ from ai.lzy.v1.whiteboard.whiteboard_service_pb2_grpc import LzyWhiteboardServic
 
 from lzy.logs.config import get_logger
 
-from ai.lzy.v1.workflow.workflow_service_pb2 import CreateWorkflowRequest, CreateWorkflowResponse, \
-    FinishWorkflowRequest, FinishWorkflowResponse, ReadStdSlotsRequest, ReadStdSlotsResponse
+from ai.lzy.v1.workflow.workflow_service_pb2 import StartExecutionRequest, StartExecutionResponse, \
+    FinishExecutionRequest, FinishExecutionResponse, ReadStdSlotsRequest, ReadStdSlotsResponse
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceServicer
 from lzy.api.v1 import Runtime, LzyCall, LzyWorkflow
 from lzy.api.v1.runtime import ProgressStep
 from lzy.serialization.registry import LzySerializerRegistry
 from lzy.storage.api import StorageRegistry, Storage, AsyncStorageClient
 from lzy.whiteboards.api import WhiteboardIndexClient
+
+from ai.lzy.v1.long_running.operation_pb2 import Operation, GetOperationRequest
+from ai.lzy.v1.long_running.operation_pb2_grpc import LongRunningServiceServicer
 
 _LOG = get_logger(__name__)
 
@@ -63,14 +67,30 @@ class StorageClientMock(AsyncStorageClient):
         pass
 
 
-class WorkflowServiceMock(LzyWorkflowServiceServicer):
+class OperationsServiceMock(LongRunningServiceServicer):
     def __init__(self):
+        self.ops: Dict[str, Operation] = dict()
+
+    def register_operation(self, op: Operation):
+        self.ops[op.id] = op
+
+    def Get(self, request: GetOperationRequest, context: grpc.ServicerContext) -> Operation:
+        _LOG.info(f"Get operation {request}")
+        op = self.ops[request.operation_id]
+        if op is None:
+            context.abort(grpc.StatusCode.INTERNAL, "Operation not found")
+        return op
+
+
+class WorkflowServiceMock(LzyWorkflowServiceServicer):
+    def __init__(self, op_service: OperationsServiceMock):
         self.fail = False
         self.created = False
+        self.__op_service = op_service
 
-    def CreateWorkflow(
-        self, request: CreateWorkflowRequest, context: grpc.ServicerContext
-    ) -> CreateWorkflowResponse:
+    def StartExecution(
+        self, request: StartExecutionRequest, context: grpc.ServicerContext
+    ) -> StartExecutionResponse:
         _LOG.info(f"Creating wf {request}")
 
         if self.fail:
@@ -78,7 +98,7 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
             context.abort(grpc.StatusCode.INTERNAL, "some_error")
 
         self.created = True
-        return CreateWorkflowResponse(
+        return StartExecutionResponse(
             executionId="exec_id",
             internalSnapshotStorage=StorageConfig(
                 uri="s3://bucket/prefix",
@@ -86,18 +106,24 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
             ),
         )
 
-    def FinishWorkflow(
-        self, request: FinishWorkflowRequest, context: grpc.ServicerContext
-    ) -> FinishWorkflowResponse:
+    def FinishExecution(
+        self, request: FinishExecutionRequest, context: grpc.ServicerContext
+    ) -> Operation:
         _LOG.info(f"Finishing workflow {request}")
 
         if self.fail:
             self.fail = False
             context.abort(grpc.StatusCode.INTERNAL, "some_error")
 
-        assert request.workflowName == "some_name"
         assert request.executionId == "exec_id"
-        return FinishWorkflowResponse()
+
+        packed = Any()
+        packed.Pack(FinishExecutionResponse())
+        op = Operation(id="operation_id", done=True, response=packed)
+
+        self.__op_service.register_operation(op)
+
+        return op
 
     def ReadStdSlots(
         self, request: ReadStdSlotsRequest, context: grpc.ServicerContext

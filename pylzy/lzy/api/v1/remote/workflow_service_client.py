@@ -134,7 +134,7 @@ class WorkflowServiceClient:
             if op is None:
                 raise RuntimeError('Cannot wait finish portal operation: operation not found')
             if op.done:
-                result = FinishExecutionRequest()
+                result = FinishExecutionResponse()
                 op.response.Unpack(result)
                 return result
             # sleep 300 ms
