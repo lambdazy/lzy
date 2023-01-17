@@ -28,6 +28,9 @@ if [[ $BASE = true ]]; then
   IMAGES="worker-base user-default-base user-test-base $IMAGES"
 fi
 
+cd pylzy/ && ./scripts/gen_proto.sh && cd ..
+mvn clean install -DskipTests
+
 cd lzy/worker/
 if [[ $BASE = true ]]; then
   echo "Building image worker-base"
@@ -54,9 +57,6 @@ else
   docker pull "$USER_TEST_BASE"
   USER_TEST_BASE_TAG="$(echo $USER_TEST_BASE | awk -F: '{print $2}')"
 fi
-
-cd pylzy/ && ./scripts/gen_proto.sh && cd ..
-mvn clean install -DskipTests
 
 mkdir -p docker/tmp-for-context
 cp -R ../../pylzy docker/tmp-for-context/pylzy
