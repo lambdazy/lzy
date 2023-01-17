@@ -1,4 +1,5 @@
-from typing import Dict, List, Tuple
+from mock import patch
+from typing import Dict, List
 from unittest import TestCase, skip
 
 import yaml
@@ -48,6 +49,7 @@ def f6(foo: Foo) -> None:
     ...
 
 
+@patch('sys.argv', ['python', 'main.py'])
 class DvcTests(TestCase):
     def setUp(self):
         self.lzy = Lzy(runtime=RuntimeMock(), storage_registry=StorageRegistryMock())
@@ -94,7 +96,7 @@ class DvcTests(TestCase):
                 }
             },
             {'name': 'foo', 'size': 7},
-            ['PyYAML==6.0', 'pylzy==0.0.50']
+            ['mock==5.0.1', 'PyYAML==6.0', 'pylzy==0.0.50']
         )
 
     # TODO: clarify what to do with defaults
@@ -119,7 +121,7 @@ class DvcTests(TestCase):
                 }
             },
             {'cap': 7, 'name': 'bar', 'ready': False, 'size': 42},
-            ['PyYAML==6.0', 'pylzy==0.0.50']
+            ['mock==5.0.1', 'PyYAML==6.0', 'pylzy==0.0.50']
         )
 
     @skip('same var have different entry_id in runtime.calls')
@@ -145,7 +147,7 @@ class DvcTests(TestCase):
                 }
             },
             {'size': 15, 'name': 'foo'},
-            ['PyYAML==6.0', 'pylzy==0.0.50']
+            ['mock==5.0.1', 'PyYAML==6.0', 'pylzy==0.0.50']
         )
 
     def test_arg_name_collisions(self):

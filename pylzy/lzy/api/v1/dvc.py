@@ -1,3 +1,4 @@
+import sys
 from collections import namedtuple
 import os
 
@@ -14,8 +15,7 @@ primitive_types = (int, float, bool, str)
 ArgInfo = namedtuple('ArgInfo', ('name', 'type', 'value', 'entry_id'))
 
 
-def generate_dvc_files(wf: "LzyWorkflow") -> None:
-    # TODO: self.auto_py_env - clarify if it is proper environment
+def generate_dvc_files(wf: LzyWorkflow) -> None:
     libs = [f'{name}=={version}' for name, version in wf.auto_py_env.libraries.items()]
     with open(requirements_file_name, 'w') as f:
         f.write('\n'.join(libs))
@@ -23,7 +23,7 @@ def generate_dvc_files(wf: "LzyWorkflow") -> None:
     cwd = os.getcwd()
 
     deps = [requirements_file_name] + [
-        _get_relative_path(cwd, module_path) for module_path in wf.env.local_modules_path
+        _get_relative_path(cwd, module_path) for module_path in wf.auto_py_env.local_modules_path
     ]
 
     args = []
@@ -43,7 +43,6 @@ def generate_dvc_files(wf: "LzyWorkflow") -> None:
             arg_info = ArgInfo(name=arg_name, type=arg_type, value=arg_value, entry_id=arg_entry_id)
             args.append(arg_info)
 
-        # TODO: are call.entry_ids a return variables?
         intermediate_entry_ids = intermediate_entry_ids.union(set(call.entry_ids))
 
     entry_id_to_first_occurred_name = {}
@@ -72,8 +71,7 @@ def generate_dvc_files(wf: "LzyWorkflow") -> None:
     dvc_yaml = {
         'stages': {
             'main': {
-                # TODO: entrypoint script path
-                'cmd': 'python ' + ' '.join(['main.py'] + input_file_paths),
+                'cmd': ' '.join(sys.argv + input_file_paths),  # TODO: think about stable cmd
                 'deps': deps + input_file_paths,
                 'params': [param.name for param in params],
             }
