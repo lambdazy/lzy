@@ -36,7 +36,7 @@ public class EnvironmentFactory {
             BaseEnvConfig config = BaseEnvConfig.newBuilder()
                 .image((image == null || image.equals("default")) ? defaultImage : image)
                 .addMount(resourcesPathStr, resourcesPathStr)
-                .addRsharedMount(fsRoot, fsRoot)
+                //.addRsharedMount(fsRoot, fsRoot)
                 .build();
             baseEnv = new DockerEnvironment(config);
         } else {
