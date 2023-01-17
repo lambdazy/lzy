@@ -9,6 +9,7 @@ from typing import (
     TypeVar, cast, Set, )
 
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard
+from lzy.api.v1.entry_index import EntryIndex
 from lzy.api.v1.env import Env
 from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.provisioning import Provisioning
@@ -62,6 +63,7 @@ class LzyWorkflow:
 
         self.__snapshot: Optional[Snapshot] = None
         self.__execution_id: Optional[str] = None
+        self.__entry_index = EntryIndex()
 
     @property
     def owner(self) -> "Lzy":
@@ -78,6 +80,10 @@ class LzyWorkflow:
         if self.__execution_id is None:
             raise ValueError("Workflow is not yet started")
         return self.__execution_id
+
+    @property
+    def entry_index(self) -> EntryIndex:
+        return self.__entry_index
 
     @property
     def name(self) -> str:
@@ -102,6 +108,10 @@ class LzyWorkflow:
     @property
     def filled_entry_ids(self) -> Set[str]:
         return self.__filled_entry_ids
+
+    @property
+    def call_queue(self) -> List["LzyCall"]:
+        return self.__call_queue
 
     def register_call(self, call: "LzyCall") -> Any:
         self.__call_queue.append(call)
@@ -176,11 +186,13 @@ class LzyWorkflow:
             for arg, eid in zip(call.args, call.arg_entry_ids):
                 if not is_lzy_proxy(arg):
                     data_to_load.append(self.snapshot.put_data(eid, arg))
+                    self.__filled_entry_ids.add(eid)
 
             for name, kwarg in call.kwargs.items():
                 eid = call.kwarg_entry_ids[name]
                 if not is_lzy_proxy(kwarg):
                     data_to_load.append(self.snapshot.put_data(eid, kwarg))
+                    self.__filled_entry_ids.add(eid)
 
             self.__filled_entry_ids.update(call.entry_ids)
 
