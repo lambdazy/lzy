@@ -41,9 +41,7 @@ public class LzyFS extends FuseStubFS {
         try {
             startTime = System.currentTimeMillis();
             userId = Long.parseLong(lineCmd("id -u"));
-            LOG.info("LZYFS:: userId=" + userId);
             groupId = Long.parseLong(lineCmd("id -g"));
-            LOG.info("LZYFS:: groupId=" + groupId);
         } catch (IOException | InterruptedException e) {
             LOG.warn("Unable to get group and user id on startup");
         }
@@ -61,7 +59,6 @@ public class LzyFS extends FuseStubFS {
     }
 
     public LzyFS(Set<String> roots) {
-        LOG.info("LZYFS:: constructor");
         children.put(Path.of("/"), new HashSet<>(roots));
         this.roots.addAll(roots);
         for (String root : roots) {
@@ -70,7 +67,6 @@ public class LzyFS extends FuseStubFS {
     }
 
     public static int executeUnsafe(UnsafeIOOperation op) {
-        LOG.info("LZYFS:: executeUnsafe");
         return executeUnsafeInt(() -> {
             op.execute();
             return 0;
@@ -78,7 +74,6 @@ public class LzyFS extends FuseStubFS {
     }
 
     public static int executeUnsafeInt(UnsafeIntIOOperation op) {
-        LOG.info("LZYFS:: executeUnsafeInt");
         try {
             try {
                 return op.execute();
@@ -108,7 +103,6 @@ public class LzyFS extends FuseStubFS {
     }
 
     public static String lineCmd(String cmd) throws IOException, InterruptedException {
-        LOG.info("LZYFS:: lineCmd: " + cmd);
         final Process p = Runtime.getRuntime().exec(cmd);
         p.waitFor();
         try (LineNumberReader rd = new LineNumberReader(new InputStreamReader(p.getInputStream()))) {
@@ -118,7 +112,6 @@ public class LzyFS extends FuseStubFS {
 
     @Override
     public void mount(Path mountPoint, boolean blocking, boolean debug, String[] fuseOpts) {
-        LOG.info("LZYFS:: mount: " + mountPoint.toString());
         super.mount(mountPoint, blocking, debug, fuseOpts);
     }
 
@@ -187,13 +180,11 @@ public class LzyFS extends FuseStubFS {
 
     @Override
     public int create(String path, @mode_t long mode, FuseFileInfo fi) {
-        LOG.info("LZYFS:: create: " + path);
         return -ErrorCodes.EACCES();
     }
 
     @Override
     public int mkdir(String pathStr, @mode_t long mode) {
-        LOG.info("LZYFS:: mkdir: " + pathStr);
         final Path path = Paths.get(pathStr);
         if (!children.containsKey(path.getParent())) {
             return -ErrorCodes.ENOENT();
@@ -203,7 +194,6 @@ public class LzyFS extends FuseStubFS {
 
     @Override
     public int open(String pathStr, FuseFileInfo fi) {
-        LOG.info("LZYFS:: open: " + pathStr);
         final Path path = Path.of(pathStr);
         final long fh = lastFh.addAndGet(1);
         if (executables.containsKey(path)) {
@@ -226,7 +216,6 @@ public class LzyFS extends FuseStubFS {
 
     @Override
     public int release(String pathStr, FuseFileInfo fi) {
-        LOG.info("LZYFS:: release: " + pathStr);
         final FileContents contents = openFiles.remove(fi.fh.longValue());
         try {
             if (contents == null) {
@@ -247,7 +236,6 @@ public class LzyFS extends FuseStubFS {
 
     @Override
     public int read(String path, Pointer buf, @size_t long size, @off_t long offset, FuseFileInfo fi) {
-        LOG.info("LZYFS:: read: " + path);
         final FileContents contents;
         contents = openFiles.get(fi.fh.longValue());
         if (contents == null) {
@@ -258,7 +246,6 @@ public class LzyFS extends FuseStubFS {
 
     @Override
     public int write(String path, Pointer buf, @size_t long size, @off_t long offset, FuseFileInfo fi) {
-        LOG.info("LZYFS:: write: " + path);
         final FileContents contents;
         contents = openFiles.get(fi.fh.longValue());
         if (contents == null) {
@@ -270,7 +257,6 @@ public class LzyFS extends FuseStubFS {
     @SuppressWarnings("OctalInteger")
     @Override
     public int getattr(String pathStr, FileStat stat) {
-        LOG.info("LZYFS:: getattr: " + pathStr);
         final Path path = Path.of(pathStr).toAbsolutePath();
         long time = startTime;
         if (children.containsKey(path) || path.equals(Path.of("/"))) { // directory
@@ -321,7 +307,6 @@ public class LzyFS extends FuseStubFS {
 
     @Override
     public int readdir(String pathStr, Pointer buf, FuseFillDir filter, @off_t long offset, FuseFileInfo fi) {
-        LOG.info("LZYFS:: readdir: " + pathStr);
         final Path path = Paths.get(pathStr);
         final Set<String> children = this.children.getOrDefault(path, Set.of());
         if (children == null) {
@@ -339,19 +324,16 @@ public class LzyFS extends FuseStubFS {
 
     @Override
     public int chmod(String path, long mode) {
-        LOG.info("LZYFS:: chmod: " + path);
         return -ErrorCodes.EACCES();
     }
 
     @Override
     public int chown(String path, long uid, long gid) {
-        LOG.info("LZYFS:: chown: " + path);
         return -ErrorCodes.EACCES();
     }
 
     @Override
     public int utimens(String path, Timespec[] timespec) {
-        LOG.info("LZYFS:: utimens: " + path);
         return -ErrorCodes.EACCES();
     }
 
@@ -361,7 +343,6 @@ public class LzyFS extends FuseStubFS {
     //}
     @Override
     public int statfs(String path, Statvfs stbuf) {
-        LOG.info("LZYFS:: statfs: " + path);
         stbuf.f_bsize.set(BLOCK_SIZE);
         stbuf.f_frsize.set(1024 * BLOCK_SIZE);
         stbuf.f_blocks.set(Integer.MAX_VALUE);
@@ -374,19 +355,16 @@ public class LzyFS extends FuseStubFS {
 
     @Override
     public int rename(String path, String newName) {
-        LOG.info("LZYFS:: rename: " + path);
         return -ErrorCodes.EACCES();
     }
 
     @Override
     public int rmdir(String path) {
-        LOG.info("LZYFS:: rmdir: " + path);
         return -ErrorCodes.EACCES();
     }
 
     @Override
     public int truncate(String pathStr, long offset) {
-        LOG.info("LZYFS:: truncate: " + pathStr);
         final Path path = Paths.get(pathStr);
         if (slots.containsKey(path)) {
             return 0;
@@ -396,7 +374,6 @@ public class LzyFS extends FuseStubFS {
 
     @Override
     public int unlink(String pathStr) {
-        LOG.info("LZYFS:: unlink: " + pathStr);
         final Path path = Paths.get(pathStr);
         if (filesOpen.containsKey(path)) {
             return -ErrorCodes.EBUSY();

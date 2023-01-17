@@ -3,7 +3,6 @@ package ai.lzy.fs.fs;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Set;
 
 public class LzyLinuxFsManagerImpl implements LzyFSManager {
@@ -14,7 +13,7 @@ public class LzyLinuxFsManagerImpl implements LzyFSManager {
     public void mount(Path mountPoint) {
         createFsDirectories(mountPoint);
         baseMount.mount(mountPoint, false, false,
-            new String[] {"-o", "direct_io", "-o", "allow_root"}
+            new String[] {"-o", "direct_io", "-o", "allow_root"} // Need user_allow_other flag in fuse.conf
         );
     }
 
@@ -46,8 +45,7 @@ public class LzyLinuxFsManagerImpl implements LzyFSManager {
 
     private void createFsDirectories(Path mount) {
         try {
-            var permissions = PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwxrwxrwx"));
-            Files.createDirectories(mount, permissions);
+            Files.createDirectories(mount);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

@@ -113,15 +113,11 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
     @Override
     public void executeGraph(ExecuteGraphRequest request, StreamObserver<ExecuteGraphResponse> responseObserver) {
-        LOG.info("Execute graph operation for executionId: {}", request.getExecutionId()); // TODO cancel
-
         Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
         if (idempotencyKey != null &&
             loadExistingOpResult(operationDao, idempotencyKey, responseObserver, ExecuteGraphResponse.class,
                 Duration.ofMillis(100), Duration.ofSeconds(5), LOG))
         {
-            LOG.info("Skip execute graph operation for executionId: {}, idempotency reason",
-                request.getExecutionId()); // TODO cancel
             return;
         }
 
