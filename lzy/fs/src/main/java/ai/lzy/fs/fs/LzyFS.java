@@ -41,7 +41,9 @@ public class LzyFS extends FuseStubFS {
         try {
             startTime = System.currentTimeMillis();
             userId = Long.parseLong(lineCmd("id -u"));
+            System.out.println("LZYFS:: userId=" + userId);
             groupId = Long.parseLong(lineCmd("id -g"));
+            System.out.println("LZYFS:: groupId=" + groupId);
         } catch (IOException | InterruptedException e) {
             LOG.warn("Unable to get group and user id on startup");
         }
