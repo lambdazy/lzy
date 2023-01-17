@@ -30,12 +30,16 @@ import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
+import ai.lzy.v1.longrunning.LongRunning;
+import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.portal.LzyPortal;
 import ai.lzy.v1.portal.LzyPortalApi;
 import ai.lzy.v1.portal.LzyPortalApi.PortalStatusRequest;
 import ai.lzy.v1.portal.LzyPortalGrpc;
 import ai.lzy.v1.slots.LSA;
 import ai.lzy.v1.slots.LzySlotsApiGrpc;
+import ai.lzy.v1.worker.LWS;
+import ai.lzy.v1.worker.WorkerApiGrpc;
 import ai.lzy.worker.Worker;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
@@ -97,7 +101,7 @@ public class PortalTestBase {
     private String workflowName;
 
     protected MocksServer mocksServer;
-    private Map<String, Worker> workers;
+    private Map<String, WorkerDesc> workers;
 
     private ManagedChannel portalApiChannel;
     private ManagedChannel portalSlotsChannel;
@@ -107,6 +111,7 @@ public class PortalTestBase {
 
     private LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerPrivateClient;
     private Map<String, String> createdChannels;
+    private RsaUtils.RsaKeys workerKeys;
 
     @Before
     public void before() throws Exception {
@@ -135,6 +140,8 @@ public class PortalTestBase {
 
         mocksServer = new MocksServer(mocksPort);
         mocksServer.start();
+        this.workerKeys = RsaUtils.generateRsaKeys();
+        Worker.RSA_KEYS = this.workerKeys;
 
         userId = "uid";
         workflowName = "wf";
@@ -160,6 +167,9 @@ public class PortalTestBase {
         portalSlotsChannel.shutdown();
 
         stopS3();
+        for (var worker: workers.values()) {
+            worker.worker.stop();
+        }
 
         mocksServer.stop();
         mocksServer = null;
@@ -264,8 +274,10 @@ public class PortalTestBase {
         String stdoutChannelId = createdChannels.get(taskId + ":stdout");
         String stderrChannelId = createdChannels.get(taskId + ":stderr");
 
-        mocksServer.getSchedulerMock().startWorker(actualWorker,
-            LMO.TaskDesc.newBuilder()
+        var desc = workers.get(actualWorker);
+
+        var op = desc.workerStub.execute(LWS.ExecuteRequest.newBuilder()
+            .setTaskDesc(LMO.TaskDesc.newBuilder()
                 .setOperation(LMO.Operation.newBuilder()
                     .setName("zygote_" + taskNum)
                     .setCommand(fuze)
@@ -291,31 +303,51 @@ public class PortalTestBase {
                     .setSlotName("/dev/stderr")
                     .setChannelId(stderrChannelId)
                     .build())
-                .build(), taskId, "execution-id");
+                .build())
+            .setTaskId(taskId)
+            .setExecutionId("exec")
+            .build());
+
+        while (!op.getDone()) {
+            op = desc.opStub.get(LongRunning.GetOperationRequest.newBuilder()
+                .setOperationId(op.getId())
+                .build());
+        }
 
         return taskId;
     }
 
     protected void startWorker(String workerId) {
         var allocatorDuration = Duration.ofSeconds(5);
-        var schedulerDuration = Duration.ofSeconds(1);
-        String privateKey;
 
         try (final var iamClient = new IamClient(iamTestContext.getClientConfig())) {
-            var user = iamClient.createUser(workerId);
+            var user = iamClient.createUser(workerId, this.workerKeys.publicKey());
             workflowName = "wf";
-            privateKey = user.credentials().privateKey();
-            iamClient.addWorkflowAccess(user.id(), userId, workflowName);
+            iamClient.addWorkflowAccess(user, userId, workflowName);
         } catch (Exception e) {
             Assert.fail("Failed to create worker user: " + e.getMessage());
             throw new RuntimeException(e);
         }
 
-        var worker = new Worker(workflowName, workerId, UUID.randomUUID().toString(), config.getAllocatorAddress(),
-            config.getAllocatorAddress(), allocatorDuration, schedulerDuration,
-            GrpcUtils.rollPort(), GrpcUtils.rollPort(), "/tmp/lzy_" + workerId + "/",
-            config.getChannelManagerAddress(), "localhost", privateKey, "token_" + workerId);
-        workers.put(workerId, worker);
+        var port = GrpcUtils.rollPort();
+
+        var worker = new Worker(workerId,
+            config.getAllocatorAddress(), config.getIamAddress(), allocatorDuration,
+            port, GrpcUtils.rollPort(), "/tmp/lzy_" + workerId + "/",
+            config.getChannelManagerAddress(), "localhost", "token_" + workerId);
+
+        var workerChannel = ai.lzy.util.grpc.GrpcUtils.newGrpcChannel("localhost:" + port, WorkerApiGrpc.SERVICE_NAME);
+
+        var stub = WorkerApiGrpc.newBlockingStub(workerChannel);
+
+        stub = ai.lzy.util.grpc.GrpcUtils.newBlockingClient(stub, "worker", () -> iamTestContext.getClientConfig()
+            .createRenewableToken().get().token());
+
+        var opStub = LongRunningServiceGrpc.newBlockingStub(workerChannel);
+        opStub = ai.lzy.util.grpc.GrpcUtils.newBlockingClient(opStub, "worker", () -> iamTestContext.getClientConfig()
+                .createRenewableToken().get().token());
+
+        workers.put(workerId, new WorkerDesc(worker, workerChannel, stub, opStub));
     }
 
     protected void waitPortalCompleted() {
@@ -454,6 +486,13 @@ public class PortalTestBase {
             return new User(subj.id(), creds);
         }
 
+        public String createUser(String portalId, String pk) throws Exception {
+            var subj = subjectClient.createSubject(AuthProvider.INTERNAL, portalId, SubjectType.WORKER,
+                    new SubjectCredentials("main", pk, CredentialsType.PUBLIC_KEY));
+
+            return subj.id();
+        }
+
         public void addWorkflowAccess(String subjId, String userId, String workflowName) {
             final var subj = subjectClient.getSubject(subjId);
 
@@ -487,4 +526,11 @@ public class PortalTestBase {
         ) { }
 
     }
+
+    public record WorkerDesc (
+        Worker worker,
+        ManagedChannel channel,
+        WorkerApiGrpc.WorkerApiBlockingStub workerStub,
+        LongRunningServiceGrpc.LongRunningServiceBlockingStub opStub
+    ) { }
 }

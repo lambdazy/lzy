@@ -61,3 +61,12 @@ scheduler:
       /R0NeRjKxaOebS9NKgaWI9YB+9kxCa3R//sGkRvAOHa7H986mQ1Vx1y14GGtuSTr
       l7I2m1fDWAE7ibup2fO9VSexAlqwoDnv4dWQ03f/ifRpFE/Tg7NV5OM=
       -----END RSA PRIVATE KEY-----
+
+jobs:
+  database:
+    url: 'embedded-postgres'
+    username: 'test'
+    password: ''
+    min-pool-size: 3
+    max-pool-size: 5
+    enabled: true

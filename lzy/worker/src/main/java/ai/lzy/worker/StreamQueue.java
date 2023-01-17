@@ -6,6 +6,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -41,11 +42,25 @@ public class StreamQueue extends Thread {
                 continue;
             }
             try {
-                IOUtils.copy(input, out);
+                var buf = new byte[4096];
+                var len = 0;
+                while ((len = input.read(buf)) != -1) {
+                    if (logger.isDebugEnabled()) {
+                        var msg = Arrays.copyOfRange(buf, 0, len);
+                        logger.debug("[{}]: {}", streamName, new String(msg));
+                    }
+                    out.write(buf, 0, len);
+                }
             } catch (IOException e) {
                 logger.error("Error while writing to stream {}: ", streamName, e);
                 return;
             }
+        }
+        try {
+            out.close();
+        } catch (IOException e) {
+            logger.error("Error while closing out slot for stream {}: ", streamName, e);
+            throw new RuntimeException(e);
         }
     }
 

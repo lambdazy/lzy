@@ -8,7 +8,7 @@ option java_package = "ai.lzy.v1.scheduler";
 import "ai/lzy/v1/scheduler/scheduler.proto";
 import "ai/lzy/v1/common/operation.proto";
 
-service Scheduler {
+service Scheduler {  // Temporal api, will be replaced by operation or merged with graph executor
   rpc Schedule (TaskScheduleRequest) returns (TaskScheduleResponse);
   rpc Status (TaskStatusRequest) returns (TaskStatusResponse);
   rpc List (TaskListRequest) returns (TaskListResponse);
@@ -22,7 +22,7 @@ message TaskScheduleRequest {
   string workflowId = 1;
   string workflowName = 2;
   string userId = 3;
-  TaskDesc task = 4;
+  ai.lzy.v1.common.TaskDesc task = 4;
 }
 message TaskScheduleResponse {
   TaskStatus status = 1;
@@ -34,6 +34,7 @@ message TaskStatusRequest {
   string workflowId = 1;
   string taskId = 2;
 }
+
 message TaskStatusResponse {
   TaskStatus status = 1;
 }
@@ -43,6 +44,7 @@ message TaskStatusResponse {
 message TaskListRequest {
   string workflowId = 1;
 }
+
 message TaskListResponse {
   repeated TaskStatus status = 1;
 }
@@ -64,7 +66,9 @@ message TaskStopResponse {
 
 message KillAllRequest {
   string workflowName = 1;
-  string issue = 2;
+  string userId = 2;
+  string issue = 3;
 }
+
 message KillAllResponse {}
 

@@ -1,4 +1,4 @@
-package ai.lzy.scheduler.db.impl;
+package ai.lzy.scheduler.db;
 
 import ai.lzy.model.db.StorageImpl;
 import ai.lzy.scheduler.configs.ServiceConfig;

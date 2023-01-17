@@ -19,7 +19,7 @@ public class A extends WorkflowJobProvider<Provider.Data> {
     public A(JobService jobService, Provider.DataSerializer serializer,
              JobsOperationDao dao, ApplicationContext context)
     {
-        super(jobService, serializer, dao, B.class, null, context);
+        super(jobService, serializer, dao, null, B.class, context);
     }
 
     @Override

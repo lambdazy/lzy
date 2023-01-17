@@ -80,12 +80,10 @@ public class LzyFsServer {
 
         this.slotsService = new SlotsService(agentId, operationService, slotsManager, fsManager);
 
-        var internalOnly = new AllowInternalUserOnlyInterceptor(agentId, iamChannel);
-
         this.localServer = newGrpcServer(selfAddress.getHost(), selfAddress.getPort(),
             new AuthServerInterceptor(new AuthenticateServiceGrpcClient(agentId, iamChannel)))
-            .addService(ServerInterceptors.intercept(slotsService.getSlotsApi(), internalOnly))
-            .addService(ServerInterceptors.intercept(slotsService.getLongrunningApi(), internalOnly))
+            .addService(slotsService.getSlotsApi())
+            .addService(slotsService.getLongrunningApi())
             .build();
     }
 

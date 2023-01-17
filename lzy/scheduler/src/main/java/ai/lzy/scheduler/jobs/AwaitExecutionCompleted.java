@@ -1,0 +1,177 @@
+package ai.lzy.scheduler.jobs;
+
+import ai.lzy.jobsutils.JobService;
+import ai.lzy.jobsutils.db.JobsOperationDao;
+import ai.lzy.jobsutils.providers.WorkflowJobProvider;
+import ai.lzy.longrunning.dao.OperationDao;
+import ai.lzy.model.db.DbHelper;
+import ai.lzy.scheduler.allocator.WorkersAllocator;
+import ai.lzy.scheduler.configs.ServiceConfig;
+import ai.lzy.scheduler.models.TaskState;
+import ai.lzy.util.auth.credentials.RenewableJwt;
+import ai.lzy.util.grpc.GrpcUtils;
+import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.v1.longrunning.LongRunning;
+import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
+import ai.lzy.v1.longrunning.LongRunningServiceGrpc.LongRunningServiceBlockingStub;
+import ai.lzy.v1.scheduler.Scheduler.TaskStatus;
+import ai.lzy.v1.worker.LWS;
+import com.google.protobuf.Any;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.rpc.Code;
+import com.google.rpc.Status;
+import io.grpc.ManagedChannel;
+import io.grpc.StatusRuntimeException;
+import io.micronaut.context.ApplicationContext;
+import jakarta.annotation.PreDestroy;
+import jakarta.inject.Singleton;
+
+import java.sql.SQLException;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+
+@Singleton
+public class AwaitExecutionCompleted extends WorkflowJobProvider<TaskState> {
+    private final RenewableJwt credentials;
+    private final ConcurrentHashMap<String, LongRunningServiceBlockingStub> clients = new ConcurrentHashMap<>();
+    private final BlockingQueue<ManagedChannel> channels = new LinkedBlockingQueue<>();
+    private final OperationDao operationDao;
+    private final WorkersAllocator allocator;
+
+    protected AwaitExecutionCompleted(JobService jobService, TaskStateSerializer serializer, JobsOperationDao opDao,
+                                      ApplicationContext context, ServiceConfig config, OperationDao operationDao,
+                                      WorkersAllocator allocator)
+    {
+        super(jobService, serializer, opDao, AfterAllocation.class, null, context);
+        credentials = config.getIam().createRenewableToken();
+        this.operationDao = operationDao;
+        this.allocator = allocator;
+    }
+
+    @Override
+    protected TaskState exec(TaskState state, String operationId) throws JobProviderException {
+        LongRunningServiceBlockingStub client;
+
+        if (clients.containsKey(state.workerAddress())) {
+            client = clients.get(state.workerAddress());
+        } else {
+            var address = state.workerAddress();
+
+            var workerChannel = GrpcUtils.newGrpcChannel(address, LongRunningServiceGrpc.SERVICE_NAME);
+            client = GrpcUtils.newBlockingClient(
+                    LongRunningServiceGrpc.newBlockingStub(workerChannel),
+                    "worker", () -> credentials.get().token());
+
+            clients.put(address, client);
+            try {
+                channels.put(workerChannel);
+            } catch (InterruptedException e) {
+                // ignored
+            }
+        }
+
+        client = GrpcUtils.withIdempotencyKey(client, state.id());
+
+        final LongRunning.Operation op;
+        try {
+            op = client.get(LongRunning.GetOperationRequest.newBuilder()
+                    .setOperationId(state.workerOperationId())
+                    .build());
+        } catch (StatusRuntimeException e) {
+            logger.error("Error while getting execution status for task {}: ", state.id(), e);
+            fail(Status.newBuilder()
+                .setCode(io.grpc.Status.Code.INTERNAL.value())
+                .setMessage("Some internal exception while waiting for execution")
+                .build());
+            return null;
+        }
+
+        if (!op.getDone()) {
+            reschedule();
+            return null;
+        }
+
+        final LWS.ExecuteResponse resp;
+
+        try {
+            resp = op.getResponse().unpack(LWS.ExecuteResponse.class);
+        } catch (InvalidProtocolBufferException e) {
+            logger.error("Error while unpacking response {} for task {}: ", JsonUtils.printRequest(op.getResponse()),
+                state.id(), e);
+
+            fail(Status.newBuilder()
+                .setCode(io.grpc.Status.Code.INTERNAL.value())
+                .setMessage("Some internal exception while waiting for execution")
+                .build());
+
+            return null;
+        }
+        final TaskStatus.Builder builder = TaskStatus.newBuilder()
+            .setTaskId(state.id())
+            .setWorkflowId(state.executionId());
+
+        final TaskStatus status;
+
+        if (resp.getRc() == 0) {
+            status = builder
+                .setSuccess(TaskStatus.Success.newBuilder()
+                    .setRc(0)
+                    .setDescription(resp.getDescription())
+                    .build()
+                )
+                .build();
+        } else {
+            status = builder
+                .setError(TaskStatus.Error.newBuilder()
+                    .setRc(resp.getRc())
+                    .setDescription(resp.getDescription())
+                    .build()
+                )
+                .build();
+        }
+
+        try {
+            DbHelper.withRetries(logger, () -> {
+                operationDao.updateResponse(operationId, Any.pack(status).toByteArray(), null);
+            });
+        } catch (SQLException e) {
+            logger.error("Sql exception while updating response for task {}", state.id(), e);
+            fail(Status.newBuilder()
+                .setCode(Code.INTERNAL.getNumber())
+                .setMessage("Error while waiting for operation")
+                .build()
+            );
+            return null;
+        } catch (Exception e) {
+            logger.error("Some unexpected exception while executing task {}", state.id(), e);
+            reschedule();
+            return null;
+        }
+
+        allocator.free(state.vmId());
+
+        return state;
+    }
+
+    @Override
+    protected TaskState clear(TaskState state, String operationId) {
+        return state;
+    }
+
+    @PreDestroy
+    public void close() {
+        for (var channel: channels) {
+            channel.shutdown();
+        }
+
+        for (var channel: channels) {
+            try {
+                channel.awaitTermination(1, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                // ignored
+            }
+        }
+    }
+}

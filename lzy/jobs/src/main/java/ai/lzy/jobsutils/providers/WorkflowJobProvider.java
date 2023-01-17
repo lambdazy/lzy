@@ -6,6 +6,7 @@ import ai.lzy.jobsutils.providers.JobSerializer.SerializationException;
 import ai.lzy.longrunning.dao.OperationDao;
 import com.google.rpc.Status;
 import io.grpc.Status.Code;
+import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -13,11 +14,17 @@ import org.apache.logging.log4j.Logger;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import javax.annotation.Nullable;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
 
 public abstract class WorkflowJobProvider<T> extends JobProviderBase<WorkflowJobProvider.WorkflowJobArg> {
+    private static final List<Code> RETRYABLE_CODES = List.of(
+        Code.UNAVAILABLE,
+        Code.UNKNOWN
+    );
+
     protected final Logger logger;
     private final JobSerializerBase<T> serializer;
     private final OperationDao dao;
@@ -26,8 +33,9 @@ public abstract class WorkflowJobProvider<T> extends JobProviderBase<WorkflowJob
     private final ApplicationContext context;
 
     protected WorkflowJobProvider(JobService jobService, JobSerializerBase<T> serializer, JobsOperationDao dao,
+                                  @Nullable Class<? extends WorkflowJobProvider<T>> prev,
                                   @Nullable Class<? extends WorkflowJobProvider<T>> next,
-                                  @Nullable Class<? extends WorkflowJobProvider<T>> prev, ApplicationContext context)
+                                  ApplicationContext context)
     {
         super(new WorkflowJobSerializer(), jobService, WorkflowJobArg.class);
         this.serializer = serializer;
@@ -39,7 +47,7 @@ public abstract class WorkflowJobProvider<T> extends JobProviderBase<WorkflowJob
     }
 
     protected abstract T exec(T state, String operationId) throws JobProviderException;
-    protected abstract T clear(T state, String operationId) throws JobProviderException;
+    protected abstract T clear(T state, String operationId);
 
     @Override
     protected void executeJob(WorkflowJobArg arg) {
@@ -110,8 +118,29 @@ public abstract class WorkflowJobProvider<T> extends JobProviderBase<WorkflowJob
             }
 
             reschedule(arg, Duration.ofSeconds(1));
+        } catch (StatusRuntimeException e) {
+            logger.error("Grpc exception while executing operation {}: ", arg.operationId, e);
+            if (!RETRYABLE_CODES.contains(e.getStatus().getCode())) {
+                try {
+                    failOp(arg, Status.newBuilder()
+                        .setCode(Code.INTERNAL.value())
+                        .setMessage("Internal exception")
+                        .build());
+                } catch (Exception ex) {
+                    logger.error("Cannot fail operation, rescheduling... ");
+                }
+            }
+            reschedule(arg, Duration.ofSeconds(1));
         } catch (Exception e) {
-            logger.error("Unexpected error while executing op {}. Rescheduling...", arg.operationId, e);
+            logger.error("Unexpected error while executing op {}. ", arg.operationId, e);
+            try {
+                failOp(arg, Status.newBuilder()
+                    .setCode(Code.INTERNAL.value())
+                    .setMessage("Internal exception")
+                    .build());
+            } catch (Exception ex) {
+                logger.error("Cannot fail operation, rescheduling... ");
+            }
             reschedule(arg, Duration.ofSeconds(1));
         }
 
@@ -168,6 +197,10 @@ public abstract class WorkflowJobProvider<T> extends JobProviderBase<WorkflowJob
         }
     }
 
+    protected void reschedule() throws JobProviderException {
+        throw new JobProviderException(null);
+    }
+
     public void schedule(String opId, T input, @Nullable Duration startAfter,
                          @Nullable Instant deadline) throws SerializationException
     {
@@ -198,9 +231,5 @@ public abstract class WorkflowJobProvider<T> extends JobProviderBase<WorkflowJob
 
     protected void fail(Status status) throws JobProviderException {
         throw new JobProviderException(status);
-    }
-
-    protected void reschedule() throws JobProviderException {
-        throw new JobProviderException(null);
     }
 }

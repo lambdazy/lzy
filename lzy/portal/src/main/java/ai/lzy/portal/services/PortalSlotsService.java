@@ -14,6 +14,7 @@ import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.config.PortalConfig;
 import ai.lzy.portal.slots.SnapshotProvider;
 import ai.lzy.portal.slots.StdoutSlot;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.ContextAwareTask;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.longrunning.LongRunning;
@@ -33,6 +34,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Spliterator;
@@ -57,6 +59,7 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
 
     private final String portalId;
     private final PortalConfig config;
+    private final Supplier<String> token;
 
     private StdoutSlot stdoutSlot;
     private StdoutSlot stderrSlot;
@@ -90,6 +93,8 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
 
         this.operationService = operationService;
         this.workersPool = workersPool;
+
+        this.token = tokenFactory;
     }
 
     public void start() {
@@ -149,7 +154,7 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
                             var channel = newGrpcChannel(to.uri().getHost(), to.uri().getPort(),
                                 LzySlotsApiGrpc.SERVICE_NAME);
                             var client = newBlockingClient(LzySlotsApiGrpc.newBlockingStub(channel), "PortalSlots",
-                                NO_AUTH_TOKEN);
+                                token);
 
                             var req = LSA.SlotDataRequest.newBuilder()
                                 .setSlotInstance(request.getTo())

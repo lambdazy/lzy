@@ -10,13 +10,10 @@ public record TaskState(
     String workflowName,
     String userId,
     TaskDesc description,
-    Status status,
-
-    @Nullable Integer returnCode,
-    @Nullable String errorDescription,
     @Nullable String vmId,
     @Nullable String allocatorOperationId,
     @Nullable String workerAddress,
+    @Nullable String workerPublicKey,
     @Nullable String workerOperationId
 ) {
     public enum Status {
@@ -27,19 +24,20 @@ public record TaskState(
         ERROR  // Task execution failed
     }
 
+    public TaskStateBuilder copy() {
+        return new TaskStateBuilder(this);
+    }
+
     public static class TaskStateBuilder {
         private final String id;
         private final String executionId;
         private final String workflowName;
         private final String userId;
         private final TaskDesc description;
-        private final Status status;
-
-        private @Nullable Integer returnCode;
-        private @Nullable String errorDescription;
         private @Nullable String vmId;
         private @Nullable String allocatorOperationId;
         private @Nullable String workerAddress;
+        private @Nullable String workerPublicKey;
         private @Nullable String workerOperationId;
 
 
@@ -49,7 +47,50 @@ public record TaskState(
             this.workflowName = prev.workflowName;
             this.userId = prev.userId;
             this.description = prev.description;
-            this.status = prev.status;
+            this.vmId = prev.vmId;
+            this.allocatorOperationId = prev.allocatorOperationId;
+            this.workerAddress = prev.workerAddress;
+            this.workerOperationId = prev.workerOperationId;
+        }
+
+        public TaskStateBuilder vmId(@Nullable String vmId) {
+            this.vmId = vmId;
+            return this;
+        }
+
+        public TaskStateBuilder allocatorOperationId(@Nullable String allocatorOperationId) {
+            this.allocatorOperationId = allocatorOperationId;
+            return this;
+        }
+
+        public TaskStateBuilder workerAddress(@Nullable String workerAddress) {
+            this.workerAddress = workerAddress;
+            return this;
+        }
+
+        public TaskStateBuilder workerOperationId(@Nullable String workerOperationId) {
+            this.workerOperationId = workerOperationId;
+            return this;
+        }
+
+        public TaskStateBuilder workerPublicKey(@Nullable String workerPublicKey) {
+            this.workerPublicKey = workerPublicKey;
+            return this;
+        }
+
+        public TaskState build() {
+            return new TaskState(
+                id,
+                executionId,
+                workflowName,
+                userId,
+                description,
+                vmId,
+                allocatorOperationId,
+                workerAddress,
+                workerPublicKey,
+                workerOperationId
+            );
         }
     }
 }

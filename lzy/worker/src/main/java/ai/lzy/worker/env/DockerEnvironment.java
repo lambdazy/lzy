@@ -1,5 +1,6 @@
 package ai.lzy.worker.env;
 
+import ai.lzy.worker.StreamQueue;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallbackTemplate;
 import com.github.dockerjava.api.command.CreateContainerCmd;
@@ -72,6 +73,11 @@ public class DockerEnvironment implements BaseEnvironment {
         LOG.info("Starting env container with id {} ...", container.getId());
         DOCKER.startContainerCmd(container.getId()).exec();
         LOG.info("Starting env container with id {} done", container.getId());
+    }
+
+    @Override
+    public void install(StreamQueue out, StreamQueue err) throws EnvironmentInstallationException {
+        // TODO(artolord) add stdout/stderr to std streams
     }
 
     @Override

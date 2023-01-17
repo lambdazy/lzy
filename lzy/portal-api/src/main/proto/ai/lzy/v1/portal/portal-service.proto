@@ -18,9 +18,9 @@ service LzyPortal {
 }
 
 message PortalSlotStatus {
-  Slot slot = 1;
+  ai.lzy.v1.common.Slot slot = 1;
   string connectedTo = 2;
-  SlotStatus.State state = 3;
+  ai.lzy.v1.common.SlotStatus.State state = 3;
   SnapshotSlotStatus snapshotStatus = 4;
 
   enum SnapshotSlotStatus {

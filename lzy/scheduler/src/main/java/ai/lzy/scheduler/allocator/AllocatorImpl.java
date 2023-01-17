@@ -124,14 +124,11 @@ public class AllocatorImpl implements WorkersAllocator {
         );
 
         final var args = List.of(
-            "--workflow-name", workflowName,
-            "--port", String.valueOf(port),
-            "--fs-port", String.valueOf(fsPort),
-            "--scheduler-address", config.getSchedulerAddress(),
+            "-p", String.valueOf(port),
+            "-q", String.valueOf(fsPort),
             "--channel-manager", config.getChannelManagerAddress(),
-            "--iam", config.getIam().getAddress(),
-            "--lzy-mount", mountPoint,
-            "--scheduler-heartbeat-period", processorConfig.executingHeartbeatPeriod().toString()
+            "-i", config.getIam().getAddress(),
+            "--lzy-mount", mountPoint
         );
 
         final var workload = Workload.newBuilder()

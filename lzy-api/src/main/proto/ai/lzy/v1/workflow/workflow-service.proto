@@ -28,12 +28,12 @@ message CreateWorkflowRequest {
   string workflowName = 1;
 
   // if not set then internal SnapshotStorage is created
-  /* optional */ StorageConfig snapshotStorage = 2;
+  /* optional */ ai.lzy.v1.common.StorageConfig snapshotStorage = 2;
 }
 
 message CreateWorkflowResponse {
   string executionId = 1;
-  /* optional */ StorageConfig internalSnapshotStorage = 2;
+  /* optional */ ai.lzy.v1.common.StorageConfig internalSnapshotStorage = 2;
 }
 
 message AttachWorkflowRequest {

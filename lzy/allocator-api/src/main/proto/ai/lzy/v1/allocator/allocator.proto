@@ -18,7 +18,7 @@ import "google/protobuf/duration.proto";
 service Allocator {
 
   // Create allocation session
-  rpc CreateSession (CreateSessionRequest) returns (Operation) {
+  rpc CreateSession (CreateSessionRequest) returns (ai.lzy.v1.longrunning.Operation) {
     option (ai.lzy.v1.operation) = {
       // metadata: null
       response: "CreateSessionResponse"
@@ -28,7 +28,7 @@ service Allocator {
   // Delete allocation session and all resources
   rpc DeleteSession (DeleteSessionRequest) returns (DeleteSessionResponse);
 
-  rpc Allocate (AllocateRequest) returns (Operation) {
+  rpc Allocate (AllocateRequest) returns (ai.lzy.v1.longrunning.Operation) {
     option (ai.lzy.v1.operation) = {
       metadata: "AllocateMetadata"
       response: "AllocateResponse"
@@ -113,6 +113,7 @@ message AllocateResponse {
   message VmEndpoint {
     VmEndpointType type = 1;
     string value = 2;
+    string iam_subject_id = 3;  // Subject of iam that was created for this vm
 
     enum VmEndpointType {
       UNSPECIFIED = 0;

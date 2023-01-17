@@ -8,7 +8,6 @@ import ai.lzy.fs.slots.LineReaderSlot;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.longrunning.LocalOperationService.OperationSnapshot;
-import ai.lzy.longrunning.LocalOperationUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.Signal;
@@ -16,11 +15,11 @@ import ai.lzy.model.TaskDesc;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.operation.Operation.StdSlotDesc;
 import ai.lzy.model.slot.TextLinesOutSlot;
-import ai.lzy.scheduler.SchedulerAgent;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.worker.LWS.*;
 import ai.lzy.v1.worker.WorkerApiGrpc;
 import ai.lzy.worker.env.Environment;
@@ -29,7 +28,6 @@ import ai.lzy.worker.env.EnvironmentInstallationException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.net.HostAndPort;
 import io.grpc.Server;
-import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -49,20 +47,19 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static ai.lzy.model.UriScheme.LzyFs;
 import static ai.lzy.util.auth.credentials.CredentialsUtils.readPrivateKey;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 
 public class Worker {
     private static final Logger LOG = LogManager.getLogger(Worker.class);
     public static boolean USE_LOCALHOST_AS_HOST = false;
+    public static RsaUtils.RsaKeys RSA_KEYS = null;  // only for tests
 
     private static final Options options = new Options();
 
     static {
         options.addOption("p", "port", true, "Worker gRPC port.");
         options.addOption("q", "fs-port", true, "LzyFs gRPC port.");
-        options.addOption(null, "scheduler-address", true, "Lzy scheduler address [host:port]");
         options.addOption(null, "allocator-address", true, "Lzy allocator address [host:port]");
         options.addOption("ch", "channel-manager", true, "Channel manager address [host:port]");
         options.addOption("i", "iam", true, "Iam address [host:port]");
@@ -70,7 +67,6 @@ public class Worker {
         options.addOption("h", "host", true, "Worker and FS host name");
         options.addOption(null, "vm-id", true, "Vm id from allocator");
         options.addOption(null, "allocator-heartbeat-period", true, "Allocator heartbeat period in duration format");
-        options.addOption(null, "scheduler-heartbeat-period", true, "Scheduler heartbeat period in duration format");
 
         // for tests only
         options.addOption(null, "allocator-token", true, "OTT token for allocator");
@@ -79,22 +75,15 @@ public class Worker {
     private final LzyFsServer lzyFs;
     private final AllocatorAgent allocatorAgent;
     private final LocalOperationService operationService;
-    private final AtomicReference<Environment> env = new AtomicReference<>(null);
     private final AtomicReference<Execution> execution = new AtomicReference<>(null);
     private final Server server;
-    private final String schedulerAddress;
-    private final Duration schedulerHeartbeatPeriod;
-    private final RsaUtils.RsaKeys iamKeys;
 
     public Worker(
-            String vmId, String allocatorAddress, String schedulerAddress, String iamAddress,
-            Duration allocatorHeartbeatPeriod, Duration schedulerHeartbeatPeriod, int apiPort, int fsPort,
+            String vmId, String allocatorAddress, String iamAddress,
+            Duration allocatorHeartbeatPeriod, int apiPort, int fsPort,
             String fsRoot, String channelManagerAddress, String host, String allocatorToken)
     {
         LOG.info("Starting worker on vm {}.\n apiPort: {}\n fsPort: {}\n host: {}", vmId, apiPort, fsPort, host);
-
-        this.schedulerAddress = schedulerAddress;
-        this.schedulerHeartbeatPeriod = schedulerHeartbeatPeriod;
 
         var realHost = host != null ? host : System.getenv(AllocatorAgent.VM_IP_ADDRESS);
         if (realHost == null) {
@@ -108,11 +97,17 @@ public class Worker {
         }
 
         allocatorToken = allocatorToken != null ? allocatorToken : System.getenv(AllocatorAgent.VM_ALLOCATOR_OTT);
-        try {
-            this.iamKeys = RsaUtils.generateRsaKeys();
-        } catch (IOException | InterruptedException e) {
-            LOG.error("Cannot generate keys");
-            throw new RuntimeException(e);
+        final RsaUtils.RsaKeys iamKeys;
+
+        if (RSA_KEYS == null) {
+            try {
+                iamKeys = RsaUtils.generateRsaKeys();
+            } catch (IOException | InterruptedException e) {
+                LOG.error("Cannot generate keys");
+                throw new RuntimeException(e);
+            }
+        } else {
+            iamKeys = RSA_KEYS;
         }
 
         Objects.requireNonNull(allocatorToken);
@@ -121,6 +116,7 @@ public class Worker {
 
         server = newGrpcServer("0.0.0.0", apiPort, GrpcUtils.NO_AUTH)
             .addService(new WorkerApiImpl())
+            .addService(operationService)
             .build();
 
         try {
@@ -193,9 +189,7 @@ public class Worker {
 
             final var worker = new Worker(
                 parse.getOptionValue("vm-id"), parse.getOptionValue("allocator-address"),
-                parse.getOptionValue("scheduler-address"), parse.getOptionValue("iam-address"),
-                allocHeartbeat == null ? null : Duration.parse(allocHeartbeat),
-                Duration.parse(parse.getOptionValue("scheduler-heartbeat-period")),
+                parse.getOptionValue("iam"), allocHeartbeat == null ? null : Duration.parse(allocHeartbeat),
                 Integer.parseInt(parse.getOptionValue('p')), Integer.parseInt(parse.getOptionValue('q')),
                 parse.getOptionValue('m'), parse.getOptionValue("channel-manager"), parse.getOptionValue('h'),
                 parse.getOptionValue("allocator-token"));
@@ -216,7 +210,7 @@ public class Worker {
             try {
                 Thread.sleep(100);  // Sleep some time to wait for all logs to be written
             } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+                // ignored
             }
         }
     }
@@ -227,49 +221,41 @@ public class Worker {
 
     private class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
 
-        private synchronized void executeOp(ExecuteRequest request,
-                                            StreamObserver<ExecuteResponse> response, String opId)
-        {
-            try (var agent = new SchedulerAgent(
-                schedulerAddress, request.getTaskId(), request.getExecutionId(), schedulerHeartbeatPeriod,
-                iamKeys.privateKey()))
-            {
-                String tid = request.getTaskId();
-                var task = TaskDesc.fromProto(request.getTaskDesc());
+        private synchronized ExecuteResponse executeOp(ExecuteRequest request) {
+            String tid = request.getTaskId();
+            var task = TaskDesc.fromProto(request.getTaskDesc());
 
-                var lzySlots = new ArrayList<LzySlot>(task.operation().slots().size());
+            var lzySlots = new ArrayList<LzySlot>(task.operation().slots().size());
 
-                var errorBindingSlot = Status.INVALID_ARGUMENT.withDescription("Fail to find binding for slot ");
+            for (var slot : task.operation().slots()) {
+                final var binding = task.slotsToChannelsAssignments().get(slot.name());
+                if (binding == null) {
 
-                for (var slot : task.operation().slots()) {
-                    final var binding = task.slotsToChannelsAssignments().get(slot.name());
-                    if (binding == null) {
-                        var errorStatus = errorBindingSlot.withDescription(errorBindingSlot.getDescription() +
-                                slot.name());
-
-                        operationService.updateError(opId, errorStatus);
-                        response.onError(errorStatus.asRuntimeException());
-                        return;
-                    }
-
-                    lzySlots.add(lzyFs.getSlotsManager().getOrCreateSlot(tid, slot, binding));
+                    return ExecuteResponse.newBuilder()
+                        .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
+                        .setDescription("Internal error")
+                        .build();
                 }
 
-                lzySlots.forEach(slot -> {
-                    if (slot instanceof LzyFileSlot) {
-                        lzyFs.addSlot((LzyFileSlot) slot);
-                    }
-                });
+                lzySlots.add(lzyFs.getSlotsManager().getOrCreateSlot(tid, slot, binding));
+            }
 
-                operationService.updateResponse(opId, ExecuteResponse.getDefaultInstance());
-                response.onNext(ExecuteResponse.getDefaultInstance());
-                response.onCompleted();
+            lzySlots.forEach(slot -> {
+                if (slot instanceof LzyFileSlot) {
+                    lzyFs.addSlot((LzyFileSlot) slot);
+                }
+            });
 
-                final var stdoutSpec = task.operation().stdout();
-                final var stderrSpec = task.operation().stderr();
+            final var stdoutSpec = task.operation().stdout();
+            final var stderrSpec = task.operation().stderr();
 
-                final var outQueue = generateStreamQueue(tid, stdoutSpec, "stdout");
-                final var errQueue = generateStreamQueue(tid, stderrSpec, "stderr");
+            final var outQueue = generateStreamQueue(tid, stdoutSpec, "stdout");
+            final var errQueue = generateStreamQueue(tid, stderrSpec, "stderr");
+
+            outQueue.start();
+            errQueue.start();
+
+            try {
 
                 LOG.info("Configuring worker");
 
@@ -280,18 +266,17 @@ public class Worker {
                     env.install(outQueue, errQueue);
                 } catch (EnvironmentInstallationException e) {
                     LOG.error("Unable to install environment", e);
-                    agent.reportExecutionCompleted(
-                        ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc(),
-                        e.getMessage()
-                    );
-                    return;
+
+                    return ExecuteResponse.newBuilder()
+                            .setRc(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc())
+                            .setDescription(e.getMessage())
+                            .build();
                 } catch (Exception e) {
                     LOG.error("Error while preparing env", e);
-                    agent.reportExecutionCompleted(
-                        ReturnCodes.INTERNAL_ERROR.getRc(),
-                        "Error while installing env"
-                    );
-                    return;
+                    return ExecuteResponse.newBuilder()
+                            .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
+                            .setDescription("Internal error")
+                            .build();
                 }
 
                 LOG.info("Executing task");
@@ -301,15 +286,36 @@ public class Worker {
 
                     exec.start(env);
 
-                    final int rc = exec.waitFor();
+                    outQueue.add(exec.process().out());
+                    errQueue.add(exec.process().err());
 
-                    agent.reportExecutionCompleted(
-                            rc, rc == 0 ? "Success" : "Error while executing command on worker.\n" +
-                                "See your stdout/stderr to see more info");
+                    final int rc = exec.waitFor();
+                    final String message;
+
+                    if (rc == 0) {
+                        message = "Success";
+                    } else {
+                        message = "Error while executing command on worker. " +
+                                "See your stdout/stderr to see more info";
+                    }
+                    return ExecuteResponse.newBuilder()
+                            .setRc(rc)
+                            .setDescription(message)
+                            .build();
+
                 } catch (Exception e) {
                     LOG.error("Error while executing task, stopping worker", e);
-                    agent.reportExecutionCompleted(ReturnCodes.INTERNAL_ERROR.getRc(),
-                        "Internal error while executing task");
+                    return ExecuteResponse.newBuilder()
+                            .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
+                            .setDescription("Internal error")
+                            .build();
+                }
+            } finally {
+                try {
+                    outQueue.close();
+                    errQueue.close();
+                } catch (InterruptedException e) {
+                    LOG.error("Interrupted while closing out stream");
                 }
             }
         }
@@ -338,7 +344,7 @@ public class Worker {
         }
 
         @Override
-        public void execute(ExecuteRequest request, StreamObserver<ExecuteResponse> response) {
+        public void execute(ExecuteRequest request, StreamObserver<LongRunning.Operation> response) {
             if (LOG.getLevel().isLessSpecificThan(Level.DEBUG)) {
                 LOG.debug("Worker::execute " + JsonUtils.printRequest(request));
             } else {
@@ -356,25 +362,28 @@ public class Worker {
             var op = Operation.create(request.getTaskId(), "Execute worker", idempotencyKey, null);
             OperationSnapshot opSnapshot = operationService.registerOperation(op);
 
-            if (op.id().equals(opSnapshot.id())) {
-                executeOp(request, response, op.id());
-            } else {
-                assert idempotencyKey != null;
-                LOG.info("Found operation by idempotencyKey: { idempotencyKey: {}, op: {} }", idempotencyKey.token(),
-                    opSnapshot.toShortString());
+            response.onNext(opSnapshot.toProto());
+            response.onCompleted();
 
-                awaitOpAndReply(opSnapshot.id(), response);
+            ExecuteResponse resp;
+            try {
+                resp = executeOp(request);
+            } catch (Exception e) {
+                LOG.error("Error while executing task {}: ", request.getTaskId(), e);
+                resp = ExecuteResponse.newBuilder()
+                    .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
+                    .setDescription("Internal error")
+                    .build();
             }
+
+            operationService.updateResponse(op.id(), resp);
+
         }
 
-        private boolean loadExistingOpResult(Operation.IdempotencyKey key, StreamObserver<ExecuteResponse> response) {
-            return IdempotencyUtils.loadExistingOpResult(operationService, key, ExecuteResponse.class, response,
-                "Cannot execute task on worker", LOG);
-        }
-
-        private void awaitOpAndReply(String opId, StreamObserver<ExecuteResponse> response) {
-            LocalOperationUtils.awaitOpAndReply(operationService, opId, response, ExecuteResponse.class,
-                "Cannot execute task on worker", LOG);
+        private boolean loadExistingOpResult(Operation.IdempotencyKey key,
+                                             StreamObserver<LongRunning.Operation> response)
+        {
+            return IdempotencyUtils.loadExistingOp(operationService, key, response, LOG);
         }
     }
 }

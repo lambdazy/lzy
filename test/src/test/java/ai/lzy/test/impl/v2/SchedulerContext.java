@@ -32,6 +32,7 @@ public class SchedulerContext {
 
         this.address = HostAndPort.fromParts("localhost", SCHEDULER_PORT);
         final var opts = Utils.createModuleDatabase("scheduler");
+        opts.putAll(Utils.createModuleDatabase("jobs"));
         opts.putAll(new HashMap<String, Object>(Map.of(
                 "scheduler.scheduler-address", address,
                 "scheduler.port", SCHEDULER_PORT,
