@@ -28,6 +28,27 @@ jobs:
           sudo rm -rf /tmp/lzy* /tmp/h2* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/worker*
           sudo rm -rf /tmp/temp* /tmp/test* /tmp/*json /tmp/*txt /tmp/*so /tmp/*lck /tmp/*sh
 
+      - name: 'python-test'
+        timeout-minutes: 20
+        run: |
+          cd pylzy/
+          ./scripts/run_tests.sh
+
+      - name: 'upload coverage badge'
+        uses: exuanbo/actions-deploy-gist@v1
+        if: github.ref == 'refs/heads/master'
+        with:
+          token: ${{ secrets.GIST_SECRET }}
+          gist_id: 0095e900fb0fcbe5575ddc3c717fb65b
+          file_path: pylzy/coverage.svg
+          file_type: binary
+          gist_file_name: ${{ (github.head_ref || github.ref_name) }}-coverage.svg
+
+      - name: 'clean after python-test'
+        run: |
+          cd pylzy/
+          ./scripts/clean.sh
+
       - name: 'install python test env'
         run: |
           eval "$(conda shell.bash hook)" && conda activate py39 && pip install -r lzy/worker/docker/requirements.txt
@@ -41,12 +62,40 @@ jobs:
 
       - name: 'java unit tests and install'
         timeout-minutes: 20
-        run: mvn clean install -DskipTests
+        run: mvn clean install
 
-#   TODO: return tests back
+      - name: 'generate java coverage badge'
+        uses: cicirello/jacoco-badge-generator@v2
+        with:
+          generate-branches-badge: true
+          jacoco-csv-file: coverage/target/site/jacoco-aggregate/jacoco.csv
+          badges-directory: coverage/target/site/jacoco-aggregate
+          generate-coverage-badge: true
+          coverage-badge-filename: jacoco.svg
+          coverage-label: java-coverage
 
-      - name: 'build worker image'
-        timeout-minutes: 20
+      - name: 'upload java coverage badge'
+        uses: exuanbo/actions-deploy-gist@v1
+        if: github.ref == 'refs/heads/master'
+        with:
+          token: ${{ secrets.GIST_SECRET }}
+          gist_id: be651155cb12a8006cecdee948ce1a0a
+          file_path: coverage/target/site/jacoco-aggregate/jacoco.svg
+          file_type: binary
+          gist_file_name: ${{ (github.head_ref || github.ref_name) }}-java-coverage.svg
+
+      - name: 'SchedulerTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=SchedulerTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'WorkflowTest'
+        timeout-minutes: 5
+        run: |
+          cd test && mvn test -Dtest=WorkflowTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
+
+      - name: 'Build worker image'
+        timeout-minutes: 15
         run: |
           BRANCH=${{ (github.head_ref || github.ref_name) }}
           WORKER_BASE_IMAGE=$(deployment/latest-docker-image-on-branches.sh worker-base $BRANCH master)
@@ -57,11 +106,16 @@ jobs:
           docker build --build-arg "WORKER_BASE_TAG=$WORKER_BASE_TAG" -t worker -f lzy/worker/docker/Worker.Dockerfile lzy/worker
 
       - name: 'UserImagePyTest'
-        timeout-minutes: 20
+        timeout-minutes: 10
         run: |
           BRANCH=${{ (github.head_ref || github.ref_name) }}
           USER_IMAGE=$(deployment/latest-docker-image-on-branches.sh user-test $BRANCH master)
           cd test && mvn test -Dtest=UserImagePyTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" -Dscheduler.userTestImage="$USER_IMAGE" && cd ..
+
+      - name: 'PyApiTest'
+        timeout-minutes: 20
+        run: |
+          cd test && mvn test -Dtest=PyApiTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'Clean docker files'
         run: |
