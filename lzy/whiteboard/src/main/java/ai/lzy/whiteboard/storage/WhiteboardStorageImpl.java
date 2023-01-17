@@ -40,12 +40,12 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
     }
 
     @Override
-    public void registerWhiteboard(String userId, Whiteboard whiteboard, Instant ts,
+    public void registerWhiteboard(String userId, Whiteboard whiteboard, Instant registeredAt,
                                    @Nullable TransactionHandle outerTransaction) throws SQLException
     {
         LOG.debug("Inserting whiteboard (userId={},whiteboardId={})", userId, whiteboard.id());
         try (final TransactionHandle transaction = TransactionHandle.getOrCreate(dataSource, outerTransaction)) {
-            insertWhiteboardInfo(userId, whiteboard, ts, transaction);
+            insertWhiteboardInfo(userId, whiteboard, registeredAt, transaction);
             insertFields(whiteboard.id(), whiteboard.fields().values().stream().toList(), transaction);
             insertWhiteboardTags(whiteboard.id(), whiteboard.tags(), transaction);
 
@@ -249,7 +249,7 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                     int index = 0;
                     st.setString(++index, whiteboardId);
                     st.setString(++index, field.name());
-                    String dataSchemeJson = objectMapper.writeValueAsString(toProto(field.schema()));
+                    String dataSchemeJson = objectMapper.writeValueAsString(toProto(field.scheme()));
                     st.setString(++index, dataSchemeJson);
                     st.addBatch();
                 }
