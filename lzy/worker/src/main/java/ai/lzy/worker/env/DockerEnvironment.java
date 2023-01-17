@@ -43,7 +43,7 @@ public class DockerEnvironment implements BaseEnvironment {
             .collect(Collectors.joining("\n\t")));
 
         try {
-            Thread.sleep(300_000);
+            Thread.sleep(3_000);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
