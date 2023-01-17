@@ -22,8 +22,10 @@ import org.apache.logging.log4j.Logger;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
@@ -32,7 +34,6 @@ public final class AllocateVmAction implements Runnable {
     private static final Logger LOG = LogManager.getLogger(AllocateVmAction.class);
     
     private Vm vm;
-    private final boolean restore;
     private final AllocatorDataSource storage;
     private final OperationDao operationsDao;
     private final VmDao vmDao;
@@ -42,6 +43,12 @@ public final class AllocateVmAction implements Runnable {
     private final TunnelAllocator tunnelAllocator;
     private final AllocatorMetrics metrics;
     private String tunnelPodName = null;
+
+    private final List<Supplier<StepResult>> steps = List.of(
+        this::createIamSubject,
+        this::allocateTunnel,
+        this::allocateVm
+    );
 
     public AllocateVmAction(Vm vm, AllocatorDataSource storage, OperationDao operationsDao, VmDao vmDao,
                             ScheduledExecutorService executor, SubjectServiceGrpcClient subjectClient,
@@ -57,77 +64,36 @@ public final class AllocateVmAction implements Runnable {
         this.allocator = allocator;
         this.tunnelAllocator = tunnelAllocator;
         this.metrics = metrics;
-        this.restore = restore;
+
+        if (restore) {
+            LOG.info("Restore VM {} allocation...", vm.toString());
+        }
     }
 
     @Override
     public void run() {
         try {
-            runImpl();
+            if (!validateOp()) {
+                return;
+            }
+
+            if (expireAllocation()) {
+                return;
+            }
+
+            for (var step : steps) {
+                final var stepResult = step.get();
+                switch (stepResult.code()) {
+                    case CONTINUE -> { }
+                    case RESTART -> {
+                        executor.schedule(this, stepResult.delay().toMillis(), TimeUnit.MILLISECONDS);
+                        return;
+                    }
+                    case FINISH -> { return; }
+                }
+            }
         } catch (InjectedFailures.TerminateException e) {
             LOG.error("Terminate action by InjectedFailure exception: {}", e.getMessage());
-        }
-    }
-
-    private void runImpl() {
-        if (restore) {
-            LOG.info("Restore VM {} allocation...", vm.toString());
-        }
-
-        if (!validateOp()) {
-            return;
-        }
-
-        if (vm.allocateState().deadline().isBefore(Instant.now())) {
-            expireAllocation();
-            return;
-        }
-
-        InjectedFailures.failAllocateVm1();
-
-        if (vm.allocateState().vmSubjectId() == null) {
-            if (!createIamSubject()) {
-                return;
-            }
-        }
-
-        InjectedFailures.failAllocateVm3();
-
-        if (vm.proxyV6Address() != null) {
-            if (!allocateTunnel()) {
-                return;
-            }
-        }
-
-        InjectedFailures.failAllocateVm5();
-
-        try {
-            var allocateStarted = allocator.allocate(vm);
-            if (!allocateStarted) {
-                executor.schedule(this, 1, TimeUnit.SECONDS);
-            }
-        } catch (Exception e) {
-            LOG.error("Error during VM {} allocation: {}", vm.vmId(), e.getMessage(), e);
-            metrics.allocationError.inc();
-            var status = e instanceof InvalidConfigurationException
-                ? Status.INVALID_ARGUMENT.withDescription(e.getMessage())
-                : Status.INTERNAL;
-            try {
-                withRetries(LOG, () -> {
-                    try (var tx = TransactionHandle.create(storage)) {
-                        operationsDao.fail(vm.allocOpId(), toProto(status), tx);
-                        vmDao.setStatus(vm.vmId(), Vm.Status.DELETING, tx);
-                        tx.commit();
-                    }
-                });
-            } catch (OperationCompletedException ex) {
-                LOG.error("Cannot fail operation {} (VM {}): already completed", vm.allocOpId(), vm.vmId());
-            } catch (NotFoundException ex) {
-                LOG.error("Cannot fail operation {} (VM {}): not found", vm.allocOpId(), vm.vmId());
-            } catch (Exception ex) {
-                LOG.error("Cannot fail operation {} (VM {}): {}", vm.allocOpId(), vm.vmId(), e.getMessage());
-                executor.schedule(this, 1, TimeUnit.SECONDS);
-            }
         }
     }
 
@@ -156,7 +122,11 @@ public final class AllocateVmAction implements Runnable {
         }
     }
 
-    private void expireAllocation() {
+    private boolean expireAllocation() {
+        if (vm.allocateState().deadline().isAfter(Instant.now())) {
+            return false;
+        }
+
         LOG.warn("Allocation operation {} (VM {}) is expired", vm.allocOpId(), vm.vmId());
         metrics.allocationError.inc();
         metrics.allocationTimeout.inc();
@@ -177,9 +147,16 @@ public final class AllocateVmAction implements Runnable {
                 vm.allocOpId(), vm.vmId(), e.getMessage());
             executor.schedule(this, 1, TimeUnit.SECONDS);
         }
+        return true;
     }
 
-    private boolean createIamSubject() {
+    private StepResult createIamSubject() {
+        InjectedFailures.failAllocateVm1();
+
+        if (vm.allocateState().vmSubjectId() != null) {
+            return StepResult.CONTINUE;
+        }
+
         var ottDeadline = vm.allocateState().startedAt().plus(Duration.ofMinutes(30));
         Subject vmSubj;
         try {
@@ -193,8 +170,7 @@ public final class AllocateVmAction implements Runnable {
             LOG.info("Create VM {} IAM subject {} with OTT credentials", vm.vmId(), vmSubj.id());
         } catch (StatusRuntimeException e) {
             LOG.error("Cannot create IAM subject for VM {}: {}. Retry later...", vm.vmId(), e.getMessage());
-            executor.schedule(this, 1, TimeUnit.SECONDS);
-            return false;
+            return StepResult.RESTART.after(Duration.ofSeconds(1));
         }
 
         InjectedFailures.failAllocateVm2();
@@ -205,18 +181,23 @@ public final class AllocateVmAction implements Runnable {
         } catch (Exception e) {
             LOG.error("Cannot save IAM subject {} for VM {}: {}. Retry later...",
                 vmSubj.id(), vm.vmId(), e.getMessage());
-            executor.schedule(this, 1, TimeUnit.SECONDS);
-            return true;
+            return StepResult.RESTART.after(Duration.ofSeconds(1));
         }
 
         return updateOperationProgress();
     }
 
-    private boolean allocateTunnel() {
+    private StepResult allocateTunnel() {
+        InjectedFailures.failAllocateVm3();
+
+        if (vm.proxyV6Address() == null) {
+            return StepResult.CONTINUE;
+        }
+
         if (vm.allocateState().tunnelPodName() != null) {
             LOG.info("Found existing tunnel pod {} with address {} for VM {}",
                 vm.allocateState().tunnelPodName(), vm.proxyV6Address(), vm.vmId());
-            return true;
+            return StepResult.CONTINUE;
         }
 
         if (tunnelPodName == null) {
@@ -236,16 +217,18 @@ public final class AllocateVmAction implements Runnable {
                             tx.commit();
                         }
                     });
+                    return StepResult.FINISH;
                 } catch (OperationCompletedException ex) {
                     LOG.error("Cannot fail operation {} (VM {}): already completed", vm.allocOpId(), vm.vmId());
+                    return StepResult.FINISH;
                 } catch (NotFoundException ex) {
                     LOG.error("Cannot fail operation {} (VM {}): not found", vm.allocOpId(), vm.vmId());
+                    return StepResult.FINISH;
                 } catch (Exception ex) {
                     LOG.error("Cannot fail operation {} (VM {}): {}. Retry later...",
                         vm.allocOpId(), vm.vmId(), ex.getMessage());
-                    executor.schedule(this, 1, TimeUnit.SECONDS);
+                    return StepResult.RESTART.after(Duration.ofSeconds(1));
                 }
-                return false;
             }
         }
 
@@ -257,27 +240,88 @@ public final class AllocateVmAction implements Runnable {
         } catch (Exception e) {
             LOG.error("Cannot save tunnel pod name {} for VM {}: {}. Retry later...",
                 tunnelPodName, vm.vmId(), e.getMessage());
-            executor.schedule(this, 1, TimeUnit.SECONDS);
-            return false;
+            return StepResult.RESTART.after(Duration.ofSeconds(1));
         }
 
         return updateOperationProgress();
     }
 
-    private boolean updateOperationProgress() {
+    private StepResult allocateVm() {
+        InjectedFailures.failAllocateVm5();
+
+        try {
+            var allocateStarted = allocator.allocate(vm);
+            if (!allocateStarted) {
+                return StepResult.RESTART.after(Duration.ofSeconds(1));
+            }
+            return StepResult.FINISH;
+        } catch (Exception e) {
+            LOG.error("Error during VM {} allocation: {}", vm.vmId(), e.getMessage(), e);
+            metrics.allocationError.inc();
+            var status = e instanceof InvalidConfigurationException
+                ? Status.INVALID_ARGUMENT.withDescription(e.getMessage())
+                : Status.INTERNAL;
+            try {
+                withRetries(LOG, () -> {
+                    try (var tx = TransactionHandle.create(storage)) {
+                        operationsDao.fail(vm.allocOpId(), toProto(status), tx);
+                        vmDao.setStatus(vm.vmId(), Vm.Status.DELETING, tx);
+                        tx.commit();
+                    }
+                });
+                return StepResult.FINISH;
+            } catch (OperationCompletedException ex) {
+                LOG.error("Cannot fail operation {} (VM {}): already completed", vm.allocOpId(), vm.vmId());
+                return StepResult.FINISH;
+            } catch (NotFoundException ex) {
+                LOG.error("Cannot fail operation {} (VM {}): not found", vm.allocOpId(), vm.vmId());
+                return StepResult.FINISH;
+            } catch (Exception ex) {
+                LOG.error("Cannot fail operation {} (VM {}): {}", vm.allocOpId(), vm.vmId(), e.getMessage());
+                return StepResult.RESTART.after(Duration.ofSeconds(1));
+            }
+        }
+    }
+
+    private StepResult updateOperationProgress() {
         try {
             withRetries(LOG, () -> operationsDao.update(vm.allocOpId(), null));
-            return true;
+            return StepResult.CONTINUE;
         } catch (OperationCompletedException e) {
             LOG.error("Cannot update operation {} (VM {}): already completed", vm.allocOpId(), vm.vmId());
-            return false;
+            return StepResult.FINISH;
         } catch (NotFoundException e) {
             LOG.error("Cannot update operation {} (VM {}): not found", vm.allocOpId(), vm.vmId());
-            return false;
+            return StepResult.FINISH;
         } catch (Exception e) {
             LOG.error("Cannot update operation {} (VM {}): {}", vm.allocOpId(), vm.vmId(), e.getMessage());
-            executor.schedule(this, 1, TimeUnit.SECONDS);
-            return false;
+            return StepResult.RESTART.after(Duration.ofSeconds(1));
+        }
+    }
+
+    private record StepResult(
+        Code code,
+        Duration delay
+    ) {
+        public enum Code {
+            CONTINUE,
+            RESTART,
+            FINISH
+        }
+
+        public static final StepResult CONTINUE = new StepResult(Code.CONTINUE, null);
+        public static final StepResult RESTART = new StepResult(Code.RESTART, Duration.ofSeconds(1));
+        public static final StepResult FINISH = new StepResult(Code.FINISH, null);
+
+        public StepResult after(Duration delay) {
+            assert code == Code.RESTART;
+            return new StepResult(code, delay);
+        }
+
+        @Override
+        public Duration delay() {
+            assert code == Code.RESTART;
+            return delay;
         }
     }
 }
