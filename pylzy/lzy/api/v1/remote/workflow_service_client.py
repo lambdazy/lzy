@@ -1,3 +1,4 @@
+import asyncio
 from dataclasses import dataclass
 from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Tuple, Union
 
@@ -7,22 +8,24 @@ from grpc.aio import Channel
 from ai.lzy.v1.common.storage_pb2 import StorageConfig
 from ai.lzy.v1.workflow.workflow_pb2 import Graph, VmPoolSpec
 from ai.lzy.v1.workflow.workflow_service_pb2 import (
-    AttachWorkflowRequest,
-    CreateWorkflowRequest,
-    CreateWorkflowResponse,
-    DeleteWorkflowRequest,
+    StartExecutionRequest,
+    StartExecutionResponse,
     ExecuteGraphRequest,
     ExecuteGraphResponse,
-    FinishWorkflowRequest,
-    GetAvailablePoolsRequest,
-    GetAvailablePoolsResponse,
     GraphStatusRequest,
     GraphStatusResponse,
+    StopGraphRequest,
+    FinishExecutionRequest,
+    FinishExecutionResponse,
+    GetAvailablePoolsRequest,
+    GetAvailablePoolsResponse,
     ReadStdSlotsRequest,
-    ReadStdSlotsResponse,
-    StopGraphRequest
+    ReadStdSlotsResponse
 )
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceStub
+from ai.lzy.v1.long_running.operation_pb2_grpc import LongRunningServiceStub
+from ai.lzy.v1.long_running.operation_pb2 import Operation
+from ai.lzy.v1.long_running.operation_pb2 import GetOperationRequest
 from lzy.api.v1.remote.model import converter
 from lzy.api.v1.remote.model.converter.storage_creds import to
 from lzy.storage.api import S3Credentials, Storage, StorageCredentials
@@ -56,7 +59,7 @@ GraphStatus = Union[Waiting, Executing, Completed, Failed]
 
 
 def _create_storage_endpoint(
-    response: CreateWorkflowResponse,
+    response: StartExecutionResponse,
 ) -> Storage:
     error_msg = "no storage credentials provided"
 
@@ -96,13 +99,15 @@ class WorkflowServiceClient:
         )
         await channel.channel_ready()
         stub = LzyWorkflowServiceStub(channel)
-        return WorkflowServiceClient(stub, channel)
+        ops_stub = LongRunningServiceStub(channel)
+        return WorkflowServiceClient(stub, ops_stub, channel)
 
-    def __init__(self, stub: LzyWorkflowServiceStub, channel: Channel):
+    def __init__(self, stub: LzyWorkflowServiceStub, ops_stub: LongRunningServiceStub, channel: Channel):
         self.__stub = stub
+        self.__ops_stub = ops_stub
         self.__channel = channel
 
-    async def create_workflow(
+    async def start_execution(
         self, name: str, storage: Optional[Storage] = None
     ) -> Tuple[str, Optional[Storage]]:
         s: Optional[StorageConfig] = None
@@ -113,8 +118,8 @@ class WorkflowServiceClient:
             else:
                 s = StorageConfig(uri=storage.uri, azure=to(storage.credentials))
 
-        res: CreateWorkflowResponse = await self.__stub.CreateWorkflow(
-            CreateWorkflowRequest(workflowName=name, snapshotStorage=s)
+        res: StartExecutionResponse = await self.__stub.StartExecution(
+            StartExecutionRequest(workflowName=name, snapshotStorage=s)
         )
         exec_id = res.executionId
 
@@ -123,33 +128,29 @@ class WorkflowServiceClient:
 
         return exec_id, None
 
-    async def attach_workflow(
-        self,
-        name: str,
-        execution_id: str,
-    ):
-        request = AttachWorkflowRequest(
-            workflowName=name,
-            executionId=execution_id,
-        )
-        await self.__stub.AttachWorkflow(request)
+    async def _await_op_done(self, op_id: str) -> FinishExecutionResponse:
+        while True:
+            op: Operation = await self.__ops_stub.Get(GetOperationRequest(operation_id=op_id))
+            if op is None:
+                raise RuntimeError('Cannot wait finish portal operation: operation not found')
+            if op.done:
+                result = FinishExecutionRequest()
+                op.response.Unpack(result)
+                return result
+            # sleep 300 ms
+            await asyncio.sleep(0.3)
 
-    async def finish_workflow(
+    async def finish_execution(
         self,
-        workflow_name: str,
         execution_id: str,
         reason: str,
     ) -> None:
-        request = FinishWorkflowRequest(
-            workflowName=workflow_name,
+        request = FinishExecutionRequest(
             executionId=execution_id,
             reason=reason,
         )
-        await self.__stub.FinishWorkflow(request)
-
-    async def delete_workflow(self, name: str) -> None:
-        request = DeleteWorkflowRequest(workflowName=name)
-        await self.__stub.DeleteWorkflow(request)
+        finish_op: Operation = await self.__stub.FinishExecution(request)
+        await self._await_op_done(finish_op.id)
 
     async def read_std_slots(self, execution_id: str) -> AsyncIterator[Message]:
         stream: AsyncIterable[ReadStdSlotsResponse] = self.__stub.ReadStdSlots(

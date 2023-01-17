@@ -5,6 +5,7 @@ import ai.lzy.test.ApplicationContextRule;
 import ai.lzy.test.ContextRule;
 import ai.lzy.test.impl.v2.PythonContext;
 import ai.lzy.worker.env.CondaEnvironment;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -20,6 +21,11 @@ public class PyApiTest {
     static {
         WorkflowService.PEEK_RANDOM_PORTAL_PORTS = true;  // To recreate portals for all wfs
         CondaEnvironment.RECONFIGURE_CONDA = false;  // To optimize conda configuration
+    }
+
+    @Test
+    public void testTwoExecutionOneWorkflow() {
+        pythonContext.context().evalAndAssertScenarioResult("two_execution_one_wf");
     }
 
     @Test
