@@ -9,7 +9,7 @@ from pydantic import ValidationError
 from lzy.api.v1 import Lzy, op
 from lzy.api.v1.signatures import FuncSignature
 from lzy.api.v1.utils.proxy_adapter import materialized
-from tests.api.v1.mocks import RuntimeMock, StorageRegistryMock
+from mocks import RuntimeMock, StorageRegistryMock
 
 
 @op

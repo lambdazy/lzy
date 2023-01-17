@@ -46,7 +46,8 @@ class LzyWorkflow:
         auto_py_env: PyEnv,
         *,
         eager: bool = False,
-        interactive: bool = True
+        interactive: bool = True,
+        dvc: bool = False,
     ):
         self.__name = name
         self.__eager = eager
@@ -59,6 +60,7 @@ class LzyWorkflow:
         self.__provisioning = provisioning
         self.__auto_py_env = auto_py_env
         self.__interactive = interactive
+        self.__dvc = dvc
         self.__whiteboards: List[str] = []
         self.__snapshot: Optional[Snapshot] = None
 
@@ -127,6 +129,9 @@ class LzyWorkflow:
                 LzyEventLoop.run_async(self._barrier())
         finally:
             self.__destroy()
+            if self.__dvc:
+                from lzy.api.v1.dvc import generate_dvc_files  # TODO: fix
+                generate_dvc_files(self)
 
     def __destroy(self):
         try:
