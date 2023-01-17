@@ -11,7 +11,8 @@ from serialzy.types import get_type
 
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, WhiteboardField, Storage
-from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy, get_proxy_entry_id, lzy_proxy
+from lzy.api.v1.utils.entry import has_entry_id, get_entry_id, attach_entry_id
+from lzy.api.v1.utils.proxy_adapter import lzy_proxy
 from lzy.proxy.result import Just
 from lzy.utils.event_loop import LzyEventLoop
 
@@ -146,9 +147,8 @@ class WritableWhiteboard:
             raise AttributeError("Whiteboard field can be assigned only once")
 
         storage_uri = f"{self.__model.storage.uri}/{key}"
-        proxy = is_lzy_proxy(value)
-        if proxy:
-            entry = self.__workflow.snapshot.get(get_proxy_entry_id(value))
+        if has_entry_id(value):
+            entry = self.__workflow.snapshot.get(get_entry_id(value))
             if entry.id in self.__workflow.filled_entry_ids:
                 LzyEventLoop.run_async(self.__workflow.owner.storage_client.copy(entry.storage_uri, storage_uri))
             else:
@@ -156,9 +156,7 @@ class WritableWhiteboard:
         else:
             entry = self.__workflow.snapshot.create_entry(self.__model.name + "." + key, get_type(value), storage_uri)
             LzyEventLoop.run_async(self.__workflow.snapshot.put_data(entry_id=entry.id, data=value))
-            # noinspection PyTypeChecker
-            # TODO: there is no need to create lazy proxy from value. We only need to attach entry id
-            value = lzy_proxy(entry.id, (type(value),), self.__workflow, Just(value))
+            attach_entry_id(value, entry.id)
 
         self.__fields_assigned.add(key)
         self.__fields[key] = value
