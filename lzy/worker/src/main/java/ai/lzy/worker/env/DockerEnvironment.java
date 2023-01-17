@@ -7,7 +7,10 @@ import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.ExecCreateCmd;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.PullImageResultCallback;
-import com.github.dockerjava.api.model.*;
+import com.github.dockerjava.api.model.Frame;
+import com.github.dockerjava.api.model.HostConfig;
+import com.github.dockerjava.api.model.Mount;
+import com.github.dockerjava.api.model.MountType;
 import com.github.dockerjava.core.DockerClientBuilder;
 import org.apache.commons.io.output.NullOutputStream;
 import org.apache.logging.log4j.LogManager;
@@ -51,9 +54,11 @@ public class DockerEnvironment implements BaseEnvironment {
         final List<Mount> dockerMounts = new ArrayList<>();
         config.mounts().forEach(m -> {
             var mount = new Mount().withType(MountType.BIND).withSource(m.source()).withTarget(m.target());
+            /*
             if (m.isRshared()) {
                 mount.withBindOptions(new BindOptions().withPropagation(BindPropagation.R_SHARED));
             }
+            */
             dockerMounts.add(mount);
         });
 
@@ -62,7 +67,6 @@ public class DockerEnvironment implements BaseEnvironment {
 
         final CreateContainerCmd createContainerCmd = DOCKER.createContainerCmd(sourceImage)
             .withHostConfig(hostConfig)
-            .withUser("root")
             .withAttachStdout(true)
             .withAttachStderr(true);
 
