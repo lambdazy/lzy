@@ -42,12 +42,6 @@ public class DockerEnvironment implements BaseEnvironment {
             .map(it -> it.source() + " -> " + it.target() + (it.isRshared() ? " (R_SHARED)" : ""))
             .collect(Collectors.joining("\n\t")));
 
-        try {
-            Thread.sleep(3_000);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-
         final List<Mount> dockerMounts = new ArrayList<>();
         config.mounts().forEach(m -> {
             var mount = new Mount().withType(MountType.BIND).withSource(m.source()).withTarget(m.target());
