@@ -154,8 +154,6 @@ public class PortalTestBase {
         destroyChannel("portal:stdout");
         destroyChannel("portal:stderr");
 
-        channelManagerTestContext.after();
-
         portalApiChannel.shutdown();
         portalSlotsChannel.shutdown();
 
@@ -166,6 +164,8 @@ public class PortalTestBase {
         workers = null;
 
         portal.stop();
+
+        channelManagerTestContext.after();
         iamTestContext.after();
     }
 
