@@ -62,6 +62,7 @@ public class DockerEnvironment implements BaseEnvironment {
 
         final CreateContainerCmd createContainerCmd = DOCKER.createContainerCmd(sourceImage)
             .withHostConfig(hostConfig)
+            .withUser("root")
             .withAttachStdout(true)
             .withAttachStderr(true);
 
