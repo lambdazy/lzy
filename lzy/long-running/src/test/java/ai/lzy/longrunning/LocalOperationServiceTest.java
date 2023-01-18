@@ -89,8 +89,7 @@ public class LocalOperationServiceTest {
 
     @Test
     public void awaitTest() throws InterruptedException {
-        var op = opService.registerOperation(Operation.create(
-            "test", "simple-op", null));
+        var op = opService.registerOperation(Operation.create("test", "simple-op", null, null));
         var syncLabel = new CountDownLatch(1);
         var observer = new BlockingWaitThread(op.id(), Duration.ofSeconds(5), syncLabel);
 

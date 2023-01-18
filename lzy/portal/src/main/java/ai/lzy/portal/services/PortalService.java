@@ -84,7 +84,7 @@ public class PortalService extends LzyPortalImplBase {
             return;
         }
 
-        var op = Operation.create(portalId, "Slots status", idempotencyKey, null);
+        var op = Operation.create(portalId, "Slots status", null, idempotencyKey, null);
         var opSnapshot = operationService.registerOperation(op);
 
         if (op.id().equals(opSnapshot.id())) {
@@ -144,7 +144,7 @@ public class PortalService extends LzyPortalImplBase {
             return;
         }
 
-        var op = Operation.create(portalId, "Open slots", idempotencyKey, Any.pack(Empty.getDefaultInstance()));
+        var op = Operation.create(portalId, "Open slots", null, idempotencyKey, Any.pack(Empty.getDefaultInstance()));
         var opSnapshot = operationService.registerOperation(op);
         var snapshotId = opSnapshot.id();
 
@@ -221,7 +221,7 @@ public class PortalService extends LzyPortalImplBase {
             return;
         }
 
-        var op = Operation.create(portalId, "Finish portal", idempotencyKey, null);
+        var op = Operation.create(portalId, "Finish portal", null, idempotencyKey, null);
         var opSnapshot = operationService.registerOperation(op);
 
         if (op.id().equals(opSnapshot.id())) {
