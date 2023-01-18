@@ -111,7 +111,8 @@ public class SlotsService {
             LOG.info("LzySlotsApi::createSlot: taskId={}, slotName={}: {}.",
                 request.getTaskId(), request.getSlot().getName(), JsonUtils.printSingleLine(request));
 
-            var op = Operation.create(agentId, "CreateSlot: " + request.getSlot().getName(), idempotencyKey, null);
+            var op = Operation.create(agentId, "CreateSlot: " + request.getSlot().getName(), /* deadline */ null,
+                idempotencyKey, null);
             var opSnapshot = operationService.registerOperation(op);
 
             if (op.id().equals(opSnapshot.id())) {
@@ -171,10 +172,13 @@ public class SlotsService {
             }
 
             if (slot instanceof LzyInputSlot inputSlot) {
-                var op = Operation.create(agentId, "ConnectSlot: %s -> %s".formatted(
-                    ProtoPrinter.printer().printToString(request.getFrom()),
-                    ProtoPrinter.printer().printToString(request.getTo())
-                ), null);
+                var op = Operation.create(
+                    agentId,
+                    "ConnectSlot: %s -> %s".formatted(
+                        ProtoPrinter.printer().printToString(request.getFrom()),
+                        ProtoPrinter.printer().printToString(request.getTo())),
+                    /* deadline */ null,
+                    /* meta */ null);
                 OperationSnapshot opSnapshot = operationService.registerOperation(op);
 
                 response.onNext(opSnapshot.toProto());
@@ -239,7 +243,7 @@ public class SlotsService {
 
             final SlotInstance slotInstance = ProtoConverter.fromProto(request.getSlotInstance());
 
-            var op = Operation.create(agentId, "DisconnectSlot: " + slotInstance.name(), idempotencyKey, null);
+            var op = Operation.create(agentId, "DisconnectSlot: " + slotInstance.name(), null, idempotencyKey, null);
             var opSnapshot = operationService.registerOperation(op);
 
             if (op.id().equals(opSnapshot.id())) {
@@ -310,7 +314,7 @@ public class SlotsService {
 
             final SlotInstance slotInstance = ProtoConverter.fromProto(request.getSlotInstance());
 
-            var op = Operation.create(agentId, "DestroySlot: " + slotInstance.name(), idempotencyKey, null);
+            var op = Operation.create(agentId, "DestroySlot: " + slotInstance.name(), null, idempotencyKey, null);
             var opSnapshot = operationService.registerOperation(op);
 
             if (op.id().equals(opSnapshot.id())) {
