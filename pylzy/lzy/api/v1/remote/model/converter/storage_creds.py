@@ -24,8 +24,8 @@ def _to(credentials: StorageCredentials) -> grpc_STORAGE_CREDS:
 def _(credentials: S3Credentials) -> grpc_STORAGE_CREDS:
     return storage_pb2.S3Credentials(
         endpoint=credentials.endpoint,
-        accessToken=credentials.access_token,
-        secretToken=credentials.secret_token,
+        accessToken=credentials.access_key_id,
+        secretToken=credentials.secret_access_key,
     )
 
 
