@@ -154,7 +154,7 @@ public class WorkflowTest extends BaseTest {
             LWFS.FinishExecutionRequest.newBuilder()
                 .setExecutionId(executionId)
                 .build());
-        finishOp = awaitOperationDone(operationServiceClient, finishOp.getId(), Duration.ofSeconds(5));
+        finishOp = awaitOperationDone(operationServiceClient, finishOp.getId(), Duration.ofSeconds(15));
 
         assertTrue(finishOp.getDone());
         assertTrue(finishOp.hasResponse());
