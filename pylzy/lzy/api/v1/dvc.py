@@ -28,7 +28,7 @@ def generate_dvc_files(wf: LzyWorkflow) -> None:
 
     args = []
     intermediate_entry_ids = set()
-    for call in wf.owner.runtime.calls:
+    for call in wf.calls:
         func = call.signature.func
 
         for i, (arg_value, arg_entry_id) in enumerate(zip(call.args, call.arg_entry_ids)):

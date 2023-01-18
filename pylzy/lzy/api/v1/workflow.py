@@ -53,6 +53,7 @@ class LzyWorkflow:
         self.__eager = eager
         self.__owner = owner
         self.__call_queue: List["LzyCall"] = []
+        self.__call_list: List["LzyCall"] = []
         self.__whiteboards_links: Dict[str, WbRef] = {}
         self.__started = False
 
@@ -94,8 +95,13 @@ class LzyWorkflow:
     def is_interactive(self) -> bool:
         return self.__interactive
 
+    @property
+    def calls(self) -> List["LzyCall"]:
+        return self.__call_list
+
     def register_call(self, call: "LzyCall") -> Any:
         self.__call_queue.append(call)
+        self.__call_list.append(call)
         if self.__eager:
             self.barrier()
 
