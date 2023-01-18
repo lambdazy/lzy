@@ -1,6 +1,6 @@
 package ai.lzy.allocator.alloc;
 
-import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
+import ai.lzy.allocator.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.v1.VmAllocatorApi.AllocateResponse;

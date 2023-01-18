@@ -4,6 +4,7 @@ import java.time.Instant;
 
 public record DiskOperation(
     String opId,
+    String descr,
     Instant startedAt,
     Instant deadline,
     String ownerInstanceId,
@@ -18,6 +19,6 @@ public record DiskOperation(
     }
 
     public DiskOperation withDeferredAction(Runnable deferredAction) {
-        return new DiskOperation(opId, startedAt, deadline, ownerInstanceId, diskOpType, state, deferredAction);
+        return new DiskOperation(opId, descr, startedAt, deadline, ownerInstanceId, diskOpType, state, deferredAction);
     }
 }

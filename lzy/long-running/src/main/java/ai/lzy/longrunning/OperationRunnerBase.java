@@ -1,13 +1,13 @@
-package ai.lzy.allocator.alloc;
+package ai.lzy.longrunning;
 
-import ai.lzy.allocator.model.debug.InjectedFailures;
-import ai.lzy.allocator.storage.AllocatorDataSource;
-import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationCompletedException;
 import ai.lzy.longrunning.dao.OperationDao;
+import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.NotFoundException;
+import com.google.protobuf.Any;
 import io.grpc.Status;
+import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -26,12 +26,12 @@ public abstract class OperationRunnerBase implements Runnable {
     private final Logger log = LogManager.getLogger(getClass());
     private final String id;
     private final String descr;
-    private final AllocatorDataSource storage;
+    private final Storage storage;
     private final OperationDao operationsDao;
     private final ScheduledExecutorService executor;
     private Operation op = null;
 
-    protected OperationRunnerBase(String id, String descr, AllocatorDataSource storage, OperationDao operationsDao,
+    protected OperationRunnerBase(String id, String descr, Storage storage, OperationDao operationsDao,
                                   ScheduledExecutorService executor)
     {
         this.id = id;
@@ -63,8 +63,12 @@ public abstract class OperationRunnerBase implements Runnable {
                     case FINISH -> { return; }
                 }
             }
-        } catch (InjectedFailures.TerminateException e) {
-            log.error("Terminate action by InjectedFailure exception: {}", e.getMessage());
+        } catch (Error e) {
+            if (isInjectedError(e)) {
+                log.error("Terminate action by InjectedFailure exception: {}", e.getMessage());
+            } else {
+                throw e;
+            }
         }
     }
 
@@ -134,6 +138,10 @@ public abstract class OperationRunnerBase implements Runnable {
         }
     }
 
+    protected boolean isInjectedError(Error e) {
+        return false;
+    }
+
     protected abstract List<Supplier<StepResult>> steps();
 
     protected final Logger log() {
@@ -148,6 +156,10 @@ public abstract class OperationRunnerBase implements Runnable {
 
     protected final void failOperation(Status status, TransactionHandle tx) throws SQLException {
         operationsDao.fail(id, toProto(status), tx);
+    }
+
+    protected final void completeOperation(@Nullable Any meta, Any response, TransactionHandle tx) throws SQLException {
+        operationsDao.complete(id, meta, response, tx);
     }
 
     public record StepResult(

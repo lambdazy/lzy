@@ -1,8 +1,8 @@
 package ai.lzy.allocator.alloc.impl.kuber;
 
 import ai.lzy.allocator.AllocatorAgent;
-import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.configs.ServiceConfig;
+import ai.lzy.allocator.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.allocator.vmpool.ClusterRegistry;

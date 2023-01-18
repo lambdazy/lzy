@@ -140,6 +140,7 @@ public class DiskOpDao {
     private static DiskOperation readDiskOp(ResultSet rs) throws SQLException {
         return new DiskOperation(
             rs.getString(1),
+            "",
             rs.getTimestamp(2).toInstant(),
             rs.getTimestamp(3).toInstant(),
             rs.getString(4),

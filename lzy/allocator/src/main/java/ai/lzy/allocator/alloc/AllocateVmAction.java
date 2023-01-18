@@ -1,8 +1,8 @@
 package ai.lzy.allocator.alloc;
 
 import ai.lzy.allocator.alloc.dao.VmDao;
-import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.alloc.impl.kuber.TunnelAllocator;
+import ai.lzy.allocator.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.storage.AllocatorDataSource;
@@ -11,6 +11,7 @@ import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
+import ai.lzy.longrunning.OperationRunnerBase;
 import ai.lzy.longrunning.dao.OperationCompletedException;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
@@ -62,6 +63,11 @@ public final class AllocateVmAction extends OperationRunnerBase {
     }
 
     @Override
+    protected boolean isInjectedError(Error e) {
+        return e instanceof InjectedFailures.TerminateException;
+    }
+
+    @Override
     protected void notifyExpired() {
         metrics.allocationError.inc();
         metrics.allocationTimeout.inc();
@@ -92,7 +98,7 @@ public final class AllocateVmAction extends OperationRunnerBase {
             log().info("Create VM {} IAM subject {} with OTT credentials", vm.vmId(), vmSubj.id());
         } catch (StatusRuntimeException e) {
             log().error("Cannot create IAM subject for VM {}: {}. Retry later...", vm.vmId(), e.getMessage());
-            return StepResult.RESTART.after(Duration.ofSeconds(1));
+            return StepResult.RESTART;
         }
 
         InjectedFailures.failAllocateVm2();
@@ -103,7 +109,7 @@ public final class AllocateVmAction extends OperationRunnerBase {
         } catch (Exception e) {
             log().error("Cannot save IAM subject {} for VM {}: {}. Retry later...",
                 vmSubj.id(), vm.vmId(), e.getMessage());
-            return StepResult.RESTART.after(Duration.ofSeconds(1));
+            return StepResult.RESTART;
         }
 
         return updateOperationProgress();
@@ -146,7 +152,7 @@ public final class AllocateVmAction extends OperationRunnerBase {
                 } catch (Exception ex) {
                     log().error("Cannot fail operation {} (VM {}): {}. Retry later...",
                         vm.allocOpId(), vm.vmId(), ex.getMessage());
-                    return StepResult.RESTART.after(Duration.ofSeconds(1));
+                    return StepResult.RESTART;
                 }
             }
         }
@@ -159,7 +165,7 @@ public final class AllocateVmAction extends OperationRunnerBase {
         } catch (Exception e) {
             log().error("Cannot save tunnel pod name {} for VM {}: {}. Retry later...",
                 tunnelPodName, vm.vmId(), e.getMessage());
-            return StepResult.RESTART.after(Duration.ofSeconds(1));
+            return StepResult.RESTART;
         }
 
         return updateOperationProgress();
@@ -171,7 +177,7 @@ public final class AllocateVmAction extends OperationRunnerBase {
         try {
             var allocateStarted = allocator.allocate(vm);
             if (!allocateStarted) {
-                return StepResult.RESTART.after(Duration.ofSeconds(1));
+                return StepResult.RESTART;
             }
             return StepResult.FINISH;
         } catch (Exception e) {
@@ -197,7 +203,7 @@ public final class AllocateVmAction extends OperationRunnerBase {
                 return StepResult.FINISH;
             } catch (Exception ex) {
                 log().error("Cannot fail operation {} (VM {}): {}", vm.allocOpId(), vm.vmId(), e.getMessage());
-                return StepResult.RESTART.after(Duration.ofSeconds(1));
+                return StepResult.RESTART;
             }
         }
     }
