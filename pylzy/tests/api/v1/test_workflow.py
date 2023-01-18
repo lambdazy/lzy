@@ -1,7 +1,7 @@
 import asyncio
 import os
 import uuid
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Tuple
 from unittest import TestCase, skip
 
 # noinspection PyPackageRequirements
@@ -78,6 +78,50 @@ class LzyWorkflowTests(TestCase):
             some_list = [1, 2, 3]
             result = list2list(some_list)
             self.assertEqual([str(i) for i in some_list], result)
+
+    def test_tuple_type(self):
+        @op
+        def returns_tuple() -> Tuple[str, int]:
+            return "str", 42
+
+        with self.lzy.workflow(self.workflow_name):
+            a, b = returns_tuple()
+
+        self.assertEqual("str", a)
+        self.assertEqual(42, b)
+
+    def test_tuple_type_of_lists(self):
+        @op
+        def returns_tuple() -> Tuple[List, List]:
+            return [1], [2]
+
+        with self.lzy.workflow(self.workflow_name):
+            a, b = returns_tuple()
+
+        self.assertEqual([1], a)
+        self.assertEqual([2], b)
+
+    def test_tuple_type_of_typed_lists(self):
+        @op
+        def returns_tuple() -> Tuple[List[int], List[int]]:
+            return [1], [2]
+
+        with self.lzy.workflow(self.workflow_name):
+            a, b = returns_tuple()
+
+        self.assertEqual([1], a)
+        self.assertEqual([2], b)
+
+    def test_tuple_type_short(self):
+        @op
+        def returns_tuple() -> (str, int):
+            return "str", 42
+
+        with self.lzy.workflow(self.workflow_name):
+            a, b = returns_tuple()
+
+        self.assertEqual("str", a)
+        self.assertEqual(42, b)
 
     def test_optional_return(self):
         @op
