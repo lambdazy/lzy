@@ -18,7 +18,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class WorkflowTest {
-    static final Logger LOG = LogManager.getLogger(SchedulerTest.class);
+    static final Logger LOG = LogManager.getLogger(WorkflowTest.class);
 
     @Rule
     public final ApplicationContextRule ctx = new ApplicationContextRule();

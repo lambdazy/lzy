@@ -117,4 +117,14 @@ public class Utils {
             throw new RuntimeException(e);
         }
     }
+
+    public static void createFolder(Path path) {
+        if (!Files.exists(path)) {
+            try {
+                Files.createDirectories(path);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
 }

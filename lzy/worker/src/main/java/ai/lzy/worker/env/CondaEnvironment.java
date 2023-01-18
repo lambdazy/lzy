@@ -99,7 +99,10 @@ public class CondaEnvironment implements AuxEnvironment {
                 }
 
                 LOG.info("CondaEnvironment::installPyenv trying to install pyenv");
-                File condaFile = File.createTempFile("conda", ".yaml");
+
+                Path condaPath = Path.of(resourcesPath, UUID.randomUUID().toString());
+                Files.createDirectories(condaPath);
+                final File condaFile = Files.createFile(Path.of(condaPath.toString(), "conda.yaml")).toFile();
 
                 try (FileWriter file = new FileWriter(condaFile.getAbsolutePath())) {
                     file.write(pythonEnv.yaml());
@@ -174,8 +177,8 @@ public class CondaEnvironment implements AuxEnvironment {
 
     private LzyProcess execInEnv(String command, String[] envp) {
         LOG.info("Executing command " + command);
-        String[] bashCmd = new String[] {"bash", "-c", "eval \"$(conda shell.bash hook)\" && conda activate "
-            + envName + " && " + command};
+        String[] bashCmd = new String[] {"bash", "-c", "eval \"$(conda shell.bash hook)\" " +
+            "&& conda activate " + envName + " && " + command};
         return baseEnv.runProcess(bashCmd, envp);
     }
 

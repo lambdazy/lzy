@@ -33,7 +33,7 @@ jobs:
         run: |
           cd pylzy/
           ./scripts/run_tests.sh
-         
+
       - name: 'upload coverage badge'
         uses: exuanbo/actions-deploy-gist@v1
         if: github.ref == 'refs/heads/master'
@@ -43,12 +43,12 @@ jobs:
           file_path: pylzy/coverage.svg
           file_type: binary
           gist_file_name: ${{ (github.head_ref || github.ref_name) }}-coverage.svg
-      
+
       - name: 'clean after python-test'
         run: |
           cd pylzy/
           ./scripts/clean.sh
-      
+
       - name: 'install python test env'
         run: |
           eval "$(conda shell.bash hook)" && conda activate py39 && pip install -r lzy/worker/docker/requirements.txt
@@ -94,24 +94,24 @@ jobs:
         run: |
           cd test && mvn test -Dtest=WorkflowTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
-#      - name: 'build worker image'
-#        timeout-minutes: 15
-#        run: |
-#          BRANCH=${{ (github.head_ref || github.ref_name) }}
-#          WORKER_BASE_IMAGE=$(deployment/latest-docker-image-on-branches.sh lzy-worker-base $BRANCH master)
-#          docker pull $WORKER_BASE_IMAGE
-#          WORKER_BASE_TAG="$(echo $WORKER_BASE_IMAGE | awk -F: '{print $2}')"
-#          mkdir -p worker/docker/tmp-for-context
-#          cp -R pylzy worker/docker/tmp-for-context/pylzy
-#          docker build --build-arg "WORKER_BASE_TAG=$WORKER_BASE_TAG" -t lzy-worker -f worker/docker/System.Dockerfile worker
-#
-#      - name: 'DockerWorkerTest'
-#        timeout-minutes: 20
-#        run: |
-#          BRANCH=${{ (github.head_ref || github.ref_name) }}
-#          ENV_IMAGE=$(deployment/latest-docker-image-on-branches.sh test-env $BRANCH master)
-#          cd test && mvn test -Dtest=DockerWorkerTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" -Dserver.baseEnvDefaultImage="$ENV_IMAGE" && cd ..
-#
+      - name: 'Build worker image'
+        timeout-minutes: 15
+        run: |
+          BRANCH=${{ (github.head_ref || github.ref_name) }}
+          WORKER_BASE_IMAGE=$(deployment/latest-docker-image-on-branches.sh worker-base $BRANCH master)
+          docker pull $WORKER_BASE_IMAGE
+          WORKER_BASE_TAG="$(echo $WORKER_BASE_IMAGE | awk -F: '{print $2}')"
+          mkdir -p lzy/worker/docker/tmp-for-context
+          cp -R pylzy lzy/worker/docker/tmp-for-context/pylzy
+          docker build --build-arg "WORKER_BASE_TAG=$WORKER_BASE_TAG" -t worker -f lzy/worker/docker/Worker.Dockerfile lzy/worker
+
+      - name: 'UserImagePyTest'
+        timeout-minutes: 10
+        run: |
+          BRANCH=${{ (github.head_ref || github.ref_name) }}
+          USER_IMAGE=$(deployment/latest-docker-image-on-branches.sh user-test $BRANCH master)
+          cd test && mvn test -Dtest=UserImagePyTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" -Dscheduler.userTestImage="$USER_IMAGE" && cd ..
+
       - name: 'PyApiTest'
         timeout-minutes: 20
         run: |

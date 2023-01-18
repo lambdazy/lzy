@@ -1,7 +1,6 @@
 import os
-import uuid
 
-from lzy.api.v1 import LzyRemoteEnv, op
+from lzy.api.v1 import Lzy, op
 
 
 @op
@@ -9,20 +8,18 @@ def check_env_var_default_image() -> str:
     return os.environ["CUSTOM_ENV"]
 
 
-@op(docker_image="lzydock/test-env:custom3")
+@op(docker_image="lzydock/user-test:custom-1")
 def check_env_var_custom_image() -> str:
     return os.environ["CUSTOM_ENV"]
 
 
-WORKFLOW_NAME = "workflow_" + str(uuid.uuid4())
-
 if __name__ == "__main__":
-    with LzyRemoteEnv().workflow(name=WORKFLOW_NAME):
+    lzy = Lzy()
+
+    with lzy.workflow(name="wf", interactive=False):
         result = check_env_var_custom_image()
         print("Custom env: " + str(result))
 
-    with LzyRemoteEnv().workflow(
-        name=WORKFLOW_NAME, docker_image="lzydock/test-env:custom3"
-    ):
+    with lzy.workflow(name="wf", interactive=False, docker_image="lzydock/user-test:custom-1"):
         result = check_env_var_default_image()
         print("Custom env: " + str(result))
