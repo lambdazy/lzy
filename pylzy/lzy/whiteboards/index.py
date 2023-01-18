@@ -1,7 +1,10 @@
 import datetime
+import json
 import os
-from typing import Optional, Sequence, cast, AsyncIterable
+import tempfile
+from typing import Optional, Sequence, cast, AsyncIterable, BinaryIO
 
+from google.protobuf.json_format import MessageToJson, Parse
 # noinspection PyPackageRequirements
 from google.protobuf.timestamp_pb2 import Timestamp
 # noinspection PyPackageRequirements
@@ -107,28 +110,87 @@ class WhiteboardIndexedManager(WhiteboardManager):
         self.__storage_registry = storage_registry
 
     async def write_meta(self, wb: Whiteboard, uri: str, storage_name: Optional[str] = None) -> None:
+        if storage_name is not None:
+            storage_client = self.__storage_registry.client(storage_name)
+            if storage_client is None:
+                raise RuntimeError(f"No storage client with name {storage_name}")
+        else:
+            storage_client = self.__storage_registry.default_client()
+            if storage_client is None:
+                raise RuntimeError("No default storage client")
+
+        with tempfile.NamedTemporaryFile() as f:
+            f.write(MessageToJson(wb).encode('UTF-8'))
+            f.seek(0)
+
+            await storage_client.write(f"{uri}/.whiteboard", cast(BinaryIO, f))
+
         await self.__index_client.register(wb)
-        # TODO (tomato): write meta to storage
 
     async def update_meta(self, wb: Whiteboard, uri: str, storage_name: Optional[str] = None) -> None:
+        if storage_name is not None:
+            storage_client = self.__storage_registry.client(storage_name)
+            if storage_client is None:
+                raise RuntimeError(f"No storage client with name {storage_name}")
+        else:
+            storage_client = self.__storage_registry.default_client()
+            if storage_client is None:
+                raise RuntimeError("No default storage client")
+
+        with tempfile.NamedTemporaryFile() as f:
+            f.write(MessageToJson(wb).encode('UTF-8'))
+            f.seek(0)
+
+            await storage_client.write(f"{uri}/.whiteboard", cast(BinaryIO, f))
+
         await self.__index_client.update(wb)
-        # TODO (tomato): update meta in storage
 
     async def get(self,
                   *,
                   id_: Optional[str],
                   storage_uri: Optional[str] = None,
                   storage_name: Optional[str] = None) -> Optional[WhiteboardWrapper]:
-        # TODO (tomato): implement reading whiteboard from storage
-        if storage_uri is not None or storage_name is not None:
-            raise NotImplementedError("Fetching whiteboard by storage uri is not supported yet")
 
-        if id_ is None:
-            raise ValueError("ID is not set")
+        if id_ is None and storage_uri is None:
+            raise ValueError("Neither id nor uri are set")
 
-        whiteboard = await self.__index_client.get(id_)
-        if whiteboard is None:
+        if storage_uri is None:
+            whiteboard = await self.__index_client.get(id_)
+            if whiteboard is None:
+                return None
+            storage_uri = whiteboard.storage.uri
+
+        if storage_name is not None:
+            storage_client = self.__storage_registry.client(storage_name)
+            if storage_client is None:
+                raise RuntimeError(f"No storage client with name {storage_name}")
+        else:
+            storage_client = self.__storage_registry.default_client()
+            if storage_client is None:
+                raise RuntimeError("No default storage client")
+
+        wb_meta_uri = f"{storage_uri}/.whiteboard"
+
+        exists = await storage_client.blob_exists(wb_meta_uri)
+        if not exists:
             return None
+
+        with tempfile.TemporaryFile() as f:
+            await storage_client.read(wb_meta_uri, f)
+            f.seek(0)
+
+            whiteboard = Parse(json.load(f), Whiteboard())
+
+        if id_ is not None and id_ != whiteboard.id:
+            raise RuntimeError(
+                f"requested whiteboard with id {id_}, found in storage whiteboard with id {whiteboard.id}"
+            )
+
+        index_client_whiteboard = await self.__index_client.get(whiteboard.id)
+
+        if whiteboard != index_client_whiteboard:
+            await self.__index_client.update(whiteboard)
+
         return WhiteboardWrapper(self.__storage_registry, self.__serializer_registry, whiteboard)
 
     async def query(self,
