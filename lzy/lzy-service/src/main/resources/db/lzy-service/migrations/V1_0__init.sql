@@ -85,7 +85,7 @@ CREATE TABLE operation
     created_at      TIMESTAMP NOT NULL,
     modified_at     TIMESTAMP NOT NULL,
     description     TEXT      NOT NULL,
-    done            bool      NOT NULL,
+    done            BOOLEAN   NOT NULL,
 
     response        BYTEA     NULL,
     error           BYTEA     NULL,

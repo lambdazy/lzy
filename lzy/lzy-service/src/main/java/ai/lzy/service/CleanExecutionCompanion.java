@@ -17,7 +17,6 @@ import ai.lzy.v1.graph.GraphExecutorGrpc;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.portal.LzyPortalApi;
-import ai.lzy.v1.portal.LzyPortalGrpc;
 import com.google.common.net.HostAndPort;
 import com.google.protobuf.Any;
 import com.google.protobuf.Empty;
@@ -32,14 +31,12 @@ import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
 import java.time.Duration;
-import java.util.Map;
 import java.util.Objects;
 
 import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.service.LzyService.APP;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
-import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
 
 @Singleton
@@ -53,17 +50,17 @@ public class CleanExecutionCompanion {
 
     private final RenewableJwt internalUserCredentials;
 
+    private final PortalClientProvider portalClients;
     private final ManagedChannel channelManagerChannel;
-    private final Map<String, ManagedChannel> portalChannels;
     private final LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerClient;
     private final GraphExecutorGrpc.GraphExecutorBlockingStub graphExecutorClient;
     private final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
 
-    public CleanExecutionCompanion(LzyServiceStorage storage, ExecutionDao executionDao, GraphDao graphDao,
+    public CleanExecutionCompanion(PortalClientProvider portalClients, LzyServiceStorage storage,
+                                   ExecutionDao executionDao, GraphDao graphDao,
                                    @Named("LzyServiceOperationDao") OperationDao operationDao,
                                    @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
                                    @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
-                                   @Named("PortalChannels") Map<String, ManagedChannel> portalChannels,
                                    @Named("GraphExecutorServiceChannel") ManagedChannel graphExecutorChannel,
                                    @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel)
     {
@@ -74,7 +71,7 @@ public class CleanExecutionCompanion {
 
         this.internalUserCredentials = internalUserCredentials;
 
-        this.portalChannels = portalChannels;
+        this.portalClients = portalClients;
         this.channelManagerChannel = channelManagerChannel;
         this.channelManagerClient = newBlockingClient(
             LzyChannelManagerPrivateGrpc.newBlockingStub(channelManagerChannel), APP,
@@ -116,11 +113,7 @@ public class CleanExecutionCompanion {
         if (portalDesc != null && portalDesc.vmAddress() != null) {
             var shutdownPortalOp = shutdownPortal(executionId, portalDesc.vmAddress());
             if (shutdownPortalOp != null) {
-                var grpcChannel = portalChannels.computeIfAbsent(executionId, exId ->
-                    newGrpcChannel(portalDesc.vmAddress(), LzyPortalGrpc.SERVICE_NAME));
-                var portalOpsClient = newBlockingClient(
-                    LongRunningServiceGrpc.newBlockingStub(grpcChannel), APP,
-                    () -> internalUserCredentials.get().token());
+                var portalOpsClient = portalClients.getOperationsGrpcClient(executionId, portalDesc.vmAddress());
 
                 // it may be long-running process to finish stdout/err portal slots
                 shutdownPortalOp = awaitOperationDone(portalOpsClient, shutdownPortalOp.getId(), Duration.ofMinutes(5));
@@ -267,7 +260,7 @@ public class CleanExecutionCompanion {
     public LongRunning.Operation shutdownPortal(String executionId, HostAndPort portalVmAddress) {
         LOG.info("Attempt to shutdown portal of execution: { executionId: {} }", executionId);
 
-        var portalClient = obtainPortalClient(executionId, portalVmAddress);
+        var portalClient = portalClients.getGrpcClient(executionId, portalVmAddress);
 
         try {
             LOG.info("Shutdown portal of execution: { executionId: {} }", executionId);
@@ -287,7 +280,7 @@ public class CleanExecutionCompanion {
     public void stopPortal(String executionId, HostAndPort portalVmAddress) {
         LOG.info("Attempt to stop portal of execution: { executionId: {} }", executionId);
 
-        var portalClient = obtainPortalClient(executionId, portalVmAddress);
+        var portalClient = portalClients.getGrpcClient(executionId, portalVmAddress);
 
         try {
             LOG.info("Stop portal of execution: { executionId: {} }", executionId);
@@ -336,12 +329,5 @@ public class CleanExecutionCompanion {
             LOG.warn("Cannot delete allocator session for execution: { sessionId: {}, executionId: {} }",
                 sessionId, executionId, e);
         }
-    }
-
-    private LzyPortalGrpc.LzyPortalBlockingStub obtainPortalClient(String executionId, HostAndPort portalVmAddress) {
-        var grpcChannel = portalChannels.computeIfAbsent(executionId, exId ->
-            newGrpcChannel(portalVmAddress, LzyPortalGrpc.SERVICE_NAME));
-        return newBlockingClient(LzyPortalGrpc.newBlockingStub(grpcChannel), APP,
-            () -> internalUserCredentials.get().token());
     }
 }

@@ -3,6 +3,7 @@ package ai.lzy.service.graph;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.service.CleanExecutionCompanion;
+import ai.lzy.service.PortalClientProvider;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.GraphDao;
 import ai.lzy.service.data.dao.WorkflowDao;
@@ -14,7 +15,6 @@ import ai.lzy.v1.graph.GraphExecutorApi;
 import ai.lzy.v1.graph.GraphExecutorGrpc;
 import ai.lzy.v1.portal.LzyPortalApi;
 import ai.lzy.v1.portal.LzyPortalApi.PortalSlotStatus.SnapshotSlotStatus;
-import ai.lzy.v1.portal.LzyPortalGrpc;
 import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LWFS.ExecuteGraphResponse;
 import ai.lzy.v1.workflow.LWFS.StopGraphRequest;
@@ -32,12 +32,12 @@ import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Map;
 import java.util.UUID;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.service.LzyService.APP;
-import static ai.lzy.util.grpc.GrpcUtils.*;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
 import static ai.lzy.v1.graph.GraphExecutorGrpc.newBlockingStub;
 
@@ -52,31 +52,28 @@ public class GraphExecutionService {
     private final GraphValidator validator;
     private final GraphBuilder builder;
 
-    private final ExecutionDao executionDao;
     private final CleanExecutionCompanion cleanExecutionCompanion;
+
     private final RenewableJwt internalUserCredentials;
+
+    private final PortalClientProvider portalClients;
     private final GraphExecutorGrpc.GraphExecutorBlockingStub graphExecutorClient;
 
-    private final Map<String, ManagedChannel> executionId2portalChannel;
-
     public GraphExecutionService(GraphDao graphDao, WorkflowDao workflowDao, ExecutionDao executionDao,
-                                 CleanExecutionCompanion cleanExecutionCompanion,
-                                 @Named("PortalChannels") Map<String, ManagedChannel> portalChannels,
+                                 CleanExecutionCompanion cleanExecutionCompanion, PortalClientProvider portalClients,
                                  @Named("LzyServiceOperationDao") OperationDao operationDao,
                                  @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
                                  @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
                                  @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
                                  @Named("GraphExecutorServiceChannel") ManagedChannel graphExecutorChannel)
     {
-        this.executionDao = executionDao;
         this.cleanExecutionCompanion = cleanExecutionCompanion;
+        this.portalClients = portalClients;
         this.internalUserCredentials = internalUserCredentials;
 
         this.workflowDao = workflowDao;
         this.graphDao = graphDao;
         this.operationDao = operationDao;
-
-        this.executionId2portalChannel = portalChannels;
 
         this.graphExecutorClient = newBlockingClient(
             newBlockingStub(graphExecutorChannel), APP, () -> internalUserCredentials.get().token());
@@ -130,7 +127,7 @@ public class GraphExecutionService {
 
             LOG.info("Dataflow graph built and validated, building execution graph, current state:" + state);
 
-            var portalClient = getPortalClient(executionId);
+            var portalClient = portalClients.getGrpcClient(executionId);
 
             if (portalClient == null) {
                 LOG.error("Cannot get portal client while creating portal slots for current graph: " + state);
@@ -317,7 +314,7 @@ public class GraphExecutionService {
                     .addAllOperationsWaiting(waitingTaskIds));
             }
             case COMPLETED -> {
-                var portalClient = getPortalClient(executionId);
+                var portalClient = portalClients.getGrpcClient(executionId);
 
                 if (portalClient == null) {
                     response.onError(Status.INTERNAL
@@ -404,31 +401,13 @@ public class GraphExecutionService {
         response.onCompleted();
     }
 
-    @Nullable
-    public LzyPortalGrpc.LzyPortalBlockingStub getPortalClient(String executionId) {
-        String address;
-        try {
-            address = withRetries(LOG, () -> executionDao.getPortalVmAddress(executionId));
-        } catch (Exception e) {
-            LOG.error("Cannot obtain portal address { executionId: {}, error: {} } ", executionId, e.getMessage(), e);
-            return null;
-        }
-
-        var grpcChannel = executionId2portalChannel.computeIfAbsent(executionId, exId ->
-            newGrpcChannel(address, LzyPortalGrpc.SERVICE_NAME));
-
-        return newBlockingClient(LzyPortalGrpc.newBlockingStub(grpcChannel), APP,
-            () -> internalUserCredentials.get().token());
-    }
-
     private void setWorkflowName(GraphExecutionState state) {
         LOG.debug("Find workflow name of execution which graph belongs to...");
 
         try {
             var workflowInfo = withRetries(LOG, () -> workflowDao.findWorkflowBy(state.getExecutionId()));
-            var workflowName = workflowInfo[0];
-            if (workflowName != null) {
-                state.setWorkflowName(workflowName);
+            if (workflowInfo.workflowName() != null) {
+                state.setWorkflowName(workflowInfo.workflowName());
             } else {
                 state.fail(Status.NOT_FOUND, "Cannot obtain workflow name for execution");
             }

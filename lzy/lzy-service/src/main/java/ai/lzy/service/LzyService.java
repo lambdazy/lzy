@@ -304,8 +304,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
     private <T> boolean checkExecution(String userId, String executionId, StreamObserver<T> responseObserver) {
         try {
-            String[] wfNameAndUserId = withRetries(LOG, () -> workflowDao.findWorkflowBy(executionId));
-            if (wfNameAndUserId == null || !Objects.equals(userId, wfNameAndUserId[1])) {
+            WorkflowDao.WorkflowInfo wfNameAndUserId = withRetries(LOG, () -> workflowDao.findWorkflowBy(executionId));
+            if (wfNameAndUserId == null || !Objects.equals(userId, wfNameAndUserId.userId())) {
                 LOG.error("Cannot find active execution of user: { executionId: {}, userId: {} }", executionId, userId);
                 responseObserver.onError(Status.NOT_FOUND.withDescription("Cannot find active execution " +
                     "'%s' of user '%s'".formatted(executionId, userId)).asRuntimeException());
