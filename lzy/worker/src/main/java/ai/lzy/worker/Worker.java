@@ -308,7 +308,7 @@ public class Worker {
                 return;
             }
 
-            var op = Operation.create(workerId, "Execute worker", idempotencyKey, null);
+            var op = Operation.create(workerId, "Execute worker", null, idempotencyKey, null);
             OperationSnapshot opSnapshot = operationService.registerOperation(op);
 
             if (op.id().equals(opSnapshot.id())) {

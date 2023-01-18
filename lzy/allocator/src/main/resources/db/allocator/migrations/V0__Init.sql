@@ -5,6 +5,7 @@ CREATE TABLE operation
     created_at      TIMESTAMP NOT NULL,
     modified_at     TIMESTAMP NOT NULL,
     description     TEXT      NOT NULL,
+    deadline        TIMESTAMP NULL,
     done            BOOLEAN   NOT NULL,
 
     meta            BYTEA     NULL,
@@ -52,7 +53,6 @@ CREATE TABLE vm
     -- allocation progress
     allocation_op_id      TEXT      NOT NULL REFERENCES operation (id),
     allocation_started_at TIMESTAMP NOT NULL,
-    allocation_deadline   TIMESTAMP NOT NULL,
     owner_instance        TEXT      NOT NULL, -- instance_id which serves this operation
     vm_ott                TEXT      NOT NULL,
     vm_subject_id         TEXT      NULL,

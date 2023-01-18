@@ -267,6 +267,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         final var op = Operation.create(
             session.owner(),
             "AllocateVM: pool=%s, zone=%s".formatted(request.getPoolLabel(), request.getZone()),
+            allocDeadline,
             idempotencyKey,
             AllocateMetadata.getDefaultInstance());
 
