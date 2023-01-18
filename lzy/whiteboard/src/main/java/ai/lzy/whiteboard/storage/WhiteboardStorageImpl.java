@@ -7,7 +7,6 @@ import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.v1.common.LMD;
 import ai.lzy.whiteboard.model.Field;
-import ai.lzy.whiteboard.model.LinkedField;
 import ai.lzy.whiteboard.model.Whiteboard;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,6 +14,7 @@ import jakarta.inject.Inject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.net.URI;
 import java.sql.*;
 import java.time.Instant;
 import java.util.*;
@@ -40,72 +40,18 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
     }
 
     @Override
-    public void insertWhiteboard(String userId, Whiteboard whiteboard,
-                                 @Nullable TransactionHandle outerTransaction) throws SQLException
+    public void registerWhiteboard(String userId, Whiteboard whiteboard, Instant registeredAt,
+                                   @Nullable TransactionHandle outerTransaction) throws SQLException
     {
         LOG.debug("Inserting whiteboard (userId={},whiteboardId={})", userId, whiteboard.id());
         try (final TransactionHandle transaction = TransactionHandle.getOrCreate(dataSource, outerTransaction)) {
-            insertWhiteboardInfo(userId, whiteboard, transaction);
+            insertWhiteboardInfo(userId, whiteboard, registeredAt, transaction);
             insertFields(whiteboard.id(), whiteboard.fields().values().stream().toList(), transaction);
             insertWhiteboardTags(whiteboard.id(), whiteboard.tags(), transaction);
 
             transaction.commit();
         }
         LOG.debug("Inserting whiteboard (userId={},whiteboardId={}) done", userId, whiteboard.id());
-    }
-
-    @Override
-    public void updateField(String whiteboardId, LinkedField field, @Nullable Instant finalizedAt,
-                            @Nullable TransactionHandle transaction) throws SQLException
-    {
-        LOG.debug("Updating field (whiteboardId={},fieldName={})", whiteboardId, field.name());
-        DbOperation.execute(transaction, dataSource, sqlConnection -> {
-            try (final PreparedStatement st = sqlConnection.prepareStatement("""
-                UPDATE whiteboard_fields SET
-                    field_status = ?,
-                    data_scheme = ?,
-                    storage_uri = ?,
-                    finalized_at = ?
-                WHERE whiteboard_id = ? AND field_name = ? AND finalized_at IS NULL
-                """)
-            )
-            {
-                String dataSchemeJson = objectMapper.writeValueAsString(toProto(field.schema()));
-                int index = 0;
-                st.setString(++index, field.status().name());
-                st.setString(++index, dataSchemeJson);
-                st.setString(++index, field.storageUri());
-                st.setTimestamp(++index, finalizedAt == null ? null : Timestamp.from(finalizedAt));
-
-                st.setString(++index, whiteboardId);
-                st.setString(++index, field.name());
-
-                int affectedRows = st.executeUpdate();
-                if (affectedRows == 0) {
-                    throw new NotFoundException("Field to update not found");
-                }
-                if (affectedRows > 1) {
-                    throw new IllegalStateException(affectedRows + " fields linked, expected exactly 1");
-                }
-            } catch (JsonProcessingException e) {
-                throw new SQLException(e);
-            }
-        });
-        LOG.debug("Linking field (whiteboardId={},fieldName={}) done", whiteboardId, field.name());
-    }
-
-    @Override
-    public void finalizeWhiteboard(String whiteboardId, Instant finalizedAt,
-                                   @Nullable TransactionHandle outerTransaction) throws SQLException
-    {
-        LOG.debug("Finalizing whiteboard (whiteboardId={}) with its fields", whiteboardId);
-        try (final TransactionHandle transaction = TransactionHandle.getOrCreate(dataSource, outerTransaction)) {
-            setFieldsFinalized(whiteboardId, finalizedAt, transaction);
-            setWhiteboardFinalized(whiteboardId, finalizedAt, transaction);
-
-            transaction.commit();
-        }
-        LOG.debug("Finalizing whiteboard (whiteboardId={}) with its fields done", whiteboardId);
     }
 
     @Override
@@ -143,15 +89,13 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                     wb.user_id,
                     wb.storage_name,
                     wb.storage_description,
+                    wb.storage_uri,
                     wb.whiteboard_status,
                     wb.namespace,
                     wb.created_at,
-                    wb.finalized_at,
+                    wb.registered_at,
                     f.field_name as field_name,
-                    f.field_status as field_status,
                     f.data_scheme as field_data_scheme,
-                    f.storage_uri as field_storage_uri,
-                    f.finalized_at as field_finalized_at,
                     t.tags as tags
                 FROM whiteboards wb
                 INNER JOIN whiteboard_fields f ON wb.whiteboard_id = f.whiteboard_id
@@ -233,15 +177,13 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                     wb.user_id,
                     wb.storage_name,
                     wb.storage_description,
+                    wb.storage_uri,
                     wb.whiteboard_status,
                     wb.namespace,
                     wb.created_at,
-                    wb.finalized_at,
+                    wb.registered_at,
                     f.field_name as field_name,
-                    f.field_status as field_status,
                     f.data_scheme as field_data_scheme,
-                    f.storage_uri as field_storage_uri,
-                    f.finalized_at as field_finalized_at,
                     t.tags as tags
                 FROM whiteboards wb
                 INNER JOIN whiteboard_fields f ON wb.whiteboard_id = f.whiteboard_id
@@ -250,7 +192,7 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                     FROM whiteboard_tags
                     GROUP BY whiteboard_id
                 ) t ON wb.whiteboard_id = t.whiteboard_id
-                """  + statementSuffix)
+                """ + statementSuffix)
             )
             {
                 statementSuffixFiller.apply(sqlConnection, st);
@@ -264,15 +206,15 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
         return whiteboards.stream();
     }
 
-    private void insertWhiteboardInfo(String userId, Whiteboard whiteboard, TransactionHandle transaction)
+    private void insertWhiteboardInfo(String userId, Whiteboard whiteboard, Instant ts, TransactionHandle transaction)
         throws SQLException
     {
         DbOperation.execute(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 INSERT INTO whiteboards(
-                    whiteboard_id, whiteboard_name, user_id, storage_name, storage_description,
-                    whiteboard_status, namespace, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    whiteboard_id, whiteboard_name, user_id, storage_name, storage_description, storage_uri,
+                    whiteboard_status, namespace, created_at, registered_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """)
             )
             {
@@ -282,9 +224,11 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                 st.setString(++index, userId);
                 st.setString(++index, whiteboard.storage().name());
                 st.setString(++index, whiteboard.storage().description());
+                st.setString(++index, whiteboard.storage().uri().toString());
                 st.setString(++index, whiteboard.status().name());
                 st.setString(++index, whiteboard.namespace());
                 st.setTimestamp(++index, Timestamp.from(whiteboard.createdAt()));
+                st.setTimestamp(++index, Timestamp.from(ts));
                 st.executeUpdate();
             }
         });
@@ -296,9 +240,8 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
         DbOperation.execute(transaction, dataSource, sqlConnection -> {
             try (final PreparedStatement st = sqlConnection.prepareStatement("""
                 INSERT INTO whiteboard_fields(
-                    whiteboard_id, field_name, field_status, finalized_at,
-                    data_scheme, storage_uri
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    whiteboard_id, field_name, data_scheme
+                ) VALUES (?, ?, ?)
                 """)
             )
             {
@@ -306,16 +249,8 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                     int index = 0;
                     st.setString(++index, whiteboardId);
                     st.setString(++index, field.name());
-                    st.setString(++index, field.status().name());
-                    st.setTimestamp(++index, null);
-                    if (field instanceof LinkedField linked) {
-                        String dataSchemeJson = objectMapper.writeValueAsString(toProto(linked.schema()));
-                        st.setString(++index, dataSchemeJson);
-                        st.setString(++index, linked.storageUri());
-                    } else {
-                        st.setString(++index, null);
-                        st.setString(++index, null);
-                    }
+                    String dataSchemeJson = objectMapper.writeValueAsString(toProto(field.scheme()));
+                    st.setString(++index, dataSchemeJson);
                     st.addBatch();
                 }
                 st.executeBatch();
@@ -344,51 +279,6 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
         });
     }
 
-    private void setWhiteboardFinalized(String whiteboardId, Instant finalizedAt, TransactionHandle transaction)
-        throws SQLException
-    {
-        DbOperation.execute(transaction, dataSource, sqlConnection -> {
-            try (final PreparedStatement st = sqlConnection.prepareStatement("""
-                    UPDATE whiteboards
-                    SET whiteboard_status = ?, finalized_at = ?
-                    WHERE whiteboard_id = ? AND finalized_at is NULL
-                    """)
-            )
-            {
-                int index = 0;
-                st.setString(++index, Whiteboard.Status.FINALIZED.name());
-                st.setTimestamp(++index, Timestamp.from(finalizedAt));
-                st.setString(++index, whiteboardId);
-
-                int affectedRows = st.executeUpdate();
-                if (affectedRows == 0) {
-                    throw new NotFoundException("Whiteboard to finalize not found");
-                }
-            }
-        });
-    }
-
-    private void setFieldsFinalized(String whiteboardId, Instant finalizedAt, TransactionHandle transaction)
-        throws SQLException
-    {
-        DbOperation.execute(transaction, dataSource, sqlConnection -> {
-            try (final PreparedStatement st = sqlConnection.prepareStatement("""
-                    UPDATE whiteboard_fields
-                    SET field_status = ?, finalized_at = ?
-                    WHERE whiteboard_id = ? AND finalized_at is NULL
-                    """)
-            )
-            {
-                int index = 0;
-                st.setString(++index, Field.Status.FINALIZED.name());
-                st.setTimestamp(++index, Timestamp.from(finalizedAt));
-                st.setString(++index, whiteboardId);
-
-                st.executeUpdate();
-            }
-        });
-    }
-
     private Stream<Whiteboard> parseWhiteboards(ResultSet rs) throws SQLException, JsonProcessingException {
         Map<String, Whiteboard> whiteboardsById = new HashMap<>();
         while (rs.next()) {
@@ -396,7 +286,8 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
             if (!whiteboardsById.containsKey(whiteboardId)) {
                 final var storage = new Whiteboard.Storage(
                     rs.getString("storage_name"),
-                    rs.getString("storage_description")
+                    rs.getString("storage_description"),
+                    URI.create(rs.getString("storage_uri"))
                 );
                 final var status = Whiteboard.Status.valueOf(rs.getString("whiteboard_status"));
                 final var createdAt = rs.getTimestamp("created_at").toInstant();
@@ -413,17 +304,9 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
             }
 
             final String fieldName = rs.getString("field_name");
-            final var fieldStatus = Field.Status.valueOf(rs.getString("field_status"));
-
             final var dataSchemeJson = rs.getString("field_data_scheme");
-            final String storageUri = rs.getString("field_storage_uri");
-            if (storageUri == null || dataSchemeJson == null) {
-                whiteboardsById.get(whiteboardId).fields().put(fieldName, new Field(fieldName, fieldStatus));
-            } else {
-                var dataScheme = fromProto(objectMapper.readValue(dataSchemeJson, LMD.DataScheme.class));
-                whiteboardsById.get(whiteboardId).fields().put(fieldName,
-                    new LinkedField(fieldName, fieldStatus, storageUri, dataScheme));
-            }
+            var dataScheme = fromProto(objectMapper.readValue(dataSchemeJson, LMD.DataScheme.class));
+            whiteboardsById.get(whiteboardId).fields().put(fieldName, new Field(fieldName, dataScheme));
         }
         return whiteboardsById.values().stream();
     }

@@ -1,8 +1,6 @@
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import TYPE_CHECKING, Callable, List, Dict
-
-from lzy.api.v1.workflow import WbRef
+from typing import TYPE_CHECKING, Callable, List
 
 if TYPE_CHECKING:
     from lzy.api.v1 import LzyWorkflow
@@ -26,7 +24,6 @@ class Runtime(ABC):
     async def exec(
         self,
         calls: List[LzyCall],
-        links: Dict[str, WbRef],
         progress: Callable[[ProgressStep], None],
     ) -> None:
         pass

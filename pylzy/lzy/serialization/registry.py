@@ -33,7 +33,9 @@ class LzySerializerRegistry(DefaultSerializerRegistry):
 
     def unregister_serializer(self, serializer: Serializer):
         super().unregister_serializer(serializer)
-        self.__user_serializers.remove(type(serializer))
+        typ = type(serializer)
+        if typ in self.__user_serializers:
+            self.__user_serializers.remove(typ)
 
     def imports(self) -> Sequence[SerializerImport]:
         result = []

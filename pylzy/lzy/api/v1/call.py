@@ -11,11 +11,12 @@ from typing import Any, Callable, Dict, Mapping, Sequence, Tuple, TypeVar
 from pydantic.decorator import ValidatedFunction
 from serialzy.types import get_type
 
+from lzy.api.v1.entry_index import EntryIndex
 from lzy.api.v1.env import Env
 from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.signatures import CallSignature, FuncSignature
 from lzy.api.v1.snapshot import Snapshot
-from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy, lzy_proxy, get_proxy_entry_id
+from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy, lzy_proxy
 from lzy.api.v1.utils.types import infer_real_types
 from lzy.api.v1.workflow import LzyWorkflow
 
@@ -25,43 +26,49 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 class LzyCall:
     def __init__(
         self,
-        parent_wflow: LzyWorkflow,
+        workflow: LzyWorkflow,
         sign: CallSignature,
         provisioning: Provisioning,
         env: Env,
         description: str = ""
     ):
         self.__id = str(uuid.uuid4())
-        self.__wflow = parent_wflow
+        self.__wflow = workflow
         self.__sign = sign
         self.__provisioning = provisioning
         self.__env = env
         self.__description = description
-        self.__entry_ids = [
-            parent_wflow.snapshot.create_entry(sign.func.callable.__name__ + ".return_" + str(i), typ).id
-            for i, typ in enumerate(sign.func.output_types)
-        ]
+
+        prefix = f"{workflow.owner.storage_uri}/lzy_runs/{workflow.execution_id}/data"
+        self.__entry_ids: typing.List[str] = []
+        for i, typ in enumerate(sign.func.output_types):
+            name = sign.func.callable.__name__ + ".return_" + str(i)
+            uri = f"{prefix}/{name}.{self.__id}"
+            self.__entry_ids.append(workflow.snapshot.create_entry(name, typ, uri).id)
 
         self.__args_entry_ids: typing.List[str] = []
         for i, arg in enumerate(sign.args):
-            if is_lzy_proxy(arg):
-                self.__args_entry_ids.append(get_proxy_entry_id(arg))
+            if workflow.entry_index.has_entry_id(arg):
+                self.__args_entry_ids.append(workflow.entry_index.get_entry_id(arg))
             else:
-                name = sign.func.arg_names[i]
-                self.__args_entry_ids.append(
-                    parent_wflow.snapshot.create_entry(sign.func.callable.__name__ + "." + name,
-                                                       sign.func.input_types[name]).id)
+                arg_name = sign.func.arg_names[i]
+                name = sign.func.callable.__name__ + "." + arg_name
+                uri = f"{prefix}/{name}.{self.__id}"
+                entry = workflow.snapshot.create_entry(name, sign.func.input_types[arg_name], uri)
+                self.__args_entry_ids.append(entry.id)
+                workflow.entry_index.add_entry_id(arg, entry.id)
 
         self.__kwargs_entry_ids: Dict[str, str] = {}
-        for name, kwarg in sign.kwargs.items():
+        for kwarg_name, kwarg in sign.kwargs.items():
             entry_id: str
-            if is_lzy_proxy(kwarg):
-                entry_id = kwarg.__lzy_entry_id__
+            if workflow.entry_index.has_entry_id(kwarg):
+                entry_id = workflow.entry_index.get_entry_id(kwarg)
             else:
-                entry_id = parent_wflow.snapshot.create_entry(sign.func.callable.__name__ + "." + name,
-                                                              sign.func.input_types[name]).id
-
-            self.__kwargs_entry_ids[name] = entry_id
+                name = sign.func.callable.__name__ + "." + kwarg_name
+                uri = f"{prefix}/{name}.{self.__id}"
+                entry_id = workflow.snapshot.create_entry(name, sign.func.input_types[kwarg_name], uri).id
+                workflow.entry_index.add_entry_id(kwarg, entry_id)
+            self.__kwargs_entry_ids[kwarg_name] = entry_id
 
     @property
     def provisioning(self) -> Provisioning:
@@ -134,7 +141,8 @@ def wrap_call(
             )).override(env)
         env_updated.validate()
 
-        signature = infer_and_validate_call_signature(f, output_types, active_workflow.snapshot, *args, **kwargs)
+        signature = infer_and_validate_call_signature(f, output_types, active_workflow.snapshot,
+                                                      active_workflow.entry_index, *args, **kwargs)
         lzy_call = LzyCall(active_workflow, signature, prov, env_updated, description)
         active_workflow.register_call(lzy_call)
 
@@ -173,7 +181,7 @@ def wrap_call(
 
 
 def infer_and_validate_call_signature(
-    f: Callable, output_type: Sequence[type], snapshot: Snapshot, *args, **kwargs
+    f: Callable, output_type: Sequence[type], snapshot: Snapshot, entry_index: EntryIndex, *args, **kwargs
 ) -> CallSignature:
     types_mapping = {}
     argspec = getfullargspec(f)
@@ -187,11 +195,13 @@ def infer_and_validate_call_signature(
     # pylint: disable=protected-access
     for name, arg in chain(zip(argspec.args, args), kwargs.items()):
         # noinspection PyProtectedMember
-        if is_lzy_proxy(arg):
-            eid = get_proxy_entry_id(arg)
+        if entry_index.has_entry_id(arg):
+            eid = entry_index.get_entry_id(arg)
             entry = snapshot.get(eid)
             types_mapping[name] = entry.typ
-            vd.model.__fields__[name].validators.clear()  # remove type validators for proxies to avoid materialization
+            if is_lzy_proxy(arg) and name in vd.model.__fields__:
+                vd.model.__fields__[
+                    name].validators.clear()  # remove type validators for proxies to avoid materialization
         elif name in argspec.annotations:
             types_mapping[name] = argspec.annotations[name]
         else:
@@ -203,10 +213,12 @@ def infer_and_validate_call_signature(
     for arg in args[len(argspec.args):]:
         name = str(uuid.uuid4())
         generated_names.append(name)
-        # noinspection PyProtectedMember
-        types_mapping[name] = (
-            arg.lzy_call._op.output_type if is_lzy_proxy(arg) else get_type(arg)
-        )
+        if entry_index.has_entry_id(arg):
+            eid = entry_index.get_entry_id(arg)
+            entry = snapshot.get(eid)
+            types_mapping[name] = entry.typ
+        else:
+            types_mapping[name] = get_type(arg)
 
     arg_names = tuple(argspec.args[: len(args)] + generated_names)
     kwarg_names = tuple(kwargs.keys())

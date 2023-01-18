@@ -5,20 +5,12 @@ import ai.lzy.v1.whiteboard.LWB;
 
 public class ProtoValidator {
 
-    public static boolean isValid(LWB.WhiteboardFieldInfo fieldInfo) {
+    public static boolean isValid(LWB.WhiteboardField fieldInfo) {
         boolean isValid = true;
         try {
             //noinspection ConstantConditions
             isValid = isValid && !fieldInfo.getName().isBlank();
-            switch (fieldInfo.getStateCase()) {
-                case NONESTATE -> {
-                }
-                case LINKEDSTATE -> {
-                    isValid = isValid && !fieldInfo.getLinkedState().getStorageUri().isBlank();
-                    isValid = isValid && isValid(fieldInfo.getLinkedState().getScheme());
-                }
-                default -> isValid = false;
-            }
+            isValid = isValid && isValid(fieldInfo.getScheme());
             return isValid;
         } catch (NullPointerException e) {
             return false;

@@ -25,6 +25,12 @@ def one_arg(arg: int) -> str:
 
 # noinspection PyUnusedLocal
 @op
+def varargs(c: float, *args, **kwargs) -> None:
+    pass
+
+
+# noinspection PyUnusedLocal
+@op
 def varargs_only(*args) -> str:
     pass
 
@@ -240,11 +246,6 @@ class LzyCallsTests(TestCase):
         self.assertEqual(type(None), func.input_types['arg'])
 
     def test_varargs(self):
-        # noinspection PyUnusedLocal
-        @op
-        def varargs(c: float, *args, **kwargs) -> None:
-            pass
-
         with self.lzy.workflow("test") as wf:
             varargs(2.0, *(1, 2, 3), **{'a': "a", 'b': 2})
 
@@ -255,6 +256,18 @@ class LzyCallsTests(TestCase):
         self.assertEqual(int, func.input_types['b'])
         self.assertEqual(float, func.input_types['c'])
         self.assertEqual(('a', 'b'), func.kwarg_names)
+
+    def test_varargs_proxy(self):
+        with self.lzy.workflow("test") as wf:
+            i = returns_int()
+            varargs(2.0, *(i,), **{'a': i})
+
+        # noinspection PyUnresolvedReferences
+        func: FuncSignature = wf.owner.runtime.calls[1].signature.func
+        self.assertEqual(3, len(func.input_types))
+        self.assertEqual(int, func.input_types['a'])
+        self.assertEqual(float, func.input_types['c'])
+        self.assertEqual(('a',), func.kwarg_names)
 
     def test_multiple_return_values(self):
         # noinspection PyUnusedLocal

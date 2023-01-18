@@ -1,65 +1,59 @@
 import datetime
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import Iterable, Optional, Sequence
-
-from serialzy.api import Schema
+from typing import Optional, Sequence, AsyncIterable
 
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard
+from lzy.whiteboards.wrapper import WhiteboardWrapper
 
 
-@dataclass
-class WhiteboardDefaultDescription:
-    url: str
-    data_scheme: Schema
-
-
-@dataclass
-class WhiteboardField:
-    name: str
-    default: Optional[WhiteboardDefaultDescription] = None
-
-
-@dataclass
-class WhiteboardInstanceMeta:
-    id: str
-    name: str
-    tags: Sequence[str]
-
-
-class WhiteboardClient(ABC):
+class WhiteboardIndexClient(ABC):  # pragma: no cover
     @abstractmethod
-    async def get(self, wb_id: str) -> Whiteboard:
+    async def get(self, id_: str) -> Optional[Whiteboard]:
         pass
 
     @abstractmethod
-    async def list(
+    async def query(
         self,
         name: Optional[str] = None,
         tags: Sequence[str] = (),
         not_before: Optional[datetime.datetime] = None,
         not_after: Optional[datetime.datetime] = None
-    ) -> Iterable[Whiteboard]:
+    ) -> AsyncIterable[Whiteboard]:
+        yield  # type: ignore
+
+    @abstractmethod
+    async def register(self, wb: Whiteboard) -> None:
         pass
 
     @abstractmethod
-    async def create_whiteboard(
-        self,
-        namespace: str,
-        name: str,
-        fields: Sequence[WhiteboardField],
-        storage_name: str,
-        tags: Sequence[str],
-    ) -> WhiteboardInstanceMeta:
+    async def update(self, wb: Whiteboard):
+        pass
+
+
+class WhiteboardManager(ABC):  # pragma: no cover
+    @abstractmethod
+    async def write_meta(self, wb: Whiteboard, uri: str, storage_name: Optional[str] = None) -> None:
         pass
 
     @abstractmethod
-    async def link(self, wb_id: str, field_name: str, url: str, data_scheme: Schema) -> None:
+    async def update_meta(self, wb: Whiteboard, uri: str, storage_name: Optional[str] = None) -> None:
         pass
 
     @abstractmethod
-    async def finalize(
-        self,
-        whiteboard_id: str
-    ):
+    async def get(self,
+                  *,
+                  id_: Optional[str],
+                  storage_uri: Optional[str] = None,
+                  storage_name: Optional[str] = None) -> Optional[WhiteboardWrapper]:
         pass
+
+    @abstractmethod
+    async def query(self,
+                    *,
+                    name: Optional[str] = None,
+                    tags: Sequence[str] = (),
+                    not_before: Optional[datetime.datetime] = None,
+                    not_after: Optional[datetime.datetime] = None,
+                    storage_uri: Optional[str] = None,
+                    storage_name: Optional[str] = None) -> AsyncIterable[WhiteboardWrapper]:
+        yield  # type: ignore

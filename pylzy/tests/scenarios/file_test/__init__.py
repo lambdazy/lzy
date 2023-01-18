@@ -59,7 +59,7 @@ if __name__ == "__main__":
         i, s = b()
         print(f"{i}, {s}")
 
-    wb = lzy.whiteboard(wb_id)
+    wb = lzy.whiteboard(id_=wb_id)
     with wb.f2.open("r") as f:
         for line in f.readlines():
             print(f"wb: {line}")

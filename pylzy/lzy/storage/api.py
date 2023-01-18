@@ -74,6 +74,10 @@ class AsyncStorageClient(ABC):
         pass
 
     @abstractmethod
+    async def copy(self, from_uri: str, to_uri: str) -> None:
+        pass
+
+    @abstractmethod
     async def sign_storage_uri(self, uri: str) -> str:
         pass
 

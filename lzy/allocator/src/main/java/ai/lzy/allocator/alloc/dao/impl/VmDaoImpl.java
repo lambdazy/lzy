@@ -26,6 +26,8 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import javax.inject.Named;
 
@@ -50,10 +52,10 @@ public class VmDaoImpl implements VmDao {
         "%s, %s, %s, %s".formatted(SPEC_FIELDS, STATUS_FIELDS, ALLOCATION_FIELDS, RUN_FIELDS);
 
     private static final String QUERY_LOAD_NOT_COMPLETED_VMS = """
-        SELECT vm.%s
+        SELECT %s
         FROM vm JOIN operation o ON vm.allocation_op_id = o.id
-        WHERE o.done = FALSE AND allocation_deadline > NOW() AND owner_instance = ?
-        """.formatted(ALL_FIELDS);
+        WHERE o.done = FALSE AND vm.allocation_deadline > NOW() AND vm.owner_instance = ?
+        """.formatted(Stream.of(ALL_FIELDS.split(",\s*")).map(x -> "vm." + x).collect(Collectors.joining(", ")));
 
     private static final String QUERY_CREATE_VM = """
         INSERT INTO vm (%s, %s, %s)

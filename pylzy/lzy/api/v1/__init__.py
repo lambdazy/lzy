@@ -3,7 +3,6 @@ import inspect
 import os
 from typing import Any, Callable, Dict, Optional, Sequence, TypeVar, Iterable
 
-from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard
 from lzy.api.v1.call import LzyCall, wrap_call
 from lzy.api.v1.env import DockerPullPolicy, Env
 from lzy.api.v1.local.runtime import LocalRuntime
@@ -15,18 +14,20 @@ from lzy.api.v1.utils.conda import generate_conda_yaml
 from lzy.api.v1.utils.packages import to_str_version
 from lzy.api.v1.utils.proxy_adapter import lzy_proxy
 from lzy.api.v1.utils.types import infer_return_type
-from lzy.api.v1.whiteboards import whiteboard_, ReadOnlyWhiteboard
+from lzy.api.v1.whiteboards import whiteboard_
 from lzy.api.v1.workflow import LzyWorkflow
 from lzy.logs.config import configure_logging
 from lzy.proxy.result import Nothing
 from lzy.py_env.api import PyEnvProvider, PyEnv
 from lzy.py_env.py_env_provider import AutomaticPyEnvProvider
 from lzy.serialization.registry import LzySerializerRegistry
-from lzy.storage.api import StorageRegistry
+from lzy.storage.api import StorageRegistry, AsyncStorageClient
 from lzy.storage.registry import DefaultStorageRegistry
 from lzy.utils.event_loop import LzyEventLoop
-from lzy.whiteboards.api import WhiteboardClient
-from lzy.whiteboards.remote import RemoteWhiteboardClient, WB_USER_ENV, WB_KEY_PATH_ENV, WB_ENDPOINT_ENV
+from lzy.whiteboards.api import WhiteboardManager, WhiteboardIndexClient
+from lzy.whiteboards.wrapper import WhiteboardStatus, MISSING_WHITEBOARD_FIELD
+from lzy.whiteboards.index import WhiteboardIndexedManager, RemoteWhiteboardIndexClient, WB_USER_ENV, WB_KEY_PATH_ENV, \
+    WB_ENDPOINT_ENV
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -96,9 +97,9 @@ def op(
     return deco(func)
 
 
-def whiteboard(name: str, *, namespace: str = "default"):
+def whiteboard(name: str):
     def wrap(cls):
-        return whiteboard_(cls, namespace, name)
+        return whiteboard_(cls, name)
 
     return wrap
 
@@ -121,7 +122,7 @@ class Lzy:
         self,
         *,
         runtime: Runtime = RemoteRuntime(),
-        whiteboard_client: WhiteboardClient = RemoteWhiteboardClient(),
+        whiteboard_client: WhiteboardIndexClient = RemoteWhiteboardIndexClient(),
         py_env_provider: PyEnvProvider = AutomaticPyEnvProvider(),
         storage_registry: StorageRegistry = DefaultStorageRegistry(),
         serializer_registry: LzySerializerRegistry = LzySerializerRegistry()
@@ -129,10 +130,14 @@ class Lzy:
         configure_logging()
 
         self.__env_provider = py_env_provider
-        self.__whiteboard_client = whiteboard_client
         self.__serializer_registry = serializer_registry
         self.__storage_registry = storage_registry
         self.__runtime = runtime
+        self.__whiteboard_manager = WhiteboardIndexedManager(whiteboard_client, storage_registry, serializer_registry)
+
+        self.__storage_client: Optional[AsyncStorageClient] = None
+        self.__storage_name: Optional[str] = None
+        self.__storage_uri: Optional[str] = None
 
     @staticmethod
     def auth(*, user: str, key_path: str, endpoint: Optional[str] = None,
@@ -156,8 +161,44 @@ class Lzy:
         return self.__storage_registry
 
     @property
-    def whiteboard_client(self) -> WhiteboardClient:
-        return self.__whiteboard_client
+    def whiteboard_manager(self) -> WhiteboardManager:
+        return self.__whiteboard_manager
+
+    @property
+    def storage_name(self) -> str:
+        if self.__storage_name is None:
+            name = self.storage_registry.default_storage_name()
+            if name is None:
+                raise ValueError(
+                    f"Cannot get storage name, default storage config is not set"
+                )
+            self.__storage_name = name
+            return name
+        return self.__storage_name
+
+    @property
+    def storage_uri(self) -> str:
+        if self.__storage_uri is None:
+            conf = self.storage_registry.default_config()
+            if conf is None:
+                raise ValueError(
+                    f"Cannot get storage bucket, default storage config is not set"
+                )
+            self.__storage_uri = conf.uri
+            return conf.uri
+        return self.__storage_uri
+
+    @property
+    def storage_client(self) -> AsyncStorageClient:
+        if self.__storage_client is None:
+            client = self.__storage_registry.default_client()
+            if client is None:
+                raise ValueError(
+                    f"Cannot get storage client, default storage config is not set"
+                )
+            self.__storage_client = client
+            return client
+        return self.__storage_client
 
     # noinspection PyShadowingNames
     def workflow(
@@ -206,23 +247,23 @@ class Lzy:
             dvc=dvc,
         )
 
-    def whiteboard(self, wb_id: str) -> Any:
-        wb: Whiteboard = LzyEventLoop.run_async(self.__whiteboard_client.get(wb_id))
-        return LzyEventLoop.run_async(self.__build_whiteboard(wb))
+    def whiteboard(self, *,
+                   id_: Optional[str],
+                   storage_uri: Optional[str] = None,
+                   storage_name: Optional[str] = None) -> Optional[Any]:
+        return LzyEventLoop.run_async(
+            self.whiteboard_manager.get(id_=id_, storage_uri=storage_uri, storage_name=storage_name))
 
     def whiteboards(self, *,
                     name: Optional[str] = None,
                     tags: Sequence[str] = (),
                     not_before: Optional[datetime.datetime] = None,
-                    not_after: Optional[datetime.datetime] = None):
-        wbs: Iterable[Whiteboard] = LzyEventLoop.run_async(self.__whiteboard_client.list(
-            name, tags, not_before, not_after
-        ))
-        wbs_to_build = [self.__build_whiteboard(wb) for wb in wbs]
-        return list(LzyEventLoop.gather(*wbs_to_build))
-
-    async def __build_whiteboard(self, wb: Whiteboard) -> Any:
-        if wb.status != Whiteboard.FINALIZED:
-            raise RuntimeError(f"Status of whiteboard with name {wb.name} is {wb.status}, but must be COMPLETED")
-
-        return ReadOnlyWhiteboard(self.__storage_registry, self.__serializer_registry, wb)
+                    not_after: Optional[datetime.datetime] = None) -> Iterable[Any]:
+        it = self.whiteboard_manager.query(name=name, tags=tags, not_before=not_before, not_after=not_after)
+        while True:
+            try:
+                # noinspection PyUnresolvedReferences
+                elem = LzyEventLoop.run_async(it.__anext__())  # type: ignore
+                yield elem
+            except StopAsyncIteration:
+                break

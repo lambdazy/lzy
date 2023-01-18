@@ -1,26 +1,26 @@
 import asyncio
-import dataclasses
 from typing import (
     TYPE_CHECKING,
     Any,
-    Dict,
     List,
     Optional,
     Sequence,
     Type,
-    TypeVar, cast, )
+    TypeVar, cast, Set, )
 
+from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard
+from lzy.api.v1.entry_index import EntryIndex
 from lzy.api.v1.env import Env
 from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.snapshot import Snapshot, DefaultSnapshot
-from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy, lzy_proxy
-from lzy.api.v1.whiteboards import WritableWhiteboard, fetch_whiteboard_meta, WbRef
+from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy
+from lzy.api.v1.whiteboards import WritableWhiteboard
 from lzy.logs.config import get_logger
-from lzy.proxy.result import Just
 from lzy.py_env.api import PyEnv
 from lzy.utils.event_loop import LzyEventLoop
-from lzy.whiteboards.api import WhiteboardField, WhiteboardDefaultDescription
+
+# noinspection PyPackageRequirements
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -54,7 +54,6 @@ class LzyWorkflow:
         self.__owner = owner
         self.__call_queue: List["LzyCall"] = []
         self.__call_list: List["LzyCall"] = []
-        self.__whiteboards_links: Dict[str, WbRef] = {}
         self.__started = False
 
         self.__env = env
@@ -62,8 +61,12 @@ class LzyWorkflow:
         self.__auto_py_env = auto_py_env
         self.__interactive = interactive
         self.__dvc = dvc
-        self.__whiteboards: List[str] = []
+        self.__whiteboards: List[WritableWhiteboard] = []
+        self.__filled_entry_ids: Set[str] = set()
+
         self.__snapshot: Optional[Snapshot] = None
+        self.__execution_id: Optional[str] = None
+        self.__entry_index = EntryIndex()
 
     @property
     def owner(self) -> "Lzy":
@@ -74,6 +77,16 @@ class LzyWorkflow:
         if self.__snapshot is None:
             raise ValueError("Workflow is not yet started")
         return self.__snapshot
+
+    @property
+    def execution_id(self) -> str:
+        if self.__execution_id is None:
+            raise ValueError("Workflow is not yet started")
+        return self.__execution_id
+
+    @property
+    def entry_index(self) -> EntryIndex:
+        return self.__entry_index
 
     @property
     def name(self) -> str:
@@ -96,7 +109,15 @@ class LzyWorkflow:
         return self.__interactive
 
     @property
-    def calls(self) -> List["LzyCall"]:
+    def filled_entry_ids(self) -> Set[str]:
+        return self.__filled_entry_ids
+
+    @property
+    def call_queue(self) -> List["LzyCall"]:
+        return self.__call_queue
+
+    @property
+    def call_list(self) -> List["LzyCall"]:
         return self.__call_list
 
     def register_call(self, call: "LzyCall") -> Any:
@@ -105,23 +126,19 @@ class LzyWorkflow:
         if self.__eager:
             self.barrier()
 
-    def add_whiteboard_link(self, storage_uri: str, ref: WbRef):
-        self.__whiteboards_links[storage_uri] = ref
-
     def barrier(self):
         LzyEventLoop.run_async(self._barrier())
 
     def create_whiteboard(self, typ: Type[T], *, tags: Sequence = ()) -> T:
-        return LzyEventLoop.run_async(self.__create_whiteboard(typ, tags))
+        wb = WritableWhiteboard(typ, tags, self)
+        self.__whiteboards.append(wb)
+        return cast(T, wb)
 
     def __enter__(self) -> "LzyWorkflow":
         try:
-            execution_id = LzyEventLoop.run_async(self.__start())
-            self.__snapshot = DefaultSnapshot(
-                execution_id,
-                storage_registry=self.owner.storage_registry,
-                serializer_registry=self.owner.serializer_registry,
-            )
+            self.__execution_id = LzyEventLoop.run_async(self.__start())
+            self.__snapshot = DefaultSnapshot(self.owner.serializer_registry, self.owner.storage_client,
+                                              self.owner.storage_name)
             return self
         except Exception as e:
             self.__destroy()
@@ -151,8 +168,10 @@ class LzyWorkflow:
         await self.__owner.runtime.destroy()
         wbs_to_finalize = []
         while len(self.__whiteboards) > 0:
-            wb_id = self.__whiteboards.pop()
-            wbs_to_finalize.append(self.__owner.whiteboard_client.finalize(wb_id))
+            whiteboard = self.__whiteboards.pop()
+            wbs_to_finalize.append(
+                self.__owner.whiteboard_manager.update_meta(
+                    Whiteboard(id=whiteboard.id, status=Whiteboard.Status.FINALIZED), uri=whiteboard.storage_uri))
         await asyncio.gather(*wbs_to_finalize)
 
     async def __start(self) -> str:
@@ -178,53 +197,16 @@ class LzyWorkflow:
             for arg, eid in zip(call.args, call.arg_entry_ids):
                 if not is_lzy_proxy(arg):
                     data_to_load.append(self.snapshot.put_data(eid, arg))
+                    self.__filled_entry_ids.add(eid)
 
             for name, kwarg in call.kwargs.items():
                 eid = call.kwarg_entry_ids[name]
                 if not is_lzy_proxy(kwarg):
                     data_to_load.append(self.snapshot.put_data(eid, kwarg))
+                    self.__filled_entry_ids.add(eid)
+
+            self.__filled_entry_ids.update(call.entry_ids)
 
         await asyncio.gather(*data_to_load)
-
-        await self.__owner.runtime.exec(self.__call_queue, self.__whiteboards_links,
-                                        lambda x: _LOG.info(f"Graph status: {x.name}"))
+        await self.__owner.runtime.exec(self.__call_queue, lambda x: _LOG.info(f"Graph status: {x.name}"))
         self.__call_queue = []
-
-    async def __create_whiteboard(self, typ: Type[T], tags: Sequence = ()) -> T:
-        declaration_meta = fetch_whiteboard_meta(typ)
-        if declaration_meta is None:
-            raise ValueError(
-                f"Whiteboard class should be annotated with both @whiteboard and @dataclass"
-            )
-
-        declared_fields = dataclasses.fields(typ)
-        fields = []
-        data_to_load = []
-        defaults = {}
-
-        for field in declared_fields:
-            if field.default != dataclasses.MISSING:
-                entry = self.snapshot.create_entry(declaration_meta.name + "." + field.name, field.type)
-                data_to_load.append(self.snapshot.put_data(entry.id, field.default))
-                fields.append(
-                    WhiteboardField(field.name, WhiteboardDefaultDescription(entry.storage_uri, entry.data_scheme))
-                )
-                defaults[field.name] = lzy_proxy(entry.id, (field.type,), self, Just(field.default))
-            else:
-                fields.append(
-                    WhiteboardField(field.name)
-                )
-
-        await asyncio.gather(*data_to_load)
-
-        created_meta = await self.__owner.whiteboard_client.create_whiteboard(
-            declaration_meta.namespace,
-            declaration_meta.name,
-            fields,
-            self.snapshot.storage_name(),
-            tags,
-        )
-
-        self.__whiteboards.append(created_meta.id)
-        wb = WritableWhiteboard(typ, created_meta, self, defaults)
-        return cast(T, wb)

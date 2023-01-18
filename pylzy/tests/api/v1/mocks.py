@@ -1,20 +1,39 @@
-from typing import List, Dict, Callable, Optional, Iterable, BinaryIO
+import datetime
+import uuid
+from typing import List, Callable, Optional, Iterable, BinaryIO, Iterator, Sequence, AsyncIterable, Dict
 
+# noinspection PyPackageRequirements
+import grpc
+from serialzy.serializers.primitive import PrimitiveSerializer
+
+from ai.lzy.v1.common.storage_pb2 import StorageConfig, S3Credentials
+from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard
+from ai.lzy.v1.whiteboard.whiteboard_service_pb2 import RegisterWhiteboardRequest, RegisterWhiteboardResponse, \
+    UpdateWhiteboardRequest, UpdateWhiteboardResponse, GetRequest, GetResponse, ListRequest, ListResponse
+from ai.lzy.v1.whiteboard.whiteboard_service_pb2_grpc import LzyWhiteboardServiceServicer
+
+from lzy.logs.config import get_logger
+
+from ai.lzy.v1.workflow.workflow_service_pb2 import CreateWorkflowRequest, CreateWorkflowResponse, \
+    FinishWorkflowRequest, FinishWorkflowResponse, ReadStdSlotsRequest, ReadStdSlotsResponse
+from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceServicer
 from lzy.api.v1 import Runtime, LzyCall, LzyWorkflow
 from lzy.api.v1.runtime import ProgressStep
-from lzy.api.v1.whiteboards import WbRef
+from lzy.serialization.registry import LzySerializerRegistry
 from lzy.storage.api import StorageRegistry, Storage, AsyncStorageClient
+from lzy.whiteboards.api import WhiteboardIndexClient
+
+_LOG = get_logger(__name__)
 
 
 class RuntimeMock(Runtime):
     def __init__(self):
         self.calls: List[LzyCall] = []
 
-    async def start(self, workflow: "LzyWorkflow"):
-        pass
+    async def start(self, workflow: "LzyWorkflow") -> str:
+        return str(uuid.uuid4())
 
-    async def exec(self, calls: List[LzyCall], links: Dict[str, WbRef],
-                   progress: Callable[[ProgressStep], None]) -> None:
+    async def exec(self, calls: List[LzyCall], progress: Callable[[ProgressStep], None]) -> None:
         self.calls = calls
 
     async def destroy(self) -> None:
@@ -22,6 +41,9 @@ class RuntimeMock(Runtime):
 
 
 class StorageClientMock(AsyncStorageClient):
+    async def copy(self, from_uri: str, to_uri: str) -> None:
+        pass
+
     async def size_in_bytes(self, uri: str) -> int:
         pass
 
@@ -41,8 +63,60 @@ class StorageClientMock(AsyncStorageClient):
         pass
 
 
-class StorageRegistryMock(StorageRegistry):
+class WorkflowServiceMock(LzyWorkflowServiceServicer):
+    def __init__(self):
+        self.fail = False
+        self.created = False
 
+    def CreateWorkflow(
+        self, request: CreateWorkflowRequest, context: grpc.ServicerContext
+    ) -> CreateWorkflowResponse:
+        _LOG.info(f"Creating wf {request}")
+
+        if self.fail:
+            self.fail = False
+            context.abort(grpc.StatusCode.INTERNAL, "some_error")
+
+        self.created = True
+        return CreateWorkflowResponse(
+            executionId="exec_id",
+            internalSnapshotStorage=StorageConfig(
+                uri="s3://bucket/prefix",
+                s3=S3Credentials(endpoint="", accessToken="", secretToken=""),
+            ),
+        )
+
+    def FinishWorkflow(
+        self, request: FinishWorkflowRequest, context: grpc.ServicerContext
+    ) -> FinishWorkflowResponse:
+        _LOG.info(f"Finishing workflow {request}")
+
+        if self.fail:
+            self.fail = False
+            context.abort(grpc.StatusCode.INTERNAL, "some_error")
+
+        assert request.workflowName == "some_name"
+        assert request.executionId == "exec_id"
+        return FinishWorkflowResponse()
+
+    def ReadStdSlots(
+        self, request: ReadStdSlotsRequest, context: grpc.ServicerContext
+    ) -> Iterator[ReadStdSlotsResponse]:
+        _LOG.info(f"Registered listener")
+
+        if self.fail:
+            self.fail = False
+            context.abort(grpc.StatusCode.INTERNAL, "some_error")
+
+        yield ReadStdSlotsResponse(
+            stdout=ReadStdSlotsResponse.Data(data=("Some stdout",))
+        )
+        yield ReadStdSlotsResponse(
+            stderr=ReadStdSlotsResponse.Data(data=("Some stderr",))
+        )
+
+
+class StorageRegistryMock(StorageRegistry):
     def register_storage(self, name: str, storage: Storage, default: bool = False) -> None:
         pass
 
@@ -66,3 +140,76 @@ class StorageRegistryMock(StorageRegistry):
 
     def available_storages(self) -> Iterable[str]:
         pass
+
+
+class WhiteboardIndexClientMock(WhiteboardIndexClient):
+    async def get(self, id_: str) -> Optional[Whiteboard]:
+        pass
+
+    async def query(self,
+                    name: Optional[str] = None,
+                    tags: Sequence[str] = (),
+                    not_before: Optional[datetime.datetime] = None,
+                    not_after: Optional[datetime.datetime] = None) -> AsyncIterable[Whiteboard]:
+        pass
+
+    async def register(self, wb: Whiteboard) -> None:
+        pass
+
+    async def update(self, wb: Whiteboard):
+        pass
+
+
+class SerializerRegistryMock(LzySerializerRegistry):
+    def __init__(self):
+        super().__init__()
+        for serializer in list(self._serializer_registry.values()):
+            self.unregister_serializer(serializer)
+
+
+class NotAvailablePrimitiveSerializer(PrimitiveSerializer):
+    def available(self) -> bool:
+        return False
+
+
+class NotStablePrimitiveSerializer(PrimitiveSerializer):
+    def stable(self) -> bool:
+        return False
+
+
+class WhiteboardIndexServiceMock(LzyWhiteboardServiceServicer):
+    def __init__(self):
+        self.__whiteboards: Dict[str, Whiteboard] = {}
+
+    def RegisterWhiteboard(self, request: RegisterWhiteboardRequest, context) -> RegisterWhiteboardResponse:
+        self.__whiteboards[request.whiteboard.id] = request.whiteboard
+        return RegisterWhiteboardResponse()
+
+    def UpdateWhiteboard(self, request: UpdateWhiteboardRequest, context) -> UpdateWhiteboardResponse:
+        self.__whiteboards[request.whiteboard.id].MergeFrom(request.whiteboard)
+        return UpdateWhiteboardResponse()
+
+    def Get(self, request: GetRequest, context) -> GetResponse:
+        whiteboard = self.__whiteboards[request.whiteboardId]
+        return GetResponse(whiteboard=whiteboard)
+
+    def List(self, request: ListRequest, context) -> ListResponse:
+        whiteboards: List[Whiteboard] = []
+        for whiteboard in self.__whiteboards.values():
+            name = request.name if request.name else whiteboard.name
+            tags = request.tags if request.tags else whiteboard.tags
+
+            if name != whiteboard.name:
+                continue
+            if not (set(whiteboard.tags) <= set(tags)):
+                continue
+
+            from_millis = request.createdTimeBounds.from_.ToMilliseconds()
+            if from_millis != 0 and whiteboard.createdAt.ToMilliseconds() < from_millis:
+                continue
+            to_millis = request.createdTimeBounds.to.ToMilliseconds()
+            if to_millis != 0 and whiteboard.createdAt.ToMilliseconds() > to_millis:
+                continue
+
+            whiteboards.append(whiteboard)
+        return ListResponse(whiteboards=whiteboards)

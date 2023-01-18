@@ -2,8 +2,14 @@ package ai.lzy.whiteboard.grpc;
 
 import ai.lzy.v1.whiteboard.LWB;
 import ai.lzy.whiteboard.model.Field;
-import ai.lzy.whiteboard.model.LinkedField;
 import ai.lzy.whiteboard.model.Whiteboard;
+
+import java.net.URI;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 
 public class ProtoConverter {
 
@@ -24,52 +30,36 @@ public class ProtoConverter {
         return LWB.Storage.newBuilder()
             .setName(storage.name())
             .setDescription(storage.description())
+            .setUri(storage.uri().toString())
             .build();
     }
 
     public static LWB.WhiteboardField toProto(Field field) {
-        if (field instanceof LinkedField linkedField) {
-            return toProto(linkedField);
-        }
         return LWB.WhiteboardField.newBuilder()
-            .setStatus(LWB.WhiteboardField.Status.valueOf(field.status().name()))
-            .setInfo(LWB.WhiteboardFieldInfo.newBuilder()
-                .setName(field.name())
-                .setNoneState(LWB.WhiteboardFieldInfo.NoneField.getDefaultInstance())
-                .build()
-            ).build();
-    }
-
-    public static LWB.WhiteboardField toProto(LinkedField field) {
-        return LWB.WhiteboardField.newBuilder()
-            .setStatus(LWB.WhiteboardField.Status.valueOf(field.status().name()))
-            .setInfo(LWB.WhiteboardFieldInfo.newBuilder()
-                .setName(field.name())
-                .setLinkedState(LWB.WhiteboardFieldInfo.LinkedField.newBuilder()
-                    .setStorageUri(field.storageUri())
-                    .setScheme(ai.lzy.model.grpc.ProtoConverter.toProto(field.schema()))
-                    .build())
-                .build())
+            .setName(field.name())
+            .setScheme(ai.lzy.model.grpc.ProtoConverter.toProto(field.scheme()))
             .build();
     }
 
-    public static Field fromProto(LWB.WhiteboardFieldInfo fieldInfo, Field.Status status) {
-        return switch (fieldInfo.getStateCase()) {
-            case NONESTATE -> new Field(fieldInfo.getName(), status);
-            case LINKEDSTATE -> new LinkedField(fieldInfo.getName(), status,
-                fieldInfo.getLinkedState().getStorageUri(),
-                ai.lzy.model.grpc.ProtoConverter.fromProto(fieldInfo.getLinkedState().getScheme()));
-            default -> throw new IllegalArgumentException("Unexpected whiteboard field state "
-                                                          + fieldInfo.getStateCase());
-        };
+    public static Whiteboard fromProto(LWB.Whiteboard whiteboard) {
+        return new Whiteboard(whiteboard.getId(), whiteboard.getName(), fromProto(whiteboard.getFieldsList()),
+            new HashSet<>(whiteboard.getTagsList()),
+            fromProto(whiteboard.getStorage()), whiteboard.getNamespace(),
+            Whiteboard.Status.valueOf(whiteboard.getStatus().name()),
+            ai.lzy.util.grpc.ProtoConverter.fromProto(whiteboard.getCreatedAt()));
     }
 
-    public static Field fromProto(LWB.WhiteboardFieldInfo fieldInfo) {
-        return fromProto(fieldInfo, Field.Status.CREATED);
+    public static Map<String, Field> fromProto(List<LWB.WhiteboardField> fieldList) {
+        return fieldList.stream()
+            .map(ProtoConverter::fromProto)
+            .collect(Collectors.toMap(Field::name, x -> x));
+    }
+
+    public static Field fromProto(LWB.WhiteboardField field) {
+        return new Field(field.getName(), ai.lzy.model.grpc.ProtoConverter.fromProto(field.getScheme()));
     }
 
     public static Whiteboard.Storage fromProto(LWB.Storage storage) {
-        return new Whiteboard.Storage(storage.getName(), storage.getDescription());
+        return new Whiteboard.Storage(storage.getName(), storage.getDescription(), URI.create(storage.getUri()));
     }
-
 }

@@ -6,12 +6,11 @@ import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.NotFoundException;
+import ai.lzy.v1.whiteboard.LWB;
 import ai.lzy.v1.whiteboard.LWBS;
 import ai.lzy.v1.whiteboard.LWBS.*;
 import ai.lzy.v1.whiteboard.LzyWhiteboardServiceGrpc;
 import ai.lzy.whiteboard.access.AccessManager;
-import ai.lzy.whiteboard.model.Field;
-import ai.lzy.whiteboard.model.LinkedField;
 import ai.lzy.whiteboard.model.Whiteboard;
 import ai.lzy.whiteboard.storage.WhiteboardDataSource;
 import ai.lzy.whiteboard.storage.WhiteboardStorage;
@@ -24,12 +23,12 @@ import jakarta.inject.Named;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.net.URI;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
@@ -37,7 +36,6 @@ import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
 import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOpResult;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
-import static ai.lzy.model.grpc.ProtoConverter.fromProto;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
 import static ai.lzy.whiteboard.grpc.ProtoValidator.isValid;
 
@@ -73,7 +71,7 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
             final String whiteboardId = request.getWhiteboardId();
 
             if (whiteboardId.isBlank()) {
-                final String errorMessage = "Request shouldn't contain empty fields";
+                final String errorMessage = "ID is empty";
                 LOG.error("Get whiteboard {} failed, invalid argument: {}", request.getWhiteboardId(), errorMessage);
                 responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(errorMessage).asException());
             }
@@ -85,7 +83,6 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
             }
 
             final Whiteboard whiteboard = whiteboardStorage.getWhiteboard(whiteboardId, null);
-
             responseObserver.onNext(LWBS.GetResponse.newBuilder()
                 .setWhiteboard(ProtoConverter.toProto(whiteboard))
                 .build());
@@ -147,16 +144,16 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
     }
 
     @Override
-    public void createWhiteboard(CreateWhiteboardRequest request,
-                                 StreamObserver<CreateWhiteboardResponse> responseObserver)
+    public void registerWhiteboard(RegisterWhiteboardRequest request,
+                                   StreamObserver<RegisterWhiteboardResponse> responseObserver)
     {
-        if (!validateCreateRequest(request, responseObserver)) {
+        if (!validateRegisterRequest(request, responseObserver)) {
             return;
         }
 
         var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
         if (idempotencyKey != null &&
-            loadExistingOpResult(operationDao, idempotencyKey, responseObserver, CreateWhiteboardResponse.class,
+            loadExistingOpResult(operationDao, idempotencyKey, responseObserver, RegisterWhiteboardResponse.class,
                 Duration.ofMillis(100), Duration.ofSeconds(1), LOG))
         {
             return;
@@ -165,9 +162,12 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
         var authenticationContext = AuthenticationContext.current();
         var userId = Objects.requireNonNull(authenticationContext).getSubject().id();
 
+        final LWB.Whiteboard whiteboard = request.getWhiteboard();
         var op = Operation.create(
             userId,
-            "Create whiteboard: namespace=%s, name=%s".formatted(request.getNamespace(), request.getWhiteboardName()),
+            "Register whiteboard: namespace=%s, name=%s, id=%s".formatted(whiteboard.getNamespace(),
+                whiteboard.getName(), whiteboard.getId()),
+            /* deadline */ null,
             idempotencyKey,
             /* meta */ null);
 
@@ -175,41 +175,34 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
             withRetries(LOG, () -> operationDao.create(op, null));
         } catch (Exception ex) {
             if (idempotencyKey != null && handleIdempotencyKeyConflict(idempotencyKey, ex, operationDao,
-                responseObserver, CreateWhiteboardResponse.class, Duration.ofMillis(100), Duration.ofSeconds(1), LOG))
+                responseObserver, RegisterWhiteboardResponse.class, Duration.ofMillis(100), Duration.ofSeconds(1), LOG))
             {
                 return;
             }
 
             LOG.error("Cannot create operation of whiteboard creation: { namespace: {}, whiteboardName: {} }, " +
-                "error: {}", request.getNamespace(), request.getWhiteboardName(), ex.getMessage(), ex);
+                "error: {}", whiteboard.getNamespace(), whiteboard.getName(), ex.getMessage(), ex);
             responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
             return;
         }
 
-        LOG.info("Create whiteboard {}", request.getWhiteboardName());
-
-        var whiteboardId = "whiteboard-" + UUID.randomUUID();
-        var createdAt = Instant.now().truncatedTo(ChronoUnit.MILLIS);
-        Map<String, Field> fields = request.getFieldsList().stream()
-            .map(ProtoConverter::fromProto)
-            .collect(Collectors.toMap(Field::name, x -> x));
-        var whiteboard = new Whiteboard(whiteboardId, request.getWhiteboardName(), fields,
-            new HashSet<>(request.getTagsList()), ProtoConverter.fromProto(request.getStorage()),
-            request.getNamespace(), Whiteboard.Status.CREATED, createdAt);
-
+        LOG.info("Register whiteboard name={}, id={}", whiteboard.getName(), whiteboard.getId());
         try {
-            withRetries(defaultRetryPolicy(), LOG, () -> whiteboardStorage.insertWhiteboard(userId, whiteboard, null));
+            final Instant inserted = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+            withRetries(defaultRetryPolicy(), LOG, () -> whiteboardStorage.registerWhiteboard(
+                userId, ProtoConverter.fromProto(whiteboard), inserted, null)
+            );
 
             try {
-                accessManager.addAccess(userId, whiteboardId);
+                accessManager.addAccess(userId, whiteboard.getId());
             } catch (Exception e) {
                 String errorMessage = "Failed to get access to whiteboard for user " + userId;
-                LOG.error("Create whiteboard {} failed, got exception: {}", request.getWhiteboardName(),
+                LOG.error("Create whiteboard {} failed, got exception: {}", whiteboard.getName(),
                     errorMessage, e);
-                LOG.info("Undo creating whiteboard {}, id = {}", request.getWhiteboardName(), whiteboardId);
+                LOG.info("Undo creating whiteboard {}, id = {}", whiteboard.getName(), whiteboard.getId());
                 withRetries(defaultRetryPolicy(), LOG, () ->
-                    whiteboardStorage.deleteWhiteboard(whiteboardId, null));
-                LOG.info("Undo creating whiteboard {} done", request.getWhiteboardName());
+                    whiteboardStorage.deleteWhiteboard(whiteboard.getId(), null));
+                LOG.info("Undo creating whiteboard {} done", whiteboard.getName());
                 var status = Status.INTERNAL.withCause(e);
 
                 operationDao.failOperation(op.id(), toProto(status), null, LOG);
@@ -217,7 +210,7 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
                 responseObserver.onError(status.asRuntimeException());
             }
         } catch (IllegalArgumentException e) {
-            LOG.error("Create whiteboard {} failed, invalid argument: {}", request.getWhiteboardName(),
+            LOG.error("Create whiteboard {} failed, invalid argument: {}", whiteboard.getName(),
                 e.getMessage(), e);
             var status = Status.INVALID_ARGUMENT.withDescription(e.getMessage());
 
@@ -229,7 +222,7 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
 
             responseObserver.onError(status.asRuntimeException());
         } catch (Exception e) {
-            LOG.error("Create whiteboard {} failed, got exception: {}", request.getWhiteboardName(), e.getMessage(), e);
+            LOG.error("Create whiteboard {} failed, got exception: {}", whiteboard.getName(), e.getMessage(), e);
             var status = Status.INTERNAL.withCause(e);
 
             try {
@@ -241,141 +234,38 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
             responseObserver.onError(status.asRuntimeException());
         }
 
-        LOG.info("Create whiteboard {} done, id = {}", request.getWhiteboardName(), whiteboardId);
-
-        var response = CreateWhiteboardResponse.newBuilder()
-            .setWhiteboard(ProtoConverter.toProto(whiteboard))
+        LOG.info("Create whiteboard {} done, id = {}", whiteboard.getName(), whiteboard.getId());
+        var response = RegisterWhiteboardResponse.newBuilder()
             .build();
         var packedResponse = Any.pack(response);
-
         try {
             withRetries(LOG, () -> operationDao.complete(op.id(), packedResponse, null));
         } catch (Exception e) {
             LOG.error("Error while executing transaction: {}", e.getMessage(), e);
             var errorStatus = Status.INTERNAL.withDescription("Error while creating whiteboard: " + e.getMessage());
-
             try {
                 operationDao.failOperation(op.id(), toProto(errorStatus), null, LOG);
             } catch (SQLException ex) {
                 LOG.error("Cannot fail operation {}: {}", op.id(), ex.getMessage());
             }
-
             responseObserver.onError(errorStatus.asRuntimeException());
         }
-
         responseObserver.onNext(response);
         responseObserver.onCompleted();
     }
 
     @Override
-    public void linkField(LinkFieldRequest request, StreamObserver<LinkFieldResponse> responseObserver) {
-        if (!validateLinkRequest(request, responseObserver)) {
-            return;
-        }
-
-        var authenticationContext = AuthenticationContext.current();
-        var userId = Objects.requireNonNull(authenticationContext).getSubject().id();
-
-        var whiteboardId = request.getWhiteboardId();
-        var fieldName = request.getFieldName();
-
-        if (!accessManager.checkAccess(userId, whiteboardId)) {
-            LOG.error("PERMISSION DENIED: <{}> trying to access whiteboard <{}> without permission",
-                userId, whiteboardId);
-            responseObserver.onError(Status.PERMISSION_DENIED.withDescription(
-                "You don't have access to whiteboard <" + whiteboardId + ">").asException());
-            return;
-        }
-
-        LOG.info("Link field {} of whiteboard {}", request.getFieldName(), request.getWhiteboardId());
-
-        var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
-        if (idempotencyKey != null &&
-            // should already be completed
-            loadExistingOpResult(operationDao, idempotencyKey, responseObserver, LinkFieldResponse.class,
-                Duration.ofMillis(0), Duration.ofSeconds(0), LOG))
-        {
-            return;
-        }
-
-        var operationId = UUID.randomUUID().toString();
-        var response = LinkFieldResponse.getDefaultInstance();
-
-        var op = Operation.createCompleted(
-            operationId,
-            userId,
-            "Link whiteboard field: whiteboardId=%s, fieldName=%s".formatted(request.getWhiteboardId(),
-                request.getFieldName()),
-            idempotencyKey,
-            /* meta */ null,
-            response);
-
-        var finalizedAt = Instant.now().truncatedTo(ChronoUnit.MILLIS);
-        var linkedField = new LinkedField(fieldName, Field.Status.FINALIZED, request.getStorageUri(),
-            fromProto(request.getScheme()));
-
-        try {
-            withRetries(defaultRetryPolicy(), LOG, () -> {
-                try (var tx = TransactionHandle.create(dataSource)) {
-                    operationDao.create(op, tx);
-
-                    Whiteboard whiteboard = whiteboardStorage.getWhiteboard(whiteboardId, tx);
-
-                    Field field = whiteboard.getField(fieldName);
-                    if (field == null) {
-                        throw new NotFoundException("Field " + fieldName + " of whiteboard " + whiteboardId +
-                            " not found");
-                    }
-                    if (field.status() == Field.Status.FINALIZED) {
-                        throw new IllegalArgumentException("Field " + fieldName + " of whiteboard " + whiteboardId +
-                            " already finalized");
-                    }
-                    if (field instanceof LinkedField oldLinkedField) {
-                        LOG.info("Field {} of whiteboard {} has already linked with data [{}]. " +
-                            "Data will be overwritten.", fieldName, whiteboardId, oldLinkedField.toString());
-                    }
-
-                    whiteboardStorage.updateField(whiteboardId, linkedField, finalizedAt, tx);
-
-                    tx.commit();
-                }
-            });
-
-            responseObserver.onNext(LinkFieldResponse.getDefaultInstance());
-            LOG.info("Finalize field {} of whiteboard {} done", fieldName, whiteboardId);
-            responseObserver.onCompleted();
-        } catch (NotFoundException e) {
-            LOG.error("Finalize field {} of whiteboard {} failed, not found exception: {}",
-                request.getFieldName(), request.getWhiteboardId(), e.getMessage(), e);
-            responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asException());
-        } catch (IllegalArgumentException e) {
-            LOG.error("Finalize field {} of whiteboard {} failed, invalid argument: {}",
-                request.getFieldName(), request.getWhiteboardId(), e.getMessage(), e);
-            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
-        } catch (Exception e) {
-            // should already be completed
-            if (idempotencyKey != null && handleIdempotencyKeyConflict(idempotencyKey, e, operationDao,
-                responseObserver, LinkFieldResponse.class, Duration.ofMillis(0), Duration.ofSeconds(0), LOG))
-            {
-                return;
-            }
-
-            LOG.error("Cannot create operation of whiteboard field linkage: { whiteboardId: {}, fieldName: {} }, " +
-                "error: {}", request.getWhiteboardId(), request.getFieldName(), e.getMessage(), e);
-            responseObserver.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
-        }
-    }
-
-    @Override
-    public void finalizeWhiteboard(FinalizeWhiteboardRequest request,
-                                   StreamObserver<FinalizeWhiteboardResponse> responseObserver)
+    public void updateWhiteboard(UpdateWhiteboardRequest request,
+                                 StreamObserver<UpdateWhiteboardResponse> responseObserver)
     {
         final var authenticationContext = AuthenticationContext.current();
         final String userId = Objects.requireNonNull(authenticationContext).getSubject().id();
 
-        final String whiteboardId = request.getWhiteboardId();
+        final LWB.Whiteboard requestWhiteboard = request.getWhiteboard();
+        final String whiteboardId = requestWhiteboard.getId();
         if (whiteboardId.isBlank()) {
-            throw new IllegalArgumentException("Request shouldn't contain empty fields");
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("whiteboard ID is empty").asException());
+            return;
         }
 
         if (!accessManager.checkAccess(userId, whiteboardId)) {
@@ -386,26 +276,23 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
             return;
         }
 
-        LOG.info("Finalize whiteboard {}", request.getWhiteboardId());
-
-        final Instant finalizedAt = Instant.now().truncatedTo(ChronoUnit.MILLIS);
-
+        LOG.info("Updating whiteboard {}", whiteboardId);
         var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
         if (idempotencyKey != null &&
             // should already be completed
-            loadExistingOpResult(operationDao, idempotencyKey, responseObserver, FinalizeWhiteboardResponse.class,
+            loadExistingOpResult(operationDao, idempotencyKey, responseObserver, UpdateWhiteboardResponse.class,
                 Duration.ofMillis(0), Duration.ofSeconds(0), LOG))
         {
             return;
         }
 
         var operationId = UUID.randomUUID().toString();
-        var response = FinalizeWhiteboardResponse.getDefaultInstance();
+        var response = UpdateWhiteboardResponse.getDefaultInstance();
 
         var op = Operation.createCompleted(
             operationId,
             userId,
-            "Finalize whiteboard: whiteboardId=" + request.getWhiteboardId(),
+            "Update whiteboard: whiteboardId=" + whiteboardId,
             idempotencyKey,
             /* meta */ null,
             response);
@@ -414,97 +301,99 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
             withRetries(defaultRetryPolicy(), LOG, () -> {
                 try (var tx = TransactionHandle.create(dataSource)) {
                     operationDao.create(op, tx);
-
+                    // it is not optimal update strategy, but this operation is pretty rare
                     final Whiteboard whiteboard = whiteboardStorage.getWhiteboard(whiteboardId, tx);
-
-                    if (whiteboard.status() == Whiteboard.Status.FINALIZED) {
-                        throw new IllegalArgumentException("Whiteboard " + whiteboardId + " already finalized");
-                    }
-
-                    final var unlinkedFields = whiteboard.unlinkedFields();
-                    if (!unlinkedFields.isEmpty()) {
-                        LOG.info("Finalize whiteboard {} with unlinked fields: [{}]",
-                            whiteboardId, String.join(",", unlinkedFields.toString()));
-                    }
-
-                    whiteboardStorage.finalizeWhiteboard(whiteboardId, finalizedAt, tx);
-
+                    final Whiteboard.Storage storage = whiteboard.storage();
+                    final Whiteboard.Storage newStorage = new Whiteboard.Storage(
+                        requestWhiteboard.getStorage().getName().isBlank() ? storage.name() :
+                            requestWhiteboard.getStorage().getName(),
+                        requestWhiteboard.getStorage().getDescription().isBlank() ? storage.description() :
+                            requestWhiteboard.getStorage().getDescription(),
+                        requestWhiteboard.getStorage().getUri().isBlank() ? storage.uri() :
+                            URI.create(requestWhiteboard.getStorage().getUri())
+                    );
+                    final Whiteboard newWhiteboard = new Whiteboard(
+                        whiteboardId,
+                        requestWhiteboard.getName().isBlank() ? whiteboard.name() : requestWhiteboard.getName(),
+                        requestWhiteboard.getFieldsList().isEmpty() ? whiteboard.fields() :
+                            ProtoConverter.fromProto(requestWhiteboard.getFieldsList()),
+                        requestWhiteboard.getTagsList().isEmpty() ? whiteboard.tags() :
+                            new HashSet<>(requestWhiteboard.getTagsList()),
+                        newStorage,
+                        requestWhiteboard.getNamespace().isBlank() ? whiteboard.namespace() :
+                            requestWhiteboard.getNamespace(),
+                        requestWhiteboard.getStatus() == LWB.Whiteboard.Status.WHITEBOARD_STATUS_UNSPECIFIED ?
+                            whiteboard.status() :
+                            Whiteboard.Status.valueOf(requestWhiteboard.getStatus().name()),
+                        requestWhiteboard.getCreatedAt().getSeconds() == 0 ? whiteboard.createdAt() :
+                            ai.lzy.util.grpc.ProtoConverter.fromProto(requestWhiteboard.getCreatedAt())
+                    );
+                    whiteboardStorage.deleteWhiteboard(whiteboardId, tx);
+                    final Instant inserted = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+                    whiteboardStorage.registerWhiteboard(userId, newWhiteboard, inserted, tx);
                     tx.commit();
                 }
             });
 
-            responseObserver.onNext(FinalizeWhiteboardResponse.getDefaultInstance());
-            LOG.info("Finalize whiteboard {} done", whiteboardId);
+            responseObserver.onNext(UpdateWhiteboardResponse.getDefaultInstance());
+            LOG.info("Update whiteboard {} done", whiteboardId);
             responseObserver.onCompleted();
         } catch (NotFoundException e) {
-            LOG.error("Finalize whiteboard {} failed, not found exception: {}",
-                request.getWhiteboardId(), e.getMessage(), e);
+            LOG.error("Update whiteboard {} failed, not found exception: {}",
+                whiteboardId, e.getMessage(), e);
             responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asException());
         } catch (IllegalArgumentException e) {
-            LOG.error("Finalize whiteboard {} failed, invalid argument: {}",
-                request.getWhiteboardId(), e.getMessage(), e);
+            LOG.error("Update whiteboard {} failed, invalid argument: {}",
+                whiteboardId, e.getMessage(), e);
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
         } catch (Exception e) {
             // should already be completed
             if (idempotencyKey != null && handleIdempotencyKeyConflict(idempotencyKey, e, operationDao,
-                responseObserver, FinalizeWhiteboardResponse.class, Duration.ofMillis(0), Duration.ofSeconds(0), LOG))
+                responseObserver, UpdateWhiteboardResponse.class, Duration.ofMillis(0), Duration.ofSeconds(0), LOG))
             {
                 return;
             }
 
-            LOG.error("Cannot create operation of whiteboard finalizing: { whiteboardId: {} }, " +
-                "error: {}", request.getWhiteboardId(), e.getMessage(), e);
+            LOG.error("Cannot create operation of whiteboard updating: { whiteboardId: {} }, " +
+                "error: {}", whiteboardId, e.getMessage(), e);
             responseObserver.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
         }
     }
 
-    private static boolean validateCreateRequest(CreateWhiteboardRequest request,
-                                                 StreamObserver<CreateWhiteboardResponse> responseObserver)
+    private static boolean validateRegisterRequest(RegisterWhiteboardRequest request,
+                                                   StreamObserver<RegisterWhiteboardResponse> responseObserver)
     {
         var methodName = "Create whiteboard";
-
-        if (request.getWhiteboardName().isBlank()) {
-            return replyValidateError(methodName, "Request must contain not blank whiteboard name", responseObserver);
+        final LWB.Whiteboard whiteboard = request.getWhiteboard();
+        if (whiteboard.getId().isBlank()) {
+            return replyValidateError(methodName, "Whiteboard must contain not blank ID",
+                responseObserver);
         }
-
-        if (request.getFieldsCount() == 0) {
-            return replyValidateError(methodName, "Request must contain at least one field", responseObserver);
+        if (whiteboard.getName().isBlank()) {
+            return replyValidateError(methodName, "Whiteboard must contain not blank whiteboard name",
+                responseObserver);
         }
-
-        if (request.getNamespace().isBlank()) {
-            return replyValidateError(methodName, "Request must contain not blank namespace", responseObserver);
+        if (whiteboard.getFieldsCount() == 0) {
+            return replyValidateError(methodName, "Whiteboard must contain at least one field", responseObserver);
         }
-
-        if (request.getStorage().getName().isBlank()) {
-            return replyValidateError(methodName, "Request must contain not blank storage name", responseObserver);
+        if (whiteboard.getNamespace().isBlank()) {
+            return replyValidateError(methodName, "Whiteboard must contain not blank namespace", responseObserver);
         }
-
-        if (request.getFieldsList().stream().anyMatch(field -> !isValid(field))) {
+        if (whiteboard.getStorage().getName().isBlank()) {
+            return replyValidateError(methodName, "Whiteboard must contain not blank storage name", responseObserver);
+        }
+        if (whiteboard.getStorage().getUri().isBlank()) {
+            return replyValidateError(methodName, "Whiteboard must contain not blank storage uri", responseObserver);
+        }
+        if (whiteboard.getCreatedAt().getSeconds() == 0) {
+            return replyValidateError(methodName, "Whiteboard must contain initialized createdAt", responseObserver);
+        }
+        if (whiteboard.getStatus() == LWB.Whiteboard.Status.WHITEBOARD_STATUS_UNSPECIFIED) {
+            return replyValidateError(methodName, "Whiteboard status is not specified", responseObserver);
+        }
+        if (whiteboard.getFieldsList().stream().anyMatch(field -> !isValid(field))) {
             return replyValidateError(methodName, "Request contains invalid whiteboard field", responseObserver);
         }
-
-        return true;
-    }
-
-    private static boolean validateLinkRequest(LinkFieldRequest request, StreamObserver<LinkFieldResponse> response) {
-        var methodName = "Link whiteboard field";
-
-        if (request.getWhiteboardId().isBlank()) {
-            return replyValidateError(methodName, "Request must contain not blank whiteboard id", response);
-        }
-
-        if (request.getFieldName().isBlank()) {
-            return replyValidateError(methodName, "Request must contain not blank field name", response);
-        }
-
-        if (request.getStorageUri().isBlank()) {
-            return replyValidateError(methodName, "Request must contain not blank storage uri", response);
-        }
-
-        if (!isValid(request.getScheme())) {
-            return replyValidateError(methodName, "Request must contain valid data schema", response);
-        }
-
         return true;
     }
 
