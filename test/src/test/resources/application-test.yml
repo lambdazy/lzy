@@ -61,7 +61,7 @@ scheduler:
   base-env-default-image: ""
   max-workers-per-workflow: 2
   default-provisioning-limit: 2
-  worker-image: lzy-worker
+  worker-image: worker
 
   provisioning-limits:
     s: 10

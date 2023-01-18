@@ -15,7 +15,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.Objects;
 
 @Singleton
 public class WorkflowDaoImpl implements WorkflowDao {
@@ -86,8 +85,8 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
     @Override
     @Nullable
-    public String[] findWorkflowBy(String executionId) throws SQLException {
-        String[] workflowInfo = {null, null};
+    public WorkflowInfo findWorkflowBy(String executionId) throws SQLException {
+        WorkflowInfo[] result = {null};
 
 
         DbOperation.execute(null, storage, connection -> {
@@ -96,15 +95,14 @@ public class WorkflowDaoImpl implements WorkflowDao {
                 ResultSet rs = statement.executeQuery();
 
                 if (rs.next()) {
-                    workflowInfo[0] = rs.getString("workflow_name");
-                    workflowInfo[1] = rs.getString("user_id");
+                    result[0] = new WorkflowInfo(rs.getString("workflow_name"), rs.getString("user_id"));
                 } else {
                     LOG.warn("Cannot find workflow with active execution: { executionId: {} }", executionId);
                 }
             }
         });
 
-        return Objects.nonNull(workflowInfo[0]) ? workflowInfo : null;
+        return result[0];
     }
 
     @Override

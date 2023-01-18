@@ -4,7 +4,6 @@ import ai.lzy.test.ApplicationContextRule;
 import ai.lzy.test.ContextRule;
 import ai.lzy.test.impl.v2.WhiteboardContext;
 import ai.lzy.test.impl.v2.WorkflowContext;
-import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.workflow.LWF.Graph;
 import ai.lzy.v1.workflow.LWF.Operation;
 import ai.lzy.v1.workflow.LWF.Operation.SlotDescription;
@@ -19,7 +18,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class WorkflowTest {
-    static final Logger LOG = LogManager.getLogger(SchedulerTest.class);
+    static final Logger LOG = LogManager.getLogger(WorkflowTest.class);
 
     @Rule
     public final ApplicationContextRule ctx = new ApplicationContextRule();

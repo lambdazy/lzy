@@ -24,8 +24,6 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -112,11 +110,5 @@ public class BeanFactory {
     @Named("GraphDaoObjectMapper")
     public ObjectMapper mapper() {
         return new ObjectMapper().registerModule(new ProtobufModule());
-    }
-
-    @Singleton
-    @Named("PortalChannels")
-    public Map<String, ManagedChannel> portalChannels() {
-        return new ConcurrentHashMap<>();
     }
 }

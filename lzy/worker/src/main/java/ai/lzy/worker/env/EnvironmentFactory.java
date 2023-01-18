@@ -11,9 +11,16 @@ import java.util.function.Supplier;
 public class EnvironmentFactory {
     private static final Logger LOG = LogManager.getLogger(EnvironmentFactory.class);
     private static Supplier<Environment> envForTests = null;
-    private static boolean IS_DOCKER_SUPPORTED = true;
 
-    public static Environment create(Env env) throws EnvironmentInstallationException {
+    private String defaultImage;
+    private boolean isDockerSupported;
+
+    public EnvironmentFactory(String defaultImage) {
+        this.defaultImage = defaultImage;
+        this.isDockerSupported = true;
+    }
+
+    public Environment create(String fsRoot, Env env) throws EnvironmentInstallationException {
         //to mock environment in tests
         if (envForTests != null) {
             LOG.info("EnvironmentFactory: using mocked environment");
@@ -23,17 +30,19 @@ public class EnvironmentFactory {
         final String resourcesPathStr = "/tmp/resources/";
 
         final BaseEnvironment baseEnv;
-        if (IS_DOCKER_SUPPORTED && env.baseEnv() != null) {
+        if (isDockerSupported && env.baseEnv() != null) {
             LOG.info("Docker baseEnv provided, using DockerEnvironment");
+            String image = env.baseEnv().name();
             BaseEnvConfig config = BaseEnvConfig.newBuilder()
-                    .image(env.baseEnv().name())
-                    .addMount(resourcesPathStr, resourcesPathStr)
-                    .build();
+                .image((image == null || image.equals("default")) ? defaultImage : image)
+                .addMount(resourcesPathStr, resourcesPathStr)
+                .addRsharedMount(fsRoot, fsRoot)
+                .build();
             baseEnv = new DockerEnvironment(config);
         } else {
             if (env.baseEnv() == null) {
                 LOG.info("No baseEnv provided, using ProcessEnvironment");
-            } else if (!IS_DOCKER_SUPPORTED) {
+            } else if (!isDockerSupported) {
                 LOG.info("Docker support disabled, using ProcessEnvironment, "
                          + "baseEnv {} ignored", env.baseEnv().name());
             }
@@ -54,8 +63,4 @@ public class EnvironmentFactory {
         envForTests = env;
     }
 
-    @VisibleForTesting
-    public static void disableDockers() {
-        IS_DOCKER_SUPPORTED = false;
-    }
 }

@@ -110,7 +110,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             return;
         }
 
-        Status preconditionsStatus = checkBindPreconditions(request, channel);
+        Status preconditionsStatus = checkBindPreconditions(request, channelId, channel);
         if (!preconditionsStatus.isOk()) {
             LOG.error(operationDescription + " failed, {}", preconditionsStatus.getDescription());
             response.onError(preconditionsStatus.asException());
@@ -137,7 +137,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
 
                     final Channel actualChannel = channelDao.findChannel(channelId, Channel.LifeStatus.ALIVE, tx);
 
-                    preconditionsActualStatus = checkBindPreconditions(request, actualChannel);
+                    preconditionsActualStatus = checkBindPreconditions(request, channelId, actualChannel);
                     if (!preconditionsActualStatus.isOk()) {
                         return preconditionsActualStatus;
                     }
@@ -242,7 +242,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
 
                     final Channel actualChannel = channelDao.findChannel(channelId, Channel.LifeStatus.ALIVE, tx);
 
-                    preconditionsActualStatus = checkUnbindPreconditions(request, actualChannel);
+                    preconditionsActualStatus = checkUnbindPreconditions(request, channelId, actualChannel);
                     if (!preconditionsActualStatus.isOk()) {
                         return preconditionsActualStatus;
                     }
@@ -278,9 +278,9 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         executor.submit(channelOperationManager.getAction(channelOperation));
     }
 
-    private Status checkBindPreconditions(LCMS.BindRequest request, Channel channel) {
+    private Status checkBindPreconditions(LCMS.BindRequest request, String channelId, Channel channel) {
         if (channel == null) {
-            return Status.NOT_FOUND.withDescription("Channel not found");
+            return Status.NOT_FOUND.withDescription("Channel " + channelId + " not found");
         }
 
         switch (request.getSlotOwner()) {
@@ -316,9 +316,9 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         return Status.OK;
     }
 
-    private Status checkUnbindPreconditions(LCMS.UnbindRequest request, Channel channel) {
+    private Status checkUnbindPreconditions(LCMS.UnbindRequest request, String channelId, Channel channel) {
         if (channel == null) {
-            return Status.NOT_FOUND.withDescription("Channel not found");
+            return Status.NOT_FOUND.withDescription("Channel " + channelId + " not found");
         }
 
         final Endpoint activeEndpoint = channel.getEndpoints().stream()

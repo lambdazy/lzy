@@ -13,6 +13,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -28,6 +29,8 @@ public class AllocatorContext {
     public AllocatorContext(IamContext iam, String jarPath, String executableClass, int port) {
 
         this.address = HostAndPort.fromParts("localhost", port);
+
+        Utils.createFolder(Path.of("/tmp/resources"));
         final var opts = Utils.createModuleDatabase("allocator");
         opts.putAll(new HashMap<String, Object>(Map.of(
             "allocator.instance-id", "xxx",
