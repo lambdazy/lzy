@@ -63,9 +63,9 @@ def _from(creds: grpc_STORAGE_CREDS) -> StorageCredentials:
 @_from.register
 def _(creds: storage_pb2.S3Credentials) -> StorageCredentials:
     return S3Credentials(
-        access_token=creds.accessToken,
+        access_key_id=creds.accessToken,
         endpoint=creds.endpoint,
-        secret_token=creds.secretToken,
+        secret_access_key=creds.secretToken,
     )
 
 
