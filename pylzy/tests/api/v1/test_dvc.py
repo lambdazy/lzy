@@ -87,6 +87,7 @@ class DvcTests(TestCase):
                         'cmd': 'python main.py cfg.yaml',
                         'deps': [
                             'dvc_requirements.txt',
+                            'ai',
                             'test_dvc.py',
                             'mocks.py',
                             'cfg.yaml',
@@ -96,7 +97,14 @@ class DvcTests(TestCase):
                 }
             },
             {'name': 'foo', 'size': 7},
-            ['mock==5.0.1', 'PyYAML==6.0', 'pylzy==0.0.50']
+            [
+                'mock==5.0.1',
+                'PyYAML==6.0',
+                'pylzy==0.0.50',
+                'googleapis-common-protos==1.57.0',
+                'grpcio==1.50.0',
+                'serialzy==0.0.12',
+            ]
         )
 
     # TODO: clarify what to do with defaults
@@ -112,6 +120,7 @@ class DvcTests(TestCase):
                         'cmd': 'python main.py',  # ' cfg.yaml',
                         'deps': [
                             'dvc_requirements.txt',
+                            'ai',
                             'test_dvc.py',
                             'mocks.py',
                             # 'cfg.yaml',
@@ -121,7 +130,14 @@ class DvcTests(TestCase):
                 }
             },
             {'cap': 7, 'name': 'bar', 'ready': False, 'size': 42},
-            ['mock==5.0.1', 'PyYAML==6.0', 'pylzy==0.0.50']
+            [
+                'mock==5.0.1',
+                'PyYAML==6.0',
+                'pylzy==0.0.50',
+                'googleapis-common-protos==1.57.0',
+                'grpcio==1.50.0',
+                'serialzy==0.0.12',
+            ]
         )
 
     @skip('same var have different entry_id in runtime.calls')
@@ -138,6 +154,7 @@ class DvcTests(TestCase):
                         'cmd': 'python main.py cfg.yaml',
                         'deps': [
                             'dvc_requirements.txt',
+                            'ai',
                             'test_dvc.py',
                             'mocks.py',
                             'cfg.yaml',
@@ -147,7 +164,14 @@ class DvcTests(TestCase):
                 }
             },
             {'size': 15, 'name': 'foo'},
-            ['mock==5.0.1', 'PyYAML==6.0', 'pylzy==0.0.50']
+            [
+                'mock==5.0.1',
+                'PyYAML==6.0',
+                'pylzy==0.0.50',
+                'googleapis-common-protos==1.57.0',
+                'grpcio==1.50.0',
+                'serialzy==0.0.12',
+            ]
         )
 
     def test_arg_name_collisions(self):

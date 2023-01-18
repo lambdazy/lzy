@@ -2,8 +2,11 @@ import sys
 from collections import namedtuple
 import os
 
+from lzy.logs.config import get_logger
 from lzy.types import File
 from . import LzyWorkflow
+
+_LOG = get_logger(__name__)
 
 requirements_file_name = 'dvc_requirements.txt'
 dvc_file_name = 'dvc.yaml'
@@ -28,7 +31,7 @@ def generate_dvc_files(wf: LzyWorkflow) -> None:
 
     args = []
     intermediate_entry_ids = set()
-    for call in wf.calls:
+    for call in wf.call_list:
         func = call.signature.func
 
         for i, (arg_value, arg_entry_id) in enumerate(zip(call.args, call.arg_entry_ids)):
@@ -90,5 +93,15 @@ def generate_dvc_files(wf: LzyWorkflow) -> None:
 
 def _get_relative_path(cwd: str, module_path: str) -> str:
     if not module_path.startswith(cwd):
-        raise RuntimeError(f'local module path "{module_path}" must start with working directory path "{cwd}"')
-    return module_path[len(cwd) + 1:]
+        _LOG.warning(f'local module path "{module_path}" doesn\'t start with working directory path "{cwd}"')
+        common_prefix_len = 0
+        for c1, c2 in zip(module_path, cwd):
+            if c1 != c2:
+                break
+            common_prefix_len += 1
+        path = module_path[common_prefix_len:]
+    else:
+        path = module_path[len(cwd) + 1:]
+    if len(path) == 0:
+        path = '.'
+    return path
