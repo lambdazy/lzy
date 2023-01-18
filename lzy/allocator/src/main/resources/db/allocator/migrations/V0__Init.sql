@@ -53,6 +53,7 @@ CREATE TABLE vm
     -- allocation progress
     allocation_op_id      TEXT      NOT NULL REFERENCES operation (id),
     allocation_started_at TIMESTAMP NOT NULL,
+    allocation_deadline   TIMESTAMP NOT NULL,
     owner_instance        TEXT      NOT NULL, -- instance_id which serves this operation
     vm_ott                TEXT      NOT NULL,
     vm_subject_id         TEXT      NULL,
