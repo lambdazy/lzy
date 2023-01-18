@@ -21,7 +21,6 @@ import java.io.PipedOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
@@ -39,22 +38,18 @@ public class DockerEnvironment implements BaseEnvironment {
         sourceImage = prepareImage(config);
 
         LOG.info("Creating container from image={} ...", sourceImage);
-        LOG.info("Mount options:\n\t{}",
-            config.mounts().stream().map(it -> it.source + " -> " + it.target).collect(Collectors.joining("\n\t")));
+        LOG.info("Mount options:\n\t{}", config.mounts().stream()
+            .map(it -> it.source() + " -> " + it.target() + (it.isRshared() ? " (R_SHARED)" : ""))
+            .collect(Collectors.joining("\n\t")));
+
         final List<Mount> dockerMounts = new ArrayList<>();
-        dockerMounts.add(
-            new Mount()
-                .withSource("/tmp/lzy")
-                .withTarget("/tmp/lzy")
-                .withType(MountType.BIND)
-                .withBindOptions(new BindOptions().withPropagation(BindPropagation.R_SHARED))
-        );
-        config.mounts().forEach(m -> dockerMounts.add(
-            new Mount()
-                .withType(MountType.BIND)
-                .withSource(m.source)
-                .withTarget(m.target)
-        ));
+        config.mounts().forEach(m -> {
+            var mount = new Mount().withType(MountType.BIND).withSource(m.source()).withTarget(m.target());
+            if (m.isRshared()) {
+                mount.withBindOptions(new BindOptions().withPropagation(BindPropagation.R_SHARED));
+            }
+            dockerMounts.add(mount);
+        });
 
         final HostConfig hostConfig = new HostConfig();
         hostConfig.withMounts(dockerMounts);
@@ -189,11 +184,6 @@ public class DockerEnvironment implements BaseEnvironment {
     }
 
     private String prepareImage(BaseEnvConfig config) {
-        if (Objects.equals(config.image(), config.defaultImage())) {
-            LOG.info("Default image requested");
-        } else {
-            LOG.info("Custom image {} requested", config.image());
-        }
         LOG.info("Pulling image {} ...", config.image());
         final var pullingImage = DOCKER
             .pullImageCmd(config.image())
