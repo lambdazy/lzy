@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.junit.Assert.*;
 
 
-public class LocalOperationServiceTest {
+public class LocalOperationsServiceTest {
     private LocalOperationService opService;
 
     @Before

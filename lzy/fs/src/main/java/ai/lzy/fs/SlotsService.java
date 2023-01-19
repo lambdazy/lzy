@@ -32,6 +32,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.concurrent.ExecutorService;
@@ -111,7 +112,7 @@ public class SlotsService {
             LOG.info("LzySlotsApi::createSlot: taskId={}, slotName={}: {}.",
                 request.getTaskId(), request.getSlot().getName(), JsonUtils.printSingleLine(request));
 
-            var op = Operation.create(agentId, "CreateSlot: " + request.getSlot().getName(), /* deadline */ null,
+            var op = Operation.create(agentId, "CreateSlot: " + request.getSlot().getName(), (Duration) null,
                 idempotencyKey, null);
             var opSnapshot = operationService.registerOperation(op);
 

@@ -8,7 +8,7 @@ import ai.lzy.iam.clients.AccessClient;
 import ai.lzy.iam.clients.SubjectServiceClient;
 import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
-import ai.lzy.longrunning.OperationService;
+import ai.lzy.longrunning.OperationsService;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.util.auth.credentials.RenewableJwt;
@@ -37,8 +37,8 @@ public class BeanFactory {
 
     @Singleton
     @Named("ChannelManagerOperationService")
-    public OperationService operationService(@Named("ChannelManagerOperationDao") OperationDao operationDao) {
-        return new OperationService(operationDao);
+    public OperationsService operationService(@Named("ChannelManagerOperationDao") OperationDao operationDao) {
+        return new OperationsService(operationDao);
     }
 
     @Singleton

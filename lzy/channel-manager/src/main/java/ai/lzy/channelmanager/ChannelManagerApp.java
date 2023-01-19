@@ -7,7 +7,7 @@ import ai.lzy.channelmanager.services.ChannelManagerService;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
-import ai.lzy.longrunning.OperationService;
+import ai.lzy.longrunning.OperationsService;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
@@ -39,7 +39,7 @@ public class ChannelManagerApp {
                              @Named("ChannelManagerIamGrpcChannel") ManagedChannel iamChannel,
                              ChannelManagerService channelManagerService,
                              ChannelManagerPrivateService channelManagerPrivateService,
-                             @Named("ChannelManagerOperationService") OperationService operationService,
+                             @Named("ChannelManagerOperationService") OperationsService operationsService,
                              ChannelOperationManager channelOperationManager)
     {
         LOG.info("Starting ChannelManager service with config: {}", config.toString());
@@ -54,7 +54,7 @@ public class ChannelManagerApp {
         this.channelManagerServer = newGrpcServer(channelManagerAddress, authInterceptor)
             .addService(channelManagerService)
             .addService(ServerInterceptors.intercept(channelManagerPrivateService, internalOnly))
-            .addService(operationService)
+            .addService(operationsService)
             .build();
 
         this.channelOperationManager = channelOperationManager;
