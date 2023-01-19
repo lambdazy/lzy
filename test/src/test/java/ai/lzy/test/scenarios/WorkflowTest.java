@@ -34,7 +34,7 @@ public class WorkflowTest {
     public void simple() throws InvalidProtocolBufferException {
         var stub = workflow.context().stub();
 
-        var wf = stub.startExecution(LWFS.StartExecutionRequest
+        var wf = stub.startWorkflow(LWFS.StartWorkflowRequest
             .newBuilder()
             .setWorkflowName("wf")
             .build()
@@ -87,6 +87,6 @@ public class WorkflowTest {
         Assert.assertTrue(status.hasCompleted());
 
         //noinspection ResultOfMethodCallIgnored
-        stub.finishExecution(LWFS.FinishExecutionRequest.newBuilder().setExecutionId(wf.getExecutionId()).build());
+        stub.finishWorkflow(LWFS.FinishWorkflowRequest.newBuilder().setExecutionId(wf.getExecutionId()).build());
     }
 }

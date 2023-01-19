@@ -131,7 +131,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             workflowName, executionId, reason);
 
         var op = Operation.create(userId, "Finish workflow: workflowName='%s', executionId='%s'"
-            .formatted(workflowName, executionId), idempotencyKey, null);
+            .formatted(workflowName, executionId), null, idempotencyKey, null);
         var finishStatus = Status.OK.withDescription(reason);
 
         try (var tx = TransactionHandle.create(storage)) {
