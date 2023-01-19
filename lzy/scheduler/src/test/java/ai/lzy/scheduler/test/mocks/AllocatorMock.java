@@ -10,6 +10,7 @@ import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmAllocatorApi.AllocateMetadata;
 import ai.lzy.v1.VmAllocatorApi.AllocateResponse.VmEndpoint;
 import com.google.common.net.HostAndPort;
+import com.google.protobuf.Any;
 import io.grpc.Server;
 import io.micronaut.context.annotation.Primary;
 import jakarta.annotation.PreDestroy;
@@ -71,9 +72,9 @@ public class AllocatorMock implements WorkersAllocator {
                 .build())
             .build();
 
-        var op = ai.lzy.longrunning.Operation.create("test", "", null, AllocateMetadata.newBuilder()
+        var op = ai.lzy.longrunning.Operation.create("test", "", null, Any.pack(AllocateMetadata.newBuilder()
             .setVmId(vmId)
-            .build());
+            .build()));
         opService.registerOperation(op);
         opService.updateResponse(op.id(), resp);
 

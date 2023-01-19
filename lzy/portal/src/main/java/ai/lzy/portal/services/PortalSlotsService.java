@@ -185,6 +185,7 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
         var op = Operation.create(
             portalId,
             "ConnectSlot: %s -> %s".formatted(from.shortDesc(), to.shortDesc()),
+            null,
             idempotencyKey,
             null);
 
@@ -247,7 +248,7 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
 
         var slotName = slotInstance.name();
 
-        var op = Operation.create(portalId, "DisconnectSlot: " + slotName, idempotencyKey, null);
+        var op = Operation.create(portalId, "DisconnectSlot: " + slotName, null, idempotencyKey, null);
         var opSnapshot = operationService.registerOperation(op);
 
         if (op.id().equals(opSnapshot.id())) {
@@ -379,7 +380,7 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
         LOG.info("Destroy portal slot, taskId: {}, slotName: {}", slotInstance.taskId(), slotInstance.name());
         var slotName = slotInstance.name();
 
-        var op = Operation.create(portalId, "DestroySlot: " + slotName, idempotencyKey, null);
+        var op = Operation.create(portalId, "DestroySlot: " + slotName, null, idempotencyKey, null);
         var opSnapshot = operationService.registerOperation(op);
 
         if (op.id().equals(opSnapshot.id())) {

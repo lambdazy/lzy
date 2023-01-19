@@ -127,7 +127,8 @@ public class AllocatorImpl implements WorkersAllocator {
             "-q", String.valueOf(fsPort),
             "--channel-manager", config.getChannelManagerAddress(),
             "-i", config.getIam().getAddress(),
-            "--lzy-mount", mountPoint
+            "--lzy-mount", mountPoint,
+            "--user-default-image", config.getUserDefaultImage()
         );
 
         final var workload = Workload.newBuilder()

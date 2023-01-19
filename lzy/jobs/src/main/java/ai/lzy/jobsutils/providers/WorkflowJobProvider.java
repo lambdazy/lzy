@@ -60,16 +60,6 @@ public abstract class WorkflowJobProvider<T> extends JobProviderBase<WorkflowJob
             if (!validateOp(arg)) {
                 failed = true;
                 state = clear(prevState, arg.operationId());
-            } else if (arg.deadline != null && Instant.now().isAfter(arg.deadline)) {
-                failed = true;
-
-                failOp(arg, Status.newBuilder()
-                        .setCode(Code.DEADLINE_EXCEEDED.value())
-                        .setMessage("Operation deadline exceeded")
-                        .build());
-
-                state = clear(prevState, arg.operationId());
-
             } else {
                 failed = false;
 
@@ -174,6 +164,13 @@ public abstract class WorkflowJobProvider<T> extends JobProviderBase<WorkflowJob
             }
             return false;
         }
+
+        var deadline = op.deadline();
+
+        if (deadline != null && deadline.isBefore(Instant.now())) {
+            return false;
+        }
+
         return true;
     }
 

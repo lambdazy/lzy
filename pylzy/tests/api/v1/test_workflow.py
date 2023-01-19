@@ -60,9 +60,7 @@ class LzyWorkflowTests(TestCase):
 
         storage_config = Storage(
             uri="s3://bucket/prefix",
-            credentials=S3Credentials(
-                self.endpoint_url, access_token="", secret_token=""
-            ),
+            credentials=S3Credentials(self.endpoint_url, access_key_id="", secret_access_key="")
         )
         self.lzy.storage_registry.register_storage('default', storage_config, True)
 

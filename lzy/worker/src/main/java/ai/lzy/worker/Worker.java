@@ -66,6 +66,7 @@ public class Worker {
         options.addOption("m", "lzy-mount", true, "Lzy FS mount point");
         options.addOption("h", "host", true, "Worker and FS host name");
         options.addOption(null, "vm-id", true, "Vm id from allocator");
+        options.addOption(null, "user-default-image", true, "Image, used for inner container by default");
         options.addOption(null, "allocator-heartbeat-period", true, "Allocator heartbeat period in duration format");
 
         // for tests only
@@ -73,15 +74,17 @@ public class Worker {
     }
 
     private final LzyFsServer lzyFs;
+    private final String lzyFsRoot;
     private final AllocatorAgent allocatorAgent;
     private final LocalOperationService operationService;
     private final AtomicReference<Execution> execution = new AtomicReference<>(null);
+    private final EnvironmentFactory envFactory;
     private final Server server;
 
     public Worker(
             String vmId, String allocatorAddress, String iamAddress,
             Duration allocatorHeartbeatPeriod, int apiPort, int fsPort,
-            String fsRoot, String channelManagerAddress, String host, String allocatorToken)
+            String fsRoot, String channelManagerAddress, String host, String allocatorToken, String defaultUserImage)
     {
         LOG.info("Starting worker on vm {}.\n apiPort: {}\n fsPort: {}\n host: {}", vmId, apiPort, fsPort, host);
 
@@ -113,6 +116,7 @@ public class Worker {
         Objects.requireNonNull(allocatorToken);
 
         operationService = new LocalOperationService(vmId);
+        this.envFactory = new EnvironmentFactory(defaultUserImage);
 
         server = newGrpcServer("0.0.0.0", apiPort, GrpcUtils.NO_AUTH)
             .addService(new WorkerApiImpl())
@@ -131,6 +135,7 @@ public class Worker {
             final var cm = HostAndPort.fromString(channelManagerAddress);
             final var iam = HostAndPort.fromString(iamAddress);
 
+            lzyFsRoot = fsRoot;
             lzyFs = new LzyFsServer(
                 vmId,
                 Path.of(fsRoot),
@@ -142,7 +147,6 @@ public class Worker {
                 operationService,
                 false
             );
-
             lzyFs.start();
         } catch (IOException e) {
             LOG.error("Error while building uri", e);
@@ -192,7 +196,7 @@ public class Worker {
                 parse.getOptionValue("iam"), allocHeartbeat == null ? null : Duration.parse(allocHeartbeat),
                 Integer.parseInt(parse.getOptionValue('p')), Integer.parseInt(parse.getOptionValue('q')),
                 parse.getOptionValue('m'), parse.getOptionValue("channel-manager"), parse.getOptionValue('h'),
-                parse.getOptionValue("allocator-token"));
+                parse.getOptionValue("allocator-token"), parse.getOptionValue("user-default-image"));
 
             try {
                 worker.awaitTermination();
@@ -259,7 +263,7 @@ public class Worker {
 
                 LOG.info("Configuring worker");
 
-                final Environment env = EnvironmentFactory.create(ProtoConverter.fromProto(
+                final Environment env = envFactory.create(lzyFsRoot, ProtoConverter.fromProto(
                         request.getTaskDesc().getOperation().getEnv()));
 
                 try {
@@ -359,7 +363,7 @@ public class Worker {
                 return;
             }
 
-            var op = Operation.create(request.getTaskId(), "Execute worker", idempotencyKey, null);
+            var op = Operation.create(request.getTaskId(), "Execute worker", null, idempotencyKey, null);
             OperationSnapshot opSnapshot = operationService.registerOperation(op);
 
             response.onNext(opSnapshot.toProto());

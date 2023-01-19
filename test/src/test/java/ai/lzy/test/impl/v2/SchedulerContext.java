@@ -31,6 +31,8 @@ public class SchedulerContext {
         this.channelManager = channelManager;
 
         this.address = HostAndPort.fromParts("localhost", SCHEDULER_PORT);
+
+        final String userDefaultImage = System.getProperty("scheduler.userTestImage", "lzydock/user-test:master");
         final var opts = Utils.createModuleDatabase("scheduler");
         opts.putAll(Utils.createModuleDatabase("jobs"));
         opts.putAll(new HashMap<String, Object>(Map.of(
@@ -40,7 +42,8 @@ public class SchedulerContext {
                 "scheduler.channel-manager-address", channelManager.address(),
                 "scheduler.iam.address", iam.address(),
                 "max-workers-per-workflow", 2,
-                "default-provisioning-limit", 2
+                "default-provisioning-limit", 2,
+                "scheduler.user-default-image", userDefaultImage
         )));
         this.context = ApplicationContext.run(opts);
         this.scheduler = this.context.getBean(SchedulerApi.class);

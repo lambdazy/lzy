@@ -84,18 +84,19 @@ create table graphs
 CREATE TABLE operation
 (
     id              TEXT      NOT NULL PRIMARY KEY,
-    meta            BYTEA NULL,
+    meta            BYTEA     NULL,
     created_by      TEXT      NOT NULL,
     created_at      TIMESTAMP NOT NULL,
     modified_at     TIMESTAMP NOT NULL,
     description     TEXT      NOT NULL,
-    done            bool      NOT NULL,
+    deadline        TIMESTAMP NULL,
+    done            BOOLEAN   NOT NULL,
 
-    response        BYTEA NULL,
-    error           BYTEA NULL,
+    response        BYTEA     NULL,
+    error           BYTEA     NULL,
 
-    idempotency_key TEXT NULL,
-    request_hash    TEXT NULL,
+    idempotency_key TEXT      NULL,
+    request_hash    TEXT      NULL,
 
     CHECK (((idempotency_key IS NOT NULL) AND (request_hash IS NOT NULL)) OR
            ((idempotency_key IS NULL) AND (request_hash IS NULL)))

@@ -97,6 +97,7 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
         var op = Operation.create(
             request.getUserId(),
             "Executing task " + taskState.id(),
+            null,
             idempotencyKey,
             null
         );

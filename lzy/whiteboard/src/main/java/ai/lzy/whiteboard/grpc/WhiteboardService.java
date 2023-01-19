@@ -167,6 +167,7 @@ public class WhiteboardService extends LzyWhiteboardServiceGrpc.LzyWhiteboardSer
             userId,
             "Register whiteboard: namespace=%s, name=%s, id=%s".formatted(whiteboard.getNamespace(),
                 whiteboard.getName(), whiteboard.getId()),
+            /* deadline */ null,
             idempotencyKey,
             /* meta */ null);
 

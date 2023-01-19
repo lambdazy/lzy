@@ -1,25 +1,16 @@
 package ai.lzy.worker.env;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class BaseEnvConfig {
-
-    public static final String DEFAULT_IMAGE_PROP = "BASE_ENV_DEFAULT_IMAGE";
 
     private final String image;
     private final List<MountDescription> mounts;
 
-    private BaseEnvConfig(String image, Map<String, String> mounts) {
-        this.image = (image == null || image.equals("default"))
-            ? System.getenv(BaseEnvConfig.DEFAULT_IMAGE_PROP)
-            : image;
-        this.mounts = new ArrayList<>();
-        mounts.forEach((source, target) ->
-            this.mounts.add(new MountDescription(source, target))
-        );
+    private BaseEnvConfig(String image, List<MountDescription> mounts) {
+        this.image = image;
+        this.mounts = mounts;
     }
 
     public static Builder newBuilder() {
@@ -30,28 +21,16 @@ public class BaseEnvConfig {
         return this.image;
     }
 
-    public String defaultImage() {
-        return System.getenv(BaseEnvConfig.DEFAULT_IMAGE_PROP);
-    }
-
     public List<MountDescription> mounts() {
         return this.mounts;
     }
 
-    public static class MountDescription {
-        public final String source;
-        public final String target;
-
-        public MountDescription(String source, String target) {
-            this.source = source;
-            this.target = target;
-        }
-    }
+    public record MountDescription(String source, String target, boolean isRshared) { }
 
     public static class Builder {
 
         String image = null;
-        Map<String, String> mounts = new HashMap<>();
+        List<MountDescription> mounts = new ArrayList<>();
 
         public Builder image(String name) {
             this.image = name;
@@ -59,7 +38,12 @@ public class BaseEnvConfig {
         }
 
         public Builder addMount(String source, String target) {
-            this.mounts.put(source, target);
+            mounts.add(new MountDescription(source, target, false));
+            return this;
+        }
+
+        public Builder addRsharedMount(String source, String target) {
+            mounts.add(new MountDescription(source, target, true));
             return this;
         }
 
