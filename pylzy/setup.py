@@ -64,6 +64,7 @@ setuptools.setup(
         "ai/lzy/v1",
         "ai/lzy/v1/common",
         "ai/lzy/v1/validation",
+        "ai/lzy/v1/long_running",
         "ai/lzy/v1/whiteboard",
         "ai/lzy/v1/workflow"
     ],

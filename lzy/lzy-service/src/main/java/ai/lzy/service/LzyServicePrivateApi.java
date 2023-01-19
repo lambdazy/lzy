@@ -37,7 +37,7 @@ public class LzyServicePrivateApi extends LzyWorkflowPrivateServiceGrpc.LzyWorkf
         LOG.info("Attempt to stop execution: { userId: {}, executionId: {} }", userId, executionId);
 
         var stopStatus = Status.INTERNAL.withDescription(reason);
-        if (cleanExecutionCompanion.markExecutionAsBroken(userId, executionId, stopStatus)) {
+        if (cleanExecutionCompanion.markExecutionAsBroken(userId, /* workflowName */ null, executionId, stopStatus)) {
             cleanExecutionCompanion.cleanExecution(executionId);
         }
 

@@ -17,6 +17,7 @@ import ai.lzy.v1.graph.GraphExecutorGrpc;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.portal.LzyPortalApi;
+import ai.lzy.v1.workflow.LWFS;
 import com.google.common.net.HostAndPort;
 import com.google.protobuf.Any;
 import com.google.protobuf.Empty;
@@ -82,14 +83,16 @@ public class CleanExecutionCompanion {
             AllocatorGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
     }
 
-    public boolean markExecutionAsBroken(String userId, String executionId, Status reason) {
+    public boolean markExecutionAsBroken(String userId, @Nullable String workflowName,
+                                         String executionId, Status reason)
+    {
         LOG.info("Attempt to mark execution as broken by reason: { executionId: {}, reason: {} }", executionId, reason);
 
         try {
             withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage)) {
+                    executionDao.updateFinishData(userId, workflowName, executionId, reason, tx);
                     executionDao.setErrorExecutionStatus(executionId, tx);
-                    executionDao.updateFinishData(userId, executionId, reason, tx);
 
                     tx.commit();
                 }
@@ -120,8 +123,9 @@ public class CleanExecutionCompanion {
 
                 if (!shutdownPortalOp.getDone()) {
                     LOG.warn("Cannot wait portal of execution shutdown: { executionId: {} }", executionId);
-                    stopPortal(executionId, portalDesc.vmAddress());
                 }
+
+                stopPortal(executionId, portalDesc.vmAddress());
             }
         }
 
@@ -153,7 +157,7 @@ public class CleanExecutionCompanion {
                 try (var tx = TransactionHandle.create(storage)) {
                     executionDao.setCompletedExecutionStatus(executionId, tx);
                     operationDao.complete(completeOperation.id(), Any.pack(
-                        LzyPortalApi.FinishResponse.getDefaultInstance()), tx);
+                        LWFS.FinishWorkflowResponse.getDefaultInstance()), tx);
 
                     LOG.info("Execution was completed: { executionId: {} }", executionId);
                     tx.commit();

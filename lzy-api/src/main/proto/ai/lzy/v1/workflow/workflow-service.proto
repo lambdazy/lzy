@@ -12,11 +12,11 @@ option java_outer_classname = "LWFS";
 option java_package = "ai.lzy.v1.workflow";
 
 service LzyWorkflowService {
-  rpc StartExecution (StartExecutionRequest) returns (StartExecutionResponse);
-  rpc FinishExecution (FinishExecutionRequest) returns (ai.lzy.v1.Operation) {
+  rpc StartWorkflow (StartWorkflowRequest) returns (StartWorkflowResponse);
+  rpc FinishWorkflow (FinishWorkflowRequest) returns (ai.lzy.v1.Operation) {
     option (ai.lzy.v1.operation) = {
       // metadata: null
-      response: "FinishExecutionResponse";
+      response: "FinishWorkflowResponse";
     };
   }
 
@@ -29,24 +29,25 @@ service LzyWorkflowService {
   rpc GetAvailablePools (GetAvailablePoolsRequest) returns (GetAvailablePoolsResponse);
 }
 
-message StartExecutionRequest {
+message StartWorkflowRequest {
   string workflowName = 1;
 
   // if not set then internal SnapshotStorage is created
   /* optional */ StorageConfig snapshotStorage = 2;
 }
 
-message StartExecutionResponse {
+message StartWorkflowResponse {
   string executionId = 1;
   /* optional */ StorageConfig internalSnapshotStorage = 2;
 }
 
-message FinishExecutionRequest {
-  string executionId = 1;
-  string reason = 2;
+message FinishWorkflowRequest {
+  string workflowName = 1;
+  string executionId = 2;
+  string reason = 3;
 }
 
-message FinishExecutionResponse {}
+message FinishWorkflowResponse {}
 
 // ==================== ExecuteGraph =====================
 
