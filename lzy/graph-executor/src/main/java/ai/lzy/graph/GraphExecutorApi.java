@@ -104,6 +104,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
         var op = Operation.create(
             request.getUserId(),
             "Execute graph of execution: executionId='%s'".formatted(request.getWorkflowId()),
+            /* deadline */ null,
             idempotencyKey,
             /* meta */ null);
 

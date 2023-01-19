@@ -263,3 +263,25 @@ class WhiteboardTests(TestCase):
 
         whiteboards = list(self.lzy.whiteboards(not_before=next_day_datetime_local, not_after=prev_day_datetime_local))
         self.assertEqual(0, len(whiteboards))
+
+    def test_whiteboard_entries(self):
+        # noinspection PyUnusedLocal
+        @op
+        def concat(num: int, desc: str) -> str:
+            return str(num) + desc
+
+        with self.lzy.workflow(self.workflow_name) as wf:
+            wb = wf.create_whiteboard(Whiteboard, tags=["a"])
+            wb.num = 42
+            wb.desc = "str"
+            res = concat(wb.num, wb.desc)
+
+            entry_concat_num = wf.call_queue[0].arg_entry_ids[0]
+            entry_concat_desc = wf.call_queue[0].arg_entry_ids[1]
+
+        entry_wb_num = wf.entry_index.get_entry_id(wb.num)
+        entry_wb_desc = wf.entry_index.get_entry_id(wb.desc)
+
+        self.assertEqual(entry_wb_num, entry_concat_num)
+        self.assertEqual(entry_wb_desc, entry_concat_desc)
+        self.assertEqual("42str", res)

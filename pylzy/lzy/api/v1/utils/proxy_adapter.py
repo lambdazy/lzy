@@ -17,7 +17,8 @@ def is_lzy_proxy(obj: Any) -> bool:
 
 
 def get_proxy_entry_id(obj: Any) -> str:
-    assert is_lzy_proxy(obj)
+    if not is_lzy_proxy(obj):
+        raise ValueError(f'Object {obj} is not a lazy proxy')
     cls = type(obj)
     return cast(str, getattr(cls, __entry_id))
 

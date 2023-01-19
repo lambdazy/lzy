@@ -23,6 +23,8 @@ public class Operation {
     private final Instant createdAt;
     private final String description;
     @Nullable
+    private final Instant deadline;
+    @Nullable
     private final IdempotencyKey idempotencyKey;
 
     @Nullable
@@ -41,23 +43,25 @@ public class Operation {
     {
         Objects.requireNonNull(response);
         var now = Instant.now();
-        return new Operation(id, createdBy, now, description, idempotencyKey,
+        return new Operation(id, createdBy, now, description, null, idempotencyKey,
             meta != null ? Any.pack(meta) : null, now, true, Any.pack(response), null);
     }
 
-    public static Operation create(String createdBy, String description, @Nullable IdempotencyKey idempotencyKey,
-                                   @Nullable Message meta)
+    public static Operation create(String createdBy, String description, @Nullable Instant deadline,
+                                   @Nullable IdempotencyKey idempotencyKey, @Nullable Message meta)
     {
         var now = Instant.now();
-        return new Operation(UUID.randomUUID().toString(), createdBy, now, description, idempotencyKey,
+        return new Operation(UUID.randomUUID().toString(), createdBy, now, description, deadline, idempotencyKey,
             meta != null ? Any.pack(meta) : null, now, false, null, null);
     }
 
-    public static Operation create(String createdBy, String description, @Nullable Any meta) {
-        return create(createdBy, description, null, meta);
+    public static Operation create(String createdBy, String description, @Nullable Instant deadline,
+                                   @Nullable Any meta)
+    {
+        return create(createdBy, description, deadline, null, meta);
     }
 
-    public Operation(String id, String createdBy, Instant createdAt, String description,
+    public Operation(String id, String createdBy, Instant createdAt, String description, Instant deadline,
                      @Nullable IdempotencyKey idempotencyKey, @Nullable Any meta, Instant modifiedAt,
                      boolean done, @Nullable Any response, @Nullable Status error)
     {
@@ -65,6 +69,7 @@ public class Operation {
         this.createdBy = createdBy;
         this.createdAt = createdAt;
         this.description = description;
+        this.deadline = deadline;
         this.idempotencyKey = idempotencyKey;
         this.meta = meta;
         this.modifiedAt = modifiedAt;
@@ -129,6 +134,7 @@ public class Operation {
             ", createdBy='" + createdBy + '\'' +
             ", createdAt=" + createdAt +
             ", description='" + description + '\'' +
+            ", deadline='" + deadline + '\'' +
             ", idempotencyKey='" + idempotencyKey + '\'' +
             ", meta=" + meta +
             ", modifiedAt=" + modifiedAt +
@@ -139,8 +145,8 @@ public class Operation {
     }
 
     public String toShortString() {
-        return "Operation{id='%s', description='%s', createdBy='%s', idempotencyKey='%s', meta='%s'}"
-            .formatted(id, description, createdBy, idempotencyKey, meta);
+        return "Operation{id='%s', description='%s', createdBy='%s', deadline='%s', idempotencyKey='%s', meta='%s'}"
+            .formatted(id, description, createdBy, deadline, idempotencyKey, meta);
     }
 
     public String id() {
@@ -166,6 +172,11 @@ public class Operation {
 
     public String description() {
         return description;
+    }
+
+    @Nullable
+    public Instant deadline() {
+        return deadline;
     }
 
     @Nullable

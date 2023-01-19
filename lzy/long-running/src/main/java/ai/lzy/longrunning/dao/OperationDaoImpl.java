@@ -17,18 +17,19 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.List;
+import java.util.Optional;
 
 public class OperationDaoImpl implements OperationDao {
     private static final Logger LOG = LogManager.getLogger(OperationDaoImpl.class);
 
     private static final List<String> FIELDS = List.of("id", "meta", "created_by", "created_at",
-        "modified_at", "description", "done", "response", "error", "idempotency_key", "request_hash");
+        "modified_at", "description", "deadline", "done", "response", "error", "idempotency_key", "request_hash");
 
     private static final String FIELDS_STRING = String.join(", ", FIELDS);
 
     private static final String QUERY_CREATE_OPERATION = """
         INSERT INTO operation (%s)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""".formatted(FIELDS_STRING);
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""".formatted(FIELDS_STRING);
 
     private static final String QUERY_GET_OPERATION = """
         SELECT %s
@@ -155,13 +156,17 @@ public class OperationDaoImpl implements OperationDao {
                 st.setTimestamp(4, Timestamp.from(operation.createdAt()));
                 st.setTimestamp(5, Timestamp.from(operation.modifiedAt()));
                 st.setString(6, operation.description());
-                st.setBoolean(7, operation.done());
+
+                var deadline = operation.deadline();
+                st.setTimestamp(7, deadline != null ? Timestamp.from(deadline) : null);
+
+                st.setBoolean(8, operation.done());
 
                 var response = operation.response();
                 if (response != null) {
-                    st.setBytes(8, response.toByteArray());
+                    st.setBytes(9, response.toByteArray());
                 } else {
-                    st.setBytes(8, null);
+                    st.setBytes(9, null);
                 }
 
                 var error = operation.error();
@@ -171,18 +176,18 @@ public class OperationDaoImpl implements OperationDao {
                     if (description != null) {
                         status.setMessage(description);
                     }
-                    st.setBytes(9, status.build().toByteArray());
+                    st.setBytes(10, status.build().toByteArray());
                 } else {
-                    st.setBytes(9, null);
+                    st.setBytes(10, null);
                 }
 
                 Operation.IdempotencyKey idempotencyKey = operation.idempotencyKey();
                 if (idempotencyKey != null) {
-                    st.setString(10, idempotencyKey.token());
-                    st.setString(11, idempotencyKey.requestHash());
+                    st.setString(11, idempotencyKey.token());
+                    st.setString(12, idempotencyKey.requestHash());
                 } else {
-                    st.setString(10, null);
                     st.setString(11, null);
+                    st.setString(12, null);
                 }
 
                 st.execute();
@@ -381,6 +386,7 @@ public class OperationDaoImpl implements OperationDao {
         var description = resultSet.getString("description");
         var metaBytes = resultSet.getBytes("meta");
         var modifiedAt = resultSet.getTimestamp("modified_at").toInstant();
+        var deadline = Optional.ofNullable(resultSet.getTimestamp("deadline")).map(Timestamp::toInstant).orElse(null);
         var done = resultSet.getBoolean("done");
         var responseBytes = resultSet.getBytes("response");
         var errorBytes = resultSet.getBytes("error");
@@ -410,8 +416,8 @@ public class OperationDaoImpl implements OperationDao {
             idempotencyKey = new Operation.IdempotencyKey(idempotencyToken, requestChecksum);
         }
 
-        return new Operation(id, createdBy, createdAt, description, idempotencyKey, meta, modifiedAt, done, response,
-            error);
+        return new Operation(id, createdBy, createdAt, description, deadline, idempotencyKey, meta, modifiedAt, done,
+            response, error);
     }
 
     private static String forUpdate(@Nullable TransactionHandle tx) {

@@ -188,7 +188,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         }
 
         var op = Operation.create(userId, "Execute graph in execution: executionId='%s'".formatted(executionId),
-            idempotencyKey, null);
+            null, idempotencyKey, null);
 
         String parentGraphId = request.getGraph().getParentGraphId();
         String zone = request.getGraph().getZone();

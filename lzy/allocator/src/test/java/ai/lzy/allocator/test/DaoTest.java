@@ -76,6 +76,7 @@ public class DaoTest {
             "test",
             now(),
             "Some op",
+            /* deadline */ null,
             null,
             Any.pack(meta),
             now(),
@@ -115,6 +116,7 @@ public class DaoTest {
             "test",
             now(),
             "Some op",
+            /* deadline */ null,
             null,
             Any.pack(meta),
             now(),
@@ -130,7 +132,7 @@ public class DaoTest {
         final var op1 = opDao.get(op.id(), null);
         Assert.assertNull(op1);
 
-        op = Operation.create("test", "Some op", Any.pack(meta));
+        op = Operation.create("test", "Some op", null, Any.pack(meta));
         try (final var tx = TransactionHandle.create(storage)) {
             opDao.create(op, tx);
             tx.commit();
