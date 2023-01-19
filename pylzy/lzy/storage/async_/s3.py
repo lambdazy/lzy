@@ -16,8 +16,8 @@ class S3Client(AsyncStorageClient):
     def _get_client_context(self):
         return Session().client(
             "s3",
-            aws_access_key_id=self.__credentials.access_token,
-            aws_secret_access_key=self.__credentials.secret_token,
+            aws_access_key_id=self.__credentials.access_key_id,
+            aws_secret_access_key=self.__credentials.secret_access_key,
             endpoint_url=self.__credentials.endpoint,
         )
 
