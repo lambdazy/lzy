@@ -88,17 +88,17 @@ class LocalRuntime(Runtime):
             args_read = []
             for eid in call.arg_entry_ids:
                 entry = self.__workflow.snapshot.get(eid)
-                path = folder + "/" + eid
-                args_read.append(self.__from_storage_to_file(entry.storage_uri, path))
-                arg_descriptions.append((entry.typ, path[len(folder):]))
+                entry_path = folder + "/" + eid
+                args_read.append(self.__from_storage_to_file(entry.storage_uri, entry_path))
+                arg_descriptions.append((entry.typ, entry_path[len(folder):]))
             await asyncio.gather(*args_read)
 
             kwargs_read = []
             for name, eid in call.kwarg_entry_ids.items():
                 entry = self.__workflow.snapshot.get(eid)
-                path = folder + "/" + eid
-                kwargs_read.append(self.__from_storage_to_file(entry.storage_uri, path))
-                kwarg_descriptions[name] = (entry.typ, path[len(folder):])
+                entry_path = folder + "/" + eid
+                kwargs_read.append(self.__from_storage_to_file(entry.storage_uri, entry_path))
+                kwarg_descriptions[name] = (entry.typ, entry_path[len(folder):])
             await asyncio.gather(*kwargs_read)
 
             for i, eid in enumerate(call.entry_ids):
