@@ -1,20 +1,21 @@
 #!/bin/bash -e
 
-if [[ $# -lt 2 ]]; then
-    echo "Usage: $0 <docker-registry-prefix> <docker-images-tag>"
+if [[ $# -lt 3 ]]; then
+    echo "Usage: $0 <git-branch> <docker-registry-prefix> <docker-images-tag>"
     echo "Requires previously built application and docker logged in the desired repository."
     exit 1
 fi
 
-REGISTRY_PREFIX=$1
-TAG=$2
+BRANCH=$1
+REGISTRY_PREFIX=$2
+TAG=$3
 
 IMAGES=""
 
 function build_image {
     IMAGE_NAME=$1
     IMAGE_PATH=$2
-    FULL_IMAGE_NAME="$REGISTRY_PREFIX/$IMAGE_NAME:$TAG"
+    FULL_IMAGE_NAME="$REGISTRY_PREFIX/$IMAGE_NAME:$BRANCH-$TAG"
     echo "Building $FULL_IMAGE_NAME from $IMAGE_PATH"
     docker build -t "$FULL_IMAGE_NAME" "$IMAGE_PATH"
     IMAGES="$IMAGES $FULL_IMAGE_NAME"
