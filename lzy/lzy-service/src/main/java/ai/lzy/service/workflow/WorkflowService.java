@@ -24,8 +24,8 @@ import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LWFS.GetAvailablePoolsRequest;
 import ai.lzy.v1.workflow.LWFS.GetAvailablePoolsResponse;
-import ai.lzy.v1.workflow.LWFS.StartExecutionRequest;
-import ai.lzy.v1.workflow.LWFS.StartExecutionResponse;
+import ai.lzy.v1.workflow.LWFS.StartWorkflowRequest;
+import ai.lzy.v1.workflow.LWFS.StartWorkflowResponse;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
@@ -127,7 +127,7 @@ public class WorkflowService {
         this.abClient = new AccessBindingServiceGrpcClient(APP, iamChannel, internalUserCredentials::get);
     }
 
-    public void startExecution(StartExecutionRequest request, StreamObserver<StartExecutionResponse> response) {
+    public void startWorkflow(StartWorkflowRequest request, StreamObserver<StartWorkflowResponse> response) {
         var newExecution = StartExecutionCompanion.of(request, this);
 
         LOG.info("Start new execution: " + newExecution.getState());
@@ -150,7 +150,9 @@ public class WorkflowService {
 
         if (previousActiveExecutionId != null) {
             Status errorStatus = Status.INTERNAL.withDescription("Cancelled by new execution start");
-            if (cleanExecutionCompanion.markExecutionAsBroken(newExecution.getOwner(), executionId, errorStatus)) {
+            if (cleanExecutionCompanion.markExecutionAsBroken(newExecution.getOwner(), request.getWorkflowName(),
+                executionId, errorStatus))
+            {
                 cleanExecutionCompanion.cleanExecution(previousActiveExecutionId);
             }
         }
@@ -189,7 +191,7 @@ public class WorkflowService {
             ? newExecution.getState().getStorageConfig()
             : LMST.StorageConfig.getDefaultInstance();
 
-        response.onNext(StartExecutionResponse.newBuilder().setExecutionId(executionId)
+        response.onNext(StartWorkflowResponse.newBuilder().setExecutionId(executionId)
             .setInternalSnapshotStorage(storage).build());
         response.onCompleted();
     }

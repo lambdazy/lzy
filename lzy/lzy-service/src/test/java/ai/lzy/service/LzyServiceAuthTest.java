@@ -23,11 +23,11 @@ public class LzyServiceAuthTest extends BaseTest {
 
         var thrown = new ArrayList<StatusRuntimeException>() {
             {
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedWorkflowClient.startExecution(
-                    LWFS.StartExecutionRequest.newBuilder().setWorkflowName(workflowName).build())));
+                add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedWorkflowClient.startWorkflow(
+                    LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).build())));
 
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedWorkflowClient.finishExecution(
-                    LWFS.FinishExecutionRequest.newBuilder().setExecutionId(executionId).build())));
+                add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedWorkflowClient.finishWorkflow(
+                    LWFS.FinishWorkflowRequest.newBuilder().setExecutionId(executionId).build())));
 
                 add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedWorkflowClient.executeGraph(
                     LWFS.ExecuteGraphRequest.newBuilder()
@@ -69,11 +69,11 @@ public class LzyServiceAuthTest extends BaseTest {
 
         var thrown = new ArrayList<StatusRuntimeException>() {
             {
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> client.startExecution(
-                    LWFS.StartExecutionRequest.newBuilder().setWorkflowName(workflowName).build())));
+                add(Assert.assertThrows(StatusRuntimeException.class, () -> client.startWorkflow(
+                    LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).build())));
 
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> client.finishExecution(
-                    LWFS.FinishExecutionRequest.newBuilder().setExecutionId(executionId).build())));
+                add(Assert.assertThrows(StatusRuntimeException.class, () -> client.finishWorkflow(
+                    LWFS.FinishWorkflowRequest.newBuilder().setExecutionId(executionId).build())));
 
                 add(Assert.assertThrows(StatusRuntimeException.class, () -> client.executeGraph(
                     LWFS.ExecuteGraphRequest.newBuilder()

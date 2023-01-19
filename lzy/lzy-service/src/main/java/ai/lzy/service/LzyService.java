@@ -17,17 +17,18 @@ import ai.lzy.service.graph.GraphExecutionService;
 import ai.lzy.service.graph.GraphExecutionState;
 import ai.lzy.service.graph.debug.InjectedFailures;
 import ai.lzy.service.workflow.WorkflowService;
+import ai.lzy.util.grpc.ProtoPrinter;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.annotations.VisibleForTesting;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
-import io.micronaut.core.util.StringUtils;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.util.Strings;
 
 import java.sql.SQLException;
 import java.time.Duration;
@@ -102,48 +103,51 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     }
 
     @Override
-    public void startExecution(StartExecutionRequest request, StreamObserver<StartExecutionResponse> responseObserver) {
-        workflowService.startExecution(request, responseObserver);
+    public void startWorkflow(StartWorkflowRequest request, StreamObserver<StartWorkflowResponse> responseObserver) {
+        workflowService.startWorkflow(request, responseObserver);
     }
 
     @Override
-    public void finishExecution(FinishExecutionRequest request, StreamObserver<LongRunning.Operation> response) {
+    public void finishWorkflow(FinishWorkflowRequest request, StreamObserver<LongRunning.Operation> response) {
         Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
         if (idempotencyKey != null && loadExistingOp(operationDao, idempotencyKey, response, LOG)) {
             return;
         }
 
         var userId = AuthenticationContext.currentSubject().id();
+        var workflowName = request.getWorkflowName();
         var executionId = request.getExecutionId();
         var reason = request.getReason();
 
-        if (StringUtils.isEmpty(executionId)) {
-            LOG.error("Cannot finish execution: { executionId: {} }", executionId);
-            response.onError(Status.INVALID_ARGUMENT.withDescription("Empty 'executionId'").asRuntimeException());
+        if (Strings.isBlank(executionId) || Strings.isBlank(workflowName)) {
+            LOG.error("Cannot finish workflow. Blank 'executionId' or 'workflowName': {}",
+                ProtoPrinter.printer().printToString(request));
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Blank 'executionId' or 'workflowName'")
+                .asRuntimeException());
             return;
         }
 
-        LOG.info("Attempt to finish execution: { userId: {}, executionId: {}, reason: {} }", userId,
-            executionId, reason);
+        LOG.info("Attempt to finish workflow: { userId: {}, workflowName: {}, executionId: {}, reason: {} }", userId,
+            workflowName, executionId, reason);
 
-        var op = Operation.create(userId, "Finish execution: executionId='%s'".formatted(executionId),
-            idempotencyKey, null);
+        var op = Operation.create(userId, "Finish workflow: workflowName='%s', executionId='%s'"
+            .formatted(workflowName, executionId), idempotencyKey, null);
         var finishStatus = Status.OK.withDescription(reason);
 
         try (var tx = TransactionHandle.create(storage)) {
+            executionDao.updateFinishData(userId, workflowName, executionId, finishStatus, tx);
             operationDao.create(op, tx);
             executionDao.setCompletingExecutionStatus(executionId, tx);
-            executionDao.updateFinishData(userId, executionId, finishStatus, tx);
 
             tx.commit();
         } catch (NotFoundException e) {
-            LOG.error("Cannot finish execution, not found: { executionId: {}, error: {} }", executionId,
-                e.getMessage());
+            LOG.error("Cannot finish workflow, not found: { workflowName: {}, executionId: {}, error: {} }",
+                workflowName, executionId, e.getMessage());
             response.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asRuntimeException());
             return;
         } catch (IllegalStateException e) {
-            LOG.error("Cannot finish execution, invalid state: { executionId: {}, error: {} }", executionId,
-                e.getMessage());
+            LOG.error("Cannot finish workflow, invalid state: { workflowName: {}, executionId: {}, error: {} }",
+                workflowName, executionId, e.getMessage());
             response.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException());
             return;
         } catch (Exception e) {
@@ -153,8 +157,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                 return;
             }
 
-            LOG.error("Unexpected error while finish execution: { executionId: {}, error: {} }", executionId,
-                e.getMessage());
+            LOG.error("Unexpected error while finish workflow: { workflowName: {}, executionId: {}, error: {} }",
+                workflowName, executionId, e.getMessage());
             response.onError(Status.INTERNAL.withDescription("Cannot finish execution " +
                 "'%s': %s".formatted(executionId, e.getMessage())).asRuntimeException());
             return;
@@ -210,7 +214,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                 userId, executionId, ex.getMessage(), ex);
             var status = Status.INTERNAL.withDescription(ex.getMessage());
 
-            if (cleanExecutionCompanion.markExecutionAsBroken(userId, executionId, status)) {
+            if (cleanExecutionCompanion.markExecutionAsBroken(userId, /* workflowName */ null, executionId, status)) {
                 cleanExecutionCompanion.cleanExecution(executionId);
             }
 
@@ -243,7 +247,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                 var status = Status.INTERNAL.withDescription("Cannot execute graph");
                 LOG.error("Cannot execute graph: {}", e.getMessage(), e);
 
-                if (cleanExecutionCompanion.markExecutionAsBroken(userId, executionId, status)) {
+                if (cleanExecutionCompanion.markExecutionAsBroken(userId, null, executionId, status)) {
                     cleanExecutionCompanion.cleanExecution(executionId);
                 }
 

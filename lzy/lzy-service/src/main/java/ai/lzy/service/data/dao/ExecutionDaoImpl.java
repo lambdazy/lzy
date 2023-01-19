@@ -234,11 +234,11 @@ public class ExecutionDaoImpl implements ExecutionDao {
     }
 
     @Override
-    public void updateFinishData(String userId, String executionId, Status status, @Nullable TransactionHandle outerTx)
-        throws SQLException
+    public void updateFinishData(String userId, @Nullable String workflowName, String executionId, Status status,
+                                 @Nullable TransactionHandle outerTx) throws SQLException
     {
         try (var tx = TransactionHandle.getOrCreate(storage, outerTx)) {
-            WorkflowDaoImpl.setActiveExecutionToNull(userId, executionId, storage, tx);
+            WorkflowDaoImpl.setActiveExecutionToNull(userId, workflowName, executionId, storage, tx);
 
             DbOperation.execute(tx, storage, conn -> {
                 try (var getFinishStmt = finishExecStmt(conn)) {

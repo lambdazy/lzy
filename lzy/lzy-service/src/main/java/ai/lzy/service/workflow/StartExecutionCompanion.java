@@ -37,17 +37,17 @@ import static ai.lzy.service.workflow.WorkflowService.LOG;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 
 final class StartExecutionCompanion {
-    private final LWFS.StartExecutionRequest request;
+    private final LWFS.StartWorkflowRequest request;
     private final CreateExecutionState state;
     private final WorkflowService owner;
 
-    StartExecutionCompanion(LWFS.StartExecutionRequest request, CreateExecutionState initial, WorkflowService owner) {
+    StartExecutionCompanion(LWFS.StartWorkflowRequest request, CreateExecutionState initial, WorkflowService owner) {
         this.request = request;
         this.state = initial;
         this.owner = owner;
     }
 
-    static StartExecutionCompanion of(LWFS.StartExecutionRequest request, WorkflowService owner) {
+    static StartExecutionCompanion of(LWFS.StartWorkflowRequest request, WorkflowService owner) {
         var initState = new CreateExecutionState(currentSubject().id(), request.getWorkflowName());
         return new StartExecutionCompanion(request, initState, owner);
     }

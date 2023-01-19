@@ -15,8 +15,8 @@ from ai.lzy.v1.whiteboard.whiteboard_service_pb2_grpc import LzyWhiteboardServic
 
 from lzy.logs.config import get_logger
 
-from ai.lzy.v1.workflow.workflow_service_pb2 import StartExecutionRequest, StartExecutionResponse, \
-    FinishExecutionRequest, FinishExecutionResponse, ReadStdSlotsRequest, ReadStdSlotsResponse
+from ai.lzy.v1.workflow.workflow_service_pb2 import StartWorkflowRequest, StartWorkflowResponse, \
+    FinishWorkflowRequest, FinishWorkflowResponse, ReadStdSlotsRequest, ReadStdSlotsResponse
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceServicer
 from lzy.api.v1 import Runtime, LzyCall, LzyWorkflow
 from lzy.api.v1.runtime import ProgressStep
@@ -88,9 +88,9 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
         self.created = False
         self.__op_service = op_service
 
-    def StartExecution(
-        self, request: StartExecutionRequest, context: grpc.ServicerContext
-    ) -> StartExecutionResponse:
+    def StartWorkflow(
+        self, request: StartWorkflowRequest, context: grpc.ServicerContext
+    ) -> StartWorkflowResponse:
         _LOG.info(f"Creating wf {request}")
 
         if self.fail:
@@ -98,7 +98,7 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
             context.abort(grpc.StatusCode.INTERNAL, "some_error")
 
         self.created = True
-        return StartExecutionResponse(
+        return StartWorkflowResponse(
             executionId="exec_id",
             internalSnapshotStorage=StorageConfig(
                 uri="s3://bucket/prefix",
@@ -106,8 +106,8 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
             ),
         )
 
-    def FinishExecution(
-        self, request: FinishExecutionRequest, context: grpc.ServicerContext
+    def FinishWorkflow(
+        self, request: FinishWorkflowRequest, context: grpc.ServicerContext
     ) -> Operation:
         _LOG.info(f"Finishing workflow {request}")
 
@@ -115,10 +115,11 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
             self.fail = False
             context.abort(grpc.StatusCode.INTERNAL, "some_error")
 
+        assert request.workflowName == "some_name"
         assert request.executionId == "exec_id"
 
         packed = Any()
-        packed.Pack(FinishExecutionResponse())
+        packed.Pack(FinishWorkflowResponse())
         op = Operation(id="operation_id", done=True, response=packed)
 
         self.__op_service.register_operation(op)

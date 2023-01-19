@@ -15,6 +15,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.Objects;
 
 @Singleton
 public class WorkflowDaoImpl implements WorkflowDao {
@@ -126,15 +127,22 @@ public class WorkflowDaoImpl implements WorkflowDao {
         });
     }
 
-    static void setActiveExecutionToNull(String userId, String executionId, LzyServiceStorage storage,
-                                         @Nullable TransactionHandle transaction) throws SQLException
+    static void setActiveExecutionToNull(String userId, @Nullable String workflowName, String executionId,
+                                         LzyServiceStorage storage, @Nullable TransactionHandle transaction)
+        throws SQLException
     {
+        var queryString = Objects.isNull(workflowName) ? QUERY_UPDATE_ACTIVE_EXECUTION
+            : QUERY_UPDATE_ACTIVE_EXECUTION + " AND workflow_name = ?";
+
         DbOperation.execute(transaction, storage, con -> {
-            try (var statement = con.prepareStatement(QUERY_UPDATE_ACTIVE_EXECUTION)) {
+            try (var statement = con.prepareStatement(queryString)) {
                 statement.setString(1, null);
                 statement.setTimestamp(2, Timestamp.from(Instant.now()));
                 statement.setString(3, userId);
                 statement.setString(4, executionId);
+                if (workflowName != null) {
+                    statement.setString(5, workflowName);
+                }
                 if (statement.executeUpdate() < 1) {
                     LOG.warn("Active execution of user not found: { executionId: {}, userId: {} }",
                         executionId, userId);

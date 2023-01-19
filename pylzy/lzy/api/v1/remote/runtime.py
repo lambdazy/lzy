@@ -87,7 +87,7 @@ class RemoteRuntime(Runtime):
         client = await self.__get_client()
 
         default_creds = self.__workflow.owner.storage_registry.default_config()
-        exec_id, creds = await client.start_execution(
+        exec_id, creds = await client.start_workflow(
             self.__workflow.name, default_creds
         )
 
@@ -161,7 +161,7 @@ class RemoteRuntime(Runtime):
             assert self.__workflow is not None
             assert self.__std_slots_listener is not None
 
-            await client.finish_execution(self.__execution_id, "Workflow completed")
+            await client.finish_workflow(self.__workflow.name, self.__execution_id, "Workflow completed")
 
             await self.__std_slots_listener  # read all stdout and stderr
 

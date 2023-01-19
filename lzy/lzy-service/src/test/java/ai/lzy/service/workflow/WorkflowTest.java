@@ -29,8 +29,8 @@ public class WorkflowTest extends BaseTest {
         shutdownStorage();
 
         var thrown = assertThrows(StatusRuntimeException.class, () ->
-            authorizedWorkflowClient.startExecution(
-                LWFS.StartExecutionRequest.newBuilder().setWorkflowName("workflow_1").build()));
+            authorizedWorkflowClient.startWorkflow(
+                LWFS.StartWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build()));
 
         var expectedErrorCode = Status.UNAVAILABLE.getCode();
 
@@ -40,7 +40,7 @@ public class WorkflowTest extends BaseTest {
     @Test
     public void startExecutionFailedWithUserStorageMissedCredentials() {
         var thrown = assertThrows(StatusRuntimeException.class, () ->
-            authorizedWorkflowClient.startExecution(LWFS.StartExecutionRequest.newBuilder()
+            authorizedWorkflowClient.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
                 .setWorkflowName("workflow_1")
                 .setSnapshotStorage(LMST.StorageConfig.newBuilder()
                     .setUri("s3://bucket/key")
@@ -54,8 +54,9 @@ public class WorkflowTest extends BaseTest {
 
     @Test
     public void startAndFinishExecutionWithInternalStorage() {
-        var executionId = authorizedWorkflowClient.startExecution(
-            LWFS.StartExecutionRequest.newBuilder().setWorkflowName("workflow_2").build()
+        var workflowName = "workflow_2";
+        var executionId = authorizedWorkflowClient.startWorkflow(
+            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).build()
         ).getExecutionId();
 
         String[] destroyedExecutionChannels = {null};
@@ -67,8 +68,9 @@ public class WorkflowTest extends BaseTest {
         var freeVmFlag = new AtomicBoolean(false);
         onFreeVm(() -> freeVmFlag.set(true));
 
-        var finishOp = authorizedWorkflowClient.finishExecution(
-            LWFS.FinishExecutionRequest.newBuilder()
+        var finishOp = authorizedWorkflowClient.finishWorkflow(
+            LWFS.FinishWorkflowRequest.newBuilder()
+                .setWorkflowName(workflowName)
                 .setExecutionId(executionId)
                 .build());
         finishOp = awaitOperationDone(operationServiceClient, finishOp.getId(), Duration.ofSeconds(5));
@@ -81,13 +83,15 @@ public class WorkflowTest extends BaseTest {
         assertTrue(freeVmFlag.get());
 
         var thrownAlreadyFinished = assertThrows(StatusRuntimeException.class, () ->
-            authorizedWorkflowClient.finishExecution(LWFS.FinishExecutionRequest.newBuilder()
+            authorizedWorkflowClient.finishWorkflow(LWFS.FinishWorkflowRequest.newBuilder()
+                .setWorkflowName(workflowName)
                 .setExecutionId(executionId)
                 .build()));
 
         var thrownUnknownWorkflow = assertThrows(StatusRuntimeException.class, () ->
-            authorizedWorkflowClient.finishExecution(
-                LWFS.FinishExecutionRequest.newBuilder()
+            authorizedWorkflowClient.finishWorkflow(
+                LWFS.FinishWorkflowRequest.newBuilder()
+                    .setWorkflowName(workflowName)
                     .setExecutionId("execution_id")
                     .build()));
 
@@ -97,8 +101,9 @@ public class WorkflowTest extends BaseTest {
 
     @Test
     public void startAndFinishExecutionWithGraph() {
-        var execution = authorizedWorkflowClient.startExecution(
-            LWFS.StartExecutionRequest.newBuilder().setWorkflowName("workflow_2").build()
+        var workflowName = "workflow_2";
+        var execution = authorizedWorkflowClient.startWorkflow(
+            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).build()
         );
 
         var executionId = execution.getExecutionId();
@@ -150,8 +155,9 @@ public class WorkflowTest extends BaseTest {
         String[] stopGraphId = {null};
         onStopGraph(actualGraphId -> stopGraphId[0] = actualGraphId);
 
-        var finishOp = authorizedWorkflowClient.finishExecution(
-            LWFS.FinishExecutionRequest.newBuilder()
+        var finishOp = authorizedWorkflowClient.finishWorkflow(
+            LWFS.FinishWorkflowRequest.newBuilder()
+                .setWorkflowName(workflowName)
                 .setExecutionId(executionId)
                 .build());
         finishOp = awaitOperationDone(operationServiceClient, finishOp.getId(), Duration.ofSeconds(15));
@@ -168,8 +174,9 @@ public class WorkflowTest extends BaseTest {
     @Test
     public void testPortalStartedWhileCreatingWorkflow() throws InterruptedException {
         WorkflowService.PEEK_RANDOM_PORTAL_PORTS = false;
-        var exId = authorizedWorkflowClient.startExecution(
-            LWFS.StartExecutionRequest.newBuilder().setWorkflowName("workflow_1").build()).getExecutionId();
+        var workflowName = "workflow_1";
+        var exId = authorizedWorkflowClient.startWorkflow(
+            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).build()).getExecutionId();
 
         var portalAddress = HostAndPort.fromParts("localhost", config.getPortal().getPortalApiPort());
         var portalChannel = newGrpcChannel(portalAddress, LzyPortalGrpc.SERVICE_NAME);
@@ -181,6 +188,7 @@ public class WorkflowTest extends BaseTest {
         portalChannel.shutdown();
         portalChannel.awaitTermination(5, TimeUnit.SECONDS);
 
-        authorizedWorkflowClient.finishExecution(LWFS.FinishExecutionRequest.newBuilder().setExecutionId(exId).build());
+        authorizedWorkflowClient.finishWorkflow(LWFS.FinishWorkflowRequest.newBuilder()
+            .setWorkflowName(workflowName).setExecutionId(exId).build());
     }
 }

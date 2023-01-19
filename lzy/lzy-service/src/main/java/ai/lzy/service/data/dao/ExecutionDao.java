@@ -29,8 +29,8 @@ public interface ExecutionDao {
                                @Nullable TransactionHandle transaction)
         throws SQLException;
 
-    void updateFinishData(String userId, String executionId, Status status, @Nullable TransactionHandle transaction)
-        throws SQLException;
+    void updateFinishData(String userId, @Nullable String workflowName, String executionId, Status status,
+                          @Nullable TransactionHandle transaction) throws SQLException;
 
     void setErrorExecutionStatus(String executionId, @Nullable TransactionHandle transaction) throws SQLException;
 

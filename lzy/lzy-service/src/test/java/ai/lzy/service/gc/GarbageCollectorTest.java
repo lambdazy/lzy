@@ -67,7 +67,7 @@ public class GarbageCollectorTest extends BaseTest {
 
 
         var workflowName = "workflow_" + numOfInstances;
-        var executionId = authorizedWorkflowClient.startExecution(LWFS.StartExecutionRequest.newBuilder()
+        var executionId = authorizedWorkflowClient.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
             .setWorkflowName(workflowName).build()).getExecutionId();
 
         createSession.take();
@@ -128,7 +128,7 @@ public class GarbageCollectorTest extends BaseTest {
 
         var workflowName = "workflow_" + numOfInstances;
         Assert.assertThrows(StatusRuntimeException.class, () ->
-            authorizedWorkflowClient.startExecution(LWFS.StartExecutionRequest.newBuilder()
+            authorizedWorkflowClient.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
                 .setWorkflowName(workflowName).build()).getExecutionId());
 
         createSession.take();
@@ -176,7 +176,7 @@ public class GarbageCollectorTest extends BaseTest {
         var workflowName = "workflow_" + numOfInstances;
 
         Assert.assertThrows(StatusRuntimeException.class, () ->
-            authorizedWorkflowClient.startExecution(LWFS.StartExecutionRequest.newBuilder()
+            authorizedWorkflowClient.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
                 .setWorkflowName(workflowName).build()).getExecutionId());
         createSession.take();
 
