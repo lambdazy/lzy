@@ -174,7 +174,7 @@ class WhiteboardIndexedManager(WhiteboardManager):
             return None
 
         if id_ is not None and id_ != wb.id:
-            raise RuntimeError(
+            raise ValueError(
                 f"Id mismatch, requested whiteboard with id {id_}, found in storage whiteboard with id {wb.id}"
             )
 
