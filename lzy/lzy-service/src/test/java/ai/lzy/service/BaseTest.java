@@ -9,7 +9,7 @@ import ai.lzy.graph.test.GraphExecutorDecorator;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.test.BaseTestWithIam;
-import ai.lzy.longrunning.OperationService;
+import ai.lzy.longrunning.OperationsService;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.service.config.LzyServiceConfig;
@@ -134,7 +134,7 @@ public class BaseTest {
         var workflowAddress = HostAndPort.fromString(config.getAddress());
 
         var lzyServiceOpDao = context.getBean(OperationDao.class, Qualifiers.byName("LzyServiceOperationDao"));
-        var opService = new OperationService(lzyServiceOpDao);
+        var opService = new OperationsService(lzyServiceOpDao);
 
         lzyServer = App.createServer(workflowAddress, authInterceptor, context.getBean(LzyService.class),
             context.getBean(LzyServicePrivateApi.class), opService);
