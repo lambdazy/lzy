@@ -47,7 +47,7 @@ final class YcDeleteDiskAction extends YcDiskActionBase<YcDeleteDiskState> {
 
     private StepResult startDeleteDisk() {
         if (ycOpIdSaved) {
-            return StepResult.CONTINUE;
+            return StepResult.ALREADY_DONE;
         }
 
         if (state.ycOperationId().isEmpty()) {

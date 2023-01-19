@@ -72,7 +72,7 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
 
     private StepResult startCreateSnapshot() {
         if (ycCreateSnapshotOpIdSaved) {
-            return StepResult.CONTINUE;
+            return StepResult.ALREADY_DONE;
         }
 
         if (state.ycCreateSnapshotOperationId().isEmpty()) {
@@ -130,7 +130,7 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
 
     private StepResult waitSnapshot() {
         if (snapshotIdSaved) {
-            return StepResult.CONTINUE;
+            return StepResult.ALREADY_DONE;
         }
 
         if (state.snapshotId() == null) {
@@ -229,7 +229,7 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
 
     private StepResult startCreateDisk() {
         if (ycCreateDiskOpIdSaved) {
-            return StepResult.CONTINUE;
+            return StepResult.ALREADY_DONE;
         }
 
         assert state.snapshotId() != null;
@@ -294,7 +294,7 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
 
     private StepResult waitDisk() {
         if (newDiskIdSaved) {
-            return StepResult.CONTINUE;
+            return StepResult.ALREADY_DONE;
         }
 
         LOG.info("Test status of YcCloneDisk::CreateDisk operation {}/{}", opId(), state.ycCreateDiskOperationId());
@@ -416,7 +416,7 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
 
     private StepResult startDeleteSnapshot() {
         if (ycDeleteSnapshotOpIdSaved) {
-            return StepResult.CONTINUE;
+            return StepResult.ALREADY_DONE;
         }
 
         assert state.snapshotId() != null;

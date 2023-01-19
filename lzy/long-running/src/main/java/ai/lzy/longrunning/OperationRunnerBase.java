@@ -55,7 +55,18 @@ public abstract class OperationRunnerBase implements Runnable {
             for (var step : steps()) {
                 final var stepResult = step.get();
                 switch (stepResult.code()) {
-                    case CONTINUE -> { }
+                    case ALREADY_DONE -> { }
+                    case CONTINUE -> {
+                        var update = updateOperationProgress();
+                        switch (update.code()) {
+                            case ALREADY_DONE, CONTINUE -> { }
+                            case RESTART -> {
+                                executor.schedule(this, update.delay().toMillis(), TimeUnit.MILLISECONDS);
+                                return;
+                            }
+                            case FINISH -> { return; }
+                        }
+                    }
                     case RESTART -> {
                         executor.schedule(this, stepResult.delay().toMillis(), TimeUnit.MILLISECONDS);
                         return;
@@ -122,7 +133,7 @@ public abstract class OperationRunnerBase implements Runnable {
         return true;
     }
 
-    protected final StepResult updateOperationProgress() {
+    private StepResult updateOperationProgress() {
         try {
             withRetries(log(), () -> operationsDao.update(id, null));
             return StepResult.CONTINUE;
@@ -167,11 +178,13 @@ public abstract class OperationRunnerBase implements Runnable {
         Duration delay
     ) {
         public enum Code {
+            ALREADY_DONE,
             CONTINUE,
             RESTART,
             FINISH
         }
 
+        public static final StepResult ALREADY_DONE = new StepResult(Code.ALREADY_DONE, null);
         public static final StepResult CONTINUE = new StepResult(StepResult.Code.CONTINUE, null);
         public static final StepResult RESTART = new StepResult(StepResult.Code.RESTART, Duration.ofSeconds(1));
         public static final StepResult FINISH = new StepResult(StepResult.Code.FINISH, null);

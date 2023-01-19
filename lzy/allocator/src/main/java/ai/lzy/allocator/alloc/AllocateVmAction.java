@@ -82,7 +82,7 @@ public final class AllocateVmAction extends OperationRunnerBase {
         InjectedFailures.failAllocateVm1();
 
         if (vm.allocateState().vmSubjectId() != null) {
-            return StepResult.CONTINUE;
+            return StepResult.ALREADY_DONE;
         }
 
         var ottDeadline = vm.allocateState().startedAt().plus(Duration.ofMinutes(30));
@@ -112,20 +112,20 @@ public final class AllocateVmAction extends OperationRunnerBase {
             return StepResult.RESTART;
         }
 
-        return updateOperationProgress();
+        return StepResult.CONTINUE;
     }
 
     private StepResult allocateTunnel() {
         InjectedFailures.failAllocateVm3();
 
         if (vm.proxyV6Address() == null) {
-            return StepResult.CONTINUE;
+            return StepResult.ALREADY_DONE;
         }
 
         if (vm.allocateState().tunnelPodName() != null) {
             log().info("Found existing tunnel pod {} with address {} for VM {}",
                 vm.allocateState().tunnelPodName(), vm.proxyV6Address(), vm.vmId());
-            return StepResult.CONTINUE;
+            return StepResult.ALREADY_DONE;
         }
 
         if (tunnelPodName == null) {
@@ -168,7 +168,7 @@ public final class AllocateVmAction extends OperationRunnerBase {
             return StepResult.RESTART;
         }
 
-        return updateOperationProgress();
+        return StepResult.CONTINUE;
     }
 
     private StepResult allocateVm() {

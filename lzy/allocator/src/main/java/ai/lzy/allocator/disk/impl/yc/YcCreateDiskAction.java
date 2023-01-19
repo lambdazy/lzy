@@ -56,7 +56,7 @@ final class YcCreateDiskAction extends YcDiskActionBase<YcCreateDiskState> {
 
     private StepResult startDiskCreation() {
         if (ycOpIdSaved) {
-            return StepResult.CONTINUE;
+            return StepResult.ALREADY_DONE;
         }
 
         if (state.ycOperationId().isEmpty()) {
