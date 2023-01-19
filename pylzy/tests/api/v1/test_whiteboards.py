@@ -15,12 +15,12 @@ from Crypto.PublicKey import RSA
 from moto.moto_server.threaded_moto_server import ThreadedMotoServer
 
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2_grpc import add_LzyWhiteboardServiceServicer_to_server
-from api.v1.mocks import WhiteboardIndexServiceMock, SerializerRegistryMock, NotAvailablePrimitiveSerializer, \
-    NotStablePrimitiveSerializer
-from api.v1.utils import create_bucket
 from lzy.api.v1 import Lzy, whiteboard, WhiteboardStatus, MISSING_WHITEBOARD_FIELD, op
 from lzy.api.v1.local.runtime import LocalRuntime
 from lzy.storage.api import Storage, S3Credentials
+from tests.api.v1.mocks import SerializerRegistryMock, NotStablePrimitiveSerializer, NotAvailablePrimitiveSerializer, \
+    WhiteboardIndexServiceMock
+from tests.api.v1.utils import create_bucket
 
 
 @whiteboard(name="whiteboard_name")
