@@ -103,7 +103,7 @@ public class RestartExecuteGraphTest extends AbstractGraphExecutionTest {
     }
 
     private void executeGraphWithRestartImpl() {
-        LWFS.CreateWorkflowResponse workflow = createWorkflow(authorizedWorkflowClient);
+        LWFS.StartWorkflowResponse workflow = startExecution(authorizedWorkflowClient);
         LWF.Graph graph = buildSimpleGraph(workflow.getInternalSnapshotStorage());
         var executionId = workflow.getExecutionId();
 

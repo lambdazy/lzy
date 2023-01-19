@@ -1,84 +1,80 @@
-create type storage_type as enum ('USER', 'INTERNAL');
+CREATE TYPE storage_type AS ENUM ('USER', 'INTERNAL');
 
-create type portal_status as enum (
+CREATE TYPE portal_status AS ENUM (
     'CREATING_STD_CHANNELS', 'CREATING_SESSION',
     'REQUEST_VM', 'ALLOCATING_VM', 'VM_READY'
 );
 
-create type execution_status as enum (
-    'RUN', 'COMPLETED', 'ERROR', 'CLEANED'
+CREATE TYPE execution_status AS ENUM (
+    'RUN', 'ERROR', 'COMPLETING', 'COMPLETED'
 );
 
-create table workflow_executions
+CREATE TABLE workflow_executions
 (
-    execution_id             text             not null,
-    execution_status         execution_status not null,
+    execution_id             TEXT             NOT NULL PRIMARY KEY,
+    user_id                  TEXT             NOT NULL,
+    execution_status         execution_status NOT NULL,
 
-    allocator_session_id     text,
+    allocator_session_id     TEXT,
 
-    created_at               timestamp        not null,
-    finished_at              timestamp,
-    finished_with_error      text,    -- error message or null
-    finished_error_code      integer, -- error code or null
+    created_at               TIMESTAMP        NOT NULL,
+    finished_at              TIMESTAMP,
+    finished_with_error      TEXT,    -- error message or null
+    finished_error_code      INTEGER, -- error code or null
 
-    storage                  storage_type     not null,
-    storage_uri              text             not null,
-    storage_credentials      text             not null,
+    storage                  storage_type     NOT NULL,
+    storage_uri              TEXT             NOT NULL,
+    storage_credentials      TEXT             NOT NULL,
 
     portal                   portal_status,
-    allocate_op_id           text,
-    portal_vm_id             text,
-    portal_vm_address        text,
-    portal_fs_address        text,
-    portal_id                text,
+    allocate_op_id           TEXT,
+    portal_vm_id             TEXT,
+    portal_vm_address        TEXT,
+    portal_fs_address        TEXT,
+    portal_id                TEXT,
 
-    portal_stdout_channel_id text,
-    portal_stderr_channel_id text,
+    portal_stdout_channel_id TEXT,
+    portal_stderr_channel_id TEXT,
 
-    primary key (execution_id),
-    check (finished_at >= created_at)
+    CHECK (finished_at >= created_at)
 );
 
-CREATE INDEX expired_workflow_executions_index ON workflow_executions (execution_status) WHERE execution_status = cast('ERROR' as execution_status);
+CREATE INDEX expired_workflow_executions_index ON workflow_executions (execution_status)
+    WHERE execution_status = cast('ERROR' AS execution_status);
 
-create table workflows
+CREATE TABLE workflows
 (
-    user_id             text      not null,
-    workflow_name       text      not null,
-    created_at          timestamp not null,
+    user_id             TEXT      NOT NULL,
+    workflow_name       TEXT      NOT NULL,
+    created_at          TIMESTAMP NOT NULL,
+    modified_at         TIMESTAMP NOT NULL,
 
-    active_execution_id text,
+    active_execution_id TEXT REFERENCES workflow_executions (execution_id),
 
-    primary key (user_id, workflow_name),
-    foreign key (active_execution_id) references workflow_executions (execution_id)
+    PRIMARY KEY (user_id, workflow_name)
 );
 
-create table snapshots
+CREATE TABLE snapshots
 (
-    slot_uri     text not null,
-    execution_id text not null,
-
-    primary key (slot_uri),
-    foreign key (execution_id) references workflow_executions (execution_id)
+    slot_uri     TEXT NOT NULL PRIMARY KEY,
+    execution_id TEXT NOT NULL REFERENCES workflow_executions (execution_id)
 );
 
-create table channels
+CREATE TABLE channels
 (
-    channel_id      text not null,
-    output_slot_uri text not null,
+    channel_id      TEXT NOT NULL PRIMARY KEY,
+    output_slot_uri TEXT NOT NULL REFERENCES snapshots (slot_uri),
 
-    primary key (channel_id),
-    foreign key (output_slot_uri) references snapshots (slot_uri),
-    unique (output_slot_uri, channel_id)
+    UNIQUE (output_slot_uri, channel_id)
 );
 
-create table graphs
+CREATE TABLE graphs
 (
-    graph_id           text not null,
-    execution_id       text not null,
-    portal_input_slots text[] not null,
-    primary key (graph_id, execution_id),
-    foreign key (execution_id) references workflow_executions (execution_id)
+    graph_id           TEXT   NOT NULL,
+    execution_id       TEXT   NOT NULL REFERENCES workflow_executions (execution_id),
+    portal_input_slots TEXT[] NOT NULL,
+
+    PRIMARY KEY (graph_id, execution_id)
 );
 
 CREATE TABLE operation
@@ -113,10 +109,9 @@ CREATE TABLE graph_op_state
     FOREIGN KEY (op_id) REFERENCES operation (id)
 );
 
-create table garbage_collectors
+CREATE TABLE garbage_collectors
 (
-    gc_instance_id text not null,
-    updated_at     timestamp,
-    valid_until    timestamp,
-    primary key (gc_instance_id)
+    gc_instance_id TEXT NOT NULL PRIMARY KEY,
+    updated_at     TIMESTAMP,
+    valid_until    TIMESTAMP
 );

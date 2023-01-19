@@ -12,7 +12,10 @@ from Crypto.PublicKey import RSA
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import (
     add_LzyWorkflowServiceServicer_to_server,
 )
-from api.v1.mocks import WorkflowServiceMock, WhiteboardIndexClientMock
+from ai.lzy.v1.long_running.operation_pb2_grpc import (
+    add_LongRunningServiceServicer_to_server,
+)
+from api.v1.mocks import WorkflowServiceMock, WhiteboardIndexClientMock, OperationsServiceMock
 from lzy.api.v1 import Lzy
 from lzy.logs.config import get_logger
 
@@ -30,7 +33,9 @@ class GrpcRuntimeTests(TestCase):
 
     def setUp(self) -> None:
         self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-        self.mock = WorkflowServiceMock()
+        self.ops_mock = OperationsServiceMock()
+        add_LongRunningServiceServicer_to_server(self.ops_mock, self.server)
+        self.mock = WorkflowServiceMock(self.ops_mock)
         add_LzyWorkflowServiceServicer_to_server(self.mock, self.server)
         self.server.add_insecure_port("localhost:12345")
         self.server.start()

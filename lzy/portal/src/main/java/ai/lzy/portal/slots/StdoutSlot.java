@@ -171,4 +171,10 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
             }
         }
     }
+
+    public synchronized void await() throws InterruptedException {
+        while (!finished.get()) {
+            wait();
+        }
+    }
 }

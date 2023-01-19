@@ -6,6 +6,8 @@ import "ai/lzy/v1/common/slot.proto";
 import "ai/lzy/v1/portal/portal.proto";
 import "google/protobuf/empty.proto";
 import "ai/lzy/v1/common/storage.proto";
+import "ai/lzy/v1/long-running/option.proto";
+import "ai/lzy/v1/long-running/operation.proto";
 
 option java_outer_classname = "LzyPortalApi";
 option java_package = "ai.lzy.v1.portal";
@@ -14,7 +16,12 @@ service LzyPortal {
   rpc Stop (google.protobuf.Empty) returns (google.protobuf.Empty);
   rpc Status (PortalStatusRequest) returns (PortalStatusResponse);
   rpc OpenSlots (OpenSlotsRequest) returns (OpenSlotsResponse);
-  rpc Finish (FinishRequest) returns (FinishResponse);
+  rpc Finish (FinishRequest) returns (Operation) {
+    option (ai.lzy.v1.operation) = {
+      // meta: null
+      response: "FinishResponse"
+    };
+  }
 }
 
 message PortalSlotStatus {

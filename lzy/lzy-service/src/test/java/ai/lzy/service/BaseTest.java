@@ -1,11 +1,16 @@
 package ai.lzy.service;
 
+import ai.lzy.allocator.test.AllocatorProxy;
 import ai.lzy.allocator.test.BaseTestWithAllocator;
 import ai.lzy.channelmanager.test.BaseTestWithChannelManager;
+import ai.lzy.channelmanager.test.ChannelManagerDecorator;
 import ai.lzy.graph.test.BaseTestWithGraphExecutor;
+import ai.lzy.graph.test.GraphExecutorDecorator;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.test.BaseTestWithIam;
+import ai.lzy.longrunning.OperationService;
+import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.workflow.WorkflowService;
@@ -14,30 +19,33 @@ import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
 import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
-import ai.lzy.util.grpc.*;
+import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.GrpcHeadersServerInterceptor;
+import ai.lzy.util.grpc.GrpcLogsInterceptor;
+import ai.lzy.util.grpc.RequestIdInterceptor;
 import ai.lzy.v1.common.LMST;
-import ai.lzy.v1.workflow.LWF;
-import ai.lzy.v1.workflow.LWFS;
+import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import io.grpc.netty.NettyServerBuilder;
 import io.jsonwebtoken.Claims;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
+import io.micronaut.inject.qualifiers.Qualifiers;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
@@ -51,23 +59,17 @@ public class BaseTest {
     protected static final BaseTestWithAllocator allocatorTestContext = new BaseTestWithAllocator();
 
     @Rule
-    public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {
-    });
+    public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
     @Rule
-    public PreparedDbRule storageDb = EmbeddedPostgresRules.preparedDatabase(ds -> {
-    });
+    public PreparedDbRule storageDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
     @Rule
-    public PreparedDbRule channelManagerDb = EmbeddedPostgresRules.preparedDatabase(ds -> {
-    });
+    public PreparedDbRule channelManagerDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
     @Rule
-    public PreparedDbRule graphExecutorDb = EmbeddedPostgresRules.preparedDatabase(ds -> {
-    });
+    public PreparedDbRule graphExecutorDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
     @Rule
-    public PreparedDbRule allocatorDb = EmbeddedPostgresRules.preparedDatabase(ds -> {
-    });
+    public PreparedDbRule allocatorDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
     @Rule
-    public PreparedDbRule lzyServiceDb = EmbeddedPostgresRules.preparedDatabase(ds -> {
-    });
+    public PreparedDbRule lzyServiceDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
 
     protected ApplicationContext context;
     protected LzyServiceConfig config;
@@ -76,9 +78,11 @@ public class BaseTest {
 
     private Server lzyServer;
 
-    private ManagedChannel lzyServiceChannel;
-    private LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub unauthorizedWorkflowClient;
+    protected ManagedChannel lzyServiceChannel;
+    protected LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub unauthorizedWorkflowClient;
     protected LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub authorizedWorkflowClient;
+
+    protected LongRunningServiceGrpc.LongRunningServiceBlockingStub operationServiceClient;
 
     protected RenewableJwt internalUserCredentials;
     protected AuthServerInterceptor authInterceptor;
@@ -129,7 +133,11 @@ public class BaseTest {
 
         var workflowAddress = HostAndPort.fromString(config.getAddress());
 
-        lzyServer = App.createServer(workflowAddress, authInterceptor, context.getBean(LzyService.class));
+        var lzyServiceOpDao = context.getBean(OperationDao.class, Qualifiers.byName("LzyServiceOperationDao"));
+        var opService = new OperationService(lzyServiceOpDao);
+
+        lzyServer = App.createServer(workflowAddress, authInterceptor, context.getBean(LzyService.class),
+            context.getBean(LzyServicePrivateApi.class), opService);
         lzyServer.start();
 
         var whiteboardAddress = HostAndPort.fromString(config.getWhiteboardAddress());
@@ -150,6 +158,9 @@ public class BaseTest {
         internalUserCredentials = config.getIam().createRenewableToken();
         authorizedWorkflowClient = newBlockingClient(unauthorizedWorkflowClient, "TestClient",
             () -> internalUserCredentials.get().token());
+
+        operationServiceClient = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(lzyServiceChannel),
+            "TestClient", () -> internalUserCredentials.get().token());
     }
 
     @After
@@ -172,122 +183,27 @@ public class BaseTest {
         storageTestContext.after();
     }
 
-    @SuppressWarnings("ResultOfMethodCallIgnored")
-    @Test
-    public void testUnauthenticated() {
-        var workflowName = "workflow_1";
-        var executionId = "some-valid-execution-id";
-        var graphName = "simple-graph";
-        var graphId = "some-valid-graph-id";
-
-        var thrown = new ArrayList<StatusRuntimeException>() {
-            {
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedWorkflowClient.createWorkflow(
-                    LWFS.CreateWorkflowRequest.newBuilder().setWorkflowName(workflowName).build())));
-
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedWorkflowClient.deleteWorkflow(
-                    LWFS.DeleteWorkflowRequest.newBuilder().setWorkflowName(workflowName).build())));
-
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedWorkflowClient.attachWorkflow(
-                    LWFS.AttachWorkflowRequest.newBuilder()
-                        .setWorkflowName(workflowName)
-                        .setExecutionId(executionId)
-                        .build())));
-
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedWorkflowClient.finishWorkflow(
-                    LWFS.FinishWorkflowRequest.newBuilder()
-                        .setWorkflowName(workflowName)
-                        .setExecutionId(executionId)
-                        .setReason("my will").build())));
-
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedWorkflowClient.executeGraph(
-                    LWFS.ExecuteGraphRequest.newBuilder()
-                        .setExecutionId(executionId)
-                        .setGraph(LWF.Graph.newBuilder()
-                            .setName(graphName)
-                            .build())
-                        .build()
-                )));
-
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedWorkflowClient.graphStatus(
-                    LWFS.GraphStatusRequest.newBuilder()
-                        .setExecutionId(executionId)
-                        .setGraphId(graphId)
-                        .build()
-                )));
-
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> unauthorizedWorkflowClient.stopGraph(
-                    LWFS.StopGraphRequest.newBuilder()
-                        .setExecutionId(executionId)
-                        .setGraphId(graphId)
-                        .build()
-                )));
-            }
-        };
-
-        thrown.forEach(e -> Assert.assertEquals(Status.UNAUTHENTICATED.getCode(), e.getStatus().getCode()));
-    }
-
-    @SuppressWarnings("ResultOfMethodCallIgnored")
-    @Test
-    public void testPermissionDenied() {
-        var workflowName = "workflow_1";
-        var executionId = "some-valid-execution-id";
-        var graphName = "simple-graph";
-        var graphId = "some-valid-graph-id";
-        var client = unauthorizedWorkflowClient.withInterceptors(ClientHeaderInterceptor.header(
-            GrpcHeaders.AUTHORIZATION, JwtUtils.invalidCredentials("user", "GITHUB")::token));
-
-        var thrown = new ArrayList<StatusRuntimeException>() {
-            {
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> client.createWorkflow(
-                    LWFS.CreateWorkflowRequest.newBuilder().setWorkflowName(workflowName).build())));
-
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> client.deleteWorkflow(
-                    LWFS.DeleteWorkflowRequest.newBuilder().setWorkflowName(workflowName).build())));
-
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> client.attachWorkflow(
-                    LWFS.AttachWorkflowRequest.newBuilder()
-                        .setWorkflowName(workflowName)
-                        .setExecutionId(executionId)
-                        .build())));
-
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> client.finishWorkflow(
-                    LWFS.FinishWorkflowRequest.newBuilder()
-                        .setWorkflowName(workflowName)
-                        .setExecutionId(executionId)
-                        .setReason("my will")
-                        .build())));
-
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> client.executeGraph(
-                    LWFS.ExecuteGraphRequest.newBuilder()
-                        .setExecutionId(executionId)
-                        .setGraph(LWF.Graph.newBuilder()
-                            .setName(graphName)
-                            .build())
-                        .build()
-                )));
-
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> client.graphStatus(
-                    LWFS.GraphStatusRequest.newBuilder()
-                        .setExecutionId(executionId)
-                        .setGraphId(graphId)
-                        .build()
-                )));
-
-                add(Assert.assertThrows(StatusRuntimeException.class, () -> client.stopGraph(
-                    LWFS.StopGraphRequest.newBuilder()
-                        .setExecutionId(executionId)
-                        .setGraphId(graphId)
-                        .build()
-                )));
-            }
-        };
-
-        thrown.forEach(e -> Assert.assertEquals(Status.PERMISSION_DENIED.getCode(), e.getStatus().getCode()));
-    }
-
     public static String buildSlotUri(String key, LMST.StorageConfig storageConfig) {
         return storageConfig.getUri() + "/" + key;
+    }
+
+    protected void onStopGraph(Consumer<String> action) {
+        var graphExecutor = graphExecutorTestContext.getContext().getBean(GraphExecutorDecorator.class);
+        graphExecutor.setOnStop(action);
+    }
+
+    protected void onDeleteSession(Runnable action) {
+        var allocator = allocatorTestContext.getContext().getBean(AllocatorProxy.class);
+        allocator.setOnDeleteSession(action);
+    }
+
+    protected void onFreeVm(Runnable action) {
+        var allocator = allocatorTestContext.getContext().getBean(AllocatorProxy.class);
+        allocator.setOnFree(action);
+    }
+
+    protected void onChannelsDestroy(Consumer<String> action) {
+        var channelManager = channelManagerTestContext.getContext().getBean(ChannelManagerDecorator.class);
+        channelManager.setOnDestroyAll(action);
     }
 }
