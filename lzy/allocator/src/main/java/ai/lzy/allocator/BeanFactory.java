@@ -110,7 +110,7 @@ public class BeanFactory {
 
     @Singleton
     @Named("AllocatorOperationsService")
-    public OperationsService operationsService(OperationDao operationDao) {
+    public OperationsService operationsService(@Named("AllocatorOperationDao") OperationDao operationDao) {
         return new OperationsService(operationDao);
     }
 
