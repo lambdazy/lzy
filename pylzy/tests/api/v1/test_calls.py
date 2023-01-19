@@ -126,7 +126,7 @@ class LzyCallsTests(TestCase):
         func: FuncSignature = wf.owner.runtime.calls[0].signature.func
         self.assertEqual(str, func.output_types[0])
         self.assertEqual(1, len(func.input_types))
-        self.assertEqual(Tuple[int, int, int], func.input_types['arg'])
+        self.assertEqual(Tuple[int], func.input_types['arg'])
 
     def test_arg_hint(self):
         # noinspection PyUnusedLocal
