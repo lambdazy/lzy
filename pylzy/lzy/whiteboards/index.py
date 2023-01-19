@@ -114,7 +114,6 @@ class WhiteboardIndexedManager(WhiteboardManager):
         with tempfile.NamedTemporaryFile() as f:
             f.write(MessageToJson(wb).encode('UTF-8'))
             f.seek(0)
-
             await storage_client.write(f"{uri}/.whiteboard", cast(BinaryIO, f))
 
         await self.__index_client.register(wb)
@@ -139,8 +138,13 @@ class WhiteboardIndexedManager(WhiteboardManager):
         with tempfile.NamedTemporaryFile() as f:
             f.write(MessageToJson(updated_wb).encode('UTF-8'))
             f.seek(0)
-
             await storage_client.write(wb_meta_uri, cast(BinaryIO, f))
+
+        # Does it really necessary?
+        if updated_wb.status == Whiteboard.Status.FINALIZED:
+            wb_finalized_marker_uri = f"{uri}/.finalized"
+            with tempfile.NamedTemporaryFile() as f:
+                await storage_client.write(wb_finalized_marker_uri, cast(BinaryIO, f))
 
         await self.__index_client.update(wb)
 
@@ -219,6 +223,6 @@ class WhiteboardIndexedManager(WhiteboardManager):
         with tempfile.TemporaryFile() as f:
             await storage_client.read(wb_meta_uri, cast(BinaryIO, f))
             f.seek(0)
-
             wb = ParseDict(json.load(f), Whiteboard())
+
         return wb
