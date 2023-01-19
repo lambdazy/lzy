@@ -43,12 +43,6 @@ def entry_id(lazy_proxy):
 
 
 class LzyWorkflowTests(TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        # setup PYTHONPATH for child processes used in LocalRuntime
-        pylzy_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
-        os.environ["PYTHONPATH"] = pylzy_directory + ":" + pylzy_directory + "/tests"
-
     def setUp(self):
         self.service = ThreadedMotoServer(port=12345)
         self.service.start()
