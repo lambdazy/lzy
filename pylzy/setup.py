@@ -66,7 +66,9 @@ setuptools.setup(
         "ai/lzy/v1/validation",
         "ai/lzy/v1/long_running",
         "ai/lzy/v1/whiteboard",
-        "ai/lzy/v1/workflow"
+        "ai/lzy/v1/workflow",
+        "google/protobuf",
+        "google/rpc"
     ],
     python_requires=">=3.7",
     long_description_content_type='text/markdown'
