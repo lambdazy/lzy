@@ -216,7 +216,7 @@ def infer_and_validate_call_signature(
         # probably, not the best way to except lazy proxies from validation, but it works even with compiled pydantic
         to_raise = False
         for error in e.errors():
-            if 'loc' in error and all(is_lzy_proxy(args_mapping[loc]) for loc in error['loc']):
+            if 'loc' in error and all(loc in args_mapping and is_lzy_proxy(args_mapping[loc]) for loc in error['loc']):
                 continue
             to_raise = True
             break

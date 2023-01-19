@@ -162,7 +162,7 @@ class LzyWorkflowTests(TestCase):
             f = foo()
             b = bar(a=f)
 
-        self.assertEqual("kek", b)
+        self.assertEqual("Foo: Bar:", b)
 
     def test_return_accept_list(self):
         @op
