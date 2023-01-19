@@ -157,6 +157,28 @@ class LzyWorkflowTests(TestCase):
             self.assertFalse(materialized(s1))
             self.assertFalse(materialized(s2))
 
+    def test_kwargs(self):
+        with self.lzy.workflow("test"):
+            f = foo()
+            b = bar(a=f)
+
+        self.assertEqual("kek", b)
+
+    def test_return_accept_list(self):
+        @op
+        def return_list() -> List[dict]:
+            return [{}, {}, {}]
+
+        @op
+        def accept_list(lst: List[dict]) -> int:
+            return len(lst)
+
+        with self.lzy.workflow("test"):
+            a = return_list()
+            i = accept_list(a)
+
+        self.assertEqual(3, i)
+
     @skip("WIP")
     def test_barrier(self):
         with self.lzy.workflow(self.workflow_name, False) as workflow:

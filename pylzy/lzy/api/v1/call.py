@@ -7,6 +7,7 @@ from inspect import getfullargspec
 from itertools import chain
 from typing import Any, Callable, Dict, Mapping, Sequence, Tuple, TypeVar
 
+from pydantic import ValidationError
 # noinspection PyProtectedMember
 from pydantic.decorator import ValidatedFunction
 from serialzy.types import get_type
@@ -184,6 +185,7 @@ def infer_and_validate_call_signature(
     f: Callable, output_type: Sequence[type], snapshot: Snapshot, entry_index: EntryIndex, *args, **kwargs
 ) -> CallSignature:
     types_mapping = {}
+    args_mapping = {}
     argspec = getfullargspec(f)
 
     for typ in set(argspec.annotations.values()):
@@ -206,8 +208,21 @@ def infer_and_validate_call_signature(
             types_mapping[name] = argspec.annotations[name]
         else:
             types_mapping[name] = get_type(arg)
+        args_mapping[name] = arg
 
-    vd.init_model_instance(*args, **kwargs)  # validate arguments
+    try:
+        vd.init_model_instance(*args, **kwargs)  # validate arguments
+    except ValidationError as e:
+        # probably, not the best way to except lazy proxies from validation, but it works even with compiled pydantic
+        to_raise = False
+        for error in e.errors():
+            if 'loc' in error and all(is_lzy_proxy(args_mapping[loc]) for loc in error['loc']):
+                continue
+            to_raise = True
+            break
+
+        if to_raise:
+            raise e
 
     generated_names = []
     for arg in args[len(argspec.args):]:
