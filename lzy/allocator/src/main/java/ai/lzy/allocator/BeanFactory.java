@@ -1,9 +1,14 @@
 package ai.lzy.allocator;
 
+import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.configs.ServiceConfig;
+import ai.lzy.allocator.disk.dao.DiskDao;
+import ai.lzy.allocator.disk.dao.DiskOpDao;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
+import ai.lzy.longrunning.OperationsExecutor;
+import ai.lzy.longrunning.OperationsService;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.metrics.DummyMetricReporter;
@@ -21,20 +26,15 @@ import io.micronaut.context.annotation.Factory;
 import io.micronaut.context.annotation.Requires;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.PreDestroy;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
 import yandex.cloud.sdk.ServiceFactory;
 import yandex.cloud.sdk.auth.Auth;
 import yandex.cloud.sdk.auth.provider.CredentialProvider;
 
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Factory
 public class BeanFactory {
@@ -95,12 +95,6 @@ public class BeanFactory {
     }
 
     @Singleton
-    @Named("AllocatorOperationDao")
-    public OperationDao operationDao(AllocatorDataSource storage) {
-        return new OperationDaoImpl(storage);
-    }
-
-    @Singleton
     @Named("AllocatorSubjectServiceClient")
     public SubjectServiceGrpcClient subjectServiceClient(@Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
                                                          @Named("AllocatorIamToken") RenewableJwt iamToken)
@@ -109,75 +103,28 @@ public class BeanFactory {
     }
 
     @Singleton
-    @Named("AllocatorExecutor")
-    @Bean(preDestroy = "shutdown")
-    public ScheduledExecutorService executorService(AllocatorDataSource ignoredStorage) {
-        final var logger = LogManager.getLogger("AllocatorExecutor");
+    @Named("AllocatorOperationDao")
+    public OperationDao operationDao(AllocatorDataSource storage) {
+        return new OperationDaoImpl(storage);
+    }
 
+    @Singleton
+    @Named("AllocatorOperationsService")
+    public OperationsService operationsService(OperationDao operationDao) {
+        return new OperationsService(operationDao);
+    }
+
+    @Singleton
+    @Bean(preDestroy = "shutdown")
+    @Named("AllocatorOperationsExecutor")
+    public OperationsExecutor operationsExecutor(@Named("AllocatorOperationsService") OperationsService opSrv,
+                                                 VmDao vmDao, DiskDao diskDao, DiskOpDao diskOpDao, MetricReporter mr)
+    {
         final Counter errors = Counter
             .build("executor_errors", "Executor unexpected errors")
             .subsystem("allocator")
             .register();
 
-        var executor = new ScheduledThreadPoolExecutor(5, new ThreadFactory() {
-            private final AtomicInteger counter = new AtomicInteger(1);
-
-            @Override
-            public Thread newThread(@Nonnull Runnable r) {
-                var th = new Thread(r, "executor-" + counter.getAndIncrement());
-                th.setUncaughtExceptionHandler((t, e) -> {
-                    errors.inc();
-                    logger.error("Unexpected exception in thread {}: {}", t.getName(), e.getMessage(), e);
-                });
-                return th;
-            }
-        }) {
-            @Override
-            protected void afterExecute(Runnable r, Throwable t) {
-                super.afterExecute(r, t);
-                if (t == null && r instanceof Future<?> f) {
-                    try {
-                        f.get();
-                    } catch (CancellationException ce) {
-                        t = ce;
-                    } catch (ExecutionException ee) {
-                        t = ee.getCause();
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt(); // ignore/reset
-                    } catch (InjectedFailures.TerminateException e) {
-                        logger.error("Got InjectedFailure exception at {}: {}", r.getClass().getName(), e.getMessage());
-                    }
-                }
-                if (t != null) {
-                    errors.inc();
-                    logger.error("Unexpected exception: {}", t.getMessage(), t);
-                }
-            }
-
-            @Override
-            @PreDestroy
-            public void shutdown() {
-                logger.info("Shutdown AllocatorExecutor service. Tasks in queue: {}, running tasks: {}.",
-                    getQueue().size(), getActiveCount());
-
-                super.shutdown();
-
-                try {
-                    var allDone = awaitTermination(1, TimeUnit.MINUTES);
-                    if (!allDone) {
-                        logger.error("Not all actions were completed in timeout, tasks in queue: {}, running tasks: {}",
-                            getQueue().size(), getActiveCount());
-                    }
-                } catch (InterruptedException e) {
-                    logger.error("Graceful termination interrupted, tasks in queue: {}, running tasks: {}.",
-                        getQueue().size(), getActiveCount());
-                }
-            }
-        };
-
-        executor.setKeepAliveTime(1, TimeUnit.MINUTES);
-        executor.setMaximumPoolSize(20);
-
-        return executor;
+        return new OperationsExecutor(5, 20, errors::inc, e -> e instanceof InjectedFailures.TerminateException);
     }
 }

@@ -17,6 +17,7 @@ import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
+import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.model.db.TransactionHandle;
@@ -47,7 +48,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
 import static ai.lzy.allocator.model.HostPathVolumeDescription.HostPathType;
@@ -69,7 +69,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     private final TunnelAllocator tunnelAllocator;
     private final ServiceConfig config;
     private final AllocatorDataSource storage;
-    private final ScheduledExecutorService executor;
+    private final OperationsExecutor executor;
     private final AllocatorMetrics metrics;
     private final SubjectServiceGrpcClient subjectClient;
 
@@ -77,7 +77,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     public AllocatorService(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
                             SessionDao sessionsDao, DiskDao diskDao, VmAllocator allocator,
                             TunnelAllocator tunnelAllocator, ServiceConfig config, AllocatorDataSource storage,
-                            AllocatorMetrics metrics, @Named("AllocatorExecutor") ScheduledExecutorService executor,
+                            AllocatorMetrics metrics, @Named("AllocatorOperationsExecutor") OperationsExecutor executor,
                             @Named("AllocatorSubjectServiceClient") SubjectServiceGrpcClient subjectClient)
     {
         this.vmDao = vmDao;

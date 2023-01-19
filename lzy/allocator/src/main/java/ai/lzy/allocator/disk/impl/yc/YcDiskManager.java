@@ -6,6 +6,7 @@ import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.disk.dao.DiskOpDao;
 import ai.lzy.allocator.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.storage.AllocatorDataSource;
+import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -51,7 +52,7 @@ public class YcDiskManager implements DiskManager {
     private final OperationDao operationsDao;
     private final ObjectMapper objectMapper;
     private final DiskMetrics metrics;
-    private final ScheduledExecutorService executor;
+    private final OperationsExecutor executor;
     private final DiskServiceBlockingStub ycDiskService;
     private final SnapshotServiceBlockingStub ycSnapshotService;
     private final OperationServiceBlockingStub ycOperationService;
@@ -61,7 +62,7 @@ public class YcDiskManager implements DiskManager {
                          @Named("AllocatorObjectMapper") ObjectMapper objectMapper, DiskMetrics metrics,
                          DiskDao diskDao, DiskOpDao diskOpDao, ServiceFactory serviceFactory,
                          @Named("AllocatorOperationDao") OperationDao operationsDao,
-                         @Named("AllocatorExecutor") ScheduledExecutorService executor)
+                         @Named("AllocatorOperationsExecutor") OperationsExecutor executor)
     {
         this.instanceId = config.getInstanceId();
         this.folderId = diskConfig.getFolderId();

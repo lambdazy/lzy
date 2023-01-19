@@ -9,6 +9,7 @@ import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
+import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.ProtoPrinter;
@@ -31,7 +32,6 @@ import org.apache.logging.log4j.Logger;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.ScheduledExecutorService;
 import javax.annotation.Nullable;
 import javax.annotation.PreDestroy;
 import javax.inject.Named;
@@ -52,12 +52,12 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
     private final DiskDao diskDao;
     private final DiskOpDao diskOpDao;
     private final AllocatorDataSource storage;
-    private final ScheduledExecutorService executor;
+    private final OperationsExecutor executor;
     private final DiskMetrics metrics;
 
     public DiskService(ServiceConfig config, DiskManager diskManager, DiskDao diskDao, DiskOpDao diskOpDao,
                        AllocatorDataSource storage, @Named("AllocatorOperationDao") OperationDao operationDao,
-                       @Named("AllocatorExecutor") ScheduledExecutorService executor, DiskMetrics metrics)
+                       @Named("AllocatorOperationsExecutor") OperationsExecutor executor, DiskMetrics metrics)
     {
         this.config = config;
         this.diskManager = diskManager;

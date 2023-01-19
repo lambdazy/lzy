@@ -42,5 +42,5 @@ Configuration:
       - name: "ai.lzy.allocator"
         level: debug
 
-      - name: AllocatorExecutor
+      - name: ai.lzy.longrunning.OperationsExecutor
         level: debug

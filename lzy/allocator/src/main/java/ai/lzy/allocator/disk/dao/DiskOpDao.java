@@ -16,7 +16,9 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
+import javax.inject.Singleton;
 
+@Singleton
 public class DiskOpDao {
     private static final Logger LOG = LogManager.getLogger(DiskOpDao.class);
 
