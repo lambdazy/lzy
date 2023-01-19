@@ -113,7 +113,6 @@ message AllocateResponse {
   message VmEndpoint {
     VmEndpointType type = 1;
     string value = 2;
-    string iam_subject_id = 3;  // Subject of iam that was created for this vm
 
     enum VmEndpointType {
       UNSPECIFIED = 0;

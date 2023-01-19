@@ -7,7 +7,6 @@ import ai.lzy.fs.fs.LzyLinuxFsManagerImpl;
 import ai.lzy.fs.fs.LzyMacosFsManagerImpl;
 import ai.lzy.fs.fs.LzyScript;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
-import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.util.auth.credentials.RenewableJwt;
@@ -18,7 +17,6 @@ import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
-import io.grpc.ServerInterceptors;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -78,7 +76,7 @@ public class LzyFsServer {
             throw new RuntimeException(SystemUtils.OS_NAME + " is not supported");
         }
 
-        this.slotsService = new SlotsService(agentId, operationService, slotsManager, fsManager);
+        this.slotsService = new SlotsService(agentId, operationService, slotsManager, fsManager, token);
 
         this.localServer = newGrpcServer(selfAddress.getHost(), selfAddress.getPort(),
             new AuthServerInterceptor(new AuthenticateServiceGrpcClient(agentId, iamChannel)))

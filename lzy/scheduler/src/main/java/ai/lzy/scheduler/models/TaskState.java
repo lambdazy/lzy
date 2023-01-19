@@ -12,7 +12,8 @@ public record TaskState(
     TaskDesc description,
     @Nullable String vmId,
     @Nullable String allocatorOperationId,
-    @Nullable String workerAddress,
+    @Nullable Integer workerPort,
+    @Nullable String workerHost,
     @Nullable String workerPublicKey,
     @Nullable String workerOperationId
 ) {
@@ -36,9 +37,10 @@ public record TaskState(
         private final TaskDesc description;
         private @Nullable String vmId;
         private @Nullable String allocatorOperationId;
-        private @Nullable String workerAddress;
+        private @Nullable String workerHost;
         private @Nullable String workerPublicKey;
         private @Nullable String workerOperationId;
+        private @Nullable Integer workerPort;
 
 
         public TaskStateBuilder(TaskState prev) {
@@ -49,8 +51,9 @@ public record TaskState(
             this.description = prev.description;
             this.vmId = prev.vmId;
             this.allocatorOperationId = prev.allocatorOperationId;
-            this.workerAddress = prev.workerAddress;
+            this.workerHost = prev.workerHost;
             this.workerOperationId = prev.workerOperationId;
+            this.workerPort = prev.workerPort;
         }
 
         public TaskStateBuilder vmId(@Nullable String vmId) {
@@ -63,8 +66,8 @@ public record TaskState(
             return this;
         }
 
-        public TaskStateBuilder workerAddress(@Nullable String workerAddress) {
-            this.workerAddress = workerAddress;
+        public TaskStateBuilder workerHost(@Nullable String workerAddress) {
+            this.workerHost = workerAddress;
             return this;
         }
 
@@ -78,6 +81,11 @@ public record TaskState(
             return this;
         }
 
+        public TaskStateBuilder workerPort(@Nullable Integer workerPort) {
+            this.workerPort = workerPort;
+            return this;
+        }
+
         public TaskState build() {
             return new TaskState(
                 id,
@@ -87,7 +95,8 @@ public record TaskState(
                 description,
                 vmId,
                 allocatorOperationId,
-                workerAddress,
+                workerPort,
+                workerHost,
                 workerPublicKey,
                 workerOperationId
             );

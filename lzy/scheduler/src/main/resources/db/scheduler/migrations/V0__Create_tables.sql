@@ -4,6 +4,7 @@ CREATE TABLE task (
     workflow_name         text      NOT NULL,
     user_id               text      NOT NULL,
     operation_id          text      NOT NULL,
+    operation_name        text      NOT NULL,
     PRIMARY KEY(id, execution_id)
 );
 

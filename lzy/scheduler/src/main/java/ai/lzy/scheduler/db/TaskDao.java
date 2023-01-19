@@ -31,6 +31,7 @@ public interface TaskDao {
         String executionId,
         String workflowName,
         String userId,
-        String operationId
+        String operationId,
+        String operationName
     ) {}
 }

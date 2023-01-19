@@ -7,7 +7,6 @@ import ai.lzy.longrunning.Operation;
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.TaskDesc;
 import ai.lzy.model.db.DbHelper;
-import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.scheduler.db.SchedulerDataSource;
 import ai.lzy.scheduler.db.TaskDao;
 import ai.lzy.scheduler.jobs.Allocate;
@@ -16,13 +15,13 @@ import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.scheduler.Scheduler.TaskStatus;
 import ai.lzy.v1.scheduler.SchedulerApi.*;
 import ai.lzy.v1.scheduler.SchedulerGrpc;
-import ai.lzy.v1.worker.LWS;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -91,6 +90,7 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
             null,
             null,
             null,
+            null,
             null
         );
 
@@ -106,7 +106,8 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
             taskState.executionId(),
             taskState.workflowName(),
             taskState.userId(),
-            op.id()
+            op.id(),
+            request.getTask().getOperation().getName()
         );
 
         try {
@@ -124,10 +125,14 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
         } catch (JobSerializer.SerializationException e) {
             LOG.error("Error while scheduling task {}", taskState.id());
 
-            opDao.failOperation(op.id(), com.google.rpc.Status.newBuilder()
-                .setCode(Status.Code.INTERNAL.value())
-                .setMessage("Internal")
-                .build(), LOG);
+            try {
+                opDao.failOperation(op.id(), com.google.rpc.Status.newBuilder()
+                    .setCode(Status.Code.INTERNAL.value())
+                    .setMessage("Internal")
+                    .build(), null, LOG);
+            } catch (SQLException ex) {
+                LOG.error("Error while failing operation {}: ", op.id(), ex);
+            }
 
             responseObserver.onError(Status.INTERNAL.asException());
             responseObserver.onCompleted();
@@ -207,10 +212,15 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
             throw Status.INTERNAL.asRuntimeException();
         }
 
-        opDao.failOperation(op.id(), com.google.rpc.Status.newBuilder()
-            .setCode(Status.Code.CANCELLED.value())
-            .setMessage(request.getIssue())
-            .build(), LOG);
+        try {
+            opDao.failOperation(op.id(), com.google.rpc.Status.newBuilder()
+                .setCode(Status.Code.CANCELLED.value())
+                .setMessage(request.getIssue())
+                .build(), null, LOG);
+        } catch (SQLException e) {
+            LOG.error("Error while failing op {}", op.id(), e);
+            throw Status.INTERNAL.asRuntimeException();
+        }
 
 
         responseObserver.onNext(TaskStopResponse.newBuilder().setStatus(buildTaskStatus(desc, op)).build());
@@ -231,10 +241,14 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
         }
 
         for (var task: descList) {
-            opDao.failOperation(task.operationId(), com.google.rpc.Status.newBuilder()
-                .setCode(Status.Code.INTERNAL.value())
-                .setMessage(request.getIssue())
-                .build(), LOG);
+            try {
+                opDao.failOperation(task.operationId(), com.google.rpc.Status.newBuilder()
+                    .setCode(Status.Code.INTERNAL.value())
+                    .setMessage(request.getIssue())
+                    .build(), null, LOG);
+            } catch (SQLException e) {
+                LOG.error("Error while failing op {}", task.operationId(), e);
+            }
         }
 
         responseObserver.onNext(KillAllResponse.newBuilder().build());
@@ -244,7 +258,8 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
     private static TaskStatus buildTaskStatus(TaskDao.TaskDesc desc, Operation op) {
         var builder = TaskStatus.newBuilder()
             .setTaskId(desc.taskId())
-            .setWorkflowId(desc.executionId());
+            .setWorkflowId(desc.executionId())
+            .setOperationName(desc.operationName());
 
         if (!op.done()) {
             return builder.setExecuting(TaskStatus.Executing.getDefaultInstance()).build();

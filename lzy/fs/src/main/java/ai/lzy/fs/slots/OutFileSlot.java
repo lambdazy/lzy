@@ -178,7 +178,8 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
     }
 
     public static Stream<ByteString> readFileChannel(String filename, long offset, FileChannel channel,
-                                                     BooleanSupplier readyFn) throws IOException {
+                                                     BooleanSupplier readyFn) throws IOException
+    {
         channel.position(offset);
         return StreamSupport.stream(Spliterators.spliteratorUnknownSize(new Iterator<>() {
             private final ByteBuffer bb = ByteBuffer.allocate(PAGE_SIZE);

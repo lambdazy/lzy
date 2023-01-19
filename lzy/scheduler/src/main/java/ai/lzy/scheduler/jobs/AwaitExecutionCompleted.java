@@ -16,6 +16,7 @@ import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc.LongRunningServiceBlockingStub;
 import ai.lzy.v1.scheduler.Scheduler.TaskStatus;
 import ai.lzy.v1.worker.LWS;
+import com.google.common.net.HostAndPort;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.rpc.Code;
@@ -27,6 +28,7 @@ import jakarta.annotation.PreDestroy;
 import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -35,18 +37,18 @@ import java.util.concurrent.TimeUnit;
 @Singleton
 public class AwaitExecutionCompleted extends WorkflowJobProvider<TaskState> {
     private final RenewableJwt credentials;
-    private final ConcurrentHashMap<String, LongRunningServiceBlockingStub> clients = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<HostAndPort, LongRunningServiceBlockingStub> clients = new ConcurrentHashMap<>();
     private final BlockingQueue<ManagedChannel> channels = new LinkedBlockingQueue<>();
     private final OperationDao operationDao;
     private final WorkersAllocator allocator;
 
     protected AwaitExecutionCompleted(JobService jobService, TaskStateSerializer serializer, JobsOperationDao opDao,
-                                      ApplicationContext context, ServiceConfig config, OperationDao operationDao,
+                                      ApplicationContext context, ServiceConfig config,
                                       WorkersAllocator allocator)
     {
         super(jobService, serializer, opDao, AfterAllocation.class, null, context);
         credentials = config.getIam().createRenewableToken();
-        this.operationDao = operationDao;
+        this.operationDao = opDao;
         this.allocator = allocator;
     }
 
@@ -54,17 +56,21 @@ public class AwaitExecutionCompleted extends WorkflowJobProvider<TaskState> {
     protected TaskState exec(TaskState state, String operationId) throws JobProviderException {
         LongRunningServiceBlockingStub client;
 
-        if (clients.containsKey(state.workerAddress())) {
-            client = clients.get(state.workerAddress());
-        } else {
-            var address = state.workerAddress();
+        var address = state.workerHost();
+        var port = state.workerPort();
 
-            var workerChannel = GrpcUtils.newGrpcChannel(address, LongRunningServiceGrpc.SERVICE_NAME);
+        var addr = HostAndPort.fromParts(address, port);
+
+        if (clients.containsKey(addr)) {
+            client = clients.get(addr);
+        } else {
+
+            var workerChannel = GrpcUtils.newGrpcChannel(addr, LongRunningServiceGrpc.SERVICE_NAME);
             client = GrpcUtils.newBlockingClient(
                     LongRunningServiceGrpc.newBlockingStub(workerChannel),
                     "worker", () -> credentials.get().token());
 
-            clients.put(address, client);
+            clients.put(addr, client);
             try {
                 channels.put(workerChannel);
             } catch (InterruptedException e) {
@@ -89,7 +95,7 @@ public class AwaitExecutionCompleted extends WorkflowJobProvider<TaskState> {
         }
 
         if (!op.getDone()) {
-            reschedule();
+            reschedule(Duration.ofSeconds(10));
             return null;
         }
 
@@ -134,7 +140,7 @@ public class AwaitExecutionCompleted extends WorkflowJobProvider<TaskState> {
 
         try {
             DbHelper.withRetries(logger, () -> {
-                operationDao.updateResponse(operationId, Any.pack(status).toByteArray(), null);
+                operationDao.complete(operationId, Any.pack(status), null);
             });
         } catch (SQLException e) {
             logger.error("Sql exception while updating response for task {}", state.id(), e);
@@ -146,7 +152,11 @@ public class AwaitExecutionCompleted extends WorkflowJobProvider<TaskState> {
             return null;
         } catch (Exception e) {
             logger.error("Some unexpected exception while executing task {}", state.id(), e);
-            reschedule();
+            fail(Status.newBuilder()
+                .setCode(Code.INTERNAL.getNumber())
+                .setMessage("Error while waiting for operation")
+                .build()
+            );
             return null;
         }
 

@@ -18,6 +18,7 @@ import io.micronaut.context.ApplicationContext;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Singleton;
 
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 @Singleton
@@ -46,7 +47,7 @@ public class AwaitAllocation extends WorkflowJobProvider<TaskState> {
                 .build());
 
             if (!res.getDone()) {
-                reschedule();
+                reschedule(Duration.ofSeconds(1));
                 return null;
             }
 
@@ -92,7 +93,7 @@ public class AwaitAllocation extends WorkflowJobProvider<TaskState> {
 
 
             return state.copy()
-                .workerAddress(address.getValue())
+                .workerHost(address.getValue())
                 .workerPublicKey(pk)
                 .build();
         } catch (InvalidProtocolBufferException e) {

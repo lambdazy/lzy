@@ -15,6 +15,8 @@ message TaskStatus {
     Error error = 5;
   }
 
+  string operationName = 6;
+
   message Executing {}
 
   message Success {

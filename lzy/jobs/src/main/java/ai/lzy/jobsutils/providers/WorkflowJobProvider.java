@@ -117,7 +117,7 @@ public abstract class WorkflowJobProvider<T> extends JobProviderBase<WorkflowJob
                 }
             }
 
-            reschedule(arg, Duration.ofSeconds(1));
+            reschedule(arg, e.after);
         } catch (StatusRuntimeException e) {
             logger.error("Grpc exception while executing operation {}: ", arg.operationId, e);
             if (!RETRYABLE_CODES.contains(e.getStatus().getCode())) {
@@ -178,10 +178,10 @@ public abstract class WorkflowJobProvider<T> extends JobProviderBase<WorkflowJob
     }
 
     private void failOp(WorkflowJobArg arg, Status error) throws Exception {
-        withRetries(logger, () -> dao.failOperation(arg.operationId, error, logger));
+        withRetries(logger, () -> dao.failOperation(arg.operationId, error, null, logger));
     }
 
-    private void reschedule(WorkflowJobArg arg, Duration startAfter) {
+    private void reschedule(WorkflowJobArg arg, @Nullable Duration startAfter) {
         try {
             this.schedule(arg, startAfter);
         } catch (SerializationException e) {
@@ -197,8 +197,8 @@ public abstract class WorkflowJobProvider<T> extends JobProviderBase<WorkflowJob
         }
     }
 
-    protected void reschedule() throws JobProviderException {
-        throw new JobProviderException(null);
+    protected void reschedule(@Nullable Duration after) throws JobProviderException {
+        throw new JobProviderException(null, after);
     }
 
     public void schedule(String opId, T input, @Nullable Duration startAfter,
@@ -218,18 +218,25 @@ public abstract class WorkflowJobProvider<T> extends JobProviderBase<WorkflowJob
     public static class JobProviderException extends Exception {
 
         private final @Nullable Status status;
+        private final @Nullable Duration after;
 
-        JobProviderException(@Nullable Status status) {
+        JobProviderException(@Nullable Status status, @Nullable Duration after) {
             this.status = status;
+            this.after = after;
         }
 
         @Nullable
         Status status() {
             return status;
         }
+
+        @Nullable
+        public Duration after() {
+            return after;
+        }
     }
 
     protected void fail(Status status) throws JobProviderException {
-        throw new JobProviderException(status);
+        throw new JobProviderException(status, null);
     }
 }

@@ -15,6 +15,7 @@ import ai.lzy.scheduler.SchedulerApi;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.scheduler.models.TaskState;
 import ai.lzy.util.auth.credentials.RenewableJwt;
+import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthUniqueViolationException;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
@@ -22,6 +23,7 @@ import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.worker.LWS;
 import ai.lzy.v1.worker.WorkerApiGrpc;
+import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -59,17 +61,24 @@ public class AfterAllocation extends WorkflowJobProvider<TaskState> {
         Subject subj;
 
         try {
-            subj = subjectClient.createSubject(AuthProvider.INTERNAL, task.vmId(), SubjectType.WORKER,
+            subj = subjectClient.createSubject(AuthProvider.INTERNAL, task.vmId(), SubjectType.VM,
                 new SubjectCredentials("main", task.workerPublicKey(), CredentialsType.PUBLIC_KEY));
-        } catch (StatusRuntimeException e) {
-            // Skipping already exists, it can be from cache
-            if (e.getStatus().getCode().equals(Status.Code.ALREADY_EXISTS)) {
-                subj = new Worker(task.vmId());
-            } else {
-                throw e;  // Will be handled in super
-            }
         } catch (AuthUniqueViolationException e) {
-            subj = new Worker(task.vmId());  // Skipping already exists, it can be from cache
+            subj = subjectClient.findSubject(AuthProvider.INTERNAL, task.vmId(), SubjectType.VM);
+
+            try {
+                subjectClient.addCredentials(subj, SubjectCredentials.publicKey("worker_key", task.workerPublicKey()));
+            } catch (AuthUniqueViolationException ex) {
+                // already added
+            }
+
+        } catch (AuthException e) {
+            logger.error("Error while finding subject for vm {}:", task.vmId(), e);
+            fail(com.google.rpc.Status.newBuilder()
+                .setCode(Status.Code.INTERNAL.value())
+                .setMessage("Error in iam")
+                .build());
+            return null;
         }
 
 
@@ -84,9 +93,10 @@ public class AfterAllocation extends WorkflowJobProvider<TaskState> {
             // Skipping already exists, it can be from cache
         }
 
-        var address = task.workerAddress();
+        var address = task.workerHost();
+        var port = task.workerPort();
 
-        var workerChannel = GrpcUtils.newGrpcChannel(address, WorkerApiGrpc.SERVICE_NAME);
+        var workerChannel = GrpcUtils.newGrpcChannel(HostAndPort.fromParts(address, port), WorkerApiGrpc.SERVICE_NAME);
         var client = GrpcUtils.newBlockingClient(
                 WorkerApiGrpc.newBlockingStub(workerChannel),
                 "worker", () -> credentials.get().token());
@@ -114,7 +124,10 @@ public class AfterAllocation extends WorkflowJobProvider<TaskState> {
     @Override
     protected TaskState clear(TaskState state, String operationId) {
         if (state.workerOperationId() != null) {
-            var address = state.workerAddress();
+            var host = state.workerHost();
+            var port  = state.workerPort();
+
+            var address = HostAndPort.fromParts(host, port);
 
             var workerChannel = GrpcUtils.newGrpcChannel(address, LongRunningServiceGrpc.SERVICE_NAME);
             var client = GrpcUtils.newBlockingClient(

@@ -6,8 +6,8 @@ import ai.lzy.jobsutils.providers.WorkflowJobProvider;
 import ai.lzy.model.db.DbHelper;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.scheduler.allocator.WorkersAllocator;
-import ai.lzy.scheduler.db.TaskDao;
 import ai.lzy.scheduler.db.SchedulerDataSource;
+import ai.lzy.scheduler.db.TaskDao;
 import ai.lzy.scheduler.models.TaskState;
 import ai.lzy.v1.VmAllocatorApi;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -51,16 +51,19 @@ public class Allocate extends WorkflowJobProvider<TaskState> {
             });
         } catch (Exception e) {
             logger.error("Error while generating session in op {}", operationId, e);
-            reschedule();
+            fail(Status.newBuilder()
+                .setCode(Code.INTERNAL.value())
+                .setMessage("Internal exception")
+                .build());
             return null;
         }
 
-        var op = allocator.allocate(task.userId(), task.workflowName(), session,
+        var allocateDesc = allocator.allocate(task.userId(), task.workflowName(), session,
             task.description().operation().requirements());
 
         final String vmId;
         try {
-            vmId = op.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
+            vmId = allocateDesc.allocationOp().getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
         } catch (InvalidProtocolBufferException e) {
             logger.error("Error while getting vmId from op for task {}", task.id(), e);
             fail(Status.newBuilder()
@@ -71,8 +74,9 @@ public class Allocate extends WorkflowJobProvider<TaskState> {
         }
 
         return task.copy()
-            .allocatorOperationId(op.getId())
+            .allocatorOperationId(allocateDesc.allocationOp().getId())
             .vmId(vmId)
+            .workerPort(allocateDesc.workerPort())
             .build();
     }
 

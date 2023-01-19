@@ -14,6 +14,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.*;
 
+import java.sql.SQLException;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 
@@ -154,9 +155,13 @@ public class JobsTest {
             };
 
             A.onExecute = (d) -> {
-                opDao.failOperation(op.id(), Status.newBuilder()
-                    .setCode(io.grpc.Status.Code.INTERNAL.value())
-                    .build(), LOG);
+                try {
+                    opDao.failOperation(op.id(), Status.newBuilder()
+                        .setCode(io.grpc.Status.Code.INTERNAL.value())
+                        .build(), null, LOG);
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
                 return d;
             };
 

@@ -65,7 +65,7 @@ public class Tasks {
             return new TaskStatus(
                 status.getWorkflowId(),
                 status.getTaskId(),
-                status.getZygoteName(),
+                status.getOperationName(),
                 status.getStatusCase().name(),
                 switch (status.getStatusCase()) {
                     case SUCCESS -> "Return code: " + status.getSuccess().getRc();

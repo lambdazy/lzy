@@ -13,7 +13,6 @@ import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmAllocatorApi.AllocateRequest.Workload;
 import ai.lzy.v1.VmAllocatorApi.CreateSessionRequest;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
-import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.Durations;
@@ -101,7 +100,7 @@ public class AllocatorImpl implements WorkersAllocator {
     }
 
     @Override
-    public LongRunning.Operation allocate(String userId, String workflowName,
+    public AllocateResult allocate(String userId, String workflowName,
                                           String sessionId, Operation.Requirements requirements)
     {
         final int port;
@@ -146,7 +145,7 @@ public class AllocatorImpl implements WorkersAllocator {
             .setClusterType(VmAllocatorApi.AllocateRequest.ClusterType.USER)
             .build();
 
-        return allocator.allocate(request);
+        return new AllocateResult(allocator.allocate(request), port, fsPort);
     }
 
     @Override

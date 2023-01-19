@@ -527,7 +527,7 @@ public class PortalTestBase {
 
     }
 
-    public record WorkerDesc (
+    public record WorkerDesc(
         Worker worker,
         ManagedChannel channel,
         WorkerApiGrpc.WorkerApiBlockingStub workerStub,

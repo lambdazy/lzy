@@ -14,7 +14,6 @@ import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.config.PortalConfig;
 import ai.lzy.portal.slots.SnapshotProvider;
 import ai.lzy.portal.slots.StdoutSlot;
-import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.ContextAwareTask;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.longrunning.LongRunning;
@@ -33,8 +32,6 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.net.URI;
-import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Spliterator;
@@ -46,9 +43,7 @@ import java.util.function.Supplier;
 import java.util.stream.StreamSupport;
 import javax.annotation.PreDestroy;
 
-import static ai.lzy.model.UriScheme.LzyFs;
 import static ai.lzy.portal.services.PortalService.PORTAL_SLOT_PREFIX;
-import static ai.lzy.util.grpc.GrpcUtils.NO_AUTH_TOKEN;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 

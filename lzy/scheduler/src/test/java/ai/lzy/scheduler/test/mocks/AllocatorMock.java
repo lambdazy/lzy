@@ -9,7 +9,6 @@ import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmAllocatorApi.AllocateMetadata;
 import ai.lzy.v1.VmAllocatorApi.AllocateResponse.VmEndpoint;
-import ai.lzy.v1.longrunning.LongRunning;
 import com.google.common.net.HostAndPort;
 import io.grpc.Server;
 import io.micronaut.context.annotation.Primary;
@@ -43,10 +42,16 @@ public class AllocatorMock implements WorkersAllocator {
     }
 
     @Override
-    public LongRunning.Operation allocate(String userId, String workflowName, String sessionId,
+    public AllocateResult allocate(String userId, String workflowName, String sessionId,
                                           Operation.Requirements requirements)
     {
         var address = onAllocate.call(workflowName, userId, sessionId);
+
+        var addr = HostAndPort.fromString(address);
+
+        var port = addr.getPort();
+        var host = addr.getHost();
+
         var vmId = UUID.randomUUID().toString();
         final String pk;
         try {
@@ -62,7 +67,7 @@ public class AllocatorMock implements WorkersAllocator {
             .putMetadata("PUBLIC_KEY", pk)
             .addEndpoints(VmEndpoint.newBuilder()
                 .setType(VmEndpoint.VmEndpointType.INTERNAL_IP)
-                .setValue(address)
+                .setValue(host)
                 .build())
             .build();
 
@@ -72,7 +77,7 @@ public class AllocatorMock implements WorkersAllocator {
         opService.registerOperation(op);
         opService.updateResponse(op.id(), resp);
 
-        return op.toProto();
+        return new AllocateResult(op.toProto(), port, port);
     }
 
     @Override
