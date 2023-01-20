@@ -4,7 +4,9 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.*;
 import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.disk.dao.DiskOpDao;
+import ai.lzy.allocator.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.storage.AllocatorDataSource;
+import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,6 +26,7 @@ import yandex.cloud.api.operation.OperationServiceGrpc.OperationServiceBlockingS
 import yandex.cloud.sdk.ServiceFactory;
 
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -35,6 +38,8 @@ import static yandex.cloud.api.compute.v1.SnapshotServiceGrpc.SnapshotServiceBlo
 @Singleton
 public class YcDiskManager implements DiskManager {
     private static final Logger LOG = LogManager.getLogger(YcDiskManager.class);
+    private static final Pattern DISK_NAME_PATTERN = Pattern.compile("[a-z]([-a-z0-9]{0,61}[a-z0-9])?");
+
     static final int GB_SHIFT = 30;
     static final String USER_ID_LABEL = "user-id";
     static final String LZY_OP_LABEL = "lzy-op-id";
@@ -47,7 +52,7 @@ public class YcDiskManager implements DiskManager {
     private final OperationDao operationsDao;
     private final ObjectMapper objectMapper;
     private final DiskMetrics metrics;
-    private final ScheduledExecutorService executor;
+    private final OperationsExecutor executor;
     private final DiskServiceBlockingStub ycDiskService;
     private final SnapshotServiceBlockingStub ycSnapshotService;
     private final OperationServiceBlockingStub ycOperationService;
@@ -57,7 +62,7 @@ public class YcDiskManager implements DiskManager {
                          @Named("AllocatorObjectMapper") ObjectMapper objectMapper, DiskMetrics metrics,
                          DiskDao diskDao, DiskOpDao diskOpDao, ServiceFactory serviceFactory,
                          @Named("AllocatorOperationDao") OperationDao operationsDao,
-                         @Named("AllocatorExecutor") ScheduledExecutorService executor)
+                         @Named("AllocatorOperationsExecutor") OperationsExecutor executor)
     {
         this.instanceId = config.getInstanceId();
         this.folderId = diskConfig.getFolderId();
@@ -106,10 +111,19 @@ public class YcDiskManager implements DiskManager {
     }
 
     @Override
-    public DiskOperation newCreateDiskOperation(OuterOperation outerOp, DiskSpec spec, DiskMeta meta) {
+    public DiskOperation newCreateDiskOperation(OuterOperation outerOp, DiskSpec spec, DiskMeta meta)
+        throws InvalidConfigurationException
+    {
+        // Name of the disk. Value must match the regular expression [a-z]([-a-z0-9]{0,61}[a-z0-9])?.
+        if (!DISK_NAME_PATTERN.matcher(spec.name()).matches()) {
+            throw new InvalidConfigurationException("Disk name %s doesn't match pattern %s"
+                .formatted(spec.name(), DISK_NAME_PATTERN.pattern()));
+        }
+
         final var state = new YcCreateDiskState("", folderId, null, spec, meta);
         return new DiskOperation(
             outerOp.opId(),
+            outerOp.descr(),
             outerOp.startedAt(),
             outerOp.deadline(),
             instanceId,
@@ -129,6 +143,7 @@ public class YcDiskManager implements DiskManager {
         final var state = new YcCloneDiskState("", "", "", folderId, null, originDisk, newDiskSpec, newDiskMeta, null);
         return new DiskOperation(
             outerOp.opId(),
+            outerOp.descr(),
             outerOp.startedAt(),
             outerOp.deadline(),
             instanceId,
@@ -142,6 +157,7 @@ public class YcDiskManager implements DiskManager {
         final var state = new YcDeleteDiskState("", folderId, diskId);
         return new DiskOperation(
             outerOp.opId(),
+            outerOp.descr(),
             outerOp.startedAt(),
             outerOp.deadline(),
             instanceId,
@@ -152,7 +168,8 @@ public class YcDiskManager implements DiskManager {
 
     @Override
     public DiskOperation restoreDiskOperation(DiskOperation template) {
-        var outerOp = new DiskManager.OuterOperation(template.opId(), template.startedAt(), template.deadline());
+        var outerOp = new DiskManager.OuterOperation(
+            template.opId(), template.descr(), template.startedAt(), template.deadline());
         return switch (template.diskOpType()) {
             case CREATE -> {
                 var state = fromJson(template.state(), YcCreateDiskState.class);

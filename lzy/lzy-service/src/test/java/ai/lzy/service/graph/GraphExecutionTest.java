@@ -22,7 +22,7 @@ public class GraphExecutionTest extends AbstractGraphExecutionTest {
     @Test
     public void executeSequenceOfGraphs() {
         var workflowName = "workflow_1";
-        var createWorkflowResponse = authorizedWorkflowClient.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
+        var createWorkflowResponse = authorizedWorkflowClient.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
             .setWorkflowName(workflowName).build());
 
         var executionId = createWorkflowResponse.getExecutionId();
@@ -143,7 +143,7 @@ public class GraphExecutionTest extends AbstractGraphExecutionTest {
 
     @Test
     public void failedWithAlreadyUsedSlotUri() {
-        LWFS.CreateWorkflowResponse workflow = createWorkflow(authorizedWorkflowClient);
+        LWFS.StartWorkflowResponse workflow = startExecution(authorizedWorkflowClient);
         LMST.StorageConfig storageConfig = workflow.getInternalSnapshotStorage();
 
         var firstOperation =
@@ -210,7 +210,7 @@ public class GraphExecutionTest extends AbstractGraphExecutionTest {
 
     @Test
     public void failedWithUnknownExecutionId() {
-        LWFS.CreateWorkflowResponse workflow = createWorkflow(authorizedWorkflowClient);
+        LWFS.StartWorkflowResponse workflow = startExecution(authorizedWorkflowClient);
         LMST.StorageConfig storageConfig = workflow.getInternalSnapshotStorage();
 
         var operations = List.of(

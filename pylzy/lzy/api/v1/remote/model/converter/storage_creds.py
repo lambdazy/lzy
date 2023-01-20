@@ -24,8 +24,8 @@ def _to(credentials: StorageCredentials) -> grpc_STORAGE_CREDS:
 def _(credentials: S3Credentials) -> grpc_STORAGE_CREDS:
     return storage_pb2.S3Credentials(
         endpoint=credentials.endpoint,
-        accessToken=credentials.access_token,
-        secretToken=credentials.secret_token,
+        accessToken=credentials.access_key_id,
+        secretToken=credentials.secret_access_key,
     )
 
 
@@ -63,9 +63,9 @@ def _from(creds: grpc_STORAGE_CREDS) -> StorageCredentials:
 @_from.register
 def _(creds: storage_pb2.S3Credentials) -> StorageCredentials:
     return S3Credentials(
-        access_token=creds.accessToken,
+        access_key_id=creds.accessToken,
         endpoint=creds.endpoint,
-        secret_token=creds.secretToken,
+        secret_access_key=creds.secretToken,
     )
 
 

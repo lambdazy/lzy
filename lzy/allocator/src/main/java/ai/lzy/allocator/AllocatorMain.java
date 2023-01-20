@@ -11,8 +11,7 @@ import ai.lzy.allocator.services.VmPoolService;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
-import ai.lzy.longrunning.OperationService;
-import ai.lzy.longrunning.dao.OperationDao;
+import ai.lzy.longrunning.OperationsService;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.metrics.MetricsGrpcInterceptor;
 import ai.lzy.v1.AllocatorPrivateGrpc;
@@ -50,7 +49,7 @@ public class AllocatorMain {
     public AllocatorMain(MetricReporter metricReporter, AllocatorService allocator,
                          AllocatorPrivateService allocatorPrivate, DiskService diskService,
                          ServiceConfig config, GarbageCollector gc, VmPoolService vmPool,
-                         @Named("AllocatorOperationDao") OperationDao operationDao,
+                         @Named("AllocatorOperationsService") OperationsService operationsService,
                          @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
                          VmDao vmDao, VmAllocator alloc)
     {
@@ -80,11 +79,9 @@ public class AllocatorMain {
 
         var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
 
-        var opApi = new OperationService(operationDao);
-
         builder.addService(ServerInterceptors.intercept(allocator, internalOnly));
         builder.addService(allocatorPrivate);
-        builder.addService(ServerInterceptors.intercept(opApi, internalOnly));
+        builder.addService(ServerInterceptors.intercept(operationsService, internalOnly));
         builder.addService(ServerInterceptors.intercept(vmPool, internalOnly));
         builder.addService(ServerInterceptors.intercept(diskService, internalOnly));
 

@@ -82,6 +82,7 @@ public class MockDiskManager implements DiskManager {
 
         return new DiskOperation(
             outerOp.opId(),
+            outerOp.descr(),
             outerOp.startedAt(),
             outerOp.deadline(),
             instanceId,
@@ -134,6 +135,7 @@ public class MockDiskManager implements DiskManager {
 
         return new DiskOperation(
             outerOp.opId(),
+            outerOp.descr(),
             outerOp.startedAt(),
             outerOp.deadline(),
             instanceId,
@@ -186,6 +188,7 @@ public class MockDiskManager implements DiskManager {
 
         return new DiskOperation(
             outerOp.opId(),
+            outerOp.descr(),
             outerOp.startedAt(),
             outerOp.deadline(),
             instanceId,

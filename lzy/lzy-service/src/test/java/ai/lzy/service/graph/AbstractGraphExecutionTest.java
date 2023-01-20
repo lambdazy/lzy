@@ -17,9 +17,9 @@ import java.util.Map;
 import static org.junit.Assert.*;
 
 public abstract class AbstractGraphExecutionTest extends BaseTest {
-    static LWFS.CreateWorkflowResponse createWorkflow(LzyWorkflowServiceBlockingStub client) {
+    static LWFS.StartWorkflowResponse startExecution(LzyWorkflowServiceBlockingStub client) {
         var workflowName = "workflow_1";
-        return client.createWorkflow(LWFS.CreateWorkflowRequest.newBuilder()
+        return client.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
             .setWorkflowName(workflowName).build());
     }
 
@@ -59,7 +59,7 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
     TestScenario<LzyWorkflowServiceBlockingStub, Map.Entry<String, Graph>, String> executeSimpleGraphScenario() {
         return new TestScenario<>(authorizedWorkflowClient,
             stub -> {
-                LWFS.CreateWorkflowResponse workflow = createWorkflow(stub);
+                LWFS.StartWorkflowResponse workflow = startExecution(stub);
                 LWF.Graph graph = buildSimpleGraph(workflow.getInternalSnapshotStorage());
                 var executionId = workflow.getExecutionId();
 
@@ -77,7 +77,7 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
     TestScenario<LzyWorkflowServiceBlockingStub, Map.Entry<String, Graph>, Status.Code> emptyGraphScenario() {
         return new TestScenario<>(authorizedWorkflowClient,
             stub -> {
-                LWFS.CreateWorkflowResponse workflow = createWorkflow(stub);
+                LWFS.StartWorkflowResponse workflow = startExecution(stub);
 
                 var executionId = workflow.getExecutionId();
                 var graph = LWF.Graph.newBuilder()
@@ -101,7 +101,7 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
     TestScenario<LzyWorkflowServiceBlockingStub, Map.Entry<String, Graph>, Status.Code> duplicatedSlotScenario() {
         return new TestScenario<>(authorizedWorkflowClient,
             stub -> {
-                LWFS.CreateWorkflowResponse workflow = createWorkflow(stub);
+                LWFS.StartWorkflowResponse workflow = startExecution(stub);
                 LMST.StorageConfig storageConfig = workflow.getInternalSnapshotStorage();
 
                 var operation =
@@ -143,7 +143,7 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
     TestScenario<LzyWorkflowServiceBlockingStub, Map.Entry<String, Graph>, Status.Code> cyclicDataflowGraphScenario() {
         return new TestScenario<>(authorizedWorkflowClient,
             stub -> {
-                LWFS.CreateWorkflowResponse workflow = createWorkflow(stub);
+                LWFS.StartWorkflowResponse workflow = startExecution(stub);
                 LMST.StorageConfig storageConfig = workflow.getInternalSnapshotStorage();
 
                 var operationsWithCycleDependency = List.of(
@@ -209,7 +209,7 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
     TestScenario<LzyWorkflowServiceBlockingStub, Map.Entry<String, Graph>, Status.Code> unknownInputSlotUriScenario() {
         return new TestScenario<>(authorizedWorkflowClient,
             stub -> {
-                LWFS.CreateWorkflowResponse workflow = createWorkflow(stub);
+                LWFS.StartWorkflowResponse workflow = startExecution(stub);
                 LMST.StorageConfig storageConfig = workflow.getInternalSnapshotStorage();
 
                 var unknownStorageUri = buildSlotUri("snapshot_a_1", storageConfig);
@@ -255,7 +255,7 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
     TestScenario<LzyWorkflowServiceBlockingStub, Map.Entry<String, Graph>, Status.Code> withoutSuitableZoneScenario() {
         return new TestScenario<>(authorizedWorkflowClient,
             stub -> {
-                var workflow = createWorkflow(stub);
+                var workflow = startExecution(stub);
                 LMST.StorageConfig storageConfig = workflow.getInternalSnapshotStorage();
 
                 var operation =
@@ -292,7 +292,7 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
     TestScenario<LzyWorkflowServiceBlockingStub, Map.Entry<String, Graph>, Status.Code> nonSuitableZoneScenario() {
         return new TestScenario<>(authorizedWorkflowClient,
             stub -> {
-                LWFS.CreateWorkflowResponse workflow = createWorkflow(stub);
+                LWFS.StartWorkflowResponse workflow = startExecution(stub);
                 LMST.StorageConfig storageConfig = workflow.getInternalSnapshotStorage();
 
                 var operation =

@@ -1,13 +1,11 @@
 package ai.lzy.service.gc;
 
 import ai.lzy.model.db.DbHelper;
+import ai.lzy.service.CleanExecutionCompanion;
 import ai.lzy.service.config.LzyServiceConfig;
+import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.GcDao;
-import ai.lzy.service.data.dao.WorkflowDao;
-import ai.lzy.util.auth.credentials.RenewableJwt;
-import io.grpc.ManagedChannel;
 import jakarta.annotation.PreDestroy;
-import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -26,10 +24,9 @@ public class GarbageCollector extends TimerTask {
     private static final long MAX_JITTER_PERIOD = 100;
     private final LzyServiceConfig config;
     private final GcDao gcDao;
-    private final WorkflowDao workflowDao;
+    private final ExecutionDao executionDao;
 
-    private final RenewableJwt internalCreds;
-    private final ManagedChannel allocatorChannel;
+    private final CleanExecutionCompanion cleanExecutionCompanion;
 
 
     private final String id;
@@ -38,15 +35,13 @@ public class GarbageCollector extends TimerTask {
 
     private final long period;
 
-    public GarbageCollector(LzyServiceConfig config, GcDao gcDao, WorkflowDao workflowDao,
-                            @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
-                            @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel)
+    public GarbageCollector(LzyServiceConfig config, ExecutionDao executionDao,
+                            GcDao gcDao, CleanExecutionCompanion cleanExecutionCompanion)
     {
         this.config = config;
         this.gcDao = gcDao;
-        this.workflowDao = workflowDao;
-        this.internalCreds = internalUserCredentials;
-        this.allocatorChannel = allocatorChannel;
+        this.executionDao = executionDao;
+        this.cleanExecutionCompanion = cleanExecutionCompanion;
 
         this.id = UUID.randomUUID().toString();
 
@@ -80,8 +75,8 @@ public class GarbageCollector extends TimerTask {
 
         long taskPeriod = config.getGcPeriod().toMillis();
         taskTimer = new Timer("gc-workflow-task-timer", true);
-        taskTimer.scheduleAtFixedRate(new GarbageCollectorTask(id, workflowDao, internalCreds,
-            allocatorChannel), taskPeriod, taskPeriod);
+        taskTimer.scheduleAtFixedRate(new GarbageCollectorTask(id, executionDao, cleanExecutionCompanion),
+            taskPeriod, taskPeriod);
         long markPeriod = config.getGcLeaderPeriod().toMillis() / 2;
         taskTimer.scheduleAtFixedRate(new MarkGcValid(config.getGcLeaderPeriod()), markPeriod, markPeriod);
     }

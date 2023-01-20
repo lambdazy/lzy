@@ -14,6 +14,9 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+
 public class DaoTest {
     @Rule
     public PreparedDbRule lzyServiceDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
@@ -32,6 +35,35 @@ public class DaoTest {
         executionDao = lzyStorageCtx.getBean(ExecutionDaoImpl.class);
     }
 
+    @After
+    public void tearDown() {
+        lzyStorageCtx.stop();
+    }
+
+    @Test
+    public void createExecutionWhenWorkflowAlreadyHasActive() throws SQLException {
+        var firstExecutionId = "execution_1";
+        var secondExecutionId = "execution_2";
+
+        var userId = "user_1";
+        var workflowName = "workflow_1";
+
+        var storageType = "USER";
+        var storageConfig = LMST.StorageConfig.newBuilder().setUri("uri_1").build();
+
+        var initialActive = create(userId, workflowName, firstExecutionId, storageType, storageConfig);
+        var previousActive = create(userId, workflowName, secondExecutionId, storageType, storageConfig);
+
+        var sc1 = executionDao.getStorageConfig(firstExecutionId);
+        var sc2 = executionDao.getStorageConfig(secondExecutionId);
+
+        assertEquals(storageConfig.getUri(), sc1.getUri());
+        assertEquals(storageConfig.getUri(), sc2.getUri());
+
+        assertNull(initialActive);
+        assertEquals(firstExecutionId, previousActive);
+    }
+
     @Test
     public void putSlotSnapshotsGetSnapshots() throws SQLException {
         var firstExecutionId = "execution_1";
@@ -47,11 +79,11 @@ public class DaoTest {
         var secondSlotsUri = Set.of("slot_snapshot_2");
         var allSlotsUri = SetUtils.union(firstSlotsUri, secondSlotsUri);
 
-        workflowDao.create(firstExecutionId, userId, firstWorkflowName, storageType, s3Locator);
-        workflowDao.create(secondExecutionId, userId, secondWorkflowName, storageType, s3Locator);
+        create(userId, firstWorkflowName, firstExecutionId, storageType, s3Locator);
+        create(userId, secondWorkflowName, secondExecutionId, storageType, s3Locator);
 
-        executionDao.saveSlots(firstExecutionId, firstSlotsUri);
-        executionDao.saveSlots(secondExecutionId, secondSlotsUri);
+        executionDao.saveSlots(firstExecutionId, firstSlotsUri, null);
+        executionDao.saveSlots(secondExecutionId, secondSlotsUri, null);
 
         Set<String> existingSlots = executionDao.retainExistingSlots(allSlotsUri);
 
@@ -61,11 +93,11 @@ public class DaoTest {
         Set<String> nonExistForSecond = executionDao.retainNonExistingSlots(secondExecutionId, secondSlotsUri);
         Set<String> allFirstNonExistForSecond = executionDao.retainNonExistingSlots(secondExecutionId, firstSlotsUri);
 
-        Assert.assertEquals(allSlotsUri, existingSlots);
+        assertEquals(allSlotsUri, existingSlots);
         Assert.assertTrue(nonExistForFirst.isEmpty());
-        Assert.assertEquals(secondSlotsUri, allSecondNonExistForFirst);
+        assertEquals(secondSlotsUri, allSecondNonExistForFirst);
         Assert.assertTrue(nonExistForSecond.isEmpty());
-        Assert.assertEquals(firstSlotsUri, allFirstNonExistForSecond);
+        assertEquals(firstSlotsUri, allFirstNonExistForSecond);
     }
 
     @Test
@@ -87,18 +119,18 @@ public class DaoTest {
             "slot_snapshot_3", "channel_3"
         );
 
-        workflowDao.create(firstExecutionId, userId, firstWorkflowName, storageType, s3Locator);
-        workflowDao.create(secondExecutionId, userId, secondWorkflowName, storageType, s3Locator);
+        create(userId, firstWorkflowName, firstExecutionId, storageType, s3Locator);
+        create(userId, secondWorkflowName, secondExecutionId, storageType, s3Locator);
 
-        executionDao.saveSlots(firstExecutionId, firstSlotsUri);
-        executionDao.saveSlots(secondExecutionId, secondSlotsUri);
+        executionDao.saveSlots(firstExecutionId, firstSlotsUri, null);
+        executionDao.saveSlots(secondExecutionId, secondSlotsUri, null);
 
-        executionDao.saveChannels(channels);
+        executionDao.saveChannels(channels, null);
 
         Map<String, String> firstChannelsFromDao = executionDao.findChannels(firstSlotsUri);
         Map<String, String> secondChannelsFromDao = executionDao.findChannels(secondSlotsUri);
 
-        Assert.assertEquals(channels, firstChannelsFromDao);
+        assertEquals(channels, firstChannelsFromDao);
         Assert.assertTrue(secondChannelsFromDao.isEmpty());
     }
 
@@ -112,11 +144,11 @@ public class DaoTest {
         var storageType = "USER";
         var s3Locator = LMST.StorageConfig.getDefaultInstance();
 
-        workflowDao.create(firstExecutionId, userId, firstWorkflowName, storageType, s3Locator);
+        create(userId, firstWorkflowName, firstExecutionId, storageType, s3Locator);
 
         var slotsUri = Set.of("slot_snapshot_1", "slot_snapshot_2");
 
-        Assert.assertThrows(SQLException.class, () -> executionDao.saveSlots(secondExecutionId, slotsUri));
+        Assert.assertThrows(SQLException.class, () -> executionDao.saveSlots(secondExecutionId, slotsUri, null));
         Set<String> existingSlots = executionDao.retainExistingSlots(slotsUri);
 
         Assert.assertTrue(existingSlots.isEmpty());
@@ -135,10 +167,11 @@ public class DaoTest {
         var unknownSlotUri = Set.of("slot_snapshot_2");
         var channels = Map.of("slot_snapshot_2", "channel_3");
 
-        workflowDao.create(executionId, userId, workflowName, storageType, s3Locator);
-        executionDao.saveSlots(executionId, slotsUri);
+        create(userId, workflowName, executionId, storageType, s3Locator);
 
-        Assert.assertThrows(SQLException.class, () -> executionDao.saveChannels(channels));
+        executionDao.saveSlots(executionId, slotsUri, null);
+
+        Assert.assertThrows(SQLException.class, () -> executionDao.saveChannels(channels, null));
         Map<String, String> channelsFromDao = executionDao.findChannels(SetUtils.union(slotsUri, unknownSlotUri));
         Assert.assertTrue(channelsFromDao.isEmpty());
     }
@@ -156,14 +189,15 @@ public class DaoTest {
         var oneMoreSlotUri = Set.of("slot_snapshot_2");
         var allSlotsUri = SetUtils.union(slotsUri, oneMoreSlotUri);
 
-        workflowDao.create(executionId, userId, firstWorkflowName, storageType, s3Locator);
-        executionDao.saveSlots(executionId, allSlotsUri);
+        create(userId, firstWorkflowName, executionId, storageType, s3Locator);
 
-        Assert.assertThrows(SQLException.class, () -> executionDao.saveSlots(executionId, oneMoreSlotUri));
+        executionDao.saveSlots(executionId, allSlotsUri, null);
+
+        Assert.assertThrows(SQLException.class, () -> executionDao.saveSlots(executionId, oneMoreSlotUri, null));
 
         Set<String> existingSlots = executionDao.retainExistingSlots(allSlotsUri);
 
-        Assert.assertEquals(allSlotsUri, existingSlots);
+        assertEquals(allSlotsUri, existingSlots);
     }
 
     @Test
@@ -185,17 +219,18 @@ public class DaoTest {
             "slot_snapshot_3", "channel_3"
         );
 
-        workflowDao.create(executionId, userId, workflowName, storageType, s3Locator);
-        executionDao.saveSlots(executionId, allSlotsUri);
-        executionDao.saveChannels(channels);
+        create(userId, workflowName, executionId, storageType, s3Locator);
+
+        executionDao.saveSlots(executionId, allSlotsUri, null);
+        executionDao.saveChannels(channels, null);
 
         Assert.assertThrows(SQLException.class, () ->
-            executionDao.saveChannels(Map.of("slot_snapshot_2", "channel_3")));
+            executionDao.saveChannels(Map.of("slot_snapshot_2", "channel_3"), null));
 
         Map<String, String> channelFromDao = executionDao.findChannels(oneMoreSlotUri);
 
-        Assert.assertEquals(1, channelFromDao.size());
-        Assert.assertEquals("channel_2", channels.get("slot_snapshot_2"));
+        assertEquals(1, channelFromDao.size());
+        assertEquals("channel_2", channels.get("slot_snapshot_2"));
     }
 
     @Test
@@ -207,10 +242,10 @@ public class DaoTest {
         var storageType = "USER";
         var s3Locator = LMST.StorageConfig.getDefaultInstance();
 
-        workflowDao.create(executionId, userId, workflowName, storageType, s3Locator);
+        create(userId, workflowName, executionId, storageType, s3Locator);
 
-        executionDao.saveSlots(executionId, Collections.emptySet());
-        executionDao.saveChannels(Collections.emptyMap());
+        executionDao.saveSlots(executionId, Collections.emptySet(), null);
+        executionDao.saveChannels(Collections.emptyMap(), null);
         Set<String> existingSlots = executionDao.retainExistingSlots(Collections.emptySet());
         Set<String> nonExistingSlots = executionDao.retainNonExistingSlots(executionId, Collections.emptySet());
         Map<String, String> existingChannels = executionDao.findChannels(Collections.emptySet());
@@ -220,8 +255,10 @@ public class DaoTest {
         Assert.assertTrue(existingChannels.isEmpty());
     }
 
-    @After
-    public void tearDown() {
-        lzyStorageCtx.stop();
+    private String create(String userId, String workflowName, String executionId, String storageType,
+                          LMST.StorageConfig storageData) throws SQLException
+    {
+        executionDao.create(userId, executionId, storageType, storageData, null);
+        return workflowDao.upsert(userId, workflowName, executionId, null);
     }
 }

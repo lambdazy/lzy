@@ -17,7 +17,7 @@ class S3Tests(TestCase):
         self.service.start()
         self.endpoint_url = "http://localhost:12345"
         asyncio.run(create_bucket(self.endpoint_url))
-        self.client = S3Client(credentials=S3Credentials(self.endpoint_url, access_token="", secret_token=""))
+        self.client = S3Client(credentials=S3Credentials(self.endpoint_url, access_key_id="", secret_access_key=""))
 
     def tearDown(self) -> None:
         self.service.stop()

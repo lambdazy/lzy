@@ -98,7 +98,7 @@ public abstract class ChannelAction implements Runnable {
         }
 
         try {
-            workflowPrivateApi.stopWorkflow(LWFPS.StopWorkflowRequest.newBuilder()
+            workflowPrivateApi.stopExecution(LWFPS.StopExecutionRequest.newBuilder()
                 .setExecutionId(executionId)
                 .setReason(status.getDescription())
                 .build());
@@ -129,12 +129,12 @@ public abstract class ChannelAction implements Runnable {
                     channel = withRetries(LOG, () -> channelDao.findChannel(sender.getChannelId(), null));
                 } catch (Exception e) {
                     String errorMessage = "Failed to find channel" + sender.getChannelId()
-                                          + " got exception: " + e.getMessage();
+                        + " got exception: " + e.getMessage();
                     throw new RuntimeException(errorMessage);
                 }
                 if (channel == null) {
                     LOG.info("Async operation (operationId=" + operationId + ") skipped,"
-                                          + " channel " + sender.getChannelId() + " not found");
+                        + " channel " + sender.getChannelId() + " not found");
                     return;
                 }
 
@@ -149,7 +149,7 @@ public abstract class ChannelAction implements Runnable {
                             channelDao.markEndpointUnbinding(receiverToUnbind.getUri().toString(), null));
                     } catch (Exception e) {
                         String errorMessage = "Failed to mark receiver " + receiverToUnbind.getUri() + " unbinding,"
-                                              + " got exception: " + e.getMessage();
+                            + " got exception: " + e.getMessage();
                         throw new RuntimeException(errorMessage);
                     }
                 }
@@ -184,7 +184,7 @@ public abstract class ChannelAction implements Runnable {
         try (final var guard = lockManager.withLock(channelId)) {
             withRetries(LOG, () -> channelDao.removeEndpoint(sender.getUri().toString(), null));
             LOG.info("Async operation (operationId={}): sender unbound,"
-                     + " unbindingSender={}", operationId, sender.getUri());
+                + " unbindingSender={}", operationId, sender.getUri());
         } catch (Exception e) {
             String errorMessage = "Failed to remove sender " + sender.getUri() + ", got exception: " + e.getMessage();
             throw new RuntimeException(errorMessage);
@@ -203,12 +203,12 @@ public abstract class ChannelAction implements Runnable {
                 channel = withRetries(LOG, () -> channelDao.findChannel(receiver.getChannelId(), null));
             } catch (Exception e) {
                 String errorMessage = "Failed to find channel" + receiver.getChannelId()
-                                      + " got exception: " + e.getMessage();
+                    + " got exception: " + e.getMessage();
                 throw new RuntimeException(errorMessage);
             }
             if (channel == null) {
                 LOG.info("Async operation (operationId=" + operationId + ") skipped,"
-                         + " channel " + receiver.getChannelId() + " not found");
+                    + " channel " + receiver.getChannelId() + " not found");
                 return;
             }
 
@@ -219,7 +219,7 @@ public abstract class ChannelAction implements Runnable {
                     withRetries(LOG, () -> channelDao.markConnectionDisconnecting(channelId,
                         sender.getUri().toString(), receiver.getUri().toString(), null));
                     LOG.info("Async operation (operationId={}): marked connection disconnecting,"
-                             + " unbindingReceiver={}, sender={}", operationId, receiver.getUri(), sender.getUri());
+                        + " unbindingReceiver={}, sender={}", operationId, receiver.getUri(), sender.getUri());
                 } catch (Exception e) {
                     throw new RuntimeException("Failed to mark connection disconnecting in storage", e);
                 }
@@ -252,10 +252,10 @@ public abstract class ChannelAction implements Runnable {
             }
             withRetries(LOG, () -> channelDao.removeEndpoint(receiver.getUri().toString(), null));
             LOG.info("Async operation (operationId={}): receiver removed,"
-                     + " unbindingReceiver={}", operationId, receiver.getUri());
+                + " unbindingReceiver={}", operationId, receiver.getUri());
         } catch (Exception e) {
             String errorMessage = "Failed to remove receiver " + receiver.getUri() + " with connection,"
-                                  + " got exception: " + e.getMessage();
+                + " got exception: " + e.getMessage();
             throw new RuntimeException(errorMessage);
         }
     }
@@ -269,13 +269,15 @@ public abstract class ChannelAction implements Runnable {
 
             slotApi.disconnectSlot(request);
         } catch (StatusRuntimeException e) {
-            if (Status.NOT_FOUND.getCode().equals(e.getStatus().getCode())) {
+            if (Status.NOT_FOUND.getCode().equals(e.getStatus().getCode()) ||
+                Status.UNAVAILABLE.getCode().equals(e.getStatus().getCode()))
+            {
                 LOG.info("Async operation (operationId={}): disconnectSlot request failed, slot not found. "
-                         + "Continue action", operationId);
+                    + "Continue action", operationId);
                 return;
             } else {
                 LOG.error("Async operation (operationId={}): disconnectSlot request failed"
-                          + " with code {}: {}. Schedule restart action",
+                        + " with code {}: {}. Schedule restart action",
                     operationId, e.getStatus().getCode(), e.getStatus().getDescription());
                 scheduleRestart();
                 return;
@@ -293,13 +295,15 @@ public abstract class ChannelAction implements Runnable {
 
             slotApi.destroySlot(request);
         } catch (StatusRuntimeException e) {
-            if (Status.NOT_FOUND.getCode().equals(e.getStatus().getCode())) {
+            if (Status.NOT_FOUND.getCode().equals(e.getStatus().getCode()) ||
+                Status.UNAVAILABLE.getCode().equals(e.getStatus().getCode()))
+            {
                 LOG.info("Async operation (operationId={}): destroySlot request failed, slot not found. "
-                         + "Continue action", operationId);
+                    + "Continue action", operationId);
                 return;
             } else {
                 LOG.error("Async operation (operationId={}): destroySlot request failed"
-                          + " with code {}: {}. Schedule restart action",
+                        + " with code {}: {}. Schedule restart action",
                     operationId, e.getStatus().getCode(), e.getStatus().getDescription());
                 scheduleRestart();
                 return;

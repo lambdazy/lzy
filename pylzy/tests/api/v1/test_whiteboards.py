@@ -38,12 +38,6 @@ class WhiteboardWithDefaults:
 
 
 class WhiteboardTests(TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        # setup PYTHONPATH for child processes used in LocalRuntime
-        pylzy_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
-        os.environ["PYTHONPATH"] = pylzy_directory + ":" + pylzy_directory + "/tests"
-
     def setUp(self) -> None:
         self.grpc_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         self.mock = WhiteboardIndexServiceMock()
@@ -69,9 +63,7 @@ class WhiteboardTests(TestCase):
         self.storage_uri = "s3://bucket/prefix"
         storage_config = Storage(
             uri=self.storage_uri,
-            credentials=S3Credentials(
-                self.endpoint_url, access_token="", secret_token=""
-            ),
+            credentials=S3Credentials(self.endpoint_url, access_key_id="", secret_access_key="")
         )
         self.lzy.storage_registry.register_storage('default', storage_config, True)
 

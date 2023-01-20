@@ -16,12 +16,12 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
 import static ai.lzy.v1.longrunning.LongRunning.GetOperationRequest;
 
-public class OperationService extends LongRunningServiceGrpc.LongRunningServiceImplBase {
-    private static final Logger LOG = LogManager.getLogger(OperationService.class);
+public final class OperationsService extends LongRunningServiceGrpc.LongRunningServiceImplBase {
+    private static final Logger LOG = LogManager.getLogger(OperationsService.class);
 
     private final OperationDao operations;
 
-    public OperationService(OperationDao operations) {
+    public OperationsService(OperationDao operations) {
         this.operations = operations;
     }
 
